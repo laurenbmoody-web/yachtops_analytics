@@ -2772,6 +2772,13 @@ const ProvisioningBoardDetail = () => {
                         // the supplier/financial inputs to the derive function.
                         const itemOrder = itemStatusMap[(item.name || '').toLowerCase().trim()];
                         const isLocked = isSent && !!itemOrder;
+                        // The crew lives at quote_in / quoting / confirming for
+                        // most of the order's life — the board-level "sent"
+                        // flag only flips after Receive Items. So we use the
+                        // looser hasSupplierMatch flag for surfacing supplier
+                        // values (price / qty diff / notes) and reserve
+                        // isLocked for actual edit-locking.
+                        const hasSupplierMatch = !!itemOrder;
                         // Unified pill: derive across (item, supplier_order_item,
                         // supplier_order). Single source of truth — no SUPPLIER_BADGE
                         // swap, no displayBadge fork.
@@ -2855,12 +2862,12 @@ const ProvisioningBoardDetail = () => {
                                 inputStyle={{ fontSize: 11, color: '#0F172A', paddingLeft: allergen ? 18 : undefined }}
                               />}
                               {(isReceived || isLocked) && item.brand && <span style={{ fontSize: 11, color: dim || '#94A3B8', padding: '2px 6px' }}>{item.brand}</span>}
-                              {isLocked && itemOrder?.status === 'substituted' && itemOrder.substitution && (
+                              {hasSupplierMatch && itemOrder?.status === 'substituted' && itemOrder.substitution && (
                                 <span style={{ fontSize: 11, color: '#C65A1A', fontWeight: 600, paddingLeft: 6, marginTop: 2 }}>
                                   Sub: {itemOrder.substitution}{itemOrder.subPrice ? ` (${itemOrder.subPrice})` : ''}
                                 </span>
                               )}
-                              {isLocked && itemOrder?.hasNote && (
+                              {hasSupplierMatch && itemOrder?.hasNote && (
                                 <span style={{
                                   fontSize: 11,
                                   fontStyle: 'italic',
@@ -2892,11 +2899,13 @@ const ProvisioningBoardDetail = () => {
                                 </span>
                               </div>
                             )}
-                            {/* Size — locked rows show the supplier's size with
-                                a struck-through original when the supplier
-                                overrode the crew's ask. */}
+                            {/* Size — once the item lives inside a supplier
+                                order, show the supplier's size with a
+                                struck-through original when they overrode
+                                the crew's ask. Editable only when no
+                                supplier match exists yet. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {isReceived || isLocked
+                              {isReceived || hasSupplierMatch
                                 ? (
                                     itemOrder?.sizeChanged
                                       ? (
@@ -2912,7 +2921,7 @@ const ProvisioningBoardDetail = () => {
                             </div>
                             {/* Unit — same strikethrough treatment as Size. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {isReceived || isLocked
+                              {isReceived || hasSupplierMatch
                                 ? (
                                     itemOrder?.unitChanged
                                       ? (
@@ -2930,9 +2939,10 @@ const ProvisioningBoardDetail = () => {
                             </div>
                             {/* Qty — strikethrough requested_quantity next to
                                 the supplier's actual quantity when it
-                                differs. Pre-send rows stay editable. */}
+                                differs. Editable only when no supplier
+                                match exists yet. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
-                              {isReceived || isLocked
+                              {isReceived || hasSupplierMatch
                                 ? (
                                     itemOrder?.qtyChanged
                                       ? (
@@ -2954,14 +2964,14 @@ const ProvisioningBoardDetail = () => {
                                   </>
                               }
                             </div>
-                            {/* Unit Cost — once the order is sent, the chief
-                                sees the supplier's confirmed price (agreed
-                                > quoted) instead of the crew's pre-send
-                                estimate. Before send, the row's estimate
-                                stays editable. */}
+                            {/* Unit Cost — once the item lives in a supplier
+                                order with a confirmed/quoted price, the
+                                chief sees the supplier's figure (agreed >
+                                quoted). Before any supplier match, the
+                                row's estimate stays editable. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
                               <span style={{ fontSize: 11, color: dim || '#94A3B8', flexShrink: 0 }}>{origSymbol}</span>
-                              {isReceived || isLocked
+                              {isReceived || hasSupplierMatch
                                 ? (() => {
                                     const supplierPrice = itemOrder?.supplierPrice;
                                     if (supplierPrice != null && Number(supplierPrice) > 0) {
@@ -2976,15 +2986,15 @@ const ProvisioningBoardDetail = () => {
                                 : <AlwaysEditCell value={item.estimated_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'estimated_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right' }} />
                               }
                             </div>
-                            {/* Total — uses the supplier's confirmed price ×
-                                the supplier's (possibly overridden) quantity
-                                once the order is sent. Falls back to the
+                            {/* Total — supplier's confirmed price × supplier's
+                                (possibly overridden) qty when a match exists
+                                and carries a price. Falls back to crew's
                                 pre-send estimate × crew qty otherwise. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               {(() => {
                                 const supplierPrice = itemOrder?.supplierPrice;
                                 const supplierQty = itemOrder?.quantity;
-                                if ((isReceived || isLocked) && supplierPrice != null && Number(supplierPrice) > 0) {
+                                if (hasSupplierMatch && supplierPrice != null && Number(supplierPrice) > 0) {
                                   const qty = Number(supplierQty ?? item.quantity_ordered) || 0;
                                   const total = qty * convertCost(Number(supplierPrice));
                                   return <span style={{ fontSize: 13, color: dim || '#0F172A', fontWeight: 600 }}>{dispSymbol}{total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>;
