@@ -2730,6 +2730,20 @@ const canEdit = (() => {
       setTimeout(() => loadHORData(), 500);
     };
 
+    // Crew clicks a breach day to add/edit its reason — only while the month is
+    // still their own and open (not yet submitted). Reuses BreachNotesModal.
+    const breachEditable = isOwnProfile && dbStatus === 'open';
+    const openBreachReason = (ds, items) => {
+      if (!breachEditable) return;
+      setBreachedDates([{
+        date: ds,
+        breachTypes: items.map((b) => b?.breachType).filter(Boolean),
+        restHours: items[0]?.restHours ?? 0,
+        explanation: breachReasonsByDate[ds]?.note_text || '',
+      }]);
+      setShowBreachNotesModal(true);
+    };
+
     return (
       <div className="space-y-6">
         {/* Header — editorial "HOR, <status>." (navy + terracotta serif),
@@ -2881,6 +2895,23 @@ const canEdit = (() => {
                   {dbMonthStatus?.submitted_at ? ` on ${new Date(dbMonthStatus.submitted_at).toLocaleDateString('en-GB')}` : ''}
                   {' '}· {monthCompliantPct}% compliant · {breachDayCount} breach day{breachDayCount === 1 ? '' : 's'}.
                 </p>
+                {/* Whole month at a glance — every day's rest hours, breach days
+                    flagged terracotta, marginal days amber — so the master can
+                    eyeball the full month, not just the breach list. */}
+                {calendarData?.length > 0 && (
+                  <div className="cp-revcal" aria-label="Month at a glance">
+                    {calendarData.map((d) => (
+                      <div
+                        key={d.date}
+                        className={`cp-revcell ${d.status || ''}`}
+                        title={`${d.date} · ${Math.round(d.restHours)}h rest`}
+                      >
+                        <span className="cp-revcell-d">{d.day}</span>
+                        <span className="cp-revcell-h">{Math.round(d.restHours)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {(() => {
                   const mb = buildMonthBreaches();
                   return mb.length > 0 ? (
@@ -2917,91 +2948,65 @@ const canEdit = (() => {
               onChanged={loadHORData}
             />
 
-            {/* Breaches & sign-off (Phase 4) — editorial section, not a boxed widget */}
+            {/* Breaches — editorial summary, mirroring the sign-off view. No red
+                alerts; each day shows its documented reason and (for approvers)
+                its sign-off state. Crew can click a day to add/edit the reason
+                while the month is still open. */}
             <div className="cp-flatcard p-6 flex flex-col">
-                    <div className="cp-section-head">
-                      <span className="cp-section-kicker">Compliance</span>
-                      <h3>Breaches</h3>
-                    </div>
-                    <div className="flex-1 space-y-3 overflow-y-auto max-h-[500px]">
-                      {breaches?.length > 0 ? (
-                        breaches?.map(breach => (
-                          <div key={breach?.id} className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                            <div className="flex items-start gap-3">
-                              <Icon name="AlertCircle" size={18} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                              <div className="flex-1">
-                                <div className="text-xs font-medium text-muted-foreground mb-1">
-                                  Window: {breach?.windowStart} → {breach?.windowEnd}
-                                </div>
-                                <div className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">{breach?.type}</div>
-                                <div className="text-xs text-muted-foreground">{breach?.note}</div>
-                              </div>
-                            </div>
+              <div className="cp-section-head">
+                <span className="cp-section-kicker">Compliance</span>
+                <h3>Breaches</h3>
+              </div>
+              {breaches?.length > 0 ? (
+                <ul className="cp-brlist">
+                  {(() => {
+                    const byDate = {};
+                    breaches.forEach((b) => { (byDate[b.dateStr] || (byDate[b.dateStr] = [])).push(b); });
+                    return Object.keys(byDate).sort().map((ds) => {
+                      const items = byDate[ds];
+                      const reason = breachReasonsByDate[ds];
+                      const documented = !!reason?.note_text;
+                      const signed = !!reason?.signed_off_at;
+                      const [yy, mm, dd] = ds.split('-');
+                      return (
+                        <li
+                          key={ds}
+                          className={`cp-brrow${breachEditable ? ' is-editable' : ''}`}
+                          onClick={breachEditable ? () => openBreachReason(ds, items) : undefined}
+                          role={breachEditable ? 'button' : undefined}
+                          tabIndex={breachEditable ? 0 : undefined}
+                          onKeyDown={breachEditable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBreachReason(ds, items); } } : undefined}
+                        >
+                          <div className="cp-brrow-main">
+                            <div className="cp-brrow-date">{dd}/{mm}/{yy}</div>
+                            <div className="cp-brrow-rule">{[...new Set(items.map((b) => b.type))].join('  ·  ')}</div>
+                            {documented
+                              ? <div className="cp-brrow-reason">{reason.note_text}</div>
+                              : <div className="cp-brrow-reason none">{breachEditable ? 'Add a reason →' : 'No reason documented'}</div>}
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-8">
-                          <Icon name="CheckCircle" size={32} className="text-green-600 dark:text-green-400 mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">No breaches recorded</p>
-                        </div>
-                      )}
-                    </div>
-                    {/* Breach reasons & sign-off (Phase 4) */}
-                    {Object.keys(breachReasonsByDate).length > 0 && (
-                      <div className="mt-6 pt-4 border-t border-border">
-                        <h4 className="text-sm font-semibold text-foreground mb-3">Breach reasons &amp; sign-off</h4>
-                        <div className="space-y-3">
-                          {Object.values(breachReasonsByDate)
-                            .sort((a, b) => (a.breach_date < b.breach_date ? -1 : 1))
-                            .map((r) => {
-                              const signed = !!r.signed_off_at;
-                              return (
-                                <div key={r.breach_date} className="bg-card border border-border rounded-lg p-3">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1">
-                                      <div className="text-xs font-medium text-muted-foreground mb-1">
-                                        {new Date(r.breach_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                      </div>
-                                      <div className="text-sm text-foreground">{r.note_text}</div>
-                                    </div>
-                                    <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
-                                      signed ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                             : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                                    }`}>
-                                      {signed ? 'Signed off' : 'Awaiting sign-off'}
-                                    </span>
-                                  </div>
-                                  {canApprove && (
-                                    <div className="mt-2 flex justify-end">
-                                      {signed ? (
-                                        <Button variant="outline" size="sm" onClick={() => handleUnsignBreach(r.breach_date)}>
-                                          Clear sign-off
-                                        </Button>
-                                      ) : (
-                                        <Button size="sm" onClick={() => handleSignOffBreach(r.breach_date)}>
-                                          <Icon name="CheckCircle" size={16} />
-                                          Sign off
-                                        </Button>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    )}
-                    {/* Quick Entry Button */}
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <Button
-                        variant="default"
-                        fullWidth
-                        iconName="Plus"
-                        onClick={() => setShowQuickEntry(true)}
-                      >
-                        Add Entry
-                      </Button>
-                    </div>
+                          <div className="cp-brrow-side">
+                            <span className={`cp-brpill ${signed ? 'ok' : documented ? 'pending' : 'open'}`}>
+                              {signed ? 'Signed off' : documented ? 'Awaiting sign-off' : 'Needs reason'}
+                            </span>
+                            {canApprove && documented && (
+                              signed
+                                ? <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={(e) => { e.stopPropagation(); handleUnsignBreach(ds); }}>Clear</button>
+                                : <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={(e) => { e.stopPropagation(); handleSignOffBreach(ds); }}>Sign off</button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    });
+                  })()}
+                </ul>
+              ) : (
+                <p className="cp-brempty">No breaches recorded — every logged day meets the rest thresholds.</p>
+              )}
+              {breachEditable && (
+                <button type="button" className="cp-hor-btn cp-hor-btn-ghost cp-braddentry" onClick={() => setShowQuickEntry(true)}>
+                  <Icon name="Plus" size={16} /> Add entry
+                </button>
+              )}
             </div>
           </>)
         )}
