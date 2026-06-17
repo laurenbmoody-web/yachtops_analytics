@@ -387,7 +387,9 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
 
         {/* Items */}
         <div className="ord-rp-section-head">
-          <h2 className="ord-rp-section-h">Items</h2>
+          <h2 className="ord-rp-section-h">
+            Items<span style={{ color: 'var(--d-muted-soft)' }}>,</span> <em>across {byDept.length || 0} dept{byDept.length === 1 ? '' : 's'}</em><span style={{ color: 'var(--d-muted-soft)' }}>.</span>
+          </h2>
         </div>
 
         {loading ? (
@@ -456,7 +458,7 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
         {/* Past spend */}
         {pastSpend.length > 0 && (
           <div className="ord-rp-past">
-            <div className="ord-rp-past-title">Recent boards on this vessel</div>
+            <div className="ord-rp-past-title">Recent spend · this vessel</div>
             {pastSpend.map((p) => (
               <div key={p.id} className="ord-rp-past-row">
                 <span>{p.title || 'Untitled'} · {formatDateShort(p.created_at)}</span>
