@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Preview & Confirm — clean mocks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B3A; --serif:'DM Serif Display',Georgia,serif; --sans:'Plus Jakarta Sans',system-ui,sans-serif;
+    --tan:#8B8478; --tan2:#A89F8C; --faint:#C9C0AE;
+    --line:#ECE6DC; --line2:#DFD8CC;
+    --terra:#C65A1A; --terra-deep:#7A2E1E; --green:#2D5A3A;
+    --seg-new:#C8643C; --seg-duty:#2A3550; --seg-rest:#E8EEE8;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#EDEAE3;font-family:var(--sans);padding:40px 28px 80px;color:var(--ink);}
+  h1{font-family:var(--serif);font-weight:400;font-size:25px;margin:0 0 6px;}
+  .lede{font-size:13px;color:var(--tan);margin:0 0 34px;max-width:760px;line-height:1.6;}
+  .row{display:flex;gap:30px;align-items:flex-start;flex-wrap:wrap;}
+  .col{width:412px;}
+  .col-cap{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#695880;font-weight:700;margin:0 2px 12px;}
+  .col-note{font-size:11.5px;color:var(--tan);line-height:1.55;margin:12px 2px 0;}
+  .col-note b{color:var(--ink);font-weight:600;}
+
+  /* ── Modal shell (shared) ───────────────────────────────── */
+  .modal{background:#fff;border-top:2px solid var(--terra);border-radius:16px;
+         box-shadow:0 22px 54px -30px rgba(28,27,58,.40);
+         font-family:var(--sans);color:var(--ink);}
+  .head{display:flex;align-items:flex-start;gap:12px;}
+  .eyebrow{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--tan2);font-weight:600;}
+  .title{font-family:var(--serif);font-size:20px;line-height:1.15;margin-top:6px;}
+  .close{margin-left:auto;width:30px;height:30px;border-radius:50%;border:0.5px solid var(--line2);
+         background:#fff;color:var(--tan);cursor:pointer;flex:none;font-size:13px;line-height:1;}
+  .sub{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--tan2);}
+  .legend{display:flex;gap:16px;font-size:10.5px;color:var(--tan);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:10px;height:10px;border-radius:2px;}
+  .legend i.n{background:var(--seg-new);}
+  .legend i.d{background:var(--seg-duty);}
+  .legend i.r{background:var(--seg-rest);border:1px solid #cdd6cd;}
+
+  /* timeline bar with ticks */
+  .bar{position:relative;display:flex;height:18px;border-radius:5px;overflow:hidden;background:var(--seg-rest);}
+  .bar .seg{height:100%;}
+  .bar .seg.new{background:var(--seg-new);}
+  .bar .seg.duty{background:var(--seg-duty);}
+  .bar .seg.rest{background:var(--seg-rest);}
+  .ticks{position:relative;height:13px;margin-top:3px;}
+  .ticks span{position:absolute;transform:translateX(-50%);font-size:8.5px;color:var(--faint);letter-spacing:.3px;}
+  .ticks span:first-child{transform:none;}
+  .ticks span:last-child{transform:translateX(-100%);}
+
+  .chip{font-size:9px;border-radius:999px;padding:2px 9px;font-weight:600;display:inline-flex;align-items:center;gap:3px;}
+  .chip.ok{background:#EEF4EE;color:var(--green);border:0.5px solid #D2E3D4;}
+  .chip.warn{background:#FBEEE9;color:var(--terra);border:0.5px solid #F2CDBE;}
+
+  .actions{display:flex;gap:10px;}
+  .btn{border-radius:9px;padding:10px 18px;font-size:12.5px;font-weight:600;cursor:pointer;
+       border:0.5px solid var(--line2);font-family:inherit;}
+  .btn.primary{background:var(--ink);color:#F5F1EA;border-color:var(--ink);}
+  .btn.ghost{background:transparent;color:var(--ink);}
+
+  .av{width:30px;height:30px;border-radius:50%;background:#F2EFE9;border:0.5px solid var(--line);
+      display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#695880;flex:none;}
+
+  /* =====================================================================
+     VARIANT A — Aligned ledger
+     One consistent unit per crew member: avatar gutter + content column.
+     Even 18px rhythm, hairline dividers, right-aligned rest delta.
+  ===================================================================== */
+  .A{padding:22px 24px 20px;}
+  .A .head{margin-bottom:20px;}
+  .A .meta{display:flex;align-items:center;justify-content:space-between;
+           padding-bottom:14px;border-bottom:0.5px solid var(--line);margin-bottom:4px;}
+  .A .unit{display:grid;grid-template-columns:30px 1fr;gap:13px;padding:16px 0;border-bottom:0.5px solid var(--line);}
+  .A .unit:last-of-type{border-bottom:0;}
+  .A .who{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+  .A .name{font-size:13px;font-weight:600;}
+  .A .role{font-size:9.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--tan2);font-weight:500;margin-left:7px;}
+  .A .delta{font-size:11px;font-weight:600;color:var(--green);white-space:nowrap;}
+  .A .change{font-size:11px;margin-top:5px;line-height:1.5;}
+  .A .change .rm{color:var(--terra-deep);}
+  .A .change .add{color:var(--green);}
+  .A .bar{margin-top:11px;}
+  .A .compliance{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:10px;color:var(--tan);}
+  .A .compliance .k{color:var(--tan2);}
+  .A .foot{margin-top:20px;}
+  .A .foot .note{font-size:10.5px;color:var(--tan);line-height:1.55;margin-bottom:15px;}
+  .A .actions .btn.primary{flex:1;}
+
+  /* =====================================================================
+     VARIANT B — Stacked tiles
+     Each affected crew in a soft tile; source tile reads as "giving back",
+     recipient tiles carry the timeline. Generous internal padding.
+  ===================================================================== */
+  .B{padding:22px 24px 20px;background:#FBFAF7;}
+  .B .head{margin-bottom:18px;}
+  .B .meta{display:flex;align-items:center;gap:9px;margin-bottom:14px;}
+  .B .meta .sub{margin:0;}
+  .B .meta .dot{width:3px;height:3px;border-radius:50%;background:var(--faint);}
+  .B .tile{background:#fff;border:0.5px solid var(--line);border-radius:11px;padding:14px 15px;margin-bottom:11px;}
+  .B .tile.source{background:#FBF1EA;border-color:#F2CDBE;}
+  .B .who{display:flex;align-items:center;gap:11px;}
+  .B .who .txt{flex:1;}
+  .B .name{font-size:12.5px;font-weight:600;}
+  .B .role{font-size:9.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--tan2);margin-top:2px;}
+  .B .delta{font-size:11px;font-weight:600;color:var(--green);white-space:nowrap;}
+  .B .delta.give{color:var(--terra-deep);}
+  .B .change{font-size:11px;margin-top:11px;padding-top:11px;border-top:0.5px dashed var(--line);line-height:1.5;}
+  .B .change .add{color:var(--green);font-weight:500;}
+  .B .bar{margin-top:10px;}
+  .B .legend{margin-top:9px;}
+  .B .compliance{display:flex;gap:8px;margin-top:11px;}
+  .B .foot{margin-top:8px;}
+  .B .foot .note{font-size:10.5px;color:var(--tan);line-height:1.55;margin:4px 2px 15px;}
+  .B .actions .btn.primary{flex:1;}
+</style>
+</head>
+<body>
+  <h1>Preview &amp; Confirm — clean layouts</h1>
+  <p class="lede">
+    This step is about the <b>new shifts</b> going onto the grid — the removal was confirmed in the previous
+    step, so the source simply shows its resulting day and rest gain. Re-spaced for a steadier vertical
+    rhythm and a 24h timeline that actually reads. Two directions below.
+    Sample: <b>Drop the midnight watch tomorrow</b> · Chief Stew frees 00:00–04:00, Claire Dubois covers.
+  </p>
+
+  <div class="row">
+
+    <!-- ============== VARIANT A — Aligned ledger ============== -->
+    <div class="col">
+      <div class="col-cap">Option A · Aligned ledger</div>
+      <div class="modal A">
+        <div class="head">
+          <div>
+            <div class="eyebrow">Preview &amp; confirm</div>
+            <div class="title">Drop the midnight watch tomorrow</div>
+          </div>
+          <button class="close">✕</button>
+        </div>
+
+        <div class="meta">
+          <span class="sub">2 crew affected · 2026-06-18</span>
+          <span class="legend">
+            <span><i class="n"></i>cover</span>
+            <span><i class="d"></i>duty</span>
+            <span><i class="r"></i>rest</span>
+          </span>
+        </div>
+
+        <!-- source: resulting day, freed time is simply rest now -->
+        <div class="unit">
+          <div class="av">CS</div>
+          <div>
+            <div class="who">
+              <div><span class="name">Chief Stew</span><span class="role">Chief Stewardess</span></div>
+              <div class="delta">+4h rest</div>
+            </div>
+            <div class="bar" style="margin-top:9px">
+              <div class="seg rest" style="width:50%"></div>
+              <div class="seg duty" style="width:41.7%"></div>
+              <div class="seg rest" style="width:8.3%"></div>
+            </div>
+            <div class="ticks"><span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>
+            <div class="compliance">
+              <span class="k">Daily</span><span class="chip ok">24h ✓</span>
+              <span class="k">Weekly</span><span class="chip ok">81h ✓</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- recipient -->
+        <div class="unit">
+          <div class="av">CD</div>
+          <div>
+            <div class="who">
+              <div><span class="name">Claire Dubois</span><span class="role">2nd Stewardess</span></div>
+              <div class="delta" style="color:var(--terra)">+4h cover</div>
+            </div>
+            <div class="change"><span class="add">+ add 00:00–04:00</span></div>
+            <div class="bar">
+              <div class="seg new" style="width:16.6%"></div>
+              <div class="seg rest" style="width:33.4%"></div>
+              <div class="seg duty" style="width:33.3%"></div>
+              <div class="seg rest" style="width:16.7%"></div>
+            </div>
+            <div class="ticks"><span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>
+            <div class="compliance">
+              <span class="k">Daily</span><span class="chip ok">20h ✓</span>
+              <span class="k">Weekly</span><span class="chip ok">116h ✓</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="foot">
+          <div class="note">Recipients re-checked against all four MLC rules — 10h daily · 77h weekly · rest split · 14h continuous. Confirm writes every edit to the grid as draft.</div>
+          <div class="actions">
+            <button class="btn primary">Confirm &amp; apply</button>
+            <button class="btn ghost">Back</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-note"><b>Why it reads cleaner:</b> a single avatar gutter aligns every crew member, the rest delta sits flush-right on the name line. The removal was already confirmed last step, so the source just shows its <b>resulting day</b> (+4h rest, freed time now plain rest); the highlighted <b>cover</b> band is reserved for the new shift being added. Even rhythm on hairline dividers.</div>
+    </div>
+
+    <!-- ============== VARIANT B — Stacked tiles ============== -->
+    <div class="col">
+      <div class="col-cap">Option B · Stacked tiles</div>
+      <div class="modal B">
+        <div class="head">
+          <div>
+            <div class="eyebrow">Preview &amp; confirm</div>
+            <div class="title">Drop the midnight watch tomorrow</div>
+          </div>
+          <button class="close">✕</button>
+        </div>
+
+        <div class="meta">
+          <span class="sub">2 crew affected</span><span class="dot"></span><span class="sub">2026-06-18</span>
+        </div>
+
+        <!-- source tile -->
+        <div class="tile source">
+          <div class="who">
+            <div class="av">CS</div>
+            <div class="txt"><div class="name">Chief Stew</div><div class="role">Chief Stewardess</div></div>
+            <div class="delta give">+4h rest</div>
+          </div>
+          <div style="margin-top:13px;border-top:0.5px dashed var(--line)"></div>
+          <div class="bar" style="margin-top:13px">
+            <div class="seg rest" style="width:50%"></div>
+            <div class="seg duty" style="width:41.7%"></div>
+            <div class="seg rest" style="width:8.3%"></div>
+          </div>
+          <div class="ticks"><span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>
+          <div class="legend">
+            <span><i class="d"></i>duty</span>
+            <span><i class="r"></i>rest</span>
+          </div>
+          <div class="compliance">
+            <span class="chip ok">Daily 24h ✓</span>
+            <span class="chip ok">Weekly 81h ✓</span>
+          </div>
+        </div>
+
+        <!-- recipient tile -->
+        <div class="tile">
+          <div class="who">
+            <div class="av">CD</div>
+            <div class="txt"><div class="name">Claire Dubois</div><div class="role">2nd Stewardess</div></div>
+            <div class="delta">+4h cover</div>
+          </div>
+          <div class="change"><span class="add">+ add 00:00–04:00</span></div>
+          <div class="bar">
+            <div class="seg new" style="width:16.6%"></div>
+            <div class="seg rest" style="width:33.4%"></div>
+            <div class="seg duty" style="width:33.3%"></div>
+            <div class="seg rest" style="width:16.7%"></div>
+          </div>
+          <div class="ticks"><span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>
+          <div class="legend">
+            <span><i class="n"></i>cover</span>
+            <span><i class="d"></i>duty</span>
+            <span><i class="r"></i>rest</span>
+          </div>
+          <div class="compliance">
+            <span class="chip ok">Daily 20h ✓</span>
+            <span class="chip ok">Weekly 116h ✓</span>
+          </div>
+        </div>
+
+        <div class="foot">
+          <div class="note">All recipients re-checked against the four MLC rules. Confirm writes every edit to the grid as draft.</div>
+          <div class="actions">
+            <button class="btn primary">Confirm &amp; apply</button>
+            <button class="btn ghost">Back</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-note"><b>Why it reads cleaner:</b> each crew member is a self-contained tile. The source tile shows its resulting day (+4h rest, no red "remove" line — that was settled last step); only the recipient carries a highlighted <b>cover</b> band for the new shift. Source keeps its warm terracotta wash. More air, slightly taller.</div>
+    </div>
+
+  </div>
+</body>
+</html>
