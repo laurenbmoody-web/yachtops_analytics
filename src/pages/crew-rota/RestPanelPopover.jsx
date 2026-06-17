@@ -306,7 +306,7 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
         {warn && !suggestionsLoading && visibleCount === 0 && (
           <div className="rest-section">
             <SectionHead label="WORTH CONSIDERING" accent />
-            <div className="rest-section-summary">
+            <div className="rest-empty-note">
               No coverage-safe fix to suggest — the department is fully on duty during
               {' '}{data.fullName.split(' ')[0]}’s watches, and this breach is from hours already
               worked. Log a reason or adjust the rota manually.
