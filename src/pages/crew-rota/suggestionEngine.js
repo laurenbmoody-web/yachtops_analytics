@@ -291,7 +291,23 @@ export function generateRankedSuggestions({
   // have rolled out of it) — trimming an already-compliant week "resolves"
   // nothing. A trim is surfaced (even with no taker, dropping the hour) only
   // when it genuinely clears that window's breach: resolvesAll.
-  const usable = scored.filter((c) => c.windowBreached && (c.resolvesAll || c.coverage.partial));
+  let usable = scored.filter((c) => c.windowBreached && (c.resolvesAll || c.coverage.partial));
+
+  // Proportionality — prefer the SMALLEST change that fixes it. If a lean lever
+  // already clears the breach with clean (full, no-breach) coverage, drop the
+  // over-corrections: offering a full day off that frees 13h (and fragments the
+  // watch across the crew) when a 4h trim suffices is a sledgehammer. We only
+  // prune when a proportionate clean fix actually exists — if the only resolver
+  // IS the big one (e.g. a structural cut that needs the whole block gone), it
+  // stays. Margin keeps near-equal alternatives (a trim on another day) in play.
+  const OVERSHOOT_MARGIN_H = 2;
+  const cleanResolvers = usable.filter((c) => c.resolvesAll && c.coverage.ok);
+  if (cleanResolvers.length) {
+    const leanestFreed = Math.min(...cleanResolvers.map((c) => c.freedBlock.hours));
+    usable = usable.filter((c) => !(c.resolvesAll
+      && c.freedBlock.hours > leanestFreed + OVERSHOOT_MARGIN_H));
+  }
+
   usable.sort((a, b) => (b.score - a.score) || (a.id < b.id ? -1 : 1));
   const ranked = usable;
 
