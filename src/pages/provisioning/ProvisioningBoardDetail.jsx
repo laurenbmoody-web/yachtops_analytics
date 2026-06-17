@@ -441,20 +441,20 @@ const ProvisioningBoardDetail = () => {
 
   // Per-user / per-request "have I read this reviewer note" memory.
   // Persisted in localStorage so the chip stops pulsing once the user
-  // has actually opened it, even across reloads. Approvers don't see
-  // the pulse on their own note — they wrote it.
+  // has actually opened it, even across reloads. Author of the note
+  // still sees the pulse on first view too — they might be returning
+  // to the board hours later wanting to remember exactly what they
+  // wrote, and a click dismisses it just as quickly as a non-author.
   const reviewNoteSeenKey = (approvalRequest?.id && user?.id)
     ? `cargo.provReviewNoteSeen.${user.id}.${approvalRequest.id}`
     : null;
   useEffect(() => {
     if (!approvalRequest?.id || !user?.id) { setReviewNoteSeen(false); return; }
-    // The author of the note doesn't need a pulse to tell them about it.
-    if (approvalRequest.approver_id === user.id) { setReviewNoteSeen(true); return; }
     try {
       const v = window.localStorage.getItem(reviewNoteSeenKey);
       setReviewNoteSeen(v === '1');
     } catch { setReviewNoteSeen(false); }
-  }, [approvalRequest?.id, approvalRequest?.approver_id, user?.id, reviewNoteSeenKey]);
+  }, [approvalRequest?.id, user?.id, reviewNoteSeenKey]);
 
   // Open → mark seen + persist. Once dismissed, the chip stops
   // pulsing for this user/request forever.
