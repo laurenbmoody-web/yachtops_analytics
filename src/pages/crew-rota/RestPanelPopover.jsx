@@ -85,18 +85,23 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
     statusLabel,
   ].filter(Boolean).join(' · ').toUpperCase();
 
-  // Per-section MLC compliance tags. Daily covers the 10h rest rule plus the
-  // structural rules (split / continuous stretch) since those show in the
-  // timeline; Weekly covers the 77h rolling rule.
-  const dailyBad = data.dailyBelow || data.structuralBreach;
+  // Per-section MLC compliance tags, each scoped to the rule's window:
+  //  · Daily covers the 10h-rest rule + today's rest-split rule.
+  //  · Weekly covers the 77h rolling rule + the 14h continuous-duty rule
+  //    (both assessed across the 7-day window). The hours shortfall takes
+  //    precedence over the structural note when both apply.
+  const dailyBad = data.dailyBelow || data.splitBreach;
   const dailyTag = data.dailyBelow
     ? `${MLC_DAILY - data.dailyHours}h short of ${MLC_DAILY}h minimum`
-    : data.structuralBreach
-      ? (data.structuralLabel || 'rest pattern breaches MLC')
+    : data.splitBreach
+      ? 'rest split breaches MLC'
       : `meets ${MLC_DAILY}h minimum ✓`;
+  const weeklyBad = data.weeklyBelow || data.stretchBreach;
   const weeklyTag = data.weeklyBelow
     ? `${MLC_WEEKLY - data.weeklyHours}h short of ${MLC_WEEKLY}h minimum`
-    : `meets ${MLC_WEEKLY}h minimum ✓`;
+    : data.stretchBreach
+      ? 'over 14h continuous on duty'
+      : `meets ${MLC_WEEKLY}h minimum ✓`;
 
   const tripSummaryHtml = data.daysWorked > 0
     ? `<em>${data.fullName}</em> worked <strong>${data.onDutyWeekLabel}</strong> on duty across <strong>${data.daysWorked}</strong> day${data.daysWorked === 1 ? '' : 's'} in the last 7 days.`
@@ -166,7 +171,7 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           <SectionHead
             label="WEEKLY REST · ROLLING 7 DAYS"
             tag={weeklyTag}
-            tagState={data.weeklyBelow ? 'bad' : 'ok'}
+            tagState={weeklyBad ? 'bad' : 'ok'}
           />
           {/* Shortfall now lives in the section tag; summary stays the trend line. */}
           <div className="rest-section-summary">{data.chartSummary}</div>

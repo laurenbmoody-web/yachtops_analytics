@@ -356,20 +356,11 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           weeklyBelow,
           dailyHours: Math.round(rest24h),
           dailyBelow,
-          // Structural rules (rest split / max continuous stretch) belong to the
-          // daily timeline; surface them on the Daily section.
-          structuralBreach: mlcReport.breaches.some(
-            b => b.rule === 'rest_period_split' || b.rule === 'max_work_stretch_14h',
-          ),
-          structuralLabel: (() => {
-            const b = mlcReport.breaches.find(
-              r => r.rule === 'rest_period_split' || r.rule === 'max_work_stretch_14h',
-            );
-            if (!b) return null;
-            return b.rule === 'max_work_stretch_14h'
-              ? 'over 14h continuous on duty'
-              : 'rest split breaches MLC';
-          })(),
+          // Structural rules, scoped to the right section:
+          //  · rest_period_split is assessed on TODAY's shifts → Daily section.
+          //  · max_work_stretch_14h is assessed over the 7-day window → Weekly.
+          splitBreach: mlcReport.breaches.some(b => b.rule === 'rest_period_split'),
+          stretchBreach: mlcReport.breaches.some(b => b.rule === 'max_work_stretch_14h'),
           bannerHeadline: banner.headline,
           bannerBody: banner.body,
           timelineMeta: 'Today · 00:00 → 24:00',
