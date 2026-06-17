@@ -7,12 +7,16 @@
 // live from the loaded 7-day window; trip-scoped totals + AI suggestions
 // remain later steps (trip + AI engine).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { hhmmToDecimal } from './useRotaShifts';
 import { ON_DUTY_TYPES, assessMlc, restForWeek } from './restHours';
-import { blockHours } from './coverageEngine';
+import { generateRankedSuggestions } from './suggestionEngine';
+
+// Session cache so re-opening the panel for an unchanged rota returns the
+// identical ranked suggestions + copy (no re-roll, no extra model call).
+const SUGGESTION_CACHE = new Map();
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -62,147 +66,67 @@ function subLabel(s) {
   return `${s.shift_type} · service`;
 }
 
-// Apply an AI-proposed change to a set of snake_case shift rows, returning a
-// modified copy. The model identifies the target block by date + start time;
-// 'remove' drops it, 'shorten'/'shift' rewrite its times. Used purely to
-// RECOMPUTE rest deltas — it never writes to the DB.
-function applyChange(rows, change) {
-  if (!change || !change.shift_date) return rows;
-  const targetHH = (change.original_start || '').slice(0, 5);
-  return rows.flatMap(r => {
-    const isTarget = r.shift_date === change.shift_date
-      && ON_DUTY_TYPES.has(r.shift_type)
-      && (!targetHH || (r.start_time || '').slice(0, 5) === targetHH);
-    if (!isTarget) return [r];
-    if (change.action === 'remove') return [];
-    return [{ ...r, start_time: change.new_start || r.start_time, end_time: change.new_end || r.end_time }];
-  });
-}
-
-function effect(name, fromH, toH, minH) {
-  const ok = (h) => h >= minH;
-  return {
-    name,
-    from: fmtHours(fromH),
-    to: fmtHours(toH),
-    fromColor: ok(fromH) ? '#2D5A3A' : '#7A2E1E',
-    toColor: ok(toH) ? '#2D5A3A' : '#7A2E1E',
-    note: ok(toH) ? 'now compliant' : `${fmtHours(Math.max(0, minH - toH))} short`,
-    noteColor: ok(toH) ? '#2D5A3A' : '#7A2E1E',
+// Turn one ENGINE-RANKED fix (+ its AI copy, if any) into the shape
+// RestPanelPopover renders. The change/freedBlock are already resolved by the
+// engine; copy falls back to a template when the model is unavailable.
+function buildSuggestion(r, copy, effDate) {
+  const ok = r.restTo >= 77;
+  const future = r.freedBlock.date > effDate;
+  const weeklyEffect = {
+    name: 'Rolling 7-day rest',
+    from: fmtHours(r.restFrom),
+    to: fmtHours(r.restTo),
+    fromColor: r.restFrom >= 77 ? '#2D5A3A' : '#7A2E1E',
+    toColor: ok ? '#2D5A3A' : '#7A2E1E',
+    note: ok ? (future ? `compliant by ${r.dayLabel}` : 'now compliant') : `still ${fmtHours(Math.max(0, 77 - r.restTo))} short`,
+    noteColor: ok ? '#2D5A3A' : '#7A2E1E',
   };
-}
-
-// Turn one AI suggestion into the shape RestPanelPopover renders, computing the
-// real rest deltas by applying the proposed change and re-running assessMlc.
-//
-// Weekly rest is FORWARD-LOOKING: a past 7-day deficit can't be undone, so a
-// change is evaluated on the rolling 7-day window it actually lands in (the
-// change's own date for future edits), then compared to the current trailing
-// total — i.e. "where the rolling figure gets to once you make this change".
-function enrichSuggestion(sg, ctx) {
-  const { todayRows, allRows, effDate, rest24h, pastWeekHours, dailyBelow, weeklyBelow } = ctx;
-  const change = sg.change || null;
-
-  // Daily-rest effect only when the change lands on the assessed day.
-  const changeIsToday = change && change.shift_date === effDate;
-  const newToday = changeIsToday ? applyChange(todayRows, change) : todayRows;
-  const repToday = assessMlc({ dayShifts: newToday.map(toCamelShift), weekShifts: [] });
-
-  // Rolling 7-day window at the change's date (future edits pay off the day
-  // they land), with the change applied.
-  const evalDate = change?.shift_date && change.shift_date > effDate ? change.shift_date : effDate;
-  const winStart = addDays(evalDate, -6);
-  const winRows = allRows.filter(s => s.shift_date >= winStart && s.shift_date <= evalDate);
-  const afterWeek = assessMlc({ dayShifts: [], weekShifts: applyChange(winRows, change).map(toCamelShift) }).pastWeekHours;
-
-  const effects = [];
-  if (dailyBelow && changeIsToday) effects.push(effect('Daily rest', rest24h, repToday.rest24h, 10));
-  if (weeklyBelow) {
-    const ok = afterWeek >= 77;
-    const future = evalDate > effDate;
-    const wd = new Date(`${evalDate}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' });
-    effects.push({
-      name: 'Rolling 7-day rest',
-      from: fmtHours(pastWeekHours),
-      to: fmtHours(afterWeek),
-      fromColor: pastWeekHours >= 77 ? '#2D5A3A' : '#7A2E1E',
-      toColor: ok ? '#2D5A3A' : '#7A2E1E',
-      note: ok ? (future ? `compliant by ${wd}` : 'now compliant') : `still ${fmtHours(Math.max(0, 77 - afterWeek))} short`,
-      noteColor: ok ? '#2D5A3A' : '#7A2E1E',
-    });
-  }
-  if (!dailyBelow && !weeklyBelow) {
-    effects.push({
-      name: 'Rest pattern',
-      to: repToday.anyBreach ? 'still breached' : 'compliant',
-      toColor: repToday.anyBreach ? '#7A2E1E' : '#2D5A3A',
-      note: repToday.anyBreach ? 'needs another change' : 'splits within MLC',
-      noteColor: repToday.anyBreach ? '#7A2E1E' : '#2D5A3A',
-    });
-  }
-
   return {
-    type: sg.confidence === 'high' ? 'confident' : 'judgment',
-    pill: sg.confidence === 'high' ? 'High confidence' : 'Judgement call',
-    headline: sg.headline,
-    body: sg.body,
-    effects,
-    // Structured change + the block of hours it frees, so the panel can hand
-    // off to the coverage flow instead of making the chief edit by hand.
-    change,
-    freedBlock: computeFreed(change, allRows),
-    primaryAction: change ? 'Apply to grid' : 'Adjust in grid',
+    type: r.confidence === 'high' ? 'confident' : 'judgment',
+    pill: r.confidence === 'high' ? 'High confidence' : 'Judgement call',
+    headline: copy?.headline || fallbackHeadline(r),
+    body: copy?.body || fallbackBody(r),
+    effects: [weeklyEffect],
+    change: r.change,
+    freedBlock: r.freedBlock,
+    primaryAction: 'Apply to grid',
     secondaryAction: 'Dismiss',
   };
 }
 
-// Resolve the actual rota_shifts block a change touches and the hours it frees.
-// `remove` frees the whole block; `shorten` frees the trimmed-off portion and
-// records the kept remainder so the source keeps a (shorter) shift.
-function computeFreed(change, allRows) {
-  if (!change || !change.shift_date) return null;
-  const targetHH = (change.original_start || '').slice(0, 5);
-  const src = (allRows || []).find(r => r.shift_date === change.shift_date
-    && ON_DUTY_TYPES.has(r.shift_type)
-    && (r.start_time || '').slice(0, 5) === targetHH);
-  if (!src) return null;
-  const sStart = (src.start_time || '').slice(0, 5);
-  const sEnd = (src.end_time || '').slice(0, 5);
-  const base = {
-    date: change.shift_date,
-    sourceShiftId: src.id,
-    sourceShiftType: src.shift_type,
-    sourceSubType: src.sub_type ?? null,
-  };
-  if (change.action !== 'shorten') {
-    return { ...base, action: 'remove', start: sStart, end: sEnd, hours: blockHours(sStart, sEnd) };
-  }
-  // Shorten: kept = [new_start, new_end]; the freed slice is whatever the trim
-  // removes (a suffix trim if the start is unchanged, else a prefix trim).
-  const kStart = (change.new_start || sStart).slice(0, 5);
-  const kEnd = (change.new_end || sEnd).slice(0, 5);
-  const freedStart = kStart === sStart ? kEnd : sStart;
-  const freedEnd = kStart === sStart ? sEnd : kStart;
-  return {
-    ...base,
-    action: 'shorten',
-    keep: { start: kStart, end: kEnd },
-    start: freedStart,
-    end: freedEnd,
-    hours: blockHours(freedStart, freedEnd),
-  };
+function fallbackHeadline(r) {
+  if (r.kind === 'day_off') return `Full day off ${r.dayLabel}`;
+  if (r.kind === 'shorten') return `Trim the ${r.dayLabel} watch`;
+  return `Hand off the ${r.dayLabel} watch`;
 }
+function fallbackBody(r) {
+  const who = (r.coverage.roles && r.coverage.roles.length)
+    ? r.coverage.roles[0]
+    : 'another crew member in the department';
+  const verb = r.kind === 'day_off' ? 'A full day off' : r.kind === 'shorten' ? 'Trimming this block' : 'Freeing this block';
+  return `${verb} ${r.dayLabel} helps close the rest deficit. ${who} can absorb the coverage.`;
+}
+
 
 // Friendly label per on-duty shift type.
 const TYPE_LABELS = { duty: 'Duty', watch: 'Watch', standby: 'Standby', training: 'Training' };
 
-export function useRotaRestData(memberId, crewName = null, crewRole = null, crewDept = null, anchorDate = null) {
+export function useRotaRestData(memberId, crewName = null, crewRole = null, crewDept = null, anchorDate = null, opts = {}) {
   // AuthContext exposes `activeTenantId`, not `tenantId`.
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Roster + window shifts + the source crew object feed the deterministic
+  // suggestion engine. Held in refs so updating them doesn't re-trigger the
+  // member fetch — the effect reads the latest values when it runs.
+  const sourceMemberRef = useRef(opts.sourceMember);
+  const rosterRef = useRef(opts.roster);
+  const windowShiftsRef = useRef(opts.windowShifts);
+  sourceMemberRef.current = opts.sourceMember;
+  rosterRef.current = opts.roster;
+  windowShiftsRef.current = opts.windowShifts;
   // AI rest suggestions (hybrid: model proposes the change, we compute deltas).
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -423,38 +347,60 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           daysWorked,
         });
 
-        // ── AI rest suggestions (hybrid: model proposes the change, we
-        //    recompute the real before→after deltas with assessMlc) ──
+        // ── Rest suggestions ── The engine deterministically RANKS the fixes
+        //    (same rota → same top 2); the model only writes copy for them.
         if (mlcWarning) {
           setSuggestionsLoading(true);
           try {
-            const blocks = todayRows
-              .filter(s => ON_DUTY_TYPES.has(s.shift_type))
-              .map(s => ({ start: (s.start_time || '').slice(0, 5), end: (s.end_time || '').slice(0, 5), type: s.shift_type }));
-            const weekDays = [];
-            for (let i = 6; i >= 0; i -= 1) {
-              const ds = addDays(effDate, -i);
-              const onD = weekRows
-                .filter(s => s.shift_date === ds && ON_DUTY_TYPES.has(s.shift_type))
-                .reduce((a, s) => a + shiftHours(s), 0);
-              weekDays.push({ date: ds, on_duty_hours: Math.round(onD), rest_hours: Math.round(Math.max(0, 24 - onD)) });
-            }
-            const { data: aiRes } = await supabase.functions.invoke('generate-rest-insights', {
-              body: {
-                member: { name: crewName || 'This crew member', role: crewRole, department: crewDept },
-                breaches: mlcReport.breaches.map(b => ({ rule: b.rule, label: b.label })),
-                today: { date: effDate, rest_hours: Math.round(rest24h), on_duty_hours: Math.round(onDutyToday), blocks },
-                week: { rest_hours: Math.round(pastWeekHours), days: weekDays },
-              },
+            const sourceMember = sourceMemberRef.current
+              || { id: memberId, department: crewDept, role: crewRole, name: crewName };
+            const ranked = generateRankedSuggestions({
+              sourceMember,
+              effDate,
+              allRows: all,
+              report: mlcReport,
+              roster: rosterRef.current || [],
+              windowShifts: windowShiftsRef.current || [],
+              limit: 2,
             });
-            if (cancelled) return;
-            const rawSuggestions = Array.isArray(aiRes?.suggestions) ? aiRes.suggestions : [];
-            const enriched = rawSuggestions.map(sg => enrichSuggestion(sg, {
-              todayRows, allRows: all, effDate, rest24h, pastWeekHours, dailyBelow, weeklyBelow,
-            }));
-            if (!cancelled) setSuggestions(enriched);
+
+            // Stable cache key: who, when, and exactly which ranked fixes.
+            const cacheKey = `${memberId}|${effDate}|${ranked.map(r => r.id).join(',')}`;
+            if (SUGGESTION_CACHE.has(cacheKey)) {
+              if (!cancelled) setSuggestions(SUGGESTION_CACHE.get(cacheKey));
+            } else if (ranked.length === 0) {
+              if (!cancelled) setSuggestions([]);
+            } else {
+              let copyById = new Map();
+              try {
+                const { data: aiRes } = await supabase.functions.invoke('generate-rest-insights', {
+                  body: {
+                    member: { name: crewName || 'This crew member', role: crewRole, department: crewDept },
+                    breaches: mlcReport.breaches.map(b => ({ label: b.label })),
+                    changes: ranked.map(r => ({
+                      id: r.id,
+                      kind: r.kind,
+                      day_label: r.dayLabel,
+                      block_label: r.blockLabel,
+                      freed_hours: Math.round(r.freedBlock.hours),
+                      rest_from: Math.round(r.restFrom),
+                      rest_to: Math.round(r.restTo),
+                      resolves: r.resolvesWeekly,
+                      coverage_roles: Array.from(new Set(r.coverage.roles || [])),
+                    })),
+                  },
+                });
+                copyById = new Map((aiRes?.copy || []).map(c => [c.id, c]));
+              } catch {
+                // Copy is best-effort; fall back to templated text below.
+              }
+              if (cancelled) return;
+              const enriched = ranked.map(r => buildSuggestion(r, copyById.get(r.id), effDate));
+              SUGGESTION_CACHE.set(cacheKey, enriched);
+              if (!cancelled) setSuggestions(enriched);
+            }
           } catch (aiErr) {
-            // AI is best-effort — never break the panel if it fails.
+            // Never break the panel if suggestion generation fails.
             if (!cancelled) setSuggestions([]);
           } finally {
             if (!cancelled) setSuggestionsLoading(false);
