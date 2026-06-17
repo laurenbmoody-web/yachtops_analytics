@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logged sea service — calendar view + toggle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C1B3A; --ink-soft:#695880; --muted:#8B8478; --muted-2:#6B7280; --faint:#AEB4C2;
+  --rust:#C65A1A; --rust-2:#B14E16; --card:#fff; --bg:#F8FAFC;
+  --border:#E6E8EF; --border-2:#E5E7EB; --hair:#F0F1F5; --hair-2:#ECEAE3;
+  --sage:#5E8E6F; --sage-soft:#E7F0E9; --clay:#A32D2D; --clay-soft:#FCEDEA;
+  --t-sea:#3A5A74; --t-sea-bg:#EDF1F5; --t-watch:#4F5D8A; --t-watch-bg:#ECEEF6;
+  --t-sb:#8B6B3F; --t-sb-bg:#F3ECDD; --t-yd:#6B7280; --t-yd-bg:#F0F1F4;
+  --serif:'DM Serif Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);}
+.wrap{max-width:1000px;margin:0 auto;padding:32px 26px 90px;}
+.intro{color:var(--ink-soft);font-size:13.5px;margin:0 0 22px;} .intro b{color:var(--ink);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;margin-bottom:26px;}
+.ico{width:1em;height:1em;vertical-align:-.12em;}
+.lh{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;}
+.lh h4{font-family:var(--serif);font-weight:500;font-size:17px;margin:0;}
+.right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+/* List|Calendar toggle */
+.toggle{display:inline-flex;background:#F1F5F9;border-radius:9px;padding:3px;gap:2px;}
+.toggle button{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;font-family:inherit;font-weight:600;font-size:12.5px;color:#7b7f93;border-radius:7px;padding:6px 12px;cursor:pointer;}
+.toggle button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(28,27,58,.1);}
+.filter{display:inline-flex;background:#F1F5F9;border-radius:9px;padding:3px;gap:2px;}
+.filter b{font-weight:600;font-size:12px;color:#7b7f93;border-radius:7px;padding:5px 10px;cursor:pointer;}
+.filter b.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(28,27,58,.08);}
+/* month nav */
+.monthnav{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.navbtn{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--border-2);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer;}
+.monthnav .mo{font-family:var(--serif);font-weight:500;font-size:18px;min-width:150px;text-align:center;}
+.today{margin-left:auto;border:1px solid var(--border-2);background:#fff;border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;}
+/* grid */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;}
+.dow{text-align:center;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding-bottom:2px;}
+.cell{min-height:74px;border-radius:9px;border:1px solid var(--hair);background:#fff;padding:7px 8px;display:flex;flex-direction:column;}
+.cell.empty{background:#FCFCFB;border-color:#F4F3EF;}
+.cell.blank{visibility:hidden;}
+.cell .d{font-size:12px;font-weight:600;color:var(--muted-2);}
+.cell .t{margin-top:auto;font-size:8.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:4px;}
+.cell .vm{margin-left:auto;}
+.cell.sea{background:var(--t-sea-bg);border-color:#D7E2EC;} .cell.sea .d,.cell.sea .t{color:var(--t-sea);}
+.cell.watch{background:var(--t-watch-bg);border-color:#D9DCEC;} .cell.watch .d,.cell.watch .t{color:var(--t-watch);}
+.cell.sb{background:var(--t-sb-bg);border-color:#E4D8C2;} .cell.sb .d,.cell.sb .t{color:var(--t-sb);}
+.cell.yd{background:var(--t-yd-bg);border-color:#DCDEE3;} .cell.yd .d,.cell.yd .t{color:var(--t-yd);}
+.cell.nonqual{box-shadow:inset 0 0 0 1.5px var(--clay);}
+.cell.excluded{opacity:.45;}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--hair);font-size:11.5px;color:var(--muted);}
+.legend span{display:flex;align-items:center;gap:6px;}
+.legend .sw{width:14px;height:11px;border-radius:3px;}
+.legend .swr{box-shadow:inset 0 0 0 1.5px var(--clay);background:#fff;}
+/* mini list for the List state */
+.a-month{font-size:9.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);padding:12px 0 7px;}
+.a-row{display:grid;grid-template-columns:14px 110px 1fr auto;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--hair);}
+.a-rail{width:4px;height:36px;border-radius:3px;}
+.a-date{font-family:var(--serif);font-weight:500;font-size:15px;color:var(--ink);}
+.a-date span{display:block;font-family:var(--sans);font-size:10.5px;font-weight:500;color:var(--muted);}
+.a-vn{font-size:13.5px;font-weight:600;} .a-vs{font-size:11px;color:var(--faint);margin-top:1px;}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px;}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;letter-spacing:.07em;border-radius:5px;padding:2px 6px;}
+.ok{color:var(--sage);background:var(--sage-soft);}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="ship" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2M5 13l1-6h12l1 6M9 7V5h6v2"/></symbol>
+<symbol id="compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+<symbol id="anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M12 7v13M5 13a7 7 0 0014 0"/></symbol>
+<symbol id="wrench" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M14.5 6a3.5 3.5 0 00-4.6 4.3l-5.3 5.3a1.6 1.6 0 102.3 2.3l5.3-5.3A3.5 3.5 0 0018 9.5l-2 2-1.5-1.5 2-2A3.5 3.5 0 0014.5 6z"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4 10-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" d="M7 7l10 10M17 7 7 17"/></symbol>
+<symbol id="list" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M3 9h18M8 3v4M16 3v4"/></symbol>
+<symbol id="prev" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="next" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <p class="intro"><b>Logged sea service — two views, one toggle.</b> The header carries a <b>List / Calendar</b> switch.
+  List = your locked Option A (voyage rail). Calendar colours each <i>day</i> by its service type, with a tick for qualifying / counts and a clay ring for non-qualifying.
+  (Month shown is illustrative so every state is visible.)</p>
+
+  <!-- CALENDAR VIEW (toggle on Calendar) -->
+  <div class="card">
+    <div class="lh">
+      <h4>Logged sea service</h4>
+      <div class="right">
+        <div class="filter"><b class="on">All</b><b>Seagoing</b><b>Watchkeeping</b><b>Standby</b><b>Yard</b></div>
+        <div class="toggle"><button><svg class="ico"><use href="#list"/></svg> List</button><button class="on"><svg class="ico"><use href="#cal"/></svg> Calendar</button></div>
+      </div>
+    </div>
+    <div class="monthnav">
+      <button class="navbtn"><svg class="ico"><use href="#prev"/></svg></button>
+      <div class="mo">March 2026</div>
+      <button class="navbtn"><svg class="ico"><use href="#next"/></svg></button>
+      <button class="today">Today</button>
+    </div>
+    <div class="cal">
+      <div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div><div class="dow">Sun</div>
+      <!-- week 1: 1 Mar is Sun -->
+      <div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div>
+      <div class="cell empty"><span class="d">1</span></div>
+      <!-- week 2: 2-8 -->
+      <div class="cell sea"><span class="d">2</span><span class="t"><svg class="ico"><use href="#ship"/></svg>S<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell sea"><span class="d">3</span><span class="t"><svg class="ico"><use href="#ship"/></svg>S<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell sea"><span class="d">4</span><span class="t"><svg class="ico"><use href="#ship"/></svg>S<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell sea"><span class="d">5</span><span class="t"><svg class="ico"><use href="#ship"/></svg>S<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell sea"><span class="d">6</span><span class="t"><svg class="ico"><use href="#ship"/></svg>S<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell sb"><span class="d">7</span><span class="t"><svg class="ico"><use href="#anchor"/></svg>SB</span></div>
+      <div class="cell sb"><span class="d">8</span><span class="t"><svg class="ico"><use href="#anchor"/></svg>SB</span></div>
+      <!-- week 3: 9-15 watchkeeping -->
+      <div class="cell watch"><span class="d">9</span><span class="t"><svg class="ico"><use href="#compass"/></svg>W<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell watch"><span class="d">10</span><span class="t"><svg class="ico"><use href="#compass"/></svg>W<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell watch"><span class="d">11</span><span class="t"><svg class="ico"><use href="#compass"/></svg>W<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell watch"><span class="d">12</span><span class="t"><svg class="ico"><use href="#compass"/></svg>W<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell watch"><span class="d">13</span><span class="t"><svg class="ico"><use href="#compass"/></svg>W<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell watch"><span class="d">14</span><span class="t"><svg class="ico"><use href="#compass"/></svg>W<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell watch"><span class="d">15</span><span class="t"><svg class="ico"><use href="#compass"/></svg>W<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <!-- week 4: 16-22 -->
+      <div class="cell watch nonqual"><span class="d">16</span><span class="t"><svg class="ico"><use href="#compass"/></svg>W<span class="vm" style="color:var(--clay)"><svg class="ico"><use href="#x"/></svg></span></span></div>
+      <div class="cell sea"><span class="d">17</span><span class="t"><svg class="ico"><use href="#ship"/></svg>S<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell sea"><span class="d">18</span><span class="t"><svg class="ico"><use href="#ship"/></svg>S<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell sea"><span class="d">19</span><span class="t"><svg class="ico"><use href="#ship"/></svg>S<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell sea"><span class="d">20</span><span class="t"><svg class="ico"><use href="#ship"/></svg>S<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell empty"><span class="d">21</span></div>
+      <div class="cell empty"><span class="d">22</span></div>
+      <!-- week 5: 23-29 yard -->
+      <div class="cell yd"><span class="d">23</span><span class="t"><svg class="ico"><use href="#wrench"/></svg>Y<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell yd"><span class="d">24</span><span class="t"><svg class="ico"><use href="#wrench"/></svg>Y<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell yd"><span class="d">25</span><span class="t"><svg class="ico"><use href="#wrench"/></svg>Y<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell yd"><span class="d">26</span><span class="t"><svg class="ico"><use href="#wrench"/></svg>Y<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell yd"><span class="d">27</span><span class="t"><svg class="ico"><use href="#wrench"/></svg>Y<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell yd"><span class="d">28</span><span class="t"><svg class="ico"><use href="#wrench"/></svg>Y<span class="vm" style="color:var(--sage)"><svg class="ico"><use href="#check"/></svg></span></span></div>
+      <div class="cell empty"><span class="d">29</span></div>
+      <!-- week 6 -->
+      <div class="cell empty"><span class="d">30</span></div><div class="cell empty"><span class="d">31</span></div>
+      <div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div>
+    </div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--t-sea-bg);box-shadow:inset 0 0 0 1px #D7E2EC"></span><svg class="ico" style="color:var(--t-sea)"><use href="#ship"/></svg> Seagoing</span>
+      <span><span class="sw" style="background:var(--t-watch-bg);box-shadow:inset 0 0 0 1px #D9DCEC"></span><svg class="ico" style="color:var(--t-watch)"><use href="#compass"/></svg> Watchkeeping</span>
+      <span><span class="sw" style="background:var(--t-sb-bg);box-shadow:inset 0 0 0 1px #E4D8C2"></span><svg class="ico" style="color:var(--t-sb)"><use href="#anchor"/></svg> Standby</span>
+      <span><span class="sw" style="background:var(--t-yd-bg);box-shadow:inset 0 0 0 1px #DCDEE3"></span><svg class="ico" style="color:var(--t-yd)"><use href="#wrench"/></svg> Shipyard</span>
+      <span><svg class="ico" style="color:var(--sage)"><use href="#check"/></svg> Qualifies / counts</span>
+      <span><span class="sw swr"></span><svg class="ico" style="color:var(--clay)"><use href="#x"/></svg> Non-qualifying</span>
+    </div>
+  </div>
+
+  <!-- LIST VIEW (toggle on List) — the locked Option A, for context -->
+  <p class="intro" style="margin-top:6px"><b>…and the same toggle flipped to List</b> (your locked Option A):</p>
+  <div class="card">
+    <div class="lh">
+      <h4>Logged sea service</h4>
+      <div class="right">
+        <div class="filter"><b class="on">All</b><b>Seagoing</b><b>Watchkeeping</b><b>Standby</b><b>Yard</b></div>
+        <div class="toggle"><button class="on"><svg class="ico"><use href="#list"/></svg> List</button><button><svg class="ico"><use href="#cal"/></svg> Calendar</button></div>
+      </div>
+    </div>
+    <div class="a-month">January 2026</div>
+    <div class="a-row"><span class="a-rail" style="background:var(--t-watch)"></span>
+      <div class="a-date">04–28 Jan<span>24 days</span></div>
+      <div><div class="a-vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span></div><div class="a-vs">Marshall Is. · 1450 GT · 68 m</div></div>
+      <div style="text-align:right"><span class="chip" style="color:var(--t-watch);background:var(--t-watch-bg)"><svg class="ico"><use href="#compass"/></svg> Watchkeeping</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div></div></div>
+    <div class="a-month">February 2026</div>
+    <div class="a-row"><span class="a-rail" style="background:var(--t-sea)"></span>
+      <div class="a-date">01–14 Feb<span>14 days</span></div>
+      <div><div class="a-vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span></div><div class="a-vs">Atlantic crossing · Master</div></div>
+      <div style="text-align:right"><span class="chip" style="color:var(--t-sea);background:var(--t-sea-bg)"><svg class="ico"><use href="#ship"/></svg> Seagoing</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div></div></div>
+  </div>
+</div>
+</body></html>
