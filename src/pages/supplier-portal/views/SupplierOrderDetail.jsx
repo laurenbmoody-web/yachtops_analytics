@@ -10,7 +10,6 @@ import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
 import SupplierModal from '../components/SupplierModal';
-import { supabase } from '../../../lib/supabaseClient';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
@@ -1211,8 +1210,6 @@ const ItemsCard = ({
   onItemUpdate,
   onItemQuote,
   onConfirmAll,
-  order,
-  onOrderUpdate,
 }) => {
   const itemCount = items.length;
   const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
@@ -1328,62 +1325,6 @@ const ItemsCard = ({
           <div className="sod-totals-value">{formatCurrency(subtotal, currency)}</div>
         </div>
       </div>
-
-      <OrderMessageBox order={order} canEdit={canEdit} onOrderUpdate={onOrderUpdate} />
-    </div>
-  );
-};
-
-// Order-level "Message to vessel" box. Lives under the totals footer
-// because that's where the supplier finishes their pass on the order.
-// Saves on blur. Writes to supplier_orders.supplier_notes which the
-// vessel side already surfaces (see SupplierOrderPage.jsx).
-const OrderMessageBox = ({ order, canEdit, onOrderUpdate }) => {
-  const initial = order?.supplier_notes || '';
-  const [draft, setDraft] = useState(initial);
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(null);
-
-  useEffect(() => {
-    setDraft(order?.supplier_notes || '');
-  }, [order?.id, order?.supplier_notes]);
-
-  const commit = async () => {
-    const next = (draft || '').trim();
-    if (next === (initial || '').trim()) return;
-    if (!onOrderUpdate) return;
-    setSaving(true);
-    try {
-      await onOrderUpdate({ supplier_notes: next || null });
-      setSavedAt(Date.now());
-    } catch (e) {
-      window.alert(`Save failed: ${e.message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="sod-order-message">
-      <div className="sod-order-message-head">
-        <span className="sod-order-message-title">Message to vessel</span>
-        <span className="sod-order-message-sub">
-          Anything they should know about this order as a whole — delivery, weather, payment.
-        </span>
-      </div>
-      <textarea
-        className="sod-order-message-textarea"
-        rows={3}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        placeholder="e.g. Heatwave in the Med — we'll ship cold-chain on Saturday morning, please confirm receiver is on-board."
-        disabled={!canEdit}
-      />
-      <div className="sod-order-message-foot">
-        {saving && <span className="sod-order-message-status">Saving…</span>}
-        {!saving && savedAt && <span className="sod-order-message-status sod-saved">Saved.</span>}
-      </div>
     </div>
   );
 };
@@ -1393,6 +1334,7 @@ const OrderMessageBox = ({ order, canEdit, onOrderUpdate }) => {
 const YachtClientCard = ({ order }) => {
   // TODO(schema): order.yacht_client_name, yacht_size_m, yacht_home_port,
   //               client_since, last_order_at, lifetime_total, lifetime_order_count
+  const navigate = useNavigate();
   const yachtName = order.yacht_client_name || order.vessel_name || order.yacht_name || null;
   const sizeM = order.yacht_size_m;
   const homePort = order.yacht_home_port;
@@ -1410,13 +1352,37 @@ const YachtClientCard = ({ order }) => {
   const lifetimeTotal = order.lifetime_total != null ? Number(order.lifetime_total) : null;
   const lifetimeCount = order.lifetime_order_count != null ? Number(order.lifetime_order_count) : null;
 
+  // Open the Messages inbox scoped to this order/yacht — the inbox view
+  // currently shows a "coming soon" stub, but the query params let it
+  // pre-select the right conversation once threaded messaging is wired
+  // up (WhatsApp-style per-yacht thread list).
+  const openMessages = () => {
+    const params = new URLSearchParams();
+    if (order.id) params.set('orderId', order.id);
+    const yachtId = order.yacht_id || order.yacht_client_id;
+    if (yachtId) params.set('yachtId', yachtId);
+    const qs = params.toString();
+    navigate(qs ? `/supplier/messages?${qs}` : '/supplier/messages');
+  };
+
   return (
     <div className="sod-card">
       <div className="sod-card-head">
         <h4>Yacht client</h4>
-        <button type="button" className="sod-card-link" onClick={() => { /* TODO(schema): yacht client profile route */ }}>
-          View profile →
-        </button>
+        <div className="sod-card-head-actions">
+          <button
+            type="button"
+            className="sod-card-msg-btn"
+            onClick={openMessages}
+            title="Message this yacht client"
+            aria-label="Message this yacht client"
+          >
+            <NoteBubble />
+          </button>
+          <button type="button" className="sod-card-link" onClick={() => { /* TODO(schema): yacht client profile route */ }}>
+            View profile →
+          </button>
+        </div>
       </div>
       <div className="sod-yacht-card-body">
         <div>
@@ -2219,20 +2185,6 @@ const SupplierOrderDetail = () => {
     refetchActivity();
   }, [mergeItem, refetchActivity]);
 
-  // Persist a top-level supplier_orders field (currently only
-  // supplier_notes is wired through this — used by the order-level
-  // "Message to vessel" textarea under the totals footer).
-  const handleOrderUpdate = useCallback(async (updates) => {
-    const { data, error } = await supabase
-      .from('supplier_orders')
-      .update(updates)
-      .eq('id', orderId)
-      .select()
-      .single();
-    if (error) throw error;
-    if (data) applyOrderUpdate(data);
-  }, [orderId, applyOrderUpdate]);
-
   const handleConfirmAll = useCallback(async () => {
     if (!window.confirm('Confirm every pending item on this order?')) return;
     try {
@@ -2421,8 +2373,6 @@ const SupplierOrderDetail = () => {
         onItemUpdate={handleItemUpdate}
         onItemQuote={handleItemQuote}
         onConfirmAll={handleConfirmAll}
-        order={order}
-        onOrderUpdate={handleOrderUpdate}
       />
 
       {/* ── Yacht client + Standing notes (locked equal heights) ── */}

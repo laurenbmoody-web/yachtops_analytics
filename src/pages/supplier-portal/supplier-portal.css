@@ -2544,64 +2544,31 @@
 .sod-expand-cancel:disabled,
 .sod-expand-save:disabled { cursor: default; opacity: 0.6; }
 
-/* Order-level "Message to vessel" — sits inside ItemsCard right below
-   the totals footer. Same editorial card language as the row expands. */
-.sod-order-message {
-  margin: 20px 24px 22px;
-  padding: 16px 18px 14px;
-  background: #FAFAF8;
-  border: 1px solid #ECEAE3;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
+/* Yacht client card head — message-bubble button sits alongside the
+   "View profile" link. Same outline-style as the per-line note icon
+   so the visual language is consistent across the page. */
+.sod-card-head-actions {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
 }
-.sod-order-message-head {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.sod-order-message-title {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 16px;
-  font-weight: 400;
-  color: #1C1B3A;
-  line-height: 1.2;
-  letter-spacing: -0.005em;
-}
-.sod-order-message-sub {
-  font-size: 12px;
-  color: #8B8478;
-  letter-spacing: 0.01em;
-}
-.sod-order-message-textarea {
-  background: #FFFFFF;
+.sod-card-msg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
   border: 1px solid #E5E7EB;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-family: inherit;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #1C1B3A;
-  outline: none;
-  width: 100%;
-  resize: vertical;
-  line-height: 1.5;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.sod-order-message-textarea::placeholder { color: #C3C8D2; }
-.sod-order-message-textarea:focus {
-  border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
-}
-.sod-order-message-foot {
-  min-height: 16px;
-  display: flex;
-  justify-content: flex-end;
-}
-.sod-order-message-status {
-  font-size: 11px;
   color: #8B8478;
-  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
-.sod-order-message-status.sod-saved { color: #0F6E56; }
+.sod-card-msg-btn svg { width: 14px; height: 14px; display: block; }
+.sod-card-msg-btn:hover:not(:disabled) {
+  border-color: #C65A1A;
+  color: #C65A1A;
+  background: #FBEFE9;
+}
