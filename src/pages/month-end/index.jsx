@@ -1,7 +1,13 @@
-// Month-end — a command/chief hub that unifies monthly sign-off. v1 covers
-// Hours of Rest: a rollup of who's done vs outstanding, with one-tap in-app
-// reminders for crew who haven't signed off, and a jump-to-approve for months
-// awaiting an eligible approver. Breach sign-offs / sea time can join later.
+// Month-end — a command/chief hub for the monthly close-off. Month-end is more
+// than Hours of Rest: it's where everything that must be signed off each month
+// lives, grouped into categories (Compliance & safety, Crew & payroll, Accounts
+// & stores). Each line is a "pack" in one of two states — Outstanding or Done.
+//
+// Hours of Rest is fully wired (real DB sign-off workflow): its line shows live
+// done/outstanding counts and expands into the crew roster, with one-tap in-app
+// reminders and a jump-to-approve. The remaining packs are Planned placeholders
+// until their own month-end data models exist (breach sign-off, sea-time
+// confirmation, timesheets, certificates, petty cash, inventory).
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -19,12 +25,33 @@ const TIER_RANK = { COMMAND: 3, CHIEF: 2, HOD: 1 };
 const rankOf = (t) => TIER_RANK[String(t || '').toUpperCase()] || 0;
 const pad2 = (n) => String(n).padStart(2, '0');
 
+// Per-crew roster row status (HOR detail view).
 const STATUS_META = {
-  open:      { label: 'Not started',       color: '#E2A33C', text: '#9A6B1C' },
+  open:      { label: 'Not started',       color: '#C65A1A', text: '#B14E16' },
   submitted: { label: 'Awaiting approval', color: '#6C6CCF', text: '#4A4AB0' },
   confirmed: { label: 'Confirmed',         color: '#5C9B6A', text: '#3F7A52' },
   locked:    { label: 'Locked',            color: '#9098B1', text: '#6B7280' },
 };
+
+// Two-state pack display: terracotta is the only accent, reserved for what's
+// outstanding; completed packs recede into quiet grey.
+const PACK = {
+  outstanding: { label: 'Outstanding', dot: '#C65A1A', text: '#B14E16', bar: '#1C1B3A' },
+  complete:    { label: 'Done',        dot: '#C7C3B6', text: '#9A958A', bar: '#CFCBBE' },
+};
+
+// Categories and the Planned placeholders that live under each. Hours of Rest is
+// injected as the real, live pack at the top of Compliance & safety.
+const CATEGORIES = ['Compliance & safety', 'Crew & payroll', 'Accounts & stores'];
+const PLACEHOLDERS = [
+  { cat: 'Compliance & safety', icon: 'AlertTriangle', title: 'Rest-hour breaches',      note: 'Breach sign-off' },
+  { cat: 'Compliance & safety', icon: 'Anchor',        title: 'Sea time',                note: 'Month-end confirmation' },
+  { cat: 'Compliance & safety', icon: 'LifeBuoy',      title: 'Safety drills',           note: 'Monthly drill log' },
+  { cat: 'Crew & payroll',      icon: 'FileText',      title: 'Crew timesheets',         note: 'Overtime & leave' },
+  { cat: 'Crew & payroll',      icon: 'Award',         title: 'Certificates & renewals', note: 'Expiries & renewals' },
+  { cat: 'Accounts & stores',   icon: 'Wallet',        title: 'Petty cash & accounts',   note: 'Monthly reconciliation' },
+  { cat: 'Accounts & stores',   icon: 'Package',       title: 'Inventory counts',        note: 'Bond · galley · medical · deck' },
+];
 
 export default function MonthEnd() {
   const navigate = useNavigate();
@@ -46,7 +73,7 @@ export default function MonthEnd() {
   const [reminded, setReminded] = useState({});    // userId -> true (this session)
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
-  const [openHor, setOpenHor] = useState(true);  // compliance-pack accordion
+  const [openHor, setOpenHor] = useState(false);   // HOR pack expand
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
@@ -127,9 +154,17 @@ export default function MonthEnd() {
 
   const stepMonth = (dir) => setCursor(new Date(year, jsMonth + dir, 1));
 
-  const pct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
+  // HOR pack rollup → two-state.
+  const horDone = counts.total > 0 && counts.done === counts.total;
+  const horPct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
+  const horNote = counts.total === 0 ? 'No crew on this vessel yet'
+    : horDone ? 'All crew signed off'
+      : [counts.open ? `${counts.open} not started` : null,
+         counts.submitted ? `${counts.submitted} awaiting approval` : null]
+        .filter(Boolean).join(' · ') || 'In sign-off';
 
-  const renderRow = (r) => {
+  // ── Per-crew roster row (HOR detail) ──────────────────────────────────────
+  const renderRosterRow = (r) => {
     const meta = STATUS_META[r.status] || STATUS_META.open;
     return (
       <div key={r.id} className={`me-row${r.status === 'open' || r.status === 'submitted' ? ' is-action' : ''}`}>
@@ -160,87 +195,131 @@ export default function MonthEnd() {
     );
   };
 
+  // ── A Planned placeholder pack line ───────────────────────────────────────
+  const renderPlaceholder = (p) => (
+    <div key={p.title} className="mp-row is-planned">
+      <span className="mp-row-ico"><Icon name={p.icon} size={19} /></span>
+      <div className="mp-row-who">
+        <div className="mp-row-title">{p.title}<span className="mp-planned">Planned</span></div>
+        <div className="mp-row-note">{p.note}</div>
+      </div>
+      <div className="mp-row-prog" />
+      <span className="mp-status mp-soon">Coming soon</span>
+      <div className="mp-row-act" />
+    </div>
+  );
+
   return (
     <>
       <Header />
-      <div className="month-end-page">
-        <div className="me-wrap">
-          <div className="me-head">
+      <div className="mp-page">
+        <div className="mp-wrap">
+          <div className="mp-head">
             <div>
-              <h1 className="me-title">Month-end</h1>
-              <div className="me-eyebrow">Compliance sign-off</div>
+              <h1 className="mp-title">Month-end</h1>
+              <div className="mp-eyebrow">Monthly close-off</div>
             </div>
-            <div className="me-monthnav">
+            <div className="mp-monthnav">
               <button type="button" onClick={() => stepMonth(-1)} aria-label="Previous month">‹</button>
               <span>{monthLabel}</span>
               <button type="button" onClick={() => stepMonth(1)} aria-label="Next month">›</button>
             </div>
           </div>
 
-          {/* Compliance packs — each a collapsible box. Hours of Rest today;
-              breach sign-offs / sea time can be added as sibling packs. */}
-          <div className="me-pack">
-            <button
-              type="button"
-              className="me-pack-head"
-              aria-expanded={openHor}
-              onClick={() => setOpenHor((v) => !v)}
-            >
-              <span className="dia">◆</span>
-              <span className="t">Hours of Rest</span>
-              {!openHor && counts.open > 0 && (
-                <span className="me-pack-badge">{counts.open} to action</span>
-              )}
-              <span className="me-progress-label">{counts.done} of {counts.total} signed off</span>
-              <Icon name="ChevronDown" size={18} className={`me-chev${openHor ? ' open' : ''}`} />
-            </button>
-
-            {openHor && (
-              <div className="me-pack-body">
-                <div className="me-bar"><span style={{ width: `${pct}%` }} /></div>
-                <div className="me-chips">
-                  <span className="me-chip"><span className="d" style={{ background: '#5C9B6A' }} />{counts.confirmed} confirmed</span>
-                  {counts.locked > 0 && <span className="me-chip"><span className="d" style={{ background: '#9098B1' }} />{counts.locked} locked</span>}
-                  <span className="me-chip"><span className="d" style={{ background: '#6C6CCF' }} />{counts.submitted} awaiting approval</span>
-                  <span className="me-chip"><span className="d" style={{ background: '#E2A33C' }} />{counts.open} not started</span>
-                </div>
-
-                {loading ? (
-                  <div className="me-empty">Loading…</div>
-                ) : (
-                  <>
-                    {/* Needs action */}
-                    {(outstanding.length > 0 || awaiting.length > 0) && (
-                      <div className="me-section">
-                        <div className="me-section-head">
-                          <span className="me-section-title">Needs action</span>
-                          {outstanding.length > 0 && (
-                            <button type="button" className="me-btn me-btn-primary" disabled={busy} onClick={remindAll}>
-                              <Icon name="Bell" size={14} />
-                              {busy ? 'Sending…' : `Send reminders to all (${outstanding.length})`}
-                            </button>
-                          )}
-                        </div>
-                        {[...outstanding, ...awaiting].map(renderRow)}
-                      </div>
-                    )}
-
-                    {/* Complete */}
-                    {complete.length > 0 && (
-                      <div className="me-section">
-                        <div className="me-section-head">
-                          <span className="me-section-title">Complete</span>
-                        </div>
-                        {complete.map(renderRow)}
-                      </div>
-                    )}
-
-                    {rows.length === 0 && <div className="me-empty">No crew on this vessel yet.</div>}
-                  </>
-                )}
-              </div>
+          {/* Summary — live Hours of Rest figures (the wired pack), no box */}
+          <div className="mp-sum">
+            <div className="mp-s"><b>{counts.done}<i>/{counts.total || 0}</i></b><span>HoR signed off</span></div>
+            <span className="mp-vr" />
+            <div className="mp-s"><b>{counts.open}</b><span>Not started</span></div>
+            <span className="mp-vr" />
+            <div className="mp-s"><b>{counts.submitted}</b><span>Awaiting approval</span></div>
+            {outstanding.length > 0 && (
+              <button type="button" className="mp-link mp-sum-cta" disabled={busy} onClick={remindAll}>
+                <Icon name="Bell" size={14} /> {busy ? 'Sending…' : `Remind all (${outstanding.length})`}
+              </button>
             )}
           </div>
+
+          {CATEGORIES.map((cat) => {
+            const placeholders = PLACEHOLDERS.filter((p) => p.cat === cat);
+            const isCompliance = cat === 'Compliance & safety';
+            // Closed count for the category meta: HOR counts if done (Compliance only).
+            const closed = isCompliance && horDone ? 1 : 0;
+            const totalPacks = placeholders.length + (isCompliance ? 1 : 0);
+            return (
+              <div key={cat} className="mp-cat">
+                <div className="mp-cat-head">
+                  <span className="mp-dia">◆</span>
+                  <span className="mp-cat-name">{cat}</span>
+                  <span className="mp-cat-rule" />
+                  <span className="mp-cat-meta">{closed} / {totalPacks} closed</span>
+                </div>
+
+                {/* Hours of Rest — the live, expandable pack */}
+                {isCompliance && (
+                  <>
+                    <div className={`mp-row${horDone ? ' is-done' : ' is-action'}`}>
+                      <span className="mp-row-ico"><Icon name="Clock" size={19} /></span>
+                      <div className="mp-row-who">
+                        <div className="mp-row-title">Hours of Rest</div>
+                        <div className="mp-row-note">{horNote}</div>
+                      </div>
+                      <div className="mp-row-prog">
+                        <div className="mp-bar"><span style={{ width: `${horPct}%`, background: (horDone ? PACK.complete : PACK.outstanding).bar }} /></div>
+                        <span className="mp-frac">{counts.done}/{counts.total || 0}</span>
+                      </div>
+                      <span className="mp-status" style={{ color: (horDone ? PACK.complete : PACK.outstanding).text }}>
+                        <span className="mp-dot" style={{ background: (horDone ? PACK.complete : PACK.outstanding).dot }} />
+                        {(horDone ? PACK.complete : PACK.outstanding).label}
+                      </span>
+                      <div className="mp-row-act">
+                        <button type="button" className={`mp-link${horDone ? ' is-mut' : ''}`} onClick={() => setOpenHor((v) => !v)} aria-expanded={openHor}>
+                          {openHor ? 'Hide' : 'Review'} {openHor ? '▴' : '→'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {openHor && (
+                      <div className="mp-detail">
+                        {loading ? (
+                          <div className="mp-empty">Loading…</div>
+                        ) : rows.length === 0 ? (
+                          <div className="mp-empty">No crew on this vessel yet.</div>
+                        ) : (
+                          <>
+                            {(outstanding.length > 0 || awaiting.length > 0) && (
+                              <div className="me-section">
+                                <div className="me-section-head">
+                                  <span className="me-section-title">Needs action</span>
+                                  {outstanding.length > 0 && (
+                                    <button type="button" className="me-btn me-btn-primary" disabled={busy} onClick={remindAll}>
+                                      <Icon name="Bell" size={14} />
+                                      {busy ? 'Sending…' : `Send reminders to all (${outstanding.length})`}
+                                    </button>
+                                  )}
+                                </div>
+                                {[...outstanding, ...awaiting].map(renderRosterRow)}
+                              </div>
+                            )}
+                            {complete.length > 0 && (
+                              <div className="me-section">
+                                <div className="me-section-head">
+                                  <span className="me-section-title">Complete</span>
+                                </div>
+                                {complete.map(renderRosterRow)}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {placeholders.map(renderPlaceholder)}
+              </div>
+            );
+          })}
         </div>
 
         {toast && <div className="me-toast">{toast}</div>}
