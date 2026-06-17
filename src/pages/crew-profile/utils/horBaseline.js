@@ -19,9 +19,13 @@ const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDat
 // restHours.shiftToOnDutySegments — no local copy.
 
 // Returns { 'YYYY-MM-DD': number[] } of baseline work-block indices for the
-// month. Empty object when the member can't be resolved or has no rota shifts.
+// month, or `null` when the baseline could NOT be derived (missing args,
+// member-resolution miss, or a query error). The distinction matters: an empty
+// object {} is an authoritative "no rota shifts this month" and may clear the
+// cached baseline, whereas `null` is "couldn't tell" — callers must preserve
+// the last-known baseline rather than wipe them on a transient failure.
 export async function fetchRotaBaselineForMonth({ userId, tenantId, year, month }) {
-  if (!userId || !tenantId || year == null || month == null) return {};
+  if (!userId || !tenantId || year == null || month == null) return null;
 
   // user_id → tenant_members.id (the id rota_shifts.member_id points at).
   const { data: tm, error: tmErr } = await supabase
@@ -30,7 +34,7 @@ export async function fetchRotaBaselineForMonth({ userId, tenantId, year, month 
     .eq('tenant_id', tenantId)
     .eq('user_id', userId)
     .maybeSingle();
-  if (tmErr || !tm?.id) return {};
+  if (tmErr || !tm?.id) return null;
   const memberId = tm.id;
 
   // owner_type per rota (avoid a PostgREST embed in case no FK is declared).
@@ -53,7 +57,7 @@ export async function fetchRotaBaselineForMonth({ userId, tenantId, year, month 
     .gte('shift_date', fetchStart)
     .lte('shift_date', end)
     .order('shift_date', { ascending: true });
-  if (error || !rows) return {};
+  if (error || !rows) return null;
 
   // Accumulate per date, separating trip-rota from vessel-rota contributions so
   // a trip rota can take precedence on days where both exist.
