@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rest panel — more options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B3A; --serif:'DM Serif Display',Georgia,serif; --sans:'Plus Jakarta Sans',system-ui,sans-serif;
+    --tan:#8B8478; --tan2:#A89F8C; --faint:#C9C0AE;
+    --line:#ECE6DC; --line2:#DFD8CC; --tile:#FCFBF8;
+    --terra:#C65A1A; --terra-deep:#7A2E1E; --purple:#695880;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#EDEAE3;font-family:var(--sans);padding:36px 28px 60px;color:var(--ink);}
+  h1{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 4px;}
+  .lede{font-size:13px;color:var(--tan);margin:0 0 30px;max-width:720px;line-height:1.5;}
+  .group{margin-bottom:46px;}
+  .group > h2{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--purple);
+              margin:0 0 16px;font-weight:700;border-bottom:0.5px solid var(--line2);padding-bottom:8px;}
+  .cards{display:flex;gap:24px;flex-wrap:wrap;}
+  .card{background:#fff;border-radius:14px;border:0.5px solid var(--line2);
+        box-shadow:0 16px 44px -26px rgba(28,27,58,.30);padding:22px 22px 20px;width:340px;}
+  .opt-cap{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--tan2);margin:0 0 14px;font-weight:600;}
+  .why{font-size:10.5px;color:var(--tan);margin:18px 0 0;line-height:1.5;}
+
+  .sec-label{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tan2);margin-bottom:8px;}
+  .sec-sum{font-size:12.5px;color:var(--ink);margin-bottom:14px;}
+  .sec-sum .short{color:var(--terra);font-weight:600;}
+
+  /* ───── D · line / area trend ───── */
+  .svgwrap{width:100%;}
+  .svgwrap text{font-family:var(--sans);}
+
+  /* ───── E · single gauge bar ───── */
+  .gauge{position:relative;height:30px;border-radius:7px;background:#EFEAE0;overflow:hidden;border:0.5px solid var(--line2);}
+  .gauge .fill{position:absolute;left:0;top:0;bottom:0;background:#E7C3B2;}
+  .gauge .mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--terra);}
+  .gauge-lbls{display:flex;justify-content:space-between;font-size:9px;color:var(--tan2);margin-top:6px;}
+  .gauge-lbls .mlc{color:var(--terra);font-weight:600;}
+  .gbig{font-family:var(--serif);font-size:30px;line-height:1;margin-bottom:3px;}
+  .gbig .of{font-size:14px;color:var(--tan2);}
+
+  /* ───── F · sparkline + number ───── */
+  .spark-row{display:flex;align-items:center;gap:18px;}
+  .spark-num{font-family:var(--serif);font-size:34px;line-height:1;}
+  .spark-num .of{font-size:15px;color:var(--tan2);}
+  .spark-sub{font-size:10.5px;color:var(--terra);font-weight:600;margin-top:4px;}
+
+  /* ───── G · deficit-only bars ───── */
+  .gap{position:relative;display:flex;align-items:flex-start;gap:7px;height:90px;padding-left:30px;
+       border-top:1px dashed var(--terra);}
+  .gap .yl{position:absolute;left:0;top:-7px;font-size:8px;color:var(--terra);font-weight:600;}
+  .gap-col{flex:1;display:flex;flex-direction:column;align-items:center;}
+  .gap-bar{width:100%;background:#F2D4C7;border-radius:0 0 5px 5px;position:relative;}
+  .gap-bar .v{position:absolute;top:3px;left:0;right:0;text-align:center;font-size:8.5px;color:var(--terra-deep);font-weight:600;}
+  .gap-day{font-size:8.5px;color:var(--tan2);margin-top:6px;}
+  .gap-day.today{color:var(--terra);font-weight:600;}
+  .gap-ok{height:0;}
+
+  /* ───── header bits ───── */
+  .id-row{display:flex;align-items:flex-start;gap:12px;}
+  .avatar{width:44px;height:44px;border-radius:50%;background:#F1ECE2;border:0.5px solid var(--line2);
+          display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--purple);font-size:13px;flex-shrink:0;}
+  .id-name{font-family:var(--serif);font-size:23px;line-height:1.05;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .pill{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--terra-deep);
+        background:#FAECE7;border:0.5px solid #F5C9B8;border-radius:999px;padding:3px 9px;font-weight:600;}
+  .id-role{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-top:6px;}
+  .id-sub{font-size:12px;color:var(--tan);margin-top:8px;line-height:1.5;}
+  .id-sub b{color:var(--terra-deep);font-weight:600;}
+
+  /* header opt 3 — inline meter */
+  .hmeter{margin-top:11px;}
+  .hmeter .cap{font-size:9px;letter-spacing:.5px;color:var(--tan2);text-transform:uppercase;margin-bottom:5px;}
+  .hmeter .track{position:relative;height:8px;border-radius:5px;background:#EFEAE0;overflow:visible;}
+  .hmeter .fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:#E0A98F;}
+  .hmeter .mlc{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--terra);}
+  .hmeter .lbl{font-size:9.5px;color:var(--terra-deep);margin-top:6px;}
+  .hmeter .lbl b{font-weight:700;}
+
+  /* header opt 4 — stat strip */
+  .strip{display:flex;gap:0;margin-top:14px;border:0.5px solid var(--line2);border-radius:10px;overflow:hidden;}
+  .strip .cell{flex:1;padding:11px 13px;border-right:0.5px solid var(--line);}
+  .strip .cell:last-child{border-right:0;}
+  .strip .n{font-family:var(--serif);font-size:19px;line-height:1;}
+  .strip .n.warn{color:var(--terra-deep);}
+  .strip .c{font-size:8.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--tan2);margin-top:6px;}
+
+  /* header opt 5 — donut */
+  .donut-row{display:flex;align-items:center;gap:16px;margin-top:14px;}
+  .donut-tx .big{font-family:var(--serif);font-size:22px;line-height:1;}
+  .donut-tx .sub{font-size:10.5px;color:var(--terra);font-weight:600;margin-top:5px;}
+</style>
+</head>
+<body>
+  <h1>Rest panel — more options</h1>
+  <p class="lede">Additional directions beyond the first sheet. Top row: alternative ways to draw the rolling-7 trend
+     (instead of 7 bars). Bottom row: alternative ways to surface the breach in the header (instead of a banner).
+     All mocked at panel scale — nothing changed in the app.</p>
+
+  <!-- ════════ MORE CHART OPTIONS ════════ -->
+  <div class="group">
+    <h2>Rolling-7 trend — alternative forms</h2>
+    <div class="cards">
+
+      <!-- D line/area -->
+      <div class="card">
+        <div class="opt-cap">Option D · Line + shaded deficit</div>
+        <div class="sec-label">Rolling 7-day rest</div>
+        <div class="sec-sum">Trending <span class="short">5h short</span> of the 77h minimum.</div>
+        <div class="svgwrap">
+          <svg viewBox="0 0 300 130" width="100%" height="130">
+            <!-- gridded 77 line -->
+            <line x1="28" y1="30" x2="300" y2="30" stroke="#C65A1A" stroke-dasharray="3 3" stroke-width="1" opacity="0.7"/>
+            <text x="0" y="33" font-size="8" fill="#C65A1A" font-weight="600">77h</text>
+            <text x="0" y="12" font-size="8" fill="#C9C0AE">100h</text>
+            <!-- deficit shading between line and curve where below -->
+            <path d="M28,42 L73,57 L118,72 L163,86 L208,86 L253,72 L298,57 L298,30 L28,30 Z" fill="#F2D4C7" opacity="0.55"/>
+            <!-- the trend line -->
+            <polyline points="28,42 73,57 118,72 163,86 208,86 253,72 298,57"
+                      fill="none" stroke="#1C1B3A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="298" cy="57" r="4" fill="#C65A1A"/>
+            <!-- day ticks -->
+            <g font-size="8" fill="#A89F8C" text-anchor="middle">
+              <text x="28" y="126">Thu</text><text x="73" y="126">Fri</text><text x="118" y="126">Sat</text>
+              <text x="163" y="126">Sun</text><text x="208" y="126">Mon</text><text x="253" y="126">Tue</text>
+            </g>
+            <text x="298" y="126" font-size="8" fill="#C65A1A" text-anchor="end" font-weight="600">Today</text>
+          </svg>
+        </div>
+        <p class="why">Reads as a single trajectory dipping under the line — emphasises "it's been below all week and where it is now". Quietest of all; loses the per-day legibility of bars.</p>
+      </div>
+
+      <!-- E gauge -->
+      <div class="card">
+        <div class="opt-cap">Option E · Single gauge (drop the 7-day history)</div>
+        <div class="sec-label">Rolling 7-day rest · now</div>
+        <div class="gbig">72h <span class="of">/ 77h</span></div>
+        <div class="gauge">
+          <div class="fill" style="width:72%;"></div>
+          <div class="mark" style="left:77%;"></div>
+        </div>
+        <div class="gauge-lbls"><span>0</span><span class="mlc">77h minimum</span><span>100h</span></div>
+        <p class="why">If the history isn't essential, this is the most minimal: one bar, one marker, the gap is obvious. Loses the trend/"it's improving or worsening" story entirely.</p>
+      </div>
+
+      <!-- F sparkline -->
+      <div class="card">
+        <div class="opt-cap">Option F · Big number + sparkline</div>
+        <div class="sec-label">Rolling 7-day rest</div>
+        <div class="spark-row">
+          <div>
+            <div class="spark-num">72h<span class="of"> /77h</span></div>
+            <div class="spark-sub">5h short · trending down</div>
+          </div>
+          <svg viewBox="0 0 140 56" width="140" height="56" style="flex:1;">
+            <line x1="0" y1="14" x2="140" y2="14" stroke="#C65A1A" stroke-dasharray="3 3" stroke-width="1" opacity="0.6"/>
+            <polyline points="0,18 23,26 46,33 70,40 93,40 116,33 140,26"
+                      fill="none" stroke="#1C1B3A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="140" cy="26" r="3.5" fill="#C65A1A"/>
+          </svg>
+        </div>
+        <p class="why">Headline figure does the work; sparkline gives just enough trend. Compact, very calm. Good if vertical space is tight.</p>
+      </div>
+
+      <!-- G deficit-only -->
+      <div class="card">
+        <div class="opt-cap">Option G · Deficit-only (gap below 77h)</div>
+        <div class="sec-label">Hours below the 77h minimum, by day</div>
+        <div class="sec-sum">Shortfall <span class="short">peaked at 21h</span>, now 5h.</div>
+        <div class="gap">
+          <span class="yl">77h line</span>
+          <div class="gap-col"><div class="gap-bar gap-ok"></div><div class="gap-day">Thu</div></div>
+          <div class="gap-col"><div class="gap-bar" style="height:24%"><span class="v">5</span></div><div class="gap-day">Fri</div></div>
+          <div class="gap-col"><div class="gap-bar" style="height:54%"><span class="v">13</span></div><div class="gap-day">Sat</div></div>
+          <div class="gap-col"><div class="gap-bar" style="height:88%"><span class="v">21</span></div><div class="gap-day">Sun</div></div>
+          <div class="gap-col"><div class="gap-bar" style="height:88%"><span class="v">21</span></div><div class="gap-day">Mon</div></div>
+          <div class="gap-col"><div class="gap-bar" style="height:54%"><span class="v">13</span></div><div class="gap-day">Tue</div></div>
+          <div class="gap-col"><div class="gap-bar" style="height:24%"><span class="v">5</span></div><div class="gap-day today">Today</div></div>
+        </div>
+        <p class="why">Flips the chart to show only the problem — how far under the line each day is. Most "compliance-officer" framing; bars hang from the line. Only shows the deficit, not absolute rest.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════ MORE HEADER / ALERT OPTIONS ════════ -->
+  <div class="group">
+    <h2>Surfacing the breach — alternative header treatments</h2>
+    <div class="cards">
+
+      <!-- 3 inline meter -->
+      <div class="card">
+        <div class="opt-cap">Option 3 · Inline mini-meter in header</div>
+        <div class="id-row">
+          <div class="avatar">CS</div>
+          <div style="flex:1;">
+            <div class="id-name">Chief Stew <span class="pill">Below MLC weekly</span></div>
+            <div class="id-role">Interior · Chief Stewardess · On duty until 16:00</div>
+            <div class="hmeter">
+              <div class="cap">Weekly rest</div>
+              <div class="track"><div class="fill" style="width:72%;"></div><div class="mlc" style="left:77%;"></div></div>
+              <div class="lbl"><b>72h</b> · 5h below the 77h minimum</div>
+            </div>
+          </div>
+        </div>
+        <p class="why">A tiny progress meter under the role line carries the whole story at a glance — no banner, no separate chart needed for the headline number.</p>
+      </div>
+
+      <!-- 4 stat strip -->
+      <div class="card">
+        <div class="opt-cap">Option 4 · Compact stat strip</div>
+        <div class="id-row">
+          <div class="avatar">CS</div>
+          <div style="flex:1;">
+            <div class="id-name">Chief Stew <span class="pill">Below MLC weekly</span></div>
+            <div class="id-role">Interior · Chief Stewardess · On duty until 16:00</div>
+          </div>
+        </div>
+        <div class="strip">
+          <div class="cell"><div class="n warn">72h</div><div class="c">This week</div></div>
+          <div class="cell"><div class="n">77h</div><div class="c">MLC min</div></div>
+          <div class="cell"><div class="n warn">−5h</div><div class="c">Shortfall</div></div>
+          <div class="cell"><div class="n">16h</div><div class="c">Rest today</div></div>
+        </div>
+        <p class="why">Replaces both the banner and the "Today · 16h · Past week 72h" line with one scannable strip. Facts over prose; the −5h shortfall is explicit.</p>
+      </div>
+
+      <!-- 5 donut -->
+      <div class="card">
+        <div class="opt-cap">Option 5 · Small dial</div>
+        <div class="id-row">
+          <div class="avatar">CS</div>
+          <div style="flex:1;">
+            <div class="id-name">Chief Stew <span class="pill">Below MLC weekly</span></div>
+            <div class="id-role">Interior · Chief Stewardess · On duty until 16:00</div>
+            <div class="donut-row">
+              <svg width="58" height="58" viewBox="0 0 58 58">
+                <circle cx="29" cy="29" r="24" fill="none" stroke="#EFEAE0" stroke-width="7"/>
+                <circle cx="29" cy="29" r="24" fill="none" stroke="#C65A1A" stroke-width="7"
+                        stroke-dasharray="150.8" stroke-dashoffset="42" stroke-linecap="round"
+                        transform="rotate(-90 29 29)"/>
+                <text x="29" y="32" font-size="13" font-family="DM Serif Display" text-anchor="middle" fill="#1C1B3A">72h</text>
+              </svg>
+              <div class="donut-tx">
+                <div class="big">94% of minimum</div>
+                <div class="sub">5h short of 77h</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="why">A dial reads "almost there / fell short" instantly. More dashboard-y than the editorial house style — included for contrast.</p>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

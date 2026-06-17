@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rest panel — options sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B3A; --serif:'DM Serif Display',Georgia,serif; --sans:'Plus Jakarta Sans',system-ui,sans-serif;
+    --tan:#8B8478; --tan2:#A89F8C; --faint:#C9C0AE;
+    --line:#ECE6DC; --line2:#DFD8CC; --tile:#FCFBF8;
+    --terra:#C65A1A; --terra-deep:#7A2E1E; --purple:#695880;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#EDEAE3;font-family:var(--sans);padding:36px 28px 60px;color:var(--ink);}
+  h1{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 4px;}
+  .lede{font-size:13px;color:var(--tan);margin:0 0 30px;max-width:680px;line-height:1.5;}
+  .group{margin-bottom:46px;}
+  .group > h2{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--purple);
+              margin:0 0 16px;font-weight:700;border-bottom:0.5px solid var(--line2);padding-bottom:8px;}
+  .cards{display:flex;gap:24px;flex-wrap:wrap;}
+  .card{background:#fff;border-radius:14px;border:0.5px solid var(--line2);
+        box-shadow:0 16px 44px -26px rgba(28,27,58,.30);padding:22px 22px 20px;width:340px;}
+  .card.rec{border:1px solid #C9D8C4;box-shadow:0 16px 44px -24px rgba(60,122,78,.35);}
+  .opt-cap{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--tan2);
+           margin:0 0 14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .opt-cap .badge{font-size:8px;letter-spacing:.5px;color:#3C7A4E;background:#EEF4EE;
+                  border:0.5px solid #D2E3D4;border-radius:999px;padding:2px 7px;font-weight:700;}
+
+  .sec-label{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tan2);margin-bottom:8px;}
+  .sec-sum{font-size:12.5px;color:var(--ink);margin-bottom:12px;}
+  .sec-sum .short{color:var(--terra);font-weight:600;}
+
+  /* ── chart shell ── */
+  .chart{position:relative;display:flex;align-items:flex-end;gap:7px;height:126px;padding-left:30px;}
+  .yax{position:absolute;left:0;top:0;bottom:18px;width:28px;font-size:8px;color:var(--faint);}
+  .yax .ymax{position:absolute;top:0;}
+  .yax .ymlc{position:absolute;top:23%;color:var(--terra);font-weight:600;}
+  .mlc-line{position:absolute;left:30px;right:0;top:23%;border-top:1px dashed var(--terra);opacity:.65;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:108px;}
+  .bar{width:100%;border-radius:5px 5px 0 0;position:relative;}
+  .bar .v{position:absolute;left:0;right:0;text-align:center;font-size:9px;font-weight:600;}
+  .day{font-size:8.5px;color:var(--tan2);margin-top:6px;}
+  .day.today{color:var(--terra);font-weight:600;}
+
+  /* option A — neutral + threshold */
+  .a .bar{background:#E7E2D7;}
+  .a .bar .v{top:-15px;color:var(--tan);}
+  .a .bar.today{background:#F0D9CE;border:1px solid var(--terra);border-bottom:0;}
+  .a .bar.today .v{color:var(--terra-deep);}
+
+  /* option B — tint sub-77h */
+  .b .bar{background:#E7E2D7;}
+  .b .bar .v{top:-15px;color:var(--tan);}
+  .b .bar.low{background:#F2D4C7;}
+  .b .bar.low .v{color:var(--terra-deep);}
+  .b .bar.today{border:1px solid var(--terra);border-bottom:0;}
+
+  /* option C — current (green/pink, value inside) */
+  .c .bar .v{bottom:5px;top:auto;}
+  .c .bar.ok{background:#C7DCC9;}
+  .c .bar.ok .v{color:#3C7A4E;}
+  .c .bar.low{background:#F5C9B8;}
+  .c .bar.low .v{color:var(--terra-deep);}
+  .c .bar.today{background:#F0D9CE;border:1px solid var(--terra);border-bottom:0;}
+  .c .bar.today .v{color:var(--terra-deep);}
+
+  /* ── header bits for banner options ── */
+  .id-row{display:flex;align-items:flex-start;gap:12px;}
+  .avatar{width:44px;height:44px;border-radius:50%;background:#F1ECE2;border:0.5px solid var(--line2);
+          display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--purple);font-size:13px;flex-shrink:0;}
+  .id-name{font-family:var(--serif);font-size:23px;line-height:1.05;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .pill{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--terra-deep);
+        background:#FAECE7;border:0.5px solid #F5C9B8;border-radius:999px;padding:3px 9px;font-weight:600;}
+  .id-role{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-top:6px;}
+  .id-sub{font-size:12px;color:var(--tan);margin-top:8px;line-height:1.5;}
+  .id-sub b{color:var(--terra-deep);font-weight:600;}
+
+  /* banner B1 — fold into sub-line (no element) */
+  /* banner B2 — slim one-liner */
+  .slim{display:flex;align-items:center;gap:9px;background:#FBEEE9;border:0.5px solid #F2CDBE;
+        border-left:3px solid var(--terra);border-radius:8px;padding:10px 13px;margin-top:16px;}
+  .slim .ic{color:var(--terra);font-size:13px;}
+  .slim .tx{font-size:12px;color:var(--terra-deep);line-height:1.4;}
+  .slim .tx b{font-weight:700;}
+
+  /* banner B0 — current big box (for reference) */
+  .bigban{background:#FAECE7;border:0.5px solid #F5C9B8;border-radius:10px;padding:14px 16px;margin-top:16px;}
+  .bigban .h{font-family:var(--serif);font-size:16px;}
+  .bigban .h em{color:var(--terra-deep);font-style:italic;}
+  .bigban .b{font-size:11.5px;color:#7A6F63;margin-top:7px;line-height:1.5;}
+</style>
+</head>
+<body>
+  <h1>Rest panel — declutter options</h1>
+  <p class="lede">Pick one from each group. Everything is mocked at panel scale; nothing in the app has changed yet.
+     The green-bordered card is my recommendation in each group.</p>
+
+  <!-- ════════ CHART OPTIONS ════════ -->
+  <div class="group">
+    <h2>Rolling 7-day chart — 3 options</h2>
+    <div class="cards">
+
+      <!-- A -->
+      <div class="card rec a">
+        <div class="opt-cap">Option A · Neutral + threshold line <span class="badge">Recommended</span></div>
+        <div class="sec-label">Rolling 7-day rest</div>
+        <div class="sec-sum">Trending <span class="short">5h short</span> of the 77h minimum.</div>
+        <div class="chart">
+          <div class="yax"><span class="ymax">100h</span><span class="ymlc">77h</span></div>
+          <div class="mlc-line"></div>
+          <div class="bar-col"><div class="bar" style="height:80%"><span class="v">80</span></div><div class="day">Thu</div></div>
+          <div class="bar-col"><div class="bar" style="height:72%"><span class="v">72</span></div><div class="day">Fri</div></div>
+          <div class="bar-col"><div class="bar" style="height:64%"><span class="v">64</span></div><div class="day">Sat</div></div>
+          <div class="bar-col"><div class="bar" style="height:56%"><span class="v">56</span></div><div class="day">Sun</div></div>
+          <div class="bar-col"><div class="bar" style="height:56%"><span class="v">56</span></div><div class="day">Mon</div></div>
+          <div class="bar-col"><div class="bar" style="height:64%"><span class="v">64</span></div><div class="day">Tue</div></div>
+          <div class="bar-col"><div class="bar today" style="height:72%"><span class="v">72</span></div><div class="day today">Today</div></div>
+        </div>
+        <p style="font-size:10.5px;color:var(--tan);margin:18px 0 0;line-height:1.5;">One tone, one terracotta line. Eye goes straight to "which bars sit under the line" + today. Calmest.</p>
+      </div>
+
+      <!-- B -->
+      <div class="card b">
+        <div class="opt-cap">Option B · Tint the sub-77h bars</div>
+        <div class="sec-label">Rolling 7-day rest</div>
+        <div class="sec-sum">Trending <span class="short">5h short</span> of the 77h minimum.</div>
+        <div class="chart">
+          <div class="yax"><span class="ymax">100h</span><span class="ymlc">77h</span></div>
+          <div class="mlc-line"></div>
+          <div class="bar-col"><div class="bar" style="height:80%"><span class="v">80</span></div><div class="day">Thu</div></div>
+          <div class="bar-col"><div class="bar low" style="height:72%"><span class="v">72</span></div><div class="day">Fri</div></div>
+          <div class="bar-col"><div class="bar low" style="height:64%"><span class="v">64</span></div><div class="day">Sat</div></div>
+          <div class="bar-col"><div class="bar low" style="height:56%"><span class="v">56</span></div><div class="day">Sun</div></div>
+          <div class="bar-col"><div class="bar low" style="height:56%"><span class="v">56</span></div><div class="day">Mon</div></div>
+          <div class="bar-col"><div class="bar low" style="height:64%"><span class="v">64</span></div><div class="day">Tue</div></div>
+          <div class="bar-col"><div class="bar low today" style="height:72%"><span class="v">72</span></div><div class="day today">Today</div></div>
+        </div>
+        <p style="font-size:10.5px;color:var(--tan);margin:18px 0 0;line-height:1.5;">Neutral above the line, soft terracotta below. More signal than A, still one colour family (no green).</p>
+      </div>
+
+      <!-- C -->
+      <div class="card c">
+        <div class="opt-cap">Option C · Keep current per-day colours</div>
+        <div class="sec-label">Rolling 7-day rest</div>
+        <div class="sec-sum">Trending <span class="short">5h short</span> of the 77h minimum.</div>
+        <div class="chart">
+          <div class="yax"><span class="ymax">100h</span><span class="ymlc">77h</span></div>
+          <div class="bar-col"><div class="bar ok" style="height:80%"><span class="v">80h</span></div><div class="day">Thu</div></div>
+          <div class="bar-col"><div class="bar low" style="height:72%"><span class="v">72h</span></div><div class="day">Fri</div></div>
+          <div class="bar-col"><div class="bar low" style="height:64%"><span class="v">64h</span></div><div class="day">Sat</div></div>
+          <div class="bar-col"><div class="bar low" style="height:56%"><span class="v">56h</span></div><div class="day">Sun</div></div>
+          <div class="bar-col"><div class="bar low" style="height:56%"><span class="v">56h</span></div><div class="day">Mon</div></div>
+          <div class="bar-col"><div class="bar low" style="height:64%"><span class="v">64h</span></div><div class="day">Tue</div></div>
+          <div class="bar-col"><div class="bar today low" style="height:72%"><span class="v">72h</span></div><div class="day today">Today</div></div>
+        </div>
+        <p style="font-size:10.5px;color:var(--tan);margin:18px 0 0;line-height:1.5;">Today's live state. Loudest, and the green reads as a per-day "pass" the rolling metric doesn't really have.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════ BANNER OPTIONS ════════ -->
+  <div class="group">
+    <h2>Top warning — 2 options (+ current for reference)</h2>
+    <div class="cards">
+
+      <!-- B1 fold -->
+      <div class="card rec">
+        <div class="opt-cap">Option 1 · Fold into the header sub-line <span class="badge">Recommended</span></div>
+        <div class="id-row">
+          <div class="avatar">CS</div>
+          <div>
+            <div class="id-name">Chief Stew <span class="pill">Below MLC weekly</span></div>
+            <div class="id-role">Interior · Chief Stewardess · On duty until 16:00</div>
+            <div class="id-sub"><b>72h rest this week</b> — 5h below the 77h MLC minimum. Today: 16h rest.</div>
+          </div>
+        </div>
+        <p style="font-size:10.5px;color:var(--tan);margin:20px 0 0;line-height:1.5;">No banner element at all. The shortfall number lives next to the chip. Most compact; relies on the sub-line being read.</p>
+      </div>
+
+      <!-- B2 slim -->
+      <div class="card">
+        <div class="opt-cap">Option 2 · Slim one-line banner</div>
+        <div class="id-row">
+          <div class="avatar">CS</div>
+          <div>
+            <div class="id-name">Chief Stew <span class="pill">Below MLC weekly</span></div>
+            <div class="id-role">Interior · Chief Stewardess · On duty until 16:00</div>
+            <div class="id-sub">Today · 16h rest · Past week 72h</div>
+          </div>
+        </div>
+        <div class="slim"><span class="ic">⚠</span><span class="tx"><b>5h short</b> of the 77h weekly minimum — close the shortfall over the coming days.</span></div>
+        <p style="font-size:10.5px;color:var(--tan);margin:18px 0 0;line-height:1.5;">Keeps a distinct alert element but strips it to one line + a rule. A clear "stop" mark without the big pink box.</p>
+      </div>
+
+      <!-- B0 current -->
+      <div class="card">
+        <div class="opt-cap">Current · Big narrative box</div>
+        <div class="id-row">
+          <div class="avatar">CS</div>
+          <div>
+            <div class="id-name">Chief Stew <span class="pill">Below MLC weekly</span></div>
+            <div class="id-role">Interior · Chief Stewardess · On duty until 16:00</div>
+            <div class="id-sub">Today · 16h rest · Past week 72h</div>
+          </div>
+        </div>
+        <div class="bigban">
+          <div class="h">Weekly rest is <em>below the 77-hour MLC minimum.</em></div>
+          <div class="b">The rolling 7-day rest total is <b>72h</b> against the 77h weekly minimum. The cumulative shortfall needs reducing over the coming days.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
