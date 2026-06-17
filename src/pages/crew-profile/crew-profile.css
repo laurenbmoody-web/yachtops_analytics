@@ -915,3 +915,18 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-tplrow .ic { background: none; border: 0; cursor: pointer; color: #9098B1; padding: 5px; border-radius: 6px; }
 .crew-profile-page .cp-tplrow .ic:hover { background: #F1F5F9; color: #1C1B3A; }
 .crew-profile-page .cp-tplrow .ic.del:hover { color: #E4574C; }
+
+/* HOR signature receipt — editorial "signed ledger" (replaces the boxed cards).
+   One panel, hairline-divided; a signing line under each drawn signature. */
+.crew-profile-page .cp-sigrcpt { display: grid; grid-template-columns: 1fr; background: #fff; border: 1px solid #ECEAE3; border-radius: 14px; overflow: hidden; }
+.crew-profile-page .cp-sig { padding: 16px 18px; }
+.crew-profile-page .cp-sigrcpt .cp-sig + .cp-sig { border-top: 1px solid #F0F1F5; }
+@media (min-width: 640px) {
+  .crew-profile-page .cp-sigrcpt.two { grid-template-columns: 1fr 1fr; }
+  .crew-profile-page .cp-sigrcpt.two .cp-sig + .cp-sig { border-top: 0; border-left: 1px solid #F0F1F5; }
+}
+.crew-profile-page .cp-sig-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.crew-profile-page .cp-sig-ink { display: flex; align-items: flex-end; height: 62px; margin: 12px 0 8px; border-bottom: 1px solid #E8E6DF; }
+.crew-profile-page .cp-sig-ink img { height: 54px; width: auto; max-width: 100%; object-fit: contain; }
+.crew-profile-page .cp-sig-name { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 16px; line-height: 1.2; color: #1C1B3A; }
+.crew-profile-page .cp-sig-meta { margin-top: 3px; font-size: 11px; color: #AEB4C2; }

@@ -2816,48 +2816,30 @@ const canEdit = (() => {
                 at submit (crew) and approve (captain). Shown once a month has
                 been signed; the image URLs are re-signed on each load. */}
             {(dbMonthStatus?.submit_signature_path || dbMonthStatus?.approve_signature_path) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className={`cp-sigrcpt${dbMonthStatus?.submit_signature_path && dbMonthStatus?.approve_signature_path ? ' two' : ''}`}>
                 {dbMonthStatus?.submit_signature_path && (
-                  <div className="cp-flatcard p-4">
-                    <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                      {isSelfCertified ? 'Self-certified' : 'Signed by crew'}
+                  <div className="cp-sig">
+                    <div className="cp-sig-label">{isSelfCertified ? 'Self-certified' : 'Signed by crew'}</div>
+                    <div className="cp-sig-ink">
+                      {sigUrls?.submit && <img src={sigUrls.submit} alt="Crew signature" />}
                     </div>
-                    {sigUrls?.submit && (
-                      <img
-                        src={sigUrls.submit}
-                        alt="Crew signature"
-                        className="h-16 w-auto max-w-full bg-white rounded border border-border"
-                      />
-                    )}
-                    <div className="mt-2 text-sm font-medium text-foreground">
+                    <div className="cp-sig-name">
                       {dbMonthStatus?.submit_signed_name || crewMember?.fullName || '—'}
                     </div>
                     {dbMonthStatus?.submitted_at && (
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(dbMonthStatus.submitted_at).toLocaleString('en-GB')}
-                      </div>
+                      <div className="cp-sig-meta">{new Date(dbMonthStatus.submitted_at).toLocaleString('en-GB')}</div>
                     )}
                   </div>
                 )}
                 {dbMonthStatus?.approve_signature_path && (
-                  <div className="cp-flatcard p-4">
-                    <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                      Counter-signed (Master)
+                  <div className="cp-sig">
+                    <div className="cp-sig-label">Counter-signed · Master</div>
+                    <div className="cp-sig-ink">
+                      {sigUrls?.approve && <img src={sigUrls.approve} alt="Master signature" />}
                     </div>
-                    {sigUrls?.approve && (
-                      <img
-                        src={sigUrls.approve}
-                        alt="Master signature"
-                        className="h-16 w-auto max-w-full bg-white rounded border border-border"
-                      />
-                    )}
-                    <div className="mt-2 text-sm font-medium text-foreground">
-                      {dbMonthStatus?.approve_signed_name || '—'}
-                    </div>
+                    <div className="cp-sig-name">{dbMonthStatus?.approve_signed_name || '—'}</div>
                     {dbMonthStatus?.confirmed_at && (
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(dbMonthStatus.confirmed_at).toLocaleString('en-GB')}
-                      </div>
+                      <div className="cp-sig-meta">{new Date(dbMonthStatus.confirmed_at).toLocaleString('en-GB')}</div>
                     )}
                   </div>
                 )}
