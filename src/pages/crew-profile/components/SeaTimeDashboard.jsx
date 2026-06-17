@@ -185,7 +185,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
           </div>
         </div>
         {logView === 'calendar' && (
-          <div style={{ padding: '6px 18px 0' }}>
+          <div style={{ padding: '16px 18px 0' }}>
             <SeaServiceCalendar entries={entries} vessels={vessels} config={config} serviceFilter={serviceFilter} />
           </div>
         )}

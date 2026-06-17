@@ -176,8 +176,9 @@
 .std-toggle button{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;font-weight:600;font-size:12px;color:#7b7f93;border-radius:7px;padding:6px 11px;cursor:pointer;}
 .std-toggle button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(28,27,58,.08);}
 
-/* ── Calendar view (.stc) — capped so it doesn't stretch the full card width ── */
-.stc{padding-bottom:4px;max-width:840px;}
+/* ── Calendar view (.stc) — spans the full card width so the toolbar controls
+   line up with the filters/view-toggle above; the year heatmap stays compact. ── */
+.stc{padding-bottom:4px;}
 .stc-zoom{display:inline-flex;background:#F6F5F2;border:1px solid var(--hair-2);border-radius:9px;padding:3px;gap:2px;margin-bottom:14px;}
 .stc-zoom button{border:0;background:transparent;font-weight:600;font-size:12px;color:#7b7f93;border-radius:7px;padding:6px 14px;cursor:pointer;}
 .stc-zoom button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(28,27,58,.08);}
