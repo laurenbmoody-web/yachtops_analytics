@@ -28,7 +28,7 @@ function SectionHead({ label, tag, tagState }) {
   );
 }
 
-export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, onApplySuggestion, anchorDate = null }) {
+export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, onApplySuggestion, roster = [], windowShifts = [], anchorDate = null }) {
   useEffect(() => {
     if (!crew) return undefined;
     const prevOverflow = document.body.style.overflow;
@@ -45,6 +45,7 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
   // when crew is null and returns null data while the query is in flight.
   const { data: restData, suggestions, suggestionsLoading } = useRotaRestData(
     crew?.id, crew?.name, crew?.role, crew?.department, anchorDate,
+    { sourceMember: crew, roster, windowShifts },
   );
 
   if (!crew) return null;
