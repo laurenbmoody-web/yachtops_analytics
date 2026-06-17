@@ -219,7 +219,13 @@ const CrewProfile = () => {
   const [cakeSurprise, setCakeSurprise] = useState(false);
   const [showQuickEntry, setShowQuickEntry] = useState(false);
   const [selectedHORDates, setSelectedHORDates] = useState([]);
-  const [horCurrentMonth, setHorCurrentMonth] = useState(new Date());
+  // Initial HOR month honours a `?period=YYYY-MM` deep-link (e.g. month-end's
+  // "Review & approve" opens the month being approved, not today's month).
+  const [horCurrentMonth, setHorCurrentMonth] = useState(() => {
+    const p = searchParams.get('period');
+    const m = p && /^\d{4}-\d{2}$/.test(p) ? p.split('-').map(Number) : null;
+    return m ? new Date(m[0], m[1] - 1, 1) : new Date();
+  });
   const [horData, setHorData] = useState(null);
   const [dbMonthStatus, setDbMonthStatus] = useState(null);     // hor_month_status row (DB)
   const [horMemberTiers, setHorMemberTiers] = useState({});     // { user_id: permission_tier } — active members
