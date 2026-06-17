@@ -36,6 +36,7 @@ import VesselHORDashboard from './components/VesselHORDashboard';
 import SignOffModal from './components/SignOffModal';
 import { getSignatureUrl } from './utils/horSignatures';
 import SeaTimeTracker from './components/SeaTimeTracker';
+import SeaTimeDashboard from './components/SeaTimeDashboard';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -2955,9 +2956,9 @@ const canEdit = (() => {
   };
 
   const renderSeaTime = () => {
-    return (
-      <SeaTimeTracker userId={crewId} tenantId={activeTenantId} currentUser={currentUser} />
-    );
+    // Design-handoff recreation (Countdown default + Ledger/Voyage + MIN 642
+    // pack generator), driven by the ported rules engine with seed data.
+    return <SeaTimeDashboard />;
   };
 
   // Placeholder until the document store is wired to this tab. Kept as a real
