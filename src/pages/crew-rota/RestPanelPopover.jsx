@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRotaRestData } from './useRotaRestData';
 
 // Rest-panel data is computed live from rota_shifts (useRotaRestData).
@@ -47,6 +47,11 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
     crew?.id, crew?.name, crew?.role, crew?.department, anchorDate,
     { sourceMember: crew, roster, windowShifts },
   );
+
+  // Locally dismissed suggestions (reset when the panel switches crew).
+  const [dismissed, setDismissed] = useState([]);
+  useEffect(() => { setDismissed([]); }, [crew?.id]);
+  const visibleCount = suggestions.filter((_, i) => !dismissed.includes(i)).length;
 
   if (!crew) return null;
 
@@ -236,15 +241,15 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
         </div>
 
         {/* 6 · AI suggestions (violation only) */}
-        {warn && (suggestionsLoading || suggestions.length > 0) && (
+        {warn && (suggestionsLoading || visibleCount > 0) && (
           <div className="rest-section">
             <SectionHead label="WORTH CONSIDERING" accent />
             <div className="rest-section-summary">
               {suggestionsLoading
                 ? `Looking for ways to bring ${data.fullName.split(' ')[0]} back into compliance…`
-                : `${suggestions.length === 1 ? 'A way' : `${suggestions.length} ways`} to bring ${data.fullName.split(' ')[0]} into compliance without losing coverage.`}
+                : `${visibleCount === 1 ? 'A way' : `${visibleCount} ways`} to bring ${data.fullName.split(' ')[0]} into compliance without losing coverage.`}
             </div>
-            {suggestions.map((sg, i) => (
+            {suggestions.map((sg, i) => (dismissed.includes(i) ? null : (
               <div key={i} className={`rest-suggestion ${sg.type}`}>
                 <span className={`rest-conf-pill ${sg.type}`}>{sg.pill}</span>
                 <div
@@ -280,10 +285,10 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
                       ? onApplySuggestion(sg)
                       : onViewSchedule())}
                   >{sg.primaryAction}</button>
-                  <button type="button" className="rest-btn ghost" onClick={onOpenHor}>{sg.secondaryAction}</button>
+                  <button type="button" className="rest-btn ghost" onClick={() => setDismissed((d) => [...d, i])}>{sg.secondaryAction}</button>
                 </div>
               </div>
-            ))}
+            )))}
             <div className="rest-suggestion-why">
               Suggested from this rota — the before/after rest figures are calculated by
               Cargo’s MLC engine. Always confirm coverage before applying.

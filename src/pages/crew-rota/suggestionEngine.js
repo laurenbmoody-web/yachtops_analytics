@@ -138,13 +138,17 @@ export function generateRankedSuggestions({
     }
   }
 
-  // One "day off" lever: the soonest upcoming day that currently has duty.
+  // Future-day lever: the soonest upcoming day that currently has duty. If that
+  // day has a SINGLE on-duty block, removing it genuinely clears the day → a
+  // true 'day_off'. If it has several blocks we only drop the largest, so it's
+  // an honest 'future_off' (lighten the day), never sold as a full day off.
   for (let i = 1; i <= 6; i += 1) {
     const d = addDays(effDate, i);
     const blocks = (allRows || []).filter(r => r.shift_date === d && ON_DUTY_TYPES.has(r.shift_type));
     if (blocks.length) {
       const big = blocks.reduce((a, c) => (blockHours(c.start_time, c.end_time) > blockHours(a.start_time, a.end_time) ? c : a));
-      pushChange('day_off', { shift_date: d, original_start: (big.start_time || '').slice(0, 5), action: 'remove' });
+      const kind = blocks.length === 1 ? 'day_off' : 'future_off';
+      pushChange(kind, { shift_date: d, original_start: (big.start_time || '').slice(0, 5), action: 'remove' });
       break;
     }
   }
@@ -193,7 +197,21 @@ export function generateRankedSuggestions({
   }
 
   scored.sort((a, b) => (b.score - a.score) || (a.id < b.id ? -1 : 1));
-  return scored.slice(0, limit);
+
+  // Diversify: prefer fixes of DIFFERENT kinds so the second slot isn't a
+  // near-duplicate of the first (e.g. day_off + shorten, not two removes). Top
+  // up with the next best regardless of kind if we can't fill on variety alone.
+  const picked = [];
+  for (const c of scored) {
+    if (picked.length >= limit) break;
+    if (picked.some(p => p.kind === c.kind)) continue;
+    picked.push(c);
+  }
+  for (const c of scored) {
+    if (picked.length >= limit) break;
+    if (!picked.includes(c)) picked.push(c);
+  }
+  return picked.slice(0, limit);
 }
 
 // HH:MM + decimal hours → HH:MM (no overnight wrap needed for same-day trims).

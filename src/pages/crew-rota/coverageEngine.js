@@ -106,21 +106,21 @@ export function buildCandidates({ sourceMember, crew }) {
     .sort((a, b) => b.headroom - a.headroom);
 }
 
-// Spread the freed hours across candidates 1h at a time (round-robin), so the
-// default favours sharing the load over maxing out one person — while never
-// exceeding any candidate's whole-hour headroom. Returns { alloc, unassigned }.
+// Spread the freed hours as FEW, LARGE chunks as possible: fill the
+// highest-headroom candidate to capacity, then spill to the next, and so on.
+// A 4h watch goes to one person who can take it — not sliced into 1h slivers
+// across four people (`candidates` is pre-sorted by headroom desc). The chief
+// can still re-balance manually in the modal. Returns { alloc, unassigned }.
 export function defaultSpread(candidates, freedHours) {
   let remaining = Math.round(freedHours || 0);
   const alloc = {};
-  const caps = candidates.map((c) => ({ id: c.id, cap: Math.floor(c.headroom) }));
-  let progress = true;
-  while (remaining > 0 && progress) {
-    progress = false;
-    for (const c of caps) {
-      if (remaining <= 0) break;
-      const cur = alloc[c.id] || 0;
-      if (cur < c.cap) { alloc[c.id] = cur + 1; remaining -= 1; progress = true; }
-    }
+  for (const c of candidates) {
+    if (remaining <= 0) break;
+    const cap = Math.floor(c.headroom);
+    if (cap <= 0) continue;
+    const take = Math.min(cap, remaining);
+    alloc[c.id] = take;
+    remaining -= take;
   }
   return { alloc, unassigned: remaining };
 }
