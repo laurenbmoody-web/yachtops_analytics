@@ -1,5 +1,12 @@
 # Cargo — project guidance for Claude
 
+## Workflow rule — always land work on `main`
+
+After completing a task and pushing the feature branch, **always get the work
+onto `main`** (don't leave it sitting on the branch). Merges here go through a
+PR, so: push the branch, then open and merge a PR into `main` unless the user
+says otherwise.
+
 ## UI rule — always build in the editorial (Cargo) design system
 
 Any new or rebuilt UI (page, modal, drawer, widget, card) MUST use the editorial
