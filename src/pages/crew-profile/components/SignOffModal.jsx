@@ -71,51 +71,58 @@ const SignOffModal = ({
         <p className="text-sm text-muted-foreground leading-relaxed">{declaration}</p>
 
         {/* Rest-hour breaches in this period — surfaced so the signer knowingly
-            includes them in the sign-off, with each day's documented-reason /
-            sign-off state. */}
+            includes them. Editorial (Cargo) treatment: the reasons are already
+            documented by this point, so this is a calm confirmation summary, not
+            an amber hazard panel. Terracotta is reserved for a genuine "No reason". */}
         {breaches.length > 0 && (
-          <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10 p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon name="AlertTriangle" size={15} className="text-amber-600 dark:text-amber-400" />
-              <span className="text-sm font-semibold text-foreground">
-                {breaches.length} rest-hour breach{breaches.length > 1 ? 'es' : ''} this period
-              </span>
+          <div className="rounded-xl p-4" style={{ background: '#FAFAF8', border: '1px solid #ECEAE3' }}>
+            <div
+              className="text-[9px] font-bold uppercase tracking-[1px] pb-2 mb-1"
+              style={{ color: '#8B8478', borderBottom: '1px solid #F0F1F5' }}
+            >
+              {breaches.length} rest-hour breach{breaches.length > 1 ? 'es' : ''} this period
             </div>
-            <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-0.5">
-              {breaches.map((b) => (
-                <li key={b.date} className="flex items-start justify-between gap-2 text-xs">
-                  <span className="min-w-0 text-foreground">
-                    <span className="font-medium">
-                      {new Date(b.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            <ul className="max-h-40 overflow-y-auto pr-0.5">
+              {breaches.map((b, i) => {
+                const [yy, mm, dd] = String(b.date).split('-');
+                const dateLabel = dd && mm && yy ? `${dd}/${mm}/${yy}` : b.date;
+                return (
+                  <li
+                    key={b.date}
+                    className="flex items-center justify-between gap-3 py-2"
+                    style={i > 0 ? { borderTop: '1px solid #F0F1F5' } : undefined}
+                  >
+                    <span className="min-w-0 text-[13px]" style={{ color: '#1C1B3A' }}>
+                      <span className="font-medium">{dateLabel}</span>
+                      {b.note
+                        ? <span style={{ color: '#6B7280' }}> — {b.note}</span>
+                        : <span className="italic" style={{ color: '#C65A1A' }}> — no reason documented</span>}
                     </span>
-                    {b.note
-                      ? <span className="text-muted-foreground"> — {b.note}</span>
-                      : <span className="text-muted-foreground italic"> — no reason documented</span>}
-                  </span>
-                  <span className={`shrink-0 px-2 py-0.5 rounded-full font-semibold ${
-                    b.signed
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                      : b.documented
-                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                  }`}>
-                    {/* "Awaiting sign-off" means an APPROVER hasn't counter-signed
-                        the reason yet — only meaningful in the approve flow. On the
-                        crew's own certify/submit modal the reason is theirs and is
-                        being signed now, so show the neutral "Reason documented". */}
-                    {b.signed
-                      ? 'Signed off'
-                      : b.documented
-                        ? (kind === 'approve' ? 'Awaiting sign-off' : 'Reason documented')
-                        : 'No reason'}
-                  </span>
-                </li>
-              ))}
+                    {b.signed ? (
+                      <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: '#1C7C54' }}>
+                        <Icon name="Check" size={13} /> Signed off
+                      </span>
+                    ) : !b.documented ? (
+                      <span className="shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#FBEFE9', color: '#C65A1A' }}>
+                        No reason
+                      </span>
+                    ) : kind === 'approve' ? (
+                      <span className="shrink-0 text-[11px] font-medium" style={{ color: '#8B8478' }}>
+                        Awaiting sign-off
+                      </span>
+                    ) : (
+                      <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: '#8B8478' }}>
+                        <Icon name="Check" size={13} /> Reason documented
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
-            <p className="text-[11px] text-muted-foreground mt-2">
+            <p className="text-[11px] mt-2" style={{ color: '#AEB4C2' }}>
               {kind === 'approve'
-                ? 'These breaches are included in your counter-signature. Sign off each reason on the HOR page if needed.'
-                : 'These breaches are included in this sign-off. Add a reason for any marked “No reason”.'}
+                ? 'Included in your counter-signature. Sign off each reason on the HOR page if needed.'
+                : 'These reasons are included in this sign-off.'}
             </p>
           </div>
         )}
