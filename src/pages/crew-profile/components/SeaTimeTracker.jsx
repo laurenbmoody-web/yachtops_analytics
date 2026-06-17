@@ -7,6 +7,7 @@ import DayDetailDrawer from './DayDetailDrawer';
 import AddManualEntryModal from './AddManualEntryModal';
 import AddVesselLogModal from './AddVesselLogModal';
 import ManageCrewAssignmentModal from './ManageCrewAssignmentModal';
+import ExportTestimonialModal from './ExportTestimonialModal';
 import { getQualificationPaths, getVesselServiceLogForVessel, getActiveCrewForVessel, getCurrentVessel, SEA_SERVICE_TYPE, SEA_SERVICE_TYPE_LABELS } from '../utils/seaTimeStorage';
 import * as seaTimeService from '../utils/seaTimeService';
 import { hasCommandAccess, loadUsers } from '../../../utils/authStorage';
@@ -26,6 +27,7 @@ const SeaTimeTracker = ({ userId, tenantId, currentUser }) => {
   const [showAddManualModal, setShowAddManualModal] = useState(false);
   const [showAddVesselLogModal, setShowAddVesselLogModal] = useState(false);
   const [showManageCrewModal, setShowManageCrewModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [vesselLogs, setVesselLogs] = useState([]);
   const [activeCrew, setActiveCrew] = useState([]);
 
@@ -120,7 +122,7 @@ const SeaTimeTracker = ({ userId, tenantId, currentUser }) => {
   };
 
   const handleExport = () => {
-    showToast('Export feature coming in V2', 'info');
+    setShowExportModal(true);
   };
 
   const getUserName = (userId) => {
@@ -487,6 +489,13 @@ const SeaTimeTracker = ({ userId, tenantId, currentUser }) => {
         isOpen={showManageCrewModal}
         onClose={() => setShowManageCrewModal(false)}
         onSuccess={loadData}
+      />
+      <ExportTestimonialModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        userId={userId}
+        tenantId={tenantId}
+        currentUser={currentUser}
       />
     </div>
   );

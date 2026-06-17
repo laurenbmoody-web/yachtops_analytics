@@ -166,6 +166,37 @@ Postgres (was `localStorage`).
 Sea Time" view (vessel service log + crew assignments) and the saved-vessel
 convenience cache. These migrate with the **Phase 2 attestation cockpit**.
 
+## 5b. Update — Session 3: Testimonial Pack Generator (Phase 1 export)
+
+Built `src/seatime/testimonial/` — generates an MCA MIN 642 Annex A,
+captain-signed testimonial pack from logged sea time.
+
+- **One shared `TestimonialDataset` core → `VerifierProfile` adapter → PDF +
+  checklist.** Adding a verifier is a **new config object only** (`verifiers.js`)
+  — proven by a unit test that runs validate + checklist + render on a brand-new
+  profile with zero generator changes.
+- **3 verifiers** config-driven: PYA (D-SRB route, certified passport +
+  signatory email, €50 note), Nautilus (print → master sign & stamp → scan →
+  upload), Other (generic Annex A).
+- **Validation blocks generation** with actionable reasons:
+  watchkeeping <4h, standby over cap, seagoing on a <15m vessel, vessel missing
+  GT/length, no signatory, missing required doc, and the **self-certification
+  hard fail** (signatory == seafarer, by name *and* user id) — MCA won't accept
+  self-certified service, so producing one is impossible (unit-tested).
+- **Tamper-evidence:** dependency-free SHA-256 (verified against `node:crypto`)
+  over the canonical content → `verificationRef` + QR payload; any field change
+  flips `verifyTestimonial()` to `tampered`.
+- **Four service types totalled SEPARATELY**, never merged.
+- **UI:** `ExportTestimonialModal` — verifier dropdown re-renders the
+  checklist/validation from the **same dataset** (no re-entry, no refetch);
+  generate → downloadable PDF.
+- **10 unit tests, all green** (`node --test`). Out of scope (correctly): any
+  automated submission to PYA/Nautilus, and any algorithmic "verification".
+
+Open `// TODO(MIN642)` markers left in code: exact Annex A field layout, the
+standby cap figure, and embedding a real QR *image* (no QR lib in deps yet — the
+payload + hash are rendered as text/URL for now).
+
 ## 6. Decisions I need from you (before Phase 1+)
 
 1. ~~**Persistence model.**~~ ✅ Resolved — moved to Supabase (see §5a).
