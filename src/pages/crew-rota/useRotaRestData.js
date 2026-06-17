@@ -122,12 +122,18 @@ function fallbackBody(r) {
   // during the block; otherwise be explicit that it would need manual cover.
   const coverage = r.coverage.ok
     ? `${who} can absorb the coverage.`
-    : 'No one in the department is free during the block, so it would need manual cover.';
-  // Be honest when the lever eases load but doesn't clear the breach (e.g. a
-  // structural 14h-continuous breach from already-worked days that no
-  // forward reschedule can undo).
+    : (r.freedBlock?.dropIfUncovered
+      ? 'No one is free to pick it up, so the watch simply runs that hour short — no cover needed.'
+      : 'No one in the department is free during the block, so it would need manual cover.');
+  // Be honest when the lever eases load but doesn't clear EVERY breach (e.g. a
+  // structural 14h-continuous breach from already-worked days that no forward
+  // reschedule can undo). Distinguish "clears the weekly shortfall" from "barely
+  // dents it" so the chief knows what the trim actually buys.
   if (!r.resolvesAll && r.remainingBreaches && r.remainingBreaches.length) {
-    return `${verb} ${r.dayLabel} eases the load, but doesn’t clear the breach on its own (${r.remainingBreaches.join(' · ')}). ${coverage}`;
+    const lead = r.resolvesWeekly
+      ? `${verb} ${r.dayLabel} clears the weekly shortfall, though it doesn’t resolve everything (${r.remainingBreaches.join(' · ')}).`
+      : `${verb} ${r.dayLabel} eases the load, but doesn’t clear the breach on its own (${r.remainingBreaches.join(' · ')}).`;
+    return `${lead} ${coverage}`;
   }
   return `${verb} ${r.dayLabel} helps close the rest deficit. ${coverage}`;
 }

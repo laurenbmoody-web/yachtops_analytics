@@ -81,6 +81,9 @@ function freedFor(change, allRows) {
   return {
     ...base, action: 'shorten', keep: { start: kStart, end: kEnd },
     start: freedStart, end: freedEnd, hours: blockHours(freedStart, freedEnd),
+    // A shorten REDUCES the crew's workload: if no one picks up the trimmed
+    // tail it's simply dropped (run short), never handed back to the source.
+    dropIfUncovered: true,
   };
 }
 
@@ -157,10 +160,10 @@ export function generateRankedSuggestions({
     const hrs = blockHours(b.start_time, b.end_time);
     pushChange('remove', { shift_date: effDate, original_start: start, action: 'remove' });
     if (hrs >= 3) {
-      // Trim the tail by enough to dent the deficit, but keep ≥1h of the block.
-      // If a 14h-continuous breach is in play, trim hard enough to bring this
-      // block down to ≤13h so the shorten actually targets the stretch rule.
-      const baseTrim = Math.min(hrs - 1, Math.max(2, Math.ceil(weeklyDeficit) || 2));
+      // Trim the tail by just enough to clear the deficit (min 1h), keeping
+      // ≥1h of the block. If a 14h-continuous breach is in play, trim hard
+      // enough to bring this block down to ≤13h so it targets the stretch rule.
+      const baseTrim = Math.min(hrs - 1, Math.max(1, Math.ceil(weeklyDeficit) || 1));
       const trim = stretchBreach ? Math.min(hrs - 1, Math.max(baseTrim, hrs - 13)) : baseTrim;
       const keepEnd = addHHMM(start, hrs - trim);
       pushChange('shorten', { shift_date: effDate, original_start: start, action: 'shorten', new_start: start, new_end: keepEnd });
@@ -176,8 +179,23 @@ export function generateRankedSuggestions({
     const blocks = (allRows || []).filter(r => r.shift_date === d && ON_DUTY_TYPES.has(r.shift_type));
     if (blocks.length) {
       const big = blocks.reduce((a, c) => (blockHours(c.start_time, c.end_time) > blockHours(a.start_time, a.end_time) ? c : a));
+      const bigStart = (big.start_time || '').slice(0, 5);
+      const bigHrs = blockHours(big.start_time, big.end_time);
       const kind = blocks.length === 1 ? 'day_off' : 'future_off';
-      pushChange(kind, { shift_date: d, original_start: (big.start_time || '').slice(0, 5), action: 'remove' });
+      pushChange(kind, { shift_date: d, original_start: bigStart, action: 'remove' });
+      // Minimal lever: trim just the deficit off the tail (≥1h, keep ≥1h) so the
+      // crew works a little less without anyone needing to absorb it — the
+      // smallest change that clears the weekly shortfall going forward.
+      if (bigHrs >= 2) {
+        const need = stretchBreach
+          ? Math.max(Math.max(1, Math.ceil(weeklyDeficit) || 1), bigHrs - 13)
+          : Math.max(1, Math.ceil(weeklyDeficit) || 1);
+        const trim = Math.min(bigHrs - 1, need);
+        pushChange('shorten', {
+          shift_date: d, original_start: bigStart, action: 'shorten',
+          new_start: bigStart, new_end: addHHMM(bigStart, bigHrs - trim),
+        });
+      }
       break;
     }
   }
@@ -234,10 +252,12 @@ export function generateRankedSuggestions({
     }
   }
 
-  // Only surface a fix that is actually actionable: it either clears the
-  // breach, or hands at least part of the block to someone genuinely free.
-  // A fix that does NEITHER (everyone's on duty then AND it doesn't resolve)
-  // would just dump an unstaffed gap — never worth suggesting.
+  // Only surface a fix that is actually actionable: it fully clears the breach,
+  // or hands at least part of the block to someone genuinely free. We do NOT
+  // credit a future lever just because that future window already sits above
+  // 77h (the heavy days have rolled out of it) — trimming an already-compliant
+  // week "resolves" nothing. A trim is surfaced (even with no taker, dropping
+  // the hour) only when it genuinely clears that window's breach: resolvesAll.
   const usable = scored.filter((c) => c.resolvesAll || c.coverage.partial);
   usable.sort((a, b) => (b.score - a.score) || (a.id < b.id ? -1 : 1));
   const ranked = usable;
