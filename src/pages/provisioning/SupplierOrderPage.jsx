@@ -567,17 +567,59 @@ function LinesSection({ order, acceptAllBusy, quoteRowBusy, onAcceptAllQuoted, o
               );
             }
 
+            // Render a struck-through original next to the current value
+            // when the supplier overrode the crew's original ask. Used for
+            // qty / unit / size so the chief can see exactly what the
+            // supplier changed against the order they sent.
+            const renderDiff = (requested, current, suffix = '') => {
+              const reqStr = requested == null ? '' : String(requested);
+              const curStr = current == null ? '' : String(current);
+              if (reqStr === '' || reqStr === curStr) {
+                return curStr ? <>{curStr}{suffix}</> : null;
+              }
+              return (
+                <>
+                  <span style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: 4, fontSize: 11 }}>
+                    {reqStr}{suffix}
+                  </span>
+                  <span style={{ color: '#C65A1A', fontWeight: 700 }}>{curStr}{suffix}</span>
+                </>
+              );
+            };
+
+            const sizeNode = (it.size || it.requested_size) ? renderDiff(it.requested_size, it.size) : null;
+
             return (
               <tr key={it.id}>
                 <td>
                   {it.item_name}
                   {it.substitute_description && (
-                    <span style={{ marginLeft: 6, fontSize: 11, color: '#D97706' }}>
-                      → {it.substitute_description}
+                    <span style={{ marginLeft: 6, fontSize: 11, color: '#C65A1A', fontWeight: 600 }}>
+                      Sub: {it.substitute_description}
                     </span>
                   )}
+                  {it.supplier_item_note && (
+                    <div style={{
+                      marginTop: 4,
+                      fontStyle: 'italic',
+                      color: '#6B6F7A',
+                      fontSize: 12,
+                      letterSpacing: '0.005em',
+                    }}>
+                      “{it.supplier_item_note}”
+                    </div>
+                  )}
                 </td>
-                <td className="center">{it.quantity} {it.unit || ''}</td>
+                <td className="center">
+                  {renderDiff(it.requested_quantity, it.quantity)}
+                  {' '}
+                  {renderDiff(it.requested_unit, it.unit)}
+                  {sizeNode && (
+                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                      {sizeNode}
+                    </div>
+                  )}
+                </td>
                 <td className="num">{priceCell}</td>
                 <td className="num">{statusCell}</td>
               </tr>
