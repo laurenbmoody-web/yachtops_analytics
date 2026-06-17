@@ -7,6 +7,12 @@ onto `main`** (don't leave it sitting on the branch). Merges here go through a
 PR, so: push the branch, then open and merge a PR into `main` unless the user
 says otherwise.
 
+Once the PR is merged, **resync the feature branch so it shows 0 ahead / 0
+behind `main`** — don't leave the branch diverged. After a squash merge:
+`git fetch origin main && git reset --hard origin/main && git push
+--force-with-lease`, then confirm with `git rev-list --left-right --count
+origin/main...HEAD` (expect `0  0`).
+
 ## UI rule — always build in the editorial (Cargo) design system
 
 Any new or rebuilt UI (page, modal, drawer, widget, card) MUST use the editorial
