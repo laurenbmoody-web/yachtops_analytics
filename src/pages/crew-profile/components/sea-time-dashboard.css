@@ -185,8 +185,12 @@
 .stc-navbtn{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--border-2);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer;}
 .stc-navbtn:hover{border-color:#D6D9E0;}
 .stc-mo{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:18px;min-width:150px;text-align:center;}
-.stc-today{margin-left:auto;border:1px solid var(--border-2);background:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;}
-.stc-today:hover{border-color:#D6D9E0;}
+/* inline three-way control: Month | Year | Today */
+.stc-seg{margin-left:auto;display:inline-flex;background:#F1F5F9;border-radius:9px;padding:3px;gap:2px;}
+.stc-seg button{border:0;background:transparent;font-family:inherit;font-weight:600;font-size:12px;color:#7b7f93;border-radius:7px;padding:6px 13px;cursor:pointer;}
+.stc-seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(28,27,58,.08);}
+.stc-seg button.act{color:var(--ink);}
+.stc-seg button.act:hover{background:#fff;box-shadow:0 1px 2px rgba(28,27,58,.08);}
 
 /* month grid (A) */
 .stc-cal{border:1px solid var(--border);border-radius:12px;overflow:hidden;}
@@ -227,7 +231,7 @@
 .std-agroup:first-child .std-amonth{padding-top:2px;}
 .std-amonth{font-size:9.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);padding:14px 0 7px;}
 .std-arow{display:grid;grid-template-columns:14px 110px 1fr auto;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--hair);}
-.std-arail{width:4px;height:38px;border-radius:3px;align-self:center;}
+.std-arail{width:5px;height:40px;border-radius:3px;align-self:center;}
 .std-adate{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:15px;color:var(--ink);line-height:1.12;}
 .std-adate span{display:block;font-family:'Inter',system-ui,sans-serif;font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:.01em;margin-top:2px;}
 .std-avn{font-size:13.5px;font-weight:600;color:var(--ink);}

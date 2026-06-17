@@ -179,8 +179,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
               {filters.map(([k, l]) => <button key={k} className={serviceFilter === k ? 'on' : ''} onClick={() => setServiceFilter(k)}>{l}</button>)}
             </div>
             <div className="std-toggle">
-              <button className={logView === 'list' ? 'on' : ''} onClick={() => setLogView('list')}><Icon name="List" size={14} /> List</button>
-              <button className={logView === 'calendar' ? 'on' : ''} onClick={() => setLogView('calendar')}><Icon name="Calendar" size={14} /> Calendar</button>
+              <button className={logView === 'list' ? 'on' : ''} onClick={() => setLogView('list')} title="List view" aria-label="List view"><Icon name="List" size={15} /></button>
+              <button className={logView === 'calendar' ? 'on' : ''} onClick={() => setLogView('calendar')} title="Calendar view" aria-label="Calendar view"><Icon name="Calendar" size={15} /></button>
             </div>
           </div>
         </div>
@@ -221,11 +221,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
                         <div className="std-avs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo} · {detail}</div>
                       </div>
                       <div className="std-aright">
-                        <span className="std-pill" style={{ color: tm.color, background: tm.bg }}>
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: tm.color, display: 'inline-block' }} /> {tm.label}
-                        </span>
                         {isExcluded && <span className="std-pill" style={{ color: '#5A6478', background: '#EEF0F3' }}>Excluded from pack</span>}
-                        {isQual && <span className="std-pill" style={{ color: '#5E8E6F', background: '#E7F0E9' }}><Icon name="Check" size={12} /> {qualLabel}</span>}
+                        {isQual && <span className="std-pill" style={{ color: tm.color, background: tm.bg }}><Icon name="Check" size={12} /> {qualLabel}</span>}
                         {isBad && (
                           <>
                             <span className="std-pill" style={{ color: '#A32D2D', background: '#FCEDEA' }}><Icon name="X" size={12} /> Non-qualifying</span>
