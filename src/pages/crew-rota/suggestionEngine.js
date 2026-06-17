@@ -13,7 +13,7 @@ import {
   assessMlc, ON_DUTY_TYPES, MLC_WEEKLY_REST_MIN, MLC_DAILY_REST_MIN,
 } from './restHours';
 import {
-  blockHours, buildCandidates, defaultSpread, sliceFreed, assessRecipient, isFreeDuring,
+  blockHours, buildCandidates, assessRecipient, planCoverage,
 } from './coverageEngine';
 
 const addDays = (dateStr, n) => {
@@ -87,26 +87,26 @@ function freedFor(change, allRows) {
 // Can same-dept crew absorb the freed hours without any of them breaching?
 function evaluateCoverage({ sourceMember, freed, roster, windowShifts }) {
   if (!freed) return { ok: false, partial: false, crewCount: 0, unassigned: 0, roles: [] };
-  // Only crew who are actually free across the freed window can absorb it —
-  // someone already on duty then can't add a body (no real coverage).
-  const cands = buildCandidates({ sourceMember, crew: roster || [] })
-    .filter((c) => isFreeDuring({
-      memberId: c.id, date: freed.date, start: freed.start, end: freed.end, windowShifts,
-    }));
-  if (cands.length === 0) return { ok: false, partial: false, crewCount: 0, unassigned: freed.hours || 0, roles: [] };
-  const { alloc, unassigned } = defaultSpread(cands, freed.hours);
-  const ordered = cands.map(c => ({ id: c.id, hours: alloc[c.id] || 0 })).filter(a => a.hours > 0);
-  const slices = sliceFreed(freed, ordered);
-  const breach = slices.some(s => assessRecipient({
+  // Interval coverage: combine whoever is free for each part of the window —
+  // multiple crew can make up one block, and any uncoverable stretch is a gap.
+  const candidates = buildCandidates({ sourceMember, crew: roster || [] });
+  const { slices, gapHours } = planCoverage({ freed, candidates, date: freed.date, windowShifts });
+  const covered = slices.filter(s => !s.gap && s.id);
+  if (covered.length === 0) {
+    return { ok: false, partial: false, crewCount: 0, unassigned: freed.hours || 0, roles: [] };
+  }
+  const breach = covered.some(s => assessRecipient({
     memberId: s.id, windowShifts, date: freed.date,
-    block: { ...s, shiftType: freed.sourceShiftType },
+    block: { start: s.start, end: s.end, hours: s.hours, shiftType: freed.sourceShiftType },
   }).anyBreach);
+  const ids = [...new Set(covered.map(s => s.id))];
   return {
-    ok: unassigned === 0 && !breach && slices.length > 0,
-    partial: slices.length > 0 && !breach,
-    crewCount: slices.length,
-    unassigned,
-    roles: slices.map(s => (roster.find(r => r.id === s.id) || {}).role).filter(Boolean),
+    // Full cover with no new breach is clean; any partial cover is still useful.
+    ok: gapHours <= 1e-6 && !breach,
+    partial: !breach,
+    crewCount: ids.length,
+    unassigned: gapHours,
+    roles: ids.map(id => (roster.find(r => r.id === id) || {}).role).filter(Boolean),
   };
 }
 
