@@ -233,6 +233,11 @@ const CrewProfile = () => {
   const [horView, setHorView] = useState('my'); // 'my' or 'vessel'
   const [showBreachNotesModal, setShowBreachNotesModal] = useState(false);
   const [breachedDates, setBreachedDates] = useState([]);
+  // When the breach-notes modal was opened as part of a Confirm-Month attempt
+  // (undocumented breaches blocked sign-off), this flag carries the user back
+  // into the sign-off modal once the reasons are saved — rather than dropping
+  // them on the grid to re-click "Confirm Month". Set only by handleConfirmMonth.
+  const [signOffAfterBreach, setSignOffAfterBreach] = useState(false);
   const [profileError, setProfileError] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [tenantMemberRole, setTenantMemberRole] = useState(null);
@@ -518,6 +523,18 @@ const CrewProfile = () => {
     }
   }, [activeSection, crewId, horCurrentMonth, activeTenantId]);
 
+  // After breach reasons are documented from a Confirm-Month attempt, re-enter
+  // the confirm flow (now unblocked) so the user lands in the sign-off modal
+  // instead of back on the grid. Runs once the breach modal has closed AND the
+  // refreshed reasons have loaded — the modal's onClose awaits the reload before
+  // closing, so handleConfirmMonth here re-checks against up-to-date reasons.
+  useEffect(() => {
+    if (!signOffAfterBreach || showBreachNotesModal) return;
+    setSignOffAfterBreach(false);
+    handleConfirmMonth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signOffAfterBreach, showBreachNotesModal]);
+
   const loadHORData = async () => {
     if (!crewId) return;
     const year = horCurrentMonth?.getFullYear();
@@ -538,7 +555,12 @@ const CrewProfile = () => {
         fetchWorkEntriesForMonth({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month }),
       ]);
       hydrateActualsForMonth(crewId, year, month, dbActuals);
-      syncRotaBaselineEntries(crewId, year, month, baseline);
+      // Only reconcile the rota baseline when the fetch authoritatively resolved
+      // (object — possibly {} for "no shifts"). A `null` means the lookup failed
+      // transiently; rebuilding from it would DROP the cached "from rota" rows
+      // and leave nothing in their place (the bug where confirming a month or
+      // navigating made the rota hours vanish). Preserve last-known instead.
+      if (baseline) syncRotaBaselineEntries(crewId, year, month, baseline);
     } catch (e) {
       console.warn('[HOR] baseline/actuals hydrate failed:', e);
     }
@@ -2360,7 +2382,8 @@ const canEdit = (() => {
     if (!crewId) return;
     // Force a documented reason for every breach day before sign-off is allowed.
     // Undocumented breaches are routed into the breach-notes modal (which also
-    // writes hor_breach_reasons); the user re-opens sign-off once reasons exist.
+    // writes hor_breach_reasons); once reasons exist the signOffAfterBreach flag
+    // carries the user straight back here into the sign-off modal.
     const undoc = buildMonthBreaches().filter((b) => !b.documented);
     if (undoc.length > 0) {
       const y = horCurrentMonth?.getFullYear();
@@ -2368,10 +2391,17 @@ const canEdit = (() => {
       const undocSet = new Set(undoc.map((b) => b.date));
       const full = detectBreachedDatesAfterSave(crewId, [], y, m).filter((b) => undocSet.has(b.date));
       setBreachedDates(full.length ? full : undoc.map((b) => ({ date: b.date, breachTypes: [], restHours: 0, explanation: '' })));
+      setSignOffAfterBreach(true);
       setShowBreachNotesModal(true);
       showToast(`Add a reason for ${undoc.length} breach day${undoc.length > 1 ? 's' : ''} before signing off`, 'error');
       return;
     }
+    openMonthSignOff();
+  };
+
+  // Opens the month sign-off modal (crew submit / self-certify). Split out of
+  // handleConfirmMonth so the post-breach continuation can re-enter it directly.
+  const openMonthSignOff = () => {
     setSignOff({
       kind: 'submit',
       breaches: buildMonthBreaches(),
@@ -2603,8 +2633,10 @@ const canEdit = (() => {
       const newMonth = new Date(horCurrentMonth.getFullYear(), horCurrentMonth.getMonth() + direction, 1);
       setHorCurrentMonth(newMonth);
       setSelectedCalendarDate(null);
-      // Reload data for new month
-      setTimeout(() => loadHORData(), 100);
+      // The [horCurrentMonth] effect reloads for the new month. We deliberately
+      // do NOT also schedule a reload here: the old setTimeout fired a SECOND
+      // load whose closure captured the PREVIOUS month, racing the effect's
+      // load on the shared cache — a source of the vanishing-rota glitches.
     };
 
     const handleSaveWorkEntries = (entries) => {
@@ -3162,11 +3194,14 @@ const canEdit = (() => {
           {showBreachNotesModal && (
             <BreachNotesModal
               isOpen={showBreachNotesModal}
-              onClose={() => {
-                setShowBreachNotesModal(false);
+              onClose={async () => {
                 setBreachedDates([]);
-                showToast('Work entries saved successfully', 'success');
-                loadHORData();
+                // Refresh reasons BEFORE closing so the post-breach sign-off
+                // continuation (the effect keyed on signOffAfterBreach) re-checks
+                // against the just-saved reasons rather than stale state.
+                await loadHORData();
+                setShowBreachNotesModal(false);
+                if (!signOffAfterBreach) showToast('Breach reasons saved', 'success');
               }}
               breachedDates={breachedDates}
               userId={crewId}
