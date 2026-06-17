@@ -93,23 +93,50 @@ function effect(name, fromH, toH, minH) {
 
 // Turn one AI suggestion into the shape RestPanelPopover renders, computing the
 // real rest deltas by applying the proposed change and re-running assessMlc.
+//
+// Weekly rest is FORWARD-LOOKING: a past 7-day deficit can't be undone, so a
+// change is evaluated on the rolling 7-day window it actually lands in (the
+// change's own date for future edits), then compared to the current trailing
+// total — i.e. "where the rolling figure gets to once you make this change".
 function enrichSuggestion(sg, ctx) {
-  const { todayRows, weekRows, effDate, rest24h, pastWeekHours, dailyBelow, weeklyBelow } = ctx;
+  const { todayRows, allRows, effDate, rest24h, pastWeekHours, dailyBelow, weeklyBelow } = ctx;
   const change = sg.change || null;
-  const newWeek = applyChange(weekRows, change);
-  const newToday = change && change.shift_date === effDate ? applyChange(todayRows, change) : todayRows;
-  const rep = assessMlc({ dayShifts: newToday.map(toCamelShift), weekShifts: newWeek.map(toCamelShift) });
+
+  // Daily-rest effect only when the change lands on the assessed day.
+  const changeIsToday = change && change.shift_date === effDate;
+  const newToday = changeIsToday ? applyChange(todayRows, change) : todayRows;
+  const repToday = assessMlc({ dayShifts: newToday.map(toCamelShift), weekShifts: [] });
+
+  // Rolling 7-day window at the change's date (future edits pay off the day
+  // they land), with the change applied.
+  const evalDate = change?.shift_date && change.shift_date > effDate ? change.shift_date : effDate;
+  const winStart = addDays(evalDate, -6);
+  const winRows = allRows.filter(s => s.shift_date >= winStart && s.shift_date <= evalDate);
+  const afterWeek = assessMlc({ dayShifts: [], weekShifts: applyChange(winRows, change).map(toCamelShift) }).pastWeekHours;
 
   const effects = [];
-  if (dailyBelow) effects.push(effect('Daily rest', rest24h, rep.rest24h, 10));
-  if (weeklyBelow) effects.push(effect('Weekly rest', pastWeekHours, rep.pastWeekHours, 77));
+  if (dailyBelow && changeIsToday) effects.push(effect('Daily rest', rest24h, repToday.rest24h, 10));
+  if (weeklyBelow) {
+    const ok = afterWeek >= 77;
+    const future = evalDate > effDate;
+    const wd = new Date(`${evalDate}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' });
+    effects.push({
+      name: 'Rolling 7-day rest',
+      from: fmtHours(pastWeekHours),
+      to: fmtHours(afterWeek),
+      fromColor: pastWeekHours >= 77 ? '#2D5A3A' : '#7A2E1E',
+      toColor: ok ? '#2D5A3A' : '#7A2E1E',
+      note: ok ? (future ? `compliant by ${wd}` : 'now compliant') : `still ${fmtHours(Math.max(0, 77 - afterWeek))} short`,
+      noteColor: ok ? '#2D5A3A' : '#7A2E1E',
+    });
+  }
   if (!dailyBelow && !weeklyBelow) {
     effects.push({
       name: 'Rest pattern',
-      to: rep.anyBreach ? 'still breached' : 'compliant',
-      toColor: rep.anyBreach ? '#7A2E1E' : '#2D5A3A',
-      note: rep.anyBreach ? 'needs another change' : 'splits within MLC',
-      noteColor: rep.anyBreach ? '#7A2E1E' : '#2D5A3A',
+      to: repToday.anyBreach ? 'still breached' : 'compliant',
+      toColor: repToday.anyBreach ? '#7A2E1E' : '#2D5A3A',
+      note: repToday.anyBreach ? 'needs another change' : 'splits within MLC',
+      noteColor: repToday.anyBreach ? '#7A2E1E' : '#2D5A3A',
     });
   }
 
@@ -159,10 +186,11 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
         })();
         const effDate = anchorDate || localToday;
 
-        // Fetch 13 days so each of the 7 charted days has a full trailing
-        // 7-day window behind it (the chart shows the ROLLING 7-day rest total
-        // as of each day, not that single day's rest).
+        // Fetch 13 trailing days (so each charted day has a full trailing
+        // 7-day window behind it) plus 7 forward days, so a suggestion that
+        // changes a FUTURE day can be evaluated on the rolling window it lands in.
         const fetchStartStr = addDays(effDate, -12);
+        const fetchEndStr = addDays(effDate, 7);
         const weekStartStr = addDays(effDate, -6);
 
         const { data: rows, error: sErr } = await supabase
@@ -171,7 +199,7 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           .eq('tenant_id', tenantId)
           .eq('member_id', memberId)
           .gte('shift_date', fetchStartStr)
-          .lte('shift_date', effDate)
+          .lte('shift_date', fetchEndStr)
           .order('shift_date', { ascending: true })
           .order('start_time', { ascending: true });
         if (sErr) throw sErr;
@@ -180,7 +208,8 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
         const all = rows ?? [];
         const todayRows = all.filter(s => s.shift_date === effDate);
         // The trailing 7 days drive the MLC weekly assessment + breakdown.
-        const weekRows = all.filter(s => s.shift_date >= weekStartStr);
+        // Forward rows are kept in `all` for suggestion deltas only.
+        const weekRows = all.filter(s => s.shift_date >= weekStartStr && s.shift_date <= effDate);
         const offToday = todayRows.length > 0 && todayRows.every(s => s.shift_type === 'off');
 
         // Shared MLC assessment — totals stay identical to the prior
@@ -360,7 +389,7 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
             if (cancelled) return;
             const rawSuggestions = Array.isArray(aiRes?.suggestions) ? aiRes.suggestions : [];
             const enriched = rawSuggestions.map(sg => enrichSuggestion(sg, {
-              todayRows, weekRows, effDate, rest24h, pastWeekHours, dailyBelow, weeklyBelow,
+              todayRows, allRows: all, effDate, rest24h, pastWeekHours, dailyBelow, weeklyBelow,
             }));
             if (!cancelled) setSuggestions(enriched);
           } catch (aiErr) {

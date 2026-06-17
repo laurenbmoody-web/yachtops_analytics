@@ -65,17 +65,26 @@ You receive: the crew member's role and department, which rule(s) are breaching 
 Propose up to TWO concrete adjustments that would restore compliance while protecting service coverage. Fewer is better — one clean fix beats two weak ones. Return ZERO suggestions only if no safe change exists.
 
 Each suggestion must:
-- Target ONE specific shift block (reference it by its date and start time).
-- Describe the change plainly in the headline (e.g. "Shorten tonight's watch by 2 hours", "Hand the 12:00 block to the 2nd stew", "Give a full day off Thursday").
-- In the body, give the coverage reasoning chief-to-chief: who could absorb the slack, why it's safe. Refer to other crew by ROLE generically (e.g. "the 2nd stew", "another deckhand") — you are NOT given their names, so never invent names.
+- Target ONE specific shift block.
+- HEADLINE: an imperative phrase, maximum 6 words, no numbers and no dates. Good: "Full day off tomorrow", "Trim today's afternoon watch", "Hand off the midday block". Bad: "Give a full day off on 2026-06-18 (remove all duty)".
+- BODY: at most 3 short sentences — why it works, then who absorbs the coverage. Refer to other crew by ROLE generically ("the 2nd stew", "another deckhand"); you are NOT given names, so never invent them. Cut all filler ("with the vessel having…", "this is the lowest-risk…", "you may want to").
+- DATES: refer to days as "today", "tomorrow", or the weekday name ("Thursday") — NEVER print a YYYY-MM-DD date in the headline or body. (Still put the exact date in the structured change field.)
 - Set confidence: 'high' when the change clearly fixes the breach with low coverage risk, 'medium' otherwise.
 - Populate the structured change so the system can compute the exact rest gained.
 
-Voice: concise, confident, no hedging, no exclamation marks, no emoji, no corporate filler ("you may want to", "it might be worth"). Write like a chief stew briefing another.
+Voice: concise, confident, no hedging, no exclamation marks, no emoji. Write like a chief stew briefing another.
 
 Do NOT compute or state rest-hour numbers in your text — the system calculates and displays the exact before/after. Just describe the change and the coverage logic.
 
 Use the report_rest_suggestions tool to return your response.`;
+}
+
+function weekday(dateStr: string): string {
+  try {
+    return new Date(`${dateStr}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+  } catch {
+    return dateStr;
+  }
 }
 
 function buildUserPrompt(body: RequestBody): string {
@@ -91,6 +100,9 @@ function buildUserPrompt(body: RequestBody): string {
   }
 
   if (body.today) {
+    const tmrwDate = (() => { try { const d = new Date(`${body.today.date}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); } catch { return null; } })();
+    lines.push(`Day names — today (${body.today.date}) is ${weekday(body.today.date)}${tmrwDate ? `; tomorrow (${tmrwDate}) is ${weekday(tmrwDate)}` : ''}. Use these names in your text, not the dates.`);
+    lines.push('');
     lines.push(`TODAY (${body.today.date}): ${body.today.rest_hours}h rest · ${body.today.on_duty_hours}h on duty`);
     if (body.today.blocks?.length) {
       for (const blk of body.today.blocks) {
@@ -106,7 +118,7 @@ function buildUserPrompt(body: RequestBody): string {
     lines.push(`ROLLING 7-DAY REST: ${body.week.rest_hours}h (77h minimum)`);
     if (body.week.days?.length) {
       for (const d of body.week.days) {
-        lines.push(`- ${d.date}: ${d.on_duty_hours}h on duty, ${d.rest_hours}h rest`);
+        lines.push(`- ${weekday(d.date)} (${d.date}): ${d.on_duty_hours}h on duty, ${d.rest_hours}h rest`);
       }
     }
     lines.push('');
