@@ -546,6 +546,19 @@
 }
 .rest-section-summary em { font-style: italic; color: #1C1B3A; }
 
+/* Calm informational note (e.g. no coverage-safe fix) — body face, not the
+   display serif used for short punchy summaries. */
+.rest-empty-note {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #6B7280;
+  line-height: 1.55;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.rest-empty-note strong { color: #1C1B3A; font-weight: 600; }
+
 /* 3 · 24h timeline */
 .rest-timeline-strip {
   display: flex;
