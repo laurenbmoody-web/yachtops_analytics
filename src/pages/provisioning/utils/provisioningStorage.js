@@ -1142,7 +1142,23 @@ export const fetchSupplierOrdersForLists = async (listIds) => {
   if (!Array.isArray(listIds) || listIds.length === 0) return {};
   const { data, error } = await supabase
     ?.from('supplier_orders')
-    ?.select('id, list_id, status, supplier_order_items(item_name, status, substitute_description, substitution_price)')
+    // Per-line fields the kanban needs to flag supplier-side changes
+    // at a glance on the ItemCard: the supplier note, the substitute
+    // description, both the live and the originally-requested
+    // qty/unit/size (so the card can pip when they differ), plus the
+    // best-available price (so completed lines can show the actual
+    // figure without a drill-in).
+    ?.select(`
+      id, list_id, status,
+      supplier_order_items(
+        item_name, status, quote_status,
+        quantity, unit, size,
+        requested_quantity, requested_unit, requested_size,
+        substitute_description, substitution_price, supplier_item_note,
+        estimated_price, quoted_price, agreed_price,
+        estimated_currency, quoted_currency, agreed_currency
+      )
+    `)
     ?.in('list_id', listIds);
   if (error) {
     console.error('[provisioningStorage] fetchSupplierOrdersForLists error:', error);

@@ -569,6 +569,33 @@
   text-align: center;
 }
 
+/* Supplier pips on the kanban ItemCard — small terracotta-tinted dots
+   between the item name and the qty stepper. Lights when the supplier
+   left a note or overrode qty/unit/size on this line, so the chief
+   knows at a glance which lines need a closer look without drilling
+   into the supplier order detail. */
+.pv-item-supplier-pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+.pv-item-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #FBEFE9;
+  color: #C65A1A;
+  border: 1px solid #F2D6C5;
+  cursor: help;
+}
+.pv-item-pip svg { width: 9px; height: 9px; display: block; }
+.pv-item-pip-note { background: #ECF3EA; color: #2E7D5A; border-color: #C9DEC4; }
+
 /* Ghost + new-board column overrides */
 .pv-board .pv-ghost-column {
   background: transparent;

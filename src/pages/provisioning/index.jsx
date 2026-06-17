@@ -774,10 +774,32 @@ const ProvisioningWorkspace = () => {
         (order.supplier_order_items || []).forEach((oi) => {
           const key = (oi.item_name || '').toLowerCase().trim();
           if (!map[key]) {
+            // Detect any supplier-side override of the crew's original
+            // ask (qty/unit/size) so the ItemCard can pip the change at
+            // a glance without the chief drilling into the order.
+            const qtyChanged  = oi.requested_quantity != null && String(oi.requested_quantity) !== String(oi.quantity);
+            const unitChanged = !!oi.requested_unit && String(oi.requested_unit).toLowerCase() !== String(oi.unit || '').toLowerCase();
+            const sizeChanged = !!oi.requested_size && String(oi.requested_size).toLowerCase() !== String(oi.size || '').toLowerCase();
             map[key] = {
               status: oi.status,
+              quoteStatus: oi.quote_status,
               substitution: oi.substitute_description,
               subPrice: oi.substitution_price,
+              supplierNote: oi.supplier_item_note,
+              // Best price the supplier has settled — agreed > quoted.
+              // Estimated stays vessel-side (we don't surface it).
+              supplierPrice: oi.agreed_price ?? oi.quoted_price ?? null,
+              supplierCurrency: oi.agreed_currency || oi.quoted_currency || null,
+              // qty/unit/size deltas — frozen requested_* vs live.
+              requestedQuantity: oi.requested_quantity,
+              quantity: oi.quantity,
+              requestedUnit: oi.requested_unit,
+              unit: oi.unit,
+              requestedSize: oi.requested_size,
+              size: oi.size,
+              qtyChanged, unitChanged, sizeChanged,
+              hasChanges: qtyChanged || unitChanged || sizeChanged,
+              hasNote: !!(oi.supplier_item_note && String(oi.supplier_item_note).trim()),
               parentOrder: order,
             };
           }
