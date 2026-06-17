@@ -3,6 +3,15 @@ import {
   buildCandidates, assessRecipient, buildApplyPlan, planCoverage, freeHoursInWindow,
 } from './coverageEngine';
 import { ON_DUTY_TYPES, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
+import { supabase } from '../../lib/supabaseClient';
+
+// freed.date minus n days (local components), for the recipient rest window.
+const minusDays = (dateStr, n) => {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  const dt = new Date(y, m - 1, d - n);
+  const p = (x) => String(x).padStart(2, '0');
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+};
 
 const toDecLocal = (hhmm) => {
   const [h, m] = String(hhmm || '').slice(0, 5).split(':').map(Number);
@@ -45,6 +54,36 @@ export default function CoverageApplyModal({
     [freed, sourceCrew, crew],
   );
   const candById = useMemo(() => new Map(candidates.map((c) => [c.id, c])), [candidates]);
+
+  const [step, setStep] = useState('assign'); // 'assign' | 'preview'
+  const [alloc, setAlloc] = useState(null);    // { [memberId]: hour cap }
+  const [busy, setBusy] = useState(false);
+  // Crew shifts across the recipient rest window for the FREED date. Fetched
+  // fresh here (not the grid prop) so coverage is judged on the real roster even
+  // when the block is on a future day the grid hasn't loaded. Seeds from the
+  // prop so the first paint isn't empty.
+  const [winShifts, setWinShifts] = useState(windowShifts || []);
+  React.useEffect(() => {
+    if (!open || !freed) { return undefined; }
+    let cancelled = false;
+    const ids = (crew || []).map((c) => c.id).filter(Boolean);
+    if (!ids.length || !base?.tenantId) { setWinShifts(windowShifts || []); return undefined; }
+    (async () => {
+      const { data } = await supabase
+        .from('rota_shifts')
+        .select('member_id, shift_date, start_time, end_time, shift_type, sub_type')
+        .eq('tenant_id', base.tenantId)
+        .in('member_id', ids)
+        .gte('shift_date', minusDays(freed.date, 6))
+        .lte('shift_date', freed.date);
+      if (cancelled) return;
+      setWinShifts((data || []).map((r) => ({
+        memberId: r.member_id, date: r.shift_date, startTime: r.start_time, endTime: r.end_time, shiftType: r.shift_type, subType: r.sub_type,
+      })));
+    })();
+    return () => { cancelled = true; };
+  }, [open, freed, crew, base]);
+
   // How many hours each candidate is actually free for inside the block —
   // caps their stepper, and 0 means they're on duty then (unavailable).
   const availById = useMemo(() => {
@@ -52,29 +91,25 @@ export default function CoverageApplyModal({
     if (freed) {
       for (const c of candidates) {
         const free = freeHoursInWindow({
-          memberId: c.id, date: freed.date, start: freed.start, end: freed.end, windowShifts,
+          memberId: c.id, date: freed.date, start: freed.start, end: freed.end, windowShifts: winShifts,
         });
         m.set(c.id, Math.max(0, Math.min(free, Math.floor(c.headroom))));
       }
     }
     return m;
-  }, [candidates, freed, windowShifts]);
-
-  const [step, setStep] = useState('assign'); // 'assign' | 'preview'
-  const [alloc, setAlloc] = useState(null);    // { [memberId]: hour cap }
-  const [busy, setBusy] = useState(false);
+  }, [candidates, freed, winShifts]);
 
   // Seed from an uncapped plan: each covered member's planned hours become their
   // default cap, so the chief sees a sensible multi-person spread to adjust.
   React.useEffect(() => {
     if (!open || !freed) return;
     setStep('assign');
-    const base = planCoverage({ freed, candidates, date: freed.date, windowShifts });
+    const base0 = planCoverage({ freed, candidates, date: freed.date, windowShifts: winShifts });
     const a = {};
     for (const c of candidates) a[c.id] = 0; // explicit caps for everyone
-    for (const s of base.slices) if (!s.gap && s.id) a[s.id] = (a[s.id] || 0) + s.hours;
+    for (const s of base0.slices) if (!s.gap && s.id) a[s.id] = (a[s.id] || 0) + s.hours;
     setAlloc(a);
-  }, [open, freed, candidates, windowShifts]);
+  }, [open, freed, candidates, winShifts]);
 
   // All hooks must run before any early return (React rules-of-hooks).
   if (!open || !freed) return null;
@@ -82,7 +117,7 @@ export default function CoverageApplyModal({
   const freedH = Math.round(freed.hours);
 
   // Plan the actual time-correct coverage given the current per-person caps.
-  const plan = planCoverage({ freed, candidates, date: freed.date, windowShifts, caps: alloc || {} });
+  const plan = planCoverage({ freed, candidates, date: freed.date, windowShifts: winShifts, caps: alloc || {} });
   const slices = plan.slices.filter((s) => !s.gap && s.id);
   const gapSlices = plan.slices.filter((s) => s.gap);
   const gapHours = plan.gapHours;
@@ -100,7 +135,7 @@ export default function CoverageApplyModal({
   const daySegments = (memberId, slice) => {
     const dur = (st, en) => { let d = toDecLocal(en) - toDecLocal(st); if (d <= 0) d += 24; return d; };
     const raw = [];
-    for (const s of (windowShifts || [])) {
+    for (const s of (winShifts || [])) {
       if (s.memberId === memberId && s.date === freed.date && ON_DUTY_TYPES.has(s.shiftType)) {
         raw.push({ start: toDecLocal(s.startTime), hours: dur(s.startTime, s.endTime), kind: 'duty' });
       }
@@ -139,7 +174,7 @@ export default function CoverageApplyModal({
       return pieces;
     };
     const duties = [];
-    for (const s of (windowShifts || [])) {
+    for (const s of (winShifts || [])) {
       if (s.memberId !== sourceCrew.id || s.date !== freed.date || !ON_DUTY_TYPES.has(s.shiftType)) continue;
       const start = toDecLocal(s.startTime);
       const end = Math.min(24, start + dur(s.startTime, s.endTime));
@@ -162,7 +197,7 @@ export default function CoverageApplyModal({
     const slice = slices.find((s) => s.id === id);
     return assessRecipient({
       memberId: id,
-      windowShifts,
+      windowShifts: winShifts,
       date: freed.date,
       block: slice ? { ...slice, shiftType: freed.sourceShiftType } : null,
     });
