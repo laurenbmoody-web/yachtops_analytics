@@ -84,6 +84,18 @@ body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);}
 .d-ev .vn{font-size:13px;font-weight:600;margin-top:3px;}
 .d-ev .vs{font-size:10.5px;color:var(--faint);margin-top:1px;}
 
+/* OPTION D2 — dates LEFT of the spine */
+.d2-tl{position:relative;margin-top:10px;}
+.d2-tl:before{content:"";position:absolute;left:109px;top:12px;bottom:14px;width:2px;background:var(--hair-2);}
+.d2-ev{--dot:var(--muted);position:relative;display:grid;grid-template-columns:100px 1fr auto;gap:18px;align-items:center;padding:12px 0;border-bottom:1px solid var(--hair);}
+.d2-ev:last-of-type{border-bottom:0;}
+.d2-ev:before{content:"";position:absolute;left:104px;top:50%;transform:translateY(-50%);width:11px;height:11px;border-radius:50%;background:var(--dot);border:2.5px solid #fff;box-shadow:0 0 0 2px var(--dot);}
+.d2-date{text-align:right;}
+.d2-date .dd{font-family:var(--serif);font-weight:500;font-size:14.5px;color:var(--ink);line-height:1.1;}
+.d2-date .dy{font-size:10px;font-weight:600;color:var(--muted);margin-top:3px;}
+.d2-ev .vn{font-size:13px;font-weight:600;}
+.d2-ev .vs{font-size:10.5px;color:var(--faint);margin-top:2px;}
+
 /* =================== OPTION E — service ribbon (gantt) =================== */
 .e-axis{position:relative;height:16px;margin:8px 0 2px;}
 .e-axis span{position:absolute;top:0;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);}
@@ -256,6 +268,45 @@ body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);}
         <div style="text-align:right"><span class="chip" style="color:var(--t-sb);background:var(--t-sb-bg)"><svg class="ico"><use href="#anchor"/></svg> Standby</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div></div></div>
       <div class="d-ev" style="--dot:var(--t-yd)"><div><div class="dl">15–22 Apr <small>· 8 days</small></div><div class="vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="vs">Shipyard / refit · Master</div></div>
         <div style="text-align:right"><span class="chip" style="color:var(--t-yd);background:var(--t-yd-bg)"><svg class="ico"><use href="#wrench"/></svg> Shipyard</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div></div></div>
+    </div>
+    <div class="foot">6 entries in pack · 62 qualifying days · 1 excluded</div>
+  </div>
+
+  <!-- ============ OPTION D2 — dates on the left ============ -->
+  <div class="opt-h"><span class="tag">Option D · dates left</span><h2>Voyage timeline — dates left of the spine</h2>
+    <p>Same vertical timeline, but the date column sits to the <b>left</b> of the spine — a true logbook column: date · dot · voyage · outcome.</p></div>
+  <div class="card">
+    <div class="lh"><h4>Logged sea service</h4>
+      <div class="filter"><b class="on">All</b><b>Seagoing</b><b>Watchkeeping</b><b>Standby</b><b>Yard</b></div></div>
+    <div class="d2-tl">
+      <div class="d2-ev" style="--dot:var(--t-watch)">
+        <div class="d2-date"><div class="dd">04–28 Jan</div><div class="dy">24 days</div></div>
+        <div><div class="vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span> <span class="chip" style="color:var(--t-watch);background:var(--t-watch-bg);margin-left:2px"><svg class="ico"><use href="#compass"/></svg> Watchkeeping</span></div><div class="vs">8h watch · Master · Marshall Is. · 1450 GT · 68 m</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div>
+      <div class="d2-ev" style="--dot:var(--t-sea)">
+        <div class="d2-date"><div class="dd">01–14 Feb</div><div class="dy">14 days</div></div>
+        <div><div class="vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span> <span class="chip" style="color:var(--t-sea);background:var(--t-sea-bg);margin-left:2px"><svg class="ico"><use href="#ship"/></svg> Seagoing</span></div><div class="vs">Days at sea on passage · Master</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div>
+      <div class="d2-ev" style="--dot:#CBC8C0;opacity:.55">
+        <div class="d2-date"><div class="dd">20–24 Feb</div><div class="dy">5 days</div></div>
+        <div><div class="vn">S/Y Tern <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="vs">Malta · 18 GT · 12 m</div></div>
+        <span class="chip ex">Excluded</span></div>
+      <div class="d2-ev" style="--dot:var(--t-sb)">
+        <div class="d2-date"><div class="dd">02 Mar</div><div class="dy">1 day</div></div>
+        <div><div class="vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span> <span class="chip" style="color:var(--t-sb);background:var(--t-sb-bg);margin-left:2px"><svg class="ico"><use href="#anchor"/></svg> Standby</span></div><div class="vs">Reclassified from watchkeeping</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div>
+      <div class="d2-ev" style="--dot:var(--t-watch)">
+        <div class="d2-date"><div class="dd">12–18 Mar</div><div class="dy">7 days</div></div>
+        <div><div class="vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-sea);background:var(--t-sea-bg)">AIS</span> <span class="chip" style="color:var(--t-watch);background:var(--t-watch-bg);margin-left:2px"><svg class="ico"><use href="#compass"/></svg> Watchkeeping</span></div><div class="vs">6h watch · Master</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div>
+      <div class="d2-ev" style="--dot:var(--t-sb)">
+        <div class="d2-date"><div class="dd">03–10 Apr</div><div class="dy">8 days</div></div>
+        <div><div class="vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span> <span class="chip" style="color:var(--t-sb);background:var(--t-sb-bg);margin-left:2px"><svg class="ico"><use href="#anchor"/></svg> Standby</span></div><div class="vs">Subject to regulatory cap · Master</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div>
+      <div class="d2-ev" style="--dot:var(--t-yd)">
+        <div class="d2-date"><div class="dd">15–22 Apr</div><div class="dy">8 days</div></div>
+        <div><div class="vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span> <span class="chip" style="color:var(--t-yd);background:var(--t-yd-bg);margin-left:2px"><svg class="ico"><use href="#wrench"/></svg> Shipyard</span></div><div class="vs">Shipyard / refit · Master</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div>
     </div>
     <div class="foot">6 entries in pack · 62 qualifying days · 1 excluded</div>
   </div>
