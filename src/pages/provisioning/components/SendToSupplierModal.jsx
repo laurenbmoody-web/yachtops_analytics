@@ -74,6 +74,12 @@ const SendToSupplierModal = ({
   const [sendingKey, setSendingKey] = useState(null);   // group key being sent
   const [sendingAll, setSendingAll] = useState(false);
   const [unassignedSupplierId, setUnassignedSupplierId] = useState('');
+  const [expandedKeys, setExpandedKeys] = useState(() => new Set());
+  const toggleExpanded = (k) => setExpandedKeys((prev) => {
+    const next = new Set(prev);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    return next;
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -87,6 +93,7 @@ const SendToSupplierModal = ({
     setSendingKey(null);
     setSendingAll(false);
     setUnassignedSupplierId('');
+    setExpandedKeys(new Set());
   }, [isOpen]);
 
   useEffect(() => {
@@ -502,43 +509,133 @@ const SendToSupplierModal = ({
     );
   };
 
+  const ItemList = ({ rows }) => (
+    <ul className="stsm-itemlist">
+      {rows.map((r) => {
+        const it = r.item;
+        const qty = it.quantity != null ? `${it.quantity}${it.unit ? ` ${it.unit}` : ''}` : '';
+        return (
+          <li key={r.key} className={`stsm-itemrow${isSent(r.key) ? ' is-sent' : ''}`}>
+            <span className="stsm-itemname">{it.name}</span>
+            {qty && <span className="stsm-itemqty">{qty}</span>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   const GroupRow = ({ supplier, rows }) => {
     const fullySent = rows.filter(r => !isSent(r.key)).length === 0;
     const busy = sendingKey === supplier.id;
     const hasContact = Boolean(supplier.email) || Boolean(supplier.phone);
+    const isOpen = expandedKeys.has(supplier.id);
     return (
-      <div className={`stsm-group${fullySent ? ' is-sent' : ''}`}>
-        <div className="stsm-group-text">
-          <div className="stsm-group-name">
-            {supplier.name || 'Supplier'}
-            <span className="stsm-group-meta"> · {plural(rows.length, 'item')}</span>
-          </div>
-          {hasContact ? (
-            <div className="stsm-group-contact">
-              {[supplier.email, supplier.phone].filter(Boolean).join(' · ')}
-            </div>
+      <div className={`stsm-row${fullySent ? ' is-sent' : ''}${isOpen ? ' is-open' : ''}`}>
+        <button
+          type="button"
+          className="stsm-row-main"
+          onClick={() => toggleExpanded(supplier.id)}
+          aria-expanded={isOpen}
+        >
+          <span className={`stsm-chev${isOpen ? ' is-open' : ''}`}>
+            <Icon name="ChevronRight" size={14} />
+          </span>
+          <span className="stsm-row-text">
+            <span className="stsm-row-name">
+              {supplier.name || 'Supplier'}
+              <span className="stsm-row-meta"> · {plural(rows.length, 'item')}</span>
+            </span>
+            {hasContact ? (
+              <span className="stsm-row-contact">
+                {[supplier.email, supplier.phone].filter(Boolean).join(' · ')}
+              </span>
+            ) : (
+              <span
+                role="button"
+                tabIndex={0}
+                className="stsm-row-add"
+                onClick={(e) => { e.stopPropagation(); window.open(`/provisioning/suppliers/${supplier.id}`, '_blank', 'noopener'); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); window.open(`/provisioning/suppliers/${supplier.id}`, '_blank', 'noopener'); } }}
+              >
+                <Icon name="Plus" size={11} /> Add contact
+              </span>
+            )}
+          </span>
+        </button>
+        <div className="stsm-row-actions" onClick={(e) => e.stopPropagation()}>
+          {fullySent ? (
+            <span className="stsm-sent">
+              <Icon name="Check" size={13} /> Sent
+            </span>
           ) : (
-            <button
-              type="button"
-              className="stsm-group-add"
-              onClick={() => window.open(`/provisioning/suppliers/${supplier.id}`, '_blank', 'noopener')}
-            >
-              <Icon name="Plus" size={11} /> Add contact
-            </button>
+            <>
+              <ActionButtons supplier={supplier} groupKey={supplier.id} rows={rows} busy={busy} />
+              {hasContact && !requiredComplete && (
+                <span className="stsm-hint">Complete the order context above</span>
+              )}
+            </>
           )}
         </div>
-        {fullySent ? (
-          <span className="stsm-sent">
-            <Icon name="Check" size={13} /> Sent
+        {isOpen && <ItemList rows={rows} />}
+      </div>
+    );
+  };
+
+  const UnassignedRow = () => {
+    const isOpen = expandedKeys.has('__unassigned__');
+    const busy = sendingKey === '__unassigned__';
+    const canSend = !!unassignedSupplier && unassignedUnsent.length > 0 && !sendingKey && !sendingAll && requiredComplete;
+    return (
+      <div className={`stsm-row stsm-row-unassigned${isOpen ? ' is-open' : ''}`}>
+        <button
+          type="button"
+          className="stsm-row-main"
+          onClick={() => toggleExpanded('__unassigned__')}
+          aria-expanded={isOpen}
+        >
+          <span className={`stsm-chev${isOpen ? ' is-open' : ''}`}>
+            <Icon name="ChevronRight" size={14} />
           </span>
-        ) : (
-          <div className="stsm-row-actions">
-            <ActionButtons supplier={supplier} groupKey={supplier.id} rows={rows} busy={busy} />
-            {hasContact && !requiredComplete && (
-              <span className="stsm-hint">Complete the order context above</span>
-            )}
+          <span className="stsm-row-text">
+            <span className="stsm-row-name">
+              Unassigned
+              <span className="stsm-row-meta"> · {plural(unassigned.length, 'item')} waiting</span>
+            </span>
+            <span className="stsm-row-contact">Choose a supplier to send these on their way.</span>
+          </span>
+        </button>
+        <div className="stsm-row-actions stsm-row-actions-unassigned" onClick={(e) => e.stopPropagation()}>
+          <div className="stsm-picker-wrap">
+            <SupplierPicker
+              value={unassignedSupplierId}
+              suppliers={suppliers}
+              inputClassName={pickerInputCls}
+              placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier'}
+              onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
+              allowAddNew
+              onAddNew={handleAddNewSupplier}
+            />
           </div>
-        )}
+          {unassignedSupplier && unassignedSupplier.phone && (
+            <button
+              type="button"
+              disabled={unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
+              onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'whatsapp' })}
+              className="stsm-btn stsm-btn-ghost"
+            >
+              WhatsApp
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={!canSend}
+            onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'email' })}
+            className={`stsm-btn stsm-btn-primary${!canSend ? ' is-disabled' : ''}`}
+          >
+            {busy ? <><span className="stsm-spinner" /> Sending…</> : 'Send'}
+          </button>
+        </div>
+        {isOpen && <ItemList rows={unassigned} />}
       </div>
     );
   };
@@ -601,7 +698,7 @@ const SendToSupplierModal = ({
             <div className="stsm-body">
               {/* Shared delivery context — applies to every order this session. */}
               <section className="stsm-section">
-                <h3 className="stsm-subhead is-first">Delivery brief</h3>
+                <h3 className="stsm-subhead is-first">Delivery Brief</h3>
                 <div className="stsm-grid">
                   <div className="stsm-field">
                     <label className="stsm-label">
@@ -668,59 +765,13 @@ const SendToSupplierModal = ({
               </section>
 
               <section className="stsm-section">
-                <h3 className="stsm-subhead">Suppliers list</h3>
-                {groups.length > 0 && (
-                  <div className="stsm-grouplist">
-                    {groups.map(gi => (
-                      <GroupRow key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
-                    ))}
-                  </div>
-                )}
-
-                {unassigned.length > 0 && (
-                  <div className="stsm-unassigned">
-                    <div className="stsm-group-name">
-                      Unassigned
-                      <span className="stsm-group-meta">{plural(unassigned.length, 'item')} waiting</span>
-                    </div>
-                    <div className="stsm-unassigned-note">
-                      Pick a supplier to send them on their way.
-                    </div>
-                    <div className="stsm-unassigned-row">
-                      <div className="stsm-supplier-picker">
-                        <SupplierPicker
-                          value={unassignedSupplierId}
-                          suppliers={suppliers}
-                          inputClassName={pickerInputCls}
-                          placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier…'}
-                          onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
-                          allowAddNew
-                          onAddNew={handleAddNewSupplier}
-                        />
-                      </div>
-                      {unassignedSupplier && unassignedSupplier.phone && (
-                        <button
-                          type="button"
-                          disabled={unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
-                          onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'whatsapp' })}
-                          className="stsm-btn stsm-btn-ghost"
-                        >
-                          WhatsApp
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll || !requiredComplete}
-                        onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'email' })}
-                        className={`stsm-btn stsm-btn-primary${(!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll || !requiredComplete) ? ' is-disabled' : ''}`}
-                      >
-                        {sendingKey === '__unassigned__'
-                          ? <><span className="stsm-spinner" /> Sending…</>
-                          : 'Send'}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <h3 className="stsm-subhead">Suppliers List</h3>
+                <div className="stsm-grouplist">
+                  {groups.map(gi => (
+                    <GroupRow key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
+                  ))}
+                  {unassigned.length > 0 && <UnassignedRow />}
+                </div>
               </section>
             </div>
 
