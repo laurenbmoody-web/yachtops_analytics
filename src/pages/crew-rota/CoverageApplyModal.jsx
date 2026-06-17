@@ -27,9 +27,17 @@ const toDecLocal = (hhmm) => {
 //   onToast       (msg, opts?) => void
 export default function CoverageApplyModal({
   open, suggestion, sourceCrew, crew, windowShifts, base,
-  ensureDraft, applyTemplate, onApplied, onClose, onToast,
+  ensureDraft, applyTemplate, onApplied, onClose, onToast, publishImmediately = false,
+  realToday = null, nowHHMM = null,
 }) {
   const freed = suggestion?.freedBlock || null;
+  // Already-worked hours can't be reassigned — block any freed slot on a past
+  // day or one that's already started today. (Engine already filters these;
+  // this is the last line of defence before a write.)
+  const freedIsPast = !!freed && !!realToday && (
+    freed.date < realToday
+    || (freed.date === realToday && !!nowHHMM && (freed.start || '').slice(0, 5) <= nowHHMM)
+  );
   const candidates = useMemo(
     () => (freed && sourceCrew ? buildCandidates({ sourceMember: sourceCrew, crew }) : []),
     [freed, sourceCrew, crew],
@@ -138,18 +146,26 @@ export default function CoverageApplyModal({
 
   const handleConfirm = async () => {
     if (recipientBreach) return;
+    if (freedIsPast) {
+      onToast?.('That block is already in the past — already-worked hours can’t be reassigned.', { type: 'error' });
+      return;
+    }
     if (busy) return;
     setBusy(true);
     try {
-      if (ensureDraft && sourceCrew?.departmentId) await ensureDraft(sourceCrew.departmentId);
+      // Publish-capable tiers write live and skip the draft revert; everyone
+      // else flips the dept to draft first (the normal review workflow).
+      if (!publishImmediately && ensureDraft && sourceCrew?.departmentId) {
+        await ensureDraft(sourceCrew.departmentId);
+      }
       const plan = buildApplyPlan({
-        base: { ...base, sourceMemberId: sourceCrew.id },
+        base: { ...base, sourceMemberId: sourceCrew.id, status: publishImmediately ? 'published' : 'draft' },
         freed,
         slices,
       });
       const res = await applyTemplate(plan);
       if (res?.ok) {
-        onToast?.(`Applied — ${freedH - remaining}h reassigned across ${slices.length} crew`, { type: 'success' });
+        onToast?.(`${publishImmediately ? 'Published' : 'Applied'} — ${freedH - remaining}h reassigned across ${slices.length} crew`, { type: 'success' });
         onApplied?.();
       } else {
         onToast?.(res?.error || 'Could not apply to grid', { type: 'error' });
@@ -322,16 +338,19 @@ export default function CoverageApplyModal({
               );
             })}
 
+            {freedIsPast && (
+              <div className="cov-note warn">This block is already in the past — already-worked hours can’t be reassigned. Pick a suggestion for an upcoming day instead.</div>
+            )}
             {recipientBreach && (
               <div className="cov-note warn">This split would push a recipient into an MLC breach. Go back and re-allocate — coverage can't create a new breach.</div>
             )}
             {remaining > 0 && (
               <div className="cov-note warn">{remaining}h still unassigned — the source keeps that portion. Go back to allocate it fully.</div>
             )}
-            <div className="cov-note">Recipients re-checked against all four MLC rules (10h daily · 77h weekly · rest split · 14h continuous). Confirm writes all edits to the grid as draft.</div>
+            <div className="cov-note">Recipients re-checked against all four MLC rules (10h daily · 77h weekly · rest split · 14h continuous). Confirm {publishImmediately ? 'publishes all edits to the grid live' : 'writes all edits to the grid as draft'}.</div>
 
             <div className="cov-actions">
-              <button type="button" className="cov-btn primary" disabled={busy || recipientBreach} onClick={handleConfirm}>
+              <button type="button" className="cov-btn primary" disabled={busy || recipientBreach || freedIsPast} onClick={handleConfirm}>
                 {busy ? 'Applying…' : 'Confirm & apply'}
               </button>
               <button type="button" className="cov-btn ghost" disabled={busy} onClick={() => setStep('assign')}>Back</button>

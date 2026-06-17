@@ -166,7 +166,8 @@ export function buildApplyPlan({ base, freed, slices }) {
       end_time: end.length === 5 ? `${end}:00` : end,
       shift_type: shiftType || 'watch',
       sub_type: subType ?? null,
-      status: 'draft',
+      // Publish-capable tiers (COMMAND / CHIEF) write live; otherwise draft.
+      status: base.status === 'published' ? 'published' : 'draft',
     };
     if (base.tripId) row.trip_id = base.tripId;
     if (base.createdBy) row.created_by = base.createdBy;

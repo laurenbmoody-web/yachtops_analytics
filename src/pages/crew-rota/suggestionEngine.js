@@ -43,13 +43,18 @@ function applyChange(rows, change) {
   return out;
 }
 
-// Forward-looking rolling-7 rest after the change, anchored on the change's own
-// date (future levers only pay off the day they land).
-function projectWeekly(change, allRows, effDate) {
+// Forward-looking FULL MLC report after the change, anchored on the change's
+// own date (future levers only pay off the day they land). Unlike the old
+// weekly-only projection, this re-runs all four rules — so a lever is only
+// credited with "resolving" a breach when the structural rules (14h stretch /
+// rest split) clear too, not just the weekly total.
+function projectReport(change, allRows, effDate) {
   const evalDate = change.shift_date > effDate ? change.shift_date : effDate;
   const winStart = addDays(evalDate, -6);
-  const win = (allRows || []).filter(s => s.shift_date >= winStart && s.shift_date <= evalDate);
-  return assessMlc({ dayShifts: [], weekShifts: applyChange(win, change).map(toCamel) }).pastWeekHours;
+  const changed = applyChange(allRows || [], change);
+  const dayRows = changed.filter((s) => s.shift_date === evalDate);
+  const weekRows = changed.filter((s) => s.shift_date >= winStart && s.shift_date <= evalDate);
+  return assessMlc({ dayShifts: dayRows.map(toCamel), weekShifts: weekRows.map(toCamel) });
 }
 
 // Resolve the freed block for a change against the real rows.
@@ -109,16 +114,31 @@ const dayLabel = (dateStr, effDate) => {
 // Main entry. Returns up to `limit` ranked, fully-costed suggestions.
 export function generateRankedSuggestions({
   sourceMember, effDate, allRows, report, roster, windowShifts, limit = 2,
+  realToday = null, nowHHMM = null,
 }) {
   if (!sourceMember || !report) return [];
   const restFrom = report.pastWeekHours;
   const dailyBelow = report.rest24h < MLC_DAILY_REST_MIN;
   const weeklyDeficit = Math.max(0, MLC_WEEKLY_REST_MIN - restFrom);
+  // Which rules are actually breaching drives both lever shaping and copy.
+  const breachRules = new Set((report.breaches || []).map((b) => b.rule));
+  const stretchBreach = breachRules.has('max_work_stretch_14h');
+
+  // Already-worked hours can't be rescheduled. A lever is invalid if its freed
+  // block is on a past day, or has already started today — you can't reassign
+  // time the crew has lived through. (No realToday → no guard, for tests.)
+  const isPastBlock = (date, startHHMM) => {
+    if (!realToday) return false;
+    if (date < realToday) return true;
+    if (date === realToday && nowHHMM && (startHHMM || '').slice(0, 5) <= nowHHMM) return true;
+    return false;
+  };
 
   const raw = [];
   const pushChange = (kind, change) => {
     const freed = freedFor(change, allRows);
     if (!freed || freed.hours <= 0) return;
+    if (isPastBlock(freed.date, freed.start)) return;
     raw.push({ kind, change, freed });
   };
 
@@ -132,7 +152,10 @@ export function generateRankedSuggestions({
     pushChange('remove', { shift_date: effDate, original_start: start, action: 'remove' });
     if (hrs >= 3) {
       // Trim the tail by enough to dent the deficit, but keep ≥1h of the block.
-      const trim = Math.min(hrs - 1, Math.max(2, Math.ceil(weeklyDeficit) || 2));
+      // If a 14h-continuous breach is in play, trim hard enough to bring this
+      // block down to ≤13h so the shorten actually targets the stretch rule.
+      const baseTrim = Math.min(hrs - 1, Math.max(2, Math.ceil(weeklyDeficit) || 2));
+      const trim = stretchBreach ? Math.min(hrs - 1, Math.max(baseTrim, hrs - 13)) : baseTrim;
       const keepEnd = addHHMM(start, hrs - trim);
       pushChange('shorten', { shift_date: effDate, original_start: start, action: 'shorten', new_start: start, new_end: keepEnd });
     }
@@ -162,9 +185,14 @@ export function generateRankedSuggestions({
     if (seen.has(sig)) continue;
     seen.add(sig);
     try {
-      const restTo = projectWeekly(r.change, allRows, effDate);
+      const projected = projectReport(r.change, allRows, effDate);
+      const restTo = projected.pastWeekHours;
       const closed = weeklyDeficit > 0 ? Math.min(restTo - restFrom, weeklyDeficit) / weeklyDeficit : 1;
       const resolvesWeekly = restTo >= MLC_WEEKLY_REST_MIN;
+      // Honest success measure: did EVERY breaching rule clear (incl. the
+      // structural 14h-stretch / split), not just the weekly total?
+      const resolvesAll = !projected.anyBreach;
+      const remainingBreaches = projected.breaches.map((b) => b.label);
       let cov;
       try {
         cov = evaluateCoverage({ sourceMember, freed: r.freed, roster, windowShifts });
@@ -172,9 +200,11 @@ export function generateRankedSuggestions({
         cov = { ok: false, partial: false, crewCount: 0, unassigned: r.freed.hours, roles: [] };
       }
       const coverageScore = cov.ok ? Math.max(0.4, 1 - 0.15 * (cov.crewCount - 1)) : (cov.partial ? 0.3 : 0.1);
-      // Balance: rest restored (0.5) + breach resolution (0.2) + coverage (0.3).
-      const score = 0.5 * Math.max(0, closed) + 0.2 * (resolvesWeekly ? 1 : 0) + 0.3 * coverageScore;
-      const confidence = (resolvesWeekly && cov.ok) || (closed >= 0.5 && cov.ok) ? 'high' : 'medium';
+      // Balance: rest restored (0.5) + full-breach resolution (0.2) + coverage (0.3).
+      const score = 0.5 * Math.max(0, closed) + 0.2 * (resolvesAll ? 1 : 0) + 0.3 * coverageScore;
+      // Only "high confidence" when the fix actually clears the breach AND
+      // coverage is safe — a lever that leaves a breach open is a judgement call.
+      const confidence = resolvesAll && cov.ok ? 'high' : 'medium';
 
       scored.push({
         id: sig,
@@ -184,6 +214,8 @@ export function generateRankedSuggestions({
         restFrom,
         restTo: Number.isFinite(restTo) ? restTo : restFrom,
         resolvesWeekly,
+        resolvesAll,
+        remainingBreaches,
         dailyBelow,
         coverage: cov,
         dayLabel: dayLabel(r.freed.date, effDate),

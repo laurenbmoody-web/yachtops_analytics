@@ -70,16 +70,24 @@ function subLabel(s) {
 // RestPanelPopover renders. The change/freedBlock are already resolved by the
 // engine; copy falls back to a template when the model is unavailable.
 function buildSuggestion(r, copy, effDate) {
-  const ok = r.restTo >= 77;
+  // Compliance is judged on ALL four rules, not just the weekly total — a
+  // lever that restores weekly rest but leaves a 14h-continuous / split breach
+  // open must NOT read as "now compliant".
+  const resolves = !!r.resolvesAll;
+  const weeklyOk = r.restTo >= 77;
   const future = r.freedBlock.date > effDate;
   const weeklyEffect = {
     name: 'Rolling 7-day rest',
     from: fmtHours(r.restFrom),
     to: fmtHours(r.restTo),
     fromColor: r.restFrom >= 77 ? '#2D5A3A' : '#7A2E1E',
-    toColor: ok ? '#2D5A3A' : '#7A2E1E',
-    note: ok ? (future ? `compliant by ${r.dayLabel}` : 'now compliant') : `still ${fmtHours(Math.max(0, 77 - r.restTo))} short`,
-    noteColor: ok ? '#2D5A3A' : '#7A2E1E',
+    toColor: resolves ? '#2D5A3A' : '#7A2E1E',
+    note: resolves
+      ? (future ? `compliant by ${r.dayLabel}` : 'now compliant')
+      : weeklyOk
+        ? 'weekly ok · breach remains'
+        : `still ${fmtHours(Math.max(0, 77 - r.restTo))} short`,
+    noteColor: resolves ? '#2D5A3A' : '#7A2E1E',
   };
   return {
     type: r.confidence === 'high' ? 'confident' : 'judgment',
@@ -89,6 +97,7 @@ function buildSuggestion(r, copy, effDate) {
     effects: [weeklyEffect],
     change: r.change,
     freedBlock: r.freedBlock,
+    resolves,
     primaryAction: 'Apply to grid',
     secondaryAction: 'Dismiss',
   };
@@ -107,6 +116,12 @@ function fallbackBody(r) {
   const verb = r.kind === 'day_off' ? 'A full day off'
     : r.kind === 'future_off' ? 'Dropping this block'
       : r.kind === 'shorten' ? 'Trimming this block' : 'Freeing this block';
+  // Be honest when the lever eases load but doesn't clear the breach (e.g. a
+  // structural 14h-continuous breach from already-worked days that no
+  // forward reschedule can undo).
+  if (!r.resolvesAll && r.remainingBreaches && r.remainingBreaches.length) {
+    return `${verb} ${r.dayLabel} eases ${who === 'another crew member in the department' ? 'the' : 'their'} load, but doesn’t clear the breach on its own (${r.remainingBreaches.join(' · ')}).`;
+  }
   return `${verb} ${r.dayLabel} helps close the rest deficit. ${who} can absorb the coverage.`;
 }
 
@@ -148,11 +163,10 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
         // in), so the panel always reflects the same week as the grid/list. A
         // member with future-dated shifts must NOT pull a future week here —
         // that's what made the panel disagree with the row's MLC verdict.
-        const localToday = (() => {
-          const d = new Date();
-          const p = (n) => String(n).padStart(2, '0');
-          return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-        })();
+        const nowDate = new Date();
+        const p2 = (n) => String(n).padStart(2, '0');
+        const localToday = `${nowDate.getFullYear()}-${p2(nowDate.getMonth() + 1)}-${p2(nowDate.getDate())}`;
+        const nowHHMM = `${p2(nowDate.getHours())}:${p2(nowDate.getMinutes())}`;
         const effDate = anchorDate || localToday;
 
         // Fetch 13 trailing days (so each charted day has a full trailing
@@ -365,6 +379,8 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
               roster: rosterRef.current || [],
               windowShifts: windowShiftsRef.current || [],
               limit: 2,
+              realToday: localToday,
+              nowHHMM,
             });
 
             // Stable cache key: who, when, and exactly which ranked fixes.
@@ -388,7 +404,8 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
                       freed_hours: Math.round(r.freedBlock.hours),
                       rest_from: Math.round(r.restFrom),
                       rest_to: Math.round(r.restTo),
-                      resolves: r.resolvesWeekly,
+                      resolves: r.resolvesAll,
+                      remaining_breaches: r.remainingBreaches || [],
                       coverage_roles: Array.from(new Set(r.coverage.roles || [])),
                     })),
                   },

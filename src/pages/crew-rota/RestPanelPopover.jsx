@@ -52,6 +52,10 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
   const [dismissed, setDismissed] = useState([]);
   useEffect(() => { setDismissed([]); }, [crew?.id]);
   const visibleCount = suggestions.filter((_, i) => !dismissed.includes(i)).length;
+  // True only if at least one still-visible option actually clears the breach.
+  // When none do (e.g. a structural breach from already-worked hours), the
+  // summary must not promise to bring the crew "into compliance".
+  const anyResolves = suggestions.some((s, i) => !dismissed.includes(i) && s.resolves);
 
   if (!crew) return null;
 
@@ -247,7 +251,9 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
             <div className="rest-section-summary">
               {suggestionsLoading
                 ? `Looking for ways to bring ${data.fullName.split(' ')[0]} back into compliance…`
-                : `${visibleCount === 1 ? 'A way' : `${visibleCount} ways`} to bring ${data.fullName.split(' ')[0]} into compliance without losing coverage.`}
+                : anyResolves
+                  ? `${visibleCount === 1 ? 'A way' : `${visibleCount} ways`} to bring ${data.fullName.split(' ')[0]} into compliance without losing coverage.`
+                  : `${visibleCount === 1 ? 'One option' : `${visibleCount} options`} to ease ${data.fullName.split(' ')[0]}’s load — but the current breach can’t be cleared by rescheduling alone.`}
             </div>
             {suggestions.map((sg, i) => (dismissed.includes(i) ? null : (
               <div key={i} className={`rest-suggestion ${sg.type}`}>
