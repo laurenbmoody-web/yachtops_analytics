@@ -1017,6 +1017,14 @@ const XIcon = () => (
   </svg>
 );
 
+// Tick (Confirm) icon — paired with X on every pending row so the
+// supplier can commit a single priced line without using the bulk CTA.
+const CheckIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="4 12 10 18 20 6" />
+  </svg>
+);
+
 const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
   const status = item.status || 'pending';
   const isPending = status === 'pending';
@@ -1033,6 +1041,21 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
         substitute_description: null,
       });
     } catch (e) { window.alert(`Update failed: ${e.message}`); }
+  };
+
+  // Per-line confirm. Requires a quote price on the row — the vessel
+  // needs the number to act on. The bulk "Confirm all available" CTA
+  // sweeps the same path across every priced pending line.
+  const hasQuote = item.quoted_price != null && Number(item.quoted_price) > 0;
+  const hasAgreed = item.agreed_price != null && Number(item.agreed_price) > 0;
+  const canConfirm = hasQuote || hasAgreed;
+  const confirmLine = async () => {
+    if (!canConfirm) {
+      window.alert('Enter a quote price before confirming this line.');
+      return;
+    }
+    try { await onUpdate(item.id, { status: 'confirmed' }); }
+    catch (e) { window.alert(`Update failed: ${e.message}`); }
   };
 
   // Line total for the right-most column — same precedence the subtotal uses.
@@ -1109,13 +1132,23 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
       <div className="sod-wq-cell sod-wq-cell-action">
         {canEdit && (
           isPending ? (
-            <button
-              type="button"
-              className="sod-wq-icon-btn sod-wq-icon-x"
-              onClick={setUnavailable}
-              title="Mark unavailable"
-              aria-label="Mark unavailable"
-            ><XIcon /></button>
+            <>
+              <button
+                type="button"
+                className="sod-wq-icon-btn sod-wq-icon-check"
+                onClick={confirmLine}
+                disabled={!canConfirm}
+                title={canConfirm ? 'Confirm this line' : 'Enter a quote price first'}
+                aria-label="Confirm this line"
+              ><CheckIcon /></button>
+              <button
+                type="button"
+                className="sod-wq-icon-btn sod-wq-icon-x"
+                onClick={setUnavailable}
+                title="Mark unavailable"
+                aria-label="Mark unavailable"
+              ><XIcon /></button>
+            </>
           ) : (
             <button
               type="button"
