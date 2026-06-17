@@ -18,7 +18,8 @@
 //       freed_hours:   number,
 //       rest_from:     number,                 // rolling-7 before
 //       rest_to:       number,                 // rolling-7 after
-//       resolves:      boolean,                // clears the weekly minimum?
+//       resolves:      boolean,                // fully restores MLC compliance?
+//       remaining_breaches: string[],          // rules still breaching if PARTIAL
 //       coverage_roles: string[],              // generic roles absorbing cover
 //     } ]
 //   }
@@ -48,6 +49,7 @@ interface ChangeIn {
   rest_from: number;
   rest_to: number;
   resolves: boolean;
+  remaining_breaches?: string[];
   coverage_roles?: string[];
 }
 interface RequestBody {
@@ -61,12 +63,14 @@ function buildSystemPrompt(): string {
 
 For EACH change you are given, write:
 - HEADLINE: an imperative phrase, maximum 6 words, no numbers and no dates. Good: "Hand off the afternoon watch", "Full day off Thursday", "Trim tonight's watch". Bad headlines restate numbers or dates.
-- BODY: at most 3 short sentences — why this change helps the breach, then who absorbs the coverage. Refer to covering crew by the ROLE(S) provided (e.g. "the 2nd stew"); never invent names. Cut filler.
+- BODY: at most 3 short sentences — what this change does for the rest picture, then who absorbs the coverage. Refer to covering crew by the ROLE(S) provided (e.g. "the 2nd stew"); never invent names. Cut filler.
 
 Rules:
+- HONESTY (most important): Each change is tagged either RESOLVES (it fully restores MLC compliance) or PARTIAL (it eases the load but a breach REMAINS). Only a RESOLVES change may say it brings the crew back into compliance / clears the breach / fixes it. For a PARTIAL change you MUST make clear it only reduces the load and the breach is NOT cleared — name the remaining breach(es) given, in plain words. Never imply or let a reader infer that a PARTIAL change restores compliance. Do not say "now compliant", "back in compliance", "resolves the breach", or similar for a PARTIAL change.
+- If a PARTIAL breach is a continuous-hours / stretch breach on past days, it reflects already-worked time, so note that rescheduling can't undo it.
 - DATES: use the day_label provided ("today", "tomorrow", a weekday) — never print a YYYY-MM-DD date.
 - Do NOT state rest-hour numbers; the system displays the exact before/after itself.
-- Voice: concise, confident, no hedging, no exclamation marks, no emoji. Chief-to-chief.
+- Voice: concise, confident, no hedging, no exclamation marks, no emoji. Chief-to-chief. Honest beats reassuring.
 - Echo each change's id exactly so the system can match your copy to its fix.
 
 Use the report_copy tool to return one {id, headline, body} per change, in the same order.`;
@@ -88,9 +92,15 @@ function buildUserPrompt(body: RequestBody): string {
     const kindLabel = c.kind === 'day_off' ? 'give a full day off (this is the only duty that day)'
       : c.kind === 'future_off' ? 'drop one duty block to lighten that day (NOT a full day off — other duty remains)'
         : c.kind === 'shorten' ? 'shorten the block' : 'remove the block';
+    const remaining = (c.remaining_breaches && c.remaining_breaches.length)
+      ? c.remaining_breaches.join('; ')
+      : 'a breach';
+    const status = c.resolves
+      ? 'RESOLVES (fully restores MLC compliance)'
+      : `PARTIAL (eases the load but does NOT clear it — still breaching: ${remaining})`;
     lines.push(
       `- id=${c.id} · ${kindLabel} · ${c.day_label} · block ${c.block_label} · frees ${c.freed_hours}h`
-      + ` · ${c.resolves ? 'clears the weekly minimum' : 'reduces but does not fully clear the deficit'}`
+      + ` · ${status}`
       + ` · coverage absorbed by: ${roles}`,
     );
   }
