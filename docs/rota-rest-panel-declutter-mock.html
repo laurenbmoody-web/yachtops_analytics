@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rest panel — declutter mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B3A; --serif:'DM Serif Display',Georgia,serif; --sans:'Plus Jakarta Sans',system-ui,sans-serif;
+    --tan:#8B8478; --tan2:#A89F8C; --faint:#C9C0AE;
+    --line:#ECE6DC; --line2:#DFD8CC; --cream:#FBFAF7; --tile:#FCFBF8;
+    --terra:#C65A1A; --terra-deep:#7A2E1E; --terra-wash:#FA;
+    --purple:#695880;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#EDEAE3;font-family:var(--sans);padding:40px 24px;color:var(--ink);
+       display:flex;gap:40px;justify-content:center;align-items:flex-start;flex-wrap:wrap;}
+  .col{max-width:520px;}
+  .col-cap{font-family:var(--sans);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;
+           color:var(--tan);margin:0 4px 12px;font-weight:600;}
+  .col-cap.good{color:#3C7A4E;}
+  .col-cap.bad{color:var(--terra);}
+
+  .panel{background:#fff;border-radius:16px;border:0.5px solid var(--line2);
+         box-shadow:0 24px 60px -28px rgba(28,27,58,.30);padding:30px 30px 26px;}
+  /* annotated red-X note */
+  .note{font-size:11px;color:var(--terra-deep);background:#FBEEE9;border:0.5px solid #F2CDBE;
+        border-radius:8px;padding:7px 11px;margin:0 4px 10px;line-height:1.45;}
+
+  /* ── header ── */
+  .id-row{display:flex;align-items:flex-start;gap:14px;}
+  .avatar{width:50px;height:50px;border-radius:50%;background:#F1ECE2;border:0.5px solid var(--line2);
+          display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--purple);
+          font-size:14px;letter-spacing:.5px;flex-shrink:0;}
+  .id-name{font-family:var(--serif);font-size:27px;line-height:1.05;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .pill{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--terra-deep);
+        background:#FAECE7;border:0.5px solid #F5C9B8;border-radius:999px;padding:4px 10px;font-weight:600;}
+  .id-role{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-top:7px;}
+  /* the sub-line now CARRIES the breach fact — replaces the whole banner */
+  .id-sub{font-size:12.5px;color:var(--tan);margin-top:9px;line-height:1.5;}
+  .id-sub b{color:var(--terra-deep);font-weight:600;}
+  .close{margin-left:auto;width:32px;height:32px;border-radius:999px;border:0.5px solid var(--line2);
+         background:transparent;color:var(--purple);cursor:pointer;flex-shrink:0;}
+
+  .rule{height:0.5px;background:var(--line);border:0;margin:24px 0;}
+
+  .sec-label{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tan2);margin-bottom:9px;}
+  .sec-sum{font-size:13.5px;color:var(--ink);margin-bottom:14px;}
+  .sec-sum .short{color:var(--terra);font-weight:600;}
+  .sec-sum em{font-style:italic;}
+
+  /* ── today timeline (muted: only on-duty carries colour) ── */
+  .tl{display:flex;height:46px;border-radius:8px;overflow:hidden;border:0.5px solid var(--line2);}
+  .tl-seg{display:flex;flex-direction:column;justify-content:center;padding:0 12px;font-size:9.5px;}
+  .tl-on{background:var(--ink);color:#F5F1EA;}
+  .tl-on .t{font-weight:600;letter-spacing:.5px;text-transform:uppercase;font-size:9px;}
+  .tl-on .s{opacity:.6;font-size:8.5px;margin-top:2px;}
+  .tl-off{background:#F4F1EA;color:var(--tan);}
+  .tl-off .t{font-weight:600;letter-spacing:.5px;text-transform:uppercase;font-size:9px;color:var(--tan2);}
+  .tl-off .s{font-size:8.5px;margin-top:2px;color:var(--faint);}
+  .tl-ax{display:flex;justify-content:space-between;font-size:9px;color:var(--faint);margin-top:5px;letter-spacing:.5px;}
+
+  /* ── rolling-7 chart: neutral bars + ONE threshold line ── */
+  .chart{position:relative;display:flex;align-items:flex-end;gap:10px;height:140px;
+         padding-left:34px;margin-top:6px;}
+  .yax{position:absolute;left:0;top:0;bottom:18px;width:30px;font-size:8.5px;color:var(--faint);}
+  .yax .ymax{position:absolute;top:0;}
+  .yax .ymlc{position:absolute;top:23%;color:var(--terra);font-weight:600;}
+  /* the 77h reference line — the single most important mark on the chart */
+  .mlc-line{position:absolute;left:34px;right:0;top:23%;border-top:1px dashed var(--terra);opacity:.7;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:122px;}
+  .bar{width:100%;border-radius:5px 5px 0 0;background:#E7E2D7;position:relative;}
+  .bar .v{position:absolute;top:-16px;left:0;right:0;text-align:center;font-size:10px;color:var(--tan);font-weight:600;}
+  /* only TODAY is emphasised, and only because it's the live deficit */
+  .bar.today{background:#F0D9CE;border:1px solid var(--terra);border-bottom:0;}
+  .bar.today .v{color:var(--terra-deep);}
+  .day{font-size:9.5px;color:var(--tan2);margin-top:7px;letter-spacing:.3px;}
+  .day.today{color:var(--terra);font-weight:600;}
+
+  /* ── breakdown tiles (lightened) ── */
+  .tiles{display:flex;gap:12px;}
+  .tile{flex:1;border:0.5px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--tile);}
+  .tile .n{font-family:var(--serif);font-size:23px;line-height:1;}
+  .tile .c{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--tan2);margin-top:7px;}
+  .tile .s{font-size:10px;color:var(--faint);margin-top:3px;}
+
+  /* ── suggestion (kept, calmer) ── */
+  .sug{border:0.5px solid var(--line2);border-left:3px solid #3C7A4E;border-radius:10px;
+       padding:16px 18px;margin-top:6px;}
+  .sug-conf{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:#3C7A4E;
+            background:#EEF4EE;border:0.5px solid #D2E3D4;border-radius:999px;padding:3px 9px;font-weight:600;}
+  .sug-h{font-family:var(--serif);font-size:18px;margin:11px 0 7px;}
+  .sug-b{font-size:12px;color:#5A554B;line-height:1.55;}
+  .sug-eff{margin-top:13px;background:#FAF8F4;border:0.5px solid var(--line);border-radius:8px;padding:11px 13px;}
+  .sug-eff .c{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--tan2);}
+  .sug-eff .row{font-family:var(--serif);font-size:17px;margin-top:5px;}
+  .sug-eff .row .to{color:#3C7A4E;}
+  .sug-eff .note{font-size:10.5px;color:#3C7A4E;margin-top:3px;}
+</style>
+</head>
+<body>
+
+  <!-- ───────────── BEFORE ───────────── -->
+  <div class="col">
+    <p class="col-cap bad">Before — breach stated 3×, 2 colour systems</p>
+    <div class="panel">
+      <div class="id-row">
+        <div class="avatar">CS</div>
+        <div>
+          <div class="id-name">Chief Stew <span class="pill">Below MLC weekly</span></div>
+          <div class="id-role">Interior · Chief Stewardess · On duty now until 16:00</div>
+          <div class="id-sub">Today · 16h rest · Past week 72h</div>
+        </div>
+        <button class="close">✕</button>
+      </div>
+
+      <div class="note">① Redundant banner — repeats the chip + the chart below.</div>
+      <div style="background:#FAECE7;border:0.5px solid #F5C9B8;border-radius:10px;padding:16px 18px;">
+        <div style="font-family:var(--serif);font-size:18px;">Weekly rest is <em style="color:var(--terra-deep);font-style:italic;">below the 77-hour MLC minimum.</em></div>
+        <div style="font-size:12px;color:#7A6F63;margin-top:8px;line-height:1.5;">The rolling 7-day rest total is <b>72h</b> against the 77h weekly minimum. The cumulative shortfall needs reducing over the coming days.</div>
+      </div>
+
+      <hr class="rule">
+      <div class="note">② Every bar a saturated pink/green block — implies a per-day pass/fail that doesn't exist for a rolling metric.</div>
+      <div class="sec-label">Rolling 7d rest · evolving by day</div>
+      <div class="chart" style="padding-left:34px;">
+        <div class="yax"><span class="ymax">100h</span><span class="ymlc">77h</span></div>
+        <div class="bar-col"><div class="bar" style="height:100%;background:#C7DCC9;"><span class="v" style="bottom:6px;top:auto;color:#3C7A4E;">80h</span></div><div class="day">Thu</div></div>
+        <div class="bar-col"><div class="bar" style="height:72%;background:#F5C9B8;"><span class="v" style="bottom:6px;top:auto;color:var(--terra-deep);">72h</span></div><div class="day">Fri</div></div>
+        <div class="bar-col"><div class="bar" style="height:64%;background:#F5C9B8;"><span class="v" style="bottom:6px;top:auto;color:var(--terra-deep);">64h</span></div><div class="day">Sat</div></div>
+        <div class="bar-col"><div class="bar" style="height:56%;background:#F5C9B8;"><span class="v" style="bottom:6px;top:auto;color:var(--terra-deep);">56h</span></div><div class="day">Sun</div></div>
+        <div class="bar-col"><div class="bar" style="height:56%;background:#F5C9B8;"><span class="v" style="bottom:6px;top:auto;color:var(--terra-deep);">56h</span></div><div class="day">Mon</div></div>
+        <div class="bar-col"><div class="bar" style="height:64%;background:#F5C9B8;"><span class="v" style="bottom:6px;top:auto;color:var(--terra-deep);">64h</span></div><div class="day">Tue</div></div>
+        <div class="bar-col"><div class="bar today" style="height:72%;"><span class="v" style="bottom:6px;top:auto;">72h</span></div><div class="day today">Wed</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───────────── AFTER ───────────── -->
+  <div class="col">
+    <p class="col-cap good">After — breach stated once, one accent</p>
+    <div class="panel">
+      <div class="id-row">
+        <div class="avatar">CS</div>
+        <div>
+          <div class="id-name">Chief Stew <span class="pill">Below MLC weekly</span></div>
+          <div class="id-role">Interior · Chief Stewardess · On duty now until 16:00</div>
+          <!-- banner folded into one honest sub-line -->
+          <div class="id-sub"><b>72h rest this week</b> — 5h below the 77h MLC minimum. Today: 16h rest.</div>
+        </div>
+        <button class="close">✕</button>
+      </div>
+
+      <hr class="rule">
+
+      <div class="sec-label">Today · 00:00 → 24:00</div>
+      <div class="sec-sum">16h rest · 8h on duty</div>
+      <div class="tl">
+        <div class="tl-seg tl-on" style="flex:4;"><span class="t">On duty</span><span class="s">watch · 00–04</span></div>
+        <div class="tl-seg tl-off" style="flex:8;"><span class="t">Rest</span><span class="s">04:00 — 12:00</span></div>
+        <div class="tl-seg tl-on" style="flex:4;"><span class="t">On duty</span><span class="s">watch · 12–16</span></div>
+        <div class="tl-seg tl-off" style="flex:8;"><span class="t">Rest</span><span class="s">remaining</span></div>
+      </div>
+      <div class="tl-ax"><span>00:00</span><span>24:00</span></div>
+
+      <hr class="rule">
+
+      <div class="sec-label">Rolling 7-day rest</div>
+      <div class="sec-sum">Trending <span class="short">5h short</span> of the 77h minimum — needs closing over the coming days.</div>
+      <div class="chart">
+        <div class="yax"><span class="ymax">100h</span><span class="ymlc">77h ·····</span></div>
+        <div class="mlc-line"></div>
+        <div class="bar-col"><div class="bar" style="height:80%;"><span class="v">80</span></div><div class="day">Thu</div></div>
+        <div class="bar-col"><div class="bar" style="height:72%;"><span class="v">72</span></div><div class="day">Fri</div></div>
+        <div class="bar-col"><div class="bar" style="height:64%;"><span class="v">64</span></div><div class="day">Sat</div></div>
+        <div class="bar-col"><div class="bar" style="height:56%;"><span class="v">56</span></div><div class="day">Sun</div></div>
+        <div class="bar-col"><div class="bar" style="height:56%;"><span class="v">56</span></div><div class="day">Mon</div></div>
+        <div class="bar-col"><div class="bar" style="height:64%;"><span class="v">64</span></div><div class="day">Tue</div></div>
+        <div class="bar-col"><div class="bar today" style="height:72%;"><span class="v">72</span></div><div class="day today">Today</div></div>
+      </div>
+
+      <hr class="rule">
+
+      <div class="sec-label">Shift breakdown · last 7 days</div>
+      <div class="sec-sum"><em>Chief Stew</em> worked 96h on duty across 7 days.</div>
+      <div class="tiles">
+        <div class="tile"><div class="n">80h</div><div class="c">Duty</div><div class="s">5 shifts</div></div>
+        <div class="tile"><div class="n">16h</div><div class="c">Watch</div><div class="s">4 shifts</div></div>
+        <div class="tile"><div class="n">0h</div><div class="c">Standby</div><div class="s">none rostered</div></div>
+      </div>
+
+      <hr class="rule">
+
+      <div class="sec-label">Worth considering · 2 ways to fix without losing coverage</div>
+      <div class="sug">
+        <span class="sug-conf">High confidence</span>
+        <div class="sug-h">Remove tomorrow's afternoon watch</div>
+        <div class="sug-b">Five straight 16h days built the deficit. Dropping the 12:00–16:00 block Thursday breaks the stretch; the 2nd stew picks up the afternoon service shift.</div>
+        <div class="sug-eff">
+          <div class="c">Rolling 7-day rest</div>
+          <div class="row">72h → <span class="to">84h</span></div>
+          <div class="note">compliant by Thu ✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
