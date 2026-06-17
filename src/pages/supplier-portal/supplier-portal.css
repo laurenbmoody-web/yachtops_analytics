@@ -2639,10 +2639,9 @@
     74px              /* unit         */
     74px              /* size         */
     62px              /* qty          */
-    72px              /* est          */
-    minmax(140px, 1.2fr) /* price     */
-    minmax(160px, 1.4fr) /* note      */
-    92px              /* line total   */
+    minmax(150px, 1.3fr) /* price     */
+    minmax(180px, 1.6fr) /* note      */
+    100px             /* line total   */
     36px;             /* action       */
   gap: 12px;
   align-items: center;
@@ -2656,7 +2655,6 @@
   color: var(--muted-strong);
 }
 #sp-root .sod-wq-cols .sod-wq-cell-qty,
-#sp-root .sod-wq-cols .sod-wq-cell-est,
 #sp-root .sod-wq-cols .sod-wq-cell-total { text-align: right; }
 
 /* ── section heads ───────────────────────────────────────────────────── */
@@ -2716,12 +2714,8 @@
 #sp-root .sod-wq-vessel-note::after  { content: '”'; font-style: normal; }
 
 #sp-root .sod-wq-row .sod-wq-cell-qty,
-#sp-root .sod-wq-row .sod-wq-cell-est,
 #sp-root .sod-wq-row .sod-wq-cell-total {
   text-align: right; font-variant-numeric: tabular-nums;
-}
-#sp-root .sod-wq-row .sod-wq-cell-est {
-  color: var(--faint, #AEB4C2); font-size: 12px;
 }
 #sp-root .sod-wq-muted { color: var(--faint, #AEB4C2); }
 #sp-root .sod-wq-total { color: var(--fg); font-weight: 700; font-size: 13.5px; }
@@ -2827,7 +2821,6 @@
 }
 #sp-root .sod-wq-row-completed .sod-wq-name { color: var(--muted-strong); font-weight: 500; }
 #sp-root .sod-wq-row-completed .sod-wq-brand { color: var(--faint, #AEB4C2); }
-#sp-root .sod-wq-row-completed .sod-wq-cell-est { color: transparent; }
 #sp-root .sod-wq-row-completed .sod-wq-edit-display { color: var(--muted-strong); }
 #sp-root .sod-wq-row-completed .sod-wq-changed .sod-wq-val { color: var(--orange); }
 
@@ -2839,4 +2832,22 @@
   text-align: center;
   color: var(--muted-strong);
   font-size: 13px;
+}
+
+/* VAT-deferred footnote — when no line carries a vat_rate_snapshot yet,
+   the VAT row reads "on invoice" rather than €0.00 / —. Italic muted
+   so it doesn't read as a number. */
+#sp-root .sod-totals-deferred {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--muted-strong);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+}
+
+/* "Final" price label — same chip slot as "Awaiting vessel" but the
+   tone shifts navy/locked once both sides have agreed. */
+#sp-root .sod-price-final-label {
+  color: var(--navy) !important;
+  font-weight: 700;
 }
