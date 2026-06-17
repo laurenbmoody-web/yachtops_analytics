@@ -68,13 +68,17 @@
   .yax .ymlc{position:absolute;top:23%;color:var(--terra);font-weight:600;}
   .mlc-line{position:absolute;left:34px;right:0;top:23%;border-top:1px dashed var(--terra);opacity:.7;}
   .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:122px;}
-  /* every bar: neutral fill + THIN breach-colour outline */
+  /* every bar: neutral fill + a THIN outline that reflects compliance —
+     below 77h = breach (terracotta), at/above 77h = compliant (green) */
   .bar{width:100%;border-radius:5px 5px 0 0;background:#F2EEE6;
        border:1px solid #E3B4A0;border-bottom:0;position:relative;}
+  .bar.ok{border-color:#9CC0A2;}
   .bar .v{position:absolute;top:-16px;left:0;right:0;text-align:center;font-size:10px;color:var(--tan);font-weight:600;}
-  /* today: outline + terracotta fill */
+  /* today: outline + matching fill, in today's own state colour */
   .bar.today{background:#F0D9CE;border:1.5px solid var(--terra);border-bottom:0;}
   .bar.today .v{color:var(--terra-deep);}
+  .bar.today.ok{background:#DCE9DC;border-color:#3C7A4E;}
+  .bar.today.ok .v{color:#2D5A3A;}
   .day{font-size:9.5px;color:var(--tan2);margin-top:7px;}
   .day.today{color:var(--terra);font-weight:600;}
 
@@ -139,7 +143,7 @@
       <div class="chart">
         <div class="yax"><span class="ymax">100h</span><span class="ymlc">77h</span></div>
         <div class="mlc-line"></div>
-        <div class="bar-col"><div class="bar" style="height:80%"><span class="v">80</span></div><div class="day">Thu</div></div>
+        <div class="bar-col"><div class="bar ok" style="height:80%"><span class="v">80</span></div><div class="day">Thu</div></div>
         <div class="bar-col"><div class="bar" style="height:72%"><span class="v">72</span></div><div class="day">Fri</div></div>
         <div class="bar-col"><div class="bar" style="height:64%"><span class="v">64</span></div><div class="day">Sat</div></div>
         <div class="bar-col"><div class="bar" style="height:56%"><span class="v">56</span></div><div class="day">Sun</div></div>
