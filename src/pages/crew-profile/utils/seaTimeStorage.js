@@ -793,6 +793,16 @@ export const autoPopulatePersonalSeaService = (vesselId) => {
  * Returns { grossTonnage, lengthM, vesselType }.
  */
 export const getEntryVesselFacts = (entry) => {
+  // If the entry already carries its own vessel facts (manual entries, and
+  // rows fetched from Supabase), use them directly — keeps this pure / IO-free.
+  if (entry?.grossTonnage != null || entry?.lengthM != null) {
+    return {
+      grossTonnage: entry?.grossTonnage ?? null,
+      lengthM: entry?.lengthM ?? null,
+      vesselType: entry?.vesselType ?? null
+    };
+  }
+
   if (entry?.source === SEA_SERVICE_SOURCE?.VESSEL_AUTO) {
     const vessel = getVesselById(entry?.vesselId);
     return {
@@ -855,7 +865,9 @@ export const classifyServiceType = (entry, config = getRulesConfig()) => {
  *   reasons       — detailed human-readable list (gate failures etc.)
  */
 export const evaluateEntryQualification = (entry, pathId, config = getRulesConfig()) => {
-  const path = getPathById(pathId);
+  // Resolve the path from the supplied config first (pure path), falling back
+  // to the stored config for legacy callers.
+  const path = (config?.paths || []).find(p => p?.id === pathId) || getPathById(pathId);
   const serviceType = classifyServiceType(entry, config);
   const facts = getEntryVesselFacts(entry);
   const labels = SEA_SERVICE_TYPE_LABELS;
@@ -982,16 +994,12 @@ const isPendingVerification = (r) =>
   r?.verificationStatus === VERIFICATION_STATUS?.SUBMITTED;
 
 /**
- * Get progress summary for user on selected path.
- * Returns multiple requirement bars plus the four-bucket day breakdown.
+ * Pure progress summariser. `records` must already carry `serviceType` and
+ * `countsToward` (set by recompute / evaluateEntryQualification) plus a
+ * `verificationStatus`. Shared by the localStorage and Supabase code paths.
  */
-export const getProgressSummary = (userId, pathId) => {
-  const path = getPathById(pathId);
+export const summariseProgress = (path, records) => {
   if (!path) return null;
-
-  // Recompute first so countsToward / serviceType are persisted, then read back.
-  recomputeQualificationForUser(userId, pathId);
-  const records = getPersonalSeaServiceForUser(userId);
 
   // Per-requirement progress bars.
   const requirements = (path?.requirements || []).map(req => {
@@ -1039,6 +1047,19 @@ export const getProgressSummary = (userId, pathId) => {
     buckets,
     totalDays: records?.length || 0
   };
+};
+
+/**
+ * Get progress summary for user on selected path (localStorage path).
+ * Returns multiple requirement bars plus the four-bucket day breakdown.
+ */
+export const getProgressSummary = (userId, pathId) => {
+  const path = getPathById(pathId);
+  if (!path) return null;
+  // Recompute first so countsToward / serviceType are persisted, then read back.
+  recomputeQualificationForUser(userId, pathId);
+  const records = getPersonalSeaServiceForUser(userId);
+  return summariseProgress(path, records);
 };
 
 // ============================================
@@ -1244,6 +1265,7 @@ export default {
   recomputeQualificationForUser,
   
   // Progress
+  summariseProgress,
   getProgressSummary,
   
   // Verification
