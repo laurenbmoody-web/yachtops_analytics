@@ -1412,16 +1412,22 @@ const ProvisioningBoardDetail = () => {
     }
     setDeciding(true);
     try {
+      // Both decisions carry the optional note now. Request changes
+      // requires one (enforced above + RPC P0005). Approve treats it
+      // as advisory context the submitter sees on the board's review
+      // chip + history — supplier swap, port change, delivery
+      // instructions, etc.
+      const trimmed = decisionComment.trim();
       const result = await decideProvisioningApproval(
         approvalRequest.id,
         decision,
-        decision === 'request_changes' ? decisionComment.trim() : null,
+        trimmed || null,
       );
       setList(prev => ({ ...prev, status: PROVISIONING_STATUS.DRAFT }));
       setApprovalRequest(prev => prev ? {
         ...prev,
         status: result?.status || (decision === 'approve' ? 'approved' : 'changes_requested'),
-        comment: decision === 'request_changes' ? decisionComment.trim() : prev.comment,
+        comment: trimmed || prev.comment,
         decided_at: new Date().toISOString(),
       } : prev);
       setDecisionModal(null);
@@ -2032,7 +2038,7 @@ const ProvisioningBoardDetail = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDecide('approve')}
+                      onClick={() => { setDecisionComment(''); setDecisionModal('approve'); }}
                       disabled={deciding}
                       className="cargo-ribbon-btn"
                     >
@@ -3487,6 +3493,97 @@ const ProvisioningBoardDetail = () => {
         onChange={handleQuoteFileChange}
         style={{ display: 'none' }}
       />
+
+      {/* Approve modal — confirmation step with optional advisory note
+          when the approver clicks Approve from the board itself. Same
+          shell + copy as the inbox right pane's modal so deciding from
+          either surface feels uniform. Re-approval (prev_status was
+          quote_received) flips the headline + body copy. */}
+      {decisionModal === 'approve' && (
+        <ModalShell
+          onClose={() => { if (!deciding) { setDecisionModal(null); setDecisionComment(''); } }}
+          isDirty={!!decisionComment.trim()}
+          isBusy={deciding}
+          panelClassName="pv-edit-modal pv-dashboard"
+        >
+          {(() => {
+            const isReApproval = approvalRequest?.prev_status === PROVISIONING_STATUS.QUOTE_RECEIVED;
+            const submitterFirst = submitterProfile?.full_name?.split(' ')[0]
+              || (submitterProfile?.email ? submitterProfile.email.split('@')[0] : 'the submitter');
+            return (
+              <>
+                <div className="pv-edit-modal-head">
+                  <div>
+                    <span className="pv-edit-modal-eyebrow">Reviewer decision</span>
+                    <h2 className="pv-edit-modal-title">
+                      {isReApproval ? <>Approve, <em>quote</em>.</> : <>Approve, <em>order</em>.</>}
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => { setDecisionModal(null); setDecisionComment(''); }}
+                    className="pv-edit-modal-close"
+                    aria-label="Close"
+                    disabled={deciding}
+                  >
+                    <Icon name="X" style={{ width: 16, height: 16 }} />
+                  </button>
+                </div>
+                <div className="pv-edit-modal-body">
+                  <p style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 13,
+                    color: 'var(--d-muted)',
+                    margin: '0 0 14px',
+                    lineHeight: 1.5,
+                  }}>
+                    {isReApproval ? (
+                      <>Approving locks in the supplier's quote on this board. <strong style={{ color: 'var(--d-navy-deep)' }}>{submitterFirst}</strong> can then confirm the order with the supplier at the agreed prices.</>
+                    ) : (
+                      <>Approving releases the board back to <strong style={{ color: 'var(--d-navy-deep)' }}>{submitterFirst}</strong> so they can send it to a supplier.</>
+                    )}
+                  </p>
+                  <div className="pv-edit-modal-field">
+                    <label className="pv-edit-modal-label" htmlFor="pv-board-approve-note">
+                      Note <span style={{ fontWeight: 500, color: 'var(--d-muted-soft)', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+                    </label>
+                    <textarea
+                      id="pv-board-approve-note"
+                      value={decisionComment}
+                      onChange={e => setDecisionComment(e.target.value)}
+                      rows={3}
+                      autoFocus
+                      className="pv-edit-modal-textarea"
+                      placeholder={isReApproval
+                        ? 'e.g. Accept the £20 increase on tuna, confirm 10am delivery, hold the wine order until next week…'
+                        : 'e.g. Use Frantoio Mediterranean for the oil, drop off at Antibes instead of Palma, delivery before 10am…'}
+                    />
+                  </div>
+                </div>
+                <div className="pv-edit-modal-foot">
+                  <div className="pv-edit-modal-actions">
+                    <button
+                      type="button"
+                      onClick={() => { setDecisionModal(null); setDecisionComment(''); }}
+                      className="pv-edit-modal-btn pv-edit-modal-btn-ghost"
+                      disabled={deciding}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDecide('approve')}
+                      disabled={deciding}
+                      className="pv-edit-modal-btn pv-edit-modal-btn-primary"
+                    >
+                      {deciding ? 'Approving…' : (isReApproval ? 'Approve quote' : 'Approve & release')}
+                    </button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </ModalShell>
+      )}
 
       {decisionModal === 'request_changes' && (
         <ModalShell
