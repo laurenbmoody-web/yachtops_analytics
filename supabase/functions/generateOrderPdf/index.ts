@@ -121,19 +121,6 @@ function shortRef(id: string): string {
   return String(id || '').slice(0, 8).toUpperCase();
 }
 
-// Quote status → human label + colour. Used in the right-hand status column.
-function quoteStatusBadge(qs: string | null | undefined, fulfilment: string | null | undefined): { label: string; bg: string; fg: string } {
-  if (qs === 'unavailable' || fulfilment === 'unavailable') return { label: 'Unavailable', bg: '#FEE2E2', fg: '#991B1B' };
-  if (qs === 'declined') return { label: 'Quote declined', bg: '#FEE2E2', fg: '#991B1B' };
-  if (qs === 'in_discussion') return { label: 'In discussion', bg: '#FEF3C7', fg: '#92400E' };
-  if (qs === 'agreed') return { label: 'Agreed', bg: '#DCFCE7', fg: '#166534' };
-  if (qs === 'quoted') return { label: 'Quoted', bg: '#DBEAFE', fg: '#1E3A8A' };
-  if (qs === 'awaiting_quote') return { label: 'Awaiting quote', bg: '#F1F5F9', fg: '#475569' };
-  if (fulfilment === 'substituted') return { label: 'Substituted', bg: '#FEF3C7', fg: '#92400E' };
-  if (fulfilment === 'confirmed') return { label: 'Confirmed', bg: '#DCFCE7', fg: '#166534' };
-  return { label: 'Pending', bg: '#F1F5F9', fg: '#475569' };
-}
-
 // ─── Render template ─────────────────────────────────────────────────────
 
 interface OrderRenderInput {
@@ -163,21 +150,18 @@ function renderOrderHtml(input: OrderRenderInput): string {
       ? `${escapeHtml(priceCur)} ${fmtAmount(lineTotal)}`
       : '<span style="color:#94A3B8">—</span>';
 
-    const badge = quoteStatusBadge(it.quote_status, it.status);
-
     return `
       <tr>
         <td class="desc">
           <div class="item-name">${escapeHtml(it.item_name || '')}</div>
           ${it.notes ? `<div class="item-notes">${escapeHtml(it.notes)}</div>` : ''}
           ${it.substitute_description
-            ? `<div class="item-notes"><strong>Substitute:</strong> ${escapeHtml(it.substitute_description)}</div>` : ''}
+            ? `<div class="item-notes"><strong>Sub:</strong> ${escapeHtml(it.substitute_description)}</div>` : ''}
+          ${it.supplier_item_note
+            ? `<div class="item-notes supplier-note"><strong>Note:</strong> ${escapeHtml(it.supplier_item_note)}</div>` : ''}
         </td>
         <td class="num">${qty}</td>
         <td class="num">${priceText}</td>
-        <td class="status">
-          <span class="badge" style="background:${badge.bg};color:${badge.fg}">${escapeHtml(badge.label)}</span>
-        </td>
         <td class="num">${lineTotalText}</td>
       </tr>`;
   }).join('');
@@ -305,22 +289,12 @@ function renderOrderHtml(input: OrderRenderInput): string {
       text-align: right; font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
-    table.lines td.status, table.lines th.status { text-align: center; }
-    table.lines td.desc { width: 46%; }
+    table.lines td.desc { width: 58%; }
     table.lines .item-name { font-weight: 600; color: #0F172A; }
     table.lines .item-notes {
       font-size: 10px; color: #64748B; margin-top: 2px; line-height: 1.45;
     }
-    table.lines .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
+    table.lines .supplier-note { color: #475569; }
 
     /* Totals */
     .totals-wrap { display: flex; justify-content: flex-end; margin-top: 16px; }
@@ -402,12 +376,12 @@ function renderOrderHtml(input: OrderRenderInput): string {
         <th class="desc">Item</th>
         <th class="num">Qty</th>
         <th class="num">Unit price</th>
-        <th class="status">Status</th>
         <th class="num">Line total</th>
       </tr>
     </thead>
     <tbody>${itemRows}</tbody>
   </table>
+
 
   <div class="totals-wrap">
     <table class="totals">
