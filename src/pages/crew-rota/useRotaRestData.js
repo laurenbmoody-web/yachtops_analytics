@@ -283,6 +283,42 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           });
         }
 
+        // ── Two forward "projected" days — the actionable look-ahead. Same
+        //    trailing rolling-7 basis as the bars above, but the window now
+        //    reaches into ROSTERED (not-yet-worked) days, so they read as a
+        //    projection (muted, italic), not a compliance record. Two days is
+        //    the horizon a chief can realistically still trim; beyond that the
+        //    roster is too soft to act on. A dip here is preventable — unlike
+        //    today's bar, which is already-worked history. ──
+        // Two distinct forward signals: `projectedWeeklyLow` is what the chart
+        // bars show (rolling-7 rest dipping below 77h); `lookaheadBreach` is the
+        // broader actionable signal — ANY projected MLC breach in the next 2
+        // days (a heavy upcoming watch trips the daily/14h rules long before the
+        // weekly total falls), which is what the proactive suggestions act on.
+        let projectedWeeklyLow = false;
+        let lookaheadBreach = false;
+        for (let i = 1; i <= 2; i += 1) {
+          const ds = addDays(effDate, i);
+          const winStartStr = addDays(ds, -6);
+          const dayRowsF = all.filter(s => s.shift_date === ds);
+          const winRows = all.filter(s => s.shift_date >= winStartStr && s.shift_date <= ds);
+          const fwdReport = assessMlc({
+            dayShifts: dayRowsF.map(toCamelShift),
+            weekShifts: winRows.map(toCamelShift),
+          });
+          const rollingRest = fwdReport.pastWeekHours;
+          if (rollingRest < 77) projectedWeeklyLow = true;
+          if (fwdReport.anyBreach) lookaheadBreach = true;
+          weekChart.push({
+            day: weekdayOf(ds),
+            date: ds,
+            hours: Math.round(rollingRest),
+            status: rollingRest >= 77 ? 'ok' : 'low',
+            isToday: false,
+            projected: true,
+          });
+        }
+
         // ── Shift-type breakdown over the loaded 7-day window (real data;
         //    trip-scoped totals arrive with trip integration later) ──
         const typeHours = {};
@@ -350,6 +386,9 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           // Numeric figures + breach flags drive the per-section MLC tags.
           weeklyHours: Math.round(pastWeekHours),
           weeklyBelow,
+          // Forward-only signal: today is within MLC but the 2-day projection
+          // already breaches a rule. Drives the proactive (pre-breach) path.
+          lookaheadLow: lookaheadBreach && !mlcWarning,
           dailyHours: Math.round(rest24h),
           dailyBelow,
           // Structural rules, scoped to the right section:
@@ -367,7 +406,11 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
             : `${fmtHours(rest24h)} rest · ${fmtHours(onDutyToday)} on duty`,
           timeline,
           chartMeta: 'Rolling 7d rest · evolving by day',
-          chartSummary: `${Math.round(pastWeekHours)}h projected by tonight`,
+          chartSummary: projectedWeeklyLow
+            ? `${Math.round(pastWeekHours)}h by tonight · dips below 77h in the next 2 days`
+            : lookaheadBreach
+              ? `${Math.round(pastWeekHours)}h by tonight · holds above 77h, but the next 2 days brush MLC limits`
+              : `${Math.round(pastWeekHours)}h by tonight · holds above 77h over the next 2 days`,
           chartShort: weeklyBelow ? `${Math.round(77 - pastWeekHours)}h short` : null,
           chartShortOf: weeklyBelow ? '77h weekly minimum' : null,
           weekChart,
@@ -379,7 +422,10 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
 
         // ── Rest suggestions ── The engine deterministically RANKS the fixes
         //    (same rota → same top 2); the model only writes copy for them.
-        if (mlcWarning) {
+        //    Fired both for a present breach AND for a projected forward dip in
+        //    the next 2 days — the latter is the preventable case the look-ahead
+        //    bars surface, where a trim still has time to land.
+        if (mlcWarning || lookaheadBreach) {
           setSuggestionsLoading(true);
           try {
             const sourceMember = sourceMemberRef.current
@@ -421,6 +467,9 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
               limit: 2,
               realToday: localToday,
               nowHHMM,
+              // Match the chart's 2-day forward projection, so a trim can be
+              // offered for a dip before it's worked.
+              lookaheadDays: 2,
             });
 
             // Cache the AI COPY only — keyed by who + the semantic content that
