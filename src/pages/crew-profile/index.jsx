@@ -25,6 +25,7 @@ import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreach
 import { fetchWorkEntriesForMonth } from './utils/horWorkEntries';
 import { fetchRotaBaselineForMonth } from './utils/horBaseline';
 import { fetchVesselHorSettings, fetchMonthStatus, fetchActiveMemberTiers, submitMonth as submitMonthDb, approveMonth as approveMonthDb, reopenMonth as reopenMonthDb, lockMonth as lockMonthDb } from './utils/horMonthStatus';
+import { sendDbNotification } from '../../lib/dbNotifications';
 
 // HOR approver hierarchy (mirrors the DB _hor_tier_rank): COMMAND > CHIEF > HOD.
 const HOR_TIER_RANK = { COMMAND: 3, CHIEF: 2, HOD: 1 };
@@ -2427,6 +2428,25 @@ const canEdit = (() => {
         const row = await submitMonthDb({ tenantId: activeTenantId, year, jsMonth: month, signature });
         // Mirror into the legacy localStorage store so existing PDF/exports stay coherent.
         confirmMonth(crewId, year, month);
+        // In 'require' mode the month lands at 'submitted' and now waits on an
+        // approver — notify everyone who can sign it off (COMMAND, or the vessel's
+        // approver tier) so it doesn't sit unseen. 'trust'/self-cert skips this.
+        if (row?.status === 'submitted') {
+          const approverTier = vesselHorSettings?.approverTier || 'COMMAND';
+          const who = (crewMember?.fullName && crewMember.fullName !== 'Unknown')
+            ? crewMember.fullName : (myProfile?.full_name || 'A crew member');
+          const period = `${year}-${String(month + 1).padStart(2, '0')}`;
+          const recipients = Object.entries(horMemberTiers)
+            .filter(([uid, tier]) => uid !== crewId && (tier === 'COMMAND' || tier === approverTier))
+            .map(([uid]) => uid);
+          await Promise.all(recipients.map((uid) => sendDbNotification(uid, {
+            type: 'HOR_APPROVAL_PENDING',
+            title: 'Hours of Rest awaiting approval',
+            message: `${who} submitted ${monthLabelFor(horCurrentMonth)} Hours of Rest for approval.`,
+            actionUrl: `/profile/${crewId}?tab=hor&period=${period}`,
+            severity: 'warn',
+          })));
+        }
         showToast(row?.status === 'confirmed' ? 'Month confirmed' : 'Month submitted for approval', 'success');
         await loadHORData();
       },
@@ -2450,7 +2470,19 @@ const canEdit = (() => {
         const year = horCurrentMonth?.getFullYear();
         const month = horCurrentMonth?.getMonth();
         await approveMonthDb({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month, signature });
-        showToast('Month approved & counter-signed', 'success');
+        // Counter-signing is the terminal approver action, so finalise in one
+        // step: auto-lock (Reopen still unlocks). Only COMMAND may lock; a
+        // lower-tier approver simply lands at 'confirmed'.
+        let locked = false;
+        if (currentUserPermissionTier === 'COMMAND') {
+          try {
+            await lockMonthDb({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month });
+            locked = true;
+          } catch (e) {
+            console.error('[HOR] auto-lock after approve failed:', e);
+          }
+        }
+        showToast(locked ? 'Month approved, counter-signed & locked' : 'Month approved & counter-signed', 'success');
         await loadHORData();
       },
     });
