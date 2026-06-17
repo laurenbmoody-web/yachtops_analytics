@@ -584,7 +584,12 @@ const SendToSupplierModal = ({
   const UnassignedRow = () => {
     const isOpen = expandedKeys.has('__unassigned__');
     const busy = sendingKey === '__unassigned__';
-    const canSend = !!unassignedSupplier && unassignedUnsent.length > 0 && !sendingKey && !sendingAll && requiredComplete;
+    const supplier = unassignedSupplier;
+    const hasEmail = Boolean(supplier?.email) && supplier.email.includes('@');
+    const hasPhone = Boolean(supplier?.phone);
+    const baseDisabled = !supplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll || !requiredComplete;
+    const sendDisabled = baseDisabled || !hasEmail;
+    const waDisabled = baseDisabled || !hasPhone;
     return (
       <div className={`stsm-row stsm-row-unassigned${isOpen ? ' is-open' : ''}`}>
         <button
@@ -601,39 +606,46 @@ const SendToSupplierModal = ({
               Unassigned
               <span className="stsm-row-meta"> · {plural(unassigned.length, 'item')} waiting</span>
             </span>
-            <span className="stsm-row-contact">Choose a supplier to send these on their way.</span>
+            <span className="stsm-row-contact">
+              {supplier
+                ? [supplier.email, supplier.phone].filter(Boolean).join(' · ') || 'No contact on file'
+                : 'Choose a supplier to send these on their way.'}
+            </span>
           </span>
         </button>
-        <div className="stsm-row-actions stsm-row-actions-unassigned" onClick={(e) => e.stopPropagation()}>
-          <div className="stsm-picker-wrap">
-            <SupplierPicker
-              value={unassignedSupplierId}
-              suppliers={suppliers}
-              inputClassName={pickerInputCls}
-              placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier'}
-              onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
-              allowAddNew
-              onAddNew={handleAddNewSupplier}
-            />
-          </div>
-          {unassignedSupplier && unassignedSupplier.phone && (
+        <div className="stsm-row-actions" onClick={(e) => e.stopPropagation()}>
+          <div className="stsm-btnpair">
             <button
               type="button"
-              disabled={unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
-              onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'whatsapp' })}
-              className="stsm-btn stsm-btn-ghost"
+              disabled={waDisabled}
+              onClick={() => sendGroup({ key: '__unassigned__', supplier, rows: unassigned, via: 'whatsapp' })}
+              className={`stsm-btn stsm-btn-ghost${waDisabled ? ' is-disabled' : ''}`}
             >
               WhatsApp
             </button>
+            <button
+              type="button"
+              disabled={sendDisabled}
+              onClick={() => sendGroup({ key: '__unassigned__', supplier, rows: unassigned, via: 'email' })}
+              className={`stsm-btn stsm-btn-primary${sendDisabled ? ' is-disabled' : ''}`}
+            >
+              {busy ? <><span className="stsm-spinner" /> Sending…</> : 'Send'}
+            </button>
+          </div>
+          {supplier && !requiredComplete && (
+            <span className="stsm-hint">Complete the order context above</span>
           )}
-          <button
-            type="button"
-            disabled={!canSend}
-            onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'email' })}
-            className={`stsm-btn stsm-btn-primary${!canSend ? ' is-disabled' : ''}`}
-          >
-            {busy ? <><span className="stsm-spinner" /> Sending…</> : 'Send'}
-          </button>
+        </div>
+        <div className="stsm-row-picker" onClick={(e) => e.stopPropagation()}>
+          <SupplierPicker
+            value={unassignedSupplierId}
+            suppliers={suppliers}
+            inputClassName={pickerInputCls}
+            placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier'}
+            onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
+            allowAddNew
+            onAddNew={handleAddNewSupplier}
+          />
         </div>
         {isOpen && <ItemList rows={unassigned} />}
       </div>
