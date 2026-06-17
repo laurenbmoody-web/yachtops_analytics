@@ -155,6 +155,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
           tripId={selectedTrip?.supabaseId || selectedTrip?.id || null}
           newGuestCount={guestCount}
           boardType={boardType}
+          currentDepartment={userDept || null}
           onUse={(items, source) => { setShowPast(false); triggerCreate(source || 'past', items); }}
           onBack={() => setShowPast(false)}
         />

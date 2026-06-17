@@ -85,19 +85,22 @@ function prefToBuyItem(pref) {
         : { name: `${value} Tea`, category: 'Beverages', department: 'Galley', unit: 'box', quantity: 1 };
     case 'Wine':
     case 'Favourite Wines':
+      // No `department` here (or any of the drinks suggestions below)
+      // — the consumer assigns the current user's dept at apply-time.
+      // "Bar" used to live here; it was never a real dept.
       return valueIsMeta
-        ? { name: 'Wine', category: 'Beverages', department: 'Bar', unit: 'bottle', quantity: 2 }
-        : { name: value, category: 'Beverages', department: 'Bar', unit: 'bottle', quantity: 2 };
+        ? { name: 'Wine', category: 'Beverages', unit: 'bottle', quantity: 2 }
+        : { name: value, category: 'Beverages', unit: 'bottle', quantity: 2 };
     case 'Spirits':
     case 'Favourite Spirits':
       return valueIsMeta
-        ? { name: 'Spirits', category: 'Spirits', department: 'Bar', unit: 'bottle', quantity: 1 }
-        : { name: value, category: 'Spirits', department: 'Bar', unit: 'bottle', quantity: 1 };
+        ? { name: 'Spirits', category: 'Spirits', unit: 'bottle', quantity: 1 }
+        : { name: value, category: 'Spirits', unit: 'bottle', quantity: 1 };
     case 'Evening Drink':
     case 'Favourite Evening Drink':
       return valueIsMeta
         ? null
-        : { name: value, category: 'Beverages', department: 'Bar', unit: 'each', quantity: 1 };
+        : { name: value, category: 'Beverages', unit: 'each', quantity: 1 };
     case 'Cocktail':
     case 'Typical Cocktail':
       // Cocktails are recipes not single items — skip rather than fake.
@@ -541,7 +544,7 @@ function findOccasionDate(monthDay, startISO, endISO) {
 
 const OCCASION_FANOUT = [
   { name: 'Birthday cake', category: 'Bakery', department: 'Galley',  unit: 'each',    quantity: 1, signalText: 'Surprise',    signalCls: 'is-orange' },
-  { name: 'Champagne',     category: 'Beverages', department: 'Bar',  unit: 'bottle',  quantity: 2, signalText: 'Surprise',    signalCls: 'is-orange' },
+  { name: 'Champagne',     category: 'Beverages', department: 'Galley', unit: 'bottle',  quantity: 2, signalText: 'Surprise',    signalCls: 'is-orange' },
   { name: 'Candles',       category: 'Decor', department: 'Interior', unit: 'pack',    quantity: 1, signalText: 'Celebration', signalCls: 'is-muted'  },
 ];
 

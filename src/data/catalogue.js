@@ -92,10 +92,16 @@ export const DATA = [
  ]]
 ];
 
-/* ---------- GROUP → board department mapping ----------
-   Used by the wizard's catalogue picker to assign a sensible default
-   department to items added from a given group. Editable independently
-   if the fleet wants to scope catalogue items differently. */
+/* ---------- GROUP → department fallback (browsing taxonomy only) ----------
+   Catalogue groups are a browsing convenience for the picker — not the
+   source of truth for an item's department. The adder's own department
+   (their tenant_member.department) is what gets written to
+   provisioning_items.department: a Bridge user buying wine still owns
+   that wine line under Bridge, because they're the one tracking it.
+   This map is only consulted as a last-ditch fallback when no current
+   department can be resolved (e.g. legacy callers, unauthenticated test
+   harnesses). "Bar" is intentionally absent — it's a catalogue tab, not
+   a real department. */
 export const GROUP_DEPARTMENT = {
   'FRESH':              'Galley',
   'CHILLED':            'Galley',
@@ -104,7 +110,7 @@ export const GROUP_DEPARTMENT = {
   'DRY / PANTRY':       'Galley',
   'WORLD PANTRY':       'Galley',
   'PASTRY & MODERNIST': 'Galley',
-  'DRINKS':             'Bar',
+  'DRINKS':             'Galley',
   'GALLEY':             'Galley',
 };
 
