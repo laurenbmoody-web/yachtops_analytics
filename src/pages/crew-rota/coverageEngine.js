@@ -53,6 +53,60 @@ function rangesOverlap(aStart, aEnd, bStart, bEnd) {
   return aStart < bE && bStart < aE;
 }
 
+// ── Humane-coverage guards (beyond the numeric MLC rules) ──
+// MLC's rest-split rule only requires ONE rest period of ≥6h, so it happily
+// permits waking a rested crew member for a 1-hour shift at 03:00 — the night
+// still nets one long block. That shatters sleep and circadian rhythm, so we
+// refuse it here: never carve cover out of someone's CORE NIGHT rest (unless
+// they're already on a night watch), and never reassign a sliver too short to
+// be worth waking anyone for. The freed time simply runs short / drops instead.
+const MIN_COVER_HOURS = 2;   // don't hand anyone a covering block shorter than this
+const NIGHT_START = 23;      // 23:00 — core rest window begins
+const NIGHT_END = 6;         // 06:00 — core rest window ends
+
+// Does a clock block overlap the protected 23:00–06:00 night window?
+function blockTouchesNight(startHHMM, endHHMM) {
+  const s = toDec(startHHMM); const e = toDec(endHHMM);
+  return rangesOverlap(s, e, NIGHT_START, 24) || rangesOverlap(s, e, 0, NIGHT_END);
+}
+
+// Is this member already on duty in the night window on `date` — i.e. someone
+// whose watch genuinely runs through the night, for whom extending into night
+// hours doesn't mean a fresh wake-up?
+function isNightActive(memberId, date, windowShifts) {
+  return (windowShifts || []).some((sh) => sh.memberId === memberId
+    && sh.date === date && ON_DUTY_TYPES.has(sh.shiftType)
+    && blockTouchesNight(sh.startTime, sh.endTime));
+}
+
+// The night sub-intervals within a linear window [S,E] (E may exceed 24 for an
+// overnight freed block). Tested at ±24h offsets so both clock-day edges land.
+function nightIntervalsLinear(S, E) {
+  const out = [];
+  for (const off of [-24, 0, 24]) {
+    let lo = Math.max(S, NIGHT_START + off); let hi = Math.min(E, 24 + off);
+    if (hi > lo) out.push([lo, hi]);
+    lo = Math.max(S, off); hi = Math.min(E, NIGHT_END + off);
+    if (hi > lo) out.push([lo, hi]);
+  }
+  return out;
+}
+
+// Remove `holes` from `intervals` (both [lo,hi] lists on the same linear axis).
+function subtractRanges(intervals, holes, EPS = 1e-6) {
+  let result = intervals.map((iv) => [...iv]);
+  for (const [hlo, hhi] of holes) {
+    const next = [];
+    for (const [a, b] of result) {
+      if (hhi <= a + EPS || hlo >= b - EPS) { next.push([a, b]); continue; }
+      if (hlo > a + EPS) next.push([a, hlo]);
+      if (hhi < b - EPS) next.push([hhi, b]);
+    }
+    result = next;
+  }
+  return result;
+}
+
 // Is a member genuinely FREE across [start,end] on `date` — i.e. has NO on-duty
 // block overlapping that window? Coverage only makes sense if the recipient is
 // resting then; someone already on duty during the block can't add a body, so
@@ -177,15 +231,21 @@ export function planCoverage({ freed, candidates, date, windowShifts, caps = nul
   const E = S + freed.hours;
 
   // Each candidate's FREE sub-intervals within [S,E] (window minus on-duty).
+  // Core night hours are then removed for anyone NOT already on a night watch,
+  // so cover is never carved out of someone's protected sleep.
+  const night = nightIntervalsLinear(S, E);
   const freeById = new Map();
   for (const c of candidates) {
     const busy = busyIntervals(c.id, date, windowShifts, S, E, EPS);
-    const free = []; let cur = S;
+    let free = []; let cur = S;
     for (const [lo, hi] of busy) {
       if (lo > cur + EPS) free.push([cur, lo]);
       cur = Math.max(cur, hi);
     }
     if (E > cur + EPS) free.push([cur, E]);
+    if (night.length && !isNightActive(c.id, date, windowShifts)) {
+      free = subtractRanges(free, night, EPS);
+    }
     freeById.set(c.id, free);
   }
 
@@ -219,15 +279,28 @@ export function planCoverage({ freed, candidates, date, windowShifts, caps = nul
     cursor = bestReach;
   }
 
-  // Merge adjacent same-owner runs, then format to HH:MM.
+  // Merge adjacent same-owner runs.
   const merged = [];
   for (const s of out) {
     const prev = merged[merged.length - 1];
     if (prev && prev.id === s.id && Math.abs(prev.end - s.start) < EPS) prev.end = s.end;
     else merged.push({ ...s });
   }
+  // Drop micro-covers: a covered run too short to be worth waking someone for
+  // becomes a gap (the watch runs short / the source keeps it), never a
+  // fragmenting sliver handed to a rested crew member.
+  for (const s of merged) {
+    if (!s.gap && s.id && (s.end - s.start) < MIN_COVER_HOURS - EPS) { s.id = null; s.gap = true; }
+  }
+  // Re-merge now-adjacent gaps so the output stays clean.
+  const merged2 = [];
+  for (const s of merged) {
+    const prev = merged2[merged2.length - 1];
+    if (prev && prev.id === s.id && !!prev.gap === !!s.gap && Math.abs(prev.end - s.start) < EPS) prev.end = s.end;
+    else merged2.push({ ...s });
+  }
   const round2 = (n) => Math.round(n * 100) / 100;
-  const slices = merged.map((s) => ({
+  const slices = merged2.map((s) => ({
     id: s.id, gap: !!s.gap, start: toHHMM(s.start), end: toHHMM(s.end), hours: round2(s.end - s.start),
   }));
   return { slices, gapHours: round2(slices.filter((s) => s.gap).reduce((a, s) => a + s.hours, 0)) };
