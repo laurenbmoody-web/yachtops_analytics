@@ -2572,3 +2572,271 @@
   color: #C65A1A;
   background: #FBEFE9;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Work-queue + spreadsheet hybrid (sod-wq-*)
+   ════════════════════════════════════════════════════════════════════════
+   New ItemsCard layout. Replaces the old sod-items-table treatment:
+   header carries a progress bar + Confirm-all CTA, items group into
+   To do / Done sections, each row is spreadsheet density with inline
+   editable qty/unit/size/price/note. Substituting folds into the note
+   column ("Sub: …" prefix). Status reads from a single coloured dot in
+   column one — no more inline CHIP labels.
+   ════════════════════════════════════════════════════════════════════════ */
+
+#sp-root .sod-wq-card { padding: 0; overflow: hidden; }
+
+/* ── header ───────────────────────────────────────────────────────────── */
+#sp-root .sod-wq-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 22px;
+  background: #FBFAF7;
+  border-bottom: 1px solid #F0F1F5;
+  gap: 24px;
+}
+#sp-root .sod-wq-progress { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+#sp-root .sod-wq-progress-label {
+  font-size: 13px; color: var(--fg);
+}
+#sp-root .sod-wq-progress-label strong { font-weight: 700; }
+#sp-root .sod-wq-progress-meta { color: var(--muted-strong); font-size: 11.5px; margin-left: 6px; }
+#sp-root .sod-wq-bar {
+  width: 100%; max-width: 480px; height: 6px;
+  background: var(--line); border-radius: 999px;
+  overflow: hidden; display: flex;
+}
+#sp-root .sod-wq-bar i { display: block; height: 100%; }
+#sp-root .sod-wq-bar .done { background: var(--green); }
+#sp-root .sod-wq-bar .sub  { background: #D4A24C; }
+#sp-root .sod-wq-bar .un   { background: var(--red); opacity: 0.7; }
+
+#sp-root .sod-wq-cta-wrap { display: flex; align-items: center; gap: 8px; }
+#sp-root .sod-wq-cta {
+  background: var(--navy); color: #fff; border: 0;
+  height: 36px; padding: 0 18px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+  letter-spacing: 0.01em;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: inherit;
+}
+#sp-root .sod-wq-cta:disabled { opacity: 0.5; cursor: default; }
+#sp-root .sod-wq-cta:not(:disabled):hover { background: #2A2950; }
+#sp-root .sod-wq-kbd {
+  display: inline-block;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(255,255,255,0.18);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ── grid (column header + rows) ─────────────────────────────────────── */
+#sp-root .sod-wq-cols,
+#sp-root .sod-wq-row {
+  display: grid;
+  grid-template-columns:
+    14px              /* status dot   */
+    minmax(220px, 3fr) /* item        */
+    74px              /* unit         */
+    74px              /* size         */
+    62px              /* qty          */
+    72px              /* est          */
+    minmax(140px, 1.2fr) /* price     */
+    minmax(160px, 1.4fr) /* note      */
+    92px              /* line total   */
+    36px;             /* action       */
+  gap: 12px;
+  align-items: center;
+  padding: 8px 18px;
+}
+#sp-root .sod-wq-cols {
+  background: #FAFAF8;
+  border-bottom: 1px solid var(--line);
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--muted-strong);
+}
+#sp-root .sod-wq-cols .sod-wq-cell-qty,
+#sp-root .sod-wq-cols .sod-wq-cell-est,
+#sp-root .sod-wq-cols .sod-wq-cell-total { text-align: right; }
+
+/* ── section heads ───────────────────────────────────────────────────── */
+#sp-root .sod-wq-sec { border-top: 1px solid var(--line-2, #F0F1F5); }
+#sp-root .sod-wq-sec-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 14px 22px 4px;
+}
+#sp-root .sod-wq-sec-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 18px;
+  letter-spacing: -0.005em;
+}
+#sp-root .sod-wq-sec-meta {
+  font-size: 11px; color: var(--muted-strong);
+  display: flex; gap: 12px; align-items: center;
+}
+#sp-root .sod-wq-sec-todo .sod-wq-sec-head { background: #FFFCF8; }
+#sp-root .sod-wq-sec-todo .sod-wq-sec-title { color: var(--orange); }
+#sp-root .sod-wq-sec-done .sod-wq-sec-title { color: var(--muted-strong); }
+
+#sp-root .sod-wq-dot {
+  display: inline-block;
+  width: 8px; height: 8px; border-radius: 999px;
+  background: var(--faint, #AEB4C2);
+  vertical-align: middle;
+  margin-right: 5px;
+}
+#sp-root .sod-wq-dot-pending     { background: #AEB4C2; }
+#sp-root .sod-wq-dot-confirmed   { background: var(--green); }
+#sp-root .sod-wq-dot-substituted { background: #D4A24C; }
+#sp-root .sod-wq-dot-unavailable { background: var(--red); }
+
+/* ── rows ─────────────────────────────────────────────────────────────── */
+#sp-root .sod-wq-row {
+  border-top: 1px solid #F4F4F0;
+  font-size: 13px;
+  min-height: 44px;
+  padding-top: 7px; padding-bottom: 7px;
+}
+#sp-root .sod-wq-cell-status { display: flex; justify-content: center; }
+#sp-root .sod-wq-cell-item .sod-wq-name {
+  font-weight: 600; color: var(--fg);
+}
+#sp-root .sod-wq-cell-item .sod-wq-brand {
+  font-weight: 500; color: var(--muted-strong); font-size: 12px; margin-left: 6px;
+}
+#sp-root .sod-wq-vessel-note {
+  display: block;
+  font-style: italic; color: #6B6F7A;
+  font-size: 12px; font-weight: 500;
+  margin-top: 2px;
+  letter-spacing: 0.005em;
+  line-height: 1.4;
+}
+#sp-root .sod-wq-vessel-note::before { content: '“'; font-style: normal; }
+#sp-root .sod-wq-vessel-note::after  { content: '”'; font-style: normal; }
+
+#sp-root .sod-wq-row .sod-wq-cell-qty,
+#sp-root .sod-wq-row .sod-wq-cell-est,
+#sp-root .sod-wq-row .sod-wq-cell-total {
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+#sp-root .sod-wq-row .sod-wq-cell-est {
+  color: var(--faint, #AEB4C2); font-size: 12px;
+}
+#sp-root .sod-wq-muted { color: var(--faint, #AEB4C2); }
+#sp-root .sod-wq-total { color: var(--fg); font-weight: 700; font-size: 13.5px; }
+#sp-root .sod-wq-unavail { color: var(--red); font-weight: 600; font-size: 11.5px; }
+
+/* ── editable cell (qty/unit/size) ───────────────────────────────────── */
+#sp-root .sod-wq-edit-display {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 6px; padding: 4px 8px;
+  font: inherit; color: var(--fg); cursor: text;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  min-height: 28px;
+}
+#sp-root .sod-wq-edit-display:hover:not(:disabled) {
+  border-color: var(--line);
+  background: #fff;
+}
+#sp-root .sod-wq-edit-display.sod-wq-readonly {
+  cursor: default;
+}
+#sp-root .sod-wq-edit-display.sod-wq-readonly:hover {
+  border-color: transparent; background: transparent;
+}
+#sp-root .sod-wq-edit-display-right { justify-content: flex-end; }
+#sp-root .sod-wq-strike {
+  color: var(--faint, #AEB4C2);
+  text-decoration: line-through;
+  font-size: 12px;
+}
+#sp-root .sod-wq-val { color: var(--fg); }
+#sp-root .sod-wq-changed .sod-wq-val { color: var(--orange); font-weight: 700; }
+
+#sp-root .sod-wq-edit {
+  width: 100%; min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--orange); border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  color: var(--fg);
+  box-shadow: 0 0 0 3px #FBEFE9;
+}
+#sp-root .sod-wq-edit-right { text-align: right; }
+
+/* ── note column ─────────────────────────────────────────────────────── */
+#sp-root .sod-wq-note-input {
+  width: 100%; min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit; font-size: 12.5px;
+  font-style: italic;
+  color: var(--muted-strong);
+  outline: none;
+}
+#sp-root .sod-wq-note-input::placeholder { color: var(--faint, #AEB4C2); font-style: italic; }
+#sp-root .sod-wq-note-input:hover:not(:disabled) { border-color: var(--line); }
+#sp-root .sod-wq-note-input:focus {
+  border-color: var(--orange); background: #fff;
+  box-shadow: 0 0 0 3px #FBEFE9;
+  color: var(--fg);
+  font-style: normal;
+}
+#sp-root .sod-wq-note-sub {
+  color: var(--orange); font-weight: 600; font-style: normal;
+}
+
+/* ── price cell (re-uses existing PriceCell rules; trim padding to fit) */
+#sp-root .sod-wq-cell-price .sod-price-cell { padding: 0; }
+#sp-root .sod-wq-cell-price .sod-price-quoted-label,
+#sp-root .sod-wq-cell-price .sod-price-readonly-sub,
+#sp-root .sod-wq-cell-price .sod-price-discussion-badge,
+#sp-root .sod-wq-cell-price .sod-price-declined-tag,
+#sp-root .sod-wq-cell-price .sod-price-saving { font-size: 10px; }
+
+/* ── action icons ────────────────────────────────────────────────────── */
+#sp-root .sod-wq-cell-action { display: flex; justify-content: flex-end; }
+#sp-root .sod-wq-icon-btn {
+  width: 28px; height: 28px; padding: 0;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--muted-strong);
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+#sp-root .sod-wq-icon-btn svg { width: 13px; height: 13px; stroke-width: 1.9; }
+#sp-root .sod-wq-icon-btn:hover:not(:disabled) {
+  border-color: var(--navy); color: var(--navy);
+}
+#sp-root .sod-wq-icon-x { color: var(--red); border-color: #F0CBC2; }
+#sp-root .sod-wq-icon-x:hover:not(:disabled) { background: #FBE8E2; color: var(--red); border-color: var(--red); }
+
+/* ── completed row treatment ────────────────────────────────────────── */
+#sp-root .sod-wq-row-completed {
+  background: #FCFCFA;
+}
+#sp-root .sod-wq-row-completed .sod-wq-name { color: var(--muted-strong); font-weight: 500; }
+#sp-root .sod-wq-row-completed .sod-wq-brand { color: var(--faint, #AEB4C2); }
+#sp-root .sod-wq-row-completed .sod-wq-cell-est { color: transparent; }
+#sp-root .sod-wq-row-completed .sod-wq-edit-display { color: var(--muted-strong); }
+#sp-root .sod-wq-row-completed .sod-wq-changed .sod-wq-val { color: var(--orange); }
+
+#sp-root .sod-wq-row-unavailable .sod-wq-name { color: var(--muted-strong); }
+#sp-root .sod-wq-row-unavailable { background: #FDFBF9; }
+
+#sp-root .sod-wq-empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--muted-strong);
+  font-size: 13px;
+}
