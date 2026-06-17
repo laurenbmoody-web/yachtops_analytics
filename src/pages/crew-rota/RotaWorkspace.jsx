@@ -1024,6 +1024,7 @@ export default function RotaWorkspace({
         suggestion={applySuggestion?.suggestion}
         sourceCrew={applySuggestion?.sourceCrew}
         crew={crew}
+        windowShifts={windowShifts || []}
         base={{
           tenantId: rota?.tenantId,
           rotaId: rota?.id,

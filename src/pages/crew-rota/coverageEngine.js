@@ -13,7 +13,15 @@
 // weekly ≥77h/7d. Structural rules (split / 14h stretch) are left to the
 // preview's note rather than the auto-spread.
 
-import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
+import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN, assessMlc } from './restHours';
+
+// Add n days to a 'YYYY-MM-DD' string via local date components.
+function addDaysStr(dateStr, n) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  const dt = new Date(y, m - 1, d + n);
+  const p = (x) => String(x).padStart(2, '0');
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+}
 
 const toDec = (hhmm) => {
   const [h, m] = String(hhmm || '').slice(0, 5).split(':').map(Number);
@@ -45,15 +53,45 @@ export function candidateHeadroom(member) {
   return { dailyRoom, weeklyRoom, headroom };
 }
 
-// Same-department crew (excluding the breaching member and anyone rostered
-// fully off that day), ranked by headroom desc. Off-duty crew are excluded so
-// coverage never silently cancels an intended day off.
+// Full MLC re-assessment for a recipient AFTER taking a covering block — all
+// four rules (daily 10h, weekly 77h, rest split, 14h stretch), so coverage
+// never silently moves a structural breach onto someone else. `block` is the
+// carved slice { start, end } in HH:MM; `windowShifts` is every member's
+// camelCase shifts for the loaded window.
+export function assessRecipient({ memberId, windowShifts, date, block }) {
+  const weekStart = addDaysStr(date, -6);
+  const week = (windowShifts || []).filter(
+    (s) => s.memberId === memberId && s.date >= weekStart && s.date <= date,
+  );
+  const day = week.filter((s) => s.date === date);
+  const add = block && block.hours > 0
+    ? [{ date, startTime: block.start, endTime: block.end, shiftType: block.shiftType || 'watch' }]
+    : [];
+  const rep = assessMlc({ dayShifts: [...day, ...add], weekShifts: [...week, ...add] });
+  const splitBreach = rep.breaches.some((b) => b.rule === 'rest_period_split');
+  const stretchBreach = rep.breaches.some((b) => b.rule === 'max_work_stretch_14h');
+  return {
+    rest24: rep.rest24h,
+    week: rep.pastWeekHours,
+    dailyOk: rep.rest24h >= MLC_DAILY_REST_MIN,
+    weeklyOk: rep.pastWeekHours >= MLC_WEEKLY_REST_MIN,
+    splitBreach,
+    stretchBreach,
+    structuralNote: stretchBreach ? 'over 14h continuous' : splitBreach ? 'splits rest > 2 periods' : null,
+    anyBreach: rep.anyBreach,
+  };
+}
+
+// Same-department crew, ranked by headroom desc. Excludes the breaching member,
+// anyone rostered fully off that day (so coverage never cancels a day off), and
+// anyone already in any MLC breach (don't pile onto someone non-compliant).
 export function buildCandidates({ sourceMember, crew }) {
   if (!sourceMember) return [];
   return (crew || [])
     .filter((c) => c.id !== sourceMember.id
       && c.department === sourceMember.department
-      && !c.offToday)
+      && !c.offToday
+      && !c.mlcWarning)
     .map((c) => ({
       id: c.id,
       name: c.name,
