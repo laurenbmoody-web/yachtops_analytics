@@ -1035,6 +1035,7 @@ export default function RotaWorkspace({
         }}
         ensureDraft={ensureDraft}
         applyTemplate={applyTemplate}
+        publishImmediately={tier === 'COMMAND' || tier === 'CHIEF'}
         onToast={showToast}
         onClose={() => setApplySuggestion(null)}
         onApplied={() => { setApplySuggestion(null); setSelectedCrew(null); refetch?.(); }}

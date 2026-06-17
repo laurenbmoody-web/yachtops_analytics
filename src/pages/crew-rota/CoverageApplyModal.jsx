@@ -27,7 +27,7 @@ const toDecLocal = (hhmm) => {
 //   onToast       (msg, opts?) => void
 export default function CoverageApplyModal({
   open, suggestion, sourceCrew, crew, windowShifts, base,
-  ensureDraft, applyTemplate, onApplied, onClose, onToast,
+  ensureDraft, applyTemplate, onApplied, onClose, onToast, publishImmediately = false,
 }) {
   const freed = suggestion?.freedBlock || null;
   const candidates = useMemo(
@@ -141,15 +141,19 @@ export default function CoverageApplyModal({
     if (busy) return;
     setBusy(true);
     try {
-      if (ensureDraft && sourceCrew?.departmentId) await ensureDraft(sourceCrew.departmentId);
+      // Publish-capable tiers write live and skip the draft revert; everyone
+      // else flips the dept to draft first (the normal review workflow).
+      if (!publishImmediately && ensureDraft && sourceCrew?.departmentId) {
+        await ensureDraft(sourceCrew.departmentId);
+      }
       const plan = buildApplyPlan({
-        base: { ...base, sourceMemberId: sourceCrew.id },
+        base: { ...base, sourceMemberId: sourceCrew.id, status: publishImmediately ? 'published' : 'draft' },
         freed,
         slices,
       });
       const res = await applyTemplate(plan);
       if (res?.ok) {
-        onToast?.(`Applied — ${freedH - remaining}h reassigned across ${slices.length} crew`, { type: 'success' });
+        onToast?.(`${publishImmediately ? 'Published' : 'Applied'} — ${freedH - remaining}h reassigned across ${slices.length} crew`, { type: 'success' });
         onApplied?.();
       } else {
         onToast?.(res?.error || 'Could not apply to grid', { type: 'error' });
@@ -328,7 +332,7 @@ export default function CoverageApplyModal({
             {remaining > 0 && (
               <div className="cov-note warn">{remaining}h still unassigned — the source keeps that portion. Go back to allocate it fully.</div>
             )}
-            <div className="cov-note">Recipients re-checked against all four MLC rules (10h daily · 77h weekly · rest split · 14h continuous). Confirm writes all edits to the grid as draft.</div>
+            <div className="cov-note">Recipients re-checked against all four MLC rules (10h daily · 77h weekly · rest split · 14h continuous). Confirm {publishImmediately ? 'publishes all edits to the grid live' : 'writes all edits to the grid as draft'}.</div>
 
             <div className="cov-actions">
               <button type="button" className="cov-btn primary" disabled={busy || recipientBreach} onClick={handleConfirm}>
