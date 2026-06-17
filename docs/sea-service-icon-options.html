@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sea service — icon options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C1B3A; --ink-soft:#695880; --muted:#8B8478; --muted-2:#6B7280; --faint:#AEB4C2;
+  --rust:#C65A1A; --card:#fff; --bg:#F8FAFC; --border:#E6E8EF; --hair:#F0F1F5;
+  --sage:#5E8E6F; --clay:#A32D2D;
+  --t-sea:#2F6080; --t-sea-bg:#E8EFF4; --t-watch:#6B57A0; --t-watch-bg:#ECE7F6;
+  --t-sb:#A6712C; --t-sb-bg:#F5ECDA; --t-yd:#6B7280; --t-yd-bg:#EFF0F3;
+  --serif:'DM Serif Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);}
+.wrap{max-width:980px;margin:0 auto;padding:34px 26px 90px;}
+.intro{color:var(--ink-soft);font-size:13.5px;margin:0 0 6px;line-height:1.55;} .intro b{color:var(--ink);}
+.note{font-size:12px;color:var(--muted);margin:0 0 26px;}
+.row{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:16px;}
+.rh{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.sw{width:5px;height:34px;border-radius:3px;}
+.rh h3{font-family:var(--serif);font-weight:500;font-size:20px;margin:0;}
+.rh .cur{margin-left:8px;font-size:11px;color:var(--muted);}
+.opts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+@media(max-width:720px){.opts{grid-template-columns:repeat(2,1fr);}}
+.opt{border:1px solid var(--hair);border-radius:11px;padding:16px 10px 12px;text-align:center;position:relative;background:#fff;}
+.opt.rec{border-color:#CFE0D5;box-shadow:inset 0 0 0 1px #CFE0D5;}
+.opt.is{border-color:#E3DBC9;}
+.ic{width:30px;height:30px;}
+.lab{font-size:12px;font-weight:600;margin-top:9px;}
+.flag{position:absolute;top:8px;right:8px;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:2px 6px;}
+.flag.rec{color:var(--sage);background:#E7F0E9;}
+.flag.is{color:#9A7B2E;background:#F5ECDA;}
+/* live pill + bar preview */
+.prev{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:16px;padding-top:15px;border-top:1px solid var(--hair);}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;border-radius:999px;padding:4px 11px;}
+.bar{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;border-radius:7px;padding:4px 10px;box-shadow:inset 0 0 0 1px currentColor;}
+.bar svg{opacity:1;}
+.marks{display:flex;gap:22px;flex-wrap:wrap;align-items:center;}
+.mk{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);}
+.ic20{width:18px;height:18px;}
+</style></head>
+<body>
+<div class="wrap">
+  <p class="intro"><b>Icon options for the four service types</b> — outlined, 1.9px stroke, shown in each type's colour. Pick one per row (or suggest another) and I'll wire it into the calendar bars, list and testimonial. <b>Current</b> = what's live now; <b>Suggested</b> = my pick.</p>
+  <p class="note">Colours below are the new, more-distinct spine tones: Seagoing blue · Watchkeeping violet · Standby amber · Shipyard slate.</p>
+
+  <!-- SEAGOING -->
+  <div class="row">
+    <div class="rh"><span class="sw" style="background:var(--t-sea)"></span><h3 style="color:var(--t-sea)">Seagoing</h3><span class="cur">days at sea on passage</span></div>
+    <div class="opts">
+      <div class="opt is"><span class="flag is">Current</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-sea)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2M5 13l1-6h12l1 6M9 7V5h6v2"/></svg><div class="lab">Ship</div></div>
+      <div class="opt rec"><span class="flag rec">Suggested</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-sea)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2M3 20c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/><path d="M5 14l1-6h12l1 6M9 8V5h6v3"/></svg><div class="lab">Ship + wake</div></div>
+      <div class="opt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-sea)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13c1.6 0 1.6-1.6 3.2-1.6S6.8 13 8.4 13s1.6-1.6 3.2-1.6S13.2 13 14.8 13s1.6-1.6 3.2-1.6S19.6 13 21.2 13M2 18c1.6 0 1.6-1.6 3.2-1.6S6.8 18 8.4 18s1.6-1.6 3.2-1.6S13.2 18 14.8 18s1.6-1.6 3.2-1.6S19.6 18 21.2 18"/></svg><div class="lab">Waves</div></div>
+      <div class="opt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-sea)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11M12 4 5 14h7M12 6l6 8h-6M4 18h16l-2.5 3H6.5z"/></svg><div class="lab">Sailboat</div></div>
+    </div>
+  </div>
+
+  <!-- WATCHKEEPING -->
+  <div class="row">
+    <div class="rh"><span class="sw" style="background:var(--t-watch)"></span><h3 style="color:var(--t-watch)">Watchkeeping</h3><span class="cur">≥4h bridge watch / day</span></div>
+    <div class="opts">
+      <div class="opt is"><span class="flag is">Current</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-watch)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg><div class="lab">Clock</div></div>
+      <div class="opt rec"><span class="flag rec">Suggested</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-watch)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M12 7.5 14 5M12 7.5 10 5M7.5 12 5 14M7.5 12 5 10M16.5 12 19 14M16.5 12 19 10M12 16.5 14 19M12 16.5 10 19"/></svg><div class="lab">Ship's wheel</div></div>
+      <div class="opt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-watch)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg><div class="lab">Eye (lookout)</div></div>
+      <div class="opt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-watch)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg><div class="lab">Compass</div></div>
+    </div>
+  </div>
+
+  <!-- STANDBY -->
+  <div class="row">
+    <div class="rh"><span class="sw" style="background:var(--t-sb)"></span><h3 style="color:var(--t-sb)">Standby</h3><span class="cur">subject to regulatory cap</span></div>
+    <div class="opts">
+      <div class="opt rec"><span class="flag rec">Suggested · now live</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-sb)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12M6 22h12M8 2v5l4 4 4-4V2M8 22v-5l4-4 4 4v5"/></svg><div class="lab">Hourglass</div></div>
+      <div class="opt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-sb)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2h6"/></svg><div class="lab">Stopwatch</div></div>
+      <div class="opt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-sb)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="4" height="14" rx="1.4"/><rect x="14" y="5" width="4" height="14" rx="1.4"/></svg><div class="lab">Pause</div></div>
+      <div class="opt"><span class="flag is" style="color:#9a4a2e;background:#FBE7DF">Old</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--clay)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4m0 4h.01M12 3 3 20h18L12 3Z"/></svg><div class="lab" style="color:var(--clay)">Alert (drop)</div></div>
+    </div>
+  </div>
+
+  <!-- SHIPYARD -->
+  <div class="row">
+    <div class="rh"><span class="sw" style="background:var(--t-yd)"></span><h3 style="color:var(--t-yd)">Shipyard / refit</h3><span class="cur">yard period, capped</span></div>
+    <div class="opts">
+      <div class="opt is"><span class="flag is">Current</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-yd)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6"/></svg><div class="lab">Slipway / shed</div></div>
+      <div class="opt rec"><span class="flag rec">Suggested</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-yd)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6a3.5 3.5 0 0 0-4.6 4.3l-5.3 5.3a1.6 1.6 0 1 0 2.3 2.3l5.3-5.3A3.5 3.5 0 0 0 18 9.5l-2 2-1.5-1.5 2-2A3.5 3.5 0 0 0 14.5 6Z"/></svg><div class="lab">Wrench</div></div>
+      <div class="opt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-yd)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h10M5 21l1-7M13 21l-1-7M4 14h10M6 14 4.5 9 3 10M4.5 9 11 6M9 4l9 3.5"/></svg><div class="lab">Crane</div></div>
+      <div class="opt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="var(--t-yd)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M16 6l2 2-9 9-3 1 1-3zM14 8l2 2"/><path d="m16 6 1.5-1.5a1.4 1.4 0 0 1 2 2L18 8"/></svg><div class="lab">Spanner + paint</div></div>
+    </div>
+  </div>
+
+  <!-- verification marks -->
+  <div class="row">
+    <div class="rh"><span class="sw" style="background:var(--ink)"></span><h3>Verification marks</h3><span class="cur">shown on each day / bar</span></div>
+    <div class="marks">
+      <span class="mk"><svg class="ic20" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4 10-10"/></svg> Qualifies / counts</span>
+      <span class="mk"><svg class="ic20" viewBox="0 0 24 24" fill="none" stroke="var(--clay)" stroke-width="2.4" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg> Non-qualifying</span>
+      <span class="mk"><svg class="ic20" viewBox="0 0 24 24" fill="none" stroke="var(--muted-2)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg> Pending sign-off (optional)</span>
+    </div>
+  </div>
+
+  <!-- preview with suggested set -->
+  <div class="row">
+    <div class="rh"><span class="sw" style="background:var(--rust)"></span><h3>In context · suggested set</h3></div>
+    <div class="prev">
+      <span class="pill" style="color:var(--t-sea);background:var(--t-sea-bg)"><svg class="ic20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4 10-10"/></svg> Qualifies · seagoing</span>
+      <span class="pill" style="color:var(--t-watch);background:var(--t-watch-bg)"><svg class="ic20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4 10-10"/></svg> Qualifies · watchkeeping</span>
+      <span class="bar" style="color:var(--t-sb);background:var(--t-sb-bg)"><svg class="ic20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12M6 22h12M8 2v5l4 4 4-4V2M8 22v-5l4-4 4 4v5"/></svg> Aurora Borealis · Standby</span>
+      <span class="bar" style="color:var(--t-yd);background:var(--t-yd-bg)"><svg class="ic20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6a3.5 3.5 0 0 0-4.6 4.3l-5.3 5.3a1.6 1.6 0 1 0 2.3 2.3l5.3-5.3A3.5 3.5 0 0 0 18 9.5l-2 2-1.5-1.5 2-2A3.5 3.5 0 0 0 14.5 6Z"/></svg> Aurora Borealis · Shipyard</span>
+    </div>
+  </div>
+</div>
+</body></html>

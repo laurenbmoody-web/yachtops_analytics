@@ -35,10 +35,10 @@ export const DEFAULT_PATHWAY = 'oow3000';
 // low-saturation tints) so the four buckets read as a family rather than four
 // competing colours; terracotta stays reserved for the brand accent. ──────────
 export const TYPE_META = {
-  seagoing:     { label: 'Seagoing',     color: '#3A5A74', bg: '#EDF1F5', hint: 'Days at sea on passage',      icon: 'M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2M5 13l1-6h12l1 6M9 7V5h6v2' },
-  watchkeeping: { label: 'Watchkeeping', color: '#4F5D8A', bg: '#ECEEF6', hint: '≥4h bridge watch / day',      icon: 'M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z' },
-  standby:      { label: 'Standby',      color: '#8B6B3F', bg: '#F3ECDD', hint: 'Subject to regulatory cap',   icon: 'M12 8v4m0 4h.01M12 3 3 20h18L12 3Z' },
-  yard:         { label: 'Yard',         color: '#6B7280', bg: '#F0F1F4', hint: 'Shipyard / refit service',    icon: 'M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6' }
+  seagoing:     { label: 'Seagoing',     color: '#2F6080', bg: '#E8EFF4', hint: 'Days at sea on passage',      icon: 'M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2M5 13l1-6h12l1 6M9 7V5h6v2' },
+  watchkeeping: { label: 'Watchkeeping', color: '#6B57A0', bg: '#ECE7F6', hint: '≥4h bridge watch / day',      icon: 'M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z' },
+  standby:      { label: 'Standby',      color: '#A6712C', bg: '#F5ECDA', hint: 'Subject to regulatory cap',   icon: 'M6 2h12M6 22h12M8 2v5l4 4 4-4V2M8 22v-5l4-4 4 4v5' },
+  yard:         { label: 'Yard',         color: '#6B7280', bg: '#EFF0F3', hint: 'Shipyard / refit service',    icon: 'M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6' }
 };
 
 export const SOURCE_META = {

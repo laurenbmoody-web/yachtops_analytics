@@ -75,6 +75,15 @@ const SeaServiceCalendar = ({ entries, vessels, config, serviceFilter }) => {
   const stepYear = (n) => setCursor((c) => ({ ...c, y: c.y + n }));
   const goToday = () => { const d = new Date(); setCursor({ y: d.getFullYear(), m: d.getMonth() }); };
 
+  // inline three-way control: Month · Year zoom + a Today jump, one group.
+  const zoomSeg = (
+    <div className="stc-seg">
+      <button className={zoom === 'month' ? 'on' : ''} onClick={() => setZoom('month')}>Month</button>
+      <button className={zoom === 'year' ? 'on' : ''} onClick={() => setZoom('year')}>Year</button>
+      <button className="act" onClick={goToday}>Today</button>
+    </div>
+  );
+
   // ── month grid (A) ──
   const weeks = useMemo(() => {
     const { y, m } = cursor;
@@ -95,7 +104,7 @@ const SeaServiceCalendar = ({ entries, vessels, config, serviceFilter }) => {
         <button className="stc-navbtn" onClick={() => stepMonth(-1)} aria-label="Previous month"><Icon name="ChevronLeft" size={16} /></button>
         <div className="stc-mo">{MONTHS[cursor.m]} {cursor.y}</div>
         <button className="stc-navbtn" onClick={() => stepMonth(1)} aria-label="Next month"><Icon name="ChevronRight" size={16} /></button>
-        <button className="stc-today" onClick={goToday}>Today</button>
+        {zoomSeg}
       </div>
       <div className="stc-cal">
         <div className="stc-dow">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <div key={d}>{d}</div>)}</div>
@@ -151,7 +160,7 @@ const SeaServiceCalendar = ({ entries, vessels, config, serviceFilter }) => {
         <button className="stc-navbtn" onClick={() => stepYear(-1)} aria-label="Previous year"><Icon name="ChevronLeft" size={16} /></button>
         <div className="stc-mo">{cursor.y}</div>
         <button className="stc-navbtn" onClick={() => stepYear(1)} aria-label="Next year"><Icon name="ChevronRight" size={16} /></button>
-        <button className="stc-today" onClick={goToday}>This year</button>
+        {zoomSeg}
       </div>
       <div className="stc-kpis">
         <div className="stc-kpi"><b>{yearStats.total}</b><span>Days this year</span></div>
@@ -188,10 +197,6 @@ const SeaServiceCalendar = ({ entries, vessels, config, serviceFilter }) => {
 
   return (
     <div className="stc">
-      <div className="stc-zoom">
-        <button className={zoom === 'month' ? 'on' : ''} onClick={() => setZoom('month')}>Month</button>
-        <button className={zoom === 'year' ? 'on' : ''} onClick={() => setZoom('year')}>Year</button>
-      </div>
       {zoom === 'month' ? renderMonth() : renderYear()}
       <div className="stc-legend">
         {TYPE_KEYS.map((k) => (
