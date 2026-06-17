@@ -23,11 +23,11 @@ import {
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
 import SupplierPicker from './SupplierPicker';
 import { showToast } from '../../../utils/toast';
 
 import ModalShell from '../../../components/ui/ModalShell';
+import './send-to-supplier-modal.css';
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'AED', 'CHF', 'SGD', 'AUD'];
 
 const WHATSAPP_TEMPLATE = (ctx, items) => {
@@ -458,43 +458,28 @@ const SendToSupplierModal = ({
   const unassignedSupplier = suppliers.find(s => s.id === unassignedSupplierId) || null;
 
   // ── Render ──────────────────────────────────────────────────────
-  const inputCls = 'w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary';
-  const labelCls = 'block text-[11px] font-medium mb-1';
-  const ACCENT = '#C65A1A';        // terracotta — unchanged (matches --d-orange)
-  const INK = '#1A1D3F';           // --d-navy-deep
-  const MUTED = '#7C7E9B';         // --d-muted (was warm #695880)
-  const CREAM = '#F1F5F9';         // ready-group surface — cool slate, intentional
-  const HAIRLINE = '#E5E7EB';      // --d-border (was warm sand #DFD8CC)
-  const FAINT = '#9098B1';         // --d-muted-soft (was warm stone #B4B2A9)
-  const SERIF = "'DM Serif Display', Georgia, serif";
-
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-
-  const SerifTitle = ({ text }) => (
-    <span style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 500, color: INK, lineHeight: 1.1 }}>
-      {text}<span style={{ color: ACCENT }}>.</span>
-    </span>
-  );
 
   const subtitle = allDone
     ? plural(sentOrderCount, 'order') + ' created'
     : plural(readySupplierCount, 'supplier') + ' ready'
       + (unassignedUnsent.length > 0 ? ` · ${plural(unassignedUnsent.length, 'item')} unassigned` : '');
 
+  // Custom input className that overrides the legacy styling SupplierPicker
+  // ships with — borderless input that sits inside the editorial field card.
+  const pickerInputCls = 'stsm-picker-input';
+
   const ActionButtons = ({ supplier, groupKey, rows, busy, showWhatsApp = true }) => {
     const hasContact = Boolean(supplier?.email) || Boolean(supplier?.phone);
     const disabled = busy || !!sendingKey || sendingAll || !hasContact || !requiredComplete;
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="stsm-btnpair">
         {showWhatsApp && (
           <button
             type="button"
             disabled={disabled}
             onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'whatsapp' })}
-            className="px-3 text-[11px] font-semibold rounded-lg border"
-            style={hasContact && !disabled
-              ? { height: 30, borderColor: INK, color: INK, background: 'transparent' }
-              : { height: 30, borderColor: HAIRLINE, color: FAINT, background: 'transparent', cursor: 'not-allowed' }}
+            className={`stsm-btn stsm-btn-ghost${disabled ? ' is-disabled' : ''}`}
           >
             WhatsApp
           </button>
@@ -503,57 +488,48 @@ const SendToSupplierModal = ({
           type="button"
           disabled={disabled}
           onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'email' })}
-          className="px-3 text-[11px] font-semibold rounded-lg text-white flex items-center gap-1.5"
-          style={hasContact && !disabled
-            ? { height: 30, background: INK }
-            : { height: 30, background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
+          className={`stsm-btn stsm-btn-primary${disabled ? ' is-disabled' : ''}`}
         >
-          {busy
-            ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
-            : 'Send'}
+          {busy ? <><span className="stsm-spinner" /> Sending…</> : 'Send'}
         </button>
       </div>
     );
   };
 
-  const GroupCard = ({ supplier, rows }) => {
+  const GroupRow = ({ supplier, rows }) => {
     const fullySent = rows.filter(r => !isSent(r.key)).length === 0;
     const busy = sendingKey === supplier.id;
     const hasContact = Boolean(supplier.email) || Boolean(supplier.phone);
     return (
-      <div className="flex items-center justify-between mb-2.5"
-        style={{ background: CREAM, borderRadius: 12, padding: '14px 16px', opacity: fullySent ? 0.6 : 1 }}>
-        <div style={{ minWidth: 0 }}>
-          <p className="text-sm truncate">
-            <span style={{ color: INK, fontWeight: 500 }}>{supplier.name || 'Supplier'}</span>
-            <span style={{ color: MUTED, fontWeight: 400 }}> · {plural(rows.length, 'item')}</span>
-          </p>
+      <div className={`stsm-group${fullySent ? ' is-sent' : ''}`}>
+        <div className="stsm-group-text">
+          <div className="stsm-group-name">
+            {supplier.name || 'Supplier'}
+            <span className="stsm-group-meta"> · {plural(rows.length, 'item')}</span>
+          </div>
           {hasContact ? (
-            <p className="text-[11px] truncate" style={{ color: MUTED }}>
+            <div className="stsm-group-contact">
               {[supplier.email, supplier.phone].filter(Boolean).join(' · ')}
-            </p>
+            </div>
           ) : (
             <button
               type="button"
+              className="stsm-group-add"
               onClick={() => window.open(`/provisioning/suppliers/${supplier.id}`, '_blank', 'noopener')}
-              className="text-[11px] flex items-center gap-1 mt-0.5"
-              style={{ color: ACCENT, fontWeight: 500 }}
             >
               <Icon name="Plus" size={11} /> Add contact
             </button>
           )}
         </div>
         {fullySent ? (
-          <span className="text-xs font-semibold flex items-center gap-1 flex-shrink-0" style={{ color: '#0F6E56' }}>
-            <Icon name="Check" size={14} /> Sent
+          <span className="stsm-sent">
+            <Icon name="Check" size={13} /> Sent
           </span>
         ) : (
-          <div className="flex-shrink-0 ml-3 flex flex-col items-end gap-1">
+          <div className="stsm-row-actions">
             <ActionButtons supplier={supplier} groupKey={supplier.id} rows={rows} busy={busy} />
             {hasContact && !requiredComplete && (
-              <span className="text-[10px] italic text-right" style={{ color: MUTED }}>
-                Complete the order context above to send
-              </span>
+              <span className="stsm-hint">Complete the order context above</span>
             )}
           </div>
         )}
@@ -561,157 +537,187 @@ const SendToSupplierModal = ({
     );
   };
 
+  const sendAllDisabled = sendableCount === 0 || sendingAll || !!sendingKey || !requiredComplete;
+
   const modal = (
-    <ModalShell onClose={onClose} isDirty={isDirty} isBusy={isBusy} panelClassName="bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <SerifTitle text={allDone ? 'All orders sent' : 'Send orders'} />
-          <p className="text-[13px] mt-1.5" style={{ color: MUTED }}>{subtitle}</p>
-        </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {!allDone && items.length > 0 && groups.length > 0 && (
-            <div className="flex flex-col items-end gap-1">
+    <ModalShell onClose={onClose} isDirty={isDirty} isBusy={isBusy} panelClassName="stsm-panel">
+      <div className="stsm">
+        <header className="stsm-head">
+          <div className="stsm-titlewrap">
+            <div className="stsm-title">
+              {allDone ? 'All orders sent' : 'Send orders'}
+              <span className="stsm-title-accent">.</span>
+            </div>
+            <div className="stsm-sub">{subtitle}</div>
+          </div>
+          <div className="stsm-head-actions">
+            {!allDone && items.length > 0 && groups.length > 0 && (
               <button
                 type="button"
-                disabled={sendableCount === 0 || sendingAll || !!sendingKey || !requiredComplete}
+                disabled={sendAllDisabled}
                 onClick={sendAll}
-                className="text-[12px] font-semibold rounded-lg text-white flex items-center gap-1.5"
-                style={sendableCount > 0 && requiredComplete && !sendingAll && !sendingKey
-                  ? { height: 32, padding: '0 16px', background: INK }
-                  : { height: 32, padding: '0 16px', background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
+                className={`stsm-btn stsm-btn-primary stsm-btn-sendall${sendAllDisabled ? ' is-disabled' : ''}`}
               >
-                {sendingAll
-                  ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
-                  : 'Send all'}
+                {sendingAll ? <><span className="stsm-spinner" /> Sending…</> : 'Send all'}
               </button>
-              {sendableCount > 0 && !requiredComplete && !sendingAll && !sendingKey && (
-                <span className="text-[10px] italic text-right" style={{ color: MUTED }}>
-                  Complete the order context to send all
-                </span>
-              )}
-            </div>
-          )}
-          <button onClick={onClose} disabled={!!sendingKey || sendingAll}
-            className="text-muted-foreground hover:text-foreground transition-colors">
-            <Icon name="X" size={18} />
-          </button>
-        </div>
-      </div>
-
-      {items.length === 0 ? (
-        <p className="text-sm text-center py-8" style={{ color: MUTED }}>
-          No items on this board are ready to order.
-        </p>
-      ) : allDone ? (
-        <div className="text-center py-6">
-          <p className="text-sm" style={{ color: MUTED }}>{plural(sentOrderCount, 'order')} created.</p>
-          <Button onClick={onClose} className="mt-5">Done</Button>
-        </div>
-      ) : (
-        <>
-          {/* Shared delivery context — applies to every order sent this
-              session. Port / date / requester required; currency + time
-              optional (estimates the supplier confirms on receipt). */}
-          <div className="grid grid-cols-2 gap-3 mb-2">
-            <div>
-              <label className={labelCls} style={{ color: MUTED }}>
-                Delivery port<span style={{ color: ACCENT }}> *</span>
-              </label>
-              <input className={inputCls} placeholder="e.g. Antibes"
-                value={deliveryPort} onChange={e => setDeliveryPort(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls} style={{ color: MUTED }}>
-                Currency<span style={{ color: MUTED, fontSize: 10 }}> (optional)</span>
-              </label>
-              <select className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)}>
-                <option value="">—</option>
-                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls} style={{ color: MUTED }}>
-                Order By Date<span style={{ color: ACCENT }}> *</span>
-              </label>
-              <DateInput className={inputCls}
-                value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls} style={{ color: MUTED }}>
-                Time<span style={{ color: MUTED, fontSize: 10 }}> (optional)</span>
-              </label>
-              <input className={inputCls} type="time"
-                value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
-            </div>
-            <div className="col-span-2">
-              <label className={labelCls} style={{ color: MUTED }}>
-                Requester Name<span style={{ color: ACCENT }}> *</span>
-              </label>
-              <input className={inputCls} placeholder="Who placed this order"
-                value={deliveryContact} onChange={e => setDeliveryContact(e.target.value)} />
-            </div>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={!!sendingKey || sendingAll}
+              className="stsm-close"
+              aria-label="Close"
+            >
+              <Icon name="X" size={18} />
+            </button>
           </div>
-          <p className="text-[11px] italic mb-5" style={{ color: MUTED }}>
-            Times, dates, and currency are estimates — confirm with supplier on receipt.
-          </p>
+        </header>
 
-          {groups.map(gi => (
-            <GroupCard key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
-          ))}
-
-          {unassigned.length > 0 && (
-            <div className="mb-2.5"
-              style={{ background: '#fff', border: `1px dashed ${HAIRLINE}`, borderRadius: 12, padding: '14px 16px' }}>
-              <p className="text-sm">
-                <span style={{ color: INK, fontWeight: 500 }}>Unassigned</span>
-                <span style={{ color: MUTED, fontWeight: 400 }}> · {plural(unassigned.length, 'item')}</span>
-              </p>
-              <div className="mt-2.5 flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-                  <SupplierPicker
-                    value={unassignedSupplierId}
-                    suppliers={suppliers}
-                    inputClassName={inputCls}
-                    placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier…'}
-                    onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
-                    allowAddNew
-                    onAddNew={handleAddNewSupplier}
-                  />
+        {items.length === 0 ? (
+          <div className="stsm-empty">No items on this board are ready to order.</div>
+        ) : allDone ? (
+          <div className="stsm-done">
+            <p>{plural(sentOrderCount, 'order')} created.</p>
+            <button type="button" className="stsm-btn stsm-btn-primary stsm-btn-large" onClick={onClose}>
+              Done
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="stsm-body">
+              {/* Shared delivery context — applies to every order this session. */}
+              <section className="stsm-section">
+                <div className="stsm-section-label">Order context</div>
+                <div className="stsm-grid">
+                  <div className="stsm-field">
+                    <label className="stsm-label">
+                      Delivery port<span className="req">*</span>
+                    </label>
+                    <div className="stsm-inputcard">
+                      <input
+                        placeholder="e.g. Antibes"
+                        value={deliveryPort}
+                        onChange={e => setDeliveryPort(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="stsm-field">
+                    <label className="stsm-label">
+                      Currency<span className="opt">optional</span>
+                    </label>
+                    <div className="stsm-inputcard">
+                      <select value={currency} onChange={e => setCurrency(e.target.value)}>
+                        <option value="">—</option>
+                        {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="stsm-field">
+                    <label className="stsm-label">
+                      Order by date<span className="req">*</span>
+                    </label>
+                    <div className="stsm-inputcard">
+                      <DateInput
+                        value={deliveryDate}
+                        onChange={e => setDeliveryDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="stsm-field">
+                    <label className="stsm-label">
+                      Time<span className="opt">optional</span>
+                    </label>
+                    <div className="stsm-inputcard">
+                      <input
+                        type="time"
+                        value={deliveryTime}
+                        onChange={e => setDeliveryTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="stsm-field is-wide">
+                    <label className="stsm-label">
+                      Requester name<span className="req">*</span>
+                    </label>
+                    <div className="stsm-inputcard">
+                      <input
+                        placeholder="Who placed this order"
+                        value={deliveryContact}
+                        onChange={e => setDeliveryContact(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
-                {unassignedSupplier && unassignedSupplier.phone && (
-                  <button
-                    type="button"
-                    disabled={unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
-                    onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'whatsapp' })}
-                    className="px-3 text-[11px] font-semibold rounded-lg border flex-shrink-0"
-                    style={{ height: 38, borderColor: INK, color: INK, background: 'transparent' }}
-                  >
-                    WhatsApp
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
-                  onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'email' })}
-                  className="px-4 text-[11px] font-semibold rounded-lg text-white flex-shrink-0"
-                  style={unassignedSupplier && !sendingKey && !sendingAll
-                    ? { height: 38, background: INK }
-                    : { height: 38, background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
-                >
-                  {sendingKey === '__unassigned__' ? 'Sending…' : 'Send'}
-                </button>
-              </div>
-            </div>
-          )}
+                <div className="stsm-helper">
+                  Times, dates, and currency are estimates — confirm with the supplier on receipt.
+                </div>
+              </section>
 
-          <button onClick={onClose} disabled={!!sendingKey || sendingAll}
-            className="w-full mt-4 pt-3 text-[13px] italic"
-            style={{ color: INK, borderTop: `1px solid ${HAIRLINE}` }}>
-            Close — I’ll send the rest later
-          </button>
-        </>
-      )}
+              <hr className="stsm-rule" />
+
+              <section className="stsm-section">
+                <div className="stsm-section-label">Suppliers</div>
+                {groups.map(gi => (
+                  <GroupRow key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
+                ))}
+
+                {unassigned.length > 0 && (
+                  <div className="stsm-unassigned">
+                    <div className="stsm-group-name">
+                      Unassigned
+                      <span className="stsm-group-meta"> · {plural(unassigned.length, 'item')}</span>
+                    </div>
+                    <div className="stsm-unassigned-row">
+                      <div className="stsm-supplier-picker">
+                        <SupplierPicker
+                          value={unassignedSupplierId}
+                          suppliers={suppliers}
+                          inputClassName={pickerInputCls}
+                          placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier…'}
+                          onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
+                          allowAddNew
+                          onAddNew={handleAddNewSupplier}
+                        />
+                      </div>
+                      {unassignedSupplier && unassignedSupplier.phone && (
+                        <button
+                          type="button"
+                          disabled={unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
+                          onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'whatsapp' })}
+                          className="stsm-btn stsm-btn-ghost"
+                        >
+                          WhatsApp
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll || !requiredComplete}
+                        onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'email' })}
+                        className={`stsm-btn stsm-btn-primary${(!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll || !requiredComplete) ? ' is-disabled' : ''}`}
+                      >
+                        {sendingKey === '__unassigned__'
+                          ? <><span className="stsm-spinner" /> Sending…</>
+                          : 'Send'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <footer className="stsm-foot">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={!!sendingKey || sendingAll}
+                className="stsm-foot-btn"
+              >
+                Close — I’ll send the rest later
+              </button>
+            </footer>
+          </>
+        )}
+      </div>
     </ModalShell>
   );
 
