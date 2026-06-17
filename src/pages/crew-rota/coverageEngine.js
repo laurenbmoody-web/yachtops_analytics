@@ -66,6 +66,39 @@ export function isFreeDuring({ memberId, date, start, end, windowShifts }) {
     && rangesOverlap(s, e, toDec(sh.startTime), toDec(sh.endTime)));
 }
 
+// A member's ON-DUTY intervals that overlap the window [S,E] (decimal hours,
+// E may exceed 24 for an overnight window). Each block is tested at −24/0/+24h
+// offsets so both same-day blocks that straddle the window edge and midnight
+// wrap are caught — without ever mistaking a block starting before the window
+// for a free slot. Returns intervals clamped to [S,E], sorted by start.
+function busyIntervals(memberId, date, windowShifts, S, E, EPS = 1e-6) {
+  const busy = [];
+  for (const sh of (windowShifts || [])) {
+    if (sh.memberId !== memberId || sh.date !== date || !ON_DUTY_TYPES.has(sh.shiftType)) continue;
+    const bS = toDec(sh.startTime); let bE = toDec(sh.endTime);
+    if (bS == null || bE == null) continue;
+    if (bE <= bS) bE += 24; // overnight block on the linear axis
+    for (const off of [-24, 0, 24]) {
+      const lo = Math.max(S, bS + off); const hi = Math.min(E, bE + off);
+      if (hi > lo + EPS) busy.push([lo, hi]);
+    }
+  }
+  return busy.sort((a, b) => a[0] - b[0]);
+}
+
+// How many hours a member is FREE inside [start,end] on `date` (window minus
+// any on-duty overlap). The cap on how much of the block they could cover.
+export function freeHoursInWindow({ memberId, date, start, end, windowShifts }) {
+  const S = toDec(start); const dur = blockHours(start, end);
+  if (S == null || !(dur > 0)) return 0;
+  const E = S + dur;
+  let used = 0; let cur = S;
+  for (const [lo, hi] of busyIntervals(memberId, date, windowShifts, S, E)) {
+    const a = Math.max(lo, cur); if (hi > a) { used += hi - a; cur = hi; }
+  }
+  return Math.max(0, Math.round((dur - used) * 100) / 100);
+}
+
 // One candidate's spare capacity on the breach date.
 export function candidateHeadroom(member) {
   const dailyRoom = (member.rest24hDecimal ?? 24) - MLC_DAILY_REST_MIN;
@@ -127,36 +160,77 @@ export function buildCandidates({ sourceMember, crew }) {
     .sort((a, b) => b.headroom - a.headroom);
 }
 
-// Spread the freed hours as FEW, LARGE chunks as possible: fill the
-// highest-headroom candidate to capacity, then spill to the next, and so on.
-// A 4h watch goes to one person who can take it — not sliced into 1h slivers
-// across four people (`candidates` is pre-sorted by headroom desc). The chief
-// can still re-balance manually in the modal. Returns { alloc, unassigned }.
-export function defaultSpread(candidates, freedHours) {
-  let remaining = Math.round(freedHours || 0);
-  const alloc = {};
-  for (const c of candidates) {
-    if (remaining <= 0) break;
-    const cap = Math.floor(c.headroom);
-    if (cap <= 0) continue;
-    const take = Math.min(cap, remaining);
-    alloc[c.id] = take;
-    remaining -= take;
+// Greedy INTERVAL coverage: split the freed window across whoever is FREE for
+// each part, packing as few crew as possible while respecting each one's rest
+// headroom (the hours they can take). Several crew can make up one block, and
+// any stretch nobody is free for comes back as a GAP — never silently dumped on
+// someone already on duty. `caps` optionally limits hours per member id
+// (defaults to floored headroom; 0 excludes a member). Works on a linear axis
+// anchored at the block start so a window running past midnight is handled.
+// Returns { slices: [{ id|null, gap, start, end, hours }], gapHours }.
+export function planCoverage({ freed, candidates, date, windowShifts, caps = null }) {
+  const EPS = 1e-6;
+  const S = toDec(freed?.start);
+  if (S == null || !(freed.hours > 0) || !candidates?.length) {
+    return { slices: freed?.hours > 0 ? [{ id: null, gap: true, start: freed.start, end: freed.end, hours: freed.hours }] : [], gapHours: freed?.hours || 0 };
   }
-  return { alloc, unassigned: remaining };
-}
+  const E = S + freed.hours;
 
-// Carve the freed block into sequential sub-ranges per allocation, in the
-// given order. e.g. freed 12:00–16:00 with [{2h},{2h}] → 12:00–14:00, 14:00–16:00.
-export function sliceFreed(freed, orderedAllocs) {
-  let cursor = toDec(freed.start);
-  return orderedAllocs
-    .filter((a) => a.hours > 0)
-    .map((a) => {
-      const start = toHHMM(cursor);
-      cursor += a.hours;
-      return { ...a, start, end: toHHMM(cursor) };
-    });
+  // Each candidate's FREE sub-intervals within [S,E] (window minus on-duty).
+  const freeById = new Map();
+  for (const c of candidates) {
+    const busy = busyIntervals(c.id, date, windowShifts, S, E, EPS);
+    const free = []; let cur = S;
+    for (const [lo, hi] of busy) {
+      if (lo > cur + EPS) free.push([cur, lo]);
+      cur = Math.max(cur, hi);
+    }
+    if (E > cur + EPS) free.push([cur, E]);
+    freeById.set(c.id, free);
+  }
+
+  const capLeft = new Map(candidates.map((c) => [c.id,
+    Math.max(0, caps && caps[c.id] != null ? caps[c.id] : Math.floor(c.headroom))]));
+
+  const out = [];
+  let cursor = S;
+  while (cursor < E - EPS) {
+    let best = null; let bestReach = cursor;
+    for (const c of candidates) {
+      if (capLeft.get(c.id) <= EPS) continue;
+      const iv = (freeById.get(c.id) || []).find(([a, b]) => a <= cursor + EPS && b > cursor + EPS);
+      if (!iv) continue;
+      const reach = Math.min(iv[1], cursor + capLeft.get(c.id), E);
+      if (reach > bestReach + EPS) { bestReach = reach; best = c; }
+    }
+    if (!best) {
+      // Nobody free here → gap. Jump to the next time someone frees up.
+      let next = E;
+      for (const c of candidates) {
+        if (capLeft.get(c.id) <= EPS) continue;
+        for (const [a] of (freeById.get(c.id) || [])) if (a > cursor + EPS && a < next) next = a;
+      }
+      out.push({ id: null, gap: true, start: cursor, end: next });
+      cursor = next;
+      continue;
+    }
+    out.push({ id: best.id, gap: false, start: cursor, end: bestReach });
+    capLeft.set(best.id, capLeft.get(best.id) - (bestReach - cursor));
+    cursor = bestReach;
+  }
+
+  // Merge adjacent same-owner runs, then format to HH:MM.
+  const merged = [];
+  for (const s of out) {
+    const prev = merged[merged.length - 1];
+    if (prev && prev.id === s.id && Math.abs(prev.end - s.start) < EPS) prev.end = s.end;
+    else merged.push({ ...s });
+  }
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const slices = merged.map((s) => ({
+    id: s.id, gap: !!s.gap, start: toHHMM(s.start), end: toHHMM(s.end), hours: round2(s.end - s.start),
+  }));
+  return { slices, gapHours: round2(slices.filter((s) => s.gap).reduce((a, s) => a + s.hours, 0)) };
 }
 
 // Projected rest for a recipient after taking `addHours` of on-duty cover.
@@ -172,9 +246,11 @@ export function recipientAfter(member, addHours) {
   };
 }
 
-// Build the applyTemplate payload: delete the source block (and re-insert the
-// kept portion for a shorten), then insert each recipient's covering shift.
-export function buildApplyPlan({ base, freed, slices }) {
+// Build the applyTemplate payload: delete the source block, then insert each
+// recipient's covering slice. Any portion the source keeps — a shorten's
+// trimmed-down block, plus any coverage GAP nobody was free for — is re-inserted
+// onto the source, so we never leave a watch position silently unstaffed.
+export function buildApplyPlan({ base, freed, slices, sourceKeep = [] }) {
   const rows = [];
   const deleteIds = [];
   const mk = (memberId, start, end, shiftType, subType) => {
@@ -196,13 +272,16 @@ export function buildApplyPlan({ base, freed, slices }) {
   };
 
   if (freed.sourceShiftId) deleteIds.push(freed.sourceShiftId);
-  // Shorten: the source keeps the trimmed-down block.
-  if (freed.action === 'shorten' && freed.keep) {
-    rows.push(mk(base.sourceMemberId, freed.keep.start, freed.keep.end,
-      freed.sourceShiftType, freed.sourceSubType));
+  // Portions the SOURCE retains: a shorten's kept block + any uncovered gaps.
+  const keep = [];
+  if (freed.action === 'shorten' && freed.keep) keep.push(freed.keep);
+  for (const g of (sourceKeep || [])) if (g && g.start && g.end) keep.push(g);
+  for (const k of keep) {
+    rows.push(mk(base.sourceMemberId, k.start, k.end, freed.sourceShiftType, freed.sourceSubType));
   }
-  // Recipients absorb the freed hours, inheriting the block's type/sub-type.
+  // Recipients absorb their covered slices, inheriting the block's type/sub-type.
   for (const s of slices) {
+    if (!s.id) continue;
     rows.push(mk(s.id, s.start, s.end, freed.sourceShiftType, freed.sourceSubType));
   }
   return { rows, deleteIds };

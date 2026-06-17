@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  buildCandidates, defaultSpread, sliceFreed, assessRecipient, buildApplyPlan, isFreeDuring,
+  buildCandidates, assessRecipient, buildApplyPlan, planCoverage, freeHoursInWindow,
 } from './coverageEngine';
 import { ON_DUTY_TYPES, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
 
@@ -38,50 +38,61 @@ export default function CoverageApplyModal({
     freed.date < realToday
     || (freed.date === realToday && !!nowHHMM && (freed.start || '').slice(0, 5) <= nowHHMM)
   );
+  // Every same-dept candidate with rest headroom; planCoverage decides who is
+  // free for which part of the block (several can make up one block).
   const candidates = useMemo(
-    () => (freed && sourceCrew
-      ? buildCandidates({ sourceMember: sourceCrew, crew })
-        // A recipient must be FREE across the freed window — someone already on
-        // duty then can't add a body, so reassigning to them is no real cover.
-        .filter((c) => isFreeDuring({
-          memberId: c.id, date: freed.date, start: freed.start, end: freed.end, windowShifts,
-        }))
-      : []),
-    [freed, sourceCrew, crew, windowShifts],
+    () => (freed && sourceCrew ? buildCandidates({ sourceMember: sourceCrew, crew }) : []),
+    [freed, sourceCrew, crew],
   );
   const candById = useMemo(() => new Map(candidates.map((c) => [c.id, c])), [candidates]);
+  // How many hours each candidate is actually free for inside the block —
+  // caps their stepper, and 0 means they're on duty then (unavailable).
+  const availById = useMemo(() => {
+    const m = new Map();
+    if (freed) {
+      for (const c of candidates) {
+        const free = freeHoursInWindow({
+          memberId: c.id, date: freed.date, start: freed.start, end: freed.end, windowShifts,
+        });
+        m.set(c.id, Math.max(0, Math.min(free, Math.floor(c.headroom))));
+      }
+    }
+    return m;
+  }, [candidates, freed, windowShifts]);
 
   const [step, setStep] = useState('assign'); // 'assign' | 'preview'
-  const [alloc, setAlloc] = useState(null);    // { [memberId]: hours }
+  const [alloc, setAlloc] = useState(null);    // { [memberId]: hour cap }
   const [busy, setBusy] = useState(false);
 
-  // Seed the default spread once we have a block + candidates.
+  // Seed from an uncapped plan: each covered member's planned hours become their
+  // default cap, so the chief sees a sensible multi-person spread to adjust.
   React.useEffect(() => {
     if (!open || !freed) return;
     setStep('assign');
-    setAlloc(defaultSpread(candidates, freed.hours).alloc);
-  }, [open, freed, candidates]);
+    const base = planCoverage({ freed, candidates, date: freed.date, windowShifts });
+    const a = {};
+    for (const c of candidates) a[c.id] = 0; // explicit caps for everyone
+    for (const s of base.slices) if (!s.gap && s.id) a[s.id] = (a[s.id] || 0) + s.hours;
+    setAlloc(a);
+  }, [open, freed, candidates, windowShifts]);
 
   // All hooks must run before any early return (React rules-of-hooks).
   if (!open || !freed) return null;
 
   const freedH = Math.round(freed.hours);
-  const assigned = Object.values(alloc || {}).reduce((a, h) => a + h, 0);
-  const remaining = freedH - assigned;
+
+  // Plan the actual time-correct coverage given the current per-person caps.
+  const plan = planCoverage({ freed, candidates, date: freed.date, windowShifts, caps: alloc || {} });
+  const slices = plan.slices.filter((s) => !s.gap && s.id);
+  const gapSlices = plan.slices.filter((s) => s.gap);
+  const gapHours = plan.gapHours;
+  const assigned = Math.round((freed.hours - gapHours) * 10) / 10;
+  const remaining = Math.round(gapHours * 10) / 10;
 
   const setHours = (id, next, cap) => {
     const clamped = Math.max(0, Math.min(next, Math.floor(cap)));
-    // Don't let the total exceed the freed hours.
-    const others = assigned - (alloc?.[id] || 0);
-    const allowed = Math.min(clamped, freedH - others);
-    setAlloc((prev) => ({ ...prev, [id]: allowed }));
+    setAlloc((prev) => ({ ...prev, [id]: clamped }));
   };
-
-  // Ordered recipient slices (only those taking >0h), carved sequentially.
-  const orderedAllocs = candidates
-    .map((c) => ({ id: c.id, hours: alloc?.[c.id] || 0 }))
-    .filter((a) => a.hours > 0);
-  const slices = sliceFreed(freed, orderedAllocs);
 
   // Build a recipient's resulting day as a 24h bar: their existing on-duty
   // blocks on the freed date PLUS the new covering slice (highlighted), with
@@ -109,22 +120,30 @@ export default function CoverageApplyModal({
   };
 
   // Source's RESULTING day as a 24h bar: their existing on-duty blocks with the
-  // freed interval subtracted, gaps shown as rest. The removal was already
-  // confirmed in the previous step, so the freed time reads as plain rest (no
-  // highlight) — this bar just shows the cleaner day they end up with.
+  // COVERED intervals subtracted (any uncovered gap stays on them, so it still
+  // shows as duty). Lets the chief see exactly how much relief actually lands.
   const sourceDaySegments = () => {
     const dur = (st, en) => { let d = toDecLocal(en) - toDecLocal(st); if (d <= 0) d += 24; return d; };
-    const fs = toDecLocal(freed.start);
-    const fe = Math.min(24, fs + freed.hours);
+    const covered = slices.map((s) => [toDecLocal(s.start), Math.min(24, toDecLocal(s.start) + dur(s.start, s.end))]);
+    const subtractCovered = (start, end) => {
+      let pieces = [[start, end]];
+      for (const [cs, ce] of covered) {
+        const next = [];
+        for (const [ps, pe] of pieces) {
+          if (ce <= ps || cs >= pe) { next.push([ps, pe]); continue; }
+          if (ps < cs) next.push([ps, cs]);
+          if (pe > ce) next.push([ce, pe]);
+        }
+        pieces = next;
+      }
+      return pieces;
+    };
     const duties = [];
     for (const s of (windowShifts || [])) {
       if (s.memberId !== sourceCrew.id || s.date !== freed.date || !ON_DUTY_TYPES.has(s.shiftType)) continue;
       const start = toDecLocal(s.startTime);
       const end = Math.min(24, start + dur(s.startTime, s.endTime));
-      // Subtract the freed interval [fs, fe] from this duty block.
-      if (end <= fs || start >= fe) { duties.push({ start, end }); continue; }
-      if (start < fs) duties.push({ start, end: fs });
-      if (end > fe) duties.push({ start: fe, end });
+      for (const [ps, pe] of subtractCovered(start, end)) if (pe > ps) duties.push({ start: ps, end: pe });
     }
     duties.sort((a, b) => a.start - b.start);
     const segs = [];
@@ -165,14 +184,17 @@ export default function CoverageApplyModal({
       if (!publishImmediately && ensureDraft && sourceCrew?.departmentId) {
         await ensureDraft(sourceCrew.departmentId);
       }
-      const plan = buildApplyPlan({
+      const applyPlan = buildApplyPlan({
         base: { ...base, sourceMemberId: sourceCrew.id, status: publishImmediately ? 'published' : 'draft' },
         freed,
         slices,
+        // Any uncovered gap stays on the source rather than vanishing.
+        sourceKeep: gapSlices.map((g) => ({ start: g.start, end: g.end })),
       });
-      const res = await applyTemplate(plan);
+      const res = await applyTemplate(applyPlan);
       if (res?.ok) {
-        onToast?.(`${publishImmediately ? 'Published' : 'Applied'} — ${freedH - remaining}h reassigned across ${slices.length} crew`, { type: 'success' });
+        const gapNote = remaining > 0 ? ` · ${remaining}h left with ${sourceCrew.name.split(' ')[0]} (no cover)` : '';
+        onToast?.(`${publishImmediately ? 'Published' : 'Applied'} — ${assigned}h reassigned across ${slices.length} crew${gapNote}`, { type: 'success' });
         onApplied?.();
       } else {
         onToast?.(res?.error || 'Could not apply to grid', { type: 'error' });
@@ -232,23 +254,24 @@ export default function CoverageApplyModal({
                 Freeing <b>{freed.start}–{freed.end}</b> from {sourceCrew.name} · <b>{fmt(freed.hours)}</b> to cover
               </div>
               <div className={`cov-tally ${remaining === 0 ? 'full' : 'part'}`}>
-                {assigned}h of {freedH}h allocated{remaining === 0 ? ' ✓' : ` · ${remaining}h unassigned`}
+                {assigned}h of {freedH}h covered{remaining === 0 ? ' ✓' : ` · ${remaining}h no one free (stays with ${sourceCrew.name.split(' ')[0]})`}
               </div>
             </div>
 
             {candidates.length === 0 ? (
               <div className="cov-empty">
-                No same-department crew are free during {freed.start}–{freed.end} with the rest
-                headroom to absorb these hours — everyone else is already on duty then. You can
+                No same-department crew have the rest headroom to absorb these hours. You can
                 still free the block and arrange cover manually in the grid.
               </div>
             ) : candidates.map((c) => {
               const hours = alloc?.[c.id] || 0;
+              const avail = availById.get(c.id) || 0;
               const a = assessFor(c.id);
               const slice = slices.find((s) => s.id === c.id);
               const breaks = hours > 0 && a.anyBreach;
+              const unavailable = avail <= 0;
               return (
-                <div key={c.id} className={`cov-cand${hours > 0 ? ' picked' : ''}${breaks ? ' breach' : ''}`}>
+                <div key={c.id} className={`cov-cand${hours > 0 ? ' picked' : ''}${breaks ? ' breach' : ''}${unavailable ? ' muted' : ''}`}>
                   <div className="cov-cand-top">
                     <div className="cov-cand-av">{c.initials}</div>
                     <div>
@@ -256,22 +279,24 @@ export default function CoverageApplyModal({
                       <div className="cov-cand-role">{c.role}</div>
                     </div>
                     <div className="cov-cand-room">
-                      <div className="h">Headroom</div>
-                      <div className="v">+{fmt(c.headroom)}</div>
+                      <div className="h">{unavailable ? 'Free now' : 'Headroom'}</div>
+                      <div className="v">{unavailable ? '0h' : `+${fmt(c.headroom)}`}</div>
                     </div>
                   </div>
                   <div className="cov-alloc">
                     <div className="cov-alloc-lbl">
-                      {hours > 0
-                        ? (breaks
-                            ? <span className="warn">Takes <b>{slice?.start}–{slice?.end}</b> · would breach — {a.structuralNote || (!a.dailyOk ? 'under 10h rest' : 'under 77h week')}</span>
-                            : <>Takes <b>{slice?.start}–{slice?.end}</b> · {fmt(a.rest24)} rest today</>)
-                        : 'Available — none assigned'}
+                      {unavailable
+                        ? <span className="warn">On duty during this block — unavailable</span>
+                        : hours > 0
+                          ? (breaks
+                              ? <span className="warn">Takes <b>{slice?.start}–{slice?.end}</b> · would breach — {a.structuralNote || (!a.dailyOk ? 'under 10h rest' : 'under 77h week')}</span>
+                              : <>Takes <b>{slice?.start}–{slice?.end}</b> · {fmt(a.rest24)} rest today</>)
+                          : `Free up to ${fmt(avail)} of this block — none assigned`}
                     </div>
                     <div className="cov-stepper">
-                      <button type="button" onClick={() => setHours(c.id, hours - 1, c.headroom)} disabled={hours <= 0}>–</button>
+                      <button type="button" onClick={() => setHours(c.id, hours - 1, avail)} disabled={hours <= 0}>–</button>
                       <span className="val">{hours}h</span>
-                      <button type="button" onClick={() => setHours(c.id, hours + 1, c.headroom)} disabled={hours >= Math.floor(c.headroom) || remaining <= 0}>+</button>
+                      <button type="button" onClick={() => setHours(c.id, hours + 1, avail)} disabled={hours >= Math.floor(avail)}>+</button>
                     </div>
                   </div>
                 </div>
@@ -353,7 +378,10 @@ export default function CoverageApplyModal({
               <div className="cov-note warn">This split would push a recipient into an MLC breach. Go back and re-allocate — coverage can't create a new breach.</div>
             )}
             {remaining > 0 && (
-              <div className="cov-note warn">{remaining}h still unassigned — the source keeps that portion. Go back to allocate it fully.</div>
+              <div className="cov-note warn">
+                {gapSlices.map((g) => `${g.start}–${g.end}`).join(', ')} — no one is free to cover
+                ({remaining}h), so {sourceCrew.name.split(' ')[0]} keeps that portion. The rest of the block is still handed off.
+              </div>
             )}
             <div className="cov-note">Recipients re-checked against all four MLC rules (10h daily · 77h weekly · rest split · 14h continuous). Confirm {publishImmediately ? 'publishes all edits to the grid live' : 'writes all edits to the grid as draft'}.</div>
 
