@@ -471,45 +471,20 @@
 .rest-id-sub b { color: #7A2E1E; font-weight: 500; }
 .rest-popover-panel.compliant .rest-id-sub b { color: #2D5A3A; }
 
-/* Header rest meter — replaces the old narrative banner for breaching crew. */
-.rest-id-meter { margin-top: 11px; max-width: 360px; }
-.rest-id-meter-cap {
-  font-size: 9px;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: #A89F8C;
-  margin-bottom: 6px;
+/* Section head — label left, MLC compliance tag right (Daily/Weekly). */
+.rest-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
 }
-.rest-id-meter-track {
-  position: relative;
-  height: 9px;
-  border-radius: 5px;
-  background: #EFEAE0;
-}
-.rest-id-meter-fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  border-radius: 5px;
-}
-.rest-id-meter-fill.low { background: #E0A98F; }
-.rest-id-meter-fill.ok  { background: #9CC0A2; }
-.rest-id-meter-mark {
-  position: absolute;
-  top: -3px;
-  bottom: -3px;
-  width: 2px;
-  background: #C65A1A;
-}
-.rest-id-meter-lbl {
+.rest-section-tag {
   font-size: 10px;
-  margin-top: 7px;
-  color: #7A2E1E;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.rest-id-meter-lbl.ok { color: #2D5A3A; }
-.rest-id-meter-lbl b { font-weight: 700; }
-.rest-id-meter-lbl .dim { color: #8B8478; font-weight: 400; }
+.rest-section-tag.ok  { color: #2D5A3A; }
+.rest-section-tag.bad { color: #C65A1A; }
 .rest-close {
   background: transparent;
   border: 0.5px solid #DFD8CC;

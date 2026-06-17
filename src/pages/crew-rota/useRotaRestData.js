@@ -351,9 +351,25 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           offToday,
           rest24hLabel: offToday ? 'Off duty today' : `${fmtHours(rest24h)} rest`,
           pastWeekLabel: `Past week ${fmtHours(pastWeekHours)}`,
-          // Numeric weekly figures drive the header rest meter (replaces the banner).
+          // Numeric figures + breach flags drive the per-section MLC tags.
           weeklyHours: Math.round(pastWeekHours),
           weeklyBelow,
+          dailyHours: Math.round(rest24h),
+          dailyBelow,
+          // Structural rules (rest split / max continuous stretch) belong to the
+          // daily timeline; surface them on the Daily section.
+          structuralBreach: mlcReport.breaches.some(
+            b => b.rule === 'rest_period_split' || b.rule === 'max_work_stretch_14h',
+          ),
+          structuralLabel: (() => {
+            const b = mlcReport.breaches.find(
+              r => r.rule === 'rest_period_split' || r.rule === 'max_work_stretch_14h',
+            );
+            if (!b) return null;
+            return b.rule === 'max_work_stretch_14h'
+              ? 'over 14h continuous on duty'
+              : 'rest split breaches MLC';
+          })(),
           bannerHeadline: banner.headline,
           bannerBody: banner.body,
           timelineMeta: 'Today · 00:00 → 24:00',
