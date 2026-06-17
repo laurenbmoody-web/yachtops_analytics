@@ -2970,9 +2970,10 @@ const canEdit = (() => {
   };
 
   const renderSeaTime = () => {
-    // Design-handoff recreation (Countdown default + Ledger/Voyage + MIN 642
-    // pack generator), driven by the ported rules engine with seed data.
-    return <SeaTimeDashboard />;
+    // Design-handoff recreation (Countdown layout + MIN 642 pack generator),
+    // driven by the ported rules engine; live Supabase data with a sample
+    // fallback when the crew member has logged nothing yet.
+    return <SeaTimeDashboard userId={crewId} tenantId={activeTenantId} currentUser={currentUser} />;
   };
 
   // Placeholder until the document store is wired to this tab. Kept as a real
