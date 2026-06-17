@@ -1036,6 +1036,8 @@ export default function RotaWorkspace({
         ensureDraft={ensureDraft}
         applyTemplate={applyTemplate}
         publishImmediately={tier === 'COMMAND' || tier === 'CHIEF'}
+        realToday={realToday}
+        nowHHMM={`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`}
         onToast={showToast}
         onClose={() => setApplySuggestion(null)}
         onApplied={() => { setApplySuggestion(null); setSelectedCrew(null); refetch?.(); }}

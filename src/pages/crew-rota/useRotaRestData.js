@@ -163,11 +163,10 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
         // in), so the panel always reflects the same week as the grid/list. A
         // member with future-dated shifts must NOT pull a future week here —
         // that's what made the panel disagree with the row's MLC verdict.
-        const localToday = (() => {
-          const d = new Date();
-          const p = (n) => String(n).padStart(2, '0');
-          return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-        })();
+        const nowDate = new Date();
+        const p2 = (n) => String(n).padStart(2, '0');
+        const localToday = `${nowDate.getFullYear()}-${p2(nowDate.getMonth() + 1)}-${p2(nowDate.getDate())}`;
+        const nowHHMM = `${p2(nowDate.getHours())}:${p2(nowDate.getMinutes())}`;
         const effDate = anchorDate || localToday;
 
         // Fetch 13 trailing days (so each charted day has a full trailing
@@ -380,6 +379,8 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
               roster: rosterRef.current || [],
               windowShifts: windowShiftsRef.current || [],
               limit: 2,
+              realToday: localToday,
+              nowHHMM,
             });
 
             // Stable cache key: who, when, and exactly which ranked fixes.

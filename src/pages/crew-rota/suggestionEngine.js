@@ -114,6 +114,7 @@ const dayLabel = (dateStr, effDate) => {
 // Main entry. Returns up to `limit` ranked, fully-costed suggestions.
 export function generateRankedSuggestions({
   sourceMember, effDate, allRows, report, roster, windowShifts, limit = 2,
+  realToday = null, nowHHMM = null,
 }) {
   if (!sourceMember || !report) return [];
   const restFrom = report.pastWeekHours;
@@ -123,10 +124,21 @@ export function generateRankedSuggestions({
   const breachRules = new Set((report.breaches || []).map((b) => b.rule));
   const stretchBreach = breachRules.has('max_work_stretch_14h');
 
+  // Already-worked hours can't be rescheduled. A lever is invalid if its freed
+  // block is on a past day, or has already started today — you can't reassign
+  // time the crew has lived through. (No realToday → no guard, for tests.)
+  const isPastBlock = (date, startHHMM) => {
+    if (!realToday) return false;
+    if (date < realToday) return true;
+    if (date === realToday && nowHHMM && (startHHMM || '').slice(0, 5) <= nowHHMM) return true;
+    return false;
+  };
+
   const raw = [];
   const pushChange = (kind, change) => {
     const freed = freedFor(change, allRows);
     if (!freed || freed.hours <= 0) return;
+    if (isPastBlock(freed.date, freed.start)) return;
     raw.push({ kind, change, freed });
   };
 
