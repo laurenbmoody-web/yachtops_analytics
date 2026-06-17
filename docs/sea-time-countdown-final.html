@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sea Time Tracker — Countdown (finished page, seeded)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7;}
+.page{max-width:1180px;margin:0 auto;padding:30px 26px 80px;}
+.note{font-family:'Plus Jakarta Sans',sans-serif;color:#5A6478;font-size:13px;margin:0 0 20px;}
+.note b{color:#1A2233;}
+.std{--ink:#1A2233;--muted:#8A93A3;--faint:#A6AEBC;--rust:#C65A1A;--bg:#F4F5F7;--card:#fff;--panel:#FAFBFC;
+  --border:#E6E8EC;--border2:#ECEEF1;--g:#27A567;--gt:#1F7A4D;--gbg:#DEF3E7;--amber:#B7791F;--abg:#FBF0DA;
+  --red:#C0392B;--rbg:#FBE7E4;--cream:#FBFAF5;--cedge:#E4DFCF;--gold:#CDBB92;--cmut:#8A7F63;
+  --t-sea:#1F6F8B;--t-sea-bg:#E3F0F4;--t-watch:#4C5FB0;--t-watch-bg:#ECEEFA;--t-sb:#B7791F;--t-sb-bg:#FBF0DA;--t-yd:#5B6675;--t-yd-bg:#ECEEF2;
+  --serif:'DM Serif Display',Georgia,serif;--sans:'Plus Jakarta Sans',system-ui,sans-serif;font-family:var(--sans);color:var(--ink);font-variant-numeric:tabular-nums;}
+.std *{box-sizing:border-box;}
+.serif{font-family:var(--serif);} .ml{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);} .rust{color:var(--rust);}
+.card{background:#fff;border:1px solid var(--border);border-radius:16px;}
+.flex{display:flex;}.between{justify-content:space-between;}.ac{align-items:center;}.wrap{flex-wrap:wrap;}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:14px;}
+.title{font-family:var(--serif);font-size:29px;} .title .n{color:var(--rust);} .title .s{color:#D7DBE2;margin:0 8px;}
+.sel{font-size:13px;font-weight:600;border:1px solid var(--border);border-radius:9px;padding:8px 12px;background:#fff;}
+.logbtn{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border:0;border-radius:11px;padding:11px 18px;font-weight:700;font-size:13.5px;}
+.banner{display:flex;align-items:center;gap:8px;background:#FBF0DA;border:1px solid #EAD9AE;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#7A5A12;}
+.hero{display:grid;grid-template-columns:auto 1fr;gap:48px;align-items:center;padding:32px 34px;border-radius:20px;}
+@media(max-width:760px){.hero{grid-template-columns:1fr;gap:24px;}}
+.arc{position:relative;width:240px;height:240px;} .arcc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+.arcc .p{font-family:var(--serif);font-size:52px;} .arcc .c{font-size:12px;color:var(--muted);max-width:130px;margin-top:2px;}
+.hero h3{font-family:var(--serif);font-size:32px;margin:8px 0 10px;} .lead{font-size:15px;color:#3A4456;line-height:1.5;} .lead b{color:var(--ink);}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px;}
+.mini .c{background:var(--panel);border:1px solid var(--border2);border-radius:12px;padding:14px;}
+.mini .l{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;} .mini .v{font-family:var(--serif);font-size:21px;margin:6px 0 8px;}
+.bar{height:7px;border-radius:999px;background:#EEF0F3;overflow:hidden;} .bar i{display:block;height:100%;border-radius:999px;}
+.nudge{display:flex;gap:12px;align-items:flex-start;margin-top:16px;background:#FBEEE6;border:1px solid #F0D8C6;border-radius:14px;padding:16px 18px;}
+.nudge .t{font-weight:700;font-size:14px;} .nudge .s{font-size:13px;color:#3A4456;margin-top:3px;}
+.reviewbtn{margin-left:auto;align-self:center;background:var(--rust);color:#fff;border:0;border-radius:10px;padding:9px 15px;font-weight:700;font-size:12.5px;}
+.pills{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px;}
+.pill{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;}
+.pill .l{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;} .pill .v{font-family:var(--serif);font-size:30px;} .pill .u{font-size:12px;color:var(--muted);}
+.ledger{margin-top:18px;overflow:hidden;}
+.lhead{display:flex;justify-content:space-between;align-items:center;padding:20px 18px 0;flex-wrap:wrap;gap:10px;} .lhead h4{font-size:16px;font-weight:800;margin:0;}
+.filter{display:inline-flex;background:#EDEFF2;border-radius:10px;padding:4px;gap:2px;} .filter b{font-weight:700;font-size:12px;color:#7E889C;border-radius:7px;padding:6px 11px;} .filter b.on{background:#fff;color:var(--ink);}
+.row{display:grid;grid-template-columns:128px 1fr 170px 210px;gap:14px;align-items:center;padding:15px 16px;border-bottom:1px solid #EEF0F3;}
+@media(max-width:760px){.row{grid-template-columns:1fr;gap:8px;}}
+.row .d{font-size:13.5px;font-weight:700;} .row .ds{font-size:11.5px;color:var(--muted);} .vn{font-size:14.5px;font-weight:700;} .vs{font-size:11.5px;color:#9AA3B2;}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;border-radius:6px;padding:2px 7px;}
+.spill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;}
+.right{text-align:right;} .fix{background:var(--rust);color:#fff;border:0;border-radius:8px;padding:6px 11px;font-weight:700;font-size:11.5px;margin-top:6px;}
+.foot{padding:14px 16px;font-size:12.5px;color:var(--muted);}
+.dossier{background:#FCFCFB;border:1px solid #E0E2E7;border-top:3px solid var(--rust);border-radius:6px 6px 14px 14px;margin-top:18px;}
+.dh{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;padding:24px 26px 18px;border-bottom:1px solid var(--border2);}
+.dh h3{font-family:var(--serif);font-size:25px;margin:6px 0 4px;} .dh .sub{font-size:13px;color:#3A4456;max-width:440px;}
+.vtabs{display:inline-flex;background:#EDEFF2;border-radius:10px;padding:4px;gap:2px;} .vtabs b{font-weight:700;font-size:12.5px;color:#9DA6B8;border-radius:8px;padding:7px 14px;} .vtabs b.on{background:#fff;color:var(--ink);}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:22px 26px;} @media(max-width:760px){.steps{grid-template-columns:1fr;}}
+.step{background:var(--panel);border:1px solid var(--border2);border-radius:14px;padding:22px;} .step.dark{background:#1A2233;border-color:#2E3850;}
+.sh{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border2);padding-bottom:12px;margin-bottom:14px;} .step.dark .sh{border-color:#2E3850;}
+.badge{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--rust);color:var(--rust);display:grid;place-items:center;font-family:var(--serif);font-style:italic;font-size:16px;flex:none;}
+.st{font-weight:800;font-size:15px;} .step.dark .st{color:#fff;} .ss{font-size:12px;color:var(--muted);} .step.dark .ss{color:#8A93A8;}
+.chip{margin-left:auto;font-size:11.5px;font-weight:800;border-radius:999px;padding:4px 10px;color:#fff;}
+.readbar{height:6px;border-radius:999px;background:#E6E8EC;overflow:hidden;margin-top:10px;}
+.chk{display:flex;gap:11px;align-items:flex-start;padding:9px 0;} .chk .box{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;flex:none;margin-top:1px;}
+.chk .t{font-size:13px;font-weight:700;} .chk .d{font-size:11.5px;color:var(--muted);margin-top:1px;}
+.doc{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:10px;border:1px solid;margin-bottom:8px;} .doc .b{width:20px;height:20px;border-radius:6px;border:2px solid;display:grid;place-items:center;flex:none;}
+.sig{display:grid;grid-template-columns:1fr 1fr;gap:12px;} .sigc{border:1.5px solid;border-radius:12px;padding:14px 16px;} .sigc .nm{font-weight:700;font-size:13.5px;} .sigc .sb{font-size:11.5px;margin-top:2px;}
+.issue{display:flex;align-items:center;gap:14px;background:#F5F6F8;border:1px solid var(--border);border-radius:14px;padding:18px 22px;margin:0 26px 24px;flex-wrap:wrap;}
+.gic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;} .gen{margin-left:auto;display:inline-flex;align-items:center;gap:8px;border:0;border-radius:11px;padding:12px 20px;font-weight:800;font-size:14px;}
+.cert{margin:0 26px 26px;background:var(--cream);border:1px solid var(--cedge);border-radius:6px;padding:8px;}
+.frame{border:1.5px solid var(--gold);border-radius:4px;padding:30px 34px;position:relative;overflow:hidden;}
+.seal{width:48px;height:48px;border-radius:50%;border:2px solid var(--rust);color:var(--rust);display:grid;place-items:center;flex:none;}
+.cert h2{font-family:var(--serif);font-size:30px;margin:0;} .ce{font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--rust);} .prep{font-size:12px;color:var(--cmut);margin-top:2px;}
+.stamp{position:absolute;top:34px;right:34px;transform:rotate(-7deg);border:2px solid var(--rust);color:var(--rust);border-radius:8px;padding:8px 14px;text-align:center;} .stamp .v{font-size:11px;font-weight:800;letter-spacing:.1em;} .stamp .c{font-family:var(--serif);font-style:italic;font-size:14px;}
+.drule{height:2px;background:var(--ink);margin:18px 0 2px;} .drule2{height:1px;background:var(--gold);margin-bottom:18px;}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px 30px;} .field .fl{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#A0916C;} .field .fv{font-size:14px;margin-top:2px;}
+.cert table{width:100%;border-collapse:collapse;margin-top:8px;} .cert th{text-align:left;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#A0916C;padding:6px 8px;border-bottom:1px solid var(--cedge);} .cert td{font-size:13px;padding:8px;border-bottom:1px solid #EDE8D8;}
+.totals{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px;} .tbox{border:1px solid var(--cedge);border-radius:10px;padding:12px;text-align:center;} .tbox .tn{font-family:var(--serif);font-size:24px;} .tbox .tl{font-size:10px;font-weight:700;color:var(--cmut);text-transform:uppercase;letter-spacing:.06em;}
+.sigline{font-family:var(--serif);font-style:italic;font-size:20px;border-bottom:1px solid var(--ink);padding-bottom:4px;display:inline-block;min-width:220px;}
+.qrseal{border:2px solid var(--gold);border-radius:8px;padding:8px;text-align:center;background:#fff;}
+.certfoot{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 26px 24px;} .dl{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:10px;padding:11px 18px;font-weight:700;font-size:13px;}
+.drawer{width:440px;max-width:100%;background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:-20px 0 50px rgba(16,20,32,.10);}
+.fld label{display:block;font-size:12px;font-weight:700;color:#3A4456;margin-bottom:6px;} .inp{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-family:var(--sans);font-size:13.5px;background:#fff;}
+.tg{display:grid;grid-template-columns:1fr 1fr;gap:10px;} .tc{border:1.5px solid;border-radius:11px;padding:12px;} .tc .tt{font-weight:700;font-size:13px;} .tc .th{font-size:11px;color:var(--muted);margin-top:2px;}
+.prev{border:1px solid;border-radius:12px;padding:14px;display:flex;gap:10px;align-items:flex-start;}
+.ic{width:1em;height:1em;vertical-align:-.125em;}
+.qr{display:grid;grid-template-columns:repeat(11,1fr);width:96px;height:96px;}
+.qr i{background:#1A2233;} .qr i.o{background:#fff;}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="ship" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2M5 13l1-6h12l1 6M9 7V5h6v2"/></symbol>
+<symbol id="compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+<symbol id="anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 7v13M5 13a7 7 0 0014 0"/></symbol>
+<symbol id="wrench" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14.5 6a3.5 3.5 0 00-4.6 4.3l-5.3 5.3a1.6 1.6 0 102.3 2.3l5.3-5.3A3.5 3.5 0 0018 9.5l-2 2-1.5-1.5 2-2A3.5 3.5 0 0014.5 6z"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4 10-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M7 7l10 10M17 7 7 17"/></symbol>
+<symbol id="bulb" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2ZM9 21h6M10 17v4m4-4v4"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M6 3h8l4 4v14H6zM14 3v4h4"/></symbol>
+<symbol id="dl" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></symbol>
+<symbol id="mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" d="m4 7 8 6 8-6"/></symbol>
+</defs></svg>
+
+<div class="page">
+<p class="note"><b>Finished page — Sea Time Tracker (Countdown), seeded.</b> This mirrors the live React page
+(<code>SeaTimeDashboard.jsx</code>). The editorial “Log sea time” drawer (bottom) is the replacement for that
+weak 3-step modal. Numbers are the seed data (current 651/730, watchkeeping requirement already met).</p>
+
+<div class="std">
+  <div class="head">
+    <div class="title"><span class="n">07</span><span class="s">/</span>Sea Time Tracker</div>
+    <div class="flex ac wrap" style="gap:12px">
+      <span class="sel">OOW (Yachts) &lt;3000GT ▾</span>
+      <button class="logbtn"><svg class="ic"><use href="#plus"/></svg> Log sea time</button>
+    </div>
+  </div>
+  <div class="banner"><svg class="ic"><use href="#bulb"/></svg> Sample data shown — log sea time to replace it with this crew member’s real service.</div>
+
+  <!-- hero -->
+  <div class="card hero">
+    <div class="arc">
+      <svg width="240" height="240" viewBox="0 0 240 240"><circle cx="120" cy="120" r="90" fill="none" stroke="#F0F2F5" stroke-width="20"/><circle cx="120" cy="120" r="90" fill="none" stroke="#C65A1A" stroke-width="20" stroke-linecap="round" stroke-dasharray="565" stroke-dashoffset="62" transform="rotate(-90 120 120)"/></svg>
+      <div class="arcc"><div class="p">89%</div><div class="c">toward your next certificate</div></div>
+    </div>
+    <div>
+      <div class="ml rust">Next certificate</div>
+      <h3>Officer of the Watch (Yachts) &lt;3000GT</h3>
+      <div class="lead"><b>651 of 730</b> qualifying days logged — <b>79 days to go</b>.</div>
+      <div class="mini">
+        <div class="c"><div class="l" style="color:#1F6F8B">Sea service ≥15m</div><div class="v">298 / 365</div><div class="bar"><i style="width:82%;background:#C65A1A"></i></div></div>
+        <div class="c"><div class="l" style="color:#27A567">Watchkeeping</div><div class="v">126 / 120</div><div class="bar"><i style="width:100%;background:#27A567"></i></div></div>
+        <div class="c"><div class="l" style="color:#C65A1A">Total service</div><div class="v">651 / 730</div><div class="bar"><i style="width:89%;background:#C65A1A"></i></div></div>
+      </div>
+      <div class="nudge">
+        <svg class="ic" style="color:#C65A1A;width:20px;height:20px"><use href="#bulb"/></svg>
+        <div><div class="t">2 logged entries need attention.</div><div class="s">Non-qualifying service is excluded from your totals — review and re-tag to keep your pack clean.</div></div>
+        <button class="reviewbtn">Review</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- bucket pills -->
+  <div class="pills">
+    <div class="pill"><div class="l" style="color:#1F6F8B">● SEAGOING</div><div class="v">14</div><span class="u">days</span></div>
+    <div class="pill"><div class="l" style="color:#4C5FB0">● WATCHKEEPING</div><div class="v">31</div><span class="u">days</span></div>
+    <div class="pill"><div class="l" style="color:#B7791F">● STANDBY</div><div class="v">8</div><span class="u">days</span></div>
+    <div class="pill"><div class="l" style="color:#5B6675">● SHIPYARD</div><div class="v">8</div><span class="u">days</span></div>
+  </div>
+
+  <!-- ledger -->
+  <div class="card ledger">
+    <div class="lhead"><h4>Logged sea service</h4><div class="filter"><b class="on">All</b><b>Seagoing</b><b>Watchkeeping</b><b>Standby</b><b>Yard</b></div></div>
+    <div style="margin-top:12px">
+      <div class="row"><div><div class="d">04 – 28 Jan</div><div class="ds">2026 · 24 days</div></div><div><div class="flex ac wrap" style="gap:8px"><span class="vn">M/Y Pelorus II</span><span class="tag" style="color:#4C5FB0;background:#ECEEFA">ROTA</span></div><div class="vs">Marshall Is. · 1450GT · 68m · IMO 9345678</div></div><div><span class="spill" style="color:#4C5FB0;background:#ECEEFA">● Watchkeeping</span><div class="vs" style="margin-top:4px">8h watch · Master</div></div><div class="right"><span class="spill" style="color:#1F7A4D;background:#DEF3E7"><svg class="ic"><use href="#check"/></svg> Qualifies · watchkeeping</span></div></div>
+      <div class="row"><div><div class="d">01 – 14 Feb</div><div class="ds">2026 · 14 days</div></div><div><div class="flex ac wrap" style="gap:8px"><span class="vn">M/Y Pelorus II</span><span class="tag" style="color:#4C5FB0;background:#ECEEFA">ROTA</span></div><div class="vs">Marshall Is. · 1450GT · 68m · IMO 9345678</div></div><div><span class="spill" style="color:#1F6F8B;background:#E3F0F4">● Seagoing</span><div class="vs" style="margin-top:4px">Days at sea on passage · Master</div></div><div class="right"><span class="spill" style="color:#1F7A4D;background:#DEF3E7"><svg class="ic"><use href="#check"/></svg> Qualifies · seagoing</span></div></div>
+      <div class="row"><div><div class="d">20 – 24 Feb</div><div class="ds">2026 · 5 days</div></div><div><div class="flex ac wrap" style="gap:8px"><span class="vn">S/Y Tern</span><span class="tag" style="color:#5A6478;background:#EEF0F3">MANUAL</span></div><div class="vs">Malta · 18GT · 12m · IMO 9234567</div></div><div><span class="spill" style="color:#1F6F8B;background:#E3F0F4">● Seagoing</span><div class="vs" style="margin-top:4px">Days at sea on passage · Master</div></div><div class="right"><span class="spill" style="color:#C0392B;background:#FBE7E4"><svg class="ic"><use href="#x"/></svg> Non-qualifying</span><div class="vs" style="color:#C0392B;margin-top:4px;text-align:right">Vessel under 15m (12m) — seagoing service does not qualify.</div><button class="fix">Exclude from pack</button></div></div>
+      <div class="row"><div><div class="d">02 Mar</div><div class="ds">2026 · 1 day</div></div><div><div class="flex ac wrap" style="gap:8px"><span class="vn">M/Y Aurora Borealis</span><span class="tag" style="color:#5A6478;background:#EEF0F3">MANUAL</span></div><div class="vs">Cayman Is. · 380GT · 42m · IMO 9123456</div></div><div><span class="spill" style="color:#4C5FB0;background:#ECEEFA">● Watchkeeping</span><div class="vs" style="margin-top:4px">3h watch · Master</div></div><div class="right"><span class="spill" style="color:#C0392B;background:#FBE7E4"><svg class="ic"><use href="#x"/></svg> Non-qualifying</span><div class="vs" style="color:#C0392B;margin-top:4px;text-align:right">Watch under 4h — does not count under the MCA 4h rule.</div><button class="fix">Reclassify to standby</button></div></div>
+      <div class="row"><div><div class="d">12 – 18 Mar</div><div class="ds">2026 · 7 days</div></div><div><div class="flex ac wrap" style="gap:8px"><span class="vn">M/Y Aurora Borealis</span><span class="tag" style="color:#1F6F8B;background:#E3F0F4">AIS</span></div><div class="vs">Cayman Is. · 380GT · 42m · IMO 9123456</div></div><div><span class="spill" style="color:#4C5FB0;background:#ECEEFA">● Watchkeeping</span><div class="vs" style="margin-top:4px">6h watch · Master</div></div><div class="right"><span class="spill" style="color:#1F7A4D;background:#DEF3E7"><svg class="ic"><use href="#check"/></svg> Qualifies · watchkeeping</span></div></div>
+      <div class="row"><div><div class="d">03 – 10 Apr</div><div class="ds">2026 · 8 days</div></div><div><div class="flex ac wrap" style="gap:8px"><span class="vn">M/Y Aurora Borealis</span><span class="tag" style="color:#5A6478;background:#EEF0F3">MANUAL</span></div><div class="vs">Cayman Is. · 380GT · 42m · IMO 9123456</div></div><div><span class="spill" style="color:#B7791F;background:#FBF0DA">● Standby</span><div class="vs" style="margin-top:4px">Subject to regulatory cap · Master</div></div><div class="right"><span class="spill" style="color:#1F7A4D;background:#DEF3E7"><svg class="ic"><use href="#check"/></svg> Counts · standby</span></div></div>
+      <div class="row"><div><div class="d">15 – 22 Apr</div><div class="ds">2026 · 8 days</div></div><div><div class="flex ac wrap" style="gap:8px"><span class="vn">M/Y Aurora Borealis</span><span class="tag" style="color:#5A6478;background:#EEF0F3">MANUAL</span></div><div class="vs">Cayman Is. · 380GT · 42m · IMO 9123456</div></div><div><span class="spill" style="color:#5B6675;background:#ECEEF2">● Yard</span><div class="vs" style="margin-top:4px">Shipyard / refit service · Master</div></div><div class="right"><span class="spill" style="color:#1F7A4D;background:#DEF3E7"><svg class="ic"><use href="#check"/></svg> Counts · shipyard</span></div></div>
+    </div>
+    <div class="foot">5 entries in pack · 61 qualifying days · 2 flagged</div>
+  </div>
+
+  <!-- pack generator -->
+  <div class="dossier">
+    <div class="dh">
+      <div><div class="ml rust">Captain-signed · MCA MIN 642</div><h3>Sea Service Testimonial Pack</h3><div class="sub">Assemble a first-pass-clean, captain-signed testimonial for your chosen verifying organisation. Switching the verifier re-renders the checklist from the same record — no re-entry.</div></div>
+      <div><div class="ml" style="margin-bottom:6px">Verifying organisation</div><div class="vtabs"><b class="on">PYA</b><b>Nautilus</b><b>Other</b></div></div>
+    </div>
+    <div class="steps">
+      <div class="step dark">
+        <div class="sh"><span class="badge">1</span><div><div class="st">Validate</div><div class="ss">Blocked until every rule clears</div></div><span class="chip" style="background:#C65A1A">3 of 6 checks cleared</span></div>
+        <div class="readbar"><i style="display:block;height:100%;width:50%;background:#C65A1A;border-radius:999px"></i></div>
+        <div style="margin-top:6px">
+          <div class="chk"><span class="box" style="background:#C0392B"><svg class="ic" style="color:#fff"><use href="#x"/></svg></span><div><div class="t" style="color:#F0B7B0">Watchkeeping 4-hour rule</div><div class="d">1 entry tagged watchkeeping with under 4h watch — re-tag or correct before generating.</div></div></div>
+          <div class="chk"><span class="box" style="background:#C0392B"><svg class="ic" style="color:#fff"><use href="#x"/></svg></span><div><div class="t" style="color:#F0B7B0">Vessel size gate (≥15m)</div><div class="d">Seagoing service claimed on a vessel under 15m — exclude it or change the pathway.</div></div></div>
+          <div class="chk"><span class="box" style="background:#27A567"><svg class="ic" style="color:#fff"><use href="#check"/></svg></span><div><div class="t" style="color:#CFE8D8">Standby within cap</div><div class="d">8 / 90 standby days — within cap.</div></div></div>
+          <div class="chk"><span class="box" style="background:#27A567"><svg class="ic" style="color:#fff"><use href="#check"/></svg></span><div><div class="t" style="color:#CFE8D8">Vessel records complete</div><div class="d">GT and registered length present for every vessel.</div></div></div>
+          <div class="chk"><span class="box" style="background:#27A567"><svg class="ic" style="color:#fff"><use href="#check"/></svg></span><div><div class="t" style="color:#CFE8D8">Signatory &amp; self-certification</div><div class="d">Signed by the master — not the seafarer.</div></div></div>
+          <div class="chk"><span class="box" style="background:#C0392B"><svg class="ic" style="color:#fff"><use href="#x"/></svg></span><div><div class="t" style="color:#F0B7B0">Supporting documents</div><div class="d">1 required document(s) outstanding for PYA.</div></div></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="sh"><span class="badge">2</span><div><div class="st">Attach documents</div><div class="ss">For PYA — Professional Yachting Association</div></div></div>
+        <div class="doc" style="background:#fff;border-color:#E6E8EC"><span class="b" style="border-color:#C7CCD5;background:#fff"></span><span style="font-size:13px;font-weight:600">Certified passport copy</span></div>
+        <div class="doc" style="background:#EAF7EF;border-color:#BFE3CC"><span class="b" style="border-color:#27A567;background:#27A567"><svg class="ic" style="color:#fff"><use href="#check"/></svg></span><span style="font-size:13px;font-weight:600">Signatory's verified email</span></div>
+        <div class="doc" style="background:#EAF7EF;border-color:#BFE3CC"><span class="b" style="border-color:#27A567;background:#27A567"><svg class="ic" style="color:#fff"><use href="#check"/></svg></span><span style="font-size:13px;font-weight:600">Discharge book / SRB scan</span></div>
+        <div class="vs" style="margin-top:8px">€50 testimonial fee (minimum 2) applies for non-members. Free for PYA members via the D-SRB.</div>
+      </div>
+      <div class="step">
+        <div class="sh"><span class="badge">3</span><div><div class="st">Authorise</div><div class="ss">Master who attests this service</div></div></div>
+        <div class="sig">
+          <div class="sigc" style="border-color:#27A567;background:#EAF7EF"><div class="nm">Capt. Henrik Sõrensen</div><div class="sb" style="color:#8A93A3">Master · CoC 0094821</div></div>
+          <div class="sigc" style="border-color:#E6E8EC;background:#fff"><div class="nm">Lauren Moody (self)</div><div class="sb" style="color:#C0392B">Seafarer — not permitted</div></div>
+        </div>
+      </div>
+      <div class="step" style="background:#fff;border-style:dashed"><div class="sh" style="border:0;margin:0;padding:0"><span class="badge">4</span><div><div class="st">Issue</div><div class="ss">Generate the signed pack →</div></div></div></div>
+    </div>
+    <div class="issue">
+      <span class="gic" style="background:#FBE7E4"><svg class="ic" style="color:#C0392B;width:20px;height:20px"><use href="#x"/></svg></span>
+      <div><div class="ml">Step 4 · Issue</div><div style="font-weight:800;font-size:15px">3 check(s) blocking generation</div><div class="vs">Resolve every item in step 1 to continue.</div></div>
+      <button class="gen" style="background:#2E3850;color:#6B7689;cursor:not-allowed"><svg class="ic"><use href="#lock"/></svg> Blocked</button>
+    </div>
+  </div>
+
+  <p class="note" style="margin:26px 0 12px"><b>After the two flags are fixed + “Generate signed pack”</b> — the certificate renders (with a real scannable QR + SHA-256 in the live app):</p>
+  <div class="dossier" style="border-top-color:#C65A1A">
+    <div class="cert">
+      <div class="frame">
+        <div class="stamp"><div class="v">✶ VERIFIED ✶</div><div class="c">Captain-signed</div></div>
+        <div class="flex ac" style="gap:14px"><span class="seal"><svg class="ic" style="width:22px;height:22px"><use href="#anchor"/></svg></span><div><div class="ce">Maritime &amp; Coastguard Agency · MIN 642 Annex A</div><h2>Testimonial of Sea Service</h2><div class="prep">Prepared for PYA — Professional Yachting Association</div></div></div>
+        <div class="drule"></div><div class="drule2"></div>
+        <div class="fields">
+          <div class="field"><div class="fl">Seafarer</div><div class="fv">Lauren Moody</div></div>
+          <div class="field"><div class="fl">DOB · Nationality</div><div class="fv">03/10/1992 · British</div></div>
+          <div class="field"><div class="fl">Discharge book / NoE</div><div class="fv">GBR-DB-208841</div></div>
+          <div class="field"><div class="fl">Capacity</div><div class="fv">Master</div></div>
+          <div class="field"><div class="fl">Service period</div><div class="fv">04/01/2026 – 22/04/2026</div></div>
+          <div class="field"><div class="fl">CoC held</div><div class="fv">Master (Yachts) &lt;500GT</div></div>
+        </div>
+        <table><thead><tr><th>Vessel</th><th>Flag · IMO</th><th>GT</th><th>Length</th></tr></thead>
+        <tbody><tr><td>M/Y Pelorus II</td><td>Marshall Is. · IMO 9345678</td><td>1450 GT</td><td>68 m</td></tr><tr><td>M/Y Aurora Borealis</td><td>Cayman Is. · IMO 9123456</td><td>380 GT</td><td>42 m</td></tr></tbody></table>
+        <div class="ml" style="margin-top:16px">Service totals — totalled separately</div>
+        <div class="totals"><div class="tbox"><div class="tn">14</div><div class="tl">Seagoing days</div></div><div class="tbox"><div class="tn">31</div><div class="tl">Watchkeeping days</div></div><div class="tbox"><div class="tn">8</div><div class="tl">Standby days</div></div><div class="tbox"><div class="tn">8</div><div class="tl">Shipyard days</div></div></div>
+        <div class="flex between" style="align-items:flex-end;margin-top:22px;gap:20px;flex-wrap:wrap">
+          <div><div class="sigline">H. Sõrensen</div><div class="vs" style="margin-top:6px">Capt. Henrik Sõrensen · Master · CoC 0094821 · 22/04/2026</div></div>
+          <div class="qrseal"><div class="qr" id="qr"></div><div style="font-size:9px;font-weight:800;letter-spacing:.1em;margin-top:4px">SCAN TO VERIFY</div><div style="font-size:9.5px;color:#8A7F63;margin-top:2px">CARGO-STT-037292</div><div style="font-size:8.5px;color:#A0916C">sha256:9f86d0…</div></div>
+        </div>
+      </div>
+      <div class="certfoot"><div class="vs" style="max-width:480px">Submit via the PYA D-SRB portal or your member profile. Allow 5–10 working days for human verification.</div><div class="flex" style="gap:10px"><button class="dl" style="background:#C65A1A;color:#fff"><svg class="ic"><use href="#dl"/></svg> Download PDF</button><button class="dl" style="background:#fff;color:#1A2233;border:1px solid #E6E8EC"><svg class="ic"><use href="#mail"/></svg> Email pack</button></div></div>
+    </div>
+  </div>
+
+  <!-- drawer -->
+  <p class="note" style="margin:30px 0 12px"><b>The new “Log sea time” drawer</b> (replaces the old 3-step modal):</p>
+  <div class="drawer">
+    <div class="flex between ac" style="padding:22px 24px;border-bottom:1px solid #E6E8EC"><div class="serif" style="font-size:22px">Log sea time</div><svg class="ic" style="width:20px;height:20px"><use href="#x"/></svg></div>
+    <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+      <div class="fld"><label>Vessel</label><div class="inp">M/Y Aurora Borealis · 42m · 380GT ▾</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="fld"><label>From</label><div class="inp">26/04/2026</div></div><div class="fld"><label>To</label><div class="inp">30/04/2026</div></div></div>
+      <div class="fld"><label>Service type</label><div class="tg">
+        <div class="tc" style="border-color:#DDE0E6"><div class="tt">Seagoing</div><div class="th">Days at sea on passage</div></div>
+        <div class="tc" style="border-color:#4C5FB0;background:#ECEEFA"><div class="tt" style="color:#4C5FB0">Watchkeeping</div><div class="th">≥4h bridge watch / day</div></div>
+        <div class="tc" style="border-color:#DDE0E6"><div class="tt">Standby</div><div class="th">Subject to regulatory cap</div></div>
+        <div class="tc" style="border-color:#DDE0E6"><div class="tt">Yard</div><div class="th">Shipyard / refit service</div></div>
+      </div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="fld"><label>Watch hours / day</label><div class="inp">6</div></div><div class="fld"><label>Capacity</label><div class="inp">Master</div></div></div>
+      <div class="prev" style="background:#F1F9F4;border-color:#CFE8D8"><svg class="ic" style="color:#1F7A4D"><use href="#check"/></svg><div><div style="font-weight:700;font-size:13px;color:#1F7A4D">Will qualify · 5 days</div><div class="vs" style="margin-top:2px">Watchkeeping service on M/Y Aurora Borealis — counts toward your watchkeeping total.</div></div></div>
+    </div>
+    <div class="flex" style="gap:10px;padding:16px 24px;border-top:1px solid #E6E8EC"><button class="dl" style="background:#fff;border:1px solid #E6E8EC;color:#1A2233;flex:1;justify-content:center">Cancel</button><button class="dl" style="background:#1A2233;color:#fff;flex:1;justify-content:center">Add entry</button></div>
+  </div>
+</div>
+</div>
+<script>
+// quick deterministic QR-ish fill for the snapshot
+var q=document.getElementById('qr'),s=2027;
+for(var i=0;i<121;i++){var d=document.createElement('i');s=(s*1103515245+12345)>>>0;if((s/4294967296)>0.5)d.className='o';q.appendChild(d);}
+</script>
+</body></html>
