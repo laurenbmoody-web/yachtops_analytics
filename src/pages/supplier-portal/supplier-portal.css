@@ -2372,31 +2372,46 @@
    order detail page. Scoped under .sod- like the rest of the order detail
    styles. */
 
-.sod-note-tag {
-  display: inline-block;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #8B8478;
-  margin-right: 6px;
+.sod-item-note-sub {
+  color: #B14E16;
+  font-style: italic;
 }
-.sod-item-note-sub .sod-note-tag { color: #B14E16; }
-.sod-item-note-supplier .sod-note-tag { color: #5C9B6A; }
+.sod-item-note-supplier {
+  color: #1C1B3A;
+  font-style: italic;
+}
 
-.sod-note-link {
-  background: none;
-  border: 0;
-  padding: 4px 0 0;
-  margin-top: 2px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #C65A1A;
+/* Per-line "note to vessel" trigger — small message bubble that sits in
+   the row-actions cell. Outline when no note, filled terracotta tint
+   when a note already exists. */
+.sod-note-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid #E5E7EB;
+  color: #8B8478;
   cursor: pointer;
-  text-decoration: none;
-  letter-spacing: 0.01em;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
-.sod-note-link:hover { color: #B14E16; text-decoration: underline; }
+.sod-note-icon svg { width: 14px; height: 14px; display: block; }
+.sod-note-icon:hover:not(:disabled) {
+  border-color: #C65A1A;
+  color: #C65A1A;
+  background: #FBEFE9;
+}
+.sod-note-icon-active {
+  background: #FBEFE9;
+  border-color: #E8B89B;
+  color: #C65A1A;
+}
+.sod-note-icon-active:hover:not(:disabled) {
+  background: #F8E0CF;
+}
 
 /* Inline expand rows (sub + note). Hairline-separated band below the
    item row, with soft cream background so the editor reads as part of
