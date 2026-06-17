@@ -2948,10 +2948,13 @@ const ProvisioningBoardDetail = () => {
                           });
 
                           return catEntries.map(([category, catItems]) => {
-                            // Category header colour comes from the dept now (single source
-                            // of truth: public.departments.color). Falls back to neutral grey
-                            // when the dept isn't in the lookup table (e.g. 'General').
-                            const color = getDepartmentColor(deptObj);
+                            // Editorial category header: neutral cool bg + slim
+                            // 2px dept-coloured rail on the left so we still
+                            // signal grouping at a glance, without bleeding the
+                            // dept palette into the text. Names, subtotals, and
+                            // chevrons render in the navy/muted system used
+                            // everywhere else.
+                            const railColor = getDepartmentColor(deptObj);
                             const key = `${dept}::${category}`;
                             const isCollapsed = collapsedCategories.has(key);
                             const subtotal = catItems.reduce((sum, i) => {
@@ -2967,27 +2970,27 @@ const ProvisioningBoardDetail = () => {
                                 <div
                                   onClick={() => toggleCategory(key)}
                                   style={{
-                                    background: hexToRgba(color, 0.08),
-                                    borderLeft: `4px solid ${color}`,
+                                    background: '#FAFBFC',
+                                    borderLeft: `2px solid ${railColor}`,
                                     padding: '10px 16px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
                                     cursor: 'pointer',
                                     borderTop: '1px solid #F1F5F9',
-                                    transition: 'filter 0.15s',
+                                    transition: 'background 0.15s',
                                   }}
-                                  onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(0.97)'; }}
-                                  onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = '#F1F4F8'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = '#FAFBFC'; }}
                                 >
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <span style={{ color, fontSize: 12 }}>{isCollapsed ? '▸' : '▾'}</span>
-                                    <span style={{ color, fontWeight: 500, fontSize: 13 }}>{category}</span>
-                                    <span style={{ fontSize: 12, color: '#64748B' }}>
+                                    <span style={{ color: 'var(--d-muted-soft)', fontSize: 12 }}>{isCollapsed ? '▸' : '▾'}</span>
+                                    <span style={{ color: 'var(--d-navy-deep)', fontWeight: 600, fontSize: 13 }}>{category}</span>
+                                    <span style={{ fontSize: 11, color: 'var(--d-muted)', letterSpacing: '0.04em' }}>
                                       {catItems.length} {catItems.length === 1 ? 'item' : 'items'}
                                     </span>
                                   </div>
-                                  <span style={{ color, fontWeight: 500, fontSize: 13 }}>
+                                  <span style={{ color: 'var(--d-navy-deep)', fontWeight: 600, fontSize: 13, fontFamily: "'Outfit', system-ui, sans-serif", letterSpacing: '0.02em' }}>
                                     {dispSymbol}{subtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                   </span>
                                 </div>
