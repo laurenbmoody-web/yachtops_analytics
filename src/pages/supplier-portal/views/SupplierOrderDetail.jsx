@@ -677,7 +677,12 @@ const PriceCell = ({ item, currency, canEdit, onQuote }) => {
   const status = item.quote_status || 'awaiting_quote';
   const fallbackCurrency = item.estimated_currency || currency || 'EUR';
 
-  const editable = (status === 'awaiting_quote' || status === 'declined') && canEdit;
+  // Item-level status takes precedence — once marked unavailable, the
+  // price input goes inert regardless of where quote_status sits.
+  // Without this, "Unavailable" rows kept showing an editable quote
+  // box, which let the supplier dirty the line accidentally.
+  const itemUnavailable = item.status === 'unavailable';
+  const editable = !itemUnavailable && (status === 'awaiting_quote' || status === 'declined') && canEdit;
 
   const [draft, setDraft] = useState(() =>
     item.quoted_price != null
@@ -742,7 +747,7 @@ const PriceCell = ({ item, currency, canEdit, onQuote }) => {
 
   // ── Branch by status ──────────────────────────────────────────────────
 
-  if (status === 'unavailable') {
+  if (status === 'unavailable' || itemUnavailable) {
     return (
       <div className="sod-price-cell">
         <span className="sod-price-readonly" style={{ color: 'var(--muted)' }}>—</span>
@@ -838,6 +843,16 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
   const unitPrice = item.unit_price != null ? Number(item.unit_price) : null;
 
   const handleAct = async (next) => {
+    // Confirming a line without a quote price is a no-op the supplier
+    // will regret — the vessel needs the number to approve. Guard it.
+    if (next === 'confirmed') {
+      const hasQuote = item.quoted_price != null && Number(item.quoted_price) > 0;
+      const hasAgreed = item.agreed_price != null && Number(item.agreed_price) > 0;
+      if (!hasQuote && !hasAgreed) {
+        window.alert('Enter a quote price before confirming this line.');
+        return;
+      }
+    }
     try {
       const updates = { status: next };
       if (next === 'substituted' && item.substitute_description) {
@@ -1004,8 +1019,16 @@ const ItemsCard = ({
     acc[k] = (acc[k] || 0) + 1;
     return acc;
   }, {});
+  // Subtotal honours the strongest signal available per line:
+  // agreed > quoted > estimated > unit. Unavailable lines and lines
+  // with no price at any level are excluded so the total reflects what
+  // will actually invoice. Previously only read i.unit_price which
+  // stayed €0 throughout the confirming/quoting flow.
   const subtotal = items.reduce((s, i) => {
-    const price = Number(i.unit_price) || 0;
+    if (i.status === 'unavailable') return s;
+    const price = Number(
+      i.agreed_price ?? i.quoted_price ?? i.estimated_price ?? i.unit_price ?? 0,
+    ) || 0;
     const qty = Number(i.quantity) || 0;
     return s + price * qty;
   }, 0);
