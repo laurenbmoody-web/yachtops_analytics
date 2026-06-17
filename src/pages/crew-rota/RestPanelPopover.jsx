@@ -302,6 +302,18 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           </div>
         )}
 
+        {/* 6b · Honest empty state — breach stands but nothing actionable to offer */}
+        {warn && !suggestionsLoading && visibleCount === 0 && (
+          <div className="rest-section">
+            <SectionHead label="WORTH CONSIDERING" accent />
+            <div className="rest-section-summary">
+              No coverage-safe fix to suggest — the department is fully on duty during
+              {' '}{data.fullName.split(' ')[0]}’s watches, and this breach is from hours already
+              worked. Log a reason or adjust the rota manually.
+            </div>
+          </div>
+        )}
+
         {/* 7 · Action buttons + footer */}
         <div className="rest-actions">
           {warn ? (
