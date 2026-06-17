@@ -14,6 +14,7 @@ import CancelEditModal from './CancelEditModal';
 import ClearRotaModal from './ClearRotaModal';
 import RestPanelPopover from './RestPanelPopover';
 import CoverageApplyModal from './CoverageApplyModal';
+import BreachNotesModal from '../crew-profile/components/BreachNotesModal';
 import DepartmentFilter from './DepartmentFilter';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -143,6 +144,9 @@ export default function RotaWorkspace({
   const [selectedCrew, setSelectedCrew] = useState(null);
   // Coverage-apply flow: a rest suggestion the chief chose to push to the grid.
   const [applySuggestion, setApplySuggestion] = useState(null);
+  // Breach-notes flow: logging an MLC violation reason / note for a crew member,
+  // reusing the crew-profile BreachNotesModal (the auditor-grade reason record).
+  const [breachNotesFor, setBreachNotesFor] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [shiftType, setShiftType] = useState('duty');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -414,6 +418,30 @@ export default function RotaWorkspace({
 
   // The acting user's own tenant_members.id — stamped on shift inserts.
   const myMemberId = crew.find((c) => c.userId === user?.id)?.id || null;
+
+  // Open the breach-notes modal for a crew member, deriving the breached day +
+  // rule types from their LIVE MLC report (the same assessMlc the panel shows),
+  // so the reason is filed against the exact rules that tripped on selectedDate.
+  const RULE_TO_BREACH_TYPE = {
+    daily_rest_10h: 'REST_LT_10_IN_24H',
+    weekly_rest_77h: 'REST_LT_77_IN_7D',
+    rest_period_split: 'NO_6H_CONTINUOUS_REST_IN_24H',
+    max_work_stretch_14h: 'WORK_GT_14H_CONTINUOUS',
+  };
+  const openBreachNotes = (crewMember) => {
+    if (!crewMember) return;
+    const breaches = crewMember.mlcReport?.breaches || [];
+    const breachTypes = [...new Set(
+      breaches.map((b) => RULE_TO_BREACH_TYPE[b.rule]).filter(Boolean),
+    )];
+    const hasDaily = breaches.some((b) => b.rule === 'daily_rest_10h');
+    const restHours = hasDaily ? crewMember.rest24hDecimal : crewMember.pastWeekHours;
+    setBreachNotesFor({
+      userId: crewMember.userId,
+      breachedDates: [{ date: selectedDate, breachTypes, restHours }],
+    });
+    setSelectedCrew(null); // close the popover so the modal isn't obscured
+  };
 
   // After any shift write, mark the affected department's status row draft.
   const syncDeptDraft = useCallback(async (crewMember) => {
@@ -1018,8 +1046,21 @@ export default function RotaWorkspace({
         onClose={() => setSelectedCrew(null)}
         onViewSchedule={() => { setSelectedCrew(null); setView('grid'); }}
         onOpenHor={() => { setSelectedCrew(null); setView('hor'); }}
+        onLogReason={() => openBreachNotes(selectedCrew)}
+        onAddNote={() => openBreachNotes(selectedCrew)}
         onApplySuggestion={(sg) => setApplySuggestion({ suggestion: sg, sourceCrew: selectedCrew })}
       />
+
+      {breachNotesFor && (
+        <BreachNotesModal
+          isOpen={!!breachNotesFor}
+          breachedDates={breachNotesFor.breachedDates}
+          userId={breachNotesFor.userId}
+          currentUserId={currentUser?.id || user?.id}
+          tenantId={activeTenantId}
+          onClose={() => { setBreachNotesFor(null); setReasonsNonce((n) => n + 1); }}
+        />
+      )}
 
       <CoverageApplyModal
         open={!!applySuggestion}

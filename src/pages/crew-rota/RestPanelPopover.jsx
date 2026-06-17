@@ -28,7 +28,7 @@ function SectionHead({ label, tag, tagState }) {
   );
 }
 
-export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, onApplySuggestion, roster = [], windowShifts = [], anchorDate = null }) {
+export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, onLogReason, onAddNote, onApplySuggestion, roster = [], windowShifts = [], anchorDate = null }) {
   useEffect(() => {
     if (!crew) return undefined;
     const prevOverflow = document.body.style.overflow;
@@ -346,8 +346,8 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           {warn ? (
             <>
               <button type="button" className="rest-btn primary" onClick={onViewSchedule}>Adjust shift</button>
-              <button type="button" className="rest-btn ghost" onClick={onOpenHor}>Log violation reason</button>
-              <button type="button" className="rest-btn ghost" onClick={onOpenHor}>Add note</button>
+              <button type="button" className="rest-btn ghost" onClick={onLogReason || onOpenHor}>Log violation reason</button>
+              <button type="button" className="rest-btn ghost" onClick={onAddNote || onOpenHor}>Add note</button>
             </>
           ) : (
             <button type="button" className="rest-btn primary" onClick={onViewSchedule}>View full schedule</button>
