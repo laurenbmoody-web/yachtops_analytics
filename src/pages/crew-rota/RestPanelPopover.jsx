@@ -9,6 +9,7 @@ import { useRotaRestData } from './useRotaRestData';
 
 const CHART_SCALE = 100; // y-axis tops out at 100h
 const MLC_WEEKLY = 77;
+const MLC_DAILY = 10;
 
 const CloseIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -18,8 +19,13 @@ const CloseIcon = () => (
   </svg>
 );
 
-function SectionHead({ label }) {
-  return <div className="rest-section-label">{label}</div>;
+function SectionHead({ label, tag, tagState }) {
+  return (
+    <div className="rest-section-head">
+      <div className="rest-section-label">{label}</div>
+      {tag && <div className={`rest-section-tag ${tagState || ''}`}>{tag}</div>}
+    </div>
+  );
 }
 
 export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, anchorDate = null }) {
@@ -79,6 +85,19 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
     statusLabel,
   ].filter(Boolean).join(' · ').toUpperCase();
 
+  // Per-section MLC compliance tags. Daily covers the 10h rest rule plus the
+  // structural rules (split / continuous stretch) since those show in the
+  // timeline; Weekly covers the 77h rolling rule.
+  const dailyBad = data.dailyBelow || data.structuralBreach;
+  const dailyTag = data.dailyBelow
+    ? `${MLC_DAILY - data.dailyHours}h short of ${MLC_DAILY}h minimum`
+    : data.structuralBreach
+      ? (data.structuralLabel || 'rest pattern breaches MLC')
+      : `meets ${MLC_DAILY}h minimum ✓`;
+  const weeklyTag = data.weeklyBelow
+    ? `${MLC_WEEKLY - data.weeklyHours}h short of ${MLC_WEEKLY}h minimum`
+    : `meets ${MLC_WEEKLY}h minimum ✓`;
+
   const tripSummaryHtml = data.daysWorked > 0
     ? `<em>${data.fullName}</em> worked <strong>${data.onDutyWeekLabel}</strong> on duty across <strong>${data.daysWorked}</strong> day${data.daysWorked === 1 ? '' : 's'} in the last 7 days.`
     : `<em>${data.fullName}</em> has no on-duty hours rostered in the last 7 days.`;
@@ -102,30 +121,10 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
               {warn && <span className="rest-id-pill">{data.mlcChip || 'Below MLC'}</span>}
             </div>
             <div className="rest-id-role">{roleLine}</div>
-            {warn ? (
-              /* Rolling-7 rest meter — replaces the old narrative banner. The
-                 chip names the breach; the meter carries the number + shortfall. */
-              <div className="rest-id-meter">
-                <div className="rest-id-meter-cap">Rolling 7-day rest</div>
-                <div className="rest-id-meter-track">
-                  <div
-                    className={`rest-id-meter-fill${data.weeklyBelow ? ' low' : ' ok'}`}
-                    style={{ width: `${Math.max(0, Math.min(100, (data.weeklyHours / CHART_SCALE) * 100))}%` }}
-                  />
-                  <div
-                    className="rest-id-meter-mark"
-                    style={{ left: `${(MLC_WEEKLY / CHART_SCALE) * 100}%` }}
-                  />
-                </div>
-                <div className={`rest-id-meter-lbl${data.weeklyBelow ? ' low' : ' ok'}`}>
-                  <b>{data.weeklyHours}h</b>
-                  {data.weeklyBelow
-                    ? ` · ${MLC_WEEKLY - data.weeklyHours}h below the ${MLC_WEEKLY}h minimum`
-                    : ` · meets the ${MLC_WEEKLY}h minimum`}
-                  <span className="dim"> · {data.rest24hLabel} today</span>
-                </div>
-              </div>
-            ) : (
+            {/* The chip names the breach; the per-section MLC tags below carry
+               the numbers, so breaching crew need no extra header summary.
+               Compliant crew keep the quick rest/week sub-line. */}
+            {!warn && (
               <div className="rest-id-sub">
                 Today · <b>{data.rest24hLabel}</b> · <b>{data.pastWeekLabel}</b>
               </div>
@@ -136,9 +135,13 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           </button>
         </div>
 
-        {/* 3 · 24h timeline with shift-type sub-labels */}
+        {/* 3 · Daily rest — 24h timeline with shift-type sub-labels */}
         <div className="rest-section">
-          <SectionHead label={data.timelineMeta.toUpperCase()} />
+          <SectionHead
+            label="DAILY REST · TODAY"
+            tag={dailyTag}
+            tagState={dailyBad ? 'bad' : 'ok'}
+          />
           <div className="rest-section-summary">{data.timelineSummary}</div>
           <div className="rest-timeline-strip">
             {data.timeline.map((seg, i) => (
@@ -158,15 +161,15 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           </div>
         </div>
 
-        {/* 4 · Rolling 7-day rest chart */}
+        {/* 4 · Weekly rest — rolling 7-day chart */}
         <div className="rest-section">
-          <SectionHead label={data.chartMeta.toUpperCase()} />
-          <div className="rest-section-summary">
-            {data.chartSummary}
-            {data.chartShort && (
-              <> · <span style={{ color: '#7A2E1E' }}>{data.chartShort}</span> of {data.chartShortOf}</>
-            )}
-          </div>
+          <SectionHead
+            label="WEEKLY REST · ROLLING 7 DAYS"
+            tag={weeklyTag}
+            tagState={data.weeklyBelow ? 'bad' : 'ok'}
+          />
+          {/* Shortfall now lives in the section tag; summary stays the trend line. */}
+          <div className="rest-section-summary">{data.chartSummary}</div>
           <div className="rest-chart-row">
             <div className="rest-chart-axis">
               <span>{CHART_SCALE}h</span>
