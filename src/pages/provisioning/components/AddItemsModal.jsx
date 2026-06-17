@@ -383,7 +383,10 @@ export default function AddItemsModal({
             size: s.size || '',
             category: s.category || '',
             sub_category: s.sub_category || '',
-            department: s.department || currentDepartment || 'Galley',
+            // Department reflects WHO is adding, not what the past
+            // suggestion was originally categorised as — see comment
+            // on the catalogue branch below.
+            department: currentDepartment || s.department || 'Galley',
             quantity_ordered: Number.isFinite(qty) && qty > 0 ? qty : 1,
             unit: s.unit || 'each',
             estimated_unit_cost: Number.isFinite(cost) ? cost : null,
@@ -420,7 +423,7 @@ export default function AddItemsModal({
             size: r.size || '',
             category: r.category || '',
             sub_category: r.sub_category || '',
-            department: r.department || currentDepartment || 'Galley',
+            department: currentDepartment || r.department || 'Galley',
             quantity_ordered: Number.isFinite(qty) && qty > 0 ? qty : 1,
             unit: r.unit || 'each',
             allergen_flags: r.allergen_flags || [],
@@ -432,7 +435,14 @@ export default function AddItemsModal({
 
       // Catalogue
       CATALOGUE_DATA.forEach(([groupLabel, categories]) => {
-        const dept = CATALOGUE_GROUP_DEPT[groupLabel] || 'Galley';
+        // Items always belong to the dept of whoever's adding them.
+        // The catalogue group→dept map (CATALOGUE_GROUP_DEPT) stays as
+        // a browsing taxonomy hint but is no longer the source of
+        // truth — that pattern made "Bar" appear on boards as if it
+        // were a department, which it isn't. Falls through to the
+        // legacy map only when the caller didn't supply a current
+        // dept (vanishingly rare, defensive).
+        const dept = currentDepartment || CATALOGUE_GROUP_DEPT[groupLabel] || 'Galley';
         categories.forEach(([catName, catItems]) => {
           catItems.forEach(([itemName, defaultUnit]) => {
             const key = `${groupLabel}::${catName}::${itemName}`;
@@ -464,7 +474,7 @@ export default function AddItemsModal({
           size: h.size || '',
           category: h.category || '',
           sub_category: h.sub_category || '',
-          department: h.department || currentDepartment || 'Galley',
+          department: currentDepartment || h.department || 'Galley',
           quantity_ordered: qty,
           unit: h.unit || 'each',
           allergen_flags: [],

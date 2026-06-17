@@ -108,6 +108,7 @@ export default function PastActivityPicker({
   tripId = null,
   newGuestCount = 0,
   boardType = '',
+  currentDepartment = null,
   onUse,
   onBack,
 }) {
@@ -365,7 +366,10 @@ export default function PastActivityPicker({
   const handleCatalogueApply = () => {
     const items = [];
     CATALOGUE_DATA.forEach(([groupLabel, categories]) => {
-      const dept = CATALOGUE_GROUP_DEPT[groupLabel] || 'Galley';
+      // Adder's dept wins. CATALOGUE_GROUP_DEPT is now a UI-only
+      // browsing taxonomy (drives the tab filter), no longer the
+      // source of truth for item.department on save.
+      const dept = currentDepartment || CATALOGUE_GROUP_DEPT[groupLabel] || 'Galley';
       categories.forEach(([catName, catItems]) => {
         catItems.forEach(([itemName, defaultUnit]) => {
           const key = catalogueKey(groupLabel, catName, itemName);
