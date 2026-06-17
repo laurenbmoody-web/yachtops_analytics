@@ -2890,7 +2890,7 @@ const canEdit = (() => {
 
   const renderSeaTime = () => {
     return (
-      <SeaTimeTracker userId={crewId} currentUser={currentUser} />
+      <SeaTimeTracker userId={crewId} tenantId={activeTenantId} currentUser={currentUser} />
     );
   };
 

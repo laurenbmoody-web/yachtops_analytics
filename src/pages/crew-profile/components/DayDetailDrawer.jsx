@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { VERIFICATION_STATUS, SEA_SERVICE_SOURCE, SEA_SERVICE_STATE, SEA_SERVICE_TYPE_LABELS } from '../utils/seaTimeStorage';
 import { format } from 'date-fns';
 
 const DayDetailDrawer = ({ isOpen, onClose, selectedDate, dayData, onUpdate }) => {
+  // Local note draft so we save on blur, not on every keystroke (each save is a
+  // DB write + reload now that entries live in Supabase).
+  const [noteDraft, setNoteDraft] = useState(dayData?.noteReason || '');
+  useEffect(() => {
+    setNoteDraft(dayData?.noteReason || '');
+  }, [dayData?.id]);
+
   if (!isOpen || !selectedDate) return null;
+
+  const saveNote = () => {
+    if (dayData && noteDraft !== (dayData?.noteReason || '')) {
+      onUpdate?.(dayData?.id, { noteReason: noteDraft });
+    }
+  };
 
   const getStatusLabel = () => {
     if (!dayData) return 'No sea service recorded';
@@ -233,8 +246,9 @@ const DayDetailDrawer = ({ isOpen, onClose, selectedDate, dayData, onUpdate }) =
                   Notes / Reason
                 </h3>
                 <textarea
-                  value={dayData?.noteReason || ''}
-                  onChange={(e) => onUpdate?.(dayData?.id, { noteReason: e?.target?.value })}
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e?.target?.value)}
+                  onBlur={saveNote}
                   placeholder="Add notes or reason for this entry..."
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[100px]"
                 />

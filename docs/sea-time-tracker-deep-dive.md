@@ -136,12 +136,39 @@ From your Phase 0 acceptance list, tested directly against the engine:
 
 ---
 
+## 5a. Update — Session 2: moved to Supabase
+
+Per your "move to Supabase now" decision, the tracker's persistence is now real
+Postgres (was `localStorage`).
+
+- **Migration `20260617090000_sea_service_foundation.sql`** (applied to *Cargo
+  Project* `gwexbrbasfysbheeklyq`, idempotent + additive):
+  - `sea_service_entries`, `sea_time_config`, `sea_service_audit` — all
+    tenant-scoped with RLS (`is_active_tenant_member` / `is_command_user_in_tenant`).
+  - Private `sea-time-signatures` bucket (mirrors `hor-signatures`).
+  - `SECURITY DEFINER` RPCs `sea_time_{submit,sign,reject}_entries`. Captain
+    sign-off **locks** the row and stamps a server-computed **SHA-256
+    `record_hash`** for tamper-evidence.
+  - Security-hardened: `anon`/`PUBLIC` execute revoked; trigger `search_path`
+    pinned. Advisor shows only the same warning classes that already blanket the
+    project (definer-executable / mutable-search-path).
+- **`seaTimeService.js`** — async data-access layer; reuses the pure Phase 0
+  rules engine over fetched rows (one source of truth for the rules).
+- **"My Sea Time" UI is wired to Supabase**: progress bars, calendar, manual
+  add (one row/day), day edits, and submit-for-verification all go through the
+  service. `tenant_id` flows from `useAuth().activeTenantId`.
+- **Verified end-to-end on the live DB**: insert → submit → sign chain run as a
+  real COMMAND member inside a rolled-back transaction →
+  `status=captain_signed, locked=t, hashlen=64, audit_rows=2`, nothing
+  persisted.
+
+**Still on localStorage (intentionally, for now):** the command-only "Vessel
+Sea Time" view (vessel service log + crew assignments) and the saved-vessel
+convenience cache. These migrate with the **Phase 2 attestation cockpit**.
+
 ## 6. Decisions I need from you (before Phase 1+)
 
-1. **Persistence model.** This is still all `localStorage`. The captain
-   attestation + tamper-evident hash (Phase 1/2) really wants Supabase tables
-   (entries, signatures, audit). Do you want me to design the schema and
-   migrate, or keep it client-only for the demo a bit longer?
+1. ~~**Persistence model.**~~ ✅ Resolved — moved to Supabase (see §5a).
 2. **Standby substitution.** Should capped standby days *substitute into* the
    seagoing requirement (up to `standbyCapDays`), or just be displayed as a
    tracked bucket? I've done the latter for now.
