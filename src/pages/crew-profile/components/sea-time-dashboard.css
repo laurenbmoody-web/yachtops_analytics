@@ -200,8 +200,8 @@
 .stc-seg button.act{color:var(--ink);}
 .stc-seg button.act:hover{background:#fff;box-shadow:0 1px 2px rgba(28,27,58,.08);}
 
-/* month grid (A) */
-.stc-cal{border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+/* month grid (A) — same max width as the heatmap so both views match */
+.stc-cal{border:1px solid var(--border);border-radius:12px;overflow:hidden;max-width:1120px;}
 .stc-dow{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--hair);background:#FCFCFB;}
 .stc-dow div{text-align:center;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:9px 0;}
 .stc-dow div+div{border-left:1px solid var(--hair);}
