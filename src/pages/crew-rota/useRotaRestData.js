@@ -338,6 +338,44 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           weekRows.filter(s => ON_DUTY_TYPES.has(s.shift_type)).map(s => s.shift_date),
         ).size;
 
+        // Has a breach reason already been logged for this day? If so the panel
+        // shows it (note · who · when) in place of the suggestions, so the chief
+        // isn't prompted to re-log what's already been justified.
+        let loggedReason = null;
+        const subjectUserId = sourceMemberRef.current?.userId;
+        if (mlcWarning && subjectUserId) {
+          try {
+            const { data: rr } = await supabase
+              .from('hor_breach_reasons')
+              .select('note_text, signed_off_at, signed_off_by, updated_by, created_by, updated_at')
+              .eq('tenant_id', tenantId)
+              .eq('subject_user_id', subjectUserId)
+              .eq('breach_date', effDate)
+              .maybeSingle();
+            if (cancelled) return;
+            if (rr?.note_text) {
+              const actorId = rr.signed_off_by || rr.updated_by || rr.created_by;
+              let by = null;
+              if (actorId) {
+                const { data: am } = await supabase
+                  .from('tenant_members')
+                  .select('display_name')
+                  .eq('tenant_id', tenantId)
+                  .eq('user_id', actorId)
+                  .maybeSingle();
+                if (cancelled) return;
+                by = am?.display_name || null;
+              }
+              loggedReason = {
+                note: rr.note_text,
+                signedOff: !!rr.signed_off_at,
+                by,
+                at: rr.signed_off_at || rr.updated_at || null,
+              };
+            }
+          } catch { /* reason lookup is best-effort — never break the panel */ }
+        }
+
         const banner = mlcWarning
           ? (() => {
               if (dailyBelow && weeklyBelow) {
@@ -389,6 +427,9 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           // Forward-only signal: today is within MLC but the 2-day projection
           // already breaches a rule. Drives the proactive (pre-breach) path.
           lookaheadLow: lookaheadBreach && !mlcWarning,
+          // A breach reason already recorded for this day (note · who · when),
+          // or null. When present the panel surfaces it instead of suggestions.
+          loggedReason,
           dailyHours: Math.round(rest24h),
           dailyBelow,
           // Structural rules, scoped to the right section:

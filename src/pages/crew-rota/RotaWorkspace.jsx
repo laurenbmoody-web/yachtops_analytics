@@ -1047,7 +1047,6 @@ export default function RotaWorkspace({
         onViewSchedule={() => { setSelectedCrew(null); setView('grid'); }}
         onOpenHor={() => { setSelectedCrew(null); setView('hor'); }}
         onLogReason={() => openBreachNotes(selectedCrew)}
-        onAddNote={() => openBreachNotes(selectedCrew)}
         onApplySuggestion={(sg) => setApplySuggestion({ suggestion: sg, sourceCrew: selectedCrew })}
       />
 
