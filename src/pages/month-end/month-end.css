@@ -6,12 +6,21 @@
 .mp-page { min-height: calc(100vh - 64px); background: #FBFAF8; padding: 92px 20px 60px; }
 .mp-wrap { max-width: 980px; margin: 0 auto; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
 
-.mp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.mp-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 34px; line-height: 1; }
-.mp-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #8B8478; margin-top: 9px; }
-.mp-monthnav { display: inline-flex; align-items: center; gap: 14px; background: #fff; border: 1px solid #E6E8EF; border-radius: 9px; padding: 7px 14px; font-size: 14px; font-weight: 600; color: #1C1B3A; }
-.mp-monthnav button { border: 0; background: none; cursor: pointer; color: #8B8478; font-size: 18px; line-height: 1; padding: 0 2px; }
+/* Canonical editorial header — eyebrow + serif sentence headline with a
+   terracotta-italic emphasis + lead line, controls stacked on the right, a
+   hairline rule beneath the whole header. Mirrors crew-profile HOR / sea-time. */
+.mp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 1px solid #ECEAE3; }
+.mp-head-main { min-width: 0; }
+.mp-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #C65A1A; }
+.mp-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 32px; line-height: 1.04; color: #1C1B3A; margin-top: 11px; }
+.mp-title em { font-style: italic; color: #C65A1A; }
+.mp-lead { font-size: 14px; line-height: 1.5; color: #4B4A66; margin-top: 12px; max-width: 560px; }
+.mp-lead b { color: #1C1B3A; font-weight: 600; }
+.mp-head-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; flex: 0 0 auto; }
+.mp-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #ECEAE3; border-radius: 999px; padding: 7px 8px; font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+.mp-monthnav button { border: 0; background: #F6F5F2; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #8B8478; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
 .mp-monthnav button:hover { color: #C65A1A; }
+.mp-monthnav span { padding: 0 2px; }
 
 /* Summary — figures separated by hairlines, no box */
 .mp-sum { display: flex; align-items: flex-end; gap: 28px; padding: 22px 0; border-bottom: 1px solid #ECEAE3; margin-top: 22px; }
