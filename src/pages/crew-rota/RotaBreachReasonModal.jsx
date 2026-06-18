@@ -20,8 +20,11 @@ const PRESETS = [
 // sign it off. Non-blocking ("allow override") — they can close without filling
 // every row; unfilled days stay "—" on the record.
 //
-// `breaches`: [{ key, userId, name, role, date, dateLabel, breachLabel, breachTypes }]
-export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breaches = [], onSaved, initialExpandedUserId = null }) {
+// `breaches`: [{ key, userId, name, role, date, dateLabel, breachLabel,
+//   breachTypes, reason?, signedOff? }]
+// When `canEdit` is false (or a row already carries a `reason`), the modal is a
+// read-only breach-detail view; otherwise outstanding rows can be recorded.
+export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breaches = [], onSaved, initialExpandedUserId = null, canEdit = true }) {
   const [notes, setNotes] = useState({});
   const [bulk, setBulk] = useState('');
   const [open, setOpen] = useState({}); // userId -> expanded
@@ -49,20 +52,29 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
 
   if (!isOpen) return null;
 
+  // A row is editable when it has no recorded reason yet AND the viewer can sign
+  // off. Recorded rows render read-only; everything else is review-only.
+  const isEditable = (b) => !b.reason && canEdit;
+  const editableItems = breaches.filter(isEditable);
+  const recordedCount = breaches.filter((b) => b.reason).length;
+  const hasEditable = editableItems.length > 0;
+
   const setNote = (key, v) => setNotes((p) => ({ ...p, [key]: v }));
   const applyTo = (items) => {
     const v = bulk.trim();
     if (!v) return;
-    setNotes((p) => { const n = { ...p }; items.forEach((b) => { n[b.key] = v; }); return n; });
+    // Never overwrite an already-recorded reason — only seed the editable rows.
+    setNotes((p) => { const n = { ...p }; items.filter(isEditable).forEach((b) => { n[b.key] = v; }); return n; });
   };
-  const filledIn = (items) => items.filter((b) => (notes[b.key] || '').trim()).length;
-  const filledCount = filledIn(breaches);
+  // Progress counts a day as resolved if it's already recorded OR just filled in.
+  const resolvedIn = (items) => items.filter((b) => b.reason || (notes[b.key] || '').trim()).length;
+  const filledCount = editableItems.filter((b) => (notes[b.key] || '').trim()).length;
   const dirty = filledCount > 0 || bulk.trim().length > 0;
 
   const handleSave = async () => {
     setSaving(true);
     setError('');
-    const targets = breaches.filter((b) => (notes[b.key] || '').trim());
+    const targets = breaches.filter((b) => isEditable(b) && (notes[b.key] || '').trim());
     const results = await Promise.allSettled(targets.map(async (b) => {
       await upsertBreachReason({
         tenantId, subjectUserId: b.userId, date: b.date,
@@ -86,37 +98,44 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
   return (
     <ModalShell onClose={onClose} isDirty={dirty} isBusy={saving} panelClassName="rbr-panel">
       <div className="rbr-head">
-        <h2 className="rbr-title">Planned breaches, <em>justified.</em></h2>
+        <h2 className="rbr-title">
+          {hasEditable ? <>Planned breaches, <em>justified.</em></> : <>Breach detail</>}
+        </h2>
         <p className="rbr-sub">
-          Record why each non-compliant day was operationally necessary. As a sign-off authority, your reason is recorded as the sign-off (✓) on the record.
+          {hasEditable
+            ? 'Record why each non-compliant day was operationally necessary. As a sign-off authority, your reason is recorded as the sign-off (✓) on the record.'
+            : 'Each non-compliant day, the rule it broke, and any reason already recorded against it.'}
         </p>
         <button className="rbr-x" onClick={onClose} aria-label="Close"><X size={20} /></button>
       </div>
 
-      <div className="rbr-bulk">
-        <p className="rbr-label">One reason for all {breaches.length} days</p>
-        <div className="rbr-presets">
-          {PRESETS.map((p) => (
-            <button key={p} type="button" className="rbr-preset" onClick={() => setBulk(p)}>{p}</button>
-          ))}
+      {hasEditable && (
+        <div className="rbr-bulk">
+          <p className="rbr-label">One reason for all {editableItems.length} open day{editableItems.length === 1 ? '' : 's'}</p>
+          <div className="rbr-presets">
+            {PRESETS.map((p) => (
+              <button key={p} type="button" className="rbr-preset" onClick={() => setBulk(p)}>{p}</button>
+            ))}
+          </div>
+          <div className="rbr-bulk-row">
+            <input
+              className="rbr-input"
+              value={bulk}
+              onChange={(e) => setBulk(e.target.value)}
+              placeholder="e.g. Guest trip — service ran past 22:00, early start for breakfast service"
+            />
+            <button type="button" className="rbr-apply" onClick={() => applyTo(breaches)} disabled={!bulk.trim()}>
+              Apply to all
+            </button>
+          </div>
         </div>
-        <div className="rbr-bulk-row">
-          <input
-            className="rbr-input"
-            value={bulk}
-            onChange={(e) => setBulk(e.target.value)}
-            placeholder="e.g. Guest trip — service ran past 22:00, early start for breakfast service"
-          />
-          <button type="button" className="rbr-apply" onClick={() => applyTo(breaches)} disabled={!bulk.trim()}>
-            Apply to all
-          </button>
-        </div>
-      </div>
+      )}
 
       <div className="rbr-list">
         {groups.map((g) => {
-          const done = filledIn(g.items);
+          const done = resolvedIn(g.items);
           const allDone = done === g.items.length;
+          const gEditable = g.items.some(isEditable);
           const isOpen = !!open[g.userId];
           return (
             <div key={g.userId} className="rbr-acc">
@@ -137,19 +156,30 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
               </button>
               {isOpen && (
                 <div className="rbr-acc-body">
-                  <button type="button" className="rbr-groupapply" onClick={() => applyTo(g.items)} disabled={!bulk.trim()}>
-                    Apply reason above to these {g.items.length} days
-                  </button>
+                  {gEditable && (
+                    <button type="button" className="rbr-groupapply" onClick={() => applyTo(g.items)} disabled={!bulk.trim()}>
+                      Apply reason above to this crew’s open days
+                    </button>
+                  )}
                   {g.items.map((b) => (
                     <div key={b.key} className="rbr-row">
                       <span className="rbr-date">{b.dateLabel}</span>
                       <span className="rbr-chipcell"><span className="rbr-chip">{b.breachLabel}</span></span>
-                      <input
-                        className="rbr-rowinput"
-                        value={notes[b.key] || ''}
-                        onChange={(e) => setNote(b.key, e.target.value)}
-                        placeholder="Reason…"
-                      />
+                      {b.reason ? (
+                        <span className="rbr-recorded" title={b.signedOff ? 'Recorded & signed off' : 'Recorded'}>
+                          {b.signedOff && <Check size={13} className="rbr-recorded-tick" />}
+                          <span className="rbr-recorded-text">{b.reason}</span>
+                        </span>
+                      ) : canEdit ? (
+                        <input
+                          className="rbr-rowinput"
+                          value={notes[b.key] || ''}
+                          onChange={(e) => setNote(b.key, e.target.value)}
+                          placeholder="Reason…"
+                        />
+                      ) : (
+                        <span className="rbr-norec">No reason recorded yet</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -162,13 +192,19 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
       <div className="rbr-foot">
         {error
           ? <span className="rbr-error">{error}</span>
-          : <span className="rbr-count">{filledCount} of {breaches.length} given</span>}
+          : hasEditable
+            ? <span className="rbr-count">{filledCount} of {editableItems.length} to record</span>
+            : <span className="rbr-count">{recordedCount} of {breaches.length} recorded</span>}
         <div className="rbr-btns">
-          <button type="button" className="rbr-btn-ghost" onClick={onClose} disabled={saving}>Close without</button>
-          <button type="button" className="rbr-btn-primary" onClick={handleSave} disabled={saving || filledCount === 0}>
-            <CheckCircle size={16} />
-            {saving ? 'Saving…' : 'Record & sign off'}
+          <button type="button" className="rbr-btn-ghost" onClick={onClose} disabled={saving}>
+            {hasEditable ? 'Close without' : 'Close'}
           </button>
+          {hasEditable && (
+            <button type="button" className="rbr-btn-primary" onClick={handleSave} disabled={saving || filledCount === 0}>
+              <CheckCircle size={16} />
+              {saving ? 'Saving…' : 'Record & sign off'}
+            </button>
+          )}
         </div>
       </div>
     </ModalShell>

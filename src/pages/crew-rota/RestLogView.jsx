@@ -287,12 +287,36 @@ export default function RestLogView({
     return out;
   }, [rows, breachReasons]);
 
-  // userIds with at least one breach still missing a reason — gates which
-  // BREACHES badges are clickable (a reason can be recorded for them).
-  const outstandingByUser = useMemo(
-    () => new Set(unjustifiedBreaches.map((b) => b.userId)),
-    [unjustifiedBreaches],
-  );
+  // EVERY breach day (justified or not), carrying any recorded reason + sign-off
+  // state — powers the per-crew drill-in from the BREACHES badge, so already
+  // explained days are shown read-only alongside any still outstanding.
+  const allBreaches = useMemo(() => {
+    const out = [];
+    rows.forEach((r) => r.members.forEach((m) => {
+      if (!m.userId) return;
+      m.cells.forEach((c) => {
+        if (!c.dailyLow && !c.weeklyLow) return;
+        const types = [];
+        const labels = [];
+        if (c.dailyLow) { types.push('daily_rest_10h'); labels.push('Daily'); }
+        if (c.weeklyLow) { types.push('weekly_rest_77h'); labels.push('Weekly'); }
+        const rec = breachReasons[`${m.userId}|${c.date}`];
+        out.push({
+          key: `${m.userId}|${c.date}`,
+          userId: m.userId,
+          name: m.name,
+          role: m.role,
+          date: c.date,
+          dateLabel: parseLocal(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+          breachLabel: labels.join(' + '),
+          breachTypes: types,
+          reason: rec?.note_text || null,
+          signedOff: !!rec?.signed_off_at,
+        });
+      });
+    }));
+    return out;
+  }, [rows, breachReasons]);
 
   // Fleet KPIs for the period (scoped to whoever's in view / the dept filter).
   const kpi = useMemo(() => {
@@ -383,8 +407,9 @@ export default function RestLogView({
           onClose={() => { setShowBreachModal(false); setBreachFilterUserId(null); }}
           tenantId={tenantId}
           breaches={breachFilterUserId
-            ? unjustifiedBreaches.filter((b) => b.userId === breachFilterUserId)
+            ? allBreaches.filter((b) => b.userId === breachFilterUserId)
             : unjustifiedBreaches}
+          canEdit={canSignOff}
           initialExpandedUserId={breachFilterUserId}
           onSaved={onReasonsSaved}
         />
@@ -455,10 +480,9 @@ export default function RestLogView({
               <div className="rl-dept-rows">
                 {members.map((m) => {
                   const totalBreaches = m.dailyBreachDays + m.weeklyBreachDays;
-                  // Clickable only when an approver can act on an outstanding
-                  // reason for this member — otherwise it stays a plain count.
-                  const canDrillBreach = totalBreaches > 0 && canSignOff
-                    && m.userId && outstandingByUser.has(m.userId);
+                  // Always drillable: approvers can record outstanding reasons,
+                  // everyone can review which days breached and any recorded reason.
+                  const canDrillBreach = totalBreaches > 0 && !!m.userId;
                   return (
                     <div key={m.id} className="rl-row">
                       <div className="rl-nm">
@@ -485,7 +509,7 @@ export default function RestLogView({
                           <button
                             type="button"
                             className="rl-sum-action"
-                            title={`${m.dailyBreachDays} daily · ${m.weeklyBreachDays} weekly — click to see days & record reasons`}
+                            title={`${m.dailyBreachDays} daily · ${m.weeklyBreachDays} weekly — click to see the days${canSignOff ? ' & record reasons' : ''}`}
                             onClick={() => { setBreachFilterUserId(m.userId); setShowBreachModal(true); }}
                           >
                             {totalBreaches}d
