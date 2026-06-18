@@ -9,8 +9,9 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, ROLES, CERTIFICATES, DEFAULT_CERTIFICATE, eligibleCertificates
+  DEPARTMENTS, ROLES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT
 } from '../../../seatime/pathways';
+import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
 import './sea-time-dashboard.css';
@@ -31,7 +32,9 @@ const ZERO_PRIOR = { seagoing: 0, watchkeeping: 0, total: 0 };
 const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const config = DEFAULT_CONFIG;
   const [roleId, setRoleId] = useState('master');
-  const [certId, setCertId] = useState(DEFAULT_CERTIFICATE);
+  const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
+  const [heldCerts, setHeldCerts] = useState({});          // certId -> { issueDate, number, fileUrl, fileName, docId }
+  const [heldOpen, setHeldOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState('all');
   const [logView, setLogView] = useState('list');
   const [verifier, setVerifier] = useState('pya');
@@ -55,25 +58,28 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const flash = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2600); };
 
   // Pathway derivation. Department is taken from the crew member's rank (role);
-  // the target certificate is the chosen rung. Empty certId == logging-only.
-  const eligibleCerts = useMemo(() => eligibleCertificates(roleId), [roleId]);
-  const cert = certId && CERTIFICATES[certId] ? CERTIFICATES[certId] : null;
-  const family = cert ? cert.family : null;
+  // the GOAL (career ceiling) trims the ladder to its route; held certs (from
+  // the crew's CoC documents) mark where they are; the live target is the first
+  // un-held rung on the route. Empty goalId == logging-only.
   const roleFamilies = ROLES[roleId]?.accruesToward || [];
-  const rungs = useMemo(() => (family
-    ? Object.entries(CERTIFICATES).filter(([, c]) => c.family === family).map(([id, c]) => ({ id, ...c }))
-    : []), [family]);
-  const activeIndex = rungs.findIndex(r => r.id === certId);
+  const family = goalId && CERTIFICATES[goalId] ? CERTIFICATES[goalId].family : null;
+  const route = useMemo(() => routeFor(goalId), [goalId]);
+  const targetId = route.find(id => !heldCerts[id]) || goalId;
+  const cert = targetId && CERTIFICATES[targetId] ? CERTIFICATES[targetId] : null;
+  const rungs = route.map(id => ({ id, ...CERTIFICATES[id] }));
+  const goalOptions = (GOAL_OPTIONS[family] || []).map(id => ({ id, ...CERTIFICATES[id] }));
+  const familyCerts = family ? Object.entries(CERTIFICATES).filter(([, c]) => c.family === family).map(([id, c]) => ({ id, ...c })) : [];
   const crossDiscipline = !!family && !roleFamilies.includes(family);
   const deptLabel = DEPARTMENTS[ROLES[roleId]?.department]?.label || '—';
   const familyWord = family === 'DECK' ? 'Deck' : family === 'ENGINE' ? 'Engine' : family === 'ETO' ? 'ETO' : '';
   const familyPathLabel = family === 'DECK' ? 'Bridge pathway' : family === 'ENGINE' ? 'Engine pathway' : family === 'ETO' ? 'ETO pathway' : '';
 
-  // Changing rank re-defaults the target to that role's first eligible cert
-  // (or logging-only when the role accrues toward nothing).
-  const changeRole = (id) => { setRoleId(id); const ec = eligibleCertificates(id); setCertId(ec[0]?.id || ''); };
-  const startPathway = () => setCertId(eligibleCerts[0]?.id || DEFAULT_CERTIFICATE);
-  const stopPathway = () => setCertId('');
+  const goalForFamily = (fam) => (fam ? DEFAULT_GOAL[fam] : '') || '';
+  // Changing rank re-defaults the goal to that role's family ceiling (or
+  // logging-only when the role accrues toward nothing).
+  const changeRole = (id) => { setRoleId(id); setGoalId(goalForFamily((ROLES[id]?.accruesToward || [])[0])); };
+  const startPathway = () => setGoalId(goalForFamily(roleFamilies[0] || 'DECK') || 'MASTER_YACHT_3000');
+  const stopPathway = () => setGoalId('');
 
   // ── load live data ──
   const loadLive = async () => {
@@ -103,6 +109,21 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
     }
   };
   useEffect(() => { loadLive(); /* eslint-disable-next-line */ }, [tenantId, userId]);
+
+  // Held certificates derive from the crew member's CoC documents (Documents tab):
+  // a `coc` document's `grade` maps to a ladder cert, and the document is linked.
+  useEffect(() => {
+    if (!userId) return;
+    fetchCrewDocuments(userId).then(docs => {
+      const held = {};
+      for (const d of docs || []) {
+        if (d.doc_type !== 'coc') continue;
+        const cid = GRADE_TO_CERT[d.details?.grade];
+        if (cid) held[cid] = { issueDate: d.issue_date, number: d.document_number, fileUrl: d.file_url, fileName: d.file_name, docId: d.id };
+      }
+      setHeldCerts(held);
+    }).catch(e => console.error('held certs load failed', e));
+  }, [userId]);
 
   // ── derived ──
   const buckets = useMemo(() => computeBuckets(entries, vessels, config), [entries, vessels]);
@@ -178,7 +199,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const shortMsn = (m) => String(m || '').replace('MSN 1858 Amd 2 ', '').replace('MSN 1859 ', '').replace('MSN 1858 ', '');
 
   // ── pathway: progression spine (Condensed A) or logging-only record ──
+  const heldCount = Object.keys(heldCerts).filter(id => CERTIFICATES[id]).length;
+  const selectGoals = (() => {
+    const ids = [...(GOAL_OPTIONS[family] || [])];
+    if (goalId && !ids.includes(goalId)) ids.push(goalId);
+    return ids.map(id => ({ id, ...CERTIFICATES[id] }));
+  })();
+
   const PathwaySection = () => (
+    <>
     <div className="std-card std-pad std-pathway">
       <div className="stp-head">
         <div>
@@ -188,9 +217,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
           <select className="stp-rank" value={roleId} onChange={e => changeRole(e.target.value)} aria-label="Rank">
             {Object.entries(ROLES).map(([id, r]) => <option key={id} value={id}>{r.label}</option>)}
           </select>
+          {cert && (
+            <div className="stp-goal">
+              <span className="gk">Goal</span>
+              <select value={goalId} onChange={e => setGoalId(e.target.value)} aria-label="Career goal">
+                {selectGoals.map(g => <option key={g.id} value={g.id}>{g.short}</option>)}
+              </select>
+            </div>
+          )}
           <div className="stp-sub">{crossDiscipline ? 'Target chosen manually — not this crew member’s department' : cert ? 'Pathway set from this crew member’s department' : 'Logged service — for your record'}</div>
         </div>
         <div className="stp-links">
+          {cert && <button className="stp-link rust" type="button" onClick={() => setHeldOpen(true)}>Certificates held{heldCount ? ` (${heldCount})` : ''} →</button>}
           {cert
             ? <button className="stp-link" type="button" onClick={stopPathway}>Just track my days — no certificate</button>
             : <button className="stp-link rust" type="button" onClick={startPathway}>Working toward a certificate →</button>}
@@ -199,26 +237,29 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
 
       {cert ? (
         <div className="stp-spine">
-          {rungs.map((r, i) => {
-            const status = i < activeIndex ? 'held' : i === activeIndex ? 'target' : 'upcoming';
+          {rungs.map((r) => {
+            const isHeld = !!heldCerts[r.id];
+            const status = isHeld ? 'held' : r.id === targetId ? 'target' : 'upcoming';
+            const isGoal = r.id === goalId;
             if (status !== 'target') {
+              const onClick = isHeld ? () => setHeldOpen(true) : () => setGoalId(r.id);
               return (
-                <button className={`stp-step ${status}`} key={r.id} type="button" onClick={() => setCertId(r.id)}>
+                <button className={`stp-step ${status}${isGoal ? ' goal' : ''}`} key={r.id} type="button" onClick={onClick}>
                   <span className="stp-m" />
                   <span className="stp-row">
-                    <span className="nm">{r.label} <span className="ref">{shortMsn(r.msn)}</span></span>
-                    <span className={`st ${status}`}>{status === 'held' ? 'Held' : 'Upcoming'}</span>
+                    <span className="nm">{r.label} <span className="ref">{shortMsn(r.msn)}</span>{isGoal && <span className="goaltag">Goal</span>}</span>
+                    <span className={`st ${status}`}>{isHeld ? <>Held{heldCerts[r.id].issueDate ? <> · <span className="dt">{fmtDate(heldCerts[r.id].issueDate)}</span></> : ''}</> : 'Upcoming'}</span>
                   </span>
                 </button>
               );
             }
             return (
-              <div className="stp-step target" key={r.id}>
+              <div className={`stp-step target${isGoal ? ' goal' : ''}`} key={r.id}>
                 <span className="stp-m" />
                 <div className="stp-feat">
                   <div className="stp-feathead">
                     <div>
-                      <div className="stp-eyebrow">Now working toward · {r.msn}</div>
+                      <div className="stp-eyebrow">Now working toward · {r.msn}{isGoal ? ' · your goal' : ''}</div>
                       <h4 className="stp-title">{r.label}</h4>
                     </div>
                     <div className="stp-fig"><span className="big">{daysToGo}</span><span className="cap">{daysToGo === 1 ? 'day to go' : 'days to go'}</span></div>
@@ -274,6 +315,45 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
         </div>
       )}
     </div>
+
+    {heldOpen && (
+      <>
+        <div className="std-scrim" onClick={() => setHeldOpen(false)} />
+        <div className="std-drawer stp-drawer">
+          <div className="stp-drhead">
+            <div className="mlabel rustlabel">{deptLabel} certificates</div>
+            <div className="serif" style={{ fontSize: 21, marginTop: 4 }}>Certificates you already hold</div>
+            <div className="stp-sub" style={{ marginTop: 6 }}>This tracker counts service going forward — these come from the <b>Certificate of Competency</b> documents in this crew member’s Documents tab, so the ladder starts in the right place.</div>
+            <button className="stp-drclose" onClick={() => setHeldOpen(false)} aria-label="Close"><Icon name="X" size={20} /></button>
+          </div>
+          <div className="stp-drlist">
+            {familyCerts.map(c => {
+              const h = heldCerts[c.id];
+              return (
+                <div className={`stp-drc ${h ? 'held' : ''}`} key={c.id}>
+                  <div className="row">
+                    <span className="mk">{h ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
+                    <div className="nm">{c.label} <span className="ref">{shortMsn(c.msn)}</span></div>
+                  </div>
+                  {h ? (
+                    <div className="meta">
+                      Held{h.issueDate ? ` · issued ${fmtDate(h.issueDate)}` : ''}{h.number ? ` · ${h.number}` : ''}
+                      {h.fileUrl ? <> · <a href={h.fileUrl} target="_blank" rel="noreferrer">View document</a></> : ''}
+                    </div>
+                  ) : (
+                    <div className="meta muted">Add a CoC document (grade “{c.short}”) in the <b>Documents</b> tab to record this.</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="stp-drfoot">
+            <button className="std-dl" style={{ background: '#fff', border: '1px solid #E6E8EC', color: '#1C1B3A', flex: 1, justifyContent: 'center' }} onClick={() => setHeldOpen(false)}>Done</button>
+          </div>
+        </div>
+      </>
+    )}
+    </>
   );
 
   // ── logged-service ledger (part of the Countdown page) ──

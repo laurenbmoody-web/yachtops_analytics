@@ -182,6 +182,58 @@ export const CERTIFICATES = {
 
 export const DEFAULT_CERTIFICATE = 'OOW_YACHT_3000';
 
+// ── Goal-based routing. A crew member picks a GOAL (career ceiling); the spine
+// shows only the certificates on the route to it. Held certs (from the crew's
+// CoC documents) mark where they are; the live target is the first un-held rung
+// on the route. TODO(MSN-routes): confirm exact prerequisite chains vs 1858/1859.
+export const CERTIFICATE_ROUTES = {
+  // DECK
+  OOW_YACHT_3000:        ['OOW_YACHT_3000'],
+  CHIEF_MATE_YACHT_3000: ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000'],
+  MASTER_YACHT_500:      ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_500'],
+  MASTER_YACHT_3000:     ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_500', 'MASTER_YACHT_3000'],
+  CHIEF_MATE_UNLIMITED:  ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED'],
+  MASTER_UNLIMITED:      ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
+  // ENGINE
+  MEOL_Y: ['MEOL_Y'],
+  Y4: ['MEOL_Y', 'Y4'],
+  Y3: ['MEOL_Y', 'Y4', 'Y3'],
+  Y2: ['MEOL_Y', 'Y4', 'Y3', 'Y2'],
+  Y1: ['MEOL_Y', 'Y4', 'Y3', 'Y2', 'Y1'],
+  // ETO
+  ETO_COC: ['ETO_COC']
+};
+
+/** Sensible career-ceiling goals offered per family (entry certs excluded). */
+export const GOAL_OPTIONS = {
+  DECK: ['MASTER_YACHT_500', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
+  ENGINE: ['Y4', 'Y3', 'Y2', 'Y1'],
+  ETO: ['ETO_COC']
+};
+
+export const DEFAULT_GOAL = { DECK: 'MASTER_YACHT_3000', ENGINE: 'Y1', ETO: 'ETO_COC' };
+
+export const routeFor = (goalId) => CERTIFICATE_ROUTES[goalId] || (goalId ? [goalId] : []);
+
+/** Maps a personal_documents CoC `grade` (documentTypes.js) to a ladder cert id. */
+export const GRADE_TO_CERT = {
+  'OOW <3000GT': 'OOW_YACHT_3000',
+  'Chief Mate <3000GT': 'CHIEF_MATE_YACHT_3000',
+  'Chief Mate unlimited': 'CHIEF_MATE_UNLIMITED',
+  'Master <500GT': 'MASTER_YACHT_500',
+  'Master <3000GT': 'MASTER_YACHT_3000',
+  'Master unlimited': 'MASTER_UNLIMITED',
+  'Engineering — MEOL (Yachts)': 'MEOL_Y',
+  'Engineering — SV / Y4': 'Y4',
+  'Engineering — Y3': 'Y3',
+  'Engineering — Y2': 'Y2',
+  'Engineering — Y1': 'Y1',
+  'Y4 / OOW (Yachts)': 'Y4',
+  'Y3 / Master <500GT': 'Y3',
+  'Y2 / Master <3000GT': 'Y2',
+  'Y1 / Master <3000GT (>500GT)': 'Y1'
+};
+
 /** Certificates a role's sea time can count toward (by family). */
 export const eligibleCertificates = (roleKey) => {
   const role = ROLES[roleKey];
