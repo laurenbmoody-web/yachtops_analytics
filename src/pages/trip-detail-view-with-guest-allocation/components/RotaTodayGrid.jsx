@@ -152,7 +152,7 @@ function RestLine({ crew, mode, statusLabel }) {
 function CrewRow({
   crew, gridStartHour, onCrewClick, mode = 'active', statusLabel,
   editMode = false, onCellPointerDown, onCellPointerEnter, onCellKey, dragRange,
-  highlightSlots, viewDate,
+  highlightSlots, viewDate, firstEditableSlot = 0,
 }) {
   const satStart = saturdayFirstSlot(gridStartHour);
   // Phase 1: cell editing is enabled for on-vessel department rows only
@@ -164,10 +164,15 @@ function CrewRow({
     // slot (any type incl. off/medical), not just on-duty ranges.
     const cover = coveringSpan(crew, i, gridStartHour);
     const isSat = i >= satStart;
+    // A slot already in the past can't be re-rostered (record-only — edit it in
+    // the crew member's HOR log). Editable cells must be at/after firstEditableSlot.
+    const slotPast = i < firstEditableSlot;
+    const slotEditable = cellEditable && !slotPast;
     const inPreview = dragRange && i >= dragRange.lo && i <= dragRange.hi;
     const cls = ['rota-c'];
     if (cover) cls.push(`shift-cell--${cover.shift.shiftType || 'duty'}`);
     else if (isSat) cls.push('sat');
+    if (cellEditable && slotPast) cls.push('rota-c-past'); // locked: already elapsed
     // Per-cell pending marker: a draft (unpublished) shift gets the diagonal
     // hatch, a published one stays solid. On a brand-new submission every
     // shift is draft (all hatched); on an edited-published rota only the
@@ -179,16 +184,17 @@ function CrewRow({
     if (highlightSlots && viewDate && highlightSlots.has(`${crew.id}|${viewDate}|${i}`)) {
       cls.push('is-changed');
     }
-    if (cellEditable) cls.push('rota-c-edit');
+    if (slotEditable) cls.push('rota-c-edit');
     if (inPreview) cls.push('rota-c-drag');                 // paint preview
     cells.push(
       <div
         key={i}
         className={cls.join(' ')}
-        role={cellEditable ? 'button' : undefined}
-        tabIndex={cellEditable ? 0 : undefined}
-        aria-label={cellEditable ? `Slot ${i} for ${crew.name}` : undefined}
-        onPointerDown={cellEditable ? (e) => {
+        role={slotEditable ? 'button' : undefined}
+        tabIndex={slotEditable ? 0 : undefined}
+        aria-label={slotEditable ? `Slot ${i} for ${crew.name}` : undefined}
+        title={cellEditable && slotPast ? 'Already elapsed — edit in the hours-of-rest log' : undefined}
+        onPointerDown={slotEditable ? (e) => {
           e.preventDefault();
           // Release implicit pointer capture so pointerenter fires on
           // sibling cells during a TOUCH drag (else mobile can't paint).
@@ -199,8 +205,8 @@ function CrewRow({
           } catch { /* no-op */ }
           onCellPointerDown(crew, i);
         } : undefined}
-        onPointerEnter={cellEditable ? () => onCellPointerEnter(crew, i) : undefined}
-        onKeyDown={cellEditable ? (e) => {
+        onPointerEnter={slotEditable ? () => onCellPointerEnter(crew, i) : undefined}
+        onKeyDown={slotEditable ? (e) => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellKey(crew, i); }
         } : undefined}
       />,
@@ -278,7 +284,7 @@ function DepartmentSection({
   deptName, crew, gridStartHour, onCrewClick,
   editMode = false, deptStatusRow, canSeeUnpublished = false,
   onCellPointerDown, onCellPointerEnter, onCellKey, drag,
-  highlightSlots, viewDate,
+  highlightSlots, viewDate, firstEditableSlot = 0,
 }) {
   const color = crew[0]?.departmentColor || '#5F5E5A';
   const badge = deptStatusRow?.status
@@ -331,6 +337,7 @@ function DepartmentSection({
                 : null}
               highlightSlots={highlightSlots}
               viewDate={viewDate}
+              firstEditableSlot={firstEditableSlot}
             />
           ))}
         </div>
@@ -371,7 +378,7 @@ function OffVesselSection({ crew, gridStartHour, onCrewClick }) {
 export default function RotaTodayGrid({
   crew = [], now = new Date(), onCrewClick, gridStartHour = 6,
   editMode = false, onPaint, editableDeptIds = null,
-  deptStatus, highlightSlots = null, viewDate = null,
+  deptStatus, highlightSlots = null, viewDate = null, realToday = null,
 }) {
   // editableDeptIds: Set of department ids the viewer may edit, or null = all
   // editable (COMMAND). Departments outside the set render read-only even in
@@ -427,6 +434,17 @@ export default function RotaTodayGrid({
   const onCellKey = useCallback((cm, i) => { onPaint?.(cm, i, i); }, [onPaint]);
   const currentSlot = showNow ? nowSlot(now, gridStartHour) : null;
   const currentHour = showNow ? now.getHours() : -1;
+
+  // Past time is a record, not a plan — already-elapsed slots can't be edited
+  // in the rota (only in the crew member's HOR log). The first EDITABLE slot is:
+  //  · a past date  → none (whole day elapsed),
+  //  · today        → the slot the now-line sits on,
+  //  · a future date→ all of them.
+  const firstEditableSlot = (realToday && viewDate && viewDate < realToday)
+    ? SLOTS
+    : (realToday && viewDate && viewDate > realToday)
+      ? 0
+      : (currentSlot != null ? currentSlot : 0);
 
   // Section split. currentStatus null → on-vessel (treat unknown as
   // active until we have reason otherwise).
@@ -501,6 +519,7 @@ export default function RotaTodayGrid({
               onCellPointerDown={beginDrag}
               onCellPointerEnter={extendDrag}
               onCellKey={onCellKey}
+              firstEditableSlot={firstEditableSlot}
               drag={drag}
               deptStatusRow={deptId && deptStatus ? deptStatus.get(deptId) : null}
               canSeeUnpublished={viewerTier === 'COMMAND' || (!!viewerDeptId && viewerDeptId === deptId)}
