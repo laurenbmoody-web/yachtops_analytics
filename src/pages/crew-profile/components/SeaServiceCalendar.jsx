@@ -155,7 +155,7 @@ const SeaServiceCalendar = ({ entries, vessels, config, serviceFilter }) => {
       <div className="stc-heat">
         <div className="stc-hrow stc-hhead">
           <span className="stc-ml" />
-          {Array.from({ length: 31 }, (_, i) => <span key={i} className="stc-hh">{[0, 4, 9, 14, 19, 24, 29].includes(i) ? i + 1 : ''}</span>)}
+          {Array.from({ length: 31 }, (_, i) => <span key={i} className="stc-hh">{i + 1}</span>)}
         </div>
         {MON_SHORT.map((mon, mi) => {
           const dim = new Date(cursor.y, mi + 1, 0).getDate();
