@@ -4175,6 +4175,19 @@
   padding: 5px 10px; border: 1px solid #D7DAE2; border-radius: 6px; background: #fff; color: #1C1B3A;
 }
 .rbr-rowinput:focus { outline: none; border-color: #C65A1A; }
+/* A recorded reason, shown read-only (with a tick when signed off). */
+.rbr-recorded {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12.5px;
+  color: #2D5A3A; padding: 5px 0;
+}
+.rbr-recorded-tick { color: #2D5A3A; flex-shrink: 0; }
+.rbr-recorded-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* An outstanding day a non-approver can see but not record. */
+.rbr-norec {
+  flex: 1; min-width: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12.5px; font-style: italic; color: #8B8478; padding: 5px 0;
+}
 
 .rbr-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 26px; border-top: 1px solid #ECEDF2; }
 .rbr-count { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #6B6F86; }
