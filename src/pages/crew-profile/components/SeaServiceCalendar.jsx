@@ -144,16 +144,6 @@ const SeaServiceCalendar = ({ entries, vessels, config, serviceFilter }) => {
   );
 
   // ── year heatmap (B) ──
-  const yearStats = useMemo(() => {
-    const counts = { seagoing: 0, watchkeeping: 0, standby: 0, yard: 0, total: 0 };
-    for (const [iso, info] of dayMap) {
-      if (Number(iso.slice(0, 4)) !== cursor.y) continue;
-      if (info.excluded || !info.qual) continue;
-      counts[info.type] += 1; counts.total += 1;
-    }
-    return counts;
-  }, [dayMap, cursor.y]);
-
   const renderYear = () => (
     <>
       <div className="stc-nav">
@@ -161,13 +151,6 @@ const SeaServiceCalendar = ({ entries, vessels, config, serviceFilter }) => {
         <div className="stc-mo">{cursor.y}</div>
         <button className="stc-navbtn" onClick={() => stepYear(1)} aria-label="Next year"><Icon name="ChevronRight" size={16} /></button>
         {zoomSeg}
-      </div>
-      <div className="stc-kpis">
-        <div className="stc-kpi"><b>{yearStats.total}</b><span>Days this year</span></div>
-        <div className="stc-kpi"><b style={{ color: TYPE_META.seagoing.color }}>{yearStats.seagoing}</b><span>Seagoing</span></div>
-        <div className="stc-kpi"><b style={{ color: TYPE_META.watchkeeping.color }}>{yearStats.watchkeeping}</b><span>Watchkeeping</span></div>
-        <div className="stc-kpi"><b style={{ color: TYPE_META.standby.color }}>{yearStats.standby}</b><span>Standby</span></div>
-        <div className="stc-kpi"><b style={{ color: TYPE_META.yard.color }}>{yearStats.yard}</b><span>Shipyard</span></div>
       </div>
       <div className="stc-heat">
         <div className="stc-hrow stc-hhead">
