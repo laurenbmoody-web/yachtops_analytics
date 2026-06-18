@@ -3146,10 +3146,13 @@ const ProvisioningBoardDetail = () => {
                       })()}
 
                       {/* Subtotal row — the sole place this dept's total
-                          renders. Labelled "Total" so the reader doesn't
-                          confuse it with a per-line value. */}
+                          renders. The "TOTAL" eyebrow + value land in
+                          the per-line Total column above (NoCat grid:
+                          col 7; Full grid: col 8) so vertically the
+                          number sits directly under the per-line
+                          subtotals the chief just scanned. */}
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderTop: '1px solid #F1F5F9' }}>
-                        <div style={{ gridColumn: groupBy === 'category' ? '1 / 6' : '1 / 7', padding: '8px 8px 8px 0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+                        <div style={{ gridColumn: groupBy === 'category' ? '1 / 7' : '1 / 8', padding: '8px 8px 8px 0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
                           <span style={{ fontSize: 11, color: '#94A3B8' }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
                           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748B' }}>Total</span>
                         </div>
