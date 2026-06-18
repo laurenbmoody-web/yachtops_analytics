@@ -3,8 +3,10 @@
    separated by hairline rules and whitespace. Navy ink, terracotta reserved for
    what's outstanding. Hours of Rest is the live pack and expands into the crew
    roster (the me-* rows below). */
-.mp-page { min-height: calc(100vh - 64px); background: #FBFAF8; padding: 92px 20px 60px; }
-.mp-wrap { max-width: 980px; margin: 0 auto; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+/* Page shell aligned to the canonical editorial pages: cool #F8FAFC ground,
+   Plus Jakarta Sans body, 1240px measure. */
+.mp-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 92px 32px 60px; }
+.mp-wrap { max-width: 1240px; margin: 0 auto; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 
 /* Canonical editorial header — eyebrow + serif sentence headline with a
    terracotta-italic emphasis + lead line, controls stacked on the right, a
@@ -46,7 +48,7 @@
 
 /* Pack rows — pure hairline list, no card boxes. Every row keeps its bottom
    hairline so stacked outstanding rows read as separate items, not one block. */
-.mp-row { display: grid; grid-template-columns: 24px 1fr 150px 116px 92px; align-items: center; gap: 18px; padding: 15px 6px 15px 13px; border-bottom: 1px solid #F0EEE7; }
+.mp-row { display: grid; grid-template-columns: 30px 1fr 180px 130px 96px; align-items: center; gap: 22px; padding: 15px 8px 15px 14px; border-bottom: 1px solid #EEF0F4; }
 .mp-row.is-action { box-shadow: inset 3px 0 0 0 #C65A1A; }
 .mp-row.is-done { opacity: 0.6; }
 .mp-row.is-planned { opacity: 0.72; }
