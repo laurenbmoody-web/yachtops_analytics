@@ -338,7 +338,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
         </div>
       )}
 
-      <div style={{ marginTop: 18 }}><LedgerTable /></div>
+      <div style={{ marginTop: 18 }}>{LedgerTable()}</div>
 
       {/* ── pack generator ── */}
       <div style={{ marginTop: 18 }}>
