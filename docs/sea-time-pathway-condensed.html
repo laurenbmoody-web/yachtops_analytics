@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sea Time — condensed pathway spine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C1B3A; --ink-soft:#695880; --muted:#8B8478; --muted-2:#6B7280; --faint:#AEB4C2;
+  --rust:#C65A1A; --rust-2:#B14E16; --rust-tint:#FBEFE9; --card:#fff; --bg:#F6F6F3;
+  --border:#E6E8EF; --hair:#EFEEE8; --hair-2:#ECEAE3; --soft:#FAFAF8;
+  --sage:#5E8E6F; --sage-deep:#3F7A52;
+  --serif:'DM Serif Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;}
+.wrap{max-width:900px;margin:0 auto;padding:34px 26px 110px;}
+.intro{color:var(--ink-soft);font-size:13.5px;margin:0 0 6px;line-height:1.6;} .intro b{color:var(--ink);}
+.opthead{margin:48px 0 14px;}
+.opthead .k{font-size:9px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--rust);}
+.opthead h3{font-family:var(--serif);font-weight:500;font-size:24px;margin:6px 0 0;letter-spacing:-.01em;}
+.opthead p{color:var(--muted-2);font-size:13px;margin:6px 0 0;max-width:720px;line-height:1.5;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:22px 26px;}
+.eyebrow{font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);}
+.eyebrow.rust{color:var(--rust);}
+.ico{width:1em;height:1em;vertical-align:-.12em;}
+
+.ph{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;padding-bottom:16px;margin-bottom:4px;border-bottom:1px solid var(--hair);}
+.ph .dept{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--rust);}
+.ph h4{font-family:var(--serif);font-weight:500;font-size:19px;margin:6px 0 0;}
+.ph .links{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.tlink{background:none;border:0;font-family:inherit;font-size:11.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;padding:0;border-bottom:1px solid var(--hair-2);}
+.tlink:hover{color:var(--rust);border-color:var(--rust);}
+
+/* shared spine */
+.sp{position:relative;margin-top:4px;}
+.sp:before{content:"";position:absolute;left:5px;top:12px;bottom:14px;width:1px;background:var(--hair-2);}
+.sp-step{position:relative;padding-left:30px;}
+.sp-m{position:absolute;left:0;top:15px;width:11px;height:11px;border-radius:50%;background:#fff;border:1.5px solid var(--faint);}
+.sp-step.held .sp-m{background:var(--sage);border-color:var(--sage);}
+.sp-step.target .sp-m{background:var(--rust);border-color:var(--rust);box-shadow:0 0 0 3px var(--rust-tint);}
+.sp-row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--hair);}
+.sp-row .nm{font-family:var(--serif);font-weight:500;font-size:15px;}
+.sp-step.upcoming .sp-row .nm{color:var(--faint);}
+.sp-row .ref{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin-left:10px;}
+.sp-row .st{font-size:9px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;white-space:nowrap;}
+.sp-row .st.held{color:var(--sage-deep);} .sp-row .st.up{color:var(--faint);}
+
+/* ===== Condensed A — feature head inline + 3-col requirements ===== */
+.fa{padding:14px 0 16px;border-bottom:1px solid var(--hair);}
+.fa-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;}
+.fa-head h5{font-family:var(--serif);font-weight:500;font-size:21px;margin:6px 0 0;line-height:1.05;}
+.fa-fig{text-align:right;white-space:nowrap;}
+.fa-fig .big{font-family:var(--serif);font-weight:500;font-size:30px;color:var(--rust);line-height:.9;}
+.fa-fig .cap{display:block;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+.reqs3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:16px;}
+.r3 .l{font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.r3 .v{font-family:var(--serif);font-weight:500;font-size:15px;margin-top:3px;}
+.r3 .v em{font-style:normal;color:var(--faint);font-size:11.5px;}
+.r3 .meter{height:2px;background:var(--hair-2);margin-top:8px;position:relative;}
+.r3 .meter i{position:absolute;left:0;top:0;height:2px;background:var(--rust);}
+.r3.done .meter i{background:var(--sage);} .r3.done .l{color:var(--sage-deep);}
+
+/* ===== Condensed B — single rich row, micro-requirements ===== */
+.fb{padding:13px 0;border-bottom:1px solid var(--hair);}
+.fb-top{display:flex;justify-content:space-between;align-items:baseline;gap:14px;}
+.fb-top .nm{font-family:var(--serif);font-weight:500;font-size:18px;}
+.fb-top .nm .ref{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin-left:9px;}
+.fb-top .togo{white-space:nowrap;font-size:12px;color:var(--muted);}
+.fb-top .togo b{font-family:var(--serif);font-weight:500;font-size:17px;color:var(--rust);}
+.fb-line{display:flex;align-items:center;gap:10px;margin-top:11px;}
+.fb-line .meter{flex:1;height:3px;border-radius:999px;background:var(--hair-2);position:relative;overflow:hidden;}
+.fb-line .meter i{position:absolute;left:0;top:0;bottom:0;background:var(--rust);border-radius:999px;}
+.fb-line .pct{font-size:11px;font-weight:700;color:var(--rust);white-space:nowrap;}
+.fb-micro{font-size:11px;color:var(--muted);margin-top:9px;display:flex;gap:16px;flex-wrap:wrap;}
+.fb-micro span{display:inline-flex;gap:5px;}
+.fb-micro b{color:var(--ink);font-weight:600;}
+.fb-micro .ok{color:var(--sage-deep);}
+.tag{font-size:8.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--rust);border:1px solid #EAD7C6;border-radius:999px;padding:2px 8px;}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4 10-10"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <p class="intro"><b>Condensing the pathway.</b> Same editorial spine, two tighter treatments of the live target. Held / upcoming rungs are unchanged (one line each).</p>
+
+  <!-- CONDENSED A -->
+  <div class="opthead"><div class="k">Condensed A · feature, tightened</div><h3>Inline figure · 3-up requirements</h3>
+    <p>Keeps the editorial "feature" but pulls the days-to-go up beside the title and lays the requirements as three slim columns instead of stacked rows. ~40% shorter than before.</p></div>
+  <div class="card">
+    <div class="ph">
+      <div><div class="dept">Deck · Bridge pathway</div><h4>Master / Captain</h4></div>
+      <div class="links"><button class="tlink">Working toward a different discipline?</button><button class="tlink">Just track my days — no certificate</button></div>
+    </div>
+    <div class="sp">
+      <div class="sp-step held"><div class="sp-m"></div><div class="sp-row"><span class="nm">OOW (Yachts &lt;3000GT) <span class="ref">§3.3</span></span><span class="st held">Held</span></div></div>
+      <div class="sp-step held"><div class="sp-m"></div><div class="sp-row"><span class="nm">Chief Mate (Yachts &lt;3000GT) <span class="ref">§3.4</span></span><span class="st held">Held</span></div></div>
+      <div class="sp-step target"><div class="sp-m"></div>
+        <div class="fa">
+          <div class="fa-head">
+            <div><div class="eyebrow rust">Now working toward · MSN 1858 §3.5</div><h5>Master (Yachts &lt;500GT)</h5></div>
+            <div class="fa-fig"><span class="big">423</span><span class="cap">days to go</span></div>
+          </div>
+          <div class="reqs3">
+            <div class="r3 done"><div class="l">Onboard</div><div class="v">12 <em>/ 12 mo</em></div><div class="meter"><i style="width:100%"></i></div></div>
+            <div class="r3 done"><div class="l">Watchkeeping ≥15m</div><div class="v">120 <em>/ 120</em></div><div class="meter"><i style="width:100%"></i></div></div>
+            <div class="r3"><div class="l">Seagoing ≥15m</div><div class="v">298 <em>/ 365</em></div><div class="meter"><i style="width:82%"></i></div></div>
+          </div>
+        </div></div>
+      <div class="sp-step upcoming"><div class="sp-m"></div><div class="sp-row"><span class="nm">Master (Yachts &lt;3000GT) <span class="ref">§3.6</span></span><span class="st up">Upcoming</span></div></div>
+      <div class="sp-step upcoming"><div class="sp-m"></div><div class="sp-row"><span class="nm">Master (Yachts Unlimited) <span class="ref">§4.4</span></span><span class="st up">Upcoming</span></div></div>
+    </div>
+  </div>
+
+  <!-- CONDENSED B -->
+  <div class="opthead"><div class="k">Condensed B · one rich row</div><h3>Target as a single line + micro-requirements</h3>
+    <p>The most compact — the target reads almost like the other rungs: title, days-to-go, one slim progress line, and the requirements summarised on a single caption row. Smallest footprint; tap to expand for full detail.</p></div>
+  <div class="card">
+    <div class="ph">
+      <div><div class="dept">Deck · Bridge pathway</div><h4>Master / Captain</h4></div>
+      <div class="links"><button class="tlink">Working toward a different discipline?</button><button class="tlink">Just track my days — no certificate</button></div>
+    </div>
+    <div class="sp">
+      <div class="sp-step held"><div class="sp-m"></div><div class="sp-row"><span class="nm">OOW (Yachts &lt;3000GT) <span class="ref">§3.3</span></span><span class="st held">Held</span></div></div>
+      <div class="sp-step held"><div class="sp-m"></div><div class="sp-row"><span class="nm">Chief Mate (Yachts &lt;3000GT) <span class="ref">§3.4</span></span><span class="st held">Held</span></div></div>
+      <div class="sp-step target"><div class="sp-m"></div>
+        <div class="fb">
+          <div class="fb-top">
+            <span class="nm">Master (Yachts &lt;500GT) <span class="ref">§3.5</span> <span class="tag">Targeting</span></span>
+            <span class="togo"><b>423</b> days to go</span>
+          </div>
+          <div class="fb-line"><div class="meter"><i style="width:61%"></i></div><span class="pct">61%</span></div>
+          <div class="fb-micro">
+            <span class="ok"><svg class="ico"><use href="#check"/></svg> Onboard <b>12/12 mo</b></span>
+            <span class="ok"><svg class="ico"><use href="#check"/></svg> Watchkeeping <b>120/120</b></span>
+            <span>Seagoing ≥15m <b>298/365</b></span>
+          </div>
+        </div></div>
+      <div class="sp-step upcoming"><div class="sp-m"></div><div class="sp-row"><span class="nm">Master (Yachts &lt;3000GT) <span class="ref">§3.6</span></span><span class="st up">Upcoming</span></div></div>
+      <div class="sp-step upcoming"><div class="sp-m"></div><div class="sp-row"><span class="nm">Master (Yachts Unlimited) <span class="ref">§4.4</span></span><span class="st up">Upcoming</span></div></div>
+    </div>
+  </div>
+
+</div>
+</body></html>
