@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sea Time — pathway presentation options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C1B3A; --ink-soft:#695880; --muted:#8B8478; --muted-2:#6B7280; --faint:#AEB4C2;
+  --rust:#C65A1A; --rust-2:#B14E16; --rust-tint:#FBEFE9; --card:#fff; --bg:#F8FAFC;
+  --border:#E6E8EF; --border-2:#E5E7EB; --hair:#F0F1F5; --hair-2:#ECEAE3; --soft:#FAFAF8;
+  --sage:#5E8E6F; --sage-deep:#3F7A52; --sage-soft:#E7F0E9; --faintbg:#F4F5F8;
+  --serif:'DM Serif Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1040px;margin:0 auto;padding:34px 26px 110px;}
+.intro{color:var(--ink-soft);font-size:13.5px;margin:0 0 4px;line-height:1.55;} .intro b{color:var(--ink);}
+.note{font-size:12px;color:var(--muted);margin:0 0 8px;}
+.opthead{display:flex;align-items:baseline;gap:12px;margin:48px 0 6px;}
+.optnum{font-family:var(--serif);font-size:20px;color:var(--rust);}
+.opthead h3{font-family:var(--serif);font-weight:500;font-size:23px;margin:0;}
+.optsub{color:var(--ink-soft);font-size:13px;margin:0 0 18px;max-width:780px;line-height:1.55;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 26px;}
+.eyebrow{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+.rust{color:var(--rust);} .ico{width:1em;height:1em;vertical-align:-.12em;}
+
+/* shared top context (no dept dropdown) */
+.ctx{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:20px;}
+.ctx .l .dept{font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--rust);}
+.ctx .l h4{font-family:var(--serif);font-weight:500;font-size:19px;margin:3px 0 0;}
+.ctx .l .sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.rolepick{display:inline-flex;align-items:center;gap:8px;background:var(--soft);border:1px solid var(--hair-2);border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;}
+.rolepick .k{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);}
+
+/* =============== A — career ladder (horizontal rail) =============== */
+.lad{display:flex;align-items:flex-start;gap:0;position:relative;padding:18px 6px 4px;overflow-x:auto;}
+.lnode{flex:1;min-width:120px;position:relative;text-align:center;padding:0 6px;}
+.lnode:before{content:"";position:absolute;top:19px;left:-50%;width:100%;height:3px;background:var(--hair-2);z-index:0;}
+.lnode:first-child:before{display:none;}
+.lnode.done:before,.lnode.target:before{background:var(--sage);}
+.ldot{position:relative;z-index:1;width:40px;height:40px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;background:#fff;border:2.5px solid var(--hair-2);color:var(--faint);font-weight:800;font-size:13px;}
+.lnode.done .ldot{background:var(--sage);border-color:var(--sage);color:#fff;}
+.lnode.target .ldot{border-color:var(--rust);color:var(--rust);box-shadow:0 0 0 5px var(--rust-tint);}
+.lname{font-size:12px;font-weight:700;color:var(--ink);line-height:1.25;}
+.lnode.upcoming .lname{color:var(--faint);}
+.lmsn{font-size:9px;color:var(--faint);margin-top:3px;letter-spacing:.02em;}
+.lstat{margin-top:7px;display:inline-flex;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:2px 8px;}
+.lstat.h{color:var(--sage);background:var(--sage-soft);}
+.lstat.t{color:var(--rust);background:var(--rust-tint);}
+.lstat.u{color:var(--muted-2);background:var(--faintbg);}
+.lprog{margin-top:8px;height:5px;border-radius:999px;background:#EFEDE7;overflow:hidden;}
+.lprog i{display:block;height:100%;background:var(--rust);border-radius:999px;}
+
+/* =============== B — pathway cards =============== */
+.pcards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:780px){.pcards{grid-template-columns:1fr 1fr;}}
+.pcard{border:1px solid var(--border);border-radius:13px;padding:15px 16px;background:#fff;cursor:pointer;position:relative;transition:.12s;}
+.pcard:hover{border-color:#D6D2C5;}
+.pcard.on{border-color:var(--rust);background:var(--rust-tint);box-shadow:0 0 0 1px var(--rust);}
+.pcard.held{background:var(--soft);}
+.pchip{font-size:8.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:3px 8px;display:inline-flex;align-items:center;gap:4px;}
+.pchip.h{color:var(--sage);background:var(--sage-soft);} .pchip.t{color:#fff;background:var(--rust);} .pchip.u{color:var(--muted-2);background:var(--faintbg);}
+.pcard h5{font-family:var(--serif);font-weight:500;font-size:16px;margin:11px 0 2px;line-height:1.1;}
+.pcard .pmsn{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--faint);}
+.pbar{height:6px;border-radius:999px;background:#EFEDE7;overflow:hidden;margin:13px 0 7px;}
+.pbar i{display:block;height:100%;background:var(--rust);border-radius:999px;}
+.pcard.held .pbar i{background:var(--sage);}
+.pmeta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);}
+.pmeta b{color:var(--ink);font-weight:700;}
+
+/* =============== C — vertical spine (active expanded) =============== */
+.spine{position:relative;}
+.srow{position:relative;padding:0 0 4px 34px;}
+.srow:before{content:"";position:absolute;left:11px;top:24px;bottom:-4px;width:2px;background:var(--hair-2);}
+.srow:last-child:before{display:none;}
+.srow.done:before{background:var(--sage);}
+.sdot{position:absolute;left:0;top:6px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#fff;border:2px solid var(--hair-2);color:var(--faint);}
+.srow.done .sdot{background:var(--sage);border-color:var(--sage);color:#fff;}
+.srow.target .sdot{border-color:var(--rust);color:var(--rust);box-shadow:0 0 0 4px var(--rust-tint);}
+.scollapsed{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--hair);cursor:pointer;}
+.scollapsed .nm{font-size:13.5px;font-weight:600;} .srow.upcoming .scollapsed .nm{color:var(--faint);}
+.scollapsed .nm small{font-weight:500;color:var(--faint);font-size:10.5px;margin-left:8px;letter-spacing:.3px;text-transform:uppercase;}
+.sexp{border:1px solid var(--rust);background:linear-gradient(180deg,var(--rust-tint),#fff 80%);border-radius:13px;padding:16px 18px;margin:6px 0 10px;}
+.sexp .top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;}
+.sexp h5{font-family:var(--serif);font-weight:500;font-size:19px;margin:4px 0 4px;}
+.sexp .lead{font-size:12.5px;color:var(--ink-soft);max-width:520px;line-height:1.5;}
+.sreq{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:14px;}
+.sreqc{background:#fff;border:1px solid #E6E3DA;border-top:3px solid var(--rust);border-radius:11px;padding:12px 14px;}
+.sreqc .l{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#7b7f93;}
+.sreqc .n{font-family:var(--serif);font-weight:500;font-size:21px;margin:5px 0 8px;}
+.sreqc .b{height:6px;border-radius:999px;background:#EFEDE7;overflow:hidden;}
+.sreqc .b i{display:block;height:100%;background:var(--rust);border-radius:999px;}
+.sring{flex:none;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-family:var(--serif);font-size:17px;color:var(--rust);background:conic-gradient(var(--rust) 61%, #EFEDE7 0);}
+.sring span{width:44px;height:44px;border-radius:50%;background:#fff;display:grid;place-items:center;}
+
+/* =============== D — milestone bar =============== */
+.mbar-wrap{padding:8px 2px 2px;}
+.mlabels{display:flex;margin-bottom:9px;}
+.mlabels .ml{flex:1;font-size:10px;font-weight:700;color:var(--faint);text-align:center;}
+.mlabels .ml.done{color:var(--sage);} .mlabels .ml.target{color:var(--rust);}
+.mtrack{display:flex;height:34px;border-radius:9px;overflow:hidden;border:1px solid var(--hair-2);}
+.mseg{flex:1;position:relative;border-right:2px solid #fff;display:grid;place-items:center;cursor:pointer;font-size:10px;font-weight:700;}
+.mseg:last-child{border-right:0;}
+.mseg.done{background:var(--sage-soft);color:var(--sage-deep);}
+.mseg.target{background:var(--rust-tint);color:var(--rust);box-shadow:inset 0 0 0 2px var(--rust);}
+.mseg.upcoming{background:var(--faintbg);color:var(--muted-2);}
+.mfill{position:absolute;left:0;top:0;bottom:0;background:var(--sage);opacity:.18;}
+.mhere{display:flex;justify-content:flex-start;margin-top:8px;font-size:11px;color:var(--muted);}
+.mhere b{color:var(--rust);}
+.dlegend{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;padding-top:13px;border-top:1px solid var(--hair);font-size:11px;color:var(--muted);}
+.dlegend span{display:flex;align-items:center;gap:6px;} .dlegend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4 10-10"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <p class="intro"><b>Pathway presentation — four directions.</b> The <b>department is taken from the crew member</b> (no department dropdown). It auto-selects the family of certificates; the crew member's current rank is shown for context and the target is chosen here. Real MSN 1858 deck ladder used throughout.</p>
+  <p class="note">Status key — <b style="color:#5E8E6F">Held</b> · <b style="color:#C65A1A">Targeting</b> · <span style="color:#8B8478">Upcoming</span>.</p>
+
+  <!-- ===== A ===== -->
+  <div class="opthead"><span class="optnum">A /</span><h3>Career ladder</h3></div>
+  <p class="optsub">The whole deck progression on one rail — held steps in sage, the live target ringed in terracotta with its % bar, future steps faint. Reads as a journey; tap any step to re-target.</p>
+  <div class="card">
+    <div class="ctx">
+      <div class="l"><div class="dept">Deck · Bridge pathway</div><h4>Master / Captain</h4><div class="sub">Auto-selected from this crew member's department</div></div>
+      <div class="rolepick"><span class="k">Rank</span> Master / Captain <svg class="ico"><use href="#chev"/></svg></div>
+    </div>
+    <div class="lad">
+      <div class="lnode done"><div class="ldot"><svg class="ico" style="font-size:15px"><use href="#check"/></svg></div><div class="lname">OOW &lt;3000GT</div><div class="lmsn">MSN 1858 §3.3</div><div class="lstat h">Held</div></div>
+      <div class="lnode done"><div class="ldot"><svg class="ico" style="font-size:15px"><use href="#check"/></svg></div><div class="lname">Chief Mate &lt;3000GT</div><div class="lmsn">§3.4 · concurrent</div><div class="lstat h">Held</div></div>
+      <div class="lnode target"><div class="ldot">61%</div><div class="lname">Master &lt;500GT</div><div class="lmsn">§3.5</div><div class="lstat t">Targeting</div><div class="lprog"><i style="width:61%"></i></div></div>
+      <div class="lnode upcoming"><div class="ldot"><svg class="ico"><use href="#lock"/></svg></div><div class="lname">Master &lt;3000GT</div><div class="lmsn">§3.6</div><div class="lstat u">Upcoming</div></div>
+      <div class="lnode upcoming"><div class="ldot"><svg class="ico"><use href="#lock"/></svg></div><div class="lname">Chief Mate Unltd</div><div class="lmsn">§4.3</div><div class="lstat u">Upcoming</div></div>
+      <div class="lnode upcoming"><div class="ldot"><svg class="ico"><use href="#lock"/></svg></div><div class="lname">Master Unltd</div><div class="lmsn">§4.4</div><div class="lstat u">Upcoming</div></div>
+    </div>
+  </div>
+
+  <!-- ===== B ===== -->
+  <div class="opthead"><span class="optnum">B /</span><h3>Pathway cards</h3></div>
+  <p class="optsub">Each certificate as a selectable card with its own mini progress + days-to-go. The clearest "pick your target" — selected card fills terracotta. Good when there are only a few rungs.</p>
+  <div class="card">
+    <div class="ctx">
+      <div class="l"><div class="dept">Deck pathway · MSN 1858</div><h4>Choose your target certificate</h4></div>
+      <div class="rolepick"><span class="k">Rank</span> Master / Captain <svg class="ico"><use href="#chev"/></svg></div>
+    </div>
+    <div class="pcards">
+      <div class="pcard held"><span class="pchip h"><svg class="ico"><use href="#check"/></svg> Held</span><h5>OOW (Yachts &lt;3000GT)</h5><div class="pmsn">MSN 1858 §3.3</div><div class="pbar"><i style="width:100%"></i></div><div class="pmeta"><span>Onboard + seagoing</span><b>Complete</b></div></div>
+      <div class="pcard on"><span class="pchip t">Targeting</span><h5>Master (Yachts &lt;500GT)</h5><div class="pmsn">MSN 1858 §3.5</div><div class="pbar"><i style="width:61%"></i></div><div class="pmeta"><span><b>657</b> / 1080 days</span><b class="rust">423 to go</b></div></div>
+      <div class="pcard"><span class="pchip u">Next</span><h5>Master (Yachts &lt;3000GT)</h5><div class="pmsn">MSN 1858 §3.6</div><div class="pbar"><i style="width:34%"></i></div><div class="pmeta"><span><b>240</b> WK days req</span><b>Set target</b></div></div>
+      <div class="pcard"><span class="pchip u">Upcoming</span><h5>Chief Mate (Unlimited)</h5><div class="pmsn">MSN 1858 §4.3</div><div class="pbar"><i style="width:12%"></i></div><div class="pmeta"><span>≥500 GT route</span><b>Set target</b></div></div>
+      <div class="pcard"><span class="pchip u">Upcoming</span><h5>Master (Unlimited)</h5><div class="pmsn">MSN 1858 §4.4</div><div class="pbar"><i style="width:6%"></i></div><div class="pmeta"><span>3 routes</span><b>Set target</b></div></div>
+    </div>
+  </div>
+
+  <!-- ===== C ===== -->
+  <div class="opthead"><span class="optnum">C /</span><h3>Progression spine</h3></div>
+  <p class="optsub">A vertical CoC ladder; the active target expands inline to show its requirement bars, the rest collapse to a single line with a status pill. The most "document / record" feel — scales to long ladders (engine Y4→Y1).</p>
+  <div class="card">
+    <div class="ctx">
+      <div class="l"><div class="dept">Deck pathway</div><h4>Your route to command</h4></div>
+      <div class="rolepick"><span class="k">Rank</span> Master / Captain <svg class="ico"><use href="#chev"/></svg></div>
+    </div>
+    <div class="spine">
+      <div class="srow done"><div class="sdot"><svg class="ico" style="font-size:13px"><use href="#check"/></svg></div>
+        <div class="scollapsed"><span class="nm">OOW (Yachts &lt;3000GT) <small>MSN 1858 §3.3</small></span><span class="pchip h"><svg class="ico"><use href="#check"/></svg> Held</span></div></div>
+      <div class="srow done"><div class="sdot"><svg class="ico" style="font-size:13px"><use href="#check"/></svg></div>
+        <div class="scollapsed"><span class="nm">Chief Mate (Yachts &lt;3000GT) <small>§3.4 · concurrent</small></span><span class="pchip h"><svg class="ico"><use href="#check"/></svg> Held</span></div></div>
+      <div class="srow target"><div class="sdot" style="font-size:11px;font-weight:800">★</div>
+        <div class="sexp">
+          <div class="top">
+            <div><div class="eyebrow rust">Targeting · MSN 1858 §3.5</div><h5>Master (Yachts &lt;500GT)</h5>
+              <div class="lead">657 of 1080 days on the leading requirement — <b style="color:var(--ink)">423 to go</b>. All service ≥15m.</div></div>
+            <div class="sring"><span>61%</span></div>
+          </div>
+          <div class="sreq">
+            <div class="sreqc"><div class="l">Onboard yacht service</div><div class="n">12 / 12 mo</div><div class="b"><i style="width:100%"></i></div></div>
+            <div class="sreqc"><div class="l">Watchkeeping days (≥15m)</div><div class="n">120 / 120</div><div class="b"><i style="width:100%;background:var(--sage)"></i></div></div>
+          </div>
+        </div></div>
+      <div class="srow upcoming"><div class="sdot"><svg class="ico" style="font-size:12px"><use href="#lock"/></svg></div>
+        <div class="scollapsed"><span class="nm">Master (Yachts &lt;3000GT) <small>§3.6</small></span><span class="pchip u">Upcoming</span></div></div>
+      <div class="srow upcoming"><div class="sdot"><svg class="ico" style="font-size:12px"><use href="#lock"/></svg></div>
+        <div class="scollapsed"><span class="nm">Master (Yachts Unlimited) <small>§4.4</small></span><span class="pchip u">Upcoming</span></div></div>
+    </div>
+  </div>
+
+  <!-- ===== D ===== -->
+  <div class="opthead"><span class="optnum">D /</span><h3>Milestone bar</h3></div>
+  <p class="optsub">The entire ladder as one segmented bar — held milestones sage, the live target terracotta with a fill showing how far in, future ones faint. The most compact; pairs well above the countdown ring.</p>
+  <div class="card">
+    <div class="ctx">
+      <div class="l"><div class="dept">Deck · Bridge pathway</div><h4>Master / Captain</h4></div>
+      <div class="rolepick"><span class="k">Rank</span> Master / Captain <svg class="ico"><use href="#chev"/></svg></div>
+    </div>
+    <div class="mbar-wrap">
+      <div class="mlabels">
+        <div class="ml done">OOW &lt;3000</div><div class="ml done">Chief Mate &lt;3000</div><div class="ml target">Master &lt;500</div><div class="ml">Master &lt;3000</div><div class="ml">Chief Mate Unltd</div><div class="ml">Master Unltd</div>
+      </div>
+      <div class="mtrack">
+        <div class="mseg done">Held</div>
+        <div class="mseg done">Held</div>
+        <div class="mseg target"><span class="mfill" style="width:61%"></span><span style="position:relative">61%</span></div>
+        <div class="mseg upcoming">§3.6</div>
+        <div class="mseg upcoming">§4.3</div>
+        <div class="mseg upcoming">§4.4</div>
+      </div>
+      <div class="mhere">You're here: <b>&nbsp;Master (Yachts &lt;500GT) — 423 days to go</b></div>
+    </div>
+    <div class="dlegend">
+      <span><i style="background:var(--sage-soft);box-shadow:inset 0 0 0 1px #CFE0D5"></i> Held</span>
+      <span><i style="background:var(--rust-tint);box-shadow:inset 0 0 0 1.5px var(--rust)"></i> Targeting</span>
+      <span><i style="background:var(--faintbg)"></i> Upcoming</span>
+    </div>
+  </div>
+
+</div>
+</body></html>
