@@ -234,7 +234,15 @@
 
 @layer components {
   .nav-header {
-    @apply fixed top-0 left-0 right-0 h-16 bg-card shadow-md flex items-center px-4;
+    /* Pinned to white app-wide. Previously inherited bg-card which on
+       the day theme resolves to the warm cream #FAF8F4, so on pages
+       that use that page background (provisioning board, suppliers
+       directory) the nav bar visually merged into the page. Crew
+       Profile already overrode --color-card to white locally; this
+       lifts that treatment to the nav itself so it's consistent
+       everywhere without each page needing to opt in. */
+    @apply fixed top-0 left-0 right-0 h-16 shadow-md flex items-center px-4;
+    background: #FFFFFF;
     z-index: var(--z-nav);
   }
 
