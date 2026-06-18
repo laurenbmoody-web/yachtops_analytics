@@ -1911,9 +1911,9 @@ const ProvisioningBoardDetail = () => {
   };
 
   // cols: check | item | category | size | unit | qty | unit cost | total | status | actions
-  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 120px 56px';
+  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 48px 56px';
   // cols: check | item | size | unit | qty | unit cost | total | status | actions  (category dropped)
-  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) 76px 70px 92px 90px 80px 120px 56px';
+  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) 76px 70px 92px 90px 80px 48px 56px';
   const TABLE_GRID = groupBy === 'category' ? TABLE_GRID_NO_CAT : TABLE_GRID_FULL;
 
   const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
@@ -3007,26 +3007,45 @@ const ProvisioningBoardDetail = () => {
                                   : <span style={{ fontSize: 13, color: dim || '#CBD5E1' }}>-</span>;
                               })()}
                             </div>
-                            {/* Status badge select */}
+                            {/* Status — icon-only chip (coloured dot in a
+                                tinted pill, ~28px wide). The full label
+                                lives in the title tooltip so it's still
+                                discoverable without eating column width.
+                                Editable variant keeps a tiny v-caret so
+                                the chief can tell it opens a dropdown. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                                <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 5, height: 5, borderRadius: '50%', background: badge.dot, pointerEvents: 'none', zIndex: 1 }} />
-                                {statusReadOnly
-                                  ? <span style={{ paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3, fontSize: 11, fontWeight: 600, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`, borderRadius: 6, display: 'inline-block' }}>{badge.label}</span>
-                                  : <select
+                              {statusReadOnly
+                                ? <span
+                                    title={badge.label}
+                                    aria-label={badge.label}
+                                    style={{
+                                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                      width: 24, height: 22,
+                                      background: badge.bg, border: `1px solid ${badge.border}`,
+                                      borderRadius: 6,
+                                    }}
+                                  >
+                                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: badge.dot, display: 'block' }} />
+                                  </span>
+                                : <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} title={badge.label}>
+                                    <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, borderRadius: '50%', background: badge.dot, pointerEvents: 'none', zIndex: 1 }} />
+                                    <select
                                       value={item.status || 'draft'}
                                       onChange={e => handleStatusSave(item, 'status', e.target.value)}
+                                      title={badge.label}
                                       style={{
-                                        paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3,
-                                        fontSize: 11, fontWeight: 600, background: badge.bg, color: badge.color,
+                                        paddingLeft: 16, paddingRight: 4, paddingTop: 3, paddingBottom: 3,
+                                        fontSize: 0,  // hide the option label, keep the chevron
+                                        width: 32, height: 22,
+                                        background: badge.bg, color: 'transparent',
                                         border: `1px solid ${badge.border}`, borderRadius: 6,
-                                        cursor: 'pointer', outline: 'none', appearance: 'none',
+                                        cursor: 'pointer', outline: 'none',
                                       }}
                                     >
-                                      {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                      {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value} style={{ fontSize: 12, color: '#0F172A' }}>{s.label}</option>)}
                                     </select>
-                                }
-                              </div>
+                                  </span>
+                              }
                             </div>
                             {/* Actions */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '11px 0', gap: 2 }}>
