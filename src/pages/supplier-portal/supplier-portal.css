@@ -287,8 +287,11 @@
 
 /* ── Page ──────────────────────────────────────────────────── */
 .sp-page {
-  padding: 28px 32px 40px;
-  max-width: 1400px;
+  /* Full-width — the supplier portal's lists (orders, deliveries,
+     catalogue) all benefit from horizontal room on widescreen. Side
+     padding scales with viewport so phones still feel hand-built. */
+  padding: 28px clamp(16px, 4vw, 56px) 40px;
+  max-width: none;
 }
 
 .sp-page-head {
@@ -922,8 +925,11 @@
    ============================================================ */
 
 #sp-root .sod-page {
-  padding: 24px 36px 80px;
-  max-width: 1280px;
+  /* Supplier order detail — also full-width. The work-queue layout
+     (To do / Done sections with inline editable cells) gets more
+     breathing room for the note column at wider viewports. */
+  padding: 24px clamp(16px, 4vw, 56px) 80px;
+  max-width: none;
 }
 
 /* ── Crumb + page header ─────────────────────────────────── */
