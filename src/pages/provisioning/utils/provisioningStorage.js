@@ -3373,6 +3373,60 @@ export const updateOrderItemStatus = async (itemId, updates) => {
   return data;
 };
 
+// Re-open a supplier-confirmed (or substituted / unavailable) line so the
+// crew can adjust qty / unit / size / notes after the supplier has
+// already committed. Flips status back to 'pending', clears any
+// substitute description, and writes a 'line_reopened' activity event
+// so the supplier sees a clear marker in their order detail rather
+// than just a silent status change.
+//
+// Caller — board ItemRow reopen button. Not exposed to the supplier
+// portal (suppliers can't reopen their own confirmations).
+export const reopenOrderItem = async (itemId, { reason = null } = {}) => {
+  // 1) Need the order_id + item_name for the activity row.
+  const { data: current, error: fetchErr } = await supabase
+    .from('supplier_order_items')
+    .select('id, order_id, item_name, status, quantity, unit, size, agreed_price, quoted_price')
+    .eq('id', itemId)
+    .single();
+  if (fetchErr) throw fetchErr;
+  if (!current) throw new Error('Item not found');
+
+  // 2) Status back to pending, drop the substitute description (if any).
+  //    Leave quoted_price / agreed_price intact — the supplier already
+  //    set those and the crew is only revising qty/etc, not asking for
+  //    a new quote. Supplier can re-confirm at the same price.
+  const { data: updated, error: updateErr } = await supabase
+    .from('supplier_order_items')
+    .update({
+      status: 'pending',
+      substitute_description: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', itemId)
+    .select()
+    .single();
+  if (updateErr) throw updateErr;
+
+  // 3) Log the reopen as a distinct activity event so the supplier's
+  //    order detail surfaces it clearly. event_type column is free
+  //    text — no CHECK constraint to mind.
+  await supabase
+    .from('supplier_order_activity')
+    .insert({
+      order_id: current.order_id,
+      item_id: itemId,
+      event_type: 'line_reopened',
+      payload: {
+        item_name: current.item_name,
+        previous_status: current.status,
+        reason: reason || null,
+      },
+    });
+
+  return updated;
+};
+
 export const confirmSupplierOrder = async (orderId, supplierNotes = '') => {
   const { data: items } = await supabase
     .from('supplier_order_items')
