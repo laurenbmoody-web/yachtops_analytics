@@ -9,7 +9,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, CERTIFICATES, DEFAULT_CERTIFICATE, eligibleCertificates, rolesForDepartment
+  DEPARTMENTS, ROLES, CERTIFICATES, DEFAULT_CERTIFICATE, eligibleCertificates
 } from '../../../seatime/pathways';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
@@ -30,7 +30,6 @@ const ZERO_PRIOR = { seagoing: 0, watchkeeping: 0, total: 0 };
 
 const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const config = DEFAULT_CONFIG;
-  const [deptId, setDeptId] = useState('deck');
   const [roleId, setRoleId] = useState('master');
   const [certId, setCertId] = useState(DEFAULT_CERTIFICATE);
   const [serviceFilter, setServiceFilter] = useState('all');
@@ -55,14 +54,26 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
 
   const flash = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2600); };
 
-  // department → role → certificate selection
-  const deptRoles = useMemo(() => rolesForDepartment(deptId), [deptId]);
+  // Pathway derivation. Department is taken from the crew member's rank (role);
+  // the target certificate is the chosen rung. Empty certId == logging-only.
   const eligibleCerts = useMemo(() => eligibleCertificates(roleId), [roleId]);
-  const activeCertId = eligibleCerts.some(c => c.id === certId) ? certId : (eligibleCerts[0]?.id || null);
-  const cert = activeCertId ? CERTIFICATES[activeCertId] : null;
+  const cert = certId && CERTIFICATES[certId] ? CERTIFICATES[certId] : null;
+  const family = cert ? cert.family : null;
+  const roleFamilies = ROLES[roleId]?.accruesToward || [];
+  const rungs = useMemo(() => (family
+    ? Object.entries(CERTIFICATES).filter(([, c]) => c.family === family).map(([id, c]) => ({ id, ...c }))
+    : []), [family]);
+  const activeIndex = rungs.findIndex(r => r.id === certId);
+  const crossDiscipline = !!family && !roleFamilies.includes(family);
+  const deptLabel = DEPARTMENTS[ROLES[roleId]?.department]?.label || '—';
+  const familyWord = family === 'DECK' ? 'Deck' : family === 'ENGINE' ? 'Engine' : family === 'ETO' ? 'ETO' : '';
+  const familyPathLabel = family === 'DECK' ? 'Bridge pathway' : family === 'ENGINE' ? 'Engine pathway' : family === 'ETO' ? 'ETO pathway' : '';
 
-  const changeDept = (id) => { setDeptId(id); const r = rolesForDepartment(id)[0]; setRoleId(r?.id || ''); const ec = eligibleCertificates(r?.id); setCertId(ec[0]?.id || ''); };
+  // Changing rank re-defaults the target to that role's first eligible cert
+  // (or logging-only when the role accrues toward nothing).
   const changeRole = (id) => { setRoleId(id); const ec = eligibleCertificates(id); setCertId(ec[0]?.id || ''); };
+  const startPathway = () => setCertId(eligibleCerts[0]?.id || DEFAULT_CERTIFICATE);
+  const stopPathway = () => setCertId('');
 
   // ── load live data ──
   const loadLive = async () => {
@@ -100,12 +111,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
-  // arc tracks the certificate's largest single requirement (its headline gate)
+  // days-to-go tracks the certificate's largest single requirement (headline gate)
   const primary = requirements.reduce((a, b) => (b.required > (a?.required || 0) ? b : a), null) || requirements[0];
-  const arcPct = primary && primary.required ? Math.min(100, Math.round(primary.current / primary.required * 100)) : (cert ? 100 : 0);
-  const arcOffset = Math.round(565 * (1 - arcPct / 100));
   const daysToGo = primary ? primary.remaining : 0;
   const live = entries.filter(e => !e.excluded);
+  const totalLoggedDays = live.reduce((s, e) => s + (e.days || 0), 0);
   const badCount = live.filter(e => !classify(e, vessels[e.vesselId], config).qual).length;
   const hasAttention = badCount > 0;
   const vp = VERIFIER_PROFILES[verifier];
@@ -164,6 +174,107 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
     const entry = { id: 'e' + Date.now() + Math.random().toString(36).slice(2, 6), vesselId: form.vesselId, label: TYPE_META[form.type].label + ' — ' + (vessels[form.vesselId]?.name || ''), from: form.from, to: form.to || form.from, dateMain: main, dateSub: yr + ' · ' + days + (days === 1 ? ' day' : ' days'), days, type: form.type, watchHours: form.watchHours, capacity: form.capacity, source: 'manual' };
     setEntries(es => [entry, ...es]); setDrawerOpen(false); setSigned(false); flash('Sea time logged & classified');
   };
+
+  const shortMsn = (m) => String(m || '').replace('MSN 1858 Amd 2 ', '').replace('MSN 1859 ', '').replace('MSN 1858 ', '');
+
+  // ── pathway: progression spine (Condensed A) or logging-only record ──
+  const PathwaySection = () => (
+    <div className="std-card std-pad std-pathway">
+      <div className="stp-head">
+        <div>
+          <div className="stp-dept">
+            {crossDiscipline ? `${deptLabel} · working toward ${familyWord}` : `${deptLabel}${familyPathLabel ? ' · ' + familyPathLabel : ''}`}
+          </div>
+          <select className="stp-rank" value={roleId} onChange={e => changeRole(e.target.value)} aria-label="Rank">
+            {Object.entries(ROLES).map(([id, r]) => <option key={id} value={id}>{r.label}</option>)}
+          </select>
+          <div className="stp-sub">{crossDiscipline ? 'Target chosen manually — not this crew member’s department' : cert ? 'Pathway set from this crew member’s department' : 'Logged service — for your record'}</div>
+        </div>
+        <div className="stp-links">
+          {cert
+            ? <button className="stp-link" type="button" onClick={stopPathway}>Just track my days — no certificate</button>
+            : <button className="stp-link rust" type="button" onClick={startPathway}>Working toward a certificate →</button>}
+        </div>
+      </div>
+
+      {cert ? (
+        <div className="stp-spine">
+          {rungs.map((r, i) => {
+            const status = i < activeIndex ? 'held' : i === activeIndex ? 'target' : 'upcoming';
+            if (status !== 'target') {
+              return (
+                <button className={`stp-step ${status}`} key={r.id} type="button" onClick={() => setCertId(r.id)}>
+                  <span className="stp-m" />
+                  <span className="stp-row">
+                    <span className="nm">{r.label} <span className="ref">{shortMsn(r.msn)}</span></span>
+                    <span className={`st ${status}`}>{status === 'held' ? 'Held' : 'Upcoming'}</span>
+                  </span>
+                </button>
+              );
+            }
+            return (
+              <div className="stp-step target" key={r.id}>
+                <span className="stp-m" />
+                <div className="stp-feat">
+                  <div className="stp-feathead">
+                    <div>
+                      <div className="stp-eyebrow">Now working toward · {r.msn}</div>
+                      <h4 className="stp-title">{r.label}</h4>
+                    </div>
+                    <div className="stp-fig"><span className="big">{daysToGo}</span><span className="cap">{daysToGo === 1 ? 'day to go' : 'days to go'}</span></div>
+                  </div>
+                  {crossDiscipline && (
+                    <div className="stp-accrual">
+                      <b>{buckets.total} of {totalLoggedDays} logged days</b> count toward this certificate. Days served in a {family === 'ENGINE' ? 'engine-room' : 'deck'} capacity accrue; other service is logged for your CV, visa and tax but doesn’t count toward this CoC.
+                    </div>
+                  )}
+                  {requirements.length > 0 ? (
+                    <div className="stp-reqs">
+                      {requirements.map(rq => (
+                        <div className={`stp-req ${rq.met ? 'done' : ''}`} key={rq.key}>
+                          <div className="l">{rq.label}</div>
+                          <div className="v">{rq.required ? <>{rq.current} <em>/ {rq.required}</em></> : '—'}</div>
+                          <div className="meter"><i style={{ width: `${rq.pct}%` }} /></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="stp-sub" style={{ marginTop: 12 }}>No additional qualifying service required — may be applied for alongside the certificate above.</div>
+                  )}
+                  {r.note && <div className="stp-cnote">{r.note}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="stp-loghero">
+          <div>
+            <h4 className="stp-title">Your sea-day record</h4>
+            <div className="stp-loglead">Every day aboard, logged and captain-verifiable — for your CV, visa day-counts and tax, even though this role doesn’t accrue toward a Certificate of Competency.</div>
+            <div className="stp-uses">
+              <div className="u"><div className="l">CV</div><div className="d"><b>{buckets.total} verified sea days</b>{usedVessels.length ? ` across ${usedVessels.length} vessel${usedVessels.length === 1 ? '' : 's'}` : ''}</div></div>
+              <div className="u"><div className="l">Visa</div><div className="d">Day-counts for <b>Schengen &amp; B1/B2</b> evidence</div></div>
+              <div className="u"><div className="l">Tax</div><div className="d"><b>Seafarers’ Earnings Deduction</b> day record</div></div>
+            </div>
+          </div>
+          <div className="stp-logtotal"><div className="n">{buckets.total}</div><div className="u">Sea days logged</div></div>
+        </div>
+      )}
+
+      {cert && (
+        <div className={`std-nudge ${hasAttention ? '' : 'clear'}`} style={{ marginTop: 18 }}>
+          <IcoPath d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2ZM9 21h6M10 17v4m4-4v4" color={hasAttention ? '#C65A1A' : '#5E8E6F'} size={20} />
+          <div>
+            <div className="nt">{hasAttention ? `${badCount} logged ${badCount === 1 ? 'entry needs' : 'entries need'} attention.` : 'Your logged service is qualifying and on track.'}</div>
+            <div className="ns">{hasAttention ? 'Non-qualifying service is excluded from your totals — review and re-tag to keep your pack clean.' : 'Keep logging — projected eligibility updates as you add service.'}</div>
+            {!hasAttention && <div className="priv">Private to you.</div>}
+          </div>
+          {hasAttention && <button className="std-reviewbtn" onClick={() => ledgerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Review</button>}
+        </div>
+      )}
+    </div>
+  );
 
   // ── logged-service ledger (part of the Countdown page) ──
   const LedgerTable = () => {
@@ -244,17 +355,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
       <div className="std-head">
         <div className="std-sechead"><span className="std-secnum">07 /</span><h3>Sea Time Tracker</h3></div>
         <div className="std-controls">
-          <select className="std-select" value={deptId} onChange={e => changeDept(e.target.value)} aria-label="Department">
-            {Object.values(DEPARTMENTS).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-          </select>
-          <select className="std-select" value={roleId} onChange={e => changeRole(e.target.value)} aria-label="Role">
-            {deptRoles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-          </select>
-          {eligibleCerts.length > 0 && (
-            <select className="std-select" value={activeCertId} onChange={e => setCertId(e.target.value)} aria-label="Target certificate">
-              {eligibleCerts.map(c => <option key={c.id} value={c.id}>{c.short}</option>)}
-            </select>
-          )}
           <button className="std-logbtn" onClick={() => setDrawerOpen(true)}><Icon name="Plus" size={16} /> Log sea time</button>
         </div>
       </div>
@@ -265,56 +365,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
         </div>
       )}
 
-      {/* ── hero ── */}
-      {cert ? (
-        <div className="std-card std-hero">
-          <div className="std-arc-wrap">
-            <svg width="188" height="188" viewBox="0 0 240 240">
-              <circle cx="120" cy="120" r="90" fill="none" stroke="#F0EFEA" strokeWidth="20" />
-              <circle cx="120" cy="120" r="90" fill="none" stroke="#C65A1A" strokeWidth="20" strokeLinecap="round"
-                strokeDasharray="565" strokeDashoffset={arcOffset} transform="rotate(-90 120 120)" style={{ transition: 'stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1)' }} />
-            </svg>
-            <div className="std-arc-center"><div className="pct">{arcPct}%</div><div className="cap">toward this certificate</div></div>
-          </div>
-          <div>
-            <div className="mlabel rustlabel">Target certificate · {cert.msn}</div>
-            <h3>{cert.label}</h3>
-            <div className="lead">
-              {primary && primary.required
-                ? <><b>{primary.current} of {primary.required}</b> days on the leading requirement — <b>{daysToGo} to go</b>.</>
-                : <>No additional qualifying service required for this step.</>}
-            </div>
-            {cert.note && <div className="ns" style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>{cert.note}</div>}
-            <div className="std-reqmini">
-              {requirements.map(r => (
-                <div className={`c ${r.met ? 'met' : ''}`} key={r.key}>
-                  <div className="l">{r.label}</div>
-                  <div className="n">{r.required ? `${r.current} / ${r.required}` : '—'}</div>
-                  <div className="std-bar"><i className="std-grow" style={{ width: `${r.pct}%`, background: r.met ? '#5E8E6F' : '#C65A1A' }} /></div>
-                </div>
-              ))}
-            </div>
-            <div className={`std-nudge ${hasAttention ? '' : 'clear'}`}>
-              <IcoPath d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2ZM9 21h6M10 17v4m4-4v4" color={hasAttention ? '#C65A1A' : '#5E8E6F'} size={20} />
-              <div>
-                <div className="nt">{hasAttention ? `${badCount} logged ${badCount === 1 ? 'entry needs' : 'entries need'} attention.` : 'Your logged service is qualifying and on track.'}</div>
-                <div className="ns">{hasAttention ? 'Non-qualifying service is excluded from your totals — review and re-tag to keep your pack clean.' : 'Keep logging — projected eligibility updates as you add service.'}</div>
-                {!hasAttention && <div className="priv">Private to you.</div>}
-              </div>
-              {hasAttention && <button className="std-reviewbtn" onClick={() => ledgerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Review</button>}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="std-card std-pad">
-          <div className="mlabel rustlabel">Logging only</div>
-          <h3 className="serif" style={{ fontSize: 24, margin: '6px 0' }}>This role builds your record, not a CoC</h3>
-          <div className="lead" style={{ fontSize: 14, color: 'var(--ink-soft)' }}>
-            Interior and galley service doesn’t accrue toward a Certificate of Competency, but your sea days are still
-            logged here for your CV, visa and tax day-counts — and feed a testimonial of service below.
-          </div>
-        </div>
-      )}
+      {/* ── pathway spine / logging-only record ── */}
+      {PathwaySection()}
 
       {/* ── bucket tiles — double as the service-type filter ── */}
       <div className="std-bpills" style={{ marginTop: 18 }}>
