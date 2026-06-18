@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
+import '../../styles/editorial.css';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchTenantCrew } from '../crew-profile/utils/tenantCrew';
@@ -63,6 +64,7 @@ export default function MonthEnd() {
   const jsMonth = cursor.getMonth();
   const monthLabel = cursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   const monthName = cursor.toLocaleDateString('en-GB', { month: 'long' });
+  const packCount = PLACEHOLDERS.length + 1; // placeholders + the live HOR pack
 
   const [loading, setLoading] = useState(true);
   const [crew, setCrew] = useState([]);
@@ -214,15 +216,26 @@ export default function MonthEnd() {
       <Header />
       <div className="mp-page">
         <div className="mp-wrap">
-          {/* Canonical editorial header — tracked-caps eyebrow, serif sentence
-              headline with a terracotta-italic emphasis, and a lead line carrying
-              the month's live state. Month-driven: this hub is the whole close-off,
-              not just Hours of Rest. */}
+          {/* Canonical Cargo editorial header — the shared .editorial-meta strip
+              + big uppercase .editorial-greeting ("JUNE, still to close.") +
+              .editorial-subline, the same components the provisioning / supplier
+              pages use. Month-driven: this hub is the whole close-off, not just HOR. */}
           <div className="mp-head">
             <div className="mp-head-main">
-              <div className="mp-eyebrow">Monthly close-off</div>
-              <h1 className="mp-title">{monthName}, <em>{horDone ? 'on track' : 'still to close'}</em>.</h1>
-              <p className="mp-lead">
+              <p className="editorial-meta">
+                <span className="dot">●</span>
+                <span>Month-end</span>
+                <span className="bar" />
+                <span className="muted">{CATEGORIES.length} categories</span>
+                <span className="bar" />
+                <span className="muted">{packCount} packs</span>
+                <span className="bar" />
+                <span className="muted">1 live</span>
+              </p>
+              <h1 className="editorial-greeting">
+                {monthName}<span className="period">,</span> <em>{horDone ? 'on track' : 'still to close'}</em><span className="period">.</span>
+              </h1>
+              <p className="editorial-subline">
                 {counts.total === 0 ? (
                   <>No crew aboard yet — <b>Hours of Rest</b> populates once crew are added. Sea time, drills, certificates and accounts join the close-off as they come online.</>
                 ) : (
