@@ -154,6 +154,9 @@ export default function RestLogView({
 }) {
   const wrapRef = useRef(null);
   const [showBreachModal, setShowBreachModal] = useState(false);
+  // When set, the breach-reason modal is scoped to (and pre-expanded on) one
+  // crew member — driven by clicking their badge in the BREACHES column.
+  const [breachFilterUserId, setBreachFilterUserId] = useState(null);
   const [showExport, setShowExport] = useState(false);
   const exportRef = useRef(null);
 
@@ -284,6 +287,13 @@ export default function RestLogView({
     return out;
   }, [rows, breachReasons]);
 
+  // userIds with at least one breach still missing a reason — gates which
+  // BREACHES badges are clickable (a reason can be recorded for them).
+  const outstandingByUser = useMemo(
+    () => new Set(unjustifiedBreaches.map((b) => b.userId)),
+    [unjustifiedBreaches],
+  );
+
   // Fleet KPIs for the period (scoped to whoever's in view / the dept filter).
   const kpi = useMemo(() => {
     let onDuty = 0; let breach = 0; let marginal = 0;
@@ -370,9 +380,12 @@ export default function RestLogView({
       {showBreachModal && (
         <RotaBreachReasonModal
           isOpen={showBreachModal}
-          onClose={() => setShowBreachModal(false)}
+          onClose={() => { setShowBreachModal(false); setBreachFilterUserId(null); }}
           tenantId={tenantId}
-          breaches={unjustifiedBreaches}
+          breaches={breachFilterUserId
+            ? unjustifiedBreaches.filter((b) => b.userId === breachFilterUserId)
+            : unjustifiedBreaches}
+          initialExpandedUserId={breachFilterUserId}
           onSaved={onReasonsSaved}
         />
       )}
@@ -442,6 +455,10 @@ export default function RestLogView({
               <div className="rl-dept-rows">
                 {members.map((m) => {
                   const totalBreaches = m.dailyBreachDays + m.weeklyBreachDays;
+                  // Clickable only when an approver can act on an outstanding
+                  // reason for this member — otherwise it stays a plain count.
+                  const canDrillBreach = totalBreaches > 0 && canSignOff
+                    && m.userId && outstandingByUser.has(m.userId);
                   return (
                     <div key={m.id} className="rl-row">
                       <div className="rl-nm">
@@ -464,6 +481,15 @@ export default function RestLogView({
                       <div className={`rl-sum${totalBreaches > 0 ? ' has-breach' : ''}`}>
                         {totalBreaches === 0 ? (
                           <span className="rl-sum-ok">✓</span>
+                        ) : canDrillBreach ? (
+                          <button
+                            type="button"
+                            className="rl-sum-action"
+                            title={`${m.dailyBreachDays} daily · ${m.weeklyBreachDays} weekly — click to see days & record reasons`}
+                            onClick={() => { setBreachFilterUserId(m.userId); setShowBreachModal(true); }}
+                          >
+                            {totalBreaches}d
+                          </button>
                         ) : (
                           <span className="rl-sum-count" title={`${m.dailyBreachDays} daily · ${m.weeklyBreachDays} weekly`}>
                             {totalBreaches}d
