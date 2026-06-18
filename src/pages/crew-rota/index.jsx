@@ -71,7 +71,7 @@ function EditFooterCTA({
   const n = draftDayCount;
   const dayLabel = `${n} ${n === 1 ? 'day' : 'days'}`;
   const pubLabel = busy === 'publish' ? 'Publishing…' : `Publish (${dayLabel})`;
-  const subLabel = busy === 'submit' ? 'Submitting…' : `Submit for approval (${dayLabel})`;
+  const subLabel = busy === 'submit' ? 'Sending…' : `Send for acceptance (${dayLabel})`;
   const noTargetDept = !targetDeptId;
   const noTargetTitle = noTargetDept ? 'Use the review inbox to publish departments individually.' : undefined;
   return (
