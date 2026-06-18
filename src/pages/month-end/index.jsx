@@ -44,7 +44,6 @@ const PACK = {
 // injected as the real, live pack at the top of Compliance & safety.
 const CATEGORIES = ['Compliance & safety', 'Crew & payroll', 'Accounts & stores'];
 const PLACEHOLDERS = [
-  { cat: 'Compliance & safety', icon: 'AlertTriangle', title: 'Rest-hour breaches',      note: 'Breach sign-off' },
   { cat: 'Compliance & safety', icon: 'Anchor',        title: 'Sea time',                note: 'Month-end confirmation' },
   { cat: 'Compliance & safety', icon: 'LifeBuoy',      title: 'Safety drills',           note: 'Monthly drill log' },
   { cat: 'Crew & payroll',      icon: 'FileText',      title: 'Crew timesheets',         note: 'Overtime & leave' },
@@ -63,6 +62,7 @@ export default function MonthEnd() {
   const year = cursor.getFullYear();
   const jsMonth = cursor.getMonth();
   const monthLabel = cursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthName = cursor.toLocaleDateString('en-GB', { month: 'long' });
 
   const [loading, setLoading] = useState(true);
   const [crew, setCrew] = useState([]);
@@ -214,30 +214,38 @@ export default function MonthEnd() {
       <Header />
       <div className="mp-page">
         <div className="mp-wrap">
+          {/* Canonical editorial header — tracked-caps eyebrow, serif sentence
+              headline with a terracotta-italic emphasis, and a lead line carrying
+              the month's live state. Month-driven: this hub is the whole close-off,
+              not just Hours of Rest. */}
           <div className="mp-head">
-            <div>
-              <h1 className="mp-title">Month-end</h1>
+            <div className="mp-head-main">
               <div className="mp-eyebrow">Monthly close-off</div>
+              <h1 className="mp-title">{monthName}, <em>{horDone ? 'on track' : 'still to close'}</em>.</h1>
+              <p className="mp-lead">
+                {counts.total === 0 ? (
+                  <>No crew aboard yet — <b>Hours of Rest</b> populates once crew are added. Sea time, drills, certificates and accounts join the close-off as they come online.</>
+                ) : (
+                  <>
+                    <b>Hours of Rest</b> is the only pack live this month — {counts.done} of {counts.total} signed off
+                    {counts.submitted ? `, ${counts.submitted} awaiting approval` : ''}. Sea time, drills, certificates
+                    and accounts join the close-off as they come online.
+                  </>
+                )}
+              </p>
             </div>
-            <div className="mp-monthnav">
-              <button type="button" onClick={() => stepMonth(-1)} aria-label="Previous month">‹</button>
-              <span>{monthLabel}</span>
-              <button type="button" onClick={() => stepMonth(1)} aria-label="Next month">›</button>
+            <div className="mp-head-controls">
+              <div className="mp-monthnav">
+                <button type="button" onClick={() => stepMonth(-1)} aria-label="Previous month">‹</button>
+                <span>{monthLabel}</span>
+                <button type="button" onClick={() => stepMonth(1)} aria-label="Next month">›</button>
+              </div>
+              {outstanding.length > 0 && (
+                <button type="button" className="mp-link" disabled={busy} onClick={remindAll}>
+                  <Icon name="Bell" size={14} /> {busy ? 'Sending…' : `Remind all (${outstanding.length})`}
+                </button>
+              )}
             </div>
-          </div>
-
-          {/* Summary — live Hours of Rest figures (the wired pack), no box */}
-          <div className="mp-sum">
-            <div className="mp-s"><b>{counts.done}<i>/{counts.total || 0}</i></b><span>HoR signed off</span></div>
-            <span className="mp-vr" />
-            <div className="mp-s"><b>{counts.open}</b><span>Not started</span></div>
-            <span className="mp-vr" />
-            <div className="mp-s"><b>{counts.submitted}</b><span>Awaiting approval</span></div>
-            {outstanding.length > 0 && (
-              <button type="button" className="mp-link mp-sum-cta" disabled={busy} onClick={remindAll}>
-                <Icon name="Bell" size={14} /> {busy ? 'Sending…' : `Remind all (${outstanding.length})`}
-              </button>
-            )}
           </div>
 
           {CATEGORIES.map((cat) => {
