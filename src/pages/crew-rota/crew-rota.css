@@ -559,7 +559,9 @@
 }
 .rest-empty-note strong { color: #1C1B3A; font-weight: 600; }
 
-/* Logged violation reason (shown instead of suggestions once justified). */
+/* Logged violation reason(s) (shown once breach days are explained). */
+.rest-reason-row { padding: 8px 0; border-bottom: 1px solid #F0F1F5; }
+.rest-reason-row:last-child { border-bottom: 0; }
 .rest-reason-note {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 13.5px;
