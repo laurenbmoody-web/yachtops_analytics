@@ -562,6 +562,18 @@
 /* Logged violation reason(s) (shown once breach days are explained). */
 .rest-reason-row { padding: 8px 0; border-bottom: 1px solid #F0F1F5; }
 .rest-reason-row:last-child { border-bottom: 0; }
+.rest-reason-toggle {
+  margin-top: 8px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #C65A1A;
+}
+.rest-reason-toggle:hover { text-decoration: underline; }
 .rest-reason-note {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 13.5px;
