@@ -11,6 +11,14 @@ const CHART_SCALE = 100; // y-axis tops out at 100h
 const MLC_WEEKLY = 77;
 const MLC_DAILY = 10;
 
+// dd/mm/yyyy (zero-padded) per the Cargo date convention.
+function fmtDMY(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
 const CloseIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -28,7 +36,7 @@ function SectionHead({ label, tag, tagState }) {
   );
 }
 
-export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, onLogReason, onAddNote, onApplySuggestion, roster = [], windowShifts = [], anchorDate = null }) {
+export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, onLogReason, onApplySuggestion, roster = [], windowShifts = [], anchorDate = null }) {
   useEffect(() => {
     if (!crew) return undefined;
     const prevOverflow = document.body.style.overflow;
@@ -84,6 +92,9 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
   const lookaheadLow = data.lookaheadLow;
   const showSuggestions = warn || lookaheadLow;
   const firstName = data.fullName.split(' ')[0];
+  // A reason already recorded for this breach day — shown instead of the
+  // suggestions, so a justified breach isn't re-prompted to be re-logged.
+  const loggedReason = warn ? data.loggedReason : null;
 
   const initials = crew.initials || crew.name?.slice(0, 2).toUpperCase() || '??';
   // Status segment of the role line, driven by the live crew flags:
@@ -262,8 +273,26 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           </div>
         </div>
 
-        {/* 6 · AI suggestions — present breach OR a projected forward dip */}
-        {showSuggestions && (suggestionsLoading || visibleCount > 0) && (
+        {/* 6 · Reason already logged — supersedes the suggestions for a breach
+           the chief has accepted and justified. */}
+        {loggedReason && (
+          <div className="rest-section">
+            <SectionHead
+              label="VIOLATION REASON"
+              tag={loggedReason.signedOff ? 'signed off ✓' : 'recorded'}
+              tagState="ok"
+            />
+            <div className="rest-reason-note">“{loggedReason.note}”</div>
+            <div className="rest-reason-meta">
+              {loggedReason.signedOff ? 'Signed off' : 'Recorded'}
+              {loggedReason.by ? ` by ${loggedReason.by}` : ''}
+              {loggedReason.at ? ` · ${fmtDMY(loggedReason.at)}` : ''}
+            </div>
+          </div>
+        )}
+
+        {/* 6b · AI suggestions — present breach OR a projected forward dip */}
+        {!loggedReason && showSuggestions && (suggestionsLoading || visibleCount > 0) && (
           <div className="rest-section">
             <SectionHead label="WORTH CONSIDERING" accent />
             <div className="rest-section-summary">
@@ -324,9 +353,9 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           </div>
         )}
 
-        {/* 6b · Honest empty state — breach (or projected dip) stands but
+        {/* 6c · Honest empty state — breach (or projected dip) stands but
            nothing actionable to offer */}
-        {showSuggestions && !suggestionsLoading && visibleCount === 0 && (
+        {!loggedReason && showSuggestions && !suggestionsLoading && visibleCount === 0 && (
           <div className="rest-section">
             <SectionHead label="WORTH CONSIDERING" accent />
             <div className="rest-empty-note">
@@ -346,8 +375,9 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           {warn ? (
             <>
               <button type="button" className="rest-btn primary" onClick={onViewSchedule}>Adjust shift</button>
-              <button type="button" className="rest-btn ghost" onClick={onLogReason || onOpenHor}>Log violation reason</button>
-              <button type="button" className="rest-btn ghost" onClick={onAddNote || onOpenHor}>Add note</button>
+              <button type="button" className="rest-btn ghost" onClick={onLogReason || onOpenHor}>
+                {loggedReason ? 'Update reason' : 'Log violation reason'}
+              </button>
             </>
           ) : (
             <button type="button" className="rest-btn primary" onClick={onViewSchedule}>View full schedule</button>
