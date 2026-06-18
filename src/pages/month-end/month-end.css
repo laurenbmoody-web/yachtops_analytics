@@ -39,8 +39,7 @@
 
 /* Category section — serif header on a hairline rule */
 .mp-cat { margin-top: 32px; }
-.mp-cat-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 2px; }
-.mp-dia { color: #C65A1A; font-size: 8px; }
+.mp-cat-head { display: flex; align-items: baseline; gap: 13px; margin-bottom: 2px; }
 .mp-cat-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 21px; }
 .mp-cat-rule { flex: 1; height: 1px; background: #ECEAE3; align-self: center; }
 .mp-cat-meta { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }

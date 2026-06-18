@@ -257,7 +257,6 @@ export default function MonthEnd() {
             return (
               <div key={cat} className="mp-cat">
                 <div className="mp-cat-head">
-                  <span className="mp-dia">◆</span>
                   <span className="mp-cat-name">{cat}</span>
                   <span className="mp-cat-rule" />
                   <span className="mp-cat-meta">{closed} / {totalPacks} closed</span>
