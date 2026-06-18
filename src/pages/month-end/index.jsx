@@ -216,6 +216,10 @@ export default function MonthEnd() {
       <Header />
       <div className="mp-page">
         <div className="mp-wrap">
+          <button type="button" className="mp-back" onClick={() => navigate('/dashboard')}>
+            <Icon name="ChevronLeft" size={16} /> Back to Dashboard
+          </button>
+
           {/* Canonical Cargo editorial header — the shared .editorial-meta strip
               + big uppercase .editorial-greeting ("JUNE, still to close.") +
               .editorial-subline, the same components the provisioning / supplier
@@ -253,11 +257,6 @@ export default function MonthEnd() {
                 <span>{monthLabel}</span>
                 <button type="button" onClick={() => stepMonth(1)} aria-label="Next month">›</button>
               </div>
-              {outstanding.length > 0 && (
-                <button type="button" className="mp-link" disabled={busy} onClick={remindAll}>
-                  <Icon name="Bell" size={14} /> {busy ? 'Sending…' : `Remind all (${outstanding.length})`}
-                </button>
-              )}
             </div>
           </div>
 
