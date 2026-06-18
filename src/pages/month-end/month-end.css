@@ -3,15 +3,15 @@
    separated by hairline rules and whitespace. Navy ink, terracotta reserved for
    what's outstanding. Hours of Rest is the live pack and expands into the crew
    roster (the me-* rows below). */
-/* Page shell on the canonical editorial standard: warm #F5F1EA ground, Plus
-   Jakarta Sans body, 1280px measure (matches .editorial-page / crew pages). */
-.mp-page { min-height: calc(100vh - 64px); background: #F5F1EA; padding: 92px 32px 60px; }
+/* Page shell on the canonical editorial standard: cool #F8FAFC ground (matching
+   the crew-profile page), Plus Jakarta Sans body, 1280px measure. */
+.mp-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 92px 32px 60px; }
 .mp-wrap { max-width: 1280px; margin: 0 auto; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 
 /* Canonical editorial header — eyebrow + serif sentence headline with a
    terracotta-italic emphasis + lead line, controls stacked on the right, a
    hairline rule beneath the whole header. Mirrors crew-profile HOR / sea-time. */
-.mp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 1px solid #ECEAE3; }
+.mp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 1px solid #E6E8EF; }
 .mp-head-main { min-width: 0; }
 .mp-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #C65A1A; }
 .mp-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 32px; line-height: 1.04; color: #1C1B3A; margin-top: 11px; }
@@ -19,17 +19,17 @@
 .mp-lead { font-size: 14px; line-height: 1.5; color: #4B4A66; margin-top: 12px; max-width: 560px; }
 .mp-lead b { color: #1C1B3A; font-weight: 600; }
 .mp-head-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; flex: 0 0 auto; }
-.mp-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #ECEAE3; border-radius: 999px; padding: 7px 8px; font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+.mp-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 8px; font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .mp-monthnav button { border: 0; background: #F6F5F2; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #8B8478; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
 .mp-monthnav button:hover { color: #C65A1A; }
 .mp-monthnav span { padding: 0 2px; }
 
 /* Summary — figures separated by hairlines, no box */
-.mp-sum { display: flex; align-items: flex-end; gap: 28px; padding: 22px 0; border-bottom: 1px solid #ECEAE3; margin-top: 22px; }
+.mp-sum { display: flex; align-items: flex-end; gap: 28px; padding: 22px 0; border-bottom: 1px solid #E6E8EF; margin-top: 22px; }
 .mp-s b { font-family: 'DM Serif Display', Georgia, serif; font-size: 28px; line-height: 1; display: block; }
 .mp-s b i { font-style: normal; font-size: 15px; color: #8B8478; }
 .mp-s span { font-size: 9px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: #8B8478; margin-top: 7px; display: block; }
-.mp-vr { width: 1px; align-self: stretch; background: #ECEAE3; margin: 3px 0; }
+.mp-vr { width: 1px; align-self: stretch; background: #E6E8EF; margin: 3px 0; }
 .mp-sum-cta { margin-left: auto; }
 
 /* Action affordances are text links, not buttons */
@@ -43,12 +43,12 @@
 .mp-cat { margin-top: 32px; }
 .mp-cat-head { display: flex; align-items: baseline; gap: 13px; margin-bottom: 2px; }
 .mp-cat-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 21px; }
-.mp-cat-rule { flex: 1; height: 1px; background: #ECEAE3; align-self: center; }
+.mp-cat-rule { flex: 1; height: 1px; background: #E6E8EF; align-self: center; }
 .mp-cat-meta { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 
 /* Pack rows — pure hairline list, no card boxes. Every row keeps its bottom
    hairline so stacked outstanding rows read as separate items, not one block. */
-.mp-row { display: grid; grid-template-columns: 30px 1fr 180px 130px 96px; align-items: center; gap: 22px; padding: 15px 8px 15px 14px; border-bottom: 1px solid #ECEAE3; }
+.mp-row { display: grid; grid-template-columns: 30px 1fr 180px 130px 96px; align-items: center; gap: 22px; padding: 15px 8px 15px 14px; border-bottom: 1px solid #E6E8EF; }
 .mp-row.is-action { box-shadow: inset 3px 0 0 0 #C65A1A; }
 .mp-row.is-done { opacity: 0.6; }
 .mp-row.is-planned { opacity: 0.72; }
@@ -57,10 +57,10 @@
 .mp-row-who { min-width: 0; }
 .mp-row-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; font-weight: 400; letter-spacing: 0.2px; }
 .mp-row-note { font-size: 11.5px; color: #8B8478; margin-top: 2px; }
-.mp-planned { display: inline-block; margin-left: 9px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: #9A958A; border: 1px solid #E5E2D9; border-radius: 999px; padding: 1px 7px; vertical-align: middle; font-family: 'Inter', system-ui, sans-serif; }
+.mp-planned { display: inline-block; margin-left: 9px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: #9A958A; border: 1px solid #E5E7EB; border-radius: 999px; padding: 1px 7px; vertical-align: middle; font-family: 'Inter', system-ui, sans-serif; }
 
 .mp-row-prog { display: flex; align-items: center; gap: 11px; }
-.mp-bar { flex: 1; height: 5px; border-radius: 3px; background: #ECEAE3; overflow: hidden; }
+.mp-bar { flex: 1; height: 5px; border-radius: 3px; background: #E6E8EF; overflow: hidden; }
 .mp-bar span { display: block; height: 100%; border-radius: 3px; }
 .mp-frac { font-size: 11.5px; font-weight: 600; color: #8B8478; white-space: nowrap; }
 
@@ -70,7 +70,7 @@
 .mp-row-act { display: flex; justify-content: flex-end; }
 
 /* HOR detail — the expanded crew roster sits indented under the pack line */
-.mp-detail { padding: 6px 0 14px 37px; border-bottom: 1px solid #F0EEE7; }
+.mp-detail { padding: 6px 0 14px 37px; border-bottom: 1px solid #EEF0F4; }
 .mp-empty { padding: 22px; text-align: center; color: #8B8478; font-size: 14px; }
 
 /* ── Crew roster rows (HOR detail) — editorial hairline list ──────────────── */
