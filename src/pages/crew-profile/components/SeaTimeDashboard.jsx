@@ -167,21 +167,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
 
   // ── logged-service ledger (part of the Countdown page) ──
   const LedgerTable = () => {
-    const filters = [['all', 'All'], ['seagoing', 'Seagoing'], ['watchkeeping', 'Watchkeeping'], ['standby', 'Standby'], ['yard', 'Yard']];
     const shown = entries.filter(e => serviceFilter === 'all' || e.type === serviceFilter);
     const excludedCount = entries.filter(e => e.excluded).length;
     return (
       <div className="std-ledger std-card" ref={ledgerRef} style={{ overflow: 'hidden' }}>
         <div className="lhead" style={{ padding: '20px 18px 0', alignItems: 'flex-start' }}>
           <h4>Logged sea service</h4>
-          <div className="std-flex std-ac" style={{ gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <div className="std-filter">
-              {filters.map(([k, l]) => <button key={k} className={serviceFilter === k ? 'on' : ''} onClick={() => setServiceFilter(k)}>{l}</button>)}
-            </div>
-            <div className="std-toggle">
-              <button className={logView === 'list' ? 'on' : ''} onClick={() => setLogView('list')} title="List view" aria-label="List view"><Icon name="List" size={15} /></button>
-              <button className={logView === 'calendar' ? 'on' : ''} onClick={() => setLogView('calendar')} title="Calendar view" aria-label="Calendar view"><Icon name="Calendar" size={15} /></button>
-            </div>
+          <div className="std-toggle">
+            <button className={logView === 'list' ? 'on' : ''} onClick={() => setLogView('list')} title="List view" aria-label="List view"><Icon name="List" size={15} /></button>
+            <button className={logView === 'calendar' ? 'on' : ''} onClick={() => setLogView('calendar')} title="Calendar view" aria-label="Calendar view"><Icon name="Calendar" size={15} /></button>
           </div>
         </div>
         {logView === 'calendar' && (
@@ -322,18 +316,27 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
         </div>
       )}
 
-      {/* ── bucket pills ── */}
+      {/* ── bucket tiles — double as the service-type filter ── */}
       <div className="std-bpills" style={{ marginTop: 18 }}>
         {[['seagoing', 'SEAGOING'], ['watchkeeping', 'WATCHKEEPING'], ['standby', 'STANDBY'], ['yard', 'SHIPYARD']].map(([k, up]) => {
           const tm = TYPE_META[k];
+          const on = serviceFilter === k;
+          const toggle = () => setServiceFilter(on ? 'all' : k);
           return (
-            <div className="std-bpill" key={k} style={{ borderTopColor: tm.color }}>
+            <button className={`std-bpill${on ? ' on' : ''}`} key={k} type="button" aria-pressed={on}
+              onClick={toggle}
+              style={{ borderTopColor: tm.color, ...(on ? { borderColor: tm.color, boxShadow: `0 0 0 2px ${tm.bg}` } : null) }}>
               <div className="l"><span className="dot" style={{ background: tm.color }} /> {up}</div>
               <div className="n">{buckets[k]}</div> <span className="u">days</span>
-            </div>
+            </button>
           );
         })}
       </div>
+      {serviceFilter !== 'all' && (
+        <div className="std-filternote">
+          Showing <b>{TYPE_META[serviceFilter].label}</b> only · <button type="button" onClick={() => setServiceFilter('all')}>Show all</button>
+        </div>
+      )}
 
       <div style={{ marginTop: 18 }}><LedgerTable /></div>
 
