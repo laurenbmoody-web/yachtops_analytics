@@ -46,8 +46,8 @@ export default function CancelEditModal({ open, busy, onKeepEditing, onDiscard, 
 
         <div className="te-body">
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: '#1C1B3A' }}>
-            <b>Save changes</b> keeps your edits as a draft — you can submit them
-            for review when you’re ready.
+            <b>Save changes</b> keeps your edits as a draft — you can publish or
+            send them for acceptance when you’re ready.
           </p>
           <p style={{ margin: '12px 0 0', fontSize: 12, color: '#8B8478' }}>
             <b>Discard changes</b> throws away everything you edited this session
