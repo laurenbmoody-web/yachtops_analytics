@@ -1911,9 +1911,9 @@ const ProvisioningBoardDetail = () => {
   };
 
   // cols: check | item | category | size | unit | qty | unit cost | total | status | actions
-  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 32px 56px';
+  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 56px 56px';
   // cols: check | item | size | unit | qty | unit cost | total | status | actions  (category dropped)
-  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) 76px 70px 92px 90px 80px 32px 56px';
+  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) 76px 70px 92px 90px 80px 56px 56px';
   const TABLE_GRID = groupBy === 'category' ? TABLE_GRID_NO_CAT : TABLE_GRID_FULL;
 
   const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
@@ -2722,9 +2722,9 @@ const ProvisioningBoardDetail = () => {
                           { label: 'Qty',       key: 'qty' },
                           { label: 'Unit Cost', key: 'unit_cost' },
                           { label: 'Total',     key: 'total' },
-                          { label: 'Status',    key: 'status' },
+                          { label: 'Status',    key: 'status', centered: true },
                           { label: '',          key: null },
-                        ].map(({ label, key }, idx) => {
+                        ].map(({ label, key, centered }, idx) => {
                           const sortable = !!key;
                           const active = sortable && sortColumn === key;
                           return (
@@ -2740,6 +2740,7 @@ const ProvisioningBoardDetail = () => {
                                 padding: '10px 8px',
                                 display: 'flex',
                                 alignItems: 'center',
+                                justifyContent: centered ? 'center' : 'flex-start',
                                 gap: 4,
                                 cursor: sortable ? 'pointer' : 'default',
                                 userSelect: sortable ? 'none' : undefined,
@@ -3012,8 +3013,10 @@ const ProvisioningBoardDetail = () => {
                                 tooltip. Editable variant overlays an
                                 invisible native <select> on top of the
                                 dot so clicking the dot opens the picker
-                                without any visible chrome. */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                                without any visible chrome. Centered so
+                                the dot sits directly under the "STATUS"
+                                header above. */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '11px 8px' }}>
                               {statusReadOnly
                                 ? <span
                                     title={badge.label}
