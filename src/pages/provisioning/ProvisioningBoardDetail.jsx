@@ -2675,8 +2675,8 @@ const ProvisioningBoardDetail = () => {
               {deptGroups.map(({ dept, deptObj, items: deptItems }) => {
                 const deptChip = getDeptChip(dept);
                 const deptSubtotal = deptItems.reduce((acc, i) => {
-                  const cost = parseFloat(i.estimated_unit_cost) || 0;
-                  const qty = parseFloat(i.quantity_ordered) || 0;
+                  const cost = effectiveCost(i);
+                  const qty = effectiveOrderedQty(i);
                   const iCurr = i.currency || currency;
                   return acc + qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[dispCurr] || 1));
                 }, 0);
@@ -3082,8 +3082,8 @@ const ProvisioningBoardDetail = () => {
                             const key = `${dept}::${category}`;
                             const isCollapsed = collapsedCategories.has(key);
                             const subtotal = catItems.reduce((sum, i) => {
-                              const cost = parseFloat(i.estimated_unit_cost) || 0;
-                              const qty  = parseFloat(i.quantity_ordered) || 0;
+                              const cost = effectiveCost(i);
+                              const qty  = effectiveOrderedQty(i);
                               const iCurr = i.currency || currency;
                               return sum + qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[dispCurr] || 1));
                             }, 0);
