@@ -2683,14 +2683,15 @@ const ProvisioningBoardDetail = () => {
                 const allDeptSel = deptItems.length > 0 && deptItems.every(i => selectedItems.has(i.id));
                 return (
                   <div key={dept} style={{ marginBottom: 24 }}>
-                    {/* Dept header row */}
+                    {/* Dept header row — total lives only in the subtotal
+                        row at the bottom of the section ("Total: $X") so
+                        it doesn't show twice for the same dept. */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                       <span style={{ background: deptChip.bg, color: deptChip.color, fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>
                         {dept}
                       </span>
                       <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
                       <div style={{ flex: 1, height: 1, background: '#F1F5F9' }} />
-                      <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>{dispSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                     </div>
 
                     {/* White card table */}
@@ -3128,13 +3129,16 @@ const ProvisioningBoardDetail = () => {
                         return sortedFlat.map((item, idx) => renderItemRow(item, idx, sortedFlat.length));
                       })()}
 
-                      {/* Subtotal row */}
+                      {/* Subtotal row — the sole place this dept's total
+                          renders. Labelled "Total" so the reader doesn't
+                          confuse it with a per-line value. */}
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderTop: '1px solid #F1F5F9' }}>
-                        <div style={{ gridColumn: groupBy === 'category' ? '1 / 6' : '1 / 7', padding: '8px 8px 8px 0' }}>
+                        <div style={{ gridColumn: groupBy === 'category' ? '1 / 6' : '1 / 7', padding: '8px 8px 8px 0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
                           <span style={{ fontSize: 11, color: '#94A3B8' }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748B' }}>Total</span>
                         </div>
                         <div style={{ padding: '8px 8px', display: 'flex', alignItems: 'center' }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#1E3A5F' }}>{dispSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F' }}>{dispSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                         </div>
                         <div />{/* total col */}
                         <div />{/* status col */}
