@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sea Time — held certs + goal branching</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C1B3A; --ink-soft:#695880; --muted:#8B8478; --muted-2:#6B7280; --faint:#AEB4C2;
+  --rust:#C65A1A; --rust-2:#B14E16; --rust-tint:#FBEFE9; --card:#fff; --bg:#F6F6F3;
+  --border:#E6E8EF; --hair:#EFEEE8; --hair-2:#ECEAE3; --soft:#FAFAF8;
+  --sage:#5E8E6F; --sage-deep:#3F7A52; --sage-soft:#E7F0E9;
+  --serif:'DM Serif Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;}
+.wrap{max-width:920px;margin:0 auto;padding:34px 26px 110px;}
+.intro{color:var(--ink-soft);font-size:13.5px;margin:0 0 6px;line-height:1.6;} .intro b{color:var(--ink);}
+.opthead{margin:46px 0 14px;}
+.opthead .k{font-size:9px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--rust);}
+.opthead h3{font-family:var(--serif);font-weight:500;font-size:23px;margin:6px 0 0;}
+.opthead p{color:var(--muted-2);font-size:13px;margin:6px 0 0;max-width:740px;line-height:1.5;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:24px 28px;position:relative;}
+.ico{width:1em;height:1em;vertical-align:-.12em;}
+
+/* header */
+.ph{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;padding-bottom:18px;margin-bottom:6px;border-bottom:1px solid var(--hair);}
+.ph .dept{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--rust);}
+.ph h4{font-family:var(--serif);font-weight:500;font-size:21px;margin:6px 0 0;display:inline-flex;align-items:center;gap:7px;}
+.chev{width:11px;height:11px;color:var(--muted);}
+.goalsel{margin-top:11px;display:inline-flex;align-items:center;gap:9px;background:var(--soft);border:1px solid var(--hair-2);border-radius:999px;padding:6px 8px 6px 13px;}
+.goalsel .gk{font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);}
+.goalsel .gv{font-size:12.5px;font-weight:600;color:var(--ink);display:inline-flex;align-items:center;gap:6px;}
+.ph .links{display:flex;flex-direction:column;align-items:flex-end;gap:7px;}
+.tlink{background:none;border:0;font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer;padding:0;border-bottom:1px solid var(--hair-2);}
+.tlink:hover{color:var(--rust);border-color:var(--rust);} .tlink.rust{color:var(--rust);border-color:#EAD7C6;}
+
+/* spine */
+.sp{position:relative;margin-top:8px;}
+.sp:before{content:"";position:absolute;left:5px;top:14px;bottom:16px;width:1px;background:var(--hair-2);}
+.sp-step{position:relative;padding-left:30px;}
+.sp-m{position:absolute;left:0;top:15px;width:11px;height:11px;border-radius:50%;background:#fff;border:1.5px solid var(--faint);}
+.sp-step.held .sp-m{background:var(--sage);border-color:var(--sage);}
+.sp-step.target .sp-m{background:var(--rust);border-color:var(--rust);box-shadow:0 0 0 3px var(--rust-tint);}
+.sp-step.goal.upcoming .sp-m{border-color:var(--ink);}
+.sp-row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--hair);}
+.sp-row .nm{font-family:var(--serif);font-weight:500;font-size:15px;}
+.sp-step.upcoming .sp-row .nm{color:var(--faint);}
+.sp-row .ref{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin-left:9px;}
+.sp-row .st{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
+.sp-row .st.held{color:var(--sage-deep);} .sp-row .st.up{color:var(--faint);}
+.sp-row .st .dt{color:var(--muted);font-weight:600;letter-spacing:.02em;text-transform:none;}
+.goaltag{font-size:8px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ink);border:1px solid var(--ink);border-radius:999px;padding:2px 7px;margin-left:8px;}
+/* target feature */
+.fa{padding:14px 0 16px;border-bottom:1px solid var(--hair);}
+.fa-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;}
+.fa-head h5{font-family:var(--serif);font-weight:500;font-size:20px;margin:6px 0 0;}
+.eyebrow{font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:var(--rust);}
+.fa-fig{text-align:right;white-space:nowrap;}
+.fa-fig .big{font-family:var(--serif);font-weight:500;font-size:28px;color:var(--rust);line-height:.9;}
+.fa-fig .cap{display:block;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+.reqs3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:16px;}
+.r3 .l{font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.r3 .v{font-family:var(--serif);font-weight:500;font-size:15px;margin-top:3px;}
+.r3 .v em{font-style:normal;color:var(--faint);font-size:11.5px;}
+.r3 .meter{height:2px;background:var(--hair-2);margin-top:8px;position:relative;}
+.r3 .meter i{position:absolute;left:0;top:0;height:2px;background:var(--rust);}
+.r3.done .meter i{background:var(--sage);} .r3.done .l{color:var(--sage-deep);}
+
+/* goal menu (open state) */
+.goalmenu{position:absolute;top:92px;left:28px;width:300px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);padding:7px;z-index:5;}
+.goalmenu .gh{font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:8px 10px 6px;}
+.goalmenu button{display:block;width:100%;text-align:left;background:none;border:0;font-family:inherit;border-radius:7px;padding:9px 10px;cursor:pointer;}
+.goalmenu button .t{font-size:13px;font-weight:600;color:var(--ink);}
+.goalmenu button .s{font-size:10.5px;color:var(--muted);margin-top:1px;}
+.goalmenu button:hover{background:var(--soft);}
+.goalmenu button.on{background:var(--rust-tint);} .goalmenu button.on .t{color:var(--rust);}
+
+/* ===== held-certs drawer ===== */
+.drawer{max-width:440px;margin:0 auto;background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 24px 60px -16px rgba(28,27,58,.22);}
+.dr-head{padding:20px 22px 16px;border-bottom:1px solid var(--hair);}
+.dr-head .k{font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--rust);}
+.dr-head h4{font-family:var(--serif);font-weight:500;font-size:21px;margin:6px 0 0;}
+.dr-head p{font-size:11.5px;color:var(--muted);margin:6px 0 0;line-height:1.5;}
+.dr-list{padding:6px 22px;}
+.dr-c{padding:14px 0;border-bottom:1px solid var(--hair);}
+.dr-c:last-child{border-bottom:0;}
+.dr-c .row{display:flex;align-items:center;gap:12px;}
+.dr-c .nm{font-family:var(--serif);font-weight:500;font-size:14.5px;flex:1;}
+.dr-c .nm .ref{font-family:var(--sans);font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin-left:7px;}
+.sw{width:38px;height:22px;border-radius:999px;background:#E4E2DA;position:relative;cursor:pointer;flex:none;transition:.15s;}
+.sw:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:.15s;}
+.sw.on{background:var(--sage);} .sw.on:after{left:18px;}
+.dr-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+.dr-field label{display:block;font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.dr-field input{width:100%;font-family:inherit;font-size:12.5px;color:var(--ink);border:1px solid var(--hair-2);border-radius:8px;padding:8px 10px;background:var(--soft);}
+.dr-doc{grid-column:1/-1;font-size:11px;color:var(--ink-soft);margin-top:2px;}
+.dr-doc a{color:var(--rust);font-weight:600;text-decoration:none;border-bottom:1px solid #EAD7C6;}
+.dr-foot{display:flex;gap:10px;padding:16px 22px;border-top:1px solid var(--hair);}
+.btn{flex:1;border-radius:9px;padding:10px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;border:1px solid var(--hair-2);background:#fff;color:var(--ink);}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink);}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4 10-10"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <p class="intro"><b>Two new controls.</b> A <b>Goal</b> (the ceiling you're aiming for) trims the ladder to just that route; a <b>Certificates held</b> drawer records what you already have so held rungs are truthful and the target auto-advances to the next un-held one.</p>
+
+  <!-- ===== 1. Goal = tonnage-limited, with held certs ===== -->
+  <div class="opthead"><div class="k">1 · Goal = Master &lt;3000GT</div><h3>Branched ladder + held rungs</h3>
+    <p>Goal trims the ladder to the tonnage route (no Unlimited rungs). Held certs (sage, with issue date) auto-advance the target to <b>Master &lt;500GT</b>. The goal rung carries a small outline tag.</p></div>
+  <div class="card">
+    <div class="ph">
+      <div>
+        <div class="dept">Deck · Bridge pathway</div>
+        <h4>Master / Captain <svg class="chev"><use href="#chev"/></svg></h4>
+        <div class="goalsel"><span class="gk">Goal</span><span class="gv">Master (Yachts &lt;3000GT) <svg class="chev"><use href="#chev"/></svg></span></div>
+      </div>
+      <div class="links"><button class="tlink rust">Certificates held →</button><button class="tlink">Just track my days — no certificate</button></div>
+    </div>
+    <div class="sp">
+      <div class="sp-step held"><div class="sp-m"></div><div class="sp-row"><span class="nm">OOW (Yachts &lt;3000GT) <span class="ref">§3.3</span></span><span class="st held">Held · <span class="dt">12/03/2024</span></span></div></div>
+      <div class="sp-step held"><div class="sp-m"></div><div class="sp-row"><span class="nm">Chief Mate (Yachts &lt;3000GT) <span class="ref">§3.4</span></span><span class="st held">Held · <span class="dt">12/03/2024</span></span></div></div>
+      <div class="sp-step target"><div class="sp-m"></div>
+        <div class="fa">
+          <div class="fa-head"><div><div class="eyebrow">Now working toward · MSN 1858 §3.5</div><h5>Master (Yachts &lt;500GT)</h5></div>
+            <div class="fa-fig"><span class="big">423</span><span class="cap">days to go</span></div></div>
+          <div class="reqs3">
+            <div class="r3 done"><div class="l">Onboard</div><div class="v">12 <em>/ 12 mo</em></div><div class="meter"><i style="width:100%"></i></div></div>
+            <div class="r3 done"><div class="l">Watchkeeping ≥15m</div><div class="v">120 <em>/ 120</em></div><div class="meter"><i style="width:100%"></i></div></div>
+            <div class="r3"><div class="l">Seagoing ≥15m</div><div class="v">298 <em>/ 365</em></div><div class="meter"><i style="width:82%"></i></div></div>
+          </div>
+        </div></div>
+      <div class="sp-step goal upcoming"><div class="sp-m"></div><div class="sp-row"><span class="nm">Master (Yachts &lt;3000GT) <span class="ref">§3.6</span> <span class="goaltag">Goal</span></span><span class="st up">Upcoming</span></div></div>
+    </div>
+  </div>
+
+  <!-- ===== 2. Goal = Unlimited ===== -->
+  <div class="opthead"><div class="k">2 · Goal = Master Unlimited</div><h3>A different route, automatically</h3>
+    <p>Switch the goal and the ladder re-routes — the &lt;500GT tonnage step drops out; the Unlimited rungs appear. Same held certs, target re-derived.</p></div>
+  <div class="card">
+    <div class="ph">
+      <div>
+        <div class="dept">Deck · Bridge pathway</div>
+        <h4>Master / Captain <svg class="chev"><use href="#chev"/></svg></h4>
+        <div class="goalsel"><span class="gk">Goal</span><span class="gv">Master (Yachts Unlimited) <svg class="chev"><use href="#chev"/></svg></span></div>
+      </div>
+      <div class="links"><button class="tlink rust">Certificates held →</button><button class="tlink">Just track my days — no certificate</button></div>
+    </div>
+    <div class="sp">
+      <div class="sp-step held"><div class="sp-m"></div><div class="sp-row"><span class="nm">OOW (Yachts &lt;3000GT) <span class="ref">§3.3</span></span><span class="st held">Held · <span class="dt">12/03/2024</span></span></div></div>
+      <div class="sp-step held"><div class="sp-m"></div><div class="sp-row"><span class="nm">Chief Mate (Yachts &lt;3000GT) <span class="ref">§3.4</span></span><span class="st held">Held · <span class="dt">12/03/2024</span></span></div></div>
+      <div class="sp-step target"><div class="sp-m"></div>
+        <div class="fa">
+          <div class="fa-head"><div><div class="eyebrow">Now working toward · MSN 1858 §3.6</div><h5>Master (Yachts &lt;3000GT)</h5></div>
+            <div class="fa-fig"><span class="big">612</span><span class="cap">days to go</span></div></div>
+          <div class="reqs3">
+            <div class="r3 done"><div class="l">Onboard</div><div class="v">24 <em>/ 24 mo</em></div><div class="meter"><i style="width:100%"></i></div></div>
+            <div class="r3"><div class="l">Watchkeeping ≥15m</div><div class="v">158 <em>/ 240</em></div><div class="meter"><i style="width:66%"></i></div></div>
+            <div class="r3"><div class="l">12 mo ≥24m vessel</div><div class="v">4 <em>/ 12 mo</em></div><div class="meter"><i style="width:33%"></i></div></div>
+          </div>
+        </div></div>
+      <div class="sp-step upcoming"><div class="sp-m"></div><div class="sp-row"><span class="nm">Chief Mate (Yachts Unlimited) <span class="ref">§4.3</span></span><span class="st up">Upcoming</span></div></div>
+      <div class="sp-step goal upcoming"><div class="sp-m"></div><div class="sp-row"><span class="nm">Master (Yachts Unlimited) <span class="ref">§4.4</span> <span class="goaltag">Goal</span></span><span class="st up">Upcoming</span></div></div>
+    </div>
+    <!-- illustrative open goal menu -->
+    <div class="goalmenu">
+      <div class="gh">Choose your goal — Deck</div>
+      <button><span class="t">Master (Yachts &lt;500GT)</span><span class="s">Tonnage-limited · §3.5</span></button>
+      <button><span class="t">Master (Yachts &lt;3000GT)</span><span class="s">Tonnage-limited · §3.6</span></button>
+      <button class="on"><span class="t">Master (Yachts Unlimited)</span><span class="s">Unlimited route · §4.4</span></button>
+    </div>
+  </div>
+
+  <!-- ===== 3. Certificates held drawer ===== -->
+  <div class="opthead"><div class="k">3 · Certificates held</div><h3>Logging what you already have</h3>
+    <p>Opened from “Certificates held →”. Toggle a cert on to record it; add the issue date and certificate number, optionally linking the PDF already in Documents. Saved certs become held rungs and fill the testimonial's “CoC held” line.</p></div>
+  <div class="drawer">
+    <div class="dr-head">
+      <div class="k">Deck · MSN 1858</div>
+      <h4>Certificates you already hold</h4>
+      <p>This tracker counts service going forward — tell us what you've already earned so your ladder starts in the right place.</p>
+    </div>
+    <div class="dr-list">
+      <div class="dr-c">
+        <div class="row"><span class="nm">OOW (Yachts &lt;3000GT) <span class="ref">§3.3</span></span><span class="sw on"></span></div>
+        <div class="dr-fields">
+          <div class="dr-field"><label>Issued</label><input value="12/03/2024"></div>
+          <div class="dr-field"><label>Certificate no.</label><input value="GBR 0094821"></div>
+          <div class="dr-doc">📎 Linked: <a href="#">OOW_CoC.pdf</a> · from Documents</div>
+        </div>
+      </div>
+      <div class="dr-c">
+        <div class="row"><span class="nm">Chief Mate (Yachts &lt;3000GT) <span class="ref">§3.4</span></span><span class="sw on"></span></div>
+        <div class="dr-fields">
+          <div class="dr-field"><label>Issued</label><input value="12/03/2024"></div>
+          <div class="dr-field"><label>Certificate no.</label><input placeholder="optional"></div>
+          <div class="dr-doc"><a href="#">＋ Link a document</a></div>
+        </div>
+      </div>
+      <div class="dr-c"><div class="row"><span class="nm">Master (Yachts &lt;500GT) <span class="ref">§3.5</span></span><span class="sw"></span></div></div>
+      <div class="dr-c"><div class="row"><span class="nm">Master (Yachts &lt;3000GT) <span class="ref">§3.6</span></span><span class="sw"></span></div></div>
+      <div class="dr-c"><div class="row"><span class="nm">Chief Mate (Yachts Unlimited) <span class="ref">§4.3</span></span><span class="sw"></span></div></div>
+      <div class="dr-c"><div class="row"><span class="nm">Master (Yachts Unlimited) <span class="ref">§4.4</span></span><span class="sw"></span></div></div>
+    </div>
+    <div class="dr-foot"><button class="btn">Cancel</button><button class="btn pri">Save 2 certificates</button></div>
+  </div>
+
+</div>
+</body></html>
