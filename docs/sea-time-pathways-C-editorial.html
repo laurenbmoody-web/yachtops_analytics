@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sea Time — progression spine (editorial) + modes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C1B3A; --ink-soft:#695880; --muted:#8B8478; --muted-2:#6B7280; --faint:#AEB4C2;
+  --rust:#C65A1A; --rust-2:#B14E16; --rust-tint:#FBEFE9; --card:#fff; --bg:#F6F6F3;
+  --border:#E6E8EF; --hair:#EFEEE8; --hair-2:#ECEAE3; --soft:#FAFAF8;
+  --sage:#5E8E6F; --sage-deep:#3F7A52;
+  --serif:'DM Serif Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;}
+.wrap{max-width:940px;margin:0 auto;padding:34px 26px 110px;}
+.intro{color:var(--ink-soft);font-size:13.5px;margin:0 0 6px;line-height:1.6;} .intro b{color:var(--ink);}
+.opthead{margin:50px 0 16px;}
+.opthead .k{font-size:9px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--rust);}
+.opthead h3{font-family:var(--serif);font-weight:500;font-size:25px;margin:6px 0 0;letter-spacing:-.01em;}
+.opthead p{color:var(--muted-2);font-size:13px;margin:6px 0 0;max-width:760px;line-height:1.55;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:30px 34px;}
+.eyebrow{font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);}
+.eyebrow.rust{color:var(--rust);}
+.ico{width:1em;height:1em;vertical-align:-.12em;}
+
+/* header context — no dept dropdown, editorial */
+.ph{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;padding-bottom:22px;margin-bottom:6px;border-bottom:1px solid var(--hair);}
+.ph .dept{font-size:9px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--rust);}
+.ph h4{font-family:var(--serif);font-weight:500;font-size:22px;margin:7px 0 0;}
+.ph .sub{font-size:11.5px;color:var(--muted);margin-top:4px;}
+.ph .links{display:flex;flex-direction:column;align-items:flex-end;gap:7px;}
+.tlink{background:none;border:0;font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer;padding:0;border-bottom:1px solid var(--hair-2);}
+.tlink:hover{color:var(--rust);border-color:var(--rust);}
+.tlink.rust{color:var(--rust);}
+
+/* ===== progression spine — editorial ===== */
+.sp{position:relative;margin-top:8px;}
+.sp:before{content:"";position:absolute;left:5px;top:14px;bottom:18px;width:1px;background:var(--hair-2);}
+.sp-step{position:relative;padding-left:34px;}
+.sp-m{position:absolute;left:0;top:18px;width:11px;height:11px;border-radius:50%;background:#fff;border:1.5px solid var(--faint);}
+.sp-step.held .sp-m{background:var(--sage);border-color:var(--sage);}
+.sp-step.target .sp-m{background:var(--rust);border-color:var(--rust);box-shadow:0 0 0 3px var(--rust-tint);}
+/* collapsed rows (held / upcoming) */
+.sp-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--hair);}
+.sp-row .nm{font-family:var(--serif);font-weight:500;font-size:16px;color:var(--ink);}
+.sp-step.upcoming .sp-row .nm{color:var(--faint);}
+.sp-row .ref{font-family:var(--sans);font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--faint);margin-left:12px;}
+.sp-row .st{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap;}
+.sp-row .st.held{color:var(--sage-deep);} .sp-row .st.up{color:var(--faint);}
+/* target — the editorial feature */
+.sp-feat{padding:22px 0 26px;border-bottom:1px solid var(--hair);}
+.sp-feat h5{font-family:var(--serif);font-weight:500;font-size:27px;line-height:1.08;margin:9px 0 0;letter-spacing:-.01em;}
+.sp-feat .lead{font-size:13.5px;color:var(--ink-soft);line-height:1.55;margin-top:10px;max-width:560px;}
+.sp-feat .lead b{color:var(--ink);font-weight:600;}
+.sp-figure{display:flex;align-items:baseline;gap:10px;margin-top:18px;}
+.sp-figure .big{font-family:var(--serif);font-weight:500;font-size:46px;line-height:.9;color:var(--rust);}
+.sp-figure .cap{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);}
+.sp-reqs{margin-top:22px;border-top:1px solid var(--hair);}
+.req{padding:15px 0 13px;border-bottom:1px solid var(--hair);}
+.req .top{display:flex;justify-content:space-between;align-items:baseline;}
+.req .l{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.req .v{font-family:var(--serif);font-weight:500;font-size:17px;color:var(--ink);}
+.req .v em{font-style:normal;color:var(--faint);font-size:13px;}
+.req .meter{position:relative;height:2px;background:var(--hair-2);margin-top:11px;}
+.req .meter i{position:absolute;left:0;top:0;height:2px;background:var(--rust);}
+.req.done .meter i{background:var(--sage);}
+.req.done .l{color:var(--sage-deep);}
+.note-line{font-size:12px;color:var(--muted);margin-top:16px;padding-left:14px;border-left:2px solid var(--rust);line-height:1.5;}
+.note-line b{color:var(--ink);}
+
+/* ===== logging-only ===== */
+.lo-hero{display:grid;grid-template-columns:1fr auto;gap:30px;align-items:center;padding-bottom:24px;border-bottom:1px solid var(--hair);}
+.lo-hero h2{font-family:var(--serif);font-weight:500;font-size:30px;margin:8px 0 0;line-height:1.05;}
+.lo-hero .lead{font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin-top:12px;max-width:520px;}
+.lo-total{text-align:right;}
+.lo-total .n{font-family:var(--serif);font-weight:500;font-size:62px;line-height:.85;color:var(--ink);}
+.lo-total .u{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:8px;}
+.uses{display:flex;gap:34px;flex-wrap:wrap;margin-top:22px;}
+.use .l{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);}
+.use .d{font-size:12.5px;color:var(--ink-soft);margin-top:4px;max-width:200px;line-height:1.5;}
+.use .d b{color:var(--ink);}
+
+.minitiles{display:flex;gap:0;margin-top:26px;border-top:1px solid var(--hair);}
+.mt{flex:1;padding:16px 18px;border-right:1px solid var(--hair);}
+.mt:last-child{border-right:0;}
+.mt .l{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.mt .l i{width:7px;height:7px;border-radius:50%;}
+.mt .n{font-family:var(--serif);font-weight:500;font-size:26px;margin-top:8px;}
+.mt .u{font-size:10.5px;color:var(--muted);}
+.t-sea{color:#2F6080;} .t-watch{color:#6B57A0;} .t-sb{color:#A6712C;} .t-yd{color:#6E665C;}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4 10-10"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <p class="intro"><b>Progression spine — editorial, plus the two other modes.</b> Refined from the earlier C: hairline spine, serif headings, typographic figures (no conic rings, no gamified chips). The department is taken from the crew member; the two text links at the top handle <i>working toward a different discipline</i> and <i>just track my days</i>.</p>
+
+  <!-- ===== PATHWAY MODE ===== -->
+  <div class="opthead"><div class="k">Mode 1 · On-pathway</div><h3>Progression spine</h3>
+    <p>Held rungs sit quietly in sage; the live target opens as an editorial feature — large serif title, the days-to-go figure, and each requirement as a tracked-caps label, serif fraction and a 2px rule. Future rungs are faint. Tap a rung to re-target.</p></div>
+  <div class="card">
+    <div class="ph">
+      <div><div class="dept">Deck · Bridge pathway</div><h4>Master / Captain</h4><div class="sub">Pathway set from this crew member's department</div></div>
+      <div class="links"><button class="tlink">Working toward a different discipline?</button><button class="tlink">Just track my days — no certificate</button></div>
+    </div>
+    <div class="sp">
+      <div class="sp-step held"><div class="sp-m"></div>
+        <div class="sp-row"><span class="nm">OOW (Yachts &lt;3000GT) <span class="ref">MSN 1858 §3.3</span></span><span class="st held">Held</span></div></div>
+      <div class="sp-step held"><div class="sp-m"></div>
+        <div class="sp-row"><span class="nm">Chief Mate (Yachts &lt;3000GT) <span class="ref">§3.4 · concurrent</span></span><span class="st held">Held</span></div></div>
+      <div class="sp-step target"><div class="sp-m"></div>
+        <div class="sp-feat">
+          <div class="eyebrow rust">Now working toward · MSN 1858 §3.5</div>
+          <h5>Master (Yachts &lt;500GT)</h5>
+          <div class="lead">All qualifying service on vessels ≥15&thinsp;m, whilst holding OOW (Yachts &lt;3000GT) II/1.</div>
+          <div class="sp-figure"><span class="big">423</span><span class="cap">days to go · 657 of 1,080</span></div>
+          <div class="sp-reqs">
+            <div class="req done"><div class="top"><span class="l">Onboard yacht service</span><span class="v">12 <em>/ 12 months</em></span></div><div class="meter"><i style="width:100%"></i></div></div>
+            <div class="req done"><div class="top"><span class="l">Watchkeeping days · ≥15&thinsp;m</span><span class="v">120 <em>/ 120 days</em></span></div><div class="meter"><i style="width:100%"></i></div></div>
+            <div class="req"><div class="top"><span class="l">Seagoing service · ≥15&thinsp;m</span><span class="v">298 <em>/ 365 days</em></span></div><div class="meter"><i style="width:82%"></i></div></div>
+          </div>
+        </div></div>
+      <div class="sp-step upcoming"><div class="sp-m"></div>
+        <div class="sp-row"><span class="nm">Master (Yachts &lt;3000GT) <span class="ref">§3.6</span></span><span class="st up">Upcoming</span></div></div>
+      <div class="sp-step upcoming"><div class="sp-m"></div>
+        <div class="sp-row"><span class="nm">Master (Yachts Unlimited) <span class="ref">§4.4</span></span><span class="st up">Upcoming</span></div></div>
+    </div>
+  </div>
+
+  <!-- ===== CROSS-DISCIPLINE ===== -->
+  <div class="opthead"><div class="k">Mode 2 · Cross-discipline</div><h3>Aspiring to another department</h3>
+    <p>A stew working toward a deck CoC, say. Same spine for the chosen target, but with an honest accrual note — only days served in the qualifying capacity count; the rest are logged for the record.</p></div>
+  <div class="card">
+    <div class="ph">
+      <div><div class="dept">Interior · working toward Deck</div><h4>Chief Stewardess</h4><div class="sub">Target chosen manually — not this crew member's department</div></div>
+      <div class="links"><button class="tlink rust">Targeting: OOW (Yachts &lt;3000GT)</button><button class="tlink">Just track my days — no certificate</button></div>
+    </div>
+    <div class="sp">
+      <div class="sp-step target"><div class="sp-m"></div>
+        <div class="sp-feat" style="padding-top:6px">
+          <div class="eyebrow rust">Now working toward · MSN 1858 §3.3</div>
+          <h5>OOW (Yachts &lt;3000GT)</h5>
+          <div class="sp-figure"><span class="big">223</span><span class="cap">qualifying days · 142 of 365</span></div>
+          <div class="note-line"><b>142 of your 320 logged days</b> count toward this certificate. Bridge-watch days you stand in a deck capacity accrue; interior days are logged for your CV, visa and tax but don't count toward a deck CoC.</div>
+          <div class="sp-reqs">
+            <div class="req"><div class="top"><span class="l">Onboard yacht service</span><span class="v">14 <em>/ 36 months</em></span></div><div class="meter"><i style="width:39%"></i></div></div>
+            <div class="req"><div class="top"><span class="l">Seagoing service · ≥15&thinsp;m (deck capacity)</span><span class="v">142 <em>/ 365 days</em></span></div><div class="meter"><i style="width:39%"></i></div></div>
+          </div>
+        </div></div>
+    </div>
+  </div>
+
+  <!-- ===== LOGGING-ONLY ===== -->
+  <div class="opthead"><div class="k">Mode 3 · Logging-only</div><h3>Service record — no certificate</h3>
+    <p>The default for interior, galley and other (and an opt-in for anyone). No countdown, no pathway — a sea-day record for CV, visa day-counts and tax, with the same calendar/list ledger and a captain-signed testimonial below.</p></div>
+  <div class="card">
+    <div class="lo-hero">
+      <div>
+        <div class="eyebrow">Logged service · for your record</div>
+        <h2>Your sea-day record</h2>
+        <div class="lead">Every day aboard, logged and captain-verifiable — for your CV, visa day-counts and tax, even though this role doesn't accrue toward a Certificate of Competency.</div>
+        <div class="uses">
+          <div class="use"><div class="l">CV</div><div class="d"><b>590 verified sea days</b> across 4 vessels</div></div>
+          <div class="use"><div class="l">Visa</div><div class="d">Day-counts for <b>Schengen &amp; B1/B2</b> evidence</div></div>
+          <div class="use"><div class="l">Tax</div><div class="d"><b>Seafarers' Earnings Deduction</b> day record</div></div>
+        </div>
+      </div>
+      <div class="lo-total"><div class="n">590</div><div class="u">Sea days logged</div></div>
+    </div>
+    <div class="minitiles">
+      <div class="mt"><div class="l"><i style="background:#2F6080"></i> Seagoing</div><div class="n t-sea">284</div><div class="u">days</div></div>
+      <div class="mt"><div class="l"><i style="background:#6B57A0"></i> Watchkeeping</div><div class="n t-watch">95</div><div class="u">days</div></div>
+      <div class="mt"><div class="l"><i style="background:#A6712C"></i> Standby</div><div class="n t-sb">120</div><div class="u">days</div></div>
+      <div class="mt"><div class="l"><i style="background:#6E665C"></i> Shipyard</div><div class="n t-yd">91</div><div class="u">days</div></div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin:18px 0 0">…then the same <b>Logged sea service</b> ledger (list / calendar) and the captain-signed <b>Testimonial of Service</b> follow — a testimonial doesn't require a CoC.</p>
+  </div>
+
+</div>
+</body></html>
