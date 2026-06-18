@@ -2773,7 +2773,20 @@ const ProvisioningBoardDetail = () => {
                         // Supplier-order linkage — drives row-editability lock AND
                         // the supplier/financial inputs to the derive function.
                         const itemOrder = itemStatusMap[(item.name || '').toLowerCase().trim()];
-                        const isLocked = isSent && !!itemOrder;
+                        // Lock the row for crew edits the moment the supplier
+                        // has acted on the line — confirmed / substituted /
+                        // unavailable all mean the supplier has committed to
+                        // a response and the crew should no longer be quietly
+                        // changing qty/unit/size/cost behind their back. The
+                        // old board-level isSent gate left the row editable
+                        // even AFTER the supplier confirmed, so a chief
+                        // could change "3 box" to "5 box" and the supplier
+                        // never knew. To request a change after a confirm,
+                        // the chief now leaves a note for the supplier (see
+                        // the note-pencil affordance on locked rows).
+                        const supplierActed = itemOrder
+                          && ['confirmed', 'substituted', 'unavailable'].includes(itemOrder.status);
+                        const isLocked = (isSent && !!itemOrder) || supplierActed;
                         // The crew lives at quote_in / quoting / confirming for
                         // most of the order's life — the board-level "sent"
                         // flag only flips after Receive Items. So we use the
@@ -2907,7 +2920,7 @@ const ProvisioningBoardDetail = () => {
                                 the crew's ask. Editable only when no
                                 supplier match exists yet. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {isReceived || hasSupplierMatch
+                              {isReceived || supplierActed
                                 ? (
                                     itemOrder?.sizeChanged
                                       ? (
@@ -2923,7 +2936,7 @@ const ProvisioningBoardDetail = () => {
                             </div>
                             {/* Unit — same strikethrough treatment as Size. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {isReceived || hasSupplierMatch
+                              {isReceived || supplierActed
                                 ? (
                                     itemOrder?.unitChanged
                                       ? (
@@ -2944,7 +2957,7 @@ const ProvisioningBoardDetail = () => {
                                 differs. Editable only when no supplier
                                 match exists yet. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
-                              {isReceived || hasSupplierMatch
+                              {isReceived || supplierActed
                                 ? (
                                     itemOrder?.qtyChanged
                                       ? (
@@ -2973,7 +2986,7 @@ const ProvisioningBoardDetail = () => {
                                 row's estimate stays editable. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
                               <span style={{ fontSize: 11, color: dim || '#94A3B8', flexShrink: 0 }}>{origSymbol}</span>
-                              {isReceived || hasSupplierMatch
+                              {isReceived || supplierActed
                                 ? (() => {
                                     const supplierPrice = itemOrder?.supplierPrice;
                                     if (supplierPrice != null && Number(supplierPrice) > 0) {
