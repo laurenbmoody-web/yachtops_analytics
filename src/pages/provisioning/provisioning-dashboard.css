@@ -27,6 +27,24 @@
 .pv-board.pv-dashboard,
 .editorial-page.pv-dashboard {
   background: var(--d-bg);
+  /* Board detail spreads to whatever the viewport gives it — the items
+     table is dense and benefits from the room on widescreen. The
+     global .editorial-page rule caps at 1280px which left a strip of
+     wasted whitespace on 1440px+ monitors. Padding scales by breakpoint
+     below so small screens still feel hand-built, not just stretched. */
+  max-width: none;
+  padding: 28px clamp(16px, 4vw, 56px) 80px;
+}
+
+/* Items table wrapper — horizontal scroll past the breakpoint where
+   the 10-column grid stops fitting, so the layout doesn't shatter on
+   mobile / narrow tablet. The columns themselves stay at their
+   designed widths; the user pans sideways. */
+@media (max-width: 900px) {
+  .editorial-page.pv-dashboard .pv-board-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* ── Board-detail Option B layout ─────────────────────────────
