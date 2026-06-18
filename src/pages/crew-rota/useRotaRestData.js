@@ -35,6 +35,11 @@ function weekdayOf(dateStr) {
   const [y, m, d] = String(dateStr).split('-').map(Number);
   return WEEKDAY[new Date(y, m - 1, d).getDay()];
 }
+// "Thu, 18 Jun" — the label the breach-reason modal shows per day.
+function dayLabelOf(dateStr) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
 
 // DB rows arrive snake_case; the shared MLC utility expects camelCase.
 function toCamelShift(s) {
@@ -339,43 +344,75 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           weekRows.filter(s => ON_DUTY_TYPES.has(s.shift_type)).map(s => s.shift_date),
         ).size;
 
-        // Has a breach reason already been logged for this day? If so the panel
-        // shows it (note · who · when) in place of the suggestions, so the chief
-        // isn't prompted to re-log what's already been justified.
-        let loggedReason = null;
+        // ── Breach days in the trailing window — the days that ACTUALLY broke a
+        //    rule (daily < 10h or rolling-7 < 77h), each with any reason already
+        //    recorded. The panel records reasons against THESE days, not the
+        //    viewed day: a window/structural breach is rarely "today" — the heavy
+        //    days sit earlier in the window, and those are what the crew signs off.
+        const breachDays = [];
         const subjectUserId = sourceMemberRef.current?.userId;
         if (mlcWarning && subjectUserId) {
+          const entries = [];
+          for (let i = 6; i >= 0; i -= 1) {
+            const ds = addDays(effDate, -i);
+            const dRows = all.filter(s => s.shift_date === ds);
+            const wStart = addDays(ds, -6);
+            const wRows = all.filter(s => s.shift_date >= wStart && s.shift_date <= ds);
+            const rep = assessMlc({ dayShifts: dRows.map(toCamelShift), weekShifts: wRows.map(toCamelShift) });
+            const types = [];
+            const labels = [];
+            if (rep.rest24h < 10) { types.push('daily_rest_10h'); labels.push('Daily'); }
+            if (rep.pastWeekHours < 77) { types.push('weekly_rest_77h'); labels.push('Weekly'); }
+            if (!types.length) continue;
+            entries.push({ date: ds, breachTypes: types, breachLabel: labels.join(' + ') });
+          }
+          // Structural-only breach (e.g. a 14h-continuous stretch) flags the
+          // window without a daily/weekly low day — attribute it to the viewed day.
+          if (!entries.length) {
+            entries.push({
+              date: effDate,
+              breachTypes: mlcReport.breaches.map(b => b.rule),
+              breachLabel: mlcReport.breaches.map(b => b.label).join(' · ') || 'Rest pattern',
+            });
+          }
           try {
-            const { data: rr } = await supabase
+            const dates = entries.map(e => e.date);
+            const { data: rrs } = await supabase
               .from('hor_breach_reasons')
-              .select('note_text, signed_off_at, signed_off_by, updated_by, created_by, updated_at')
+              .select('breach_date, note_text, signed_off_at, signed_off_by, updated_by, created_by, updated_at')
               .eq('tenant_id', tenantId)
               .eq('subject_user_id', subjectUserId)
-              .eq('breach_date', effDate)
-              .maybeSingle();
+              .in('breach_date', dates);
             if (cancelled) return;
-            if (rr?.note_text) {
-              const actorId = rr.signed_off_by || rr.updated_by || rr.created_by;
-              let by = null;
-              if (actorId) {
-                const { data: am } = await supabase
-                  .from('tenant_members')
-                  .select('display_name, role')
-                  .eq('tenant_id', tenantId)
-                  .eq('user_id', actorId)
-                  .maybeSingle();
-                if (cancelled) return;
-                // Always attribute: a name if we have one, otherwise the job role.
-                by = am?.display_name || getRoleDisplayName(am?.role) || null;
-              }
-              loggedReason = {
-                note: rr.note_text,
-                signedOff: !!rr.signed_off_at,
-                by,
-                at: rr.signed_off_at || rr.updated_at || null,
-              };
+            const byDate = new Map((rrs || []).map(r => [String(r.breach_date).slice(0, 10), r]));
+            const actorIds = [...new Set((rrs || []).map(r => r.signed_off_by || r.updated_by || r.created_by).filter(Boolean))];
+            const nameById = new Map();
+            if (actorIds.length) {
+              const { data: ms } = await supabase
+                .from('tenant_members').select('user_id, display_name, role')
+                .eq('tenant_id', tenantId).in('user_id', actorIds);
+              if (cancelled) return;
+              (ms || []).forEach(m => nameById.set(m.user_id, m.display_name || getRoleDisplayName(m.role) || null));
             }
-          } catch { /* reason lookup is best-effort — never break the panel */ }
+            for (const e of entries) {
+              const rr = byDate.get(e.date);
+              const actorId = rr ? (rr.signed_off_by || rr.updated_by || rr.created_by) : null;
+              breachDays.push({
+                key: `${subjectUserId}|${e.date}`,
+                userId: subjectUserId,
+                name: crewName,
+                role: crewRole,
+                date: e.date,
+                dateLabel: dayLabelOf(e.date),
+                breachLabel: e.breachLabel,
+                breachTypes: e.breachTypes,
+                reason: rr?.note_text || null,
+                signedOff: !!rr?.signed_off_at,
+                by: actorId ? (nameById.get(actorId) || null) : null,
+                at: rr ? (rr.signed_off_at || rr.updated_at || null) : null,
+              });
+            }
+          } catch { /* best-effort — never break the panel */ }
         }
 
         const banner = mlcWarning
@@ -429,9 +466,10 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           // Forward-only signal: today is within MLC but the 2-day projection
           // already breaches a rule. Drives the proactive (pre-breach) path.
           lookaheadLow: lookaheadBreach && !mlcWarning,
-          // A breach reason already recorded for this day (note · who · when),
-          // or null. When present the panel surfaces it instead of suggestions.
-          loggedReason,
+          // The trailing-window breach days (with any recorded reason · who ·
+          // when). Drives both the panel's recorded-reason display and what the
+          // "Log violation reason" flow records against.
+          breachDays,
           dailyHours: Math.round(rest24h),
           dailyBelow,
           // Structural rules, scoped to the right section:

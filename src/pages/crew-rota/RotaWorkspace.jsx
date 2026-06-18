@@ -14,7 +14,7 @@ import CancelEditModal from './CancelEditModal';
 import ClearRotaModal from './ClearRotaModal';
 import RestPanelPopover from './RestPanelPopover';
 import CoverageApplyModal from './CoverageApplyModal';
-import BreachNotesModal from '../crew-profile/components/BreachNotesModal';
+import RotaBreachReasonModal from './RotaBreachReasonModal';
 import DepartmentFilter from './DepartmentFilter';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -144,8 +144,8 @@ export default function RotaWorkspace({
   const [selectedCrew, setSelectedCrew] = useState(null);
   // Coverage-apply flow: a rest suggestion the chief chose to push to the grid.
   const [applySuggestion, setApplySuggestion] = useState(null);
-  // Breach-notes flow: logging an MLC violation reason / note for a crew member,
-  // reusing the crew-profile BreachNotesModal (the auditor-grade reason record).
+  // Breach-reason flow: the actual breach-day entries to record a cause against,
+  // shown in the record-only RotaBreachReasonModal (a record of why, not a sign-off).
   const [breachNotesFor, setBreachNotesFor] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [shiftType, setShiftType] = useState('duty');
@@ -419,27 +419,13 @@ export default function RotaWorkspace({
   // The acting user's own tenant_members.id — stamped on shift inserts.
   const myMemberId = crew.find((c) => c.userId === user?.id)?.id || null;
 
-  // Open the breach-notes modal for a crew member, deriving the breached day +
-  // rule types from their LIVE MLC report (the same assessMlc the panel shows),
-  // so the reason is filed against the exact rules that tripped on selectedDate.
-  const RULE_TO_BREACH_TYPE = {
-    daily_rest_10h: 'REST_LT_10_IN_24H',
-    weekly_rest_77h: 'REST_LT_77_IN_7D',
-    rest_period_split: 'NO_6H_CONTINUOUS_REST_IN_24H',
-    max_work_stretch_14h: 'WORK_GT_14H_CONTINUOUS',
-  };
-  const openBreachNotes = (crewMember) => {
-    if (!crewMember) return;
-    const breaches = crewMember.mlcReport?.breaches || [];
-    const breachTypes = [...new Set(
-      breaches.map((b) => RULE_TO_BREACH_TYPE[b.rule]).filter(Boolean),
-    )];
-    const hasDaily = breaches.some((b) => b.rule === 'daily_rest_10h');
-    const restHours = hasDaily ? crewMember.rest24hDecimal : crewMember.pastWeekHours;
-    setBreachNotesFor({
-      userId: crewMember.userId,
-      breachedDates: [{ date: selectedDate, breachTypes, restHours }],
-    });
+  // Open the breach-reason modal against the ACTUAL breach days the panel
+  // computed (the trailing-window days that broke a rule), not the viewed day —
+  // a window/structural breach is rarely "today". Recording is a record of the
+  // cause, not a sign-off (the crew sign their own off at month end).
+  const openBreachNotes = (entries) => {
+    if (!entries || entries.length === 0) return;
+    setBreachNotesFor(entries);
     setSelectedCrew(null); // close the popover so the modal isn't obscured
   };
 
@@ -1046,17 +1032,18 @@ export default function RotaWorkspace({
         onClose={() => setSelectedCrew(null)}
         onViewSchedule={() => { setSelectedCrew(null); setView('grid'); }}
         onOpenHor={() => { setSelectedCrew(null); setView('hor'); }}
-        onLogReason={() => openBreachNotes(selectedCrew)}
+        onLogReason={(entries) => openBreachNotes(entries)}
         onApplySuggestion={(sg) => setApplySuggestion({ suggestion: sg, sourceCrew: selectedCrew })}
       />
 
       {breachNotesFor && (
-        <BreachNotesModal
+        <RotaBreachReasonModal
           isOpen={!!breachNotesFor}
-          breachedDates={breachNotesFor.breachedDates}
-          userId={breachNotesFor.userId}
-          currentUserId={currentUser?.id || user?.id}
+          breaches={breachNotesFor}
           tenantId={activeTenantId}
+          canEdit={tierCanEdit}
+          initialExpandedUserId={breachNotesFor[0]?.userId}
+          onSaved={() => setReasonsNonce((n) => n + 1)}
           onClose={() => { setBreachNotesFor(null); setReasonsNonce((n) => n + 1); }}
         />
       )}

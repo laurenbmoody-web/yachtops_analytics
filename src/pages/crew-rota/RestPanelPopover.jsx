@@ -92,9 +92,15 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
   const lookaheadLow = data.lookaheadLow;
   const showSuggestions = warn || lookaheadLow;
   const firstName = data.fullName.split(' ')[0];
-  // A reason already recorded for this breach day — shown instead of the
-  // suggestions, so a justified breach isn't re-prompted to be re-logged.
-  const loggedReason = warn ? data.loggedReason : null;
+  // The actual breach days in the trailing window (not necessarily "today"),
+  // each carrying any recorded reason. Reasons recorded against these are shown
+  // instead of the suggestions once every breach day is explained.
+  const breachDays = warn ? (data.breachDays || []) : [];
+  const recordedDays = breachDays.filter((b) => b.reason);
+  const allExplained = breachDays.length > 0 && recordedDays.length === breachDays.length;
+  const reasonBtnLabel = recordedDays.length === 0
+    ? 'Log violation reason'
+    : allExplained ? 'Update reasons' : 'Log remaining reasons';
 
   const initials = crew.initials || crew.name?.slice(0, 2).toUpperCase() || '??';
   // Status segment of the role line, driven by the live crew flags:
@@ -273,26 +279,30 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           </div>
         </div>
 
-        {/* 6 · Reason already logged — supersedes the suggestions for a breach
-           the chief has accepted and justified. */}
-        {loggedReason && (
+        {/* 6 · Reasons already recorded against the actual breach days —
+           supersedes the suggestions once every breach day is explained. */}
+        {recordedDays.length > 0 && (
           <div className="rest-section">
             <SectionHead
-              label="VIOLATION REASON"
-              tag={loggedReason.signedOff ? 'signed off ✓' : 'recorded'}
+              label={recordedDays.length === 1 ? 'VIOLATION REASON' : 'VIOLATION REASONS'}
+              tag={allExplained ? 'all days recorded' : `${recordedDays.length} of ${breachDays.length} recorded`}
               tagState="ok"
             />
-            <div className="rest-reason-note">“{loggedReason.note}”</div>
-            <div className="rest-reason-meta">
-              {loggedReason.signedOff ? 'Signed off' : 'Recorded'}
-              {loggedReason.by ? ` by ${loggedReason.by}` : ''}
-              {loggedReason.at ? ` · ${fmtDMY(loggedReason.at)}` : ''}
-            </div>
+            {recordedDays.map((b) => (
+              <div key={b.key} className="rest-reason-row">
+                <div className="rest-reason-note">“{b.reason}”</div>
+                <div className="rest-reason-meta">
+                  {b.dateLabel} · {b.signedOff ? 'signed off' : 'recorded'}
+                  {b.by ? ` by ${b.by}` : ''}
+                  {b.at ? ` · ${fmtDMY(b.at)}` : ''}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
         {/* 6b · AI suggestions — present breach OR a projected forward dip */}
-        {!loggedReason && showSuggestions && (suggestionsLoading || visibleCount > 0) && (
+        {!allExplained && showSuggestions && (suggestionsLoading || visibleCount > 0) && (
           <div className="rest-section">
             <SectionHead label="WORTH CONSIDERING" accent />
             <div className="rest-section-summary">
@@ -355,7 +365,7 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
 
         {/* 6c · Honest empty state — breach (or projected dip) stands but
            nothing actionable to offer */}
-        {!loggedReason && showSuggestions && !suggestionsLoading && visibleCount === 0 && (
+        {!allExplained && showSuggestions && !suggestionsLoading && visibleCount === 0 && (
           <div className="rest-section">
             <SectionHead label="WORTH CONSIDERING" accent />
             <div className="rest-empty-note">
@@ -375,8 +385,12 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           {warn ? (
             <>
               <button type="button" className="rest-btn primary" onClick={onViewSchedule}>Adjust shift</button>
-              <button type="button" className="rest-btn ghost" onClick={onLogReason || onOpenHor}>
-                {loggedReason ? 'Update reason' : 'Log violation reason'}
+              <button
+                type="button"
+                className="rest-btn ghost"
+                onClick={() => (onLogReason ? onLogReason(breachDays) : onOpenHor())}
+              >
+                {reasonBtnLabel}
               </button>
             </>
           ) : (
