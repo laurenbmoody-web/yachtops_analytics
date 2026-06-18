@@ -66,7 +66,7 @@ function RotaLegend({ now }) {
 // targets a single department (targetDeptId).
 function EditFooterCTA({
   tier, draftDayCount, targetDeptId, targetDeptName,
-  busy, onSubmit, onPublish,
+  busy, onSubmit, onPublish, onSaveDraft,
 }) {
   const n = draftDayCount;
   const dayLabel = `${n} ${n === 1 ? 'day' : 'days'}`;
@@ -74,8 +74,20 @@ function EditFooterCTA({
   const subLabel = busy === 'submit' ? 'Sending…' : `Send for acceptance (${dayLabel})`;
   const noTargetDept = !targetDeptId;
   const noTargetTitle = noTargetDept ? 'Use the review inbox to publish departments individually.' : undefined;
+  const isEditor = ['COMMAND', 'CHIEF', 'HOD'].includes(tier);
   return (
     <div className="crew-rota-cta">
+      {/* Save draft — keeps the autosaved edits as a draft and leaves edit mode.
+          An explicit button (separate from Cancel) so it's clear work is kept. */}
+      {isEditor && (
+        <button
+          type="button"
+          className="v2-btn-ghost"
+          onClick={onSaveDraft}
+          disabled={!!busy}
+          aria-label="Save draft and close"
+        >Save draft</button>
+      )}
       {tier === 'COMMAND' && (
         // COMMAND edits span departments, so Publish commits ALL draft
         // departments (validated in the handler) — not gated to their own dept.
@@ -318,6 +330,10 @@ export default function CrewRotaPage() {
         busy={ctaBusy}
         onSubmit={() => handleFooterSubmit(exitEdit)}
         onPublish={() => handleFooterPublish(exitEdit)}
+        onSaveDraft={() => {
+          showToast('Draft saved — publish or send it for acceptance when you’re ready.');
+          exitEdit();
+        }}
       />
     ) : (
       <>
