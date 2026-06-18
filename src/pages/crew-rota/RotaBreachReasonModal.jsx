@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X, CheckCircle, ChevronRight, Check } from 'lucide-react';
 import ModalShell from '../../components/ui/ModalShell';
-import { upsertBreachReason, signOffBreachReason } from '../crew-profile/utils/horBreachReasons';
+import { upsertBreachReason } from '../crew-profile/utils/horBreachReasons';
 
 // A few common operational reasons — clicking one seeds the bulk field as a
 // starting point; it stays fully editable so the actual reason still gets
@@ -75,13 +75,12 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
     setSaving(true);
     setError('');
     const targets = breaches.filter((b) => isEditable(b) && (notes[b.key] || '').trim());
-    const results = await Promise.allSettled(targets.map(async (b) => {
-      await upsertBreachReason({
-        tenantId, subjectUserId: b.userId, date: b.date,
-        breachTypes: b.breachTypes || [], note: notes[b.key].trim(),
-      });
-      await signOffBreachReason({ tenantId, subjectUserId: b.userId, date: b.date });
-    }));
+    // Recording the reason is NOT a sign-off — it's the record of WHY the breach
+    // happened. The crew member signs their own breaches off at month end.
+    const results = await Promise.allSettled(targets.map((b) => upsertBreachReason({
+      tenantId, subjectUserId: b.userId, date: b.date,
+      breachTypes: b.breachTypes || [], note: notes[b.key].trim(),
+    })));
     setSaving(false);
     const failed = results.filter((r) => r.status === 'rejected');
     if (failed.length) {
@@ -103,7 +102,7 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
         </h2>
         <p className="rbr-sub">
           {hasEditable
-            ? 'Record why each non-compliant day was operationally necessary. As a sign-off authority, your reason is recorded as the sign-off (✓) on the record.'
+            ? 'Record why each non-compliant day was operationally necessary. This is the record of the cause — the crew member signs their own breaches off at month end.'
             : 'Each non-compliant day, the rule it broke, and any reason already recorded against it.'}
         </p>
         <button className="rbr-x" onClick={onClose} aria-label="Close"><X size={20} /></button>
@@ -202,7 +201,7 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
           {hasEditable && (
             <button type="button" className="rbr-btn-primary" onClick={handleSave} disabled={saving || filledCount === 0}>
               <CheckCircle size={16} />
-              {saving ? 'Saving…' : 'Record & sign off'}
+              {saving ? 'Saving…' : `Record ${filledCount === 1 ? 'reason' : 'reasons'}`}
             </button>
           )}
         </div>
