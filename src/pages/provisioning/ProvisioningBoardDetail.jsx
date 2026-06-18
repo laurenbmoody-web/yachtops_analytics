@@ -36,6 +36,7 @@ import {
   fetchSupplierOrders,
   fetchInvoiceSignedUrl,
   reopenOrderItem,
+  updateOrderItemStatus,
   acceptOrderItemQuote,
   declineOrderItemQuote,
   queryOrderItemQuote,
@@ -633,6 +634,7 @@ const ProvisioningBoardDetail = () => {
           const unitChanged = !!oi.requested_unit && String(oi.requested_unit).toLowerCase() !== String(oi.unit || '').toLowerCase();
           const sizeChanged = !!oi.requested_size && String(oi.requested_size).toLowerCase() !== String(oi.size || '').toLowerCase();
           map[key] = {
+            id:                oi.id,
             status: oi.status,
             quoteStatus: oi.quote_status,
             substitution: oi.substitute_description,
@@ -994,6 +996,23 @@ const ProvisioningBoardDetail = () => {
 
   // ── Cell save ─────────────────────────────────────────────────────────────
 
+  // Fields the board edits which also need to mirror across to the
+  // matching supplier_order_items row when one exists. provisioning_items
+  // → supplier_order_items naming:
+  //   quantity_ordered → quantity
+  //   unit             → unit
+  //   size             → size
+  //   notes            → notes
+  // estimated_unit_cost stays vessel-side (the supplier never sees it),
+  // status / name / brand / category are vessel-side concepts that
+  // don't have a meaningful supplier-side write target.
+  const SUPPLIER_MIRROR_FIELD = {
+    quantity_ordered: 'quantity',
+    unit:             'unit',
+    size:             'size',
+    notes:            'notes',
+  };
+
   const handleCellSave = useCallback(async (item, field, rawValue) => {
     let value = rawValue;
     if (['quantity_ordered', 'quantity_received', 'estimated_unit_cost'].includes(field)) {
@@ -1003,11 +1022,36 @@ const ProvisioningBoardDetail = () => {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, [field]: value } : i));
     try {
       await updateProvisioningItem(item.id, { [field]: value });
+
+      // Mirror the edit to the matching supplier_order_item if one
+      // exists. Lets the supplier see the chief's revised qty / unit /
+      // size / notes the next time they refresh — no separate "send"
+      // step needed. We only fire this on the fields above; the others
+      // stay vessel-side. itemStatusMap drives the lookup so we don't
+      // need to re-fetch supplierOrders mid-edit.
+      const supplierField = SUPPLIER_MIRROR_FIELD[field];
+      const oi = itemStatusMap[(item.name || '').toLowerCase().trim()];
+      if (supplierField && oi?.id) {
+        try {
+          await updateOrderItemStatus(oi.id, { [supplierField]: value });
+          // Refresh supplier orders so the local map (and the row's
+          // strikethrough / supplier-aware columns) reflect the new
+          // value immediately.
+          if (list?.id) {
+            const fresh = await fetchSupplierOrders(list.id);
+            setSupplierOrders(fresh || []);
+          }
+          showToast('Sent to supplier', 'success');
+        } catch (mirrorErr) {
+          console.error('[ProvisioningBoardDetail] supplier mirror failed:', mirrorErr);
+          showToast(`Saved on board — failed to send to supplier: ${mirrorErr.message || mirrorErr}`, 'error');
+        }
+      }
     } catch {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, [field]: item[field] } : i));
       showToast('Failed to save', 'error');
     }
-  }, []);
+  }, [itemStatusMap, list?.id]);
 
   const handleQtyStep = useCallback(async (item, field, delta) => {
     const next = Math.max(0, (parseFloat(item[field]) || 0) + delta);
