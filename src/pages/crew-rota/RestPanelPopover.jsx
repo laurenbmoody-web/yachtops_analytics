@@ -56,9 +56,11 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
     { sourceMember: crew, roster, windowShifts },
   );
 
-  // Locally dismissed suggestions (reset when the panel switches crew).
+  // Locally dismissed suggestions + whether the recorded-reasons list is
+  // expanded (reset when the panel switches crew).
   const [dismissed, setDismissed] = useState([]);
-  useEffect(() => { setDismissed([]); }, [crew?.id]);
+  const [reasonsExpanded, setReasonsExpanded] = useState(false);
+  useEffect(() => { setDismissed([]); setReasonsExpanded(false); }, [crew?.id]);
   const visibleCount = suggestions.filter((_, i) => !dismissed.includes(i)).length;
   // True only if at least one still-visible option actually clears the breach.
   // When none do (e.g. a structural breach from already-worked hours), the
@@ -98,6 +100,10 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
   const breachDays = warn ? (data.breachDays || []) : [];
   const recordedDays = breachDays.filter((b) => b.reason);
   const allExplained = breachDays.length > 0 && recordedDays.length === breachDays.length;
+  // A single charter usually covers every breach day with the SAME reason, so
+  // the list collapses to one summary line (reason · date range) by default.
+  const uniqueReasons = [...new Set(recordedDays.map((b) => b.reason))];
+  const sameReason = uniqueReasons.length <= 1;
   const reasonBtnLabel = recordedDays.length === 0
     ? 'Log violation reason'
     : allExplained ? 'Update reasons' : 'Log remaining reasons';
@@ -288,16 +294,48 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
               tag={allExplained ? 'all days recorded' : `${recordedDays.length} of ${breachDays.length} recorded`}
               tagState="ok"
             />
-            {recordedDays.map((b) => (
-              <div key={b.key} className="rest-reason-row">
-                <div className="rest-reason-note">“{b.reason}”</div>
-                <div className="rest-reason-meta">
-                  {b.dateLabel} · {b.signedOff ? 'signed off' : 'recorded'}
-                  {b.by ? ` by ${b.by}` : ''}
-                  {b.at ? ` · ${fmtDMY(b.at)}` : ''}
+            {recordedDays.length === 1 || reasonsExpanded ? (
+              <>
+                {recordedDays.map((b) => (
+                  <div key={b.key} className="rest-reason-row">
+                    <div className="rest-reason-note">“{b.reason}”</div>
+                    <div className="rest-reason-meta">
+                      {b.dateLabel} · {b.signedOff ? 'signed off' : 'recorded'}
+                      {b.by ? ` by ${b.by}` : ''}
+                      {b.at ? ` · ${fmtDMY(b.at)}` : ''}
+                    </div>
+                  </div>
+                ))}
+                {recordedDays.length > 1 && (
+                  <button type="button" className="rest-reason-toggle" onClick={() => setReasonsExpanded(false)}>
+                    Show less
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="rest-reason-row">
+                  {sameReason ? (
+                    <>
+                      <div className="rest-reason-note">“{recordedDays[0].reason}”</div>
+                      <div className="rest-reason-meta">
+                        {recordedDays[0].dateLabel} – {recordedDays[recordedDays.length - 1].dateLabel}
+                        {' · '}{recordedDays.length} days
+                        {recordedDays[0].signedOff ? ' · signed off' : ' · recorded'}
+                        {recordedDays[0].by ? ` by ${recordedDays[0].by}` : ''}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rest-reason-meta">
+                      {recordedDays.length} days recorded · {uniqueReasons.length} different reasons
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+                <button type="button" className="rest-reason-toggle" onClick={() => setReasonsExpanded(true)}>
+                  Show {recordedDays.length} days
+                </button>
+              </>
+            )}
           </div>
         )}
 

@@ -388,11 +388,17 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
             const actorIds = [...new Set((rrs || []).map(r => r.signed_off_by || r.updated_by || r.created_by).filter(Boolean))];
             const nameById = new Map();
             if (actorIds.length) {
+              // Resolve the recorder's NAME, falling back to their actual JOB
+              // role (Captain / Chief Stewardess …) — never the permission tier.
               const { data: ms } = await supabase
-                .from('tenant_members').select('user_id, display_name, role')
+                .from('tenant_members')
+                .select('user_id, display_name, role:roles!role_id(name), custom_role:tenant_custom_roles!custom_role_id(name)')
                 .eq('tenant_id', tenantId).in('user_id', actorIds);
               if (cancelled) return;
-              (ms || []).forEach(m => nameById.set(m.user_id, m.display_name || getRoleDisplayName(m.role) || null));
+              (ms || []).forEach((m) => {
+                const jobRole = m.role?.name || m.custom_role?.name || null;
+                nameById.set(m.user_id, m.display_name || getRoleDisplayName(jobRole) || null);
+              });
             }
             for (const e of entries) {
               const rr = byDate.get(e.date);
