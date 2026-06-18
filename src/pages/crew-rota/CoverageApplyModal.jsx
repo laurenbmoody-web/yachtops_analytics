@@ -99,15 +99,32 @@ export default function CoverageApplyModal({
     return m;
   }, [candidates, freed, winShifts]);
 
-  // Seed from an uncapped plan: each covered member's planned hours become their
-  // default cap, so the chief sees a sensible multi-person spread to adjust.
+  // Seed a VALID default spread: plan greedily (fewest crew, contiguous runs),
+  // then drop any recipient whose assigned slice would push THEM into an MLC
+  // breach and re-plan — repeating until the default holds. So the chief starts
+  // from a clean allocation instead of one that's pre-broken with Confirm locked
+  // out of the gate. Hours no one can safely take fall to a gap (stay with the
+  // source / run short), exactly as the manual flow already handles them.
   React.useEffect(() => {
     if (!open || !freed) return;
     setStep('assign');
-    const base0 = planCoverage({ freed, candidates, date: freed.date, windowShifts: winShifts });
+    const excluded = new Set();
+    let safe = null;
+    for (let pass = 0; pass <= candidates.length; pass += 1) {
+      const caps = {};
+      for (const c of candidates) caps[c.id] = excluded.has(c.id) ? 0 : Math.floor(c.headroom);
+      const p = planCoverage({ freed, candidates, date: freed.date, windowShifts: winShifts, caps });
+      safe = p;
+      const offender = p.slices.find((s) => !s.gap && s.id && assessRecipient({
+        memberId: s.id, windowShifts: winShifts, date: freed.date,
+        block: { ...s, shiftType: freed.sourceShiftType },
+      }).anyBreach);
+      if (!offender) break;
+      excluded.add(offender.id);
+    }
     const a = {};
     for (const c of candidates) a[c.id] = 0; // explicit caps for everyone
-    for (const s of base0.slices) if (!s.gap && s.id) a[s.id] = (a[s.id] || 0) + s.hours;
+    for (const s of (safe?.slices || [])) if (!s.gap && s.id) a[s.id] = (a[s.id] || 0) + s.hours;
     setAlloc(a);
   }, [open, freed, candidates, winShifts]);
 
