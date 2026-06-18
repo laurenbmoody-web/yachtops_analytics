@@ -12,7 +12,7 @@ import {
   submitRotaDepartment,
   publishRotaDepartmentDirect,
 } from './useRotaLifecycleWriters';
-import { getDraftShiftCount } from './rotaLifecycleChecks';
+import { getDraftShiftCount, getDraftDepartmentIds } from './rotaLifecycleChecks';
 import { supabase } from '../../lib/supabaseClient';
 
 // CrewRotaPage — page chrome around the shared RotaWorkspace composition.
@@ -77,14 +77,15 @@ function EditFooterCTA({
   return (
     <div className="crew-rota-cta">
       {tier === 'COMMAND' && (
+        // COMMAND edits span departments, so Publish commits ALL draft
+        // departments (validated in the handler) — not gated to their own dept.
         <button
           type="button"
           className="v2-btn-filled"
           onClick={onPublish}
-          disabled={!!busy || n === 0 || noTargetDept}
-          title={noTargetTitle}
-          aria-label={`Publish ${targetDeptName || 'department'}`}
-        >{pubLabel}</button>
+          disabled={!!busy}
+          aria-label="Publish all changed departments"
+        >{busy === 'publish' ? 'Publishing…' : 'Publish changes'}</button>
       )}
       {tier === 'CHIEF' && (
         <>
@@ -245,35 +246,49 @@ export default function CrewRotaPage() {
   }, [rota, targetDeptId, ctaBusy, targetDeptName, showToast]);
 
   const handleFooterPublish = useCallback(async (onDone) => {
-    if (!rota?.id || !targetDeptId || ctaBusy) return;
+    if (!rota?.id || ctaBusy) return;
     setCtaBusy('publish');
-    const draftCheck = await getDraftShiftCount(rota.id, rota.tenantId, targetDeptId);
-    if (!draftCheck.ok) {
+    // COMMAND edits span departments, so they publish EVERY department that has
+    // draft shifts — not just their own. CHIEF publishes their own department.
+    let deptIds;
+    if (tier === 'COMMAND') {
+      const r = await getDraftDepartmentIds(rota.id, rota.tenantId);
+      if (!r.ok) {
+        setCtaBusy(null);
+        showToast(`Couldn’t check drafts — ${r.error || 'try again.'}`, { error: true });
+        return;
+      }
+      deptIds = r.departmentIds;
+    } else {
+      if (!targetDeptId) { setCtaBusy(null); return; }
+      const draftCheck = await getDraftShiftCount(rota.id, rota.tenantId, targetDeptId);
+      if (!draftCheck.ok) {
+        setCtaBusy(null);
+        showToast(`Couldn’t check shifts — ${draftCheck.error || 'try again.'}`, { error: true });
+        return;
+      }
+      deptIds = draftCheck.count > 0 ? [targetDeptId] : [];
+    }
+    if (deptIds.length === 0) {
       setCtaBusy(null);
-      showToast(`Couldn’t check shifts — ${draftCheck.error || 'try again.'}`, { error: true });
+      showToast('Nothing to publish — no draft changes.', { error: true });
       return;
     }
-    if (draftCheck.count === 0) {
-      setCtaBusy(null);
-      showToast(
-        `Cannot publish — no shifts for ${targetDeptName || 'this department'}.`,
-        { error: true },
-      );
-      return;
-    }
-    const res = await publishRotaDepartmentDirect({
-      rotaId: rota.id,
-      departmentId: targetDeptId,
-      note: null,
-    });
+    const results = await Promise.allSettled(deptIds.map((d) => publishRotaDepartmentDirect({
+      rotaId: rota.id, departmentId: d, note: null,
+    })));
     setCtaBusy(null);
-    if (!res.ok) {
-      showToast(`Couldn’t publish — ${res.error || 'try again.'}`, { error: true });
+    const failed = results.filter((r) => r.status === 'rejected' || (r.value && !r.value.ok));
+    if (failed.length) {
+      const detail = failed[0].reason?.message || failed[0].value?.error || 'try again.';
+      showToast(`Couldn’t publish ${failed.length} of ${deptIds.length} department(s) — ${detail}`, { error: true });
       return;
     }
-    showToast(`Published ${targetDeptName || 'department'}.`);
+    showToast(deptIds.length === 1
+      ? `Published ${targetDeptName || 'department'}.`
+      : `Published ${deptIds.length} departments.`);
     onDone?.();
-  }, [rota, targetDeptId, ctaBusy, targetDeptName, showToast]);
+  }, [rota, tier, targetDeptId, ctaBusy, targetDeptName, showToast]);
 
   // Title block — reacts to the workspace's selected date / crew counts.
   const renderHeader = ({ view, selectedDate, selectedDateObj, isToday, total, onDuty }) => {

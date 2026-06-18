@@ -68,6 +68,27 @@ export async function getDraftShiftCount(rotaId, tenantId, departmentId) {
   return { ok: true, count: count || 0 };
 }
 
+// getDraftDepartmentIds(rotaId, tenantId)
+//   Distinct department ids that have at least one DRAFT shift in the rota.
+//   Lets COMMAND publish every department they edited in one action (their
+//   edits span departments — the per-dept footer target isn't enough).
+export async function getDraftDepartmentIds(rotaId, tenantId) {
+  if (!rotaId || !tenantId) return { ok: false, error: 'missing-context' };
+  const { data, error } = await supabase
+    .from('rota_shifts')
+    .select('member_id, tenant_members!inner(department_id)')
+    .eq('rota_id', rotaId)
+    .eq('status', 'draft');
+  if (error) {
+    console.error('[getDraftDepartmentIds] fetch failed:', error);
+    return { ok: false, error: error.message || String(error) };
+  }
+  const ids = [...new Set(
+    (data || []).map((r) => r.tenant_members?.department_id).filter(Boolean),
+  )];
+  return { ok: true, departmentIds: ids };
+}
+
 // getDraftDayCount(rotaId, tenantId, departmentId)
 //   Returns the DISTINCT draft shift_date values for the (rota, dept) pair
 //   across the WHOLE rota (not a loaded window). Used by the submit footer
