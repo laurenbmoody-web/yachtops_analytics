@@ -13,6 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { hhmmToDecimal } from './useRotaShifts';
 import { ON_DUTY_TYPES, assessMlc, restForWeek } from './restHours';
 import { generateRankedSuggestions } from './suggestionEngine';
+import { getRoleDisplayName } from './crewDisplay';
 
 // Session cache for AI COPY only (headline/body), keyed by member + the
 // semantic content of a fix. The structural payload (change/freedBlock/shift
@@ -359,12 +360,13 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
               if (actorId) {
                 const { data: am } = await supabase
                   .from('tenant_members')
-                  .select('display_name')
+                  .select('display_name, role')
                   .eq('tenant_id', tenantId)
                   .eq('user_id', actorId)
                   .maybeSingle();
                 if (cancelled) return;
-                by = am?.display_name || null;
+                // Always attribute: a name if we have one, otherwise the job role.
+                by = am?.display_name || getRoleDisplayName(am?.role) || null;
               }
               loggedReason = {
                 note: rr.note_text,
