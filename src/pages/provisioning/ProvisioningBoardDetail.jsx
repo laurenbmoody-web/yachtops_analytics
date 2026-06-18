@@ -35,6 +35,7 @@ import {
   fetchOrderHistory,
   fetchSupplierOrders,
   fetchInvoiceSignedUrl,
+  reopenOrderItem,
   acceptOrderItemQuote,
   declineOrderItemQuote,
   queryOrderItemQuote,
@@ -1308,6 +1309,46 @@ const ProvisioningBoardDetail = () => {
       console.error('[ProvisioningBoardDetail] handleDeleteItem failed:', err);
       showToast('Failed to delete item', 'error');
       loadAll();
+    }
+  };
+
+  // Reopen a supplier-confirmed line so the crew can revise qty / unit /
+  // size / notes. Caller passes (provisioning_items row, supplier_order_item
+  // map entry) so we can show the name in the confirm dialog and write the
+  // supplier-side activity event server-side. Refreshes supplierOrders on
+  // success so the row visually unlocks immediately.
+  const handleReopenLine = async (provisioningItem, supplierLine) => {
+    const itemName = provisioningItem?.name || 'this item';
+    if (!supplierLine?.parentOrder?.id) {
+      showToast('Could not reopen — supplier order link missing.', 'error');
+      return;
+    }
+    const ok = window.confirm(
+      `Reopen "${itemName}" for changes?\n\n`
+      + 'The supplier will be notified that this line is back to pending. '
+      + 'They will need to re-confirm once you save your changes.',
+    );
+    if (!ok) return;
+    try {
+      // The map carries the FK on parentOrder; the order_item id we need
+      // is the one keyed by item name. Walk the parent order's items.
+      const oi = (supplierLine.parentOrder.supplier_order_items || [])
+        .find(x => (x.item_name || '').toLowerCase().trim() === (itemName || '').toLowerCase().trim());
+      if (!oi) {
+        showToast('Could not find the supplier line to reopen.', 'error');
+        return;
+      }
+      await reopenOrderItem(oi.id);
+      showToast(`"${itemName}" reopened — supplier notified.`, 'success');
+      // Refresh supplier orders so the local map drops supplierActed for
+      // this line and the row unlocks on the next render.
+      if (list?.id) {
+        const fresh = await fetchSupplierOrders(list.id);
+        setSupplierOrders(fresh || []);
+      }
+    } catch (err) {
+      console.error('[ProvisioningBoardDetail] handleReopenLine failed:', err);
+      showToast(`Reopen failed: ${err.message || err}`, 'error');
     }
   };
 
@@ -3082,6 +3123,25 @@ const ProvisioningBoardDetail = () => {
                                     </button>
                                   )}
                                 </>
+                              )}
+                              {/* Reopen — appears on confirmed / substituted /
+                                  unavailable lines so the chief can ask the
+                                  supplier to revise after they've committed.
+                                  Click → confirm dialog → status drops back
+                                  to pending, substitute_description cleared,
+                                  and a 'line_reopened' activity event fires
+                                  so the supplier sees a clear marker on
+                                  their order detail. */}
+                              {isHovered && supplierActed && (
+                                <button
+                                  onClick={() => handleReopenLine(item, itemOrder)}
+                                  title="Reopen for changes — supplier will be notified"
+                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = '#FBEFE9'; e.currentTarget.style.color = '#C65A1A'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94A3B8'; }}
+                                >
+                                  <Icon name="RotateCcw" style={{ width: 12, height: 12 }} />
+                                </button>
                               )}
                             </div>
                           </div>
