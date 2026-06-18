@@ -1911,9 +1911,9 @@ const ProvisioningBoardDetail = () => {
   };
 
   // cols: check | item | category | size | unit | qty | unit cost | total | status | actions
-  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 48px 56px';
+  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 32px 56px';
   // cols: check | item | size | unit | qty | unit cost | total | status | actions  (category dropped)
-  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) 76px 70px 92px 90px 80px 48px 56px';
+  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) 76px 70px 92px 90px 80px 32px 56px';
   const TABLE_GRID = groupBy === 'category' ? TABLE_GRID_NO_CAT : TABLE_GRID_FULL;
 
   const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
@@ -3007,44 +3007,38 @@ const ProvisioningBoardDetail = () => {
                                   : <span style={{ fontSize: 13, color: dim || '#CBD5E1' }}>-</span>;
                               })()}
                             </div>
-                            {/* Status — icon-only chip (coloured dot in a
-                                tinted pill, ~28px wide). The full label
-                                lives in the title tooltip so it's still
-                                discoverable without eating column width.
-                                Editable variant keeps a tiny v-caret so
-                                the chief can tell it opens a dropdown. */}
+                            {/* Status — bare coloured dot, no pill, no
+                                border. Full label lives in the hover
+                                tooltip. Editable variant overlays an
+                                invisible native <select> on top of the
+                                dot so clicking the dot opens the picker
+                                without any visible chrome. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               {statusReadOnly
                                 ? <span
                                     title={badge.label}
                                     aria-label={badge.label}
                                     style={{
-                                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                      width: 24, height: 22,
-                                      background: badge.bg, border: `1px solid ${badge.border}`,
-                                      borderRadius: 6,
+                                      display: 'inline-block',
+                                      width: 10, height: 10,
+                                      borderRadius: '50%',
+                                      background: badge.dot,
                                     }}
+                                  />
+                                : <label
+                                    title={badge.label}
+                                    aria-label={badge.label}
+                                    style={{ position: 'relative', display: 'inline-block', width: 16, height: 16, cursor: 'pointer' }}
                                   >
-                                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: badge.dot, display: 'block' }} />
-                                  </span>
-                                : <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} title={badge.label}>
-                                    <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 6, height: 6, borderRadius: '50%', background: badge.dot, pointerEvents: 'none', zIndex: 1 }} />
+                                    <span style={{ position: 'absolute', top: 3, left: 3, width: 10, height: 10, borderRadius: '50%', background: badge.dot, display: 'block', pointerEvents: 'none' }} />
                                     <select
                                       value={item.status || 'draft'}
                                       onChange={e => handleStatusSave(item, 'status', e.target.value)}
-                                      title={badge.label}
-                                      style={{
-                                        paddingLeft: 16, paddingRight: 4, paddingTop: 3, paddingBottom: 3,
-                                        fontSize: 0,  // hide the option label, keep the chevron
-                                        width: 32, height: 22,
-                                        background: badge.bg, color: 'transparent',
-                                        border: `1px solid ${badge.border}`, borderRadius: 6,
-                                        cursor: 'pointer', outline: 'none',
-                                      }}
+                                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', border: 0, padding: 0, margin: 0 }}
                                     >
                                       {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value} style={{ fontSize: 12, color: '#0F172A' }}>{s.label}</option>)}
                                     </select>
-                                  </span>
+                                  </label>
                               }
                             </div>
                             {/* Actions */}
