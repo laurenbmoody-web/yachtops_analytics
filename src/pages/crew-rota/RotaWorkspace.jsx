@@ -464,8 +464,29 @@ export default function RotaWorkspace({
       showToast('Editing the post-midnight window ships in a later phase.');
       return;
     }
-    const lo = lo0;
     const hi = Math.min(hi0, lastPreMidnightSlot);
+
+    // Past time is a record, not a plan: already-elapsed slots can't be edited
+    // in the rota (only in the crew member's HOR log). Block a fully-past range
+    // and clip a range that straddles "now" to its still-future part. Mirrors
+    // RotaTodayGrid's firstEditableSlot so the cells and the writer agree.
+    const SLOTS_PER_DAY = 48;
+    let minSlot = 0;
+    if (selectedDate < realToday) {
+      minSlot = SLOTS_PER_DAY; // the whole day has elapsed
+    } else if (selectedDate === realToday) {
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const ns = h >= gridStartHour
+        ? (h - gridStartHour) * 2 + (m >= 30 ? 1 : 0)
+        : (24 - gridStartHour + h) * 2 + (m >= 30 ? 1 : 0);
+      minSlot = Math.max(0, Math.min(SLOTS_PER_DAY, ns));
+    }
+    if (hi < minSlot) {
+      showToast('That time has already passed — edit it in the crew member’s hours-of-rest log.');
+      return;
+    }
+    const lo = Math.max(lo0, minSlot);
     const erase = shiftType === 'erase';
 
     // Submitter editing marks the dept draft (the "editing reverts to draft"
@@ -486,7 +507,7 @@ export default function RotaWorkspace({
       gridStartHour,
     });
     if (!res.ok) showToast(`Couldn’t save that change — try again. (${res.error})`);
-  }, [rota, mode, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast, gridStartHour, lastPreMidnightSlot, editableDeptIds]);
+  }, [rota, mode, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast, gridStartHour, lastPreMidnightSlot, editableDeptIds, now, realToday, selectedDate]);
 
   // Read-only tiers (crew) can view but never edit. Editors are COMMAND /
   // CHIEF / HOD (HOD submits for approval, CHIEF / COMMAND publish — enforced
@@ -921,6 +942,7 @@ export default function RotaWorkspace({
               deptStatus={statusByDept}
               highlightSlots={highlightSlots}
               viewDate={selectedDate}
+              realToday={realToday}
             />
           ) : (
             <CrewListView crew={visibleCrew} onCrewClick={setSelectedCrew} deptStatus={statusByDept} />

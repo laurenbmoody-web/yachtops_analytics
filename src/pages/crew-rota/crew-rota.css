@@ -1171,6 +1171,15 @@
   outline: 1.5px solid #C65A1A;
   outline-offset: -1.5px;
 }
+/* Elapsed slots in edit mode — locked (record-only, edited in the HOR log).
+   Faintly hatched + not-allowed cursor, no hover affordance. */
+.rota-c-past {
+  cursor: not-allowed;
+  background-image: repeating-linear-gradient(
+    -45deg, rgba(28,27,58,0.05) 0 3px, transparent 3px 6px
+  );
+  opacity: 0.6;
+}
 
 /* Drag-paint preview (before pointer release). */
 .rota-c-drag {
