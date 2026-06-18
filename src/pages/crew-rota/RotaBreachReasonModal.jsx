@@ -21,7 +21,7 @@ const PRESETS = [
 // every row; unfilled days stay "—" on the record.
 //
 // `breaches`: [{ key, userId, name, role, date, dateLabel, breachLabel, breachTypes }]
-export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breaches = [], onSaved }) {
+export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breaches = [], onSaved, initialExpandedUserId = null }) {
   const [notes, setNotes] = useState({});
   const [bulk, setBulk] = useState('');
   const [open, setOpen] = useState({}); // userId -> expanded
@@ -43,8 +43,9 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
     setNotes({});
     setBulk('');
     setError('');
-    setOpen({}); // always start collapsed — the user expands a crew member to fill
-  }, [isOpen, breaches]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Pre-expand the member the approver drilled into; otherwise start collapsed.
+    setOpen(initialExpandedUserId ? { [initialExpandedUserId]: true } : {});
+  }, [isOpen, breaches, initialExpandedUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null;
 

@@ -4079,6 +4079,24 @@
 .rl-sum-ok { color: #6B7F6B; font-weight: 600; }
 .rl-sum.has-breach { background: #FDF6F3; }
 .rl-sum-count { color: #C65A1A; font-weight: 600; }
+/* Clickable breach count — drills into that crew member's breach detail
+   (which days, which rule) and lets the approver record reasons. */
+.rl-sum-action {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font: inherit;
+  color: #C65A1A;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  transition: background 0.12s ease;
+}
+.rl-sum-action:hover { background: #FBEFE9; text-decoration-style: solid; }
+.rl-sum-action:focus-visible { outline: 2px solid #C65A1A; outline-offset: 1px; }
 
 /* ── Rota breach-reason modal (rbr-) — editorial, compact, cool palette ──
    Chief/command records (and thereby signs off) reasons for planned MLC
