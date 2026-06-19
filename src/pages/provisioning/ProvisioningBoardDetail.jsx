@@ -913,6 +913,10 @@ const ProvisioningBoardDetail = () => {
       case 'quote_declined':   return `Quote declined for ${name}${price ? ` (${currency} ${price})` : ''}`;
       case 'discussion_opened': return `Discussion opened on ${name}`;
       case 'line_reopened':    return `Vessel reopened ${name}${payload?.previous_status ? ` (was ${payload.previous_status})` : ''}`;
+      case 'supplier_requested_reopen':
+        return `Supplier requested changes on ${name}${payload?.reason ? ` — "${payload.reason}"` : ''}`;
+      case 'vessel_approved_quote':
+        return `Vessel approved the quote on this order${payload?.fully_confirmed === false ? ' (partial — some lines still awaiting a quote)' : ''}`;
       default:                 return `${eventType.replace(/_/g, ' ')} — ${name}`;
     }
   };
