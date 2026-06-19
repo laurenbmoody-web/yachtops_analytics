@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem, markVesselApprovedSeen } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem, markVesselApprovedSeen, supplierRequestLineReopen } from '../utils/supplierStorage';
 import { fetchReturnTasksByOrderId, fetchReturnTasksCountForOrder, acknowledgeSupplierReturnTask, completeSupplierReturnTask } from '../utils/supplierReturnTasks';
 import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -1037,7 +1037,36 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
     try { await onUpdate(item.id, { status: 'unavailable' }); }
     catch (e) { window.alert(`Update failed: ${e.message}`); }
   };
-  const resetToPending = async () => {
+  // The reset/reopen affordance splits two ways:
+  //
+  //   - quote_status !== 'agreed' (supplier acted on their own;
+  //     vessel hasn't approved yet) → silent flip back to pending.
+  //     Lets the supplier fix typos / accidental confirms before
+  //     the chief has signed off.
+  //
+  //   - quote_status === 'agreed' (vessel approved the quote, line
+  //     is locked at the DB level too — see migration
+  //     20260617260000) → "Request changes" path: prompt for a
+  //     reason, write a 'supplier_requested_reopen' activity event
+  //     so the crew board chip + pulse can flag the line for review.
+  const vesselAgreed = item.quote_status === 'agreed';
+  const handleResetOrReopen = async () => {
+    if (vesselAgreed) {
+      const reason = window.prompt(
+        `Request changes on "${item.item_name}"?\n\n`
+        + 'The vessel has already approved this line. Tell them why you need to revise '
+        + '(supplier issue, stock, delivery delay, etc.) and the chief will be notified.',
+      );
+      if (!reason || !reason.trim()) return;
+      try {
+        await supplierRequestLineReopen(item.id, reason);
+        // Bubble the change up through the order refetch so the
+        // row re-renders as pending + the activity feed lights up.
+        window.dispatchEvent(new Event('supplier-order-items-changed'));
+        await onUpdate(item.id, {}); // no-op update to trigger parent re-fetch
+      } catch (e) { window.alert(`Could not request changes: ${e.message}`); }
+      return;
+    }
     try {
       await onUpdate(item.id, {
         status: 'pending',
@@ -1162,9 +1191,11 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
             <button
               type="button"
               className="sod-wq-icon-btn"
-              onClick={resetToPending}
-              title="Reset to pending"
-              aria-label="Reset to pending"
+              onClick={handleResetOrReopen}
+              title={vesselAgreed
+                ? 'Request changes — vessel will be notified'
+                : 'Reset to pending'}
+              aria-label={vesselAgreed ? 'Request changes' : 'Reset to pending'}
             ><ResetIcon /></button>
           )
         )}

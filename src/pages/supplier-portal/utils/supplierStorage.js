@@ -230,6 +230,73 @@ export const fetchVesselApprovedOrders = async () => {
   return data || [];
 };
 
+// Supplier-side mirror of the vessel reopen flow. When the supplier
+// realises a confirmed line needs to change (stock fell through,
+// shipment delayed, sub no longer viable) they hit "Request changes"
+// instead of editing silently — which the DB-level guard
+// (20260617260000) would block anyway. This helper:
+//
+//   1. Flips status back to 'pending' so every editor on the
+//      work-queue layout opens up again.
+//   2. Inserts a 'supplier_requested_reopen' activity event with
+//      the reason text — the crew board's "Note from supplier"
+//      feed picks this up as a high-priority row (red emphasis,
+//      pulse) so the chief can prepare alternatives.
+//   3. Optionally clears agreed_price / agreed_currency. We keep
+//      them — the supplier might land on the same number; if they
+//      need to requote, the editable price input takes the new
+//      number and the auto-accept trigger handles the rest.
+//
+// Reason is required so the activity row carries context.
+export const supplierRequestLineReopen = async (itemId, reason) => {
+  if (!itemId) throw new Error('Missing itemId');
+  if (!reason || !reason.trim()) throw new Error('Reason required');
+
+  // 1) Need the order_id + name for the activity row.
+  const { data: current, error: fetchErr } = await supabase
+    .from('supplier_order_items')
+    .select('id, order_id, item_name, status, quote_status')
+    .eq('id', itemId)
+    .single();
+  if (fetchErr) throw fetchErr;
+  if (!current) throw new Error('Item not found');
+
+  // 2) Flip the line back to pending. quote_status drops to
+  //    'in_discussion' so the line is rendered as "Re-quote needed"
+  //    on the work-queue layout but still carries the prior price
+  //    as a fallback for the auto-accept trigger.
+  const { data: updated, error: updateErr } = await supabase
+    .from('supplier_order_items')
+    .update({
+      status: 'pending',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', itemId)
+    .select()
+    .single();
+  if (updateErr) throw updateErr;
+
+  // 3) Activity event. Sibling to vessel-side 'line_reopened' from
+  //    #1141; same audit trail shape, distinct event_type so the
+  //    crew chip can colour it differently (red emphasis vs the
+  //    vessel-grey reopen marker).
+  await supabase
+    .from('supplier_order_activity')
+    .insert({
+      order_id: current.order_id,
+      item_id: itemId,
+      event_type: 'supplier_requested_reopen',
+      payload: {
+        item_name: current.item_name,
+        previous_status: current.status,
+        previous_quote_status: current.quote_status,
+        reason: reason.trim(),
+      },
+    });
+
+  return updated;
+};
+
 // Called when the supplier opens an order whose vessel-approved
 // marker is still un-ack'd. Idempotent; cheap; fired from the order
 // detail page on mount.
