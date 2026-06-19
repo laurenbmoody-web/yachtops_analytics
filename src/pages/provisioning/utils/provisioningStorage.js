@@ -3393,6 +3393,10 @@ export const reopenOrderItem = async (itemId, { reason = null } = {}) => {
   if (!current) throw new Error('Item not found');
 
   // 2) Status back to pending, drop the substitute description (if any).
+  //    revised_at = now() — supplier portal surfaces this as a
+  //    "VESSEL REVISED" chip on the row + a banner at the top of the
+  //    items section so they can't miss it. Auto-clears via trigger
+  //    on the supplier's next confirm / substitute / mark-unavailable.
   //    Leave quoted_price / agreed_price intact — the supplier already
   //    set those and the crew is only revising qty/etc, not asking for
   //    a new quote. Supplier can re-confirm at the same price.
@@ -3401,6 +3405,7 @@ export const reopenOrderItem = async (itemId, { reason = null } = {}) => {
     .update({
       status: 'pending',
       substitute_description: null,
+      revised_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq('id', itemId)

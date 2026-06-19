@@ -2865,3 +2865,44 @@
   color: var(--navy) !important;
   font-weight: 700;
 }
+
+/* ── Vessel-revised marker ────────────────────────────────────
+   Lights when a line was reopened by the vessel after the supplier
+   confirmed it — i.e. the chief asked for a change (qty / unit /
+   size / notes). Both surfaces (top banner + per-row chip) clear
+   automatically on the supplier's next confirm / sub / unavail
+   thanks to the BEFORE UPDATE trigger that nulls revised_at. */
+
+#sp-root .sod-wq-revised-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px;
+  margin: 0;
+  background: #FBEFE9;
+  border-top: 1px solid #ECEAE3;
+  border-bottom: 1px solid #ECEAE3;
+  font-size: 13px;
+  color: #C65A1A;
+}
+#sp-root .sod-wq-revised-banner-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #C65A1A;
+  flex-shrink: 0;
+}
+#sp-root .sod-wq-revised-banner-text strong { font-weight: 700; }
+
+#sp-root .sod-wq-revised-chip {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #FBEFE9;
+  color: #C65A1A;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  border: 1px solid #E8B89B;
+}
