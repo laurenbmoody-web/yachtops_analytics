@@ -39,6 +39,8 @@ import {
   updateOrderItemStatus,
   acceptOrderItemQuote,
   declineOrderItemQuote,
+  approveAllQuotes,
+  hasProvisioningApprover,
   queryOrderItemQuote,
   toggleSupplierOrderFavourite,
   saveAsTemplate,
@@ -1634,7 +1636,27 @@ const ProvisioningBoardDetail = () => {
         decision,
         trimmed || null,
       );
-      setList(prev => ({ ...prev, status: PROVISIONING_STATUS.DRAFT }));
+
+      // Quote-review approvals auto-fire the agreed quotes back to
+      // the supplier — the previous flow flipped the board to draft
+      // and waited for the chief to send a separate "approval"
+      // message. Now the approve action accepts every outstanding
+      // line, flips each supplier_order + the list itself to
+      // 'confirmed', and the supplier's portal picks it up via the
+      // existing trigger-driven activity feed + bell badge.
+      const isQuoteApproval =
+        approvalRequest?.prev_status === PROVISIONING_STATUS.QUOTE_RECEIVED;
+      let nextListStatus = PROVISIONING_STATUS.DRAFT;
+      if (decision === 'approve' && isQuoteApproval) {
+        try {
+          await approveAllQuotes(id);
+          nextListStatus = 'confirmed';
+        } catch (autoErr) {
+          console.error('[ProvisioningBoardDetail] approveAllQuotes failed:', autoErr);
+          showToast('Approved — could not auto-confirm with supplier. Try again from the order.', 'error');
+        }
+      }
+      setList(prev => ({ ...prev, status: nextListStatus }));
       setApprovalRequest(prev => prev ? {
         ...prev,
         status: result?.status || (decision === 'approve' ? 'approved' : 'changes_requested'),
@@ -1643,7 +1665,10 @@ const ProvisioningBoardDetail = () => {
       } : prev);
       setDecisionModal(null);
       setDecisionComment('');
-      showToast(decision === 'approve' ? 'Approved' : 'Changes requested', 'success');
+      const successMsg = decision === 'approve'
+        ? (isQuoteApproval ? 'Quote approved — supplier notified' : 'Approved')
+        : 'Changes requested';
+      showToast(successMsg, 'success');
     } catch (err) {
       const code = err?.code;
       if (code === 'P0005') showToast('A comment is required.', 'error');
@@ -2014,6 +2039,47 @@ const ProvisioningBoardDetail = () => {
   const isQuoteReceived = list?.status === PROVISIONING_STATUS.QUOTE_RECEIVED;
   const canSubmitForApproval = list?.status === PROVISIONING_STATUS.DRAFT || isQuoteReceived;
 
+  // Approver-chain detection. Only meaningful when the board is
+  // sitting in quote_received — we use it to decide between two
+  // mutually-exclusive write actions:
+  //   has approver → "Re-submit for approval" (existing path)
+  //   no approver → "Confirm quote" (new no-approver path, fires
+  //                  the same approveAllQuotes server flow)
+  // The lookup is server-scoped and cached for the board's lifetime;
+  // null = unknown (RPC missing on this env), treat as "show submit".
+  const [approverPresent, setApproverPresent] = useState(null);
+  useEffect(() => {
+    if (!id || !isQuoteReceived) return undefined;
+    let cancelled = false;
+    hasProvisioningApprover(id)
+      .then((has) => { if (!cancelled) setApproverPresent(has); })
+      .catch(() => { if (!cancelled) setApproverPresent(null); });
+    return () => { cancelled = true; };
+  }, [id, isQuoteReceived]);
+
+  // Confirm-quote handler (no-approver path). Same flow as the
+  // approver-approve branch above; we just skip the approval-request
+  // step and call approveAllQuotes directly.
+  const [confirmingQuote, setConfirmingQuote] = useState(false);
+  const handleConfirmQuoteWithoutApprover = async () => {
+    if (!id) return;
+    const ok = window.confirm(
+      'Confirm this quote? Every line will lock at the supplier\'s quoted price, the order will flip to confirmed, and the supplier will be notified.',
+    );
+    if (!ok) return;
+    setConfirmingQuote(true);
+    try {
+      await approveAllQuotes(id);
+      setList(prev => ({ ...prev, status: 'confirmed' }));
+      showToast('Quote confirmed — supplier notified', 'success');
+    } catch (err) {
+      console.error('[ProvisioningBoardDetail] handleConfirmQuoteWithoutApprover failed:', err);
+      showToast(`Could not confirm: ${err.message || err}`, 'error');
+    } finally {
+      setConfirmingQuote(false);
+    }
+  };
+
   // ── Style constants ───────────────────────────────────────────────────────
 
   // Dept chip palette — single source of truth is the
@@ -2221,17 +2287,35 @@ const ProvisioningBoardDetail = () => {
                   to the supplier, Receive closes it when goods land. */}
               <div className="cargo-ribbon-group">
                 {canSubmitForApproval && (
-                  <button
-                    type="button"
-                    onClick={handleSubmitForApproval}
-                    className="cargo-ribbon-btn"
-                    title={isQuoteReceived
-                      ? 'Supplier quote in — re-submit for approval at the quoted prices'
-                      : undefined}
-                  >
-                    <Icon name="Send" style={{ width: 13, height: 13 }} />
-                    {isQuoteReceived ? 'Re-submit for approval' : 'Submit for Approval'}
-                  </button>
+                  // No-approver path: in quote_received state, if the
+                  // vessel has no approver chain configured, the
+                  // chief acts as their own approver via "Confirm
+                  // quote" — fires the same approveAllQuotes flow
+                  // without going through the request-decide cycle.
+                  isQuoteReceived && approverPresent === false ? (
+                    <button
+                      type="button"
+                      onClick={handleConfirmQuoteWithoutApprover}
+                      className="cargo-ribbon-btn"
+                      disabled={confirmingQuote}
+                      title="No approver configured — confirm the quote yourself. Locks all lines and notifies the supplier."
+                    >
+                      <Icon name="CheckCircle" style={{ width: 13, height: 13 }} />
+                      {confirmingQuote ? 'Confirming…' : 'Confirm quote'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSubmitForApproval}
+                      className="cargo-ribbon-btn"
+                      title={isQuoteReceived
+                        ? 'Supplier quote in — re-submit for approval at the quoted prices'
+                        : undefined}
+                    >
+                      <Icon name="Send" style={{ width: 13, height: 13 }} />
+                      {isQuoteReceived ? 'Re-submit for approval' : 'Submit for Approval'}
+                    </button>
+                  )
                 )}
                 {/* When current user is the assigned approver of a
                     pending request, the Send to Supplier slot is
@@ -2296,6 +2380,8 @@ const ProvisioningBoardDetail = () => {
                   draft:                        { bg: '#F1F5F9', fg: '#475569', label: 'DRAFT' },
                   pending_approval:             { bg: '#FEF3C7', fg: '#92400E', label: 'PENDING APPROVAL' },
                   quote_received:               { bg: '#FFEDD5', fg: '#9A3412', label: 'QUOTE IN' },
+                  confirmed:                    { bg: '#DCFCE7', fg: '#166534', label: 'CONFIRMED' },
+                  partially_confirmed:          { bg: '#FEF3C7', fg: '#92400E', label: 'PARTIALLY CONFIRMED' },
                   sent_to_supplier:             { bg: '#DBEAFE', fg: '#1E40AF', label: 'SENT TO SUPPLIER' },
                   partially_delivered:          { bg: '#FEF3C7', fg: '#92400E', label: 'PARTIALLY DELIVERED' },
                   delivered_with_discrepancies: { bg: '#FEE2E2', fg: '#991B1B', label: 'DISCREPANCIES' },
