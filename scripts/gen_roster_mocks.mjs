@@ -45,7 +45,7 @@ const CREW=[
   {name:'Sara Nilsson', role:'Chief Stewardess', dept:'Interior', st:'confirmed', logged:31, unlogged:0},
 ];
 const DAYS=31;
-const STMETA={ open:{label:'Not started',c:TERRA_T,dot:TERRA,tint:PILL}, submitted:{label:'Awaiting approval',c:INDIGO,dot:INDIGO_D,tint:INDIGO_T}, confirmed:{label:'Confirmed',c:GREEN,dot:GREEN_D,tint:GREEN_T} };
+const STMETA={ open:{label:'Not started',c:TERRA_T,dot:TERRA,tint:PILL}, submitted:{label:'Awaiting approval',c:NAVY,dot:NAVY,tint:'#EEEEF3'}, confirmed:{label:'Confirmed',c:GREEN,dot:GREEN_D,tint:GREEN_T} };
 
 function header(title,sub){
   let s=''; let y=54;
@@ -213,33 +213,40 @@ function wrap(inner,h){
     return r;
   };
 
+  // collapsible blocks — default collapsed; one shown expanded to read both states
   const blocks=[
-    {st:'submitted', label:'AWAITING APPROVAL', remindAll:false},
-    {st:'open',      label:'NOT STARTED',       remindAll:true},
-    {st:'confirmed', label:'CONFIRMED',         remindAll:false},
+    {st:'submitted', label:'AWAITING APPROVAL', remindAll:false, open:false},
+    {st:'open',      label:'NOT STARTED',       remindAll:true,  open:true },
+    {st:'confirmed', label:'CONFIRMED',         remindAll:false, open:false},
   ];
+  const chevR=(x,yy,c)=>`<path d="M ${x} ${yy-9} l 6 5 l -6 5 z" fill="${c}"/>`;      // ▸ collapsed
+  const chevD=(x,yy,c)=>`<path d="M ${x-1} ${yy-7} l 10 0 l -5 6 z" fill="${c}"/>`;    // ▾ expanded
   for(const b of blocks){
     const members=CREW.filter(c=>c.st===b.st);
     if(!members.length) continue;
     const m=STMETA[b.st];
-    y+=42;
-    // status block header — coloured tracked-caps + count, hairline, optional remind-all
-    s+=dot(P+6,y-4,4,m.dot);
-    s+=txt(P+22,y,`${b.label} · ${members.length}`,{size:11,weight:700,spacing:1.4,fill:m.c});
-    if(b.remindAll){ const t='Send reminders to all ('+members.length+')'; const bw=t.length*6.6+30; s+=rect(RIGHT-bw,y-16,bw,26,{fill:TERRA,rx:8})+txt(RIGHT-bw/2,y+2,t,{size:12,weight:600,fill:'#fff',anchor:'middle'}); }
-    s+=line(P,y+12,RIGHT,y+12,'#EDEBE4');
-    // departments inside
     const depts=[...new Set(members.map(c=>c.dept))].sort(deptSort);
+    y+=44;
+    // clickable header — chevron + dot + label·count, hairline, optional remind-all
+    s+=(b.open?chevD:chevR)(P+2,y,'#6B7280');
+    s+=dot(P+22,y-4,4,m.dot);
+    s+=txt(P+38,y,`${b.label} · ${members.length}`,{size:11,weight:700,spacing:1.4,fill:m.c});
+    if(b.remindAll){ const t='Send reminders to all ('+members.length+')'; const bw=t.length*6.6+30; s+=rect(RIGHT-bw,y-16,bw,26,{fill:TERRA,rx:8})+txt(RIGHT-bw/2,y+2,t,{size:12,weight:600,fill:'#fff',anchor:'middle'}); }
+    else { s+=txt(b.remindAll?RIGHT-200:RIGHT,y,depts.join(' · '),{size:11,fill:FAINT,anchor:'end'}); } // collapsed preview: which departments
+    s+=line(P,y+12,RIGHT,y+12,'#EDEBE4');
+    if(!b.open) continue;
+    // expanded — departments inside
     for(const d of depts){
       y+=30;
       s+=txt(P+24,y,d.toUpperCase(),{size:9.5,weight:700,spacing:1.4,fill:FAINT});
       for(const c of members.filter(c=>c.dept===d)){ y+=42; s+=row(c,y); s+=line(P+18,y+21,RIGHT,y+21,HAIR2); }
     }
+    y+=8;
   }
-  let fy=y+56;
+  let fy=y+50;
   s+=txt(P,fy,'The structure',{size:10,weight:700,spacing:1.2,fill:MUT}); fy+=22;
-  s+=txt(P,fy,'• Status answers “what needs doing”; department answers “whose” — the two levels you sort by.',{size:13,fill:INK2}); fy+=22;
-  s+=txt(P,fy,'• Per-row status text drops out (the block says it); the coloured dot + logged bar still carry the detail.',{size:13,fill:INK2});
+  s+=txt(P,fy,'• Each status block collapses (default collapsed) — the hub opens compact, you expand what you’re working.',{size:13,fill:INK2}); fy+=22;
+  s+=txt(P,fy,'• Collapsed headers preview the departments inside; expand to get the rows, bars and actions.',{size:13,fill:INK2});
   writeFileSync('/tmp/roster_R1_dept.svg',wrap(s,fy+40));
 }
 
