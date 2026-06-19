@@ -141,6 +141,26 @@ export const updateOrderItem = async (itemId, updates) => {
   return data;
 };
 
+// Count of supplier_order_items still pending that the vessel revised
+// after the supplier originally confirmed / substituted / marked
+// unavailable. Drives the bell badge in SupplierLayout — non-zero
+// means there are lines that need a re-confirm. Server-scoped to the
+// caller's supplier via the RLS policy on supplier_order_items (the
+// JOIN to supplier_orders honours supplier_profile_id =
+// get_user_supplier_id()).
+export const fetchVesselRevisedCount = async () => {
+  const { count, error } = await supabase
+    .from('supplier_order_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'pending')
+    .not('revised_at', 'is', null);
+  if (error) {
+    console.error('[supplierStorage] fetchVesselRevisedCount failed:', error);
+    return 0;
+  }
+  return count || 0;
+};
+
 // ─── Catalogue ───────────────────────────────────────────────────────────────
 
 export const fetchCatalogueItems = async (supplierId) => {

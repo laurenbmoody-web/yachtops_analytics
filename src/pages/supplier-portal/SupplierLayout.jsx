@@ -8,6 +8,7 @@ import SupplierAvatarMenu from './components/SupplierAvatarMenu';
 import { useTier, hasClientPermission } from '../../contexts/SupplierPermissionContext';
 import { useSupplier } from '../../contexts/SupplierContext';
 import { fetchUnactionedReturnsCount } from './utils/supplierReturnTasks';
+import { fetchVesselRevisedCount } from './utils/supplierStorage';
 import './supplier-portal.css';
 
 // `requires` gates each nav item via hasClientPermission. Items without
@@ -67,6 +68,30 @@ const SupplierLayout = () => {
     };
   }, [supplier?.id]);
 
+  // Bell badge — counts supplier_order_items still in 'pending' with
+  // revised_at set (i.e. the vessel reopened them after the supplier
+  // had confirmed). Same refresh triggers as the returns badge plus
+  // a 'supplier-order-items-changed' window event so any in-portal
+  // confirm action drops the badge live.
+  const [revisedCount, setRevisedCount] = useState(0);
+  useEffect(() => {
+    if (!supplier?.id) return undefined;
+    let cancelled = false;
+    const refresh = () => {
+      fetchVesselRevisedCount()
+        .then((n) => { if (!cancelled) setRevisedCount(n); })
+        .catch((e) => console.error('[SupplierLayout revised badge]', e));
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('supplier-order-items-changed', refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('supplier-order-items-changed', refresh);
+    };
+  }, [supplier?.id]);
+
   const visibleGroups = NAV_GROUPS
     .map((group) => ({
       ...group,
@@ -120,9 +145,24 @@ const SupplierLayout = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-            {/* Bell — static (no notifications table yet) */}
-            <button className="sp-icon-btn" aria-label="Notifications">
+            {/* Bell — wired to the vessel-revised count. Non-zero =
+                lines reopened by the vessel that still need a
+                re-confirm. Tiny red dot + numeric badge in the
+                corner; falls back to no badge when empty so the
+                topbar stays calm. */}
+            <button
+              className={`sp-icon-btn sp-bell-btn${revisedCount > 0 ? ' has-badge' : ''}`}
+              aria-label={revisedCount > 0
+                ? `${revisedCount} line${revisedCount === 1 ? '' : 's'} reopened by vessel — review required`
+                : 'Notifications'}
+              title={revisedCount > 0
+                ? `Vessel revised ${revisedCount} line${revisedCount === 1 ? '' : 's'} — please review and re-confirm.`
+                : 'No new notifications'}
+            >
               <Bell />
+              {revisedCount > 0 && (
+                <span className="sp-bell-badge" aria-hidden="true">{revisedCount > 9 ? '9+' : revisedCount}</span>
+              )}
             </button>
 
             {/* Avatar dropdown */}

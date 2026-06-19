@@ -996,8 +996,11 @@ const NoteCell = ({ item, canEdit, onUpdate }) => {
 
 // Status dot — the single visual signal for status on the new layout.
 // Inline label chips (CONFIRMED / UNAVAILABLE / SUBSTITUTED) are gone.
-const StatusDot = ({ status }) => (
-  <span className={`sod-wq-dot sod-wq-dot-${status || 'pending'}`} aria-hidden="true" />
+const StatusDot = ({ status, revised = false }) => (
+  <span
+    className={`sod-wq-dot sod-wq-dot-${status || 'pending'}${revised ? ' is-revised' : ''}`}
+    aria-hidden="true"
+  />
 );
 
 // Reset (↺) icon used to drop a completed line back into the To do
@@ -1067,7 +1070,7 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
   return (
     <div className={`sod-wq-row sod-wq-row-${status}${completed ? ' sod-wq-row-completed' : ''}`}>
       <div className="sod-wq-cell sod-wq-cell-status">
-        <StatusDot status={status} />
+        <StatusDot status={status} revised={isPending && !!item.revised_at} />
       </div>
 
       <div className="sod-wq-cell sod-wq-cell-item">
