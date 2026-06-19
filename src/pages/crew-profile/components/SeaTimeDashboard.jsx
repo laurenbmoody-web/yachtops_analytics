@@ -9,7 +9,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
@@ -63,7 +63,7 @@ const StpSelect = ({ value, options, onChange, variant = 'dept', label }) => {
   );
 };
 
-const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
+const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) => {
   const config = DEFAULT_CONFIG;
   const [deptId, setDeptId] = useState('deck');
   const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
@@ -252,8 +252,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
           <div className="stp-dept">
             {crossDiscipline ? `Working toward ${familyWord}` : cert ? familyPathLabel : 'Logged service'}
           </div>
-          <StpSelect variant="dept" value={deptId} options={deptOpts} onChange={changeDept} />
-          {cert && <StpSelect variant="goal" value={goalId} options={goalOpts} onChange={setGoalId} />}
+          <div className="stp-controls">
+            <StpSelect variant="goal" label="Department" value={deptId} options={deptOpts} onChange={changeDept} />
+            {cert && <StpSelect variant="goal" label="Goal" value={goalId} options={goalOpts} onChange={setGoalId} />}
+          </div>
           <div className="stp-sub">{crossDiscipline ? 'Target chosen manually — not this crew member’s department' : cert ? 'Pathway set from this crew member’s department' : 'Logged service — for your record'}</div>
         </div>
         <div className="stp-links">
@@ -352,7 +354,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
           <div className="stp-drhead">
             <div className="mlabel rustlabel">{deptLabel} certificates</div>
             <div className="serif" style={{ fontSize: 21, marginTop: 4 }}>Certificates you already hold</div>
-            <div className="stp-sub" style={{ marginTop: 6 }}>This tracker counts service going forward — these come from the <b>Certificate of Competency</b> documents in this crew member’s Documents tab, so the ladder starts in the right place.</div>
             <button className="stp-drclose" onClick={() => setHeldOpen(false)} aria-label="Close"><Icon name="X" size={20} /></button>
           </div>
           <div className="stp-drlist">
@@ -370,7 +371,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
                       {h.fileUrl ? <> · <a href={h.fileUrl} target="_blank" rel="noreferrer">View document</a></> : ''}
                     </div>
                   ) : (
-                    <div className="meta muted">Add a CoC document (grade “{c.short}”) in the <b>Documents</b> tab to record this.</div>
+                    <button className="stp-dradd" type="button"
+                      onClick={() => { setHeldOpen(false); onAddCertificate && onAddCertificate(CERT_TO_GRADE[c.id] || c.short); }}>
+                      <Icon name="Plus" size={12} /> Add this certificate in Documents
+                    </button>
                   )}
                 </div>
               );
@@ -462,17 +466,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   return (
     <div className="std">
       <div className="std-head">
-        <div className="std-sechead"><span className="std-secnum">07 /</span><h3>Sea Time Tracker</h3></div>
+        <div className="std-sechead"><h3 className="std-title2"><span className="cap">Sea Time,</span> <em>Tracker</em></h3></div>
         <div className="std-controls">
           <button className="std-logbtn" onClick={() => setDrawerOpen(true)}><Icon name="Plus" size={16} /> Log sea time</button>
         </div>
       </div>
-
-      {usingSample && (
-        <div className="std-flex std-ac" style={{ gap: 8, background: '#FBF0DA', border: '1px solid #EAD9AE', borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#7A5A12' }}>
-          <Icon name="Info" size={15} /> Sample data shown — log sea time to replace it with this crew member’s real service.
-        </div>
-      )}
 
       {/* ── pathway spine / logging-only record ── */}
       {PathwaySection()}
