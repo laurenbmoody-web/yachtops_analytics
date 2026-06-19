@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testimonial pack — stand-out options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C1B3A; --ink-2:#262A53; --ink-soft:#695880; --muted:#8B8478; --faint:#AEB4C2;
+  --rust:#C65A1A; --rust-2:#B14E16; --rust-tint:#FBEFE9; --bg:#F4F4F1;
+  --border:#E6E8EF; --hair:#F0F1F5; --sage:#5E8E6F; --sage-deep:#3F7A52; --clay:#A32D2D;
+  --serif:'DM Serif Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:980px;margin:0 auto;padding:34px 26px 110px;}
+.intro{color:var(--ink-soft);font-size:13.5px;margin:0 0 4px;line-height:1.6;} .intro b{color:var(--ink);}
+.opthead{margin:46px 0 14px;}
+.opthead .k{font-size:9px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--rust);}
+.opthead h3{font-family:var(--serif);font-weight:500;font-size:22px;margin:6px 0 0;}
+.opthead p{color:var(--muted);font-size:12.5px;margin:5px 0 0;}
+.page{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:8px;}
+.context{height:46px;border-radius:9px;background:repeating-linear-gradient(135deg,#FAFAF8,#FAFAF8 10px,#F4F4F1 10px,#F4F4F1 20px);display:flex;align-items:center;padding:0 16px;font-size:11px;color:var(--faint);letter-spacing:.04em;}
+.eyebrow{font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--rust);}
+.vtabs{display:inline-flex;background:#F1F5F9;border-radius:9px;padding:3px;gap:2px;}
+.vtabs b{font-weight:600;font-size:12px;color:#7b7f93;border-radius:7px;padding:6px 12px;}
+.vtabs b.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(28,27,58,.08);}
+.dh{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;}
+.dh h4{font-family:var(--serif);font-weight:500;font-size:23px;margin:7px 0 4px;}
+.dh .sub{font-size:13px;color:var(--ink-soft);}
+.steps{display:grid;grid-template-columns:1fr 1fr;}
+.step{padding:20px 22px;}
+.sh{display:flex;align-items:center;gap:11px;margin-bottom:13px;}
+.badge{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--rust);color:var(--rust);display:grid;place-items:center;font-family:var(--serif);font-style:italic;font-size:13px;flex:none;}
+.st{font-family:var(--serif);font-weight:500;font-size:15px;}
+.ss{font-size:11.5px;color:var(--muted);}
+.chip{margin-left:auto;font-size:10px;font-weight:700;border-radius:999px;padding:4px 10px;background:var(--rust);color:#fff;}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:7px 0;}
+.cbox{width:18px;height:18px;border-radius:6px;display:grid;place-items:center;flex:none;margin-top:1px;color:#fff;font-size:11px;font-weight:800;}
+.ct{font-size:12.5px;font-weight:600;}
+.cd{font-size:11.5px;color:var(--muted);}
+.bar{height:5px;border-radius:999px;background:#EFEDE7;overflow:hidden;margin-bottom:8px;}
+.bar i{display:block;height:100%;width:50%;background:var(--rust);border-radius:999px;}
+svg.ic{width:1em;height:1em;vertical-align:-.12em;}
+
+/* ============ shared dossier base ============ */
+.dossier{border-radius:14px;overflow:hidden;}
+.dossier .top{padding:22px 26px 18px;}
+.dossier .steps{border-top:1px solid var(--hair);}
+.dossier .step:nth-child(1){border-right:1px solid var(--hair);}
+
+/* === A — navy header band === */
+.A{background:#fff;border:1px solid var(--border);box-shadow:0 18px 40px -24px rgba(28,27,58,.4);}
+.A .top{background:linear-gradient(180deg,#1C1B3A,#23224A);color:#fff;}
+.A .eyebrow{color:#E9A07A;}
+.A .dh h4{color:#fff;}
+.A .dh .sub{color:#C7C6DA;}
+.A .vtabs{background:rgba(255,255,255,.12);}
+.A .vtabs b{color:#C7C6DA;}
+.A .vtabs b.on{background:#fff;color:var(--ink);}
+
+/* === B — warm paper + stronger frame === */
+.B{background:#FBFAF7;border:1px solid #E4E1D6;border-top:3px solid var(--rust);box-shadow:0 14px 34px -22px rgba(28,27,58,.28);}
+.B .step{background:#FBFAF7;}
+.B .steps{border-top-color:#ECEAE0;}
+.B .dossier-inner{}
+
+/* === C — dark dossier === */
+.C{background:#1C1B3A;border:1px solid #2A2950;box-shadow:0 22px 50px -22px rgba(28,27,58,.6);}
+.C .top{border-bottom:1px solid #2E2D55;}
+.C .eyebrow{color:#E9A07A;}
+.C .dh h4{color:#fff;} .C .dh .sub{color:#B9B8CF;}
+.C .vtabs{background:rgba(255,255,255,.10);} .C .vtabs b{color:#B9B8CF;} .C .vtabs b.on{background:#fff;color:var(--ink);}
+.C .steps{border-top:1px solid #2E2D55;}
+.C .step:nth-child(1){border-right:1px solid #2E2D55;}
+.C .st{color:#fff;} .C .ss{color:#9C9BB6;}
+.C .ct{color:#EDEDF4;} .C .cd{color:#9C9BB6;}
+.C .badge{border-color:#E9A07A;color:#E9A07A;}
+.C .bar{background:#2E2D55;}
+
+/* === D — elevated white, terracotta keyline + tinted header === */
+.D{background:#fff;border:1px solid var(--border);border-top:4px solid var(--rust);box-shadow:0 20px 44px -22px rgba(198,90,26,.28);}
+.D .top{background:var(--rust-tint);border-bottom:1px solid #F3DECF;}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4 10-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" d="M7 7l10 10M17 7 7 17"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <p class="intro"><b>Making the Testimonial Pack stand out.</b> Four ways to lift it off the page of white cards — the captain-signed pack is the “deliverable”, so it can earn more weight. Each shows the header + a slice of step 1.</p>
+
+  <!-- A -->
+  <div class="opthead"><div class="k">A</div><h3>Navy header band</h3><p>Deep-navy header strip (cream title, terracotta eyebrow); body stays white. Premium and editorial, low ink.</p></div>
+  <div class="page"><div class="context">…ledger ends · white cards above…</div>
+    <div class="dossier A" style="margin-top:14px">
+      <div class="top">
+        <div class="dh"><div><div class="eyebrow">Captain-signed · MCA MIN 642</div><h4>Sea Service Testimonial Pack</h4><div class="sub">One captain-signed record, ready for any verifying organisation.</div></div>
+          <div><div class="eyebrow" style="margin-bottom:6px;color:#9C9BB6">Verifying organisation</div><div class="vtabs"><b class="on">PYA</b><b>Nautilus</b><b>Other</b></div></div></div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="sh"><span class="badge">1</span><div><div class="st">Validate</div><div class="ss">Blocked until every rule clears</div></div><span class="chip">3 of 6</span></div>
+          <div class="bar"><i></i></div>
+          <div class="chk"><span class="cbox" style="background:var(--clay)"><svg class="ic"><use href="#x"/></svg></span><div><div class="ct" style="color:var(--clay)">Watchkeeping 4-hour rule</div><div class="cd">1 entry under 4h watch — re-tag before generating.</div></div></div>
+          <div class="chk"><span class="cbox" style="background:var(--sage)"><svg class="ic"><use href="#check"/></svg></span><div><div class="ct">Standby within limit</div><div class="cd">8d ≤ 45d actual seagoing.</div></div></div>
+        </div>
+        <div class="step"><div class="sh"><span class="badge">2</span><div><div class="st">Attach documents</div><div class="ss">For PYA</div></div></div>
+          <div class="cd">Certified passport copy · Verified email · SRB scan</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="opthead"><div class="k">B</div><h3>Warm paper + stronger frame</h3><p>Soft paper tint, heavier border + terracotta top rule + soft shadow. Subtle — distinct from the white cards without going dark.</p></div>
+  <div class="page"><div class="context">…ledger ends · white cards above…</div>
+    <div class="dossier B" style="margin-top:14px">
+      <div class="top">
+        <div class="dh"><div><div class="eyebrow">Captain-signed · MCA MIN 642</div><h4>Sea Service Testimonial Pack</h4><div class="sub">One captain-signed record, ready for any verifying organisation.</div></div>
+          <div><div class="eyebrow" style="margin-bottom:6px;color:var(--muted)">Verifying organisation</div><div class="vtabs"><b class="on">PYA</b><b>Nautilus</b><b>Other</b></div></div></div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="sh"><span class="badge">1</span><div><div class="st">Validate</div><div class="ss">Blocked until every rule clears</div></div><span class="chip">3 of 6</span></div>
+          <div class="bar"><i></i></div>
+          <div class="chk"><span class="cbox" style="background:var(--clay)"><svg class="ic"><use href="#x"/></svg></span><div><div class="ct" style="color:var(--clay)">Watchkeeping 4-hour rule</div><div class="cd">1 entry under 4h watch — re-tag before generating.</div></div></div>
+          <div class="chk"><span class="cbox" style="background:var(--sage)"><svg class="ic"><use href="#check"/></svg></span><div><div class="ct">Standby within limit</div><div class="cd">8d ≤ 45d actual seagoing.</div></div></div>
+        </div>
+        <div class="step"><div class="sh"><span class="badge">2</span><div><div class="st">Attach documents</div><div class="ss">For PYA</div></div></div>
+          <div class="cd">Certified passport copy · Verified email · SRB scan</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="opthead"><div class="k">C</div><h3>Dark dossier (boldest)</h3><p>The whole pack on navy with light text — reads like a sealed document. Strongest presence; use if you want it to clearly be the finale of the page.</p></div>
+  <div class="page"><div class="context">…ledger ends · white cards above…</div>
+    <div class="dossier C" style="margin-top:14px">
+      <div class="top">
+        <div class="dh"><div><div class="eyebrow">Captain-signed · MCA MIN 642</div><h4>Sea Service Testimonial Pack</h4><div class="sub">One captain-signed record, ready for any verifying organisation.</div></div>
+          <div><div class="eyebrow" style="margin-bottom:6px;color:#9C9BB6">Verifying organisation</div><div class="vtabs"><b class="on">PYA</b><b>Nautilus</b><b>Other</b></div></div></div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="sh"><span class="badge">1</span><div><div class="st">Validate</div><div class="ss">Blocked until every rule clears</div></div><span class="chip">3 of 6</span></div>
+          <div class="bar"><i></i></div>
+          <div class="chk"><span class="cbox" style="background:#E4574C"><svg class="ic"><use href="#x"/></svg></span><div><div class="ct" style="color:#F0A199">Watchkeeping 4-hour rule</div><div class="cd">1 entry under 4h watch — re-tag before generating.</div></div></div>
+          <div class="chk"><span class="cbox" style="background:var(--sage)"><svg class="ic"><use href="#check"/></svg></span><div><div class="ct">Standby within limit</div><div class="cd">8d ≤ 45d actual seagoing.</div></div></div>
+        </div>
+        <div class="step"><div class="sh"><span class="badge">2</span><div><div class="st">Attach documents</div><div class="ss">For PYA</div></div></div>
+          <div class="cd">Certified passport copy · Verified email · SRB scan</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D -->
+  <div class="opthead"><div class="k">D</div><h3>Elevated white · terracotta keyline</h3><p>Stays white but with a thicker terracotta top edge, a warm tinted header band and a soft terracotta-cast shadow. Lightest touch that still lifts it.</p></div>
+  <div class="page"><div class="context">…ledger ends · white cards above…</div>
+    <div class="dossier D" style="margin-top:14px">
+      <div class="top">
+        <div class="dh"><div><div class="eyebrow">Captain-signed · MCA MIN 642</div><h4>Sea Service Testimonial Pack</h4><div class="sub">One captain-signed record, ready for any verifying organisation.</div></div>
+          <div><div class="eyebrow" style="margin-bottom:6px;color:var(--muted)">Verifying organisation</div><div class="vtabs"><b class="on">PYA</b><b>Nautilus</b><b>Other</b></div></div></div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="sh"><span class="badge">1</span><div><div class="st">Validate</div><div class="ss">Blocked until every rule clears</div></div><span class="chip">3 of 6</span></div>
+          <div class="bar"><i></i></div>
+          <div class="chk"><span class="cbox" style="background:var(--clay)"><svg class="ic"><use href="#x"/></svg></span><div><div class="ct" style="color:var(--clay)">Watchkeeping 4-hour rule</div><div class="cd">1 entry under 4h watch — re-tag before generating.</div></div></div>
+          <div class="chk"><span class="cbox" style="background:var(--sage)"><svg class="ic"><use href="#check"/></svg></span><div><div class="ct">Standby within limit</div><div class="cd">8d ≤ 45d actual seagoing.</div></div></div>
+        </div>
+        <div class="step"><div class="sh"><span class="badge">2</span><div><div class="st">Attach documents</div><div class="ss">For PYA</div></div></div>
+          <div class="cd">Certified passport copy · Verified email · SRB scan</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body></html>

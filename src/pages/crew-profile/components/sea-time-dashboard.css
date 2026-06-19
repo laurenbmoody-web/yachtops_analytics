@@ -368,5 +368,5 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 
 /* testimonial — normalise the small-print + issue heading fonts */
 .std .vs{font-size:11.5px;color:var(--muted);line-height:1.45;}
-.std-issue-h{font-size:14px;font-weight:700;color:var(--ink);margin-top:1px;}
+.std-issue-h{font-size:13.5px;font-weight:600;color:var(--ink);margin-top:2px;}
 .std-doc span{font-family:inherit;}
