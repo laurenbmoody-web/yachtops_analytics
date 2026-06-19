@@ -12,12 +12,13 @@ import {
 } from '../utils/crewDocuments';
 import AddDocumentModal from './AddDocumentModal';
 
-const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
+const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPresetHandled }) => {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [presetType, setPresetType] = useState(null);
+  const [presetDetails, setPresetDetails] = useState(null);
 
   // AI scan-and-autofill queue.
   const [prefill, setPrefill] = useState(null);
@@ -54,11 +55,23 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
     processOne(files, 0);
   };
 
+  // Opened from elsewhere (e.g. the Sea Time held-certs drawer) with a doc type
+  // + grade to pre-fill.
+  useEffect(() => {
+    if (!openPreset) return;
+    setEditing(null); setPrefill(null); setPrefillFile(null);
+    setPresetType(openPreset.docType || null);
+    setPresetDetails(openPreset.grade ? { grade: openPreset.grade } : null);
+    setModalOpen(true);
+    onPresetHandled && onPresetHandled();
+  }, [openPreset, onPresetHandled]);
+
   // Closing the modal (saved or cancelled) advances the scan queue.
   const closeModal = () => {
     setModalOpen(false);
     setPrefill(null);
     setPrefillFile(null);
+    setPresetDetails(null);
     if (scanQueue.length && scanIdx + 1 < scanQueue.length) {
       const next = scanIdx + 1;
       setScanIdx(next);
@@ -242,6 +255,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
         createdBy={createdBy}
         existing={editing}
         presetType={presetType}
+        presetDetails={presetDetails}
         prefill={prefill}
         prefillFile={prefillFile}
       />

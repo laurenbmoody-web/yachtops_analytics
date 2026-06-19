@@ -244,6 +244,13 @@ export const GRADE_TO_CERT = {
   'Y1 / Master <3000GT (>500GT)': 'Y1'
 };
 
+/** Reverse of GRADE_TO_CERT — the CoC `grade` to preset when adding a held cert. */
+export const CERT_TO_GRADE = (() => {
+  const out = {};
+  for (const [grade, cert] of Object.entries(GRADE_TO_CERT)) { if (cert && !out[cert]) out[cert] = grade; }
+  return out;
+})();
+
 /** Certificates a role's sea time can count toward (by family). */
 export const eligibleCertificates = (roleKey) => {
   const role = ROLES[roleKey];

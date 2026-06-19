@@ -212,6 +212,9 @@ const CrewProfile = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [crewMember, setCrewMember] = useState(null);
   const [activeSection, setActiveSection] = useState(() => searchParams.get('tab') || 'personal');
+  // Sea Time held-certs drawer can jump to Documents and open Add with a preset.
+  const [docPreset, setDocPreset] = useState(null);
+  const handleAddCertificate = (grade) => { setDocPreset({ docType: 'coc', grade }); setActiveSection('documents'); };
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [sameAsEmergency, setSameAsEmergency] = useState(false);
@@ -3017,7 +3020,7 @@ const canEdit = (() => {
   const renderSeaTime = () => {
     // Countdown Sea Time Tracker (design-handoff recreation) driven by the
     // ported rules engine; live Supabase data with a sample fallback.
-    return <SeaTimeDashboard userId={crewId} tenantId={activeTenantId} currentUser={currentUser} />;
+    return <SeaTimeDashboard userId={crewId} tenantId={activeTenantId} currentUser={currentUser} onAddCertificate={handleAddCertificate} />;
   };
 
   // Placeholder until the document store is wired to this tab. Kept as a real
@@ -3048,6 +3051,8 @@ const canEdit = (() => {
             tenantId={activeTenantId}
             createdBy={session?.user?.id}
             canEdit={canEdit}
+            openPreset={docPreset}
+            onPresetHandled={() => setDocPreset(null)}
           />
         );
       case 'banking':
