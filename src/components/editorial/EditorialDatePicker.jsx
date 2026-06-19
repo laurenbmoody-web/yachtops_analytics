@@ -98,6 +98,9 @@ const EditorialDatePicker = ({
   const wrapperRef = useRef(null);
   const inputRef   = useRef(null);
   const focusedBtnRef = useRef(null);
+  // After a selection we refocus the input for keyboard users; that focus must
+  // NOT reopen the popover (onFocus opens it). One-shot guard.
+  const skipReopenRef = useRef(false);
 
   // Sync display text when value changes from outside.
   useEffect(() => {
@@ -146,6 +149,7 @@ const EditorialDatePicker = ({
   // Field handlers ─────────────────────────────────────────────────────────
   const handleInputFocus = () => {
     if (disabled) return;
+    if (skipReopenRef.current) { skipReopenRef.current = false; return; }
     openPopover();
   };
   const handleInputChange = (e) => setText(e.target.value);
@@ -185,7 +189,8 @@ const EditorialDatePicker = ({
     emit(date);
     setText(formatDisplay(date, displayFormat));
     closePopover();
-    // Return focus to the input after selection.
+    // Return focus to the input after selection — without reopening the popover.
+    skipReopenRef.current = true;
     setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0);
   };
   const handleToday = () => selectDate(new Date());
@@ -193,6 +198,7 @@ const EditorialDatePicker = ({
     emit('');
     setText('');
     closePopover();
+    skipReopenRef.current = true;
     setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0);
   };
 

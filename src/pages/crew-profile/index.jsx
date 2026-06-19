@@ -3577,36 +3577,32 @@ const canEdit = (() => {
                 <div className="cp-group">
                   <div className="cp-group-head"><span className="dia">◆</span><span className="t">Salary</span><span className="cp-chanchip" style={{ marginLeft: 6 }}>COMMAND only</span><span className="line" /></div>
                   <div className="cp-grid">
-                    <div className="cp-field-full">
-                      <Field label="Salary">
-                        {editing ? (
-                          <span style={{ display: 'flex', gap: 10, flexWrap: 'nowrap', alignItems: 'center' }}>
-                            <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Amount" style={{ maxWidth: 150 }}
-                              value={compForm?.salary_amount ?? ''} onChange={(e) => setC('salary_amount', e.target.value)} />
-                            <Icon name="Coins" size={15} className="text-muted-foreground" />
-                            <select className="cp-inline-select" style={{ maxWidth: 96 }} aria-label="Currency"
-                              value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value)}>
-                              <option value="">—</option>
-                              {CURRENCIES.map((c) => <option key={c} value={c}>{curSym(c)} {c}</option>)}
-                            </select>
-                            <select className="cp-inline-select" style={{ maxWidth: 120 }} aria-label="Salary period"
-                              value={salaryPeriod} onChange={(e) => setC('salary_period', e.target.value)}>
-                              <option value="month">per month</option>
-                              <option value="year">per year</option>
-                            </select>
-                          </span>
-                        ) : (
-                          <div className={`cp-static${salaryAmt != null ? '' : ' cp-empty'}`}>
-                            {salaryAmt != null ? `${money(salaryAmt)} / ${salaryPeriod === 'year' ? 'yr' : 'mo'}` : '—'}
-                          </div>
-                        )}
-                      </Field>
-                    </div>
+                    <Field label="Salary">
+                      {editing ? (
+                        <span style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', alignItems: 'center' }}>
+                          <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Amount" style={{ maxWidth: 90 }}
+                            value={compForm?.salary_amount ?? ''} onChange={(e) => setC('salary_amount', e.target.value)} />
+                          <Icon name="Coins" size={14} className="text-muted-foreground" />
+                          <select className="cp-inline-select" style={{ maxWidth: 74 }} aria-label="Currency"
+                            value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value)}>
+                            <option value="">—</option>
+                            {CURRENCIES.map((c) => <option key={c} value={c}>{curSym(c)} {c}</option>)}
+                          </select>
+                          <select className="cp-inline-select" style={{ maxWidth: 104 }} aria-label="Salary period"
+                            value={salaryPeriod} onChange={(e) => setC('salary_period', e.target.value)}>
+                            <option value="month">per month</option>
+                            <option value="year">per year</option>
+                          </select>
+                        </span>
+                      ) : (
+                        <div className={`cp-static${salaryAmt != null ? '' : ' cp-empty'}`}>
+                          {salaryAmt != null ? `${money(salaryAmt)} / ${salaryPeriod === 'year' ? 'yr' : 'mo'}` : '—'}
+                        </div>
+                      )}
+                    </Field>
                     <Field label="Day rate">
                       <div className={`cp-static${derivedDayRate != null ? '' : ' cp-empty'}`}>
-                        {derivedDayRate != null
-                          ? <>{money(derivedDayRate)} <span style={{ color: '#AEB4C2', fontWeight: 400, fontSize: 12 }}>· auto (÷365)</span></>
-                          : '—'}
+                        {derivedDayRate != null ? money(derivedDayRate) : '—'}
                       </div>
                     </Field>
                   </div>
