@@ -3416,6 +3416,7 @@ const canEdit = (() => {
       return `${day}/${m}/${y}`;
     };
     const cur = compForm?.salary_currency || '';
+    const curSym = (code) => ({ EUR: '€', USD: '$', GBP: '£', AUD: 'A$', NZD: 'NZ$', CAD: 'C$', CHF: 'Fr', ZAR: 'R' }[code] || code || '');
 
     // A field card matching Personal Details: read = cp-static, edit = inline input.
     const fld = (label, readVal, editEl, { accent } = {}) => (
@@ -3468,6 +3469,7 @@ const canEdit = (() => {
 
     // Common yacht payroll currencies.
     const CURRENCIES = ['EUR', 'USD', 'GBP', 'AUD', 'NZD', 'CAD', 'CHF', 'ZAR'];
+    const money = (amt) => (amt != null && amt !== '' ? `${curSym(cur)}${Number(amt).toLocaleString('en-GB')}` : '');
 
     const hasTemplate = false;   // contract-template feature is a future build
 
@@ -3564,17 +3566,17 @@ const canEdit = (() => {
                 <div className="cp-group">
                   <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compensation</span><span className="cp-chanchip" style={{ marginLeft: 6 }}>COMMAND only</span><span className="line" /></div>
                   <div className="cp-grid">
-                    {fld('Salary', compForm?.salary_amount != null && compForm?.salary_amount !== '' ? `${compForm.salary_amount}${cur ? ` ${cur}` : ''}` : '',
+                    {fld('Salary', money(compForm?.salary_amount),
                       <span style={{ display: 'flex', gap: 8 }}>
                         <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Amount"
                           value={compForm?.salary_amount ?? ''} onChange={(e) => setC('salary_amount', e.target.value)} />
-                        <select className="cp-inline-select" style={{ maxWidth: 84 }}
+                        <select className="cp-inline-select" style={{ maxWidth: 96 }}
                           value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value)}>
                           <option value="">CUR</option>
-                          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          {CURRENCIES.map((c) => <option key={c} value={c}>{curSym(c)} {c}</option>)}
                         </select>
                       </span>)}
-                    {fld('Day rate', compForm?.day_rate != null && compForm?.day_rate !== '' ? `${compForm.day_rate}${cur ? ` ${cur}` : ''}` : '',
+                    {fld('Day rate', money(compForm?.day_rate),
                       <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Day rate"
                         value={compForm?.day_rate ?? ''} onChange={(e) => setC('day_rate', e.target.value)} />)}
                   </div>
