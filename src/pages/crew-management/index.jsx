@@ -180,6 +180,7 @@ const CrewManagement = () => {
           custom_role_id,
           permission_tier,
           permission_tier_override,
+          rota_requires_acceptance,
           status,
           active,
           start_date,
@@ -226,6 +227,9 @@ const CrewManagement = () => {
         return {
           id: tm?.user_id,
           user_id: tm?.user_id,
+          departmentId: tm?.department_id || '',
+          roleId: tm?.role_id || '',
+          rotaRequiresAcceptance: tm?.rota_requires_acceptance ?? null,
           tier: tm?.role?.default_permission_tier || tm?.custom_role?.default_permission_tier || tm?.permission_tier_override || tm?.permission_tier || null,
           effectiveTier: tm?.role?.default_permission_tier || tm?.custom_role?.default_permission_tier || tm?.permission_tier_override || tm?.permission_tier || null,
           status: tm?.status,

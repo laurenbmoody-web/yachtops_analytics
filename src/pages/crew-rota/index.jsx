@@ -66,7 +66,7 @@ function RotaLegend({ now }) {
 // targets a single department (targetDeptId).
 function EditFooterCTA({
   tier, draftDayCount, targetDeptId, targetDeptName,
-  busy, onSubmit, onPublish, onSaveDraft,
+  busy, onSubmit, onPublish, onSaveDraft, requiresAcceptance,
 }) {
   const n = draftDayCount;
   const dayLabel = `${n} ${n === 1 ? 'day' : 'days'}`;
@@ -99,16 +99,21 @@ function EditFooterCTA({
           aria-label="Publish all changed departments"
         >{busy === 'publish' ? 'Publishing…' : 'Publish changes'}</button>
       )}
-      {tier === 'CHIEF' && (
-        <>
+      {/* CHIEF / HOD show ONE primary action, set by their per-user permission:
+          Send for acceptance (routed for approval) vs Publish (direct). The
+          admin toggles this in crew management; HOD defaults to send, CHIEF to
+          publish. */}
+      {(tier === 'CHIEF' || tier === 'HOD') && (
+        requiresAcceptance ? (
           <button
             type="button"
-            className="v2-btn-ghost"
+            className="v2-btn-filled"
             onClick={onSubmit}
             disabled={!!busy || n === 0 || noTargetDept}
             title={noTargetTitle}
-            aria-label={`Submit ${targetDeptName || 'department'} for approval`}
+            aria-label={`Send ${targetDeptName || 'department'} for acceptance`}
           >{subLabel}</button>
+        ) : (
           <button
             type="button"
             className="v2-btn-filled"
@@ -117,16 +122,7 @@ function EditFooterCTA({
             title={noTargetTitle}
             aria-label={`Publish ${targetDeptName || 'department'}`}
           >{pubLabel}</button>
-        </>
-      )}
-      {tier === 'HOD' && (
-        <button
-          type="button"
-          className="v2-btn-filled"
-          onClick={onSubmit}
-          disabled={!!busy || n === 0 || noTargetDept}
-          aria-label={`Submit ${targetDeptName || 'department'} for approval`}
-        >{subLabel}</button>
+        )
       )}
       {!['COMMAND', 'CHIEF', 'HOD'].includes(tier) && (
         <span style={{ fontStyle: 'italic' }}>Read-only — your role can’t publish drafts.</span>
@@ -141,6 +137,12 @@ export default function CrewRotaPage() {
   const [toast, setToast] = useState(null);
 
   const tier = String(user?.permission_tier || tenantRole || '').toUpperCase();
+
+  // Per-user rota action: send for acceptance vs publish directly. NULL falls
+  // back to the tier default (HOD sends; CHIEF/COMMAND publish). An admin sets
+  // the override per user in crew management; the server RPCs honour the same
+  // rule. COMMAND always publishes (they're the final approver).
+  const requiresAcceptance = currentUser?.rota_requires_acceptance ?? (tier === 'HOD');
 
   // Permission-scoped view. COMMAND and CHIEF can load the whole vessel
   // (CHIEF defaults to their own department but can expand others into view);
@@ -228,7 +230,7 @@ export default function CrewRotaPage() {
     if (draftCheck.count === 0) {
       setCtaBusy(null);
       showToast(
-        `Cannot submit — no shifts for ${targetDeptName || 'this department'}.`,
+        `Cannot send — no shifts for ${targetDeptName || 'this department'}.`,
         { error: true },
       );
       return;
@@ -242,10 +244,10 @@ export default function CrewRotaPage() {
     });
     setCtaBusy(null);
     if (!res.ok) {
-      showToast(`Couldn’t submit — ${res.error || 'try again.'}`, { error: true });
+      showToast(`Couldn’t send — ${res.error || 'try again.'}`, { error: true });
       return;
     }
-    showToast(`Submitted ${targetDeptName || 'department'} for approval.`);
+    showToast(`Sent ${targetDeptName || 'department'} for acceptance.`);
     // Notify the reviewer(s) — CHIEF(s) in the dept, else COMMAND fallback —
     // via bell + email. Fire-and-forget server-side (service role resolves
     // recipients); never blocks or fails the submit. (sendRotaSubmission)
@@ -327,6 +329,7 @@ export default function CrewRotaPage() {
         draftDayCount={draftDayCount}
         targetDeptId={targetDeptId}
         targetDeptName={targetDeptName}
+        requiresAcceptance={requiresAcceptance}
         busy={ctaBusy}
         onSubmit={() => handleFooterSubmit(exitEdit)}
         onPublish={() => handleFooterPublish(exitEdit)}

@@ -427,7 +427,7 @@ export const AuthProvider = ({ children }) => {
           
           const { data: membership, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, permission_tier, role, department_id, active')
+            ?.select('tenant_id, permission_tier, role, department_id, active, rota_requires_acceptance')
             ?.eq('user_id', currentUserId)
             ?.eq('tenant_id', profile?.last_active_tenant_id)
             ?.neq('active', false)
@@ -495,6 +495,7 @@ export const AuthProvider = ({ children }) => {
               role: membership?.role || existingUser?.role || null,
               department: departmentName || existingUser?.department || null,
               department_id: membership?.department_id || existingUser?.department_id || null,
+              rota_requires_acceptance: membership?.rota_requires_acceptance ?? null,
             };
             setCurrentUser(enrichedUser);
             saveCurrentUser(enrichedUser);
@@ -516,7 +517,7 @@ export const AuthProvider = ({ children }) => {
           
           const { data: memberships, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, permission_tier, role, department_id, active')
+            ?.select('tenant_id, permission_tier, role, department_id, active, rota_requires_acceptance')
             ?.eq('user_id', currentUserId)
             ?.eq('active', true)
             ?.order('joined_at', { ascending: false })
@@ -575,6 +576,7 @@ export const AuthProvider = ({ children }) => {
               role: membership?.role || existingUser?.role || null,
               department: departmentName || existingUser?.department || null,
               department_id: membership?.department_id || existingUser?.department_id || null,
+              rota_requires_acceptance: membership?.rota_requires_acceptance ?? null,
             };
             setCurrentUser(enrichedUser);
             saveCurrentUser(enrichedUser);
