@@ -2157,11 +2157,21 @@ const ProvisioningBoardDetail = () => {
     return max;
   }, [itemStatusMap]);
 
+  const supplierNotesSeenAtMs = supplierNotesSeenAt
+    ? new Date(supplierNotesSeenAt).getTime()
+    : 0;
   const supplierNotesUnread =
     supplierNoteActions.length > 0
     && supplierLatestUpdatedAt > 0
-    && (!supplierNotesSeenAt
-        || new Date(supplierNotesSeenAt).getTime() < supplierLatestUpdatedAt);
+    && supplierLatestUpdatedAt > supplierNotesSeenAtMs;
+  // Per-row predicate used by the items table to pulse the cells
+  // that actually changed (qty / unit / size diffs, supplier note,
+  // sub line) — so the chief's eye lands on the right line rather
+  // than scanning for what's different.
+  const rowHasUnseenSupplier = useCallback((oi) => {
+    if (!oi?.updated_at) return false;
+    return new Date(oi.updated_at).getTime() > supplierNotesSeenAtMs;
+  }, [supplierNotesSeenAtMs]);
 
   const handleSupplierNotesToggle = () => {
     const willOpen = !supplierNotesOpen;
@@ -3317,6 +3327,14 @@ const ProvisioningBoardDetail = () => {
                         // values (price / qty diff / notes) and reserve
                         // isLocked for actual edit-locking.
                         const hasSupplierMatch = !!itemOrder;
+                        // Pulse the cells the supplier just changed
+                        // (qty / unit / size / note / sub) until the
+                        // chief opens the "Note from supplier" chip
+                        // popover — gives the eye something to land on
+                        // when there are subtle revisions on a long
+                        // board.
+                        const rowUnseen = rowHasUnseenSupplier(itemOrder);
+                        const pulseCls = rowUnseen ? ' pv-supplier-pulse' : '';
                         // Unified pill: derive across (item, supplier_order_item,
                         // supplier_order). Single source of truth — no SUPPLIER_BADGE
                         // swap, no displayBadge fork.
@@ -3401,18 +3419,19 @@ const ProvisioningBoardDetail = () => {
                               />}
                               {(isReceived || isLocked) && item.brand && <span style={{ fontSize: 11, color: dim || '#94A3B8', padding: '2px 6px' }}>{item.brand}</span>}
                               {hasSupplierMatch && itemOrder?.status === 'substituted' && itemOrder.substitution && (
-                                <span style={{ fontSize: 11, color: '#C65A1A', fontWeight: 600, paddingLeft: 6, marginTop: 2 }}>
+                                <span className={`pv-supplier-diff${pulseCls}`} style={{ fontSize: 11, color: '#C65A1A', fontWeight: 600, paddingLeft: 6, marginTop: 2, display: 'inline-block' }}>
                                   Sub: {itemOrder.substitution}{itemOrder.subPrice ? ` (${itemOrder.subPrice})` : ''}
                                 </span>
                               )}
                               {hasSupplierMatch && itemOrder?.hasNote && (
-                                <span style={{
+                                <span className={`pv-supplier-note${pulseCls}`} style={{
                                   fontSize: 11,
                                   fontStyle: 'italic',
                                   color: '#6B6F7A',
                                   paddingLeft: 6,
                                   marginTop: 2,
                                   letterSpacing: '0.005em',
+                                  display: 'inline-block',
                                 }}>
                                   “{itemOrder.supplierNote}”
                                 </span>
@@ -3449,7 +3468,7 @@ const ProvisioningBoardDetail = () => {
                                       ? (
                                           <span style={{ fontSize: 12 }}>
                                             <span style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: 4 }}>{itemOrder.requestedSize}</span>
-                                            <span style={{ color: '#C65A1A', fontWeight: 700 }}>{itemOrder.size}</span>
+                                            <span className={`pv-supplier-diff${pulseCls}`} style={{ color: '#C65A1A', fontWeight: 700 }}>{itemOrder.size}</span>
                                           </span>
                                         )
                                       : <span style={{ fontSize: 12, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{itemOrder?.size || item.size || ''}</span>
@@ -3465,7 +3484,7 @@ const ProvisioningBoardDetail = () => {
                                       ? (
                                           <span style={{ fontSize: 11 }}>
                                             <span style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: 4 }}>{itemOrder.requestedUnit}</span>
-                                            <span style={{ color: '#C65A1A', fontWeight: 700 }}>{itemOrder.unit}</span>
+                                            <span className={`pv-supplier-diff${pulseCls}`} style={{ color: '#C65A1A', fontWeight: 700 }}>{itemOrder.unit}</span>
                                           </span>
                                         )
                                       : <span style={{ fontSize: 11, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{itemOrder?.unit || item.unit || 'each'}</span>
@@ -3486,7 +3505,7 @@ const ProvisioningBoardDetail = () => {
                                       ? (
                                           <span style={{ fontSize: 13, minWidth: 18, textAlign: 'center' }}>
                                             <span style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: 4 }}>{itemOrder.requestedQuantity}</span>
-                                            <span style={{ color: '#C65A1A', fontWeight: 700 }}>{itemOrder.quantity}</span>
+                                            <span className={`pv-supplier-diff${pulseCls}`} style={{ color: '#C65A1A', fontWeight: 700 }}>{itemOrder.quantity}</span>
                                           </span>
                                         )
                                       : <span style={{ fontSize: 13, color: dim || (isLocked ? '#94A3B8' : undefined), minWidth: 18, textAlign: 'center' }}>{itemOrder?.quantity ?? item.quantity_ordered ?? '-'}</span>
