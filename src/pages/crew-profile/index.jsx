@@ -1183,7 +1183,7 @@ const canEdit = (() => {
   // crew_employment is readable by the owner + COMMAND; crew_compensation is
   // COMMAND-only (separate table so pay can't leak to the owner via RLS). Both
   // are COMMAND-editable (canEditPermissions).
-  const EMP_CONTRACT_TYPES = ['Permanent', 'Rotational', 'Seasonal', 'Freelance', 'Daywork'];
+  const EMP_CONTRACT_TYPES = ['Permanent', 'Rotational', 'Seasonal', 'Temporary', 'Freelance', 'Daywork'];
   useEffect(() => {
     if (activeSection !== 'contract' || !crewId || !activeTenantId || empLoaded) return;
     let cancelled = false;
@@ -3428,21 +3428,22 @@ const canEdit = (() => {
 
     return (
       <div>
-        <div className="cp-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="cp-section-num">§ /</span>
-            <h3>Contract / Employment</h3>
-          </div>
+        <div className="cp-hor-head" style={{ marginBottom: 22 }}>
+          <h3 className="cp-hor-title">
+            CONTRACT OF<span className="pn">,</span> <em>Employment</em><span className="pn">.</span>
+          </h3>
           {canEditPermissions && (
             editing ? (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="v2-btn-ghost" disabled={empSaving}
-                  onClick={() => { setEmpEditing(false); setEmpLoaded(false); }}>Cancel</button>
-                <button type="button" className="v2-btn-filled" disabled={empSaving}
-                  onClick={handleSaveEmployment}>{empSaving ? 'Saving…' : 'Save'}</button>
+              <div className="cp-hor-actions">
+                <Button variant="outline" iconName="X" disabled={empSaving}
+                  onClick={() => { setEmpEditing(false); setEmpLoaded(false); }}>Cancel Edit</Button>
+                <Button iconName={empSaving ? 'Loader2' : 'Save'} disabled={empSaving}
+                  onClick={handleSaveEmployment}>{empSaving ? 'Saving…' : 'Save'}</Button>
               </div>
             ) : (
-              <button type="button" className="v2-btn-ghost" onClick={() => setEmpEditing(true)}>Edit</button>
+              <div className="cp-hor-actions">
+                <Button variant="outline" iconName="Edit" onClick={() => setEmpEditing(true)}>Edit employment</Button>
+              </div>
             )
           )}
         </div>
