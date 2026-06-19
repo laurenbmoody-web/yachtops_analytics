@@ -18,6 +18,7 @@ import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData, logBa
 import { ibanWarning, swiftWarning } from './utils/bankingValidation';
 import { fetchCrewDocuments } from './utils/crewDocuments';
 import DateInput from '../../components/ui/DateInput';
+import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
 import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
@@ -1183,7 +1184,7 @@ const canEdit = (() => {
   // crew_employment is readable by the owner + COMMAND; crew_compensation is
   // COMMAND-only (separate table so pay can't leak to the owner via RLS). Both
   // are COMMAND-editable (canEditPermissions).
-  const EMP_CONTRACT_TYPES = ['Permanent', 'Rotational', 'Seasonal', 'Freelance', 'Daywork'];
+  const EMP_CONTRACT_TYPES = ['Permanent', 'Rotational', 'Seasonal', 'Temporary', 'Freelance', 'Daywork'];
   useEffect(() => {
     if (activeSection !== 'contract' || !crewId || !activeTenantId || empLoaded) return;
     let cancelled = false;
@@ -1527,12 +1528,19 @@ const canEdit = (() => {
             )}
           </Field>
           <Field label="Date of Birth">
-            <Input
-              type="date"
-              value={formData?.dateOfBirth}
-              onChange={(e) => handleInputChange('dateOfBirth', e?.target?.value)}
-              disabled={!isEditing}
-            />
+            {isEditing ? (
+              <EditorialDatePicker
+                value={(formData?.dateOfBirth || '').slice(0, 10)}
+                onChange={(iso) => handleInputChange('dateOfBirth', iso)}
+                placeholder="dd/mm/yyyy"
+              />
+            ) : (
+              <div className={`cp-static${formData?.dateOfBirth ? '' : ' cp-empty'}`}>
+                {formData?.dateOfBirth
+                  ? new Date(`${String(formData.dateOfBirth).slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                  : '—'}
+              </div>
+            )}
           </Field>
           <Field label="Nationality">
             <Select
@@ -1620,10 +1628,10 @@ const canEdit = (() => {
                 {formData?.allergiesStatus === 'no_known' && (
                   <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                     <span>Confirmed on</span>
-                    <DateInput
-                      className="cp-inline-box"
-                      value={formData?.allergiesConfirmedAt || ''}
-                      onChange={(e) => handleInputChange('allergiesConfirmedAt', e?.target?.value)}
+                    <EditorialDatePicker
+                      value={(formData?.allergiesConfirmedAt || '').slice(0, 10)}
+                      onChange={(iso) => handleInputChange('allergiesConfirmedAt', iso)}
+                      placeholder="dd/mm/yyyy"
                     />
                   </div>
                 )}
@@ -1699,10 +1707,10 @@ const canEdit = (() => {
       return (
         <Field label="Last Verified" hint={isEditing && !disabled ? 'Date you last confirmed these details' : undefined}>
           {isEditing && !disabled ? (
-            <DateInput
-              className="cp-inline-box"
-              value={v || ''}
-              onChange={(e) => handleInputChange(field, e?.target?.value)}
+            <EditorialDatePicker
+              value={(v || '').slice(0, 10)}
+              onChange={(iso) => handleInputChange(field, iso)}
+              placeholder="dd/mm/yyyy"
             />
           ) : (
             <div className={`cp-static${v ? '' : ' cp-empty'}`}>
@@ -3419,30 +3427,50 @@ const canEdit = (() => {
       <input className="cp-inline-box" value={empForm[key] || ''} placeholder={ph}
         onChange={(e) => setE(key, e.target.value)} />
     );
+    // Editorial calendar (popover) bound to an ISO field.
     const dte = (key) => (
-      <input className="cp-inline-box" type="date" value={(empForm[key] || '').slice(0, 10)}
-        onChange={(e) => setE(key, e.target.value)} />
+      <EditorialDatePicker
+        value={(empForm[key] || '').slice(0, 10)}
+        onChange={(iso) => setE(key, iso || null)}
+        placeholder="dd/mm/yyyy"
+      />
     );
+
+    // Probation: quick-pick periods auto-fill the end date from the start date.
+    const PROBATION_DAYS = [7, 30, 60, 90];
+    const addDaysIso = (iso, n) => {
+      if (!iso) return null;
+      const d = new Date(`${String(iso).slice(0, 10)}T00:00:00`);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+    const probDiff = (empForm.start_date && empForm.probation_end_date)
+      ? Math.round((new Date(`${empForm.probation_end_date.slice(0, 10)}T00:00:00`) - new Date(`${empForm.start_date.slice(0, 10)}T00:00:00`)) / 86400000)
+      : null;
+
+    // Common yacht payroll currencies.
+    const CURRENCIES = ['EUR', 'USD', 'GBP', 'AUD', 'NZD', 'CAD', 'CHF', 'ZAR'];
 
     const hasTemplate = false;   // contract-template feature is a future build
 
     return (
       <div>
-        <div className="cp-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="cp-section-num">§ /</span>
-            <h3>Contract / Employment</h3>
-          </div>
+        <div className="cp-hor-head" style={{ marginBottom: 22 }}>
+          <h3 className="cp-hor-title">
+            CONTRACT OF<span className="pn">,</span> <em>Employment</em><span className="pn">.</span>
+          </h3>
           {canEditPermissions && (
             editing ? (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="v2-btn-ghost" disabled={empSaving}
-                  onClick={() => { setEmpEditing(false); setEmpLoaded(false); }}>Cancel</button>
-                <button type="button" className="v2-btn-filled" disabled={empSaving}
-                  onClick={handleSaveEmployment}>{empSaving ? 'Saving…' : 'Save'}</button>
+              <div className="cp-hor-actions">
+                <Button variant="outline" iconName="X" disabled={empSaving}
+                  onClick={() => { setEmpEditing(false); setEmpLoaded(false); }}>Cancel Edit</Button>
+                <Button iconName={empSaving ? 'Loader2' : 'Save'} disabled={empSaving}
+                  onClick={handleSaveEmployment}>{empSaving ? 'Saving…' : 'Save'}</Button>
               </div>
             ) : (
-              <button type="button" className="v2-btn-ghost" onClick={() => setEmpEditing(true)}>Edit</button>
+              <div className="cp-hor-actions">
+                <Button variant="outline" iconName="Edit" onClick={() => setEmpEditing(true)}>Edit employment</Button>
+              </div>
             )
           )}
         </div>
@@ -3463,7 +3491,32 @@ const canEdit = (() => {
                     </select>, { accent: true })}
                   {fld('Start date', fmtDate(empForm.start_date), dte('start_date'))}
                   {fld('End date', fmtDate(empForm.end_date), dte('end_date'))}
-                  {fld('Probation end', fmtDate(empForm.probation_end_date), dte('probation_end_date'))}
+                  <div className="cp-field-full">
+                    <Field label="Probation">
+                      {editing ? (
+                        <div className="cp-prob">
+                          {PROBATION_DAYS.map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              className={`cp-prob-chip${probDiff === n ? ' active' : ''}`}
+                              disabled={!empForm.start_date}
+                              title={!empForm.start_date ? 'Set a start date first' : `${n} days from start`}
+                              onClick={() => setE('probation_end_date', addDaysIso(empForm.start_date, n))}
+                            >{n} days</button>
+                          ))}
+                          <span className="cp-prob-sep">or</span>
+                          <span className="cp-prob-date">{dte('probation_end_date')}</span>
+                        </div>
+                      ) : (
+                        <div className={`cp-static${empForm.probation_end_date ? '' : ' cp-empty'}`}>
+                          {empForm.probation_end_date
+                            ? `${fmtDate(empForm.probation_end_date)}${PROBATION_DAYS.includes(probDiff) ? ` · ${probDiff} days` : ''}`
+                            : '—'}
+                        </div>
+                      )}
+                    </Field>
+                  </div>
                 </div>
               </div>
 
@@ -3485,8 +3538,11 @@ const canEdit = (() => {
                       <span style={{ display: 'flex', gap: 8 }}>
                         <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Amount"
                           value={compForm?.salary_amount ?? ''} onChange={(e) => setC('salary_amount', e.target.value)} />
-                        <input className="cp-inline-box" style={{ maxWidth: 72 }} placeholder="CUR" maxLength={3}
-                          value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value.toUpperCase())} />
+                        <select className="cp-inline-select" style={{ maxWidth: 84 }}
+                          value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value)}>
+                          <option value="">CUR</option>
+                          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
                       </span>)}
                     {fld('Day rate', compForm?.day_rate != null && compForm?.day_rate !== '' ? `${compForm.day_rate}${cur ? ` ${cur}` : ''}` : '',
                       <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Day rate"
