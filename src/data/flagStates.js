@@ -1,0 +1,31 @@
+// Common maritime flag states for yacht registration. Plain string values so
+// they store as-is on vessels.flag and inherit cleanly onto crew profiles.
+// Ordered by how common they are for super-yachts, then alphabetical.
+export const FLAG_STATES = [
+  'Cayman Islands',
+  'Marshall Islands',
+  'Malta',
+  'Jersey',
+  'Guernsey',
+  'Isle of Man',
+  'Bermuda',
+  'British Virgin Islands',
+  'Gibraltar',
+  'United Kingdom',
+  'Luxembourg',
+  'Madeira (Portugal)',
+  'Netherlands',
+  'Italy',
+  'France',
+  'Spain',
+  'Monaco',
+  'Antigua and Barbuda',
+  'St Vincent and the Grenadines',
+  'Bahamas',
+  'Panama',
+  'Liberia',
+  'United States',
+  'Australia',
+  'New Zealand',
+  'Cook Islands',
+];
