@@ -3658,19 +3658,28 @@ export const approveAllQuotes = async (listId) => {
   //    stays where it is (the chief still has work to do on the
   //    laggards). 'partially_confirmed' on the list mirrors the
   //    order-level rule.
+  let listStatusUpdateError = null;
   if (allOrders.length > 0) {
     const allOrdersConfirmed = ordersConfirmed === allOrders.length;
     const anyOrderTouched = ordersConfirmed + ordersPartial > 0;
     if (allOrdersConfirmed) {
-      await supabase
+      const { error: listErr } = await supabase
         .from('provisioning_lists')
         .update({ status: 'confirmed', updated_at: new Date().toISOString() })
         .eq('id', listId);
+      if (listErr) {
+        console.error('[provisioningStorage] approveAllQuotes list confirm failed:', listErr);
+        listStatusUpdateError = listErr;
+      }
     } else if (anyOrderTouched) {
-      await supabase
+      const { error: listErr } = await supabase
         .from('provisioning_lists')
         .update({ status: 'partially_confirmed', updated_at: new Date().toISOString() })
         .eq('id', listId);
+      if (listErr) {
+        console.error('[provisioningStorage] approveAllQuotes list partial failed:', listErr);
+        listStatusUpdateError = listErr;
+      }
     }
   }
 
@@ -3679,6 +3688,7 @@ export const approveAllQuotes = async (listId) => {
     ordersConfirmed,
     ordersPartial,
     listFullyConfirmed: ordersConfirmed === allOrders.length && allOrders.length > 0,
+    listStatusUpdateError,
   };
 };
 

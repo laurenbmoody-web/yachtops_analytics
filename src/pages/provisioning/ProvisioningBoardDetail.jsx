@@ -1677,6 +1677,8 @@ const ProvisioningBoardDetail = () => {
       } : prev);
       setDecisionModal(null);
       setDecisionComment('');
+      // Same kanban-refresh signal as the no-approver flow.
+      try { window.dispatchEvent(new Event('provisioning-list-status-changed')); } catch { /* noop */ }
       const successMsg = decision === 'approve'
         ? (isQuoteApproval
             ? (quoteApprovalResult?.listFullyConfirmed
@@ -2218,10 +2220,26 @@ const ProvisioningBoardDetail = () => {
             ? 'partially_confirmed'
             : list?.status);
       setList(prev => ({ ...prev, status: nextStatus }));
-      const msg = result?.listFullyConfirmed
-        ? 'Quote confirmed — supplier notified'
-        : `Quote confirmed — ${result?.ordersConfirmed || 0} order${result?.ordersConfirmed === 1 ? '' : 's'} confirmed, others still waiting on quotes`;
-      showToast(msg, 'success');
+      // Tell the kanban (and any other surface that lists this
+      // board) to refresh — otherwise the chief navigates back to
+      // the index and sees stale "QUOTE IN" on a now-confirmed board.
+      try { window.dispatchEvent(new Event('provisioning-list-status-changed')); } catch { /* noop */ }
+      // Honest signal if the per-line accepts worked but the list
+      // status update was blocked (RLS, etc.). Toast still reads
+      // "confirmed" because the line state DID land server-side;
+      // only the board-level rollup needs follow-up.
+      if (result?.listStatusUpdateError) {
+        console.warn('[ProvisioningBoardDetail] list status not persisted:', result.listStatusUpdateError);
+        showToast(
+          'Lines confirmed — board status may take a moment to update. Refresh if it stays at "Quote in".',
+          'info',
+        );
+      } else {
+        const msg = result?.listFullyConfirmed
+          ? 'Quote confirmed — supplier notified'
+          : `Quote confirmed — ${result?.ordersConfirmed || 0} order${result?.ordersConfirmed === 1 ? '' : 's'} confirmed, others still waiting on quotes`;
+        showToast(msg, 'success');
+      }
       setConfirmQuoteModalOpen(false);
     } catch (err) {
       console.error('[ProvisioningBoardDetail] runConfirmQuote failed:', err);
@@ -4340,7 +4358,7 @@ const ProvisioningBoardDetail = () => {
             }}>
               Every quoted line will lock at the supplier's price, the order will flip to{' '}
               <strong style={{ color: 'var(--d-navy-deep)' }}>confirmed</strong>, and the supplier
-              will be notified via their portal bell.
+              will be notified in their portal.
             </p>
             <p style={{
               fontFamily: 'var(--font-sans)',

@@ -448,6 +448,23 @@ const ProvisioningWorkspace = () => {
     fetchSharedWithMe(userId).then(setSharedWithMe);
   }, [userId]);
 
+  // Refresh the lists when the user navigates back to the kanban
+  // from a board that just changed status (confirmed via quote
+  // approval, etc.) — otherwise the tile shows stale "QUOTE IN".
+  // Two triggers: window focus + a custom event the board fires
+  // after approveAllQuotes lands.
+  useEffect(() => {
+    if (!activeTenantId || !userId) return undefined;
+    const refresh = () => { loadAll(userDeptId); };
+    window.addEventListener('focus', refresh);
+    window.addEventListener('provisioning-list-status-changed', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('provisioning-list-status-changed', refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTenantId, userId, userDeptId]);
+
   useEffect(() => {
     if (!userId || !activeTenantId) return;
     getSmartDeliveryCounts(userId, activeTenantId).then(c => setInboxCount((c.pendingMatches || 0) + (c.inboxItems || 0)));
