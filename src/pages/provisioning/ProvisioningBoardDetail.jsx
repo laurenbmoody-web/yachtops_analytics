@@ -665,6 +665,23 @@ const ProvisioningBoardDetail = () => {
     return map;
   }, [supplierOrders]);
 
+  // Supplier-response counts — banner above the items toolbar tells the
+  // chief how many of the order's lines the supplier has acted on
+  // (confirmed / substituted / unavailable) so they can spot pending
+  // work without scanning. Computed from itemStatusMap so it reflects
+  // whatever just synced down from supplier_order_items.
+  const supplierResponseCounts = useMemo(() => {
+    const counts = { confirmed: 0, substituted: 0, unavailable: 0 };
+    Object.values(itemStatusMap).forEach((oi) => {
+      if (counts[oi.status] !== undefined) counts[oi.status] += 1;
+    });
+    return counts;
+  }, [itemStatusMap]);
+  const totalSupplierResponses =
+    supplierResponseCounts.confirmed
+    + supplierResponseCounts.substituted
+    + supplierResponseCounts.unavailable;
+
   // itemStatusMap must be declared before hasSendableItems and canDeleteItem
   const hasSendableItems = items
     .filter(i => i.status !== 'received' && i.name?.trim())
@@ -2689,6 +2706,45 @@ const ProvisioningBoardDetail = () => {
 
         {/* ── Items area ────────────────────────────────────────────────── */}
         {activeTab === 'items' && <div style={{ padding: '24px 0 48px' }}>
+          {/* Supplier-response banner — at-a-glance count of what the
+              supplier has actioned since the order was sent. Hidden
+              when nothing yet (pre-send boards stay clean). Click a
+              segment to filter the list to just that status — a quick
+              way to scan unavailables vs subs. */}
+          {totalSupplierResponses > 0 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px', marginBottom: 12,
+              background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8,
+              fontSize: 13, color: '#334155',
+            }}>
+              <span>
+                <strong style={{ color: '#0F172A' }}>Supplier responded</strong>
+                {' — '}
+                {supplierResponseCounts.confirmed > 0 && (
+                  <span style={{ marginRight: 12 }}>
+                    <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#5C9B6A', marginRight: 6, verticalAlign: 'middle' }} />
+                    {supplierResponseCounts.confirmed} confirmed
+                  </span>
+                )}
+                {supplierResponseCounts.substituted > 0 && (
+                  <span style={{ marginRight: 12 }}>
+                    <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#D4A24C', marginRight: 6, verticalAlign: 'middle' }} />
+                    {supplierResponseCounts.substituted} substituted
+                  </span>
+                )}
+                {supplierResponseCounts.unavailable > 0 && (
+                  <span>
+                    <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#C8553D', marginRight: 6, verticalAlign: 'middle' }} />
+                    {supplierResponseCounts.unavailable} unavailable
+                  </span>
+                )}
+              </span>
+              <span style={{ fontSize: 11, color: '#64748B' }}>
+                {totalSupplierResponses} of {Object.keys(itemStatusMap).length} lines
+              </span>
+            </div>
+          )}
           {deptGroups.length === 0 && items.length === 0 ? (
             /* True empty board */
             <div style={{ padding: '80px 0', textAlign: 'center' }}>

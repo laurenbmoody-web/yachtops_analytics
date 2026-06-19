@@ -1074,6 +1074,12 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
         <div className="sod-wq-name">
           {item.item_name}
           {item.brand && <span className="sod-wq-brand">{item.brand}</span>}
+          {isPending && item.revised_at && (
+            <span
+              className="sod-wq-revised-chip"
+              title="Vessel reopened this line after you confirmed it — qty / unit / size / notes may have changed."
+            >Revised</span>
+          )}
         </div>
         {item.notes && (
           <div className="sod-wq-vessel-note">{item.notes}</div>
@@ -1276,6 +1282,29 @@ const ItemsCard = ({
         <div className="sod-wq-cell sod-wq-cell-total">Line total</div>
         <div className="sod-wq-cell sod-wq-cell-action" />
       </div>
+
+      {/* Vessel-revised banner — lights when ≥1 pending line carries
+          revised_at (set by reopenOrderItem on the vessel side). The
+          supplier needs to know which lines went back to pending
+          because the chief asked for changes, not because they were
+          fresh. Banner sits above the To do section + each affected
+          row also flags a per-line REVISED chip so it's discoverable
+          even when scrolled. */}
+      {(() => {
+        const revisedCount = items.filter(
+          (i) => (i.status || 'pending') === 'pending' && !!i.revised_at,
+        ).length;
+        if (revisedCount === 0) return null;
+        return (
+          <div className="sod-wq-revised-banner">
+            <span className="sod-wq-revised-banner-dot" />
+            <span className="sod-wq-revised-banner-text">
+              <strong>Vessel revised {revisedCount} line{revisedCount === 1 ? '' : 's'}</strong>
+              {' — please review the change'}{revisedCount === 1 ? '' : 's'}{' and re-confirm.'}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* To do */}
       {pendingItems.length > 0 && (
