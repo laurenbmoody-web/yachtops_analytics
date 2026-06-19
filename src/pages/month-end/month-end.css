@@ -18,17 +18,15 @@
 /* Canonical editorial header — eyebrow + serif sentence headline with a
    terracotta-italic emphasis + lead line, controls stacked on the right, a
    hairline rule beneath the whole header. Mirrors crew-profile HOR / sea-time. */
-.mp-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 1px solid #E6E8EF; }
-.mp-head-main { min-width: 0; }
+/* Header: meta strip, then the headline and month picker share one line. */
+.mp-head { padding-bottom: 18px; border-bottom: 1px solid #E6E8EF; }
+.mp-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .mp-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #C65A1A; }
 .mp-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 32px; line-height: 1.04; color: #1C1B3A; margin-top: 11px; }
 .mp-title em { font-style: italic; color: #C65A1A; }
 .mp-lead { font-size: 14px; line-height: 1.5; color: #4B4A66; margin-top: 12px; max-width: 560px; }
 .mp-lead b { color: #1C1B3A; font-weight: 600; }
-/* Month picker is the only control now (Remind all lives inside the Hours of Rest
-   pack). The header bottom-aligns it (align-items:flex-end) so it sits on the
-   subline. */
-.mp-head-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; flex: 0 0 auto; }
+.mp-monthnav { flex: 0 0 auto; }
 .mp-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 8px; font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .mp-monthnav button { border: 0; background: #F6F5F2; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #8B8478; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
 .mp-monthnav button:hover { color: #C65A1A; }
@@ -50,7 +48,8 @@
 .mp-link.is-mut { color: #9A958A; }
 
 /* Category section — serif header on a hairline rule */
-.mp-cat { margin-top: 32px; }
+.mp-cat { margin-top: 26px; }
+.mp-cat:first-of-type { margin-top: 22px; }
 .mp-cat-head { display: flex; align-items: baseline; gap: 13px; margin-bottom: 2px; }
 .mp-cat-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 21px; }
 .mp-cat-rule { flex: 1; height: 1px; background: #E6E8EF; align-self: center; }
