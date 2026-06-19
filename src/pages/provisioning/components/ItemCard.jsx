@@ -65,12 +65,37 @@ const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusCha
     : '';
   const noteTitle = hasNote ? `Note from supplier:\n"${supplierOrderItem.supplierNote}"` : '';
 
+  // Lock inline editing on the kanban card the moment the supplier
+  // has acted on the line (confirmed / substituted / unavailable) —
+  // same gate the board items table uses. Changing qty / status
+  // from the kanban after a supplier confirm would slip past the
+  // reopen flow the chief is meant to use, and the supplier would
+  // never see the change. To make a change, open the board and
+  // reopen the line via the ↺ button.
+  const supplierActed = !!supplierOrderItem
+    && ['confirmed', 'substituted', 'unavailable'].includes(supplierOrderItem.status);
+  const lockedTooltip = supplierActed
+    ? 'Supplier has acted on this line — open the board and use ↺ Reopen to request a change.'
+    : '';
+
+  const handleContextMenuWithLock = (e) => {
+    if (supplierActed) {
+      e.preventDefault();
+      return;
+    }
+    handleContextMenu(e);
+  };
+  const handleTouchStartWithLock = (e) => {
+    if (supplierActed) return;
+    handleTouchStart(e);
+  };
+
   return (
     <>
       <div
         onClick={e => { e.stopPropagation(); if (!menu) onClick(item); }}
-        onContextMenu={handleContextMenu}
-        onTouchStart={handleTouchStart}
+        onContextMenu={handleContextMenuWithLock}
+        onTouchStart={handleTouchStartWithLock}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchEnd}
         className="pv-item"
@@ -106,12 +131,27 @@ const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusCha
           </span>
         )}
 
-        {/* Qty controls — stop propagation so taps on the stepper don't open the drawer */}
-        <div className="pv-item-stepper" onClick={e => e.stopPropagation()}>
-          <button onClick={(e) => handleQty(e, -1)} className="pv-item-stepbtn">−</button>
-          <span className="pv-item-qty">{item.quantity_ordered ?? 0}</span>
-          <button onClick={(e) => handleQty(e, 1)} className="pv-item-stepbtn">+</button>
-        </div>
+        {/* Qty controls — stop propagation so taps on the stepper don't open the drawer.
+            Locked + read-only once the supplier has acted (confirmed /
+            substituted / unavailable). The number still renders for
+            context; the +/- buttons disappear so the chief can't
+            silently bump the qty behind the supplier's back. */}
+        {supplierActed ? (
+          <div
+            className="pv-item-stepper pv-item-stepper-locked"
+            onClick={e => e.stopPropagation()}
+            title={lockedTooltip}
+            style={{ opacity: 0.6 }}
+          >
+            <span className="pv-item-qty">{item.quantity_ordered ?? 0}</span>
+          </div>
+        ) : (
+          <div className="pv-item-stepper" onClick={e => e.stopPropagation()}>
+            <button onClick={(e) => handleQty(e, -1)} className="pv-item-stepbtn">−</button>
+            <span className="pv-item-qty">{item.quantity_ordered ?? 0}</span>
+            <button onClick={(e) => handleQty(e, 1)} className="pv-item-stepbtn">+</button>
+          </div>
+        )}
 
         {/* Status badge — consumes the cell-variant palette from the unified config */}
         <span
