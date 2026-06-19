@@ -516,67 +516,86 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
             </div>
           </div>
 
-          <div className="std-steps">
-            <div className="std-step">
-              <div className="sh">
-                <span className="std-badge">1</span>
-                <div><div className="st">Validate</div><div className="ss">Blocked until every rule clears</div></div>
-                <span className="std-chip-ready" style={{ marginLeft: 'auto', color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{passed} of {total} cleared</span>
-              </div>
-              <div className="std-readbar"><i className="std-grow" style={{ display: 'block', height: '100%', width: `${readinessPct}%`, background: canGenerate ? '#5E8E6F' : '#C65A1A', borderRadius: 999 }} /></div>
-              <div style={{ marginTop: 6 }}>
-                {checks.map((c, i) => (
-                  <div className="std-check" key={i}>
-                    <span className="box" style={{ background: c.ok ? '#5E8E6F' : '#A32D2D' }}><Icon name={c.ok ? 'Check' : 'X'} size={12} color="#fff" /></span>
-                    <div><div className="ct" style={{ color: c.ok ? 'var(--ink)' : '#A32D2D' }}>{c.label}</div><div className="cd">{c.detail}</div></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="std-step">
-              <div className="sh"><span className="std-badge">2</span><div><div className="st">Attach documents</div><div className="ss">For {vp.name}</div></div></div>
-              {vp.docs.map(d => {
-                const met = !!docMet[d.id];
-                return (
-                  <div className="std-doc" key={d.id} onClick={() => toggleDoc(d.id)} style={{ background: met ? '#E7F0E9' : '#fff', borderColor: met ? '#CDE6D3' : '#E6E8EC' }}>
-                    <span className="dbox" style={{ borderColor: met ? '#5E8E6F' : '#C7CCD5', background: met ? '#5E8E6F' : '#fff' }}>{met && <Icon name="Check" size={12} color="#fff" />}</span>
-                    <span className="dlabel">{d.label}</span>
-                  </div>
-                );
-              })}
-              <div className="vs" style={{ marginTop: 8 }}>{vp.fee}</div>
-            </div>
-
-            <div className="std-step">
-              <div className="sh"><span className="std-badge">3</span><div><div className="st">Authorise</div><div className="ss">Master who attests this service</div></div></div>
-              <div className="std-sig">
-                {[{ key: 'master', name: 'Capt. Henrik Sõrensen', sub: 'Master · CoC 0094821', bad: false }, { key: 'self', name: `${seafarer.fullName} (self)`, sub: 'Seafarer — not permitted', bad: true }].map(o => {
-                  const sel = signatory === o.key;
-                  return (
-                    <div className="std-sigcard" key={o.key} onClick={() => pickSignatory(o.key)}
-                      style={{ borderColor: sel ? (o.bad ? '#A32D2D' : '#5E8E6F') : '#E6E8EC', background: sel ? (o.bad ? '#FCEDEA' : '#E7F0E9') : '#fff' }}>
-                      <div className="nm">{o.name}</div>
-                      <div className="sb" style={{ color: o.bad ? '#A32D2D' : '#8A93A3' }}>{o.sub}</div>
+          <div className="std-flow">
+            {/* 01 Validate */}
+            <div className={`std-fstep${!canGenerate ? ' active' : ''}`}>
+              <div className="std-fnum">01</div>
+              <div>
+                <div className="std-fhead">
+                  <span className="std-flabel">Validate</span>
+                  <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{passed} of {total} cleared</span>
+                </div>
+                <div className="std-ftitle">Every rule must clear</div>
+                <div className="std-fprog"><i className="std-grow" style={{ display: 'block', height: '100%', width: `${readinessPct}%`, background: canGenerate ? '#5E8E6F' : '#C65A1A', borderRadius: 999 }} /></div>
+                <div className="std-chks">
+                  {checks.map((c, i) => (
+                    <div className={`std-chk${c.ok ? '' : ' bad'}`} key={i}>
+                      <span className="mk" style={{ color: c.ok ? '#5E8E6F' : '#A32D2D' }}><Icon name={c.ok ? 'Check' : 'X'} size={14} /></span>
+                      <div><div className="el">{c.label}</div><div className="ed">{c.detail}</div></div>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="std-step" style={{ background: '#fff', borderStyle: 'dashed' }}>
-              <div className="sh" style={{ borderBottom: 0, marginBottom: 0, paddingBottom: 0 }}>
-                <span className="std-badge">4</span><div><div className="st">Issue</div><div className="ss">Generate the signed pack →</div></div>
+            {/* 02 Attach documents */}
+            <div className="std-fstep">
+              <div className="std-fnum">02</div>
+              <div>
+                <div className="std-fhead"><span className="std-flabel">Attach documents · for {vp.name}</span></div>
+                <div className="std-ftitle">Supporting documents</div>
+                <div className="std-docs">
+                  {vp.docs.map(d => {
+                    const met = !!docMet[d.id];
+                    return (
+                      <div className={`std-doc2${met ? ' on' : ''}`} key={d.id} onClick={() => toggleDoc(d.id)}>
+                        <span className="ring">{met && <Icon name="Check" size={12} color="#fff" />}</span>
+                        <span className="dl">{d.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="std-fee">{vp.fee}</div>
+              </div>
+            </div>
+
+            {/* 03 Authorise */}
+            <div className="std-fstep">
+              <div className="std-fnum">03</div>
+              <div>
+                <div className="std-fhead"><span className="std-flabel">Authorise</span></div>
+                <div className="std-ftitle">Master who attests this service</div>
+                <div className="std-opts">
+                  {[{ key: 'master', name: 'Capt. Henrik Sõrensen', sub: 'Master · CoC 0094821', bad: false }, { key: 'self', name: `${seafarer.fullName} (self)`, sub: 'Seafarer — not permitted', bad: true }].map(o => {
+                    const sel = signatory === o.key;
+                    return (
+                      <div className={`std-opt${sel ? ' sel' : ''}${o.bad ? ' bad' : ''}`} key={o.key} onClick={() => pickSignatory(o.key)}>
+                        <span className="rad" />
+                        <div><div className="on">{o.name}</div><div className="os">{o.sub}</div></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* 04 Issue */}
+            <div className={`std-fstep${canGenerate ? ' active' : ''}`}>
+              <div className="std-fnum">04</div>
+              <div>
+                <div className="std-fhead"><span className="std-flabel">Issue</span></div>
+                <div className="std-ftitle">Generate the captain-signed pack</div>
+                <div className="std-fnote" style={{ color: canGenerate ? '#3F7A52' : '#A32D2D' }}>
+                  <Icon name={canGenerate ? 'Check' : 'Lock'} size={13} /> {canGenerate ? `Ready to generate a first-pass-clean pack for ${vp.short}.` : `Locked until step one clears — resolve the ${checks.filter(c => !c.ok).length} outstanding check${checks.filter(c => !c.ok).length === 1 ? '' : 's'}.`}
+                </div>
               </div>
             </div>
           </div>
 
           <div className="std-issue">
-            <span className="std-gate-ic" style={{ background: canGenerate ? '#E7F0E9' : '#FCEDEA' }}><Icon name={canGenerate ? 'Check' : 'X'} size={20} color={canGenerate ? '#5E8E6F' : '#A32D2D'} /></span>
             <div>
-              <div className="mlabel">Step 4 · Issue</div>
+              <div className="mlabel">Step 04 · Issue</div>
               <div className="std-issue-h">{canGenerate ? 'All checks passed' : `${checks.filter(c => !c.ok).length} check(s) blocking generation`}</div>
-              <div className="vs">{canGenerate ? `Ready to generate a first-pass-clean pack for ${vp.short}.` : 'Resolve every item in step 1 to continue.'}</div>
             </div>
             <button className="std-genbtn" onClick={onGenerate}
               style={{ background: canGenerate ? '#C65A1A' : '#F1EFE9', color: canGenerate ? '#fff' : '#AEB4C2', cursor: canGenerate ? 'pointer' : 'not-allowed' }}>
