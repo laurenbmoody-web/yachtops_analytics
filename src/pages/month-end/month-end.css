@@ -114,11 +114,14 @@
 .me-sub { font-size: 11.5px; color: #8B8478; margin-top: 2px; }
 .me-meta { font-size: 11px; color: #8B8478; font-style: italic; }
 
-/* "Logged this month" coverage bar — surfaces who's actually behind */
-.me-log { display: flex; align-items: center; gap: 11px; width: 188px; flex: 0 0 auto; }
+/* "Logged this month" coverage column. The bar only appears once a crew member
+   has logged something — otherwise the more direct "X days unlogged" reads in
+   its place, so a roomful of zero-loggers isn't a column of empty rails. */
+.me-log { display: flex; align-items: center; justify-content: flex-end; gap: 11px; width: 188px; flex: 0 0 auto; }
 .me-logbar { flex: 1; height: 5px; border-radius: 3px; background: #EFEDE6; overflow: hidden; }
 .me-logbar span { display: block; height: 100%; border-radius: 3px; }
 .me-logfrac { font-size: 11.5px; font-weight: 600; color: #8B8478; white-space: nowrap; min-width: 42px; }
+.me-log-note { font-size: 11.5px; color: #8B8478; font-style: italic; white-space: nowrap; }
 
 .me-action { display: flex; justify-content: flex-end; align-items: center; min-width: 150px; }
 .me-signed { color: #5C9B6A; display: inline-flex; }
@@ -136,6 +139,12 @@
 @media (max-width: 820px) {
   .mp-row { grid-template-columns: 22px 1fr auto; gap: 12px; }
   .mp-row-prog, .mp-status { display: none; }
+  /* Roster rows: drop the coverage column, let name + action share the width */
+  .me-log { display: none; }
+  .me-row { gap: 10px; padding-left: 16px; }
+  .me-action { min-width: 0; }
+  .me-block-cta { font-size: 12px; padding: 6px 11px; }
+  .me-block-head { flex-wrap: wrap; }
   .mp-sum { flex-wrap: wrap; gap: 20px; }
   .mp-detail { padding-left: 8px; }
 }
