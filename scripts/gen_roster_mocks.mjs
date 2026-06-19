@@ -180,4 +180,67 @@ function wrap(inner,h){
   writeFileSync('/tmp/roster_R3.svg',wrap(s,fy+40));
 }
 
-console.log('wrote /tmp/roster_R1.svg, R2, R3');
+/* ─────── R1d · LEDGER, grouped: status blocks → departments inside ───────────
+   Top split by status (Awaiting approval / Not started / Confirmed). Within each
+   block, crew are grouped under their department. The per-row status text is
+   dropped (the block header carries it); the dot keeps the colour. ───────────── */
+{
+  let s=header('R1 · Ledger — by status, then department',
+    'Three status blocks; inside each, crew group under their department. The “logged” bar still flags who’s behind.');
+  const cLog=560, cLogW=130, cAction=RIGHT;
+  const DEPT_RANK={Bridge:0,Deck:1,Engineering:2,Interior:3,Galley:4};
+  const deptSort=(a,b)=>(DEPT_RANK[a]??9)-(DEPT_RANK[b]??9);
+
+  // column header
+  let y=198;
+  s+=txt(P+24,y,'CREW',{size:10,weight:700,spacing:1.2,fill:FAINT});
+  s+=txt(cLog,y,'LOGGED THIS MONTH',{size:10,weight:700,spacing:1.2,fill:FAINT});
+  s+=line(P,y+12,RIGHT,y+12,LINE);
+  y+=12;
+
+  const row=(c,yy)=>{
+    const m=STMETA[c.st]; let r='';
+    r+=dot(P+6,yy,4.5,m.dot);
+    r+=txt(P+24,yy+4,c.name,{size:14.5,weight:600,fill:c.st==='confirmed'?'#3a3950':NAVY});
+    r+=txt(P+24,yy+21,c.role,{size:11.5,fill:MUT});
+    const bx=cLog,bw=cLogW,pct=c.logged/DAYS;
+    const barC=c.st==='confirmed'?GREEN_D:(pct<0.6?TERRA:MUT);
+    r+=rect(bx,yy-3,bw,6,{fill:'#EFEDE6',rx:3})+rect(bx,yy-3,Math.max(4,bw*pct),6,{fill:barC,rx:3});
+    r+=txt(bx+bw+12,yy+4,`${c.logged}/${DAYS}`,{size:11.5,weight:600,fill:MUT});
+    if(c.st==='open'){ r+=txt(cLog-30,yy+4,`${c.unlogged}d unlogged`,{size:10.5,fill:FAINT,italic:true,anchor:'end'}); r+=btn(cAction,yy,'Remind','ghost'); }
+    else if(c.st==='submitted') r+=btn(cAction,yy,'Review & approve','primary');
+    else { r+=`<path d="M ${cAction-20} ${yy} l 4 4 l 8 -9" fill="none" stroke="${GREEN_D}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`+txt(cAction,yy+4,'',{}); }
+    return r;
+  };
+
+  const blocks=[
+    {st:'submitted', label:'AWAITING APPROVAL', remindAll:false},
+    {st:'open',      label:'NOT STARTED',       remindAll:true},
+    {st:'confirmed', label:'CONFIRMED',         remindAll:false},
+  ];
+  for(const b of blocks){
+    const members=CREW.filter(c=>c.st===b.st);
+    if(!members.length) continue;
+    const m=STMETA[b.st];
+    y+=42;
+    // status block header — coloured tracked-caps + count, hairline, optional remind-all
+    s+=dot(P+6,y-4,4,m.dot);
+    s+=txt(P+22,y,`${b.label} · ${members.length}`,{size:11,weight:700,spacing:1.4,fill:m.c});
+    if(b.remindAll){ const t='Send reminders to all ('+members.length+')'; const bw=t.length*6.6+30; s+=rect(RIGHT-bw,y-16,bw,26,{fill:TERRA,rx:8})+txt(RIGHT-bw/2,y+2,t,{size:12,weight:600,fill:'#fff',anchor:'middle'}); }
+    s+=line(P,y+12,RIGHT,y+12,'#EDEBE4');
+    // departments inside
+    const depts=[...new Set(members.map(c=>c.dept))].sort(deptSort);
+    for(const d of depts){
+      y+=30;
+      s+=txt(P+24,y,d.toUpperCase(),{size:9.5,weight:700,spacing:1.4,fill:FAINT});
+      for(const c of members.filter(c=>c.dept===d)){ y+=42; s+=row(c,y); s+=line(P+18,y+21,RIGHT,y+21,HAIR2); }
+    }
+  }
+  let fy=y+56;
+  s+=txt(P,fy,'The structure',{size:10,weight:700,spacing:1.2,fill:MUT}); fy+=22;
+  s+=txt(P,fy,'• Status answers “what needs doing”; department answers “whose” — the two levels you sort by.',{size:13,fill:INK2}); fy+=22;
+  s+=txt(P,fy,'• Per-row status text drops out (the block says it); the coloured dot + logged bar still carry the detail.',{size:13,fill:INK2});
+  writeFileSync('/tmp/roster_R1_dept.svg',wrap(s,fy+40));
+}
+
+console.log('wrote /tmp/roster_R1.svg, R2, R3, R1_dept');
