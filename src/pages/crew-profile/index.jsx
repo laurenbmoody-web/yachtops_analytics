@@ -3205,7 +3205,7 @@ const canEdit = (() => {
   const renderSeaTime = () => {
     // Countdown Sea Time Tracker (design-handoff recreation) driven by the
     // ported rules engine; live Supabase data with a sample fallback.
-    return <SeaTimeDashboard userId={crewId} tenantId={activeTenantId} currentUser={currentUser} onAddCertificate={handleAddCertificate} canAttest={canEdit && !isOwnProfile} />;
+    return <SeaTimeDashboard userId={crewId} tenantId={activeTenantId} currentUser={currentUser} onAddCertificate={handleAddCertificate} canAttest={(tenantMemberRole || '').toUpperCase() === 'CAPTAIN' && !isOwnProfile} />;
   };
 
   // Placeholder until the document store is wired to this tab. Kept as a real
