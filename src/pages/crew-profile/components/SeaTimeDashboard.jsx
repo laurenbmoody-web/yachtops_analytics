@@ -541,7 +541,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
                 return (
                   <div className="std-doc" key={d.id} onClick={() => toggleDoc(d.id)} style={{ background: met ? '#E7F0E9' : '#fff', borderColor: met ? '#CDE6D3' : '#E6E8EC' }}>
                     <span className="dbox" style={{ borderColor: met ? '#5E8E6F' : '#C7CCD5', background: met ? '#5E8E6F' : '#fff' }}>{met && <Icon name="Check" size={12} color="#fff" />}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{d.label}</span>
+                    <span className="dlabel">{d.label}</span>
                   </div>
                 );
               })}
