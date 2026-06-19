@@ -256,6 +256,12 @@ const CrewProfile = () => {
   const [permSaving, setPermSaving] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState(null);   // null until loaded
   const [notifSavingKey, setNotifSavingKey] = useState(null);
+  // Contract / employment section
+  const [empLoaded, setEmpLoaded] = useState(false);
+  const [empForm, setEmpForm] = useState({});           // crew_employment fields
+  const [compForm, setCompForm] = useState(null);       // crew_compensation (null = no access/none)
+  const [empEditing, setEmpEditing] = useState(false);
+  const [empSaving, setEmpSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = React.useRef(null);
@@ -1080,6 +1086,7 @@ const canEdit = (() => {
     { key: 'hor', label: 'Hours of Rest (HOR)', icon: 'Clock' },
     { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' },
     { key: 'history', label: 'Status History', icon: 'Activity' },
+    { key: 'contract', label: 'Contract / Employment', icon: 'FileSignature' },
     { key: 'permissions', label: 'Permissions & Notifications', icon: 'ShieldCheck' },
   ];
 
@@ -1088,7 +1095,7 @@ const canEdit = (() => {
     { label: 'Profile', keys: ['personal', 'emergency', 'banking', 'preferences', 'documents'] },
     { label: 'Compliance', keys: ['hor', 'seatime'] },
     { label: 'Activity', keys: ['history'] },
-    { label: 'Settings', keys: ['permissions'] },
+    { label: 'Settings', keys: ['contract', 'permissions'] },
   ];
 
   const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
@@ -1169,6 +1176,72 @@ const canEdit = (() => {
     { key: 'notify_document_expiry', label: 'Document expiries', desc: 'Certificates expiring within 90 days.', email: false },
     { key: 'notify_returns', label: 'Return confirmations', desc: 'When a return you’re involved in is confirmed.', email: false },
   ];
+
+  // ── Contract / Employment ───────────────────────────────────────────────────
+  // crew_employment is readable by the owner + COMMAND; crew_compensation is
+  // COMMAND-only (separate table so pay can't leak to the owner via RLS). Both
+  // are COMMAND-editable (canEditPermissions).
+  const EMP_CONTRACT_TYPES = ['Permanent', 'Rotational', 'Seasonal', 'Freelance', 'Daywork'];
+  useEffect(() => {
+    if (activeSection !== 'contract' || !crewId || !activeTenantId || empLoaded) return;
+    let cancelled = false;
+    (async () => {
+      const { data: emp } = await supabase
+        .from('crew_employment').select('*')
+        .eq('tenant_id', activeTenantId).eq('user_id', crewId).maybeSingle();
+      const { data: comp } = await supabase
+        .from('crew_compensation').select('*')
+        .eq('tenant_id', activeTenantId).eq('user_id', crewId).maybeSingle();
+      if (cancelled) return;
+      setEmpForm(emp || {});
+      // null when the viewer can't read compensation (RLS) AND there's no row;
+      // COMMAND always gets an object so the block renders for them.
+      setCompForm(canEditPermissions ? (comp || {}) : (comp || null));
+      setEmpLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, [activeSection, crewId, activeTenantId, empLoaded, canEditPermissions]);
+
+  const handleSaveEmployment = async () => {
+    if (!canEditPermissions || empSaving) return;
+    setEmpSaving(true);
+    const empPatch = {
+      tenant_id: activeTenantId, user_id: crewId,
+      contract_type: empForm.contract_type || null,
+      start_date: empForm.start_date || null,
+      end_date: empForm.end_date || null,
+      probation_end_date: empForm.probation_end_date || null,
+      rotation_pattern: empForm.rotation_pattern || null,
+      leave_entitlement_days: empForm.leave_entitlement_days === '' || empForm.leave_entitlement_days == null
+        ? null : Number(empForm.leave_entitlement_days),
+      notice_period: empForm.notice_period || null,
+      sea_reference: empForm.sea_reference || null,
+      flag_state: empForm.flag_state || null,
+      governing_law: empForm.governing_law || null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error: empErr } = await supabase
+      .from('crew_employment').upsert(empPatch, { onConflict: 'tenant_id,user_id' });
+    let compErr = null;
+    if (compForm) {
+      const compPatch = {
+        tenant_id: activeTenantId, user_id: crewId,
+        salary_amount: compForm.salary_amount === '' || compForm.salary_amount == null ? null : Number(compForm.salary_amount),
+        salary_currency: compForm.salary_currency || null,
+        day_rate: compForm.day_rate === '' || compForm.day_rate == null ? null : Number(compForm.day_rate),
+        updated_at: new Date().toISOString(),
+      };
+      ({ error: compErr } = await supabase
+        .from('crew_compensation').upsert(compPatch, { onConflict: 'tenant_id,user_id' }));
+    }
+    setEmpSaving(false);
+    if (empErr || compErr) {
+      showToast((empErr || compErr)?.message || 'Couldn’t save employment details', 'error');
+      return;
+    }
+    setEmpEditing(false);
+    showToast('Employment details saved', 'success');
+  };
 
   const handleProfileStatusChange = async (newStatus, notes, effectiveDate, effectiveTime = '00:00') => {
     if (!activeTenantId || !crewId) return;
@@ -3311,8 +3384,116 @@ const canEdit = (() => {
     );
   };
 
+  const renderContract = () => {
+    const editing = empEditing && canEditPermissions;
+    const setE = (k, v) => setEmpForm((p) => ({ ...p, [k]: v }));
+    const setC = (k, v) => setCompForm((p) => ({ ...(p || {}), [k]: v }));
+    const fmtDate = (d) => {
+      if (!d) return '—';
+      const [y, m, day] = String(d).slice(0, 10).split('-');
+      return `${day}/${m}/${y}`;
+    };
+    const inStyle = {
+      height: 34, borderRadius: 8, border: '1px solid #ECEAE3', background: '#FAFAF8',
+      padding: '0 10px', fontSize: 13, color: '#1C1B3A', minWidth: 180,
+    };
+    const row = (label, readVal, editEl) => (
+      <div className="cp-set-row">
+        <div className="cp-set-main"><div className="cp-set-label">{label}</div></div>
+        <div className="cp-set-side">
+          {editing ? editEl : <span className="cp-set-pill">{(readVal ?? '') === '' ? '—' : readVal}</span>}
+        </div>
+      </div>
+    );
+    const textInput = (key, ph = '') => (
+      <input style={inStyle} value={empForm[key] || ''} placeholder={ph}
+        onChange={(e) => setE(key, e.target.value)} />
+    );
+    const dateInput = (key) => (
+      <input type="date" style={inStyle} value={(empForm[key] || '').slice(0, 10)}
+        onChange={(e) => setE(key, e.target.value)} />
+    );
+
+    return (
+      <div>
+        <div className="cp-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="cp-section-num">§ /</span>
+            <h3>Contract / Employment</h3>
+          </div>
+          {canEditPermissions && (
+            editing ? (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="v2-btn-ghost" disabled={empSaving}
+                  onClick={() => { setEmpEditing(false); setEmpLoaded(false); }}>Cancel</button>
+                <button type="button" className="v2-btn-filled" disabled={empSaving}
+                  onClick={handleSaveEmployment}>{empSaving ? 'Saving…' : 'Save'}</button>
+              </div>
+            ) : (
+              <button type="button" className="v2-btn-ghost" onClick={() => setEmpEditing(true)}>Edit</button>
+            )
+          )}
+        </div>
+
+        {!empLoaded ? (
+          <p className="cp-set-note-empty">Loading…</p>
+        ) : (
+          <>
+            <div className="cp-group">
+              <div className="cp-group-head"><span className="dia">◆</span><span className="t">Contract</span><span className="line" /></div>
+              {row('Contract type', empForm.contract_type,
+                <select className="" style={inStyle} value={empForm.contract_type || ''} onChange={(e) => setE('contract_type', e.target.value)}>
+                  <option value="">—</option>
+                  {EMP_CONTRACT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>)}
+              {row('Start date', fmtDate(empForm.start_date), dateInput('start_date'))}
+              {row('End date', fmtDate(empForm.end_date), dateInput('end_date'))}
+              {row('Probation end', fmtDate(empForm.probation_end_date), dateInput('probation_end_date'))}
+            </div>
+
+            <div className="cp-group">
+              <div className="cp-group-head"><span className="dia">◆</span><span className="t">Rotation &amp; leave</span><span className="line" /></div>
+              {row('Rotation pattern', empForm.rotation_pattern, textInput('rotation_pattern', 'e.g. 2:2'))}
+              {row('Leave entitlement (days)', empForm.leave_entitlement_days,
+                <input type="number" min="0" style={inStyle} value={empForm.leave_entitlement_days ?? ''} onChange={(e) => setE('leave_entitlement_days', e.target.value)} />)}
+              {row('Notice period', empForm.notice_period, textInput('notice_period', 'e.g. 1 month'))}
+            </div>
+
+            {compForm !== null && (
+              <div className="cp-group">
+                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compensation</span><span className="line" /></div>
+                {row('Salary', compForm?.salary_amount != null && compForm?.salary_amount !== '' ? `${compForm.salary_amount}${compForm.salary_currency ? ` ${compForm.salary_currency}` : ''}` : '—',
+                  <span style={{ display: 'flex', gap: 8 }}>
+                    <input type="number" min="0" step="0.01" style={{ ...inStyle, minWidth: 120 }} placeholder="Amount"
+                      value={compForm?.salary_amount ?? ''} onChange={(e) => setC('salary_amount', e.target.value)} />
+                    <input style={{ ...inStyle, minWidth: 70 }} placeholder="CUR" maxLength={3}
+                      value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value.toUpperCase())} />
+                  </span>)}
+                {row('Day rate', compForm?.day_rate != null && compForm?.day_rate !== '' ? `${compForm.day_rate}${compForm?.salary_currency ? ` ${compForm.salary_currency}` : ''}` : '—',
+                  <input type="number" min="0" step="0.01" style={inStyle} placeholder="Day rate"
+                    value={compForm?.day_rate ?? ''} onChange={(e) => setC('day_rate', e.target.value)} />)}
+                <p className="cp-set-note">Compensation is visible to COMMAND only.</p>
+              </div>
+            )}
+
+            <div className="cp-group">
+              <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compliance</span><span className="line" /></div>
+              {row('SEA reference', empForm.sea_reference, textInput('sea_reference'))}
+              {row('Flag state', empForm.flag_state, textInput('flag_state'))}
+              {row('Governing law', empForm.governing_law, textInput('governing_law'))}
+            </div>
+
+            {!canEditPermissions && <p className="cp-set-note">Employment details are managed by COMMAND.</p>}
+          </>
+        )}
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeSection) {
+      case 'contract':
+        return renderContract();
       case 'permissions':
         return renderPermissions();
       case 'personal':
