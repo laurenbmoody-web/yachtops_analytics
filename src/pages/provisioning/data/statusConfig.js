@@ -49,6 +49,38 @@ export const BOARD_STATUS_CONFIG = {
     color: '#C65A1A',
     badgeClassName: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
   },
+  // Supplier has returned at least one quote — board lives in this
+  // state until the chief (or approver) decides on every line.
+  quote_received: {
+    label: 'Quote in',
+    color: '#C65A1A',
+    badgeClassName: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400',
+  },
+  // Chief / approver has accepted every quote — locked, supplier is
+  // packing. Replaces the previous quote_received display once all
+  // lines have agreed prices.
+  quote_approved: {
+    label: 'Quote approved',
+    color: '#2E7D5A',
+    badgeClassName: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
+  },
+  // Mix of confirmed + still-pending lines (e.g. the supplier has
+  // confirmed 12 of 17). Used by the partial-confirm flow.
+  partially_confirmed: {
+    label: 'Partially confirmed',
+    color: '#D4A24C',
+    badgeClassName: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+  },
+  // Board fully confirmed by the supplier (every line agreed /
+  // substituted / unavailable). Identical UX to quote_approved
+  // until we wire the approval flow — for now they live side by
+  // side so the missing label doesn't drop the chip back to the
+  // snake_case fallback.
+  confirmed: {
+    label: 'Confirmed',
+    color: '#2E7D5A',
+    badgeClassName: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
+  },
   partially_delivered: {
     label: 'Partially delivered',
     color: '#5C9B6A',

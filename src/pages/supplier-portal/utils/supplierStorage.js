@@ -162,17 +162,15 @@ export const fetchVesselRevisedCount = async () => {
 };
 
 // Detailed list of vessel-revised lines for the bell-icon dropdown.
-// Each row carries the item name + qty/unit so the supplier can
-// scan the panel and click through to the parent order to act.
-// Server-scoped to the caller's supplier via RLS.
+// Two-step fetch so the list never gets dropped by a stricter RLS on
+// the joined supplier_orders row — we pull the items first (same
+// scope as the count query), then look up the parent order names in
+// a second pass. Missing parent rows are still shown with a fallback
+// "Order" label so the user can click through.
 export const fetchVesselRevisedLines = async () => {
-  const { data, error } = await supabase
+  const { data: lines, error } = await supabase
     .from('supplier_order_items')
-    .select(`
-      id, item_name, quantity, unit, revised_at,
-      order_id,
-      supplier_orders!inner ( id, vessel_name, yacht_name, delivery_date )
-    `)
+    .select('id, item_name, quantity, unit, revised_at, order_id')
     .eq('status', 'pending')
     .not('revised_at', 'is', null)
     .order('revised_at', { ascending: false })
@@ -181,7 +179,21 @@ export const fetchVesselRevisedLines = async () => {
     console.error('[supplierStorage] fetchVesselRevisedLines failed:', error);
     return [];
   }
-  return data || [];
+  if (!lines || lines.length === 0) return [];
+
+  const orderIds = Array.from(new Set(lines.map((l) => l.order_id).filter(Boolean)));
+  let ordersById = {};
+  if (orderIds.length > 0) {
+    const { data: orders } = await supabase
+      .from('supplier_orders')
+      .select('id, vessel_name, yacht_name, delivery_date')
+      .in('id', orderIds);
+    ordersById = Object.fromEntries((orders || []).map((o) => [o.id, o]));
+  }
+  return lines.map((l) => ({
+    ...l,
+    parent_order: ordersById[l.order_id] || null,
+  }));
 };
 
 // ─── Catalogue ───────────────────────────────────────────────────────────────
