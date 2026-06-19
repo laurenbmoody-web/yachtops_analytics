@@ -40,7 +40,7 @@ import {
   acceptOrderItemQuote,
   declineOrderItemQuote,
   approveAllQuotes,
-  hasProvisioningApprover,
+  callerRequiresProvisioningApproval,
   queryOrderItemQuote,
   toggleSupplierOrderFavourite,
   saveAsTemplate,
@@ -1647,10 +1647,19 @@ const ProvisioningBoardDetail = () => {
       const isQuoteApproval =
         approvalRequest?.prev_status === PROVISIONING_STATUS.QUOTE_RECEIVED;
       let nextListStatus = PROVISIONING_STATUS.DRAFT;
+      let quoteApprovalResult = null;
       if (decision === 'approve' && isQuoteApproval) {
         try {
-          await approveAllQuotes(id);
-          nextListStatus = 'confirmed';
+          quoteApprovalResult = await approveAllQuotes(id);
+          // Multi-supplier safe: the list only flips to 'confirmed'
+          // when every linked supplier_order is itself confirmed.
+          // Otherwise it goes to partially_confirmed so the chief
+          // can see which lines / orders still need a response.
+          nextListStatus = quoteApprovalResult.listFullyConfirmed
+            ? 'confirmed'
+            : (quoteApprovalResult.affectedItems > 0
+                ? 'partially_confirmed'
+                : list?.status || PROVISIONING_STATUS.DRAFT);
         } catch (autoErr) {
           console.error('[ProvisioningBoardDetail] approveAllQuotes failed:', autoErr);
           showToast('Approved — could not auto-confirm with supplier. Try again from the order.', 'error');
@@ -1666,7 +1675,11 @@ const ProvisioningBoardDetail = () => {
       setDecisionModal(null);
       setDecisionComment('');
       const successMsg = decision === 'approve'
-        ? (isQuoteApproval ? 'Quote approved — supplier notified' : 'Approved')
+        ? (isQuoteApproval
+            ? (quoteApprovalResult?.listFullyConfirmed
+                ? 'Quote approved — supplier notified'
+                : `Quote approved — ${quoteApprovalResult?.ordersConfirmed || 0} order${quoteApprovalResult?.ordersConfirmed === 1 ? '' : 's'} confirmed, others still waiting on quotes`)
+            : 'Approved')
         : 'Changes requested';
       showToast(successMsg, 'success');
     } catch (err) {
@@ -2039,23 +2052,28 @@ const ProvisioningBoardDetail = () => {
   const isQuoteReceived = list?.status === PROVISIONING_STATUS.QUOTE_RECEIVED;
   const canSubmitForApproval = list?.status === PROVISIONING_STATUS.DRAFT || isQuoteReceived;
 
-  // Approver-chain detection. Only meaningful when the board is
-  // sitting in quote_received — we use it to decide between two
-  // mutually-exclusive write actions:
-  //   has approver → "Re-submit for approval" (existing path)
-  //   no approver → "Confirm quote" (new no-approver path, fires
-  //                  the same approveAllQuotes server flow)
-  // The lookup is server-scoped and cached for the board's lifetime;
-  // null = unknown (RPC missing on this env), treat as "show submit".
-  const [approverPresent, setApproverPresent] = useState(null);
+  // "Confirm quote" gate. Reads the per-vessel approval_routing
+  // toggles + the caller's tier — COMMAND never requires approval,
+  // CHIEF / HOD / CREW require it iff their respective routing
+  // toggle is left at the default (true). When the toggle is OFF in
+  // Vessel Settings → Provisioning approval, the user can confirm a
+  // quote directly without going through the approval cycle.
+  //
+  // Distinct from resolve_provisioning_approver which always falls
+  // back to "any COMMAND member" — that fallback would hide this
+  // button from everyone.
+  const [confirmQuoteAllowed, setConfirmQuoteAllowed] = useState(false);
   useEffect(() => {
-    if (!id || !isQuoteReceived) return undefined;
+    if (!isQuoteReceived || !activeTenantId || !user?.id) {
+      setConfirmQuoteAllowed(false);
+      return undefined;
+    }
     let cancelled = false;
-    hasProvisioningApprover(id)
-      .then((has) => { if (!cancelled) setApproverPresent(has); })
-      .catch(() => { if (!cancelled) setApproverPresent(null); });
+    callerRequiresProvisioningApproval(activeTenantId, user.id)
+      .then((requires) => { if (!cancelled) setConfirmQuoteAllowed(!requires); })
+      .catch(() => { if (!cancelled) setConfirmQuoteAllowed(false); });
     return () => { cancelled = true; };
-  }, [id, isQuoteReceived]);
+  }, [isQuoteReceived, activeTenantId, user?.id]);
 
   // Confirm-quote handler (no-approver path). Same flow as the
   // approver-approve branch above; we just skip the approval-request
@@ -2287,12 +2305,13 @@ const ProvisioningBoardDetail = () => {
                   to the supplier, Receive closes it when goods land. */}
               <div className="cargo-ribbon-group">
                 {canSubmitForApproval && (
-                  // No-approver path: in quote_received state, if the
-                  // vessel has no approver chain configured, the
-                  // chief acts as their own approver via "Confirm
-                  // quote" — fires the same approveAllQuotes flow
-                  // without going through the request-decide cycle.
-                  isQuoteReceived && approverPresent === false ? (
+                  // No-approver path: when the caller's tier doesn't
+                  // require approval (per-vessel routing toggle in
+                  // Vessel Settings → Provisioning), the chief acts
+                  // as their own approver via "Confirm quote" —
+                  // fires the same approveAllQuotes flow without
+                  // going through the request-decide cycle.
+                  isQuoteReceived && confirmQuoteAllowed ? (
                     <button
                       type="button"
                       onClick={handleConfirmQuoteWithoutApprover}
