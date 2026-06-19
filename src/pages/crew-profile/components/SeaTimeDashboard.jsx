@@ -518,7 +518,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
 
           <div className="std-flow">
             {/* 01 Validate */}
-            <div className={`std-fstep${!canGenerate ? ' active' : ''}`}>
+            <div className="std-fstep">
               <div className="std-fnum">01</div>
               <div>
                 <div className="std-fhead">
@@ -580,7 +580,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
             </div>
 
             {/* 04 Issue */}
-            <div className={`std-fstep${canGenerate ? ' active' : ''}`}>
+            <div className="std-fstep">
               <div className="std-fnum">04</div>
               <div>
                 <div className="std-fhead"><span className="std-flabel">Issue</span></div>
