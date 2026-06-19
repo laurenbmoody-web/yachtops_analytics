@@ -29,10 +29,21 @@ const pad2 = (n) => String(n).padStart(2, '0');
 // Per-crew roster row status (HOR detail view).
 const STATUS_META = {
   open:      { label: 'Not started',       color: '#C65A1A', text: '#B14E16' },
-  submitted: { label: 'Awaiting approval', color: '#6C6CCF', text: '#4A4AB0' },
+  submitted: { label: 'Awaiting approval', color: '#1C1B3A', text: '#1C1B3A' },
   confirmed: { label: 'Confirmed',         color: '#5C9B6A', text: '#3F7A52' },
   locked:    { label: 'Locked',            color: '#9098B1', text: '#6B7280' },
 };
+
+// The roster is split into collapsible status blocks (default collapsed); crew
+// are grouped by department inside each. The block header carries the status, so
+// rows drop their own status text — the dot + logged-coverage bar carry detail.
+const STATUS_BLOCKS = [
+  { key: 'submitted', label: 'Awaiting approval', theme: '#1C1B3A', statuses: ['submitted'] },
+  { key: 'open',      label: 'Not started',       theme: '#C65A1A', statuses: ['open'] },
+  { key: 'confirmed', label: 'Confirmed',         theme: '#3F7A52', statuses: ['confirmed', 'locked'] },
+];
+const DEPT_RANK = { Bridge: 0, Deck: 1, Engineering: 2, Interior: 3, Galley: 4 };
+const byDept = (a, b) => (DEPT_RANK[a] ?? 9) - (DEPT_RANK[b] ?? 9) || String(a).localeCompare(String(b));
 
 // Two-state display: terracotta is the only accent, reserved for what's still
 // to close; closed items recede into quiet grey. Language matches the page's
@@ -78,6 +89,7 @@ export default function MonthEnd() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
   const [openHor, setOpenHor] = useState(false);   // HOR pack expand
+  const [openBlocks, setOpenBlocks] = useState({}); // per-status-block expand (default collapsed)
   const [hideClosed, setHideClosed] = useState(false); // filter: hide closed items
 
   const load = useCallback(async () => {
@@ -121,7 +133,7 @@ export default function MonthEnd() {
     const unlogged = Math.max(0, elapsedDays - loggedElapsed);
     const requiredRank = Math.max(rankOf(c.tier), rankOf(approverTier));
     const canApprove = viewerId !== c.id && viewerRank >= requiredRank;
-    return { ...c, status, unlogged, canApprove };
+    return { ...c, status, unlogged, logged: loggedElapsed, denom: elapsedDays, canApprove };
   }), [crew, statuses, coverage, elapsedDays, approverTier, viewerRank, viewerId]);
 
   const counts = useMemo(() => {
@@ -131,8 +143,6 @@ export default function MonthEnd() {
   }, [rows]);
 
   const outstanding = rows.filter((r) => r.status === 'open');
-  const awaiting = rows.filter((r) => r.status === 'submitted');
-  const complete = rows.filter((r) => r.status === 'confirmed' || r.status === 'locked');
 
   const remind = useCallback(async (r) => {
     await sendDbNotification(r.id, {
@@ -170,20 +180,23 @@ export default function MonthEnd() {
         .filter(Boolean).join(' · ') || 'In sign-off';
 
   // ── Per-crew roster row (HOR detail) ──────────────────────────────────────
+  // No per-row status text — the status block header carries it. The dot keeps
+  // the status colour and a "logged this month" bar surfaces who's behind.
   const renderRosterRow = (r) => {
     const meta = STATUS_META[r.status] || STATUS_META.open;
+    const signed = r.status === 'confirmed' || r.status === 'locked';
+    const pct = r.denom ? Math.round((r.logged / r.denom) * 100) : 0;
+    const barColor = signed ? '#5C9B6A' : (pct < 60 ? '#C65A1A' : '#9A958A');
     return (
-      <div key={r.id} className={`me-row${r.status === 'open' || r.status === 'submitted' ? ' is-action' : ''}`}>
+      <div key={r.id} className="me-row">
         <span className="me-dot" style={{ background: meta.color }} />
         <div className="me-who">
           <div className="me-name">{r.fullName}</div>
-          <div className="me-sub">{[r.roleTitle, r.department].filter(Boolean).join('  ·  ')}</div>
+          <div className="me-sub">{r.roleTitle}</div>
         </div>
-        <div className="me-statuswrap">
-          <span className="me-status" style={{ color: meta.text }}>{meta.label}</span>
-          {r.status === 'open' && r.unlogged > 0 && (
-            <span className="me-meta">{r.unlogged} day{r.unlogged > 1 ? 's' : ''} unlogged</span>
-          )}
+        <div className="me-log" title="Days logged this month">
+          <div className="me-logbar"><span style={{ width: `${pct}%`, background: barColor }} /></div>
+          <span className="me-logfrac">{r.logged}/{r.denom || 0}</span>
         </div>
         <div className="me-action">
           {r.status === 'open' && (
@@ -196,7 +209,44 @@ export default function MonthEnd() {
               ? <button type="button" className="me-btn me-btn-primary" onClick={() => navigate(`/profile/${r.id}?tab=hor&period=${year}-${pad2(jsMonth + 1)}`)}>Review &amp; approve</button>
               : <span className="me-meta">Awaiting {approverTier.toLowerCase()}</span>
           )}
+          {signed && <span className="me-signed"><Icon name="Check" size={15} /></span>}
         </div>
+      </div>
+    );
+  };
+
+  // ── A collapsible status block (Awaiting approval / Not started / Confirmed),
+  // crew grouped by department inside. Default collapsed; chevron + label take
+  // the block's status colour. ───────────────────────────────────────────────
+  const renderStatusBlock = (blk) => {
+    const members = rows.filter((r) => blk.statuses.includes(r.status));
+    if (!members.length) return null;
+    const isOpen = !!openBlocks[blk.key];
+    const depts = [...new Set(members.map((m) => m.department).filter(Boolean))].sort(byDept);
+    const toggle = () => setOpenBlocks((p) => ({ ...p, [blk.key]: !p[blk.key] }));
+    return (
+      <div key={blk.key} className="me-block">
+        <div className="me-block-head">
+          <button type="button" className="me-block-toggle" aria-expanded={isOpen} onClick={toggle}>
+            <span className="me-chev" style={{ color: blk.theme }}>{isOpen ? '▾' : '▸'}</span>
+            <span className="me-block-dot" style={{ background: blk.theme }} />
+            <span className="me-block-label" style={{ color: blk.theme }}>{blk.label} · {members.length}</span>
+          </button>
+          {blk.key === 'open' && outstanding.length > 0 ? (
+            <button type="button" className="me-btn me-btn-primary me-block-cta" disabled={busy} onClick={remindAll}>
+              <Icon name="Bell" size={14} />
+              {busy ? 'Sending…' : `Send reminders to all (${outstanding.length})`}
+            </button>
+          ) : (
+            <span className="me-block-preview">{depts.join('  ·  ')}</span>
+          )}
+        </div>
+        {isOpen && depts.map((d) => (
+          <div key={d} className="me-dept-group">
+            <div className="me-dept">{d}</div>
+            {members.filter((m) => m.department === d).map(renderRosterRow)}
+          </div>
+        ))}
       </div>
     );
   };
@@ -306,30 +356,7 @@ export default function MonthEnd() {
                         ) : rows.length === 0 ? (
                           <div className="mp-empty">No crew on this vessel yet.</div>
                         ) : (
-                          <>
-                            {(outstanding.length > 0 || awaiting.length > 0) && (
-                              <div className="me-section">
-                                <div className="me-section-head">
-                                  <span className="me-section-title">Needs action</span>
-                                  {outstanding.length > 0 && (
-                                    <button type="button" className="me-btn me-btn-primary" disabled={busy} onClick={remindAll}>
-                                      <Icon name="Bell" size={14} />
-                                      {busy ? 'Sending…' : `Send reminders to all (${outstanding.length})`}
-                                    </button>
-                                  )}
-                                </div>
-                                {[...outstanding, ...awaiting].map(renderRosterRow)}
-                              </div>
-                            )}
-                            {complete.length > 0 && (
-                              <div className="me-section">
-                                <div className="me-section-head">
-                                  <span className="me-section-title">Complete</span>
-                                </div>
-                                {complete.map(renderRosterRow)}
-                              </div>
-                            )}
-                          </>
+                          STATUS_BLOCKS.map(renderStatusBlock)
                         )}
                       </div>
                     )}
