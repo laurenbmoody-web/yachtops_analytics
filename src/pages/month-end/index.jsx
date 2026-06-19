@@ -34,11 +34,12 @@ const STATUS_META = {
   locked:    { label: 'Locked',            color: '#9098B1', text: '#6B7280' },
 };
 
-// Two-state pack display: terracotta is the only accent, reserved for what's
-// outstanding; completed packs recede into quiet grey.
+// Two-state display: terracotta is the only accent, reserved for what's still
+// to close; closed items recede into quiet grey. Language matches the page's
+// close-off family ("still to close" / "x / y closed").
 const PACK = {
-  outstanding: { label: 'Outstanding', dot: '#C65A1A', text: '#B14E16', bar: '#1C1B3A' },
-  complete:    { label: 'Done',        dot: '#C7C3B6', text: '#9A958A', bar: '#CFCBBE' },
+  outstanding: { label: 'To close', dot: '#C65A1A', text: '#B14E16', bar: '#1C1B3A' },
+  complete:    { label: 'Closed',   dot: '#C7C3B6', text: '#9A958A', bar: '#CFCBBE' },
 };
 
 // Categories and the Planned placeholders that live under each. Hours of Rest is
@@ -64,7 +65,9 @@ export default function MonthEnd() {
   const jsMonth = cursor.getMonth();
   const monthLabel = cursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   const monthName = cursor.toLocaleDateString('en-GB', { month: 'long' });
-  const packCount = PLACEHOLDERS.length + 1; // placeholders + the live HOR pack
+  const packCount = PLACEHOLDERS.length + 1; // placeholders + the live HOR item
+  const liveCount = 1;                        // only Hours of Rest is wired today
+  const plannedCount = packCount - liveCount;
 
   const [loading, setLoading] = useState(true);
   const [crew, setCrew] = useState([]);
@@ -232,21 +235,19 @@ export default function MonthEnd() {
                 <span className="bar" />
                 <span className="muted">{CATEGORIES.length} categories</span>
                 <span className="bar" />
-                <span className="muted">{packCount} packs</span>
-                <span className="bar" />
-                <span className="muted">1 live</span>
+                <span className="muted">{liveCount} of {packCount} live</span>
               </p>
               <h1 className="editorial-greeting">
                 {monthName}<span className="period">,</span> <em>{horDone ? 'on track' : 'still to close'}</em><span className="period">.</span>
               </h1>
               <p className="editorial-subline">
                 {counts.total === 0 ? (
-                  <>No crew aboard yet — <b>Hours of Rest</b> populates once crew are added. Sea time, drills, certificates and accounts join the close-off as they come online.</>
+                  <><b>Hours of Rest</b> begins once crew are aboard.{plannedCount > 0 ? ' The rest of the close-off joins as it comes online.' : ''}</>
                 ) : (
                   <>
-                    <b>Hours of Rest</b> is the only pack live this month — {counts.done} of {counts.total} signed off
-                    {counts.submitted ? `, ${counts.submitted} awaiting approval` : ''}. Sea time, drills, certificates
-                    and accounts join the close-off as they come online.
+                    <b>Hours of Rest</b> is live — {counts.done} of {counts.total} signed off
+                    {counts.submitted ? `, ${counts.submitted} awaiting approval` : ''}.
+                    {plannedCount > 0 ? ' The rest of the close-off joins as it comes online.' : ''}
                   </>
                 )}
               </p>
