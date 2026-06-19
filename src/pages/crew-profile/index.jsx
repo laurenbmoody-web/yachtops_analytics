@@ -1087,7 +1087,8 @@ const canEdit = (() => {
     { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' },
     { key: 'history', label: 'Status History', icon: 'Activity' },
     { key: 'contract', label: 'Contract / Employment', icon: 'FileSignature' },
-    { key: 'permissions', label: 'Permissions & Notifications', icon: 'ShieldCheck' },
+    { key: 'permissions', label: 'Permissions', icon: 'ShieldCheck' },
+    { key: 'notifications', label: 'Notifications', icon: 'Bell' },
   ];
 
   // Grouped left rail (Option C): items live under quiet section labels.
@@ -1096,7 +1097,7 @@ const canEdit = (() => {
     { label: 'Employment', keys: ['contract'] },
     { label: 'Compliance', keys: ['hor', 'seatime'] },
     { label: 'Activity', keys: ['history'] },
-    { label: 'Settings', keys: ['permissions'] },
+    { label: 'Settings', keys: ['permissions', 'notifications'] },
   ];
 
   const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
@@ -1128,7 +1129,7 @@ const canEdit = (() => {
   // own (RLS scopes reads/writes to auth.uid()). Load once the section opens.
   // (isOwnProfile is already defined at the top of the component.)
   useEffect(() => {
-    if (activeSection !== 'permissions' || !isOwnProfile || notifPrefs !== null) return;
+    if (activeSection !== 'notifications' || !isOwnProfile || notifPrefs !== null) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -3285,7 +3286,7 @@ const canEdit = (() => {
       <div>
         <div className="cp-section-head">
           <span className="cp-section-num">★ /</span>
-          <h3>Permissions &amp; Notifications</h3>
+          <h3>Permissions</h3>
         </div>
 
         {/* Access — read-only context (department & role live in the meta bar) */}
@@ -3343,11 +3344,21 @@ const canEdit = (() => {
           )}
           {lockNote}
         </div>
+      </div>
+    );
+  };
 
-        {/* Notifications — personal to the profile owner */}
+  const renderNotifications = () => {
+    const firstName = crewMember?.firstName || 'This person';
+    return (
+      <div>
+        <div className="cp-section-head">
+          <span className="cp-section-num">★ /</span>
+          <h3>Notifications</h3>
+        </div>
         <div className="cp-group">
           <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Notifications</span><span className="line" />
+            <span className="dia">◆</span><span className="t">In-app &amp; email alerts</span><span className="line" />
           </div>
           {!isOwnProfile ? (
             <p className="cp-set-note-empty">Notification preferences are personal — only {firstName} can manage these from their own profile.</p>
@@ -3497,6 +3508,8 @@ const canEdit = (() => {
         return renderContract();
       case 'permissions':
         return renderPermissions();
+      case 'notifications':
+        return renderNotifications();
       case 'personal':
         return renderPersonalDetails();
       case 'emergency':
