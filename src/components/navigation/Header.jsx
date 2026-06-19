@@ -24,10 +24,11 @@ import { loadTrips } from '../../pages/trips-management-dashboard/utils/tripStor
 
 // ── Avatar-menu styling helpers ────────────────────────────────────────────
 // Cargo editorial language (see CLAUDE.md): navy ink #1C1B3A, terracotta accent
-// #C65A1A, warm hairlines/soft fields, light-orange tinted header block. The
-// item matching the current route is highlighted with the tinted background +
-// terracotta text only — no left bar, no added font weight. Token hexes are
-// inlined because the editorial CSS vars aren't available on this surface.
+// #C65A1A, warm hairlines/soft fields, cool-slate (#F8FAFC) header block to match
+// the app ground. The item matching the current route is highlighted with the
+// terracotta-tinted background + terracotta text only — no left bar, no added
+// font weight. Token hexes are inlined because the editorial CSS vars aren't
+// available on this surface.
 const hexToRgba = (hex, alpha) => {
   const h = (hex || '').replace('#', '');
   if (h.length !== 6) return `rgba(100,116,139,${alpha})`;
@@ -727,7 +728,7 @@ const Header = () => {
                 zIndex: 50, overflow: 'hidden', pointerEvents: 'auto',
               }}>
                 {/* Header block — avatar, name, email, workspace + department-tinted role pill */}
-                <div style={{ padding: 16, background: '#FBEFE9', borderBottom: '1px solid #ECEAE3' }}>
+                <div style={{ padding: 16, background: '#F8FAFC', borderBottom: '1px solid #ECEAE3' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                     <div style={{
                       width: 40, height: 40, borderRadius: '50%', background: '#1C1B3A', color: '#fff',
