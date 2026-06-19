@@ -74,18 +74,30 @@ export async function getDraftShiftCount(rotaId, tenantId, departmentId) {
 //   edits span departments — the per-dept footer target isn't enough).
 export async function getDraftDepartmentIds(rotaId, tenantId) {
   if (!rotaId || !tenantId) return { ok: false, error: 'missing-context' };
-  const { data, error } = await supabase
+  // Two steps, not an embed: rota_shifts has two FKs to tenant_members
+  // (member_id + created_by), so a PostgREST embed is ambiguous. Collect the
+  // draft shifts' member ids, then resolve their departments.
+  const { data: shifts, error: sErr } = await supabase
     .from('rota_shifts')
-    .select('member_id, tenant_members!inner(department_id)')
+    .select('member_id')
     .eq('rota_id', rotaId)
     .eq('status', 'draft');
-  if (error) {
-    console.error('[getDraftDepartmentIds] fetch failed:', error);
-    return { ok: false, error: error.message || String(error) };
+  if (sErr) {
+    console.error('[getDraftDepartmentIds] shift fetch failed:', sErr);
+    return { ok: false, error: sErr.message || String(sErr) };
   }
-  const ids = [...new Set(
-    (data || []).map((r) => r.tenant_members?.department_id).filter(Boolean),
-  )];
+  const memberIds = [...new Set((shifts || []).map((s) => s.member_id).filter(Boolean))];
+  if (memberIds.length === 0) return { ok: true, departmentIds: [] };
+  const { data: members, error: mErr } = await supabase
+    .from('tenant_members')
+    .select('department_id')
+    .eq('tenant_id', tenantId)
+    .in('id', memberIds);
+  if (mErr) {
+    console.error('[getDraftDepartmentIds] member fetch failed:', mErr);
+    return { ok: false, error: mErr.message || String(mErr) };
+  }
+  const ids = [...new Set((members || []).map((m) => m.department_id).filter(Boolean))];
   return { ok: true, departmentIds: ids };
 }
 
