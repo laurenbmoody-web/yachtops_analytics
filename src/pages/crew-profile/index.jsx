@@ -253,6 +253,7 @@ const CrewProfile = () => {
   const [profileLoading, setProfileLoading] = useState(true);
   const [tenantMemberRole, setTenantMemberRole] = useState(null);
   const [currentUserPermissionTier, setCurrentUserPermissionTier] = useState(null);
+  const [permSaving, setPermSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = React.useRef(null);
@@ -411,6 +412,7 @@ const CrewProfile = () => {
               status,
               permission_tier,
               permission_tier_override,
+              rota_requires_acceptance,
               start_date,
               joined_at,
               departments(name),
@@ -445,6 +447,7 @@ const CrewProfile = () => {
             membershipData?.permission_tier_override ||
             membershipData?.permission_tier ||
             null,
+          rotaRequiresAcceptance: membershipData?.rota_requires_acceptance ?? null,
           startDate: membershipData?.start_date || membershipData?.joined_at || null,
           // Initialize empty fields for sections that may not have data yet
           dateOfBirth: '',
@@ -1068,7 +1071,8 @@ const canEdit = (() => {
     { key: 'documents', label: 'Documents', icon: 'FileText' },
     { key: 'hor', label: 'Hours of Rest (HOR)', icon: 'Clock' },
     { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' },
-    { key: 'history', label: 'Status History', icon: 'Activity' }
+    { key: 'history', label: 'Status History', icon: 'Activity' },
+    { key: 'permissions', label: 'Permissions & Notifications', icon: 'ShieldCheck' },
   ];
 
   // Grouped left rail (Option C): items live under quiet section labels.
@@ -1076,9 +1080,32 @@ const canEdit = (() => {
     { label: 'Profile', keys: ['personal', 'emergency', 'banking', 'preferences', 'documents'] },
     { label: 'Compliance', keys: ['hor', 'seatime'] },
     { label: 'Activity', keys: ['history'] },
+    { label: 'Settings', keys: ['permissions'] },
   ];
 
   const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
+  // Permissions are admin-only: COMMAND / vessel admin may set them. Everyone
+  // else — including crew viewing their OWN profile — sees them read-only.
+  const canEditPermissions = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
+
+  // Persist the per-user rota action override (tenant_members.rota_requires_acceptance).
+  // RLS allows only COMMAND to update tenant_members, so this matches canEditPermissions.
+  const handleSetRequiresAcceptance = async (value) => {
+    if (!canEditPermissions || !crewId || !activeTenantId || permSaving) return;
+    setPermSaving(true);
+    const { error } = await supabase
+      .from('tenant_members')
+      .update({ rota_requires_acceptance: value })
+      .eq('user_id', crewId)
+      .eq('tenant_id', activeTenantId);
+    setPermSaving(false);
+    if (error) {
+      showToast(error?.message || 'Couldn’t update permission', 'error');
+      return;
+    }
+    setCrewMember((prev) => ({ ...prev, rotaRequiresAcceptance: value }));
+    showToast(value ? 'Set to send rota changes for acceptance.' : 'Set to publish rota changes directly.', 'success');
+  };
 
   const handleProfileStatusChange = async (newStatus, notes, effectiveDate, effectiveTime = '00:00') => {
     if (!activeTenantId || !crewId) return;
@@ -3038,8 +3065,99 @@ const canEdit = (() => {
     </div>
   );
 
+  const renderPermissions = () => {
+    const memberTier = String(crewMember?.effectiveTier || '').toUpperCase();
+    const isRotaEditor = memberTier === 'CHIEF' || memberTier === 'HOD';
+    // Effective rule mirrors the server / rota footer: NULL → HOD sends for
+    // acceptance, CHIEF/COMMAND publish directly.
+    const requiresAcceptance = crewMember?.rotaRequiresAcceptance ?? (memberTier === 'HOD');
+
+    return (
+      <div>
+        <div className="cp-section-head">
+          <span className="cp-section-num">★ /</span>
+          <h3>Permissions &amp; Notifications</h3>
+        </div>
+
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Rota actions</span><span className="line" />
+          </div>
+
+          {memberTier === 'COMMAND' ? (
+            <p style={{ fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
+              COMMAND publishes rota changes directly across every department.
+            </p>
+          ) : !isRotaEditor ? (
+            <p style={{ fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
+              This role has no rota-editing permissions, so there’s nothing to configure here.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                gap: 16, padding: '14px 0', borderBottom: '1px solid #F0F1F5',
+              }}
+            >
+              <div style={{ maxWidth: 520 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#1C1B3A' }}>
+                  Send rota changes for acceptance
+                </div>
+                <p style={{ fontSize: 12.5, color: '#8B8478', margin: '4px 0 0', lineHeight: 1.5 }}>
+                  {requiresAcceptance
+                    ? `${crewMember?.firstName || 'This person'}’s rota changes are routed for approval${memberTier === 'CHIEF' ? ' (to COMMAND)' : ''} instead of publishing directly.`
+                    : `${crewMember?.firstName || 'This person'} publishes rota changes directly, with no approval step.`}
+                  {' '}Default for {memberTier === 'HOD' ? 'a HOD is to send for acceptance' : 'a Chief is to publish directly'}.
+                </p>
+                {!canEditPermissions && (
+                  <p style={{ fontSize: 11.5, color: '#AEB4C2', margin: '6px 0 0' }}>
+                    Only COMMAND can change this.
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={requiresAcceptance}
+                disabled={!canEditPermissions || permSaving}
+                onClick={() => handleSetRequiresAcceptance(!requiresAcceptance)}
+                title={canEditPermissions ? 'Toggle send for acceptance' : 'Only COMMAND can change this'}
+                style={{
+                  flexShrink: 0, width: 46, height: 26, borderRadius: 999,
+                  border: '1px solid #ECEAE3', position: 'relative', cursor: canEditPermissions ? 'pointer' : 'not-allowed',
+                  background: requiresAcceptance ? '#C65A1A' : '#F6F5F2',
+                  transition: 'background 150ms ease', opacity: permSaving ? 0.6 : 1,
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute', top: 2, left: requiresAcceptance ? 22 : 2,
+                    width: 20, height: 20, borderRadius: 999, background: '#fff',
+                    boxShadow: '0 1px 2px rgba(28,27,58,0.25)', transition: 'left 150ms ease',
+                  }}
+                />
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Notifications</span><span className="line" />
+          </div>
+          <p style={{ fontSize: 13, color: '#8B8478', margin: '4px 0 0', lineHeight: 1.5 }}>
+            Notification preferences (rota approvals, breaches, document expiries) will live here.
+            Approval requests already arrive via the in-app bell and email.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeSection) {
+      case 'permissions':
+        return renderPermissions();
       case 'personal':
         return renderPersonalDetails();
       case 'emergency':

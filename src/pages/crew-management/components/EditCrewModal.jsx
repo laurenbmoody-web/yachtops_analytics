@@ -10,7 +10,6 @@ const EditCrewModal = ({ isOpen, onClose, member, onSuccess }) => {
   const [roleId, setRoleId] = useState('');
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [overrideRole, setOverrideRole] = useState('');
-  const [requiresAcceptance, setRequiresAcceptance] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingRoles, setLoadingRoles] = useState(false);
@@ -29,10 +28,6 @@ const EditCrewModal = ({ isOpen, onClose, member, onSuccess }) => {
       setRoleId(member?.roleId || '');
       setOverrideEnabled(member?.permissionOverrideEnabled || false);
       setOverrideRole(member?.permissionTierOverride || '');
-      // Rota action: NULL → tier default (HOD sends for acceptance, others publish).
-      setRequiresAcceptance(
-        member?.rotaRequiresAcceptance ?? (String(member?.tier || '').toUpperCase() === 'HOD'),
-      );
     }
   }, [isOpen, member]);
 
@@ -144,7 +139,6 @@ const EditCrewModal = ({ isOpen, onClose, member, onSuccess }) => {
         department_id: departmentId,
         role_id: roleId,
         permission_tier: newTier,
-        rota_requires_acceptance: requiresAcceptance,
       };
 
       // Only add legacy role if override is enabled
@@ -344,29 +338,6 @@ const EditCrewModal = ({ isOpen, onClose, member, onSuccess }) => {
               </select>
             </div>
           )}
-        </div>
-
-        {/* Rota publishing */}
-        <div className="border border-border rounded-lg p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Rota publishing</h3>
-          <div className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              id="rotaAcceptanceToggle"
-              checked={requiresAcceptance}
-              onChange={(e) => setRequiresAcceptance(e?.target?.checked)}
-              disabled={loading}
-              className="w-4 h-4 mt-0.5 rounded border-border text-primary focus:ring-primary"
-            />
-            <label htmlFor="rotaAcceptanceToggle" className="text-sm text-foreground">
-              <span className="font-medium">Send rota changes for acceptance</span>
-              <span className="block text-xs text-muted-foreground mt-0.5">
-                When on, this person’s rota edits are routed for approval instead
-                of publishing directly. Heads of department default to on; chiefs
-                default to off.
-              </span>
-            </label>
-          </div>
         </div>
 
         {/* Error Message */}
