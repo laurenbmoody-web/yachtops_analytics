@@ -1020,3 +1020,25 @@ body.crew-profile-editorial {
   font-size: 10.5px; font-weight: 600; border: 1px solid #ECEAE3; color: #8B8478; background: #fff;
 }
 .crew-profile-page .cp-chanchip.on { background: #FBEFE9; border-color: #FBEFE9; color: #C65A1A; }
+
+/* ── Contract / Employment: spec sheet (field cards) + contract rail ───────── */
+.crew-profile-page .cp-contract-split {
+  display: grid; grid-template-columns: 1fr 300px; gap: 30px; align-items: start;
+}
+@media (max-width: 1100px) { .crew-profile-page .cp-contract-split { grid-template-columns: 1fr; } }
+.crew-profile-page .cp-rail { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 14px; }
+.crew-profile-page .cp-rail-card { border: 1px solid #ECEAE3; border-radius: 14px; padding: 18px; background: #fff; }
+.crew-profile-page .cp-rail-card .h { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; margin: 0 0 4px; color: #1C1B3A; }
+.crew-profile-page .cp-rail-card .h.sm { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; }
+.crew-profile-page .cp-rail-card .p { font-size: 12px; color: #6B7280; line-height: 1.55; margin: 0 0 14px; }
+.crew-profile-page .cp-rail-step { display: flex; gap: 10px; font-size: 12.5px; margin-bottom: 10px; color: #2B2A47; line-height: 1.45; }
+.crew-profile-page .cp-rail-step .n { width: 20px; height: 20px; border-radius: 999px; background: #FBEFE9; color: #C65A1A; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.crew-profile-page .cp-rail-status { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; padding: 7px 0; border-bottom: 1px solid #F0F1F5; color: #6B7280; }
+.crew-profile-page .cp-rail-status:last-child { border-bottom: 0; }
+.crew-profile-page .cp-rail-badge { font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 3px 9px; }
+.crew-profile-page .cp-rail-badge.ok { background: #EAF3EC; color: #3F7A4E; }
+.crew-profile-page .cp-rail-badge.warn { background: #FBEFE9; color: #C65A1A; }
+.crew-profile-page .cp-rail-btn { width: 100%; border-radius: 10px; font-size: 13px; font-weight: 600; padding: 10px 14px; cursor: pointer; }
+.crew-profile-page .cp-rail-btn.fill { background: #C65A1A; color: #fff; border: 1px solid #C65A1A; }
+.crew-profile-page .cp-rail-btn.fill:hover { background: #B14E16; }
+.crew-profile-page .cp-rail-btn.ghost { background: #fff; color: #1C1B3A; border: 1px solid #ECEAE3; margin-top: 8px; }

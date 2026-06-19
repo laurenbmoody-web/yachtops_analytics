@@ -3401,30 +3401,30 @@ const canEdit = (() => {
     const setE = (k, v) => setEmpForm((p) => ({ ...p, [k]: v }));
     const setC = (k, v) => setCompForm((p) => ({ ...(p || {}), [k]: v }));
     const fmtDate = (d) => {
-      if (!d) return '—';
+      if (!d) return '';
       const [y, m, day] = String(d).slice(0, 10).split('-');
       return `${day}/${m}/${y}`;
     };
-    const inStyle = {
-      height: 34, borderRadius: 8, border: '1px solid #ECEAE3', background: '#FAFAF8',
-      padding: '0 10px', fontSize: 13, color: '#1C1B3A', minWidth: 180,
-    };
-    const row = (label, readVal, editEl) => (
-      <div className="cp-set-row">
-        <div className="cp-set-main"><div className="cp-set-label">{label}</div></div>
-        <div className="cp-set-side">
-          {editing ? editEl : <span className="cp-set-pill">{(readVal ?? '') === '' ? '—' : readVal}</span>}
-        </div>
-      </div>
+    const cur = compForm?.salary_currency || '';
+
+    // A field card matching Personal Details: read = cp-static, edit = inline input.
+    const fld = (label, readVal, editEl, { accent } = {}) => (
+      <Field label={label} required={accent}>
+        {editing
+          ? editEl
+          : <div className={`cp-static${(readVal ?? '') === '' ? ' cp-empty' : ''}`}>{(readVal ?? '') === '' ? '—' : readVal}</div>}
+      </Field>
     );
-    const textInput = (key, ph = '') => (
-      <input style={inStyle} value={empForm[key] || ''} placeholder={ph}
+    const txt = (key, ph = '') => (
+      <input className="cp-inline-box" value={empForm[key] || ''} placeholder={ph}
         onChange={(e) => setE(key, e.target.value)} />
     );
-    const dateInput = (key) => (
-      <input type="date" style={inStyle} value={(empForm[key] || '').slice(0, 10)}
+    const dte = (key) => (
+      <input className="cp-inline-box" type="date" value={(empForm[key] || '').slice(0, 10)}
         onChange={(e) => setE(key, e.target.value)} />
     );
+
+    const hasTemplate = false;   // contract-template feature is a future build
 
     return (
       <div>
@@ -3450,53 +3450,90 @@ const canEdit = (() => {
         {!empLoaded ? (
           <p className="cp-set-note-empty">Loading…</p>
         ) : (
-          <>
-            <div className="cp-group">
-              <div className="cp-group-head"><span className="dia">◆</span><span className="t">Contract</span><span className="line" /></div>
-              {row('Contract type', empForm.contract_type,
-                <select className="" style={inStyle} value={empForm.contract_type || ''} onChange={(e) => setE('contract_type', e.target.value)}>
-                  <option value="">—</option>
-                  {EMP_CONTRACT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>)}
-              {row('Start date', fmtDate(empForm.start_date), dateInput('start_date'))}
-              {row('End date', fmtDate(empForm.end_date), dateInput('end_date'))}
-              {row('Probation end', fmtDate(empForm.probation_end_date), dateInput('probation_end_date'))}
-            </div>
-
-            <div className="cp-group">
-              <div className="cp-group-head"><span className="dia">◆</span><span className="t">Rotation &amp; leave</span><span className="line" /></div>
-              {row('Rotation pattern', empForm.rotation_pattern, textInput('rotation_pattern', 'e.g. 2:2'))}
-              {row('Leave entitlement (days)', empForm.leave_entitlement_days,
-                <input type="number" min="0" style={inStyle} value={empForm.leave_entitlement_days ?? ''} onChange={(e) => setE('leave_entitlement_days', e.target.value)} />)}
-              {row('Notice period', empForm.notice_period, textInput('notice_period', 'e.g. 1 month'))}
-            </div>
-
-            {compForm !== null && (
+          <div className="cp-contract-split">
+            {/* Left — field-card spec sheet (matches Personal Details) */}
+            <div>
               <div className="cp-group">
-                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compensation</span><span className="line" /></div>
-                {row('Salary', compForm?.salary_amount != null && compForm?.salary_amount !== '' ? `${compForm.salary_amount}${compForm.salary_currency ? ` ${compForm.salary_currency}` : ''}` : '—',
-                  <span style={{ display: 'flex', gap: 8 }}>
-                    <input type="number" min="0" step="0.01" style={{ ...inStyle, minWidth: 120 }} placeholder="Amount"
-                      value={compForm?.salary_amount ?? ''} onChange={(e) => setC('salary_amount', e.target.value)} />
-                    <input style={{ ...inStyle, minWidth: 70 }} placeholder="CUR" maxLength={3}
-                      value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value.toUpperCase())} />
-                  </span>)}
-                {row('Day rate', compForm?.day_rate != null && compForm?.day_rate !== '' ? `${compForm.day_rate}${compForm?.salary_currency ? ` ${compForm.salary_currency}` : ''}` : '—',
-                  <input type="number" min="0" step="0.01" style={inStyle} placeholder="Day rate"
-                    value={compForm?.day_rate ?? ''} onChange={(e) => setC('day_rate', e.target.value)} />)}
-                <p className="cp-set-note">Compensation is visible to COMMAND only.</p>
+                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Contract</span><span className="line" /></div>
+                <div className="cp-grid">
+                  {fld('Contract type', empForm.contract_type,
+                    <select className="cp-inline-select" value={empForm.contract_type || ''} onChange={(e) => setE('contract_type', e.target.value)}>
+                      <option value="">—</option>
+                      {EMP_CONTRACT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>, { accent: true })}
+                  {fld('Start date', fmtDate(empForm.start_date), dte('start_date'))}
+                  {fld('End date', fmtDate(empForm.end_date), dte('end_date'))}
+                  {fld('Probation end', fmtDate(empForm.probation_end_date), dte('probation_end_date'))}
+                </div>
+              </div>
+
+              <div className="cp-group">
+                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Rotation &amp; leave</span><span className="line" /></div>
+                <div className="cp-grid">
+                  {fld('Rotation pattern', empForm.rotation_pattern, txt('rotation_pattern', 'e.g. 2:2'))}
+                  {fld('Leave entitlement', empForm.leave_entitlement_days != null && empForm.leave_entitlement_days !== '' ? `${empForm.leave_entitlement_days} days` : '',
+                    <input className="cp-inline-box" type="number" min="0" value={empForm.leave_entitlement_days ?? ''} onChange={(e) => setE('leave_entitlement_days', e.target.value)} />)}
+                  {fld('Notice period', empForm.notice_period, txt('notice_period', 'e.g. 1 month'))}
+                </div>
+              </div>
+
+              {compForm !== null && (
+                <div className="cp-group">
+                  <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compensation</span><span className="cp-chanchip" style={{ marginLeft: 6 }}>COMMAND only</span><span className="line" /></div>
+                  <div className="cp-grid">
+                    {fld('Salary', compForm?.salary_amount != null && compForm?.salary_amount !== '' ? `${compForm.salary_amount}${cur ? ` ${cur}` : ''}` : '',
+                      <span style={{ display: 'flex', gap: 8 }}>
+                        <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Amount"
+                          value={compForm?.salary_amount ?? ''} onChange={(e) => setC('salary_amount', e.target.value)} />
+                        <input className="cp-inline-box" style={{ maxWidth: 72 }} placeholder="CUR" maxLength={3}
+                          value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value.toUpperCase())} />
+                      </span>)}
+                    {fld('Day rate', compForm?.day_rate != null && compForm?.day_rate !== '' ? `${compForm.day_rate}${cur ? ` ${cur}` : ''}` : '',
+                      <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Day rate"
+                        value={compForm?.day_rate ?? ''} onChange={(e) => setC('day_rate', e.target.value)} />)}
+                  </div>
+                </div>
+              )}
+
+              <div className="cp-group">
+                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compliance</span><span className="line" /></div>
+                <div className="cp-grid">
+                  {fld('SEA reference', empForm.sea_reference, txt('sea_reference'))}
+                  {fld('Flag state', empForm.flag_state, txt('flag_state'))}
+                  {fld('Governing law', empForm.governing_law, txt('governing_law'))}
+                </div>
+              </div>
+
+              {!canEditPermissions && <p className="cp-set-note">Employment details are managed by COMMAND.</p>}
+            </div>
+
+            {/* Right — contract document rail */}
+            {canEditPermissions && (
+              <div className="cp-rail">
+                <div className="cp-rail-card">
+                  <div className="h">Contract document</div>
+                  <p className="p">Auto-fill a contract from this profile.</p>
+                  <div className="cp-rail-step"><span className="n">1</span><div>Upload your vessel template to <b>Vessel&nbsp;Documents</b> (once).</div></div>
+                  <div className="cp-rail-step"><span className="n">2</span><div>Cargo reads the variable fields &amp; maps them to the profile.</div></div>
+                  <div className="cp-rail-step"><span className="n">3</span><div>Generate &amp; save a ready contract.</div></div>
+                  <button type="button" className="cp-rail-btn fill"
+                    onClick={() => showToast('Contract generation is coming soon — upload a template to Vessel Documents to get started.', 'info')}>
+                    ✦ Generate contract
+                  </button>
+                  <button type="button" className="cp-rail-btn ghost"
+                    onClick={() => showToast('Template picker is coming soon.', 'info')}>
+                    Choose template
+                  </button>
+                </div>
+                <div className="cp-rail-card">
+                  <div className="h sm">Status</div>
+                  <div className="cp-rail-status"><span>Profile data</span><span className="cp-rail-badge ok">Ready</span></div>
+                  <div className="cp-rail-status"><span>Template</span><span className={`cp-rail-badge ${hasTemplate ? 'ok' : 'warn'}`}>{hasTemplate ? 'Set' : 'Not set'}</span></div>
+                  <div className="cp-rail-status"><span>Last generated</span><span style={{ color: '#AEB4C2' }}>—</span></div>
+                </div>
               </div>
             )}
-
-            <div className="cp-group">
-              <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compliance</span><span className="line" /></div>
-              {row('SEA reference', empForm.sea_reference, textInput('sea_reference'))}
-              {row('Flag state', empForm.flag_state, textInput('flag_state'))}
-              {row('Governing law', empForm.governing_law, textInput('governing_law'))}
-            </div>
-
-            {!canEditPermissions && <p className="cp-set-note">Employment details are managed by COMMAND.</p>}
-          </>
+          </div>
         )}
       </div>
     );
