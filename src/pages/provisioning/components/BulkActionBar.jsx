@@ -22,6 +22,13 @@ const BulkActionBar = ({
   selectedCount,
   busy = false,
   busyText = '',
+  // True when at least one of the currently-selected items has been
+  // sent to a supplier (lives inside a supplier_order_item). Drives a
+  // soft lock on the destructive verbs — Edit / Change dept / Delete
+  // — so the chief can't silently mutate sent lines. Mark received
+  // stays available; receiving is the legitimate end of the
+  // workflow. Tooltips explain.
+  anySent = false,
   onMarkReceived,
   onEdit,
   onChangeDept,
@@ -60,6 +67,10 @@ const BulkActionBar = ({
             <button
               type="button"
               onClick={onEdit}
+              disabled={anySent}
+              title={anySent
+                ? 'One or more selected items are on a supplier order. Open the board to revise.'
+                : undefined}
               className="pv-bulk-bar-btn pv-bulk-bar-btn-ghost"
             >
               Edit
@@ -69,6 +80,10 @@ const BulkActionBar = ({
             <button
               type="button"
               onClick={onChangeDept}
+              disabled={anySent}
+              title={anySent
+                ? 'One or more selected items are on a supplier order — department is locked.'
+                : undefined}
               className="pv-bulk-bar-btn pv-bulk-bar-btn-ghost"
             >
               Change dept
@@ -78,6 +93,10 @@ const BulkActionBar = ({
             <button
               type="button"
               onClick={onDelete}
+              disabled={anySent}
+              title={anySent
+                ? 'One or more selected items are on a supplier order — cannot delete.'
+                : undefined}
               className="pv-bulk-bar-btn pv-bulk-bar-btn-danger"
             >
               Delete

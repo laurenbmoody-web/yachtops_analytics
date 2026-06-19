@@ -4631,6 +4631,15 @@ const ProvisioningBoardDetail = () => {
         selectedCount={selectedItems.size}
         busy={bulkBusy.kind === 'receive'}
         busyText={bulkBusy.total > 5 ? `Receiving ${bulkBusy.done} of ${bulkBusy.total}…` : ''}
+        // True when ≥1 selected item lives inside a supplier order.
+        // Drives the bulk-bar's Edit / Change dept / Delete lock —
+        // those would silently mutate sent lines and the supplier
+        // would never see the change. Mark received stays available.
+        anySent={Array.from(selectedItems).some((id) => {
+          const itm = items.find((i) => i.id === id);
+          if (!itm) return false;
+          return !!itemStatusMap[(itm.name || '').toLowerCase().trim()];
+        })}
         onMarkReceived={() => handleBulkReceive()}
         onEdit={() => setBulkEditOpen(true)}
         onChangeDept={() => setBulkChangeDeptOpen(true)}

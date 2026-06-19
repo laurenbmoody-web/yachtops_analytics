@@ -364,7 +364,7 @@ const ProvisioningWorkspace = () => {
   // UI state
   const [showNewBoard, setShowNewBoard] = useState(false);
   const [boardDrawer, setBoardDrawer] = useState({ open: false, listId: null, mode: 'edit' });
-  const [itemDrawer, setItemDrawer] = useState({ open: false, item: null, listId: null });
+  const [itemDrawer, setItemDrawer] = useState({ open: false, item: null, listId: null, readOnly: false });
   const [sharingList, setSharingList] = useState(null);
 
   // Workspace-level receive delivery
@@ -917,7 +917,16 @@ const ProvisioningWorkspace = () => {
   };
 
   const openItemDrawer = (item, listId) => {
-    setItemDrawer({ open: true, item, listId });
+    // If the item is already inside a supplier_order, the kanban-side
+    // drawer drops to read-only — the chief should never silently edit
+    // qty / unit / size / brand on a sent line behind the supplier's
+    // back. To make changes after send, open the board detail and
+    // either edit the still-pending lines inline or use the ↺ Reopen
+    // flow on a committed line. Matches the inline qty-stepper lock
+    // landed in #1205.
+    const supplierEntry = (itemStatusMapByList[listId] || {})[(item?.name || '').toLowerCase().trim()];
+    const readOnly = !!supplierEntry;
+    setItemDrawer({ open: true, item, listId, readOnly });
     setBoardDrawer({ open: false, listId: null, mode: 'edit' });
   };
 
@@ -1192,9 +1201,10 @@ const ProvisioningWorkspace = () => {
         tenantId={activeTenantId}
         departments={departments.map(d => d.name)}
         theme="light"
+        readOnly={itemDrawer.readOnly}
         onSaved={handleItemSaved}
         onDeleted={handleItemDeleted}
-        onClose={() => setItemDrawer({ open: false, item: null, listId: null })}
+        onClose={() => setItemDrawer({ open: false, item: null, listId: null, readOnly: false })}
       />
 
       {/* Workspace-level Receive Delivery modal */}
