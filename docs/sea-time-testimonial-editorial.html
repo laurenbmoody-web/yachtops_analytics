@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testimonial pack — editorial body</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C1B3A; --ink-soft:#695880; --muted:#8B8478; --faint:#AEB4C2;
+  --rust:#C65A1A; --rust-2:#B14E16; --rust-tint:#FBEFE9; --bg:#F4F4F1;
+  --border:#E6E8EF; --hair:#F0F1F5; --hair-2:#ECEAE3; --soft:#FAFAF8;
+  --sage:#5E8E6F; --sage-deep:#3F7A52; --sage-soft:#E7F0E9; --clay:#A32D2D; --clay-soft:#FCEDEA;
+  --serif:'DM Serif Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:980px;margin:0 auto;padding:34px 26px 110px;}
+.intro{color:var(--ink-soft);font-size:13.5px;margin:0 0 20px;line-height:1.6;} .intro b{color:var(--ink);}
+.caps{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+svg.ic{width:1em;height:1em;vertical-align:-.12em;}
+
+/* dossier shell */
+.dossier{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 18px 40px -24px rgba(28,27,58,.42);}
+.top{padding:22px 28px 20px;background:linear-gradient(180deg,#1C1B3A,#23224A);display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;}
+.top .eyebrow{font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#E9A07A;}
+.top h4{font-family:var(--serif);font-weight:500;font-size:22px;color:#fff;margin:7px 0 4px;}
+.top .sub{font-size:12.5px;color:#C7C6DA;}
+.top .vlab{font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#9C9BB6;margin-bottom:6px;}
+.vtabs{display:inline-flex;background:rgba(255,255,255,.12);border-radius:9px;padding:3px;gap:2px;}
+.vtabs b{font-weight:600;font-size:12px;color:#C7C6DA;border-radius:7px;padding:6px 12px;}
+.vtabs b.on{background:#fff;color:var(--ink);}
+
+/* editorial steps — 2 columns, hairline rules, no boxes */
+.steps{display:grid;grid-template-columns:1fr 1fr;}
+.step{padding:24px 28px;}
+.step:nth-child(odd){border-right:1px solid var(--hair);}
+.step:nth-child(n+3){border-top:1px solid var(--hair);}
+/* step head: serif drop-number + tracked label + serif title */
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:4px;}
+.sh .num{font-family:var(--serif);font-size:22px;color:var(--rust);line-height:1;}
+.sh .lbl{font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);}
+.sh .chip{margin-left:auto;align-self:center;font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:4px 10px;}
+.etitle{font-family:var(--serif);font-weight:500;font-size:18px;color:var(--ink);margin:0 0 3px;line-height:1.1;}
+.esub{font-size:12px;color:var(--muted);margin-bottom:14px;}
+
+/* progress hairline */
+.prog{height:3px;border-radius:999px;background:#EFEDE7;overflow:hidden;margin:2px 0 14px;}
+.prog i{display:block;height:100%;width:50%;background:var(--rust);border-radius:999px;}
+
+/* checks — editorial list, hairline rules, bare icons */
+.chk{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--hair);}
+.chk:first-of-type{border-top:0;}
+.chk .mk{flex:none;margin-top:1px;width:16px;display:inline-flex;justify-content:center;}
+.chk .el{font-size:13px;font-weight:600;color:var(--ink);line-height:1.3;}
+.chk.bad .el{color:var(--clay);}
+.chk .ed{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.45;}
+
+/* documents — hairline rows + ring toggle */
+.doc{display:flex;align-items:center;gap:11px;padding:12px 0;border-top:1px solid var(--hair);cursor:pointer;}
+.doc:first-of-type{border-top:0;}
+.doc .ring{width:18px;height:18px;border-radius:6px;border:1.6px solid #C7CCD5;display:grid;place-items:center;flex:none;color:#fff;}
+.doc.on .ring{background:var(--sage);border-color:var(--sage);}
+.doc .dl{font-size:13px;font-weight:600;color:var(--ink);}
+.doc.on .dl{color:var(--sage-deep);}
+.fee{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5;}
+
+/* authorise — editorial option rows (no boxes) */
+.opt{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--hair);cursor:pointer;}
+.opt:first-of-type{border-top:0;}
+.opt .rad{width:16px;height:16px;border-radius:50%;border:1.6px solid #C7CCD5;flex:none;position:relative;}
+.opt.sel .rad{border-color:var(--sage);}
+.opt.sel .rad:after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--sage);}
+.opt.bad.sel .rad{border-color:var(--clay);} .opt.bad.sel .rad:after{background:var(--clay);}
+.opt .on{font-family:var(--serif);font-weight:500;font-size:15px;color:var(--ink);}
+.opt .os{font-size:11.5px;color:var(--muted);margin-top:1px;}
+.opt.bad .os{color:var(--clay);}
+
+/* issue bar */
+.issue{display:flex;align-items:center;gap:14px;padding:18px 28px;border-top:1px solid var(--hair);flex-wrap:wrap;}
+.issue .gi{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--clay-soft);}
+.issue .il{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+.issue .ih{font-size:13.5px;font-weight:600;color:var(--ink);margin-top:2px;}
+.issue .is{font-size:11.5px;color:var(--muted);}
+.gen{margin-left:auto;display:inline-flex;align-items:center;gap:8px;border:0;border-radius:10px;padding:11px 18px;font-family:inherit;font-weight:600;font-size:13.5px;background:#F1EFE9;color:var(--faint);}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4 10-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" d="M7 7l10 10M17 7 7 17"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <p class="intro"><b>Testimonial pack — editorial body.</b> Boxed cells and ad-hoc sans gone: each step is now a section with a serif drop-number + tracked-caps label + serif title, checks/documents are hairline-ruled lists with bare sage/clay marks, and the signatory options are editorial rows — separated by whitespace and hairlines rather than boxes.</p>
+
+  <div class="dossier">
+    <div class="top">
+      <div><div class="eyebrow">Captain-signed · MCA MIN 642</div><h4>Sea Service Testimonial Pack</h4><div class="sub">One captain-signed record, ready for any verifying organisation.</div></div>
+      <div><div class="vlab">Verifying organisation</div><div class="vtabs"><b class="on">PYA</b><b>Nautilus</b><b>Other</b></div></div>
+    </div>
+
+    <div class="steps">
+      <!-- 1 Validate -->
+      <div class="step">
+        <div class="sh"><span class="num">1</span><span class="lbl">Step one</span><span class="chip" style="color:#fff;background:var(--rust)">3 of 6 cleared</span></div>
+        <div class="etitle">Validate</div>
+        <div class="esub">Blocked until every rule clears.</div>
+        <div class="prog"><i></i></div>
+        <div class="chk bad"><span class="mk" style="color:var(--clay)"><svg class="ic"><use href="#x"/></svg></span><div><div class="el">Watchkeeping 4-hour rule</div><div class="ed">1 entry tagged watchkeeping with under 4h watch — re-tag or correct before generating.</div></div></div>
+        <div class="chk bad"><span class="mk" style="color:var(--clay)"><svg class="ic"><use href="#x"/></svg></span><div><div class="el">Vessel size gate (≥15m)</div><div class="ed">Seagoing service claimed on a vessel under 15m — exclude it or change the pathway.</div></div></div>
+        <div class="chk"><span class="mk" style="color:var(--sage)"><svg class="ic"><use href="#check"/></svg></span><div><div class="el">Standby within limit</div><div class="ed">8d standby ≤ 45d actual seagoing — within limit (MSN 1858 §5.2).</div></div></div>
+        <div class="chk"><span class="mk" style="color:var(--sage)"><svg class="ic"><use href="#check"/></svg></span><div><div class="el">Vessel records complete</div><div class="ed">GT and registered length present for every vessel.</div></div></div>
+        <div class="chk"><span class="mk" style="color:var(--sage)"><svg class="ic"><use href="#check"/></svg></span><div><div class="el">Signatory &amp; self-certification</div><div class="ed">Signed by the master — not the seafarer.</div></div></div>
+        <div class="chk bad"><span class="mk" style="color:var(--clay)"><svg class="ic"><use href="#x"/></svg></span><div><div class="el">Supporting documents</div><div class="ed">1 required document(s) outstanding for PYA.</div></div></div>
+      </div>
+
+      <!-- 2 Attach -->
+      <div class="step">
+        <div class="sh"><span class="num">2</span><span class="lbl">Step two</span></div>
+        <div class="etitle">Attach documents</div>
+        <div class="esub">For PYA — Professional Yachting Association.</div>
+        <div class="doc"><span class="ring"></span><span class="dl">Certified passport copy</span></div>
+        <div class="doc on"><span class="ring"><svg class="ic"><use href="#check"/></svg></span><span class="dl">Signatory's verified email</span></div>
+        <div class="doc on"><span class="ring"><svg class="ic"><use href="#check"/></svg></span><span class="dl">Discharge book / SRB scan</span></div>
+        <div class="fee">€50 testimonial fee (minimum 2) applies for non-members. Free for PYA members via the D-SRB.</div>
+      </div>
+
+      <!-- 3 Authorise -->
+      <div class="step">
+        <div class="sh"><span class="num">3</span><span class="lbl">Step three</span></div>
+        <div class="etitle">Authorise</div>
+        <div class="esub">The master who attests this service.</div>
+        <div class="opt sel"><span class="rad"></span><div><div class="on">Capt. Henrik Sõrensen</div><div class="os">Master · CoC 0094821</div></div></div>
+        <div class="opt bad"><span class="rad"></span><div><div class="on">Lauren Moody (self)</div><div class="os">Seafarer — not permitted</div></div></div>
+      </div>
+
+      <!-- 4 Issue -->
+      <div class="step">
+        <div class="sh"><span class="num">4</span><span class="lbl">Step four</span></div>
+        <div class="etitle">Issue</div>
+        <div class="esub">Generate the captain-signed pack.</div>
+        <div class="chk"><span class="mk" style="color:var(--faint)"><svg class="ic"><use href="#lock"/></svg></span><div><div class="el" style="color:var(--muted)">Locked until step one clears</div><div class="ed">Resolve the 3 outstanding checks to generate.</div></div></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <span class="gi"><svg class="ic" style="color:var(--clay);font-size:18px"><use href="#x"/></svg></span>
+      <div><div class="il">Step 4 · Issue</div><div class="ih">3 checks blocking generation</div><div class="is">Resolve every item in step one to continue.</div></div>
+      <button class="gen"><svg class="ic"><use href="#lock"/></svg> Blocked</button>
+    </div>
+  </div>
+
+</div>
+</body></html>
