@@ -3471,93 +3471,173 @@ export const acceptOrderItemQuote = async (itemId) => {
   return data;
 };
 
-// Does the current caller have an approver configured for this list?
-// Calls the resolve_provisioning_approver RPC the submit-for-approval
-// flow already relies on. Used by the board UI to decide between
-// showing "Submit for approval" vs the no-approver-required "Confirm
-// quote" button. Returns true iff the RPC returns a non-null user id.
-export const hasProvisioningApprover = async (listId) => {
+// Does the caller's tier require approval to send supplier order
+// requests on the vessel they're working in? Reads the per-vessel
+// approval_routing JSON (tenants.approval_routing) + the caller's
+// permission_tier from tenant_members, then resolves the relevant
+// toggle:
+//
+//   COMMAND  → never requires approval (they're the ceiling)
+//   CHIEF    → chief_to_command
+//   HOD      → hod_to_dept_chief
+//   CREW     → crew_to_dept_chief
+//
+// Distinct from resolve_provisioning_approver, which always falls
+// back to "any COMMAND member" so the submit flow never returns
+// NULL — that fallback would make the Confirm-quote button always
+// invisible. This helper reads the toggle directly.
+//
+// Returns true / false. Defaults to true (require approval) on any
+// error so we fail closed.
+export const callerRequiresProvisioningApproval = async (tenantId, userId) => {
+  if (!tenantId || !userId) return true;
   try {
-    const { data, error } = await supabase.rpc('resolve_provisioning_approver', { p_list_id: listId });
-    if (error) {
-      console.error('[provisioningStorage] resolve_provisioning_approver:', error);
-      return false;
-    }
-    return !!data;
+    const [{ data: tenant }, { data: member }] = await Promise.all([
+      supabase
+        .from('tenants')
+        .select('approval_routing')
+        .eq('id', tenantId)
+        .maybeSingle(),
+      supabase
+        .from('tenant_members')
+        .select('permission_tier')
+        .eq('tenant_id', tenantId)
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ]);
+    const routing = tenant?.approval_routing || {};
+    const tier = String(member?.permission_tier || '').toUpperCase();
+    if (tier === 'COMMAND') return false;
+    if (tier === 'CHIEF')   return routing.chief_to_command !== false;
+    if (tier === 'HOD')     return routing.hod_to_dept_chief !== false;
+    if (tier === 'CREW')    return routing.crew_to_dept_chief !== false;
+    return true;
   } catch (err) {
-    console.error('[provisioningStorage] hasProvisioningApprover failed:', err);
-    return false;
+    console.error('[provisioningStorage] callerRequiresProvisioningApproval failed:', err);
+    return true;
   }
 };
 
-// Accept every outstanding quote on a list and flip the list +
-// every linked supplier_order to 'confirmed'. Auto-fires the
-// supplier-side state change so the supplier sees their order flip
-// to confirmed without the chief needing a separate "send approval"
-// step. Used by:
-//   1. The decide-quote-approval flow when an approver hits Approve.
-//   2. The no-approver Confirm-quote button when no approval chain
-//      is configured.
+// Accept every outstanding quote on a list and flip whatever supplier
+// orders are now fully agreed to 'confirmed'. Multi-supplier safe —
+// each supplier_order is evaluated on its own, so a board with one
+// supplier still in 'awaiting_quote' on half its lines won't
+// prematurely flip that order to confirmed.
 //
 // Per-line acceptance routes through accept_order_item_quote() which
 // also writes the supplier-side quote_accepted activity event via
-// the existing AFTER UPDATE trigger. The supplier_orders / list
-// status updates happen client-side after all lines accept.
+// the existing AFTER UPDATE trigger.
+//
+// Per-order status logic:
+//   - Every item in the order is now agreed (or unavailable)
+//     → supplier_orders.status = 'confirmed', confirmed_at = now()
+//   - Mix of agreed + awaiting_quote / quoted / etc still pending
+//     → supplier_orders.status = 'partially_confirmed'
+//   - No item was accepted (nothing to do on this order)
+//     → left untouched
+//
+// List status follows the same rule across orders.
 export const approveAllQuotes = async (listId) => {
-  // 1. Pull every line on every supplier_order linked to this list
-  //    that still has an outstanding quote.
+  // 1. Pull every supplier_order on this list + every item with
+  //    its current quote_status / status so we can decide
+  //    per-order what to update.
   const { data: orders, error: ordersErr } = await supabase
     .from('supplier_orders')
-    .select('id, supplier_order_items(id, quote_status)')
+    .select('id, status, supplier_order_items(id, quote_status, status)')
     .eq('list_id', listId);
   if (ordersErr) throw ordersErr;
 
   const allOrders = orders || [];
-  const acceptableItemIds = [];
-  for (const o of allOrders) {
-    for (const oi of (o.supplier_order_items || [])) {
-      if (oi.quote_status === 'quoted' || oi.quote_status === 'in_discussion') {
-        acceptableItemIds.push(oi.id);
+  let itemsAccepted = 0;
+  let ordersConfirmed = 0;
+  let ordersPartial = 0;
+
+  for (const order of allOrders) {
+    const items = order.supplier_order_items || [];
+    // 2. Accept the in-flight quotes on THIS order's items.
+    const acceptable = items.filter(
+      (oi) => oi.quote_status === 'quoted' || oi.quote_status === 'in_discussion',
+    );
+    if (acceptable.length === 0) continue; // nothing to do on this order
+
+    for (const oi of acceptable) {
+      try {
+        await supabase.rpc('accept_order_item_quote', { p_item_id: oi.id });
+        itemsAccepted += 1;
+      } catch (err) {
+        console.error('[provisioningStorage] accept_order_item_quote failed', oi.id, err);
       }
     }
-  }
 
-  // 2. Accept each line serially (parallel would race the
-  //    auto-accept trigger). Errors on individual lines surface but
-  //    don't abort the rest — we want partial progress over none.
-  for (const itemId of acceptableItemIds) {
-    try {
-      await supabase.rpc('accept_order_item_quote', { p_item_id: itemId });
-    } catch (err) {
-      console.error('[provisioningStorage] accept_order_item_quote failed', itemId, err);
+    // 3. Decide this order's new status. An item is "settled" once it
+    //    no longer needs further action: agreed price OR explicitly
+    //    unavailable. Anything else (awaiting_quote, quoted leftover
+    //    after a failed accept, in_discussion, declined) means the
+    //    order still owes the chief a response.
+    const settledAfter = items.map((oi) => {
+      const wasAccepted = acceptable.find((a) => a.id === oi.id);
+      const effectiveQuote = wasAccepted ? 'agreed' : oi.quote_status;
+      return effectiveQuote === 'agreed' || oi.status === 'unavailable';
+    });
+    const allSettled = settledAfter.every(Boolean);
+    const anySettled = settledAfter.some(Boolean);
+
+    if (allSettled) {
+      await supabase
+        .from('supplier_orders')
+        .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
+        .eq('id', order.id);
+      ordersConfirmed += 1;
+    } else if (anySettled) {
+      await supabase
+        .from('supplier_orders')
+        .update({ status: 'partially_confirmed' })
+        .eq('id', order.id);
+      ordersPartial += 1;
     }
-  }
 
-  // 3. Flip each supplier_orders row to confirmed + stamp a
-  //    vessel_approved_quote activity event so the supplier portal
-  //    can surface a clear marker (sibling to line_reopened).
-  for (const o of allOrders) {
-    await supabase
-      .from('supplier_orders')
-      .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
-      .eq('id', o.id);
+    // 4. One activity event per affected order so the supplier
+    //    portal sees a clear "vessel approved your quotes" marker.
     await supabase
       .from('supplier_order_activity')
       .insert({
-        order_id: o.id,
+        order_id: order.id,
         item_id: null,
         event_type: 'vessel_approved_quote',
-        payload: { line_count: (o.supplier_order_items || []).length },
+        payload: {
+          line_count: acceptable.length,
+          fully_confirmed: allSettled,
+        },
       });
   }
 
-  // 4. Flip the provisioning list itself.
-  await supabase
-    .from('provisioning_lists')
-    .update({ status: 'confirmed', updated_at: new Date().toISOString() })
-    .eq('id', listId);
+  // 5. Roll up to the list. Only flip the list to 'confirmed' when
+  //    every supplier_order on it is fully confirmed; otherwise it
+  //    stays where it is (the chief still has work to do on the
+  //    laggards). 'partially_confirmed' on the list mirrors the
+  //    order-level rule.
+  if (allOrders.length > 0) {
+    const allOrdersConfirmed = ordersConfirmed === allOrders.length;
+    const anyOrderTouched = ordersConfirmed + ordersPartial > 0;
+    if (allOrdersConfirmed) {
+      await supabase
+        .from('provisioning_lists')
+        .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+        .eq('id', listId);
+    } else if (anyOrderTouched) {
+      await supabase
+        .from('provisioning_lists')
+        .update({ status: 'partially_confirmed', updated_at: new Date().toISOString() })
+        .eq('id', listId);
+    }
+  }
 
-  return { affectedItems: acceptableItemIds.length, affectedOrders: allOrders.length };
+  return {
+    affectedItems: itemsAccepted,
+    ordersConfirmed,
+    ordersPartial,
+    listFullyConfirmed: ordersConfirmed === allOrders.length && allOrders.length > 0,
+  };
 };
 
 // Decline the supplier's quoted price. Server clears agreed_* and flips
