@@ -47,6 +47,13 @@
 .mp-link:disabled { opacity: 0.6; cursor: default; text-decoration: none; }
 .mp-link.is-mut { color: #9A958A; }
 
+/* Hide-closed filter — quiet, right-aligned toggle above the list */
+.mp-toolbar { display: flex; justify-content: flex-end; margin-top: 14px; margin-bottom: -10px; }
+.mp-filter { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 4px 6px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; color: #6B7280; border-radius: 8px; transition: color 0.12s ease; }
+.mp-filter:hover { color: #1C1B3A; }
+.mp-filter[aria-pressed="true"] { color: #C65A1A; }
+.mp-filter svg { flex: 0 0 auto; }
+
 /* Category section — serif header on a hairline rule */
 .mp-cat { margin-top: 26px; }
 .mp-cat:first-of-type { margin-top: 22px; }

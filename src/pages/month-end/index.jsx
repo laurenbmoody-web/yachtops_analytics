@@ -78,6 +78,7 @@ export default function MonthEnd() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
   const [openHor, setOpenHor] = useState(false);   // HOR pack expand
+  const [hideClosed, setHideClosed] = useState(false); // filter: hide closed items
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
@@ -160,6 +161,7 @@ export default function MonthEnd() {
 
   // HOR pack rollup → two-state.
   const horDone = counts.total > 0 && counts.done === counts.total;
+  const closedCount = horDone ? 1 : 0; // live items fully closed (only HOR today)
   const horPct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
   const horNote = counts.total === 0 ? 'No crew on this vessel yet'
     : horDone ? 'All crew signed off'
@@ -247,6 +249,17 @@ export default function MonthEnd() {
             </div>
           </div>
 
+          {/* Hide-closed filter — only shown once something is actually closed,
+              so there's no dead control while nothing is closeable yet. */}
+          {closedCount > 0 && (
+            <div className="mp-toolbar">
+              <button type="button" className="mp-filter" aria-pressed={hideClosed} onClick={() => setHideClosed((v) => !v)}>
+                <Icon name={hideClosed ? 'Eye' : 'EyeOff'} size={13} />
+                {hideClosed ? 'Show closed' : 'Hide closed'}
+              </button>
+            </div>
+          )}
+
           {CATEGORIES.map((cat) => {
             const placeholders = PLACEHOLDERS.filter((p) => p.cat === cat);
             const isCompliance = cat === 'Compliance & safety';
@@ -261,8 +274,9 @@ export default function MonthEnd() {
                   <span className="mp-cat-meta">{closed} / {totalPacks} closed</span>
                 </div>
 
-                {/* Hours of Rest — the live, expandable pack */}
-                {isCompliance && (
+                {/* Hours of Rest — the live, expandable pack. Hidden when it's
+                    closed and the Hide-closed filter is on. */}
+                {isCompliance && !(hideClosed && horDone) && (
                   <>
                     <div className={`mp-row${horDone ? ' is-done' : ' is-action'}`}>
                       <span className="mp-row-ico"><Icon name="Clock" size={19} /></span>
