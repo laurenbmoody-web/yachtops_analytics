@@ -161,6 +161,29 @@ export const fetchVesselRevisedCount = async () => {
   return count || 0;
 };
 
+// Detailed list of vessel-revised lines for the bell-icon dropdown.
+// Each row carries the item name + qty/unit so the supplier can
+// scan the panel and click through to the parent order to act.
+// Server-scoped to the caller's supplier via RLS.
+export const fetchVesselRevisedLines = async () => {
+  const { data, error } = await supabase
+    .from('supplier_order_items')
+    .select(`
+      id, item_name, quantity, unit, revised_at,
+      order_id,
+      supplier_orders!inner ( id, vessel_name, yacht_name, delivery_date )
+    `)
+    .eq('status', 'pending')
+    .not('revised_at', 'is', null)
+    .order('revised_at', { ascending: false })
+    .limit(20);
+  if (error) {
+    console.error('[supplierStorage] fetchVesselRevisedLines failed:', error);
+    return [];
+  }
+  return data || [];
+};
+
 // ─── Catalogue ───────────────────────────────────────────────────────────────
 
 export const fetchCatalogueItems = async (supplierId) => {

@@ -2952,22 +2952,101 @@
 }
 
 /* Bell badge — small red circle over the bell icon when there's a
-   vessel-revised line still waiting. Numeric, clamped to 9+ so the
-   topbar stays tidy. */
+   vessel-revised line still waiting. Bumped up from 14px to 18px
+   with a beefier 10.5px digit so the count actually reads at a
+   glance. White ring keeps it legible against the warm topbar. */
 .sp-bell-btn { position: relative; }
 .sp-bell-badge {
   position: absolute;
-  top: -2px; right: -2px;
-  min-width: 14px; height: 14px;
-  padding: 0 4px;
+  top: -4px; right: -4px;
+  min-width: 18px; height: 18px;
+  padding: 0 5px;
   background: #C65A1A;
   color: #FFFFFF;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 700;
-  line-height: 14px;
+  line-height: 18px;
   text-align: center;
   border: 2px solid #FFFFFF;
   box-sizing: content-box;
   letter-spacing: 0;
+  box-shadow: 0 1px 3px rgba(28, 27, 58, 0.18);
+}
+
+/* Bell dropdown panel — opens under the bell on click. Lists the
+   vessel-revised lines so the supplier can click straight to the
+   parent order. Editorial card treatment: white paper, soft border,
+   serif eyebrow, hairline-separated rows. */
+.sp-bell-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  z-index: 100;
+  overflow: hidden;
+}
+.sp-bell-panel-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.sp-bell-panel-eyebrow {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 17px;
+  letter-spacing: -0.005em; color: #1C1B3A;
+}
+.sp-bell-panel-count {
+  font-size: 11px; font-weight: 600;
+  color: #C65A1A; letter-spacing: 0.02em;
+}
+.sp-bell-panel-empty {
+  padding: 24px 16px;
+  font-size: 12.5px;
+  color: #8B8478;
+  font-style: italic;
+  line-height: 1.5;
+}
+.sp-bell-panel-list { list-style: none; margin: 0; padding: 4px 0; max-height: 360px; overflow-y: auto; }
+.sp-bell-panel-list li + li { border-top: 1px solid #F4F4F0; }
+.sp-bell-panel-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent; border: 0;
+  text-align: left; cursor: pointer;
+  font-family: inherit;
+}
+.sp-bell-panel-item:hover { background: #FAFAF8; }
+.sp-bell-panel-item-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #C65A1A;
+  flex-shrink: 0;
+  animation: sod-wq-status-pulse 1.6s ease-out infinite;
+}
+.sp-bell-panel-item-body { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 2px; }
+.sp-bell-panel-item-name {
+  font-size: 13px; font-weight: 600;
+  color: #1C1B3A;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sp-bell-panel-item-meta {
+  font-size: 11px;
+  color: #8B8478;
+  letter-spacing: 0.005em;
+}
+.sp-bell-panel-item-tag {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: #C65A1A;
+  background: #FBEFE9;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid #E8B89B;
+  flex-shrink: 0;
 }

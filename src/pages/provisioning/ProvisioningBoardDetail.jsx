@@ -894,6 +894,24 @@ const ProvisioningBoardDetail = () => {
     fetchUserNames(allUuids).then(names => setHistoryUserNames(prev => ({ ...prev, ...names }))).catch(() => {});
   }, [deliveries]);
 
+  // Renders a human-readable summary for a supplier_order_activity row.
+  // Falls back to the raw event_type when payload is missing fields the
+  // template wants — keeps the History list honest rather than
+  // generating misleading prose.
+  const SUPPLIER_EVENT_SUMMARY = (eventType, payload) => {
+    const name = payload?.item_name || 'an item';
+    const price = payload?.agreed_price ?? payload?.declined_quoted_price;
+    const currency = payload?.agreed_currency || payload?.declined_currency || '';
+    switch (eventType) {
+      case 'quote_received':   return `Supplier quoted ${name}${price ? ` at ${currency} ${price}` : ''}`;
+      case 'quote_accepted':   return `Quote accepted for ${name}${price ? ` (${currency} ${price})` : ''}`;
+      case 'quote_declined':   return `Quote declined for ${name}${price ? ` (${currency} ${price})` : ''}`;
+      case 'discussion_opened': return `Discussion opened on ${name}`;
+      case 'line_reopened':    return `Vessel reopened ${name}${payload?.previous_status ? ` (was ${payload.previous_status})` : ''}`;
+      default:                 return `${eventType.replace(/_/g, ' ')} — ${name}`;
+    }
+  };
+
   // Load activity events + cross-dept history when History tab becomes active
   // Queries both provisioning_list (board-level) and provisioning_item (item-level) events
   useEffect(() => {
@@ -943,6 +961,44 @@ const ProvisioningBoardDetail = () => {
             console.error('[History] activity_events query error:', error.message);
           }
         }
+        // Also pull supplier_order_activity rows for any supplier
+        // orders linked to this board, normalize them into the same
+        // event shape, and merge. So the History tab carries the
+        // supplier's confirms / subs / unavails / reopens alongside
+        // the crew's own actions instead of hiding them in the
+        // supplier portal's own timeline.
+        try {
+          const supplierOrderIds = (supplierOrders || []).map(o => o.id).filter(Boolean);
+          if (supplierOrderIds.length > 0) {
+            const { data: soa, error: soaErr } = await supabase
+              ?.from('supplier_order_activity')
+              ?.select('id, created_at, order_id, item_id, event_type, actor_name, actor_role, payload')
+              ?.in('order_id', supplierOrderIds)
+              ?.order('created_at', { ascending: false })
+              ?.limit(200);
+            if (soaErr) {
+              console.error('[History] supplier_order_activity query error:', soaErr.message);
+            } else {
+              const supplierEvents = (soa || []).map(row => ({
+                id: `soa:${row.id}`,
+                createdAt: row.created_at,
+                actorUserId: null,
+                actorName: row.actor_name || 'Supplier',
+                actorDepartment: row.actor_role || 'Supplier',
+                action: `supplier_${row.event_type}`,
+                entityType: row.item_id ? 'supplier_order_item' : 'supplier_order',
+                entityId: row.item_id || row.order_id,
+                summary: SUPPLIER_EVENT_SUMMARY(row.event_type, row.payload || {}),
+                meta: row.payload || {},
+              }));
+              events = [...events, ...supplierEvents].sort(
+                (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+              );
+            }
+          }
+        } catch (err) {
+          console.error('[History] supplier activity merge failed:', err);
+        }
         setActivityEvents(events);
 
         // Resolve user IDs from deliveries + cross-dept matches
@@ -959,7 +1015,7 @@ const ProvisioningBoardDetail = () => {
         setActivityLoading(false);
       }
     })();
-  }, [activeTab, list?.id, items, activeTenantId, deliveries]);
+  }, [activeTab, list?.id, items, activeTenantId, deliveries, supplierOrders]);
 
   // Load supplier orders when Orders tab is active
   useEffect(() => {
@@ -1835,31 +1891,11 @@ const ProvisioningBoardDetail = () => {
     });
   };
 
-  // Seed collapse state once: collapse all but first 2 categories per dept
-  // on first load. Skipped after the user has interacted.
-  const collapsedSeededRef = useRef(false);
-  useEffect(() => {
-    if (groupBy !== 'category') return;
-    if (collapsedSeededRef.current) return;
-    if (collapsedCategories.size > 0) return;
-    if (deptGroups.length === 0) return;
-
-    const seed = new Set();
-    for (const { dept, items: deptItems } of deptGroups) {
-      const cats = new Set();
-      for (const it of deptItems) cats.add(it.category || 'Uncategorised');
-      const sortedCats = Array.from(cats).sort((a, b) => {
-        if (a === 'Uncategorised') return 1;
-        if (b === 'Uncategorised') return -1;
-        return a.localeCompare(b);
-      });
-      sortedCats.slice(2).forEach(cat => seed.add(`${dept}::${cat}`));
-    }
-    if (seed.size > 0) {
-      setCollapsedCategories(seed);
-    }
-    collapsedSeededRef.current = true;
-  }, [deptGroups, groupBy, collapsedCategories.size]);
+  // Categories now default to all-expanded on first load. The previous
+  // seed (collapse all but the first two per dept) created the visual
+  // inconsistency the chief flagged — some categories open, others
+  // shut, no obvious reason. All-open keeps the scan honest. Long
+  // orders can collapse what they don't want via the chevrons.
 
   // Once an item's line is sitting inside a supplier_order, the
   // chief's view of cost / qty should reflect what the supplier
@@ -2327,6 +2363,35 @@ const ProvisioningBoardDetail = () => {
                   </span>
                 );
               })()}
+              {/* Supplier-response chip — appears once the supplier
+                  has acted on at least one line. Tone: green when
+                  everything's confirmed (happy path), terracotta if
+                  anything's substituted or unavailable (needs the
+                  chief's eye). Click scrolls down to the items
+                  table so the chief can scan the rows in context. */}
+              {totalSupplierResponses > 0 && (
+                <button
+                  type="button"
+                  className="pv-board-chip pv-board-chip-supplier"
+                  style={(supplierResponseCounts.substituted + supplierResponseCounts.unavailable) > 0
+                    ? { background: '#FBEFE9', color: '#C65A1A' }
+                    : { background: '#E8F0E5', color: '#2E7D5A' }}
+                  title={`Supplier responded — ${supplierResponseCounts.confirmed} confirmed`
+                    + (supplierResponseCounts.substituted > 0 ? `, ${supplierResponseCounts.substituted} substituted` : '')
+                    + (supplierResponseCounts.unavailable > 0 ? `, ${supplierResponseCounts.unavailable} unavailable` : '')
+                    + '. Click to jump to the items list.'}
+                  onClick={() => {
+                    setActiveTab('items');
+                    setTimeout(() => {
+                      document.querySelector('[data-board-items-anchor]')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
+                  }}
+                >
+                  <Icon name="CheckCircle" style={{ width: 11, height: 11 }} aria-hidden="true" />
+                  Supplier · {totalSupplierResponses} of {Object.keys(itemStatusMap).length}
+                </button>
+              )}
               {(() => {
                 if (!approvalRequest) return null;
                 const isApprover = approvalRequest.approver_id === user?.id;
@@ -2705,7 +2770,7 @@ const ProvisioningBoardDetail = () => {
             rail stack extends down to the toolbar's bottom hairline. */}
 
         {/* ── Items area ────────────────────────────────────────────────── */}
-        {activeTab === 'items' && <div style={{ padding: '24px 0 48px' }}>
+        {activeTab === 'items' && <div data-board-items-anchor style={{ padding: '24px 0 48px' }}>
           {/* Supplier-response banner — at-a-glance count of what the
               supplier has actioned since the order was sent. Hidden
               when nothing yet (pre-send boards stay clean). Click a
