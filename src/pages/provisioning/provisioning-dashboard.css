@@ -1075,3 +1075,24 @@
   color: #6B6F7A;
   font-style: italic;
 }
+
+/* Per-line "supplier just changed this" pulse. Fires on the value
+   span that carries the supplier's actual value (qty / unit / size
+   diff, supplier note, sub line) until the chief opens the "Note
+   from supplier" chip popover — same seen_at predicate the chip
+   uses to drop its own pulse. */
+.pv-supplier-pulse {
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  animation: pv-supplier-pulse 1.6s ease-out infinite;
+  position: relative;
+}
+@keyframes pv-supplier-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(198, 90, 26, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pv-supplier-pulse { animation: none; }
+}
