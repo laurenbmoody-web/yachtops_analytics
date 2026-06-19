@@ -149,16 +149,32 @@ export const updateOrderItem = async (itemId, updates) => {
 // JOIN to supplier_orders honours supplier_profile_id =
 // get_user_supplier_id()).
 export const fetchVesselRevisedCount = async () => {
-  const { count, error } = await supabase
-    .from('supplier_order_items')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'pending')
-    .not('revised_at', 'is', null);
-  if (error) {
-    console.error('[supplierStorage] fetchVesselRevisedCount failed:', error);
-    return 0;
+  // Two parallel counts summed into the bell badge:
+  //   - supplier_order_items where the vessel reopened the line
+  //     (revised_at IS NOT NULL, still pending)
+  //   - supplier_orders where the vessel auto-approved the quote
+  //     and the supplier hasn't yet ack'd the marker
+  //     (vessel_approved_at IS NOT NULL, vessel_approved_seen_at
+  //     either NULL or older than the approval)
+  const [revisedRes, approvedRes] = await Promise.all([
+    supabase
+      .from('supplier_order_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .not('revised_at', 'is', null),
+    supabase
+      .from('supplier_orders')
+      .select('id', { count: 'exact', head: true })
+      .not('vessel_approved_at', 'is', null)
+      .is('vessel_approved_seen_at', null),
+  ]);
+  if (revisedRes.error) {
+    console.error('[supplierStorage] fetchVesselRevisedCount revised:', revisedRes.error);
   }
-  return count || 0;
+  if (approvedRes.error) {
+    console.error('[supplierStorage] fetchVesselRevisedCount approved:', approvedRes.error);
+  }
+  return (revisedRes.count || 0) + (approvedRes.count || 0);
 };
 
 // Detailed list of vessel-revised lines for the bell-icon dropdown.
@@ -194,6 +210,36 @@ export const fetchVesselRevisedLines = async () => {
     ...l,
     parent_order: ordersById[l.order_id] || null,
   }));
+};
+
+// Vessel-approved orders the supplier hasn't yet acknowledged. Same
+// fall-back-friendly shape as fetchVesselRevisedLines so the bell
+// dropdown can interleave both.
+export const fetchVesselApprovedOrders = async () => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .select('id, vessel_name, yacht_name, status, vessel_approved_at, delivery_date')
+    .not('vessel_approved_at', 'is', null)
+    .is('vessel_approved_seen_at', null)
+    .order('vessel_approved_at', { ascending: false })
+    .limit(10);
+  if (error) {
+    console.error('[supplierStorage] fetchVesselApprovedOrders failed:', error);
+    return [];
+  }
+  return data || [];
+};
+
+// Called when the supplier opens an order whose vessel-approved
+// marker is still un-ack'd. Idempotent; cheap; fired from the order
+// detail page on mount.
+export const markVesselApprovedSeen = async (orderId) => {
+  if (!orderId) return;
+  await supabase
+    .from('supplier_orders')
+    .update({ vessel_approved_seen_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .is('vessel_approved_seen_at', null);
 };
 
 // ─── Catalogue ───────────────────────────────────────────────────────────────

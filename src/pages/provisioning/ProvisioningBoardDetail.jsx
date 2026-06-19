@@ -41,6 +41,8 @@ import {
   declineOrderItemQuote,
   approveAllQuotes,
   callerRequiresProvisioningApproval,
+  fetchSupplierNotesSeenAt,
+  markSupplierNotesSeen,
   queryOrderItemQuote,
   toggleSupplierOrderFavourite,
   saveAsTemplate,
@@ -637,6 +639,7 @@ const ProvisioningBoardDetail = () => {
           const sizeChanged = !!oi.requested_size && String(oi.requested_size).toLowerCase() !== String(oi.size || '').toLowerCase();
           map[key] = {
             id:                oi.id,
+            updated_at:        oi.updated_at,
             status: oi.status,
             quoteStatus: oi.quote_status,
             substitution: oi.substitute_description,
@@ -2052,6 +2055,88 @@ const ProvisioningBoardDetail = () => {
   const isQuoteReceived = list?.status === PROVISIONING_STATUS.QUOTE_RECEIVED;
   const canSubmitForApproval = list?.status === PROVISIONING_STATUS.DRAFT || isQuoteReceived;
 
+  // "Note from supplier" chip state. seenAt = ISO timestamp this
+  // user last clicked the chip (or null = never). The chip pulses
+  // when the supplier has unseen activity — substitution,
+  // unavailable, or supplier_item_note — newer than seenAt. The
+  // popover lists those actions; opening it marks the chip seen,
+  // pulse stops until the supplier touches the order again.
+  const [supplierNotesSeenAt, setSupplierNotesSeenAt] = useState(null);
+  const [supplierNotesOpen, setSupplierNotesOpen] = useState(false);
+  const supplierNotesRef = useRef(null);
+
+  useEffect(() => {
+    if (!list?.id || !user?.id) return undefined;
+    let cancelled = false;
+    fetchSupplierNotesSeenAt(list.id, user.id)
+      .then((t) => { if (!cancelled) setSupplierNotesSeenAt(t); })
+      .catch(() => { if (!cancelled) setSupplierNotesSeenAt(null); });
+    return () => { cancelled = true; };
+  }, [list?.id, user?.id]);
+
+  useEffect(() => {
+    if (!supplierNotesOpen) return undefined;
+    const onDocClick = (e) => {
+      if (supplierNotesRef.current && !supplierNotesRef.current.contains(e.target)) {
+        setSupplierNotesOpen(false);
+      }
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setSupplierNotesOpen(false); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [supplierNotesOpen]);
+
+  // Compose the list of supplier actions worth surfacing. Three kinds:
+  // substitutions (terracotta), unavailables (red), notes (italic).
+  // Empty → chip is hidden entirely.
+  const supplierNoteActions = useMemo(() => {
+    const out = [];
+    Object.entries(itemStatusMap).forEach(([nameKey, oi]) => {
+      const niceName = (items.find(it => (it.name || '').toLowerCase().trim() === nameKey)?.name) || nameKey;
+      if (oi.status === 'substituted' && oi.substitution) {
+        out.push({ key: `sub:${nameKey}`, kind: 'sub', item: niceName, text: oi.substitution });
+      }
+      if (oi.status === 'unavailable') {
+        out.push({ key: `un:${nameKey}`, kind: 'unavail', item: niceName });
+      }
+      if (oi.hasNote && oi.supplierNote) {
+        out.push({ key: `note:${nameKey}`, kind: 'note', item: niceName, text: oi.supplierNote });
+      }
+    });
+    return out;
+  }, [itemStatusMap, items]);
+
+  const supplierLatestUpdatedAt = useMemo(() => {
+    let max = 0;
+    Object.values(itemStatusMap).forEach((oi) => {
+      const t = oi.updated_at ? new Date(oi.updated_at).getTime() : 0;
+      if (t > max) max = t;
+    });
+    return max;
+  }, [itemStatusMap]);
+
+  const supplierNotesUnread =
+    supplierNoteActions.length > 0
+    && supplierLatestUpdatedAt > 0
+    && (!supplierNotesSeenAt
+        || new Date(supplierNotesSeenAt).getTime() < supplierLatestUpdatedAt);
+
+  const handleSupplierNotesToggle = () => {
+    const willOpen = !supplierNotesOpen;
+    setSupplierNotesOpen(willOpen);
+    if (willOpen && supplierNotesUnread && list?.id && user?.id) {
+      // Optimistically clear locally so the pulse stops immediately;
+      // server stamp follows.
+      const now = new Date().toISOString();
+      setSupplierNotesSeenAt(now);
+      markSupplierNotesSeen(list.id, user.id).catch(() => {});
+    }
+  };
+
   // "Confirm quote" gate. Reads the per-vessel approval_routing
   // toggles + the caller's tier — COMMAND never requires approval,
   // CHIEF / HOD / CREW require it iff their respective routing
@@ -2468,34 +2553,73 @@ const ProvisioningBoardDetail = () => {
                   </span>
                 );
               })()}
-              {/* Supplier-response chip — appears once the supplier
-                  has acted on at least one line. Tone: green when
-                  everything's confirmed (happy path), terracotta if
-                  anything's substituted or unavailable (needs the
-                  chief's eye). Click scrolls down to the items
-                  table so the chief can scan the rows in context. */}
-              {totalSupplierResponses > 0 && (
-                <button
-                  type="button"
-                  className="pv-board-chip pv-board-chip-supplier"
-                  style={(supplierResponseCounts.substituted + supplierResponseCounts.unavailable) > 0
-                    ? { background: '#FBEFE9', color: '#C65A1A' }
-                    : { background: '#E8F0E5', color: '#2E7D5A' }}
-                  title={`Supplier responded — ${supplierResponseCounts.confirmed} confirmed`
-                    + (supplierResponseCounts.substituted > 0 ? `, ${supplierResponseCounts.substituted} substituted` : '')
-                    + (supplierResponseCounts.unavailable > 0 ? `, ${supplierResponseCounts.unavailable} unavailable` : '')
-                    + '. Click to jump to the items list.'}
-                  onClick={() => {
-                    setActiveTab('items');
-                    setTimeout(() => {
-                      document.querySelector('[data-board-items-anchor]')
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 50);
-                  }}
-                >
-                  <Icon name="CheckCircle" style={{ width: 11, height: 11 }} aria-hidden="true" />
-                  Supplier · {totalSupplierResponses} of {Object.keys(itemStatusMap).length}
-                </button>
+              {/* Note from supplier — pulses while there are
+                  unseen supplier actions (sub / unavail / note) on
+                  any line of any linked order. Mirrors the Note
+                  from approver chip's anatomy + pulse keyframe.
+                  Click opens a popover listing the actions; opening
+                  marks the chip seen, pulse stops until the
+                  supplier touches the order again. */}
+              {supplierNoteActions.length > 0 && (
+                <div className="pv-board-chip-wrap" ref={supplierNotesRef}>
+                  <button
+                    type="button"
+                    className={[
+                      'pv-board-chip',
+                      'pv-board-chip-note',
+                      'pv-board-chip-note-changes',
+                      supplierNotesUnread ? 'is-unread' : null,
+                    ].filter(Boolean).join(' ')}
+                    onClick={handleSupplierNotesToggle}
+                    aria-haspopup="dialog"
+                    aria-expanded={supplierNotesOpen}
+                    title={supplierNotesUnread
+                      ? `New supplier activity on ${supplierNoteActions.length} line${supplierNoteActions.length === 1 ? '' : 's'} — click to review`
+                      : 'Note from supplier — review the supplier\'s actions on this order'}
+                  >
+                    <Icon name="MessageSquare" style={{ width: 11, height: 11 }} aria-hidden="true" />
+                    Note from supplier
+                    <span aria-hidden="true" className="pv-board-chip-caret">{supplierNotesOpen ? '▾' : '›'}</span>
+                  </button>
+                  {supplierNotesOpen && (
+                    <div className="pv-board-supplier-popover" role="dialog" aria-label="Note from supplier">
+                      <div className="pv-board-supplier-popover-head">
+                        <Icon name="MessageSquare" style={{ width: 14, height: 14, color: '#C65A1A', flexShrink: 0 }} aria-hidden="true" />
+                        <span className="pv-board-supplier-popover-title">Note from supplier</span>
+                      </div>
+                      <div className="pv-board-supplier-popover-list">
+                        {supplierNoteActions.map((a) => (
+                          <div key={a.key} className="pv-board-supplier-popover-row">
+                            <span className={`pv-board-supplier-popover-tag pv-board-supplier-popover-tag-${a.kind}`}>
+                              {a.kind === 'sub' ? 'Sub' : a.kind === 'unavail' ? 'Unavailable' : 'Note'}
+                            </span>
+                            <span className="pv-board-supplier-popover-body">
+                              <strong>{a.item}</strong>
+                              {a.kind === 'sub' && (<> — <em>{a.text}</em></>)}
+                              {a.kind === 'note' && (<> — <em>"{a.text}"</em></>)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pv-board-supplier-popover-foot">
+                        <button
+                          type="button"
+                          className="pv-board-supplier-popover-link"
+                          onClick={() => {
+                            setSupplierNotesOpen(false);
+                            setActiveTab('items');
+                            setTimeout(() => {
+                              document.querySelector('[data-board-items-anchor]')
+                                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }, 50);
+                          }}
+                        >
+                          Jump to items →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
               {(() => {
                 if (!approvalRequest) return null;

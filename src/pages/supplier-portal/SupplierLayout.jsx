@@ -8,7 +8,7 @@ import SupplierAvatarMenu from './components/SupplierAvatarMenu';
 import { useTier, hasClientPermission } from '../../contexts/SupplierPermissionContext';
 import { useSupplier } from '../../contexts/SupplierContext';
 import { fetchUnactionedReturnsCount } from './utils/supplierReturnTasks';
-import { fetchVesselRevisedCount, fetchVesselRevisedLines } from './utils/supplierStorage';
+import { fetchVesselRevisedCount, fetchVesselRevisedLines, fetchVesselApprovedOrders } from './utils/supplierStorage';
 import './supplier-portal.css';
 
 // `requires` gates each nav item via hasClientPermission. Items without
@@ -48,6 +48,7 @@ const SupplierLayout = () => {
   const bellRef = useRef(null);
   const [bellOpen, setBellOpen] = useState(false);
   const [revisedLines, setRevisedLines] = useState([]);
+  const [approvedOrders, setApprovedOrders] = useState([]);
   // Count of unactioned ('sent') return tasks for the /supplier/returns
   // nav badge. 'sent' is the unread state — naturally cleared when the
   // supplier clicks Acknowledge. Re-fetches on mount, window focus, and
@@ -102,8 +103,12 @@ const SupplierLayout = () => {
   useEffect(() => {
     if (!bellOpen) return undefined;
     let cancelled = false;
-    fetchVesselRevisedLines()
-      .then((rows) => { if (!cancelled) setRevisedLines(rows); })
+    Promise.all([fetchVesselRevisedLines(), fetchVesselApprovedOrders()])
+      .then(([rev, app]) => {
+        if (cancelled) return;
+        setRevisedLines(rev);
+        setApprovedOrders(app);
+      })
       .catch((e) => console.error('[SupplierLayout bell dropdown]', e));
     return () => { cancelled = true; };
   }, [bellOpen]);
@@ -210,9 +215,9 @@ const SupplierLayout = () => {
                       <span className="sp-bell-panel-count">{revisedCount} waiting</span>
                     )}
                   </div>
-                  {revisedLines.length === 0 ? (
+                  {revisedLines.length === 0 && approvedOrders.length === 0 ? (
                     <div className="sp-bell-panel-empty">
-                      No new notifications. You'll see vessel-reopened lines here when they need a re-confirm.
+                      No new notifications. You'll see vessel-reopened lines + vessel-approved orders here.
                     </div>
                   ) : (
                     <ul className="sp-bell-panel-list">
@@ -236,6 +241,31 @@ const SupplierLayout = () => {
                                 </span>
                               </span>
                               <span className="sp-bell-panel-item-tag">Revised</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {approvedOrders.length > 0 && (
+                    <ul className="sp-bell-panel-list">
+                      {approvedOrders.map((order) => {
+                        const vessel = order.vessel_name || order.yacht_name || 'Vessel';
+                        return (
+                          <li key={`approved-${order.id}`}>
+                            <button
+                              type="button"
+                              className="sp-bell-panel-item"
+                              onClick={() => { setBellOpen(false); navigate(`/supplier/orders/${order.id}`); }}
+                            >
+                              <span className="sp-bell-panel-item-dot sp-bell-panel-item-dot-approved" />
+                              <span className="sp-bell-panel-item-body">
+                                <span className="sp-bell-panel-item-name">Quote approved</span>
+                                <span className="sp-bell-panel-item-meta">
+                                  {vessel} · order {order.id.slice(0, 8).toUpperCase()}
+                                </span>
+                              </span>
+                              <span className="sp-bell-panel-item-tag sp-bell-panel-item-tag-approved">Approved</span>
                             </button>
                           </li>
                         );
