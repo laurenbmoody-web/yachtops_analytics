@@ -20,7 +20,6 @@ import { isDevMode } from '../../utils/devMode';
 import { loadCards } from '../../pages/team-jobs-management/utils/cardStorage';
 import { loadGuests } from '../../pages/guest-management-dashboard/utils/guestStorage';
 import { loadTrips } from '../../pages/trips-management-dashboard/utils/tripStorage';
-import { fetchVesselDepartments } from '../../pages/provisioning/utils/provisioningStorage';
 
 
 // ── Avatar-menu styling helpers ────────────────────────────────────────────
@@ -160,10 +159,10 @@ const Header = () => {
         setProfileData(profile);
       }
 
-      // Fetch tenant membership data (role, tenant_id)
+      // Fetch tenant membership data (role, tenant_id, department_id)
       const { data: tenantMember, error: tenantMemberError } = await supabase
         ?.from('tenant_members')
-        ?.select('id, tenant_id, permission_tier, role, active')
+        ?.select('id, tenant_id, permission_tier, role, active, department_id')
         ?.eq('user_id', authUser?.id)
         ?.eq('active', true)
         ?.limit(1)
@@ -192,6 +191,20 @@ const Header = () => {
           setTenantName('M/Y BELONGERS');
         } else {
           setTenantName(tenant?.name || 'M/Y BELONGERS');
+        }
+
+        // Resolve the member's department colour straight from the authoritative
+        // department_id (not the localStorage name) so the avatar-menu role pill
+        // is tinted to their department. Falls back to neutral grey when unset.
+        if (tenantMember?.department_id) {
+          const { data: dept } = await supabase
+            ?.from('departments')
+            ?.select('color')
+            ?.eq('id', tenantMember?.department_id)
+            ?.single();
+          setDeptColor(dept?.color || null);
+        } else {
+          setDeptColor(null);
         }
       }
 
@@ -240,23 +253,6 @@ const Header = () => {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [authUser?.id]);
-
-  // Resolve the logged-in crew member's department colour so the role pill in
-  // the avatar menu can be tinted to match their department (Bridge, Interior…).
-  // Colours live per-tenant in the departments table; falls back to neutral grey.
-  useEffect(() => {
-    const tenantId = tenantMemberData?.tenant_id;
-    const deptName = currentUser?.department;
-    if (!tenantId || !deptName) { setDeptColor(null); return undefined; }
-    let cancelled = false;
-    (async () => {
-      const depts = await fetchVesselDepartments(tenantId);
-      if (cancelled) return;
-      const match = depts.find(d => d?.name?.toLowerCase() === deptName.toLowerCase());
-      setDeptColor(match?.color || null);
-    })();
-    return () => { cancelled = true; };
-  }, [tenantMemberData?.tenant_id, currentUser?.department]);
 
   // Close menus when clicking outside
   useEffect(() => {
