@@ -67,7 +67,6 @@ export default function MonthEnd() {
   const monthName = cursor.toLocaleDateString('en-GB', { month: 'long' });
   const packCount = PLACEHOLDERS.length + 1; // placeholders + the live HOR item
   const liveCount = 1;                        // only Hours of Rest is wired today
-  const plannedCount = packCount - liveCount;
 
   const [loading, setLoading] = useState(true);
   const [crew, setCrew] = useState([]);
@@ -224,9 +223,9 @@ export default function MonthEnd() {
           </button>
 
           {/* Canonical Cargo editorial header — the shared .editorial-meta strip
-              + big uppercase .editorial-greeting ("JUNE, still to close.") +
-              .editorial-subline, the same components the provisioning / supplier
-              pages use. Month-driven: this hub is the whole close-off, not just HOR. */}
+              + big uppercase .editorial-greeting ("JUNE, still to close."), the
+              same components the provisioning / supplier pages use. Month-driven:
+              this hub is the whole close-off, not just HOR — no per-item subline. */}
           <div className="mp-head">
             <div className="mp-head-main">
               <p className="editorial-meta">
@@ -240,17 +239,6 @@ export default function MonthEnd() {
               <h1 className="editorial-greeting">
                 {monthName}<span className="period">,</span> <em>{horDone ? 'on track' : 'still to close'}</em><span className="period">.</span>
               </h1>
-              <p className="editorial-subline">
-                {counts.total === 0 ? (
-                  <><b>Hours of Rest</b> begins once crew are aboard.{plannedCount > 0 ? ' The rest of the close-off joins as it comes online.' : ''}</>
-                ) : (
-                  <>
-                    <b>Hours of Rest</b> is live — {counts.done} of {counts.total} signed off
-                    {counts.submitted ? `, ${counts.submitted} awaiting approval` : ''}.
-                    {plannedCount > 0 ? ' The rest of the close-off joins as it comes online.' : ''}
-                  </>
-                )}
-              </p>
             </div>
             <div className="mp-head-controls">
               <div className="mp-monthnav">
