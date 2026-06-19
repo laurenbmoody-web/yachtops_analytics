@@ -415,6 +415,9 @@ const CrewProfile = () => {
               permission_tier,
               permission_tier_override,
               rota_requires_acceptance,
+              can_edit_rota,
+              can_order_without_approval,
+              can_confirm_quotes_without_approval,
               start_date,
               joined_at,
               departments(name),
@@ -450,6 +453,9 @@ const CrewProfile = () => {
             membershipData?.permission_tier ||
             null,
           rotaRequiresAcceptance: membershipData?.rota_requires_acceptance ?? null,
+          canEditRota: membershipData?.can_edit_rota ?? null,
+          canOrderWithoutApproval: membershipData?.can_order_without_approval ?? null,
+          canConfirmQuotesWithoutApproval: membershipData?.can_confirm_quotes_without_approval ?? null,
           startDate: membershipData?.start_date || membershipData?.joined_at || null,
           // Initialize empty fields for sections that may not have data yet
           dateOfBirth: '',
@@ -1090,23 +1096,24 @@ const canEdit = (() => {
   // else — including crew viewing their OWN profile — sees them read-only.
   const canEditPermissions = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
 
-  // Persist the per-user rota action override (tenant_members.rota_requires_acceptance).
-  // RLS allows only COMMAND to update tenant_members, so this matches canEditPermissions.
-  const handleSetRequiresAcceptance = async (value) => {
+  // Persist one or more per-user capability flags on tenant_members. RLS allows
+  // only COMMAND to update tenant_members, matching canEditPermissions. `patch`
+  // uses DB column names; `local` is the camelCase merge into crewMember.
+  const updateCaps = async (patch, local, savingKey) => {
     if (!canEditPermissions || !crewId || !activeTenantId || permSaving) return;
-    setPermSaving(true);
+    setPermSaving(savingKey || true);
+    const prevSnapshot = crewMember;
+    setCrewMember((prev) => ({ ...prev, ...local }));   // optimistic
     const { error } = await supabase
       .from('tenant_members')
-      .update({ rota_requires_acceptance: value })
+      .update(patch)
       .eq('user_id', crewId)
       .eq('tenant_id', activeTenantId);
     setPermSaving(false);
     if (error) {
+      setCrewMember(prevSnapshot);   // revert
       showToast(error?.message || 'Couldn’t update permission', 'error');
-      return;
     }
-    setCrewMember((prev) => ({ ...prev, rotaRequiresAcceptance: value }));
-    showToast(value ? 'Set to send rota changes for acceptance.' : 'Set to publish rota changes directly.', 'success');
   };
 
   // Notification preferences are personal: only the profile owner manages their
@@ -3141,12 +3148,64 @@ const canEdit = (() => {
 
   const renderPermissions = () => {
     const memberTier = String(crewMember?.effectiveTier || '').toUpperCase();
-    const isRotaEditor = memberTier === 'CHIEF' || memberTier === 'HOD';
-    // Effective rule mirrors the server / rota footer: NULL → HOD sends for
-    // acceptance, CHIEF/COMMAND publish directly.
-    const requiresAcceptance = crewMember?.rotaRequiresAcceptance ?? (memberTier === 'HOD');
     const tierLabel = memberTier ? getTierDisplayName(memberTier) : '—';
     const firstName = crewMember?.firstName || 'This person';
+    const lockNote = !canEditPermissions ? <p className="cp-set-note">Only COMMAND can change this.</p> : null;
+
+    // Effective capability values: explicit flag, else tier default.
+    const canEditRota = crewMember?.canEditRota ?? ['COMMAND', 'CHIEF', 'HOD'].includes(memberTier);
+    // "Publish without approval" is the inverse of rota_requires_acceptance.
+    const publishNoApproval = canEditRota
+      ? (crewMember?.rotaRequiresAcceptance != null ? !crewMember.rotaRequiresAcceptance : memberTier !== 'HOD')
+      : false;
+    const orderNoApproval = crewMember?.canOrderWithoutApproval ?? (memberTier === 'COMMAND');
+    const confirmQuotesNoApproval = orderNoApproval
+      ? (crewMember?.canConfirmQuotesWithoutApproval ?? (memberTier === 'COMMAND'))
+      : false;
+
+    const editDisabled = !canEditPermissions || !!permSaving;
+
+    // Toggle handlers (with master→dependent cascades).
+    const toggleCanEditRota = () => {
+      const next = !canEditRota;
+      // Turning editing off also removes direct-publish (needs approval = true).
+      const patch = next
+        ? { can_edit_rota: true }
+        : { can_edit_rota: false, rota_requires_acceptance: true };
+      const local = next
+        ? { canEditRota: true }
+        : { canEditRota: false, rotaRequiresAcceptance: true };
+      updateCaps(patch, local);
+    };
+    const togglePublishNoApproval = () => {
+      // ON → publishes directly (rota_requires_acceptance false); OFF → needs approval.
+      const next = !publishNoApproval;
+      updateCaps({ rota_requires_acceptance: !next }, { rotaRequiresAcceptance: !next });
+    };
+    const toggleOrderNoApproval = () => {
+      const next = !orderNoApproval;
+      const patch = next
+        ? { can_order_without_approval: true }
+        : { can_order_without_approval: false, can_confirm_quotes_without_approval: false };
+      const local = next
+        ? { canOrderWithoutApproval: true }
+        : { canOrderWithoutApproval: false, canConfirmQuotesWithoutApproval: false };
+      updateCaps(patch, local);
+    };
+    const toggleConfirmQuotes = () => {
+      const next = !confirmQuotesNoApproval;
+      updateCaps({ can_confirm_quotes_without_approval: next }, { canConfirmQuotesWithoutApproval: next });
+    };
+
+    const setRow = (label, desc, checked, onClick, { disabled, indent } = {}) => (
+      <div className="cp-set-row" style={indent ? { paddingLeft: 18 } : undefined}>
+        <div className="cp-set-main">
+          <div className="cp-set-label">{label}</div>
+          {desc && <p className="cp-set-desc">{desc}</p>}
+        </div>
+        {renderSwitch(checked, onClick, { disabled: editDisabled || disabled, busy: !!permSaving, label })}
+      </div>
+    );
 
     return (
       <div>
@@ -3155,7 +3214,7 @@ const canEdit = (() => {
           <h3>Permissions &amp; Notifications</h3>
         </div>
 
-        {/* Access — read-only context */}
+        {/* Access — read-only context (department & role live in the meta bar) */}
         <div className="cp-group">
           <div className="cp-group-head">
             <span className="dia">◆</span><span className="t">Access</span><span className="line" />
@@ -3163,49 +3222,52 @@ const canEdit = (() => {
           <div className="cp-set-row">
             <div className="cp-set-main">
               <div className="cp-set-label">Access level</div>
-              <p className="cp-set-desc">Determines what {firstName.toLowerCase() === 'this person' ? 'this person' : firstName} can see and do across the vessel.</p>
+              <p className="cp-set-desc">Determines what {firstName === 'This person' ? 'this person' : firstName} can see and do across the vessel. Managed in Crew Management.</p>
             </div>
             <div className="cp-set-side"><span className="cp-set-pill accent">{tierLabel}</span></div>
           </div>
-          <div className="cp-set-row">
-            <div className="cp-set-main"><div className="cp-set-label">Department</div></div>
-            <div className="cp-set-side"><span className="cp-set-pill">{crewMember?.department || '—'}</span></div>
-          </div>
-          <div className="cp-set-row">
-            <div className="cp-set-main"><div className="cp-set-label">Role</div></div>
-            <div className="cp-set-side"><span className="cp-set-pill">{crewMember?.roleTitle || '—'}</span></div>
-          </div>
-          <p className="cp-set-note">Access level, department and role are managed in Crew Management.</p>
         </div>
 
-        {/* Rota actions */}
+        {/* Rota */}
         <div className="cp-group">
           <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Rota actions</span><span className="line" />
+            <span className="dia">◆</span><span className="t">Rota</span><span className="line" />
           </div>
-          {memberTier === 'COMMAND' ? (
-            <p className="cp-set-note-empty">COMMAND publishes rota changes directly across every department.</p>
-          ) : !isRotaEditor ? (
-            <p className="cp-set-note-empty">This role has no rota-editing permissions, so there’s nothing to configure here.</p>
-          ) : (
-            <div className="cp-set-row">
-              <div className="cp-set-main">
-                <div className="cp-set-label">Send rota changes for acceptance</div>
-                <p className="cp-set-desc">
-                  {requiresAcceptance
-                    ? `${firstName}’s rota changes are routed for approval${memberTier === 'CHIEF' ? ' (to COMMAND)' : ''} instead of publishing directly.`
-                    : `${firstName} publishes rota changes directly, with no approval step.`}
-                  {' '}Default for {memberTier === 'HOD' ? 'a head of department is to send for acceptance' : 'a chief is to publish directly'}.
-                </p>
-                {!canEditPermissions && <p className="cp-set-note">Only COMMAND can change this.</p>}
-              </div>
-              {renderSwitch(
-                requiresAcceptance,
-                () => handleSetRequiresAcceptance(!requiresAcceptance),
-                { disabled: !canEditPermissions || permSaving, busy: permSaving, label: 'Send for acceptance' },
-              )}
-            </div>
+          {setRow(
+            'Able to make rota edits',
+            'Allows editing crew shifts on the rota. Off means view-only.',
+            canEditRota, toggleCanEditRota,
           )}
+          {setRow(
+            'Able to publish rota edits without approval',
+            canEditRota
+              ? 'On publishes directly; off routes changes for approval first.'
+              : 'Requires rota editing to be enabled first.',
+            publishNoApproval, togglePublishNoApproval,
+            { disabled: !canEditRota, indent: true },
+          )}
+          {lockNote}
+        </div>
+
+        {/* Supplier orders */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Supplier orders</span><span className="line" />
+          </div>
+          {setRow(
+            'Able to send supplier order requests without approval',
+            'On sends orders straight to suppliers; off routes them for approval first.',
+            orderNoApproval, toggleOrderNoApproval,
+          )}
+          {setRow(
+            'Able to confirm supplier quotes without approval',
+            orderNoApproval
+              ? 'On confirms quotes directly; off routes them for approval first.'
+              : 'Requires sending orders without approval to be enabled first.',
+            confirmQuotesNoApproval, toggleConfirmQuotes,
+            { disabled: !orderNoApproval, indent: true },
+          )}
+          {lockNote}
         </div>
 
         {/* Notifications — personal to the profile owner */}
