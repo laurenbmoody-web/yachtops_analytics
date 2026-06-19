@@ -974,3 +974,49 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-brpill.open { background: #FBEFE9; color: #C65A1A; }
 .crew-profile-page .cp-brempty { padding: 10px 0; font-size: 13px; color: #6B7280; }
 .crew-profile-page .cp-braddentry { align-self: flex-start; margin-top: 16px; }
+
+/* ── Permissions & Notifications settings rows ─────────────────────────────── */
+/* Editorial settings: label + description on the left, control on the right,
+   separated by hairlines — not boxed widgets. */
+.crew-profile-page .cp-set-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 20px; padding: 16px 0; border-bottom: 1px solid #F0F1F5;
+}
+.crew-profile-page .cp-set-row:last-child { border-bottom: 0; }
+.crew-profile-page .cp-set-main { min-width: 0; max-width: 560px; }
+.crew-profile-page .cp-set-label {
+  font-size: 14px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 8px;
+}
+.crew-profile-page .cp-set-desc { font-size: 12.5px; color: #8B8478; margin: 5px 0 0; line-height: 1.55; }
+.crew-profile-page .cp-set-note { font-size: 11.5px; color: #AEB4C2; margin: 6px 0 0; }
+.crew-profile-page .cp-set-side { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+.crew-profile-page .cp-set-note-empty { font-size: 13px; color: #6B7280; margin: 4px 0 0; }
+
+/* Read-only value pill (e.g. tier / department context). */
+.crew-profile-page .cp-set-pill {
+  padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  background: #F6F5F2; color: #6B7280; white-space: nowrap; letter-spacing: 0.2px;
+}
+.crew-profile-page .cp-set-pill.accent { background: #FBEFE9; color: #C65A1A; }
+
+/* Toggle switch. */
+.crew-profile-page .cp-switch {
+  position: relative; flex: 0 0 auto; width: 46px; height: 26px; border-radius: 999px;
+  border: 1px solid #ECEAE3; background: #F6F5F2; cursor: pointer;
+  transition: background 150ms ease; padding: 0;
+}
+.crew-profile-page .cp-switch[aria-checked="true"] { background: #C65A1A; border-color: #C65A1A; }
+.crew-profile-page .cp-switch:disabled { cursor: not-allowed; opacity: 0.55; }
+.crew-profile-page .cp-switch .knob {
+  position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 999px;
+  background: #fff; box-shadow: 0 1px 2px rgba(28,27,58,0.25); transition: left 150ms ease;
+}
+.crew-profile-page .cp-switch[aria-checked="true"] .knob { left: 22px; }
+.crew-profile-page .cp-switch-label { font-size: 11px; font-weight: 600; color: #8B8478; min-width: 24px; text-align: right; }
+
+/* Channel chips (Bell / Email) shown per notification row. */
+.crew-profile-page .cp-chanchip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; border: 1px solid #ECEAE3; color: #8B8478; background: #fff;
+}
+.crew-profile-page .cp-chanchip.on { background: #FBEFE9; border-color: #FBEFE9; color: #C65A1A; }
