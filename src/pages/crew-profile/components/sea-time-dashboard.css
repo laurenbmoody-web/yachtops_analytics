@@ -112,30 +112,56 @@
 .std-vtabs{display:inline-flex;background:rgba(255,255,255,.12);border-radius:9px;padding:3px;gap:2px;}
 .std-vtabs button{border:0;background:transparent;font-weight:600;font-size:12.5px;color:#C7C6DA;border-radius:7px;padding:7px 14px;cursor:pointer;}
 .std-vtabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(28,27,58,.18);}
-.std-steps{display:grid;grid-template-columns:1fr 1fr;gap:0;}
-@media(max-width:760px){.std-steps{grid-template-columns:1fr;}}
-.std-step{padding:22px 26px;border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);}
-.std-step:nth-child(2n){border-right:0;}
-.std-step .sh{display:flex;align-items:center;gap:12px;margin-bottom:15px;}
-.std-badge{width:27px;height:27px;border-radius:50%;border:1.5px solid var(--rust);color:var(--rust);display:grid;place-items:center;font-family:'DM Serif Display',Georgia,serif;font-style:italic;font-size:14px;flex:none;}
-.std-step .st{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:500;font-size:16px;color:var(--ink);line-height:1.1;}
-.std-step .ss{font-size:12px;color:var(--muted);margin-top:1px;}
-.std-chip-ready{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:5px 10px;}
-.std-readbar{height:5px;border-radius:999px;background:#EFEDE7;overflow:hidden;margin-bottom:8px;}
-.std-check{display:flex;gap:11px;align-items:flex-start;padding:8px 0;}
-.std-check .box{width:18px;height:18px;border-radius:6px;display:grid;place-items:center;flex:none;margin-top:1px;}
-.std-check .ct{font-size:13px;font-weight:600;color:var(--ink);line-height:1.3;}
-.std-check .cd{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.45;}
-.std-doc{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:9px;border:1px solid;cursor:pointer;margin-bottom:8px;}
-.std-doc .dbox{width:18px;height:18px;border-radius:5px;border:1.8px solid;display:grid;place-items:center;flex:none;}
-.std-doc .dlabel{font-size:13px;font-weight:600;color:var(--ink);}
-.std-sig{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.std-sigcard{border:1.5px solid;border-radius:10px;padding:13px 15px;cursor:pointer;}
-.std-sigcard .nm{font-weight:600;font-size:13px;color:var(--ink);}
-.std-sigcard .sb{font-size:12px;margin-top:2px;}
-.std-issue{display:flex;align-items:center;gap:14px;padding:18px 26px;border-bottom:1px solid var(--hair);flex-wrap:wrap;}
+/* ── testimonial body — single-column editorial flow ── */
+.std-flow{padding:4px 28px 6px;}
+.std-fstep{display:grid;grid-template-columns:54px 1fr;gap:22px;padding:24px 0;border-top:1px solid var(--hair);}
+.std-fstep:first-child{border-top:0;}
+.std-fnum{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-size:38px;line-height:.9;color:#E3DFD5;}
+.std-fstep.active .std-fnum{color:var(--rust);}
+.std-fhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:3px;}
+.std-flabel{font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);}
+.std-fchip{margin-left:auto;font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:4px 10px;}
+.std-ftitle{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:500;font-size:20px;color:var(--ink);margin:0 0 3px;line-height:1.08;}
+.std-fprog{height:3px;border-radius:999px;background:#EFEDE7;overflow:hidden;margin:8px 0 4px;max-width:340px;}
+.std-fnote{font-size:12px;margin-top:4px;display:flex;align-items:center;gap:7px;line-height:1.4;}
+
+/* checks — 2-up hairline list, bare marks */
+.std-chks{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;margin-top:8px;}
+@media(max-width:680px){.std-chks{grid-template-columns:1fr;}}
+.std-chk{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--hair);}
+.std-chks .std-chk:nth-child(1),.std-chks .std-chk:nth-child(2){border-top:0;}
+@media(max-width:680px){.std-chks .std-chk:nth-child(2){border-top:1px solid var(--hair);}}
+.std-chk .mk{flex:none;margin-top:1px;width:15px;display:inline-flex;justify-content:center;}
+.std-chk .el{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.3;}
+.std-chk.bad .el{color:var(--clay);}
+.std-chk .ed{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.45;}
+
+/* documents — hairline rows + ring toggle */
+.std-docs{display:flex;flex-direction:column;margin-top:6px;}
+.std-doc2{display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid var(--hair);cursor:pointer;}
+.std-doc2:first-child{border-top:0;}
+.std-doc2 .ring{width:18px;height:18px;border-radius:6px;border:1.6px solid #C7CCD5;display:grid;place-items:center;flex:none;color:#fff;}
+.std-doc2.on .ring{background:var(--sage);border-color:var(--sage);}
+.std-doc2 .dl{font-size:13px;font-weight:600;color:var(--ink);}
+.std-doc2.on .dl{color:var(--sage-deep);}
+.std-fee{font-size:11.5px;color:var(--muted);margin-top:13px;line-height:1.5;}
+
+/* authorise — editorial option rows */
+.std-opts{display:flex;gap:28px;flex-wrap:wrap;margin-top:8px;}
+.std-opt{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.std-opt .rad{width:16px;height:16px;border-radius:50%;border:1.6px solid #C7CCD5;flex:none;position:relative;}
+.std-opt.sel .rad{border-color:var(--sage);}
+.std-opt.sel .rad:after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--sage);}
+.std-opt.bad.sel .rad{border-color:var(--clay);}
+.std-opt.bad.sel .rad:after{background:var(--clay);}
+.std-opt .on{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:500;font-size:15px;color:var(--ink);}
+.std-opt .os{font-size:11px;color:var(--muted);margin-top:1px;}
+.std-opt.bad .os{color:var(--clay);}
+
+/* issue bar */
+.std-issue{display:flex;align-items:center;gap:14px;padding:18px 28px;border-top:1px solid var(--hair-2);background:var(--soft,#FAFAF8);flex-wrap:wrap;}
 .std-gate-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;}
-.std-genbtn{margin-left:auto;display:inline-flex;align-items:center;gap:8px;border:0;border-radius:9px;padding:11px 18px;font-weight:600;font-size:13.5px;}
+.std-genbtn{margin-left:auto;display:inline-flex;align-items:center;gap:8px;border:0;border-radius:10px;padding:11px 18px;font-weight:600;font-size:13.5px;}
 
 /* certificate — same paper family */
 .std-cert{margin:22px 26px 26px;background:var(--paper);border:1px solid var(--hair-2);border-top:3px solid var(--rust);border-radius:4px 4px 12px 12px;}
