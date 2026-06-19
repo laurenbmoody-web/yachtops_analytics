@@ -29,6 +29,40 @@ const IcoPath = ({ d, color, size = 18 }) => (
 const fmtDate = (iso) => { if (!iso) return '—'; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : iso; };
 const ZERO_PRIOR = { seagoing: 0, watchkeeping: 0, total: 0 };
 
+// Cargo-styled select (native <select> menus can't be themed). `variant`:
+//   'dept' — serif inline trigger · 'goal' — rounded pill trigger.
+const StpSelect = ({ value, options, onChange, variant = 'dept', label }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  const cur = options.find(o => o.value === value);
+  return (
+    <div className={`stp-dd ${variant}`} ref={ref}>
+      <button type="button" className="stp-dd-btn" onClick={() => setOpen(o => !o)} aria-haspopup="listbox" aria-expanded={open}>
+        {variant === 'goal' && <span className="gk">{label || 'Goal'}</span>}
+        <span className="lbl">{cur?.label || '—'}</span>
+        <svg className="chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <div className="stp-dd-menu" role="listbox">
+          {options.map(o => (
+            <button key={o.value} type="button" role="option" aria-selected={o.value === value}
+              className={`stp-dd-opt${o.value === value ? ' on' : ''}`} onClick={() => { onChange(o.value); setOpen(false); }}>
+              <span className="ck"><Icon name="Check" size={13} /></span>
+              <span className="txt"><span className="t">{o.label}</span>{o.sub && <span className="s">{o.sub}</span>}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const config = DEFAULT_CONFIG;
   const [deptId, setDeptId] = useState('deck');
@@ -206,6 +240,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
     if (goalId && !ids.includes(goalId)) ids.push(goalId);
     return ids.map(id => ({ id, ...CERTIFICATES[id] }));
   })();
+  const goalSub = (g) => g.family === 'ETO' ? 'Electro-technical' : g.family === 'ENGINE' ? `Engine · ${shortMsn(g.msn)}` : /unlimited/i.test(g.label) ? 'Unlimited route' : 'Tonnage-limited';
+  const deptOpts = Object.values(DEPARTMENTS).map(d => ({ value: d.id, label: d.label }));
+  const goalOpts = selectGoals.map(g => ({ value: g.id, label: g.short, sub: goalSub(g) }));
 
   const PathwaySection = () => (
     <>
@@ -215,17 +252,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
           <div className="stp-dept">
             {crossDiscipline ? `Working toward ${familyWord}` : cert ? familyPathLabel : 'Logged service'}
           </div>
-          <select className="stp-rank" value={deptId} onChange={e => changeDept(e.target.value)} aria-label="Department">
-            {Object.values(DEPARTMENTS).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-          </select>
-          {cert && (
-            <div className="stp-goal">
-              <span className="gk">Goal</span>
-              <select value={goalId} onChange={e => setGoalId(e.target.value)} aria-label="Career goal">
-                {selectGoals.map(g => <option key={g.id} value={g.id}>{g.short}</option>)}
-              </select>
-            </div>
-          )}
+          <StpSelect variant="dept" value={deptId} options={deptOpts} onChange={changeDept} />
+          {cert && <StpSelect variant="goal" value={goalId} options={goalOpts} onChange={setGoalId} />}
           <div className="stp-sub">{crossDiscipline ? 'Target chosen manually — not this crew member’s department' : cert ? 'Pathway set from this crew member’s department' : 'Logged service — for your record'}</div>
         </div>
         <div className="stp-links">
