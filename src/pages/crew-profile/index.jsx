@@ -3785,8 +3785,10 @@ const canEdit = (() => {
 
           {/* Main Layout: Left Navigation + Content */}
           <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-6">
-            {/* Left Navigation — grouped editorial rail (flat, no 3D edge) */}
-            <div className="cp-flatcard p-3">
+            {/* Left Navigation — grouped editorial rail (flat, no 3D edge).
+                self-start so the rail hugs its own content instead of
+                stretching to the (much taller) content column. */}
+            <div className="cp-flatcard p-3 self-start">
               <nav>
                 {navGroups.map((group, gi) => (
                   <div key={group.label}>
