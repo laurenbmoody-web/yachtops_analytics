@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabase';
-import { fetchEntriesForUser, addManualEntries } from '../utils/seaTimeService';
+import { fetchEntriesForUser, addManualEntries, submitEntries, signEntries } from '../utils/seaTimeService';
 import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import SeaServiceCalendar from './SeaServiceCalendar';
 import {
@@ -12,6 +12,7 @@ import {
   DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
+import { sendDbNotification } from '../../../lib/dbNotifications';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
 import './sea-time-dashboard.css';
@@ -135,6 +136,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         setPrior(ZERO_PRIOR); // TODO: store a lifetime accrual baseline per seafarer.
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
+        // Derive attestation state from the rows' verification status.
+        const sc = rows.reduce((a, r) => {
+          const s = r.rawVerificationStatus;
+          if (s === 'captain_signed') a.signed += 1; else if (s === 'pending') a.pending += 1; else if (s === 'rejected') a.rejected += 1; else a.draft += 1;
+          return a;
+        }, { draft: 0, pending: 0, rejected: 0, signed: 0 });
+        setSigned(sc.signed > 0 && sc.pending === 0 && sc.draft === 0);
+        setRequested(sc.pending > 0);
       } else {
         // No live entries yet — keep the sample so the page is assessable.
         setUsingSample(true);
@@ -195,8 +204,36 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const reclassify = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, type: 'standby', detailOverride: 'Reclassified from watchkeeping' } : e)); resetSignoff(); flash('Entry reclassified to standby'); };
   const excludeEntry = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, excluded: true } : e)); resetSignoff(); flash('Entry excluded from the pack'); };
   // Crew can only request; the master reviews the service and attests it.
-  const onRequestAttestation = () => { if (!canGenerate) { flash('Resolve all validation checks first'); return; } setRequested(true); flash('Sent to the master to review & attest'); };
-  const onAttest = () => { if (!canGenerate) { flash('Resolve all validation checks first'); return; } setSigned(true); setRequested(false); flash('Service attested & captain-signed'); };
+  const liveRowIds = () => entries.filter(e => !e.excluded).flatMap(e => e.rowIds || []);
+  const onRequestAttestation = async () => {
+    if (!canGenerate) { flash('Resolve all validation checks first'); return; }
+    if (!usingSample && tenantId && userId) {
+      try {
+        await submitEntries(tenantId, liveRowIds(), { signedName: seafarer.fullName });
+        // Notify the tenant's master(s) that an attestation is waiting.
+        try {
+          const { data: masters } = await supabase.from('tenant_members').select('user_id').eq('tenant_id', tenantId).eq('active', true).ilike('role', 'captain');
+          for (const m of masters || []) {
+            if (m?.user_id && m.user_id !== userId) {
+              await sendDbNotification(m.user_id, { type: 'sea_time', title: 'Sea-service attestation requested', message: `${seafarer.fullName} has requested you review and attest their sea service.`, actionUrl: `/profile/${userId}?tab=seatime`, severity: 'info' });
+            }
+          }
+        } catch (ne) { console.warn('attestation notify failed', ne); }
+        flash('Sent to the master to review & attest'); await loadLive();
+      } catch (e) { console.error(e); flash('Could not send for attestation'); }
+      return;
+    }
+    setRequested(true); flash('Sent to the master to review & attest');
+  };
+  const onAttest = async () => {
+    if (!canGenerate) { flash('Resolve all validation checks first'); return; }
+    if (!usingSample && tenantId && userId) {
+      try { await signEntries(tenantId, liveRowIds(), { signedName: signatoryMeta.name }); flash('Service attested & captain-signed'); await loadLive(); }
+      catch (e) { console.error(e); flash('Could not attest — check your permissions'); }
+      return;
+    }
+    setSigned(true); setRequested(false); flash('Service attested & captain-signed');
+  };
 
   const signatoryMeta = signatory === 'self'
     ? { name: seafarer.fullName, rank: 'Seafarer (self)', signedAt: null }
