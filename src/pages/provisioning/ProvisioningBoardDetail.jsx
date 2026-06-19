@@ -398,7 +398,7 @@ const ProvisioningBoardDetail = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [groupBy, setGroupBy] = useState('category'); // 'category' | 'none'
+  const [groupBy, setGroupBy] = useState('none'); // 'category' | 'none'
   const [collapsedCategories, setCollapsedCategories] = useState(new Set());
   const [sortColumn, setSortColumn] = useState('item');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -2198,21 +2198,33 @@ const ProvisioningBoardDetail = () => {
 
   // Confirm-quote handler (no-approver path). Same flow as the
   // approver-approve branch above; we just skip the approval-request
-  // step and call approveAllQuotes directly.
+  // step and call approveAllQuotes directly. The intent step lives
+  // in an editorial Cargo modal (not window.confirm) so the prompt
+  // reads as part of the app, not the browser.
   const [confirmingQuote, setConfirmingQuote] = useState(false);
-  const handleConfirmQuoteWithoutApprover = async () => {
+  const [confirmQuoteModalOpen, setConfirmQuoteModalOpen] = useState(false);
+  const handleConfirmQuoteWithoutApprover = () => {
     if (!id) return;
-    const ok = window.confirm(
-      'Confirm this quote? Every line will lock at the supplier\'s quoted price, the order will flip to confirmed, and the supplier will be notified.',
-    );
-    if (!ok) return;
+    setConfirmQuoteModalOpen(true);
+  };
+  const runConfirmQuote = async () => {
+    if (!id) return;
     setConfirmingQuote(true);
     try {
-      await approveAllQuotes(id);
-      setList(prev => ({ ...prev, status: 'confirmed' }));
-      showToast('Quote confirmed — supplier notified', 'success');
+      const result = await approveAllQuotes(id);
+      const nextStatus = result?.listFullyConfirmed
+        ? 'confirmed'
+        : (result?.affectedItems > 0
+            ? 'partially_confirmed'
+            : list?.status);
+      setList(prev => ({ ...prev, status: nextStatus }));
+      const msg = result?.listFullyConfirmed
+        ? 'Quote confirmed — supplier notified'
+        : `Quote confirmed — ${result?.ordersConfirmed || 0} order${result?.ordersConfirmed === 1 ? '' : 's'} confirmed, others still waiting on quotes`;
+      showToast(msg, 'success');
+      setConfirmQuoteModalOpen(false);
     } catch (err) {
-      console.error('[ProvisioningBoardDetail] handleConfirmQuoteWithoutApprover failed:', err);
+      console.error('[ProvisioningBoardDetail] runConfirmQuote failed:', err);
       showToast(`Could not confirm: ${err.message || err}`, 'error');
     } finally {
       setConfirmingQuote(false);
@@ -3201,7 +3213,14 @@ const ProvisioningBoardDetail = () => {
                           />
                         </div>
                         {[
-                          { label: 'Item',      key: 'item' },
+                          // Item column isn't sortable when items are
+                          // already grouped by category — the per-group
+                          // sort would re-order rows inside each
+                          // category and read as inconsistent. Hide
+                          // the arrow + drop the click target in that
+                          // case; the column header stays as a plain
+                          // label.
+                          { label: 'Item',      key: groupBy === 'category' ? null : 'item' },
                           ...(groupBy === 'category' ? [] : [{ label: 'Category', key: 'category' }]),
                           { label: 'Size',      key: null },
                           { label: 'Unit',      key: null },
@@ -4281,6 +4300,78 @@ const ProvisioningBoardDetail = () => {
               </>
             );
           })()}
+        </ModalShell>
+      )}
+
+      {/* Confirm-quote modal — fires from the no-approver path's
+          ribbon button. Editorial Cargo styling matching the
+          approver decision modals above so the action reads as
+          part of the app, not the browser. */}
+      {confirmQuoteModalOpen && (
+        <ModalShell
+          onClose={() => { if (!confirmingQuote) setConfirmQuoteModalOpen(false); }}
+          isDirty={false}
+          isBusy={confirmingQuote}
+          panelClassName="pv-edit-modal pv-dashboard"
+        >
+          <div className="pv-edit-modal-head">
+            <div>
+              <span className="pv-edit-modal-eyebrow">Confirm quote</span>
+              <h2 className="pv-edit-modal-title">
+                Lock in, <em>quoted</em>.
+              </h2>
+            </div>
+            <button
+              onClick={() => setConfirmQuoteModalOpen(false)}
+              className="pv-edit-modal-close"
+              aria-label="Close"
+              disabled={confirmingQuote}
+            >
+              <Icon name="X" style={{ width: 16, height: 16 }} />
+            </button>
+          </div>
+          <div className="pv-edit-modal-body">
+            <p style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: 'var(--d-muted)',
+              margin: '0 0 14px',
+              lineHeight: 1.5,
+            }}>
+              Every quoted line will lock at the supplier's price, the order will flip to{' '}
+              <strong style={{ color: 'var(--d-navy-deep)' }}>confirmed</strong>, and the supplier
+              will be notified via their portal bell.
+            </p>
+            <p style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 12,
+              color: 'var(--d-muted-soft)',
+              fontStyle: 'italic',
+              margin: 0,
+              lineHeight: 1.5,
+            }}>
+              Lines still awaiting a quote on this or another supplier stay where they are —
+              only the quoted ones move.
+            </p>
+          </div>
+          <div className="pv-edit-modal-foot">
+            <button
+              type="button"
+              className="pv-edit-modal-btn pv-edit-modal-btn-ghost"
+              onClick={() => setConfirmQuoteModalOpen(false)}
+              disabled={confirmingQuote}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="pv-edit-modal-btn pv-edit-modal-btn-primary"
+              onClick={runConfirmQuote}
+              disabled={confirmingQuote}
+            >
+              {confirmingQuote ? 'Confirming…' : 'Confirm quote'}
+            </button>
+          </div>
         </ModalShell>
       )}
 
