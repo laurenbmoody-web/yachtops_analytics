@@ -63,7 +63,7 @@ const StpSelect = ({ value, options, onChange, variant = 'dept', label }) => {
   );
 };
 
-const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) => {
+const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, canAttest = false }) => {
   const config = DEFAULT_CONFIG;
   const [deptId, setDeptId] = useState('deck');
   const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
@@ -73,7 +73,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
   const [logView, setLogView] = useState('list');
   const [verifier, setVerifier] = useState('pya');
   const [signatory, setSignatory] = useState('master');
-  const [signed, setSigned] = useState(false);
+  const [signed, setSigned] = useState(false);   // master has attested
+  const [requested, setRequested] = useState(false); // crew has requested attestation
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const [docMet, setDocMet] = useState({ passport: false, email: true, srb: true, template: true, stamp: false, scan: true, min642: true, sig: true });
@@ -186,12 +187,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
   }, [signed, assurance.qrPayload]);
 
   // ── handlers ──
-  const pickVerifier = (v) => { setVerifier(v); setSigned(false); };
-  const pickSignatory = (s) => { setSignatory(s); setSigned(false); };
-  const toggleDoc = (id) => { setDocMet(d => ({ ...d, [id]: !d[id] })); setSigned(false); };
-  const reclassify = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, type: 'standby', detailOverride: 'Reclassified from watchkeeping' } : e)); setSigned(false); flash('Entry reclassified to standby'); };
-  const excludeEntry = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, excluded: true } : e)); setSigned(false); flash('Entry excluded from the pack'); };
-  const onGenerate = () => { if (!canGenerate) { flash('Resolve all validation checks first'); return; } setSigned(true); flash('Pack generated & captain-signed'); };
+  // Any change to the pack invalidates a prior request/attestation.
+  const resetSignoff = () => { setSigned(false); setRequested(false); };
+  const pickVerifier = (v) => { setVerifier(v); resetSignoff(); };
+  const pickSignatory = (s) => { setSignatory(s); resetSignoff(); };
+  const toggleDoc = (id) => { setDocMet(d => ({ ...d, [id]: !d[id] })); resetSignoff(); };
+  const reclassify = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, type: 'standby', detailOverride: 'Reclassified from watchkeeping' } : e)); resetSignoff(); flash('Entry reclassified to standby'); };
+  const excludeEntry = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, excluded: true } : e)); resetSignoff(); flash('Entry excluded from the pack'); };
+  // Crew can only request; the master reviews the service and attests it.
+  const onRequestAttestation = () => { if (!canGenerate) { flash('Resolve all validation checks first'); return; } setRequested(true); flash('Sent to the master to review & attest'); };
+  const onAttest = () => { if (!canGenerate) { flash('Resolve all validation checks first'); return; } setSigned(true); setRequested(false); flash('Service attested & captain-signed'); };
 
   const signatoryMeta = signatory === 'self'
     ? { name: seafarer.fullName, rank: 'Seafarer (self)', signedAt: null }
@@ -579,14 +584,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
               </div>
             </div>
 
-            {/* 04 Issue */}
+            {/* 04 Attestation */}
             <div className="std-fstep">
               <div className="std-fnum">04</div>
               <div>
-                <div className="std-fhead"><span className="std-flabel">Issue</span></div>
-                <div className="std-ftitle">Generate the captain-signed pack</div>
-                <div className="std-fnote" style={{ color: canGenerate ? '#3F7A52' : '#A32D2D' }}>
-                  <Icon name={canGenerate ? 'Check' : 'Lock'} size={13} /> {canGenerate ? `Ready to generate a first-pass-clean pack for ${vp.short}.` : `Locked until step one clears — resolve the ${checks.filter(c => !c.ok).length} outstanding check${checks.filter(c => !c.ok).length === 1 ? '' : 's'}.`}
+                <div className="std-fhead"><span className="std-flabel">Captain attestation</span></div>
+                <div className="std-ftitle">Reviewed &amp; attested by the master</div>
+                <div className="std-fnote" style={{ color: signed ? '#3F7A52' : canGenerate ? 'var(--muted)' : '#A32D2D' }}>
+                  <Icon name={signed ? 'Check' : canGenerate ? 'Eye' : 'Lock'} size={13} />
+                  {signed
+                    ? ' Attested — the master has confirmed the logged service is accurate. The pack can now be exported.'
+                    : canGenerate
+                      ? ' The master must check the logged service is correct and attest it before the pack is issued — it can’t be self-generated.'
+                      : ` Locked until step one clears — resolve the ${checks.filter(c => !c.ok).length} outstanding check${checks.filter(c => !c.ok).length === 1 ? '' : 's'}.`}
                 </div>
               </div>
             </div>
@@ -594,13 +604,38 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
 
           <div className="std-issue">
             <div>
-              <div className="mlabel">Step 04 · Issue</div>
-              <div className="std-issue-h">{canGenerate ? 'All checks passed' : `${checks.filter(c => !c.ok).length} check(s) blocking generation`}</div>
+              <div className="mlabel">Step 04 · Captain attestation</div>
+              <div className="std-issue-h">
+                {!canGenerate ? `${checks.filter(c => !c.ok).length} check(s) blocking attestation`
+                  : signed ? 'Attested — ready to export'
+                    : canAttest ? 'Ready for your review & attestation'
+                      : requested ? 'Awaiting the master’s attestation'
+                        : 'Ready to send for attestation'}
+              </div>
             </div>
-            <button className="std-genbtn" onClick={onGenerate}
-              style={{ background: canGenerate ? '#C65A1A' : '#F1EFE9', color: canGenerate ? '#fff' : '#AEB4C2', cursor: canGenerate ? 'pointer' : 'not-allowed' }}>
-              <Icon name={canGenerate ? 'FileCheck' : 'Lock'} size={15} /> {canGenerate ? (signed ? 'Regenerate pack' : 'Generate signed pack') : 'Blocked'}
-            </button>
+            {!canGenerate ? (
+              <button className="std-genbtn" disabled style={{ background: '#F1EFE9', color: '#AEB4C2', cursor: 'not-allowed' }}>
+                <Icon name="Lock" size={15} /> Blocked
+              </button>
+            ) : signed ? (
+              canAttest && (
+                <button className="std-genbtn" onClick={onAttest} style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC', cursor: 'pointer' }}>
+                  <Icon name="RefreshCw" size={15} /> Re-attest
+                </button>
+              )
+            ) : canAttest ? (
+              <button className="std-genbtn" onClick={onAttest} style={{ background: '#C65A1A', color: '#fff', cursor: 'pointer' }}>
+                <Icon name="PenLine" size={15} /> Review &amp; attest
+              </button>
+            ) : requested ? (
+              <button className="std-genbtn" disabled style={{ background: '#FBF0DA', color: '#7A5A12', cursor: 'default' }}>
+                <Icon name="Clock" size={15} /> Awaiting sign-off
+              </button>
+            ) : (
+              <button className="std-genbtn" onClick={onRequestAttestation} style={{ background: '#C65A1A', color: '#fff', cursor: 'pointer' }}>
+                <Icon name="Send" size={15} /> Request attestation
+              </button>
+            )}
           </div>
 
           {signed && (
