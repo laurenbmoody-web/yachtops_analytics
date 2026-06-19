@@ -2884,9 +2884,8 @@
   border-top: 1px solid #ECEAE3;
   border-bottom: 1px solid #ECEAE3;
   border-left: 3px solid #C65A1A;
-  font-size: 13px;
+  font-size: 13.5px;
   color: #1C1B3A;
-  font-style: italic;
   letter-spacing: 0.005em;
 }
 #sp-root .sod-wq-revised-banner-dot {
@@ -2958,15 +2957,15 @@
 .sp-bell-btn { position: relative; }
 .sp-bell-badge {
   position: absolute;
-  top: -4px; right: -4px;
-  min-width: 18px; height: 18px;
-  padding: 0 5px;
+  top: -6px; right: -8px;
+  min-width: 20px; height: 20px;
+  padding: 0 6px;
   background: #C65A1A;
   color: #FFFFFF;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
-  line-height: 18px;
+  line-height: 20px;
   text-align: center;
   border: 2px solid #FFFFFF;
   box-sizing: content-box;
@@ -3050,3 +3049,23 @@
   border: 1px solid #E8B89B;
   flex-shrink: 0;
 }
+
+/* Bell dropdown footer — "View all notifications →" link at the
+   bottom of the panel. Pinned-row treatment so the eye knows it's
+   the escape hatch when the list overflows. */
+.sp-bell-panel-foot {
+  border-top: 1px solid #F0F1F5;
+  padding: 4px 0;
+}
+.sp-bell-panel-viewall {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent; border: 0;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px; font-weight: 600;
+  color: #C65A1A;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+.sp-bell-panel-viewall:hover { background: #FAFAF8; }

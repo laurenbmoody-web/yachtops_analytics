@@ -217,8 +217,8 @@ const SupplierLayout = () => {
                   ) : (
                     <ul className="sp-bell-panel-list">
                       {revisedLines.map((line) => {
-                        const vessel = line.supplier_orders?.vessel_name
-                          || line.supplier_orders?.yacht_name
+                        const vessel = line.parent_order?.vessel_name
+                          || line.parent_order?.yacht_name
                           || 'Vessel';
                         return (
                           <li key={line.id}>
@@ -242,6 +242,15 @@ const SupplierLayout = () => {
                       })}
                     </ul>
                   )}
+                  <div className="sp-bell-panel-foot">
+                    <button
+                      type="button"
+                      className="sp-bell-panel-viewall"
+                      onClick={() => { setBellOpen(false); navigate('/supplier/orders?filter=revised'); }}
+                    >
+                      View all notifications →
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
