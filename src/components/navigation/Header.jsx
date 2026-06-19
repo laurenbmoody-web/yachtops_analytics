@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
 import Image from '../AppImage';
 import LogoSpinner from '../LogoSpinner';
@@ -23,10 +23,11 @@ import { loadTrips } from '../../pages/trips-management-dashboard/utils/tripStor
 
 
 // ── Avatar-menu styling helpers ────────────────────────────────────────────
-// Visual language mirrors the supplier avatar menu (SupplierAvatarMenu.jsx):
-// Outfit headings/labels, Plus Jakarta Sans rows, hairline dividers, tinted
-// role pill. Token hexes are inlined because the supplier's CSS vars are scoped
-// to #sp-root and aren't available on the crew side.
+// Cargo editorial language (see CLAUDE.md): navy ink #1C1B3A, terracotta accent
+// #C65A1A, warm hairlines/soft fields, light-orange tinted header block. The
+// item matching the current route is highlighted with the tinted background +
+// terracotta text only — no left bar, no added font weight. Token hexes are
+// inlined because the editorial CSS vars aren't available on this surface.
 const hexToRgba = (hex, alpha) => {
   const h = (hex || '').replace('#', '');
   if (h.length !== 6) return `rgba(100,116,139,${alpha})`;
@@ -39,34 +40,42 @@ const hexToRgba = (hex, alpha) => {
 const AvatarMenuSectionLabel = ({ label }) => (
   <div style={{
     padding: '6px 16px 3px', fontFamily: 'Outfit', fontWeight: 700,
-    fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#94A3B8',
+    fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8B8478',
   }}>{label}</div>
 );
 
 const AvatarMenuDivider = () => (
-  <div style={{ borderTop: '1px solid #E2E8F0', margin: '4px 0' }} />
+  <div style={{ borderTop: '1px solid #F0F1F5', margin: '4px 0' }} />
 );
 
-const AvatarMenuItem = ({ icon, label, onClick, danger }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    style={{
-      display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 16px',
-      background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer',
-      fontSize: 13, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-      color: danger ? '#DC2626' : '#0C0E14', transition: 'background 100ms',
-    }}
-    onMouseEnter={(e) => { e.currentTarget.style.background = '#EEF2F7'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-  >
-    <Icon name={icon} size={15} color={danger ? '#DC2626' : '#64748B'} />
-    <span>{label}</span>
-  </button>
-);
+const AvatarMenuItem = ({ icon, label, onClick, danger, active }) => {
+  // Active (current-route) row: tinted terracotta background + terracotta text
+  // only — deliberately no left bar and no extra font weight.
+  const baseColor = danger ? '#DC2626' : active ? '#C65A1A' : '#1C1B3A';
+  const iconColor = danger ? '#DC2626' : active ? '#C65A1A' : '#8B8478';
+  const baseBg = active ? '#FBEFE9' : 'transparent';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 16px',
+        background: baseBg, border: 'none', textAlign: 'left', cursor: 'pointer',
+        fontSize: 13, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        color: baseColor, transition: 'background 100ms',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = active ? '#FBEFE9' : '#F6F5F2'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = baseBg; }}
+    >
+      <Icon name={icon} size={15} color={iconColor} />
+      <span>{label}</span>
+    </button>
+  );
+};
 
 const Header = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user: authUser, session } = useAuth();
   const [currentUser, setCurrentUser] = useState(null);
@@ -713,15 +722,15 @@ const Header = () => {
             {userMenuOpen && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                width: 320, background: '#FFFFFF', border: '1px solid #E2E8F0',
-                borderRadius: 14, boxShadow: '0 12px 36px rgba(15,22,41,0.13)',
+                width: 320, background: '#FFFFFF', border: '1px solid #ECEAE3',
+                borderRadius: 14, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)',
                 zIndex: 50, overflow: 'hidden', pointerEvents: 'auto',
               }}>
                 {/* Header block — avatar, name, email, workspace + department-tinted role pill */}
-                <div style={{ padding: 16, background: '#F1F5F9', borderBottom: '1px solid #E2E8F0' }}>
+                <div style={{ padding: 16, background: '#FBEFE9', borderBottom: '1px solid #ECEAE3' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                     <div style={{
-                      width: 40, height: 40, borderRadius: '50%', background: '#1C2340', color: '#fff',
+                      width: 40, height: 40, borderRadius: '50%', background: '#1C1B3A', color: '#fff',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, flexShrink: 0, overflow: 'hidden',
                     }}>
@@ -732,10 +741,10 @@ const Header = () => {
                       )}
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 14, color: '#0C0E14', lineHeight: 1.2 }}>
+                      <div style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 14, color: '#1C1B3A', lineHeight: 1.2 }}>
                         {displayFullName}
                       </div>
-                      <div style={{ fontSize: 12, color: '#64748B', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {displayEmail}
                       </div>
                     </div>
@@ -743,7 +752,7 @@ const Header = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{
                       fontFamily: 'Outfit', fontWeight: 700, fontSize: 10.5,
-                      letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748B',
+                      letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8B8478',
                     }}>{displayTenantName}</span>
                     <span style={{
                       fontFamily: 'Outfit', fontWeight: 700, fontSize: 10,
@@ -759,26 +768,32 @@ const Header = () => {
                     Section labels render only when ≥1 item under them is visible. */}
                 <div style={{ padding: '4px 0' }}>
                   {(() => {
+                    // The row whose target route matches the current location is
+                    // highlighted. My Profile matches any /profile/* or /my-profile path.
+                    const path = location?.pathname || '';
+                    const isActive = (base) => base === '/my-profile'
+                      ? (path.startsWith('/profile') || path === '/my-profile')
+                      : path === base || path.startsWith(`${base}/`);
                     const sections = [
                       {
                         label: 'Personal',
                         items: [
-                          { show: true, icon: 'User', label: 'My Profile', onClick: () => handleNavigation(`/profile/${session?.user?.id}`, 'My Profile') },
+                          { show: true, icon: 'User', label: 'My Profile', path: '/my-profile', onClick: () => handleNavigation(`/profile/${session?.user?.id}`, 'My Profile') },
                         ],
                       },
                       {
                         label: 'Administration',
                         items: [
-                          { show: isCommandRole || isChiefRole, icon: 'Users', label: 'Crew Management', onClick: () => handleNavigation('/crew-management', 'Crew Management') },
-                          { show: isCommandRole || isChiefRole, icon: 'CalendarCheck', label: 'Month-end', onClick: () => handleNavigation('/month-end', 'Month-end') },
+                          { show: isCommandRole || isChiefRole, icon: 'Users', label: 'Crew Management', path: '/crew-management', onClick: () => handleNavigation('/crew-management', 'Crew Management') },
+                          { show: isCommandRole || isChiefRole, icon: 'CalendarCheck', label: 'Month-end', path: '/month-end', onClick: () => handleNavigation('/month-end', 'Month-end') },
                         ],
                       },
                       {
                         label: 'Operations',
                         items: [
-                          { show: isCommandRole, icon: 'UserCheck', label: 'Guest Management', onClick: () => handleNavigation('/guest-management-dashboard', 'Guest Management') },
-                          { show: isCommandRole || isChiefRole || isHODRole, icon: 'Calendar', label: 'Trips', onClick: () => handleNavigation('/trips-management-dashboard', 'Trips') },
-                          { show: isCommandRole || isChiefRole || isHODRole, icon: 'Heart', label: 'Preferences', onClick: () => handleNavigation('/preferences', 'Preferences') },
+                          { show: isCommandRole, icon: 'UserCheck', label: 'Guest Management', path: '/guest-management-dashboard', onClick: () => handleNavigation('/guest-management-dashboard', 'Guest Management') },
+                          { show: isCommandRole || isChiefRole || isHODRole, icon: 'Calendar', label: 'Trips', path: '/trips-management-dashboard', onClick: () => handleNavigation('/trips-management-dashboard', 'Trips') },
+                          { show: isCommandRole || isChiefRole || isHODRole, icon: 'Heart', label: 'Preferences', path: '/preferences', onClick: () => handleNavigation('/preferences', 'Preferences') },
                         ],
                       },
                     ];
@@ -791,7 +806,7 @@ const Header = () => {
                           {rendered > 0 && <AvatarMenuDivider />}
                           <AvatarMenuSectionLabel label={sec.label} />
                           {visible.map(i => (
-                            <AvatarMenuItem key={i.label} icon={i.icon} label={i.label} onClick={i.onClick} />
+                            <AvatarMenuItem key={i.label} icon={i.icon} label={i.label} onClick={i.onClick} active={isActive(i.path)} />
                           ))}
                         </React.Fragment>
                       );

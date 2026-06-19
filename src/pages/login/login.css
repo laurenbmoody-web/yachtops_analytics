@@ -1,7 +1,8 @@
 /* Cargo unified login page - scoped under #cargo-login-root */
 
 #cargo-login-root {
-  --cl-bg: #F4EEE4;
+  /* Background + nav bar match the crew app (day theme): page #F4F1EC, white nav. */
+  --cl-bg: #F4F1EC;
   --cl-paper: #FFFFFF;
   --cl-ink: #262A53;
   --cl-ink-soft: #5A5E82;
@@ -30,8 +31,9 @@
   box-sizing: border-box;
 }
 
-/* Topbar */
+/* Topbar — white to match the app's nav-header */
 #cargo-login-root .cl-topbar {
+  background: var(--cl-paper);
   border-bottom: 1px solid var(--cl-rule);
 }
 
