@@ -15,11 +15,21 @@
 
 import { fetchExpiringDocuments, getExpiryStatus } from '../pages/crew-profile/utils/crewDocuments';
 import { getDocTypeLabel } from '../pages/crew-profile/documentTypes';
+import { supabase } from './supabaseClient';
 
 // Surface docs expiring within 90 days OR already expired. Returns
-// rows in the same shape NotificationsDrawer expects.
-export async function fetchDerivedNotifications() {
+// rows in the same shape NotificationsDrawer expects. Respects the viewer's
+// document-expiry notification preference (off → returns nothing).
+export async function fetchDerivedNotifications(userId = null) {
   try {
+    if (userId) {
+      const { data: pref } = await supabase
+        .from('notification_preferences')
+        .select('notify_document_expiry')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (pref && pref.notify_document_expiry === false) return [];
+    }
     const docs = await fetchExpiringDocuments(90);
     return (docs || []).map((d) => {
       const s = getExpiryStatus(d.expiry_date);

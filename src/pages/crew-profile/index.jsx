@@ -254,6 +254,8 @@ const CrewProfile = () => {
   const [tenantMemberRole, setTenantMemberRole] = useState(null);
   const [currentUserPermissionTier, setCurrentUserPermissionTier] = useState(null);
   const [permSaving, setPermSaving] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState(null);   // null until loaded
+  const [notifSavingKey, setNotifSavingKey] = useState(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = React.useRef(null);
@@ -1106,6 +1108,60 @@ const canEdit = (() => {
     setCrewMember((prev) => ({ ...prev, rotaRequiresAcceptance: value }));
     showToast(value ? 'Set to send rota changes for acceptance.' : 'Set to publish rota changes directly.', 'success');
   };
+
+  // Notification preferences are personal: only the profile owner manages their
+  // own (RLS scopes reads/writes to auth.uid()). Load once the section opens.
+  // (isOwnProfile is already defined at the top of the component.)
+  useEffect(() => {
+    if (activeSection !== 'permissions' || !isOwnProfile || notifPrefs !== null) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('notification_preferences')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      // Missing row = all categories on (the table default).
+      setNotifPrefs(data || {
+        notify_rota_submissions: true,
+        notify_rota_decisions: true,
+        notify_hor_reminders: true,
+        notify_provisioning_approvals: true,
+        notify_document_expiry: true,
+        notify_returns: true,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [activeSection, isOwnProfile, notifPrefs, session?.user?.id]);
+
+  const handleToggleNotif = async (key) => {
+    if (!isOwnProfile || notifSavingKey) return;
+    const next = { ...notifPrefs, [key]: !notifPrefs?.[key] };
+    setNotifPrefs(next);   // optimistic
+    setNotifSavingKey(key);
+    const { error } = await supabase
+      .from('notification_preferences')
+      .upsert(
+        { user_id: session.user.id, [key]: next[key], updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' },
+      );
+    setNotifSavingKey(null);
+    if (error) {
+      setNotifPrefs((prev) => ({ ...prev, [key]: !next[key] }));   // revert
+      showToast(error?.message || 'Couldn’t update notification preference', 'error');
+    }
+  };
+
+  // Notification categories surfaced in the settings section.
+  const NOTIF_CATEGORIES = [
+    { key: 'notify_rota_submissions', label: 'Rota sent for acceptance', desc: 'A rota submitted to you for approval.', email: true },
+    { key: 'notify_rota_decisions', label: 'Rota approved or sent back', desc: 'Decisions on a rota you submitted.', email: true },
+    { key: 'notify_hor_reminders', label: 'Hours of rest reminders', desc: 'Unlogged days, sign-off due, and overdue months.', email: true },
+    { key: 'notify_provisioning_approvals', label: 'Provisioning approvals', desc: 'Boards awaiting you, and decisions on yours.', email: false },
+    { key: 'notify_document_expiry', label: 'Document expiries', desc: 'Certificates expiring within 90 days.', email: false },
+    { key: 'notify_returns', label: 'Return confirmations', desc: 'When a return you’re involved in is confirmed.', email: false },
+  ];
 
   const handleProfileStatusChange = async (newStatus, notes, effectiveDate, effectiveTime = '00:00') => {
     if (!activeTenantId || !crewId) return;
@@ -3065,12 +3121,32 @@ const canEdit = (() => {
     </div>
   );
 
+  const renderSwitch = (checked, onClick, { disabled, busy, label } = {}) => (
+    <div className="cp-set-side">
+      {label && <span className="cp-switch-label">{checked ? 'On' : 'Off'}</span>}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label || 'Toggle'}
+        disabled={disabled}
+        onClick={onClick}
+        className="cp-switch"
+        style={busy ? { opacity: 0.6 } : undefined}
+      >
+        <span className="knob" />
+      </button>
+    </div>
+  );
+
   const renderPermissions = () => {
     const memberTier = String(crewMember?.effectiveTier || '').toUpperCase();
     const isRotaEditor = memberTier === 'CHIEF' || memberTier === 'HOD';
     // Effective rule mirrors the server / rota footer: NULL → HOD sends for
     // acceptance, CHIEF/COMMAND publish directly.
     const requiresAcceptance = crewMember?.rotaRequiresAcceptance ?? (memberTier === 'HOD');
+    const tierLabel = memberTier ? getTierDisplayName(memberTier) : '—';
+    const firstName = crewMember?.firstName || 'This person';
 
     return (
       <div>
@@ -3079,76 +3155,95 @@ const canEdit = (() => {
           <h3>Permissions &amp; Notifications</h3>
         </div>
 
+        {/* Access — read-only context */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Access</span><span className="line" />
+          </div>
+          <div className="cp-set-row">
+            <div className="cp-set-main">
+              <div className="cp-set-label">Access level</div>
+              <p className="cp-set-desc">Determines what {firstName.toLowerCase() === 'this person' ? 'this person' : firstName} can see and do across the vessel.</p>
+            </div>
+            <div className="cp-set-side"><span className="cp-set-pill accent">{tierLabel}</span></div>
+          </div>
+          <div className="cp-set-row">
+            <div className="cp-set-main"><div className="cp-set-label">Department</div></div>
+            <div className="cp-set-side"><span className="cp-set-pill">{crewMember?.department || '—'}</span></div>
+          </div>
+          <div className="cp-set-row">
+            <div className="cp-set-main"><div className="cp-set-label">Role</div></div>
+            <div className="cp-set-side"><span className="cp-set-pill">{crewMember?.roleTitle || '—'}</span></div>
+          </div>
+          <p className="cp-set-note">Access level, department and role are managed in Crew Management.</p>
+        </div>
+
+        {/* Rota actions */}
         <div className="cp-group">
           <div className="cp-group-head">
             <span className="dia">◆</span><span className="t">Rota actions</span><span className="line" />
           </div>
-
           {memberTier === 'COMMAND' ? (
-            <p style={{ fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
-              COMMAND publishes rota changes directly across every department.
-            </p>
+            <p className="cp-set-note-empty">COMMAND publishes rota changes directly across every department.</p>
           ) : !isRotaEditor ? (
-            <p style={{ fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
-              This role has no rota-editing permissions, so there’s nothing to configure here.
-            </p>
+            <p className="cp-set-note-empty">This role has no rota-editing permissions, so there’s nothing to configure here.</p>
           ) : (
-            <div
-              style={{
-                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-                gap: 16, padding: '14px 0', borderBottom: '1px solid #F0F1F5',
-              }}
-            >
-              <div style={{ maxWidth: 520 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#1C1B3A' }}>
-                  Send rota changes for acceptance
-                </div>
-                <p style={{ fontSize: 12.5, color: '#8B8478', margin: '4px 0 0', lineHeight: 1.5 }}>
+            <div className="cp-set-row">
+              <div className="cp-set-main">
+                <div className="cp-set-label">Send rota changes for acceptance</div>
+                <p className="cp-set-desc">
                   {requiresAcceptance
-                    ? `${crewMember?.firstName || 'This person'}’s rota changes are routed for approval${memberTier === 'CHIEF' ? ' (to COMMAND)' : ''} instead of publishing directly.`
-                    : `${crewMember?.firstName || 'This person'} publishes rota changes directly, with no approval step.`}
-                  {' '}Default for {memberTier === 'HOD' ? 'a HOD is to send for acceptance' : 'a Chief is to publish directly'}.
+                    ? `${firstName}’s rota changes are routed for approval${memberTier === 'CHIEF' ? ' (to COMMAND)' : ''} instead of publishing directly.`
+                    : `${firstName} publishes rota changes directly, with no approval step.`}
+                  {' '}Default for {memberTier === 'HOD' ? 'a head of department is to send for acceptance' : 'a chief is to publish directly'}.
                 </p>
-                {!canEditPermissions && (
-                  <p style={{ fontSize: 11.5, color: '#AEB4C2', margin: '6px 0 0' }}>
-                    Only COMMAND can change this.
-                  </p>
-                )}
+                {!canEditPermissions && <p className="cp-set-note">Only COMMAND can change this.</p>}
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={requiresAcceptance}
-                disabled={!canEditPermissions || permSaving}
-                onClick={() => handleSetRequiresAcceptance(!requiresAcceptance)}
-                title={canEditPermissions ? 'Toggle send for acceptance' : 'Only COMMAND can change this'}
-                style={{
-                  flexShrink: 0, width: 46, height: 26, borderRadius: 999,
-                  border: '1px solid #ECEAE3', position: 'relative', cursor: canEditPermissions ? 'pointer' : 'not-allowed',
-                  background: requiresAcceptance ? '#C65A1A' : '#F6F5F2',
-                  transition: 'background 150ms ease', opacity: permSaving ? 0.6 : 1,
-                }}
-              >
-                <span
-                  style={{
-                    position: 'absolute', top: 2, left: requiresAcceptance ? 22 : 2,
-                    width: 20, height: 20, borderRadius: 999, background: '#fff',
-                    boxShadow: '0 1px 2px rgba(28,27,58,0.25)', transition: 'left 150ms ease',
-                  }}
-                />
-              </button>
+              {renderSwitch(
+                requiresAcceptance,
+                () => handleSetRequiresAcceptance(!requiresAcceptance),
+                { disabled: !canEditPermissions || permSaving, busy: permSaving, label: 'Send for acceptance' },
+              )}
             </div>
           )}
         </div>
 
+        {/* Notifications — personal to the profile owner */}
         <div className="cp-group">
           <div className="cp-group-head">
             <span className="dia">◆</span><span className="t">Notifications</span><span className="line" />
           </div>
-          <p style={{ fontSize: 13, color: '#8B8478', margin: '4px 0 0', lineHeight: 1.5 }}>
-            Notification preferences (rota approvals, breaches, document expiries) will live here.
-            Approval requests already arrive via the in-app bell and email.
-          </p>
+          {!isOwnProfile ? (
+            <p className="cp-set-note-empty">Notification preferences are personal — only {firstName} can manage these from their own profile.</p>
+          ) : notifPrefs === null ? (
+            <p className="cp-set-note-empty">Loading…</p>
+          ) : (
+            <>
+              {NOTIF_CATEGORIES.map((c) => {
+                const on = notifPrefs?.[c.key] !== false;
+                return (
+                  <div className="cp-set-row" key={c.key}>
+                    <div className="cp-set-main">
+                      <div className="cp-set-label">
+                        {c.label}
+                        <span className={`cp-chanchip ${on ? 'on' : ''}`}>Bell</span>
+                        {c.email && <span className="cp-chanchip">Email</span>}
+                      </div>
+                      <p className="cp-set-desc">{c.desc}</p>
+                    </div>
+                    {renderSwitch(
+                      on,
+                      () => handleToggleNotif(c.key),
+                      { disabled: notifSavingKey === c.key, busy: notifSavingKey === c.key, label: c.label },
+                    )}
+                  </div>
+                );
+              })}
+              <p className="cp-set-note">
+                Toggles control your in-app bell. Approval and reminder emails are still sent for time-critical items.
+              </p>
+            </>
+          )}
         </div>
       </div>
     );

@@ -42,7 +42,7 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
     //      vanishes when the doc is renewed). See lib/derivedNotifications.
     const local = getUserNotifications(userId, unreadOnly) || [];
     const db = await fetchDbNotifications(userId, { unreadOnly });
-    const derived = await fetchDerivedNotifications();
+    const derived = await fetchDerivedNotifications(userId);
     const visibleDerived = unreadOnly ? derived.filter(d => !d.isRead) : derived;
     const merged = [...local, ...db, ...visibleDerived].sort(
       (a, b) => new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0),
