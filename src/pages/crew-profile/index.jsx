@@ -1214,6 +1214,8 @@ const canEdit = (() => {
       start_date: empForm.start_date || null,
       end_date: empForm.end_date || null,
       probation_end_date: empForm.probation_end_date || null,
+      probation_period_days: empForm.probation_period_days == null || empForm.probation_period_days === ''
+        ? null : Number(empForm.probation_period_days),
       rotation_pattern: empForm.rotation_pattern || null,
       leave_entitlement_days: empForm.leave_entitlement_days === '' || empForm.leave_entitlement_days == null
         ? null : Number(empForm.leave_entitlement_days),
@@ -3436,7 +3438,9 @@ const canEdit = (() => {
       />
     );
 
-    // Probation: quick-pick periods auto-fill the end date from the start date.
+    // Probation: the PERIOD is the source of truth — the end date derives from
+    // start_date + period, and recomputes whenever the start date is set/changed.
+    // Picking a custom end date clears the period.
     const PROBATION_DAYS = [7, 30, 60, 90];
     const addDaysIso = (iso, n) => {
       if (!iso) return null;
@@ -3444,9 +3448,23 @@ const canEdit = (() => {
       d.setDate(d.getDate() + n);
       return d.toISOString().slice(0, 10);
     };
-    const probDiff = (empForm.start_date && empForm.probation_end_date)
-      ? Math.round((new Date(`${empForm.probation_end_date.slice(0, 10)}T00:00:00`) - new Date(`${empForm.start_date.slice(0, 10)}T00:00:00`)) / 86400000)
-      : null;
+    const probPeriod = empForm.probation_period_days ?? null;
+    const setStartDate = (iso) => setEmpForm((p) => ({
+      ...p,
+      start_date: iso || null,
+      // Recompute probation end from the chosen period once a start date exists.
+      probation_end_date: (p.probation_period_days != null && iso)
+        ? addDaysIso(iso, p.probation_period_days)
+        : p.probation_end_date,
+    }));
+    const setProbationPeriod = (n) => setEmpForm((p) => ({
+      ...p,
+      probation_period_days: n,
+      probation_end_date: p.start_date ? addDaysIso(p.start_date, n) : p.probation_end_date,
+    }));
+    const setProbationCustom = (iso) => setEmpForm((p) => ({
+      ...p, probation_end_date: iso || null, probation_period_days: null,
+    }));
 
     // Common yacht payroll currencies.
     const CURRENCIES = ['EUR', 'USD', 'GBP', 'AUD', 'NZD', 'CAD', 'CHF', 'ZAR'];
@@ -3491,29 +3509,43 @@ const canEdit = (() => {
                     </select>, { accent: true })}
                   <Field label="Probation">
                     {editing ? (
-                      <div className="cp-prob">
-                        {PROBATION_DAYS.map((n) => (
-                          <button
-                            key={n}
-                            type="button"
-                            className={`cp-prob-chip${probDiff === n ? ' active' : ''}`}
-                            disabled={!empForm.start_date}
-                            title={!empForm.start_date ? 'Set a start date first' : `${n} days from start`}
-                            onClick={() => setE('probation_end_date', addDaysIso(empForm.start_date, n))}
-                          >{n} days</button>
-                        ))}
-                        <span className="cp-prob-sep">or</span>
-                        <span className="cp-prob-date">{dte('probation_end_date')}</span>
-                      </div>
+                      <>
+                        <div className="cp-prob">
+                          {PROBATION_DAYS.map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              className={`cp-prob-chip${probPeriod === n ? ' active' : ''}`}
+                              onClick={() => setProbationPeriod(n)}
+                            >{n} days</button>
+                          ))}
+                          <span className="cp-prob-sep">or</span>
+                          <span className="cp-prob-date">
+                            <EditorialDatePicker
+                              value={(empForm.probation_end_date || '').slice(0, 10)}
+                              onChange={setProbationCustom}
+                              placeholder="dd/mm/yyyy"
+                            />
+                          </span>
+                        </div>
+                        {probPeriod != null && !empForm.start_date && (
+                          <p className="cp-prob-hint">Add a start date — the end date fills in automatically.</p>
+                        )}
+                      </>
                     ) : (
-                      <div className={`cp-static${empForm.probation_end_date ? '' : ' cp-empty'}`}>
-                        {empForm.probation_end_date
-                          ? `${fmtDate(empForm.probation_end_date)}${PROBATION_DAYS.includes(probDiff) ? ` · ${probDiff} days` : ''}`
-                          : '—'}
+                      <div className={`cp-static${(probPeriod != null || empForm.probation_end_date) ? '' : ' cp-empty'}`}>
+                        {probPeriod != null
+                          ? `${probPeriod} days${empForm.probation_end_date ? ` · ends ${fmtDate(empForm.probation_end_date)}` : ' · start date needed'}`
+                          : (empForm.probation_end_date ? fmtDate(empForm.probation_end_date) : '—')}
                       </div>
                     )}
                   </Field>
-                  {fld('Start date', fmtDate(empForm.start_date), dte('start_date'))}
+                  {fld('Start date', fmtDate(empForm.start_date),
+                    <EditorialDatePicker
+                      value={(empForm.start_date || '').slice(0, 10)}
+                      onChange={setStartDate}
+                      placeholder="dd/mm/yyyy"
+                    />)}
                   {fld('End date', fmtDate(empForm.end_date), dte('end_date'))}
                 </div>
               </div>
