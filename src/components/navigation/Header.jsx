@@ -20,7 +20,51 @@ import { isDevMode } from '../../utils/devMode';
 import { loadCards } from '../../pages/team-jobs-management/utils/cardStorage';
 import { loadGuests } from '../../pages/guest-management-dashboard/utils/guestStorage';
 import { loadTrips } from '../../pages/trips-management-dashboard/utils/tripStorage';
+import { fetchVesselDepartments } from '../../pages/provisioning/utils/provisioningStorage';
 
+
+// ── Avatar-menu styling helpers ────────────────────────────────────────────
+// Visual language mirrors the supplier avatar menu (SupplierAvatarMenu.jsx):
+// Outfit headings/labels, Plus Jakarta Sans rows, hairline dividers, tinted
+// role pill. Token hexes are inlined because the supplier's CSS vars are scoped
+// to #sp-root and aren't available on the crew side.
+const hexToRgba = (hex, alpha) => {
+  const h = (hex || '').replace('#', '');
+  if (h.length !== 6) return `rgba(100,116,139,${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+};
+
+const AvatarMenuSectionLabel = ({ label }) => (
+  <div style={{
+    padding: '6px 16px 3px', fontFamily: 'Outfit', fontWeight: 700,
+    fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#94A3B8',
+  }}>{label}</div>
+);
+
+const AvatarMenuDivider = () => (
+  <div style={{ borderTop: '1px solid #E2E8F0', margin: '4px 0' }} />
+);
+
+const AvatarMenuItem = ({ icon, label, onClick, danger }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    style={{
+      display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 16px',
+      background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer',
+      fontSize: 13, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+      color: danger ? '#DC2626' : '#0C0E14', transition: 'background 100ms',
+    }}
+    onMouseEnter={(e) => { e.currentTarget.style.background = '#EEF2F7'; }}
+    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+  >
+    <Icon name={icon} size={15} color={danger ? '#DC2626' : '#64748B'} />
+    <span>{label}</span>
+  </button>
+);
 
 const Header = () => {
   const navigate = useNavigate();
@@ -49,6 +93,7 @@ const Header = () => {
   const [profileData, setProfileData] = useState(null);
   const [tenantMemberData, setTenantMemberData] = useState(null);
   const [tenantName, setTenantName] = useState(null);
+  const [deptColor, setDeptColor] = useState(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   
   // Debug state for last navigation
@@ -195,6 +240,23 @@ const Header = () => {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [authUser?.id]);
+
+  // Resolve the logged-in crew member's department colour so the role pill in
+  // the avatar menu can be tinted to match their department (Bridge, Interior…).
+  // Colours live per-tenant in the departments table; falls back to neutral grey.
+  useEffect(() => {
+    const tenantId = tenantMemberData?.tenant_id;
+    const deptName = currentUser?.department;
+    if (!tenantId || !deptName) { setDeptColor(null); return undefined; }
+    let cancelled = false;
+    (async () => {
+      const depts = await fetchVesselDepartments(tenantId);
+      if (cancelled) return;
+      const match = depts.find(d => d?.name?.toLowerCase() === deptName.toLowerCase());
+      setDeptColor(match?.color || null);
+    })();
+    return () => { cancelled = true; };
+  }, [tenantMemberData?.tenant_id, currentUser?.department]);
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -653,107 +715,108 @@ const Header = () => {
             )}
 
             {userMenuOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50" style={{ pointerEvents: 'auto' }}>
-                {/* Header with full_name, tenant name, and role */}
-                <div className="px-4 py-3 bg-muted/30 border-b border-border">
-                  <p className="text-base font-semibold text-foreground mb-1">
-                    {displayFullName}
-                  </p>
-                  <p className="text-xs font-medium text-primary uppercase tracking-wide mb-1">
-                    {displayTenantName}
-                  </p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                    {displayRole}
-                  </p>
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                width: 320, background: '#FFFFFF', border: '1px solid #E2E8F0',
+                borderRadius: 14, boxShadow: '0 12px 36px rgba(15,22,41,0.13)',
+                zIndex: 50, overflow: 'hidden', pointerEvents: 'auto',
+              }}>
+                {/* Header block — avatar, name, email, workspace + department-tinted role pill */}
+                <div style={{ padding: 16, background: '#F1F5F9', borderBottom: '1px solid #E2E8F0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: '50%', background: '#1C2340', color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, flexShrink: 0, overflow: 'hidden',
+                    }}>
+                      {profileData?.avatar_url ? (
+                        <img src={profileData?.avatar_url} alt={displayFullName || 'Profile'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        getInitials(displayFullName) || 'U'
+                      )}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 14, color: '#0C0E14', lineHeight: 1.2 }}>
+                        {displayFullName}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748B', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {displayEmail}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{
+                      fontFamily: 'Outfit', fontWeight: 700, fontSize: 10.5,
+                      letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748B',
+                    }}>{displayTenantName}</span>
+                    <span style={{
+                      fontFamily: 'Outfit', fontWeight: 700, fontSize: 10,
+                      letterSpacing: '0.08em', textTransform: 'uppercase',
+                      padding: '2px 7px', borderRadius: 999,
+                      background: hexToRgba(deptColor, 0.12),
+                      color: deptColor || '#475569',
+                    }}>{displayRole}</span>
+                  </div>
                 </div>
 
-                {/* Menu items - role-aware based on tenant_members.role */}
-                <div className="py-2">
-                  {/* My Profile - shown to all roles */}
-                  <button
-                    type="button"
-                    onClick={() => handleNavigation(`/profile/${session?.user?.id}`, 'My Profile')}
-                    className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-smooth flex items-center gap-3"
-                  >
-                    <Icon name="User" size={16} />
-                    My Profile
-                  </button>
+                {/* Menu items — role-aware based on tenant_members.role.
+                    Section labels render only when ≥1 item under them is visible. */}
+                <div style={{ padding: '4px 0' }}>
+                  {(() => {
+                    const sections = [
+                      {
+                        label: 'Personal',
+                        items: [
+                          { show: true, icon: 'User', label: 'My Profile', onClick: () => handleNavigation(`/profile/${session?.user?.id}`, 'My Profile') },
+                        ],
+                      },
+                      {
+                        label: 'Administration',
+                        items: [
+                          { show: isCommandRole || isChiefRole, icon: 'Users', label: 'Crew Management', onClick: () => handleNavigation('/crew-management', 'Crew Management') },
+                          { show: isCommandRole || isChiefRole, icon: 'CalendarCheck', label: 'Month-end', onClick: () => handleNavigation('/month-end', 'Month-end') },
+                        ],
+                      },
+                      {
+                        label: 'Operations',
+                        items: [
+                          { show: isCommandRole, icon: 'UserCheck', label: 'Guest Management', onClick: () => handleNavigation('/guest-management-dashboard', 'Guest Management') },
+                          { show: isCommandRole || isChiefRole || isHODRole, icon: 'Calendar', label: 'Trips', onClick: () => handleNavigation('/trips-management-dashboard', 'Trips') },
+                          { show: isCommandRole || isChiefRole || isHODRole, icon: 'Heart', label: 'Preferences', onClick: () => handleNavigation('/preferences', 'Preferences') },
+                        ],
+                      },
+                    ];
+                    let rendered = 0;
+                    return sections.map((sec) => {
+                      const visible = sec.items.filter(i => i.show);
+                      if (visible.length === 0) return null;
+                      const node = (
+                        <React.Fragment key={sec.label}>
+                          {rendered > 0 && <AvatarMenuDivider />}
+                          <AvatarMenuSectionLabel label={sec.label} />
+                          {visible.map(i => (
+                            <AvatarMenuItem key={i.label} icon={i.icon} label={i.label} onClick={i.onClick} />
+                          ))}
+                        </React.Fragment>
+                      );
+                      rendered += 1;
+                      return node;
+                    });
+                  })()}
 
-                  {/* Crew Management - for COMMAND and CHIEF only */}
-                  {(isCommandRole || isChiefRole) && (
-                    <button
-                      type="button"
-                      onClick={() => handleNavigation('/crew-management', 'Crew Management')}
-                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-smooth flex items-center gap-3"
-                    >
-                      <Icon name="Users" size={16} />
-                      Crew Management
-                    </button>
-                  )}
+                  <AvatarMenuDivider />
 
-                  {/* Month-end - for COMMAND and CHIEF */}
-                  {(isCommandRole || isChiefRole) && (
-                    <button
-                      type="button"
-                      onClick={() => handleNavigation('/month-end', 'Month-end')}
-                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-smooth flex items-center gap-3"
-                    >
-                      <Icon name="CalendarCheck" size={16} />
-                      Month-end
-                    </button>
-                  )}
-
-                  {/* Guest Management - ONLY for COMMAND */}
-                  {isCommandRole && (
-                    <button
-                      type="button"
-                      onClick={() => handleNavigation('/guest-management-dashboard', 'Guest Management')}
-                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-smooth flex items-center gap-3"
-                    >
-                      <Icon name="UserCheck" size={16} />
-                      Guest Management
-                    </button>
-                  )}
-
-                  {/* Trips - for COMMAND, CHIEF, and HOD */}
-                  {(isCommandRole || isChiefRole || isHODRole) && (
-                    <button
-                      type="button"
-                      onClick={() => handleNavigation('/trips-management-dashboard', 'Trips')}
-                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-smooth flex items-center gap-3"
-                    >
-                      <Icon name="Calendar" size={16} />
-                      Trips
-                    </button>
-                  )}
-
-                  {/* Preferences - for COMMAND, CHIEF, and HOD */}
-                  {(isCommandRole || isChiefRole || isHODRole) && (
-                    <button
-                      type="button"
-                      onClick={() => handleNavigation('/preferences', 'Preferences')}
-                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-smooth flex items-center gap-3"
-                    >
-                      <Icon name="Heart" size={16} />
-                      Preferences
-                    </button>
-                  )}
-
-                  <div className="my-2 border-t border-border" />
-
-                  {/* Logout - shown to all roles with red styling */}
-                  <button
-                    type="button"
+                  {/* Logout - shown to all roles */}
+                  <AvatarMenuItem
+                    icon="LogOut"
+                    label="Logout"
+                    danger
                     onClick={() => {
                       console.log('[NAV] Logging out');
                       handleLogout();
                       setUserMenuOpen(false);
                     }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-error hover:bg-muted transition-smooth flex items-center gap-3"
-                  >
-                    <Icon name="LogOut" size={16} className="text-error" />
-                    Logout
-                  </button>
+                  />
                 </div>
               </div>
             )}
