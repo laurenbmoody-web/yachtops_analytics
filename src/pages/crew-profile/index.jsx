@@ -3568,7 +3568,7 @@ const canEdit = (() => {
                 <div className="cp-grid">
                   {fld('Rotation pattern', empForm.rotation_pattern, txt('rotation_pattern', 'e.g. 2:2'))}
                   {fld('Leave entitlement', empForm.leave_entitlement_days != null && empForm.leave_entitlement_days !== '' ? `${empForm.leave_entitlement_days} days` : '',
-                    <input className="cp-inline-box" type="number" min="0" value={empForm.leave_entitlement_days ?? ''} onChange={(e) => setE('leave_entitlement_days', e.target.value)} />)}
+                    <input className="cp-inline-box" type="number" min="0" placeholder="e.g. 30 days" value={empForm.leave_entitlement_days ?? ''} onChange={(e) => setE('leave_entitlement_days', e.target.value)} />)}
                   {fld('Notice period', empForm.notice_period, txt('notice_period', 'e.g. 1 month'))}
                 </div>
               </div>
