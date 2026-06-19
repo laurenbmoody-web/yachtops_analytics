@@ -281,7 +281,9 @@ BEGIN
       v_current_status;
   END IF;
 
-  v_snapshot_id := public.take_rota_shift_snapshot(p_rota_id, p_department_id, auth.uid());
+  v_snapshot_id := public.take_rota_shift_snapshot(
+    p_rota_id, p_department_id, auth.uid(), 'published_direct'
+  );
 
   UPDATE public.rota_shifts
     SET status = 'published'
