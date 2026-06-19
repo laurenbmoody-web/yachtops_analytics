@@ -1229,11 +1229,16 @@ const canEdit = (() => {
       .from('crew_employment').upsert(empPatch, { onConflict: 'tenant_id,user_id' });
     let compErr = null;
     if (compForm) {
+      const amt = compForm.salary_amount === '' || compForm.salary_amount == null ? null : Number(compForm.salary_amount);
+      const period = compForm.salary_period === 'year' ? 'year' : 'month';
+      // Day rate derives from the annualised salary / 365.
+      const dayRate = amt != null ? Math.round((amt * (period === 'year' ? 1 : 12) / 365) * 100) / 100 : null;
       const compPatch = {
         tenant_id: activeTenantId, user_id: crewId,
-        salary_amount: compForm.salary_amount === '' || compForm.salary_amount == null ? null : Number(compForm.salary_amount),
+        salary_amount: amt,
         salary_currency: compForm.salary_currency || null,
-        day_rate: compForm.day_rate === '' || compForm.day_rate == null ? null : Number(compForm.day_rate),
+        salary_period: period,
+        day_rate: dayRate,
         updated_at: new Date().toISOString(),
       };
       ({ error: compErr } = await supabase
@@ -3470,6 +3475,12 @@ const canEdit = (() => {
     // Common yacht payroll currencies.
     const CURRENCIES = ['EUR', 'USD', 'GBP', 'AUD', 'NZD', 'CAD', 'CHF', 'ZAR'];
     const money = (amt) => (amt != null && amt !== '' ? `${curSym(cur)}${Number(amt).toLocaleString('en-GB')}` : '');
+    // Day rate auto-derives from the annualised salary / 365.
+    const salaryPeriod = compForm?.salary_period === 'year' ? 'year' : 'month';
+    const salaryAmt = (compForm?.salary_amount != null && compForm?.salary_amount !== '') ? Number(compForm.salary_amount) : null;
+    const derivedDayRate = salaryAmt != null
+      ? Math.round((salaryAmt * (salaryPeriod === 'year' ? 1 : 12) / 365) * 100) / 100
+      : null;
 
     const hasTemplate = false;   // contract-template feature is a future build
 
@@ -3477,7 +3488,7 @@ const canEdit = (() => {
       <div>
         <div className="cp-hor-head" style={{ marginBottom: 22 }}>
           <h3 className="cp-hor-title">
-            CONTRACT OF<span className="pn">,</span> <em>Employment</em><span className="pn">.</span>
+            EMPLOYMENT<span className="pn">,</span> <em>Contract</em><span className="pn">.</span>
           </h3>
           {canEditPermissions && (
             editing ? (
@@ -3564,10 +3575,10 @@ const canEdit = (() => {
 
               {compForm !== null && (
                 <div className="cp-group">
-                  <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compensation</span><span className="cp-chanchip" style={{ marginLeft: 6 }}>COMMAND only</span><span className="line" /></div>
+                  <div className="cp-group-head"><span className="dia">◆</span><span className="t">Salary</span><span className="cp-chanchip" style={{ marginLeft: 6 }}>COMMAND only</span><span className="line" /></div>
                   <div className="cp-grid">
-                    {fld('Salary', money(compForm?.salary_amount),
-                      <span style={{ display: 'flex', gap: 8 }}>
+                    {fld('Salary', salaryAmt != null ? `${money(salaryAmt)} / ${salaryPeriod === 'year' ? 'yr' : 'mo'}` : '',
+                      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Amount"
                           value={compForm?.salary_amount ?? ''} onChange={(e) => setC('salary_amount', e.target.value)} />
                         <select className="cp-inline-select" style={{ maxWidth: 96 }}
@@ -3575,10 +3586,19 @@ const canEdit = (() => {
                           <option value="">CUR</option>
                           {CURRENCIES.map((c) => <option key={c} value={c}>{curSym(c)} {c}</option>)}
                         </select>
+                        <select className="cp-inline-select" style={{ maxWidth: 120 }}
+                          value={salaryPeriod} onChange={(e) => setC('salary_period', e.target.value)}>
+                          <option value="month">per month</option>
+                          <option value="year">per year</option>
+                        </select>
                       </span>)}
-                    {fld('Day rate', money(compForm?.day_rate),
-                      <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Day rate"
-                        value={compForm?.day_rate ?? ''} onChange={(e) => setC('day_rate', e.target.value)} />)}
+                    <Field label="Day rate">
+                      <div className={`cp-static${derivedDayRate != null ? '' : ' cp-empty'}`}>
+                        {derivedDayRate != null
+                          ? <>{money(derivedDayRate)} <span style={{ color: '#AEB4C2', fontWeight: 400, fontSize: 12 }}>· auto (÷365)</span></>
+                          : '—'}
+                      </div>
+                    </Field>
                   </div>
                 </div>
               )}
