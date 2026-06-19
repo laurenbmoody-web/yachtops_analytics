@@ -1093,9 +1093,10 @@ const canEdit = (() => {
   // Grouped left rail (Option C): items live under quiet section labels.
   const navGroups = [
     { label: 'Profile', keys: ['personal', 'emergency', 'banking', 'preferences', 'documents'] },
+    { label: 'Employment', keys: ['contract'] },
     { label: 'Compliance', keys: ['hor', 'seatime'] },
     { label: 'Activity', keys: ['history'] },
-    { label: 'Settings', keys: ['contract', 'permissions'] },
+    { label: 'Settings', keys: ['permissions'] },
   ];
 
   const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
