@@ -1528,12 +1528,19 @@ const canEdit = (() => {
             )}
           </Field>
           <Field label="Date of Birth">
-            <Input
-              type="date"
-              value={formData?.dateOfBirth}
-              onChange={(e) => handleInputChange('dateOfBirth', e?.target?.value)}
-              disabled={!isEditing}
-            />
+            {isEditing ? (
+              <EditorialDatePicker
+                value={(formData?.dateOfBirth || '').slice(0, 10)}
+                onChange={(iso) => handleInputChange('dateOfBirth', iso)}
+                placeholder="dd/mm/yyyy"
+              />
+            ) : (
+              <div className={`cp-static${formData?.dateOfBirth ? '' : ' cp-empty'}`}>
+                {formData?.dateOfBirth
+                  ? new Date(`${String(formData.dateOfBirth).slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                  : '—'}
+              </div>
+            )}
           </Field>
           <Field label="Nationality">
             <Select
@@ -1621,10 +1628,10 @@ const canEdit = (() => {
                 {formData?.allergiesStatus === 'no_known' && (
                   <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                     <span>Confirmed on</span>
-                    <DateInput
-                      className="cp-inline-box"
-                      value={formData?.allergiesConfirmedAt || ''}
-                      onChange={(e) => handleInputChange('allergiesConfirmedAt', e?.target?.value)}
+                    <EditorialDatePicker
+                      value={(formData?.allergiesConfirmedAt || '').slice(0, 10)}
+                      onChange={(iso) => handleInputChange('allergiesConfirmedAt', iso)}
+                      placeholder="dd/mm/yyyy"
                     />
                   </div>
                 )}
@@ -1700,10 +1707,10 @@ const canEdit = (() => {
       return (
         <Field label="Last Verified" hint={isEditing && !disabled ? 'Date you last confirmed these details' : undefined}>
           {isEditing && !disabled ? (
-            <DateInput
-              className="cp-inline-box"
-              value={v || ''}
-              onChange={(e) => handleInputChange(field, e?.target?.value)}
+            <EditorialDatePicker
+              value={(v || '').slice(0, 10)}
+              onChange={(iso) => handleInputChange(field, iso)}
+              placeholder="dd/mm/yyyy"
             />
           ) : (
             <div className={`cp-static${v ? '' : ' cp-empty'}`}>
