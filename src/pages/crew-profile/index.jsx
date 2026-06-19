@@ -3489,34 +3489,32 @@ const canEdit = (() => {
                       <option value="">—</option>
                       {EMP_CONTRACT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>, { accent: true })}
+                  <Field label="Probation">
+                    {editing ? (
+                      <div className="cp-prob">
+                        {PROBATION_DAYS.map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            className={`cp-prob-chip${probDiff === n ? ' active' : ''}`}
+                            disabled={!empForm.start_date}
+                            title={!empForm.start_date ? 'Set a start date first' : `${n} days from start`}
+                            onClick={() => setE('probation_end_date', addDaysIso(empForm.start_date, n))}
+                          >{n} days</button>
+                        ))}
+                        <span className="cp-prob-sep">or</span>
+                        <span className="cp-prob-date">{dte('probation_end_date')}</span>
+                      </div>
+                    ) : (
+                      <div className={`cp-static${empForm.probation_end_date ? '' : ' cp-empty'}`}>
+                        {empForm.probation_end_date
+                          ? `${fmtDate(empForm.probation_end_date)}${PROBATION_DAYS.includes(probDiff) ? ` · ${probDiff} days` : ''}`
+                          : '—'}
+                      </div>
+                    )}
+                  </Field>
                   {fld('Start date', fmtDate(empForm.start_date), dte('start_date'))}
                   {fld('End date', fmtDate(empForm.end_date), dte('end_date'))}
-                  <div className="cp-field-full">
-                    <Field label="Probation">
-                      {editing ? (
-                        <div className="cp-prob">
-                          {PROBATION_DAYS.map((n) => (
-                            <button
-                              key={n}
-                              type="button"
-                              className={`cp-prob-chip${probDiff === n ? ' active' : ''}`}
-                              disabled={!empForm.start_date}
-                              title={!empForm.start_date ? 'Set a start date first' : `${n} days from start`}
-                              onClick={() => setE('probation_end_date', addDaysIso(empForm.start_date, n))}
-                            >{n} days</button>
-                          ))}
-                          <span className="cp-prob-sep">or</span>
-                          <span className="cp-prob-date">{dte('probation_end_date')}</span>
-                        </div>
-                      ) : (
-                        <div className={`cp-static${empForm.probation_end_date ? '' : ' cp-empty'}`}>
-                          {empForm.probation_end_date
-                            ? `${fmtDate(empForm.probation_end_date)}${PROBATION_DAYS.includes(probDiff) ? ` · ${probDiff} days` : ''}`
-                            : '—'}
-                        </div>
-                      )}
-                    </Field>
-                  </div>
                 </div>
               </div>
 
