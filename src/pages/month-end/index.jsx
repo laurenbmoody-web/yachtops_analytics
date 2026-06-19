@@ -227,20 +227,18 @@ export default function MonthEnd() {
               same components the provisioning / supplier pages use. Month-driven:
               this hub is the whole close-off, not just HOR — no per-item subline. */}
           <div className="mp-head">
-            <div className="mp-head-main">
-              <p className="editorial-meta">
-                <span className="dot">●</span>
-                <span>Month-end</span>
-                <span className="bar" />
-                <span className="muted">{CATEGORIES.length} categories</span>
-                <span className="bar" />
-                <span className="muted">{liveCount} of {packCount} live</span>
-              </p>
+            <p className="editorial-meta">
+              <span className="dot">●</span>
+              <span>Month-end</span>
+              <span className="bar" />
+              <span className="muted">{CATEGORIES.length} categories</span>
+              <span className="bar" />
+              <span className="muted">{liveCount} of {packCount} live</span>
+            </p>
+            <div className="mp-titlerow">
               <h1 className="editorial-greeting">
                 {monthName}<span className="period">,</span> <em>{horDone ? 'on track' : 'still to close'}</em><span className="period">.</span>
               </h1>
-            </div>
-            <div className="mp-head-controls">
               <div className="mp-monthnav">
                 <button type="button" onClick={() => stepMonth(-1)} aria-label="Previous month">‹</button>
                 <span>{monthLabel}</span>
