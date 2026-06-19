@@ -7,6 +7,7 @@ import ProvisioningApprovalSettings from './ProvisioningApprovalSettings';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import { FLAG_STATES } from '../../data/flagStates';
+import { GOVERNING_LAWS, FLAG_TO_GOVERNING_LAW } from '../../data/governingLaws';
 import { Checkbox } from '../../components/ui/Checkbox';
 import Icon from '../../components/AppIcon';
 import { AlertCircle, Edit2, Upload } from 'lucide-react';
@@ -53,6 +54,7 @@ const VesselSettings = () => {
   const [viewMode, setViewMode] = useState(true);
   
   const [formInitialized, setFormInitialized] = useState(false);
+  const [glOther, setGlOther] = useState(false);   // "Other…" governing law mode
   
   // Form state - expanded fields (mapped to vessels table)
   const [formState, setFormState] = useState({
@@ -323,6 +325,17 @@ const VesselSettings = () => {
     setFormState(prev => ({
       ...prev,
       [field]: value
+    }));
+  };
+
+  // Flag change suggests a governing law (only when none is set yet); editable.
+  const handleFlagChange = (value) => {
+    setFormState(prev => ({
+      ...prev,
+      flag: value,
+      governing_law: (prev.governing_law && String(prev.governing_law).trim())
+        ? prev.governing_law
+        : (FLAG_TO_GOVERNING_LAW[value] || prev.governing_law || ''),
     }));
   };
 
@@ -780,7 +793,7 @@ const VesselSettings = () => {
                     <label className="block text-sm font-medium text-foreground mb-1">Flag *</label>
                     <Select
                       value={formState?.flag}
-                      onChange={(value) => handleInputChange('flag', value)}
+                      onChange={handleFlagChange}
                       options={FLAG_STATES.map((f) => ({ label: f, value: f }))}
                       searchable
                       placeholder="Select flag state"
@@ -816,12 +829,33 @@ const VesselSettings = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">Governing Law</label>
-                    <Input
-                      value={formState?.governing_law}
-                      onChange={(e) => handleInputChange('governing_law', e?.target?.value)}
-                      placeholder="e.g., England & Wales"
-                      disabled={viewMode || !canEdit}
-                    />
+                    {(() => {
+                      const isOther = glOther || (!!formState?.governing_law && !GOVERNING_LAWS.includes(formState.governing_law));
+                      return (
+                        <>
+                          <Select
+                            value={isOther ? '__other__' : (formState?.governing_law || '')}
+                            onChange={(value) => {
+                              if (value === '__other__') { setGlOther(true); }
+                              else { setGlOther(false); handleInputChange('governing_law', value); }
+                            }}
+                            options={[...GOVERNING_LAWS.map((g) => ({ label: g, value: g })), { label: 'Other…', value: '__other__' }]}
+                            searchable
+                            placeholder="Select governing law"
+                            disabled={viewMode || !canEdit}
+                          />
+                          {isOther && (
+                            <Input
+                              className="mt-2"
+                              value={formState?.governing_law || ''}
+                              onChange={(e) => handleInputChange('governing_law', e?.target?.value)}
+                              placeholder="Enter governing law"
+                              disabled={viewMode || !canEdit}
+                            />
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">LOA (meters) *</label>
