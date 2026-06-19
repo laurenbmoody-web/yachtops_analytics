@@ -3069,3 +3069,16 @@
   cursor: pointer;
 }
 .sp-bell-panel-viewall:hover { background: #FAFAF8; }
+
+/* Bell dropdown — approved-orders sub-list. Sits below the revised-
+   lines list, separated by a hairline. Green tag for the approved
+   variant so the two notification types are visually distinct. */
+.sp-bell-panel-item-dot-approved {
+  background: #2E7D5A !important;
+  animation: none;
+}
+.sp-bell-panel-item-tag-approved {
+  background: #E8F0E5 !important;
+  color: #2E7D5A !important;
+  border-color: #C9DEC4 !important;
+}

@@ -3489,6 +3489,41 @@ export const acceptOrderItemQuote = async (itemId) => {
 //
 // Returns true / false. Defaults to true (require approval) on any
 // error so we fail closed.
+
+// Read this user's seen_at timestamp for the "Note from supplier"
+// chip on a board. null = never opened the popover, treat as
+// unseen. Stored in provisioning_supplier_notes_seen (migration
+// 20260617220000) — per-user, per-board, RLS-scoped to auth.uid().
+export const fetchSupplierNotesSeenAt = async (listId, userId) => {
+  if (!listId || !userId) return null;
+  const { data, error } = await supabase
+    .from('provisioning_supplier_notes_seen')
+    .select('seen_at')
+    .eq('user_id', userId)
+    .eq('list_id', listId)
+    .maybeSingle();
+  if (error) {
+    console.error('[provisioningStorage] fetchSupplierNotesSeenAt failed:', error);
+    return null;
+  }
+  return data?.seen_at || null;
+};
+
+// Mark the supplier-notes chip as seen for this user on this board.
+// Upsert on (user_id, list_id). Pulse stops; new supplier activity
+// later (anything that bumps a row's updated_at past this timestamp)
+// re-triggers the pulse.
+export const markSupplierNotesSeen = async (listId, userId) => {
+  if (!listId || !userId) return;
+  const { error } = await supabase
+    .from('provisioning_supplier_notes_seen')
+    .upsert(
+      { user_id: userId, list_id: listId, seen_at: new Date().toISOString() },
+      { onConflict: 'user_id,list_id' },
+    );
+  if (error) console.error('[provisioningStorage] markSupplierNotesSeen failed:', error);
+};
+
 export const callerRequiresProvisioningApproval = async (tenantId, userId) => {
   if (!tenantId || !userId) return true;
   try {
@@ -3585,13 +3620,20 @@ export const approveAllQuotes = async (listId) => {
     if (allSettled) {
       await supabase
         .from('supplier_orders')
-        .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
+        .update({
+          status: 'confirmed',
+          confirmed_at: new Date().toISOString(),
+          vessel_approved_at: new Date().toISOString(),
+        })
         .eq('id', order.id);
       ordersConfirmed += 1;
     } else if (anySettled) {
       await supabase
         .from('supplier_orders')
-        .update({ status: 'partially_confirmed' })
+        .update({
+          status: 'partially_confirmed',
+          vessel_approved_at: new Date().toISOString(),
+        })
         .eq('id', order.id);
       ordersPartial += 1;
     }

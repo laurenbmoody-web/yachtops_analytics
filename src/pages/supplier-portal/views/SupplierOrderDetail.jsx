@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem, markVesselApprovedSeen } from '../utils/supplierStorage';
 import { fetchReturnTasksByOrderId, fetchReturnTasksCountForOrder, acknowledgeSupplierReturnTask, completeSupplierReturnTask } from '../utils/supplierReturnTasks';
 import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -2263,6 +2263,17 @@ const SupplierOrderDetail = () => {
   };
 
   useEffect(load, [orderId]);
+
+  // Auto-ack the vessel-approved marker the first time the supplier
+  // opens this order. Cheap no-op when the order doesn't carry one.
+  // Fires the supplier-order-items-changed event so the topbar bell
+  // re-polls its count and drops the badge immediately.
+  useEffect(() => {
+    if (!orderId) return;
+    markVesselApprovedSeen(orderId).then(() => {
+      try { window.dispatchEvent(new Event('supplier-order-items-changed')); } catch { /* noop */ }
+    });
+  }, [orderId]);
 
   // Activity feed: fire the initial fetch when orderId resolves. The state +
   // refetcher are declared at the top of the component so the modal-save
