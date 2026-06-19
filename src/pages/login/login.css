@@ -1,8 +1,9 @@
 /* Cargo unified login page - scoped under #cargo-login-root */
 
 #cargo-login-root {
-  /* Background + nav bar match the crew app (day theme): page #F4F1EC, white nav. */
-  --cl-bg: #F4F1EC;
+  /* Background + nav bar match the crew app's cool dashboard ground: page
+     #F8FAFC (slate-50), white nav. No warm cream tones. */
+  --cl-bg: #F8FAFC;
   --cl-paper: #FFFFFF;
   --cl-ink: #262A53;
   --cl-ink-soft: #5A5E82;
@@ -11,7 +12,7 @@
   --cl-rust-soft: #FBECE5;
   --cl-rule: rgba(38, 42, 83, 0.12);
   --cl-rule-strong: rgba(38, 42, 83, 0.22);
-  --cl-input-bg: #FAF6EE;
+  --cl-input-bg: #F1F5F9;
 
   min-height: 100vh;
   background: var(--cl-bg);
@@ -42,7 +43,6 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 1440px;
   margin: 0 auto;
   padding: 24px 80px;
 }
@@ -96,7 +96,6 @@
   grid-template-columns: 1.15fr 1fr;
   gap: 80px;
   width: 100%;
-  max-width: 1440px;
   margin: 0 auto;
   padding: 56px 80px 64px;
   align-items: start;
