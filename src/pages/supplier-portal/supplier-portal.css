@@ -2873,36 +2873,101 @@
    automatically on the supplier's next confirm / sub / unavail
    thanks to the BEFORE UPDATE trigger that nulls revised_at. */
 
+/* Editorial callout — soft cream paper, terracotta accent stripe on
+   the left, italic body. Quieter than the previous block of
+   terracotta, reads as a margin note rather than an alert. */
 #sp-root .sod-wq-revised-banner {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 18px;
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 14px 18px 14px 16px;
   margin: 0;
-  background: #FBEFE9;
+  background: #FAFAF8;
   border-top: 1px solid #ECEAE3;
   border-bottom: 1px solid #ECEAE3;
+  border-left: 3px solid #C65A1A;
   font-size: 13px;
-  color: #C65A1A;
+  color: #1C1B3A;
+  font-style: italic;
+  letter-spacing: 0.005em;
 }
 #sp-root .sod-wq-revised-banner-dot {
   display: inline-block;
-  width: 8px; height: 8px;
+  width: 6px; height: 6px;
   border-radius: 50%;
   background: #C65A1A;
   flex-shrink: 0;
+  position: relative;
+  top: -2px;
 }
-#sp-root .sod-wq-revised-banner-text strong { font-weight: 700; }
+#sp-root .sod-wq-revised-banner-text strong {
+  font-weight: 400;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-style: italic;
+  font-size: 14.5px;
+  letter-spacing: -0.005em;
+  color: #C65A1A;
+  margin-right: 2px;
+}
 
+/* Per-row REVISED chip — small italic terracotta pill sitting next
+   to the item name. Pulses gently until the supplier re-confirms,
+   so the eye picks it out even when scrolled deep in the order. */
 #sp-root .sod-wq-revised-chip {
   display: inline-block;
   margin-left: 8px;
-  padding: 2px 8px;
+  padding: 1px 8px 2px;
   border-radius: 999px;
   background: #FBEFE9;
   color: #C65A1A;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   vertical-align: middle;
   border: 1px solid #E8B89B;
+  animation: sod-wq-revised-pulse 1.8s ease-in-out infinite;
+}
+
+/* Status dot for revised rows pulsates a soft terracotta halo —
+   replaces the muted grey "pending" fill for as long as the line
+   is still waiting on the supplier's re-confirm. Stops the moment
+   they act (status leaves pending), no separate flag needed. */
+#sp-root .sod-wq-dot-pending.is-revised {
+  background: #C65A1A;
+  box-shadow: 0 0 0 0 rgba(198, 90, 26, 0.55);
+  animation: sod-wq-status-pulse 1.6s ease-out infinite;
+}
+
+@keyframes sod-wq-revised-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(198, 90, 26, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(198, 90, 26, 0);
+  }
+}
+@keyframes sod-wq-status-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(198, 90, 26, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0); }
+}
+
+/* Bell badge — small red circle over the bell icon when there's a
+   vessel-revised line still waiting. Numeric, clamped to 9+ so the
+   topbar stays tidy. */
+.sp-bell-btn { position: relative; }
+.sp-bell-badge {
+  position: absolute;
+  top: -2px; right: -2px;
+  min-width: 14px; height: 14px;
+  padding: 0 4px;
+  background: #C65A1A;
+  color: #FFFFFF;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  border: 2px solid #FFFFFF;
+  box-sizing: content-box;
+  letter-spacing: 0;
 }
