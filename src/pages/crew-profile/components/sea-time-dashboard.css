@@ -29,8 +29,8 @@
 .std-card{background:var(--card);border:1px solid var(--border);border-radius:14px;}
 .std-pad{padding:22px 24px;}
 
-/* header row: section head (left) + controls (right) */
-.std-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
+/* header row: section head (left) + controls (right) — mirrors .cp-hor-head */
+.std-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #E6E8EF;flex-wrap:wrap;}
 .std-sechead{display:flex;align-items:baseline;gap:8px;}
 .std-secnum{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-size:20px;font-weight:500;line-height:1;color:var(--rust);}
 .std-sechead h3{font-size:20px;margin:0;line-height:1;}
@@ -162,7 +162,7 @@
 
 /* drawer + toast */
 .std-scrim{position:fixed;inset:0;background:rgba(28,27,58,.42);z-index:60;}
-.std-drawer{position:fixed;top:0;right:0;bottom:0;width:440px;max-width:92vw;background:#fff;z-index:61;box-shadow:-20px 0 50px rgba(28,27,58,.18);overflow-y:auto;animation:stdSlide .32s cubic-bezier(.2,.8,.2,1) both;}
+.std-drawer{position:fixed;top:64px;right:0;bottom:0;width:440px;max-width:92vw;background:#fff;z-index:61;box-shadow:-20px 0 50px rgba(28,27,58,.18);overflow-y:auto;animation:stdSlide .32s cubic-bezier(.2,.8,.2,1) both;}
 .std-field label{display:block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
 .std-input,.std-select-d{width:100%;border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
 .std-input:focus{outline:none;border-color:var(--rust);box-shadow:0 0 0 2px var(--rust-tint);}
@@ -361,11 +361,6 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-dd-opt .t{font-size:13px;font-weight:600;color:var(--ink);display:block;}
 .stp-dd-opt.on .t{color:var(--rust);}
 .stp-dd-opt .s{font-size:10.5px;color:var(--muted);display:block;margin-top:1px;}
-
-/* two-tone section title: SEA TIME (caps navy) · Tracker (italic terracotta) */
-.std-sechead h3.std-title2{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:500;font-size:23px;line-height:1;margin:0;}
-.std-title2 .cap{text-transform:uppercase;letter-spacing:.03em;color:var(--ink);}
-.std-title2 em{font-style:italic;color:var(--rust);}
 
 /* pathway header — department + goal as two unified, spaced pills */
 .stp-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:11px;}

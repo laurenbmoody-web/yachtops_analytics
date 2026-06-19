@@ -466,7 +466,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
   return (
     <div className="std">
       <div className="std-head">
-        <div className="std-sechead"><h3 className="std-title2"><span className="cap">Sea Time,</span> <em>Tracker</em></h3></div>
+        <div className="std-sechead"><h3 className="cp-hor-title">SEA&nbsp;TIME<span className="pn">,</span> <em>Tracker</em><span className="pn">.</span></h3></div>
         <div className="std-controls">
           <button className="std-logbtn" onClick={() => setDrawerOpen(true)}><Icon name="Plus" size={16} /> Log sea time</button>
         </div>
