@@ -228,7 +228,7 @@ function wrap(inner,h){
     const depts=[...new Set(members.map(c=>c.dept))].sort(deptSort);
     y+=44;
     // clickable header — chevron + dot + label·count, hairline, optional remind-all
-    s+=(b.open?chevD:chevR)(P+2,y,'#6B7280');
+    s+=(b.open?chevD:chevR)(P+2,y,m.c); // chevron takes the block's status colour
     s+=dot(P+22,y-4,4,m.dot);
     s+=txt(P+38,y,`${b.label} · ${members.length}`,{size:11,weight:700,spacing:1.4,fill:m.c});
     if(b.remindAll){ const t='Send reminders to all ('+members.length+')'; const bw=t.length*6.6+30; s+=rect(RIGHT-bw,y-16,bw,26,{fill:TERRA,rx:8})+txt(RIGHT-bw/2,y+2,t,{size:12,weight:600,fill:'#fff',anchor:'middle'}); }

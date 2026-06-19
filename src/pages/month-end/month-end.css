@@ -89,24 +89,39 @@
 .mp-detail { padding: 6px 0 14px 37px; border-bottom: 1px solid #EEF0F4; }
 .mp-empty { padding: 22px; text-align: center; color: #8B8478; font-size: 14px; }
 
-/* ── Crew roster rows (HOR detail) — editorial hairline list ──────────────── */
-.me-section { margin-top: 16px; }
-.me-section:first-child { margin-top: 6px; }
-.me-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-.me-section-title { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; }
-.me-row { display: flex; align-items: center; gap: 14px; padding: 12px 8px; border-bottom: 1px solid #F0F1F5; transition: background 0.12s ease; }
-.me-row:last-child { border-bottom: 0; }
+/* ── Crew roster (HOR detail) — collapsible status blocks, dept groups ─────── */
+/* Each status block (Awaiting approval / Not started / Confirmed) collapses; the
+   chevron + label take the block's status colour. Default collapsed. */
+.me-block { margin-top: 6px; }
+.me-block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 8px; border-bottom: 1px solid #EDEBE4; }
+.me-block-toggle { display: inline-flex; align-items: center; gap: 11px; background: none; border: 0; padding: 4px 0; cursor: pointer; font: inherit; }
+.me-chev { font-size: 11px; line-height: 1; width: 12px; text-align: center; flex: 0 0 auto; }
+.me-block-dot { width: 8px; height: 8px; border-radius: 999px; flex: 0 0 auto; }
+.me-block-label { font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+.me-block-preview { font-size: 11px; color: #AEB4C2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.me-block-cta { flex: 0 0 auto; padding: 7px 13px; }
+
+/* Department lead-in inside an expanded block */
+.me-dept-group { margin-top: 2px; }
+.me-dept { font-size: 9.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #AEB4C2; padding: 12px 8px 2px 24px; }
+
+/* Crew row — editorial hairline list, indented under its department */
+.me-row { display: flex; align-items: center; gap: 14px; padding: 11px 8px 11px 24px; border-bottom: 1px solid #F0F1F5; transition: background 0.12s ease; }
 .me-row:hover { background: #FAFAF8; }
-.me-row.is-action { border-bottom: 0; border-radius: 10px; margin-bottom: 6px; padding-left: 14px; background: #FBFAF8; box-shadow: inset 3px 0 0 0 #C65A1A; }
-.me-row.is-action:hover { background: #FBF3EE; }
 .me-dot { width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto; }
 .me-who { min-width: 0; flex: 1; }
 .me-name { font-size: 14.5px; font-weight: 600; color: #1C1B3A; }
 .me-sub { font-size: 11.5px; color: #8B8478; margin-top: 2px; }
-.me-statuswrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 130px; }
-.me-status { font-size: 12.5px; font-weight: 600; }
 .me-meta { font-size: 11px; color: #8B8478; font-style: italic; }
-.me-action { display: flex; justify-content: flex-end; min-width: 150px; }
+
+/* "Logged this month" coverage bar — surfaces who's actually behind */
+.me-log { display: flex; align-items: center; gap: 11px; width: 188px; flex: 0 0 auto; }
+.me-logbar { flex: 1; height: 5px; border-radius: 3px; background: #EFEDE6; overflow: hidden; }
+.me-logbar span { display: block; height: 100%; border-radius: 3px; }
+.me-logfrac { font-size: 11.5px; font-weight: 600; color: #8B8478; white-space: nowrap; min-width: 42px; }
+
+.me-action { display: flex; justify-content: flex-end; align-items: center; min-width: 150px; }
+.me-signed { color: #5C9B6A; display: inline-flex; }
 
 .me-btn { display: inline-flex; align-items: center; gap: 7px; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
 .me-btn-primary { background: #C65A1A; border: 1px solid #C65A1A; color: #fff; }
