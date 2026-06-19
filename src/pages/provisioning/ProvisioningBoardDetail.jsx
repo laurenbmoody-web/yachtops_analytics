@@ -2090,23 +2090,59 @@ const ProvisioningBoardDetail = () => {
     };
   }, [supplierNotesOpen]);
 
-  // Compose the list of supplier actions worth surfacing. Three kinds:
-  // substitutions (terracotta), unavailables (red), notes (italic).
-  // Empty → chip is hidden entirely.
+  // Compose the supplier-activity feed for the chip popover. Tracks
+  // every action the supplier took on a line — confirms, sub'd,
+  // unavail'd, qty / unit / size overridden, notes left. Per-line
+  // simple confirms get batched into a single summary row at the
+  // top so a bulk-confirm of 14 lines doesn't drown the rest of
+  // the feed.
+  //
+  // Each row carries an updated_at so the feed can sort newest
+  // first and the pulse predicate can compare to seen_at.
   const supplierNoteActions = useMemo(() => {
     const out = [];
+    const confirmed = [];
     Object.entries(itemStatusMap).forEach(([nameKey, oi]) => {
       const niceName = (items.find(it => (it.name || '').toLowerCase().trim() === nameKey)?.name) || nameKey;
+      const updatedAtMs = oi.updated_at ? new Date(oi.updated_at).getTime() : 0;
       if (oi.status === 'substituted' && oi.substitution) {
-        out.push({ key: `sub:${nameKey}`, kind: 'sub', item: niceName, text: oi.substitution });
+        out.push({ key: `sub:${nameKey}`, kind: 'sub', item: niceName, text: oi.substitution, updatedAtMs });
+      } else if (oi.status === 'unavailable') {
+        out.push({ key: `un:${nameKey}`, kind: 'unavail', item: niceName, updatedAtMs });
+      } else if (oi.status === 'confirmed') {
+        confirmed.push({ name: niceName, updatedAtMs });
       }
-      if (oi.status === 'unavailable') {
-        out.push({ key: `un:${nameKey}`, kind: 'unavail', item: niceName });
+      if (oi.qtyChanged) {
+        out.push({ key: `qty:${nameKey}`, kind: 'qty', item: niceName, text: `${oi.requestedQuantity} → ${oi.quantity}`, updatedAtMs });
+      }
+      if (oi.unitChanged) {
+        out.push({ key: `unit:${nameKey}`, kind: 'unit', item: niceName, text: `${oi.requestedUnit} → ${oi.unit}`, updatedAtMs });
+      }
+      if (oi.sizeChanged) {
+        out.push({ key: `size:${nameKey}`, kind: 'size', item: niceName, text: `${oi.requestedSize} → ${oi.size}`, updatedAtMs });
       }
       if (oi.hasNote && oi.supplierNote) {
-        out.push({ key: `note:${nameKey}`, kind: 'note', item: niceName, text: oi.supplierNote });
+        out.push({ key: `note:${nameKey}`, kind: 'note', item: niceName, text: oi.supplierNote, updatedAtMs });
       }
     });
+    // Bulk-confirm summary row. Single line at the top so a 14-item
+    // batch doesn't push the more interesting actions off-screen;
+    // sorts to its own newest item's timestamp so it interleaves
+    // honestly with subs / notes that happened around the same time.
+    if (confirmed.length > 0) {
+      const newestConfirm = confirmed.reduce((m, c) => Math.max(m, c.updatedAtMs), 0);
+      const sampleNames = confirmed.slice(0, 3).map(c => c.name).join(', ');
+      const overflow = confirmed.length > 3 ? ` + ${confirmed.length - 3} more` : '';
+      out.push({
+        key: `confirmed-summary`,
+        kind: 'confirmed',
+        item: `${confirmed.length} item${confirmed.length === 1 ? '' : 's'} confirmed`,
+        text: `${sampleNames}${overflow}`,
+        updatedAtMs: newestConfirm,
+      });
+    }
+    // Newest first.
+    out.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
     return out;
   }, [itemStatusMap, items]);
 
@@ -2588,18 +2624,33 @@ const ProvisioningBoardDetail = () => {
                         <span className="pv-board-supplier-popover-title">Note from supplier</span>
                       </div>
                       <div className="pv-board-supplier-popover-list">
-                        {supplierNoteActions.map((a) => (
-                          <div key={a.key} className="pv-board-supplier-popover-row">
-                            <span className={`pv-board-supplier-popover-tag pv-board-supplier-popover-tag-${a.kind}`}>
-                              {a.kind === 'sub' ? 'Sub' : a.kind === 'unavail' ? 'Unavailable' : 'Note'}
-                            </span>
-                            <span className="pv-board-supplier-popover-body">
-                              <strong>{a.item}</strong>
-                              {a.kind === 'sub' && (<> — <em>{a.text}</em></>)}
-                              {a.kind === 'note' && (<> — <em>"{a.text}"</em></>)}
-                            </span>
-                          </div>
-                        ))}
+                        {supplierNoteActions.map((a) => {
+                          const tagLabel = {
+                            sub:       'Sub',
+                            unavail:   'Unavailable',
+                            note:      'Note',
+                            qty:       'Qty',
+                            unit:      'Unit',
+                            size:      'Size',
+                            confirmed: 'Confirmed',
+                          }[a.kind] || 'Update';
+                          return (
+                            <div key={a.key} className="pv-board-supplier-popover-row">
+                              <span className={`pv-board-supplier-popover-tag pv-board-supplier-popover-tag-${a.kind}`}>
+                                {tagLabel}
+                              </span>
+                              <span className="pv-board-supplier-popover-body">
+                                <strong>{a.item}</strong>
+                                {a.kind === 'sub'       && (<> — <em>{a.text}</em></>)}
+                                {a.kind === 'note'      && (<> — <em>"{a.text}"</em></>)}
+                                {a.kind === 'qty'       && (<> — <span className="pv-board-supplier-popover-diff">{a.text}</span></>)}
+                                {a.kind === 'unit'      && (<> — <span className="pv-board-supplier-popover-diff">{a.text}</span></>)}
+                                {a.kind === 'size'      && (<> — <span className="pv-board-supplier-popover-diff">{a.text}</span></>)}
+                                {a.kind === 'confirmed' && (<> — <span className="pv-board-supplier-popover-meta">{a.text}</span></>)}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                       <div className="pv-board-supplier-popover-foot">
                         <button

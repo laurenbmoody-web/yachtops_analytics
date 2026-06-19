@@ -1048,3 +1048,30 @@
   cursor: pointer;
 }
 .pv-board-supplier-popover-link:hover { background: #FAFAF8; }
+
+/* Additional supplier-popover tag variants for the richer action
+   feed. Sub / unavail / note keep their colour treatment from the
+   earlier rule set; these add the qty/unit/size diff tags
+   (terracotta tint) and the confirmed batch tag (green, quieter
+   than the sub treatment since confirms are the happy path). */
+.pv-board-supplier-popover-tag-qty,
+.pv-board-supplier-popover-tag-unit,
+.pv-board-supplier-popover-tag-size {
+  background: #FBEFE9; color: #C65A1A; border: 1px solid #E8B89B;
+}
+.pv-board-supplier-popover-tag-confirmed {
+  background: #E8F0E5; color: #2E7D5A; border: 1px solid #C9DEC4;
+}
+.pv-board-supplier-popover-diff {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: #C65A1A;
+  background: #FBEFE9;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.pv-board-supplier-popover-meta {
+  font-size: 11.5px;
+  color: #6B6F7A;
+  font-style: italic;
+}
