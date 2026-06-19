@@ -19,7 +19,7 @@
    terracotta-italic emphasis + lead line, controls stacked on the right, a
    hairline rule beneath the whole header. Mirrors crew-profile HOR / sea-time. */
 /* Header: meta strip, then the headline and month picker share one line. */
-.mp-head { padding-bottom: 18px; border-bottom: 1px solid #E6E8EF; }
+.mp-head { padding-bottom: 8px; }
 .mp-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .mp-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #C65A1A; }
 .mp-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 32px; line-height: 1.04; color: #1C1B3A; margin-top: 11px; }
