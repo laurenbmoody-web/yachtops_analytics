@@ -692,7 +692,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8FAFC' }}>
         <div className="text-center">
           <LogoSpinner size={48} className="mx-auto mb-4" />
           <p className="text-muted-foreground">Loading dashboard...</p>
@@ -705,7 +705,7 @@ const Dashboard = () => {
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen bg-background ${isEditing ? 'pb-20' : ''}`}>
+      <div className={`min-h-screen ${isEditing ? 'pb-20' : ''}`} style={{ backgroundColor: '#F8FAFC' }}>
         <Header />
 
         <div className="max-w-[1600px] mx-auto p-6">
