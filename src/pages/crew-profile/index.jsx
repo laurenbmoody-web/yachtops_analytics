@@ -263,6 +263,7 @@ const CrewProfile = () => {
   const [compForm, setCompForm] = useState(null);       // crew_compensation (null = no access/none)
   const [empEditing, setEmpEditing] = useState(false);
   const [empSaving, setEmpSaving] = useState(false);
+  const [vesselCompliance, setVesselCompliance] = useState(null);   // { flag, port_of_registry, governing_law }
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = React.useRef(null);
@@ -1195,11 +1196,16 @@ const canEdit = (() => {
       const { data: comp } = await supabase
         .from('crew_compensation').select('*')
         .eq('tenant_id', activeTenantId).eq('user_id', crewId).maybeSingle();
+      // Vessel-level compliance inherited (read-only) onto the profile.
+      const { data: vessel } = await supabase
+        .from('vessels').select('flag, port_of_registry, governing_law')
+        .eq('tenant_id', activeTenantId).maybeSingle();
       if (cancelled) return;
       setEmpForm(emp || {});
       // null when the viewer can't read compensation (RLS) AND there's no row;
       // COMMAND always gets an object so the block renders for them.
       setCompForm(canEditPermissions ? (comp || {}) : (comp || null));
+      setVesselCompliance(vessel || {});
       setEmpLoaded(true);
     })();
     return () => { cancelled = true; };
@@ -1221,8 +1227,7 @@ const canEdit = (() => {
         ? null : Number(empForm.leave_entitlement_days),
       notice_period: empForm.notice_period || null,
       sea_reference: empForm.sea_reference || null,
-      flag_state: empForm.flag_state || null,
-      governing_law: empForm.governing_law || null,
+      // flag_state / governing_law are now inherited from the vessel (read-only).
       updated_at: new Date().toISOString(),
     };
     const { error: empErr } = await supabase
@@ -3435,6 +3440,15 @@ const canEdit = (() => {
       <input className="cp-inline-box" value={empForm[key] || ''} placeholder={ph}
         onChange={(e) => setE(key, e.target.value)} />
     );
+    // Vessel-inherited, read-only field with a "from vessel" tag.
+    const inheritedFld = (label, val) => (
+      <Field label={label}>
+        <div className={`cp-static${val ? '' : ' cp-empty'}`}>
+          {val || '—'}
+          <span className="cp-chanchip" style={{ marginLeft: 8 }}>from vessel</span>
+        </div>
+      </Field>
+    );
     // Editorial calendar (popover) bound to an ISO field.
     const dte = (key) => (
       <EditorialDatePicker
@@ -3612,10 +3626,14 @@ const canEdit = (() => {
               <div className="cp-group">
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compliance</span><span className="line" /></div>
                 <div className="cp-grid">
+                  {/* SEA reference is per-crew (their individual agreement number). */}
                   {fld('SEA reference', empForm.sea_reference, txt('sea_reference'))}
-                  {fld('Flag state', empForm.flag_state, txt('flag_state'))}
-                  {fld('Governing law', empForm.governing_law, txt('governing_law'))}
+                  {/* Flag, governing law & port of registry are inherited from the vessel. */}
+                  {inheritedFld('Flag state', vesselCompliance?.flag)}
+                  {inheritedFld('Governing law', vesselCompliance?.governing_law)}
+                  {inheritedFld('Port of registry', vesselCompliance?.port_of_registry)}
                 </div>
+                <p className="cp-set-note">Flag, governing law and port of registry are set once in Vessel Settings.</p>
               </div>
 
               {!canEditPermissions && <p className="cp-set-note">Employment details are managed by COMMAND.</p>}

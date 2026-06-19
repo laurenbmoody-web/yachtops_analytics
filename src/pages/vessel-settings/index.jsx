@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button';
 import ProvisioningApprovalSettings from './ProvisioningApprovalSettings';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import { FLAG_STATES } from '../../data/flagStates';
 import { Checkbox } from '../../components/ui/Checkbox';
 import Icon from '../../components/AppIcon';
 import { AlertCircle, Edit2, Upload } from 'lucide-react';
@@ -61,6 +62,7 @@ const VesselSettings = () => {
     port_of_registry: '',
     imo_number: '',
     official_number: '',
+    governing_law: '',
     loa_m: '',
     gt: '',
     year_built: '',
@@ -185,6 +187,7 @@ const VesselSettings = () => {
         port_of_registry: vesselData?.port_of_registry || '',
         imo_number: vesselData?.imo_number || '',
         official_number: vesselData?.official_number || '',
+        governing_law: vesselData?.governing_law || '',
         loa_m: vesselData?.loa_m || '',
         gt: vesselData?.gt || '',
         year_built: vesselData?.year_built || '',
@@ -362,6 +365,7 @@ const VesselSettings = () => {
         port_of_registry: formState?.port_of_registry || null,
         imo_number: formState?.imo_number || null,
         official_number: formState?.official_number || null,
+        governing_law: formState?.governing_law || null,
         loa_m: formState?.loa_m ? parseFloat(formState?.loa_m) : null,
         gt: formState?.gt ? parseInt(formState?.gt, 10) : null,
         year_built: formState?.year_built ? parseInt(formState?.year_built, 10) : null,
@@ -774,10 +778,12 @@ const VesselSettings = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">Flag *</label>
-                    <Input
+                    <Select
                       value={formState?.flag}
-                      onChange={(e) => handleInputChange('flag', e?.target?.value)}
-                      placeholder="e.g., Cayman Islands"
+                      onChange={(value) => handleInputChange('flag', value)}
+                      options={FLAG_STATES.map((f) => ({ label: f, value: f }))}
+                      searchable
+                      placeholder="Select flag state"
                       disabled={viewMode || !canEdit}
                     />
                   </div>
@@ -805,6 +811,15 @@ const VesselSettings = () => {
                       value={formState?.official_number}
                       onChange={(e) => handleInputChange('official_number', e?.target?.value)}
                       placeholder="e.g., 123456"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Governing Law</label>
+                    <Input
+                      value={formState?.governing_law}
+                      onChange={(e) => handleInputChange('governing_law', e?.target?.value)}
+                      placeholder="e.g., England & Wales"
                       disabled={viewMode || !canEdit}
                     />
                   </div>
