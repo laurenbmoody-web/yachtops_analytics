@@ -506,7 +506,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
             <div>
               <div className="mlabel rustlabel">Captain-signed · MCA MIN 642</div>
               <h3>Sea Service Testimonial Pack</h3>
-              <div className="sub">A captain-signed testimonial for your chosen verifying organisation. Switching the organisation keeps the same record — nothing to re-enter.</div>
+              <div className="sub">One captain-signed record, ready for any verifying organisation.</div>
             </div>
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
@@ -528,7 +528,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
                 {checks.map((c, i) => (
                   <div className="std-check" key={i}>
                     <span className="box" style={{ background: c.ok ? '#5E8E6F' : '#A32D2D' }}><Icon name={c.ok ? 'Check' : 'X'} size={12} color="#fff" /></span>
-                    <div><div className="ct" style={{ color: c.ok ? '#5E8E6F' : '#A32D2D' }}>{c.label}</div><div className="cd">{c.detail}</div></div>
+                    <div><div className="ct" style={{ color: c.ok ? 'var(--ink)' : '#A32D2D' }}>{c.label}</div><div className="cd">{c.detail}</div></div>
                   </div>
                 ))}
               </div>
@@ -575,7 +575,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate }) =
             <span className="std-gate-ic" style={{ background: canGenerate ? '#E7F0E9' : '#FCEDEA' }}><Icon name={canGenerate ? 'Check' : 'X'} size={20} color={canGenerate ? '#5E8E6F' : '#A32D2D'} /></span>
             <div>
               <div className="mlabel">Step 4 · Issue</div>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>{canGenerate ? 'All checks passed' : `${checks.filter(c => !c.ok).length} check(s) blocking generation`}</div>
+              <div className="std-issue-h">{canGenerate ? 'All checks passed' : `${checks.filter(c => !c.ok).length} check(s) blocking generation`}</div>
               <div className="vs">{canGenerate ? `Ready to generate a first-pass-clean pack for ${vp.short}.` : 'Resolve every item in step 1 to continue.'}</div>
             </div>
             <button className="std-genbtn" onClick={onGenerate}

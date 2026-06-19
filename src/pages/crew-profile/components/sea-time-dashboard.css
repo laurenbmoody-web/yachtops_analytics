@@ -365,3 +365,8 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 /* pathway header — department + goal as two unified, spaced pills */
 .stp-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:11px;}
 .stp-controls .stp-dd{margin-top:0;}
+
+/* testimonial — normalise the small-print + issue heading fonts */
+.std .vs{font-size:11.5px;color:var(--muted);line-height:1.45;}
+.std-issue-h{font-size:14px;font-weight:700;color:var(--ink);margin-top:1px;}
+.std-doc span{font-family:inherit;}
