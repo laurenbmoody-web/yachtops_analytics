@@ -1042,3 +1042,22 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-rail-btn.fill { background: #C65A1A; color: #fff; border: 1px solid #C65A1A; }
 .crew-profile-page .cp-rail-btn.fill:hover { background: #B14E16; }
 .crew-profile-page .cp-rail-btn.ghost { background: #fff; color: #1C1B3A; border: 1px solid #ECEAE3; margin-top: 8px; }
+
+/* Editorial date picker sitting inside a field card: drop its own box so it
+   reads as a flush inline field (the card is the only box). The popover is
+   portaled/absolute and keeps its own styling. */
+.crew-profile-page .cp-field-card .edp { width: 100%; }
+.crew-profile-page .cp-field-card .edp-field { border: 0 !important; background: transparent !important; padding: 0 !important; box-shadow: none !important; }
+.crew-profile-page .cp-field-card .edp-input { font-size: 14px !important; font-weight: 500; color: #1C1B3A !important; padding: 0 !important; }
+.crew-profile-page .cp-field-card .edp-trigger { color: #8B8478; }
+
+/* Probation period quick-pick chips. */
+.crew-profile-page .cp-prob { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.crew-profile-page .cp-prob-chip {
+  border: 1px solid #ECEAE3; background: #fff; color: #6B7280; border-radius: 999px;
+  padding: 5px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.crew-profile-page .cp-prob-chip:hover { border-color: #C65A1A; color: #C65A1A; }
+.crew-profile-page .cp-prob-chip.active { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.crew-profile-page .cp-prob-date { min-width: 150px; }
+.crew-profile-page .cp-prob-sep { font-size: 11px; color: #AEB4C2; letter-spacing: .5px; text-transform: uppercase; font-weight: 700; }

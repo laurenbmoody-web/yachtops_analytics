@@ -18,6 +18,7 @@ import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData, logBa
 import { ibanWarning, swiftWarning } from './utils/bankingValidation';
 import { fetchCrewDocuments } from './utils/crewDocuments';
 import DateInput from '../../components/ui/DateInput';
+import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
 import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
@@ -3419,10 +3420,29 @@ const canEdit = (() => {
       <input className="cp-inline-box" value={empForm[key] || ''} placeholder={ph}
         onChange={(e) => setE(key, e.target.value)} />
     );
+    // Editorial calendar (popover) bound to an ISO field.
     const dte = (key) => (
-      <input className="cp-inline-box" type="date" value={(empForm[key] || '').slice(0, 10)}
-        onChange={(e) => setE(key, e.target.value)} />
+      <EditorialDatePicker
+        value={(empForm[key] || '').slice(0, 10)}
+        onChange={(iso) => setE(key, iso || null)}
+        placeholder="dd/mm/yyyy"
+      />
     );
+
+    // Probation: quick-pick periods auto-fill the end date from the start date.
+    const PROBATION_DAYS = [7, 30, 60, 90];
+    const addDaysIso = (iso, n) => {
+      if (!iso) return null;
+      const d = new Date(`${String(iso).slice(0, 10)}T00:00:00`);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+    const probDiff = (empForm.start_date && empForm.probation_end_date)
+      ? Math.round((new Date(`${empForm.probation_end_date.slice(0, 10)}T00:00:00`) - new Date(`${empForm.start_date.slice(0, 10)}T00:00:00`)) / 86400000)
+      : null;
+
+    // Common yacht payroll currencies.
+    const CURRENCIES = ['EUR', 'USD', 'GBP', 'AUD', 'NZD', 'CAD', 'CHF', 'ZAR'];
 
     const hasTemplate = false;   // contract-template feature is a future build
 
@@ -3464,7 +3484,32 @@ const canEdit = (() => {
                     </select>, { accent: true })}
                   {fld('Start date', fmtDate(empForm.start_date), dte('start_date'))}
                   {fld('End date', fmtDate(empForm.end_date), dte('end_date'))}
-                  {fld('Probation end', fmtDate(empForm.probation_end_date), dte('probation_end_date'))}
+                  <div className="cp-field-full">
+                    <Field label="Probation">
+                      {editing ? (
+                        <div className="cp-prob">
+                          {PROBATION_DAYS.map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              className={`cp-prob-chip${probDiff === n ? ' active' : ''}`}
+                              disabled={!empForm.start_date}
+                              title={!empForm.start_date ? 'Set a start date first' : `${n} days from start`}
+                              onClick={() => setE('probation_end_date', addDaysIso(empForm.start_date, n))}
+                            >{n} days</button>
+                          ))}
+                          <span className="cp-prob-sep">or</span>
+                          <span className="cp-prob-date">{dte('probation_end_date')}</span>
+                        </div>
+                      ) : (
+                        <div className={`cp-static${empForm.probation_end_date ? '' : ' cp-empty'}`}>
+                          {empForm.probation_end_date
+                            ? `${fmtDate(empForm.probation_end_date)}${PROBATION_DAYS.includes(probDiff) ? ` · ${probDiff} days` : ''}`
+                            : '—'}
+                        </div>
+                      )}
+                    </Field>
+                  </div>
                 </div>
               </div>
 
@@ -3486,8 +3531,11 @@ const canEdit = (() => {
                       <span style={{ display: 'flex', gap: 8 }}>
                         <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Amount"
                           value={compForm?.salary_amount ?? ''} onChange={(e) => setC('salary_amount', e.target.value)} />
-                        <input className="cp-inline-box" style={{ maxWidth: 72 }} placeholder="CUR" maxLength={3}
-                          value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value.toUpperCase())} />
+                        <select className="cp-inline-select" style={{ maxWidth: 84 }}
+                          value={compForm?.salary_currency ?? ''} onChange={(e) => setC('salary_currency', e.target.value)}>
+                          <option value="">CUR</option>
+                          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
                       </span>)}
                     {fld('Day rate', compForm?.day_rate != null && compForm?.day_rate !== '' ? `${compForm.day_rate}${cur ? ` ${cur}` : ''}` : '',
                       <input className="cp-inline-box" type="number" min="0" step="0.01" placeholder="Day rate"
