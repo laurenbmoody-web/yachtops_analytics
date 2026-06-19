@@ -4,8 +4,10 @@
    what's outstanding. Hours of Rest is the live pack and expands into the crew
    roster (the me-* rows below). */
 /* Page shell on the canonical editorial standard: cool #F8FAFC ground (matching
-   the crew-profile page), Plus Jakarta Sans body, 1280px measure. */
-.mp-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 76px 32px 60px; }
+   the crew-profile page), Plus Jakarta Sans body, 1280px measure. The Cargo
+   <Header/> already renders a 64px spacer for the fixed nav, so this only needs a
+   small top gap (matching crew-profile's p-6), not another full clearance. */
+.mp-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 24px 32px 60px; }
 .mp-wrap { max-width: 1280px; margin: 0 auto; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 
 /* Editorial back link — muted, chevron, sits above the header (mirrors crew-profile). */
@@ -16,16 +18,17 @@
 /* Canonical editorial header — eyebrow + serif sentence headline with a
    terracotta-italic emphasis + lead line, controls stacked on the right, a
    hairline rule beneath the whole header. Mirrors crew-profile HOR / sea-time. */
-.mp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 1px solid #E6E8EF; }
+.mp-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 1px solid #E6E8EF; }
 .mp-head-main { min-width: 0; }
 .mp-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #C65A1A; }
 .mp-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 32px; line-height: 1.04; color: #1C1B3A; margin-top: 11px; }
 .mp-title em { font-style: italic; color: #C65A1A; }
 .mp-lead { font-size: 14px; line-height: 1.5; color: #4B4A66; margin-top: 12px; max-width: 560px; }
 .mp-lead b { color: #1C1B3A; font-weight: 600; }
-/* Controls drop down to sit beside the headline (the month picker is the only
-   control now — Remind all lives inside the Hours of Rest pack, not here). */
-.mp-head-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; flex: 0 0 auto; margin-top: 30px; }
+/* Month picker is the only control now (Remind all lives inside the Hours of Rest
+   pack). The header bottom-aligns it (align-items:flex-end) so it sits on the
+   subline. */
+.mp-head-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; flex: 0 0 auto; }
 .mp-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 8px; font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .mp-monthnav button { border: 0; background: #F6F5F2; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #8B8478; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
 .mp-monthnav button:hover { color: #C65A1A; }
