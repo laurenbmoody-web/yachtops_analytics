@@ -3593,7 +3593,11 @@ export const approveAllQuotes = async (listId) => {
     const acceptable = items.filter(
       (oi) => oi.quote_status === 'quoted' || oi.quote_status === 'in_discussion',
     );
-    if (acceptable.length === 0) continue; // nothing to do on this order
+    // NB: don't early-continue when acceptable.length is 0. Earlier
+    // approve runs may have already accepted every line but failed
+    // to land the order / list status update (CHECK violation,
+    // network hiccup, whatever) — a retry click should still drive
+    // the rollup even when there's nothing fresh to accept.
 
     for (const oi of acceptable) {
       try {
@@ -3640,17 +3644,22 @@ export const approveAllQuotes = async (listId) => {
 
     // 4. One activity event per affected order so the supplier
     //    portal sees a clear "vessel approved your quotes" marker.
-    await supabase
-      .from('supplier_order_activity')
-      .insert({
-        order_id: order.id,
-        item_id: null,
-        event_type: 'vessel_approved_quote',
-        payload: {
-          line_count: acceptable.length,
-          fully_confirmed: allSettled,
-        },
-      });
+    //    Skip on no-op retries (acceptable.length === 0) so the
+    //    supplier doesn't get a fresh "approved!" ping every time
+    //    the chief re-clicks Confirm after a CHECK-blocked rollup.
+    if (acceptable.length > 0) {
+      await supabase
+        .from('supplier_order_activity')
+        .insert({
+          order_id: order.id,
+          item_id: null,
+          event_type: 'vessel_approved_quote',
+          payload: {
+            line_count: acceptable.length,
+            fully_confirmed: allSettled,
+          },
+        });
+    }
   }
 
   // 5. Roll up to the list. Only flip the list to 'confirmed' when
