@@ -9,7 +9,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, ROLES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
@@ -31,7 +31,7 @@ const ZERO_PRIOR = { seagoing: 0, watchkeeping: 0, total: 0 };
 
 const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const config = DEFAULT_CONFIG;
-  const [roleId, setRoleId] = useState('master');
+  const [deptId, setDeptId] = useState('deck');
   const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
   const [heldCerts, setHeldCerts] = useState({});          // certId -> { issueDate, number, fileUrl, fileName, docId }
   const [heldOpen, setHeldOpen] = useState(false);
@@ -57,28 +57,29 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
 
   const flash = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2600); };
 
-  // Pathway derivation. Department is taken from the crew member's rank (role);
-  // the GOAL (career ceiling) trims the ladder to its route; held certs (from
-  // the crew's CoC documents) mark where they are; the live target is the first
-  // un-held rung on the route. Empty goalId == logging-only.
-  const roleFamilies = ROLES[roleId]?.accruesToward || [];
+  // Pathway derivation. The crew member's DEPARTMENT sets which certificate
+  // families are in reach (a department shares one pathway regardless of exact
+  // rank); the GOAL (career ceiling) trims the ladder to its route; held certs
+  // (from the crew's CoC documents) mark where they are; the live target is the
+  // first un-held rung. Empty goalId == logging-only.
+  const deptFamilies = DEPT_FAMILIES[deptId] || [];
+  const deptGoalOptions = deptFamilies.flatMap(f => GOAL_OPTIONS[f] || []);
   const family = goalId && CERTIFICATES[goalId] ? CERTIFICATES[goalId].family : null;
   const route = useMemo(() => routeFor(goalId), [goalId]);
   const targetId = route.find(id => !heldCerts[id]) || goalId;
   const cert = targetId && CERTIFICATES[targetId] ? CERTIFICATES[targetId] : null;
   const rungs = route.map(id => ({ id, ...CERTIFICATES[id] }));
-  const goalOptions = (GOAL_OPTIONS[family] || []).map(id => ({ id, ...CERTIFICATES[id] }));
   const familyCerts = family ? Object.entries(CERTIFICATES).filter(([, c]) => c.family === family).map(([id, c]) => ({ id, ...c })) : [];
-  const crossDiscipline = !!family && !roleFamilies.includes(family);
-  const deptLabel = DEPARTMENTS[ROLES[roleId]?.department]?.label || '—';
+  const crossDiscipline = !!family && !deptFamilies.includes(family);
+  const deptLabel = DEPARTMENTS[deptId]?.label || '—';
   const familyWord = family === 'DECK' ? 'Deck' : family === 'ENGINE' ? 'Engine' : family === 'ETO' ? 'ETO' : '';
   const familyPathLabel = family === 'DECK' ? 'Bridge pathway' : family === 'ENGINE' ? 'Engine pathway' : family === 'ETO' ? 'ETO pathway' : '';
 
-  const goalForFamily = (fam) => (fam ? DEFAULT_GOAL[fam] : '') || '';
-  // Changing rank re-defaults the goal to that role's family ceiling (or
-  // logging-only when the role accrues toward nothing).
-  const changeRole = (id) => { setRoleId(id); setGoalId(goalForFamily((ROLES[id]?.accruesToward || [])[0])); };
-  const startPathway = () => setGoalId(goalForFamily(roleFamilies[0] || 'DECK') || 'MASTER_YACHT_3000');
+  const goalForDept = (id) => { const fams = DEPT_FAMILIES[id] || []; return fams.length ? (DEFAULT_GOAL[fams[0]] || '') : ''; };
+  // Changing department re-defaults the goal to that department's ceiling
+  // (or logging-only when the department accrues toward nothing).
+  const changeDept = (id) => { setDeptId(id); setGoalId(goalForDept(id)); };
+  const startPathway = () => setGoalId(goalForDept(deptId) || 'MASTER_YACHT_3000');
   const stopPathway = () => setGoalId('');
 
   // ── load live data ──
@@ -201,7 +202,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   // ── pathway: progression spine (Condensed A) or logging-only record ──
   const heldCount = Object.keys(heldCerts).filter(id => CERTIFICATES[id]).length;
   const selectGoals = (() => {
-    const ids = [...(GOAL_OPTIONS[family] || [])];
+    const ids = [...deptGoalOptions];
     if (goalId && !ids.includes(goalId)) ids.push(goalId);
     return ids.map(id => ({ id, ...CERTIFICATES[id] }));
   })();
@@ -212,10 +213,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
       <div className="stp-head">
         <div>
           <div className="stp-dept">
-            {crossDiscipline ? `${deptLabel} · working toward ${familyWord}` : `${deptLabel}${familyPathLabel ? ' · ' + familyPathLabel : ''}`}
+            {crossDiscipline ? `Working toward ${familyWord}` : cert ? familyPathLabel : 'Logged service'}
           </div>
-          <select className="stp-rank" value={roleId} onChange={e => changeRole(e.target.value)} aria-label="Rank">
-            {Object.entries(ROLES).map(([id, r]) => <option key={id} value={id}>{r.label}</option>)}
+          <select className="stp-rank" value={deptId} onChange={e => changeDept(e.target.value)} aria-label="Department">
+            {Object.values(DEPARTMENTS).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
           {cert && (
             <div className="stp-goal">
@@ -266,7 +267,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
                   </div>
                   {crossDiscipline && (
                     <div className="stp-accrual">
-                      <b>{buckets.total} of {totalLoggedDays} logged days</b> count toward this certificate. Days served in a {family === 'ENGINE' ? 'engine-room' : 'deck'} capacity accrue; other service is logged for your CV, visa and tax but doesn’t count toward this CoC.
+                      <b>{buckets.total} of {totalLoggedDays} logged days</b> count toward this certificate. Days served in a {family === 'ENGINE' ? 'engine-room' : family === 'ETO' ? 'electro-technical' : 'deck'} capacity accrue; other service is logged for your CV, visa and tax but doesn’t count toward this CoC.
                     </div>
                   )}
                   {requirements.length > 0 ? (

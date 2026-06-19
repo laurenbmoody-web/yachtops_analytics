@@ -213,6 +213,16 @@ export const GOAL_OPTIONS = {
 
 export const DEFAULT_GOAL = { DECK: 'MASTER_YACHT_3000', ENGINE: 'Y1', ETO: 'ETO_COC' };
 
+/** Certificate families a department can work toward (drives the pathway).
+ *  Engineering carries both the Y-grade engine ladder and the ETO route. */
+export const DEPT_FAMILIES = {
+  deck: ['DECK'],
+  engineering: ['ENGINE', 'ETO'],
+  interior: [],
+  galley: [],
+  other: []
+};
+
 export const routeFor = (goalId) => CERTIFICATE_ROUTES[goalId] || (goalId ? [goalId] : []);
 
 /** Maps a personal_documents CoC `grade` (documentTypes.js) to a ladder cert id. */
