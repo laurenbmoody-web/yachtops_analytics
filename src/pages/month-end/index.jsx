@@ -195,8 +195,14 @@ export default function MonthEnd() {
           <div className="me-sub">{r.roleTitle}</div>
         </div>
         <div className="me-log" title="Days logged this month">
-          <div className="me-logbar"><span style={{ width: `${pct}%`, background: barColor }} /></div>
-          <span className="me-logfrac">{r.logged}/{r.denom || 0}</span>
+          {r.logged > 0 ? (
+            <>
+              <div className="me-logbar"><span style={{ width: `${pct}%`, background: barColor }} /></div>
+              <span className="me-logfrac">{r.logged}/{r.denom || 0}</span>
+            </>
+          ) : (!signed && r.unlogged > 0 ? (
+            <span className="me-log-note">{r.unlogged} day{r.unlogged > 1 ? 's' : ''} unlogged</span>
+          ) : null)}
         </div>
         <div className="me-action">
           {r.status === 'open' && (
