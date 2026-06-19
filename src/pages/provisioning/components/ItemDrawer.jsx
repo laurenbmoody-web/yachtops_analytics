@@ -161,12 +161,18 @@ const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, bo
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', departments = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
+const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', departments = [], theme = 'dark', readOnly = false, onSaved, onDeleted, onClose }) => {
   const isLight = theme === 'light';
   const navigate = useNavigate();
   const { user, tenantRole } = useAuth();
   const userTier = (tenantRole || '').toUpperCase();
   const canViewAccounting = ['COMMAND', 'CHIEF'].includes(userTier);
+  // Lock every input + the save / delete affordances when readOnly is
+  // true. Caller passes this from the kanban when the item already
+  // lives inside a supplier_order (the chief should never silently
+  // edit qty / unit / size / brand / cost on a sent line). To make
+  // changes, they open the board and use the inline editors on still-
+  // pending lines or the ↺ Reopen flow on committed ones.
 
   const [form, setForm] = useState({});
   const [allCategoryPaths, setAllCategoryPaths] = useState([]);
@@ -542,7 +548,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               <div className="flex items-center gap-1 flex-shrink-0">
                 {savedFlash && <span className="text-xs font-normal text-green-400 animate-pulse">Saved</span>}
                 {!isNew && (
-                  <button onClick={handleDelete} disabled={deleting} className="p-1 rounded text-[#94A3B8] hover:text-red-500 transition-colors disabled:opacity-40">
+                  <button onClick={handleDelete} disabled={deleting || readOnly} title={readOnly ? 'Locked — item is on a supplier order. Open the board to reopen the line.' : undefined} className="p-1 rounded text-[#94A3B8] hover:text-red-500 transition-colors disabled:opacity-40">
                     <Icon name="Trash2" className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -553,8 +559,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         footer={
           isLight ? (
             <div className="idr-footer">
-              <button onClick={onClose} className="idr-btn idr-btn-ghost">Cancel</button>
-              {!isReceived && (
+              <button onClick={onClose} className="idr-btn idr-btn-ghost">{readOnly ? 'Close' : 'Cancel'}</button>
+              {!isReceived && !readOnly && (
                 <button
                   onClick={handleSave}
                   disabled={!form.name?.trim()}
@@ -593,6 +599,38 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         }
       >
         <div className={isLight ? 'idr-body' : ''} style={isLight ? null : { paddingBottom: 8 }}>
+
+          {/* ════ READ-ONLY BANNER ════ */}
+          {readOnly && isLight && (
+            <div style={{
+              margin: '0 0 16px',
+              padding: '12px 14px',
+              background: '#FAFAF8',
+              border: '1px solid #ECEAE3',
+              borderLeft: '3px solid #C65A1A',
+              borderRadius: 8,
+              fontSize: 13,
+              color: '#1C1B3A',
+              lineHeight: 1.5,
+            }}>
+              <strong style={{
+                fontFamily: "'DM Serif Display', 'DM Serif Text', Georgia, serif",
+                fontWeight: 400,
+                fontStyle: 'italic',
+                color: '#C65A1A',
+                fontSize: 14.5,
+                marginRight: 4,
+              }}>Locked.</strong>
+              This item is on a supplier order. To revise it, open the board and use the ↺ Reopen action on the line.
+            </div>
+          )}
+
+          {/* When readOnly, wrap the form content in a disabled
+              fieldset — every input, select, textarea, and form-
+              control button inside goes inert. The Close button in
+              the footer sits outside this scope so the chief can
+              still close. */}
+          <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
 
           {/* ════ RECEIVED BANNER ════ */}
           {isReceived && isLight && (
@@ -1336,6 +1374,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             )
           )}
 
+          </fieldset>
         </div>
       </Drawer>
     </>
