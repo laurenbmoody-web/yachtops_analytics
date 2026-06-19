@@ -56,14 +56,6 @@ export const BOARD_STATUS_CONFIG = {
     color: '#C65A1A',
     badgeClassName: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400',
   },
-  // Chief / approver has accepted every quote — locked, supplier is
-  // packing. Replaces the previous quote_received display once all
-  // lines have agreed prices.
-  quote_approved: {
-    label: 'Quote approved',
-    color: '#2E7D5A',
-    badgeClassName: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
-  },
   // Mix of confirmed + still-pending lines (e.g. the supplier has
   // confirmed 12 of 17). Used by the partial-confirm flow.
   partially_confirmed: {

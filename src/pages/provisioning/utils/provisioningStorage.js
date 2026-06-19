@@ -3471,6 +3471,95 @@ export const acceptOrderItemQuote = async (itemId) => {
   return data;
 };
 
+// Does the current caller have an approver configured for this list?
+// Calls the resolve_provisioning_approver RPC the submit-for-approval
+// flow already relies on. Used by the board UI to decide between
+// showing "Submit for approval" vs the no-approver-required "Confirm
+// quote" button. Returns true iff the RPC returns a non-null user id.
+export const hasProvisioningApprover = async (listId) => {
+  try {
+    const { data, error } = await supabase.rpc('resolve_provisioning_approver', { p_list_id: listId });
+    if (error) {
+      console.error('[provisioningStorage] resolve_provisioning_approver:', error);
+      return false;
+    }
+    return !!data;
+  } catch (err) {
+    console.error('[provisioningStorage] hasProvisioningApprover failed:', err);
+    return false;
+  }
+};
+
+// Accept every outstanding quote on a list and flip the list +
+// every linked supplier_order to 'confirmed'. Auto-fires the
+// supplier-side state change so the supplier sees their order flip
+// to confirmed without the chief needing a separate "send approval"
+// step. Used by:
+//   1. The decide-quote-approval flow when an approver hits Approve.
+//   2. The no-approver Confirm-quote button when no approval chain
+//      is configured.
+//
+// Per-line acceptance routes through accept_order_item_quote() which
+// also writes the supplier-side quote_accepted activity event via
+// the existing AFTER UPDATE trigger. The supplier_orders / list
+// status updates happen client-side after all lines accept.
+export const approveAllQuotes = async (listId) => {
+  // 1. Pull every line on every supplier_order linked to this list
+  //    that still has an outstanding quote.
+  const { data: orders, error: ordersErr } = await supabase
+    .from('supplier_orders')
+    .select('id, supplier_order_items(id, quote_status)')
+    .eq('list_id', listId);
+  if (ordersErr) throw ordersErr;
+
+  const allOrders = orders || [];
+  const acceptableItemIds = [];
+  for (const o of allOrders) {
+    for (const oi of (o.supplier_order_items || [])) {
+      if (oi.quote_status === 'quoted' || oi.quote_status === 'in_discussion') {
+        acceptableItemIds.push(oi.id);
+      }
+    }
+  }
+
+  // 2. Accept each line serially (parallel would race the
+  //    auto-accept trigger). Errors on individual lines surface but
+  //    don't abort the rest — we want partial progress over none.
+  for (const itemId of acceptableItemIds) {
+    try {
+      await supabase.rpc('accept_order_item_quote', { p_item_id: itemId });
+    } catch (err) {
+      console.error('[provisioningStorage] accept_order_item_quote failed', itemId, err);
+    }
+  }
+
+  // 3. Flip each supplier_orders row to confirmed + stamp a
+  //    vessel_approved_quote activity event so the supplier portal
+  //    can surface a clear marker (sibling to line_reopened).
+  for (const o of allOrders) {
+    await supabase
+      .from('supplier_orders')
+      .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
+      .eq('id', o.id);
+    await supabase
+      .from('supplier_order_activity')
+      .insert({
+        order_id: o.id,
+        item_id: null,
+        event_type: 'vessel_approved_quote',
+        payload: { line_count: (o.supplier_order_items || []).length },
+      });
+  }
+
+  // 4. Flip the provisioning list itself.
+  await supabase
+    .from('provisioning_lists')
+    .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+    .eq('id', listId);
+
+  return { affectedItems: acceptableItemIds.length, affectedOrders: allOrders.length };
+};
+
 // Decline the supplier's quoted price. Server clears agreed_* and flips
 // quote_status to 'declined'. Supplier sees the line return to
 // re-quotable state.
