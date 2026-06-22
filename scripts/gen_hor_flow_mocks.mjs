@@ -77,14 +77,14 @@ const BREACHES=[
 
 /* ───────── 2 · CAPTAIN APPROVAL ───────── */
 {
-  // descriptor chips — figures for every MLC rule, incl. broken rest + 14h stretch
+  // descriptor chips — lead with the gap (short of / over) so direction is unambiguous
   const descChips=(b)=>{
     const out=[];
-    if(b.daily!=null)  out.push(`Daily rest ${b.daily}h of 10h min`);
-    if(b.weekly!=null) out.push(`7-day rest ${b.weekly}h of 77h min`);
-    if(b.periods!=null)out.push(`Broken rest — ${b.periods} blocks (2 max)`);
-    if(b.longest!=null)out.push(`Longest rest ${b.longest}h of 6h min`);
-    if(b.stretch!=null)out.push(`On duty ${b.stretch}h — 14h max`);
+    if(b.daily!=null)  out.push(`Daily rest ${b.daily}h — ${10-b.daily}h short of 10h min`);
+    if(b.weekly!=null) out.push(`7-day rest ${b.weekly}h — ${77-b.weekly}h short of 77h min`);
+    if(b.periods!=null)out.push(`Broken rest — ${b.periods} blocks, ${b.periods-2} over the 2 max`);
+    if(b.longest!=null)out.push(`Longest rest ${b.longest}h — ${6-b.longest}h short of 6h min`);
+    if(b.stretch!=null)out.push(`On duty ${b.stretch}h — ${b.stretch-14}h over 14h max`);
     return out;
   };
   // four breach days, one per rule type (+ a multi-rule day), reasons present
