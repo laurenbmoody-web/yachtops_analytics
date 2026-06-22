@@ -72,12 +72,14 @@ Reproduce the FULL text of the contract, but replace every PERSONAL / PARTICULAR
 ${TOKENS}
 
 Return ONLY a JSON object (no markdown, no backticks):
-{"template_text":"<the full contract text with {{tokens}} in place of the particulars>"}
+{"template_text":"<the contract body with {{tokens}}>","header_text":"<running page header, once>","footer_text":"<running page footer, once>"}
 
 Rules:
-- Keep ALL other wording, clause headings, and structure intact — only the individual's particulars become tokens.
-- IGNORE running page furniture. A scanned/exported PDF repeats a page header and footer on every page — e.g. the document title line, "Page No. X of N", "Joining Document N of M", a footer address line, and "Initials of Signees". These are NOT contract text: omit them entirely and output the body as one continuous flow. Do not repeat them between sections, and do not emit the per-page title/footer over and over.
-- Preserve paragraph breaks as newline characters within the JSON string.
+- template_text: the contract body. Keep ALL wording, clause headings, and structure intact — only the individual's particulars become tokens. Preserve paragraph breaks as newline characters.
+- header_text / footer_text: a scanned/exported PDF repeats the same header at the top and footer at the bottom of EVERY page (e.g. the document title line, "Page No. X of N", "Joining Document N of M", a footer address line, "Initials of Signees"). Extract that repeating furniture ONCE into header_text and footer_text, and DO NOT include it in template_text (don't repeat it between sections).
+  - Put the line(s) repeated at the TOP of each page into header_text, the line(s) at the BOTTOM into footer_text. Omit auto page numbers ("Page No. X of N", "Joining Document N of M") — Word renumbers those.
+  - Tokenise particulars inside the header/footer too (the footer address becomes {{company_address}}).
+  - If there is no running header or footer, return an empty string for it.
 - Use {{token}} exactly (double curly braces, the token name from the list).
 - Do NOT invent clauses or tokens. Return the JSON object only.
 
@@ -155,7 +157,11 @@ Deno.serve(async (req: Request) => {
     const parsed = extractJson(raw);
 
     const out = mode === 'rebuild'
-      ? { template_text: String(parsed?.template_text || '') }
+      ? {
+          template_text: String(parsed?.template_text || ''),
+          header_text: String(parsed?.header_text || ''),
+          footer_text: String(parsed?.footer_text || ''),
+        }
       : { mappings: Array.isArray(parsed?.mappings) ? parsed.mappings : [] };
 
     return new Response(JSON.stringify(out), {

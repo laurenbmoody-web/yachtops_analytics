@@ -299,11 +299,24 @@ function applyMappingsToZip(zip, mappings) {
   return notFound;
 }
 
+// Short text → muted, optionally centred paragraphs for a header/footer part.
+function furnitureParas(text) {
+  const lines = String(text || '').split('\n');
+  const out = lines.map((line) => {
+    if (line.trim() === '') return '<w:p/>';
+    return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr>`
+      + `<w:r><w:rPr><w:sz w:val="16"/><w:color w:val="808080"/></w:rPr>`
+      + `<w:t xml:space="preserve">${xmlEscape(line)}</w:t></w:r></w:p>`;
+  }).join('');
+  return out || '<w:p/>';
+}
+
 // Wrap plain text (with {{tokens}} and newlines) into a minimal, valid .docx.
 // The first non-empty line becomes a centred title; lines that look like a
 // top-level clause heading ("1 Job Title", "5 Salary…") are bolded so the
-// rebuilt contract reads like a contract, not a wall of text.
-function textToDocxBlob(text) {
+// rebuilt contract reads like a contract, not a wall of text. Optional
+// headerText / footerText become a real running page header / footer.
+function textToDocxBlob(text, { headerText = '', footerText = '' } = {}) {
   const lines = String(text).split('\n');
   const titleIdx = lines.findIndex((l) => l.trim() !== '');
   const paras = lines.map((line, idx) => {
@@ -321,22 +334,61 @@ function textToDocxBlob(text) {
     }
     return `<w:p><w:r><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
   }).join('');
+
+  const hasHeader = String(headerText || '').trim() !== '';
+  const hasFooter = String(footerText || '').trim() !== '';
+  const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+  // sectPr references the header/footer parts that exist.
+  const sectPr = `<w:sectPr>`
+    + (hasHeader ? '<w:headerReference w:type="default" r:id="rIdHdr"/>' : '')
+    + (hasFooter ? '<w:footerReference w:type="default" r:id="rIdFtr"/>' : '')
+    + `</w:sectPr>`;
+
   const zip = new PizZip();
+  const typeOverrides = [
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>',
+    hasHeader ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : '',
+    hasFooter ? '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>' : '',
+  ].join('');
   zip.file('[Content_Types].xml',
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+${typeOverrides}
 </Types>`);
   zip.folder('_rels').file('.rels',
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>`);
-  zip.folder('word').file('document.xml',
+
+  const word = zip.folder('word');
+  word.file('document.xml',
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paras}<w:sectPr/></w:body></w:document>`);
+<w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}"><w:body>${paras}${sectPr}</w:body></w:document>`);
+
+  if (hasHeader || hasFooter) {
+    const docRels = [
+      hasHeader ? '<Relationship Id="rIdHdr" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>' : '',
+      hasFooter ? '<Relationship Id="rIdFtr" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>' : '',
+    ].join('');
+    word.folder('_rels').file('document.xml.rels',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${docRels}</Relationships>`);
+    if (hasHeader) {
+      word.file('header1.xml',
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="${W_NS}">${furnitureParas(headerText)}</w:hdr>`);
+    }
+    if (hasFooter) {
+      word.file('footer1.xml',
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="${W_NS}">${furnitureParas(footerText)}</w:ftr>`);
+    }
+  }
   return zip.generate({ type: 'blob', mimeType: DOCX_MIME });
 }
 
@@ -368,7 +420,12 @@ export async function analyzePdfForTemplate(file) {
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
-  return { kind: 'rebuild', templateText: data?.template_text || '' };
+  return {
+    kind: 'rebuild',
+    templateText: data?.template_text || '',
+    headerText: data?.header_text || '',
+    footerText: data?.footer_text || '',
+  };
 }
 
 // Build the final .docx template File from a reviewed draft.
@@ -379,7 +436,7 @@ export function buildTemplateDocxFile(draft, fileName) {
     notFound = applyMappingsToZip(zip, draft.mappings);
     blob = zip.generate({ type: 'blob', mimeType: DOCX_MIME });
   } else {
-    blob = textToDocxBlob(draft.templateText);
+    blob = textToDocxBlob(draft.templateText, { headerText: draft.headerText, footerText: draft.footerText });
   }
   const name = fileName.endsWith('.docx') ? fileName : `${fileName}.docx`;
   return { file: new File([blob], name, { type: DOCX_MIME }), notFound };
