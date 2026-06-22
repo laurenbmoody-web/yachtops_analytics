@@ -1253,6 +1253,7 @@ const canEdit = (() => {
       leave_entitlement_days: empForm.leave_entitlement_days === '' || empForm.leave_entitlement_days == null
         ? null : Number(empForm.leave_entitlement_days),
       notice_period: empForm.notice_period || null,
+      port_of_embarkation: empForm.port_of_embarkation || null,
       sea_reference: empForm.sea_reference || null,
       // flag_state / governing_law are now inherited from the vessel (read-only).
       updated_at: new Date().toISOString(),
@@ -3720,6 +3721,7 @@ const canEdit = (() => {
                       placeholder="dd/mm/yyyy"
                     />)}
                   {fld('End date', fmtDate(empForm.end_date), dte('end_date'))}
+                  {fld('Port of embarkation', empForm.port_of_embarkation, txt('port_of_embarkation', 'e.g. Palma de Mallorca'))}
                 </div>
               </div>
 
