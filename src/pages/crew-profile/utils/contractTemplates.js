@@ -371,36 +371,84 @@ function furnitureParas(text) {
 // rebuilt contract reads like a contract, not a wall of text. Optional
 // headerText / footerText become a real running page header / footer, and an
 // optional logo (from fetchLogo) is embedded at the top of the header.
-function textToDocxBlob(text, { headerText = '', footerText = '', logo = null } = {}) {
+function textToDocxBlob(text, { headerText = '', footerText = '', logo = null, coverText = '' } = {}) {
   const lines = String(text).split('\n');
-  const titleIdx = lines.findIndex((l) => l.trim() !== '');
-  // If the running header already shows the document title, drop it from the
-  // body so it doesn't appear twice on page one.
-  const headerLc = String(headerText || '').toLowerCase();
-  const titleInHeader = titleIdx >= 0 && headerLc.includes(lines[titleIdx].trim().toLowerCase());
-  const paras = lines.map((line, idx) => {
+  const isClauseHeading = (t) => /^\d+\s+[A-Z]/.test(t) && t.length < 70;
+
+  // A structured clause paragraph: bold top-level headings, indented/spaced
+  // sub-clauses ("2.1 …" one level, lettered "a) …" deeper).
+  const bodyPara = (line) => {
     const t = line.trim();
     if (t === '') return '<w:p/>';
     const esc = xmlEscape(line);
-    if (idx === titleIdx) {
-      if (titleInHeader) return '';   // de-duplicated — lives in the header
-      return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr>`
-        + `<w:r><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
-    }
-    const isHeading = /^\d+\s+[A-Z]/.test(t) && t.length < 70;
-    if (isHeading) {
+    if (isClauseHeading(t)) {
       return `<w:p><w:pPr><w:spacing w:before="240" w:after="80"/></w:pPr>`
         + `<w:r><w:rPr><w:b/><w:sz w:val="26"/></w:rPr><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
     }
-    // Indent sub-clauses so the structure reads at a glance: "2.1 …" one level,
-    // lettered "a) …" / "a. …" a level deeper. Every body paragraph is spaced.
     let indent = 0;
     if (/^\d+\.\d/.test(t)) indent = 360;
     else if (/^\(?[a-z][).]/.test(t)) indent = 720;
     const ind = indent ? `<w:ind w:left="${indent}" w:hanging="360"/>` : '';
     return `<w:p><w:pPr>${ind}<w:spacing w:after="120" w:line="264" w:lineRule="auto"/></w:pPr>`
       + `<w:r><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
-  }).join('');
+  };
+
+  // A centred cover-page line: the title large, short label-less lines (section
+  // headers / the company name) emphasised, detail lines centred.
+  const coverPara = (line, isTitle) => {
+    const t = line.trim();
+    if (t === '') return '<w:p/>';
+    const esc = xmlEscape(line);
+    if (isTitle) {
+      return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="480" w:after="360"/></w:pPr>`
+        + `<w:r><w:rPr><w:b/><w:sz w:val="40"/></w:rPr><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
+    }
+    const emphasise = !t.includes(':') && t.length < 60;
+    const rPr = emphasise ? '<w:rPr><w:b/><w:sz w:val="26"/></w:rPr>' : '<w:rPr><w:sz w:val="24"/></w:rPr>';
+    return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="120"/></w:pPr>`
+      + `<w:r>${rPr}<w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
+  };
+
+  // Replicate the source's title/cover page when it has one. The AI decides this
+  // per upload and returns the cover separately (coverText); when present we
+  // centre it on its own page, then a page break, then the structured clauses.
+  // Fallback heuristic (no coverText): treat a ≥3-line lead-in before the first
+  // numbered clause as a cover, so older drafts still work.
+  let coverLines = [];
+  let bodyLines = lines;
+  if (String(coverText || '').trim()) {
+    coverLines = String(coverText).split('\n');
+  } else {
+    const firstClauseIdx = lines.findIndex((l) => isClauseHeading(l.trim()));
+    if (firstClauseIdx > 1 && lines.slice(0, firstClauseIdx).filter((l) => l.trim()).length >= 3) {
+      coverLines = lines.slice(0, firstClauseIdx);
+      bodyLines = lines.slice(firstClauseIdx);
+    }
+  }
+  const hasCover = coverLines.some((l) => l.trim() !== '');
+
+  let paras;
+  if (hasCover) {
+    const titleIdx = coverLines.findIndex((l) => l.trim() !== '');
+    const cover = coverLines.map((l, i) => coverPara(l, i === titleIdx)).join('');
+    const pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+    const body = bodyLines.map(bodyPara).join('');
+    paras = cover + pageBreak + body;
+  } else {
+    // No cover block — keep the simple flow, and drop the title if the running
+    // header already shows it (avoids it appearing twice on page one).
+    const titleIdx = lines.findIndex((l) => l.trim() !== '');
+    const headerLc = String(headerText || '').toLowerCase();
+    const titleInHeader = titleIdx >= 0 && headerLc.includes(lines[titleIdx].trim().toLowerCase());
+    paras = lines.map((line, idx) => {
+      if (idx === titleIdx) {
+        if (titleInHeader) return '';
+        return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr>`
+          + `<w:r><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:t xml:space="preserve">${xmlEscape(line)}</w:t></w:r></w:p>`;
+      }
+      return bodyPara(line);
+    }).join('');
+  }
 
   const hasHeaderText = String(headerText || '').trim() !== '';
   const hasHeader = hasHeaderText || !!logo;
@@ -502,6 +550,7 @@ export async function analyzePdfForTemplate(file) {
   if (data?.error) throw new Error(data.error);
   return {
     kind: 'rebuild',
+    coverText: data?.cover_text || '',
     templateText: data?.template_text || '',
     headerText: data?.header_text || '',
     footerText: data?.footer_text || '',
@@ -519,7 +568,7 @@ export async function buildTemplateDocxFile(draft, fileName, { logoUrl } = {}) {
   } else {
     const logo = await fetchLogo(logoUrl);
     blob = textToDocxBlob(draft.templateText, {
-      headerText: draft.headerText, footerText: draft.footerText, logo,
+      headerText: draft.headerText, footerText: draft.footerText, coverText: draft.coverText, logo,
     });
   }
   const name = fileName.endsWith('.docx') ? fileName : `${fileName}.docx`;

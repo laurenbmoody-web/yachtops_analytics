@@ -271,6 +271,14 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
         </div>
       ) : (
         <>
+          {(draft.coverText || '').trim() !== '' && (
+            <>
+              <span className="ctm-label">Cover page <span className="ctm-faint">(centred, on its own page)</span></span>
+              <textarea className="ctm-textarea" value={draft.coverText || ''}
+                onChange={(e) => setDraft((d) => ({ ...d, coverText: e.target.value }))} rows={6} />
+              <span className="ctm-label">Body</span>
+            </>
+          )}
           <textarea className="ctm-textarea" value={draft.templateText}
             onChange={(e) => setDraft((d) => ({ ...d, templateText: e.target.value }))} rows={12} />
           <span className="ctm-label">Page header <span className="ctm-faint">(prints on every page)</span></span>
