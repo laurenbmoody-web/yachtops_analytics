@@ -477,32 +477,32 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
                   <button type="button" className="ctm-btn fill" disabled={busy || !file} onClick={handleUpload}>
                     {busy ? 'Working…' : 'Upload template'}
                   </button>
+
+                  {/* Token reference — only relevant when hand-building a template */}
+                  <button type="button" className="ctm-fields-toggle" onClick={() => setShowFields((s) => !s)}>
+                    <Icon name={showFields ? 'ChevronDown' : 'ChevronRight'} size={15} />
+                    Available fields ({CONTRACT_TOKEN_GROUPS.reduce((n, g) => n + g.tokens.length, 0)})
+                  </button>
+                  {showFields && (
+                    <div className="ctm-fields">
+                      <p className="ctm-faint" style={{ marginBottom: 10 }}>
+                        In a <b>.docx</b>, write <code>{'{{token}}'}</code>. In a <b>.pdf</b>, name the
+                        form field with the token (e.g. a field called <code>crew_name</code>).
+                      </p>
+                      {CONTRACT_TOKEN_GROUPS.map((g) => (
+                        <div key={g.group} className="ctm-fields-group">
+                          <span className="ctm-section-label">{g.group}</span>
+                          <div className="ctm-fields-list">
+                            {g.tokens.map(([k, label]) => (
+                              <span key={k} className="ctm-token" title={label}><code>{`{{${k}}}`}</code> {label}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Available fields reference */}
-          <button type="button" className="ctm-fields-toggle" onClick={() => setShowFields((s) => !s)}>
-            <Icon name={showFields ? 'ChevronDown' : 'ChevronRight'} size={15} />
-            Available fields ({CONTRACT_TOKEN_GROUPS.reduce((n, g) => n + g.tokens.length, 0)})
-          </button>
-          {showFields && (
-            <div className="ctm-fields">
-              <p className="ctm-faint" style={{ marginBottom: 10 }}>
-                In a <b>.docx</b>, write <code>{'{{token}}'}</code>. In a <b>.pdf</b>, name the
-                form field with the token (e.g. a field called <code>crew_name</code>).
-              </p>
-              {CONTRACT_TOKEN_GROUPS.map((g) => (
-                <div key={g.group} className="ctm-fields-group">
-                  <span className="ctm-section-label">{g.group}</span>
-                  <div className="ctm-fields-list">
-                    {g.tokens.map(([k, label]) => (
-                      <span key={k} className="ctm-token" title={label}><code>{`{{${k}}}`}</code> {label}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
             </div>
           )}
           </>)}
