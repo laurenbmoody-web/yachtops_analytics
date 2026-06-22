@@ -131,6 +131,12 @@
 .me-signed { color: #5C9B6A; display: inline-flex; }
 .me-btn-view svg { color: #5C9B6A; }
 
+/* End-of-month export bar — sits under the roster blocks. */
+.me-export { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 16px 2px 4px; margin-top: 6px; border-top: 1px solid #F0F1F5; }
+.me-export-note { font-size: 12px; color: #8B8478; }
+.me-export .me-btn-primary { display: inline-flex; align-items: center; gap: 6px; }
+.me-export .me-btn-primary:disabled { opacity: 0.6; cursor: default; }
+
 .me-btn { display: inline-flex; align-items: center; gap: 7px; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
 .me-btn-primary { background: #C65A1A; border: 1px solid #C65A1A; color: #fff; }
 .me-btn-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }

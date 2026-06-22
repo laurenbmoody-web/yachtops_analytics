@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import JSZip from 'jszip';
 import { getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, BREACH_TYPES, BREACH_DISPLAY_INFO } from './horStorage';
 import { getBreachNotesForMonth } from './horBreachNotesStorage';
 import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN, MLC_STANDARD_REF } from '../../crew-rota/restHours';
@@ -823,6 +824,61 @@ export const shareMultipleHORAuditPDFs = async (crewList, month, includeAuditTra
   }
   
   return results;
+};
+
+// ── End-of-month export: signed HOR pack as a single .zip ──────────────────
+// One audit PDF per crew member for the month, plus a CSV compliance summary,
+// bundled into one downloadable zip. Used by the month-end hub so a command
+// user can export the signed HOR and forward it to the management company.
+const csvCell = (v) => {
+  const s = v == null ? '' : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+const buildHorCsvSummary = (crewList, month) => {
+  const year = month?.getFullYear();
+  const mi = month?.getMonth();
+  const headers = ['Crew member', 'Department', 'Role', 'Days logged', 'Enforced breaches', 'Status'];
+  const lines = [headers.join(',')];
+  for (const crew of crewList) {
+    const entries = getCrewWorkEntries(crew?.id) || [];
+    const daysLogged = new Set(
+      entries
+        .filter((e) => {
+          const d = new Date(e?.date);
+          return d.getMonth() === mi && d.getFullYear() === year;
+        })
+        .map((e) => e?.date)
+    ).size;
+    const breaches = (detectBreaches(crew?.id) || []).filter((b) => {
+      const d = new Date(b?.dateStr);
+      return d.getMonth() === mi && d.getFullYear() === year && ENFORCED_BREACH_TYPES.includes(b?.breachType);
+    }).length;
+    lines.push([
+      csvCell(crew?.fullName),
+      csvCell(crew?.department),
+      csvCell(crew?.roleTitle || crew?.role),
+      daysLogged,
+      breaches,
+      'Signed off',
+    ].join(','));
+  }
+  return new Blob([lines.join('\n')], { type: 'text/csv' });
+};
+
+export const buildSignedHorZip = async (crewList, month, { includeAuditTrail = true, includeCSV = true } = {}) => {
+  const zip = new JSZip();
+  const slug = month?.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })?.replace(/\s+/g, '_');
+  for (const crew of crewList) {
+    const blob = await generateHORAuditPDF({ crew, month, includeAuditTrail });
+    const name = `HOR_${(crew?.fullName || 'crew').replace(/\s+/g, '_')}_${slug}.pdf`;
+    zip.file(name, blob);
+  }
+  if (includeCSV) {
+    zip.file(`HOR_Summary_${slug}.csv`, buildHorCsvSummary(crewList, month));
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  return { blob, fileName: `HOR_Signed_${slug}.zip` };
 };
 
 // Helper function imports

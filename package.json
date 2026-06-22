@@ -52,6 +52,7 @@
     "gsap": "^3.14.2",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^5.0.7",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.484.0",
     "papaparse": "^5.4.1",
     "pdf-lib": "^1.17.1",
