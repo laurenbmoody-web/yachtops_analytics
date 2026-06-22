@@ -86,20 +86,23 @@
 .help-hint-body p:last-child { margin-bottom: 0; }
 
 /* Buckets — label + italic example per line. Default rendering used
-   for the standard "what goes in this field?" pattern. */
+   for the standard "what goes in this field?" pattern. The grid
+   lives on the <ul> (not per <li>) so every row shares the same
+   auto-sized label column; examples line up regardless of label
+   width (Pending vs Substituted etc). Each <li> is display:
+   contents so its label + example become direct grid items. */
 .help-hint-buckets {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  row-gap: 6px;
+  column-gap: 8px;
 }
 .help-hint-buckets li {
-  display: grid;
-  grid-template-columns: minmax(0, auto) 1fr;
-  gap: 6px;
-  align-items: baseline;
+  display: contents;
 }
 .help-hint-bucket-label {
   font-size: 11.5px;
