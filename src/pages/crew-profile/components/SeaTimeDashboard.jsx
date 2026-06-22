@@ -31,12 +31,19 @@ const fmtDate = (iso) => { if (!iso) return '—'; const [y, m, d] = String(iso)
 const ZERO_PRIOR = { seagoing: 0, watchkeeping: 0, total: 0 };
 
 // A testimonial is per-vessel and per-master: each master can only attest the
-// service served on HIS vessel. The route a vessel takes is decided by Cargo
-// membership — the rule the user fixed: a vessel can be STAMPED only when it's
-// registered on Cargo AND both this seafarer and a master are members of it.
-const routeForVessel = (v) => (v?.cargoRegistered && v?.crewMember && v?.captainMember)
-  ? 'stamp'
-  : v?.cargoRegistered ? 'virtual' : 'external';
+// service served on HIS vessel. Attestation is anchored to the master OF RECORD
+// for the service period — never the vessel's current captain. The route is
+// decided by whether that master is still aboard the Cargo vessel:
+//   stamp   — master of record is still aboard (the ship can be stamped; the
+//             crew leaving never downgrades this).
+//   virtual — vessel on Cargo but the master has left it (signs virtually).
+//   external— vessel isn't on Cargo at all (upload a paper testimonial).
+const routeForVessel = (v) => !v?.cargoRegistered
+  ? 'external'
+  : v.captainMember ? 'stamp' : 'virtual';
+// Reachability of the master once they've left the vessel: in-app while still on
+// Cargo, else an emailed secure-link signature (then external as last resort).
+const virtualReach = (v) => (v?.captainOnCargo ? 'inapp' : 'email');
 
 const ROUTE_META = {
   stamp:    { label: 'Vessel stamp',         icon: 'BadgeCheck', color: '#3F7A52', bg: '#E7F0E9', tint: '#EFF6F1',
@@ -226,7 +233,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const recVessels = usedVessels.map(v => {
     const mode = routeForVessel(v);
     const att = vesselAttest[v.id] || { status: 'outstanding', mode };
-    return { ...v, mode, att };
+    const reach = mode === 'virtual' ? virtualReach(v) : null; // 'inapp' | 'email'
+    const cap = (v.captainName || 'Master').replace('Capt. ', '');
+    const masterNote = mode === 'external' ? 'Master · off Cargo'
+      : v.captainMember ? 'Current master'
+        : v.captainOnCargo ? 'Former master · still on Cargo' : 'Former master · off Cargo';
+    const how = mode === 'stamp'
+      ? 'The master of record is still aboard in Cargo, so the ship carries its verified stamp — valid even after you’ve signed off.'
+      : mode === 'virtual'
+        ? (reach === 'inapp'
+          ? `${v.captainName || 'The master'} has left this vessel but is still on Cargo — they review and sign virtually, in app.`
+          : `${v.captainName || 'The master'} has left Cargo — they sign by emailed secure link; if unreachable, upload their testimonial instead.`)
+        : 'This vessel isn’t on Cargo — upload the signed testimonial obtained from the master directly.';
+    return { ...v, mode, att, reach, cap, masterNote, how };
   });
   const attestedCount = recVessels.filter(v => v.att.status === 'attested').length;
   const allAttested = recVessels.length > 0 && attestedCount === recVessels.length;
@@ -253,26 +272,31 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const liveRowIdsFor = (vid) => entries.filter(e => !e.excluded && e.vesselId === vid).flatMap(e => e.rowIds || []);
   const setVA = (vid, patch) => setVesselAttest(m => ({ ...m, [vid]: { ...(m[vid] || {}), ...patch } }));
 
-  // Crew requests; the master of that vessel reviews and attests it.
-  const requestVessel = async (v) => {
+  // Crew requests; the master OF RECORD for that vessel reviews and attests it.
+  // `via`: 'app' (in-app notification) or 'email' (secure-link, master off Cargo).
+  const requestVessel = async (v, via = 'app') => {
     if (!canGenerate) { flash('Resolve all validation checks first'); return; }
     if (!usingSample && tenantId && userId) {
       try {
         await submitEntries(tenantId, liveRowIdsFor(v.id), { signedName: seafarer.fullName });
-        try {
-          const { data: masters } = await supabase.from('tenant_members').select('user_id').eq('tenant_id', tenantId).eq('active', true).ilike('role', 'captain');
-          for (const m of masters || []) {
-            if (m?.user_id && m.user_id !== userId) {
-              await sendDbNotification(m.user_id, { type: 'sea_time', title: 'Sea-service attestation requested', message: `${seafarer.fullName} has asked you to review and attest their service on ${v.name}.`, actionUrl: `/profile/${userId}?tab=seatime`, severity: 'info' });
+        if (via === 'app') {
+          try {
+            const { data: masters } = await supabase.from('tenant_members').select('user_id').eq('tenant_id', tenantId).eq('active', true).ilike('role', 'captain');
+            for (const m of masters || []) {
+              if (m?.user_id && m.user_id !== userId) {
+                await sendDbNotification(m.user_id, { type: 'sea_time', title: 'Sea-service attestation requested', message: `${seafarer.fullName} has asked you to review and attest their service on ${v.name}.`, actionUrl: `/profile/${userId}?tab=seatime`, severity: 'info' });
+              }
             }
-          }
-        } catch (ne) { console.warn('attestation notify failed', ne); }
+          } catch (ne) { console.warn('attestation notify failed', ne); }
+        }
         await loadLive();
       } catch (e) { console.error(e); flash('Could not send for attestation'); return; }
     } else {
       setVA(v.id, { status: 'requested', mode: v.mode });
     }
-    flash(v.mode === 'virtual' ? `Sent to ${v.captainName || 'the master'} to sign virtually` : `Sent to ${v.captainName || 'the master'} to review & attest`);
+    flash(via === 'email' ? `Secure signing link emailed to ${v.captainName || 'the master'}`
+      : v.mode === 'virtual' ? `Sent to ${v.captainName || 'the master'} to sign virtually`
+        : `Sent to ${v.captainName || 'the master'} to review & attest`);
   };
 
   // The master attests one vessel — a Cargo stamp when both are aboard, else a
@@ -699,7 +723,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <div className="std-ftitle">Each master attests their own vessel</div>
                 <div className="std-fnote" style={{ color: 'var(--muted)' }}>
                   <Icon name="Info" size={13} />
-                  A master can only attest service on a vessel he commands. A vessel on Cargo carries the ship’s <b>stamp</b>; otherwise the master <b>signs virtually</b>, or you upload an <b>external testimonial</b> for a vessel that isn’t on Cargo.
+                  Attested by the <b>master of record</b> for each period — not the vessel’s current captain. While that master is still aboard in Cargo the ship is <b>stamped</b> (valid even after you’ve signed off); once they’ve left they <b>sign virtually</b> — in app, or by emailed secure link if they’ve left Cargo — and a vessel that was never on Cargo takes an uploaded <b>external testimonial</b>.
                 </div>
                 {!canGenerate && (
                   <div className="std-fnote" style={{ color: '#A32D2D' }}>
@@ -718,27 +742,39 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                             <span className="vn">{v.name}</span>
                             <span className="std-vroute" style={{ color: rm.color, background: rm.tint }}><Icon name={rm.icon} size={11} /> {rm.label}</span>
                           </div>
-                          <div className="std-vmeta">{v.flag} · {v.gt}GT · {v.lengthM}m · {v.captainName || 'Master'}</div>
-                          <div className="std-vhow">{done && v.att.fileName ? `Uploaded · ${v.att.fileName}` : rm.how}</div>
+                          <div className="std-vmeta">{v.flag} · {v.gt}GT · {v.lengthM}m · <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{v.captainName || 'Master'}</b> · {v.masterNote}</div>
+                          <div className="std-vhow">{done && v.att.fileName ? `Uploaded · ${v.att.fileName}` : v.how}</div>
                         </div>
                         <div className="std-vact">
                           <span className="std-vchip" style={{ color: ck.color, background: ck.bg }}>
                             {done && v.mode === 'stamp' && <Icon name="BadgeCheck" size={12} />} {ck.label}
                           </span>
+                          {/* External vessel, or a virtual master who's left Cargo: upload the paper testimonial. */}
                           {!done && v.mode === 'external' && (
                             <button className="std-vbtn ghost" disabled={!canGenerate} onClick={() => openUpload(v)}><Icon name="Upload" size={13} /> Upload testimonial</button>
                           )}
+                          {/* Captain viewing their own vessel — stamp or sign. */}
                           {!done && v.mode !== 'external' && canAttest && (
                             <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => attestVessel(v)}>
                               <Icon name={v.mode === 'stamp' ? 'BadgeCheck' : 'PenLine'} size={13} /> {v.mode === 'stamp' ? 'Attest with stamp' : 'Sign virtually'}
                             </button>
                           )}
+                          {/* Crew — request. In-app for a reachable master, secure-link email when off Cargo (with external as last resort). */}
                           {!done && v.mode !== 'external' && !canAttest && v.att.status === 'outstanding' && (
-                            <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => requestVessel(v)}><Icon name="Send" size={13} /> Request attestation</button>
+                            v.reach === 'email' ? (
+                              <div className="std-flex std-ac" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => requestVessel(v, 'email')}><Icon name="Mail" size={13} /> Email for signature</button>
+                                <button className="std-vbtn ghost" disabled={!canGenerate} onClick={() => openUpload(v)}><Icon name="Upload" size={13} /> Upload external</button>
+                              </div>
+                            ) : (
+                              <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => requestVessel(v, 'app')}>
+                                <Icon name="Send" size={13} /> {v.mode === 'stamp' ? 'Request attestation' : 'Request signature'}
+                              </button>
+                            )
                           )}
                           {!done && v.mode !== 'external' && !canAttest && v.att.status === 'requested' && usingSample && (
                             <button className="std-vbtn navy" onClick={() => attestVessel(v)} title="Preview only — no live master account on the sample">
-                              <Icon name={v.mode === 'stamp' ? 'BadgeCheck' : 'PenLine'} size={13} /> Preview: {v.mode === 'stamp' ? 'stamp' : 'sign'} as {(v.captainName || 'master').replace('Capt. ', '')}
+                              <Icon name={v.mode === 'stamp' ? 'BadgeCheck' : 'PenLine'} size={13} /> Preview: {v.mode === 'stamp' ? 'stamp' : 'sign'} as {v.cap}
                             </button>
                           )}
                         </div>
