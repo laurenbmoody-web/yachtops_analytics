@@ -62,6 +62,8 @@ const VesselSettings = () => {
     port_of_registry: '',
     imo_number: '',
     official_number: '',
+    company_name: '',
+    company_address: '',
     loa_m: '',
     gt: '',
     year_built: '',
@@ -186,6 +188,8 @@ const VesselSettings = () => {
         port_of_registry: vesselData?.port_of_registry || '',
         imo_number: vesselData?.imo_number || '',
         official_number: vesselData?.official_number || '',
+        company_name: vesselData?.company_name || '',
+        company_address: vesselData?.company_address || '',
         loa_m: vesselData?.loa_m || '',
         gt: vesselData?.gt || '',
         year_built: vesselData?.year_built || '',
@@ -364,6 +368,8 @@ const VesselSettings = () => {
         port_of_registry: formState?.port_of_registry || null,
         imo_number: formState?.imo_number || null,
         official_number: formState?.official_number || null,
+        company_name: formState?.company_name || null,
+        company_address: formState?.company_address || null,
         loa_m: formState?.loa_m ? parseFloat(formState?.loa_m) : null,
         gt: formState?.gt ? parseInt(formState?.gt, 10) : null,
         year_built: formState?.year_built ? parseInt(formState?.year_built, 10) : null,
@@ -850,6 +856,37 @@ const VesselSettings = () => {
                       onChange={(e) => handleInputChange('year_refit', e?.target?.value)}
                       placeholder="e.g., 2020"
                       disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Employer details — fills crew-contract templates ({{company_name}} / {{company_address}}). */}
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h3 className="text-lg font-medium text-foreground mb-1">Employer Details</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  The owning / employing entity as it should appear on crew contracts. The captain’s name is filled
+                  automatically from whoever holds the Captain role.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Company / Owner Name</label>
+                    <Input
+                      value={formState?.company_name}
+                      onChange={(e) => handleInputChange('company_name', e?.target?.value)}
+                      placeholder="e.g., iOne Investment Ltd"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div className="md:row-span-2">
+                    <label className="block text-sm font-medium text-foreground mb-1">Company Address</label>
+                    <textarea
+                      value={formState?.company_address || ''}
+                      onChange={(e) => handleInputChange('company_address', e?.target?.value)}
+                      placeholder={'e.g.\n3076 Sir Francis Drake’s Highway\nP.O. Box 3463\nRoad Town, Tortola\nBVI'}
+                      disabled={viewMode || !canEdit}
+                      rows={5}
+                      className="flex w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed resize-y"
                     />
                   </div>
                 </div>

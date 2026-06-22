@@ -1208,8 +1208,15 @@ const canEdit = (() => {
         .eq('tenant_id', activeTenantId).eq('user_id', crewId).maybeSingle();
       // Vessel record — compliance (read-only) + the fields contract tokens need.
       const { data: vessel } = await supabase
-        .from('vessels').select('name, flag, port_of_registry, imo_number, official_number, commercial_status, certified_commercial')
+        .from('vessels').select('name, flag, port_of_registry, imo_number, official_number, commercial_status, certified_commercial, company_name, company_address')
         .eq('tenant_id', activeTenantId).maybeSingle();
+      // The captain is whoever holds the Captain role on this vessel — used to
+      // fill {{captain_name}} on generated contracts (mirrors SeaTimeDashboard).
+      const { data: cap } = await supabase
+        .from('tenant_members')
+        .select('user_id, profiles!tenant_members_user_id_fkey(full_name)')
+        .eq('tenant_id', activeTenantId).eq('active', true).ilike('role', 'captain')
+        .limit(1).maybeSingle();
       // Templates available + the crew member's most recent generated contract.
       let templates = [];
       try { templates = await fetchTemplates(activeTenantId); } catch { /* RLS / offline — leave empty */ }
@@ -1223,7 +1230,7 @@ const canEdit = (() => {
       // null when the viewer can't read compensation (RLS) AND there's no row;
       // COMMAND always gets an object so the block renders for them.
       setCompForm(canEditPermissions ? (comp || {}) : (comp || null));
-      setVesselCompliance(vessel || {});
+      setVesselCompliance({ ...(vessel || {}), captain_name: cap?.profiles?.full_name || '' });
       setTemplates(templates);
       setLastGenerated(lastDoc || null);
       setEmpLoaded(true);
