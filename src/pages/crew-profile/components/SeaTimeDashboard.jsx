@@ -232,16 +232,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     const att = vesselAttest[v.id] || { status: 'outstanding', mode };
     const reach = mode === 'virtual' ? virtualReach(v) : null; // 'inapp' | 'email'
     const cap = (v.captainName || 'Master').replace('Capt. ', '');
-    const masterNote = mode === 'external' ? 'Captain not on Cargo'
-      : v.captainMember ? 'Captain still aboard'
-        : v.captainOnCargo ? 'Captain has moved on · on Cargo' : 'Captain has moved on · off Cargo';
+    const masterNote = mode === 'external' ? 'Ship not on Cargo'
+      : v.captainMember ? 'Captain aboard · on Cargo'
+        : v.captainOnCargo ? 'Captain moved on · active on Cargo' : 'Captain moved on · left Cargo';
     const how = mode === 'stamp'
-      ? 'The captain is still aboard in Cargo, so these days are verified automatically — even after you leave, nothing to chase.'
+      ? `The captain is still aboard ${v.name} with an active Cargo account, so these days are verified automatically — even after you leave, nothing to chase.`
       : mode === 'virtual'
         ? (reach === 'inapp'
-          ? `${v.captainName || 'The captain'} has moved on but is still on Cargo — they review and sign your service digitally, in the app.`
-          : `${v.captainName || 'The captain'} has left Cargo — they sign by a secure email link; if you can’t reach them, upload their signed testimonial instead.`)
-        : 'This ship isn’t on Cargo — add the signed testimonial you got from the captain.';
+          ? `${v.captainName || 'The captain'} has left ${v.name} but still has an active Cargo account — they review and sign your service digitally, in the app.`
+          : `${v.captainName || 'The captain'} no longer has an active Cargo account — they sign by a secure email link; if you can’t reach them, upload their signed testimonial instead.`)
+        : `${v.name} isn’t on Cargo — add the signed testimonial you got from the captain.`;
     return { ...v, mode, att, reach, cap, masterNote, how };
   });
   const attestedCount = recVessels.filter(v => v.att.status === 'attested').length;
