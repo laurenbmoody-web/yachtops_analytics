@@ -40,6 +40,8 @@
 .ctm-pill { font-size: 10.5px; font-weight: 600; color: #6B5C4B; background: #F6F5F2; border-radius: 999px; padding: 2px 9px; }
 .ctm-tag { font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; border-radius: 999px; padding: 2px 7px; }
 .ctm-tag.suggest { background: #C65A1A; color: #fff; }
+.ctm-tag.warn { background: #FBEFE9; color: #C65A1A; }
+.ctm-pill.format { background: #1C1B3A; color: #fff; letter-spacing: .5px; }
 .ctm-row-actions { display: flex; gap: 4px; padding: 0 8px 6px 40px; }
 .ctm-icon { border: 0; background: none; color: #8B8478; padding: 4px; border-radius: 6px; cursor: pointer; line-height: 0; }
 .ctm-icon:hover { background: #F6F5F2; color: #1C1B3A; }

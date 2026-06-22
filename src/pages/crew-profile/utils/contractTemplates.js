@@ -1,10 +1,16 @@
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
+import { PDFDocument } from 'pdf-lib';
 import { supabase } from '../../../lib/supabaseClient';
 import { crewContractStandard } from '../../../data/flagStates';
 
 const BUCKET = 'vessel-documents';
-export const TEMPLATE_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+export const PDF_MIME = 'application/pdf';
+export const TEMPLATE_MIME = DOCX_MIME;   // back-compat alias
+
+export const isPdfTemplate = (t) =>
+  (t?.mime_type || '').includes('pdf') || /\.pdf$/i.test(t?.file_name || t?.name || '');
 
 // The placeholders a template can use — written as {{token}} in the .docx.
 // Grouped for the picker's "available fields" reference.
@@ -108,6 +114,17 @@ function detectTokensFromZip(zip) {
   return [...found];
 }
 
+// The fillable form-field names in a PDF become its "tokens". A flat PDF (a
+// scan or an exported doc with no AcroForm) returns [] — it can't be filled.
+async function detectFieldsFromPdf(buf) {
+  try {
+    const pdf = await PDFDocument.load(buf, { ignoreEncryption: true });
+    return pdf.getForm().getFields().map((f) => f.getName());
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchTemplates(tenantId) {
   if (!tenantId) return [];
   const { data, error } = await supabase
@@ -120,26 +137,34 @@ export async function fetchTemplates(tenantId) {
 }
 
 export async function uploadTemplate({ tenantId, file, name, roles, createdBy }) {
-  if (!file?.name?.toLowerCase().endsWith('.docx')) {
-    throw new Error('Templates must be a Word .docx file.');
+  const lower = (file?.name || '').toLowerCase();
+  const isPdf = lower.endsWith('.pdf');
+  const isDocx = lower.endsWith('.docx');
+  if (!isPdf && !isDocx) {
+    throw new Error('Templates must be a Word .docx or a fillable .pdf file.');
   }
   const buf = await file.arrayBuffer();
   let tokens = [];
-  try { tokens = detectTokensFromZip(new PizZip(buf)); } catch { /* not a valid zip — leave empty */ }
+  if (isPdf) {
+    tokens = await detectFieldsFromPdf(buf);
+  } else {
+    try { tokens = detectTokensFromZip(new PizZip(buf)); } catch { /* not a valid zip — leave empty */ }
+  }
+  const mime = isPdf ? PDF_MIME : DOCX_MIME;
 
   const path = `${tenantId}/templates/${Date.now()}-${file.name}`;
   const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
-    cacheControl: '3600', upsert: false, contentType: TEMPLATE_MIME,
+    cacheControl: '3600', upsert: false, contentType: mime,
   });
   if (upErr) throw upErr;
 
   const { data, error } = await supabase.from('contract_templates').insert({
     tenant_id: tenantId,
-    name: name?.trim() || file.name.replace(/\.docx$/i, ''),
+    name: name?.trim() || file.name.replace(/\.(docx|pdf)$/i, ''),
     roles: Array.isArray(roles) ? roles : [],
     storage_path: path,
     file_name: file.name,
-    mime_type: TEMPLATE_MIME,
+    mime_type: mime,
     size_bytes: file.size || null,
     tokens,
     created_by: createdBy || null,
@@ -168,11 +193,35 @@ export async function deleteTemplate(template) {
   if (error) throw error;
 }
 
-// Merge token data into the template .docx and return the filled-in Blob.
+// Fill the template's PDF form fields from the token data and flatten it into a
+// finished, non-editable PDF. Fields whose names don't match a token are left
+// as-is; a PDF with no form fields comes back essentially unchanged.
+async function fillPdf(buf, tokenData) {
+  const pdf = await PDFDocument.load(buf, { ignoreEncryption: true });
+  const form = pdf.getForm();
+  form.getFields().forEach((field) => {
+    const val = tokenData[field.getName()];
+    if (val == null || val === '') return;
+    try {
+      if (typeof field.setText === 'function') field.setText(String(val));        // text field
+      else if (typeof field.select === 'function') field.select(String(val));     // dropdown / radio
+      else if (typeof field.check === 'function' && /^(true|yes|x|1)$/i.test(String(val))) field.check();
+    } catch { /* incompatible value for this field type — skip it */ }
+  });
+  try { form.flatten(); } catch { /* leave fields live if flatten chokes */ }
+  const bytes = await pdf.save();
+  return new Blob([bytes], { type: PDF_MIME });
+}
+
+// Merge token data into the template and return the filled-in Blob, branching
+// on format: .docx tokens via docxtemplater, .pdf form fields via pdf-lib.
 export async function generateContractBlob(template, tokenData) {
   const { data, error } = await supabase.storage.from(BUCKET).download(template.storage_path);
   if (error) throw error;
   const buf = await data.arrayBuffer();
+
+  if (isPdfTemplate(template)) return fillPdf(buf, tokenData);
+
   const zip = new PizZip(buf);
   const doc = new Docxtemplater(zip, {
     paragraphLoop: true,
@@ -181,7 +230,7 @@ export async function generateContractBlob(template, tokenData) {
     nullGetter: () => '',   // unknown / empty tokens render as blank, never crash
   });
   doc.render(tokenData);
-  return doc.getZip().generate({ type: 'blob', mimeType: TEMPLATE_MIME });
+  return doc.getZip().generate({ type: 'blob', mimeType: DOCX_MIME });
 }
 
 // A template "fits" a crew member if it has no role restriction, or lists their role.
