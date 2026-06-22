@@ -7,7 +7,6 @@ import ProvisioningApprovalSettings from './ProvisioningApprovalSettings';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import { FLAG_STATES } from '../../data/flagStates';
-import { GOVERNING_LAWS, FLAG_TO_GOVERNING_LAW } from '../../data/governingLaws';
 import { Checkbox } from '../../components/ui/Checkbox';
 import Icon from '../../components/AppIcon';
 import { AlertCircle, Edit2, Upload } from 'lucide-react';
@@ -54,7 +53,6 @@ const VesselSettings = () => {
   const [viewMode, setViewMode] = useState(true);
   
   const [formInitialized, setFormInitialized] = useState(false);
-  const [glOther, setGlOther] = useState(false);   // "Other…" governing law mode
   
   // Form state - expanded fields (mapped to vessels table)
   const [formState, setFormState] = useState({
@@ -64,7 +62,6 @@ const VesselSettings = () => {
     port_of_registry: '',
     imo_number: '',
     official_number: '',
-    governing_law: '',
     loa_m: '',
     gt: '',
     year_built: '',
@@ -189,7 +186,6 @@ const VesselSettings = () => {
         port_of_registry: vesselData?.port_of_registry || '',
         imo_number: vesselData?.imo_number || '',
         official_number: vesselData?.official_number || '',
-        governing_law: vesselData?.governing_law || '',
         loa_m: vesselData?.loa_m || '',
         gt: vesselData?.gt || '',
         year_built: vesselData?.year_built || '',
@@ -328,16 +324,6 @@ const VesselSettings = () => {
     }));
   };
 
-  // Flag change suggests a governing law (only when none is set yet); editable.
-  const handleFlagChange = (value) => {
-    setFormState(prev => ({
-      ...prev,
-      flag: value,
-      governing_law: (prev.governing_law && String(prev.governing_law).trim())
-        ? prev.governing_law
-        : (FLAG_TO_GOVERNING_LAW[value] || prev.governing_law || ''),
-    }));
-  };
 
   const handleDepartmentToggle = (dept) => {
     setFormState(prev => {
@@ -378,7 +364,6 @@ const VesselSettings = () => {
         port_of_registry: formState?.port_of_registry || null,
         imo_number: formState?.imo_number || null,
         official_number: formState?.official_number || null,
-        governing_law: formState?.governing_law || null,
         loa_m: formState?.loa_m ? parseFloat(formState?.loa_m) : null,
         gt: formState?.gt ? parseInt(formState?.gt, 10) : null,
         year_built: formState?.year_built ? parseInt(formState?.year_built, 10) : null,
@@ -793,8 +778,8 @@ const VesselSettings = () => {
                     <label className="block text-sm font-medium text-foreground mb-1">Flag *</label>
                     <Select
                       value={formState?.flag}
-                      onChange={handleFlagChange}
-                      options={FLAG_STATES.map((f) => ({ label: f, value: f }))}
+                      onChange={(value) => handleInputChange('flag', value)}
+                      options={FLAG_STATES.map((f) => ({ label: f.name, value: f.name }))}
                       searchable
                       placeholder="Select flag state"
                       disabled={viewMode || !canEdit}
@@ -826,36 +811,6 @@ const VesselSettings = () => {
                       placeholder="e.g., 123456"
                       disabled={viewMode || !canEdit}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Governing Law</label>
-                    {(() => {
-                      const isOther = glOther || (!!formState?.governing_law && !GOVERNING_LAWS.includes(formState.governing_law));
-                      return (
-                        <>
-                          <Select
-                            value={isOther ? '__other__' : (formState?.governing_law || '')}
-                            onChange={(value) => {
-                              if (value === '__other__') { setGlOther(true); }
-                              else { setGlOther(false); handleInputChange('governing_law', value); }
-                            }}
-                            options={[...GOVERNING_LAWS.map((g) => ({ label: g, value: g })), { label: 'Other…', value: '__other__' }]}
-                            searchable
-                            placeholder="Select governing law"
-                            disabled={viewMode || !canEdit}
-                          />
-                          {isOther && (
-                            <Input
-                              className="mt-2"
-                              value={formState?.governing_law || ''}
-                              onChange={(e) => handleInputChange('governing_law', e?.target?.value)}
-                              placeholder="Enter governing law"
-                              disabled={viewMode || !canEdit}
-                            />
-                          )}
-                        </>
-                      );
-                    })()}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">LOA (meters) *</label>
