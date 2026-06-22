@@ -6,6 +6,7 @@ import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
+import { UNIT_GROUPS, UNIT_GROUP_VALUES } from '../../../data/unitGroups';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
@@ -917,6 +918,70 @@ const EditableCell = ({
   );
 };
 
+// ─── Unit select cell ──────────────────────────────────────────────────────
+//
+// Mirrors EditableCell's read-only display + strike-through-on-change
+// semantics, but renders the value through a grouped <select> using
+// the shared UNIT_GROUPS taxonomy (same list the captain sees on the
+// provisioning board). Keeps Unit ↔ Size paired with the same
+// vocabulary on both ends of the order.
+//
+// Legacy values that pre-date UNIT_GROUPS (e.g. "litre", "tin") are
+// surfaced as a sticky option at the top of the list so the cell
+// still reflects the saved value; once the supplier picks something
+// from the dropdown, the row settles into the canonical vocabulary.
+const UnitSelectCell = ({ value, requested, canEdit, onCommit }) => {
+  const [saving, setSaving] = useState(false);
+
+  const requestedKey = requested == null ? '' : String(requested);
+  const valueKey = value == null ? '' : String(value);
+  const changed = canEdit && requestedKey !== '' && requestedKey !== valueKey;
+  const legacy = value && !UNIT_GROUP_VALUES.has(value);
+
+  if (!canEdit) {
+    return (
+      <button
+        type="button"
+        className={`sod-wq-edit-display sod-wq-edit-display-left sod-wq-readonly${changed ? ' sod-wq-changed' : ''}`}
+        disabled
+      >
+        {changed && <span className="sod-wq-strike">{requestedKey}</span>}
+        <span className="sod-wq-val">{value == null || value === '' ? '—' : valueKey}</span>
+      </button>
+    );
+  }
+
+  const handleChange = async (e) => {
+    const next = e.target.value || null;
+    if ((next ?? '') === (value ?? '')) return;
+    setSaving(true);
+    try { await onCommit(next); }
+    catch (err) { window.alert(`Save failed: ${err.message}`); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <span className={`sod-wq-unit-select${changed ? ' sod-wq-changed' : ''}`}>
+      {changed && <span className="sod-wq-strike">{requestedKey}</span>}
+      <select
+        className="sod-wq-unit-select-control"
+        value={value ?? ''}
+        onChange={handleChange}
+        disabled={saving}
+        title={changed ? `Vessel asked for ${requestedKey}` : 'Choose a unit'}
+      >
+        <option value="">—</option>
+        {legacy && <option value={value}>{value}</option>}
+        {UNIT_GROUPS.map((g) => (
+          <optgroup key={g.label} label={g.label}>
+            {g.options.map((u) => <option key={u} value={u}>{u}</option>)}
+          </optgroup>
+        ))}
+      </select>
+    </span>
+  );
+};
+
 // ─── Note / Sub column ─────────────────────────────────────────────────────
 //
 // One text input per row. Two writing conventions:
@@ -1118,16 +1183,9 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
         )}
       </div>
 
-      <div className="sod-wq-cell sod-wq-cell-unit">
-        <EditableCell
-          value={item.unit}
-          requested={item.requested_unit}
-          canEdit={canEdit && !completed}
-          onCommit={(v) => onUpdate(item.id, { unit: v })}
-          placeholder="—"
-        />
-      </div>
-
+      {/* Size before Unit — matches the captain-side board's reading
+          rhythm (Size = the number, Unit = the measure from the
+          shared UNIT_GROUPS dropdown). */}
       <div className="sod-wq-cell sod-wq-cell-size">
         <EditableCell
           value={item.size}
@@ -1135,6 +1193,15 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
           canEdit={canEdit && !completed}
           onCommit={(v) => onUpdate(item.id, { size: v })}
           placeholder="—"
+        />
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-unit">
+        <UnitSelectCell
+          value={item.unit}
+          requested={item.requested_unit}
+          canEdit={canEdit && !completed}
+          onCommit={(v) => onUpdate(item.id, { unit: v })}
         />
       </div>
 
@@ -1304,12 +1371,13 @@ const ItemsCard = ({
         </div>
       </div>
 
-      {/* column header strip */}
+      {/* column header strip — Size before Unit to match the captain
+          board's order. */}
       <div className="sod-wq-cols">
         <div className="sod-wq-cell sod-wq-cell-status" />
         <div className="sod-wq-cell sod-wq-cell-item">Item</div>
-        <div className="sod-wq-cell sod-wq-cell-unit">Unit</div>
         <div className="sod-wq-cell sod-wq-cell-size">Size</div>
+        <div className="sod-wq-cell sod-wq-cell-unit">Unit</div>
         <div className="sod-wq-cell sod-wq-cell-qty">Qty</div>
         <div className="sod-wq-cell sod-wq-cell-price">Price</div>
         <div className="sod-wq-cell sod-wq-cell-note">Note / Sub</div>

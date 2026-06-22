@@ -2642,8 +2642,8 @@
   grid-template-columns:
     14px              /* status dot   */
     minmax(220px, 3fr) /* item        */
-    74px              /* unit         */
     74px              /* size         */
+    74px              /* unit         */
     62px              /* qty          */
     minmax(150px, 1.3fr) /* price     */
     minmax(180px, 1.6fr) /* note      */
@@ -2769,6 +2769,43 @@
   box-shadow: 0 0 0 3px #FBEFE9;
 }
 #sp-root .sod-wq-edit-right { text-align: right; }
+
+/* ── unit select (grouped dropdown shared with captain board) ────────── */
+#sp-root .sod-wq-unit-select {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  width: 100%; min-height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+#sp-root .sod-wq-unit-select-control {
+  flex: 1; min-width: 0;
+  background: transparent; color: var(--fg);
+  border: 1px solid transparent; border-radius: 6px;
+  padding: 4px 8px;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-strong) 50%),
+    linear-gradient(135deg, var(--muted-strong) 50%, transparent 50%);
+  background-position: calc(100% - 12px) 50%, calc(100% - 8px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 20px;
+}
+#sp-root .sod-wq-unit-select-control:hover:not(:disabled) {
+  border-color: var(--line);
+  background-color: #fff;
+}
+#sp-root .sod-wq-unit-select-control:focus-visible {
+  outline: none;
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px #FBEFE9;
+  background-color: #fff;
+}
+#sp-root .sod-wq-unit-select.sod-wq-changed .sod-wq-unit-select-control {
+  color: var(--orange); font-weight: 700;
+}
 
 /* ── note column ─────────────────────────────────────────────────────── */
 #sp-root .sod-wq-note-input {
