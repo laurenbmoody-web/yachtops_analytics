@@ -19,6 +19,7 @@ import { ibanWarning, swiftWarning } from './utils/bankingValidation';
 import { fetchCrewDocuments } from './utils/crewDocuments';
 import DateInput from '../../components/ui/DateInput';
 import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
+import { crewContractStandard } from '../../data/flagStates';
 import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
@@ -1198,7 +1199,7 @@ const canEdit = (() => {
         .eq('tenant_id', activeTenantId).eq('user_id', crewId).maybeSingle();
       // Vessel-level compliance inherited (read-only) onto the profile.
       const { data: vessel } = await supabase
-        .from('vessels').select('flag, port_of_registry, governing_law')
+        .from('vessels').select('flag, port_of_registry, commercial_status, certified_commercial')
         .eq('tenant_id', activeTenantId).maybeSingle();
       if (cancelled) return;
       setEmpForm(emp || {});
@@ -3628,12 +3629,17 @@ const canEdit = (() => {
                 <div className="cp-grid">
                   {/* SEA reference is per-crew (their individual agreement number). */}
                   {fld('SEA reference', empForm.sea_reference, txt('sea_reference'))}
-                  {/* Flag, governing law & port of registry are inherited from the vessel. */}
+                  {/* Flag (= governing law), port of registry and the derived crew
+                      contract standard are inherited from the vessel. */}
                   {inheritedFld('Flag state', vesselCompliance?.flag)}
-                  {inheritedFld('Governing law', vesselCompliance?.governing_law)}
                   {inheritedFld('Port of registry', vesselCompliance?.port_of_registry)}
+                  {inheritedFld('Crew contract standard', crewContractStandard({
+                    flag: vesselCompliance?.flag,
+                    commercialStatus: vesselCompliance?.commercial_status,
+                    certifiedCommercial: vesselCompliance?.certified_commercial,
+                  }))}
                 </div>
-                <p className="cp-set-note">Flag, governing law and port of registry are set once in Vessel Settings.</p>
+                <p className="cp-set-note">Flag state (the governing law) and port of registry are set once in Vessel Settings; the contract standard derives from the flag and whether the vessel is private or commercial.</p>
               </div>
 
               {!canEditPermissions && <p className="cp-set-note">Employment details are managed by COMMAND.</p>}
