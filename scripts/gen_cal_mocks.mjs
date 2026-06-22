@@ -98,9 +98,30 @@ function legend(x,y){
   for(const [lab,bg,tc] of [['Compliant','#BCCFBD',GREEN],['Marginal','#E3B055',AMBER],['Breach',TERRA,TERRA]]){
     s+=rect(lx,y-9,11,11,{fill:bg,rx:3}); s+=txt(lx+17,y,lab,{size:11,fill:INK2}); lx+=lab.length*6.4+44;
   }
-  y+=30; s+=txt(48,y,'BREACH DAYS — REASON LOGGED',{size:9.5,weight:700,spacing:1.2,fill:MUT});
-  for(const d of [7,16,25]){ y+=26; s+=dot(52,y-4,4,TERRA); s+=txt(66,y,`${wdOf(d)} ${d} ${monShort[MON]}`,{size:13,weight:600,fill:NAVY}); s+=txt(190,y,`${HOURS[d]}h rest`,{size:12.5,fill:INK2}); s+=txt(300,y,REASON[d],{size:12.5,fill:MUT,italic:true}); }
-  y+=34; s+=txt(48,y,'C2 · Heat strip — bar height = hours; dips below the dashed 10h line are breaches. Scannable rhythm.',{size:12,fill:INK2});
+  // ── breach list: MLC type (rule) + reason, with an approval gate when any
+  //    breach is still un-noted ───────────────────────────────────────────────
+  const BR=[
+    {d:7,  types:'Daily',          reason:'Guest trip — extended service', noted:true},
+    {d:16, types:'Daily · Weekly', reason:'Charter operations',            noted:true},
+    {d:25, types:'Daily',          reason:null,                            noted:false},
+  ];
+  const open=BR.filter(b=>!b.noted).length;
+  y+=34; s+=txt(48,y,`BREACHES · ${BR.length}`,{size:9.5,weight:700,spacing:1.2,fill:MUT});
+  s+=txt(844,y, open?`${open} needs a reason before you can approve`:'All breaches noted', {size:11.5,weight:600,fill:open?TERRA:GREEN,anchor:'end'});
+  y+=8; s+=line(48,y,844,y,HAIR2);
+  for(const b of BR){
+    y+=46;
+    if(!b.noted) s+=rect(44,y-26,804,38,{fill:'#FCEFE9',rx:8}); // flag the un-noted row
+    s+=dot(56,y-4,4.5,TERRA);
+    s+=txt(72,y,`${wdOf(b.d)} ${b.d} ${monShort[MON]}`,{size:14,weight:600,fill:NAVY});
+    const tw=b.types.length*6.0+22; s+=rect(196,y-13,tw,22,{fill:'#EFEDEA',stroke:'#E2DFD7',rx:11}); s+=txt(196+tw/2,y+3,b.types,{size:10.5,weight:600,fill:NAVY,anchor:'middle'});
+    s+=txt(360,y,`${HOURS[b.d]}h rest`,{size:12.5,fill:INK2});
+    s+=txt(452,y, b.reason||'No reason logged', {size:12.5,fill:b.reason?MUT:TERRA,italic:true});
+    s+=txt(840,y, b.noted?'Noted ✓':'Add reason →', {size:12,weight:b.noted?600:700,fill:b.noted?GREEN:TERRA,anchor:'end'});
+    s+=line(48,y+22,844,y+22,HAIR2);
+  }
+  y+=42; s+=txt(48,y,'C2 · Each breach carries its MLC type (Daily / Weekly / Split) + a reason. Approval is gated until every',{size:12,fill:INK2});
+  y+=18; s+=txt(48,y,'breach is noted — un-noted days are flagged and the missing reason is a one-tap action.',{size:12,fill:INK2});
   const {s:head}=shell(y+10);
   writeFileSync('/tmp/cal_C2.svg', head+s+'</svg>');
 }
