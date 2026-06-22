@@ -87,12 +87,17 @@ function legend(x,y){
   for(const hh of [10,24]){ const yy=yFor(hh); s+=line(gx,yy,gx+gw,yy,hh===10?'#E7C9BC':'#EFEDE6',1,hh===10?'4 3':null); s+=txt(gx-8,yy+4,`${hh}h`,{size:9.5,fill:hh===10?TERRA:FAINT,anchor:'end'}); }
   for(let d=1;d<=DAYS;d++){
     const x=gx+(d-1)*(bw+4); const st=stOf(HOURS[d]);
-    const fill= st==='breach'?TERRA : st==='warning'?'#E3B055' : '#C9C5B6';
-    const y=yFor(HOURS[d]); s+=rect(x,y,bw,top+areaH-y,{fill,rx:2});
+    const fill= st==='breach'?TERRA : st==='warning'?'#E3B055' : '#BCCFBD'; // compliant = soft sage
+    const y=yFor(HOURS[d]); const bh=top+areaH-y; s+=rect(x,y,bw,bh,{fill,rx:2});
+    if(st==='compliant') s+=rect(x,y,bw,2.5,{fill:'#6FA67E',rx:1.5}); // subtle green "ok" cap
     if(d%5===0||d===1) s+=txt(x+bw/2,top+areaH+15,String(d),{size:9,fill:FAINT,anchor:'middle'});
     if(st==='breach') s+=txt(x+bw/2,y-5,String(HOURS[d]),{size:9.5,weight:700,fill:TERRA,anchor:'middle'});
   }
-  let y=top+areaH+34; s+=legend(48,y);
+  // legend — compliant now reads green ("ok")
+  let y=top+areaH+34; let lx=48;
+  for(const [lab,bg,tc] of [['Compliant','#BCCFBD',GREEN],['Marginal','#E3B055',AMBER],['Breach',TERRA,TERRA]]){
+    s+=rect(lx,y-9,11,11,{fill:bg,rx:3}); s+=txt(lx+17,y,lab,{size:11,fill:INK2}); lx+=lab.length*6.4+44;
+  }
   y+=30; s+=txt(48,y,'BREACH DAYS — REASON LOGGED',{size:9.5,weight:700,spacing:1.2,fill:MUT});
   for(const d of [7,16,25]){ y+=26; s+=dot(52,y-4,4,TERRA); s+=txt(66,y,`${wdOf(d)} ${d} ${monShort[MON]}`,{size:13,weight:600,fill:NAVY}); s+=txt(190,y,`${HOURS[d]}h rest`,{size:12.5,fill:INK2}); s+=txt(300,y,REASON[d],{size:12.5,fill:MUT,italic:true}); }
   y+=34; s+=txt(48,y,'C2 · Heat strip — bar height = hours; dips below the dashed 10h line are breaches. Scannable rhythm.',{size:12,fill:INK2});
