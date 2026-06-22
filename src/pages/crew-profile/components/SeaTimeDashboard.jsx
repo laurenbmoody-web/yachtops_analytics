@@ -41,9 +41,27 @@ const ZERO_PRIOR = { seagoing: 0, watchkeeping: 0, total: 0 };
 const routeForVessel = (v) => !v?.cargoRegistered
   ? 'external'
   : v.captainMember ? 'stamp' : 'virtual';
-// Reachability of the master once they've left the vessel: in-app while still on
-// Cargo, else an emailed secure-link signature (then external as last resort).
-const virtualReach = (v) => (v?.captainOnCargo ? 'inapp' : 'email');
+// Reachability of a master who has left the vessel, decided per command spell:
+// in-app while still on Cargo, else an emailed secure-link signature (then
+// external as a last resort) — computed inline as `cmd.onCargo ? 'inapp' : 'email'`.
+//
+// A vessel's command spells. If it changed command mid-service, each spell is a
+// master with active dates (from/to); otherwise one implied spell from the
+// vessel's captain* fields, keyed by the vessel id so live data keeps working.
+const vesselCommands = (v) => {
+  if (Array.isArray(v?.commands) && v.commands.length) {
+    return v.commands.map((c, i) => ({
+      key: `${v.id}:${c.id || i}`, id: c.id || `c${i}`, name: c.name, coc: c.coc,
+      cocGrade: c.cocGrade, email: c.email, member: !!c.member, onCargo: !!c.onCargo,
+      from: c.from || null, to: c.to || null
+    })).sort((a, b) => (a.from || '') < (b.from || '') ? -1 : 1);
+  }
+  return [{ key: v.id, id: v.id, name: v.captainName, coc: v.captainCoc, cocGrade: v.captainCocGrade, email: v.captainEmail, member: v.captainMember, onCargo: v.captainOnCargo, from: null, to: null }];
+};
+// A period belongs to the spell whose window contains its start date (handovers
+// fall between trips, so each period lands wholly with one master).
+const inCommand = (e, cmd) => (!cmd.from || e.from >= cmd.from) && (!cmd.to || e.from <= cmd.to);
+const routeForCmd = (v, cmd) => !v?.cargoRegistered ? 'external' : cmd.member ? 'stamp' : 'virtual';
 
 const ROUTE_META = {
   stamp:    { label: 'Verified in Cargo',  icon: 'BadgeCheck', color: '#3F7A52', bg: '#E7F0E9', tint: '#EFF6F1' },
@@ -237,28 +255,43 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const areasCruised = [...new Set(live.map(e => e.region).filter(Boolean))].join(', ') || '—';
 
   // Per-vessel attestation record. Each vessel takes its own route (stamp /
-  // virtual / external) and carries its own status — the testimonial is built
-  // vessel-by-vessel, since one master can only attest his own ship.
-  const recVessels = usedVessels.map(v => {
-    const mode = routeForVessel(v);
-    const att = vesselAttest[v.id] || { status: 'outstanding', mode };
-    const reach = mode === 'virtual' ? virtualReach(v) : null; // 'inapp' | 'email'
-    const cap = (v.captainName || 'Master').replace('Capt. ', '');
-    const masterNote = mode === 'external' ? 'Ship not on Cargo'
-      : v.captainMember ? 'Captain aboard · on Cargo'
-        : v.captainOnCargo ? 'Captain moved on · active on Cargo' : 'Captain moved on · left Cargo';
-    const how = mode === 'stamp'
-      ? `The captain is still aboard ${v.name} with an active Cargo account, so these days are verified automatically — even after you leave, nothing to chase.`
-      : mode === 'virtual'
-        ? (reach === 'inapp'
-          ? `${v.captainName || 'The captain'} has left ${v.name} but still has an active Cargo account — they review and sign your service digitally, in the app.`
-          : `${v.captainName || 'The captain'} no longer has an active Cargo account — they sign by a secure email link; if you can’t reach them, upload their signed testimonial instead.`)
-        : `${v.name} isn’t on Cargo — add the signed testimonial you got from the captain.`;
-    return { ...v, mode, att, reach, cap, masterNote, how };
+  // virtual / external) and carries its own status. Attestation is per COMMAND
+  // SPELL, not per vessel: if command changed mid-service, each master signs
+  // only the periods that fall inside his own active dates.
+  const recVessels = usedVessels.flatMap(v => {
+    const cmds = vesselCommands(v);
+    const multi = cmds.length > 1;
+    return cmds.map(cmd => {
+      // The seafarer's periods that fall in this master's command window.
+      const periods = entries.filter(e => !e.excluded && e.vesselId === v.id && inCommand(e, cmd));
+      if (!periods.length) return null;
+      const mode = routeForCmd(v, cmd);
+      const att = vesselAttest[cmd.key] || { status: 'outstanding', mode };
+      const reach = mode === 'virtual' ? (cmd.onCargo ? 'inapp' : 'email') : null;
+      const cap = (cmd.name || 'Master').replace('Capt. ', '');
+      const days = periods.reduce((s, e) => s + (e.days || 0), 0);
+      const cmdLabel = multi ? `In command ${cmd.from ? fmtDate(cmd.from) : '—'} – ${cmd.to ? fmtDate(cmd.to) : 'present'}` : null;
+      const masterNote = mode === 'external' ? 'Ship not on Cargo'
+        : cmd.member ? 'Captain aboard · on Cargo'
+          : cmd.onCargo ? 'Captain moved on · active on Cargo' : 'Captain moved on · left Cargo';
+      const how = mode === 'stamp'
+        ? `${cmd.name || 'The captain'} is still aboard ${v.name} with an active Cargo account, so these days are verified automatically — even after you leave, nothing to chase.`
+        : mode === 'virtual'
+          ? (reach === 'inapp'
+            ? `${cmd.name || 'The captain'} has left ${v.name} but still has an active Cargo account — they review and sign your service digitally, in the app.`
+            : `${cmd.name || 'The captain'} no longer has an active Cargo account — they sign by a secure email link; if you can’t reach them, upload their signed testimonial instead.`)
+          : `${v.name} isn’t on Cargo — add the signed testimonial you got from the captain.`;
+      return {
+        ...v, key: cmd.key, cmdId: cmd.id, multi, cmdLabel, periods, days,
+        captainName: cmd.name, captainCoc: cmd.coc, captainCocGrade: cmd.cocGrade, captainEmail: cmd.email,
+        captainMember: cmd.member, captainOnCargo: cmd.onCargo, cmdFrom: cmd.from, cmdTo: cmd.to,
+        mode, att, reach, cap, masterNote, how
+      };
+    }).filter(Boolean);
   });
   const attestedCount = recVessels.filter(v => v.att.status === 'attested').length;
   const allAttested = recVessels.length > 0 && attestedCount === recVessels.length;
-  const signed = allAttested; // the consolidated pack is issuable once every vessel is attested
+  const signed = allAttested; // the consolidated pack is issuable once every command spell is attested
   const chipKey = (v) => v.att.status === 'attested' ? `attested_${v.att.mode}` : v.att.status;
 
   // real QR once signed (and whenever the assured payload changes)
@@ -277,17 +310,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const reclassify = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, type: 'standby', detailOverride: 'Reclassified from watchkeeping' } : e)); resetSignoff(); flash('Entry reclassified to standby'); };
   const excludeEntry = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, excluded: true } : e)); resetSignoff(); flash('Entry excluded from the pack'); };
 
-  // Per-vessel row ids — so requests and sign-offs touch only that ship.
-  const liveRowIdsFor = (vid) => entries.filter(e => !e.excluded && e.vesselId === vid).flatMap(e => e.rowIds || []);
-  const setVA = (vid, patch) => setVesselAttest(m => ({ ...m, [vid]: { ...(m[vid] || {}), ...patch } }));
+  // Per-command-spell row ids — so requests and sign-offs touch only the periods
+  // that fall inside that one master's command dates.
+  const liveRowIdsFor = (unit) => (unit.periods || []).flatMap(e => e.rowIds || []);
+  const setVA = (key, patch) => setVesselAttest(m => ({ ...m, [key]: { ...(m[key] || {}), ...patch } }));
 
-  // Crew requests; the master OF RECORD for that vessel reviews and attests it.
+  // Crew requests; the master OF RECORD for that command spell reviews and attests it.
   // `via`: 'app' (in-app notification) or 'email' (secure-link, master off Cargo).
   const requestVessel = async (v, via = 'app') => {
     if (!canGenerate) { flash('Resolve all validation checks first'); return; }
     if (!usingSample && tenantId && userId) {
       try {
-        await submitEntries(tenantId, liveRowIdsFor(v.id), { signedName: seafarer.fullName });
+        await submitEntries(tenantId, liveRowIdsFor(v), { signedName: seafarer.fullName });
         if (via === 'app') {
           try {
             const { data: masters } = await supabase.from('tenant_members').select('user_id').eq('tenant_id', tenantId).eq('active', true).ilike('role', 'captain');
@@ -301,7 +335,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         await loadLive();
       } catch (e) { console.error(e); flash('Could not send for attestation'); return; }
     } else {
-      setVA(v.id, { status: 'requested', mode: v.mode });
+      setVA(v.key, { status: 'requested', mode: v.mode });
     }
     flash(via === 'email' ? `Secure signing link emailed to ${v.captainName || 'the captain'}`
       : v.mode === 'virtual' ? `Sent to ${v.captainName || 'the captain'} to sign your service`
@@ -313,25 +347,23 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const attestVessel = async (v, record) => {
     if (!canGenerate) { flash('Resolve all validation checks first'); return; }
     const who = record?.name || v.captainName || 'Master';
-    if (record) setSignoffMeta(m => ({ ...m, [v.id]: { ...record, mode: v.mode, at: '2026-04-22' } }));
+    if (record) setSignoffMeta(m => ({ ...m, [v.key]: { ...record, mode: v.mode, at: '2026-04-22' } }));
     if (!usingSample && tenantId && userId) {
-      try { await signEntries(tenantId, liveRowIdsFor(v.id), { signedName: who }); await loadLive(); }
+      try { await signEntries(tenantId, liveRowIdsFor(v), { signedName: who }); await loadLive(); }
       catch (e) { console.error(e); flash('Could not attest — check your permissions'); return; }
     } else {
-      setVA(v.id, { status: 'attested', mode: v.mode, at: '2026-04-22', signedBy: who });
+      setVA(v.key, { status: 'attested', mode: v.mode, at: '2026-04-22', signedBy: who });
     }
     flash(v.mode === 'stamp' ? `${v.name} verified in Cargo` : `${v.name} signed by ${v.captainName || 'the captain'}`);
   };
 
   // ── captain sign-off ceremony ──
-  // The qualifying periods on one vessel — what the master is being asked to confirm.
-  const periodsFor = (vid) => entries.filter(e => !e.excluded && e.vesselId === vid);
   const openSignoff = (v) => {
-    const ps = periodsFor(v.id);
-    const froms = ps.map(e => e.from).filter(Boolean).sort();
-    const tos = ps.map(e => e.to).filter(Boolean).sort();
+    const froms = v.periods.map(e => e.from).filter(Boolean).sort();
+    const tos = v.periods.map(e => e.to).filter(Boolean).sort();
     // The signer is the captain viewing the profile; on the sample preview it's
-    // the vessel's master of record being role-played. Prefill known particulars.
+    // the vessel's master of record being role-played. Prefill known particulars;
+    // the command window defaults to this spell's active dates (or the span).
     setSignForm({
       name: (canAttest ? currentUser?.fullName : null) || (v.captainName || '').replace('Capt. ', ''),
       cocNo: v.captainCoc || '',
@@ -339,8 +371,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       email: v.captainEmail || (canAttest ? currentUser?.email : '') || '',
       phone: '',
       place: '',
-      cmdFrom: froms[0] || '',
-      cmdTo: tos[tos.length - 1] || ''
+      cmdFrom: v.cmdFrom || froms[0] || '',
+      cmdTo: v.cmdTo || tos[tos.length - 1] || ''
     });
     setDeclineOpen(false); setDeclineReason('');
     setSignFor(v);
@@ -361,7 +393,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       try { await sendDbNotification(userId, { type: 'sea_time', title: 'Sea-service attestation declined', message: `${v.captainName || 'The captain'} couldn’t confirm your service on ${v.name}${declineReason.trim() ? ` — “${declineReason.trim()}”` : ''}.`, actionUrl: `/profile/${userId}?tab=seatime`, severity: 'warning' }); }
       catch (ne) { console.warn('decline notify failed', ne); }
     }
-    setVA(v.id, { status: 'outstanding', mode: v.mode });
+    setVA(v.key, { status: 'outstanding', mode: v.mode });
     flash(`Declined — ${seafarer.fullName} has been notified`);
   };
 
@@ -370,7 +402,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // the master's signature AND the ship's official stamp, so we gate the upload
   // on an explicit confirmation of that before recording the file.
   const openUpload = (v) => { setExtStamped(false); setExtConfirm(v); };
-  const pickExternalFile = () => { setUploadFor(extConfirm.id); setExtConfirm(null); fileRef.current?.click(); };
+  const pickExternalFile = () => { setUploadFor(extConfirm.key); setExtConfirm(null); fileRef.current?.click(); };
   const onExternalFile = (e) => {
     const f = e.target.files?.[0];
     if (f && uploadFor) {
@@ -802,11 +834,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     const rm = ROUTE_META[v.mode], ck = ATT_CHIP[chipKey(v)];
                     const done = v.att.status === 'attested';
                     return (
-                      <div className={`std-vrow${done ? ' done' : ''}`} key={v.id}>
+                      <div className={`std-vrow${done ? ' done' : ''}`} key={v.key}>
                         <span className="std-vrail" style={{ background: rm.color }} />
                         <div className="std-vmain">
                           <div className="std-vtop">
                             <span className="vn">{v.name}</span>
+                            {v.multi && <span className="std-vcmd"><Icon name="GitBranch" size={10} /> {v.cmdLabel}</span>}
                           </div>
                           <div className="std-vmeta">{v.flag} · {v.gt}GT · {v.lengthM}m · <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{v.captainName || 'Captain'}</b> · {v.masterNote}</div>
                           <div className="std-vhow">{done && v.att.fileName ? `Uploaded · ${v.att.fileName}` : v.how}</div>
@@ -887,8 +920,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <table>
                   <thead><tr><th>Vessel</th><th>Flag · Official no</th><th>GT</th><th>Length</th>{deptId === 'engineering' && <th>Propulsion</th>}<th>How it’s verified</th></tr></thead>
                   <tbody>{recVessels.map(v => { const ck = ATT_CHIP[chipKey(v)]; return (
-                    <tr key={v.id}>
-                      <td>{v.name}</td>
+                    <tr key={v.key}>
+                      <td>{v.name}{v.multi && <span className="std-tcmd">{v.captainName} · {v.cmdLabel?.replace('In command ', '')}</span>}</td>
                       <td>{v.flag} · {v.officialNo || v.imo || '—'}</td>
                       <td>{v.gt} GT</td>
                       <td>{v.lengthM} m</td>
@@ -908,7 +941,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     <div className="sigline">Master’s certification</div>
                     <div className="std-sigs">
                       {recVessels.map(v => {
-                        const sm = signoffMeta[v.id] || {};
+                        const sm = signoffMeta[v.key] || {};
                         const nm = sm.name || v.captainName || 'Master';
                         const bits = sm.mode === 'external'
                           ? [`Signed paper testimonial — ship’s stamp confirmed`, sm.fileName]
@@ -920,8 +953,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                             ROUTE_META[v.mode].label
                           ];
                         return (
-                          <div className="std-sig" key={v.id}>
-                            <div className="std-sig-name">{nm}<span>Master · {v.name}</span></div>
+                          <div className="std-sig" key={v.key}>
+                            <div className="std-sig-name">{nm}<span>Master · {v.name}{v.multi ? ` · ${v.cmdLabel?.replace('In command ', '')}` : ''}</span></div>
                             <div className="std-sig-meta">{bits.filter(Boolean).join(' · ')}</div>
                           </div>
                         );
@@ -1013,7 +1046,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       {/* ── captain sign-off ceremony ── */}
       {signFor && (() => {
         const v = signFor;
-        const ps = periodsFor(v.id);
+        const ps = v.periods;
         const totDays = ps.reduce((s, e) => s + (e.days || 0), 0);
         const caps = [...new Set(ps.map(e => e.capacity).filter(Boolean))].join(', ') || '—';
         const isStamp = v.mode === 'stamp';
