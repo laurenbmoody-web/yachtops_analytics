@@ -18,22 +18,27 @@ export const CONTRACT_TOKEN_GROUPS = [
   { group: 'Crew', tokens: [
     ['crew_name', 'Full name'], ['crew_first_name', 'First name'], ['crew_last_name', 'Surname'],
     ['crew_email', 'Email'], ['crew_role', 'Role / rank'], ['crew_department', 'Department'],
+    ['date_of_birth', 'Date of birth'], ['place_of_birth', 'Place of birth'],
+    ['nationality', 'Nationality'], ['passport_number', 'Passport / ID number'],
+    ['home_address', 'Home address'], ['phone_number', 'Phone number'],
   ] },
   { group: 'Contract', tokens: [
     ['contract_type', 'Contract type'], ['start_date', 'Start date'], ['end_date', 'End date'],
     ['probation_end_date', 'Probation end'], ['rotation_pattern', 'Rotation pattern'],
     ['leave_days', 'Leave entitlement (days)'], ['notice_period', 'Notice period'],
     ['sea_reference', 'SEA reference'], ['contract_standard', 'Contract standard'],
+    ['port_of_embarkation', 'Port of embarkation'], ['repatriation_destination', 'Repatriation destination'],
   ] },
   { group: 'Salary', tokens: [
     ['salary', 'Salary (formatted)'], ['salary_amount', 'Salary amount'],
     ['salary_currency', 'Salary currency'], ['salary_period', 'Salary period'],
     ['day_rate', 'Day rate'],
   ] },
-  { group: 'Vessel', tokens: [
+  { group: 'Vessel & Company', tokens: [
     ['vessel_name', 'Vessel name'], ['flag_state', 'Flag state'],
     ['port_of_registry', 'Port of registry'], ['imo_number', 'IMO number'],
-    ['official_number', 'Official number'],
+    ['official_number', 'Official number'], ['captain_name', 'Captain name'],
+    ['company_name', 'Company / owner'], ['company_address', 'Company address'],
   ] },
   { group: 'Document', tokens: [['today', 'Date generated']] },
 ];
@@ -69,6 +74,12 @@ export function buildContractTokens({ crewMember, empForm, compForm, vessel }) {
     crew_email: crewMember?.email || '',
     crew_role: crewMember?.roleTitle || '',
     crew_department: crewMember?.department || '',
+    date_of_birth: fmtDate(crewMember?.dateOfBirth) || '',
+    place_of_birth: crewMember?.placeOfBirth || '',
+    nationality: crewMember?.nationality || '',
+    passport_number: crewMember?.passportNumber || '',
+    home_address: crewMember?.homeAddress || '',
+    phone_number: crewMember?.phoneNumber || '',
 
     contract_type: e.contract_type || '',
     start_date: fmtDate(e.start_date),
@@ -286,12 +297,27 @@ function applyMappingsToZip(zip, mappings) {
 }
 
 // Wrap plain text (with {{tokens}} and newlines) into a minimal, valid .docx.
+// The first non-empty line becomes a centred title; lines that look like a
+// top-level clause heading ("1 Job Title", "5 Salary…") are bolded so the
+// rebuilt contract reads like a contract, not a wall of text.
 function textToDocxBlob(text) {
-  const paras = String(text).split('\n').map((line) =>
-    line.trim() === ''
-      ? '<w:p/>'
-      : `<w:p><w:r><w:t xml:space="preserve">${xmlEscape(line)}</w:t></w:r></w:p>`,
-  ).join('');
+  const lines = String(text).split('\n');
+  const titleIdx = lines.findIndex((l) => l.trim() !== '');
+  const paras = lines.map((line, idx) => {
+    const t = line.trim();
+    if (t === '') return '<w:p/>';
+    const esc = xmlEscape(line);
+    if (idx === titleIdx) {
+      return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr>`
+        + `<w:r><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
+    }
+    const isHeading = /^\d+\s+[A-Z]/.test(t) && t.length < 70;
+    if (isHeading) {
+      return `<w:p><w:pPr><w:spacing w:before="220" w:after="60"/></w:pPr>`
+        + `<w:r><w:rPr><w:b/><w:sz w:val="26"/></w:rPr><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
+    }
+    return `<w:p><w:r><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
+  }).join('');
   const zip = new PizZip();
   zip.file('[Content_Types].xml',
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

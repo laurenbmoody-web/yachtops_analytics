@@ -33,10 +33,15 @@ const MODEL = 'claude-opus-4-8';
 // Keep this list in sync with CONTRACT_TOKEN_GROUPS in the client util.
 const TOKENS = `
 crew_name (full name), crew_first_name, crew_last_name, crew_email, crew_role (rank/role), crew_department,
-contract_type, start_date, end_date, probation_end_date, rotation_pattern, leave_days, notice_period, sea_reference, contract_standard,
+date_of_birth, place_of_birth, nationality, passport_number (passport/ID number), home_address, phone_number,
+contract_type, start_date, end_date, probation_end_date, rotation_pattern, leave_days, notice_period, sea_reference, contract_standard, port_of_embarkation, repatriation_destination,
 salary, salary_amount, salary_currency, salary_period, day_rate,
-vessel_name, flag_state, port_of_registry, imo_number, official_number,
+vessel_name, flag_state, port_of_registry, imo_number, official_number, captain_name, company_name, company_address,
 today (date generated)`.trim();
+
+// Applied in both modes: the whole point of a template is that NO individual's
+// data survives into it.
+const CRITICAL = `CRITICAL: This becomes a reusable template, so NO individual's personal data may remain as literal text. You MUST tokenise every one of the seafarer's identifiers — name, date of birth, place of birth, passport/ID number, nationality, home address, phone — even when only one occurrence appears. Also tokenise the captain's name, the company/owner name and address, the port of embarkation, and the repatriation destination. If a particular has no perfect token, use the closest one rather than leaving the real value in. Do NOT tokenise law/convention names, clause boilerplate, or fixed figures that are the same for every crew member (rest-hour limits, insurance caps, notice weeks written into boilerplate).`;
 
 const MAP_PROMPT = `You are given the full text of a COMPLETED maritime crew employment contract for one individual.
 
@@ -51,7 +56,9 @@ Rules:
 - Only map values that clearly correspond to one of the tokens. Do NOT map generic contract boilerplate, clause headings, or the names of laws/conventions.
 - Map the vessel's name to vessel_name, the seafarer's name to crew_name, salary figures to salary_amount, etc.
 - If a value is genuinely ambiguous, leave it out.
-- Return the JSON object only.`;
+- Return the JSON object only.
+
+${CRITICAL}`;
 
 const REBUILD_PROMPT = `You are given a COMPLETED maritime crew employment contract (PDF) for one individual.
 
@@ -65,7 +72,9 @@ Rules:
 - Keep ALL other wording, clause headings, and structure intact — only the individual's particulars become tokens.
 - Preserve paragraph breaks as newline characters within the JSON string.
 - Use {{token}} exactly (double curly braces, the token name from the list).
-- Do NOT invent clauses or tokens. Return the JSON object only.`;
+- Do NOT invent clauses or tokens. Return the JSON object only.
+
+${CRITICAL}`;
 
 function extractJson(text: string): any {
   const cleaned = (text || '').replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
