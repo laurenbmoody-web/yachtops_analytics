@@ -20,6 +20,10 @@ import { fetchCrewDocuments } from './utils/crewDocuments';
 import DateInput from '../../components/ui/DateInput';
 import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
 import { crewContractStandard } from '../../data/flagStates';
+import { saveAs } from 'file-saver';
+import ContractTemplateModal from './components/ContractTemplateModal';
+import { fetchTemplates, templateFitsRole, buildContractTokens, generateContractBlob, TEMPLATE_MIME } from './utils/contractTemplates';
+import { uploadDocumentFile, saveCrewDocument } from './utils/crewDocuments';
 import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
@@ -264,7 +268,12 @@ const CrewProfile = () => {
   const [compForm, setCompForm] = useState(null);       // crew_compensation (null = no access/none)
   const [empEditing, setEmpEditing] = useState(false);
   const [empSaving, setEmpSaving] = useState(false);
-  const [vesselCompliance, setVesselCompliance] = useState(null);   // { flag, commercial_status, certified_commercial }
+  const [vesselCompliance, setVesselCompliance] = useState(null);   // { name, flag, port_of_registry, imo_number, official_number, commercial_status, certified_commercial }
+  const [templates, setTemplates] = useState([]);                   // contract templates for the tenant
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [lastGenerated, setLastGenerated] = useState(null);         // { updated_at, file_url, file_name }
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = React.useRef(null);
@@ -1197,16 +1206,26 @@ const canEdit = (() => {
       const { data: comp } = await supabase
         .from('crew_compensation').select('*')
         .eq('tenant_id', activeTenantId).eq('user_id', crewId).maybeSingle();
-      // Vessel-level compliance inherited (read-only) onto the profile.
+      // Vessel record — compliance (read-only) + the fields contract tokens need.
       const { data: vessel } = await supabase
-        .from('vessels').select('flag, commercial_status, certified_commercial')
+        .from('vessels').select('name, flag, port_of_registry, imo_number, official_number, commercial_status, certified_commercial')
         .eq('tenant_id', activeTenantId).maybeSingle();
+      // Templates available + the crew member's most recent generated contract.
+      let templates = [];
+      try { templates = await fetchTemplates(activeTenantId); } catch { /* RLS / offline — leave empty */ }
+      const { data: lastDoc } = await supabase
+        .from('personal_documents')
+        .select('updated_at, file_url, file_name')
+        .eq('user_id', crewId).eq('doc_type', 'Employment Contract')
+        .order('updated_at', { ascending: false }).limit(1).maybeSingle();
       if (cancelled) return;
       setEmpForm(emp || {});
       // null when the viewer can't read compensation (RLS) AND there's no row;
       // COMMAND always gets an object so the block renders for them.
       setCompForm(canEditPermissions ? (comp || {}) : (comp || null));
       setVesselCompliance(vessel || {});
+      setTemplates(templates);
+      setLastGenerated(lastDoc || null);
       setEmpLoaded(true);
     })();
     return () => { cancelled = true; };
@@ -1257,6 +1276,46 @@ const canEdit = (() => {
     }
     setEmpEditing(false);
     showToast('Employment details saved', 'success');
+  };
+
+  // Fill the chosen template with this profile's data, download it, and file a
+  // copy under the crew member's Documents. If no template is chosen yet, fall
+  // back to the single role match (or open the picker when it's ambiguous).
+  const handleGenerateContract = async (templateArg) => {
+    if (generating) return;
+    let template = templateArg || selectedTemplate;
+    if (!template) {
+      const fits = templates.filter((t) => templateFitsRole(t, crewMember?.roleTitle));
+      const pool = fits.length ? fits : templates;
+      if (pool.length === 1) template = pool[0];
+      else { setTemplateModalOpen(true); return; }   // 0 or many → let them choose
+    }
+    setGenerating(true);
+    try {
+      const tokens = buildContractTokens({ crewMember, empForm, compForm, vessel: vesselCompliance });
+      const blob = await generateContractBlob(template, tokens);
+      const safeName = (crewMember?.fullName || 'Contract').replace(/[^\w\s-]/g, '').trim();
+      const fileName = `${safeName} — ${template.name}.docx`;
+      // Download for the user…
+      saveAs(blob, fileName);
+      // …and file a copy under the crew member's Documents.
+      const file = new File([blob], fileName, { type: TEMPLATE_MIME });
+      const uploaded = await uploadDocumentFile(crewId, file);
+      const saved = await saveCrewDocument({
+        userId: crewId, tenantId: activeTenantId, createdBy: session?.user?.id,
+        category: 'Employment', docType: 'Employment Contract', title: template.name,
+        fileUrl: uploaded.file_url, fileName: uploaded.file_name,
+        mimeType: uploaded.mime_type, sizeBytes: uploaded.size_bytes,
+      });
+      setSelectedTemplate(template);
+      setLastGenerated({ updated_at: saved?.updated_at || new Date().toISOString(), file_url: uploaded.file_url, file_name: fileName });
+      showToast('Contract generated and saved to Documents.', 'success');
+    } catch (e) {
+      console.error('[contract] generation failed', e);
+      showToast(e?.properties?.errors?.[0]?.message || e?.message || 'Could not generate the contract.', 'error');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleProfileStatusChange = async (newStatus, notes, effectiveDate, effectiveTime = '00:00') => {
@@ -3497,7 +3556,10 @@ const canEdit = (() => {
       ? Math.round((salaryAmt * (salaryPeriod === 'year' ? 1 : 12) / 365) * 100) / 100
       : null;
 
-    const hasTemplate = false;   // contract-template feature is a future build
+    // Template the rail acts on: the explicit choice, else the single role match.
+    const roleMatches = templates.filter((t) => templateFitsRole(t, crewMember?.roleTitle));
+    const activeTemplate = selectedTemplate || (roleMatches.length === 1 ? roleMatches[0] : null);
+    const hasTemplate = templates.length > 0;
 
     return (
       <div>
@@ -3649,27 +3711,52 @@ const canEdit = (() => {
                 <div className="cp-rail-card">
                   <div className="h">Contract document</div>
                   <p className="p">Auto-fill a contract from this profile.</p>
-                  <div className="cp-rail-step"><span className="n">1</span><div>Upload your vessel template to <b>Vessel&nbsp;Documents</b> (once).</div></div>
-                  <div className="cp-rail-step"><span className="n">2</span><div>Cargo reads the variable fields &amp; maps them to the profile.</div></div>
-                  <div className="cp-rail-step"><span className="n">3</span><div>Generate &amp; save a ready contract.</div></div>
-                  <button type="button" className="cp-rail-btn fill"
-                    onClick={() => showToast('Contract generation is coming soon — upload a template to Vessel Documents to get started.', 'info')}>
-                    ✦ Generate contract
+                  <div className="cp-rail-step"><span className="n">1</span><div>Add a Word <b>.docx</b> template with <code>{'{{tokens}}'}</code> (once per role).</div></div>
+                  <div className="cp-rail-step"><span className="n">2</span><div>Cargo maps the tokens to this profile’s data.</div></div>
+                  <div className="cp-rail-step"><span className="n">3</span><div>Generate &amp; file a ready contract.</div></div>
+                  {activeTemplate && (
+                    <div className="cp-rail-chosen">
+                      <span className="cp-rail-chosen-label">Template</span>
+                      <span className="cp-rail-chosen-name">{activeTemplate.name}</span>
+                    </div>
+                  )}
+                  <button type="button" className="cp-rail-btn fill" disabled={generating}
+                    onClick={() => handleGenerateContract()}>
+                    {generating ? 'Generating…' : '✦ Generate contract'}
                   </button>
-                  <button type="button" className="cp-rail-btn ghost"
-                    onClick={() => showToast('Template picker is coming soon.', 'info')}>
-                    Choose template
+                  <button type="button" className="cp-rail-btn ghost" disabled={generating}
+                    onClick={() => setTemplateModalOpen(true)}>
+                    {activeTemplate ? 'Change template' : 'Choose template'}
                   </button>
                 </div>
                 <div className="cp-rail-card">
                   <div className="h sm">Status</div>
                   <div className="cp-rail-status"><span>Profile data</span><span className="cp-rail-badge ok">Ready</span></div>
-                  <div className="cp-rail-status"><span>Template</span><span className={`cp-rail-badge ${hasTemplate ? 'ok' : 'warn'}`}>{hasTemplate ? 'Set' : 'Not set'}</span></div>
-                  <div className="cp-rail-status"><span>Last generated</span><span style={{ color: '#AEB4C2' }}>—</span></div>
+                  <div className="cp-rail-status"><span>Template</span><span className={`cp-rail-badge ${hasTemplate ? 'ok' : 'warn'}`}>{hasTemplate ? `${templates.length} available` : 'None yet'}</span></div>
+                  <div className="cp-rail-status">
+                    <span>Last generated</span>
+                    {lastGenerated ? (
+                      lastGenerated.file_url
+                        ? <a href={lastGenerated.file_url} target="_blank" rel="noreferrer" style={{ color: '#C65A1A', fontWeight: 600 }}>{fmtDate(lastGenerated.updated_at)}</a>
+                        : <span>{fmtDate(lastGenerated.updated_at)}</span>
+                    ) : <span style={{ color: '#AEB4C2' }}>—</span>}
+                  </div>
                 </div>
               </div>
             )}
           </div>
+        )}
+
+        {templateModalOpen && (
+          <ContractTemplateModal
+            tenantId={activeTenantId}
+            crewMember={crewMember}
+            selectedId={activeTemplate?.id}
+            canManage={canEditPermissions}
+            createdBy={session?.user?.id}
+            onSelect={(t) => { setSelectedTemplate(t); fetchTemplates(activeTenantId).then(setTemplates).catch(() => {}); }}
+            onClose={() => { setTemplateModalOpen(false); fetchTemplates(activeTenantId).then(setTemplates).catch(() => {}); }}
+          />
         )}
       </div>
     );
