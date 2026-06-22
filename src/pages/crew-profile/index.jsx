@@ -3430,8 +3430,8 @@ const canEdit = (() => {
     const curSym = (code) => ({ EUR: '€', USD: '$', GBP: '£', AUD: 'A$', NZD: 'NZ$', CAD: 'C$', CHF: 'Fr', ZAR: 'R' }[code] || code || '');
 
     // A field card matching Personal Details: read = cp-static, edit = inline input.
-    const fld = (label, readVal, editEl, { accent } = {}) => (
-      <Field label={label} required={accent}>
+    const fld = (label, readVal, editEl, { accent, full } = {}) => (
+      <Field label={label} required={accent} full={full}>
         {editing
           ? editEl
           : <div className={`cp-static${(readVal ?? '') === '' ? ' cp-empty' : ''}`}>{(readVal ?? '') === '' ? '—' : readVal}</div>}
@@ -3442,8 +3442,8 @@ const canEdit = (() => {
         onChange={(e) => setE(key, e.target.value)} />
     );
     // Vessel-inherited, read-only field with a "from vessel" tag.
-    const inheritedFld = (label, val) => (
-      <Field label={label}>
+    const inheritedFld = (label, val, { full } = {}) => (
+      <Field label={label} full={full}>
         <div className={`cp-static${val ? '' : ' cp-empty'}`}>
           {val || '—'}
           <span className="cp-chanchip" style={{ marginLeft: 8 }}>from vessel</span>
@@ -3627,17 +3627,18 @@ const canEdit = (() => {
               <div className="cp-group">
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compliance</span><span className="line" /></div>
                 <div className="cp-grid">
-                  {/* SEA reference is per-crew (their individual agreement number). */}
-                  {fld('SEA reference', empForm.sea_reference, txt('sea_reference'))}
-                  {/* Flag (= governing law), port of registry and the derived crew
-                      contract standard are inherited from the vessel. */}
+                  {/* Flag (= governing law) and port of registry are the two short
+                      vessel identifiers — paired on one row. */}
                   {inheritedFld('Flag state', vesselCompliance?.flag)}
                   {inheritedFld('Port of registry', vesselCompliance?.port_of_registry)}
+                  {/* SEA reference is per-crew (their individual agreement number). */}
+                  {fld('SEA reference', empForm.sea_reference, txt('sea_reference'), { full: true })}
+                  {/* Derived from flag + private/commercial — long, so full width. */}
                   {inheritedFld('Crew contract standard', crewContractStandard({
                     flag: vesselCompliance?.flag,
                     commercialStatus: vesselCompliance?.commercial_status,
                     certifiedCommercial: vesselCompliance?.certified_commercial,
-                  }))}
+                  }), { full: true })}
                 </div>
                 <p className="cp-set-note">Flag state (the governing law) and port of registry are set once in Vessel Settings; the contract standard derives from the flag and whether the vessel is private or commercial.</p>
               </div>
