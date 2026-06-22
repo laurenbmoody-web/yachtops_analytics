@@ -47,9 +47,13 @@
   line-height: 1.5;
   color: #1C1B3A;
   letter-spacing: 0.005em;
+  /* Reset typography inherited from the trigger's parent (column
+     headers carry text-transform: uppercase + wide letter-spacing).
+     The popover is a tooltip, not part of the header rhythm. */
+  text-transform: none;
+  font-style: normal;
+  font-weight: 400;
   cursor: default;
-  /* Stop the parent's hover-out from closing the popover when the
-     user moves into it. */
   pointer-events: auto;
 }
 /* Default — align="start": popover extends from the trigger's
@@ -68,13 +72,14 @@
 
 .help-hint-title {
   display: block;
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-weight: 400;
-  font-style: italic;
-  font-size: 14px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 600;
+  font-style: normal;
+  font-size: 12.5px;
   color: #1C1B3A;
-  margin-bottom: 6px;
-  letter-spacing: -0.005em;
+  margin-bottom: 8px;
+  letter-spacing: 0.005em;
+  text-transform: none;
 }
 .help-hint-body { display: block; }
 .help-hint-body p { margin: 0 0 6px; }
@@ -97,15 +102,18 @@
   align-items: baseline;
 }
 .help-hint-bucket-label {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 600;
   color: #C65A1A;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.005em;
+  text-transform: none;
   white-space: nowrap;
 }
 .help-hint-bucket-example {
   font-size: 11.5px;
   font-style: italic;
+  font-weight: 400;
   color: #6B6F7A;
   letter-spacing: 0.005em;
+  text-transform: none;
 }
