@@ -68,14 +68,43 @@
 }
 .ctm-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
 
-/* Role chips */
-.ctm-chips { display: flex; flex-wrap: wrap; gap: 7px; }
-.ctm-chip {
-  font-size: 12px; font-weight: 500; color: #6B5C4B; background: #fff;
-  border: 1px solid #E5E7EB; border-radius: 999px; padding: 5px 12px; cursor: pointer;
+/* Role selector (department-grouped dropdown) */
+.ctm-roles { position: relative; }
+.ctm-roles-trigger {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  font-size: 13px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #ECEAE3;
+  border-radius: 10px; padding: 9px 12px; cursor: pointer;
 }
-.ctm-chip:hover { border-color: #C65A1A; }
-.ctm-chip.is-sel { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.ctm-roles-trigger:hover { border-color: #C65A1A; }
+.ctm-roles.is-open .ctm-roles-trigger { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.ctm-roles-trigger svg { color: #8B8478; flex: 0 0 auto; }
+
+.ctm-roles-selected { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ctm-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 500; color: #6B5C4B; background: #fff;
+  border: 1px solid #E5E7EB; border-radius: 999px; padding: 4px 6px 4px 11px;
+}
+.ctm-chip.is-sel { background: #FBEFE9; border-color: #C65A1A; color: #C65A1A; }
+.ctm-chip button {
+  display: inline-flex; background: none; border: 0; padding: 0; cursor: pointer;
+  color: inherit; opacity: .7;
+}
+.ctm-chip button:hover { opacity: 1; }
+
+.ctm-roles-panel {
+  margin-top: 8px; max-height: 260px; overflow-y: auto;
+  border: 1px solid #ECEAE3; border-radius: 12px; background: #fff;
+  box-shadow: 0 12px 32px -12px rgba(28,27,58,0.22); padding: 8px 4px;
+}
+.ctm-roles-group { padding: 4px 0; }
+.ctm-roles-group .ctm-section-label { padding: 4px 12px; }
+.ctm-roles-opt {
+  display: flex; align-items: center; gap: 9px; padding: 6px 12px; cursor: pointer;
+  font-size: 13px; color: #1C1B3A; border-radius: 8px;
+}
+.ctm-roles-opt:hover { background: #FAFAF8; }
+.ctm-roles-opt input { accent-color: #C65A1A; width: 15px; height: 15px; cursor: pointer; }
 
 /* Available fields */
 .ctm-fields-toggle {
