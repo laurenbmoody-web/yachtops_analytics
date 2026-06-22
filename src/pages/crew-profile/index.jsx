@@ -1301,7 +1301,20 @@ const canEdit = (() => {
     }
     setGenerating(true);
     try {
-      const tokens = buildContractTokens({ crewMember, empForm, compForm, vessel: vesselCompliance });
+      // Personal particulars (DOB, nationality, address, phone) live in the
+      // Personal Details form, not on the base crewMember — merge them in so
+      // the contract tokens fill. Passport comes from an uploaded passport doc;
+      // if none yet, it stays blank (renders a fill-in line).
+      const crewForTokens = {
+        ...crewMember,
+        dateOfBirth: formData?.dateOfBirth || crewMember?.dateOfBirth,
+        nationality: formData?.nationality || crewMember?.nationality,
+        passportNumber: formData?.passportNumber || crewMember?.passportNumber,
+        placeOfBirth: formData?.placeOfBirth || crewMember?.placeOfBirth,
+        homeAddress: formData?.homeAddress || crewMember?.homeAddress,
+        phoneNumber: formData?.phoneNumber || crewMember?.phoneNumber,
+      };
+      const tokens = buildContractTokens({ crewMember: crewForTokens, empForm, compForm, vessel: vesselCompliance });
       const blob = await generateContractBlob(template, tokens);
       const ext = isPdfTemplate(template) ? 'pdf' : 'docx';
       const mime = isPdfTemplate(template) ? 'application/pdf' : TEMPLATE_MIME;
