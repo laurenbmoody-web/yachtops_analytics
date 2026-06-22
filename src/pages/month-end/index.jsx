@@ -203,7 +203,7 @@ export default function MonthEnd() {
     }
     setExporting(true);
     try {
-      const payload = await loadRotaHorExportData({ tenantId: activeTenantId, year, month: jsMonth + 1 });
+      const payload = await loadRotaHorExportData({ tenantId: activeTenantId, year, month: jsMonth + 1, withSignatures: true });
       if (payload.empty) {
         setToast('This month hasn’t started yet — nothing to record');
         return;

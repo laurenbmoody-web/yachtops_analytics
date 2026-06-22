@@ -25,6 +25,8 @@ import {
 } from './restHours';
 import { getRoleDisplayName } from './crewDisplay';
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
+import { getSignatureUrl } from '../crew-profile/utils/horSignatures';
+import { fetchMonthStatusesForMonth } from '../crew-profile/utils/horMonthStatus';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -175,13 +177,74 @@ export function clampExportToToday({ rows, days, meta, periodLabel, realToday })
   return { days: ed, rows: er, meta: { ...meta, periodLabel: label }, empty: ed.length === 0 };
 }
 
+// ── Captured sign-off signatures (for the management record) ────────────────
+// Each signed-off month carries the seafarer's submission signature and the
+// approver's (master's) counter-signature in the private hor-signatures bucket.
+// We re-sign the stored paths, fetch the PNGs as data URLs (origin-independent,
+// so jsPDF can embed them without tainting), and read their natural dimensions
+// for aspect-correct placement on the record's signature lines.
+
+const blobToDataURL = (blob) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onerror = () => reject(r.error);
+  r.onload = () => resolve(String(r.result));
+  r.readAsDataURL(blob);
+});
+const imageDims = (dataUrl) => new Promise((resolve) => {
+  const img = new Image();
+  img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+  img.onerror = () => resolve({ w: 0, h: 0 });
+  img.src = dataUrl;
+});
+async function loadSignatureImage(path) {
+  if (!path) return null;
+  try {
+    const url = await getSignatureUrl(path);
+    if (!url) return null;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const dataUrl = await blobToDataURL(await res.blob());
+    const { w, h } = await imageDims(dataUrl);
+    return { dataUrl, w, h };
+  } catch {
+    return null;
+  }
+}
+const fmtSigDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+// userId -> { seafarer:{img,name,date}, master:{img,name,date} } for every
+// member whose month carries a signature. Members with no sign-off are omitted
+// (their record keeps blank signature lines).
+async function buildSignaturesForMonth({ tenantId, year, mi }) {
+  const statuses = await fetchMonthStatusesForMonth({ tenantId, year, jsMonth: mi });
+  const out = {};
+  await Promise.all(Object.entries(statuses || {}).map(async ([userId, row]) => {
+    const hasSub = row?.submit_signature_path || row?.submit_signed_name;
+    const hasApp = row?.approve_signature_path || row?.approve_signed_name;
+    if (!hasSub && !hasApp) return;
+    const [subImg, appImg] = await Promise.all([
+      loadSignatureImage(row?.submit_signature_path),
+      loadSignatureImage(row?.approve_signature_path),
+    ]);
+    out[userId] = {
+      seafarer: hasSub ? { img: subImg, name: row?.submit_signed_name || '', date: fmtSigDate(row?.submitted_at) } : null,
+      master: hasApp ? { img: appImg, name: row?.approve_signed_name || '', date: fmtSigDate(row?.confirmed_at || row?.locked_at) } : null,
+    };
+  }));
+  return out;
+}
+
 // ── Headless month loader ───────────────────────────────────────────────────
 
 // Assemble the full export payload for one month, running the same queries the
 // rota page runs. `month` is 1-based. Returns { rows, days, meta, windowShifts,
 // breachReasons, empty } — exactly the args exportRestLogPDF/CSV expect (plus
 // `empty` when the period hasn't started). Clamped to today like the rota export.
-export async function loadRotaHorExportData({ tenantId, year, month }) {
+export async function loadRotaHorExportData({ tenantId, year, month, withSignatures = false }) {
   const mi = month - 1; // 0-based
   const last = new Date(year, mi + 1, 0);
   const daysInMonth = last.getDate();
@@ -270,5 +333,13 @@ export async function loadRotaHorExportData({ tenantId, year, month }) {
   const realToday = toYmd(new Date());
   const clamped = clampExportToToday({ rows, days, meta, periodLabel: meta.periodLabel, realToday });
 
-  return { ...clamped, windowShifts: mergedShifts, breachReasons };
+  // The captured sign-off signatures, when this pack is the signed record sent
+  // to management (the on-screen rota export leaves the lines blank for wet ink).
+  let signatures = {};
+  if (withSignatures) {
+    try { signatures = await buildSignaturesForMonth({ tenantId, year, mi }); }
+    catch (e) { console.warn('[HOR] signature load failed', e); }
+  }
+
+  return { ...clamped, windowShifts: mergedShifts, breachReasons, signatures };
 }
