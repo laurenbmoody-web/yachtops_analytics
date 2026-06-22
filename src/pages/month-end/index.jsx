@@ -20,6 +20,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { fetchTenantCrew } from '../crew-profile/utils/tenantCrew';
 import { fetchMonthStatusesForMonth, fetchVesselHorSettings, fetchActiveMemberTiers } from '../crew-profile/utils/horMonthStatus';
 import { sendDbNotification } from '../../lib/dbNotifications';
+import { buildSignedHorZip } from '../crew-profile/utils/horPDFGenerator';
+import { saveAs } from 'file-saver';
 import './month-end.css';
 
 const TIER_RANK = { COMMAND: 3, CHIEF: 2, HOD: 1 };
@@ -96,6 +98,7 @@ export default function MonthEnd() {
   const [openHor, setOpenHor] = useState(false);   // HOR pack expand
   const [openBlocks, setOpenBlocks] = useState({}); // per-status-block expand (default collapsed)
   const [hideClosed, setHideClosed] = useState(false); // filter: hide closed items
+  const [exporting, setExporting] = useState(false);   // building the signed-HOR zip
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
@@ -174,6 +177,30 @@ export default function MonthEnd() {
   };
 
   const stepMonth = (dir) => setCursor(new Date(year, jsMonth + dir, 1));
+
+  // Signed-off crew for this month — the rows eligible for the management export.
+  const signedRows = useMemo(
+    () => rows.filter((r) => r.status === 'confirmed' || r.status === 'locked'),
+    [rows],
+  );
+
+  // Export the signed HOR pack (one audit PDF per crew + a CSV summary) as a
+  // single zip, to forward to the management company at month-end.
+  const exportSigned = async () => {
+    if (!signedRows.length || exporting) return;
+    setExporting(true);
+    try {
+      const { blob, fileName } = await buildSignedHorZip(signedRows, new Date(year, jsMonth, 1));
+      saveAs(blob, fileName);
+      setToast(`Exported ${signedRows.length} signed HOR record${signedRows.length > 1 ? 's' : ''}`);
+    } catch (e) {
+      console.error('HOR export failed', e);
+      setToast('Export failed — please try again');
+    } finally {
+      setExporting(false);
+      setTimeout(() => setToast(''), 2600);
+    }
+  };
 
   // HOR pack rollup → two-state.
   const horDone = counts.total > 0 && counts.done === counts.total;
@@ -373,7 +400,17 @@ export default function MonthEnd() {
                         ) : rows.length === 0 ? (
                           <div className="mp-empty">No crew on this vessel yet.</div>
                         ) : (
-                          STATUS_BLOCKS.map(renderStatusBlock)
+                          <>
+                            {STATUS_BLOCKS.map(renderStatusBlock)}
+                            {signedRows.length > 0 && (
+                              <div className="me-export">
+                                <span className="me-export-note">{signedRows.length} signed off · ready to send to management</span>
+                                <button type="button" className="me-btn me-btn-primary" disabled={exporting} onClick={exportSigned}>
+                                  <Icon name="Download" size={14} /> {exporting ? 'Preparing…' : 'Export signed HOR (.zip)'}
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
