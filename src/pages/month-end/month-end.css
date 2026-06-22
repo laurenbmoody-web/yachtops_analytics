@@ -129,6 +129,7 @@
 
 .me-action { display: flex; justify-content: flex-end; align-items: center; min-width: 150px; margin-left: 14px; }
 .me-signed { color: #5C9B6A; display: inline-flex; }
+.me-btn-view svg { color: #5C9B6A; }
 
 .me-btn { display: inline-flex; align-items: center; gap: 7px; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
 .me-btn-primary { background: #C65A1A; border: 1px solid #C65A1A; color: #fff; }

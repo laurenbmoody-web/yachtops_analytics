@@ -222,7 +222,11 @@ export default function MonthEnd() {
               ? <button type="button" className="me-btn me-btn-primary" onClick={() => navigate(`/profile/${r.id}?tab=hor&period=${year}-${pad2(jsMonth + 1)}`)}>Review &amp; approve</button>
               : <span className="me-meta">Awaiting {approverTier.toLowerCase()}</span>
           )}
-          {signed && <span className="me-signed"><Icon name="Check" size={15} /></span>}
+          {signed && (
+            <button type="button" className="me-btn me-btn-ghost me-btn-view" onClick={() => navigate(`/profile/${r.id}?tab=hor&period=${year}-${pad2(jsMonth + 1)}`)}>
+              <Icon name="Check" size={14} /> View
+            </button>
+          )}
         </div>
       </div>
     );
