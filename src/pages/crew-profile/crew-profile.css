@@ -1042,6 +1042,11 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-rail-btn.fill { background: #C65A1A; color: #fff; border: 1px solid #C65A1A; }
 .crew-profile-page .cp-rail-btn.fill:hover { background: #B14E16; }
 .crew-profile-page .cp-rail-btn.ghost { background: #fff; color: #1C1B3A; border: 1px solid #ECEAE3; margin-top: 8px; }
+.crew-profile-page .cp-rail-btn:disabled { opacity: .55; cursor: not-allowed; }
+.crew-profile-page .cp-rail-step code { background: #FBEFE9; border-radius: 5px; padding: 1px 5px; font-size: 11px; color: #C65A1A; }
+.crew-profile-page .cp-rail-chosen { display: flex; flex-direction: column; gap: 2px; margin: 14px 0 4px; padding: 10px 12px; border: 1px solid #ECEAE3; border-radius: 10px; background: #FAFAF8; }
+.crew-profile-page .cp-rail-chosen-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.crew-profile-page .cp-rail-chosen-name { font-size: 13px; font-weight: 600; color: #1C1B3A; }
 
 /* Editorial date picker sitting inside a field card: drop its own box so it
    reads as a flush inline field (the card is the only box). The popover is
