@@ -89,7 +89,26 @@
               border-color 120ms ease, filter 120ms ease,
               opacity 120ms ease;
 }
-.pv-bulk-bar-btn:disabled { cursor: default; opacity: 0.55; }
+.pv-bulk-bar-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  filter: grayscale(0.6);
+  /* Make sure colour-coded variants drop their accent so the
+     disabled state reads as "off" rather than "muted accent" —
+     particularly the danger variant which kept full terracotta-
+     red border + text. */
+  color: var(--d-muted-soft, #94A3B8) !important;
+  border-color: var(--d-border, #E2DDD4) !important;
+  background: var(--d-card, #FFFFFF) !important;
+}
+.pv-bulk-bar-btn:disabled:hover {
+  /* Belt-and-suspenders — kill the variant :hover rules so a
+     stray pointer doesn't flash the red back in for a frame. */
+  background: var(--d-card, #FFFFFF) !important;
+  color: var(--d-muted-soft, #94A3B8) !important;
+  border-color: var(--d-border, #E2DDD4) !important;
+  filter: grayscale(0.6);
+}
 
 .pv-bulk-bar-btn-primary {
   background: var(--d-orange);
