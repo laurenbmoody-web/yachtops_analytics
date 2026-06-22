@@ -113,6 +113,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [vesselAttest, setVesselAttest] = useState({});
   const [uploadFor, setUploadFor] = useState(null); // vesselId awaiting an external file pick
   const fileRef = useRef(null);
+  // Captain sign-off ceremony — the master reviews one vessel's periods and
+  // either signs the testimonial or declines it back to the crew member.
+  const [signFor, setSignFor] = useState(null);     // vessel object under review
+  const [signName, setSignName] = useState('');     // typed signature (virtual route)
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
 
   // data source: live Supabase, or a clearly-labelled sample fallback.
   const [vessels, setVessels] = useState(SEED_VESSELS);
@@ -297,16 +303,45 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   };
 
   // The master attests one vessel — a Cargo stamp when both are aboard, else a
-  // virtual signature.
-  const attestVessel = async (v) => {
+  // virtual signature. `signedName` is the typed signature for the virtual route.
+  const attestVessel = async (v, signedName) => {
     if (!canGenerate) { flash('Resolve all validation checks first'); return; }
+    const who = signedName || v.captainName || 'Master';
     if (!usingSample && tenantId && userId) {
-      try { await signEntries(tenantId, liveRowIdsFor(v.id), { signedName: v.captainName || 'Master' }); await loadLive(); }
+      try { await signEntries(tenantId, liveRowIdsFor(v.id), { signedName: who }); await loadLive(); }
       catch (e) { console.error(e); flash('Could not attest — check your permissions'); return; }
     } else {
-      setVA(v.id, { status: 'attested', mode: v.mode, at: '2026-04-22' });
+      setVA(v.id, { status: 'attested', mode: v.mode, at: '2026-04-22', signedBy: who });
     }
     flash(v.mode === 'stamp' ? `${v.name} verified in Cargo` : `${v.name} signed by ${v.captainName || 'the captain'}`);
+  };
+
+  // ── captain sign-off ceremony ──
+  // The qualifying periods on one vessel — what the master is being asked to confirm.
+  const periodsFor = (vid) => entries.filter(e => !e.excluded && e.vesselId === vid);
+  const openSignoff = (v) => {
+    // The signer is the captain viewing the profile; on the sample preview it's
+    // the vessel's master of record being role-played.
+    setSignName((canAttest ? currentUser?.fullName : null) || (v.captainName || '').replace('Capt. ', ''));
+    setDeclineOpen(false); setDeclineReason('');
+    setSignFor(v);
+  };
+  const closeSignoff = () => setSignFor(null);
+  const confirmSignoff = async () => {
+    const v = signFor; if (!v) return;
+    setSignFor(null);
+    await attestVessel(v, v.mode === 'virtual' ? signName.trim() : undefined);
+  };
+  const declineSignoff = async () => {
+    const v = signFor; if (!v) return;
+    setSignFor(null);
+    // Hand the request back to the crew member with the master's reason.
+    if (!usingSample && tenantId && userId) {
+      try { await sendDbNotification(userId, { type: 'sea_time', title: 'Sea-service attestation declined', message: `${v.captainName || 'The captain'} couldn’t confirm your service on ${v.name}${declineReason.trim() ? ` — “${declineReason.trim()}”` : ''}.`, actionUrl: `/profile/${userId}?tab=seatime`, severity: 'warning' }); }
+      catch (ne) { console.warn('decline notify failed', ne); }
+    }
+    setVA(v.id, { status: 'outstanding', mode: v.mode });
+    flash(`Declined — ${seafarer.fullName} has been notified`);
   };
 
   // External testimonial — for a vessel that isn't on Cargo, the crew uploads
@@ -758,8 +793,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                           )}
                           {/* The captain viewing their own ship — confirm or sign. */}
                           {!done && v.mode !== 'external' && canAttest && (
-                            <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => attestVessel(v)}>
-                              <Icon name={v.mode === 'stamp' ? 'BadgeCheck' : 'PenLine'} size={13} /> {v.mode === 'stamp' ? 'Verify in Cargo' : 'Sign now'}
+                            <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => openSignoff(v)}>
+                              <Icon name={v.mode === 'stamp' ? 'BadgeCheck' : 'PenLine'} size={13} /> {v.mode === 'stamp' ? 'Review & verify' : 'Review & sign'}
                             </button>
                           )}
                           {/* Crew — ask the captain. In-app while reachable, secure email when off Cargo (upload as last resort). */}
@@ -776,7 +811,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                             )
                           )}
                           {!done && v.mode !== 'external' && !canAttest && v.att.status === 'requested' && usingSample && (
-                            <button className="std-vbtn navy" onClick={() => attestVessel(v)} title="Preview only — no live captain account on the sample">
+                            <button className="std-vbtn navy" onClick={() => openSignoff(v)} title="Preview only — no live captain account on the sample">
                               <Icon name={v.mode === 'stamp' ? 'BadgeCheck' : 'PenLine'} size={13} /> Preview: {v.mode === 'stamp' ? 'verify' : 'sign'} as {v.cap}
                             </button>
                           )}
@@ -925,6 +960,101 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       )}
 
       <input ref={fileRef} type="file" accept=".pdf,.png,.jpg,.jpeg" hidden onChange={onExternalFile} />
+
+      {/* ── captain sign-off ceremony ── */}
+      {signFor && (() => {
+        const v = signFor;
+        const ps = periodsFor(v.id);
+        const totDays = ps.reduce((s, e) => s + (e.days || 0), 0);
+        const caps = [...new Set(ps.map(e => e.capacity).filter(Boolean))].join(', ') || '—';
+        const isStamp = v.mode === 'stamp';
+        const canSign = isStamp || signName.trim().length > 1;
+        return (
+          <>
+            <div className="cso-scrim" onClick={closeSignoff} />
+            <div className="cso" role="dialog" aria-modal="true" aria-label="Captain sign-off">
+              <button className="cso-x" onClick={closeSignoff} aria-label="Close"><Icon name="X" size={18} /></button>
+              <div className="cso-head">
+                <div className="cso-eyebrow">Captain sign-off · MSN 1858</div>
+                <h3 className="cso-title">{isStamp ? 'Verify service in Cargo' : 'Sign sea-service testimonial'}</h3>
+                <div className="cso-sub">You’re confirming service performed under your command aboard <b>{v.name}</b>.</div>
+              </div>
+              <div className="cso-body">
+                <div className="cso-meta">
+                  <div className="cso-metacol">
+                    <span className="cso-lbl">Seafarer</span>
+                    <span className="cso-val">{seafarer.fullName}</span>
+                    <span className="cso-vs">{caps}</span>
+                  </div>
+                  <div className="cso-metacol">
+                    <span className="cso-lbl">Vessel</span>
+                    <span className="cso-val">{v.name}</span>
+                    <span className="cso-vs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo}</span>
+                  </div>
+                </div>
+                <div className="cso-sec">
+                  <div className="cso-lbl">Service you’re confirming <span className="cso-cnt">{ps.length} {ps.length === 1 ? 'period' : 'periods'} · {totDays} {totDays === 1 ? 'day' : 'days'}</span></div>
+                  <div className="cso-plist">
+                    {ps.map(e => {
+                      const tm = TYPE_META[e.type];
+                      const det = e.type === 'watchkeeping' ? `${e.watchHours}h watch · ${e.capacity}` : (e.detailOverride || `${tm.hint} · ${e.capacity}`);
+                      return (
+                        <div className="cso-prow" key={e.id}>
+                          <span className="cso-prail" style={{ background: tm.color }} />
+                          <div className="cso-pdate">{e.dateMain}<span>{e.days} {e.days === 1 ? 'day' : 'days'}</span></div>
+                          <div className="cso-pdet"><span className="cso-ptype" style={{ color: tm.color }}>{tm.label}</span><span className="cso-vs">{det}</span></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="cso-decl">
+                  <Icon name="ShieldCheck" size={16} />
+                  <span>I certify that the above is a true record of sea service performed aboard <b>{v.name}</b> under my command, and that I am authorised to make this testimonial. I am not the seafarer named.</span>
+                </div>
+                {isStamp ? (
+                  <div className="cso-stamp">
+                    <Icon name="BadgeCheck" size={20} />
+                    <div>
+                      <div className="cso-stamp-t">Verified with {v.name}’s Cargo identity</div>
+                      <div className="cso-vs">Signed as {(canAttest ? currentUser?.fullName : null) || v.captainName || 'Master'}, Master · {fmtDate('2026-04-22')}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="cso-sig">
+                    <label className="cso-lbl">Sign here — type your full name <span className="req">required</span></label>
+                    <input className="cso-input" value={signName} onChange={e => setSignName(e.target.value)} placeholder="e.g. Henrik Sörensen" />
+                    <div className="cso-sigprev" style={{ opacity: signName.trim() ? 1 : 0.35 }}>{signName.trim() || 'Your signature'}</div>
+                  </div>
+                )}
+                {declineOpen ? (
+                  <div className="cso-sig">
+                    <label className="cso-lbl">Reason for declining <span className="opt">optional</span></label>
+                    <textarea className="cso-input" rows={2} value={declineReason} onChange={e => setDeclineReason(e.target.value)} placeholder="Let them know what needs correcting…" />
+                  </div>
+                ) : (
+                  <button className="cso-declinelink" onClick={() => setDeclineOpen(true)}>Something’s not right? Decline this request</button>
+                )}
+              </div>
+              <div className="cso-foot">
+                {declineOpen ? (
+                  <>
+                    <button className="cso-btn ghost" onClick={() => setDeclineOpen(false)}>Back</button>
+                    <button className="cso-btn danger" onClick={declineSignoff}>Send decline</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="cso-btn ghost" onClick={closeSignoff}>Cancel</button>
+                    <button className="cso-btn rust" disabled={!canSign} onClick={confirmSignoff}>
+                      <Icon name={isStamp ? 'BadgeCheck' : 'PenLine'} size={15} /> {isStamp ? 'Verify in Cargo' : 'Sign & confirm'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {toast && <div className="std-toast"><Icon name="Check" size={16} color="#5E8E6F" /> {toast}</div>}
     </div>
