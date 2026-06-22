@@ -10,3 +10,4 @@ export { default as EditorialMetaStrip } from './EditorialMetaStrip';
 export { default as EditorialHeadline } from './EditorialHeadline';
 export { default as EditorialTabNav } from './EditorialTabNav';
 export { default as EditorialDatePicker } from './EditorialDatePicker';
+export { default as HelpHint, HelpHintBuckets } from './HelpHint';

@@ -1,0 +1,102 @@
+/* HelpHint — small (?) trigger + editorial popover. Used inline next
+   to column headers / form labels to teach by example. */
+
+.help-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  line-height: 1;
+}
+
+.help-hint-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #AEB4C2;
+  cursor: help;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.help-hint-trigger:hover,
+.help-hint-trigger:focus-visible {
+  color: #C65A1A;
+  background: #FBEFE9;
+  outline: none;
+}
+.help-hint-trigger svg { display: block; }
+
+/* Popover — editorial card. Default opens below the trigger; side=
+   variants slide it to the matching edge. z-index sits above table
+   rows but below modals. */
+.help-hint-popover {
+  position: absolute;
+  z-index: 60;
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 10px;
+  box-shadow: 0 14px 36px -8px rgba(28, 27, 58, 0.22);
+  padding: 12px 14px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1C1B3A;
+  letter-spacing: 0.005em;
+  cursor: default;
+  /* Stop the parent's hover-out from closing the popover when the
+     user moves into it. */
+  pointer-events: auto;
+}
+.help-hint-bottom .help-hint-popover { top: calc(100% + 6px); left: 0; }
+.help-hint-top    .help-hint-popover { bottom: calc(100% + 6px); left: 0; }
+.help-hint-right  .help-hint-popover { top: 0; left: calc(100% + 6px); }
+.help-hint-left   .help-hint-popover { top: 0; right: calc(100% + 6px); }
+
+.help-hint-title {
+  display: block;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 14px;
+  color: #1C1B3A;
+  margin-bottom: 6px;
+  letter-spacing: -0.005em;
+}
+.help-hint-body { display: block; }
+.help-hint-body p { margin: 0 0 6px; }
+.help-hint-body p:last-child { margin-bottom: 0; }
+
+/* Buckets — label + italic example per line. Default rendering used
+   for the standard "what goes in this field?" pattern. */
+.help-hint-buckets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.help-hint-buckets li {
+  display: grid;
+  grid-template-columns: minmax(0, auto) 1fr;
+  gap: 6px;
+  align-items: baseline;
+}
+.help-hint-bucket-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #C65A1A;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.help-hint-bucket-example {
+  font-size: 11.5px;
+  font-style: italic;
+  color: #6B6F7A;
+  letter-spacing: 0.005em;
+}

@@ -1093,6 +1093,7 @@ const ProvisioningBoardDetail = () => {
     unit:             'unit',
     size:             'size',
     notes:            'notes',
+    units_per_pack:   'units_per_pack',
   };
 
   const handleCellSave = useCallback(async (item, field, rawValue) => {
