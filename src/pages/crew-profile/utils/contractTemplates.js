@@ -89,6 +89,7 @@ export function buildContractTokens({ crewMember, empForm, compForm, vessel }) {
     leave_days: (e.leave_entitlement_days != null && e.leave_entitlement_days !== '') ? String(e.leave_entitlement_days) : '',
     notice_period: e.notice_period || '',
     port_of_embarkation: e.port_of_embarkation || '',
+    repatriation_destination: e.repatriation_destination || '',
     sea_reference: e.sea_reference || '',
     contract_standard: crewContractStandard({
       flag: v.flag, commercialStatus: v.commercial_status, certifiedCommercial: v.certified_commercial,
