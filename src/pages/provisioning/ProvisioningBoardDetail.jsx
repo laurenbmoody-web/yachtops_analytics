@@ -120,6 +120,93 @@ const ACTIVE_ORDER_STATES = new Set([
 // order-number display across both portals.
 const shortOrderRef = (id) => String(id || '').slice(0, 8).toUpperCase();
 
+// Per-column teaching tooltips for the board items table. Lifted to
+// module scope so every render reads the same definitions; matched
+// by key to the helpHint marker on each header in the render array.
+//
+// Content sources from the chief's Excel veg + fish lists where the
+// example phrases live in real provisioning prose, not invented.
+const COLUMN_HELP_HINTS = {
+  item: {
+    title: 'What lives in Item',
+    width: 280,
+    buckets: [
+      { label: 'Name',  example: '"Premium lager", "Oscietra caviar"' },
+      { label: 'Brand', example: 'muted subtitle below the name' },
+    ],
+  },
+  category: {
+    title: 'What lives in Category',
+    width: 280,
+    buckets: [
+      { label: 'Dept',    example: '"Galley", "Bar", "Interior"' },
+      { label: 'Sub-cat', example: '"Beer & Cider", "Caviar, Roe & Truffle"' },
+    ],
+  },
+  notes: {
+    title: 'What goes in Notes?',
+    width: 300,
+    buckets: [
+      { label: 'Prep',    example: '"Skin on, pin boned, scaled"' },
+      { label: 'Packing', example: '"1 per bag, vac-packed"' },
+      { label: 'State',   example: '"Ripe not soft, sashimi grade"' },
+      { label: 'Special', example: '"Display quality, bones out"' },
+    ],
+  },
+  size: {
+    title: 'What goes in Size?',
+    width: 280,
+    buckets: [
+      { label: 'Weight', example: '"1kg", "500g", "8oz"' },
+      { label: 'Volume', example: '"750ml", "1L"' },
+      { label: 'Pack',   example: '"24-pack", "6 per case"' },
+    ],
+  },
+  unit: {
+    title: 'What goes in Unit?',
+    width: 280,
+    buckets: [
+      { label: 'Each',   example: 'bottle, can, jar, piece, side' },
+      { label: 'Weight', example: 'kg, g' },
+      { label: 'Bundle', example: 'punnet, bunch, pack, tray, bag' },
+    ],
+  },
+  qty: {
+    title: 'How many to order',
+    width: 260,
+    buckets: [
+      { label: 'Tip', example: 'reads alongside Unit — "3 bottles", "2 kg"' },
+    ],
+  },
+  unit_cost: {
+    title: 'Unit cost lifecycle',
+    width: 280,
+    buckets: [
+      { label: 'Estimate', example: 'chief sets pre-send' },
+      { label: 'Quoted',   example: 'supplier returns their price' },
+      { label: 'Final',    example: 'locked after Quote approval' },
+    ],
+  },
+  total: {
+    title: 'Total per line',
+    width: 260,
+    buckets: [
+      { label: 'Formula',  example: 'Qty × Unit cost' },
+      { label: 'Excluded', example: 'unavailable lines drop from rollups' },
+    ],
+  },
+  status: {
+    title: 'Status colours',
+    width: 260,
+    buckets: [
+      { label: 'Pending',     example: 'supplier hasn\'t acted yet' },
+      { label: 'Confirmed',   example: 'supplier agreed at the quoted price' },
+      { label: 'Substituted', example: 'supplier offered an alternative' },
+      { label: 'Unavailable', example: 'supplier can\'t fulfil this line' },
+    ],
+  },
+};
+
 // Scoped selection checkbox — items-list bulk-selection model only.
 // Lifted into components/SelectionCheckbox.jsx (the SVG-check sweep) so
 // other selection surfaces can adopt it without re-implementing.
@@ -3256,8 +3343,8 @@ const ProvisioningBoardDetail = () => {
                           // the arrow + drop the click target in that
                           // case; the column header stays as a plain
                           // label.
-                          { label: 'Item',      key: groupBy === 'category' ? null : 'item' },
-                          ...(groupBy === 'category' ? [] : [{ label: 'Category', key: 'category' }]),
+                          { label: 'Item',      key: groupBy === 'category' ? null : 'item', helpHint: 'item' },
+                          ...(groupBy === 'category' ? [] : [{ label: 'Category', key: 'category', helpHint: 'category' }]),
                           // Notes column header carries a (?) hint
                           // that opens an editorial popover with
                           // examples — teaches the chief by example
@@ -3267,12 +3354,12 @@ const ProvisioningBoardDetail = () => {
                           // by the helpHint prop below; the column
                           // itself isn't sortable.
                           { label: 'Notes',     key: null, helpHint: 'notes' },
-                          { label: 'Size',      key: null },
-                          { label: 'Unit',      key: null },
-                          { label: 'Qty',       key: 'qty' },
-                          { label: 'Unit Cost', key: 'unit_cost' },
-                          { label: 'Total',     key: 'total' },
-                          { label: 'Status',    key: 'status', centered: true },
+                          { label: 'Size',      key: null, helpHint: 'size' },
+                          { label: 'Unit',      key: null, helpHint: 'unit' },
+                          { label: 'Qty',       key: 'qty', helpHint: 'qty' },
+                          { label: 'Unit Cost', key: 'unit_cost', helpHint: 'unit_cost' },
+                          { label: 'Total',     key: 'total', helpHint: 'total' },
+                          { label: 'Status',    key: 'status', centered: true, helpHint: 'status' },
                           { label: '',          key: null },
                         ].map(({ label, key, centered, helpHint }, idx) => {
                           const sortable = !!key;
@@ -3297,14 +3384,12 @@ const ProvisioningBoardDetail = () => {
                               }}
                             >
                               {label}
-                              {helpHint === 'notes' && (
-                                <HelpHint title="What goes in Notes?" width={300}>
-                                  <HelpHintBuckets buckets={[
-                                    { label: 'Prep',    example: '"Skin on, pin boned, scaled"' },
-                                    { label: 'Packing', example: '"1 per bag, vac-packed"' },
-                                    { label: 'State',   example: '"Ripe not soft, sashimi grade"' },
-                                    { label: 'Special', example: '"Display quality, bones out"' },
-                                  ]} />
+                              {helpHint && COLUMN_HELP_HINTS[helpHint] && (
+                                <HelpHint
+                                  title={COLUMN_HELP_HINTS[helpHint].title}
+                                  width={COLUMN_HELP_HINTS[helpHint].width}
+                                >
+                                  <HelpHintBuckets buckets={COLUMN_HELP_HINTS[helpHint].buckets} />
                                 </HelpHint>
                               )}
                               {active && (
