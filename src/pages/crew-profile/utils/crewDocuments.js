@@ -56,7 +56,15 @@ export const fetchCrewDocuments = async (userId) => {
  * metadata. The storage path is kept so the URL can be re-signed later.
  */
 export const uploadDocumentFile = async (userId, file) => {
-  const path = `${userId}/${Date.now()}-${file.name}`;
+  // Supabase storage keys reject non-ASCII (e.g. the em-dash "—") and treat "/"
+  // as a folder separator, so slugify the filename for the key. The original
+  // file.name is still returned for display/download.
+  const safe = (file.name || 'file')
+    .normalize('NFKD')
+    .replace(/[^\w.\-]+/g, '_')
+    .replace(/_{2,}/g, '_')
+    .replace(/^[_.]+/, '') || 'file';
+  const path = `${userId}/${Date.now()}-${safe}`;
   const { error: upErr } = await supabase?.storage?.from(BUCKET)?.upload(path, file, {
     cacheControl: '3600',
     upsert: false,
