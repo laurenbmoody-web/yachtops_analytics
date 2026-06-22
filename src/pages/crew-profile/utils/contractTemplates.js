@@ -371,7 +371,7 @@ function furnitureParas(text) {
 // rebuilt contract reads like a contract, not a wall of text. Optional
 // headerText / footerText become a real running page header / footer, and an
 // optional logo (from fetchLogo) is embedded at the top of the header.
-function textToDocxBlob(text, { headerText = '', footerText = '', logo = null } = {}) {
+function textToDocxBlob(text, { headerText = '', footerText = '', logo = null, coverText = '' } = {}) {
   const lines = String(text).split('\n');
   const isClauseHeading = (t) => /^\d+\s+[A-Z]/.test(t) && t.length < 70;
 
@@ -409,19 +409,30 @@ function textToDocxBlob(text, { headerText = '', footerText = '', logo = null } 
       + `<w:r>${rPr}<w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
   };
 
-  // Replicate the original's title/cover page: if there's a lead-in block before
-  // the first numbered clause (the "Parties…" section), present it centred on
-  // its own page, then a page break, then the structured clauses.
-  const firstClauseIdx = lines.findIndex((l) => isClauseHeading(l.trim()));
-  const coverLines = firstClauseIdx > 0 ? lines.slice(0, firstClauseIdx) : [];
-  const hasCover = firstClauseIdx > 1 && coverLines.filter((l) => l.trim()).length >= 3;
+  // Replicate the source's title/cover page when it has one. The AI decides this
+  // per upload and returns the cover separately (coverText); when present we
+  // centre it on its own page, then a page break, then the structured clauses.
+  // Fallback heuristic (no coverText): treat a ≥3-line lead-in before the first
+  // numbered clause as a cover, so older drafts still work.
+  let coverLines = [];
+  let bodyLines = lines;
+  if (String(coverText || '').trim()) {
+    coverLines = String(coverText).split('\n');
+  } else {
+    const firstClauseIdx = lines.findIndex((l) => isClauseHeading(l.trim()));
+    if (firstClauseIdx > 1 && lines.slice(0, firstClauseIdx).filter((l) => l.trim()).length >= 3) {
+      coverLines = lines.slice(0, firstClauseIdx);
+      bodyLines = lines.slice(firstClauseIdx);
+    }
+  }
+  const hasCover = coverLines.some((l) => l.trim() !== '');
 
   let paras;
   if (hasCover) {
     const titleIdx = coverLines.findIndex((l) => l.trim() !== '');
     const cover = coverLines.map((l, i) => coverPara(l, i === titleIdx)).join('');
     const pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
-    const body = lines.slice(firstClauseIdx).map(bodyPara).join('');
+    const body = bodyLines.map(bodyPara).join('');
     paras = cover + pageBreak + body;
   } else {
     // No cover block — keep the simple flow, and drop the title if the running
@@ -539,6 +550,7 @@ export async function analyzePdfForTemplate(file) {
   if (data?.error) throw new Error(data.error);
   return {
     kind: 'rebuild',
+    coverText: data?.cover_text || '',
     templateText: data?.template_text || '',
     headerText: data?.header_text || '',
     footerText: data?.footer_text || '',
@@ -556,7 +568,7 @@ export async function buildTemplateDocxFile(draft, fileName, { logoUrl } = {}) {
   } else {
     const logo = await fetchLogo(logoUrl);
     blob = textToDocxBlob(draft.templateText, {
-      headerText: draft.headerText, footerText: draft.footerText, logo,
+      headerText: draft.headerText, footerText: draft.footerText, coverText: draft.coverText, logo,
     });
   }
   const name = fileName.endsWith('.docx') ? fileName : `${fileName}.docx`;

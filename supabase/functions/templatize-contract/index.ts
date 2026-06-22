@@ -72,10 +72,11 @@ Reproduce the FULL text of the contract, but replace every PERSONAL / PARTICULAR
 ${TOKENS}
 
 Return ONLY a JSON object (no markdown, no backticks):
-{"template_text":"<the contract body with {{tokens}}>","header_text":"<running page header, once>","footer_text":"<running page footer, once>"}
+{"cover_text":"<title/cover page lines, or empty>","template_text":"<the contract body with {{tokens}}>","header_text":"<running page header, once>","footer_text":"<running page footer, once>"}
 
 Rules:
-- template_text: the contract body. Keep ALL wording, clause headings, and structure intact — only the individual's particulars become tokens. Preserve paragraph breaks as newline characters.
+- cover_text: If the contract OPENS WITH A DISTINCT TITLE / COVER PAGE — a centred title plus the parties' particulars (e.g. "Parties to the Employment Agreement", Full Name, Date of Birth, Passport No, Place of Birth, "And the Company", the company name/address, the vessel + official number) presented before the numbered operative clauses begin — reproduce that page's lines here, in order, tokenised. This block will be centred on its own page. If the document has NO separate title/cover page (it starts straight into the clauses), return an empty string. Decide based on how the actual PDF lays out page one.
+- template_text: the operative contract body — the numbered clauses onward. Keep ALL wording, clause headings, and structure intact — only the individual's particulars become tokens. Preserve paragraph breaks as newline characters. Do NOT repeat any line you already put in cover_text.
 - header_text / footer_text: a scanned/exported PDF repeats the same header at the top and footer at the bottom of EVERY page (e.g. the document title line, "Page No. X of N", "Joining Document N of M", a footer address line, "Initials of Signees"). Extract that repeating furniture ONCE into header_text and footer_text, and DO NOT include it in template_text (don't repeat it between sections).
   - Put the line(s) repeated at the TOP of each page into header_text, the line(s) at the BOTTOM into footer_text. Omit auto page numbers ("Page No. X of N", "Joining Document N of M") — Word renumbers those.
   - Tokenise particulars inside the header/footer too (the footer address becomes {{company_address}}).
@@ -158,6 +159,7 @@ Deno.serve(async (req: Request) => {
 
     const out = mode === 'rebuild'
       ? {
+          cover_text: String(parsed?.cover_text || ''),
           template_text: String(parsed?.template_text || ''),
           header_text: String(parsed?.header_text || ''),
           footer_text: String(parsed?.footer_text || ''),
