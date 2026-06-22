@@ -79,7 +79,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const [docMet, setDocMet] = useState({ passport: false, email: true, srb: true, template: true, stamp: false, scan: true, min642: true, sig: true });
-  const [form, setForm] = useState({ vesselId: '', from: '', to: '', type: 'watchkeeping', watchHours: 6, capacity: 'Master' });
+  const [form, setForm] = useState({ vesselId: '', from: '', to: '', type: 'watchkeeping', watchHours: 6, capacity: 'Master', region: '' });
   const [qrDataUrl, setQrDataUrl] = useState(null);
 
   // data source: live Supabase, or a clearly-labelled sample fallback.
@@ -186,6 +186,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const hasAttention = badCount > 0;
   const vp = VERIFIER_PROFILES[verifier];
   const usedVessels = [...new Set(live.map(e => e.vesselId))].map(id => vessels[id]).filter(Boolean);
+  const areasCruised = [...new Set(live.map(e => e.region).filter(Boolean))].join(', ') || '—';
 
   // real QR once signed (and whenever the assured payload changes)
   useEffect(() => {
@@ -249,6 +250,21 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     } catch (e) { console.error(e); flash('Could not generate the PDF'); }
   };
 
+  // Structured per-voyage export — the exact fields a PYA / Transport Malta
+  // testimonial form asks for, so the crew member can fill it in minutes.
+  const onExportCsv = () => {
+    const esc = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
+    const cols = ['Vessel', 'Type', 'Flag', 'Official no', 'IMO', 'GT', 'Length (m)', 'From', 'To', 'Days', 'Service type', 'Watch hours/day', 'Capacity', 'Areas cruised'];
+    const rows = live.map(e => {
+      const v = vessels[e.vesselId] || {};
+      const tm = TYPE_META[e.type] || {};
+      return [v.name, v.type, v.flag, v.officialNo || '', v.imo || '', v.gt, v.lengthM, e.from || '', e.to || '', e.days, tm.label || e.type, e.type === 'watchkeeping' ? e.watchHours : '', e.capacity || '', e.region || ''].map(esc).join(',');
+    });
+    const csv = [cols.map(esc).join(','), ...rows].join('\r\n');
+    const bytes = new TextEncoder().encode('﻿' + csv);
+    downloadBytes(bytes, `sea-service-record-${seafarer.fullName.replace(/\s+/g, '-')}.csv`, 'text/csv');
+  };
+
   const formDays = () => { const { from, to } = form; if (!from || !to) return 1; const d = Math.round((new Date(to) - new Date(from)) / 86400000) + 1; return d > 0 ? d : 1; };
   const saveEntry = async () => {
     const days = formDays();
@@ -269,7 +285,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     const fm = (iso) => { const d = new Date(iso); return String(d.getDate()).padStart(2, '0') + ' ' + d.toLocaleString('en-GB', { month: 'short' }); };
     const main = fm(form.from) + (form.to && form.to !== form.from ? ' – ' + fm(form.to) : '');
     const yr = form.from ? new Date(form.from).getFullYear() : 2026;
-    const entry = { id: 'e' + Date.now() + Math.random().toString(36).slice(2, 6), vesselId: form.vesselId, label: TYPE_META[form.type].label + ' — ' + (vessels[form.vesselId]?.name || ''), from: form.from, to: form.to || form.from, dateMain: main, dateSub: yr + ' · ' + days + (days === 1 ? ' day' : ' days'), days, type: form.type, watchHours: form.watchHours, capacity: form.capacity, source: 'manual' };
+    const entry = { id: 'e' + Date.now() + Math.random().toString(36).slice(2, 6), vesselId: form.vesselId, label: TYPE_META[form.type].label + ' — ' + (vessels[form.vesselId]?.name || ''), region: form.region, from: form.from, to: form.to || form.from, dateMain: main, dateSub: yr + ' · ' + days + (days === 1 ? ' day' : ' days'), days, type: form.type, watchHours: form.watchHours, capacity: form.capacity, source: 'manual' };
     setEntries(es => [entry, ...es]); setDrawerOpen(false); setSigned(false); flash('Sea time logged & classified');
   };
 
@@ -546,9 +562,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         <div className="std-dossier">
           <div className="std-dossier-h">
             <div>
-              <div className="mlabel rustlabel">Captain-signed · MCA MIN 642</div>
+              <div className="mlabel rustlabel">Captain-attested · MSN 1858</div>
               <h3>Sea Service Testimonial Pack</h3>
-              <div className="sub">One captain-signed record, ready for any verifying organisation.</div>
+              <div className="sub">A captain-attested sea-service record — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.</div>
             </div>
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
@@ -687,7 +703,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             <div className="std-cert">
               <div className="frame">
                 <div>
-                  <div className="ce">Maritime &amp; Coastguard Agency · MIN 642 Annex A</div>
+                  <div className="ce">Maritime &amp; Coastguard Agency · Testimonial of Sea Service (MSN 1858)</div>
                   <h2>Testimonial of Sea Service</h2>
                   <div className="prepared">Prepared for {vp.name}</div>
                 </div>
@@ -699,10 +715,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <div className="field"><div className="fl">Capacity</div><div className="fv">{dataset.service.capacity || '—'}</div></div>
                   <div className="field"><div className="fl">Service period</div><div className="fv">{fmtDate(seafarer.periodFrom)} – {fmtDate(seafarer.periodTo)}</div></div>
                   <div className="field"><div className="fl">CoC held</div><div className="fv">{seafarer.cocHeld || '—'}</div></div>
+                  <div className="field" style={{ gridColumn: '1 / -1' }}><div className="fl">Areas cruised</div><div className="fv">{areasCruised}</div></div>
                 </div>
                 <table>
-                  <thead><tr><th>Vessel</th><th>Flag · IMO</th><th>GT</th><th>Length</th></tr></thead>
-                  <tbody>{usedVessels.map(v => <tr key={v.id}><td>{v.name}</td><td>{v.flag} · IMO {v.imo}</td><td>{v.gt} GT</td><td>{v.lengthM} m</td></tr>)}</tbody>
+                  <thead><tr><th>Vessel</th><th>Type</th><th>Flag · Official no</th><th>GT</th><th>Length</th></tr></thead>
+                  <tbody>{usedVessels.map(v => <tr key={v.id}><td>{v.name}</td><td>{v.type || '—'}</td><td>{v.flag} · {v.officialNo || v.imo || '—'}</td><td>{v.gt} GT</td><td>{v.lengthM} m</td></tr>)}</tbody>
                 </table>
                 <div className="mlabel" style={{ marginTop: 16 }}>Service totals — totalled separately</div>
                 <div className="totals">
@@ -725,8 +742,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               </div>
               <div className="std-certfoot">
                 <div className="vs" style={{ maxWidth: 480 }}>{vp.instructions}</div>
-                <div className="std-flex" style={{ gap: 10 }}>
+                <div className="std-flex" style={{ gap: 10, flexWrap: 'wrap' }}>
                   <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={onDownload}><Icon name="Download" size={15} /> Download PDF</button>
+                  <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Export data (CSV)</button>
                   <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => flash('Pack emailed (demo)')}><Icon name="Mail" size={15} /> Email pack</button>
                 </div>
               </div>
@@ -771,6 +789,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <div className="std-field"><label>Watch hours / day</label><input className="std-input" type="number" min="0" max="24" value={form.watchHours} onChange={e => setForm(f => ({ ...f, watchHours: +e.target.value || 0 }))} /></div>
                 <div className="std-field"><label>Capacity</label><input className="std-input" value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))} /></div>
               </div>
+              <div className="std-field"><label>Areas cruised <span style={{ color: 'var(--faint)', fontWeight: 500 }}>optional</span></label><input className="std-input" value={form.region} placeholder="e.g. W. Mediterranean" onChange={e => setForm(f => ({ ...f, region: e.target.value }))} /></div>
               {form.vesselId && vessels[form.vesselId] && (() => {
                 const pc = classify({ ...form }, vessels[form.vesselId], config);
                 return (

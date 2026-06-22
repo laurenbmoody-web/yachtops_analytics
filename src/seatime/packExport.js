@@ -130,8 +130,8 @@ export const renderPackPdf = async ({ dataset, verifier, assurance, qrDataUrl, s
   return new Uint8Array(doc.output('arraybuffer'));
 };
 
-export const downloadBytes = (bytes, filename) => {
-  const blob = new Blob([bytes], { type: 'application/pdf' });
+export const downloadBytes = (bytes, filename, type = 'application/pdf') => {
+  const blob = new Blob([bytes], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
