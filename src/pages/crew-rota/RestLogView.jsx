@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import RotaBreachReasonModal from './RotaBreachReasonModal';
-import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
-import { ON_DUTY_TYPES, assessMlc, reframeToOperationalDay, workEntriesToShifts, mergeLoggedOverPlan, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
-import { getContrastText, getRoleDisplayName } from './crewDisplay';
+import { MLC_DAILY_REST_MIN } from './restHours';
+import { getContrastText } from './crewDisplay';
 import { MONTH_SHORT } from './MonthCalendar';
 import { exportRestLogCSV, exportRestLogPDF } from './rotaHorExport';
+import {
+  dayStartHourFor, frameShifts, mergeWorkEntriesIntoShifts,
+  buildRestLogRows, buildRestLogMeta, mlcBasisLabel, clampExportToToday,
+} from './rotaHorExportData';
 
 // RestLogView — the rota page's "Hours of rest log" (audit) view.
 //
@@ -44,34 +47,9 @@ function isWeekend(dateStr) {
   return w === 0 || w === 6;
 }
 
-// Per (member, day) rest summary. Trailing-7 weekly rest is sliced from the
-// parent windowShifts — identical method to the Week matrix's cellSummary,
-// but surfacing the daily + weekly breach flags the audit log keys on.
-function computeCell(memberId, dateStr, windowShifts) {
-  const dayShifts = windowShifts.filter((s) => s.memberId === memberId && s.date === dateStr);
-  const weekStart = (() => {
-    const d = parseLocal(dateStr);
-    d.setDate(d.getDate() - 6);
-    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  })();
-  const weekShifts = windowShifts.filter(
-    (s) => s.memberId === memberId && s.date >= weekStart && s.date <= dateStr,
-  );
-  const onDuty = dayShifts.filter((s) => ON_DUTY_TYPES.has(s.shiftType));
-  const isOff = onDuty.length === 0;
-  const mlc = assessMlc({ dayShifts, weekShifts });
-  return {
-    date: dateStr,
-    isOff,
-    rest24h: mlc.rest24h,
-    pastWeekHours: mlc.pastWeekHours,
-    dailyLow: !isOff && mlc.rest24h < MLC_DAILY_REST_MIN,
-    // "Marginal" = met the 10h floor but with under an hour to spare, i.e. ~14h
-    // on duty — right at the max-work-stretch limit too. Surfaced in amber.
-    marginal: !isOff && mlc.rest24h >= MLC_DAILY_REST_MIN && mlc.rest24h < MLC_DAILY_REST_MIN + 1,
-    weeklyLow: mlc.pastWeekHours < MLC_WEEKLY_REST_MIN,
-  };
-}
+// Per (member, day) rest summary, the rows builder, the merge/frame helpers and
+// the meta builder all live in ./rotaHorExportData so the on-screen matrix and
+// the exported Record of Hours of Rest are computed by one source.
 
 function DayHeader({ dateStr, index, isToday }) {
   const d = parseLocal(dateStr);
@@ -88,28 +66,6 @@ function DayHeader({ dateStr, index, isToday }) {
     </div>
   );
 }
-
-const hhmmToDec = (t) => { if (!t) return null; const [h, m] = String(t).split(':').map(Number); return h + (m || 0) / 60; };
-const nextDateStr = (dateStr) => { const d = parseLocal(dateStr); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
-
-// Calendar basis: split any shift running past midnight into a start-day part
-// (…→24:00) and a next-day part (00:00→…), so each calendar day is credited only
-// the on-duty hours that physically fall on it. This makes a PLANNED overnight
-// rota shift attribute the same way logged actuals and the crew profile already
-// do (logged work_segments are stored per-day, so they are split by
-// construction). Operational basis reconciles overnight work via
-// reframeToOperationalDay, so it is left untouched there.
-const splitAtMidnight = (shifts) => {
-  const out = [];
-  for (const s of (shifts || [])) {
-    const st = hhmmToDec(s.startTime);
-    const en = hhmmToDec(s.endTime);
-    if (st == null || en == null || en >= st) { out.push(s); continue; }
-    out.push({ ...s, endTime: '24:00' });
-    if (en > 0) out.push({ ...s, date: nextDateStr(s.date), startTime: '00:00', endTime: s.endTime });
-  }
-  return out;
-};
 
 function Cell({ cell, isToday, isFuture, onClick, ariaLabel }) {
   const weekend = isWeekend(cell.date);
@@ -173,62 +129,27 @@ export default function RestLogView({
   // Overlay the crew's logged actuals onto the rota plan: any day a crew member
   // has logged is the truth, so drop the rota shifts for that member-day and use
   // the logged ones instead. The rota fills only the un-logged gaps.
-  const userToMember = useMemo(
-    () => new Map((crew || []).filter((c) => c.userId).map((c) => [c.userId, c.id])),
-    [crew],
-  );
-  const { loggedShifts, loggedDays } = useMemo(
-    () => workEntriesToShifts(workEntries, userToMember),
-    [workEntries, userToMember],
-  );
   const mergedShifts = useMemo(
-    () => mergeLoggedOverPlan(windowShifts, loggedShifts, loggedDays),
-    [windowShifts, loggedShifts, loggedDays],
+    () => mergeWorkEntriesIntoShifts(crew, windowShifts, workEntries),
+    [crew, windowShifts, workEntries],
   );
 
   // The 24h "day" anchor for the daily-rest rule: 0 (midnight) for the classic
   // calendar basis, the vessel's operational day-start when opted in. Reframing
   // the shifts by this offset lets the existing rules assess the operational day.
-  const dayStartHour = horDayBasis === 'operational' ? (operationalDayStartHour || 0) : 0;
+  const dayStartHour = dayStartHourFor(horDayBasis, operationalDayStartHour);
   const framedShifts = useMemo(
-    () => (dayStartHour
-      ? reframeToOperationalDay(mergedShifts, dayStartHour)
-      : splitAtMidnight(mergedShifts)),
+    () => frameShifts(mergedShifts, dayStartHour),
     [mergedShifts, dayStartHour],
   );
-  const basisLabel = dayStartHour
-    ? `Rest assessed on a 24-hour day commencing ${String(dayStartHour).padStart(2, '0')}:00`
-    : 'Rest assessed on a calendar day (00:00–24:00)';
+  const basisLabel = mlcBasisLabel(dayStartHour);
 
   // Dept-grouped rows with per-cell rest + per-member breach tallies. One pass
   // feeds both the rendered matrix and the exports (same source, same order).
-  const rows = useMemo(() => {
-    const byDept = new Map();
-    for (const c of crew) {
-      const d = c.department || 'Other';
-      if (!byDept.has(d)) byDept.set(d, []);
-      byDept.get(d).push(c);
-    }
-    const ordered = [
-      ...DEPT_ORDER.filter((d) => byDept.has(d)),
-      ...Array.from(byDept.keys()).filter((d) => !DEPT_ORDER.includes(d)),
-    ];
-    return ordered.map((dept) => {
-      const members = byDept.get(dept).map((c) => {
-        const cells = days.map((d) => computeCell(c.id, d, framedShifts));
-        return {
-          id: c.id,
-          userId: c.userId,
-          name: c.name,
-          role: getRoleDisplayName(c.role),
-          cells,
-          dailyBreachDays: cells.filter((x) => x.dailyLow).length,
-          weeklyBreachDays: cells.filter((x) => x.weeklyLow).length,
-        };
-      });
-      return { dept, color: byDept.get(dept)[0]?.departmentColor || '#5F5E5A', members };
-    });
-  }, [crew, days, framedShifts]);
+  const rows = useMemo(
+    () => buildRestLogRows(crew, days, framedShifts),
+    [crew, days, framedShifts],
+  );
 
   // Land the scroll on today when it falls in the period, else the start.
   useEffect(() => {
@@ -243,21 +164,10 @@ export default function RestLogView({
     wrap.scrollLeft = 0;
   }, [days, realToday, period]);
 
-  const meta = useMemo(() => ({
-    vesselName,
-    imoNumber,
-    flagState,
-    portOfRegistry,
-    departmentName,
-    periodLabel,
-    period,
-    // userId -> name / role, so the PDF can attribute each recorded reason.
-    crewNames: Object.fromEntries((crew || []).filter((c) => c.userId).map((c) => [c.userId, c.name])),
-    crewRoles: Object.fromEntries((crew || []).filter((c) => c.userId).map((c) => [c.userId, getRoleDisplayName(c.role)])),
-    horDayStartHour: dayStartHour, // 0 = calendar; >0 = operational anchor
-    basisLabel,
-    generatedAt: new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
-  }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period, crew, dayStartHour, basisLabel]);
+  const meta = useMemo(() => buildRestLogMeta({
+    vesselName, imoNumber, flagState, portOfRegistry, departmentName,
+    periodLabel, period, crew, dayStartHour,
+  }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period, crew, dayStartHour]);
 
   // Planned breach days with no recorded reason yet — what a chief/command is
   // prompted to justify (and thereby sign off) at the rota stage.
@@ -339,28 +249,7 @@ export default function RestLogView({
   // Exports are the signed RECORD: for an in-progress period, clamp to today so
   // we never assert not-yet-elapsed (still editable) days as fact. Past periods
   // export whole. Tallies + period label follow the clamp.
-  const buildExport = () => {
-    const ed = realToday ? days.filter((d) => d <= realToday) : days;
-    const clamped = ed.length < days.length;
-    const er = clamped
-      ? rows.map((r) => ({
-        ...r,
-        members: r.members.map((m) => {
-          const cells = m.cells.filter((c) => c.date <= realToday);
-          return {
-            ...m,
-            cells,
-            dailyBreachDays: cells.filter((x) => x.dailyLow).length,
-            weeklyBreachDays: cells.filter((x) => x.weeklyLow).length,
-          };
-        }),
-      }))
-      : rows;
-    const label = (clamped && ed.length)
-      ? `${periodLabel} (to ${parseLocal(ed[ed.length - 1]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`
-      : periodLabel;
-    return { days: ed, rows: er, meta: { ...meta, periodLabel: label }, empty: ed.length === 0 };
-  };
+  const buildExport = () => clampExportToToday({ rows, days, meta, periodLabel, realToday });
   const runExport = (fn) => {
     const e = buildExport();
     if (e.empty) { window.alert('This period hasn’t started yet — there’s nothing to record.'); return; }
