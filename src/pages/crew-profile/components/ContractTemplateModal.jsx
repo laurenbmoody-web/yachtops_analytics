@@ -10,37 +10,75 @@ import {
 } from '../utils/contractTemplates';
 import './contract-template-modal.css';
 
-// Distinct role names available in the tenant, for mapping templates to roles.
-async function fetchRoleOptions(tenantId) {
-  const names = new Set();
-  const [{ data: std }, { data: custom }] = await Promise.all([
-    supabase.from('roles').select('name'),
-    supabase.from('tenant_custom_roles').select('name').eq('tenant_id', tenantId),
+// Tenant roles grouped by department, for mapping templates to roles.
+async function fetchRoleGroups(tenantId) {
+  const [{ data: std }, { data: custom }, { data: deps }] = await Promise.all([
+    supabase.from('roles').select('name, department_id'),
+    supabase.from('tenant_custom_roles').select('name, department_id').eq('tenant_id', tenantId),
+    supabase.from('departments').select('id, name'),
   ]);
-  (std || []).forEach((r) => r?.name && names.add(r.name));
-  (custom || []).forEach((r) => r?.name && names.add(r.name));
-  return [...names].sort((a, b) => a.localeCompare(b));
+  const depName = new Map((deps || []).map((d) => [d.id, d.name]));
+  const byDep = new Map();
+  const add = (name, depId) => {
+    if (!name) return;
+    const key = depName.get(depId) || 'Other';
+    if (!byDep.has(key)) byDep.set(key, new Set());
+    byDep.get(key).add(name);
+  };
+  (std || []).forEach((r) => add(r.name, r.department_id));
+  (custom || []).forEach((r) => add(r.name, r.department_id));
+  return [...byDep.entries()]
+    .map(([department, set]) => ({ department, roles: [...set].sort((a, b) => a.localeCompare(b)) }))
+    .sort((a, b) => (a.department === 'Other' ? 1 : b.department === 'Other' ? -1 : a.department.localeCompare(b.department)));
 }
 
-const RoleChips = ({ options, selected, onToggle }) => (
-  <div className="ctm-chips">
-    {options.length === 0 && <span className="ctm-faint">No roles defined yet — leave blank for any role.</span>}
-    {options.map((r) => (
-      <button
-        key={r}
-        type="button"
-        className={`ctm-chip${selected.includes(r) ? ' is-sel' : ''}`}
-        onClick={() => onToggle(r)}
-      >{r}</button>
-    ))}
-  </div>
-);
+// Department-grouped, multi-select dropdown. Replaces a wall of role pills:
+// selected roles show as removable chips; the rest live behind a dropdown.
+const RoleSelect = ({ groups, selected, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const toggle = (r) => onChange(selected.includes(r) ? selected.filter((x) => x !== r) : [...selected, r]);
+  const label = selected.length ? `${selected.length} role${selected.length > 1 ? 's' : ''} selected` : 'Any role';
+  return (
+    <div className={`ctm-roles${open ? ' is-open' : ''}`}>
+      <button type="button" className="ctm-roles-trigger" onClick={() => setOpen((o) => !o)}>
+        <span>{label}</span>
+        <Icon name="ChevronDown" size={16} />
+      </button>
+      {selected.length > 0 && (
+        <div className="ctm-roles-selected">
+          {selected.map((r) => (
+            <span key={r} className="ctm-chip is-sel">
+              {r}
+              <button type="button" onClick={() => toggle(r)} aria-label={`Remove ${r}`}><Icon name="X" size={11} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      {open && (
+        <div className="ctm-roles-panel">
+          {groups.length === 0 && <span className="ctm-faint">No roles defined yet — leave blank for any role.</span>}
+          {groups.map((g) => (
+            <div key={g.department} className="ctm-roles-group">
+              <div className="ctm-section-label">{g.department}</div>
+              {g.roles.map((r) => (
+                <label key={r} className="ctm-roles-opt">
+                  <input type="checkbox" checked={selected.includes(r)} onChange={() => toggle(r)} />
+                  <span>{r}</span>
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, createdBy, onSelect, onClose }) => {
   const roleTitle = crewMember?.roleTitle || null;
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState([]);
-  const [roleOptions, setRoleOptions] = useState([]);
+  const [roleGroups, setRoleGroups] = useState([]);
   const [chosenId, setChosenId] = useState(selectedId || null);
   const [busy, setBusy] = useState(false);
 
@@ -72,7 +110,7 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
 
   useEffect(() => {
     reload();
-    fetchRoleOptions(tenantId).then(setRoleOptions).catch(() => setRoleOptions([]));
+    fetchRoleGroups(tenantId).then(setRoleGroups).catch(() => setRoleGroups([]));
   }, [tenantId]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Suggested (role-matching) templates first.
@@ -233,8 +271,7 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
       <span className="ctm-label">Template name</span>
       <input className="ctm-input" value={draftName} onChange={(e) => setDraftName(e.target.value)} />
       <span className="ctm-label">Applies to roles <span className="ctm-faint">(optional)</span></span>
-      <RoleChips options={roleOptions} selected={draftRoles}
-        onToggle={(r) => setDraftRoles((p) => p.includes(r) ? p.filter((x) => x !== r) : [...p, r])} />
+      <RoleSelect groups={roleGroups} selected={draftRoles} onChange={setDraftRoles} />
 
       <div className="ctm-row-edit-actions" style={{ marginTop: 16 }}>
         <button type="button" className="ctm-btn ghost" onClick={() => setDraft(null)} disabled={busy}>Discard</button>
@@ -318,8 +355,7 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
                     {editing && (
                       <div className="ctm-row-edit">
                         <span className="ctm-label">Applies to roles</span>
-                        <RoleChips options={roleOptions} selected={editRoles}
-                          onToggle={(r) => setEditRoles((p) => p.includes(r) ? p.filter((x) => x !== r) : [...p, r])} />
+                        <RoleSelect groups={roleGroups} selected={editRoles} onChange={setEditRoles} />
                         <div className="ctm-row-edit-actions">
                           <button type="button" className="ctm-btn ghost sm" onClick={() => setEditRolesId(null)}>Cancel</button>
                           <button type="button" className="ctm-btn fill sm" disabled={busy} onClick={() => saveEditRoles(t)}>Save roles</button>
@@ -354,8 +390,7 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
               <input className="ctm-input" placeholder="Template name (e.g. Deckhand SEA)"
                 value={name} onChange={(e) => setName(e.target.value)} />
               <span className="ctm-label">Applies to roles <span className="ctm-faint">(optional — blank = any)</span></span>
-              <RoleChips options={roleOptions} selected={uploadRoles}
-                onToggle={(r) => setUploadRoles((p) => p.includes(r) ? p.filter((x) => x !== r) : [...p, r])} />
+              <RoleSelect groups={roleGroups} selected={uploadRoles} onChange={setUploadRoles} />
               <button type="button" className="ctm-btn fill" disabled={busy || !file} onClick={handleUpload}>
                 {busy ? 'Working…' : 'Upload template'}
               </button>
