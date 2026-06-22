@@ -124,6 +124,15 @@
 .std-fprog{height:3px;border-radius:999px;background:#EFEDE7;overflow:hidden;margin:8px 0 4px;max-width:340px;}
 .std-fnote{font-size:12px;margin-top:4px;display:flex;align-items:center;gap:7px;line-height:1.4;}
 
+/* help affordance — inline info icon by the step title, popover on hover/focus */
+.std-fhelp{position:relative;display:inline-flex;vertical-align:middle;margin-left:8px;color:#AEB4C2;cursor:help;transition:color .15s;}
+.std-fhelp:hover,.std-fhelp:focus-visible{color:#C65A1A;outline:none;}
+.std-fhelp-pop{position:absolute;left:-4px;top:calc(100% + 9px);z-index:30;width:316px;flex-direction:column;gap:6px;padding:14px 16px;background:#fff;border:1px solid #ECEAE3;border-radius:12px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);font-family:'Inter',system-ui,sans-serif;font-size:12px;line-height:1.45;color:#6B7280;display:none;cursor:default;}
+.std-fhelp:hover .std-fhelp-pop,.std-fhelp:focus-within .std-fhelp-pop{display:flex;}
+.std-fhelp-pop::before{content:'';position:absolute;left:9px;top:-5px;width:9px;height:9px;background:#fff;border-left:1px solid #ECEAE3;border-top:1px solid #ECEAE3;transform:rotate(45deg);}
+.std-fhelp-pop>b{color:#8B8478;font-weight:700;font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:1px;}
+.std-fhelp-pop b.inl{color:var(--ink);font-weight:600;font-size:12px;letter-spacing:0;text-transform:none;}
+
 /* checks — 2-up hairline list, bare marks */
 .std-chks{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;margin-top:8px;}
 @media(max-width:680px){.std-chks{grid-template-columns:1fr;}}
