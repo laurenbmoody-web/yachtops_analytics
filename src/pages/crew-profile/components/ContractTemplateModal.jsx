@@ -36,8 +36,13 @@ async function fetchRoleGroups(tenantId) {
 // selected roles show as removable chips; the rest live behind a dropdown.
 const RoleSelect = ({ groups, selected, onChange }) => {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const toggle = (r) => onChange(selected.includes(r) ? selected.filter((x) => x !== r) : [...selected, r]);
   const label = selected.length ? `${selected.length} role${selected.length > 1 ? 's' : ''} selected` : 'Any role';
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? groups.map((g) => ({ ...g, roles: g.roles.filter((r) => r.toLowerCase().includes(q)) })).filter((g) => g.roles.length)
+    : groups;
   return (
     <div className={`ctm-roles${open ? ' is-open' : ''}`}>
       <button type="button" className="ctm-roles-trigger" onClick={() => setOpen((o) => !o)}>
@@ -56,8 +61,11 @@ const RoleSelect = ({ groups, selected, onChange }) => {
       )}
       {open && (
         <div className="ctm-roles-panel">
-          {groups.length === 0 && <span className="ctm-faint">No roles defined yet — leave blank for any role.</span>}
-          {groups.map((g) => (
+          <input className="ctm-roles-search" autoFocus placeholder="Search roles…"
+            value={query} onChange={(e) => setQuery(e.target.value)} />
+          {groups.length === 0 && <span className="ctm-faint ctm-pad">No roles defined yet — leave blank for any role.</span>}
+          {groups.length > 0 && filtered.length === 0 && <span className="ctm-faint ctm-pad">No roles match “{query}”.</span>}
+          {filtered.map((g) => (
             <div key={g.department} className="ctm-roles-group">
               <div className="ctm-section-label">{g.department}</div>
               {g.roles.map((r) => (
@@ -86,6 +94,10 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
   const [file, setFile] = useState(null);
   const [name, setName] = useState('');
   const [uploadRoles, setUploadRoles] = useState([]);
+  const [showUpload, setShowUpload] = useState(false);   // reveal the upload-existing form
+  // Vessel-templates list: collapsible + searchable
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState('');
   // Inline role editing
   const [editRolesId, setEditRolesId] = useState(null);
   const [editRoles, setEditRoles] = useState([]);
@@ -120,12 +132,35 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
     return 0;
   });
 
+  // role name → department, for grouping templates the same way as the selector.
+  const roleDept = {};
+  roleGroups.forEach((g) => g.roles.forEach((r) => { roleDept[r.toLowerCase()] = g.department; }));
+  const deptOf = (t) => {
+    const roles = t.roles || [];
+    if (!roles.length) return 'Any role';
+    return roleDept[roles[0].toLowerCase()] || 'Other';
+  };
+  // Search + group the templates by department for the collapsible list.
+  const q = templateSearch.trim().toLowerCase();
+  const visible = sorted.filter((t) => !q
+    || (t.name || '').toLowerCase().includes(q)
+    || (t.file_name || '').toLowerCase().includes(q)
+    || (t.roles || []).some((r) => r.toLowerCase().includes(q)));
+  const grouped = [];
+  visible.forEach((t) => {
+    const d = deptOf(t);
+    let g = grouped.find((x) => x.department === d);
+    if (!g) { g = { department: d, items: [] }; grouped.push(g); }
+    g.items.push(t);
+  });
+  grouped.sort((a, b) => (a.department === 'Any role' ? 1 : b.department === 'Any role' ? -1 : a.department.localeCompare(b.department)));
+
   const handleUpload = async () => {
     if (!file) { showToast('Choose a .docx file first.', 'error'); return; }
     setBusy(true);
     try {
       const created = await uploadTemplate({ tenantId, file, name, roles: uploadRoles, createdBy });
-      setFile(null); setName(''); setUploadRoles([]);
+      setFile(null); setName(''); setUploadRoles([]); setShowUpload(false); setTemplatesOpen(true);
       if (!created?.tokens?.length) {
         showToast(
           /\.pdf$/i.test(created?.file_name || '')
@@ -159,7 +194,7 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
         ? await analyzePdfForTemplate(f)
         : await analyzeDocxForTemplate(f);
       setDraft(result);
-      setDraftName(f.name.replace(/\.(docx|pdf)$/i, '') + ' template');
+      setDraftName('');   // let the user name it
       setDraftRoles(roleTitle ? [roleTitle] : []);
       if (result.kind === 'map' && !result.mappings.length) {
         showToast('No particulars were detected — you can still review and adjust.', 'info');
@@ -179,6 +214,7 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
 
   const handleSaveDraft = async () => {
     if (!draft) return;
+    if (!draftName.trim()) { showToast('Give the template a name first.', 'error'); return; }
     setBusy(true);
     try {
       // A rebuilt (PDF) template gets the vessel logo embedded in its header.
@@ -187,9 +223,9 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
         const { data: v } = await supabase.from('vessels').select('logo_url').eq('tenant_id', tenantId).maybeSingle();
         logoUrl = v?.logo_url || null;
       }
-      const { file: docxFile, notFound } = await buildTemplateDocxFile(draft, draftName.trim() || 'Contract template', { logoUrl });
+      const { file: docxFile, notFound } = await buildTemplateDocxFile(draft, draftName.trim(), { logoUrl });
       await uploadTemplate({ tenantId, file: docxFile, name: draftName, roles: draftRoles, createdBy });
-      setDraft(null); setDraftName(''); setDraftRoles([]);
+      setDraft(null); setDraftName(''); setDraftRoles([]); setTemplatesOpen(true);
       if (notFound?.length) {
         showToast(`Template saved. ${notFound.length} value(s) couldn’t be auto-replaced (likely split formatting) — open the .docx and check.`, 'info');
       } else {
@@ -304,6 +340,54 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
     </div>
   );
 
+  const renderRow = (t) => {
+    const fits = templateFitsRole(t, roleTitle);
+    const editing = editRolesId === t.id;
+    return (
+      <div key={t.id} className={`ctm-row${chosenId === t.id ? ' is-sel' : ''}`}>
+        <button type="button" className="ctm-row-main" onClick={() => setChosenId(t.id)}>
+          <span className={`ctm-radio${chosenId === t.id ? ' on' : ''}`} aria-hidden />
+          <span className="ctm-row-info">
+            <span className="ctm-row-name">
+              {t.name}
+              {fits && <span className="ctm-tag suggest">Suggested</span>}
+              {!t.tokens?.length && <span className="ctm-tag warn">No fillable fields</span>}
+            </span>
+            <span className="ctm-row-meta">
+              <span className="ctm-pill format">{/\.pdf$/i.test(t.file_name || '') ? 'PDF' : 'DOCX'}</span>
+              {(t.roles?.length ? t.roles : ['Any role']).map((r) => (
+                <span key={r} className="ctm-pill">{r}</span>
+              ))}
+              <span className="ctm-faint">· {t.tokens?.length || 0} fields · {t.file_name}</span>
+            </span>
+          </span>
+        </button>
+        {canManage && (
+          <div className="ctm-row-actions">
+            <button type="button" className="ctm-icon" title="Edit roles" disabled={busy}
+              onClick={() => { setEditRolesId(editing ? null : t.id); setEditRoles(t.roles || []); }}>
+              <Icon name="Tag" size={15} />
+            </button>
+            <button type="button" className="ctm-icon danger" title="Delete" disabled={busy}
+              onClick={() => handleDelete(t)}>
+              <Icon name="Trash2" size={15} />
+            </button>
+          </div>
+        )}
+        {editing && (
+          <div className="ctm-row-edit">
+            <span className="ctm-label">Applies to roles</span>
+            <RoleSelect groups={roleGroups} selected={editRoles} onChange={setEditRoles} />
+            <div className="ctm-row-edit-actions">
+              <button type="button" className="ctm-btn ghost sm" onClick={() => setEditRolesId(null)}>Cancel</button>
+              <button type="button" className="ctm-btn fill sm" disabled={busy} onClick={() => saveEditRoles(t)}>Save roles</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <ModalShell onClose={onClose} isBusy={busy} panelClassName="ctm-panel">
       <div className="ctm">
@@ -321,101 +405,80 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
 
         <div className="ctm-body">
           {draft ? renderReview() : (<>
-          {/* AI: build a template from a completed contract */}
-          {canManage && (
-            <label className={`ctm-ai${aiBusy ? ' busy' : ''}`}>
-              <input type="file" accept=".docx,.pdf" disabled={aiBusy}
-                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; handleAnalyze(f); }} />
-              <Icon name="Sparkles" size={16} />
-              <span>{aiBusy ? 'Analysing contract…' : '✦ Build a template from a completed contract'}</span>
-            </label>
-          )}
-
-          {/* Template list */}
-          {loading ? (
-            <p className="ctm-faint ctm-pad">Loading templates…</p>
-          ) : sorted.length === 0 ? (
-            <p className="ctm-faint ctm-pad">
-              No templates yet.{canManage ? ' Upload your vessel’s contract template below.' : ' Ask COMMAND to add one.'}
-            </p>
-          ) : (
-            <div className="ctm-list">
-              {sorted.map((t) => {
-                const fits = templateFitsRole(t, roleTitle);
-                const editing = editRolesId === t.id;
-                return (
-                  <div key={t.id} className={`ctm-row${chosenId === t.id ? ' is-sel' : ''}`}>
-                    <button type="button" className="ctm-row-main" onClick={() => setChosenId(t.id)}>
-                      <span className={`ctm-radio${chosenId === t.id ? ' on' : ''}`} aria-hidden />
-                      <span className="ctm-row-info">
-                        <span className="ctm-row-name">
-                          {t.name}
-                          {fits && <span className="ctm-tag suggest">Suggested</span>}
-                          {!t.tokens?.length && <span className="ctm-tag warn">No fillable fields</span>}
-                        </span>
-                        <span className="ctm-row-meta">
-                          <span className="ctm-pill format">{/\.pdf$/i.test(t.file_name || '') ? 'PDF' : 'DOCX'}</span>
-                          {(t.roles?.length ? t.roles : ['Any role']).map((r) => (
-                            <span key={r} className="ctm-pill">{r}</span>
-                          ))}
-                          <span className="ctm-faint">· {t.tokens?.length || 0} fields · {t.file_name}</span>
-                        </span>
-                      </span>
-                    </button>
-                    {canManage && (
-                      <div className="ctm-row-actions">
-                        <button type="button" className="ctm-icon" title="Edit roles" disabled={busy}
-                          onClick={() => { setEditRolesId(editing ? null : t.id); setEditRoles(t.roles || []); }}>
-                          <Icon name="Tag" size={15} />
-                        </button>
-                        <button type="button" className="ctm-icon danger" title="Delete" disabled={busy}
-                          onClick={() => handleDelete(t)}>
-                          <Icon name="Trash2" size={15} />
-                        </button>
-                      </div>
-                    )}
-                    {editing && (
-                      <div className="ctm-row-edit">
-                        <span className="ctm-label">Applies to roles</span>
-                        <RoleSelect groups={roleGroups} selected={editRoles} onChange={setEditRoles} />
-                        <div className="ctm-row-edit-actions">
-                          <button type="button" className="ctm-btn ghost sm" onClick={() => setEditRolesId(null)}>Cancel</button>
-                          <button type="button" className="ctm-btn fill sm" disabled={busy} onClick={() => saveEditRoles(t)}>Save roles</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+          {/* Vessel templates — collapsible, searchable, grouped by department */}
+          <button type="button" className="ctm-section-toggle" onClick={() => setTemplatesOpen((o) => !o)}>
+            <Icon name={templatesOpen ? 'ChevronDown' : 'ChevronRight'} size={16} />
+            <span className="ctm-section-label" style={{ margin: 0 }}>Vessel templates</span>
+            <span className="ctm-faint">({templates.length})</span>
+          </button>
+          {templatesOpen && (
+            <div className="ctm-templates">
+              {loading ? (
+                <p className="ctm-faint ctm-pad">Loading templates…</p>
+              ) : templates.length === 0 ? (
+                <p className="ctm-faint ctm-pad">
+                  No templates yet.{canManage ? ' Add one below.' : ' Ask COMMAND to add one.'}
+                </p>
+              ) : (
+                <>
+                  <input className="ctm-search" placeholder="Search templates…"
+                    value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} />
+                  {grouped.length === 0 && <p className="ctm-faint ctm-pad">No templates match “{templateSearch}”.</p>}
+                  {grouped.map((g) => (
+                    <div key={g.department} className="ctm-tpl-group">
+                      <div className="ctm-section-label">{g.department}</div>
+                      <div className="ctm-list">{g.items.map(renderRow)}</div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           )}
 
-          {/* Upload (COMMAND) */}
+          {/* Add a template (COMMAND) — upload an existing one, or build from a contract */}
           {canManage && (
             <div className="ctm-upload">
               <div className="ctm-section-label">Add a template</div>
-              <p className="ctm-faint">
-                Upload a Word <b>.docx</b> with <code>{'{{tokens}}'}</code> where data should go
-                (e.g. <code>{'{{crew_name}}'}</code>), or a <b>.pdf</b> with form fields
-                <i>named</i> after the tokens. Cargo fills them when generating. A flat PDF
-                (no form fields) can’t be auto-filled.
-              </p>
-              <label className="ctm-file">
-                <input type="file" accept=".docx,.pdf" onChange={(e) => {
-                  const f = e.target.files?.[0] || null;
-                  setFile(f);
-                  if (f && !name) setName(f.name.replace(/\.(docx|pdf)$/i, ''));
-                }} />
-                <Icon name="Upload" size={15} />
-                <span>{file ? file.name : 'Choose .docx or .pdf file'}</span>
-              </label>
-              <input className="ctm-input" placeholder="Template name (e.g. Deckhand SEA)"
-                value={name} onChange={(e) => setName(e.target.value)} />
-              <span className="ctm-label">Applies to roles <span className="ctm-faint">(optional — blank = any)</span></span>
-              <RoleSelect groups={roleGroups} selected={uploadRoles} onChange={setUploadRoles} />
-              <button type="button" className="ctm-btn fill" disabled={busy || !file} onClick={handleUpload}>
-                {busy ? 'Working…' : 'Upload template'}
-              </button>
+              <div className="ctm-add-actions">
+                <button type="button" className={`ctm-add-btn${showUpload ? ' is-on' : ''}`} onClick={() => setShowUpload((s) => !s)}>
+                  <Icon name="Upload" size={16} />
+                  <span className="t">Upload a .docx / .pdf template</span>
+                  <span className="d">An existing template with {'{{tokens}}'} or named PDF fields</span>
+                </button>
+                <label className={`ctm-add-btn${aiBusy ? ' busy' : ''}`}>
+                  <input type="file" accept=".docx,.pdf" disabled={aiBusy}
+                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; handleAnalyze(f); }} />
+                  <Icon name="Sparkles" size={16} />
+                  <span className="t">{aiBusy ? 'Analysing contract…' : 'Upload a contract — we’ll build it'}</span>
+                  <span className="d">We tokenise a completed contract into a template for you</span>
+                </label>
+              </div>
+
+              {showUpload && (
+                <div className="ctm-upload-form">
+                  <p className="ctm-faint">
+                    Upload a Word <b>.docx</b> with <code>{'{{tokens}}'}</code> where data should go
+                    (e.g. <code>{'{{crew_name}}'}</code>), or a <b>.pdf</b> with form fields
+                    <i>named</i> after the tokens. A flat PDF (no form fields) can’t be auto-filled.
+                  </p>
+                  <label className="ctm-file">
+                    <input type="file" accept=".docx,.pdf" onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      setFile(f);
+                      if (f && !name) setName(f.name.replace(/\.(docx|pdf)$/i, ''));
+                    }} />
+                    <Icon name="Upload" size={15} />
+                    <span>{file ? file.name : 'Choose .docx or .pdf file'}</span>
+                  </label>
+                  <input className="ctm-input" placeholder="Template name (e.g. Deckhand SEA)"
+                    value={name} onChange={(e) => setName(e.target.value)} />
+                  <span className="ctm-label">Applies to roles <span className="ctm-faint">(optional — blank = any)</span></span>
+                  <RoleSelect groups={roleGroups} selected={uploadRoles} onChange={setUploadRoles} />
+                  <button type="button" className="ctm-btn fill" disabled={busy || !file} onClick={handleUpload}>
+                    {busy ? 'Working…' : 'Upload template'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
