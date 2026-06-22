@@ -80,11 +80,11 @@ const BREACHES=[
   // descriptor chips — figures for every MLC rule, incl. broken rest + 14h stretch
   const descChips=(b)=>{
     const out=[];
-    if(b.daily!=null)  out.push(`Daily rest ${b.daily}h · 10h min`);
-    if(b.weekly!=null) out.push(`7-day rest ${b.weekly}h · 77h min`);
-    if(b.periods!=null)out.push(`Broken rest · ${b.periods} blocks (max 2)`);
-    if(b.longest!=null)out.push(`Broken rest · longest ${b.longest}h (need 6h)`);
-    if(b.stretch!=null)out.push(`On duty ${b.stretch}h straight · 14h max`);
+    if(b.daily!=null)  out.push(`Daily rest ${b.daily}h of 10h min`);
+    if(b.weekly!=null) out.push(`7-day rest ${b.weekly}h of 77h min`);
+    if(b.periods!=null)out.push(`Broken rest — ${b.periods} blocks (2 max)`);
+    if(b.longest!=null)out.push(`Longest rest ${b.longest}h of 6h min`);
+    if(b.stretch!=null)out.push(`On duty ${b.stretch}h — 14h max`);
     return out;
   };
   // four breach days, one per rule type (+ a multi-rule day), reasons present
