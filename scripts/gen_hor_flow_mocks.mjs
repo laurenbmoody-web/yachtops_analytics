@@ -77,31 +77,49 @@ const BREACHES=[
 
 /* ───────── 2 · CAPTAIN APPROVAL ───────── */
 {
+  // descriptor chips — figures for every MLC rule, incl. broken rest + 14h stretch
+  const descChips=(b)=>{
+    const out=[];
+    if(b.daily!=null)  out.push(`Daily rest ${b.daily}h · 10h min`);
+    if(b.weekly!=null) out.push(`7-day rest ${b.weekly}h · 77h min`);
+    if(b.periods!=null)out.push(`Broken rest · ${b.periods} blocks (max 2)`);
+    if(b.longest!=null)out.push(`Broken rest · longest ${b.longest}h (need 6h)`);
+    if(b.stretch!=null)out.push(`On duty ${b.stretch}h straight · 14h max`);
+    return out;
+  };
+  // four breach days, one per rule type (+ a multi-rule day), reasons present
+  const MB=[
+    {d:7,  daily:9,            reason:'Guest trip — extended service'},
+    {d:16, daily:9, weekly:71, reason:'Charter operations'},
+    {d:25, periods:3,          reason:'Turnaround / provisioning'},   // 13h total but broken
+    {d:27, stretch:16,         reason:'Drill / safety operations'},   // 11h total but 14h+ on duty
+  ];
+  const breachSet=new Set(MB.map(b=>b.d));
+
   let s=''; let y=62;
   s+=txt(48,y,'FOR APPROVAL',{size:10,weight:700,spacing:1.6,fill:TERRA});
   s+=txt(48,y+30,'Review May 2026',{size:22,family:SERIF,fill:NAVY}); y+=30;
-  s+=txt(48,y+24,'Submitted by Chief Engineer on 17/06/2026 · 90% compliant · 3 breach days.',{size:12.5,fill:MUT}); y+=24;
-  // compact heat strip (green ok baseline)
-  const HOURS={1:12,2:12,3:24,4:12,5:12,6:12,7:9,8:12,9:12,10:24,11:12,12:12,13:10,14:12,15:12,16:9,17:24,18:12,19:12,20:12,21:12,22:12,23:12,24:24,25:9,26:12,27:12,28:12,29:12,30:12,31:24};
-  const stOf=(h)=> h<10?'breach':h<11?'warning':'compliant';
+  s+=txt(48,y+24,'Submitted by Chief Engineer on 17/06/2026 · 96% compliant · 4 breach days.',{size:12.5,fill:MUT}); y+=24;
+  // heat strip — note 25 & 27 sit ABOVE the 10h line yet are still breaches
+  const HOURS={1:12,2:12,3:24,4:12,5:12,6:12,7:9,8:12,9:12,10:24,11:12,12:12,13:12,14:12,15:12,16:9,17:24,18:12,19:12,20:12,21:12,22:12,23:12,24:24,25:13,26:12,27:11,28:12,29:12,30:12,31:24};
   const gx=56,gw=812,top=y+44,areaH=78,maxH=24; const bw=(gw-30*4)/31; const yFor=(h)=>top+areaH-(h/maxH)*areaH;
   for(const hh of [10,24]){ const yy=yFor(hh); s+=line(gx,yy,gx+gw,yy,hh===10?'#E7C9BC':'#EFEDE6',1); s+=txt(gx-8,yy+4,`${hh}h`,{size:9,fill:hh===10?TERRA:FAINT,anchor:'end'}); }
-  for(let d=1;d<=31;d++){ const x=gx+(d-1)*(bw+4); const st=stOf(HOURS[d]); const fill=st==='breach'?TERRA:st==='warning'?'#E3B055':'#BCCFBD'; const yy=yFor(HOURS[d]); s+=rect(x,yy,bw,top+areaH-yy,{fill,rx:2}); if(st==='compliant')s+=rect(x,yy,bw,2.5,{fill:'#6FA67E',rx:1.5}); if(d%5===0||d===1)s+=txt(x+bw/2,top+areaH+14,String(d),{size:9,fill:FAINT,anchor:'middle'}); }
-  y=top+areaH+40;
-  // all-noted confirmation (because crew was gated)
-  s+=check(50,y-4,GREEN)+txt(70,y,'All 3 breach days have a reason.',{size:12.5,weight:600,fill:GREEN});
+  for(let d=1;d<=31;d++){ const x=gx+(d-1)*(bw+4); const isB=breachSet.has(d); const fill=isB?TERRA:'#BCCFBD'; const yy=yFor(HOURS[d]); s+=rect(x,yy,bw,top+areaH-yy,{fill,rx:2}); if(!isB)s+=rect(x,yy,bw,2.5,{fill:'#6FA67E',rx:1.5}); if(isB)s+=dot(x+bw/2,top+areaH+8,2.6,TERRA); if(d%5===0||d===1)s+=txt(x+bw/2,top+areaH+22,String(d),{size:9,fill:FAINT,anchor:'middle'}); }
+  y=top+areaH+44;
+  s+=check(50,y-4,GREEN)+txt(70,y,'All 4 breach days have a reason.',{size:12.5,weight:600,fill:GREEN});
   s+=txt(872,y,'Approve, or Send back for changes.',{size:12,fill:MUT,anchor:'end'});
-  y+=12; s+=line(48,y,872,y,HAIR2);
-  // breach rows — read-only, fully described
-  for(const b of [{...BREACHES[0]},{...BREACHES[1]},{...BREACHES[2],reason:'Turnaround / provisioning'}]){
-    y+=48;
-    s+=dot(56,y-6,4.5,TERRA);
+  y+=10; s+=line(48,y,872,y,HAIR2);
+  for(const b of MB){
+    const chips=descChips(b);
+    y+=52;
+    s+=dot(56,y-8,4.5,TERRA);
     s+=txt(72,y,`${wdOf(b.d)} ${b.d} May`,{size:14,weight:600,fill:NAVY});
-    let cx=200; for(const r of b.rules){ const c=chip(cx,y-6,r[0]); s+=c.svg; cx+=c.w+8; }
+    let cx=200; for(const c of chips){ const ch=chip(cx,y-8,c); s+=ch.svg; cx+=ch.w+8; }
     s+=txt(72,y+18,`Reason — ${b.reason}`,{size:12,fill:MUT,italic:true});
-    s+=line(48,y+26,872,y+26,HAIR2);
+    s+=line(48,y+28,872,y+28,HAIR2);
   }
-  y+=54; s+=txt(48,y,'CAPTAIN · reasons already present; breaches read in full (figures, not just “Daily”). Decision is sign-off only.',{size:12,fill:INK2});
+  y+=56; s+=txt(48,y,'CAPTAIN · every MLC rule reads in full — incl. broken rest & 14h stretch, which can breach even when daily',{size:12,fill:INK2});
+  y+=18; s+=txt(48,y,'hours look fine (25th & 27th sit above the 10h line but are still flagged). Decision is sign-off only.',{size:12,fill:INK2});
   const h=y+20; writeFileSync('/tmp/hor_master.svg', frame(h)+s+'</svg>');
 }
 console.log('wrote /tmp/hor_crew_gate.svg, /tmp/hor_master.svg');
