@@ -264,7 +264,7 @@ const CrewProfile = () => {
   const [compForm, setCompForm] = useState(null);       // crew_compensation (null = no access/none)
   const [empEditing, setEmpEditing] = useState(false);
   const [empSaving, setEmpSaving] = useState(false);
-  const [vesselCompliance, setVesselCompliance] = useState(null);   // { flag, port_of_registry, governing_law }
+  const [vesselCompliance, setVesselCompliance] = useState(null);   // { flag, commercial_status, certified_commercial }
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = React.useRef(null);
@@ -1199,7 +1199,7 @@ const canEdit = (() => {
         .eq('tenant_id', activeTenantId).eq('user_id', crewId).maybeSingle();
       // Vessel-level compliance inherited (read-only) onto the profile.
       const { data: vessel } = await supabase
-        .from('vessels').select('flag, port_of_registry, commercial_status, certified_commercial')
+        .from('vessels').select('flag, commercial_status, certified_commercial')
         .eq('tenant_id', activeTenantId).maybeSingle();
       if (cancelled) return;
       setEmpForm(emp || {});
@@ -3627,20 +3627,17 @@ const canEdit = (() => {
               <div className="cp-group">
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compliance</span><span className="line" /></div>
                 <div className="cp-grid">
-                  {/* Flag (= governing law) and port of registry are the two short
-                      vessel identifiers — paired on one row. */}
+                  {/* Flag (= governing law) drives the contract standard — paired. */}
                   {inheritedFld('Flag state', vesselCompliance?.flag)}
-                  {inheritedFld('Port of registry', vesselCompliance?.port_of_registry)}
-                  {/* SEA reference is per-crew (their individual agreement number). */}
-                  {fld('SEA reference', empForm.sea_reference, txt('sea_reference'), { full: true })}
-                  {/* Derived from flag + private/commercial — long, so full width. */}
                   {inheritedFld('Crew contract standard', crewContractStandard({
                     flag: vesselCompliance?.flag,
                     commercialStatus: vesselCompliance?.commercial_status,
                     certifiedCommercial: vesselCompliance?.certified_commercial,
-                  }), { full: true })}
+                  }))}
+                  {/* SEA reference is per-crew (their individual agreement number). */}
+                  {fld('SEA reference', empForm.sea_reference, txt('sea_reference'), { full: true })}
                 </div>
-                <p className="cp-set-note">Flag state (the governing law) and port of registry are set once in Vessel Settings; the contract standard derives from the flag and whether the vessel is private or commercial.</p>
+                <p className="cp-set-note">Flag state (the governing law) is set once in Vessel Settings; the contract standard derives from the flag and whether the vessel is private or commercial.</p>
               </div>
 
               {!canEditPermissions && <p className="cp-set-note">Employment details are managed by COMMAND.</p>}
