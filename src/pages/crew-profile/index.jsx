@@ -3186,44 +3186,35 @@ const canEdit = (() => {
                 {/* Whole month at a glance — a compliance heat strip: bar height
                     is rest hours, sage = compliant, terracotta = breach (any MLC
                     rule, flagged even when daily hours look fine), dashed line =
-                    the 10h daily minimum. */}
-                {calendarData?.length > 0 && (() => {
-                  const n = calendarData.length;
-                  const VW = 720, VH = 124, padL = 30, padR = 10, top = 10, areaH = 80, maxH = 24;
-                  const step = (VW - padL - padR) / n;
-                  const bw = Math.min(step * 0.6, 16);
-                  const yFor = (h) => top + areaH - (Math.min(Math.max(h, 0), maxH) / maxH) * areaH;
-                  return (
-                    <svg className="cp-revstrip" viewBox={`0 0 ${VW} ${VH}`} role="img" aria-label="Month at a glance — rest hours per day">
-                      {[10, 24].map((hh) => {
-                        const yy = yFor(hh);
-                        return (
-                          <g key={hh}>
-                            <line x1={padL} y1={yy} x2={VW - padR} y2={yy} stroke={hh === 10 ? '#E7C9BC' : '#EFEDE6'} strokeWidth="1" strokeDasharray={hh === 10 ? '4 3' : undefined} />
-                            <text x={padL - 6} y={yy + 3} textAnchor="end" fontSize="9" fill={hh === 10 ? '#C65A1A' : '#AEB4C2'}>{hh}h</text>
-                          </g>
-                        );
-                      })}
-                      {calendarData.map((d, i) => {
-                        const isB = d.status === 'breach';
-                        const isW = d.status === 'warning';
-                        const x = padL + i * step + (step - bw) / 2;
-                        const y = yFor(d.restHours);
-                        const fill = isB ? '#C65A1A' : isW ? '#E3B055' : '#BCCFBD';
-                        return (
-                          <g key={d.date}>
-                            <rect x={x} y={y} width={bw} height={top + areaH - y} rx="1.5" fill={fill}>
-                              <title>{`${d.day} ${monthName} — ${Math.round(d.restHours)}h rest`}</title>
-                            </rect>
-                            {!isB && !isW && <rect x={x} y={y} width={bw} height="2.4" rx="1.2" fill="#6FA67E" />}
-                            {isB && <circle cx={x + bw / 2} cy={top + areaH + 7} r="2.2" fill="#C65A1A" />}
-                            {(d.day === 1 || d.day % 5 === 0) && <text x={x + bw / 2} y={top + areaH + 20} textAnchor="middle" fontSize="9" fill="#AEB4C2">{d.day}</text>}
-                          </g>
-                        );
-                      })}
-                    </svg>
-                  );
-                })()}
+                    the 10h daily minimum. Plain HTML so it keeps a compact, fixed
+                    height and crisp labels at any card width. */}
+                {calendarData?.length > 0 && (
+                  <div className="cp-revchart" aria-label="Month at a glance — rest hours per day">
+                    <div className="cp-revchart-y">
+                      <span className="cp-revy-24">24h</span>
+                      <span className="cp-revy-10">10h</span>
+                    </div>
+                    <div className="cp-revchart-main">
+                      <div className="cp-revplot">
+                        <span className="cp-revline-10" aria-hidden="true" />
+                        {calendarData.map((d) => {
+                          const h = Math.max(0, Math.min(Number(d.restHours) || 0, 24));
+                          const cls = d.status === 'breach' ? 'breach' : d.status === 'warning' ? 'warning' : 'compliant';
+                          return (
+                            <span className="cp-revcol" key={d.date} title={`${d.day} ${monthName} — ${Math.round(h)}h rest`}>
+                              <span className={`cp-revbar ${cls}`} style={{ height: `${(h / 24) * 100}%` }} />
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <div className="cp-revaxis" aria-hidden="true">
+                        {calendarData.map((d) => (
+                          <span key={d.date}>{(d.day === 1 || d.day % 5 === 0) ? d.day : ''}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="cp-revlegend">
                   <span><i style={{ background: '#BCCFBD' }} />Compliant</span>
                   <span><i style={{ background: '#E3B055' }} />Marginal</span>

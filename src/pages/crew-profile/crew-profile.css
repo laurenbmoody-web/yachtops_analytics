@@ -940,8 +940,23 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-review-sub { margin-top: 6px; font-size: 13px; line-height: 1.5; color: #6B7280; }
 
 /* Compliance heat strip — rest hours per day; sage = compliant (green cap),
-   amber = marginal, terracotta = breach (any MLC rule). Scales to width. */
-.crew-profile-page .cp-revstrip { display: block; width: 100%; height: auto; margin-top: 14px; }
+   amber = marginal, terracotta = breach (any MLC rule). Fixed plot height so it
+   stays compact and crisp at any card width. */
+.crew-profile-page .cp-revchart { display: flex; gap: 10px; margin-top: 14px; }
+.crew-profile-page .cp-revchart-y { position: relative; width: 30px; height: 96px; flex: none; }
+.crew-profile-page .cp-revchart-y span { position: absolute; right: 0; font-size: 9px; color: #AEB4C2; transform: translateY(-50%); }
+.crew-profile-page .cp-revy-24 { top: 0; }
+.crew-profile-page .cp-revy-10 { top: 56px; color: #C65A1A; } /* 96 − (10/24*96)=40 from bottom → 56 from top */
+.crew-profile-page .cp-revchart-main { flex: 1; min-width: 0; }
+.crew-profile-page .cp-revplot { position: relative; height: 96px; display: flex; align-items: flex-end; gap: 2px; }
+.crew-profile-page .cp-revline-10 { position: absolute; left: 0; right: 0; bottom: 40px; border-top: 1px dashed #E7C9BC; }
+.crew-profile-page .cp-revcol { flex: 1; display: flex; justify-content: center; align-items: flex-end; height: 100%; }
+.crew-profile-page .cp-revbar { width: 58%; max-width: 16px; min-height: 2px; border-radius: 2px 2px 0 0; box-sizing: border-box; background: #BCCFBD; }
+.crew-profile-page .cp-revbar.compliant { border-top: 2.5px solid #6FA67E; }
+.crew-profile-page .cp-revbar.warning { background: #E3B055; }
+.crew-profile-page .cp-revbar.breach { background: #C65A1A; }
+.crew-profile-page .cp-revaxis { display: flex; gap: 2px; margin-top: 5px; }
+.crew-profile-page .cp-revaxis span { flex: 1; text-align: center; font-size: 9px; color: #AEB4C2; }
 .crew-profile-page .cp-revlegend { display: flex; gap: 18px; margin-top: 8px; font-size: 11px; color: #6B7280; }
 .crew-profile-page .cp-revlegend span { display: inline-flex; align-items: center; }
 .crew-profile-page .cp-revlegend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; }
