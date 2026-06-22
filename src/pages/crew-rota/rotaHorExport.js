@@ -209,7 +209,9 @@ export function buildRestLogCSV({ rows, days, meta }) {
     lines.push(row.map(csvField).join(','));
   }
 
-  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  // Lead with a UTF-8 BOM so Excel reads accented characters (·, —) correctly
+  // instead of mojibake like "Â·".
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   return { blob, filename: `${restLogFileBase(meta)}.csv` };
 }
 

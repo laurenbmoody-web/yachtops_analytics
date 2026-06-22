@@ -106,24 +106,28 @@ export default function MonthEnd() {
   const [openHor, setOpenHor] = useState(false);   // HOR pack expand
   const [openBlocks, setOpenBlocks] = useState({}); // per-status-block expand (default collapsed)
   const [hideClosed, setHideClosed] = useState(false); // filter: hide closed items
-  const [exporting, setExporting] = useState(false);   // building the signed-HOR zip
+  const [exporting, setExporting] = useState(false);   // building/sending the HOR pack
+  const [sentRecord, setSentRecord] = useState(null);  // hor_management_sends row for this month
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
     setLoading(true);
     const start = `${year}-${pad2(jsMonth + 1)}-01`;
     const end = `${year}-${pad2(jsMonth + 1)}-${pad2(new Date(year, jsMonth + 1, 0).getDate())}`;
-    const [crewRows, statusMap, vesselSettings, memberTiers, covRes] = await Promise.all([
+    const [crewRows, statusMap, vesselSettings, memberTiers, covRes, sentRes] = await Promise.all([
       fetchTenantCrew(activeTenantId),
       fetchMonthStatusesForMonth({ tenantId: activeTenantId, year, jsMonth }),
       fetchVesselHorSettings(activeTenantId),
       fetchActiveMemberTiers(activeTenantId),
       supabase.from('hor_work_entries').select('subject_user_id, entry_date')
         .eq('tenant_id', activeTenantId).gte('entry_date', start).lte('entry_date', end),
+      supabase.from('hor_management_sends').select('*')
+        .eq('tenant_id', activeTenantId).eq('period_year', year).eq('period_month', jsMonth + 1).maybeSingle(),
     ]);
     const cov = {};
     (covRes?.data || []).forEach((r) => { (cov[r.subject_user_id] || (cov[r.subject_user_id] = new Set())).add(r.entry_date); });
     setCrew(crewRows); setStatuses(statusMap); setSettings(vesselSettings); setTiers(memberTiers); setCoverage(cov);
+    setSentRecord(sentRes?.data || null);
     setReminded({});
     setLoading(false);
   }, [activeTenantId, year, jsMonth]);
@@ -189,6 +193,12 @@ export default function MonthEnd() {
   const managementEmail = settings?.managementCompanyEmail || null;
   const managementName = settings?.managementCompanyName || null;
 
+  // Date as dd/mm/yyyy (zero-padded).
+  const fmtDMY = (iso) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '' : `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+  };
+
   // Send the month's Record of Hours of Rest to the management company. The PDF
   // + CSV are generated in the browser by the SAME code the rota page's export
   // button uses (rotaHorExportData → rotaHorExport), so the management pack is an
@@ -199,6 +209,12 @@ export default function MonthEnd() {
     if (!managementEmail) {
       setToast('Set a management company email in Vessel Settings first');
       setTimeout(() => setToast(''), 3200);
+      return;
+    }
+    // Already sent this month — confirm before sending again (avoid duplicates).
+    if (sentRecord && !window.confirm(
+      `This month was already sent to management on ${fmtDMY(sentRecord.sent_at)}`
+      + `${sentRecord.sent_by_name ? ` by ${sentRecord.sent_by_name}` : ''}. Send again?`)) {
       return;
     }
     setExporting(true);
@@ -217,6 +233,8 @@ export default function MonthEnd() {
         body: {
           tenantId: activeTenantId,
           periodLabel: payload.meta?.periodLabel || monthLabel,
+          year,
+          month: jsMonth + 1,
           attachments: [
             { filename: pdfName, contentBase64: pdfB64, contentType: 'application/pdf' },
             { filename: csvName, contentBase64: csvB64, contentType: 'text/csv' },
@@ -224,6 +242,7 @@ export default function MonthEnd() {
         },
       });
       if (error || data?.error) throw new Error(error?.message || data?.error || 'Send failed');
+      if (data?.sent) setSentRecord(data.sent);
       setToast(`Sent to ${managementName || managementEmail}`);
     } catch (e) {
       console.error('HOR management send failed', e);
@@ -436,12 +455,14 @@ export default function MonthEnd() {
                             {STATUS_BLOCKS.map(renderStatusBlock)}
                             <div className="me-export">
                               <span className="me-export-note">
-                                {managementEmail
-                                  ? <>Record of Hours of Rest for {monthName} · sends to {managementName ? `${managementName} (${managementEmail})` : managementEmail}</>
-                                  : <>Set a management company email in <button type="button" className="me-link-inline" onClick={() => navigate('/vessel-settings')}>Vessel Settings</button> to send the monthly record</>}
+                                {!managementEmail
+                                  ? <>Set a management company email in <button type="button" className="me-link-inline" onClick={() => navigate('/vessel-settings')}>Vessel Settings</button> to send the monthly record</>
+                                  : sentRecord
+                                    ? <><span className="me-sent-tick"><Icon name="Check" size={13} /></span> Sent to management on <strong>{fmtDMY(sentRecord.sent_at)}</strong>{sentRecord.sent_by_name ? <> by <strong>{sentRecord.sent_by_name}</strong></> : null}{sentRecord.send_count > 1 ? ` · ${sentRecord.send_count}×` : ''}</>
+                                    : <>Record of Hours of Rest for {monthName} · sends to {managementName ? `${managementName} (${managementEmail})` : managementEmail}</>}
                               </span>
-                              <button type="button" className="me-btn me-btn-primary" disabled={exporting || !managementEmail} onClick={sendToManagement}>
-                                <Icon name="Send" size={14} /> {exporting ? 'Sending…' : 'Send to management'}
+                              <button type="button" className={`me-btn ${sentRecord ? 'me-btn-ghost' : 'me-btn-primary'}`} disabled={exporting || !managementEmail} onClick={sendToManagement}>
+                                <Icon name="Send" size={14} /> {exporting ? 'Sending…' : (sentRecord ? 'Resend' : 'Send to management')}
                               </button>
                             </div>
                           </>

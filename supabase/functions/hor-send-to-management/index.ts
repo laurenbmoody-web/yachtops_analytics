@@ -11,7 +11,7 @@
 // vessels.hor_management_company_email (never trusted from the client).
 //
 // Env: RESEND_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-// Body: { tenantId, periodLabel, attachments: [{ filename, contentBase64, contentType? }] }
+// Body: { tenantId, periodLabel, year, month, attachments: [{ filename, contentBase64, contentType? }] }
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response>) => void;
@@ -106,6 +106,21 @@ async function supaInsert(table: string, rows: unknown[]) {
   }).catch(() => {});
 }
 
+async function supaUpsert(table: string, rows: unknown[]) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: JSON.stringify(rows),
+  }).catch(() => null);
+  if (!res || !res.ok) return null;
+  return res.json().catch(() => null);
+}
+
 // Resolve the caller's user id from their JWT.
 async function callerUserId(req: Request): Promise<string | null> {
   const auth = req.headers.get('Authorization') || '';
@@ -127,6 +142,8 @@ Deno.serve(async (req: Request) => {
   let body: {
     tenantId?: string;
     periodLabel?: string;
+    year?: number;
+    month?: number;
     attachments?: { filename: string; contentBase64: string; contentType?: string }[];
   };
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -212,6 +229,29 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Email provider rejected the message' }, 502);
   }
 
+  // Record the send so everyone with month-end access sees it's done (and to
+  // flag duplicates). One row per vessel-month; re-sends bump it + count up.
+  let sent = null;
+  const py = Number(body.year);
+  const pm = Number(body.month);
+  if (py && pm) {
+    const existing = await supaGet(
+      `hor_management_sends?tenant_id=eq.${tenantId}&period_year=eq.${py}&period_month=eq.${pm}&select=send_count`,
+    ) || [];
+    const sendCount = (existing[0]?.send_count || 0) + 1;
+    const rows = await supaUpsert('hor_management_sends', [{
+      tenant_id: tenantId,
+      period_year: py,
+      period_month: pm,
+      sent_at: new Date().toISOString(),
+      sent_by: uid,
+      sent_by_name: senderName || null,
+      recipient_email: to,
+      send_count: sendCount,
+    }]);
+    sent = Array.isArray(rows) ? rows[0] : null;
+  }
+
   // Courtesy bell notification to the sender (best-effort).
   await supaInsert('notifications', [{
     user_id: uid,
@@ -224,5 +264,5 @@ Deno.serve(async (req: Request) => {
     created_at: new Date().toISOString(),
   }]);
 
-  return json({ ok: true, to });
+  return json({ ok: true, to, sent });
 });
