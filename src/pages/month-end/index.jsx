@@ -37,11 +37,16 @@ const STATUS_META = {
 // The roster is split into collapsible status blocks (default collapsed); crew
 // are grouped by department inside each. The block header carries the status, so
 // rows drop their own status text — the dot + logged-coverage bar carry detail.
+// "Not started" and "In progress" both come from the un-submitted `open` status,
+// split on whether any days have been logged yet (matters mid-month, when a month
+// can't be signed off but crew are part-way through logging).
 const STATUS_BLOCKS = [
-  { key: 'submitted', label: 'Awaiting approval', theme: '#1C1B3A', statuses: ['submitted'] },
-  { key: 'open',      label: 'Not started',       theme: '#C65A1A', statuses: ['open'] },
-  { key: 'confirmed', label: 'Confirmed',         theme: '#3F7A52', statuses: ['confirmed', 'locked'] },
+  { key: 'submitted', label: 'Awaiting approval', theme: '#1C1B3A', match: (r) => r.status === 'submitted' },
+  { key: 'progress',  label: 'In progress',       theme: '#C65A1A', match: (r) => r.status === 'open' && r.logged > 0 },
+  { key: 'open',      label: 'Not started',       theme: '#C65A1A', match: (r) => r.status === 'open' && r.logged === 0 },
+  { key: 'confirmed', label: 'Confirmed',         theme: '#3F7A52', match: (r) => r.status === 'confirmed' || r.status === 'locked' },
 ];
+const REMINDABLE = new Set(['progress', 'open']); // blocks whose crew can be nudged
 const DEPT_RANK = { Bridge: 0, Deck: 1, Engineering: 2, Interior: 3, Galley: 4 };
 const byDept = (a, b) => (DEPT_RANK[a] ?? 9) - (DEPT_RANK[b] ?? 9) || String(a).localeCompare(String(b));
 
@@ -142,7 +147,8 @@ export default function MonthEnd() {
     return { ...c, total: rows.length, done: c.confirmed + c.locked };
   }, [rows]);
 
-  const outstanding = rows.filter((r) => r.status === 'open');
+  const inProgressCount = rows.filter((r) => r.status === 'open' && r.logged > 0).length;
+  const notStartedCount = rows.filter((r) => r.status === 'open' && r.logged === 0).length;
 
   const remind = useCallback(async (r) => {
     await sendDbNotification(r.id, {
@@ -157,13 +163,13 @@ export default function MonthEnd() {
     setReminded((p) => ({ ...p, [r.id]: true }));
   }, [monthLabel]);
 
-  const remindAll = async () => {
-    if (!outstanding.length) return;
+  const remindGroup = async (list) => {
+    if (!list?.length) return;
     setBusy(true);
     // eslint-disable-next-line no-await-in-loop
-    for (const r of outstanding) await remind(r);
+    for (const r of list) await remind(r);
     setBusy(false);
-    setToast(`Reminder sent to ${outstanding.length} crew`);
+    setToast(`Reminder sent to ${list.length} crew`);
     setTimeout(() => setToast(''), 2600);
   };
 
@@ -175,7 +181,8 @@ export default function MonthEnd() {
   const horPct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
   const horNote = counts.total === 0 ? 'No crew on this vessel yet'
     : horDone ? 'All crew signed off'
-      : [counts.open ? `${counts.open} not started` : null,
+      : [notStartedCount ? `${notStartedCount} not started` : null,
+         inProgressCount ? `${inProgressCount} in progress` : null,
          counts.submitted ? `${counts.submitted} awaiting approval` : null]
         .filter(Boolean).join(' · ') || 'In sign-off';
 
@@ -225,7 +232,7 @@ export default function MonthEnd() {
   // crew grouped by department inside. Default collapsed; chevron + label take
   // the block's status colour. ───────────────────────────────────────────────
   const renderStatusBlock = (blk) => {
-    const members = rows.filter((r) => blk.statuses.includes(r.status));
+    const members = rows.filter(blk.match);
     if (!members.length) return null;
     const isOpen = !!openBlocks[blk.key];
     const depts = [...new Set(members.map((m) => m.department).filter(Boolean))].sort(byDept);
@@ -238,10 +245,10 @@ export default function MonthEnd() {
             <span className="me-block-dot" style={{ background: blk.theme }} />
             <span className="me-block-label" style={{ color: blk.theme }}>{blk.label} · {members.length}</span>
           </button>
-          {blk.key === 'open' && outstanding.length > 0 ? (
-            <button type="button" className="me-btn me-btn-primary me-block-cta" disabled={busy} onClick={remindAll}>
+          {REMINDABLE.has(blk.key) ? (
+            <button type="button" className="me-btn me-btn-primary me-block-cta" disabled={busy} onClick={() => remindGroup(members)}>
               <Icon name="Bell" size={14} />
-              {busy ? 'Sending…' : `Send reminders to all (${outstanding.length})`}
+              {busy ? 'Sending…' : `Send reminders to all (${members.length})`}
             </button>
           ) : (
             <span className="me-block-preview">{depts.join('  ·  ')}</span>
