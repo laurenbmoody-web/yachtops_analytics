@@ -3176,7 +3176,7 @@ const canEdit = (() => {
               <div className="cp-review">
                 <div className="cp-section-head">
                   <span className="cp-section-kicker">For approval</span>
-                  <h3>Review {monthName}</h3>
+                  <h3>Review <em>{monthName}</em></h3>
                 </div>
                 <p className="cp-review-sub">
                   Submitted by {dbMonthStatus?.submit_signed_name || crewMember?.fullName || 'crew'}

@@ -937,6 +937,8 @@ body.crew-profile-editorial {
 /* Approver review summary — scannable card shown to the master on a submitted
    month (breach days + documented reasons; full grid stays below). */
 .crew-profile-page .cp-review { border: 1px solid #ECEAE3; border-radius: 14px; background: #FFFFFF; padding: 18px 20px; }
+/* Two-tone title: navy word + terracotta italic, matching HOR, Submitted. */
+.crew-profile-page .cp-review .cp-section-head h3 em { font-style: italic; color: #C65A1A; }
 .crew-profile-page .cp-review-sub { margin-top: 6px; font-size: 13px; line-height: 1.5; color: #6B7280; }
 
 /* Compliance heat strip — rest hours per day; sage = compliant (green cap),
