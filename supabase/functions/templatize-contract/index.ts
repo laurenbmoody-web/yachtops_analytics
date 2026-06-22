@@ -41,7 +41,12 @@ today (date generated)`.trim();
 
 // Applied in both modes: the whole point of a template is that NO individual's
 // data survives into it.
-const CRITICAL = `CRITICAL: This becomes a reusable template, so NO individual's personal data may remain as literal text. You MUST tokenise every one of the seafarer's identifiers — name, date of birth, place of birth, passport/ID number, nationality, home address, phone — even when only one occurrence appears. Also tokenise the captain's name, the company/owner name and address, the port of embarkation, and the repatriation destination. If a particular has no perfect token, use the closest one rather than leaving the real value in. Do NOT tokenise law/convention names, clause boilerplate, or fixed figures that are the same for every crew member (rest-hour limits, insurance caps, notice weeks written into boilerplate).`;
+const CRITICAL = `CRITICAL: This becomes a reusable template, so NO specific party's details may remain as literal text — even details that look like fixed letterhead or that would be identical on every contract you've seen. Tokenise ALL of the following:
+- The seafarer's identifiers — name, date of birth, place of birth, passport/ID number, nationality, home address, phone — even when only one occurrence appears.
+- The yacht owner / employing company: its name → {{company_name}} and its FULL postal address block → {{company_address}} (replace the entire multi-line address with the single token, even where it appears under headings like "Of:" or "And the Company").
+- The captain's name → {{captain_name}}, INCLUDING in signature / execution blocks (e.g. "Name: John Smith – Captain" becomes "Name: {{captain_name}} – Captain"; the seafarer's own signature name becomes {{crew_name}}).
+- vessel_name, flag_state, official number, salary, all dates, port of embarkation, repatriation destination.
+Keep literal ONLY: names of laws / conventions / regulations, generic clause wording, and standard legal figures that are part of the contract's boilerplate rather than this particular hire (rest-hour minimums, insurance/liability caps, fixed notice weeks written into the clause text).`;
 
 const MAP_PROMPT = `You are given the full text of a COMPLETED maritime crew employment contract for one individual.
 
@@ -53,6 +58,7 @@ Return ONLY a JSON object (no markdown, no backticks):
 
 Rules:
 - Copy each "value" EXACTLY as it appears in the contract (same spelling, casing, spacing, punctuation) so it can be found and replaced verbatim.
+- For a multi-line value (such as the company address block), return it with the line breaks as \n so it can be matched.
 - Only map values that clearly correspond to one of the tokens. Do NOT map generic contract boilerplate, clause headings, or the names of laws/conventions.
 - Map the vessel's name to vessel_name, the seafarer's name to crew_name, salary figures to salary_amount, etc.
 - If a value is genuinely ambiguous, leave it out.
