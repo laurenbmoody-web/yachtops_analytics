@@ -564,10 +564,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 {g.items.map(e => {
                   const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
                   const isExcluded = !!e.excluded, isQual = !isExcluded && c.qual, isBad = !isExcluded && !c.qual;
-                  // Provenance: a ship you keep in Cargo (the captain confirms
-                  // your days here) vs a previous ship (you'll add a testimonial).
+                  // Provenance: a ship on Cargo (the captain confirms your days
+                  // in-app) vs one off Cargo (you'll add a signed testimonial).
                   const isCargo = routeForVessel(v) !== 'external';
-                  const provLabel = isCargo ? 'This ship' : 'Previous ship';
+                  const provLabel = isCargo ? 'On Cargo' : 'Off Cargo';
                   const provCol = isCargo ? { color: '#3F7A52', tint: '#EFF6F1' } : { color: '#5A6478', tint: '#F4F5F7' };
                   const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch · ${e.capacity}` : (e.detailOverride || `${tm.hint} · ${e.capacity}`);
                   const qualLabel = e.type === 'seagoing' ? 'Qualifies · seagoing' : e.type === 'watchkeeping' ? 'Qualifies · watchkeeping' : e.type === 'standby' ? 'Counts · standby' : 'Counts · shipyard';
@@ -579,7 +579,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         <div className="std-flex std-ac" style={{ gap: 7, flexWrap: 'wrap' }}>
                           <span className="std-avn">{v.name}</span>
                           <span className="std-tag" style={{ color: sm.color, background: sm.bg }}>{sm.label}</span>
-                          <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: provCol.color, background: provCol.tint }} title={isCargo ? 'A ship you keep in Cargo — the captain confirms your days here' : 'A previous ship — you’ll add a signed testimonial for these days'}>
+                          <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: provCol.color, background: provCol.tint }} title={isCargo ? 'This ship is on Cargo — the captain confirms your days in-app' : 'This ship isn’t on Cargo — you’ll add a signed testimonial for these days'}>
                             <span className="pm" style={isCargo ? { background: provCol.color } : { borderColor: provCol.color }} />{provLabel}
                           </span>
                         </div>
@@ -717,10 +717,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <span className="std-flabel">Get each ship verified</span>
                   <span className="std-fchip" style={{ color: '#fff', background: allAttested ? '#5E8E6F' : '#C65A1A' }}>{attestedCount} of {recVessels.length} verified</span>
                 </div>
-                <div className="std-ftitle">Your service is confirmed by each ship’s captain</div>
-                <div className="std-fnote" style={{ color: 'var(--muted)' }}>
-                  <Icon name="Info" size={13} />
-                  The captain who ran the ship at the time confirms your service — not whoever commands her now. If they’re still aboard in Cargo, your days are <b>verified automatically</b>. If they’ve moved on, they <b>sign digitally</b> (in the app, or by a secure email link). For a ship that was never on Cargo, you <b>upload their signed testimonial</b>.
+                <div className="std-ftitle">Your service is confirmed by each ship’s captain
+                  <span className="std-fhelp" tabIndex={0} role="note" aria-label="How each period is confirmed">
+                    <Icon name="Info" size={15} />
+                    <span className="std-fhelp-pop">
+                      <b>How each period is confirmed</b>
+                      <span>By the captain who ran that ship at the time — never her current one:</span>
+                      <span>· <b className="inl">Still aboard in Cargo</b> — verified automatically.</span>
+                      <span>· <b className="inl">Moved on</b> — they sign digitally, in the app or by a secure email link.</span>
+                      <span>· <b className="inl">Never on Cargo</b> — you upload their signed testimonial.</span>
+                    </span>
+                  </span>
                 </div>
                 {!canGenerate && (
                   <div className="std-fnote" style={{ color: '#A32D2D' }}>
