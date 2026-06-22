@@ -3209,7 +3209,7 @@ const canEdit = (() => {
                       </div>
                       <div className="cp-revaxis" aria-hidden="true">
                         {calendarData.map((d) => (
-                          <span key={d.date}>{(d.day === 1 || d.day % 5 === 0) ? d.day : ''}</span>
+                          <span key={d.date}>{d.day}</span>
                         ))}
                       </div>
                     </div>
