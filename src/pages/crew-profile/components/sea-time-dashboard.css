@@ -219,6 +219,11 @@
 .std-cert .tbox .tn{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:23px;color:var(--ink);}
 .std-cert .tbox .tl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
 .std-cert .sigline{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-size:18px;color:var(--ink);border-bottom:1px solid var(--ink);padding-bottom:4px;display:inline-block;min-width:220px;}
+.std-sigs{display:flex;flex-direction:column;gap:11px;margin-top:11px;}
+.std-sig{padding-left:11px;border-left:2px solid #ECEAE3;}
+.std-sig-name{font-size:13px;font-weight:600;color:#1C1B3A;}
+.std-sig-name span{font-weight:400;color:#8B8478;font-size:11px;margin-left:7px;}
+.std-sig-meta{font-size:10.5px;color:#8B8478;line-height:1.5;margin-top:2px;}
 .std-cert .qrseal{border:1px solid var(--hair-2);border-radius:8px;padding:8px;text-align:center;background:#fff;}
 .std-certfoot{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:0 0 4px;}
 .std-dl{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:9px;padding:10px 16px;font-weight:600;font-size:13px;cursor:pointer;}
@@ -474,6 +479,18 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .cso-stamp svg{flex:none;color:#3F7A52;}
 .cso-stamp-t{font-size:13.5px;font-weight:600;color:#2F5E3F;}
 .cso-stamp .cso-vs{color:#5E8E6F;margin-top:2px;}
+.cso-stamp.ink{background:#F6F5F2;border-color:#ECEAE3;}
+.cso-stamp.ink svg{color:#7A5A12;}
+.cso-stamp.ink .cso-stamp-t{color:#1C1B3A;}
+.cso-stamp.ink .cso-vs{color:#8B8478;}
+.cso-fields{display:flex;flex-direction:column;gap:13px;}
+.cso-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+.cso-fld{display:flex;flex-direction:column;gap:6px;}
+.cso-warn{display:flex;gap:9px;align-items:flex-start;padding:11px 13px;background:#FBF4E4;border:1px solid #F0E2C0;border-radius:10px;font-size:11.5px;line-height:1.45;color:#7A5A12;}
+.cso-warn svg{flex:none;margin-top:1px;}
+.cso-check{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.45;color:#1C1B3A;cursor:pointer;}
+.cso-check input{margin-top:2px;width:16px;height:16px;accent-color:#C65A1A;flex:none;cursor:pointer;}
+@media (max-width:520px){.cso-grid{grid-template-columns:1fr;}}
 .cso-lbl .req{color:#C65A1A;font-weight:700;letter-spacing:.5px;margin-left:5px;}
 .cso-lbl .opt{color:#AEB4C2;font-weight:700;letter-spacing:.5px;margin-left:5px;}
 .cso-declinelink{align-self:flex-start;border:0;background:transparent;color:#8B8478;font-size:12px;font-weight:500;cursor:pointer;padding:2px 0;text-decoration:underline;text-underline-offset:2px;transition:color .15s;}

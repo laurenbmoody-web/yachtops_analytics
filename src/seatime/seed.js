@@ -13,9 +13,9 @@
 //   crewMember     — whether THIS seafarer was on Cargo for the service (record
 //                    provenance); the crew leaving never downgrades the route.
 export const SEED_VESSELS = {
-  v1: { id: 'v1', name: 'M/Y Aurora Borealis', flag: 'Cayman Is.', imo: '9123456', officialNo: '745210', gt: 380,  lengthM: 42, over15: true,  type: 'Motor', cargoRegistered: true,  crewMember: true,  captainMember: false, captainOnCargo: true,  captainName: 'Capt. Maria Lindqvist' },
-  v2: { id: 'v2', name: 'S/Y Tern',            flag: 'Malta',      imo: '9234567', officialNo: 'MLT-11892', gt: 18,   lengthM: 12, over15: false, type: 'Sail',  cargoRegistered: false, crewMember: false, captainMember: false, captainOnCargo: false, captainName: 'Capt. R. Owens' },
-  v3: { id: 'v3', name: 'M/Y Pelorus II',      flag: 'Marshall Is.', imo: '9345678', officialNo: 'MI-23117', gt: 1450, lengthM: 68, over15: true,  type: 'Motor', cargoRegistered: true,  crewMember: true,  captainMember: true,  captainOnCargo: true,  captainName: 'Capt. Henrik Sõrensen' }
+  v1: { id: 'v1', name: 'M/Y Aurora Borealis', flag: 'Cayman Is.', portReg: 'George Town', imo: '9123456', officialNo: '745210', gt: 380,  lengthM: 42, over15: true,  type: 'Motor', kw: 2240, cargoRegistered: true,  crewMember: true,  captainMember: false, captainOnCargo: true,  captainName: 'Capt. Maria Lindqvist', captainCoc: 'CEC-204417', captainCocGrade: 'Master (Yachts) <3000GT', captainEmail: 'm.lindqvist@example.com' },
+  v2: { id: 'v2', name: 'S/Y Tern',            flag: 'Malta',      portReg: 'Valletta',    imo: '9234567', officialNo: 'MLT-11892', gt: 18,   lengthM: 12, over15: false, type: 'Sail',  kw: 75,   cargoRegistered: false, crewMember: false, captainMember: false, captainOnCargo: false, captainName: 'Capt. R. Owens', captainCoc: 'MCA-118803', captainCocGrade: 'Master (Yachts) <500GT', captainEmail: 'r.owens@example.com' },
+  v3: { id: 'v3', name: 'M/Y Pelorus II',      flag: 'Marshall Is.', portReg: 'Majuro',    imo: '9345678', officialNo: 'MI-23117', gt: 1450, lengthM: 68, over15: true,  type: 'Motor', kw: 5600, cargoRegistered: true,  crewMember: true,  captainMember: true,  captainOnCargo: true,  captainName: 'Capt. Henrik Sõrensen', captainCoc: 'GBR-CoC-447120', captainCocGrade: 'Master (Yachts) <3000GT', captainEmail: 'h.sorensen@example.com' }
 };
 
 // Prior (lifetime) accrual baseline added to the current period for the bars.

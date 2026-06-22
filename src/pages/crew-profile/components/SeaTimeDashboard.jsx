@@ -50,6 +50,9 @@ const ROUTE_META = {
   virtual:  { label: 'Signed digitally',   icon: 'PenLine',    color: '#7A5A12', bg: '#FBEFD9', tint: '#FBF4E4' },
   external: { label: 'Signed testimonial', icon: 'Upload',     color: '#5A6478', bg: '#EEF0F3', tint: '#F4F5F7' }
 };
+// Blank captain sign-off form (MSN 1858 signatory particulars).
+const SIGN_EMPTY = { name: '', cocNo: '', cocGrade: '', email: '', phone: '', place: '', cmdFrom: '', cmdTo: '' };
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // Per-vessel status chip — plain language (no "stamp / virtual / external").
 const ATT_CHIP = {
   attested_stamp:    { label: 'Verified in Cargo',   color: '#3F7A52', bg: '#E7F0E9' },
@@ -116,9 +119,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // Captain sign-off ceremony — the master reviews one vessel's periods and
   // either signs the testimonial or declines it back to the crew member.
   const [signFor, setSignFor] = useState(null);     // vessel object under review
-  const [signName, setSignName] = useState('');     // typed signature (virtual route)
+  const [signForm, setSignForm] = useState(SIGN_EMPTY); // signatory details (MSN 1858)
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [signoffMeta, setSignoffMeta] = useState({}); // vesselId -> signatory record for the testimonial
+  const [extConfirm, setExtConfirm] = useState(null); // vessel awaiting external-upload stamp confirmation
+  const [extStamped, setExtStamped] = useState(false);
 
   // data source: live Supabase, or a clearly-labelled sample fallback.
   const [vessels, setVessels] = useState(SEED_VESSELS);
@@ -265,7 +271,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
 
   // ── handlers ──
   // Any change to the pack invalidates every prior attestation.
-  const resetSignoff = () => setVesselAttest({});
+  const resetSignoff = () => { setVesselAttest({}); setSignoffMeta({}); };
   const pickVerifier = (v) => { setVerifier(v); resetSignoff(); };
   const toggleDoc = (id) => { setDocMet(d => ({ ...d, [id]: !d[id] })); resetSignoff(); };
   const reclassify = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, type: 'standby', detailOverride: 'Reclassified from watchkeeping' } : e)); resetSignoff(); flash('Entry reclassified to standby'); };
@@ -303,10 +309,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   };
 
   // The master attests one vessel — a Cargo stamp when both are aboard, else a
-  // virtual signature. `signedName` is the typed signature for the virtual route.
-  const attestVessel = async (v, signedName) => {
+  // virtual signature. `record` carries the MSN 1858 signatory particulars.
+  const attestVessel = async (v, record) => {
     if (!canGenerate) { flash('Resolve all validation checks first'); return; }
-    const who = signedName || v.captainName || 'Master';
+    const who = record?.name || v.captainName || 'Master';
+    if (record) setSignoffMeta(m => ({ ...m, [v.id]: { ...record, mode: v.mode, at: '2026-04-22' } }));
     if (!usingSample && tenantId && userId) {
       try { await signEntries(tenantId, liveRowIdsFor(v.id), { signedName: who }); await loadLive(); }
       catch (e) { console.error(e); flash('Could not attest — check your permissions'); return; }
@@ -320,17 +327,31 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // The qualifying periods on one vessel — what the master is being asked to confirm.
   const periodsFor = (vid) => entries.filter(e => !e.excluded && e.vesselId === vid);
   const openSignoff = (v) => {
+    const ps = periodsFor(v.id);
+    const froms = ps.map(e => e.from).filter(Boolean).sort();
+    const tos = ps.map(e => e.to).filter(Boolean).sort();
     // The signer is the captain viewing the profile; on the sample preview it's
-    // the vessel's master of record being role-played.
-    setSignName((canAttest ? currentUser?.fullName : null) || (v.captainName || '').replace('Capt. ', ''));
+    // the vessel's master of record being role-played. Prefill known particulars.
+    setSignForm({
+      name: (canAttest ? currentUser?.fullName : null) || (v.captainName || '').replace('Capt. ', ''),
+      cocNo: v.captainCoc || '',
+      cocGrade: v.captainCocGrade || '',
+      email: v.captainEmail || (canAttest ? currentUser?.email : '') || '',
+      phone: '',
+      place: '',
+      cmdFrom: froms[0] || '',
+      cmdTo: tos[tos.length - 1] || ''
+    });
     setDeclineOpen(false); setDeclineReason('');
     setSignFor(v);
   };
   const closeSignoff = () => setSignFor(null);
+  const setSF = (patch) => setSignForm(f => ({ ...f, ...patch }));
   const confirmSignoff = async () => {
     const v = signFor; if (!v) return;
+    const record = { name: signForm.name.trim(), cocNo: signForm.cocNo.trim(), cocGrade: signForm.cocGrade.trim(), email: signForm.email.trim(), phone: signForm.phone.trim(), place: signForm.place.trim(), cmdFrom: signForm.cmdFrom, cmdTo: signForm.cmdTo };
     setSignFor(null);
-    await attestVessel(v, signName.trim() || undefined);
+    await attestVessel(v, record);
   };
   const declineSignoff = async () => {
     const v = signFor; if (!v) return;
@@ -345,11 +366,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   };
 
   // External testimonial — for a vessel that isn't on Cargo, the crew uploads
-  // the signed paper they obtained from the master directly.
-  const openUpload = (v) => { setUploadFor(v.id); fileRef.current?.click(); };
+  // the signed paper they obtained from the master. The MCA requires it to bear
+  // the master's signature AND the ship's official stamp, so we gate the upload
+  // on an explicit confirmation of that before recording the file.
+  const openUpload = (v) => { setExtStamped(false); setExtConfirm(v); };
+  const pickExternalFile = () => { setUploadFor(extConfirm.id); setExtConfirm(null); fileRef.current?.click(); };
   const onExternalFile = (e) => {
     const f = e.target.files?.[0];
-    if (f && uploadFor) { setVA(uploadFor, { status: 'attested', mode: 'external', fileName: f.name, at: new Date().toISOString().slice(0, 10) }); flash('Testimonial uploaded'); }
+    if (f && uploadFor) {
+      setVA(uploadFor, { status: 'attested', mode: 'external', fileName: f.name, at: new Date().toISOString().slice(0, 10) });
+      setSignoffMeta(m => ({ ...m, [uploadFor]: { ...(m[uploadFor] || {}), mode: 'external', stamped: true, fileName: f.name, at: new Date().toISOString().slice(0, 10) } }));
+      flash('Testimonial uploaded');
+    }
     setUploadFor(null); if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -857,13 +885,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <div className="field" style={{ gridColumn: '1 / -1' }}><div className="fl">Areas cruised</div><div className="fv">{areasCruised}</div></div>
                 </div>
                 <table>
-                  <thead><tr><th>Vessel</th><th>Flag · Official no</th><th>GT</th><th>Length</th><th>How it’s verified</th></tr></thead>
+                  <thead><tr><th>Vessel</th><th>Flag · Official no</th><th>GT</th><th>Length</th>{deptId === 'engineering' && <th>Propulsion</th>}<th>How it’s verified</th></tr></thead>
                   <tbody>{recVessels.map(v => { const ck = ATT_CHIP[chipKey(v)]; return (
                     <tr key={v.id}>
                       <td>{v.name}</td>
                       <td>{v.flag} · {v.officialNo || v.imo || '—'}</td>
                       <td>{v.gt} GT</td>
                       <td>{v.lengthM} m</td>
+                      {deptId === 'engineering' && <td>{v.kw ? `${v.kw} kW` : '—'}</td>}
                       <td><span className="std-vchip" style={{ color: ck.color, background: ck.bg }}>{v.mode === 'stamp' && <Icon name="BadgeCheck" size={11} />} {ck.label}</span></td>
                     </tr>
                   ); })}</tbody>
@@ -875,9 +904,29 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   ))}
                 </div>
                 <div className="std-flex std-between" style={{ alignItems: 'flex-end', marginTop: 22, gap: 20, flexWrap: 'wrap' }}>
-                  <div>
-                    <div className="sigline">Confirmed by each ship’s captain</div>
-                    <div className="vs" style={{ marginTop: 6 }}>{recVessels.map(v => `${v.captainName || 'Captain'} — ${v.name} (${ROUTE_META[v.mode].label.toLowerCase()})`).join(' · ')}</div>
+                  <div style={{ flex: 1, minWidth: 300 }}>
+                    <div className="sigline">Master’s certification</div>
+                    <div className="std-sigs">
+                      {recVessels.map(v => {
+                        const sm = signoffMeta[v.id] || {};
+                        const nm = sm.name || v.captainName || 'Master';
+                        const bits = sm.mode === 'external'
+                          ? [`Signed paper testimonial — ship’s stamp confirmed`, sm.fileName]
+                          : [
+                            sm.cocNo && `CoC ${sm.cocNo}${sm.cocGrade ? ` · ${sm.cocGrade}` : ''}`,
+                            (sm.cmdFrom && sm.cmdTo) && `In command ${fmtDate(sm.cmdFrom)} – ${fmtDate(sm.cmdTo)}`,
+                            [sm.email, sm.phone].filter(Boolean).join(' · '),
+                            sm.place && `Signed at ${sm.place}`,
+                            ROUTE_META[v.mode].label
+                          ];
+                        return (
+                          <div className="std-sig" key={v.id}>
+                            <div className="std-sig-name">{nm}<span>Master · {v.name}</span></div>
+                            <div className="std-sig-meta">{bits.filter(Boolean).join(' · ')}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div className="qrseal">
                     {qrDataUrl ? <img src={qrDataUrl} width={96} height={96} alt="Verification QR" /> : <div style={{ width: 96, height: 96, background: '#F2F2F2' }} />}
@@ -968,7 +1017,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         const totDays = ps.reduce((s, e) => s + (e.days || 0), 0);
         const caps = [...new Set(ps.map(e => e.capacity).filter(Boolean))].join(', ') || '—';
         const isStamp = v.mode === 'stamp';
-        const canSign = signName.trim().length > 1;
+        const isEng = deptId === 'engineering';
+        const spanFrom = ps.map(e => e.from).filter(Boolean).sort()[0];
+        const spanTo = ps.map(e => e.to).filter(Boolean).sort().slice(-1)[0];
+        // The master may have commanded only part of the logged span (change of
+        // command); flag the dates that then need a separate master's testimonial.
+        const partialCmd = !!(signForm.cmdFrom && signForm.cmdTo && (signForm.cmdFrom > spanFrom || signForm.cmdTo < spanTo));
+        const canSign = signForm.name.trim().length > 1 && signForm.cocNo.trim().length > 1 && EMAIL_RE.test(signForm.email.trim()) && !!signForm.cmdFrom && !!signForm.cmdTo && signForm.cmdFrom <= signForm.cmdTo;
         return (
           <>
             <div className="cso-scrim" onClick={closeSignoff} />
@@ -989,7 +1044,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <div className="cso-metacol">
                     <span className="cso-lbl">Vessel</span>
                     <span className="cso-val">{v.name}</span>
-                    <span className="cso-vs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo}</span>
+                    <span className="cso-vs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo}{isEng && v.kw ? ` · ${v.kw} kW` : ''}</span>
                   </div>
                 </div>
                 <div className="cso-sec">
@@ -1012,19 +1067,66 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <Icon name="ShieldCheck" size={16} />
                   <span>I certify that the above is a true record of sea service performed aboard <b>{v.name}</b> under my command, and that I am authorised to make this testimonial. I am not the seafarer named.</span>
                 </div>
-                {isStamp && (
+                {isStamp ? (
                   <div className="cso-stamp">
                     <Icon name="BadgeCheck" size={20} />
                     <div>
-                      <div className="cso-stamp-t">Verified with {v.name}’s Cargo identity</div>
-                      <div className="cso-vs">Authenticated by your active Cargo account · {fmtDate('2026-04-22')}</div>
+                      <div className="cso-stamp-t">Ship’s stamp applied from {v.name}’s Cargo identity</div>
+                      <div className="cso-vs">The official stamp is carried automatically from the vessel’s Cargo record — no paper stamp needed.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="cso-stamp ink">
+                    <Icon name="PenLine" size={20} />
+                    <div>
+                      <div className="cso-stamp-t">Digital signature — stands in for the ship’s stamp</div>
+                      <div className="cso-vs">Your signed-off CoC details below authenticate this testimonial.</div>
                     </div>
                   </div>
                 )}
+                <div className="cso-fields">
+                  <div className="cso-grid">
+                    <div className="cso-fld">
+                      <label className="cso-lbl">Master’s CoC number <span className="req">required</span></label>
+                      <input className="cso-input" value={signForm.cocNo} onChange={e => setSF({ cocNo: e.target.value })} placeholder="e.g. GBR-CoC-447120" />
+                    </div>
+                    <div className="cso-fld">
+                      <label className="cso-lbl">CoC grade <span className="opt">optional</span></label>
+                      <input className="cso-input" value={signForm.cocGrade} onChange={e => setSF({ cocGrade: e.target.value })} placeholder="e.g. Master (Yachts) <3000GT" />
+                    </div>
+                  </div>
+                  <div className="cso-grid">
+                    <div className="cso-fld">
+                      <label className="cso-lbl">Contact email <span className="req">required</span></label>
+                      <input className="cso-input" type="email" value={signForm.email} onChange={e => setSF({ email: e.target.value })} placeholder="so the assessor can verify with you" />
+                    </div>
+                    <div className="cso-fld">
+                      <label className="cso-lbl">Contact phone <span className="opt">optional</span></label>
+                      <input className="cso-input" value={signForm.phone} onChange={e => setSF({ phone: e.target.value })} placeholder="+…" />
+                    </div>
+                  </div>
+                  <div className="cso-grid">
+                    <div className="cso-fld">
+                      <label className="cso-lbl">In command from <span className="req">required</span></label>
+                      <input className="cso-input" type="date" value={signForm.cmdFrom} onChange={e => setSF({ cmdFrom: e.target.value })} />
+                    </div>
+                    <div className="cso-fld">
+                      <label className="cso-lbl">In command to <span className="req">required</span></label>
+                      <input className="cso-input" type="date" value={signForm.cmdTo} onChange={e => setSF({ cmdTo: e.target.value })} />
+                    </div>
+                  </div>
+                  {partialCmd && (
+                    <div className="cso-warn"><Icon name="TriangleAlert" size={15} /><span>Your command dates don’t cover the whole logged period ({fmtDate(spanFrom)} – {fmtDate(spanTo)}). You’ll only certify the dates you were in command — the rest needs a separate testimonial from the master in command then.</span></div>
+                  )}
+                  <div className="cso-fld">
+                    <label className="cso-lbl">Place of signing <span className="opt">optional</span></label>
+                    <input className="cso-input" value={signForm.place} onChange={e => setSF({ place: e.target.value })} placeholder="e.g. Antibes, France" />
+                  </div>
+                </div>
                 <div className="cso-sig">
                   <label className="cso-lbl">Sign here — type your full name <span className="req">required</span></label>
-                  <input className="cso-input" value={signName} onChange={e => setSignName(e.target.value)} placeholder="e.g. Henrik Sörensen" />
-                  <div className="cso-sigprev" style={{ opacity: signName.trim() ? 1 : 0.35 }}>{signName.trim() || 'Your signature'}</div>
+                  <input className="cso-input" value={signForm.name} onChange={e => setSF({ name: e.target.value })} placeholder="e.g. Henrik Sörensen" />
+                  <div className="cso-sigprev" style={{ opacity: signForm.name.trim() ? 1 : 0.35 }}>{signForm.name.trim() || 'Your signature'}</div>
                 </div>
                 {declineOpen ? (
                   <div className="cso-sig">
@@ -1054,6 +1156,35 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           </>
         );
       })()}
+
+      {/* ── external testimonial — ship's-stamp confirmation before upload ── */}
+      {extConfirm && (
+        <>
+          <div className="cso-scrim" onClick={() => setExtConfirm(null)} />
+          <div className="cso" role="dialog" aria-modal="true" aria-label="Upload signed testimonial" style={{ width: 480 }}>
+            <button className="cso-x" onClick={() => setExtConfirm(null)} aria-label="Close"><Icon name="X" size={18} /></button>
+            <div className="cso-head">
+              <div className="cso-eyebrow">External testimonial · MSN 1858</div>
+              <h3 className="cso-title">Upload the signed testimonial</h3>
+              <div className="cso-sub"><b>{extConfirm.name}</b> isn’t on Cargo, so the master’s paper testimonial stands as the record.</div>
+            </div>
+            <div className="cso-body">
+              <div className="cso-decl">
+                <Icon name="ShieldCheck" size={16} />
+                <span>The MCA requires an external testimonial to carry the <b>master’s signature</b> and the <b>ship’s official stamp</b>. Confirm both are present before uploading.</span>
+              </div>
+              <label className="cso-check">
+                <input type="checkbox" checked={extStamped} onChange={e => setExtStamped(e.target.checked)} />
+                <span>This testimonial is signed by the master and bears {extConfirm.name}’s official ship’s stamp.</span>
+              </label>
+            </div>
+            <div className="cso-foot">
+              <button className="cso-btn ghost" onClick={() => setExtConfirm(null)}>Cancel</button>
+              <button className="cso-btn rust" disabled={!extStamped} onClick={pickExternalFile}><Icon name="Upload" size={15} /> Choose file</button>
+            </div>
+          </div>
+        </>
+      )}
 
       {toast && <div className="std-toast"><Icon name="Check" size={16} color="#5E8E6F" /> {toast}</div>}
     </div>
