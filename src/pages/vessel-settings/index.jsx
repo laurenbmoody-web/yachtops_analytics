@@ -874,7 +874,7 @@ const VesselSettings = () => {
                     <Input
                       value={formState?.company_name}
                       onChange={(e) => handleInputChange('company_name', e?.target?.value)}
-                      placeholder="e.g., iOne Investment Ltd"
+                      placeholder="Registered owning / employing entity"
                       disabled={viewMode || !canEdit}
                     />
                   </div>
@@ -883,7 +883,6 @@ const VesselSettings = () => {
                     <textarea
                       value={formState?.company_address || ''}
                       onChange={(e) => handleInputChange('company_address', e?.target?.value)}
-                      placeholder={'e.g.\n3076 Sir Francis Drake’s Highway\nP.O. Box 3463\nRoad Town, Tortola\nBVI'}
                       disabled={viewMode || !canEdit}
                       rows={5}
                       className="flex w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed resize-y"
