@@ -1,16 +1,21 @@
 // Sample data from the design handoff (the mock's seed). Used to drive the
 // dashboard before the live store is wired, and by the unit tests.
 
-// `cargoRegistered` — the vessel keeps its records in Cargo. `crewMember` /
-// `captainMember` — whether THIS seafarer and a master are current members of
-// that vessel in Cargo. A vessel can be STAMPED (the strongest attestation)
-// only when the vessel is on Cargo and both are members; otherwise the master
-// signs VIRTUALLY (on Cargo, but not co-membered); a vessel that isn't on
-// Cargo at all takes an uploaded EXTERNAL testimonial.
+// `cargoRegistered` — the vessel keeps its records in Cargo. The STAMP (the
+// strongest attestation) hinges on the MASTER OF RECORD still being aboard:
+//   captainMember  — the master who commanded during this service is STILL
+//                    aboard this vessel in Cargo → the ship can be stamped
+//                    (valid even after the crew member has signed off).
+//   captainOnCargo — that master still has a Cargo account even if they've left
+//                    the vessel → they can sign VIRTUALLY in-app; if they've
+//                    left Cargo too, they sign by emailed secure link, and only
+//                    failing that does the crew upload an EXTERNAL testimonial.
+//   crewMember     — whether THIS seafarer was on Cargo for the service (record
+//                    provenance); the crew leaving never downgrades the route.
 export const SEED_VESSELS = {
-  v1: { id: 'v1', name: 'M/Y Aurora Borealis', flag: 'Cayman Is.', imo: '9123456', officialNo: '745210', gt: 380,  lengthM: 42, over15: true,  type: 'Motor', cargoRegistered: true,  crewMember: true,  captainMember: false, captainName: 'Capt. Maria Lindqvist' },
-  v2: { id: 'v2', name: 'S/Y Tern',            flag: 'Malta',      imo: '9234567', officialNo: 'MLT-11892', gt: 18,   lengthM: 12, over15: false, type: 'Sail',  cargoRegistered: false, crewMember: false, captainMember: false, captainName: 'Capt. R. Owens' },
-  v3: { id: 'v3', name: 'M/Y Pelorus II',      flag: 'Marshall Is.', imo: '9345678', officialNo: 'MI-23117', gt: 1450, lengthM: 68, over15: true,  type: 'Motor', cargoRegistered: true,  crewMember: true,  captainMember: true,  captainName: 'Capt. Henrik Sõrensen' }
+  v1: { id: 'v1', name: 'M/Y Aurora Borealis', flag: 'Cayman Is.', imo: '9123456', officialNo: '745210', gt: 380,  lengthM: 42, over15: true,  type: 'Motor', cargoRegistered: true,  crewMember: true,  captainMember: false, captainOnCargo: true,  captainName: 'Capt. Maria Lindqvist' },
+  v2: { id: 'v2', name: 'S/Y Tern',            flag: 'Malta',      imo: '9234567', officialNo: 'MLT-11892', gt: 18,   lengthM: 12, over15: false, type: 'Sail',  cargoRegistered: false, crewMember: false, captainMember: false, captainOnCargo: false, captainName: 'Capt. R. Owens' },
+  v3: { id: 'v3', name: 'M/Y Pelorus II',      flag: 'Marshall Is.', imo: '9345678', officialNo: 'MI-23117', gt: 1450, lengthM: 68, over15: true,  type: 'Motor', cargoRegistered: true,  crewMember: true,  captainMember: true,  captainOnCargo: true,  captainName: 'Capt. Henrik Sõrensen' }
 };
 
 // Prior (lifetime) accrual baseline added to the current period for the bars.
