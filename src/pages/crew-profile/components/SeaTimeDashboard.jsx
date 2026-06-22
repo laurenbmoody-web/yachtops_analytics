@@ -330,7 +330,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const confirmSignoff = async () => {
     const v = signFor; if (!v) return;
     setSignFor(null);
-    await attestVessel(v, v.mode === 'virtual' ? signName.trim() : undefined);
+    await attestVessel(v, signName.trim() || undefined);
   };
   const declineSignoff = async () => {
     const v = signFor; if (!v) return;
@@ -968,7 +968,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         const totDays = ps.reduce((s, e) => s + (e.days || 0), 0);
         const caps = [...new Set(ps.map(e => e.capacity).filter(Boolean))].join(', ') || '—';
         const isStamp = v.mode === 'stamp';
-        const canSign = isStamp || signName.trim().length > 1;
+        const canSign = signName.trim().length > 1;
         return (
           <>
             <div className="cso-scrim" onClick={closeSignoff} />
@@ -1012,21 +1012,20 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <Icon name="ShieldCheck" size={16} />
                   <span>I certify that the above is a true record of sea service performed aboard <b>{v.name}</b> under my command, and that I am authorised to make this testimonial. I am not the seafarer named.</span>
                 </div>
-                {isStamp ? (
+                {isStamp && (
                   <div className="cso-stamp">
                     <Icon name="BadgeCheck" size={20} />
                     <div>
                       <div className="cso-stamp-t">Verified with {v.name}’s Cargo identity</div>
-                      <div className="cso-vs">Signed as {(canAttest ? currentUser?.fullName : null) || v.captainName || 'Master'}, Master · {fmtDate('2026-04-22')}</div>
+                      <div className="cso-vs">Authenticated by your active Cargo account · {fmtDate('2026-04-22')}</div>
                     </div>
                   </div>
-                ) : (
-                  <div className="cso-sig">
-                    <label className="cso-lbl">Sign here — type your full name <span className="req">required</span></label>
-                    <input className="cso-input" value={signName} onChange={e => setSignName(e.target.value)} placeholder="e.g. Henrik Sörensen" />
-                    <div className="cso-sigprev" style={{ opacity: signName.trim() ? 1 : 0.35 }}>{signName.trim() || 'Your signature'}</div>
-                  </div>
                 )}
+                <div className="cso-sig">
+                  <label className="cso-lbl">Sign here — type your full name <span className="req">required</span></label>
+                  <input className="cso-input" value={signName} onChange={e => setSignName(e.target.value)} placeholder="e.g. Henrik Sörensen" />
+                  <div className="cso-sigprev" style={{ opacity: signName.trim() ? 1 : 0.35 }}>{signName.trim() || 'Your signature'}</div>
+                </div>
                 {declineOpen ? (
                   <div className="cso-sig">
                     <label className="cso-lbl">Reason for declining <span className="opt">optional</span></label>
