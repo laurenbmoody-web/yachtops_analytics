@@ -11,6 +11,10 @@ import './help-hint.css';
 //   children — popover body (any JSX). For the standard bucket-list
 //              pattern, pass <HelpHintBuckets buckets={[...]} />
 //   side     — 'top' | 'bottom' | 'left' | 'right' (default 'bottom')
+//   align    — 'start' (popover extends from trigger's leading edge)
+//              or 'end' (popover extends from trigger's trailing edge).
+//              Use 'end' when the trigger sits close to the viewport's
+//              right edge — keeps the popover on-screen.
 //   width    — popover width in px (default 280)
 //   ariaLabel — accessible name for the trigger button
 //
@@ -18,7 +22,7 @@ import './help-hint.css';
 //   - Hover or focus to open. Tap on touch.
 //   - Closes on outside click, Escape, or focus-out.
 //   - Trigger is keyboard-reachable; popover is role=tooltip.
-const HelpHint = ({ title, children, side = 'bottom', width = 280, ariaLabel = 'Show help' }) => {
+const HelpHint = ({ title, children, side = 'bottom', align = 'start', width = 280, ariaLabel = 'Show help' }) => {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
 
@@ -39,7 +43,7 @@ const HelpHint = ({ title, children, side = 'bottom', width = 280, ariaLabel = '
   return (
     <span
       ref={wrapRef}
-      className={`help-hint help-hint-${side}`}
+      className={`help-hint help-hint-${side} help-hint-align-${align}`}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >

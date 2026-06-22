@@ -3,7 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
-import { EditorialPageShell, EditorialTabNav } from '../../components/editorial';
+import { EditorialPageShell, EditorialTabNav, HelpHint, HelpHintBuckets } from '../../components/editorial';
 import '../pantry/pantry.css';
 import './provisioning-dashboard.css';
 import StatusBadge from './components/StatusBadge';
@@ -2299,9 +2299,12 @@ const ProvisioningBoardDetail = () => {
   };
 
   // cols: check | item | category | size | unit | qty | unit cost | total | status | actions
-  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 56px 56px';
+  // Column widths. Notes sits between Category and Size in the
+  // full grid, and right after Item in the no-cat grid. Free-form
+  // so it gets the second-biggest minmax after Item.
+  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) minmax(150px,1.2fr) 76px 70px 92px 90px 80px 56px 56px';
   // cols: check | item | size | unit | qty | unit cost | total | status | actions  (category dropped)
-  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) 76px 70px 92px 90px 80px 56px 56px';
+  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) minmax(150px,1.2fr) 76px 70px 92px 90px 80px 56px 56px';
   const TABLE_GRID = groupBy === 'category' ? TABLE_GRID_NO_CAT : TABLE_GRID_FULL;
 
   const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
@@ -3255,6 +3258,15 @@ const ProvisioningBoardDetail = () => {
                           // label.
                           { label: 'Item',      key: groupBy === 'category' ? null : 'item' },
                           ...(groupBy === 'category' ? [] : [{ label: 'Category', key: 'category' }]),
+                          // Notes column header carries a (?) hint
+                          // that opens an editorial popover with
+                          // examples — teaches the chief by example
+                          // what kinds of prose belong in the cell
+                          // (prep / packing / state / special) so
+                          // they don't have to guess. Hint rendered
+                          // by the helpHint prop below; the column
+                          // itself isn't sortable.
+                          { label: 'Notes',     key: null, helpHint: 'notes' },
                           { label: 'Size',      key: null },
                           { label: 'Unit',      key: null },
                           { label: 'Qty',       key: 'qty' },
@@ -3262,7 +3274,7 @@ const ProvisioningBoardDetail = () => {
                           { label: 'Total',     key: 'total' },
                           { label: 'Status',    key: 'status', centered: true },
                           { label: '',          key: null },
-                        ].map(({ label, key, centered }, idx) => {
+                        ].map(({ label, key, centered, helpHint }, idx) => {
                           const sortable = !!key;
                           const active = sortable && sortColumn === key;
                           return (
@@ -3285,6 +3297,16 @@ const ProvisioningBoardDetail = () => {
                               }}
                             >
                               {label}
+                              {helpHint === 'notes' && (
+                                <HelpHint title="What goes in Notes?" width={300}>
+                                  <HelpHintBuckets buckets={[
+                                    { label: 'Prep',    example: '"Skin on, pin boned, scaled"' },
+                                    { label: 'Packing', example: '"1 per bag, vac-packed"' },
+                                    { label: 'State',   example: '"Ripe not soft, sashimi grade"' },
+                                    { label: 'Special', example: '"Display quality, bones out"' },
+                                  ]} />
+                                </HelpHint>
+                              )}
                               {active && (
                                 <span style={{ fontSize: 9, color: '#1E3A5F' }}>
                                   {sortDirection === 'asc' ? '▲' : '▼'}
@@ -3461,6 +3483,26 @@ const ProvisioningBoardDetail = () => {
                                 </span>
                               </div>
                             )}
+                            {/* Notes — free-form prose for the supplier
+                                brief (prep / packing / state / special).
+                                Inline-editable until the supplier has
+                                acted on the line; then becomes muted
+                                read-only text. Empty state shows a
+                                light placeholder so the cell still
+                                reads as clickable. */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              {isReceived || supplierActed
+                                ? <span style={{ fontSize: 12, fontStyle: 'italic', color: dim || (isLocked ? '#94A3B8' : '#6B6F7A'), letterSpacing: '0.005em', lineHeight: 1.4 }}>
+                                    {item.notes || <span style={{ color: '#CBD5E1', fontStyle: 'normal' }}>-</span>}
+                                  </span>
+                                : <AlwaysEditCell
+                                    value={item.notes ?? ''}
+                                    placeholder="e.g. Skin on, pin boned, 1 per bag…"
+                                    onSave={v => handleCellSave(item, 'notes', v)}
+                                    inputStyle={{ fontSize: 12, color: '#0F172A', fontStyle: 'italic', letterSpacing: '0.005em' }}
+                                  />
+                              }
+                            </div>
                             {/* Size — once the item lives inside a supplier
                                 order, show the supplier's size with a
                                 struck-through original when they overrode
