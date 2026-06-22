@@ -299,6 +299,53 @@ function applyMappingsToZip(zip, mappings) {
   return notFound;
 }
 
+// Fetch a logo (public URL) and return the bytes + an aspect-correct size in
+// EMUs (914400 per inch), capped to a sensible letterhead box. Returns null on
+// any failure so template creation never breaks on a bad/missing logo.
+async function fetchLogo(url) {
+  if (!url) return null;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const ct = (resp.headers.get('content-type') || '').toLowerCase();
+    const bytes = new Uint8Array(await resp.arrayBuffer());
+    const ext = ct.includes('png') ? 'png' : (ct.includes('jpeg') || ct.includes('jpg')) ? 'jpeg' : null;
+    if (!ext) return null;   // only embed png/jpeg
+    const dims = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+    if (!dims || !dims.w || !dims.h) return null;
+    const PX_TO_EMU = 9525, MAX_W = 1.7 * 914400, MAX_H = 0.95 * 914400;
+    let cx = dims.w * PX_TO_EMU, cy = dims.h * PX_TO_EMU;
+    const scale = Math.min(MAX_W / cx, MAX_H / cy, 1);
+    return { bytes, ext, cx: Math.round(cx * scale), cy: Math.round(cy * scale) };
+  } catch {
+    return null;
+  }
+}
+
+// An inline, centred logo image paragraph for a header part (references the
+// header's image relationship rIdLogo).
+function logoParagraph(logo) {
+  const A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+  const PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture';
+  const WP = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
+  return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="60"/></w:pPr><w:r><w:drawing>`
+    + `<wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="${WP}">`
+    + `<wp:extent cx="${logo.cx}" cy="${logo.cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>`
+    + `<wp:docPr id="1" name="Logo"/>`
+    + `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="${A}" noChangeAspect="1"/></wp:cNvGraphicFramePr>`
+    + `<a:graphic xmlns:a="${A}"><a:graphicData uri="${PIC}">`
+    + `<pic:pic xmlns:pic="${PIC}"><pic:nvPicPr><pic:cNvPr id="1" name="Logo"/><pic:cNvPicPr/></pic:nvPicPr>`
+    + `<pic:blipFill><a:blip r:embed="rIdLogo"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>`
+    + `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${logo.cx}" cy="${logo.cy}"/></a:xfrm>`
+    + `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>`
+    + `</wp:inline></w:drawing></w:r></w:p>`;
+}
+
 // Short text → muted, optionally centred paragraphs for a header/footer part.
 function furnitureParas(text) {
   const lines = String(text || '').split('\n');
@@ -315,8 +362,9 @@ function furnitureParas(text) {
 // The first non-empty line becomes a centred title; lines that look like a
 // top-level clause heading ("1 Job Title", "5 Salary…") are bolded so the
 // rebuilt contract reads like a contract, not a wall of text. Optional
-// headerText / footerText become a real running page header / footer.
-function textToDocxBlob(text, { headerText = '', footerText = '' } = {}) {
+// headerText / footerText become a real running page header / footer, and an
+// optional logo (from fetchLogo) is embedded at the top of the header.
+function textToDocxBlob(text, { headerText = '', footerText = '', logo = null } = {}) {
   const lines = String(text).split('\n');
   const titleIdx = lines.findIndex((l) => l.trim() !== '');
   const paras = lines.map((line, idx) => {
@@ -335,10 +383,13 @@ function textToDocxBlob(text, { headerText = '', footerText = '' } = {}) {
     return `<w:p><w:r><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
   }).join('');
 
-  const hasHeader = String(headerText || '').trim() !== '';
+  const hasHeaderText = String(headerText || '').trim() !== '';
+  const hasHeader = hasHeaderText || !!logo;
   const hasFooter = String(footerText || '').trim() !== '';
   const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
   const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const logoExt = logo ? (logo.ext === 'png' ? 'png' : 'jpg') : '';
+  const logoMime = logo ? (logo.ext === 'png' ? 'png' : 'jpeg') : '';
 
   // sectPr references the header/footer parts that exist.
   const sectPr = `<w:sectPr>`
@@ -352,12 +403,13 @@ function textToDocxBlob(text, { headerText = '', footerText = '' } = {}) {
     hasHeader ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : '',
     hasFooter ? '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>' : '',
   ].join('');
+  const imageDefault = logo ? `<Default Extension="${logoExt}" ContentType="image/${logoMime}"/>` : '';
   zip.file('[Content_Types].xml',
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
-${typeOverrides}
+${imageDefault}${typeOverrides}
 </Types>`);
   zip.folder('_rels').file('.rels',
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -379,9 +431,18 @@ ${typeOverrides}
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${docRels}</Relationships>`);
     if (hasHeader) {
+      const headerBody = (logo ? logoParagraph(logo) : '') + (hasHeaderText ? furnitureParas(headerText) : '');
       word.file('header1.xml',
         `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:hdr xmlns:w="${W_NS}">${furnitureParas(headerText)}</w:hdr>`);
+<w:hdr xmlns:w="${W_NS}" xmlns:r="${R_NS}">${headerBody}</w:hdr>`);
+      if (logo) {
+        word.folder('_rels').file('header1.xml.rels',
+          `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rIdLogo" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo.${logoExt}"/>
+</Relationships>`);
+        word.folder('media').file(`logo.${logoExt}`, logo.bytes);
+      }
     }
     if (hasFooter) {
       word.file('footer1.xml',
@@ -428,15 +489,19 @@ export async function analyzePdfForTemplate(file) {
   };
 }
 
-// Build the final .docx template File from a reviewed draft.
-export function buildTemplateDocxFile(draft, fileName) {
+// Build the final .docx template File from a reviewed draft. For a rebuilt
+// (PDF-sourced) template, an optional logoUrl is embedded in the page header.
+export async function buildTemplateDocxFile(draft, fileName, { logoUrl } = {}) {
   let blob, notFound = [];
   if (draft.kind === 'map') {
     const zip = new PizZip(draft.buf);
     notFound = applyMappingsToZip(zip, draft.mappings);
     blob = zip.generate({ type: 'blob', mimeType: DOCX_MIME });
   } else {
-    blob = textToDocxBlob(draft.templateText, { headerText: draft.headerText, footerText: draft.footerText });
+    const logo = await fetchLogo(logoUrl);
+    blob = textToDocxBlob(draft.templateText, {
+      headerText: draft.headerText, footerText: draft.footerText, logo,
+    });
   }
   const name = fileName.endsWith('.docx') ? fileName : `${fileName}.docx`;
   return { file: new File([blob], name, { type: DOCX_MIME }), notFound };

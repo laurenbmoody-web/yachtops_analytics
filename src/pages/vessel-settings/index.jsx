@@ -64,6 +64,7 @@ const VesselSettings = () => {
     official_number: '',
     company_name: '',
     company_address: '',
+    logo_url: '',
     loa_m: '',
     gt: '',
     year_built: '',
@@ -192,6 +193,7 @@ const VesselSettings = () => {
         official_number: vesselData?.official_number || '',
         company_name: vesselData?.company_name || '',
         company_address: vesselData?.company_address || '',
+        logo_url: vesselData?.logo_url || '',
         loa_m: vesselData?.loa_m || '',
         gt: vesselData?.gt || '',
         year_built: vesselData?.year_built || '',
@@ -374,6 +376,7 @@ const VesselSettings = () => {
         official_number: formState?.official_number || null,
         company_name: formState?.company_name || null,
         company_address: formState?.company_address || null,
+        logo_url: formState?.logo_url || null,
         loa_m: formState?.loa_m ? parseFloat(formState?.loa_m) : null,
         gt: formState?.gt ? parseInt(formState?.gt, 10) : null,
         year_built: formState?.year_built ? parseInt(formState?.year_built, 10) : null,
@@ -467,6 +470,58 @@ const VesselSettings = () => {
   const [uploadingHero, setUploadingHero] = useState(false);
   const [heroUploadError, setHeroUploadError] = useState('');
   const heroFileInputRef = useRef(null);
+
+  // Company logo upload state (embedded in generated contract headers)
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState('');
+  const logoFileInputRef = useRef(null);
+
+  const handleLogoUpload = async (event) => {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file?.type)) {
+      setLogoUploadError('Logo must be a PNG or JPEG.');
+      return;
+    }
+    if (file?.size > 5242880) {
+      setLogoUploadError('Image must be smaller than 5MB');
+      return;
+    }
+    setUploadingLogo(true);
+    setLogoUploadError('');
+    try {
+      const fileExt = file?.type === 'image/png' ? 'png' : 'jpg';
+      const filePath = `${tenantId}/logo.${fileExt}`;
+      const { error: uploadError } = await supabase
+        ?.storage?.from('vessel-assets')
+        ?.upload(filePath, file, { cacheControl: '3600', upsert: true });
+      if (uploadError) {
+        setLogoUploadError(`Upload failed: ${uploadError?.message || 'Unknown error'}`);
+        setUploadingLogo(false);
+        return;
+      }
+      const { data: urlData } = supabase?.storage?.from('vessel-assets')?.getPublicUrl(filePath);
+      // Cache-bust so a replaced logo refreshes in the preview.
+      const publicUrl = urlData?.publicUrl ? `${urlData.publicUrl}?v=${Date.now()}` : null;
+      if (!publicUrl) {
+        setLogoUploadError('Failed to get public URL');
+        setUploadingLogo(false);
+        return;
+      }
+      setFormState(prev => ({ ...prev, logo_url: publicUrl }));
+      await supabase?.from('vessels')?.upsert({ tenant_id: tenantId, logo_url: publicUrl }, { onConflict: 'tenant_id' });
+    } catch (err) {
+      setLogoUploadError(`Unexpected error: ${err?.message || 'Something went wrong'}`);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!canEdit) return;
+    setFormState(prev => ({ ...prev, logo_url: '' }));
+    await supabase?.from('vessels')?.upsert({ tenant_id: tenantId, logo_url: null }, { onConflict: 'tenant_id' });
+  };
 
   const handleHeroImageUpload = async (event) => {
     const file = event?.target?.files?.[0];
@@ -893,6 +948,54 @@ const VesselSettings = () => {
                       rows={5}
                       className="flex w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed resize-y"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Logo</label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      PNG or JPEG. Added to the page header of contracts generated from AI-rebuilt templates.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      {formState?.logo_url ? (
+                        <img
+                          src={formState.logo_url}
+                          alt="Company logo"
+                          className="h-12 max-w-[160px] object-contain rounded border border-border bg-white p-1"
+                        />
+                      ) : (
+                        <div className="h-12 w-[160px] rounded border border-dashed border-border flex items-center justify-center text-xs text-muted-foreground">
+                          No logo
+                        </div>
+                      )}
+                      {!viewMode && canEdit && (
+                        <div className="flex flex-col gap-1">
+                          <input
+                            ref={logoFileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg"
+                            className="hidden"
+                            onChange={handleLogoUpload}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => logoFileInputRef?.current?.click()}
+                            disabled={uploadingLogo}
+                          >
+                            {uploadingLogo ? 'Uploading…' : formState?.logo_url ? 'Replace' : 'Upload'}
+                          </Button>
+                          {formState?.logo_url && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveLogo}
+                              className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {logoUploadError && <p className="text-xs text-red-600 mt-1">{logoUploadError}</p>}
                   </div>
                 </div>
               </div>
