@@ -10,7 +10,7 @@
 // member of the target tenant. The recipient address is read server-side from
 // vessels.hor_management_company_email (never trusted from the client).
 //
-// Env: RESEND_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SITE_URL?
+// Env: RESEND_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 // Body: { tenantId, periodLabel, attachments: [{ filename, contentBase64, contentType? }] }
 
 declare const Deno: {
@@ -27,7 +27,6 @@ const corsHeaders = {
 const RESEND_API_KEY            = Deno.env.get('RESEND_API_KEY') || '';
 const SUPABASE_URL              = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const SITE_URL                  = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
 
 const FROM = 'Cargo Hours of Rest <hor@cargotechnology.co.uk>';
 const ALLOWED_TIERS = new Set(['COMMAND', 'CHIEF']);
@@ -47,7 +46,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function renderEmail({ intro, ctaUrl }: { intro: string; ctaUrl: string }): string {
+function renderEmail({ intro }: { intro: string }): string {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:${CREAM_BG};">
   <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background:${CREAM_BG};">
@@ -57,10 +56,12 @@ function renderEmail({ intro, ctaUrl }: { intro: string; ctaUrl: string }): stri
         <tr><td style="padding:40px 44px;">
           <h1 style="margin:0 0 18px;font-family:${SERIF};font-weight:400;font-size:26px;line-height:1.2;color:${NAVY};">Record of Hours of Rest</h1>
           <p style="margin:0 0 18px;font-family:${SANS};font-size:15px;line-height:1.6;color:${DARK_TEXT};">${intro}</p>
-          <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr><td>
-            <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;padding:13px 26px;background:${NAVY};color:${WHITE};font-family:${SANS};font-size:14px;font-weight:600;text-decoration:none;border-radius:4px;">Open Cargo</a>
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:4px 0 8px;background:${CREAM_BG};border:1px solid ${BORDER};border-radius:6px;"><tr><td style="padding:14px 18px;font-family:${SANS};font-size:13px;line-height:1.7;color:${DARK_TEXT};">
+            <strong style="color:${NAVY};">Attached</strong><br/>
+            &bull;&nbsp; Record of Hours of Rest — signed PDF<br/>
+            &bull;&nbsp; Hours of rest — CSV data export
           </td></tr></table>
-          <p style="margin:28px 0 0;font-family:${SANS};font-size:12px;line-height:1.5;color:${MUTED_TEXT};">Sent from Cargo on behalf of the vessel. The signed PDF record and a CSV data export are attached.</p>
+          <p style="margin:24px 0 0;font-family:${SANS};font-size:12px;line-height:1.5;color:${MUTED_TEXT};">Sent on behalf of the vessel via Cargo. If you have any queries about this record, simply reply to this email.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -159,7 +160,9 @@ Deno.serve(async (req: Request) => {
   const intro = `${greeting}attached is the Record of Hours of Rest for <strong>${escapeHtml(vesselName)}</strong> `
     + `covering <strong>${escapeHtml(period)}</strong> (MLC 2006 A2.3 / STCW A-VIII/1).`;
   const text = `${recipientName ? `${recipientName}, ` : ''}attached is the Record of Hours of Rest for ${vesselName} `
-    + `covering ${period} (MLC 2006 A2.3 / STCW A-VIII/1). The signed PDF record and a CSV data export are attached.\n\nOpen Cargo: ${SITE_URL}/month-end`;
+    + `covering ${period} (MLC 2006 A2.3 / STCW A-VIII/1).\n\n`
+    + `Attached:\n  - Record of Hours of Rest — signed PDF\n  - Hours of rest — CSV data export\n\n`
+    + `Sent on behalf of the vessel via Cargo. If you have any queries about this record, simply reply to this email.`;
 
   const resendRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -168,7 +171,7 @@ Deno.serve(async (req: Request) => {
       from: FROM,
       to: [to],
       subject,
-      html: renderEmail({ intro, ctaUrl: `${SITE_URL}/month-end` }),
+      html: renderEmail({ intro }),
       text,
       attachments: attachments.map((a) => ({ filename: a.filename, content: a.contentBase64 })),
     }),
