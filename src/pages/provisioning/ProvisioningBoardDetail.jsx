@@ -155,10 +155,12 @@ const COLUMN_HELP_HINTS = {
   },
   size: {
     title: 'What goes in Size?',
-    width: 280,
+    width: 300,
     buckets: [
-      { label: 'Tip',     example: 'numeric only — the measure goes in Unit' },
-      { label: 'Examples', example: '"500", "2", "1.5", "750"' },
+      { label: 'Tip',    example: 'numeric only — the measure (g, ml…) lives in Unit' },
+      { label: 'Weight', example: '"500" with Unit "g"' },
+      { label: 'Volume', example: '"750" with Unit "ml"' },
+      { label: 'Bundle', example: '"6" with Unit "pack"' },
     ],
   },
   unit: {
