@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabase';
 import { fetchEntriesForUser, addManualEntries, submitEntries, signEntries } from '../utils/seaTimeService';
@@ -1057,7 +1058,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         // command); flag the dates that then need a separate master's testimonial.
         const partialCmd = !!(signForm.cmdFrom && signForm.cmdTo && (signForm.cmdFrom > spanFrom || signForm.cmdTo < spanTo));
         const canSign = signForm.name.trim().length > 1 && signForm.cocNo.trim().length > 1 && EMAIL_RE.test(signForm.email.trim()) && !!signForm.cmdFrom && !!signForm.cmdTo && signForm.cmdFrom <= signForm.cmdTo;
-        return (
+        return createPortal(
           <>
             <div className="cso-scrim" onClick={closeSignoff} />
             <div className="cso" role="dialog" aria-modal="true" aria-label="Captain sign-off">
@@ -1186,12 +1187,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 )}
               </div>
             </div>
-          </>
+          </>,
+          document.body
         );
       })()}
 
       {/* ── external testimonial — ship's-stamp confirmation before upload ── */}
-      {extConfirm && (
+      {extConfirm && createPortal(
         <>
           <div className="cso-scrim" onClick={() => setExtConfirm(null)} />
           <div className="cso" role="dialog" aria-modal="true" aria-label="Upload signed testimonial" style={{ width: 480 }}>
@@ -1216,7 +1218,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               <button className="cso-btn rust" disabled={!extStamped} onClick={pickExternalFile}><Icon name="Upload" size={15} /> Choose file</button>
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
 
       {toast && <div className="std-toast"><Icon name="Check" size={16} color="#5E8E6F" /> {toast}</div>}
