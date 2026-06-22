@@ -104,6 +104,9 @@ export function buildContractTokens({ crewMember, empForm, compForm, vessel }) {
     port_of_registry: v.port_of_registry || '',
     imo_number: v.imo_number || '',
     official_number: v.official_number || '',
+    captain_name: v.captain_name || '',
+    company_name: v.company_name || '',
+    company_address: v.company_address || '',
 
     today: fmtDate(new Date()),
   };
