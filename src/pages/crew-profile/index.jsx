@@ -2624,6 +2624,44 @@ const canEdit = (() => {
 
   // Breaches that fall in the viewed month — surfaced in the sign-off modal so
   // the signer (crew or approver) knowingly includes them. Pairs each breach
+  // Gap-led descriptor per MLC rule, from the breach episode's code + worst
+  // figure (e.g. "Daily rest 9h — 1h short of 10h min"). Covers all four rules,
+  // incl. broken rest and the 14h stretch, which can breach even when daily
+  // hours look fine.
+  const BREACH_RULE_DESC = {
+    REST_LT_10_IN_24H: (v) => `Daily rest ${Math.round(v)}h — ${Math.max(0, 10 - Math.round(v))}h short of 10h min`,
+    REST_LT_77_IN_7D: (v) => `7-day rest ${Math.round(v)}h — ${Math.max(0, 77 - Math.round(v))}h short of 77h min`,
+    NO_6H_CONTINUOUS_REST_IN_24H: (v) => `Longest rest ${Math.round(v)}h — ${Math.max(0, 6 - Math.round(v))}h short of 6h min`,
+    WORK_GT_14H_CONTINUOUS: (v) => `On duty ${Math.round(v)}h — ${Math.max(0, Math.round(v) - 14)}h over 14h max`,
+  };
+  const BREACH_RULE_ORDER = ['REST_LT_10_IN_24H', 'REST_LT_77_IN_7D', 'NO_6H_CONTINUOUS_REST_IN_24H', 'WORK_GT_14H_CONTINUOUS'];
+
+  // Map breach dates → ordered descriptor chips, from the live detection episodes
+  // (horData.breaches), keeping the worst figure per rule on each day.
+  const buildBreachChips = () => {
+    const yr = horCurrentMonth?.getFullYear();
+    const mo = horCurrentMonth?.getMonth();
+    if (yr == null || mo == null) return {};
+    const prefix = `${yr}-${String(mo + 1).padStart(2, '0')}-`;
+    const worstByDate = {};
+    (horData?.breaches || []).forEach((ep) => {
+      if (!BREACH_RULE_DESC[ep?.code]) return;
+      (ep?.affectedShipDates || []).forEach((ds) => {
+        if (!String(ds).startsWith(prefix)) return;
+        const m = (worstByDate[ds] || (worstByDate[ds] = {}));
+        const prev = m[ep.code];
+        // worst = lowest rest (or highest on-duty stretch)
+        m[ep.code] = prev == null ? ep.worstValue
+          : (ep.code === 'WORK_GT_14H_CONTINUOUS' ? Math.max(prev, ep.worstValue) : Math.min(prev, ep.worstValue));
+      });
+    });
+    const out = {};
+    Object.entries(worstByDate).forEach(([ds, m]) => {
+      out[ds] = BREACH_RULE_ORDER.filter((c) => m[c] != null).map((c) => BREACH_RULE_DESC[c](m[c]));
+    });
+    return out;
+  };
+
   // day with its documented reason + sign-off state, if any.
   const buildMonthBreaches = () => {
     const calendar = horData?.calendarData || [];
@@ -3143,41 +3181,86 @@ const canEdit = (() => {
                   {dbMonthStatus?.submitted_at ? ` on ${new Date(dbMonthStatus.submitted_at).toLocaleDateString('en-GB')}` : ''}
                   {' '}· {monthCompliantPct}% compliant · {breachDayCount} breach day{breachDayCount === 1 ? '' : 's'}.
                 </p>
-                {/* Whole month at a glance — every day's rest hours, breach days
-                    flagged terracotta, marginal days amber — so the master can
-                    eyeball the full month, not just the breach list. */}
-                {calendarData?.length > 0 && (
-                  <div className="cp-revcal" aria-label="Month at a glance">
-                    {calendarData.map((d) => (
-                      <div
-                        key={d.date}
-                        className={`cp-revcell ${d.status || ''}`}
-                        title={`${d.date} · ${Math.round(d.restHours)}h rest`}
-                      >
-                        <span className="cp-revcell-d">{d.day}</span>
-                        <span className="cp-revcell-h">{Math.round(d.restHours)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {(() => {
-                  const mb = buildMonthBreaches();
-                  return mb.length > 0 ? (
-                    <ul className="cp-review-breaches">
-                      {mb.map((b) => {
-                        const [yy, mm, dd] = String(b.date).split('-');
+                {/* Whole month at a glance — a compliance heat strip: bar height
+                    is rest hours, sage = compliant, terracotta = breach (any MLC
+                    rule, flagged even when daily hours look fine), dashed line =
+                    the 10h daily minimum. */}
+                {calendarData?.length > 0 && (() => {
+                  const n = calendarData.length;
+                  const VW = 720, VH = 124, padL = 30, padR = 10, top = 10, areaH = 80, maxH = 24;
+                  const step = (VW - padL - padR) / n;
+                  const bw = Math.min(step * 0.6, 16);
+                  const yFor = (h) => top + areaH - (Math.min(Math.max(h, 0), maxH) / maxH) * areaH;
+                  return (
+                    <svg className="cp-revstrip" viewBox={`0 0 ${VW} ${VH}`} role="img" aria-label="Month at a glance — rest hours per day">
+                      {[10, 24].map((hh) => {
+                        const yy = yFor(hh);
                         return (
-                          <li key={b.date} className="cp-review-brow">
-                            <span className="cp-review-bdate">{dd}/{mm}/{yy}</span>
-                            {b.note
-                              ? <span className="cp-review-bnote">{b.note}</span>
-                              : <span className="cp-review-bnote none">No reason documented</span>}
-                          </li>
+                          <g key={hh}>
+                            <line x1={padL} y1={yy} x2={VW - padR} y2={yy} stroke={hh === 10 ? '#E7C9BC' : '#EFEDE6'} strokeWidth="1" strokeDasharray={hh === 10 ? '4 3' : undefined} />
+                            <text x={padL - 6} y={yy + 3} textAnchor="end" fontSize="9" fill={hh === 10 ? '#C65A1A' : '#AEB4C2'}>{hh}h</text>
+                          </g>
                         );
                       })}
-                    </ul>
-                  ) : (
-                    <p className="cp-review-clean">No breaches this month — all logged days compliant.</p>
+                      {calendarData.map((d, i) => {
+                        const isB = d.status === 'breach';
+                        const isW = d.status === 'warning';
+                        const x = padL + i * step + (step - bw) / 2;
+                        const y = yFor(d.restHours);
+                        const fill = isB ? '#C65A1A' : isW ? '#E3B055' : '#BCCFBD';
+                        return (
+                          <g key={d.date}>
+                            <rect x={x} y={y} width={bw} height={top + areaH - y} rx="1.5" fill={fill}>
+                              <title>{`${d.day} ${monthName} — ${Math.round(d.restHours)}h rest`}</title>
+                            </rect>
+                            {!isB && !isW && <rect x={x} y={y} width={bw} height="2.4" rx="1.2" fill="#6FA67E" />}
+                            {isB && <circle cx={x + bw / 2} cy={top + areaH + 7} r="2.2" fill="#C65A1A" />}
+                            {(d.day === 1 || d.day % 5 === 0) && <text x={x + bw / 2} y={top + areaH + 20} textAnchor="middle" fontSize="9" fill="#AEB4C2">{d.day}</text>}
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  );
+                })()}
+                <div className="cp-revlegend">
+                  <span><i style={{ background: '#BCCFBD' }} />Compliant</span>
+                  <span><i style={{ background: '#E3B055' }} />Marginal</span>
+                  <span><i style={{ background: '#C65A1A' }} />Breach</span>
+                </div>
+                {(() => {
+                  const mb = buildMonthBreaches();
+                  if (mb.length === 0) {
+                    return <p className="cp-review-clean">No breaches this month — all logged days compliant.</p>;
+                  }
+                  const chipsByDate = buildBreachChips();
+                  const undoc = mb.filter((b) => !b.documented).length;
+                  return (
+                    <>
+                      <p className={`cp-review-gate${undoc ? ' open' : ''}`}>
+                        {undoc
+                          ? `${undoc} breach day${undoc > 1 ? 's' : ''} still need a reason.`
+                          : `All ${mb.length} breach day${mb.length > 1 ? 's' : ''} have a logged reason.`}
+                      </p>
+                      <ul className="cp-review-breaches">
+                        {mb.map((b) => {
+                          const [yy, mm, dd] = String(b.date).split('-');
+                          const chips = chipsByDate[b.date] || [];
+                          return (
+                            <li key={b.date} className="cp-review-brow">
+                              <div className="cp-review-bhead">
+                                <span className="cp-review-bdate">{dd}/{mm}/{yy}</span>
+                                <span className="cp-review-bchips">
+                                  {chips.map((c, idx) => <span key={idx} className="cp-review-chip">{c}</span>)}
+                                </span>
+                              </div>
+                              {b.note
+                                ? <div className="cp-review-bnote">Reason — {b.note}</div>
+                                : <div className="cp-review-bnote none">No reason documented</div>}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </>
                   );
                 })()}
                 <p className="cp-review-hint">Day-by-day detail is below. Approve or send back using the buttons above.</p>
