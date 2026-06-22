@@ -56,30 +56,32 @@ export const VERIFIER_PROFILES = {
       { id: 'email', label: "Signatory's verified email" },
       { id: 'srb', label: 'Discharge book / SRB scan' }
     ],
-    fee: '€50 testimonial fee (minimum 2) applies for non-members. Free for PYA members via the D-SRB.',
-    instructions: 'Submit via the PYA D-SRB portal or your member profile. Allow 5–10 working days for human verification.',
-    lastReviewed: '2026-06-17' // TODO(MIN642): MCA Annex C approved-org list changes — keep dated.
+    fee: '€50 per testimonial (minimum 2 on first submission) for non-members; included for PYA members.',
+    // PYA build the testimonial on their portal — Cargo's record is used to complete it / as evidence.
+    instructions: 'PYA verify yacht sea service for the MCA (MIN 543). Complete the testimonial on your PYA member profile and send it to your signatory to e-sign — use this captain-attested record to fill it accurately. PYA then verify with the signatory (up to ~25 working days). Self-signed testimonials are declined.',
+    lastReviewed: '2026-06-22' // TODO(MIN543): keep the approved-verifier list dated.
   },
-  nautilus: {
-    id: 'nautilus', label: 'Nautilus', short: 'Nautilus', name: 'Nautilus International',
+  transport_malta: {
+    id: 'transport_malta', label: 'Transport Malta', short: 'Transport Malta', name: 'Transport Malta — Merchant Shipping Directorate',
     docs: [
-      { id: 'template', label: 'Completed Nautilus testimonial template' },
-      { id: 'stamp', label: "Master's signature & ship's stamp" },
-      { id: 'scan', label: 'Scanned signed copy (PDF)' }
+      { id: 'passport', label: 'Certified passport copy' },
+      { id: 'sig', label: 'Authorised signatory details' },
+      { id: 'srb', label: 'Discharge book / service record' }
     ],
-    fee: 'Included with Nautilus membership. Flow: complete online → print → master signs & stamps → scan → upload.',
-    instructions: 'Complete online, print, have the master sign & stamp, scan, then upload to your Nautilus account.',
-    lastReviewed: '2026-06-17'
+    fee: 'Verification via the Transport Malta yacht sea-service route (MIN 543 authorised).',
+    instructions: 'Transport Malta is an MCA-authorised verifier (MIN 543). Submit through their route using this captain-attested record as your evidence.',
+    lastReviewed: '2026-06-22'
   },
-  other: {
-    id: 'other', label: 'Other', short: 'this organisation', name: 'Other approved organisation',
+  mca: {
+    id: 'mca', label: 'MCA · Discharge Book', short: 'the MCA', name: 'Maritime & Coastguard Agency (direct)',
     docs: [
-      { id: 'min642', label: 'MCA MIN 642 Annex A form' },
-      { id: 'sig', label: 'Authorised signatory details' }
+      { id: 'srb', label: 'Discharge Book with master’s stamps' },
+      { id: 'stamp', label: 'Master’s signature & ship’s stamp' },
+      { id: 'passport', label: 'Certified passport copy' }
     ],
-    fee: 'Fees vary by organisation. Generic MIN 642 Annex A layout — the safe default.',
-    instructions: "Generic MIN 642 Annex A testimonial. Confirm your organisation's exact submission route before sending.",
-    lastReviewed: '2026-06-17'
+    fee: 'No verifier fee — submitted directly to the MCA with your CoC application.',
+    instructions: 'Direct MCA route via your Discharge Book and a master-signed Testimonial of Sea Service (MSN 1858). Use this record as the testimonial — the master attests it; the MCA assess it with your application.',
+    lastReviewed: '2026-06-22'
   }
 };
 
