@@ -169,8 +169,14 @@ function csvField(v) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+function restLogFileBase(meta) {
+  return `hours-of-rest_${safeSlug(meta.vesselName)}_${safeSlug(meta.periodLabel)}`;
+}
+
 // ── CSV (data/import artefact) ──────────────────────────────────────────────
-export function exportRestLogCSV({ rows, days, meta }) {
+// Build the CSV blob + filename without touching the DOM, so callers can either
+// download it (exportRestLogCSV) or attach/email it.
+export function buildRestLogCSV({ rows, days, meta }) {
   const members = flatten(rows);
   const lines = [];
   lines.push('Record of Hours of Rest (data export)');
@@ -204,7 +210,12 @@ export function exportRestLogCSV({ rows, days, meta }) {
   }
 
   const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-  triggerDownload(blob, `hours-of-rest_${safeSlug(meta.vesselName)}_${safeSlug(meta.periodLabel)}.csv`);
+  return { blob, filename: `${restLogFileBase(meta)}.csv` };
+}
+
+export function exportRestLogCSV({ rows, days, meta }) {
+  const { blob, filename } = buildRestLogCSV({ rows, days, meta });
+  triggerDownload(blob, filename);
 }
 
 // ── PDF: shared chrome ──────────────────────────────────────────────────────
@@ -553,7 +564,10 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     'I confirm the non-conformities listed above and the reasons recorded are a true and accurate account.');
 }
 
-export async function exportRestLogPDF({ rows, days, meta, windowShifts = [], breachReasons = {} }) {
+// Render the full Record of Hours of Rest document and return the jsPDF doc.
+// Shared by exportRestLogPDF (downloads) and buildRestLogPDF (returns a blob to
+// attach/email) so every delivery path produces the identical document.
+async function renderRestLogDoc({ rows, days, meta, windowShifts = [], breachReasons = {} }) {
   const members = flatten(rows);
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const logo = await loadCargoLogo();
@@ -587,5 +601,15 @@ export async function exportRestLogPDF({ rows, days, meta, windowShifts = [], br
     );
   }
 
-  doc.save(`hours-of-rest_${safeSlug(meta.vesselName)}_${safeSlug(meta.periodLabel)}.pdf`);
+  return doc;
+}
+
+export async function buildRestLogPDF(args) {
+  const doc = await renderRestLogDoc(args);
+  return { blob: doc.output('blob'), filename: `${restLogFileBase(args.meta)}.pdf` };
+}
+
+export async function exportRestLogPDF(args) {
+  const doc = await renderRestLogDoc(args);
+  doc.save(`${restLogFileBase(args.meta)}.pdf`);
 }

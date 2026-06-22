@@ -20,9 +20,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import { fetchTenantCrew } from '../crew-profile/utils/tenantCrew';
 import { fetchMonthStatusesForMonth, fetchVesselHorSettings, fetchActiveMemberTiers } from '../crew-profile/utils/horMonthStatus';
 import { sendDbNotification } from '../../lib/dbNotifications';
-import { buildSignedHorZip } from '../crew-profile/utils/horPDFGenerator';
-import { saveAs } from 'file-saver';
+import { loadRotaHorExportData } from '../crew-rota/rotaHorExportData';
+import { buildRestLogPDF, buildRestLogCSV } from '../crew-rota/rotaHorExport';
 import './month-end.css';
+
+// Blob → base64 (no data: prefix) for JSON transport to the email edge function.
+const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(reader.error);
+  reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+  reader.readAsDataURL(blob);
+});
 
 const TIER_RANK = { COMMAND: 3, CHIEF: 2, HOD: 1 };
 const rankOf = (t) => TIER_RANK[String(t || '').toUpperCase()] || 0;
@@ -178,27 +186,51 @@ export default function MonthEnd() {
 
   const stepMonth = (dir) => setCursor(new Date(year, jsMonth + dir, 1));
 
-  // Signed-off crew for this month — the rows eligible for the management export.
-  const signedRows = useMemo(
-    () => rows.filter((r) => r.status === 'confirmed' || r.status === 'locked'),
-    [rows],
-  );
+  const managementEmail = settings?.managementCompanyEmail || null;
+  const managementName = settings?.managementCompanyName || null;
 
-  // Export the signed HOR pack (one audit PDF per crew + a CSV summary) as a
-  // single zip, to forward to the management company at month-end.
-  const exportSigned = async () => {
-    if (!signedRows.length || exporting) return;
+  // Send the month's Record of Hours of Rest to the management company. The PDF
+  // + CSV are generated in the browser by the SAME code the rota page's export
+  // button uses (rotaHorExportData → rotaHorExport), so the management pack is an
+  // exact duplicate of the on-screen rota export. The edge function only emails
+  // the attachments to the address held in vessel settings.
+  const sendToManagement = async () => {
+    if (exporting) return;
+    if (!managementEmail) {
+      setToast('Set a management company email in Vessel Settings first');
+      setTimeout(() => setToast(''), 3200);
+      return;
+    }
     setExporting(true);
     try {
-      const { blob, fileName } = await buildSignedHorZip(signedRows, new Date(year, jsMonth, 1));
-      saveAs(blob, fileName);
-      setToast(`Exported ${signedRows.length} signed HOR record${signedRows.length > 1 ? 's' : ''}`);
+      const payload = await loadRotaHorExportData({ tenantId: activeTenantId, year, month: jsMonth + 1 });
+      if (payload.empty) {
+        setToast('This month hasn’t started yet — nothing to record');
+        return;
+      }
+      const [{ blob: pdfBlob, filename: pdfName }, { blob: csvBlob, filename: csvName }] = [
+        await buildRestLogPDF(payload),
+        buildRestLogCSV(payload),
+      ];
+      const [pdfB64, csvB64] = await Promise.all([blobToBase64(pdfBlob), blobToBase64(csvBlob)]);
+      const { data, error } = await supabase.functions.invoke('hor-send-to-management', {
+        body: {
+          tenantId: activeTenantId,
+          periodLabel: payload.meta?.periodLabel || monthLabel,
+          attachments: [
+            { filename: pdfName, contentBase64: pdfB64, contentType: 'application/pdf' },
+            { filename: csvName, contentBase64: csvB64, contentType: 'text/csv' },
+          ],
+        },
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error || 'Send failed');
+      setToast(`Sent to ${managementName || managementEmail}`);
     } catch (e) {
-      console.error('HOR export failed', e);
-      setToast('Export failed — please try again');
+      console.error('HOR management send failed', e);
+      setToast(`Couldn’t send — ${e.message || 'please try again'}`);
     } finally {
       setExporting(false);
-      setTimeout(() => setToast(''), 2600);
+      setTimeout(() => setToast(''), 3200);
     }
   };
 
@@ -402,14 +434,16 @@ export default function MonthEnd() {
                         ) : (
                           <>
                             {STATUS_BLOCKS.map(renderStatusBlock)}
-                            {signedRows.length > 0 && (
-                              <div className="me-export">
-                                <span className="me-export-note">{signedRows.length} signed off · ready to send to management</span>
-                                <button type="button" className="me-btn me-btn-primary" disabled={exporting} onClick={exportSigned}>
-                                  <Icon name="Download" size={14} /> {exporting ? 'Preparing…' : 'Export signed HOR (.zip)'}
-                                </button>
-                              </div>
-                            )}
+                            <div className="me-export">
+                              <span className="me-export-note">
+                                {managementEmail
+                                  ? <>Record of Hours of Rest for {monthName} · sends to {managementName ? `${managementName} (${managementEmail})` : managementEmail}</>
+                                  : <>Set a management company email in <button type="button" className="me-link-inline" onClick={() => navigate('/vessel-settings')}>Vessel Settings</button> to send the monthly record</>}
+                              </span>
+                              <button type="button" className="me-btn me-btn-primary" disabled={exporting || !managementEmail} onClick={sendToManagement}>
+                                <Icon name="Send" size={14} /> {exporting ? 'Sending…' : 'Send to management'}
+                              </button>
+                            </div>
                           </>
                         )}
                       </div>

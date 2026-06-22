@@ -38,11 +38,13 @@ export async function fetchVesselHorSettings(tenantId) {
     approverTier: 'COMMAND',
     dayBasis: 'calendar',
     operationalDayStartHour: 0,
+    managementCompanyEmail: null,
+    managementCompanyName: null,
   };
   if (!tenantId) return fallback;
   const { data, error } = await supabase
     .from('vessels')
-    .select('hor_confirmation_mode, hor_approver_tier, hor_day_basis, operational_day_start_hour')
+    .select('hor_confirmation_mode, hor_approver_tier, hor_day_basis, operational_day_start_hour, hor_management_company_email, hor_management_company_name')
     .eq('tenant_id', tenantId)
     .maybeSingle();
   if (error || !data) return fallback;
@@ -53,6 +55,9 @@ export async function fetchVesselHorSettings(tenantId) {
     // day reconciles identically across rota → profile → vessel record.
     dayBasis: data.hor_day_basis || 'calendar',
     operationalDayStartHour: data.operational_day_start_hour ?? 0,
+    // Month-end "send to management" recipient (vessel settings).
+    managementCompanyEmail: data.hor_management_company_email || null,
+    managementCompanyName: data.hor_management_company_name || null,
   };
 }
 
