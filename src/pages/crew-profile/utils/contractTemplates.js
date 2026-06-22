@@ -240,3 +240,119 @@ export function templateFitsRole(template, roleTitle) {
   if (!roleTitle) return false;
   return roles.some((r) => r.toLowerCase() === String(roleTitle).toLowerCase());
 }
+
+// ----- Templatize: turn a completed contract into a reusable {{token}} template -----
+
+const xmlEscape = (s) => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+// Readable text of a .docx, paragraph by paragraph, for the AI to analyse.
+function docxToText(zip) {
+  return Object.keys(zip.files)
+    .filter((p) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(p))
+    .map((p) => zip.files[p].asText()
+      .replace(/<\/w:p>/g, '\n')      // paragraph breaks
+      .replace(/<[^>]+>/g, '')        // drop tags
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'"))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Replace each mapped value with {{token}} directly in the document XML, keeping
+// all original formatting. Values are matched against the escaped XML, so most
+// contiguous runs are caught; anything Word split mid-value is reported back.
+function applyMappingsToZip(zip, mappings) {
+  const targets = Object.keys(zip.files)
+    .filter((p) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(p));
+  const notFound = [];
+  mappings.forEach(({ value, token }) => {
+    if (!value || !token) return;
+    const needle = xmlEscape(value);
+    const repl = `{{${token}}}`;
+    let hit = false;
+    targets.forEach((p) => {
+      const xml = zip.files[p].asText();
+      if (xml.includes(needle)) {
+        zip.file(p, xml.split(needle).join(repl));
+        hit = true;
+      }
+    });
+    if (!hit) notFound.push(value);
+  });
+  return notFound;
+}
+
+// Wrap plain text (with {{tokens}} and newlines) into a minimal, valid .docx.
+function textToDocxBlob(text) {
+  const paras = String(text).split('\n').map((line) =>
+    line.trim() === ''
+      ? '<w:p/>'
+      : `<w:p><w:r><w:t xml:space="preserve">${xmlEscape(line)}</w:t></w:r></w:p>`,
+  ).join('');
+  const zip = new PizZip();
+  zip.file('[Content_Types].xml',
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+  zip.folder('_rels').file('.rels',
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+  zip.folder('word').file('document.xml',
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paras}<w:sectPr/></w:body></w:document>`);
+  return zip.generate({ type: 'blob', mimeType: DOCX_MIME });
+}
+
+// .docx in → ask the AI to map particulars to tokens. Returns the extracted text
+// + suggested mappings for the user to review before we build the template.
+export async function analyzeDocxForTemplate(file) {
+  const buf = await file.arrayBuffer();
+  const zip = new PizZip(buf);
+  const text = docxToText(zip);
+  const { data, error } = await supabase.functions.invoke('templatize-contract', {
+    body: { mode: 'map', text },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { kind: 'map', mappings: data?.mappings || [], buf };
+}
+
+// .pdf in → ask the AI to re-emit the contract with {{tokens}}. Returns the
+// rebuilt text for the user to review before we wrap it into a .docx.
+export async function analyzePdfForTemplate(file) {
+  const base64 = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] || '');
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+  const { data, error } = await supabase.functions.invoke('templatize-contract', {
+    body: { mode: 'rebuild', base64, mediaType: file.type || 'application/pdf' },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { kind: 'rebuild', templateText: data?.template_text || '' };
+}
+
+// Build the final .docx template File from a reviewed draft.
+export function buildTemplateDocxFile(draft, fileName) {
+  let blob, notFound = [];
+  if (draft.kind === 'map') {
+    const zip = new PizZip(draft.buf);
+    notFound = applyMappingsToZip(zip, draft.mappings);
+    blob = zip.generate({ type: 'blob', mimeType: DOCX_MIME });
+  } else {
+    blob = textToDocxBlob(draft.templateText);
+  }
+  const name = fileName.endsWith('.docx') ? fileName : `${fileName}.docx`;
+  return { file: new File([blob], name, { type: DOCX_MIME }), notFound };
+}
+

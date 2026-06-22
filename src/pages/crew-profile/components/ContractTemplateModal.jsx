@@ -5,7 +5,8 @@ import { supabase } from '../../../lib/supabaseClient';
 import { showToast } from '../../../utils/toast';
 import {
   fetchTemplates, uploadTemplate, deleteTemplate, updateTemplateRoles,
-  templateFitsRole, CONTRACT_TOKEN_GROUPS,
+  templateFitsRole, CONTRACT_TOKEN_GROUPS, ALL_TOKENS,
+  analyzeDocxForTemplate, analyzePdfForTemplate, buildTemplateDocxFile,
 } from '../utils/contractTemplates';
 import './contract-template-modal.css';
 
@@ -51,6 +52,11 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
   const [editRolesId, setEditRolesId] = useState(null);
   const [editRoles, setEditRoles] = useState([]);
   const [showFields, setShowFields] = useState(false);
+  // AI "templatize" review draft
+  const [aiBusy, setAiBusy] = useState(false);
+  const [draft, setDraft] = useState(null);   // { kind, mappings|templateText, buf }
+  const [draftName, setDraftName] = useState('');
+  const [draftRoles, setDraftRoles] = useState([]);
 
   const reload = async () => {
     setLoading(true);
@@ -101,6 +107,59 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
     }
   };
 
+  // AI: analyse a completed contract and open the review draft.
+  const handleAnalyze = async (f) => {
+    if (!f) return;
+    const lower = f.name.toLowerCase();
+    if (!lower.endsWith('.docx') && !lower.endsWith('.pdf')) {
+      showToast('Upload a completed contract as .docx or .pdf.', 'error');
+      return;
+    }
+    setAiBusy(true);
+    try {
+      const result = lower.endsWith('.pdf')
+        ? await analyzePdfForTemplate(f)
+        : await analyzeDocxForTemplate(f);
+      setDraft(result);
+      setDraftName(f.name.replace(/\.(docx|pdf)$/i, '') + ' template');
+      setDraftRoles(roleTitle ? [roleTitle] : []);
+      if (result.kind === 'map' && !result.mappings.length) {
+        showToast('No particulars were detected — you can still review and adjust.', 'info');
+      }
+    } catch (e) {
+      console.error('[templatize] failed', e);
+      showToast(e?.message || 'Could not analyse that contract.', 'error');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const updateMappingToken = (i, token) =>
+    setDraft((d) => ({ ...d, mappings: d.mappings.map((m, idx) => idx === i ? { ...m, token } : m) }));
+  const removeMapping = (i) =>
+    setDraft((d) => ({ ...d, mappings: d.mappings.filter((_, idx) => idx !== i) }));
+
+  const handleSaveDraft = async () => {
+    if (!draft) return;
+    setBusy(true);
+    try {
+      const { file: docxFile, notFound } = buildTemplateDocxFile(draft, draftName.trim() || 'Contract template');
+      await uploadTemplate({ tenantId, file: docxFile, name: draftName, roles: draftRoles, createdBy });
+      setDraft(null); setDraftName(''); setDraftRoles([]);
+      if (notFound?.length) {
+        showToast(`Template saved. ${notFound.length} value(s) couldn’t be auto-replaced (likely split formatting) — open the .docx and check.`, 'info');
+      } else {
+        showToast('Template created from contract.', 'success');
+      }
+      await reload();
+    } catch (e) {
+      console.error('[templatize] save failed', e);
+      showToast(e?.message || 'Could not save the template.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleDelete = async (t) => {
     if (!window.confirm(`Delete template “${t.name}”?`)) return;
     setBusy(true);
@@ -137,6 +196,55 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
     onClose();
   };
 
+  const renderReview = () => (
+    <div className="ctm-review">
+      <button type="button" className="ctm-back" onClick={() => setDraft(null)} disabled={busy}>
+        <Icon name="ChevronLeft" size={15} /> Back
+      </button>
+      <div className="ctm-section-label">Review the template Cargo built</div>
+      <p className="ctm-faint">
+        {draft.kind === 'map'
+          ? 'These particulars were detected and will be swapped for tokens in your original document, keeping its formatting. Adjust the token for any row, or remove rows you don’t want tokenised.'
+          : 'The contract was rebuilt as editable text with tokens (PDF formatting isn’t preserved). Edit anything below before saving.'}
+      </p>
+
+      {draft.kind === 'map' ? (
+        <div className="ctm-map">
+          {draft.mappings.length === 0 && <span className="ctm-faint">No particulars detected.</span>}
+          {draft.mappings.map((m, i) => (
+            <div key={i} className="ctm-map-row">
+              <span className="ctm-map-val" title={m.value}>{m.value}</span>
+              <Icon name="ArrowRight" size={13} />
+              <select className="ctm-select" value={m.token} onChange={(e) => updateMappingToken(i, e.target.value)}>
+                {!ALL_TOKENS.includes(m.token) && <option value={m.token}>{m.token}</option>}
+                {ALL_TOKENS.map((tk) => <option key={tk} value={tk}>{tk}</option>)}
+              </select>
+              <button type="button" className="ctm-icon danger" onClick={() => removeMapping(i)} title="Remove">
+                <Icon name="X" size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <textarea className="ctm-textarea" value={draft.templateText}
+          onChange={(e) => setDraft((d) => ({ ...d, templateText: e.target.value }))} rows={12} />
+      )}
+
+      <span className="ctm-label">Template name</span>
+      <input className="ctm-input" value={draftName} onChange={(e) => setDraftName(e.target.value)} />
+      <span className="ctm-label">Applies to roles <span className="ctm-faint">(optional)</span></span>
+      <RoleChips options={roleOptions} selected={draftRoles}
+        onToggle={(r) => setDraftRoles((p) => p.includes(r) ? p.filter((x) => x !== r) : [...p, r])} />
+
+      <div className="ctm-row-edit-actions" style={{ marginTop: 16 }}>
+        <button type="button" className="ctm-btn ghost" onClick={() => setDraft(null)} disabled={busy}>Discard</button>
+        <button type="button" className="ctm-btn fill" onClick={handleSaveDraft} disabled={busy}>
+          {busy ? 'Saving…' : 'Create template'}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <ModalShell onClose={onClose} isBusy={busy} panelClassName="ctm-panel">
       <div className="ctm">
@@ -153,6 +261,17 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
         </div>
 
         <div className="ctm-body">
+          {draft ? renderReview() : (<>
+          {/* AI: build a template from a completed contract */}
+          {canManage && (
+            <label className={`ctm-ai${aiBusy ? ' busy' : ''}`}>
+              <input type="file" accept=".docx,.pdf" disabled={aiBusy}
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; handleAnalyze(f); }} />
+              <Icon name="Sparkles" size={16} />
+              <span>{aiBusy ? 'Analysing contract…' : '✦ Build a template from a completed contract'}</span>
+            </label>
+          )}
+
           {/* Template list */}
           {loading ? (
             <p className="ctm-faint ctm-pad">Loading templates…</p>
@@ -266,6 +385,7 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
               ))}
             </div>
           )}
+          </>)}
         </div>
 
         <div className="ctm-foot">
