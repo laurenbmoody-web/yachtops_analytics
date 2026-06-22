@@ -2,19 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import SelectionCheckbox from './SelectionCheckbox';
 import { ITEM_STATUS_ORDER, ITEM_STATUS_CONFIG, getItemStatusConfig } from '../data/statusConfig';
+import { UNIT_GROUPS } from '../../../data/unitGroups';
 
 // ── Grid template shared across header / rows / subtotal ─────────────────────
 // cols: check | name | brand | category | dept | size/unit/qty | qty_rec | unit_cost | total | status | actions
 export const DETAIL_GRID = '36px minmax(140px,1fr) 95px 118px 98px 190px 98px 80px 80px 118px 72px';
 
 // ── Grouped unit options ──────────────────────────────────────────────────────
-export const UNIT_GROUPS = [
-  { label: 'Weight',  options: ['g', 'kg', 'oz', 'lb'] },
-  { label: 'Volume',  options: ['ml', 'l', 'fl oz', 'cup', 'tsp', 'tbsp'] },
-  { label: 'Count',   options: ['each', 'pair', 'set', 'box', 'pack', 'case', 'carton', 'dozen'] },
-  { label: 'Length',  options: ['cm', 'm', 'ft', 'inch'] },
-  { label: 'Other',   options: ['portion', 'serving', 'sheet', 'roll', 'sachet', 'tube', 'bottle', 'can', 'jar', 'bag'] },
-];
+// Lifted into src/data/unitGroups.js so the supplier-portal order
+// detail can dropdown-render the same vocabulary. Re-exported here
+// for the existing call sites that import UNIT_GROUPS from './DetailTableCells'.
+export { UNIT_GROUPS };
 
 // ── Item status config ────────────────────────────────────────────────────────
 // Legacy <option>-shape array derived from the unified statusConfig. Kept as
