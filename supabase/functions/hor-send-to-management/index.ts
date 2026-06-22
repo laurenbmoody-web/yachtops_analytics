@@ -46,7 +46,11 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function renderEmail({ intro }: { intro: string }): string {
+function renderEmail({ intro, senderName, identityLine }: { intro: string; senderName: string; identityLine: string }): string {
+  const signoff = senderName
+    ? `<p style="margin:22px 0 0;font-family:${SANS};font-size:15px;line-height:1.6;color:${DARK_TEXT};">Kind regards,</p>
+          <p style="margin:6px 0 0;font-family:${SANS};font-size:15px;line-height:1.5;color:${DARK_TEXT};"><strong style="color:${NAVY};">${escapeHtml(senderName)}</strong>${identityLine ? `<br/><span style="color:${MUTED_TEXT};">${escapeHtml(identityLine)}</span>` : ''}</p>`
+    : '';
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:${CREAM_BG};">
   <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background:${CREAM_BG};">
@@ -61,7 +65,8 @@ function renderEmail({ intro }: { intro: string }): string {
             &bull;&nbsp; Record of Hours of Rest — signed PDF<br/>
             &bull;&nbsp; Hours of rest — CSV data export
           </td></tr></table>
-          <p style="margin:24px 0 0;font-family:${SANS};font-size:12px;line-height:1.5;color:${MUTED_TEXT};">Sent on behalf of the vessel via Cargo. If you have any queries about this record, simply reply to this email.</p>
+          ${signoff}
+          <p style="margin:24px 0 0;font-family:${SANS};font-size:12px;line-height:1.5;color:${MUTED_TEXT};">Sent via Cargo. If you have any queries about this record, simply reply to this email.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -135,12 +140,27 @@ Deno.serve(async (req: Request) => {
   const uid = await callerUserId(req);
   if (!uid) return json({ error: 'Not authenticated' }, 401);
   const members = await supaGet(
-    `tenant_members?tenant_id=eq.${tenantId}&user_id=eq.${uid}&active=eq.true&select=permission_tier`,
+    `tenant_members?tenant_id=eq.${tenantId}&user_id=eq.${uid}&active=eq.true`
+    + `&select=permission_tier,display_name,role:roles!role_id(name),custom_role:tenant_custom_roles!custom_role_id(name)`,
   ) || [];
-  const tier = members[0]?.permission_tier;
+  const member = members[0];
+  const tier = member?.permission_tier;
   if (!tier || !ALLOWED_TIERS.has(String(tier).toUpperCase())) {
     return json({ error: 'Not permitted — command or chief only' }, 403);
   }
+
+  // ── Sender identity (for the sign-off + reply-to) ──
+  const profiles = await supaGet(`profiles?id=eq.${uid}&select=email,full_name`) || [];
+  const profile = profiles[0] || {};
+  let senderEmail = profile.email || '';
+  if (!senderEmail) {
+    const adminRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${uid}`, {
+      headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+    }).catch(() => null);
+    if (adminRes && adminRes.ok) senderEmail = (await adminRes.json().catch(() => ({})))?.email || '';
+  }
+  const senderName = member?.display_name || profile.full_name || '';
+  const senderRole = member?.role?.name || member?.custom_role?.name || '';
 
   // ── Recipient (server-side, from vessel settings) ──
   const vessels = await supaGet(
@@ -159,22 +179,31 @@ Deno.serve(async (req: Request) => {
   const greeting = recipientName ? `${escapeHtml(recipientName)}, ` : '';
   const intro = `${greeting}attached is the Record of Hours of Rest for <strong>${escapeHtml(vesselName)}</strong> `
     + `covering <strong>${escapeHtml(period)}</strong> (MLC 2006 A2.3 / STCW A-VIII/1).`;
+  // "Captain | M/Y Belongers" — role and vessel under the sender's name.
+  const identityLine = [senderRole, vesselName].filter(Boolean).join('  |  ');
+  const signoffText = senderName
+    ? `\n\nKind regards,\n${senderName}${identityLine ? `\n${identityLine}` : ''}`
+    : '';
   const text = `${recipientName ? `${recipientName}, ` : ''}attached is the Record of Hours of Rest for ${vesselName} `
     + `covering ${period} (MLC 2006 A2.3 / STCW A-VIII/1).\n\n`
-    + `Attached:\n  - Record of Hours of Rest — signed PDF\n  - Hours of rest — CSV data export\n\n`
-    + `Sent on behalf of the vessel via Cargo. If you have any queries about this record, simply reply to this email.`;
+    + `Attached:\n  - Record of Hours of Rest — signed PDF\n  - Hours of rest — CSV data export`
+    + `${signoffText}\n\nSent via Cargo. If you have any queries about this record, simply reply to this email.`;
+
+  const payload: Record<string, unknown> = {
+    from: FROM,
+    to: [to],
+    subject,
+    html: renderEmail({ intro, senderName, identityLine }),
+    text,
+    attachments: attachments.map((a) => ({ filename: a.filename, content: a.contentBase64 })),
+  };
+  // Replies go to whoever sent it (captain / purser / etc.), not the no-reply sender.
+  if (senderEmail) payload.reply_to = senderEmail;
 
   const resendRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: FROM,
-      to: [to],
-      subject,
-      html: renderEmail({ intro }),
-      text,
-      attachments: attachments.map((a) => ({ filename: a.filename, content: a.contentBase64 })),
-    }),
+    body: JSON.stringify(payload),
   }).catch((e) => { console.error('[hor-send-to-management] resend fetch failed', e); return null; });
 
   if (!resendRes || !resendRes.ok) {
