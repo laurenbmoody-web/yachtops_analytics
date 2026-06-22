@@ -81,6 +81,8 @@ const VesselSettings = () => {
     hor_day_basis: 'calendar',
     hor_confirmation_mode: 'require',
     hor_approver_tier: 'CHIEF',
+    hor_management_company_name: '',
+    hor_management_company_email: '',
 
     // Compliance & Structure
     ism_applicable: false,
@@ -205,6 +207,8 @@ const VesselSettings = () => {
         hor_day_basis: vesselData?.hor_day_basis || 'calendar',
         hor_confirmation_mode: vesselData?.hor_confirmation_mode || 'require',
         hor_approver_tier: vesselData?.hor_approver_tier || 'CHIEF',
+        hor_management_company_name: vesselData?.hor_management_company_name || '',
+        hor_management_company_email: vesselData?.hor_management_company_email || '',
         ism_applicable: vesselData?.ism_applicable || false,
         isps_applicable: vesselData?.isps_applicable || false,
         departments_in_use: departmentsArray,
@@ -385,6 +389,8 @@ const VesselSettings = () => {
         hor_day_basis: formState?.hor_day_basis === 'operational' ? 'operational' : 'calendar',
         hor_confirmation_mode: formState?.hor_confirmation_mode === 'trust' ? 'trust' : 'require',
         hor_approver_tier: ['COMMAND', 'CHIEF', 'HOD'].includes(formState?.hor_approver_tier) ? formState?.hor_approver_tier : 'CHIEF',
+        hor_management_company_name: formState?.hor_management_company_name?.trim() || null,
+        hor_management_company_email: formState?.hor_management_company_email?.trim() || null,
         ism_applicable: formState?.ism_applicable || false,
         isps_applicable: formState?.isps_applicable || false,
         departments_in_use: formState?.departments_in_use || [],
@@ -1023,6 +1029,31 @@ const VesselSettings = () => {
                         { value: 'HOD', label: 'HOD & above' },
                       ]}
                       disabled={viewMode || !canEdit || formState?.hor_confirmation_mode === 'trust'}
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                      Management Company
+                      <InfoHint text="The management company / shore office (DPA) that receives the signed Hours of Rest pack at month-end. The name is used in the email greeting." />
+                    </label>
+                    <Input
+                      value={formState?.hor_management_company_name}
+                      onChange={(e) => handleInputChange('hor_management_company_name', e?.target?.value)}
+                      placeholder="e.g., Acme Yacht Management"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                      Management Company Email
+                      <InfoHint text="Recipient address for the end-of-month signed Hours of Rest export. The 'Send to management' action on the month-end hub emails the pack here." />
+                    </label>
+                    <Input
+                      type="email"
+                      value={formState?.hor_management_company_email}
+                      onChange={(e) => handleInputChange('hor_management_company_email', e?.target?.value)}
+                      placeholder="e.g., compliance@management.com"
+                      disabled={viewMode || !canEdit}
                     />
                   </div>
                 </div>
