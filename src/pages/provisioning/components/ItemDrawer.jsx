@@ -1318,7 +1318,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 {isLight ? (
                   <FL>
                     Order notes (visible to supplier)
-                    <HelpHint title="What goes in Order notes?" width={300}>
+                    <HelpHint title="What goes in Order notes?" width={300} align="end">
                       <HelpHintBuckets buckets={[
                         { label: 'Prep',        example: '"Skin on, pin boned, scaled"' },
                         { label: 'Packing',     example: '"1 per bag, vac-packed"' },

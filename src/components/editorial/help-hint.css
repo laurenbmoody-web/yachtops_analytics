@@ -52,10 +52,19 @@
      user moves into it. */
   pointer-events: auto;
 }
-.help-hint-bottom .help-hint-popover { top: calc(100% + 6px); left: 0; }
-.help-hint-top    .help-hint-popover { bottom: calc(100% + 6px); left: 0; }
-.help-hint-right  .help-hint-popover { top: 0; left: calc(100% + 6px); }
-.help-hint-left   .help-hint-popover { top: 0; right: calc(100% + 6px); }
+/* Default — align="start": popover extends from the trigger's
+   leading edge (left, in LTR). Use when the trigger sits in the
+   middle / left of the viewport. */
+.help-hint-bottom.help-hint-align-start .help-hint-popover { top: calc(100% + 6px); left: 0; }
+.help-hint-top.help-hint-align-start    .help-hint-popover { bottom: calc(100% + 6px); left: 0; }
+.help-hint-right                        .help-hint-popover { top: 0; left: calc(100% + 6px); }
+.help-hint-left                         .help-hint-popover { top: 0; right: calc(100% + 6px); }
+
+/* align="end" — popover extends from the trigger's trailing edge
+   (right) so it doesn't clip the viewport when the trigger sits
+   near the right edge (e.g. inside the right-side ItemDrawer). */
+.help-hint-bottom.help-hint-align-end .help-hint-popover { top: calc(100% + 6px); right: 0; }
+.help-hint-top.help-hint-align-end    .help-hint-popover { bottom: calc(100% + 6px); right: 0; }
 
 .help-hint-title {
   display: block;
