@@ -132,15 +132,15 @@ const COLUMN_HELP_HINTS = {
     width: 280,
     buckets: [
       { label: 'Name',  example: '"Premium lager", "Oscietra caviar"' },
-      { label: 'Brand', example: 'muted subtitle below the name' },
+      { label: 'Brand', example: '"Evian", "Heinz", "Peroni"' },
     ],
   },
   category: {
     title: 'What lives in Category',
     width: 280,
     buckets: [
-      { label: 'Dept',    example: '"Galley", "Bar", "Interior"' },
-      { label: 'Sub-cat', example: '"Beer & Cider", "Caviar, Roe & Truffle"' },
+      { label: 'Category', example: '"Beer & Cider", "Caviar, Roe & Truffle"' },
+      { label: 'Sub-cat',  example: '"Lager", "Sashimi Loin"' },
     ],
   },
   notes: {
@@ -157,9 +157,8 @@ const COLUMN_HELP_HINTS = {
     title: 'What goes in Size?',
     width: 280,
     buckets: [
-      { label: 'Weight', example: '"1kg", "500g", "8oz"' },
-      { label: 'Volume', example: '"750ml", "1L"' },
-      { label: 'Pack',   example: '"24-pack", "6 per case"' },
+      { label: 'Tip',     example: 'numeric only — the measure goes in Unit' },
+      { label: 'Examples', example: '"500", "2", "1.5", "750"' },
     ],
   },
   unit: {
@@ -171,33 +170,10 @@ const COLUMN_HELP_HINTS = {
       { label: 'Bundle', example: 'punnet, bunch, pack, tray, bag' },
     ],
   },
-  qty: {
-    title: 'How many to order',
-    width: 260,
-    buckets: [
-      { label: 'Tip', example: 'reads alongside Unit — "3 bottles", "2 kg"' },
-    ],
-  },
-  unit_cost: {
-    title: 'Unit cost lifecycle',
-    width: 280,
-    buckets: [
-      { label: 'Estimate', example: 'chief sets pre-send' },
-      { label: 'Quoted',   example: 'supplier returns their price' },
-      { label: 'Final',    example: 'locked after Quote approval' },
-    ],
-  },
-  total: {
-    title: 'Total per line',
-    width: 260,
-    buckets: [
-      { label: 'Formula',  example: 'Qty × Unit cost' },
-      { label: 'Excluded', example: 'unavailable lines drop from rollups' },
-    ],
-  },
   status: {
     title: 'Status colours',
-    width: 260,
+    width: 280,
+    align: 'end',
     buckets: [
       { label: 'Pending',     example: 'supplier hasn\'t acted yet' },
       { label: 'Confirmed',   example: 'supplier agreed at the quoted price' },
@@ -3356,9 +3332,9 @@ const ProvisioningBoardDetail = () => {
                           { label: 'Notes',     key: null, helpHint: 'notes' },
                           { label: 'Size',      key: null, helpHint: 'size' },
                           { label: 'Unit',      key: null, helpHint: 'unit' },
-                          { label: 'Qty',       key: 'qty', helpHint: 'qty' },
-                          { label: 'Unit Cost', key: 'unit_cost', helpHint: 'unit_cost' },
-                          { label: 'Total',     key: 'total', helpHint: 'total' },
+                          { label: 'Qty',       key: 'qty' },
+                          { label: 'Unit Cost', key: 'unit_cost' },
+                          { label: 'Total',     key: 'total' },
                           { label: 'Status',    key: 'status', centered: true, helpHint: 'status' },
                           { label: '',          key: null },
                         ].map(({ label, key, centered, helpHint }, idx) => {
@@ -3388,6 +3364,7 @@ const ProvisioningBoardDetail = () => {
                                 <HelpHint
                                   title={COLUMN_HELP_HINTS[helpHint].title}
                                   width={COLUMN_HELP_HINTS[helpHint].width}
+                                  align={COLUMN_HELP_HINTS[helpHint].align || 'start'}
                                 >
                                   <HelpHintBuckets buckets={COLUMN_HELP_HINTS[helpHint].buckets} />
                                 </HelpHint>
