@@ -80,9 +80,18 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
     if (!file) { showToast('Choose a .docx file first.', 'error'); return; }
     setBusy(true);
     try {
-      await uploadTemplate({ tenantId, file, name, roles: uploadRoles, createdBy });
+      const created = await uploadTemplate({ tenantId, file, name, roles: uploadRoles, createdBy });
       setFile(null); setName(''); setUploadRoles([]);
-      showToast('Template added.', 'success');
+      if (!created?.tokens?.length) {
+        showToast(
+          /\.pdf$/i.test(created?.file_name || '')
+            ? 'Added — but this PDF has no fillable form fields, so generating will produce an unchanged copy. Add form fields in a PDF editor, or upload a .docx.'
+            : 'Added — but no {{tokens}} were found, so generating will produce an unchanged copy.',
+          'info',
+        );
+      } else {
+        showToast('Template added.', 'success');
+      }
       await reload();
     } catch (e) {
       console.error('[templates] upload failed', e);
@@ -164,8 +173,10 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
                         <span className="ctm-row-name">
                           {t.name}
                           {fits && <span className="ctm-tag suggest">Suggested</span>}
+                          {!t.tokens?.length && <span className="ctm-tag warn">No fillable fields</span>}
                         </span>
                         <span className="ctm-row-meta">
+                          <span className="ctm-pill format">{/\.pdf$/i.test(t.file_name || '') ? 'PDF' : 'DOCX'}</span>
                           {(t.roles?.length ? t.roles : ['Any role']).map((r) => (
                             <span key={r} className="ctm-pill">{r}</span>
                           ))}
@@ -208,16 +219,18 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
               <div className="ctm-section-label">Add a template</div>
               <p className="ctm-faint">
                 Upload a Word <b>.docx</b> with <code>{'{{tokens}}'}</code> where data should go
-                (e.g. <code>{'{{crew_name}}'}</code>). Cargo fills them when generating.
+                (e.g. <code>{'{{crew_name}}'}</code>), or a <b>.pdf</b> with form fields
+                <i>named</i> after the tokens. Cargo fills them when generating. A flat PDF
+                (no form fields) can’t be auto-filled.
               </p>
               <label className="ctm-file">
-                <input type="file" accept=".docx" onChange={(e) => {
+                <input type="file" accept=".docx,.pdf" onChange={(e) => {
                   const f = e.target.files?.[0] || null;
                   setFile(f);
-                  if (f && !name) setName(f.name.replace(/\.docx$/i, ''));
+                  if (f && !name) setName(f.name.replace(/\.(docx|pdf)$/i, ''));
                 }} />
                 <Icon name="Upload" size={15} />
-                <span>{file ? file.name : 'Choose .docx file'}</span>
+                <span>{file ? file.name : 'Choose .docx or .pdf file'}</span>
               </label>
               <input className="ctm-input" placeholder="Template name (e.g. Deckhand SEA)"
                 value={name} onChange={(e) => setName(e.target.value)} />
@@ -237,6 +250,10 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
           </button>
           {showFields && (
             <div className="ctm-fields">
+              <p className="ctm-faint" style={{ marginBottom: 10 }}>
+                In a <b>.docx</b>, write <code>{'{{token}}'}</code>. In a <b>.pdf</b>, name the
+                form field with the token (e.g. a field called <code>crew_name</code>).
+              </p>
               {CONTRACT_TOKEN_GROUPS.map((g) => (
                 <div key={g.group} className="ctm-fields-group">
                   <span className="ctm-section-label">{g.group}</span>

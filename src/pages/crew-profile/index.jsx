@@ -22,7 +22,7 @@ import EditorialDatePicker from '../../components/editorial/EditorialDatePicker'
 import { crewContractStandard } from '../../data/flagStates';
 import { saveAs } from 'file-saver';
 import ContractTemplateModal from './components/ContractTemplateModal';
-import { fetchTemplates, templateFitsRole, buildContractTokens, generateContractBlob, TEMPLATE_MIME } from './utils/contractTemplates';
+import { fetchTemplates, templateFitsRole, buildContractTokens, generateContractBlob, isPdfTemplate, TEMPLATE_MIME } from './utils/contractTemplates';
 import { uploadDocumentFile, saveCrewDocument } from './utils/crewDocuments';
 import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
@@ -1294,12 +1294,14 @@ const canEdit = (() => {
     try {
       const tokens = buildContractTokens({ crewMember, empForm, compForm, vessel: vesselCompliance });
       const blob = await generateContractBlob(template, tokens);
+      const ext = isPdfTemplate(template) ? 'pdf' : 'docx';
+      const mime = isPdfTemplate(template) ? 'application/pdf' : TEMPLATE_MIME;
       const safeName = (crewMember?.fullName || 'Contract').replace(/[^\w\s-]/g, '').trim();
-      const fileName = `${safeName} — ${template.name}.docx`;
+      const fileName = `${safeName} — ${template.name}.${ext}`;
       // Download for the user…
       saveAs(blob, fileName);
       // …and file a copy under the crew member's Documents.
-      const file = new File([blob], fileName, { type: TEMPLATE_MIME });
+      const file = new File([blob], fileName, { type: mime });
       const uploaded = await uploadDocumentFile(crewId, file);
       const saved = await saveCrewDocument({
         userId: crewId, tenantId: activeTenantId, createdBy: session?.user?.id,
@@ -3711,7 +3713,7 @@ const canEdit = (() => {
                 <div className="cp-rail-card">
                   <div className="h">Contract document</div>
                   <p className="p">Auto-fill a contract from this profile.</p>
-                  <div className="cp-rail-step"><span className="n">1</span><div>Add a Word <b>.docx</b> template with <code>{'{{tokens}}'}</code> (once per role).</div></div>
+                  <div className="cp-rail-step"><span className="n">1</span><div>Add a <b>.docx</b> (with <code>{'{{tokens}}'}</code>) or a fillable <b>.pdf</b> template.</div></div>
                   <div className="cp-rail-step"><span className="n">2</span><div>Cargo maps the tokens to this profile’s data.</div></div>
                   <div className="cp-rail-step"><span className="n">3</span><div>Generate &amp; file a ready contract.</div></div>
                   {activeTemplate && (
