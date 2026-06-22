@@ -510,6 +510,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const LedgerTable = () => {
     const shown = entries.filter(e => serviceFilter === 'all' || e.type === serviceFilter);
     const excludedCount = entries.filter(e => e.excluded).length;
+    const prevDays = entries.filter(e => !e.excluded && routeForVessel(vessels[e.vesselId]) === 'external').reduce((s, e) => s + (e.days || 0), 0);
     return (
       <div className="std-ledger std-card" ref={ledgerRef} style={{ overflow: 'hidden' }}>
         <div className="lhead" style={{ padding: '20px 18px 0', alignItems: 'flex-start' }}>
@@ -542,6 +543,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 {g.items.map(e => {
                   const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
                   const isExcluded = !!e.excluded, isQual = !isExcluded && c.qual, isBad = !isExcluded && !c.qual;
+                  // Provenance: was this gained on a Cargo vessel (auto-captured,
+                  // stamp/virtually verifiable) or a previous/off-Cargo vessel
+                  // (logged by hand, needs an external testimonial)?
+                  const mode = routeForVessel(v), isCargo = mode !== 'external', rm = ROUTE_META[mode];
+                  const provLabel = isCargo ? `Cargo · ${mode === 'stamp' ? 'Stamp' : 'Virtual'}` : 'Previous · External';
                   const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch · ${e.capacity}` : (e.detailOverride || `${tm.hint} · ${e.capacity}`);
                   const qualLabel = e.type === 'seagoing' ? 'Qualifies · seagoing' : e.type === 'watchkeeping' ? 'Qualifies · watchkeeping' : e.type === 'standby' ? 'Counts · standby' : 'Counts · shipyard';
                   return (
@@ -552,6 +558,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         <div className="std-flex std-ac" style={{ gap: 7, flexWrap: 'wrap' }}>
                           <span className="std-avn">{v.name}</span>
                           <span className="std-tag" style={{ color: sm.color, background: sm.bg }}>{sm.label}</span>
+                          <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: rm.color, background: rm.tint }} title={isCargo ? 'Gained on a Cargo vessel — verifiable in-app' : 'Previous / off-Cargo vessel — needs an external testimonial'}>
+                            <span className="pm" style={isCargo ? { background: rm.color } : { borderColor: rm.color }} />{provLabel}
+                          </span>
                         </div>
                         <div className="std-avs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo} · {detail}</div>
                       </div>
@@ -575,7 +584,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             ));
           })()}
         </div>
-        <div className="std-foot" style={{ padding: '14px 18px 18px' }}>{live.length} entries in pack · {buckets.total} qualifying days{excludedCount ? ` · ${excludedCount} excluded` : ''}</div>
+        <div className="std-foot" style={{ padding: '14px 18px 18px' }}>
+          {live.length} entries in pack · {buckets.total} qualifying days{excludedCount ? ` · ${excludedCount} excluded` : ''}
+          {prevDays > 0 && <> · <b style={{ color: '#5A6478' }}>{prevDays} {prevDays === 1 ? 'day' : 'days'} on previous vessels</b> — needs a testimonial</>}
+        </div>
       </div>
     );
   };
