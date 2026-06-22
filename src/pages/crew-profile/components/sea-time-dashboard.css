@@ -297,6 +297,10 @@
 .std-adate{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:15px;color:var(--ink);line-height:1.12;}
 .std-adate span{display:block;font-family:'Inter',system-ui,sans-serif;font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:.01em;margin-top:2px;}
 .std-avn{font-size:13.5px;font-weight:600;color:var(--ink);}
+/* provenance tag — Cargo-gained (filled diamond) vs previous vessel (hollow ring) */
+.std-prov{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:2px 8px 2px 7px;}
+.std-prov .pm{width:7px;height:7px;border-radius:50%;border:1.5px solid currentColor;flex:none;background:transparent;}
+.std-prov.cargo .pm{width:7px;height:7px;border:0;border-radius:1px;transform:rotate(45deg);}
 .std-avs{font-size:11px;color:var(--faint);margin-top:2px;}
 .std-aright{display:flex;flex-direction:column;align-items:flex-end;gap:5px;}
 @media(max-width:760px){
