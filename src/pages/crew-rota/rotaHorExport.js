@@ -337,8 +337,11 @@ function breachAttributionFor(breachReasons, meta, member, ds) {
   return [nameRole, when].filter(Boolean).join('\n');
 }
 
-// Declaration + signature lines, drawn at atY (defaults to near the foot).
-function drawSignatureBlock(doc, pageW, pageH, M, atY, caption) {
+// Declaration + signature lines, drawn at atY (defaults to near the foot). When
+// `sigs` is supplied ({ master, seafarer }, each { img:{dataUrl,w,h}, name, date })
+// the captured e-signatures are drawn above the lines with the signed name +
+// date — the signed record sent to management. Otherwise the lines are blank.
+function drawSignatureBlock(doc, pageW, pageH, M, atY, caption, sigs) {
   const sy = atY != null ? atY : pageH - M - 46;
   doc.setDrawColor(...GRID_LINE); doc.setLineWidth(0.5);
   doc.line(M, sy - 10, pageW - M, sy - 10);
@@ -347,6 +350,25 @@ function drawSignatureBlock(doc, pageW, pageH, M, atY, caption) {
   doc.setFont('helvetica', 'normal'); doc.setTextColor(0); doc.setFontSize(8);
   const sigW = (pageW - 2 * M - 40) / 2;
   const line1 = sy + 30;
+
+  // Draw a captured signature image + signed name/date for one side.
+  const placeSig = (sig, x) => {
+    if (!sig) return;
+    if (sig.img && sig.img.dataUrl) {
+      const hImg = 22;
+      let w = (sig.img.w && sig.img.h) ? hImg * (sig.img.w / sig.img.h) : 90;
+      if (w > sigW) w = sigW;
+      try { doc.addImage(sig.img.dataUrl, 'PNG', x, line1 - hImg - 1, w, hImg); } catch { /* skip a bad image */ }
+    }
+    const stamp = [sig.name, sig.date].filter(Boolean).join('   ·   ');
+    if (stamp) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40);
+      doc.text(stamp, x, line1 + 18);
+    }
+  };
+  placeSig(sigs?.master, M);
+  placeSig(sigs?.seafarer, pageW - M - sigW);
+
   doc.line(M, line1, M + sigW, line1);
   doc.line(pageW - M - sigW, line1, pageW - M, line1);
   doc.setFontSize(7); doc.setTextColor(90);
@@ -356,7 +378,7 @@ function drawSignatureBlock(doc, pageW, pageH, M, atY, caption) {
 
 // One per-seafarer monthly record: header block + 24h work/rest grid with
 // daily + rolling-7-day rest totals, non-conformities, and signatures.
-function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachReasons) {
+function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachReasons, sigs) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const M = 36;
@@ -518,7 +540,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   if (ncRows.length === 0) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(40, 110, 60);
     doc.text('None recorded for this period.', M, ly + 12);
-    drawSignatureBlock(doc, pageW, pageH, M);
+    drawSignatureBlock(doc, pageW, pageH, M, undefined, undefined, sigs);
     return;
   }
 
@@ -531,7 +553,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   );
 
   // The grid is the primary record: sign it on this page regardless of breaches.
-  drawSignatureBlock(doc, pageW, pageH, M);
+  drawSignatureBlock(doc, pageW, pageH, M, undefined, undefined, sigs);
 
   // Dedicated, full-landscape-width table that auto-paginates. Notes carries the
   // reason (rota-time shift note or HOR log); "Recorded by" the author + date.
@@ -561,13 +583,13 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   let endY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 64) + 24;
   if (endY > pageH - M - 64) { doc.addPage(); endY = M + 48; }
   drawSignatureBlock(doc, pageW, pageH, M, endY,
-    'I confirm the non-conformities listed above and the reasons recorded are a true and accurate account.');
+    'I confirm the non-conformities listed above and the reasons recorded are a true and accurate account.', sigs);
 }
 
 // Render the full Record of Hours of Rest document and return the jsPDF doc.
 // Shared by exportRestLogPDF (downloads) and buildRestLogPDF (returns a blob to
 // attach/email) so every delivery path produces the identical document.
-async function renderRestLogDoc({ rows, days, meta, windowShifts = [], breachReasons = {} }) {
+async function renderRestLogDoc({ rows, days, meta, windowShifts = [], breachReasons = {}, signatures = {} }) {
   const members = flatten(rows);
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const logo = await loadCargoLogo();
@@ -583,7 +605,7 @@ async function renderRestLogDoc({ rows, days, meta, windowShifts = [], breachRea
   // Pages 2…N — one formal record per seafarer.
   for (const m of members) {
     doc.addPage();
-    drawSeafarerRecord(doc, m, days, framedShifts, meta, logo, breachReasons);
+    drawSeafarerRecord(doc, m, days, framedShifts, meta, logo, breachReasons, signatures[m.userId]);
   }
 
   // Footer page numbers.
