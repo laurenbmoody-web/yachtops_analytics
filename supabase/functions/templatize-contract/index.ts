@@ -76,6 +76,7 @@ Return ONLY a JSON object (no markdown, no backticks):
 
 Rules:
 - Keep ALL other wording, clause headings, and structure intact — only the individual's particulars become tokens.
+- IGNORE running page furniture. A scanned/exported PDF repeats a page header and footer on every page — e.g. the document title line, "Page No. X of N", "Joining Document N of M", a footer address line, and "Initials of Signees". These are NOT contract text: omit them entirely and output the body as one continuous flow. Do not repeat them between sections, and do not emit the per-page title/footer over and over.
 - Preserve paragraph breaks as newline characters within the JSON string.
 - Use {{token}} exactly (double curly braces, the token name from the list).
 - Do NOT invent clauses or tokens. Return the JSON object only.
