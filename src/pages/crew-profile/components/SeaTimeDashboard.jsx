@@ -686,14 +686,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           {signed && (
             <div className="std-cert">
               <div className="frame">
-                <div className="stamp"><div className="v">✶ VERIFIED ✶</div><div className="c">Captain-signed</div></div>
-                <div className="std-flex std-ac" style={{ gap: 14 }}>
-                  <span className="seal"><Icon name="Anchor" size={22} /></span>
-                  <div>
-                    <div className="ce">Maritime &amp; Coastguard Agency · MIN 642 Annex A</div>
-                    <h2>Testimonial of Sea Service</h2>
-                    <div className="prepared">Prepared for {vp.name}</div>
-                  </div>
+                <div>
+                  <div className="ce">Maritime &amp; Coastguard Agency · MIN 642 Annex A</div>
+                  <h2>Testimonial of Sea Service</h2>
+                  <div className="prepared">Prepared for {vp.name}</div>
                 </div>
                 <div className="drule" /><div className="drule2" />
                 <div className="fields">
