@@ -665,9 +665,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <Icon name="PenLine" size={15} /> Review &amp; attest
               </button>
             ) : requested ? (
-              <button className="std-genbtn" disabled style={{ background: '#FBF0DA', color: '#7A5A12', cursor: 'default' }}>
-                <Icon name="Clock" size={15} /> Awaiting sign-off
-              </button>
+              <div className="std-flex std-ac" style={{ marginLeft: 'auto', gap: 10, flexWrap: 'wrap' }}>
+                <button className="std-genbtn" disabled style={{ marginLeft: 0, background: '#FBF0DA', color: '#7A5A12', cursor: 'default' }}>
+                  <Icon name="Clock" size={15} /> Awaiting sign-off
+                </button>
+                {usingSample && (
+                  <button className="std-genbtn" onClick={onAttest} title="Preview only — there is no live master account on the sample"
+                    style={{ marginLeft: 0, background: '#1C1B3A', color: '#fff', cursor: 'pointer' }}>
+                    <Icon name="PenLine" size={15} /> Preview: attest as Capt. Henrik
+                  </button>
+                )}
+              </div>
             ) : (
               <button className="std-genbtn" onClick={onRequestAttestation} style={{ background: '#C65A1A', color: '#fff', cursor: 'pointer' }}>
                 <Icon name="Send" size={15} /> Request attestation
