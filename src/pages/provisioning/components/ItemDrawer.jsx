@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
+import { HelpHint, HelpHintBuckets } from '../../../components/editorial';
 import Drawer from './Drawer';
 import SupplierPicker from './SupplierPicker';
 import { ITEM_STATUS_CONFIG, ITEM_STATUS_ORDER } from '../data/statusConfig';
@@ -1314,14 +1315,28 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 />
               </div>
               <div style={isLight ? null : { marginTop: 8 }}>
-                {isLight ? <FL>Order notes (visible to supplier)</FL> : <span className={labelCls}>Order notes (visible to supplier)</span>}
+                {isLight ? (
+                  <FL>
+                    Order notes (visible to supplier)
+                    <HelpHint title="What goes in Order notes?" width={300}>
+                      <HelpHintBuckets buckets={[
+                        { label: 'Prep',        example: '"Skin on, pin boned, scaled"' },
+                        { label: 'Packing',     example: '"1 per bag, vac-packed"' },
+                        { label: 'State',       example: '"Ripe not soft, sashimi grade"' },
+                        { label: 'Special',     example: '"Display quality, bones out"' },
+                      ]} />
+                    </HelpHint>
+                  </FL>
+                ) : (
+                  <span className={labelCls}>Order notes (visible to supplier)</span>
+                )}
                 <textarea
                   value={form.notes || ''}
                   onChange={e => set('notes', e.target.value)}
                   onBlur={() => saveField()}
                   rows={2}
                   className={inputCls}
-                  placeholder="Special delivery instructions, substitutions accepted, etc."
+                  placeholder="e.g. Skin on, pin boned, 1 per bag, sashimi grade…"
                 />
               </div>
             </div>

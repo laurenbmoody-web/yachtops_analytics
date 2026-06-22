@@ -2782,6 +2782,10 @@ export const createSupplierOrder = async ({
       requested_quantity:  it.quantity ?? it.qty,
       requested_unit:      it.unit || null,
       requested_size:      it.size || null,
+      // Structured pack count — supplier sees this as the order
+      // spec; receive flow uses it to expect N packages. Distinct
+      // from quantity (order count) and size (the pack size).
+      units_per_pack:      it.units_per_pack ?? null,
       // Fall back to the order's supplier when the item carries no
       // explicit FK — covers the Unassigned-bucket case where the
       // client-side back-fill (setItemsSupplierProfile) runs after
