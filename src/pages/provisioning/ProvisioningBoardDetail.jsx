@@ -167,9 +167,9 @@ const COLUMN_HELP_HINTS = {
     title: 'What goes in Unit?',
     width: 280,
     buckets: [
-      { label: 'Each',   example: 'bottle, can, jar, piece, side' },
-      { label: 'Weight', example: 'kg, g' },
-      { label: 'Bundle', example: 'punnet, bunch, pack, tray, bag' },
+      { label: 'Each',        example: 'bottle, can, jar, piece, side' },
+      { label: 'Measurement', example: 'g, kg, ml, L' },
+      { label: 'Bundle',      example: 'punnet, bunch, pack, tray, bag' },
     ],
   },
   status: {
