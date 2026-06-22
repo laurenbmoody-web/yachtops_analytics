@@ -88,6 +88,7 @@ export function buildContractTokens({ crewMember, empForm, compForm, vessel }) {
     rotation_pattern: e.rotation_pattern || '',
     leave_days: (e.leave_entitlement_days != null && e.leave_entitlement_days !== '') ? String(e.leave_entitlement_days) : '',
     notice_period: e.notice_period || '',
+    port_of_embarkation: e.port_of_embarkation || '',
     sea_reference: e.sea_reference || '',
     contract_standard: crewContractStandard({
       flag: v.flag, commercialStatus: v.commercial_status, certifiedCommercial: v.certified_commercial,
@@ -237,13 +238,18 @@ export async function generateContractBlob(template, tokenData) {
   if (isPdfTemplate(template)) return fillPdf(buf, tokenData);
 
   const zip = new PizZip(buf);
+  // Empty / missing tokens render as a blank fill-in line (so a contract shows
+  // "Date of Birth: ____" rather than a dangling label). Empty strings are
+  // mapped to undefined so nullGetter fires for them too.
+  const fillData = {};
+  for (const [k, v] of Object.entries(tokenData || {})) fillData[k] = (v === '' || v == null) ? undefined : v;
   const doc = new Docxtemplater(zip, {
     paragraphLoop: true,
     linebreaks: true,
     delimiters: { start: '{{', end: '}}' },
-    nullGetter: () => '',   // unknown / empty tokens render as blank, never crash
+    nullGetter: () => '__________',   // unknown / empty tokens → fill-in line, never crash
   });
-  doc.render(tokenData);
+  doc.render(fillData);
   return doc.getZip().generate({ type: 'blob', mimeType: DOCX_MIME });
 }
 
@@ -367,20 +373,32 @@ function furnitureParas(text) {
 function textToDocxBlob(text, { headerText = '', footerText = '', logo = null } = {}) {
   const lines = String(text).split('\n');
   const titleIdx = lines.findIndex((l) => l.trim() !== '');
+  // If the running header already shows the document title, drop it from the
+  // body so it doesn't appear twice on page one.
+  const headerLc = String(headerText || '').toLowerCase();
+  const titleInHeader = titleIdx >= 0 && headerLc.includes(lines[titleIdx].trim().toLowerCase());
   const paras = lines.map((line, idx) => {
     const t = line.trim();
     if (t === '') return '<w:p/>';
     const esc = xmlEscape(line);
     if (idx === titleIdx) {
+      if (titleInHeader) return '';   // de-duplicated — lives in the header
       return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr>`
         + `<w:r><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
     }
     const isHeading = /^\d+\s+[A-Z]/.test(t) && t.length < 70;
     if (isHeading) {
-      return `<w:p><w:pPr><w:spacing w:before="220" w:after="60"/></w:pPr>`
+      return `<w:p><w:pPr><w:spacing w:before="240" w:after="80"/></w:pPr>`
         + `<w:r><w:rPr><w:b/><w:sz w:val="26"/></w:rPr><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
     }
-    return `<w:p><w:r><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
+    // Indent sub-clauses so the structure reads at a glance: "2.1 …" one level,
+    // lettered "a) …" / "a. …" a level deeper. Every body paragraph is spaced.
+    let indent = 0;
+    if (/^\d+\.\d/.test(t)) indent = 360;
+    else if (/^\(?[a-z][).]/.test(t)) indent = 720;
+    const ind = indent ? `<w:ind w:left="${indent}" w:hanging="360"/>` : '';
+    return `<w:p><w:pPr>${ind}<w:spacing w:after="120" w:line="264" w:lineRule="auto"/></w:pPr>`
+      + `<w:r><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
   }).join('');
 
   const hasHeaderText = String(headerText || '').trim() !== '';
