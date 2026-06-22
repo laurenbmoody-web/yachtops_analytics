@@ -181,7 +181,13 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
     if (!draft) return;
     setBusy(true);
     try {
-      const { file: docxFile, notFound } = buildTemplateDocxFile(draft, draftName.trim() || 'Contract template');
+      // A rebuilt (PDF) template gets the vessel logo embedded in its header.
+      let logoUrl = null;
+      if (draft.kind === 'rebuild') {
+        const { data: v } = await supabase.from('vessels').select('logo_url').eq('tenant_id', tenantId).maybeSingle();
+        logoUrl = v?.logo_url || null;
+      }
+      const { file: docxFile, notFound } = await buildTemplateDocxFile(draft, draftName.trim() || 'Contract template', { logoUrl });
       await uploadTemplate({ tenantId, file: docxFile, name: draftName, roles: draftRoles, createdBy });
       setDraft(null); setDraftName(''); setDraftRoles([]);
       if (notFound?.length) {
