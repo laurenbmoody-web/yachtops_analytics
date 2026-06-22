@@ -30,6 +30,31 @@ const IcoPath = ({ d, color, size = 18 }) => (
 const fmtDate = (iso) => { if (!iso) return '—'; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : iso; };
 const ZERO_PRIOR = { seagoing: 0, watchkeeping: 0, total: 0 };
 
+// A testimonial is per-vessel and per-master: each master can only attest the
+// service served on HIS vessel. The route a vessel takes is decided by Cargo
+// membership — the rule the user fixed: a vessel can be STAMPED only when it's
+// registered on Cargo AND both this seafarer and a master are members of it.
+const routeForVessel = (v) => (v?.cargoRegistered && v?.crewMember && v?.captainMember)
+  ? 'stamp'
+  : v?.cargoRegistered ? 'virtual' : 'external';
+
+const ROUTE_META = {
+  stamp:    { label: 'Vessel stamp',         icon: 'BadgeCheck', color: '#3F7A52', bg: '#E7F0E9', tint: '#EFF6F1',
+              how: 'You and the master are both on this vessel in Cargo — it carries the vessel’s verified stamp.' },
+  virtual:  { label: 'Virtual signature',    icon: 'PenLine',    color: '#7A5A12', bg: '#FBEFD9', tint: '#FBF4E4',
+              how: 'The master isn’t on this vessel in Cargo, so they sign virtually — by secure link, in app or by email.' },
+  external: { label: 'External testimonial', icon: 'Upload',     color: '#5A6478', bg: '#EEF0F3', tint: '#F4F5F7',
+              how: 'This vessel isn’t on Cargo — upload the signed testimonial you obtained from the master directly.' }
+};
+// Per-vessel status chip styling (the panel + the certificate table share it).
+const ATT_CHIP = {
+  attested_stamp:    { label: 'Attested in Cargo',  color: '#3F7A52', bg: '#E7F0E9' },
+  attested_virtual:  { label: 'Signed virtually',   color: '#3F7A52', bg: '#E7F0E9' },
+  attested_external: { label: 'Attested externally',color: '#4A5263', bg: '#EEF0F3' },
+  requested:         { label: 'Awaiting master',    color: '#7A5A12', bg: '#FBEFD9' },
+  outstanding:       { label: 'Outstanding',        color: '#A32D2D', bg: '#FCEDEA' }
+};
+
 // Cargo-styled select (native <select> menus can't be themed). `variant`:
 //   'dept' — serif inline trigger · 'goal' — rounded pill trigger.
 const StpSelect = ({ value, options, onChange, variant = 'dept', label }) => {
@@ -73,14 +98,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [serviceFilter, setServiceFilter] = useState('all');
   const [logView, setLogView] = useState('list');
   const [verifier, setVerifier] = useState('pya');
-  const [signatory, setSignatory] = useState('master');
-  const [signed, setSigned] = useState(false);   // master has attested
-  const [requested, setRequested] = useState(false); // crew has requested attestation
+  const signatory = 'master'; // self-attestation is never permitted (MSN 1858)
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const [docMet, setDocMet] = useState({ passport: false, email: true, srb: true, template: true, stamp: false, scan: true, min642: true, sig: true });
   const [form, setForm] = useState({ vesselId: '', from: '', to: '', type: 'watchkeeping', watchHours: 6, capacity: 'Master', region: '' });
   const [qrDataUrl, setQrDataUrl] = useState(null);
+  // Per-vessel attestation: vesselId -> { status, mode, ref, fileName, at }.
+  // status ∈ outstanding | requested | attested ; mode ∈ stamp | virtual | external.
+  const [vesselAttest, setVesselAttest] = useState({});
+  const [uploadFor, setUploadFor] = useState(null); // vesselId awaiting an external file pick
+  const fileRef = useRef(null);
 
   // data source: live Supabase, or a clearly-labelled sample fallback.
   const [vessels, setVessels] = useState(SEED_VESSELS);
@@ -136,14 +164,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         setPrior(ZERO_PRIOR); // TODO: store a lifetime accrual baseline per seafarer.
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
-        // Derive attestation state from the rows' verification status.
+        // Derive attestation state from the rows' verification status, then
+        // project it onto each vessel that appears in the record.
         const sc = rows.reduce((a, r) => {
           const s = r.rawVerificationStatus;
           if (s === 'captain_signed') a.signed += 1; else if (s === 'pending') a.pending += 1; else if (s === 'rejected') a.rejected += 1; else a.draft += 1;
           return a;
         }, { draft: 0, pending: 0, rejected: 0, signed: 0 });
-        setSigned(sc.signed > 0 && sc.pending === 0 && sc.draft === 0);
-        setRequested(sc.pending > 0);
+        const status = (sc.signed > 0 && sc.pending === 0 && sc.draft === 0) ? 'attested' : sc.pending > 0 ? 'requested' : 'outstanding';
+        const usedIds = [...new Set(ents.filter(e => !e.excluded).map(e => e.vesselId))];
+        const va = {};
+        for (const id of usedIds) va[id] = { status, mode: routeForVessel(vMap[id]) };
+        setVesselAttest(va);
       } else {
         // No live entries yet — keep the sample so the page is assessable.
         setUsingSample(true);
@@ -188,6 +220,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const usedVessels = [...new Set(live.map(e => e.vesselId))].map(id => vessels[id]).filter(Boolean);
   const areasCruised = [...new Set(live.map(e => e.region).filter(Boolean))].join(', ') || '—';
 
+  // Per-vessel attestation record. Each vessel takes its own route (stamp /
+  // virtual / external) and carries its own status — the testimonial is built
+  // vessel-by-vessel, since one master can only attest his own ship.
+  const recVessels = usedVessels.map(v => {
+    const mode = routeForVessel(v);
+    const att = vesselAttest[v.id] || { status: 'outstanding', mode };
+    return { ...v, mode, att };
+  });
+  const attestedCount = recVessels.filter(v => v.att.status === 'attested').length;
+  const allAttested = recVessels.length > 0 && attestedCount === recVessels.length;
+  const signed = allAttested; // the consolidated pack is issuable once every vessel is attested
+  const chipKey = (v) => v.att.status === 'attested' ? `attested_${v.att.mode}` : v.att.status;
+
   // real QR once signed (and whenever the assured payload changes)
   useEffect(() => {
     if (!signed) { setQrDataUrl(null); return; }
@@ -197,48 +242,62 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   }, [signed, assurance.qrPayload]);
 
   // ── handlers ──
-  // Any change to the pack invalidates a prior request/attestation.
-  const resetSignoff = () => { setSigned(false); setRequested(false); };
+  // Any change to the pack invalidates every prior attestation.
+  const resetSignoff = () => setVesselAttest({});
   const pickVerifier = (v) => { setVerifier(v); resetSignoff(); };
-  const pickSignatory = (s) => { setSignatory(s); resetSignoff(); };
   const toggleDoc = (id) => { setDocMet(d => ({ ...d, [id]: !d[id] })); resetSignoff(); };
   const reclassify = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, type: 'standby', detailOverride: 'Reclassified from watchkeeping' } : e)); resetSignoff(); flash('Entry reclassified to standby'); };
   const excludeEntry = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, excluded: true } : e)); resetSignoff(); flash('Entry excluded from the pack'); };
-  // Crew can only request; the master reviews the service and attests it.
-  const liveRowIds = () => entries.filter(e => !e.excluded).flatMap(e => e.rowIds || []);
-  const onRequestAttestation = async () => {
+
+  // Per-vessel row ids — so requests and sign-offs touch only that ship.
+  const liveRowIdsFor = (vid) => entries.filter(e => !e.excluded && e.vesselId === vid).flatMap(e => e.rowIds || []);
+  const setVA = (vid, patch) => setVesselAttest(m => ({ ...m, [vid]: { ...(m[vid] || {}), ...patch } }));
+
+  // Crew requests; the master of that vessel reviews and attests it.
+  const requestVessel = async (v) => {
     if (!canGenerate) { flash('Resolve all validation checks first'); return; }
     if (!usingSample && tenantId && userId) {
       try {
-        await submitEntries(tenantId, liveRowIds(), { signedName: seafarer.fullName });
-        // Notify the tenant's master(s) that an attestation is waiting.
+        await submitEntries(tenantId, liveRowIdsFor(v.id), { signedName: seafarer.fullName });
         try {
           const { data: masters } = await supabase.from('tenant_members').select('user_id').eq('tenant_id', tenantId).eq('active', true).ilike('role', 'captain');
           for (const m of masters || []) {
             if (m?.user_id && m.user_id !== userId) {
-              await sendDbNotification(m.user_id, { type: 'sea_time', title: 'Sea-service attestation requested', message: `${seafarer.fullName} has requested you review and attest their sea service.`, actionUrl: `/profile/${userId}?tab=seatime`, severity: 'info' });
+              await sendDbNotification(m.user_id, { type: 'sea_time', title: 'Sea-service attestation requested', message: `${seafarer.fullName} has asked you to review and attest their service on ${v.name}.`, actionUrl: `/profile/${userId}?tab=seatime`, severity: 'info' });
             }
           }
         } catch (ne) { console.warn('attestation notify failed', ne); }
-        flash('Sent to the master to review & attest'); await loadLive();
-      } catch (e) { console.error(e); flash('Could not send for attestation'); }
-      return;
+        await loadLive();
+      } catch (e) { console.error(e); flash('Could not send for attestation'); return; }
+    } else {
+      setVA(v.id, { status: 'requested', mode: v.mode });
     }
-    setRequested(true); flash('Sent to the master to review & attest');
-  };
-  const onAttest = async () => {
-    if (!canGenerate) { flash('Resolve all validation checks first'); return; }
-    if (!usingSample && tenantId && userId) {
-      try { await signEntries(tenantId, liveRowIds(), { signedName: signatoryMeta.name }); flash('Service attested & captain-signed'); await loadLive(); }
-      catch (e) { console.error(e); flash('Could not attest — check your permissions'); }
-      return;
-    }
-    setSigned(true); setRequested(false); flash('Service attested & captain-signed');
+    flash(v.mode === 'virtual' ? `Sent to ${v.captainName || 'the master'} to sign virtually` : `Sent to ${v.captainName || 'the master'} to review & attest`);
   };
 
-  const signatoryMeta = signatory === 'self'
-    ? { name: seafarer.fullName, rank: 'Seafarer (self)', signedAt: null }
-    : { name: 'Capt. Henrik Sõrensen', rank: 'Master', cocNumber: '0094821', signedAt: '2026-04-22' };
+  // The master attests one vessel — a Cargo stamp when both are aboard, else a
+  // virtual signature.
+  const attestVessel = async (v) => {
+    if (!canGenerate) { flash('Resolve all validation checks first'); return; }
+    if (!usingSample && tenantId && userId) {
+      try { await signEntries(tenantId, liveRowIdsFor(v.id), { signedName: v.captainName || 'Master' }); await loadLive(); }
+      catch (e) { console.error(e); flash('Could not attest — check your permissions'); return; }
+    } else {
+      setVA(v.id, { status: 'attested', mode: v.mode, at: '2026-04-22' });
+    }
+    flash(v.mode === 'stamp' ? `${v.name} stamped & attested in Cargo` : `${v.name} signed virtually by ${v.captainName || 'the master'}`);
+  };
+
+  // External testimonial — for a vessel that isn't on Cargo, the crew uploads
+  // the signed paper they obtained from the master directly.
+  const openUpload = (v) => { setUploadFor(v.id); fileRef.current?.click(); };
+  const onExternalFile = (e) => {
+    const f = e.target.files?.[0];
+    if (f && uploadFor) { setVA(uploadFor, { status: 'attested', mode: 'external', fileName: f.name, at: new Date().toISOString().slice(0, 10) }); flash('External testimonial recorded'); }
+    setUploadFor(null); if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const signatoryMeta = { name: 'Master(s) of record', rank: 'Master', signedAt: '2026-04-22' };
 
   const onDownload = async () => {
     try {
@@ -276,7 +335,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           period: { startDate: form.from, endDate: form.to, capacityServed: form.capacity, watchHours: form.watchHours, seaServiceType: form.type === 'seagoing' ? 'Underway' : form.type === 'standby' ? 'Standby' : form.type === 'yard' ? 'Yard period' : 'Underway', pathId: 'mca-oow-yachts' },
           vessel: { vesselName: v.name, flag: v.flag, imoNumber: v.imo, vesselType: v.type, grossTonnage: v.gt, lengthM: v.lengthM }
         });
-        setDrawerOpen(false); setSigned(false); flash('Sea time logged & classified');
+        setDrawerOpen(false); resetSignoff(); flash('Sea time logged & classified');
         await loadLive();
       } catch (e) { console.error(e); flash('Could not save the entry'); }
       return;
@@ -286,7 +345,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     const main = fm(form.from) + (form.to && form.to !== form.from ? ' – ' + fm(form.to) : '');
     const yr = form.from ? new Date(form.from).getFullYear() : 2026;
     const entry = { id: 'e' + Date.now() + Math.random().toString(36).slice(2, 6), vesselId: form.vesselId, label: TYPE_META[form.type].label + ' — ' + (vessels[form.vesselId]?.name || ''), region: form.region, from: form.from, to: form.to || form.from, dateMain: main, dateSub: yr + ' · ' + days + (days === 1 ? ' day' : ' days'), days, type: form.type, watchHours: form.watchHours, capacity: form.capacity, source: 'manual' };
-    setEntries(es => [entry, ...es]); setDrawerOpen(false); setSigned(false); flash('Sea time logged & classified');
+    setEntries(es => [entry, ...es]); setDrawerOpen(false); resetSignoff(); flash('Sea time logged & classified');
   };
 
   const shortMsn = (m) => String(m || '').replace('MSN 1858 Amd 2 ', '').replace('MSN 1859 ', '').replace('MSN 1858 ', '');
@@ -617,39 +676,63 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               </div>
             </div>
 
-            {/* 03 Authorise */}
+            {/* 03 Attest by vessel — one master per ship */}
             <div className="std-fstep">
               <div className="std-fnum">03</div>
               <div>
-                <div className="std-fhead"><span className="std-flabel">Authorise</span></div>
-                <div className="std-ftitle">Master who attests this service</div>
-                <div className="std-opts">
-                  {[{ key: 'master', name: 'Capt. Henrik Sõrensen', sub: 'Master · CoC 0094821', bad: false }, { key: 'self', name: `${seafarer.fullName} (self)`, sub: 'Seafarer — not permitted', bad: true }].map(o => {
-                    const sel = signatory === o.key;
+                <div className="std-fhead">
+                  <span className="std-flabel">Attest by vessel</span>
+                  <span className="std-fchip" style={{ color: '#fff', background: allAttested ? '#5E8E6F' : '#C65A1A' }}>{attestedCount} of {recVessels.length} attested</span>
+                </div>
+                <div className="std-ftitle">Each master attests their own vessel</div>
+                <div className="std-fnote" style={{ color: 'var(--muted)' }}>
+                  <Icon name="Info" size={13} />
+                  A master can only attest service on a vessel he commands. A vessel on Cargo carries the ship’s <b>stamp</b>; otherwise the master <b>signs virtually</b>, or you upload an <b>external testimonial</b> for a vessel that isn’t on Cargo.
+                </div>
+                {!canGenerate && (
+                  <div className="std-fnote" style={{ color: '#A32D2D' }}>
+                    <Icon name="Lock" size={13} /> Locked until step one clears — resolve the {checks.filter(c => !c.ok).length} outstanding check{checks.filter(c => !c.ok).length === 1 ? '' : 's'}.
+                  </div>
+                )}
+                <div className="std-vlist">
+                  {recVessels.map(v => {
+                    const rm = ROUTE_META[v.mode], ck = ATT_CHIP[chipKey(v)];
+                    const done = v.att.status === 'attested';
                     return (
-                      <div className={`std-opt${sel ? ' sel' : ''}${o.bad ? ' bad' : ''}`} key={o.key} onClick={() => pickSignatory(o.key)}>
-                        <span className="rad" />
-                        <div><div className="on">{o.name}</div><div className="os">{o.sub}</div></div>
+                      <div className={`std-vrow${done ? ' done' : ''}`} key={v.id}>
+                        <span className="std-vrail" style={{ background: rm.color }} />
+                        <div className="std-vmain">
+                          <div className="std-vtop">
+                            <span className="vn">{v.name}</span>
+                            <span className="std-vroute" style={{ color: rm.color, background: rm.tint }}><Icon name={rm.icon} size={11} /> {rm.label}</span>
+                          </div>
+                          <div className="std-vmeta">{v.flag} · {v.gt}GT · {v.lengthM}m · {v.captainName || 'Master'}</div>
+                          <div className="std-vhow">{done && v.att.fileName ? `Uploaded · ${v.att.fileName}` : rm.how}</div>
+                        </div>
+                        <div className="std-vact">
+                          <span className="std-vchip" style={{ color: ck.color, background: ck.bg }}>
+                            {done && v.mode === 'stamp' && <Icon name="BadgeCheck" size={12} />} {ck.label}
+                          </span>
+                          {!done && v.mode === 'external' && (
+                            <button className="std-vbtn ghost" disabled={!canGenerate} onClick={() => openUpload(v)}><Icon name="Upload" size={13} /> Upload testimonial</button>
+                          )}
+                          {!done && v.mode !== 'external' && canAttest && (
+                            <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => attestVessel(v)}>
+                              <Icon name={v.mode === 'stamp' ? 'BadgeCheck' : 'PenLine'} size={13} /> {v.mode === 'stamp' ? 'Attest with stamp' : 'Sign virtually'}
+                            </button>
+                          )}
+                          {!done && v.mode !== 'external' && !canAttest && v.att.status === 'outstanding' && (
+                            <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => requestVessel(v)}><Icon name="Send" size={13} /> Request attestation</button>
+                          )}
+                          {!done && v.mode !== 'external' && !canAttest && v.att.status === 'requested' && usingSample && (
+                            <button className="std-vbtn navy" onClick={() => attestVessel(v)} title="Preview only — no live master account on the sample">
+                              <Icon name={v.mode === 'stamp' ? 'BadgeCheck' : 'PenLine'} size={13} /> Preview: {v.mode === 'stamp' ? 'stamp' : 'sign'} as {(v.captainName || 'master').replace('Capt. ', '')}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
-                </div>
-              </div>
-            </div>
-
-            {/* 04 Attestation */}
-            <div className="std-fstep">
-              <div className="std-fnum">04</div>
-              <div>
-                <div className="std-fhead"><span className="std-flabel">Captain attestation</span></div>
-                <div className="std-ftitle">Reviewed &amp; attested by the master</div>
-                <div className="std-fnote" style={{ color: signed ? '#3F7A52' : canGenerate ? 'var(--muted)' : '#A32D2D' }}>
-                  <Icon name={signed ? 'Check' : canGenerate ? 'Eye' : 'Lock'} size={13} />
-                  {signed
-                    ? ' Attested — the master has confirmed the logged service is accurate. The pack can now be exported.'
-                    : canGenerate
-                      ? ' The master must check the logged service is correct and attest it before the pack is issued — it can’t be self-generated.'
-                      : ` Locked until step one clears — resolve the ${checks.filter(c => !c.ok).length} outstanding check${checks.filter(c => !c.ok).length === 1 ? '' : 's'}.`}
                 </div>
               </div>
             </div>
@@ -657,46 +740,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
 
           <div className="std-issue">
             <div>
-              <div className="mlabel">Step 04 · Captain attestation</div>
+              <div className="mlabel">Step 03 · Vessel attestation</div>
               <div className="std-issue-h">
                 {!canGenerate ? `${checks.filter(c => !c.ok).length} check(s) blocking attestation`
-                  : signed ? 'Attested — ready to export'
-                    : canAttest ? 'Ready for your review & attestation'
-                      : requested ? 'Awaiting the master’s attestation'
-                        : 'Ready to send for attestation'}
+                  : allAttested ? 'Every vessel attested — pack ready to export'
+                    : `${attestedCount} of ${recVessels.length} vessels attested — ${recVessels.length - attestedCount} outstanding`}
               </div>
             </div>
-            {!canGenerate ? (
-              <button className="std-genbtn" disabled style={{ background: '#F1EFE9', color: '#AEB4C2', cursor: 'not-allowed' }}>
-                <Icon name="Lock" size={15} /> Blocked
-              </button>
-            ) : signed ? (
-              canAttest && (
-                <button className="std-genbtn" onClick={onAttest} style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC', cursor: 'pointer' }}>
-                  <Icon name="RefreshCw" size={15} /> Re-attest
-                </button>
-              )
-            ) : canAttest ? (
-              <button className="std-genbtn" onClick={onAttest} style={{ background: '#C65A1A', color: '#fff', cursor: 'pointer' }}>
-                <Icon name="PenLine" size={15} /> Review &amp; attest
-              </button>
-            ) : requested ? (
-              <div className="std-flex std-ac" style={{ marginLeft: 'auto', gap: 10, flexWrap: 'wrap' }}>
-                <button className="std-genbtn" disabled style={{ marginLeft: 0, background: '#FBF0DA', color: '#7A5A12', cursor: 'default' }}>
-                  <Icon name="Clock" size={15} /> Awaiting sign-off
-                </button>
-                {usingSample && (
-                  <button className="std-genbtn" onClick={onAttest} title="Preview only — there is no live master account on the sample"
-                    style={{ marginLeft: 0, background: '#1C1B3A', color: '#fff', cursor: 'pointer' }}>
-                    <Icon name="PenLine" size={15} /> Preview: attest as Capt. Henrik
-                  </button>
-                )}
-              </div>
-            ) : (
-              <button className="std-genbtn" onClick={onRequestAttestation} style={{ background: '#C65A1A', color: '#fff', cursor: 'pointer' }}>
-                <Icon name="Send" size={15} /> Request attestation
-              </button>
-            )}
+            {allAttested
+              ? <span className="std-genbtn" style={{ marginLeft: 'auto', background: '#E7F0E9', color: '#3F7A52' }}><Icon name="Check" size={15} /> Attested</span>
+              : <span className="std-genbtn" style={{ marginLeft: 'auto', background: '#FBF0DA', color: '#7A5A12' }}><Icon name="Clock" size={15} /> Attest each vessel above</span>}
           </div>
 
           {signed && (
@@ -718,8 +771,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <div className="field" style={{ gridColumn: '1 / -1' }}><div className="fl">Areas cruised</div><div className="fv">{areasCruised}</div></div>
                 </div>
                 <table>
-                  <thead><tr><th>Vessel</th><th>Type</th><th>Flag · Official no</th><th>GT</th><th>Length</th></tr></thead>
-                  <tbody>{usedVessels.map(v => <tr key={v.id}><td>{v.name}</td><td>{v.type || '—'}</td><td>{v.flag} · {v.officialNo || v.imo || '—'}</td><td>{v.gt} GT</td><td>{v.lengthM} m</td></tr>)}</tbody>
+                  <thead><tr><th>Vessel</th><th>Flag · Official no</th><th>GT</th><th>Length</th><th>Attested via</th></tr></thead>
+                  <tbody>{recVessels.map(v => { const ck = ATT_CHIP[chipKey(v)]; return (
+                    <tr key={v.id}>
+                      <td>{v.name}</td>
+                      <td>{v.flag} · {v.officialNo || v.imo || '—'}</td>
+                      <td>{v.gt} GT</td>
+                      <td>{v.lengthM} m</td>
+                      <td><span className="std-vchip" style={{ color: ck.color, background: ck.bg }}>{v.mode === 'stamp' && <Icon name="BadgeCheck" size={11} />} {ck.label}</span></td>
+                    </tr>
+                  ); })}</tbody>
                 </table>
                 <div className="mlabel" style={{ marginTop: 16 }}>Service totals — totalled separately</div>
                 <div className="totals">
@@ -729,8 +790,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 </div>
                 <div className="std-flex std-between" style={{ alignItems: 'flex-end', marginTop: 22, gap: 20, flexWrap: 'wrap' }}>
                   <div>
-                    <div className="sigline">{signatoryMeta.name}</div>
-                    <div className="vs" style={{ marginTop: 6 }}>{signatory === 'self' ? 'Self — not accepted by MCA' : 'Capt. Henrik Sõrensen · Master · CoC 0094821 · 22/04/2026'}</div>
+                    <div className="sigline">Attested by the master of each vessel</div>
+                    <div className="vs" style={{ marginTop: 6 }}>{recVessels.map(v => `${v.captainName || 'Master'} — ${v.name} (${ROUTE_META[v.mode].label.toLowerCase()})`).join(' · ')}</div>
                   </div>
                   <div className="qrseal">
                     {qrDataUrl ? <img src={qrDataUrl} width={96} height={96} alt="Verification QR" /> : <div style={{ width: 96, height: 96, background: '#F2F2F2' }} />}
@@ -745,7 +806,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <div className="std-flex" style={{ gap: 10, flexWrap: 'wrap' }}>
                   <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={onDownload}><Icon name="Download" size={15} /> Download PDF</button>
                   <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Export data (CSV)</button>
-                  <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => flash('Pack emailed (demo)')}><Icon name="Mail" size={15} /> Email pack</button>
+                  <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => flash('Pack emailed to the verifier (demo)')}><Icon name="Mail" size={15} /> Email pack</button>
+                  <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => flash('Shared in Cargo (demo)')}><Icon name="Send" size={15} /> Send in Cargo</button>
                 </div>
               </div>
             </div>
@@ -810,6 +872,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           </div>
         </>
       )}
+
+      <input ref={fileRef} type="file" accept=".pdf,.png,.jpg,.jpeg" hidden onChange={onExternalFile} />
 
       {toast && <div className="std-toast"><Icon name="Check" size={16} color="#5E8E6F" /> {toast}</div>}
     </div>

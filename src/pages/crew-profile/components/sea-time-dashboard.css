@@ -157,6 +157,32 @@
 .std-opt .os{font-size:11px;color:var(--muted);margin-top:1px;}
 .std-opt.bad .os{color:var(--clay);}
 
+/* ── per-vessel attestation panel (step 03) ── */
+.std-vlist{display:flex;flex-direction:column;margin-top:12px;}
+.std-vrow{display:grid;grid-template-columns:4px 1fr auto;gap:14px;align-items:center;padding:15px 0;border-top:1px solid var(--hair);}
+.std-vrow:first-child{border-top:0;}
+.std-vrail{width:4px;align-self:stretch;border-radius:3px;}
+.std-vmain{min-width:0;}
+.std-vtop{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.std-vtop .vn{font-size:14px;font-weight:600;color:var(--ink);}
+.std-vroute{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;border-radius:999px;padding:3px 9px;}
+.std-vmeta{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.std-vhow{font-size:11.5px;color:var(--ink-soft);margin-top:5px;line-height:1.45;max-width:440px;}
+.std-vact{display:flex;flex-direction:column;align-items:flex-end;gap:8px;white-space:nowrap;}
+.std-vchip{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:4px 10px;}
+.std-vbtn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:9px;padding:8px 13px;font-family:inherit;font-weight:600;font-size:12px;cursor:pointer;}
+.std-vbtn.rust{background:var(--rust);color:#fff;}
+.std-vbtn.rust:hover{background:var(--rust-2);}
+.std-vbtn.navy{background:var(--ink);color:#fff;}
+.std-vbtn.ghost{background:#fff;color:var(--ink);border:1px solid var(--border);}
+.std-vbtn.ghost:hover{border-color:#D6D9E0;}
+.std-vbtn:disabled{opacity:.45;cursor:not-allowed;}
+.std-vrow.done .std-vrail{opacity:.6;}
+@media(max-width:680px){
+  .std-vrow{grid-template-columns:4px 1fr;}
+  .std-vact{grid-column:2;align-items:flex-start;}
+}
+
 /* issue bar */
 .std-issue{display:flex;align-items:center;gap:14px;padding:18px 28px;border-top:1px solid var(--hair-2);background:var(--soft,#FAFAF8);flex-wrap:wrap;}
 .std-gate-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;}
