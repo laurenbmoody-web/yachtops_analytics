@@ -1036,9 +1036,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
 
       {/* ── external testimonial — ship's-stamp confirmation before upload ── */}
       {extConfirm && createPortal(
-        <>
-          <div className="cso-scrim" onClick={() => setExtConfirm(null)} />
-          <div className="cso" role="dialog" aria-modal="true" aria-label="Upload signed testimonial" style={{ width: 480 }}>
+        <div className="cso-overlay" onClick={() => setExtConfirm(null)}>
+          <div className="cso" role="dialog" aria-modal="true" aria-label="Upload signed testimonial" style={{ width: 480 }} onClick={e => e.stopPropagation()}>
             <button className="cso-x" onClick={() => setExtConfirm(null)} aria-label="Close"><Icon name="X" size={18} /></button>
             <div className="cso-head">
               <div className="cso-eyebrow">External testimonial · MSN 1858</div>
@@ -1060,7 +1059,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               <button className="cso-btn rust" disabled={!extStamped} onClick={pickExternalFile}><Icon name="Upload" size={15} /> Choose file</button>
             </div>
           </div>
-        </>,
+        </div>,
         document.body
       )}
 

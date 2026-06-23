@@ -182,10 +182,9 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
 
   if (variant === 'pane') return <div className="cso cso-pane" role="region" aria-label="Captain sign-off">{content}</div>;
   return createPortal(
-    <>
-      <div className="cso-scrim" onClick={onClose} />
-      <div className="cso" role="dialog" aria-modal="true" aria-label="Captain sign-off">{content}</div>
-    </>,
+    <div className="cso-overlay" onClick={onClose}>
+      <div className="cso" role="dialog" aria-modal="true" aria-label="Captain sign-off" onClick={e => e.stopPropagation()}>{content}</div>
+    </div>,
     document.body
   );
 }
