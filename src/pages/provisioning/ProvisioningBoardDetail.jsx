@@ -190,6 +190,74 @@ const COLUMN_HELP_HINTS = {
 // other selection surfaces can adopt it without re-implementing.
 // Imported below alongside the other component imports.
 
+// ── History action taxonomy ───────────────────────────────────────────────────
+//
+// Per-action display metadata for the History tab. Pulls each row's
+// short uppercase TAG (renders next to the summary as a pill), its
+// source category (Crew / Supplier — backs the filter pills), and
+// the dot colour the row shows in the timeline.
+//
+// Source classification cheatsheet — both tables flow into the merged
+// timeline, so we tag by event_type rather than relying on actor_name
+// (which is missing on a few of the older writes and falls back to
+// "Supplier" even for chief-driven rows like vessel_approved_quote):
+//   * activity_events rows (uppercase PROVISION_…) → crew
+//   * supplier_order_activity rows (prefixed supplier_ on merge)
+//     → "supplier" bucket regardless of who actually triggered the
+//     event, because the chief reads them as "the supplier
+//     conversation". The summary text already says "Vessel reopened
+//     X" / "Supplier quoted X" so the actor stays unambiguous.
+const HISTORY_ACTION_META = {
+  // Crew / board edits
+  PROVISION_ITEM_ADDED:            { tag: 'Added',      source: 'crew',     dot: '#059669' },
+  PROVISION_ITEM_RECEIVED:         { tag: 'Received',   source: 'crew',     dot: '#059669' },
+  PROVISION_DELIVERY_SCANNED:      { tag: 'Scanned',    source: 'crew',     dot: '#059669' },
+  PROVISION_INBOX_CLAIMED:         { tag: 'Claimed',    source: 'crew',     dot: '#059669' },
+  PROVISION_CROSS_DEPT_CONFIRMED:  { tag: 'Cross-dept', source: 'crew',     dot: '#1E3A5F' },
+  PROVISION_ITEM_QTY_CHANGED:      { tag: 'Qty',        source: 'crew',     dot: '#D97706' },
+  PROVISION_ITEM_COST_CHANGED:     { tag: 'Cost',       source: 'crew',     dot: '#D97706' },
+  PROVISION_ITEM_UPDATED:          { tag: 'Update',     source: 'crew',     dot: '#D97706' },
+  PROVISION_BOARD_UPDATED:         { tag: 'Board',      source: 'crew',     dot: '#D97706' },
+  PROVISION_BOARD_STATUS_CHANGED:  { tag: 'Status',     source: 'crew',     dot: '#D97706' },
+  PROVISION_ITEM_DELETED:          { tag: 'Removed',    source: 'crew',     dot: '#DC2626' },
+  // Supplier conversation (supplier_order_activity)
+  supplier_quote_received:             { tag: 'Quoted',        source: 'supplier', dot: '#C65A1A' },
+  supplier_quote_accepted:             { tag: 'Accepted',      source: 'supplier', dot: '#2E7D5A' },
+  supplier_quote_declined:             { tag: 'Declined',      source: 'supplier', dot: '#991B1B' },
+  supplier_line_reopened:              { tag: 'Reopened',      source: 'supplier', dot: '#D97706' },
+  supplier_supplier_requested_reopen:  { tag: 'Reopen asked',  source: 'supplier', dot: '#D97706' },
+  supplier_vessel_approved_quote:      { tag: 'Approved',      source: 'supplier', dot: '#2E7D5A' },
+  supplier_discussion_opened:          { tag: 'Discussion',    source: 'supplier', dot: '#1E3A5F' },
+};
+
+const getHistoryActionMeta = (action) =>
+  HISTORY_ACTION_META[action] || { tag: 'Event', source: 'system', dot: '#94A3B8' };
+
+// Render an inline diff if the meta payload carries a recognisable
+// previous → current pair. Supplier quote events store the agreed
+// price and currency; reopens store the previous status. Returns
+// the diff text (e.g. "GBP 22 → GBP 25", "confirmed → pending") or
+// null if no diff is encodable from the payload.
+const formatHistoryDiff = (action, meta) => {
+  if (!meta) return null;
+  if (action === 'supplier_quote_received' || action === 'supplier_quote_accepted') {
+    const cur = meta.agreed_currency || '';
+    const price = meta.agreed_price;
+    return price != null ? `${cur} ${price}`.trim() : null;
+  }
+  if (action === 'supplier_quote_declined') {
+    const cur = meta.declined_currency || '';
+    const price = meta.declined_quoted_price;
+    return price != null ? `${cur} ${price}`.trim() : null;
+  }
+  if (action === 'supplier_line_reopened' && meta.previous_status) {
+    return `${meta.previous_status} → pending`;
+  }
+  if (action === 'supplier_supplier_requested_reopen' && meta.reason) {
+    return `"${meta.reason}"`;
+  }
+  return null;
+};
 
 // ── Edit Board Modal ──────────────────────────────────────────────────────────
 
@@ -2137,6 +2205,13 @@ const ProvisioningBoardDetail = () => {
   const [supplierNotesOpen, setSupplierNotesOpen] = useState(false);
   const supplierNotesRef = useRef(null);
 
+  // History tab source filter — driven by the "View in history" link
+  // in the supplier-notes popover (which prefills 'supplier' so the
+  // chief lands on a focused timeline) and by the filter pills above
+  // the History list. Persists across tab switches so the popover
+  // hand-off survives a round-trip via the Items tab.
+  const [historySourceFilter, setHistorySourceFilter] = useState('all');
+
   useEffect(() => {
     if (!list?.id || !user?.id) return undefined;
     let cancelled = false;
@@ -2765,7 +2840,15 @@ const ProvisioningBoardDetail = () => {
                           );
                         })}
                       </div>
-                      <div className="pv-board-supplier-popover-foot">
+                      {/* Two-link footer. "Jump to items" stays the
+                          primary action — the chief usually wants to
+                          act on the line. "View in history" is the
+                          new audit trail entrypoint: prefills the
+                          History tab's source filter to 'supplier'
+                          so the resulting timeline is just the
+                          back-and-forth with the supplier, not the
+                          crew's own edits. */}
+                      <div className="pv-board-supplier-popover-foot pv-board-supplier-popover-foot-split">
                         <button
                           type="button"
                           className="pv-board-supplier-popover-link"
@@ -2779,6 +2862,17 @@ const ProvisioningBoardDetail = () => {
                           }}
                         >
                           Jump to items →
+                        </button>
+                        <button
+                          type="button"
+                          className="pv-board-supplier-popover-link pv-board-supplier-popover-link-secondary"
+                          onClick={() => {
+                            setSupplierNotesOpen(false);
+                            setHistorySourceFilter('supplier');
+                            setActiveTab('history');
+                          }}
+                        >
+                          View in history →
                         </button>
                       </div>
                     </div>
@@ -4193,27 +4287,69 @@ const ProvisioningBoardDetail = () => {
             {activityLoading ? (
               <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading…</div>
             ) : (() => {
-              // Action → dot color mapping
-              const dotColor = (action) => {
-                if (['PROVISION_ITEM_RECEIVED', 'PROVISION_DELIVERY_SCANNED', 'PROVISION_ITEM_ADDED', 'PROVISION_INBOX_CLAIMED'].includes(action)) return '#059669'; // green
-                if (['PROVISION_CROSS_DEPT_CONFIRMED'].includes(action)) return '#1E3A5F'; // navy
-                if (['PROVISION_ITEM_QTY_CHANGED', 'PROVISION_ITEM_COST_CHANGED', 'PROVISION_ITEM_UPDATED', 'PROVISION_BOARD_UPDATED', 'PROVISION_BOARD_STATUS_CHANGED'].includes(action)) return '#D97706'; // amber
-                if (['PROVISION_ITEM_DELETED'].includes(action)) return '#DC2626'; // red
-                return '#94A3B8'; // gray
+              // Normalize each merged event into a render-ready entry
+              // (tag, source, dot colour, optional diff). Sort newest
+              // first so the filter pills can slice the list without
+              // re-deriving the order.
+              const allEntries = activityEvents.map(ev => {
+                const m = getHistoryActionMeta(ev.action);
+                return {
+                  key: ev.id,
+                  date: ev.createdAt ? new Date(ev.createdAt) : null,
+                  dot: m.dot,
+                  tag: m.tag,
+                  source: m.source,
+                  diff: formatHistoryDiff(ev.action, ev.meta),
+                  summary: ev.summary || ev.action,
+                  meta: ev.meta || {},
+                  action: ev.action,
+                  actorName: ev.actorName,
+                  actorDepartment: ev.actorDepartment,
+                };
+              }).filter(e => e.date).sort((a, b) => b.date - a.date);
+
+              const filteredEntries = historySourceFilter === 'all'
+                ? allEntries
+                : allEntries.filter(e => e.source === historySourceFilter);
+
+              const counts = {
+                all:      allEntries.length,
+                crew:     allEntries.filter(e => e.source === 'crew').length,
+                supplier: allEntries.filter(e => e.source === 'supplier').length,
+                system:   allEntries.filter(e => e.source === 'system').length,
               };
 
-              const entries = activityEvents.map(ev => ({
-                key: ev.id,
-                date: ev.createdAt ? new Date(ev.createdAt) : null,
-                dot: dotColor(ev.action),
-                summary: ev.summary || ev.action,
-                meta: ev.meta || {},
-                action: ev.action,
-                actorName: ev.actorName,
-                actorDepartment: ev.actorDepartment,
-              })).filter(e => e.date).sort((a, b) => b.date - a.date);
+              // Filter pill row. Empty buckets stay clickable but
+              // dimmed, so the chief can see at a glance that there
+              // are no supplier events yet without having to click
+              // and land on a confusing empty state.
+              const FilterPills = () => {
+                const pills = [
+                  { value: 'all',      label: 'Everyone',  count: counts.all },
+                  { value: 'crew',     label: 'Crew',      count: counts.crew },
+                  { value: 'supplier', label: 'Supplier',  count: counts.supplier },
+                ];
+                if (counts.system > 0) {
+                  pills.push({ value: 'system', label: 'System', count: counts.system });
+                }
+                return (
+                  <div className="pv-history-filter-row">
+                    {pills.map(p => (
+                      <button
+                        key={p.value}
+                        type="button"
+                        className={`pv-history-filter-pill${historySourceFilter === p.value ? ' is-active' : ''}${p.count === 0 ? ' is-empty' : ''}`}
+                        onClick={() => setHistorySourceFilter(p.value)}
+                      >
+                        {p.label}
+                        <span className="pv-history-filter-count">{p.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              };
 
-              if (entries.length === 0) {
+              if (allEntries.length === 0) {
                 return (
                   <div style={{ padding: '80px 0', textAlign: 'center' }}>
                     <Icon name="Clock" style={{ width: 32, height: 32, color: '#CBD5E1', margin: '0 auto 12px', display: 'block' }} />
@@ -4225,7 +4361,22 @@ const ProvisioningBoardDetail = () => {
 
               return (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {entries.map((entry, idx) => {
+                  <FilterPills />
+                  {filteredEntries.length === 0 && (
+                    <div style={{ padding: '48px 0', textAlign: 'center' }}>
+                      <p style={{ fontSize: 13, color: '#64748B' }}>
+                        No {historySourceFilter} activity yet on this board.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setHistorySourceFilter('all')}
+                        style={{ marginTop: 8, fontSize: 12, color: '#C65A1A', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        Show everyone
+                      </button>
+                    </div>
+                  )}
+                  {filteredEntries.map((entry, idx) => {
                     let relTime = '';
                     let absTime = '';
                     try {
@@ -4235,7 +4386,7 @@ const ProvisioningBoardDetail = () => {
                     const isExpanded = expandedHistory === entry.key;
                     const hasMeta = Object.keys(entry.meta).length > 0;
                     return (
-                      <div key={entry.key} style={{ borderBottom: idx < entries.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
+                      <div key={entry.key} style={{ borderBottom: idx < filteredEntries.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
                         {/* Collapsed row */}
                         <div
                           onClick={() => hasMeta && setExpandedHistory(isExpanded ? null : entry.key)}
@@ -4243,9 +4394,15 @@ const ProvisioningBoardDetail = () => {
                         >
                           {hasMeta && <span style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, flexShrink: 0 }}>{isExpanded ? '▾' : '▸'}</span>}
                           {!hasMeta && <span style={{ width: 14, flexShrink: 0 }} />}
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.dot, flexShrink: 0, marginTop: 5 }} />
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.dot, flexShrink: 0, marginTop: 6 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{entry.summary}</p>
+                            <p style={{ margin: 0, fontSize: 13, color: '#0F172A', fontWeight: 500, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                              <span className={`pv-history-tag pv-history-tag-${entry.source}`}>{entry.tag}</span>
+                              <span>{entry.summary}</span>
+                              {entry.diff && (
+                                <span className="pv-history-diff">{entry.diff}</span>
+                              )}
+                            </p>
                             {entry.actorDepartment && (
                               <p style={{ margin: '3px 0 0', fontSize: 11, color: '#94A3B8' }}>{entry.actorDepartment}</p>
                             )}
