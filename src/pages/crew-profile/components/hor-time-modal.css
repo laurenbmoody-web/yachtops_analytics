@@ -35,7 +35,7 @@
 /* Tappable Start / End fields */
 .htm-fields { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .htm-field {
-  flex: 1; text-align: left; border: 1px solid #ECEAE3; border-radius: 12px;
+  flex: 1; text-align: center; border: 1px solid #ECEAE3; border-radius: 12px;
   padding: 9px 13px; background: #FAFAF8; cursor: pointer;
 }
 .htm-field.act { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
