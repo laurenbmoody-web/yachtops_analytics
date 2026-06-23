@@ -1223,7 +1223,7 @@ const canEdit = (() => {
       const { data: lastDoc } = await supabase
         .from('personal_documents')
         .select('updated_at, file_url, file_name')
-        .eq('user_id', crewId).in('doc_type', ['employment_contract', 'Employment Contract'])
+        .eq('user_id', crewId).in('doc_type', ['generated_contract', 'employment_contract', 'Employment Contract'])
         .order('updated_at', { ascending: false }).limit(1).maybeSingle();
       if (cancelled) return;
       setEmpForm(emp || {});
@@ -1322,18 +1322,23 @@ const canEdit = (() => {
       const fileName = `${safeName} — ${template.name}.${ext}`;
       // Download for the user…
       saveAs(blob, fileName);
-      // …and file a copy under the crew member's Documents.
+      // A generated contract is a DRAFT, not the record of truth — it isn't filed
+      // under Issued documents (that's for the signed-by-both version, uploaded
+      // by COMMAND). We keep only the latest draft, hidden, for the re-download
+      // link in "Last generated".
       const file = new File([blob], fileName, { type: mime });
+      await supabase.from('personal_documents')
+        .delete().eq('user_id', crewId).eq('doc_type', 'generated_contract');
       const uploaded = await uploadDocumentFile(crewId, file);
       const saved = await saveCrewDocument({
         userId: crewId, tenantId: activeTenantId, createdBy: session?.user?.id,
-        category: 'issued', docType: 'employment_contract', title: template.name,
+        category: 'generated', docType: 'generated_contract', title: template.name,
         fileUrl: uploaded.file_url, fileName: uploaded.file_name,
         mimeType: uploaded.mime_type, sizeBytes: uploaded.size_bytes,
       });
       setSelectedTemplate(template);
       setLastGenerated({ updated_at: saved?.updated_at || new Date().toISOString(), file_url: uploaded.file_url, file_name: fileName });
-      showToast('Contract generated and saved to Documents.', 'success');
+      showToast('Draft contract generated and downloaded. Upload the signed copy to Issued documents when ready.', 'success');
     } catch (e) {
       console.error('[contract] generation failed', e);
       showToast(e?.properties?.errors?.[0]?.message || e?.message || 'Could not generate the contract.', 'error');
