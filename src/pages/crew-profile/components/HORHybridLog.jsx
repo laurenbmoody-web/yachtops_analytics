@@ -155,6 +155,12 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   const [wStartM, setWStartM] = useState(0);
   const [wEndH, setWEndH] = useState(12);
   const [wEndM, setWEndM] = useState(0);
+  // Optional break carved out of the block (left as rest).
+  const [breakOn, setBreakOn] = useState(false);
+  const [bBreakSH, setBBreakSH] = useState(12);
+  const [bBreakSM, setBBreakSM] = useState(0);
+  const [bBreakEH, setBBreakEH] = useState(13);
+  const [bBreakEM, setBBreakEM] = useState(0);
   const [draftSegs, setDraftSegs] = useState(() => new Set());
   const [draftTypes, setDraftTypes] = useState({});
   const painting = useRef(false);
@@ -293,13 +299,21 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     const segs = new Set(draftSegs);
     const types = { ...draftTypes };
     for (let i = s; i < e; i += 1) { segs.add(i); types[i] = wheelType; }
+    // Carve the break back out to rest (only the part inside the block).
+    let breakSegs = 0;
+    if (breakOn) {
+      const bs = Math.max(s, bBreakSH * 2 + (bBreakSM >= 30 ? 1 : 0));
+      const be = Math.min(e, bBreakEH * 2 + (bBreakEM >= 30 ? 1 : 0));
+      for (let i = bs; i < be; i += 1) { segs.delete(i); delete types[i]; breakSegs += 1; }
+    }
     setDraftSegs(segs);
     setDraftTypes(types);
     draftRef.current = { segs, types };
     addWorkEntries(crewId, [{ date: selectedDate, workSegments: Array.from(segs).sort((a, b) => a - b), segmentTypes: types, source: 'edited' }]);
     afterSave();
     setShowWheel(false);
-    showToast(`Added ${segToHHMM(s)}–${e === SEG_PER_DAY ? '24:00' : segToHHMM(e)}`, 'success');
+    const range = `${segToHHMM(s)}–${e === SEG_PER_DAY ? '24:00' : segToHHMM(e)}`;
+    showToast(breakSegs > 0 ? `Added ${range} (${Number((breakSegs * 0.5).toFixed(1))}h break)` : `Added ${range}`, 'success');
   };
 
   const clearDay = () => {
@@ -456,7 +470,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           {isRota && <button type="button" className="cp-preset act" onClick={logAsRostered}>✓ Log as rostered</button>}
           <button type="button" className="cp-preset" onClick={clearDay}>Clear (off)</button>
           {cd.source === 'actual' && <button type="button" className="cp-preset" onClick={resetToBaseline}>Reset to rota</button>}
-          <button type="button" className="cp-preset" onClick={() => { setShowWheel((v) => !v); setWheelType(brush); setActiveField('start'); setShowApply(false); setSavingTpl(false); }}>Enter times ▾</button>
+          <button type="button" className="cp-preset" onClick={() => { setShowWheel((v) => !v); setWheelType(brush); setActiveField('start'); setBreakOn(false); setShowApply(false); setSavingTpl(false); }}>Enter times ▾</button>
           <button type="button" className="cp-preset" onClick={() => { setShowApply((v) => !v); setSavingTpl(false); setShowWheel(false); }}>Apply template ▾</button>
           <button type="button" className="cp-preset act" onClick={() => { setSavingTpl((v) => !v); setShowApply(false); setShowWheel(false); }}>+ Add template</button>
         </div>
@@ -465,10 +479,32 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           const s = wStartH * 2 + (wStartM >= 30 ? 1 : 0);
           const e = Math.min(SEG_PER_DAY, wEndH * 2 + (wEndM >= 30 ? 1 : 0));
           const valid = e > s;
-          const dur = valid
-            ? `${hhmm(wStartH, wStartM)}–${wEndH === 24 ? '24:00' : hhmm(wEndH, wEndM)} · ${Number(((e - s) * 0.5).toFixed(1))}h block`
-            : 'End must be after start';
-          const isStart = activeField === 'start';
+          // Break, clamped to the block — only the overlap counts as rest.
+          const rawBS = bBreakSH * 2 + (bBreakSM >= 30 ? 1 : 0);
+          const rawBE = bBreakEH * 2 + (bBreakEM >= 30 ? 1 : 0);
+          const breakSegs = breakOn ? Math.max(0, Math.min(e, rawBE) - Math.max(s, rawBS)) : 0;
+          const breakValid = !breakOn || (rawBE > rawBS && breakSegs > 0);
+          const onDuty = Number(((e - s - breakSegs) * 0.5).toFixed(1));
+          const range = `${hhmm(wStartH, wStartM)}–${wEndH === 24 ? '24:00' : hhmm(wEndH, wEndM)}`;
+          let dur;
+          if (!valid) dur = 'End must be after start';
+          else if (breakOn && !breakValid) dur = 'Break must sit inside the block';
+          else dur = `${range} · ${onDuty}h on duty${breakSegs > 0 ? ` (${Number((breakSegs * 0.5).toFixed(1))}h break)` : ''}`;
+
+          // The wheels edit whichever field is active (start/end/break start/end).
+          const FIELDS = {
+            start: { h: wStartH, sh: setWStartH, m: wStartM, sm: setWStartM, hours: HOURS_START },
+            end: { h: wEndH, sh: setWEndH, m: wEndM, sm: setWEndM, hours: HOURS_END },
+            breakStart: { h: bBreakSH, sh: setBBreakSH, m: bBreakSM, sm: setBBreakSM, hours: HOURS_START },
+            breakEnd: { h: bBreakEH, sh: setBBreakEH, m: bBreakEM, sm: setBBreakEM, hours: HOURS_END },
+          };
+          const af = FIELDS[activeField] || FIELDS.start;
+          const fieldBtn = (key, label, h, m) => (
+            <button type="button" className={`htm-field${activeField === key ? ' act' : ''}`} onClick={() => setActiveField(key)}>
+              <span className="htm-k">{label}</span>
+              <span className="htm-v">{h === 24 ? '24:00' : hhmm(h, m)}</span>
+            </button>
+          );
           return (
             <div className="htm-overlay" onMouseDown={(ev) => { if (ev.target === ev.currentTarget) setShowWheel(false); }}>
               <div className="htm-modal" role="dialog" aria-modal="true" aria-label="Add a time block">
@@ -483,35 +519,37 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
                 </div>
 
                 <div className="htm-fields">
-                  <button type="button" className={`htm-field${isStart ? ' act' : ''}`} onClick={() => setActiveField('start')}>
-                    <span className="htm-k">Start</span>
-                    <span className="htm-v">{hhmm(wStartH, wStartM)}</span>
-                  </button>
+                  {fieldBtn('start', 'Start', wStartH, wStartM)}
                   <span className="htm-arrow" aria-hidden="true">→</span>
-                  <button type="button" className={`htm-field${!isStart ? ' act' : ''}`} onClick={() => setActiveField('end')}>
-                    <span className="htm-k">End</span>
-                    <span className="htm-v">{wEndH === 24 ? '24:00' : hhmm(wEndH, wEndM)}</span>
-                  </button>
+                  {fieldBtn('end', 'End', wEndH, wEndM)}
                 </div>
 
+                {breakOn && (
+                  <div className="htm-fields htm-fields-break">
+                    {fieldBtn('breakStart', 'Break from', bBreakSH, bBreakSM)}
+                    <span className="htm-arrow" aria-hidden="true">→</span>
+                    {fieldBtn('breakEnd', 'Break to', bBreakEH, bBreakEM)}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className={`htm-breaktoggle${breakOn ? ' on' : ''}`}
+                  onClick={() => setBreakOn((v) => { const nv = !v; setActiveField(nv ? 'breakStart' : 'start'); return nv; })}
+                >
+                  {breakOn ? '× Remove break' : '+ Add a break'}
+                </button>
+
                 <div className="htm-wheels">
-                  <Wheel
-                    items={isStart ? HOURS_START : HOURS_END}
-                    value={isStart ? wStartH : wEndH}
-                    onChange={isStart ? setWStartH : setWEndH}
-                  />
+                  <Wheel items={af.hours} value={af.h} onChange={af.sh} />
                   <span className="htm-colon">:</span>
-                  <Wheel
-                    items={MINUTES}
-                    value={isStart ? wStartM : wEndM}
-                    onChange={isStart ? setWStartM : setWEndM}
-                  />
+                  <Wheel items={MINUTES} value={af.m} onChange={af.sm} />
                 </div>
 
                 <div className="htm-dur">{dur}</div>
                 <div className="htm-actions">
                   <button type="button" className="htm-cancel" onClick={() => setShowWheel(false)}>Cancel</button>
-                  <button type="button" className="htm-add" onClick={addTimeBlock} disabled={!valid}>Add block</button>
+                  <button type="button" className="htm-add" onClick={addTimeBlock} disabled={!valid || !breakValid}>Add block</button>
                 </div>
               </div>
             </div>
