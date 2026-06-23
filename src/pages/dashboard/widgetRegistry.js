@@ -78,10 +78,16 @@ export const WIDGET_META = {
     allowedTiers: WIDGET_PERMISSIONS.ALL,
     defaultColumn: 'center',
   },
+  vesselDocRenewals: {
+    id: 'vesselDocRenewals',
+    title: 'Document Renewals',
+    allowedTiers: WIDGET_PERMISSIONS.COMMAND_CHIEF,
+    defaultColumn: 'right',
+  },
 };
 
 export const DEFAULT_LAYOUT = {
   left:   ['teamJobs', 'rota', 'todaySnapshot', 'recentActivity'],
   center: ['vesselView', 'laundry', 'quickActions', 'pantry'],
-  right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'provisioning'],
+  right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'vesselDocRenewals', 'provisioning'],
 };
