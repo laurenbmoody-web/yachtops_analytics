@@ -48,6 +48,7 @@ Extract these fields and return ONLY a JSON object (no markdown, no backticks):
 Rules:
 - Choose the single best doc_type id; use "other" if unsure and put a short name in details.custom_label.
 - Dates MUST be YYYY-MM-DD. Convert any format (e.g. 14 MAR 2026, 03/14/2026) correctly; if a date is ambiguous prefer day/month/year. Use null if not present.
+- For a CoC, set details.grade to the licence grade/capacity exactly as printed on the document (e.g. "OOW <3000GT", "Master <500GT", "Y4 / OOW (Yachts)", "Chief Mate unlimited"). Match one of these standard grades where the document clearly corresponds to it: ${JSON.stringify(['Master <500GT', 'Master <3000GT', 'Master unlimited', 'Chief Mate <3000GT', 'Chief Mate unlimited', 'OOW <3000GT', 'OOW unlimited', 'Y4 / OOW (Yachts)', 'Y3 / Master <500GT', 'Y2 / Master <3000GT', 'Y1 / Master <3000GT (>500GT)', 'Engineering — MEOL (Yachts)', 'Engineering — SV / Y4', 'Engineering — Y3', 'Engineering — Y2', 'Engineering — Y1'])}. If none fit, return the grade as printed.
 - Do not invent values. Use null when a field is not visible.
 - Return the JSON object only.`;
 

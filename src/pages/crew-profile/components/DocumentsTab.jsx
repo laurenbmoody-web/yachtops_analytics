@@ -171,7 +171,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
               className="hidden"
             />
             <Button variant="outline" iconName="Sparkles" size="sm" onClick={() => scanInputRef.current?.click()}>
-              Scan &amp; auto-fill
+              Auto-fill from upload
             </Button>
             <Button iconName="Plus" size="sm" onClick={() => openAdd()}>Add document</Button>
           </div>
@@ -181,7 +181,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
       {scanning && (
         <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs" style={{ background: '#FAEEDA', color: '#7A2E1E' }}>
           <LogoSpinner size={14} />
-          <span>Reading document{scanQueue.length > 1 ? ` ${scanIdx + 1} of ${scanQueue.length}` : ''} with AI…</span>
+          <span>Reading your upload{scanQueue.length > 1 ? ` ${scanIdx + 1} of ${scanQueue.length}` : ''}…</span>
         </div>
       )}
 

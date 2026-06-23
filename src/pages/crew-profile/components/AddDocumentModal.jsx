@@ -117,7 +117,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
       {prefill && !form.id && (
         <div className="flex items-start gap-2 mb-4 px-3 py-2 rounded-lg text-xs" style={{ background: '#FAEEDA', color: '#7A2E1E' }}>
           <Icon name="Sparkles" size={14} className="flex-shrink-0 mt-0.5" />
-          <span>Auto-filled from the scan — please check each field before saving.</span>
+          <span>Pre-filled from your upload — please check each field before saving.</span>
         </div>
       )}
 
@@ -167,6 +167,11 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
             {f.type === 'select' ? (
               <select className={boxCls} value={form.details?.[f.key] || ''} onChange={(e) => setDetail(f.key, e.target.value)}>
                 <option value="">Select…</option>
+                {/* Keep a parsed/saved value that isn't in the preset list (e.g. an
+                    AI-read licence grade) so it still shows as selected. */}
+                {form.details?.[f.key] && !f.options.includes(form.details[f.key]) && (
+                  <option value={form.details[f.key]}>{form.details[f.key]}</option>
+                )}
                 {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             ) : f.type === 'date' ? (
@@ -179,18 +184,22 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
 
         {/* File */}
         <div className="md:col-span-2">
-          <label className={labelCls}>Scan / file (optional)</label>
+          <label className={labelCls}>File (optional)</label>
           <input
             type="file"
             accept="image/*,application/pdf"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
             className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground"
           />
-          {!file && form.fileName && (
+          {file ? (
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+              <Icon name="Paperclip" size={12} /> {file.name} {prefill && !form.id ? '(from your upload)' : '(attached)'}
+            </p>
+          ) : form.fileName ? (
             <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
               <Icon name="Paperclip" size={12} /> {form.fileName} (keep existing)
             </p>
-          )}
+          ) : null}
         </div>
       </div>
 
