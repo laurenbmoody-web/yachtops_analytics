@@ -1071,12 +1071,22 @@ const ProvisioningBoardDetail = () => {
         const tenantId = activeTenantId;
 
         // Fetch events where entity_type=provisioning_list and entity_id=board,
-        // OR entity_type=provisioning_item and entity_id in item IDs
+        // OR entity_type=provisioning_item and entity_id in item IDs.
+        //
+        // PostgREST's `or()` takes top-level comma-separated filters and
+        // OR's them flat — so passing
+        //   entity_type.eq.provisioning_list,entity_id.eq.<id>,…
+        // means "any provisioning_list row OR any row whose entity_id
+        // matches the board OR any provisioning_item row OR any row
+        // whose entity_id is in itemIds", which effectively returns
+        // every provisioning event in the tenant. The fix is to wrap
+        // each (entity_type AND entity_id) pair in `and(...)` so the
+        // OR only fires across the two correctly-grouped pairs.
         let events = [];
         if (tenantId) {
-          const listFilter = `entity_type.eq.provisioning_list,entity_id.eq.${list.id}`;
+          const listFilter = `and(entity_type.eq.provisioning_list,entity_id.eq.${list.id})`;
           const itemFilter = itemIds.length > 0
-            ? `,entity_type.eq.provisioning_item,entity_id.in.(${itemIds.join(',')})`
+            ? `,and(entity_type.eq.provisioning_item,entity_id.in.(${itemIds.join(',')}))`
             : '';
           const { data, error } = await supabase
             ?.from('activity_events')
