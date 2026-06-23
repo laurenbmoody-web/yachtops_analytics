@@ -91,10 +91,66 @@ const Ticks = () => (
   </div>
 );
 
+// Scroll-wheel time picker (iPhone-alarm style) — a precise way to enter a
+// start/end time block, alongside drag-painting. Values snap to the 30-min
+// segment grid. Each column is a scroll-snap list; the centred row is the value.
+const WHEEL_ITEM_H = 32;
+const HOURS_START = Array.from({ length: 24 }, (_, h) => ({ value: h, label: String(h).padStart(2, '0') }));
+const HOURS_END = Array.from({ length: 25 }, (_, h) => ({ value: h, label: String(h).padStart(2, '0') }));
+const MINUTES = [{ value: 0, label: '00' }, { value: 30, label: '30' }];
+
+const Wheel = ({ items, value, onChange }) => {
+  const ref = useRef(null);
+  const settle = useRef(null);
+  useEffect(() => {
+    const idx = items.findIndex((it) => it.value === value);
+    if (ref.current && idx >= 0 && Math.round(ref.current.scrollTop / WHEEL_ITEM_H) !== idx) {
+      ref.current.scrollTop = idx * WHEEL_ITEM_H;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  const onScroll = () => {
+    if (settle.current) clearTimeout(settle.current);
+    settle.current = setTimeout(() => {
+      if (!ref.current) return;
+      const idx = Math.max(0, Math.min(items.length - 1, Math.round(ref.current.scrollTop / WHEEL_ITEM_H)));
+      ref.current.scrollTo({ top: idx * WHEEL_ITEM_H, behavior: 'smooth' });
+      if (items[idx].value !== value) onChange(items[idx].value);
+    }, 90);
+  };
+  useEffect(() => () => { if (settle.current) clearTimeout(settle.current); }, []);
+  return (
+    <div className="cp-wheel-frame">
+      <div className="cp-wheel" ref={ref} onScroll={onScroll}>
+        <div className="cp-wheel-pad" />
+        {items.map((it) => (
+          <button
+            key={it.value}
+            type="button"
+            className={`cp-wheel-it${it.value === value ? ' sel' : ''}`}
+            onClick={() => onChange(it.value)}
+          >
+            {it.label}
+          </button>
+        ))}
+        <div className="cp-wheel-pad" />
+      </div>
+      <div className="cp-wheel-band" aria-hidden="true" />
+    </div>
+  );
+};
+
 const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthChange, onChanged }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [brush, setBrush] = useState('duty');
+  // Scroll-wheel time-block entry (start/end + type), alongside drag-painting.
+  const [showWheel, setShowWheel] = useState(false);
+  const [wheelType, setWheelType] = useState('duty');
+  const [wStartH, setWStartH] = useState(8);
+  const [wStartM, setWStartM] = useState(0);
+  const [wEndH, setWEndH] = useState(12);
+  const [wEndM, setWEndM] = useState(0);
   const [draftSegs, setDraftSegs] = useState(() => new Set());
   const [draftTypes, setDraftTypes] = useState({});
   const painting = useRef(false);
@@ -151,6 +207,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     setDraftTypes({ ...(typesByDate[selectedDate] || {}) });
     setShowApply(false);
     setSavingTpl(false);
+    setShowWheel(false);
     dirty.current = false;
     const el = rowRefs.current[selectedDate];
     if (el?.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -210,6 +267,24 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
       if (brush === 'erase') delete n[i]; else n[i] = brush;
       return n;
     });
+  };
+
+  // Paint a start→end block from the wheel picker (snapped to 30-min segments)
+  // onto the current draft, then persist — same store as drag-painting.
+  const addTimeBlock = () => {
+    const s = wStartH * 2 + (wStartM >= 30 ? 1 : 0);
+    const e = Math.min(SEG_PER_DAY, wEndH * 2 + (wEndM >= 30 ? 1 : 0));
+    if (e <= s) { showToast('End time must be after start time', 'error'); return; }
+    const segs = new Set(draftSegs);
+    const types = { ...draftTypes };
+    for (let i = s; i < e; i += 1) { segs.add(i); types[i] = wheelType; }
+    setDraftSegs(segs);
+    setDraftTypes(types);
+    draftRef.current = { segs, types };
+    addWorkEntries(crewId, [{ date: selectedDate, workSegments: Array.from(segs).sort((a, b) => a - b), segmentTypes: types, source: 'edited' }]);
+    afterSave();
+    setShowWheel(false);
+    showToast(`Added ${segToHHMM(s)}–${e === SEG_PER_DAY ? '24:00' : segToHHMM(e)}`, 'success');
   };
 
   const clearDay = () => {
@@ -366,9 +441,50 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           {isRota && <button type="button" className="cp-preset act" onClick={logAsRostered}>✓ Log as rostered</button>}
           <button type="button" className="cp-preset" onClick={clearDay}>Clear (off)</button>
           {cd.source === 'actual' && <button type="button" className="cp-preset" onClick={resetToBaseline}>Reset to rota</button>}
-          <button type="button" className="cp-preset" onClick={() => { setShowApply((v) => !v); setSavingTpl(false); }}>Apply template ▾</button>
-          <button type="button" className="cp-preset act" onClick={() => { setSavingTpl((v) => !v); setShowApply(false); }}>+ Add template</button>
+          <button type="button" className="cp-preset" onClick={() => { setShowWheel((v) => !v); setWheelType(brush); setShowApply(false); setSavingTpl(false); }}>Enter times ▾</button>
+          <button type="button" className="cp-preset" onClick={() => { setShowApply((v) => !v); setSavingTpl(false); setShowWheel(false); }}>Apply template ▾</button>
+          <button type="button" className="cp-preset act" onClick={() => { setSavingTpl((v) => !v); setShowApply(false); setShowWheel(false); }}>+ Add template</button>
         </div>
+
+        {showWheel && (() => {
+          const s = wStartH * 2 + (wStartM >= 30 ? 1 : 0);
+          const e = Math.min(SEG_PER_DAY, wEndH * 2 + (wEndM >= 30 ? 1 : 0));
+          const dur = e > s ? `${Number(((e - s) * 0.5).toFixed(1))}h block` : 'End must be after start';
+          return (
+            <div className="cp-wheelbox">
+              <div className="cp-wheel-types">
+                {PALETTE.map(([k, label]) => (
+                  <button key={k} type="button" className={`cp-pal-b${wheelType === k ? ' act' : ''}`} onClick={() => setWheelType(k)}>
+                    <span className="sw" style={{ background: TYPE_COLOR[k] }} />{label}
+                  </button>
+                ))}
+              </div>
+              <div className="cp-wheel-row">
+                <div className="cp-wheel-grp">
+                  <span className="cp-wheel-grplab">Start</span>
+                  <div className="cp-wheel-pair">
+                    <Wheel items={HOURS_START} value={wStartH} onChange={setWStartH} />
+                    <span className="cp-wheel-colon">:</span>
+                    <Wheel items={MINUTES} value={wStartM} onChange={setWStartM} />
+                  </div>
+                </div>
+                <div className="cp-wheel-grp">
+                  <span className="cp-wheel-grplab">End</span>
+                  <div className="cp-wheel-pair">
+                    <Wheel items={HOURS_END} value={wEndH} onChange={setWEndH} />
+                    <span className="cp-wheel-colon">:</span>
+                    <Wheel items={MINUTES} value={wEndM} onChange={setWEndM} />
+                  </div>
+                </div>
+              </div>
+              <div className="cp-wheel-actions">
+                <span className="cp-wheel-dur">{dur}</span>
+                <button type="button" className="cp-tlink" onClick={() => setShowWheel(false)}>cancel</button>
+                <button type="button" className="apply" onClick={addTimeBlock}>Add block</button>
+              </div>
+            </div>
+          );
+        })()}
 
         {savingTpl && (
           <div className="cp-timeinputs">
