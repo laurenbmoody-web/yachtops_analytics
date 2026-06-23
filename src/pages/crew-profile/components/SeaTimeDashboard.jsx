@@ -930,6 +930,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                           ];
                         return (
                           <div className="std-sig" key={v.key}>
+                            {sm.signature?.kind === 'drawn' && sm.signature.image
+                              ? <img className="std-sig-img" src={sm.signature.image} alt={`${nm} signature`} />
+                              : sm.signature?.kind === 'typed' && sm.signature.text
+                                ? <div className="std-sig-script">{sm.signature.text}</div>
+                                : null}
                             <div className="std-sig-name">{nm}<span>Master · {v.name}{v.multi ? ` · ${v.cmdLabel?.replace('In command ', '')}` : ''}</span></div>
                             <div className="std-sig-meta">{bits.filter(Boolean).join(' · ')}</div>
                           </div>
