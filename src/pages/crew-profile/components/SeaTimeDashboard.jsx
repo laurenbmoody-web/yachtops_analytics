@@ -194,18 +194,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         setPrior(ZERO_PRIOR); // TODO: store a lifetime accrual baseline per seafarer.
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
-        // Derive attestation state from the rows' verification status, then
-        // project it onto each vessel that appears in the record.
-        const sc = rows.reduce((a, r) => {
-          const s = r.rawVerificationStatus;
-          if (s === 'captain_signed') a.signed += 1; else if (s === 'pending') a.pending += 1; else if (s === 'rejected') a.rejected += 1; else a.draft += 1;
-          return a;
-        }, { draft: 0, pending: 0, rejected: 0, signed: 0 });
-        const status = (sc.signed > 0 && sc.pending === 0 && sc.draft === 0) ? 'attested' : sc.pending > 0 ? 'requested' : 'outstanding';
-        const usedIds = [...new Set(ents.filter(e => !e.excluded).map(e => e.vesselId))];
-        const va = {};
-        for (const id of usedIds) va[id] = { status, mode: routeForVessel(vMap[id]) };
-        setVesselAttest(va);
+        // Per-command-spell attestation is derived from each entry's verification
+        // status in recVessels (live), so clear any local sign-off overrides.
+        setVesselAttest({});
+        setSignoffMeta({});
       } else {
         // No live entries yet — keep the sample so the page is assessable.
         setUsingSample(true);
@@ -262,7 +254,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const periods = entries.filter(e => !e.excluded && e.vesselId === v.id && inCommand(e, cmd));
       if (!periods.length) return null;
       const mode = routeForCmd(v, cmd);
-      const att = vesselAttest[cmd.key] || { status: 'outstanding', mode };
+      // Live status comes from the rows' verification status; a local sign-off
+      // action (sample, or this session) overrides via vesselAttest.
+      const sig = periods.filter(p => p.vstatus === 'captain_signed').length;
+      const pen = periods.filter(p => p.vstatus === 'pending').length;
+      const derived = periods.length && sig === periods.length ? 'attested' : pen > 0 ? 'requested' : 'outstanding';
+      const att = vesselAttest[cmd.key] || { status: derived, mode };
       const reach = mode === 'virtual' ? (cmd.onCargo ? 'inapp' : 'email') : null;
       const cap = (cmd.name || 'Master').replace('Capt. ', '');
       const days = periods.reduce((s, e) => s + (e.days || 0), 0);

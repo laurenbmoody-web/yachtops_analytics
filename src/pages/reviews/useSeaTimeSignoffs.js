@@ -12,15 +12,23 @@ import { adaptLiveEntries } from '../crew-profile/utils/seaTimeLiveAdapter';
 //
 // Pass tenantId = null to disable (e.g. when the inbox isn't on this category).
 
-// Raw DB row → the camelCase shape adaptLiveEntries expects.
+// Raw DB row → the camelCase shape adaptLiveEntries expects (incl. route facts).
 const mapRow = (r) => ({
   id: r.id, date: r.entry_date, source: r.source,
   serviceType: r.service_type || 'seagoing',
   capacityServed: r.capacity_served || '',
   watchHours: r.watch_hours || 0,
   vesselName: r.vessel_name, vesselFlag: r.vessel_flag, vesselImo: r.vessel_imo,
-  grossTonnage: r.vessel_gt, lengthM: r.vessel_length_m, vesselType: r.vessel_type
+  vesselOfficialNo: r.vessel_official_number,
+  grossTonnage: r.vessel_gt, lengthM: r.vessel_length_m, vesselType: r.vessel_type,
+  cargoRegistered: r.vessel_cargo_registered, masterName: r.master_name,
+  masterAboard: r.master_aboard, masterOnCargo: r.master_on_cargo,
+  rawVerificationStatus: 'pending'
 });
+
+const inCmd = (e, cmd) => (!cmd.from || e.from >= cmd.from) && (!cmd.to || e.from <= cmd.to);
+const routeFor = (v, cmd) => !v.cargoRegistered ? 'external' : cmd.member ? 'stamp' : 'virtual';
+const fmtDate = (iso) => { if (!iso) return null; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : iso; };
 
 export function useSeaTimeSignoffs(tenantId, signerName) {
   const [items, setItems] = useState([]);
@@ -52,31 +60,35 @@ export function useSeaTimeSignoffs(tenantId, signerName) {
         for (const p of profs || []) nameMap[p.id] = p.full_name;
       }
 
-      // One sign-off unit per (seafarer, vessel).
+      // One sign-off unit per (seafarer, vessel, command spell). The captain
+      // signs only the periods inside a given master's command window, so a
+      // vessel whose command changed mid-service yields one item per master.
       const next = [];
       for (const [userId, userRows] of byUser) {
         const { vessels, entries } = adaptLiveEntries(userRows.map(mapRow));
         const submittedAt = userRows.map(r => r.submitted_at).filter(Boolean).sort()[0] || null;
-        const officialByVessel = {};
-        for (const r of userRows) { const k = r.vessel_imo || r.vessel_name; if (k && r.vessel_official_number) officialByVessel[k] = r.vessel_official_number; }
-        const byVessel = {};
-        for (const e of entries) { (byVessel[e.vesselId] ||= []).push(e); }
-        for (const [vesselId, periods] of Object.entries(byVessel)) {
-          const v = vessels[vesselId] || {};
-          const froms = periods.map(p => p.from).filter(Boolean).sort();
-          const tos = periods.map(p => p.to).filter(Boolean).sort();
-          next.push({
-            id: `${userId}:${vesselId}`,
-            requestedAt: submittedAt ? String(submittedAt).slice(0, 10) : null,
-            seafarer: { fullName: nameMap[userId] || 'Seafarer' },
-            unit: {
-              ...v, officialNo: officialByVessel[vesselId] || v.imo || '',
-              mode: 'virtual', multi: false, cmdLabel: null,
-              captainName: signerName || '', captainCoc: '', captainCocGrade: '', captainEmail: '',
-              cmdFrom: froms[0] || '', cmdTo: tos[tos.length - 1] || '',
-              periods
-            }
-          });
+        const requestedAt = submittedAt ? String(submittedAt).slice(0, 10) : null;
+        for (const [vesselId, v] of Object.entries(vessels)) {
+          const cmds = (v.commands && v.commands.length) ? v.commands : [{ id: 'c0', name: v.captainName || '', member: v.captainMember, onCargo: v.captainOnCargo, from: null, to: null }];
+          const multi = cmds.length > 1;
+          for (const cmd of cmds) {
+            const periods = entries.filter(e => e.vesselId === vesselId && inCmd(e, cmd));
+            if (!periods.length) continue;
+            const mode = routeFor(v, cmd);
+            if (mode === 'external') continue; // off-Cargo paper testimonials are crew uploads, not captain sign-offs
+            next.push({
+              id: `${userId}:${cmd.key || `${vesselId}:${cmd.id}`}`,
+              requestedAt,
+              seafarer: { fullName: nameMap[userId] || 'Seafarer' },
+              unit: {
+                ...v, mode, multi,
+                cmdLabel: multi ? `In command ${fmtDate(cmd.from) || '—'} – ${fmtDate(cmd.to) || 'present'}` : null,
+                captainName: cmd.name || signerName || '', captainCoc: '', captainCocGrade: '', captainEmail: '',
+                cmdFrom: cmd.from || '', cmdTo: cmd.to || '',
+                periods
+              }
+            });
+          }
         }
       }
       // Newest request first.
