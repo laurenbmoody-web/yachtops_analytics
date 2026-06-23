@@ -174,9 +174,12 @@ function restLogFileBase(meta) {
 }
 
 // ── CSV (data/import artefact) ──────────────────────────────────────────────
-// Build the CSV blob + filename without touching the DOM, so callers can either
-// download it (exportRestLogCSV) or attach/email it.
-export function buildRestLogCSV({ rows, days, meta }) {
+// A tidy, one-row-per-(crew, day) data table — sorts/filters/pivots cleanly for
+// payroll and audit. A short metadata preamble names the vessel/period, then the
+// data table proper. Built without touching the DOM so callers can download it
+// (exportRestLogCSV) or attach/email it. `breachReasons` (keyed `userId|date`)
+// adds the recorded reason on breach days.
+export function buildRestLogCSV({ rows, days, meta, breachReasons = {} }) {
   const members = flatten(rows);
   const lines = [];
   lines.push('Record of Hours of Rest (data export)');
@@ -187,36 +190,49 @@ export function buildRestLogCSV({ rows, days, meta }) {
   lines.push(`Period,${csvField(meta.periodLabel)}`);
   lines.push(`Generated,${csvField(meta.generatedAt)}`);
   lines.push(`Standard,${csvField(STANDARD_REF)}`);
-  lines.push('Figures,Hours of REST per 24h (not hours worked)');
-  lines.push('Markers,* daily rest below minimum · # weekly rest below minimum');
+  if (meta.basisLabel) lines.push(`Basis,${csvField(meta.basisLabel)}`);
+  lines.push('Figures,Hours are REST (not hours worked). Rest is per 24h; 7-day rest is the rolling total.');
   lines.push('');
 
   const header = [
-    'Department', 'Crew', 'Role',
-    ...days.map((d, i) => dayColLabel(d, i)),
-    'Daily breach days', 'Weekly breach days',
+    'Date', 'Weekday', 'Department', 'Crew', 'Role', 'Status',
+    'Rest (h)', 'On duty (h)', '7-day rest (h)',
+    'Daily breach', 'Weekly breach', 'Breach reason',
   ];
   lines.push(header.map(csvField).join(','));
 
+  const dec1 = (n) => Number((Number(n) || 0).toFixed(1));
   for (const m of members) {
-    const cells = m.cells.map((c) => {
-      let v = restLabel(c);
-      if (c && !c.isOff && c.dailyLow) v += '*';
-      if (c && c.weeklyLow) v += '#';
-      return v;
+    (m.cells || []).forEach((c) => {
+      const d = parseLocal(c.date);
+      const rest = c.isOff ? 24 : dec1(c.rest24h);
+      const onDuty = c.isOff ? 0 : dec1(24 - c.rest24h);
+      const note = (breachReasons[`${m.userId}|${c.date}`] || {}).note_text || '';
+      const row = [
+        `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`,
+        WEEKDAY_SHORT[d.getDay()],
+        m.dept,
+        m.name,
+        m.role || '—',
+        c.isOff ? 'Off' : 'On duty',
+        rest,
+        onDuty,
+        dec1(c.pastWeekHours),
+        c.dailyLow ? 'Yes' : 'No',
+        c.weeklyLow ? 'Yes' : 'No',
+        note,
+      ];
+      lines.push(row.map(csvField).join(','));
     });
-    const row = [m.dept, m.name, m.role || '—', ...cells, m.dailyBreachDays, m.weeklyBreachDays];
-    lines.push(row.map(csvField).join(','));
   }
 
-  // Lead with a UTF-8 BOM so Excel reads accented characters (·, —) correctly
-  // instead of mojibake like "Â·".
+  // Lead with a UTF-8 BOM so Excel reads accented characters correctly.
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   return { blob, filename: `${restLogFileBase(meta)}.csv` };
 }
 
-export function exportRestLogCSV({ rows, days, meta }) {
-  const { blob, filename } = buildRestLogCSV({ rows, days, meta });
+export function exportRestLogCSV({ rows, days, meta, breachReasons = {} }) {
+  const { blob, filename } = buildRestLogCSV({ rows, days, meta, breachReasons });
   triggerDownload(blob, filename);
 }
 
