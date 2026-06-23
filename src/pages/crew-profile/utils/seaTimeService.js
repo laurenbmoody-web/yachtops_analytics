@@ -84,6 +84,12 @@ const rowToEntry = (row, pathId, config) => {
     grossTonnage: row.vessel_gt,
     lengthM: row.vessel_length_m,
     vesselType: row.vessel_type,
+    vesselOfficialNo: row.vessel_official_number,
+    // route / master-of-record enrichment (drives stamp/virtual/external + split)
+    cargoRegistered: row.vessel_cargo_registered,
+    masterName: row.master_name,
+    masterAboard: row.master_aboard,
+    masterOnCargo: row.master_on_cargo,
     verificationStatus: mapVerificationOut(row.verification_status),
     rawVerificationStatus: row.verification_status,
     locked: row.locked,
