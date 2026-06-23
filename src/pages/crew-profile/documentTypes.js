@@ -58,14 +58,17 @@ export const DOCUMENT_TYPES = [
   { id: 'food_hygiene', label: 'Food Hygiene', category: 'qualification' },
   { id: 'aec', label: 'Approved Engine Course (AEC)', category: 'qualification' },
 
-  // Issued documents — given to the crew member by the employer/vessel.
-  // Generated contracts file here automatically; COMMAND can add others.
-  { id: 'employment_contract', label: 'Employment contract', category: 'issued' },
+  // Issued documents — the kept-on-file record between the crew member and the
+  // employer: signed contracts, amendments, letters. COMMAND uploads these
+  // (a generated contract is only a draft until it's signed by both parties).
+  { id: 'employment_contract', label: 'Employment contract (signed)', category: 'issued' },
+  { id: 'contract_amendment', label: 'Contract amendment (signed)', category: 'issued' },
   { id: 'offer_letter', label: 'Offer letter', category: 'issued' },
   { id: 'certificate_of_employment', label: 'Certificate of employment', category: 'issued' },
   { id: 'reference_letter', label: 'Reference letter', category: 'issued' },
+  { id: 'disciplinary_letter', label: 'Disciplinary / warning letter', category: 'issued' },
   {
-    id: 'other_issued', label: 'Other issued document', category: 'issued',
+    id: 'general_letter', label: 'Letter / document (other)', category: 'issued',
     fields: [{ key: 'custom_label', label: 'Document name' }],
   },
 
