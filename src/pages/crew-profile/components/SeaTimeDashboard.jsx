@@ -314,17 +314,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     if (!canGenerate) { flash('Resolve all validation checks first'); return; }
     if (!usingSample && tenantId && userId) {
       try {
+        // submitEntries flips the rows to pending AND fires sendSeaTimeSubmission
+        // server-side, which notifies the signing master(s) (active COMMAND) via
+        // the nav bell + a courtesy email. No client-side notify needed.
         await submitEntries(tenantId, liveRowIdsFor(v), { signedName: seafarer.fullName });
-        if (via === 'app') {
-          try {
-            const { data: masters } = await supabase.from('tenant_members').select('user_id').eq('tenant_id', tenantId).eq('active', true).ilike('role', 'captain');
-            for (const m of masters || []) {
-              if (m?.user_id && m.user_id !== userId) {
-                await sendDbNotification(m.user_id, { type: 'sea_time', title: 'Sea-service attestation requested', message: `${seafarer.fullName} has asked you to review and attest their service on ${v.name}.`, actionUrl: `/profile/${userId}?tab=seatime`, severity: 'info' });
-              }
-            }
-          } catch (ne) { console.warn('attestation notify failed', ne); }
-        }
         await loadLive();
       } catch (e) { console.error(e); flash('Could not send for attestation'); return; }
     } else {
