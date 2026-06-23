@@ -3,6 +3,7 @@ import { BrowserRouter, Routes as RouterRoutes, Route, Navigate, useLocation, us
 import ScrollToTop from 'components/ScrollToTop';
 import ErrorBoundary from 'components/ErrorBoundary';
 import LogoSpinner from './components/LogoSpinner';
+import lazyWithRetry from './utils/lazyWithRetry';
 
 import Dashboard from './pages/dashboard';
 import TeamJobsManagement from './pages/team-jobs-management';
@@ -82,17 +83,20 @@ import ConfirmOwnershipTransfer from './pages/confirm-ownership-transfer';
 import { SupplierProvider } from './contexts/SupplierContext';
 import { SupplierPermissionProvider } from './contexts/SupplierPermissionContext';
 
-// Lazy supplier views — loaded only when the supplier portal is accessed
-const SupplierOverview   = React.lazy(() => import('./pages/supplier-portal/views/SupplierOverview'));
-const SupplierOrders     = React.lazy(() => import('./pages/supplier-portal/views/SupplierOrders'));
-const SupplierOrderDetail = React.lazy(() => import('./pages/supplier-portal/views/SupplierOrderDetail'));
-const SupplierProducts   = React.lazy(() => import('./pages/supplier-portal/views/SupplierProducts'));
-const SupplierSettings   = React.lazy(() => import('./pages/supplier-portal/views/SupplierSettings'));
-const SupplierDeliveries = React.lazy(() => import('./pages/supplier-portal/views/SupplierDeliveries'));
-const SupplierInvoices   = React.lazy(() => import('./pages/supplier-portal/views/SupplierInvoices'));
-const SupplierClients    = React.lazy(() => import('./pages/supplier-portal/views/SupplierClients'));
-const SupplierMessages   = React.lazy(() => import('./pages/supplier-portal/views/SupplierMessages'));
-const SupplierReturns    = React.lazy(() => import('./pages/supplier-portal/views/SupplierReturns'));
+// Lazy supplier views — loaded only when the supplier portal is accessed.
+// Wrapped in lazyWithRetry so a stale tab whose index.html points at
+// the previous build's chunk hashes recovers via one hard reload after
+// the next deploy, instead of dropping the user on the ErrorBoundary.
+const SupplierOverview   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierOverview'));
+const SupplierOrders     = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierOrders'));
+const SupplierOrderDetail = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierOrderDetail'));
+const SupplierProducts   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierProducts'));
+const SupplierSettings   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierSettings'));
+const SupplierDeliveries = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierDeliveries'));
+const SupplierInvoices   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierInvoices'));
+const SupplierClients    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierClients'));
+const SupplierMessages   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierMessages'));
+const SupplierReturns    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierReturns'));
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
