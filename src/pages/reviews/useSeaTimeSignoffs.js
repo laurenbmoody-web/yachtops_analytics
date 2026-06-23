@@ -40,7 +40,7 @@ export function useSeaTimeSignoffs(tenantId, signerName) {
     try {
       const { data: rows, error } = await supabase
         .from('sea_service_entries')
-        .select('id, user_id, entry_date, source, service_type, capacity_served, watch_hours, vessel_name, vessel_flag, vessel_imo, vessel_official_number, vessel_gt, vessel_length_m, vessel_type, submitted_at')
+        .select('id, user_id, entry_date, source, service_type, capacity_served, watch_hours, vessel_name, vessel_flag, vessel_imo, vessel_official_number, vessel_gt, vessel_length_m, vessel_type, vessel_cargo_registered, master_name, master_aboard, master_on_cargo, submitted_at')
         .eq('tenant_id', tenantId)
         .eq('verification_status', 'pending')
         .order('entry_date', { ascending: true });

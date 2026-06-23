@@ -251,6 +251,14 @@ export const submitEntries = async (tenantId, entryIds, { note, sigPath, signedN
     p_note: note || null, p_sig_path: sigPath || null, p_signed_name: signedName || null
   });
   if (error) throw error;
+  // Notify the master(s) who'll sign — active COMMAND in the tenant — via bell +
+  // email. Fire-and-forget server-side (service role resolves recipients and
+  // bypasses owner-scoped notification RLS); never blocks or fails the submit.
+  if (tenantId && Array.isArray(entryIds) && entryIds.length) {
+    supabase?.functions
+      ?.invoke('sendSeaTimeSubmission', { body: { tenantId, entryIds } })
+      ?.then(() => {})?.catch(() => {});
+  }
   return data;
 };
 
