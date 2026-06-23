@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabaseClient';
 
 export { getExpiryStatus, formatDocDate } from '../crew-profile/utils/crewDocuments';
 import { formatDocDate as fmtDocDate, getExpiryStatus } from '../crew-profile/utils/crewDocuments';
+import { getDocTypeLabel } from '../crew-profile/documentTypes';
 
 const BUCKET = 'vessel-vault';
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -24,6 +25,7 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
 // Their ids are namespaced `virt:*` so the tree logic can tell them apart from
 // real rows and refuse mutating actions (rename / move / delete / expiry).
 export const VIRT_HOR = 'virt:hor';
+export const VIRT_CREW = 'virt:crew';
 export const VIRT_TEMPLATES = 'virt:templates';
 const HOR_BUCKET = 'hor-documents';
 const TEMPLATES_BUCKET = 'vessel-documents';
@@ -31,6 +33,11 @@ export const isVirtualId = (id) => typeof id === 'string' && id.startsWith('virt
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Crew Certification is an inspection lens over personal_documents — the crew
+// profile stays the system of record. Generated contract drafts are working
+// files (only-latest-kept, hidden in the profile too), never part of the lens.
+const CREW_DOC_EXCLUDE = 'generated';
 
 // The starter scaffold every vessel's vault opens with — a lean, conventional
 // filing skeleton for a yacht's papers. Seeded lazily the first time an account
@@ -50,6 +57,7 @@ export const DEFAULT_VAULT_FOLDERS = [
 // The linked folders that sit at the vault root alongside real items.
 const systemFolders = () => ([
   { id: VIRT_HOR, kind: 'folder', name: 'Hours of Rest', system: true, meta: 'Signed records · linked' },
+  { id: VIRT_CREW, kind: 'folder', name: 'Crew Certification', system: true, meta: 'Per-crew · linked' },
   { id: VIRT_TEMPLATES, kind: 'folder', name: 'Contract Templates', system: true, meta: 'Templates · linked' },
 ]);
 
@@ -154,6 +162,62 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
     }));
   }
 
+  // Crew Certification → one folder per crew member who has filed documents.
+  if (parentId === VIRT_CREW) {
+    const { data, error } = await supabase
+      .from('personal_documents')
+      .select('user_id')
+      .eq('tenant_id', tenantId)
+      .not('file_url', 'is', null)
+      .neq('category', CREW_DOC_EXCLUDE);
+    if (error) { console.error('[vault] crew list failed', error); return []; }
+    const counts = new Map();
+    (data || []).forEach((d) => counts.set(d.user_id, (counts.get(d.user_id) || 0) + 1));
+    const ids = [...counts.keys()].filter(Boolean);
+    if (!ids.length) return [];
+    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+    const names = {};
+    (profs || []).forEach((p) => { names[p.id] = p.full_name; });
+    return ids
+      .map((uid) => ({
+        id: `${VIRT_CREW}:${uid}`,
+        kind: 'folder',
+        system: true,
+        name: names[uid] || 'Crew member',
+        meta: `${counts.get(uid)} document${counts.get(uid) !== 1 ? 's' : ''}`,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  }
+
+  // Crew Certification → one crew member's documents (read-only lens; the file
+  // opens via its stored signed URL, the same one the profile uses).
+  if (parentId.startsWith(`${VIRT_CREW}:`)) {
+    const uid = parentId.slice(`${VIRT_CREW}:`.length);
+    const { data, error } = await supabase
+      .from('personal_documents')
+      .select('id, doc_type, title, document_number, issuing_authority, category, expiry_date, file_url, file_name, mime_type, size_bytes')
+      .eq('tenant_id', tenantId)
+      .eq('user_id', uid)
+      .not('file_url', 'is', null)
+      .neq('category', CREW_DOC_EXCLUDE)
+      .order('expiry_date', { ascending: true, nullsFirst: false });
+    if (error) { console.error('[vault] crew docs failed', error); return []; }
+    return (data || []).map((d) => {
+      const label = getDocTypeLabel(d.doc_type) || d.doc_type || 'Document';
+      return {
+        id: `virt:crewfile:${d.id}`,
+        kind: 'file',
+        readOnly: true,
+        url: d.file_url,
+        name: d.title || label,
+        expiry_date: d.expiry_date || null,
+        mime_type: d.mime_type,
+        size_bytes: d.size_bytes || null,
+        meta: d.document_number ? `No. ${d.document_number}` : (d.issuing_authority || label),
+      };
+    });
+  }
+
   return [];
 }
 
@@ -171,6 +235,15 @@ export async function fetchBreadcrumb({ tenantId, folderId }) {
       ];
     }
     if (folderId === VIRT_TEMPLATES) return [{ id: VIRT_TEMPLATES, name: 'Contract Templates' }];
+    if (folderId === VIRT_CREW) return [{ id: VIRT_CREW, name: 'Crew Certification' }];
+    if (folderId.startsWith(`${VIRT_CREW}:`)) {
+      const uid = folderId.slice(`${VIRT_CREW}:`.length);
+      const { data } = await supabase.from('profiles').select('full_name').eq('id', uid).maybeSingle();
+      return [
+        { id: VIRT_CREW, name: 'Crew Certification' },
+        { id: folderId, name: data?.full_name || 'Crew member' },
+      ];
+    }
     return [];
   }
   const chain = [];
@@ -394,7 +467,7 @@ export async function fetchShelf({ tenantId }) {
   const rootFiles = childrenOf('__root__').filter((r) => r.kind === 'file').sort(byName);
 
   // Linked store counts (best-effort — never block the shelf).
-  let hor = 0; let templates = 0;
+  let hor = 0; let templates = 0; let crew = 0;
   try {
     const { data: h } = await supabase.from('hor_signed_documents')
       .select('period_year, period_month').eq('tenant_id', tenantId);
@@ -405,8 +478,14 @@ export async function fetchShelf({ tenantId }) {
       .select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId);
     templates = count || 0;
   } catch { /* noop */ }
+  try {
+    const { data: c } = await supabase.from('personal_documents')
+      .select('user_id').eq('tenant_id', tenantId)
+      .not('file_url', 'is', null).neq('category', CREW_DOC_EXCLUDE);
+    crew = new Set((c || []).map((r) => r.user_id).filter(Boolean)).size;
+  } catch { /* noop */ }
 
-  return { folders, rootFiles, linked: { hor, templates } };
+  return { folders, rootFiles, linked: { hor, templates, crew } };
 }
 
 // Every vault file that carries an expiry (id, name, expiry_date), soonest first.
