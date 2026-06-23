@@ -93,6 +93,34 @@ export default function ReviewsPage() {
   const seatimeLive = useSeaTimeSignoffs(activeCategory === 'seatime' ? activeTenantId : null, signerName);
   const [seatimeQueue, setSeatimeQueue] = useState(SEATIME_REVIEW_QUEUE);
 
+  // The signing master's own signatory particulars on file — CoC number/grade
+  // (personal_documents), contact phone (crew_personal_details) and login email
+  // — so the sign-off form pre-fills instead of making them retype each time.
+  const [signerParticulars, setSignerParticulars] = useState({});
+  useEffect(() => {
+    if (activeCategory !== 'seatime' || !user?.id) { setSignerParticulars({}); return undefined; }
+    let cancelled = false;
+    (async () => {
+      const [cocRes, cpdRes] = await Promise.all([
+        supabase.from('personal_documents')
+          .select('document_number, details, expiry_date')
+          .eq('user_id', user.id).eq('doc_type', 'coc')
+          .order('expiry_date', { ascending: false, nullsFirst: false }).limit(1),
+        supabase.from('crew_personal_details').select('phones').eq('user_id', user.id).maybeSingle(),
+      ]);
+      if (cancelled) return;
+      const coc = cocRes.data?.[0];
+      const phones = Array.isArray(cpdRes.data?.phones) ? cpdRes.data.phones : [];
+      setSignerParticulars({
+        cocNo: coc?.document_number || '',
+        cocGrade: coc?.details?.grade || '',
+        email: user.email || '',
+        phone: phones[0]?.value || '',
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [activeCategory, user?.id, user?.email]);
+
   // Pending inbox vs History (resolved) tab.
   const [tab, setTab] = useState('pending');
   const { items, loading, refetch } = useReviewItems(tab === 'history' ? 'resolved' : 'pending');
@@ -195,6 +223,10 @@ export default function ReviewsPage() {
                 unit={stSelected.unit}
                 seafarer={stSelected.seafarer}
                 signerName={signerName}
+                signerEmail={signerParticulars.email}
+                signerPhone={signerParticulars.phone}
+                signerCoc={signerParticulars.cocNo}
+                signerCocGrade={signerParticulars.cocGrade}
                 onSign={stSign}
                 onDecline={stDecline}
               />

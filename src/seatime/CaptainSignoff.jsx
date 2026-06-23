@@ -16,21 +16,33 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // `unit` is a command-spell row: vessel particulars + { periods, mode,
 // captainName, captainCoc, captainCocGrade, captainEmail, cmdFrom, cmdTo,
 // multi, cmdLabel }.
-export default function CaptainSignoff({ unit, seafarer, isEng = false, signerName, signerEmail, onSign, onDecline, onClose, variant = 'modal' }) {
+export default function CaptainSignoff({ unit, seafarer, isEng = false, signerName, signerEmail, signerPhone, signerCoc, signerCocGrade, onSign, onDecline, onClose, variant = 'modal' }) {
   const v = unit;
   const ps = v.periods || [];
   const froms = ps.map(e => e.from).filter(Boolean).sort();
   const tos = ps.map(e => e.to).filter(Boolean).sort();
   const [form, setForm] = useState(() => ({
     name: signerName || (v.captainName || '').replace('Capt. ', ''),
-    cocNo: v.captainCoc || '',
-    cocGrade: v.captainCocGrade || '',
+    cocNo: v.captainCoc || signerCoc || '',
+    cocGrade: v.captainCocGrade || signerCocGrade || '',
     email: v.captainEmail || signerEmail || '',
-    phone: '',
+    phone: signerPhone || '',
     place: '',
     cmdFrom: v.cmdFrom || froms[0] || '',
     cmdTo: v.cmdTo || tos[tos.length - 1] || ''
   }));
+  // The signer's particulars (CoC, grade, email, phone) load async from the
+  // crew record. Backfill any field the master hasn't touched once they arrive,
+  // so the form pre-fills from data on file without ever clobbering typing.
+  useEffect(() => {
+    setForm(f => ({
+      ...f,
+      cocNo: f.cocNo || signerCoc || '',
+      cocGrade: f.cocGrade || signerCocGrade || '',
+      email: f.email || signerEmail || '',
+      phone: f.phone || signerPhone || ''
+    }));
+  }, [signerCoc, signerCocGrade, signerEmail, signerPhone]);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
   const setSF = (patch) => setForm(f => ({ ...f, ...patch }));
