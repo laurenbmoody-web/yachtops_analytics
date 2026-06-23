@@ -92,6 +92,8 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
         return 'PackageCheck';
       case 'DOC_EXPIRY':
         return 'FileWarning';
+      case 'VESSEL_DOC_EXPIRY':
+        return 'FileWarning';
       case 'PROVISIONING_APPROVAL_PENDING':
         return 'Send';
       case 'PROVISIONING_APPROVAL_DECIDED':

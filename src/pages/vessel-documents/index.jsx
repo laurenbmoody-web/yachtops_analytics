@@ -12,8 +12,8 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   fetchChildren, fetchBreadcrumb, createFolder, uploadFile,
-  renameItem, setExpiry, deleteItem, getFileUrl,
-  getExpiryStatus, formatDocDate,
+  renameItem, setExpiry, deleteItem, getFileUrl, moveItem, fetchFolders,
+  getExpiryStatus, formatDocDate, isVirtualId,
 } from './vesselDocuments';
 import './vessel-documents.css';
 
@@ -47,6 +47,7 @@ export default function VesselDocuments() {
   const [toast, setToast] = useState('');
   const [prompt, setPrompt] = useState(null);    // { mode, item }  text/date modal
   const [promptValue, setPromptValue] = useState('');
+  const [move, setMove] = useState(null);        // { item, cwd, crumbs, folders } move picker
   const fileRef = useRef(null);
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2800); };
@@ -120,9 +121,45 @@ export default function VesselDocuments() {
   };
 
   const openFile = async (item) => {
-    const url = await getFileUrl(item.storage_path);
+    const url = await getFileUrl(item.storage_path, item.bucket);
     if (url) window.open(url, '_blank', 'noopener');
     else flash('Couldn’t open that file');
+  };
+
+  // ── Move ────────────────────────────────────────────────────────────────
+  // A mini folder-browser: navigate the real tree and drop the item into the
+  // folder you land on. The item being moved (and its own subtree, for folders)
+  // is excluded so you can't re-parent it into itself.
+  const loadMoveFolders = useCallback(async (item, dest) => {
+    const [kids, chain] = await Promise.all([
+      fetchFolders({ tenantId: activeTenantId, parentId: dest }),
+      dest ? fetchBreadcrumb({ tenantId: activeTenantId, folderId: dest }) : Promise.resolve([]),
+    ]);
+    return { folders: kids.filter((f) => f.id !== item.id), crumbs: chain };
+  }, [activeTenantId]);
+
+  const openMove = async (item) => {
+    const { folders: f, crumbs: c } = await loadMoveFolders(item, null);
+    setMove({ item, cwd: null, crumbs: c, folders: f });
+  };
+
+  const moveBrowse = async (dest) => {
+    const { folders: f, crumbs: c } = await loadMoveFolders(move.item, dest);
+    setMove((m) => ({ ...m, cwd: dest, crumbs: c, folders: f }));
+  };
+
+  const confirmMove = async () => {
+    setBusy(true);
+    try {
+      await moveItem({ tenantId: activeTenantId, id: move.item.id, newParentId: move.cwd });
+      setMove(null);
+      flash('Moved');
+      await load();
+    } catch (e) {
+      flash(e?.message || 'Couldn’t move');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const removeItem = async (item) => {
@@ -144,14 +181,19 @@ export default function VesselDocuments() {
 
   // ── Rows ────────────────────────────────────────────────────────────────
   const renderFolder = (f) => (
-    <button type="button" key={f.id} className="vd-row vd-row-folder" onDoubleClick={() => setCwd(f.id)} onClick={() => setCwd(f.id)}>
-      <span className="vd-ico vd-ico-folder"><Icon name="Folder" size={18} /></span>
-      <span className="vd-name">{f.name}</span>
-      <span className="vd-meta">Folder</span>
-      <span className="vd-actions" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="vd-act" title="Rename" onClick={() => openRename(f)}><Icon name="Pencil" size={15} /></button>
-        <button type="button" className="vd-act vd-act-danger" title="Delete" onClick={() => removeItem(f)}><Icon name="Trash2" size={15} /></button>
+    <button type="button" key={f.id} className={`vd-row vd-row-folder${f.system ? ' vd-row-system' : ''}`} onDoubleClick={() => setCwd(f.id)} onClick={() => setCwd(f.id)}>
+      <span className={`vd-ico vd-ico-folder${f.system ? ' vd-ico-linked' : ''}`}>
+        <Icon name={f.system ? 'FolderSymlink' : 'Folder'} size={18} />
       </span>
+      <span className="vd-name">{f.name}</span>
+      <span className="vd-meta">{f.meta || 'Folder'}</span>
+      {!f.system && (
+        <span className="vd-actions" onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="vd-act" title="Move" onClick={() => openMove(f)}><Icon name="FolderInput" size={15} /></button>
+          <button type="button" className="vd-act" title="Rename" onClick={() => openRename(f)}><Icon name="Pencil" size={15} /></button>
+          <button type="button" className="vd-act vd-act-danger" title="Delete" onClick={() => removeItem(f)}><Icon name="Trash2" size={15} /></button>
+        </span>
+      )}
     </button>
   );
 
@@ -163,6 +205,7 @@ export default function VesselDocuments() {
         <span className="vd-ico vd-ico-file"><Icon name="FileText" size={18} /></span>
         <span className="vd-name">{f.name}</span>
         <span className="vd-filemeta">
+          {f.readOnly && f.meta && <span className="vd-linkmeta">{f.meta}</span>}
           {f.expiry_date && (
             <span className="vd-pill" style={{ background: pill.bg, color: pill.fg }} title={`Expires ${formatDocDate(f.expiry_date)}`}>
               {st.level === 'green' ? `Valid · ${formatDocDate(f.expiry_date)}` : st.label}
@@ -172,9 +215,14 @@ export default function VesselDocuments() {
         </span>
         <span className="vd-actions" onClick={(e) => e.stopPropagation()}>
           <button type="button" className="vd-act" title="Open / download" onClick={() => openFile(f)}><Icon name="Download" size={15} /></button>
-          <button type="button" className="vd-act" title="Set expiry date" onClick={() => openExpiry(f)}><Icon name="CalendarClock" size={15} /></button>
-          <button type="button" className="vd-act" title="Rename" onClick={() => openRename(f)}><Icon name="Pencil" size={15} /></button>
-          <button type="button" className="vd-act vd-act-danger" title="Delete" onClick={() => removeItem(f)}><Icon name="Trash2" size={15} /></button>
+          {!f.readOnly && (
+            <>
+              <button type="button" className="vd-act" title="Move" onClick={() => openMove(f)}><Icon name="FolderInput" size={15} /></button>
+              <button type="button" className="vd-act" title="Set expiry date" onClick={() => openExpiry(f)}><Icon name="CalendarClock" size={15} /></button>
+              <button type="button" className="vd-act" title="Rename" onClick={() => openRename(f)}><Icon name="Pencil" size={15} /></button>
+              <button type="button" className="vd-act vd-act-danger" title="Delete" onClick={() => removeItem(f)}><Icon name="Trash2" size={15} /></button>
+            </>
+          )}
         </span>
       </div>
     );
@@ -230,8 +278,12 @@ export default function VesselDocuments() {
             ) : items.length === 0 ? (
               <div className="vd-empty">
                 <Icon name="FolderOpen" size={26} />
-                <p>This folder is empty.</p>
-                <span>Create a folder or upload the ship&apos;s papers to get started.</span>
+                <p>{isVirtualId(cwd) ? 'Nothing filed here yet.' : 'This folder is empty.'}</p>
+                <span>
+                  {isVirtualId(cwd)
+                    ? 'Records appear here automatically as they’re signed or added.'
+                    : 'Create a folder or upload the ship’s papers to get started.'}
+                </span>
               </div>
             ) : (
               <>
@@ -268,6 +320,44 @@ export default function VesselDocuments() {
                 <button type="button" className="vd-btn vd-btn-ghost" disabled={busy} onClick={() => setPrompt(null)}>Cancel</button>
                 <button type="button" className="vd-btn vd-btn-primary" disabled={busy || (prompt.mode !== 'expiry' && !promptValue.trim())} onClick={submitPrompt}>
                   {busy ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Move modal — pick a destination folder */}
+        {move && (
+          <div className="vd-modal-scrim" onClick={() => !busy && setMove(null)}>
+            <div className="vd-modal vd-modal-move" onClick={(e) => e.stopPropagation()}>
+              <h2 className="vd-modal-title">Move “{move.item.name}”</h2>
+              <div className="vd-move-crumbs">
+                <button type="button" className={`vd-crumb${move.cwd ? '' : ' is-here'}`} onClick={() => moveBrowse(null)}>
+                  <Icon name="Home" size={13} /> Vault
+                </button>
+                {move.crumbs.map((c) => (
+                  <span key={c.id} className="vd-crumb-wrap">
+                    <Icon name="ChevronRight" size={12} className="vd-crumb-sep" />
+                    <button type="button" className={`vd-crumb${c.id === move.cwd ? ' is-here' : ''}`} onClick={() => moveBrowse(c.id)}>{c.name}</button>
+                  </span>
+                ))}
+              </div>
+              <div className="vd-move-list">
+                {move.folders.length === 0 ? (
+                  <div className="vd-move-empty">No sub-folders here.</div>
+                ) : (
+                  move.folders.map((f) => (
+                    <button type="button" key={f.id} className="vd-move-row" onClick={() => moveBrowse(f.id)}>
+                      <Icon name="Folder" size={16} /> <span>{f.name}</span>
+                      <Icon name="ChevronRight" size={14} className="vd-move-go" />
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="vd-modal-actions">
+                <button type="button" className="vd-btn vd-btn-ghost" disabled={busy} onClick={() => setMove(null)}>Cancel</button>
+                <button type="button" className="vd-btn vd-btn-primary" disabled={busy} onClick={confirmMove}>
+                  {busy ? 'Moving…' : `Move here${move.crumbs.length ? ` · ${move.crumbs[move.crumbs.length - 1].name}` : ' · Vault'}`}
                 </button>
               </div>
             </div>

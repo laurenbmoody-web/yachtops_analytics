@@ -41,6 +41,12 @@
 .vd-size { font-size: 11.5px; color: #AEB4C2; }
 .vd-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.2px; white-space: nowrap; }
 
+/* Linked (read-only) system folders — Hours of Rest, Contract Templates */
+.vd-ico-linked { color: #8B8478; }
+.vd-row-system .vd-name { color: #1C1B3A; }
+.vd-row-system .vd-meta { color: #8B8478; }
+.vd-linkmeta { font-size: 11.5px; color: #AEB4C2; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Row actions — appear on hover, quiet until then */
 .vd-actions { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.12s ease; }
 .vd-row:hover .vd-actions, .vd-row:focus-within .vd-actions { opacity: 1; }
@@ -62,6 +68,17 @@
 .vd-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .vd-modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .vd-modal-clear { margin-right: auto; }
+
+/* Move modal — destination folder browser */
+.vd-modal-move { max-width: 460px; }
+.vd-move-crumbs { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 2px 0 12px; border-bottom: 1px solid #F0F1F5; margin-bottom: 8px; }
+.vd-move-list { max-height: 300px; overflow-y: auto; margin: 0 -4px; }
+.vd-move-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 10px 8px; font: inherit; font-size: 14px; font-weight: 600; color: #1C1B3A; cursor: pointer; transition: background 0.12s ease; }
+.vd-move-row:hover { background: #FAFAF8; }
+.vd-move-row svg:first-child { color: #C65A1A; flex: 0 0 auto; }
+.vd-move-row span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-move-go { color: #C9C4B8; flex: 0 0 auto; }
+.vd-move-empty { padding: 24px 8px; text-align: center; font-size: 13px; color: #8B8478; }
 
 .vd-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1C1B3A; color: #fff; padding: 11px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 600; box-shadow: 0 12px 30px -8px rgba(28,27,58,0.4); z-index: 90; }
 
