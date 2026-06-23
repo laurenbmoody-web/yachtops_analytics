@@ -147,20 +147,13 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   const [selectedDate, setSelectedDate] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [brush, setBrush] = useState('duty');
-  // Scroll-wheel time-block entry (start/end + type), alongside drag-painting.
+  // Day-builder modal: a list of typed segments (Duty 06:00–10:00, Standby
+  // 11:00–14:00, …). Gaps between segments are rest/breaks. One wheel pair
+  // edits whichever segment field is active.
   const [showWheel, setShowWheel] = useState(false);
-  const [wheelType, setWheelType] = useState('duty');
-  const [activeField, setActiveField] = useState('start'); // which field the wheels edit
-  const [wStartH, setWStartH] = useState(8);
-  const [wStartM, setWStartM] = useState(0);
-  const [wEndH, setWEndH] = useState(12);
-  const [wEndM, setWEndM] = useState(0);
-  // Optional break carved out of the block (left as rest).
-  const [breakOn, setBreakOn] = useState(false);
-  const [bBreakSH, setBBreakSH] = useState(12);
-  const [bBreakSM, setBBreakSM] = useState(0);
-  const [bBreakEH, setBBreakEH] = useState(13);
-  const [bBreakEM, setBBreakEM] = useState(0);
+  const [rows, setRows] = useState([]); // { type, sH, sM, eH, eM }
+  const [activeRow, setActiveRow] = useState(0);
+  const [activeField, setActiveField] = useState('start'); // 'start' | 'end' within active row
   const [draftSegs, setDraftSegs] = useState(() => new Set());
   const [draftTypes, setDraftTypes] = useState({});
   const painting = useRef(false);
@@ -290,30 +283,49 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     });
   };
 
-  // Paint a start→end block from the wheel picker (snapped to 30-min segments)
-  // onto the current draft, then persist — same store as drag-painting.
-  const addTimeBlock = () => {
-    const s = wStartH * 2 + (wStartM >= 30 ? 1 : 0);
-    const e = Math.min(SEG_PER_DAY, wEndH * 2 + (wEndM >= 30 ? 1 : 0));
-    if (e <= s) { showToast('End time must be after start time', 'error'); return; }
+  // Day-builder helpers — segment index from a row's start/end.
+  const rowStartSeg = (r) => r.sH * 2 + (r.sM >= 30 ? 1 : 0);
+  const rowEndSeg = (r) => Math.min(SEG_PER_DAY, r.eH * 2 + (r.eM >= 30 ? 1 : 0));
+  const setRowField = (idx, key, value) => setRows((rs) => rs.map((r, i) => (i === idx ? { ...r, [key]: value } : r)));
+
+  const addSegmentRow = () => setRows((rs) => {
+    const last = rs[rs.length - 1];
+    let sH = last ? last.eH : 8;
+    const sM = last ? last.eM : 0;
+    if (sH >= 24) sH = 22; // leave room for an end time
+    const eH = Math.min(24, sH + 4);
+    setActiveRow(rs.length);
+    setActiveField('start');
+    return [...rs, { type: 'duty', sH, sM, eH, eM: 0 }];
+  });
+
+  const removeSegmentRow = (idx) => setRows((rs) => {
+    if (rs.length <= 1) return rs;
+    const next = rs.filter((_, i) => i !== idx);
+    setActiveRow((a) => Math.max(0, Math.min(a, next.length - 1)));
+    return next;
+  });
+
+  // Paint every segment row onto the draft (gaps stay rest = breaks), persist —
+  // same store as drag-painting. Later rows win on overlap.
+  const saveDay = () => {
+    if (!rows.length || rows.some((r) => rowEndSeg(r) <= rowStartSeg(r))) {
+      showToast('Each segment needs an end after its start', 'error'); return;
+    }
     const segs = new Set(draftSegs);
     const types = { ...draftTypes };
-    for (let i = s; i < e; i += 1) { segs.add(i); types[i] = wheelType; }
-    // Carve the break back out to rest (only the part inside the block).
-    let breakSegs = 0;
-    if (breakOn) {
-      const bs = Math.max(s, bBreakSH * 2 + (bBreakSM >= 30 ? 1 : 0));
-      const be = Math.min(e, bBreakEH * 2 + (bBreakEM >= 30 ? 1 : 0));
-      for (let i = bs; i < be; i += 1) { segs.delete(i); delete types[i]; breakSegs += 1; }
-    }
+    rows.forEach((r) => {
+      const s = rowStartSeg(r);
+      const e = rowEndSeg(r);
+      for (let i = s; i < e; i += 1) { segs.add(i); types[i] = r.type; }
+    });
     setDraftSegs(segs);
     setDraftTypes(types);
     draftRef.current = { segs, types };
     addWorkEntries(crewId, [{ date: selectedDate, workSegments: Array.from(segs).sort((a, b) => a - b), segmentTypes: types, source: 'edited' }]);
     afterSave();
     setShowWheel(false);
-    const range = `${segToHHMM(s)}–${e === SEG_PER_DAY ? '24:00' : segToHHMM(e)}`;
-    showToast(breakSegs > 0 ? `Added ${range} (${Number((breakSegs * 0.5).toFixed(1))}h break)` : `Added ${range}`, 'success');
+    showToast(rows.length === 1 ? 'Added 1 segment' : `Added ${rows.length} segments`, 'success');
   };
 
   const clearDay = () => {
@@ -470,86 +482,73 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           {isRota && <button type="button" className="cp-preset act" onClick={logAsRostered}>✓ Log as rostered</button>}
           <button type="button" className="cp-preset" onClick={clearDay}>Clear (off)</button>
           {cd.source === 'actual' && <button type="button" className="cp-preset" onClick={resetToBaseline}>Reset to rota</button>}
-          <button type="button" className="cp-preset" onClick={() => { setShowWheel((v) => !v); setWheelType(brush); setActiveField('start'); setBreakOn(false); setShowApply(false); setSavingTpl(false); }}>Enter times ▾</button>
+          <button type="button" className="cp-preset" onClick={() => { setShowWheel((v) => !v); setRows([{ type: brush, sH: 8, sM: 0, eH: 12, eM: 0 }]); setActiveRow(0); setActiveField('start'); setShowApply(false); setSavingTpl(false); }}>Enter times ▾</button>
           <button type="button" className="cp-preset" onClick={() => { setShowApply((v) => !v); setSavingTpl(false); setShowWheel(false); }}>Apply template ▾</button>
           <button type="button" className="cp-preset act" onClick={() => { setSavingTpl((v) => !v); setShowApply(false); setShowWheel(false); }}>+ Add template</button>
         </div>
 
         {showWheel && createPortal((() => {
-          const s = wStartH * 2 + (wStartM >= 30 ? 1 : 0);
-          const e = Math.min(SEG_PER_DAY, wEndH * 2 + (wEndM >= 30 ? 1 : 0));
-          const valid = e > s;
-          // Break, clamped to the block — only the overlap counts as rest.
-          const rawBS = bBreakSH * 2 + (bBreakSM >= 30 ? 1 : 0);
-          const rawBE = bBreakEH * 2 + (bBreakEM >= 30 ? 1 : 0);
-          const breakSegs = breakOn ? Math.max(0, Math.min(e, rawBE) - Math.max(s, rawBS)) : 0;
-          const breakValid = !breakOn || (rawBE > rawBS && breakSegs > 0);
-          const onDuty = Number(((e - s - breakSegs) * 0.5).toFixed(1));
-          const range = `${hhmm(wStartH, wStartM)}–${wEndH === 24 ? '24:00' : hhmm(wEndH, wEndM)}`;
-          let dur;
-          if (!valid) dur = 'End must be after start';
-          else if (breakOn && !breakValid) dur = 'Break must sit inside the block';
-          else dur = `${range} · ${onDuty}h on duty${breakSegs > 0 ? ` (${Number((breakSegs * 0.5).toFixed(1))}h break)` : ''}`;
+          const valid = rows.length > 0 && rows.every((r) => rowEndSeg(r) > rowStartSeg(r));
+          // Summary: total on-duty, plus gaps between segments shown as breaks.
+          let onDutySegs = 0;
+          rows.forEach((r) => { if (rowEndSeg(r) > rowStartSeg(r)) onDutySegs += rowEndSeg(r) - rowStartSeg(r); });
+          const ordered = rows.filter((r) => rowEndSeg(r) > rowStartSeg(r)).sort((a, b) => rowStartSeg(a) - rowStartSeg(b));
+          let breakSegs = 0;
+          for (let i = 1; i < ordered.length; i += 1) { const g = rowStartSeg(ordered[i]) - rowEndSeg(ordered[i - 1]); if (g > 0) breakSegs += g; }
+          const summary = !valid
+            ? 'Each segment needs an end after its start'
+            : `${Number((onDutySegs * 0.5).toFixed(1))}h on duty${breakSegs > 0 ? ` · ${Number((breakSegs * 0.5).toFixed(1))}h break` : ''}`;
 
-          // The wheels edit whichever field is active (start/end/break start/end).
-          const FIELDS = {
-            start: { h: wStartH, sh: setWStartH, m: wStartM, sm: setWStartM, hours: HOURS_START },
-            end: { h: wEndH, sh: setWEndH, m: wEndM, sm: setWEndM, hours: HOURS_END },
-            breakStart: { h: bBreakSH, sh: setBBreakSH, m: bBreakSM, sm: setBBreakSM, hours: HOURS_START },
-            breakEnd: { h: bBreakEH, sh: setBBreakEH, m: bBreakEM, sm: setBBreakEM, hours: HOURS_END },
-          };
-          const af = FIELDS[activeField] || FIELDS.start;
-          const fieldBtn = (key, label, h, m) => (
-            <button type="button" className={`htm-field${activeField === key ? ' act' : ''}`} onClick={() => setActiveField(key)}>
-              <span className="htm-k">{label}</span>
-              <span className="htm-v">{h === 24 ? '24:00' : hhmm(h, m)}</span>
-            </button>
-          );
+          const ar = rows[activeRow] || rows[0] || { sH: 8, sM: 0, eH: 12, eM: 0 };
+          const isStart = activeField === 'start';
+          const curH = isStart ? ar.sH : ar.eH;
+          const curM = isStart ? ar.sM : ar.eM;
+          const typeLabel = (k) => (PALETTE.find(([key]) => key === k) || [, 'Duty'])[1];
+
           return (
             <div className="htm-overlay" onMouseDown={(ev) => { if (ev.target === ev.currentTarget) setShowWheel(false); }}>
-              <div className="htm-modal" role="dialog" aria-modal="true" aria-label="Add a time block">
-                <h4 className="htm-title">Add a time block</h4>
+              <div className="htm-modal" role="dialog" aria-modal="true" aria-label="Build the day">
+                <h4 className="htm-title">Build the day</h4>
 
+                {/* Type control applies to the active segment row. */}
                 <div className="htm-seg">
                   {PALETTE.map(([k, label]) => (
-                    <button key={k} type="button" className={`htm-seg-b${wheelType === k ? ' act' : ''}`} onClick={() => setWheelType(k)}>
+                    <button key={k} type="button" className={`htm-seg-b${ar.type === k ? ' act' : ''}`} onClick={() => setRowField(activeRow, 'type', k)}>
                       <span className="htm-sw" style={{ background: TYPE_COLOR[k] }} />{label}
                     </button>
                   ))}
                 </div>
 
-                <div className="htm-fields">
-                  {fieldBtn('start', 'Start', wStartH, wStartM)}
-                  <span className="htm-arrow" aria-hidden="true">→</span>
-                  {fieldBtn('end', 'End', wEndH, wEndM)}
+                <div className="htm-rows">
+                  {rows.map((r, idx) => (
+                    <div key={idx} className={`htm-row${idx === activeRow ? ' act' : ''}`}>
+                      <button type="button" className="htm-row-type" onClick={() => setActiveRow(idx)}>
+                        <span className="htm-sw" style={{ background: TYPE_COLOR[r.type] }} />{typeLabel(r.type)}
+                      </button>
+                      <button type="button" className={`htm-row-time${idx === activeRow && isStart ? ' act' : ''}`} onClick={() => { setActiveRow(idx); setActiveField('start'); }}>
+                        {hhmm(r.sH, r.sM)}
+                      </button>
+                      <span className="htm-row-arrow" aria-hidden="true">→</span>
+                      <button type="button" className={`htm-row-time${idx === activeRow && !isStart ? ' act' : ''}`} onClick={() => { setActiveRow(idx); setActiveField('end'); }}>
+                        {r.eH === 24 ? '24:00' : hhmm(r.eH, r.eM)}
+                      </button>
+                      <button type="button" className="htm-row-x" disabled={rows.length <= 1} aria-label="Remove segment" onClick={() => removeSegmentRow(idx)}>×</button>
+                    </div>
+                  ))}
                 </div>
 
-                {breakOn && (
-                  <div className="htm-fields htm-fields-break">
-                    {fieldBtn('breakStart', 'Break from', bBreakSH, bBreakSM)}
-                    <span className="htm-arrow" aria-hidden="true">→</span>
-                    {fieldBtn('breakEnd', 'Break to', bBreakEH, bBreakEM)}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  className={`htm-breaktoggle${breakOn ? ' on' : ''}`}
-                  onClick={() => setBreakOn((v) => { const nv = !v; setActiveField(nv ? 'breakStart' : 'start'); return nv; })}
-                >
-                  {breakOn ? '× Remove break' : '+ Add a break'}
-                </button>
+                <button type="button" className="htm-breaktoggle" onClick={addSegmentRow}>+ add segment</button>
 
                 <div className="htm-wheels">
-                  <Wheel items={af.hours} value={af.h} onChange={af.sh} />
+                  <Wheel items={isStart ? HOURS_START : HOURS_END} value={curH} onChange={(v) => setRowField(activeRow, isStart ? 'sH' : 'eH', v)} />
                   <span className="htm-colon">:</span>
-                  <Wheel items={MINUTES} value={af.m} onChange={af.sm} />
+                  <Wheel items={MINUTES} value={curM} onChange={(v) => setRowField(activeRow, isStart ? 'sM' : 'eM', v)} />
                 </div>
 
-                <div className="htm-dur">{dur}</div>
+                <div className="htm-dur">{summary}</div>
                 <div className="htm-actions">
                   <button type="button" className="htm-cancel" onClick={() => setShowWheel(false)}>Cancel</button>
-                  <button type="button" className="htm-add" onClick={addTimeBlock} disabled={!valid || !breakValid}>Add block</button>
+                  <button type="button" className="htm-add" onClick={saveDay} disabled={!valid}>Save day</button>
                 </div>
               </div>
             </div>

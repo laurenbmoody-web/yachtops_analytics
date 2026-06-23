@@ -32,29 +32,38 @@
 .htm-sw { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; }
 .htm-seg-b.act .htm-sw { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); }
 
-/* Tappable Start / End fields */
-.htm-fields { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.htm-field {
-  flex: 1; text-align: center; border: 1px solid #ECEAE3; border-radius: 12px;
-  padding: 9px 13px; background: #FAFAF8; cursor: pointer;
+/* Segment rows — one typed start→end per row; gaps between rows are breaks */
+.htm-rows { display: flex; flex-direction: column; margin-bottom: 4px; }
+.htm-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; border: 1px solid transparent; }
+.htm-row.act { border-color: #C65A1A; background: #FBEFE9; }
+.htm-row-type {
+  flex: 0 0 86px; display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  background: none; border: 0; cursor: pointer; padding: 2px 0;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 600; color: #1C1B3A;
 }
-.htm-field.act { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
-.htm-k { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 2px; }
-.htm-v { font-family: 'DM Serif Display', Georgia, serif; font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 400; color: #1C1B3A; }
-.htm-field:not(.act) .htm-v { color: #AEB4C2; }
-.htm-arrow { color: #AEB4C2; font-size: 14px; flex: 0 0 auto; }
-.htm-fields-break { margin-top: -6px; }
-.htm-fields-break .htm-field { background: #FBEFE9; }
-.htm-fields-break .htm-field.act { background: #fff; }
+.htm-row-type .htm-sw { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; }
+.htm-row-time {
+  flex: 1; text-align: center; border: 1px solid #ECEAE3; border-radius: 9px;
+  padding: 6px 4px; background: #FAFAF8; cursor: pointer;
+  font-family: 'DM Serif Display', Georgia, serif; font-variant-numeric: tabular-nums;
+  font-size: 19px; color: #1C1B3A;
+}
+.htm-row-time.act { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.htm-row-arrow { color: #AEB4C2; font-size: 13px; flex: 0 0 auto; }
+.htm-row-x {
+  flex: 0 0 auto; width: 22px; height: 22px; border: 0; border-radius: 6px; background: none;
+  color: #AEB4C2; font-size: 17px; line-height: 1; cursor: pointer;
+}
+.htm-row-x:hover:not(:disabled) { background: #F0F1F5; color: #E4574C; }
+.htm-row-x:disabled { opacity: 0; cursor: default; }
 
-/* Break toggle (text link, terracotta) */
+/* "+ add segment" link */
 .htm-breaktoggle {
-  display: block; margin: -4px auto 14px; background: none; border: 0;
+  display: block; margin: 2px auto 14px; background: none; border: 0;
   font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 600;
-  color: #C65A1A; cursor: pointer; padding: 2px 4px;
+  color: #C65A1A; cursor: pointer; padding: 4px 6px;
 }
 .htm-breaktoggle:hover { color: #B14E16; }
-.htm-breaktoggle.on { color: #8B8478; }
 
 /* Wheels for the active field */
 .htm-wheels { display: flex; align-items: center; justify-content: center; gap: 6px; }
