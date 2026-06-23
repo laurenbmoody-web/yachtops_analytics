@@ -14,6 +14,9 @@ import InboxSidebar from './InboxSidebar';
 import OrdersReviewPanel from './OrdersReviewPanel';
 import OrderApprovalRightPane from './OrderApprovalRightPane';
 import { useProvisioningApprovals } from './useProvisioningApprovals';
+import SeaTimeReviewPanel from './SeaTimeReviewPanel';
+import CaptainSignoff from '../../seatime/CaptainSignoff';
+import { SEATIME_REVIEW_QUEUE } from '../../seatime/reviewQueue';
 import './reviews.css';
 
 // Map pathname → active category. /reviews and /reviews/rotas both
@@ -21,6 +24,7 @@ import './reviews.css';
 // links to the existing surface working.
 const categoryFromPath = (pathname) => {
   if (pathname.startsWith('/reviews/orders')) return 'orders';
+  if (pathname.startsWith('/reviews/seatime')) return 'seatime';
   return 'rotas';
 };
 
@@ -81,6 +85,10 @@ export default function ReviewsPage() {
     return () => { cancelled = true; clearInterval(id); };
   }, [user, tier, userDeptId, activeTenantId]);
 
+  // Sea-time sign-off queue (sample; live wiring is a follow-up). Resolving an
+  // item removes it from the captain's queue.
+  const [seatimeQueue, setSeatimeQueue] = useState(SEATIME_REVIEW_QUEUE);
+
   // Pending inbox vs History (resolved) tab.
   const [tab, setTab] = useState('pending');
   const { items, loading, refetch } = useReviewItems(tab === 'history' ? 'resolved' : 'pending');
@@ -131,6 +139,49 @@ export default function ReviewsPage() {
   // After a decision: refetch the list. The selection effect above advances
   // ?selected to the next item (or clears it when the inbox empties).
   const handleResolved = () => { refetch(); };
+
+  if (activeCategory === 'seatime') {
+    // The signing master reviews one command spell at a time; ?selected= drops
+    // a deep link (e.g. from the bell notification) onto the right pane.
+    const stSelectedId = searchParams.get('selected');
+    const stSelected = seatimeQueue.find(i => i.id === stSelectedId) || seatimeQueue[0] || null;
+    const stSelect = (id) => setSearchParams({ selected: id });
+    const stResolve = (id, msg) => {
+      setSeatimeQueue(q => q.filter(i => i.id !== id));
+      setSearchParams({}, { replace: true });
+      showToast(msg);
+    };
+    return (
+      <>
+        <Header />
+        <div className="rv-page">
+          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeQueue.length }} />
+          <SeaTimeReviewPanel items={seatimeQueue} selectedId={stSelected?.id} onSelect={stSelect} eyebrow={eyebrow} />
+          <section className="rv-rightpane-col" aria-label="Sign-off detail">
+            {stSelected ? (
+              <CaptainSignoff
+                variant="pane"
+                key={stSelected.id}
+                unit={stSelected.unit}
+                seafarer={stSelected.seafarer}
+                onSign={() => stResolve(stSelected.id, `${stSelected.unit.name} signed for ${stSelected.seafarer.fullName}`)}
+                onDecline={() => stResolve(stSelected.id, `Declined — ${stSelected.seafarer.fullName} has been notified`)}
+              />
+            ) : (
+              <div className="rv-rp-blank" role="status">
+                <Icon name="Check" size={36} color="#8B8478" className="rv-rp-blank-icon" />
+                <div className="rv-rp-blank-title">All clear</div>
+                <div className="rv-rp-blank-sub">Sea-service sign-off requests will appear here.</div>
+              </div>
+            )}
+          </section>
+          {toast && (
+            <div className={`rv-toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.msg}</div>
+          )}
+        </div>
+      </>
+    );
+  }
 
   if (activeCategory === 'orders') {
     // Selection state for the orders queue lives on the URL so deep
