@@ -173,6 +173,10 @@ function restLogFileBase(meta) {
   return `hours-of-rest_${safeSlug(meta.vesselName)}_${safeSlug(meta.periodLabel)}`;
 }
 
+function seafarerFileBase(meta, member) {
+  return `${restLogFileBase(meta)}_${safeSlug(member.name)}`;
+}
+
 // ── CSV (data/import artefact) ──────────────────────────────────────────────
 // The crew x day rest grid - ONE row per seafarer, one column per day - so it
 // mirrors the PDF summary matrix and stays compact (no per-day row explosion).
@@ -641,4 +645,31 @@ export async function buildRestLogPDF(args) {
 export async function exportRestLogPDF(args) {
   const doc = await renderRestLogDoc(args);
   doc.save(`${restLogFileBase(args.meta)}.pdf`);
+}
+
+// One seafarer's standalone signed Record of Hours of Rest — the same per-record
+// page renderRestLogDoc produces, but for a single member and without the fleet
+// summary. This is what the vault files away when a month is fully signed off.
+// `signature` is that member's { seafarer, master } block (already image-loaded).
+export async function buildSeafarerHorPDF({ member, days, meta, windowShifts = [], breachReasons = {}, signature = null }) {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const logo = await loadCargoLogo();
+  // Match renderRestLogDoc: reframe to the operational day before the grid recomputes.
+  const framedShifts = reframeToOperationalDay(windowShifts, meta.horDayStartHour || 0);
+  drawSeafarerRecord(doc, member, days, framedShifts, meta, logo, breachReasons, signature);
+
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i += 1) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(140);
+    doc.text(
+      `${meta.vesselName || 'Vessel'} · ${member.name} · ${meta.periodLabel} · Page ${i} of ${total}`,
+      pageW / 2, pageH - 16, { align: 'center' },
+    );
+  }
+  return { blob: doc.output('blob'), filename: `${seafarerFileBase(meta, member)}.pdf` };
 }

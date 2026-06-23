@@ -19,6 +19,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchTenantCrew } from '../crew-profile/utils/tenantCrew';
 import { fetchMonthStatusesForMonth, fetchVesselHorSettings, fetchActiveMemberTiers } from '../crew-profile/utils/horMonthStatus';
+import { fetchSignedHorRecordsForMonth, getSignedHorRecordUrl } from '../crew-profile/utils/horArchive';
 import { sendDbNotification } from '../../lib/dbNotifications';
 import { loadRotaHorExportData } from '../crew-rota/rotaHorExportData';
 import { buildRestLogPDF, buildRestLogCSV } from '../crew-rota/rotaHorExport';
@@ -108,13 +109,14 @@ export default function MonthEnd() {
   const [hideClosed, setHideClosed] = useState(false); // filter: hide closed items
   const [exporting, setExporting] = useState(false);   // building/sending the HOR pack
   const [sentRecord, setSentRecord] = useState(null);  // hor_management_sends row for this month
+  const [archived, setArchived] = useState({});        // subject_user_id -> hor_signed_documents row (this month)
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
     setLoading(true);
     const start = `${year}-${pad2(jsMonth + 1)}-01`;
     const end = `${year}-${pad2(jsMonth + 1)}-${pad2(new Date(year, jsMonth + 1, 0).getDate())}`;
-    const [crewRows, statusMap, vesselSettings, memberTiers, covRes, sentRes] = await Promise.all([
+    const [crewRows, statusMap, vesselSettings, memberTiers, covRes, sentRes, archivedMap] = await Promise.all([
       fetchTenantCrew(activeTenantId),
       fetchMonthStatusesForMonth({ tenantId: activeTenantId, year, jsMonth }),
       fetchVesselHorSettings(activeTenantId),
@@ -123,11 +125,13 @@ export default function MonthEnd() {
         .eq('tenant_id', activeTenantId).gte('entry_date', start).lte('entry_date', end),
       supabase.from('hor_management_sends').select('*')
         .eq('tenant_id', activeTenantId).eq('period_year', year).eq('period_month', jsMonth + 1).maybeSingle(),
+      fetchSignedHorRecordsForMonth({ tenantId: activeTenantId, year, jsMonth }),
     ]);
     const cov = {};
     (covRes?.data || []).forEach((r) => { (cov[r.subject_user_id] || (cov[r.subject_user_id] = new Set())).add(r.entry_date); });
     setCrew(crewRows); setStatuses(statusMap); setSettings(vesselSettings); setTiers(memberTiers); setCoverage(cov);
     setSentRecord(sentRes?.data || null);
+    setArchived(archivedMap || {});
     setReminded({});
     setLoading(false);
   }, [activeTenantId, year, jsMonth]);
@@ -197,6 +201,19 @@ export default function MonthEnd() {
   const fmtDMY = (iso) => {
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? '' : `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+  };
+
+  // Signed records filed in the vault for this month, in roster (dept) order.
+  const archivedList = useMemo(
+    () => rows.map((r) => ({ r, doc: archived[r.id] })).filter((x) => x.doc),
+    [rows, archived],
+  );
+
+  // Open an archived signed PDF in a new tab via a fresh signed URL.
+  const openArchived = async (doc) => {
+    const url = await getSignedHorRecordUrl(doc.storage_path);
+    if (url) window.open(url, '_blank', 'noopener');
+    else { setToast('Couldn’t open that record — please try again'); setTimeout(() => setToast(''), 3200); }
   };
 
   // Send the month's Record of Hours of Rest to the management company. The PDF
@@ -464,6 +481,34 @@ export default function MonthEnd() {
                               <button type="button" className={`me-btn ${sentRecord ? 'me-btn-ghost' : 'me-btn-primary'}`} disabled={exporting || !managementEmail} onClick={sendToManagement}>
                                 <Icon name="Send" size={14} /> {exporting ? 'Sending…' : (sentRecord ? 'Resend' : 'Send to management')}
                               </button>
+                            </div>
+
+                            {/* Signed-records vault — each crew + master signed
+                                record is filed here under its month as it's
+                                signed off. Builds up to the full roster. */}
+                            <div className="me-vault">
+                              <div className="me-vault-head">
+                                <Icon name="Archive" size={13} />
+                                <span className="me-vault-title">Signed records · {monthName}</span>
+                                <span className="me-vault-count">{archivedList.length}{counts.total ? ` / ${counts.total}` : ''} filed</span>
+                              </div>
+                              {archivedList.length === 0 ? (
+                                <div className="me-vault-empty">No signed records yet — each crew member’s record is filed here once their month is signed off.</div>
+                              ) : (
+                                archivedList.map(({ r, doc }) => (
+                                  <button type="button" key={r.id} className="me-vault-row" onClick={() => openArchived(doc)} title="Open signed record">
+                                    <span className="me-vault-ico"><Icon name="FileText" size={15} /></span>
+                                    <span className="me-vault-who">
+                                      <span className="me-vault-name">{r.fullName}</span>
+                                      <span className="me-vault-sub">
+                                        {doc.master_signed_name ? `Crew + master signed` : 'Signed'}
+                                        {doc.archived_at ? ` · ${fmtDMY(doc.archived_at)}` : ''}
+                                      </span>
+                                    </span>
+                                    <span className="me-vault-open"><Icon name="ExternalLink" size={14} /> Open</span>
+                                  </button>
+                                ))
+                              )}
                             </div>
                           </>
                         )}
