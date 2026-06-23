@@ -332,7 +332,7 @@ export default function RestLogView({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={() => { setShowExport(false); runExport((e) => exportRestLogCSV({ rows: e.rows, days: e.days, meta: e.meta })); }}
+                  onClick={() => { setShowExport(false); runExport((e) => exportRestLogCSV({ rows: e.rows, days: e.days, meta: e.meta, breachReasons })); }}
                 >
                   <span className="rl-export-t">Data (CSV)</span>
                   <span className="rl-export-s">Raw rest hours for spreadsheets / payroll</span>
