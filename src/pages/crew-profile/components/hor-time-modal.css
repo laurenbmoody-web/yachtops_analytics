@@ -1,0 +1,69 @@
+/* HOR time-block picker — focused modal (centred, dimmed backdrop) with two
+   tappable Start/End fields and one iPhone-alarm scroll-wheel pair for the
+   active field. Portaled to <body>, so styles are scoped under .htm-* and not
+   under .crew-profile-page. */
+.htm-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(28, 27, 58, 0.32);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.htm-modal {
+  background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
+  padding: 22px; width: 340px; max-width: 100%;
+  box-shadow: 0 30px 70px -20px rgba(28, 27, 58, 0.5);
+}
+.htm-title {
+  font-family: 'DM Serif Display', Georgia, serif; font-weight: 400;
+  font-size: 20px; color: #1C1B3A; margin: 0 0 16px; text-align: center;
+}
+
+/* Segmented shift-type control */
+.htm-seg { display: flex; border: 1px solid #ECEAE3; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+.htm-seg-b {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  border: 0; border-right: 1px solid #ECEAE3; background: #fff; color: #555;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 600;
+  padding: 9px 2px; cursor: pointer;
+}
+.htm-seg-b:last-child { border-right: 0; }
+.htm-seg-b.act { background: #1C1B3A; color: #fff; }
+.htm-sw { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; }
+.htm-seg-b.act .htm-sw { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); }
+
+/* Tappable Start / End fields */
+.htm-fields { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.htm-field {
+  flex: 1; text-align: left; border: 1px solid #ECEAE3; border-radius: 12px;
+  padding: 9px 13px; background: #FAFAF8; cursor: pointer;
+}
+.htm-field.act { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.htm-k { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 2px; }
+.htm-v { font-family: 'Inter', system-ui, sans-serif; font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; color: #1C1B3A; }
+.htm-field:not(.act) .htm-v { color: #AEB4C2; }
+.htm-arrow { color: #AEB4C2; font-size: 14px; flex: 0 0 auto; }
+
+/* Wheels for the active field */
+.htm-wheels { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.htm-colon { font-size: 20px; font-weight: 700; color: #1C1B3A; }
+.htm-modal .cp-wheel-frame { position: relative; width: 64px; height: 188px; border: 1px solid #ECEAE3; border-radius: 12px; background: #FAFAF8; overflow: hidden; }
+.htm-modal .cp-wheel-frame::before,
+.htm-modal .cp-wheel-frame::after { content: ''; position: absolute; left: 0; right: 0; height: 60px; z-index: 2; pointer-events: none; }
+.htm-modal .cp-wheel-frame::before { top: 0; background: linear-gradient(#FAFAF8, rgba(250, 250, 248, 0)); }
+.htm-modal .cp-wheel-frame::after { bottom: 0; background: linear-gradient(rgba(250, 250, 248, 0), #FAFAF8); }
+.htm-modal .cp-wheel { position: relative; z-index: 1; height: 100%; overflow-y: auto; overflow-x: hidden; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; background: transparent; }
+.htm-modal .cp-wheel::-webkit-scrollbar { display: none; }
+.htm-modal .cp-wheel-pad { height: 78px; flex: 0 0 auto; }
+.htm-modal .cp-wheel-it { display: flex; align-items: center; justify-content: center; width: 100%; height: 32px; scroll-snap-align: center; font-family: 'Inter', system-ui, sans-serif; font-variant-numeric: tabular-nums; font-size: 19px; color: #AEB4C2; background: none; border: 0; cursor: pointer; }
+.htm-modal .cp-wheel-it.sel { color: #1C1B3A; font-weight: 700; }
+.htm-modal .cp-wheel-band { position: absolute; left: 5px; right: 5px; top: 78px; height: 32px; background: #FBEFE9; border-radius: 6px; z-index: 0; pointer-events: none; }
+
+/* Footer */
+.htm-dur { text-align: center; font-size: 12px; font-weight: 500; color: #6B7280; margin: 14px 0 16px; }
+.htm-actions { display: flex; gap: 10px; }
+.htm-cancel { flex: 0 0 auto; background: #fff; border: 1px solid #E8E6DF; border-radius: 11px; padding: 11px 18px; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 600; color: #1C1B3A; cursor: pointer; }
+.htm-cancel:hover { border-color: #d8d4c8; }
+.htm-add { flex: 1; background: #C65A1A; color: #fff; border: 0; border-radius: 11px; padding: 11px; font-family: 'Inter', system-ui, sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.htm-add:hover { background: #B14E16; }
+.htm-add:disabled { background: #E6D5CA; cursor: not-allowed; }
