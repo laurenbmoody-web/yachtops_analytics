@@ -40,13 +40,13 @@
 }
 .htm-field.act { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
 .htm-k { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 2px; }
-.htm-v { font-family: 'Inter', system-ui, sans-serif; font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; color: #1C1B3A; }
+.htm-v { font-family: 'DM Serif Display', Georgia, serif; font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 400; color: #1C1B3A; }
 .htm-field:not(.act) .htm-v { color: #AEB4C2; }
 .htm-arrow { color: #AEB4C2; font-size: 14px; flex: 0 0 auto; }
 
 /* Wheels for the active field */
 .htm-wheels { display: flex; align-items: center; justify-content: center; gap: 6px; }
-.htm-colon { font-size: 20px; font-weight: 700; color: #1C1B3A; }
+.htm-colon { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #1C1B3A; }
 .htm-modal .cp-wheel-frame { position: relative; width: 64px; height: 188px; border: 1px solid #ECEAE3; border-radius: 12px; background: #FAFAF8; overflow: hidden; }
 .htm-modal .cp-wheel-frame::before,
 .htm-modal .cp-wheel-frame::after { content: ''; position: absolute; left: 0; right: 0; height: 60px; z-index: 2; pointer-events: none; }
@@ -55,8 +55,8 @@
 .htm-modal .cp-wheel { position: relative; z-index: 1; height: 100%; overflow-y: auto; overflow-x: hidden; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; background: transparent; }
 .htm-modal .cp-wheel::-webkit-scrollbar { display: none; }
 .htm-modal .cp-wheel-pad { height: 78px; flex: 0 0 auto; }
-.htm-modal .cp-wheel-it { display: flex; align-items: center; justify-content: center; width: 100%; height: 32px; scroll-snap-align: center; font-family: 'Inter', system-ui, sans-serif; font-variant-numeric: tabular-nums; font-size: 19px; color: #AEB4C2; background: none; border: 0; cursor: pointer; }
-.htm-modal .cp-wheel-it.sel { color: #1C1B3A; font-weight: 700; }
+.htm-modal .cp-wheel-it { display: flex; align-items: center; justify-content: center; width: 100%; height: 32px; scroll-snap-align: center; font-family: 'DM Serif Display', Georgia, serif; font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 400; color: #C9CCD6; background: none; border: 0; cursor: pointer; }
+.htm-modal .cp-wheel-it.sel { color: #1C1B3A; }
 .htm-modal .cp-wheel-band { position: absolute; left: 5px; right: 5px; top: 78px; height: 32px; background: #FBEFE9; border-radius: 6px; z-index: 0; pointer-events: none; }
 
 /* Footer */
