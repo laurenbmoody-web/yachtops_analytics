@@ -195,7 +195,7 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
         : await analyzeDocxForTemplate(f);
       setDraft(result);
       setDraftName('');   // let the user name it
-      setDraftRoles(roleTitle ? [roleTitle] : []);
+      setDraftRoles([]);  // let the user assign roles — don't assume the current profile's role
       if (result.kind === 'map' && !result.mappings.length) {
         showToast('No particulars were detected — you can still review and adjust.', 'info');
       }
@@ -341,7 +341,9 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
   );
 
   const renderRow = (t) => {
-    const fits = templateFitsRole(t, roleTitle);
+    // "Suggested" = the template explicitly lists this crew member's role. An
+    // unrestricted (Any role) template is eligible but not specifically suggested.
+    const suggested = !!(roleTitle && (t.roles || []).some((r) => r.toLowerCase() === String(roleTitle).toLowerCase()));
     const editing = editRolesId === t.id;
     return (
       <div key={t.id} className={`ctm-row${chosenId === t.id ? ' is-sel' : ''}`}>
@@ -350,7 +352,7 @@ const ContractTemplateModal = ({ tenantId, crewMember, selectedId, canManage, cr
           <span className="ctm-row-info">
             <span className="ctm-row-name">
               {t.name}
-              {fits && <span className="ctm-tag suggest">Suggested</span>}
+              {suggested && <span className="ctm-tag suggest">Suggested</span>}
               {!t.tokens?.length && <span className="ctm-tag warn">No fillable fields</span>}
             </span>
             <span className="ctm-row-meta">
