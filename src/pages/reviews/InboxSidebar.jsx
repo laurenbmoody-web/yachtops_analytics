@@ -77,6 +77,14 @@ export default function InboxSidebar({ activeCategory = 'rotas', counts = {} }) 
           count={counts.orders}
           onNavigate={go}
         />
+        <SidebarItem
+          icon="PenLine"
+          label="Sea-time sign-off"
+          to="/reviews/seatime"
+          active={activeCategory === 'seatime'}
+          count={counts.seatime}
+          onNavigate={go}
+        />
         <SidebarItem icon="Undo2" label="Supplier returns" />
         <SidebarItem icon="Receipt" label="Expense approvals" />
       </div>
