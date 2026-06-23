@@ -16,6 +16,7 @@ import Login from './pages/login';
 import CrewManagement from './pages/crew-management';
 import RoleManagement from './pages/crew-management/components/RoleManagement';
 import MonthEnd from './pages/month-end';
+import VesselDocuments from './pages/vessel-documents';
 import GuestManagementDashboard from './pages/guest-management-dashboard';
 import InventoryCategorySettings from './pages/inventory-category-settings';
 import Enhanced4LevelInventoryNavigation from './pages/enhanced-4-level-inventory-navigation';
@@ -1142,6 +1143,7 @@ const Routes = () => {
         {/* Crew Routes */}
         <Route path="/crew-management" element={<ProtectedRoute><CrewManagement /></ProtectedRoute>} />
         <Route path="/month-end" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><MonthEnd /></ProtectedRoute>} />
+        <Route path="/vessel-documents" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><VesselDocuments /></ProtectedRoute>} />
         <Route path="/crew-management/roles" element={<CommandRoute><RoleManagement /></CommandRoute>} />
         <Route path="/profile/:crewId" element={<ProtectedRoute requiresTenant={false}><CrewProfile /></ProtectedRoute>} />
         <Route path="/my-profile" element={<MyProfileRedirect />} />
