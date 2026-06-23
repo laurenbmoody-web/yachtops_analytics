@@ -13,7 +13,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   fetchChildren, fetchBreadcrumb, fetchShelf, createFolder, uploadFile,
   renameItem, setExpiry, deleteItem, getFileUrl, moveItem, fetchFolders,
-  getExpiryStatus, formatDocDate, isVirtualId, VIRT_HOR, VIRT_TEMPLATES,
+  seedDefaultFolders, getExpiryStatus, formatDocDate, isVirtualId,
+  VIRT_HOR, VIRT_TEMPLATES,
 } from './vesselDocuments';
 import './vessel-documents.css';
 
@@ -50,6 +51,7 @@ export default function VesselDocuments() {
   const [promptValue, setPromptValue] = useState('');
   const [move, setMove] = useState(null);        // { item, cwd, crumbs, folders } move picker
   const fileRef = useRef(null);
+  const seededRef = useRef(null);                // tenant whose empty vault we've already seeded
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2800); };
 
@@ -59,7 +61,16 @@ export default function VesselDocuments() {
     try {
       if (!cwd) {
         // Root → the Shelf (folder cards + linked stores + any loose files).
-        const s = await fetchShelf({ tenantId: activeTenantId });
+        let s = await fetchShelf({ tenantId: activeTenantId });
+        // First time an account opens an empty vault, lay down the starter
+        // folders so it doesn't start blank. Idempotent and one-shot per tenant.
+        if (seededRef.current !== activeTenantId && s.folders.length === 0 && s.rootFiles.length === 0) {
+          seededRef.current = activeTenantId;
+          try {
+            const created = await seedDefaultFolders({ tenantId: activeTenantId, createdBy: userId });
+            if (created.length) { s = await fetchShelf({ tenantId: activeTenantId }); flash('Added starter folders'); }
+          } catch { /* leave the vault empty if seeding fails */ }
+        }
         setShelf(s);
         setItems([]);
         setCrumbs([]);
