@@ -47,9 +47,54 @@
 .vd-row-system .vd-meta { color: #8B8478; }
 .vd-linkmeta { font-size: 11.5px; color: #AEB4C2; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ── Shelf (root landing) — tactile cards per area ───────────────────────── */
+.vd-shelf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 20px; }
+.vd-card { display: flex; flex-direction: column; text-align: left; background: #fff; border: 1px solid #ECEAE3; border-radius: 14px; padding: 18px; cursor: pointer; font: inherit; color: #1C1B3A; transition: transform 0.14s ease, box-shadow 0.14s ease; }
+.vd-card:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -20px rgba(28,27,58,0.4); }
+.vd-card:disabled { cursor: default; opacity: 0.7; }
+.vd-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+.vd-card-ico { width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: #FBEFE9; color: #C65A1A; flex: 0 0 auto; }
+.vd-card-ico-linked { background: #F6F5F2; color: #8B8478; }
+.vd-card-h { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 19px; margin: 0 0 3px; line-height: 1.15; }
+.vd-card-sub { font-size: 12px; color: #8B8478; min-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-card-bar { height: 5px; border-radius: 999px; background: #F0F1F5; overflow: hidden; display: flex; margin-top: 12px; }
+.vd-card-bar i { height: 100%; display: block; }
+.vd-card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0F1F5; font-size: 12px; color: #6B7280; }
+.vd-card-new { align-items: center; justify-content: center; gap: 7px; border-style: dashed; background: #FAFAF8; color: #8B8478; min-height: 150px; flex-direction: row; }
+.vd-card-new:hover { transform: none; box-shadow: none; border-color: #C65A1A; color: #C65A1A; background: #FBEFE9; }
+.vd-card-new span { font-size: 13px; font-weight: 600; }
+
+/* Status chips on cards */
+.vd-chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.2px; white-space: nowrap; }
+.vd-chip.red { background: #FBE4DC; color: #9A2B12; }
+.vd-chip.amber { background: #FBEFD9; color: #8A5A12; }
+.vd-chip.green { background: #E3EFE4; color: #3F7A52; }
+.vd-chip.link { background: #FBEFE9; color: #C65A1A; }
+
+/* ── Index (inside a folder) — editorial numbered list ───────────────────── */
+.vd-idx { margin-top: 8px; }
+.vd-idx-loose { margin-top: 26px; }
+.vd-idx-head { display: flex; align-items: baseline; gap: 10px; padding: 4px 6px 8px; }
+.vd-idx-head .t { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 16px; }
+.vd-idx-head .c { font-size: 11px; color: #AEB4C2; font-weight: 600; }
+.vd-idx-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid #F0F1F5; padding: 11px 6px; cursor: pointer; font: inherit; color: #1C1B3A; transition: background 0.12s ease; }
+.vd-idx-row:hover { background: #FAFAF8; }
+.vd-idx-num { flex: 0 0 auto; width: 22px; font-size: 11px; color: #AEB4C2; font-variant-numeric: tabular-nums; }
+.vd-idx-fico { flex: 0 0 auto; display: inline-flex; color: #C65A1A; }
+.vd-idx-linked { color: #8B8478; }
+.vd-idx-nm { flex: 0 0 auto; max-width: 52%; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-idx-lead { flex: 1 1 auto; border-bottom: 1px dotted #D8D4C8; transform: translateY(-3px); min-width: 16px; }
+.vd-idx-rt { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 10px; font-size: 12px; color: #6B7280; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.vd-idx-meta { color: #AEB4C2; }
+.vd-idx-go { flex: 0 0 auto; color: #C9C4B8; }
+.vd-idx-row:hover .vd-idx-go { color: #C65A1A; }
+
 /* Row actions — appear on hover, quiet until then */
 .vd-actions { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.12s ease; }
-.vd-row:hover .vd-actions, .vd-row:focus-within .vd-actions { opacity: 1; }
+.vd-row:hover .vd-actions, .vd-row:focus-within .vd-actions,
+.vd-idx-row:hover .vd-actions, .vd-idx-row:focus-within .vd-actions { opacity: 1; }
+/* When actions reveal on an index row, drop the redundant chevron. */
+.vd-idx-row:hover .vd-idx-go, .vd-idx-row:focus-within .vd-idx-go { display: none; }
 .vd-act { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: none; border: 0; color: #6B7280; cursor: pointer; transition: background 0.12s ease, color 0.12s ease; }
 .vd-act:hover { background: #F1EFE9; color: #1C1B3A; }
 .vd-act-danger:hover { background: #FBE4DC; color: #9A2B12; }
@@ -82,8 +127,14 @@
 
 .vd-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1C1B3A; color: #fff; padding: 11px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 600; box-shadow: 0 12px 30px -8px rgba(28,27,58,0.4); z-index: 90; }
 
+@media (max-width: 860px) {
+  .vd-shelf { grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 720px) {
   .vd-page { padding: 20px 16px 48px; }
   .vd-actions { opacity: 1; }
   .vd-meta { display: none; }
+  .vd-shelf { grid-template-columns: 1fr; }
+  .vd-idx-go { display: none; }
+  .vd-idx-nm { max-width: 40%; }
 }

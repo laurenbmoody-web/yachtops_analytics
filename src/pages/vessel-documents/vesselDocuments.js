@@ -8,7 +8,7 @@
 import { supabase } from '../../lib/supabaseClient';
 
 export { getExpiryStatus, formatDocDate } from '../crew-profile/utils/crewDocuments';
-import { formatDocDate as fmtDocDate } from '../crew-profile/utils/crewDocuments';
+import { formatDocDate as fmtDocDate, getExpiryStatus } from '../crew-profile/utils/crewDocuments';
 
 const BUCKET = 'vessel-vault';
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -309,6 +309,82 @@ export async function fetchFolders({ tenantId, parentId = null }) {
   if (error) { console.error('[vault] fetchFolders failed', error); return []; }
   return (data || []).sort((a, b) =>
     String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
+}
+
+// The vault "Shelf" — the root landing. Returns the top-level folders (each with
+// a recursive tally of the files beneath it: total + RAG counts + last-touched),
+// any loose files sitting at the root, and the counts for the two linked stores.
+// One read of the tenant's tree drives the whole grid.
+export async function fetchShelf({ tenantId }) {
+  const empty = { folders: [], rootFiles: [], linked: { hor: 0, templates: 0 } };
+  if (!tenantId) return empty;
+  const { data, error } = await supabase.from('vessel_documents').select('*').eq('tenant_id', tenantId);
+  if (error) { console.error('[vault] fetchShelf failed', error); throw error; }
+  const rows = data || [];
+
+  const byParent = new Map();
+  rows.forEach((r) => {
+    const k = r.parent_id || '__root__';
+    if (!byParent.has(k)) byParent.set(k, []);
+    byParent.get(k).push(r);
+  });
+  const childrenOf = (id) => byParent.get(id) || [];
+
+  // Recursively tally the files under a folder, bucketed by expiry RAG level.
+  const tally = (folderId) => {
+    const t = { total: 0, expired: 0, lapsing: 0, valid: 0, last: null };
+    const walk = (id) => childrenOf(id).forEach((c) => {
+      if (c.updated_at && (!t.last || c.updated_at > t.last)) t.last = c.updated_at;
+      if (c.kind === 'file') {
+        t.total += 1;
+        const lvl = getExpiryStatus(c.expiry_date)?.level;
+        if (lvl === 'expired') t.expired += 1;
+        else if (lvl === 'red' || lvl === 'amber') t.lapsing += 1;
+        else if (lvl === 'green') t.valid += 1;
+      } else if (c.kind === 'folder') {
+        walk(c.id);
+      }
+    });
+    walk(folderId);
+    return t;
+  };
+
+  const byName = (a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' });
+  const folders = childrenOf('__root__').filter((r) => r.kind === 'folder').sort(byName).map((f) => {
+    const t = tally(f.id);
+    const last = f.updated_at && (!t.last || f.updated_at > t.last) ? f.updated_at : t.last;
+    return { id: f.id, name: f.name, total: t.total, expired: t.expired, lapsing: t.lapsing, valid: t.valid, lastUpdated: last };
+  });
+  const rootFiles = childrenOf('__root__').filter((r) => r.kind === 'file').sort(byName);
+
+  // Linked store counts (best-effort — never block the shelf).
+  let hor = 0; let templates = 0;
+  try {
+    const { data: h } = await supabase.from('hor_signed_documents')
+      .select('period_year, period_month').eq('tenant_id', tenantId);
+    hor = new Set((h || []).map((r) => `${r.period_year}-${r.period_month}`)).size;
+  } catch { /* noop */ }
+  try {
+    const { count } = await supabase.from('contract_templates')
+      .select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId);
+    templates = count || 0;
+  } catch { /* noop */ }
+
+  return { folders, rootFiles, linked: { hor, templates } };
+}
+
+// Every vault file that carries an expiry (id, name, expiry_date), soonest first.
+// Powers the dashboard "Document renewals" ledger — classify client-side.
+export async function fetchVesselDocExpirySummary({ tenantId = null } = {}) {
+  let q = supabase.from('vessel_documents')
+    .select('id, name, expiry_date')
+    .eq('kind', 'file')
+    .not('expiry_date', 'is', null)
+    .order('expiry_date', { ascending: true });
+  if (tenantId) q = q.eq('tenant_id', tenantId);
+  const { data, error } = await q;
+  if (error) { console.error('[vault] expiry summary failed', error); return []; }
+  return data || [];
 }
 
 // Vessel documents that carry an expiry within `withinDays` (or already lapsed),

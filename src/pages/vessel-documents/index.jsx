@@ -11,9 +11,9 @@ import '../../styles/editorial.css';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  fetchChildren, fetchBreadcrumb, createFolder, uploadFile,
+  fetchChildren, fetchBreadcrumb, fetchShelf, createFolder, uploadFile,
   renameItem, setExpiry, deleteItem, getFileUrl, moveItem, fetchFolders,
-  getExpiryStatus, formatDocDate, isVirtualId,
+  getExpiryStatus, formatDocDate, isVirtualId, VIRT_HOR, VIRT_TEMPLATES,
 } from './vesselDocuments';
 import './vessel-documents.css';
 
@@ -41,6 +41,7 @@ export default function VesselDocuments() {
 
   const [cwd, setCwd] = useState(null);          // current folder id (null = root)
   const [items, setItems] = useState([]);
+  const [shelf, setShelf] = useState(null);      // root landing: folder cards + linked + root files
   const [crumbs, setCrumbs] = useState([]);      // [{id, name}] root→here
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -56,12 +57,22 @@ export default function VesselDocuments() {
     if (!activeTenantId) return;
     setLoading(true);
     try {
-      const [kids, chain] = await Promise.all([
-        fetchChildren({ tenantId: activeTenantId, parentId: cwd }),
-        cwd ? fetchBreadcrumb({ tenantId: activeTenantId, folderId: cwd }) : Promise.resolve([]),
-      ]);
-      setItems(kids);
-      setCrumbs(chain);
+      if (!cwd) {
+        // Root → the Shelf (folder cards + linked stores + any loose files).
+        const s = await fetchShelf({ tenantId: activeTenantId });
+        setShelf(s);
+        setItems([]);
+        setCrumbs([]);
+      } else {
+        // Inside a folder → the Index (editorial list).
+        const [kids, chain] = await Promise.all([
+          fetchChildren({ tenantId: activeTenantId, parentId: cwd }),
+          fetchBreadcrumb({ tenantId: activeTenantId, folderId: cwd }),
+        ]);
+        setItems(kids);
+        setCrumbs(chain);
+        setShelf(null);
+      }
     } catch (e) {
       console.error(e);
       flash('Couldn’t load the vault');
@@ -179,14 +190,68 @@ export default function VesselDocuments() {
     }
   };
 
-  // ── Rows ────────────────────────────────────────────────────────────────
+  // ── Shelf cards (root landing) ────────────────────────────────────────────
+  const renderCard = (f) => {
+    const total = f.total || 0;
+    const segs = [
+      { n: f.valid, c: '#3F7A52' },
+      { n: f.lapsing, c: '#8A5A12' },
+      { n: f.expired, c: '#9A2B12' },
+    ].filter((s) => s.n > 0);
+    let chip = null;
+    if (f.expired) chip = { cls: 'red', txt: `${f.expired} expired` };
+    else if (f.lapsing) chip = { cls: 'amber', txt: `${f.lapsing} lapsing` };
+    else if (total) chip = { cls: 'green', txt: 'all current' };
+    const parts = [];
+    if (f.valid) parts.push(`${f.valid} current`);
+    if (f.lapsing) parts.push(`${f.lapsing} lapsing`);
+    if (f.expired) parts.push(`${f.expired} expired`);
+    return (
+      <button type="button" key={f.id} className="vd-card" onClick={() => setCwd(f.id)}>
+        <div className="vd-card-top">
+          <span className="vd-card-ico"><Icon name="Folder" size={18} /></span>
+          {chip && <span className={`vd-chip ${chip.cls}`}>{chip.txt}</span>}
+        </div>
+        <h3 className="vd-card-h">{f.name}</h3>
+        <div className="vd-card-sub">{total ? parts.join(' · ') : 'Empty'}</div>
+        <div className="vd-card-bar">
+          {total ? segs.map((s, i) => <i key={i} style={{ width: `${(s.n / total) * 100}%`, background: s.c }} />)
+            : <i style={{ width: '100%', background: '#ECEAE3' }} />}
+        </div>
+        <div className="vd-card-foot">
+          <span>{total} document{total !== 1 ? 's' : ''}</span>
+          <span>{f.lastUpdated ? `Updated ${formatDocDate(f.lastUpdated)}` : '—'}</span>
+        </div>
+      </button>
+    );
+  };
+
+  const renderLinkedCard = (key, name, sub, count, unit) => (
+    <button type="button" key={key} className="vd-card vd-card-linked" onClick={() => setCwd(key)}>
+      <div className="vd-card-top">
+        <span className="vd-card-ico vd-card-ico-linked"><Icon name="FolderSymlink" size={18} /></span>
+        <span className="vd-chip link">linked</span>
+      </div>
+      <h3 className="vd-card-h">{name}</h3>
+      <div className="vd-card-sub">{sub}</div>
+      <div className="vd-card-bar"><i style={{ width: '100%', background: '#AEB4C2' }} /></div>
+      <div className="vd-card-foot">
+        <span>{count} {unit}{count !== 1 ? 's' : ''}</span>
+        <span>Read-only</span>
+      </div>
+    </button>
+  );
+
+  // ── Index rows (inside a folder) ──────────────────────────────────────────
   const renderFolder = (f) => (
-    <button type="button" key={f.id} className={`vd-row vd-row-folder${f.system ? ' vd-row-system' : ''}`} onDoubleClick={() => setCwd(f.id)} onClick={() => setCwd(f.id)}>
-      <span className={`vd-ico vd-ico-folder${f.system ? ' vd-ico-linked' : ''}`}>
-        <Icon name={f.system ? 'FolderSymlink' : 'Folder'} size={18} />
+    <button type="button" key={f.id} className={`vd-idx-row vd-idx-folder${f.system ? ' vd-idx-system' : ''}`} onClick={() => setCwd(f.id)}>
+      <span className={`vd-idx-fico${f.system ? ' vd-idx-linked' : ''}`}>
+        <Icon name={f.system ? 'FolderSymlink' : 'Folder'} size={17} />
       </span>
-      <span className="vd-name">{f.name}</span>
-      <span className="vd-meta">{f.meta || 'Folder'}</span>
+      <span className="vd-idx-nm">{f.name}</span>
+      <span className="vd-idx-lead" />
+      <span className="vd-idx-rt vd-idx-meta">{f.meta || 'Folder'}</span>
+      <Icon name="ChevronRight" size={15} className="vd-idx-go" />
       {!f.system && (
         <span className="vd-actions" onClick={(e) => e.stopPropagation()}>
           <button type="button" className="vd-act" title="Move" onClick={() => openMove(f)}><Icon name="FolderInput" size={15} /></button>
@@ -197,14 +262,15 @@ export default function VesselDocuments() {
     </button>
   );
 
-  const renderFile = (f) => {
+  const renderFile = (f, n) => {
     const st = getExpiryStatus(f.expiry_date);
     const pill = PILL[st.level] || PILL.none;
     return (
-      <div key={f.id} className="vd-row vd-row-file" role="button" tabIndex={0} onClick={() => openFile(f)} onKeyDown={(e) => { if (e.key === 'Enter') openFile(f); }}>
-        <span className="vd-ico vd-ico-file"><Icon name="FileText" size={18} /></span>
-        <span className="vd-name">{f.name}</span>
-        <span className="vd-filemeta">
+      <div key={f.id} className="vd-idx-row" role="button" tabIndex={0} onClick={() => openFile(f)} onKeyDown={(e) => { if (e.key === 'Enter') openFile(f); }}>
+        <span className="vd-idx-num">{String(n).padStart(2, '0')}</span>
+        <span className="vd-idx-nm">{f.name}</span>
+        <span className="vd-idx-lead" />
+        <span className="vd-idx-rt">
           {f.readOnly && f.meta && <span className="vd-linkmeta">{f.meta}</span>}
           {f.expiry_date && (
             <span className="vd-pill" style={{ background: pill.bg, color: pill.fg }} title={`Expires ${formatDocDate(f.expiry_date)}`}>
@@ -261,20 +327,38 @@ export default function VesselDocuments() {
               ))}
             </div>
             <div className="vd-tools">
-              <button type="button" className="vd-btn vd-btn-ghost" disabled={busy} onClick={openNewFolder}>
+              <button type="button" className="vd-btn vd-btn-ghost" disabled={busy || isVirtualId(cwd)} onClick={openNewFolder}>
                 <Icon name="FolderPlus" size={15} /> New folder
               </button>
-              <button type="button" className="vd-btn vd-btn-primary" disabled={busy} onClick={() => fileRef.current?.click()}>
+              <button type="button" className="vd-btn vd-btn-primary" disabled={busy || isVirtualId(cwd)} onClick={() => fileRef.current?.click()}>
                 <Icon name="Upload" size={15} /> Upload
               </button>
               <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
             </div>
           </div>
 
-          {/* Listing */}
+          {/* Listing — Shelf at the root, Index inside a folder */}
           <div className="vd-list">
             {loading ? (
               <div className="vd-empty">Loading…</div>
+            ) : !cwd ? (
+              <>
+                <div className="vd-shelf">
+                  {(shelf?.folders || []).map(renderCard)}
+                  {renderLinkedCard(VIRT_HOR, 'Hours of Rest', 'Signed monthly MLC records', shelf?.linked?.hor || 0, 'month')}
+                  {renderLinkedCard(VIRT_TEMPLATES, 'Contract Templates', 'Crew SEA & letter templates', shelf?.linked?.templates || 0, 'template')}
+                  <button type="button" className="vd-card vd-card-new" disabled={busy} onClick={openNewFolder}>
+                    <Icon name="Plus" size={20} />
+                    <span>New folder</span>
+                  </button>
+                </div>
+                {shelf?.rootFiles?.length > 0 && (
+                  <div className="vd-idx vd-idx-loose">
+                    <div className="vd-idx-head"><span className="t">Loose files</span><span className="c">{shelf.rootFiles.length}</span></div>
+                    {shelf.rootFiles.map((f, i) => renderFile(f, i + 1))}
+                  </div>
+                )}
+              </>
             ) : items.length === 0 ? (
               <div className="vd-empty">
                 <Icon name="FolderOpen" size={26} />
@@ -286,10 +370,10 @@ export default function VesselDocuments() {
                 </span>
               </div>
             ) : (
-              <>
+              <div className="vd-idx">
                 {folders.map(renderFolder)}
-                {files.map(renderFile)}
-              </>
+                {files.map((f, i) => renderFile(f, i + 1))}
+              </div>
             )}
           </div>
         </div>
