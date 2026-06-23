@@ -3810,10 +3810,7 @@ const canEdit = (() => {
               <div className="cp-rail">
                 <div className="cp-rail-card">
                   <div className="h">Contract document</div>
-                  <p className="p">Auto-fill a contract from this profile.</p>
-                  <div className="cp-rail-step"><span className="n">1</span><div>Add a <b>.docx</b> (with <code>{'{{tokens}}'}</code>) or a fillable <b>.pdf</b> template.</div></div>
-                  <div className="cp-rail-step"><span className="n">2</span><div>Cargo maps the tokens to this profile’s data.</div></div>
-                  <div className="cp-rail-step"><span className="n">3</span><div>Generate &amp; file a ready contract.</div></div>
+                  <p className="p">Upload or create a template to auto-generate a contract for this crew member.</p>
                   {activeTemplate && (
                     <div className="cp-rail-chosen">
                       <span className="cp-rail-chosen-label">Template</span>
