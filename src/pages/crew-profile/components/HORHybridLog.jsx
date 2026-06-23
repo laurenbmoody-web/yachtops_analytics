@@ -632,11 +632,9 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
         {/* Compact calendar overview */}
         <div className="cp-hor-cal">
           <div className="cp-hor-subh">
+            <button type="button" className="cp-hor-navbtn" onClick={() => onMonthChange?.(-1)} aria-label="Previous month">‹</button>
             <span className="mo">{monthName}</span>
-            <span>
-              <button type="button" className="cp-hor-navbtn" onClick={() => onMonthChange?.(-1)} aria-label="Previous month">‹</button>
-              <button type="button" className="cp-hor-navbtn" onClick={() => onMonthChange?.(1)} aria-label="Next month">›</button>
-            </span>
+            <button type="button" className="cp-hor-navbtn" onClick={() => onMonthChange?.(1)} aria-label="Next month">›</button>
           </div>
           <div className="cp-hor-grid">
             {DOW.map((d, i) => <div key={`dow-${i}`} className="cp-hor-dow">{d}</div>)}

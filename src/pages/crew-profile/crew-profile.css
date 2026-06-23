@@ -712,11 +712,11 @@ body.crew-profile-editorial {
   .crew-profile-page .cp-hor-cal { width: 100%; }
 }
 .crew-profile-page .cp-hor-subh {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: center; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
   color: #7b7f93; margin-bottom: 10px;
 }
-.crew-profile-page .cp-hor-subh .mo { color: #1C1B3A; font-size: 13px; }
+.crew-profile-page .cp-hor-subh .mo { color: #1C1B3A; font-size: 13px; min-width: 96px; text-align: center; }
 .crew-profile-page .cp-hor-navbtn { background: none; border: 0; cursor: pointer; color: #1C1B3A; padding: 2px 7px; border-radius: 6px; line-height: 1; }
 .crew-profile-page .cp-hor-navbtn:hover { background: #F1F5F9; }
 .crew-profile-page .cp-hor-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
