@@ -31,6 +31,7 @@ import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreach
 import { fetchWorkEntriesForMonth } from './utils/horWorkEntries';
 import { fetchRotaBaselineForMonth } from './utils/horBaseline';
 import { fetchVesselHorSettings, fetchMonthStatus, fetchActiveMemberTiers, submitMonth as submitMonthDb, approveMonth as approveMonthDb, reopenMonth as reopenMonthDb, lockMonth as lockMonthDb } from './utils/horMonthStatus';
+import { archiveSignedHorRecordSafe } from './utils/horArchive';
 import { sendDbNotification } from '../../lib/dbNotifications';
 
 // HOR approver hierarchy (mirrors the DB _hor_tier_rank): COMMAND > CHIEF > HOD.
@@ -2757,6 +2758,11 @@ const canEdit = (() => {
             severity: 'warn',
           })));
         }
+        // Trust/self-cert lands at 'confirmed' in one step — file the signed
+        // record in the vault straight away (require mode files it on approval).
+        if (row?.status === 'confirmed') {
+          await archiveSignedHorRecordSafe({ tenantId: activeTenantId, subjectUserId: row.subject_user_id || crewId, year, jsMonth: month });
+        }
         showToast(row?.status === 'confirmed' ? 'Month confirmed' : 'Month submitted for approval', 'success');
         await loadHORData();
       },
@@ -2792,6 +2798,9 @@ const canEdit = (() => {
             console.error('[HOR] auto-lock after approve failed:', e);
           }
         }
+        // Both signatures are now on the record — file the signed seafarer PDF
+        // into the vault's month folder (best-effort; never blocks the approval).
+        await archiveSignedHorRecordSafe({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month });
         showToast(locked ? 'Month approved, counter-signed & locked' : 'Month approved & counter-signed', 'success');
         await loadHORData();
       },

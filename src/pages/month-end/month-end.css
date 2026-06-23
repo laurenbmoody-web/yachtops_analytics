@@ -150,6 +150,22 @@
 
 .me-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1C1B3A; color: #fff; padding: 11px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 600; box-shadow: 0 12px 30px -8px rgba(28,27,58,0.4); z-index: 60; }
 
+/* ── Signed-records vault ──────────────────────────────────────────────────── */
+.me-vault { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0F1F5; }
+.me-vault-head { display: flex; align-items: center; gap: 8px; color: #8B8478; padding: 0 2px 8px; }
+.me-vault-title { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.me-vault-count { margin-left: auto; font-size: 11px; font-weight: 600; color: #AEB4C2; letter-spacing: 0.3px; }
+.me-vault-empty { font-size: 12px; color: #8B8478; padding: 4px 2px 6px; }
+.me-vault-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid #F0F1F5; padding: 9px 6px; cursor: pointer; transition: background 0.12s ease; }
+.me-vault-row:last-child { border-bottom: none; }
+.me-vault-row:hover { background: #FAFAF8; }
+.me-vault-ico { display: inline-flex; color: #C65A1A; }
+.me-vault-who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.me-vault-name { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+.me-vault-sub { font-size: 11.5px; color: #8B8478; }
+.me-vault-open { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: #C65A1A; white-space: nowrap; }
+.me-vault-row:hover .me-vault-open { color: #B14E16; }
+
 @media (max-width: 820px) {
   .mp-row { grid-template-columns: 22px 1fr auto; gap: 12px; }
   .mp-row-prog, .mp-status { display: none; }
