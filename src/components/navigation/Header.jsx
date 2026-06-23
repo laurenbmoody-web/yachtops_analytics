@@ -296,6 +296,7 @@ const Header = () => {
     { label: 'Calendar', path: '/ops-vessel-calendar', icon: 'Calendar' },
     { label: 'Accounts', path: '/accounts', icon: 'DollarSign' },
     { label: 'Activity', path: '/activity', icon: 'Activity' },
+    { label: 'Vessel Documents', path: '/vessel-documents', icon: 'FolderArchive' },
     { label: 'Settings', path: '/settings/vessel', icon: 'Settings' },
   ];
 
@@ -787,6 +788,7 @@ const Header = () => {
                         items: [
                           { show: isCommandRole || isChiefRole, icon: 'Users', label: 'Crew Management', path: '/crew-management', onClick: () => handleNavigation('/crew-management', 'Crew Management') },
                           { show: isCommandRole || isChiefRole, icon: 'CalendarCheck', label: 'Month-end', path: '/month-end', onClick: () => handleNavigation('/month-end', 'Month-end') },
+                          { show: isCommandRole || isChiefRole, icon: 'FolderArchive', label: 'Vessel Documents', path: '/vessel-documents', onClick: () => handleNavigation('/vessel-documents', 'Vessel Documents') },
                         ],
                       },
                       {
