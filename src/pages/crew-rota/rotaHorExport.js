@@ -174,56 +174,54 @@ function restLogFileBase(meta) {
 }
 
 // ── CSV (data/import artefact) ──────────────────────────────────────────────
-// A tidy, one-row-per-(crew, day) data table — sorts/filters/pivots cleanly for
-// payroll and audit. Header row first (no metadata preamble); vessel + period
-// travel as columns on every row so it's self-describing and safe to combine
-// across exports. Built without touching the DOM so callers can download it
-// (exportRestLogCSV) or attach/email it. `breachReasons` (keyed `userId|date`)
-// adds the recorded reason on breach days.
-export function buildRestLogCSV({ rows, days, meta, breachReasons = {} }) {
+// The crew x day rest grid - ONE row per seafarer, one column per day - so it
+// mirrors the PDF summary matrix and stays compact (no per-day row explosion).
+// Each cell is HOURS OF REST in that 24h ("off" on a rest day), with the same
+// breach markers the PDF uses: * daily-rest breach, # weekly-rest breach.
+// Vessel + period lead each row so the file is self-describing without a
+// metadata preamble. Built without touching the DOM so callers can download it
+// (exportRestLogCSV) or attach/email it.
+export function buildRestLogCSV({ rows, days, meta }) {
   const members = flatten(rows);
   const lines = [];
   const header = [
-    'Vessel', 'IMO', 'Flag', 'Period',
-    'Date', 'Weekday', 'Department', 'Crew', 'Role', 'Status',
-    'Rest (h)', 'On duty (h)', '7-day rest (h)',
-    'Daily breach', 'Weekly breach', 'Breach reason',
+    'Vessel', 'Period', 'Department', 'Crew', 'Role',
+    ...days.map((d, i) => dayColLabel(d, i)),
+    'Daily breaches', 'Weekly breaches',
   ];
   lines.push(header.map(csvField).join(','));
 
-  const dec1 = (n) => Number((Number(n) || 0).toFixed(1));
+  // One cell: rest hours (or "off"), with * daily / # weekly breach markers.
+  const cellText = (c) => {
+    let s = restLabel(c);
+    if (c && !c.isOff && c.dailyLow) s += '*';
+    if (c && c.weeklyLow) s += '#';
+    return s;
+  };
+
   const vessel = meta.vesselName || '';
-  const imo = meta.imoNumber || '';
-  const flag = meta.flagState || '';
   const period = meta.periodLabel || '';
   for (const m of members) {
-    (m.cells || []).forEach((c) => {
-      const d = parseLocal(c.date);
-      const rest = c.isOff ? 24 : dec1(c.rest24h);
-      const onDuty = c.isOff ? 0 : dec1(24 - c.rest24h);
-      const note = (breachReasons[`${m.userId}|${c.date}`] || {}).note_text || '';
-      const row = [
-        vessel, imo, flag, period,
-        `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`,
-        WEEKDAY_SHORT[d.getDay()],
-        m.dept, m.name, m.role || '',
-        c.isOff ? 'Off' : 'On duty',
-        rest, onDuty, dec1(c.pastWeekHours),
-        c.dailyLow ? 'Yes' : 'No',
-        c.weeklyLow ? 'Yes' : 'No',
-        note,
-      ];
-      lines.push(row.map(csvField).join(','));
-    });
+    const dayCells = (days || []).map((_, i) => cellText(m.cells[i]));
+    const row = [
+      vessel, period, m.dept, m.name, m.role || '',
+      ...dayCells,
+      String(m.dailyBreachDays || 0), String(m.weeklyBreachDays || 0),
+    ];
+    lines.push(row.map(csvField).join(','));
   }
+
+  // Trailing key so the markers read without the PDF alongside.
+  lines.push('');
+  lines.push('Cells = hours of rest per 24h ("off" = rest day). * = daily-rest breach, # = weekly-rest breach.');
 
   // UTF-8 BOM so Excel reads any accented characters correctly.
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   return { blob, filename: `${restLogFileBase(meta)}.csv` };
 }
 
-export function exportRestLogCSV({ rows, days, meta, breachReasons = {} }) {
-  const { blob, filename } = buildRestLogCSV({ rows, days, meta, breachReasons });
+export function exportRestLogCSV({ rows, days, meta }) {
+  const { blob, filename } = buildRestLogCSV({ rows, days, meta });
   triggerDownload(blob, filename);
 }
 
