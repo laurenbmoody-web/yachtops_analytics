@@ -4398,16 +4398,15 @@ const ProvisioningBoardDetail = () => {
                     // when the expansion has something concrete to
                     // render. The expansion panel handles a fixed set
                     // of receive-event keys (items list + supplier /
-                    // board_title / items_received / items_unmatched
-                    // scalars) — supplier quote events whose payload
-                    // is just { item_name, agreed_price, agreed_currency }
+                    // items_received / items_unmatched scalars) —
+                    // supplier quote events whose payload is just
+                    // { item_name, agreed_price, agreed_currency }
                     // would open an empty card otherwise. The summary
-                    // line + diff chip already carry that info, so the
-                    // row stays inert.
+                    // line + diff chip already carry that info, so
+                    // the row stays inert.
                     const hasExpandableMeta = (
                       (Array.isArray(entry.meta.items) && entry.meta.items.length > 0) ||
                       entry.meta.supplier != null ||
-                      entry.meta.board_title != null ||
                       entry.meta.items_received != null ||
                       (entry.meta.items_unmatched != null && entry.meta.items_unmatched > 0)
                     );
@@ -4461,10 +4460,12 @@ const ProvisioningBoardDetail = () => {
                                 ))}
                               </div>
                             )}
-                            {/* scalar meta fields */}
+                            {/* Scalar meta fields. board_title is
+                                deliberately omitted — the chief is
+                                already on this board's History tab,
+                                so "Board: <name>" is redundant. */}
                             {[
                               entry.meta.supplier && ['Supplier', entry.meta.supplier],
-                              entry.meta.board_title && ['Board', entry.meta.board_title],
                               entry.meta.items_received != null && ['Items received', entry.meta.items_received],
                               entry.meta.items_unmatched != null && entry.meta.items_unmatched > 0 && ['Unmatched', entry.meta.items_unmatched],
                             ].filter(Boolean).map(([label, val]) => (
