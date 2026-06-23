@@ -43,6 +43,18 @@
 .htm-v { font-family: 'DM Serif Display', Georgia, serif; font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 400; color: #1C1B3A; }
 .htm-field:not(.act) .htm-v { color: #AEB4C2; }
 .htm-arrow { color: #AEB4C2; font-size: 14px; flex: 0 0 auto; }
+.htm-fields-break { margin-top: -6px; }
+.htm-fields-break .htm-field { background: #FBEFE9; }
+.htm-fields-break .htm-field.act { background: #fff; }
+
+/* Break toggle (text link, terracotta) */
+.htm-breaktoggle {
+  display: block; margin: -4px auto 14px; background: none; border: 0;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 600;
+  color: #C65A1A; cursor: pointer; padding: 2px 4px;
+}
+.htm-breaktoggle:hover { color: #B14E16; }
+.htm-breaktoggle.on { color: #8B8478; }
 
 /* Wheels for the active field */
 .htm-wheels { display: flex; align-items: center; justify-content: center; gap: 6px; }
