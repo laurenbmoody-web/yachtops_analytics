@@ -4418,7 +4418,16 @@ const ProvisioningBoardDetail = () => {
                           onClick={() => hasExpandableMeta && setExpandedHistory(isExpanded ? null : entry.key)}
                           style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 0', cursor: hasExpandableMeta ? 'pointer' : 'default' }}
                         >
-                          {hasExpandableMeta && <span style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, flexShrink: 0 }}>{isExpanded ? '▾' : '▸'}</span>}
+                          {/* Chevron / spacer occupy the same 14px
+                              gutter so rows without an expansion
+                              chevron (supplier quote / accept rows)
+                              still line up with the crew rows that
+                              have one. */}
+                          {hasExpandableMeta && (
+                            <span style={{ display: 'inline-block', width: 14, fontSize: 10, color: '#94A3B8', marginTop: 4, flexShrink: 0, textAlign: 'center' }}>
+                              {isExpanded ? '▾' : '▸'}
+                            </span>
+                          )}
                           {!hasExpandableMeta && <span style={{ width: 14, flexShrink: 0 }} />}
                           <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.dot, flexShrink: 0, marginTop: 6 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
