@@ -758,36 +758,44 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-bar.rota .blk { background: repeating-linear-gradient(45deg, #c7cad6, #c7cad6 4px, #d7dae2 4px, #d7dae2 8px); }
 .crew-profile-page .cp-ticks {
   position: relative;
-  height: 14px;
-  margin-top: 4px;
+  height: 17px;
+  margin-top: 5px;
 }
+/* Every hour is labelled so a precise time is easy to read off without
+   counting cells. Majors (every 3h) are emphasised; the in-between hours
+   are lighter/smaller. Each carries a small tick mark above its number. */
 .crew-profile-page .cp-ticks span {
   position: absolute;
-  font-size: 9px;
-  color: #6b6b7a;
-  font-weight: 600;
+  top: 6px;
   transform: translateX(-50%);
-  top: 4px;
+  font-family: 'Inter', system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
-/* Minor ticks every hour — small tick marks above each hour position,
-   no label. Major ticks (every 3h) carry the hour number. */
 .crew-profile-page .cp-ticks span.minor {
-  width: 1px;
-  height: 4px;
-  background: #c8c4b8;
-  top: 0;
-  margin: 0;
+  font-size: 8px;
+  color: #b3ada0;
+  font-weight: 500;
 }
-.crew-profile-page .cp-ticks span.major::before {
+.crew-profile-page .cp-ticks span.major {
+  font-size: 9.5px;
+  color: #6b6b7a;
+  font-weight: 700;
+}
+.crew-profile-page .cp-ticks span::before {
   content: '';
   position: absolute;
   left: 50%;
-  top: -4px;
+  top: -5px;
   width: 1px;
   height: 4px;
-  background: #6b6b7a;
+  background: #cdc8bb;
   transform: translateX(-50%);
+}
+.crew-profile-page .cp-ticks span.major::before {
+  top: -6px;
+  height: 5px;
+  background: #6b6b7a;
 }
 .crew-profile-page .cp-paint {
   display: flex;
@@ -853,7 +861,7 @@ body.crew-profile-editorial {
    little room before the paint grid and a touch more weight — it's the headline. */
 .crew-profile-page .cp-ed .cp-restbox { margin-bottom: 11px; }
 .crew-profile-page .cp-ed .cp-restbox .rest { font-size: 16px; }
-.crew-profile-page .cp-restbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #1C1B3A; }
+.crew-profile-page .cp-restbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #1C1B3A; font-family: 'Inter', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
 .crew-profile-page .cp-restbox .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: #b9bdc9; }
 .crew-profile-page .cp-restbox .dot.green { background: #5E8E6F; }
 .crew-profile-page .cp-restbox .dot.amber { background: #C0851F; }
@@ -862,7 +870,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-restbox .rest.amber { color: #C0851F; }
 .crew-profile-page .cp-restbox .rest.red { color: #E4574C; }
 .crew-profile-page .cp-restbox .rest.off { color: #9aa0b0; }
-.crew-profile-page .cp-restbox .sub { color: #9aa0b0; }
+.crew-profile-page .cp-restbox .sub { color: #6B7280; font-weight: 500; }
 .crew-profile-page .cp-restbox .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .crew-profile-page .cp-restbox .verdict { font-size: 13px; font-weight: 700; color: #5E8E6F; }
 .crew-profile-page .cp-restbox .verdict.amber { color: #C0851F; }
