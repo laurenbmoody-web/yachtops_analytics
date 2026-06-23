@@ -4384,16 +4384,32 @@ const ProvisioningBoardDetail = () => {
                       absTime = entry.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + entry.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                     } catch { absTime = ''; }
                     const isExpanded = expandedHistory === entry.key;
-                    const hasMeta = Object.keys(entry.meta).length > 0;
+                    // Only show the chevron / make the row clickable
+                    // when the expansion has something concrete to
+                    // render. The expansion panel handles a fixed set
+                    // of receive-event keys (items list + supplier /
+                    // board_title / items_received / items_unmatched
+                    // scalars) — supplier quote events whose payload
+                    // is just { item_name, agreed_price, agreed_currency }
+                    // would open an empty card otherwise. The summary
+                    // line + diff chip already carry that info, so the
+                    // row stays inert.
+                    const hasExpandableMeta = (
+                      (Array.isArray(entry.meta.items) && entry.meta.items.length > 0) ||
+                      entry.meta.supplier != null ||
+                      entry.meta.board_title != null ||
+                      entry.meta.items_received != null ||
+                      (entry.meta.items_unmatched != null && entry.meta.items_unmatched > 0)
+                    );
                     return (
                       <div key={entry.key} style={{ borderBottom: idx < filteredEntries.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
                         {/* Collapsed row */}
                         <div
-                          onClick={() => hasMeta && setExpandedHistory(isExpanded ? null : entry.key)}
-                          style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 0', cursor: hasMeta ? 'pointer' : 'default' }}
+                          onClick={() => hasExpandableMeta && setExpandedHistory(isExpanded ? null : entry.key)}
+                          style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 0', cursor: hasExpandableMeta ? 'pointer' : 'default' }}
                         >
-                          {hasMeta && <span style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, flexShrink: 0 }}>{isExpanded ? '▾' : '▸'}</span>}
-                          {!hasMeta && <span style={{ width: 14, flexShrink: 0 }} />}
+                          {hasExpandableMeta && <span style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, flexShrink: 0 }}>{isExpanded ? '▾' : '▸'}</span>}
+                          {!hasExpandableMeta && <span style={{ width: 14, flexShrink: 0 }} />}
                           <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.dot, flexShrink: 0, marginTop: 6 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, fontSize: 13, color: '#0F172A', fontWeight: 500, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -4413,7 +4429,7 @@ const ProvisioningBoardDetail = () => {
                           </div>
                         </div>
                         {/* Expanded meta detail */}
-                        {isExpanded && hasMeta && (
+                        {isExpanded && hasExpandableMeta && (
                           <div style={{ marginLeft: 28, marginBottom: 14, background: 'white', border: '1px solid #F1F5F9', borderRadius: 10, padding: '12px 16px' }}>
                             {/* items_received list */}
                             {Array.isArray(entry.meta.items) && entry.meta.items.length > 0 && (
