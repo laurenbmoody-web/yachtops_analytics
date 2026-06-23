@@ -14,7 +14,7 @@ import {
   fetchChildren, fetchBreadcrumb, fetchShelf, createFolder, uploadFile,
   renameItem, setExpiry, deleteItem, getFileUrl, moveItem, fetchFolders,
   seedDefaultFolders, getExpiryStatus, formatDocDate, isVirtualId,
-  VIRT_HOR, VIRT_TEMPLATES,
+  VIRT_HOR, VIRT_CREW, VIRT_TEMPLATES,
 } from './vesselDocuments';
 import './vessel-documents.css';
 
@@ -143,7 +143,8 @@ export default function VesselDocuments() {
   };
 
   const openFile = async (item) => {
-    const url = await getFileUrl(item.storage_path, item.bucket);
+    // Crew docs carry a stored signed URL; vault/HOR/template files re-sign by path.
+    const url = item.url || await getFileUrl(item.storage_path, item.bucket);
     if (url) window.open(url, '_blank', 'noopener');
     else flash('Couldn’t open that file');
   };
@@ -357,6 +358,7 @@ export default function VesselDocuments() {
                 <div className="vd-shelf">
                   {(shelf?.folders || []).map(renderCard)}
                   {renderLinkedCard(VIRT_HOR, 'Hours of Rest', 'Signed monthly MLC records', shelf?.linked?.hor || 0, 'month')}
+                  {renderLinkedCard(VIRT_CREW, 'Crew Certification', 'Certs & docs, by crew member', shelf?.linked?.crew || 0, 'crew member')}
                   {renderLinkedCard(VIRT_TEMPLATES, 'Contract Templates', 'Crew SEA & letter templates', shelf?.linked?.templates || 0, 'template')}
                   <button type="button" className="vd-card vd-card-new" disabled={busy} onClick={openNewFolder}>
                     <Icon name="Plus" size={20} />
