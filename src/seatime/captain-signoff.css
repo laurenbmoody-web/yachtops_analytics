@@ -2,10 +2,10 @@
    reviews inbox (right-pane). cso- = the ceremony; stq- = the inbox list. */
 @keyframes csoIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-.cso-scrim{position:fixed;inset:0;background:rgba(28,27,58,.46);z-index:64;animation:csoIn .2s ease both;}
-.cso{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:65;width:560px;max-width:94vw;max-height:90vh;display:flex;flex-direction:column;background:#fff;border:1px solid #ECEAE3;border-radius:16px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);font-family:'Inter',system-ui,sans-serif;animation:csoIn .22s ease both;}
+.cso-overlay{position:fixed;inset:0;z-index:64;background:rgba(28,27,58,.46);display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;animation:csoIn .2s ease both;}
+.cso{position:relative;margin:auto;width:560px;max-width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;background:#fff;border:1px solid #ECEAE3;border-radius:16px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);font-family:'Inter',system-ui,sans-serif;animation:csoIn .22s ease both;}
 /* Right-pane variant — fills the inbox column instead of floating. */
-.cso.cso-pane{position:static;transform:none;width:auto;max-width:none;max-height:none;height:100%;border:0;border-radius:0;box-shadow:none;animation:none;}
+.cso.cso-pane{position:static;margin:0;transform:none;width:auto;max-width:none;max-height:none;height:100%;border:0;border-radius:0;box-shadow:none;animation:none;}
 .cso-x{position:absolute;top:16px;right:16px;border:0;background:transparent;color:#AEB4C2;cursor:pointer;padding:4px;border-radius:8px;transition:color .15s,background .15s;}
 .cso-x:hover{color:#1C1B3A;background:#F6F5F2;}
 .cso-head{padding:24px 26px 16px;border-bottom:1px solid #F0F1F5;}
@@ -13,7 +13,7 @@
 .cso-title{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:500;font-size:24px;color:#1C1B3A;margin:5px 0 5px;line-height:1.1;}
 .cso-sub{font-size:13px;color:#6B7280;line-height:1.45;}
 .cso-sub b{color:#1C1B3A;font-weight:600;}
-.cso-body{padding:18px 26px;overflow-y:auto;display:flex;flex-direction:column;gap:18px;}
+.cso-body{padding:18px 26px;flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:18px;}
 .cso-lbl{display:block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B8478;}
 .cso-val{font-size:15px;font-weight:600;color:#1C1B3A;margin-top:4px;display:block;}
 .cso-vs{font-size:11.5px;color:#8B8478;line-height:1.45;display:block;}
