@@ -226,6 +226,8 @@
 .std-sig-name{font-size:13px;font-weight:600;color:#1C1B3A;}
 .std-sig-name span{font-weight:400;color:#8B8478;font-size:11px;margin-left:7px;}
 .std-sig-meta{font-size:10.5px;color:#8B8478;line-height:1.5;margin-top:2px;}
+.std-sig-img{display:block;height:46px;width:auto;max-width:240px;margin-bottom:3px;}
+.std-sig-script{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-size:24px;color:#1C1B3A;line-height:1.2;margin-bottom:1px;}
 .std-cert .qrseal{border:1px solid var(--hair-2);border-radius:8px;padding:8px;text-align:center;background:#fff;}
 .std-certfoot{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:0 0 4px;}
 .std-dl{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:9px;padding:10px 16px;font-weight:600;font-size:13px;cursor:pointer;}
