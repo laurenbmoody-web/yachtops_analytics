@@ -6,6 +6,7 @@ export const DOC_CATEGORIES = [
   { id: 'travel', label: 'Travel & identity' },
   { id: 'medical', label: 'Medical & safety' },
   { id: 'qualification', label: 'Qualifications' },
+  { id: 'issued', label: 'Issued documents' },
   { id: 'other', label: 'Other' },
 ];
 
@@ -56,6 +57,17 @@ export const DOCUMENT_TYPES = [
   { id: 'powerboat', label: 'Powerboat Level 2', category: 'qualification' },
   { id: 'food_hygiene', label: 'Food Hygiene', category: 'qualification' },
   { id: 'aec', label: 'Approved Engine Course (AEC)', category: 'qualification' },
+
+  // Issued documents — given to the crew member by the employer/vessel.
+  // Generated contracts file here automatically; COMMAND can add others.
+  { id: 'employment_contract', label: 'Employment contract', category: 'issued' },
+  { id: 'offer_letter', label: 'Offer letter', category: 'issued' },
+  { id: 'certificate_of_employment', label: 'Certificate of employment', category: 'issued' },
+  { id: 'reference_letter', label: 'Reference letter', category: 'issued' },
+  {
+    id: 'other_issued', label: 'Other issued document', category: 'issued',
+    fields: [{ key: 'custom_label', label: 'Document name' }],
+  },
 
   // Other
   {

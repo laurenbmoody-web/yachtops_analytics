@@ -1223,7 +1223,7 @@ const canEdit = (() => {
       const { data: lastDoc } = await supabase
         .from('personal_documents')
         .select('updated_at, file_url, file_name')
-        .eq('user_id', crewId).eq('doc_type', 'Employment Contract')
+        .eq('user_id', crewId).in('doc_type', ['employment_contract', 'Employment Contract'])
         .order('updated_at', { ascending: false }).limit(1).maybeSingle();
       if (cancelled) return;
       setEmpForm(emp || {});
@@ -1327,7 +1327,7 @@ const canEdit = (() => {
       const uploaded = await uploadDocumentFile(crewId, file);
       const saved = await saveCrewDocument({
         userId: crewId, tenantId: activeTenantId, createdBy: session?.user?.id,
-        category: 'Employment', docType: 'Employment Contract', title: template.name,
+        category: 'issued', docType: 'employment_contract', title: template.name,
         fileUrl: uploaded.file_url, fileName: uploaded.file_name,
         mimeType: uploaded.mime_type, sizeBytes: uploaded.size_bytes,
       });
