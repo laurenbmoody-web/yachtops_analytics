@@ -1006,8 +1006,19 @@
 }
 .pv-board-supplier-popover-list {
   padding: 6px 0;
-  max-height: 360px;
+  /* Tighter cap so a busy order's feed reads as an obvious scroll
+     list (a chartered week routinely racks up 15-30 supplier touches);
+     the chief can scrub the rest without the popover going off-screen. */
+  max-height: 280px;
   overflow-y: auto;
+  /* Custom scrollbar that doesn't overwhelm the editorial card. */
+  scrollbar-width: thin;
+  scrollbar-color: #D4D2CB transparent;
+}
+.pv-board-supplier-popover-list::-webkit-scrollbar { width: 6px; }
+.pv-board-supplier-popover-list::-webkit-scrollbar-track { background: transparent; }
+.pv-board-supplier-popover-list::-webkit-scrollbar-thumb {
+  background: #D4D2CB; border-radius: 3px;
 }
 .pv-board-supplier-popover-row {
   display: flex; align-items: baseline; gap: 10px;
@@ -1048,6 +1059,89 @@
   cursor: pointer;
 }
 .pv-board-supplier-popover-link:hover { background: #FAFAF8; }
+
+/* Two-button footer — "Jump to items" + "View in history" sit side
+   by side, hairline divider between. Secondary link reads as the
+   audit-trail offshoot, so it carries the muted ink colour instead
+   of the terracotta primary. */
+.pv-board-supplier-popover-foot-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.pv-board-supplier-popover-foot-split .pv-board-supplier-popover-link + .pv-board-supplier-popover-link {
+  border-left: 1px solid #F0F1F5;
+}
+.pv-board-supplier-popover-link-secondary { color: #1C1B3A; }
+.pv-board-supplier-popover-link-secondary:hover { background: #FAFAF8; color: #C65A1A; }
+
+/* ─── History tab — source filter pills + per-row tag pill ─────────── */
+.pv-history-filter-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.pv-history-filter-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid #ECEAE3;
+  border-radius: 999px;
+  background: #FFFFFF;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  color: #1C1B3A;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.pv-history-filter-pill:hover { background: #FAFAF8; border-color: #D4D2CB; }
+.pv-history-filter-pill.is-active {
+  background: #C65A1A; border-color: #C65A1A; color: #FFFFFF;
+}
+.pv-history-filter-pill.is-active .pv-history-filter-count {
+  background: rgba(255,255,255,0.22); color: #FFFFFF;
+}
+.pv-history-filter-pill.is-empty { color: #AEB4C2; }
+.pv-history-filter-count {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #F4F4F0;
+  color: #6B6F7A;
+}
+
+/* Per-row TAG pill — small uppercase chip in front of the summary
+   so the chief can scan a long timeline for "all the supplier
+   conversation" or "every qty change" without reading prose. */
+.pv-history-tag {
+  display: inline-flex; align-items: center;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  border: 1px solid;
+}
+.pv-history-tag-supplier { background: #FBEFE9; color: #C65A1A; border-color: #E8B89B; }
+.pv-history-tag-crew     { background: #ECF3EA; color: #2E7D5A; border-color: #C9DEC4; }
+.pv-history-tag-system   { background: #F4F4F0; color: #6B6F7A; border-color: #E0DED7; }
+
+/* Inline diff / quoted reason — terracotta-tinted mono so it visually
+   pops against the prose. Same treatment as the supplier popover's
+   diff chip, so the two surfaces feel like one vocabulary. */
+.pv-history-diff {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: #C65A1A;
+  background: #FBEFE9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
 
 /* Additional supplier-popover tag variants for the richer action
    feed. Sub / unavail / note keep their colour treatment from the
