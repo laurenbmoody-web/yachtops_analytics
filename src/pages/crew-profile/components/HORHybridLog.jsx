@@ -1,8 +1,10 @@
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
 import { getCrewWorkEntries, addWorkEntries, deleteWorkEntriesForDate } from '../utils/horStorage';
 import { fetchShiftTemplates, saveShiftTemplate, deleteShiftTemplate } from '../utils/horWorkEntries';
+import './hor-time-modal.css';
 
 // ── HOR hybrid log — compact calendar (overview) + inline-edit day list ──────
 // The month calendar on the left is an always-on overview; the day list on the
@@ -24,6 +26,7 @@ const segToHHMM = (i) => {
   const m = (i % 2) * 30;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
+const hhmm = (h, m) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
 const segmentsToTypedBlocks = (segs, types = {}) => {
   const on = new Set(segs || []);
@@ -147,6 +150,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   // Scroll-wheel time-block entry (start/end + type), alongside drag-painting.
   const [showWheel, setShowWheel] = useState(false);
   const [wheelType, setWheelType] = useState('duty');
+  const [activeField, setActiveField] = useState('start'); // which field the wheels edit
   const [wStartH, setWStartH] = useState(8);
   const [wStartM, setWStartM] = useState(0);
   const [wEndH, setWEndH] = useState(12);
@@ -230,13 +234,24 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   // itself + its paint drags) keep their own behaviour, so this never fights
   // the re-click-to-collapse toggle.
   useEffect(() => {
-    if (!selectedDate || bulkMode) return undefined;
+    // While the time modal is open it's portaled outside the wrap, so skip the
+    // collapse-on-outside-click handler — otherwise interacting with the modal
+    // would collapse the editor behind it.
+    if (!selectedDate || bulkMode || showWheel) return undefined;
     const onDown = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) setSelectedDate(null);
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
-  }, [selectedDate, bulkMode]);
+  }, [selectedDate, bulkMode, showWheel]);
+
+  // Esc closes the time modal.
+  useEffect(() => {
+    if (!showWheel) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setShowWheel(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showWheel]);
 
   const persistDraft = useCallback(() => {
     if (!selectedDate) return;
@@ -441,50 +456,67 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           {isRota && <button type="button" className="cp-preset act" onClick={logAsRostered}>✓ Log as rostered</button>}
           <button type="button" className="cp-preset" onClick={clearDay}>Clear (off)</button>
           {cd.source === 'actual' && <button type="button" className="cp-preset" onClick={resetToBaseline}>Reset to rota</button>}
-          <button type="button" className="cp-preset" onClick={() => { setShowWheel((v) => !v); setWheelType(brush); setShowApply(false); setSavingTpl(false); }}>Enter times ▾</button>
+          <button type="button" className="cp-preset" onClick={() => { setShowWheel((v) => !v); setWheelType(brush); setActiveField('start'); setShowApply(false); setSavingTpl(false); }}>Enter times ▾</button>
           <button type="button" className="cp-preset" onClick={() => { setShowApply((v) => !v); setSavingTpl(false); setShowWheel(false); }}>Apply template ▾</button>
           <button type="button" className="cp-preset act" onClick={() => { setSavingTpl((v) => !v); setShowApply(false); setShowWheel(false); }}>+ Add template</button>
         </div>
 
-        {showWheel && (() => {
+        {showWheel && createPortal((() => {
           const s = wStartH * 2 + (wStartM >= 30 ? 1 : 0);
           const e = Math.min(SEG_PER_DAY, wEndH * 2 + (wEndM >= 30 ? 1 : 0));
-          const dur = e > s ? `${Number(((e - s) * 0.5).toFixed(1))}h block` : 'End must be after start';
+          const valid = e > s;
+          const dur = valid
+            ? `${hhmm(wStartH, wStartM)}–${wEndH === 24 ? '24:00' : hhmm(wEndH, wEndM)} · ${Number(((e - s) * 0.5).toFixed(1))}h block`
+            : 'End must be after start';
+          const isStart = activeField === 'start';
           return (
-            <div className="cp-wheelbox">
-              <div className="cp-wheel-types">
-                {PALETTE.map(([k, label]) => (
-                  <button key={k} type="button" className={`cp-pal-b${wheelType === k ? ' act' : ''}`} onClick={() => setWheelType(k)}>
-                    <span className="sw" style={{ background: TYPE_COLOR[k] }} />{label}
+            <div className="htm-overlay" onMouseDown={(ev) => { if (ev.target === ev.currentTarget) setShowWheel(false); }}>
+              <div className="htm-modal" role="dialog" aria-modal="true" aria-label="Add a time block">
+                <h4 className="htm-title">Add a time block</h4>
+
+                <div className="htm-seg">
+                  {PALETTE.map(([k, label]) => (
+                    <button key={k} type="button" className={`htm-seg-b${wheelType === k ? ' act' : ''}`} onClick={() => setWheelType(k)}>
+                      <span className="htm-sw" style={{ background: TYPE_COLOR[k] }} />{label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="htm-fields">
+                  <button type="button" className={`htm-field${isStart ? ' act' : ''}`} onClick={() => setActiveField('start')}>
+                    <span className="htm-k">Start</span>
+                    <span className="htm-v">{hhmm(wStartH, wStartM)}</span>
                   </button>
-                ))}
-              </div>
-              <div className="cp-wheel-row">
-                <div className="cp-wheel-grp">
-                  <span className="cp-wheel-grplab">Start</span>
-                  <div className="cp-wheel-pair">
-                    <Wheel items={HOURS_START} value={wStartH} onChange={setWStartH} />
-                    <span className="cp-wheel-colon">:</span>
-                    <Wheel items={MINUTES} value={wStartM} onChange={setWStartM} />
-                  </div>
+                  <span className="htm-arrow" aria-hidden="true">→</span>
+                  <button type="button" className={`htm-field${!isStart ? ' act' : ''}`} onClick={() => setActiveField('end')}>
+                    <span className="htm-k">End</span>
+                    <span className="htm-v">{wEndH === 24 ? '24:00' : hhmm(wEndH, wEndM)}</span>
+                  </button>
                 </div>
-                <div className="cp-wheel-grp">
-                  <span className="cp-wheel-grplab">End</span>
-                  <div className="cp-wheel-pair">
-                    <Wheel items={HOURS_END} value={wEndH} onChange={setWEndH} />
-                    <span className="cp-wheel-colon">:</span>
-                    <Wheel items={MINUTES} value={wEndM} onChange={setWEndM} />
-                  </div>
+
+                <div className="htm-wheels">
+                  <Wheel
+                    items={isStart ? HOURS_START : HOURS_END}
+                    value={isStart ? wStartH : wEndH}
+                    onChange={isStart ? setWStartH : setWEndH}
+                  />
+                  <span className="htm-colon">:</span>
+                  <Wheel
+                    items={MINUTES}
+                    value={isStart ? wStartM : wEndM}
+                    onChange={isStart ? setWStartM : setWEndM}
+                  />
                 </div>
-              </div>
-              <div className="cp-wheel-actions">
-                <span className="cp-wheel-dur">{dur}</span>
-                <button type="button" className="cp-tlink" onClick={() => setShowWheel(false)}>cancel</button>
-                <button type="button" className="apply" onClick={addTimeBlock}>Add block</button>
+
+                <div className="htm-dur">{dur}</div>
+                <div className="htm-actions">
+                  <button type="button" className="htm-cancel" onClick={() => setShowWheel(false)}>Cancel</button>
+                  <button type="button" className="htm-add" onClick={addTimeBlock} disabled={!valid}>Add block</button>
+                </div>
               </div>
             </div>
           );
-        })()}
+        })(), document.body)}
 
         {savingTpl && (
           <div className="cp-timeinputs">
