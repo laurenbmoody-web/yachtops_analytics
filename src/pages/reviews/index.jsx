@@ -17,6 +17,8 @@ import { useProvisioningApprovals } from './useProvisioningApprovals';
 import SeaTimeReviewPanel from './SeaTimeReviewPanel';
 import CaptainSignoff from '../../seatime/CaptainSignoff';
 import { SEATIME_REVIEW_QUEUE } from '../../seatime/reviewQueue';
+import { useSeaTimeSignoffs } from './useSeaTimeSignoffs';
+import { signEntries, rejectEntries } from '../crew-profile/utils/seaTimeService';
 import './reviews.css';
 
 // Map pathname → active category. /reviews and /reviews/rotas both
@@ -85,8 +87,10 @@ export default function ReviewsPage() {
     return () => { cancelled = true; clearInterval(id); };
   }, [user, tier, userDeptId, activeTenantId]);
 
-  // Sea-time sign-off queue (sample; live wiring is a follow-up). Resolving an
-  // item removes it from the captain's queue.
+  // Sea-time sign-off queue. Live: pending entries across the tenant the master
+  // can sign (RLS-scoped); the sample is a fallback when there's no tenant.
+  const signerName = currentTenantMember?.full_name || user?.user_metadata?.full_name || null;
+  const seatimeLive = useSeaTimeSignoffs(activeCategory === 'seatime' ? activeTenantId : null, signerName);
   const [seatimeQueue, setSeatimeQueue] = useState(SEATIME_REVIEW_QUEUE);
 
   // Pending inbox vs History (resolved) tab.
@@ -141,22 +145,48 @@ export default function ReviewsPage() {
   const handleResolved = () => { refetch(); };
 
   if (activeCategory === 'seatime') {
-    // The signing master reviews one command spell at a time; ?selected= drops
-    // a deep link (e.g. from the bell notification) onto the right pane.
+    // Live queue when there's a tenant; sample as a fallback. The signing master
+    // reviews one command spell at a time; ?selected= deep-links the right pane.
+    const stLive = !!activeTenantId;
+    const stItems = stLive ? seatimeLive.items : seatimeQueue;
+    const stLoading = stLive ? seatimeLive.loading : false;
     const stSelectedId = searchParams.get('selected');
-    const stSelected = seatimeQueue.find(i => i.id === stSelectedId) || seatimeQueue[0] || null;
+    const stSelected = stItems.find(i => i.id === stSelectedId) || stItems[0] || null;
     const stSelect = (id) => setSearchParams({ selected: id });
-    const stResolve = (id, msg) => {
-      setSeatimeQueue(q => q.filter(i => i.id !== id));
+
+    const stSign = async (record) => {
+      if (!stSelected) return;
+      const rowIds = (stSelected.unit.periods || []).flatMap(p => p.rowIds || []);
+      if (stLive) {
+        try { await signEntries(activeTenantId, rowIds, { signedName: record?.name }); }
+        catch (e) { console.error(e); showToast('Could not sign — check your permissions', { error: true }); return; }
+        await seatimeLive.refetch();
+      } else {
+        setSeatimeQueue(q => q.filter(i => i.id !== stSelected.id));
+      }
       setSearchParams({}, { replace: true });
-      showToast(msg);
+      showToast(`${stSelected.unit.name} signed for ${stSelected.seafarer.fullName}`);
     };
+    const stDecline = async (reason) => {
+      if (!stSelected) return;
+      const rowIds = (stSelected.unit.periods || []).flatMap(p => p.rowIds || []);
+      if (stLive) {
+        try { await rejectEntries(activeTenantId, rowIds, reason || 'Declined by the master'); }
+        catch (e) { console.error(e); showToast('Could not decline', { error: true }); return; }
+        await seatimeLive.refetch();
+      } else {
+        setSeatimeQueue(q => q.filter(i => i.id !== stSelected.id));
+      }
+      setSearchParams({}, { replace: true });
+      showToast(`Declined — ${stSelected.seafarer.fullName} has been notified`);
+    };
+
     return (
       <>
         <Header />
         <div className="rv-page">
-          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeQueue.length }} />
-          <SeaTimeReviewPanel items={seatimeQueue} selectedId={stSelected?.id} onSelect={stSelect} eyebrow={eyebrow} />
+          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: stItems.length }} />
+          <SeaTimeReviewPanel items={stItems} loading={stLoading} selectedId={stSelected?.id} onSelect={stSelect} eyebrow={eyebrow} />
           <section className="rv-rightpane-col" aria-label="Sign-off detail">
             {stSelected ? (
               <CaptainSignoff
@@ -164,13 +194,14 @@ export default function ReviewsPage() {
                 key={stSelected.id}
                 unit={stSelected.unit}
                 seafarer={stSelected.seafarer}
-                onSign={() => stResolve(stSelected.id, `${stSelected.unit.name} signed for ${stSelected.seafarer.fullName}`)}
-                onDecline={() => stResolve(stSelected.id, `Declined — ${stSelected.seafarer.fullName} has been notified`)}
+                signerName={signerName}
+                onSign={stSign}
+                onDecline={stDecline}
               />
             ) : (
               <div className="rv-rp-blank" role="status">
                 <Icon name="Check" size={36} color="#8B8478" className="rv-rp-blank-icon" />
-                <div className="rv-rp-blank-title">All clear</div>
+                <div className="rv-rp-blank-title">{stLoading ? 'Loading…' : 'All clear'}</div>
                 <div className="rv-rp-blank-sub">Sea-service sign-off requests will appear here.</div>
               </div>
             )}

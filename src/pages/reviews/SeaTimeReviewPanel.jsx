@@ -11,7 +11,7 @@ const ROUTE = {
 };
 const fmtDate = (iso) => { if (!iso) return '—'; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : iso; };
 
-export default function SeaTimeReviewPanel({ items = [], selectedId, onSelect, eyebrow }) {
+export default function SeaTimeReviewPanel({ items = [], loading = false, selectedId, onSelect, eyebrow }) {
   return (
     <section className="rv-liststrip" aria-label="Sea-time sign-offs">
       <div className="rv-eyebrow">{eyebrow || 'COMMAND'}</div>
@@ -20,11 +20,11 @@ export default function SeaTimeReviewPanel({ items = [], selectedId, onSelect, e
         <em className="rv-title-verb"> to sign off</em>
         <span className="rv-title-period">.</span>
       </h1>
-      <div className="rv-subtitle">{items.length} sign-off{items.length === 1 ? '' : 's'} awaiting your decision</div>
+      <div className="rv-subtitle">{loading ? 'Loading…' : `${items.length} sign-off${items.length === 1 ? '' : 's'} awaiting your decision`}</div>
 
       <div className="rv-cc-list">
         {items.length === 0 ? (
-          <div className="rv-cc-empty" role="status">All clear.</div>
+          <div className="rv-cc-empty" role="status">{loading ? 'Loading…' : 'All clear.'}</div>
         ) : (
           items.map(it => {
             const r = ROUTE[it.unit.mode] || ROUTE.virtual;
