@@ -884,6 +884,29 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-timeinputs input { border: 1px solid #DFE3EC; border-radius: 8px; padding: 6px 8px; font-size: 13px; color: #1C1B3A; }
 .crew-profile-page .cp-timeinputs .apply { background: #1C1B3A; color: #fff; border: 0; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
+/* Scroll-wheel time picker (iPhone-alarm style) — precise start/end block
+   entry alongside drag-painting. Each column is a scroll-snap list; the
+   centred row (under the tinted band) is the selected value. */
+.crew-profile-page .cp-wheelbox { border: 1px solid #ECEAE3; border-radius: 12px; background: #fff; padding: 13px; margin: 8px 0; box-shadow: 0 8px 24px -16px rgba(28,27,58,0.28); }
+.crew-profile-page .cp-wheel-types { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.crew-profile-page .cp-wheel-row { display: flex; flex-wrap: wrap; gap: 28px; }
+.crew-profile-page .cp-wheel-grp { display: flex; flex-direction: column; gap: 6px; }
+.crew-profile-page .cp-wheel-grplab { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.crew-profile-page .cp-wheel-pair { display: flex; align-items: center; gap: 5px; }
+.crew-profile-page .cp-wheel-colon { font-size: 17px; font-weight: 700; color: #1C1B3A; }
+.crew-profile-page .cp-wheel-frame { position: relative; width: 56px; height: 160px; border: 1px solid #ECEAE3; border-radius: 10px; background: #FAFAF8; overflow: hidden; }
+.crew-profile-page .cp-wheel { position: relative; z-index: 1; height: 100%; overflow-y: auto; overflow-x: hidden; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; background: transparent; }
+.crew-profile-page .cp-wheel::-webkit-scrollbar { display: none; }
+.crew-profile-page .cp-wheel-pad { height: 64px; flex: 0 0 auto; }
+.crew-profile-page .cp-wheel-it { display: flex; align-items: center; justify-content: center; width: 100%; height: 32px; scroll-snap-align: center; font-family: 'Inter', system-ui, sans-serif; font-variant-numeric: tabular-nums; font-size: 15px; color: #AEB4C2; background: none; border: 0; cursor: pointer; }
+.crew-profile-page .cp-wheel-it.sel { color: #1C1B3A; font-weight: 700; }
+.crew-profile-page .cp-wheel-band { position: absolute; left: 5px; right: 5px; top: 64px; height: 32px; background: #FBEFE9; border-radius: 6px; z-index: 0; pointer-events: none; }
+.crew-profile-page .cp-wheel-actions { display: flex; align-items: center; gap: 12px; margin-top: 13px; }
+.crew-profile-page .cp-wheel-dur { font-size: 12px; font-weight: 500; color: #6B7280; margin-right: auto; }
+.crew-profile-page .cp-wheelbox .cp-tlink { margin-left: 0; }
+.crew-profile-page .cp-wheelbox .apply { background: #C65A1A; color: #fff; border: 0; border-radius: 10px; padding: 8px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.crew-profile-page .cp-wheelbox .apply:hover { background: #B14E16; }
+
 /* Shift-type palette + 48-cell drag-paint grid (rota parity). */
 .crew-profile-page .cp-pal { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 8px; }
 .crew-profile-page .cp-pal-b {
