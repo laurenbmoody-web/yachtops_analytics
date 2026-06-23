@@ -32,6 +32,21 @@ export const isVirtualId = (id) => typeof id === 'string' && id.startsWith('virt
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
+// The starter scaffold every vessel's vault opens with — a lean, conventional
+// filing skeleton for a yacht's papers. Seeded lazily the first time an account
+// opens an empty vault (see seedDefaultFolders); crews are free to rename,
+// delete, or add to it. Linked stores (Hours of Rest, Contract Templates) cover
+// rest records and contracts, so those aren't duplicated here.
+export const DEFAULT_VAULT_FOLDERS = [
+  'Registration & Flag',
+  'Class & Survey',
+  'Insurance',
+  'Safety & Security',
+  'Pollution Prevention (MARPOL)',
+  'Manuals & Plans',
+  'Operations & Logs',
+];
+
 // The linked folders that sit at the vault root alongside real items.
 const systemFolders = () => ([
   { id: VIRT_HOR, kind: 'folder', name: 'Hours of Rest', system: true, meta: 'Signed records · linked' },
@@ -188,6 +203,27 @@ export async function createFolder({ tenantId, parentId = null, name, createdBy 
   }).select().single();
   if (error) throw error;
   return data;
+}
+
+// Lay down the default top-level folders for a vessel. Idempotent — only the
+// names not already present at the root are inserted, so it never duplicates or
+// disturbs folders a crew has already created.
+export async function seedDefaultFolders({ tenantId, createdBy = null }) {
+  if (!tenantId) return [];
+  const { data: existing } = await supabase
+    .from('vessel_documents')
+    .select('name')
+    .eq('tenant_id', tenantId)
+    .eq('kind', 'folder')
+    .is('parent_id', null);
+  const have = new Set((existing || []).map((r) => String(r.name).toLowerCase()));
+  const rows = DEFAULT_VAULT_FOLDERS
+    .filter((name) => !have.has(name.toLowerCase()))
+    .map((name) => ({ tenant_id: tenantId, parent_id: null, kind: 'folder', name, created_by: createdBy }));
+  if (!rows.length) return [];
+  const { data, error } = await supabase.from('vessel_documents').insert(rows).select();
+  if (error) { console.error('[vault] seedDefaultFolders failed', error); throw error; }
+  return data || [];
 }
 
 export async function uploadFile({ tenantId, parentId = null, file, expiryDate = null, createdBy = null }) {
