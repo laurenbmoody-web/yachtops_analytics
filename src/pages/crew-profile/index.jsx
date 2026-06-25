@@ -1265,7 +1265,6 @@ const canEdit = (() => {
       rank_held: empForm.rank_held || null,
       department: empForm.department || null,
       vessel_name: empForm.vessel_name || null,
-      rotation_status: empForm.rotation_status || null,
       next_crew_change_date: empForm.next_crew_change_date || null,
       benefits: empForm.benefits || {},
       contract_type: empForm.contract_type || null,
@@ -3888,12 +3887,6 @@ const canEdit = (() => {
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Rotation &amp; leave</span><span className="line" /></div>
                 <div className="cp-grid">
                   {fld('Rotation pattern', empForm.rotation_pattern, txt('rotation_pattern', 'e.g. 2:2'))}
-                  {fld('Rotation status', empForm.rotation_status,
-                    <select className="cp-inline-select" value={empForm.rotation_status || ''} onChange={(e) => setE('rotation_status', e.target.value)}>
-                      <option value="">—</option>
-                      <option value="Onboard">Onboard</option>
-                      <option value="On leave">On leave</option>
-                    </select>)}
                   {fld('Next crew change', fmtDate(empForm.next_crew_change_date), dte('next_crew_change_date'))}
                   {fld('Leave entitlement', empForm.leave_entitlement_days != null && empForm.leave_entitlement_days !== '' ? `${empForm.leave_entitlement_days} / days` : '',
                     <input className="cp-inline-box" type="number" min="0" placeholder="/ days" value={empForm.leave_entitlement_days ?? ''} onChange={(e) => setE('leave_entitlement_days', e.target.value)} />)}
@@ -3944,7 +3937,19 @@ const canEdit = (() => {
                   {fld('Health insurance — provider', ben.healthInsuranceProvider, benTxt('healthInsuranceProvider', 'e.g. Pantaenius'))}
                   {fld('Health insurance — policy №', ben.healthInsurancePolicy, benTxt('healthInsurancePolicy', '—'))}
                   {fld('Pension', ben.pension, benTxt('pension', 'e.g. 5% employer contribution'))}
-                  {fld('Bonus / tips structure', ben.bonus, benTxt('bonus', 'e.g. Discretionary, shared tips'), { full: true })}
+                  {fld('Bonus / tips structure', ben.bonus, benTxt('bonus', 'e.g. Discretionary, shared tips'))}
+                  {fld('Flights', [ben.flightType, ben.flightsPerYear ? `${ben.flightsPerYear} / yr` : null].filter(Boolean).join(' · '),
+                    <div className="cp-split-row">
+                      <select className="cp-inline-select" value={ben.flightType || ''} onChange={(e) => setB('flightType', e.target.value)}>
+                        <option value="">—</option>
+                        <option value="Economy">Economy</option>
+                        <option value="Premium economy">Premium economy</option>
+                        <option value="Business">Business</option>
+                        <option value="First">First</option>
+                      </select>
+                      <input className="cp-inline-box" type="number" min="0" placeholder="No." value={ben.flightsPerYear || ''} onChange={(e) => setB('flightsPerYear', e.target.value)} />
+                      <span className="cp-split-unit">/ yr</span>
+                    </div>)}
                 </div>
               </div>
 
