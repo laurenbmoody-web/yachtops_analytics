@@ -42,12 +42,12 @@ Extract these fields and return ONLY a JSON object (no markdown, no backticks):
   "expiry_date": "YYYY-MM-DD" | null,
   "issuing_authority": string | null,
   "flag_state": string | null,        // issuing flag state for a CoC, else null
-  "details": object                    // {"grade": "..."} for a CoC, {"visa_class","country"} for a visa, {"country_of_issue","place_of_birth"} for a passport, {"custom_label":"..."} for other, else {}
+  "details": object                    // {"grade": "..."} for a CoC, {"visa_class","country"} for a visa, {"country_of_issue","nationality","date_of_birth","place_of_birth"} for a passport, {"custom_label":"..."} for other, else {}
 }
 
 Rules:
 - Choose the single best doc_type id; use "other" if unsure and put a short name in details.custom_label.
-- For a passport, set details.country_of_issue (the issuing country as a full country name, expanding any code/nationality such as "GBR" → "United Kingdom") and details.place_of_birth (the holder's place of birth exactly as printed). Leave either out if not visible.
+- For a passport (or national ID), populate the holder's identity in details: country_of_issue (issuing country as a full name, expanding any code/nationality such as "GBR" → "United Kingdom"), nationality (the holder's nationality as a full country/demonym), date_of_birth ("YYYY-MM-DD"), and place_of_birth (exactly as printed). Omit any field that is not visible.
 - Dates MUST be YYYY-MM-DD. Convert any format (e.g. 14 MAR 2026, 03/14/2026) correctly; if a date is ambiguous prefer day/month/year. Use null if not present.
 - For a CoC, set details.grade to the licence grade/capacity exactly as printed on the document (e.g. "OOW <3000GT", "Master <500GT", "Y4 / OOW (Yachts)", "Chief Mate unlimited"). Match one of these standard grades where the document clearly corresponds to it: ${JSON.stringify(['Master <500GT', 'Master <3000GT', 'Master unlimited', 'Chief Mate <3000GT', 'Chief Mate unlimited', 'OOW <3000GT', 'OOW unlimited', 'Y4 / OOW (Yachts)', 'Y3 / Master <500GT', 'Y2 / Master <3000GT', 'Y1 / Master <3000GT (>500GT)', 'Engineering — MEOL (Yachts)', 'Engineering — SV / Y4', 'Engineering — Y3', 'Engineering — Y2', 'Engineering — Y1'])}. If none fit, return the grade as printed.
 - Do not invent values. Use null when a field is not visible.

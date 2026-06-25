@@ -250,6 +250,57 @@ export const saveCrewProfileData = async (userId, f, actor = null) => {
   if (bankRes?.error) throw bankRes.error;
 };
 
+// Passport detail keys → crew_personal_details columns the passport is the
+// source of truth for.
+const PASSPORT_IDENTITY_MAP = [
+  { detail: 'date_of_birth', column: 'date_of_birth', label: 'Date of birth' },
+  { detail: 'nationality', column: 'nationality', label: 'Nationality' },
+  { detail: 'place_of_birth', column: 'place_of_birth', label: 'Place of birth' },
+];
+
+/**
+ * The passport is authoritative for the holder's identity, so a saved passport
+ * feeds the profile's Personal Details. Blank profile fields are filled from the
+ * passport; fields that already hold a *different* value are left untouched and
+ * reported back as conflicts for the user to reconcile.
+ *
+ * `details` is the passport document's details jsonb
+ * ({ date_of_birth, nationality, place_of_birth, ... }).
+ * Returns { updated: [labels], conflicts: [{ label, profile, passport }] }.
+ */
+export const syncPassportToPersonalDetails = async (userId, details) => {
+  if (!userId || !details) return { updated: [], conflicts: [] };
+  const norm = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+  const { data: existing, error: readErr } = await supabase
+    ?.from('crew_personal_details')?.select('*')?.eq('user_id', userId)?.maybeSingle();
+  if (readErr) throw readErr;
+  const cur = existing || {};
+
+  const patch = {};
+  const updated = [];
+  const conflicts = [];
+  for (const m of PASSPORT_IDENTITY_MAP) {
+    const pv = details[m.detail];
+    if (pv == null || String(pv).trim() === '') continue;
+    const ev = cur[m.column];
+    if (ev == null || String(ev).trim() === '') {
+      patch[m.column] = pv;
+      updated.push(m.label);
+    } else if (norm(ev) !== norm(pv)) {
+      conflicts.push({ label: m.label, profile: ev, passport: pv });
+    }
+  }
+
+  if (Object.keys(patch).length) {
+    const { error: upErr } = await supabase
+      ?.from('crew_personal_details')
+      ?.upsert({ user_id: userId, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (upErr) throw upErr;
+  }
+  return { updated, conflicts };
+};
+
 /**
  * Record that a non-owner (e.g. command) viewed a crew member's banking.
  * Update-only: if no banking row exists yet there is nothing to view, so
