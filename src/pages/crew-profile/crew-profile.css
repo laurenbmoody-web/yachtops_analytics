@@ -380,6 +380,15 @@ body.crew-profile-editorial {
   color: #AEB4C2;
 }
 
+/* Age sits inline to the right of the date of birth (quiet, not a stacked
+   hint) so the row keeps the same height as Place of Birth beside it. */
+.crew-profile-page .cp-age-inline {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #8B8478;
+}
+
 /* Grid with a little air above (e.g. the dietary line under the allergy ref). */
 .crew-profile-page .cp-grid-spaced { margin-top: 10px; }
 

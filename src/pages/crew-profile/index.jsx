@@ -1495,7 +1495,7 @@ const canEdit = (() => {
               <div className={`cp-static${formData?.pronouns ? '' : ' cp-empty'}`}>{formData?.pronouns || '—'}</div>
             )}
           </Field>
-          <Field label="Date of Birth" hint={dob_age != null ? `Age ${dob_age}` : undefined}>
+          <Field label="Date of Birth">
             {isEditing ? (
               <EditorialDatePicker
                 value={(formData?.dateOfBirth || '').slice(0, 10)}
@@ -1504,9 +1504,12 @@ const canEdit = (() => {
               />
             ) : (
               <div className={`cp-static${formData?.dateOfBirth ? '' : ' cp-empty'}`}>
-                {formData?.dateOfBirth
-                  ? new Date(`${String(formData.dateOfBirth).slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                  : '—'}
+                {formData?.dateOfBirth ? (
+                  <>
+                    {new Date(`${String(formData.dateOfBirth).slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    {dob_age != null && <span className="cp-age-inline">Age {dob_age}</span>}
+                  </>
+                ) : '—'}
               </div>
             )}
           </Field>
@@ -1538,6 +1541,16 @@ const canEdit = (() => {
               placeholder="None"
             />
           </Field>
+          <Field label="Passport" hint="Held in Documents">
+            <div className="cp-static cp-birthday">
+              {passportSummary
+                ? <span>{passportSummary}</span>
+                : <span className="cp-empty">Not added</span>}
+              <button type="button" className="cp-allergy-jump" onClick={() => { setActiveSection('documents'); setIsEditing(false); }}>
+                {passportDoc ? 'Documents' : 'Add in Documents'} ›
+              </button>
+            </div>
+          </Field>
           <Field label="Dual Passport">
             {isEditing ? (
               <div className="cp-check-row">
@@ -1565,16 +1578,6 @@ const canEdit = (() => {
               disabled={!isEditing}
               placeholder="—"
             />
-          </Field>
-          <Field label="Passport" hint="Held in Documents">
-            <div className="cp-static cp-birthday">
-              {passportSummary
-                ? <span>{passportSummary}</span>
-                : <span className="cp-empty">Not added</span>}
-              <button type="button" className="cp-allergy-jump" onClick={() => { setActiveSection('documents'); setIsEditing(false); }}>
-                {passportDoc ? 'Documents' : 'Add in Documents'} ›
-              </button>
-            </div>
           </Field>
           </div>
         </div>
