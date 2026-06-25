@@ -269,7 +269,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const cap = (cmd.name || 'Master').replace('Capt. ', '');
       const days = periods.reduce((s, e) => s + (e.days || 0), 0);
       const cmdLabel = multi ? `In command ${cmd.from ? fmtDate(cmd.from) : '—'} – ${cmd.to ? fmtDate(cmd.to) : 'present'}` : null;
-      const masterNote = mode === 'external' ? 'Ship not on Cargo'
+      const masterNote = mode === 'external' ? 'Vessel not on Cargo'
         : cmd.member ? 'Captain aboard · on Cargo'
           : cmd.onCargo ? 'Captain moved on · active on Cargo' : 'Captain moved on · left Cargo';
       const how = mode === 'stamp'
@@ -645,7 +645,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         <div className="std-flex std-ac" style={{ gap: 7, flexWrap: 'wrap' }}>
                           <span className="std-avn">{v.name}</span>
                           <span className="std-tag" style={{ color: sm.color, background: sm.bg }}>{sm.label}</span>
-                          <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: provCol.color, background: provCol.tint }} title={isCargo ? 'This ship is on Cargo — the captain confirms your days in-app' : 'This ship isn’t on Cargo — you’ll add a signed testimonial for these days'}>
+                          <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: provCol.color, background: provCol.tint }} title={isCargo ? 'This vessel is on Cargo — the captain confirms your days in-app' : 'This vessel isn’t on Cargo — you’ll add a signed testimonial for these days'}>
                             <span className="pm" style={isCargo ? { background: provCol.color } : { borderColor: provCol.color }} />{provLabel}
                           </span>
                         </div>
