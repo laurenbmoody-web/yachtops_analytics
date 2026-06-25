@@ -118,8 +118,10 @@ export const getDefaultRulesConfig = () => ({
     watchkeepingMinHours: 4,
     // Seagoing service for the OOW pathway only counts on vessels >= this length.
     seagoingMinLengthM: 15,
-    // Standby contribution is capped by the templates — exact figure TBC.
-    standbyCapDays: 90
+    // Standby has NO flat cap: total standby may not exceed total actual sea
+    // service (seagoing + watchkeeping). (MSN 1858 §5.2 / MIN 498). Substitution
+    // into the bars is deferred — standby is logged, not counted in the primaries.
+    standbyNeverExceedsSeaService: true
   },
   paths: [
     {
@@ -925,8 +927,9 @@ export const evaluateEntryQualification = (entry, pathId, config = getRulesConfi
     result.reason = 'Shipyard service — does not count toward seagoing or watchkeeping days.';
     result.reasons = [result.reason];
   } else if (serviceType === SEA_SERVICE_TYPE?.STANDBY) {
-    const cap = config?.thresholds?.standbyCapDays;
-    result.reason = `Standby service — limited contribution${cap != null ? ` (cap ${cap} days)` : ''}; not counted in the primary bars.`;
+    // No flat cap: standby counts only up to your actual sea-service total
+    // (MSN 1858 §5.2 / MIN 498). Shown here as context; not in the primary bars.
+    result.reason = 'Standby service — counts only up to your actual sea-service days (MSN 1858 §5.2); not counted in the primary bars.';
     result.reasons = [result.reason];
   } else {
     // Seagoing/watchkeeping day that failed the vessel-size gates.

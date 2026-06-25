@@ -17,10 +17,14 @@ export const SERVICE_RULES = {
   monthDays: 30,               // "month = calendar month or 30 days" (1858 §5.3, 1859 §5.3) HIGH
   seagoingMinLengthM: 15,      // OOW/Master <3000 gate (1858 §3.3/3.5/3.6) HIGH
   // Standby: ≤14 consecutive days, never exceeding the previous voyage, and
-  // total standby may NOT exceed total actual seagoing service. (1858 §5.2) HIGH
+  // total standby may NOT exceed total actual seagoing service. (1858 §5.2 /
+  // MIN 498) HIGH — there is NO flat day cap; the limit is your sea-service total.
   standbyMaxConsecutiveDays: 14,
   standbyNeverExceedsSeagoing: true,
-  // Yard service capped at 90 days; never counts as actual seagoing. (1858 §3.3 / 1859 §5.2) HIGH
+  // Yard service cap; never counts as actual seagoing. Baseline 90 days (OOW
+  // <3000GT); Chief Mate / Master = 30 days via the per-certificate override
+  // below. (MSN 1858 §3.3–§3.6 / MSN 1859 §5.2) HIGH — confirmed vs MSN 1858
+  // Amd 2 + MIN 498.
   yardCapDays: 90,
   // Dual deck+engine capacity counts at 50%. (1858 §5.1 / 1859) HIGH — not yet modelled.
   dualCapacityRate: 0.5,
@@ -74,6 +78,7 @@ export const CERTIFICATES = {
   OOW_YACHT_3000: {
     family: 'DECK', label: 'OOW (Yachts <3000GT)', short: 'OOW <3000GT',
     msn: 'MSN 1858 Amd 2 §3.3', verified: 'HIGH',
+    yardCapDays: 90,                // OOW: up to 90 yard days may count (1858 §3.3)
     requires: {
       onboardMonths: 36,            // 36 months onboard yacht service since age 16
       seagoingDays: 365,            // ≥365 days seagoing on vessels ≥15m (250 seagoing + 115 combo)
@@ -85,6 +90,7 @@ export const CERTIFICATES = {
   CHIEF_MATE_YACHT_3000: {
     family: 'DECK', label: 'Chief Mate (Yachts <3000GT)', short: 'Chief Mate <3000GT',
     msn: 'MSN 1858 Amd 2 §3.4', verified: 'HIGH',
+    yardCapDays: 30,                // Chief Mate / Master: max 30 yard days (1858 §3.4)
     requires: {},                   // no additional sea time — concurrent with OOW <3000 II/1
     heldWhilst: 'OOW (Yachts <3000GT) II/1',
     note: 'No additional qualifying service beyond OOW <3000GT; may be applied for at the same time.'
@@ -92,12 +98,14 @@ export const CERTIFICATES = {
   MASTER_YACHT_500: {
     family: 'DECK', label: 'Master (Yachts <500GT)', short: 'Master <500GT',
     msn: 'MSN 1858 Amd 2 §3.5', verified: 'HIGH',
+    yardCapDays: 30,                // Master: max 30 yard days (1858 §3.5)
     requires: { onboardMonths: 12, watchkeepingDays: 120, minVesselMetres: 15 },
     heldWhilst: 'OOW (Yachts <3000GT) II/1'
   },
   MASTER_YACHT_3000: {
     family: 'DECK', label: 'Master (Yachts <3000GT)', short: 'Master <3000GT',
     msn: 'MSN 1858 Amd 2 §3.6', verified: 'HIGH',
+    yardCapDays: 30,                // Master: max 30 yard days (1858 §3.6)
     requires: { onboardMonths: 24, watchkeepingDays: 240, minVesselMetres: 15 },
     heldWhilst: 'OOW (Yachts <3000GT) II/1',
     note: 'All service ≥15m AND include 12 months on ≥24m OR 6 months on ≥500GT.'
@@ -105,6 +113,7 @@ export const CERTIFICATES = {
   CHIEF_MATE_UNLIMITED: {
     family: 'DECK', label: 'Chief Mate (Yachts Unlimited)', short: 'Chief Mate Unltd',
     msn: 'MSN 1858 Amd 2 §4.3', verified: 'HIGH',
+    yardCapDays: 30,                // Chief Mate: max 30 yard days (1858 §4.3)
     requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
     heldWhilst: 'OOW Unlimited (or Master Yachts <3000GT II/1)',
     note: 'OOW-Unlimited route: 12 months onboard as OOW incl. 6 months seagoing, all on a yacht ≥500GT.'
@@ -112,6 +121,7 @@ export const CERTIFICATES = {
   MASTER_UNLIMITED: {
     family: 'DECK', label: 'Master (Yachts Unlimited)', short: 'Master Unltd',
     msn: 'MSN 1858 Amd 2 §4.4', verified: 'HIGH',
+    yardCapDays: 30,                // Master: max 30 yard days (1858 §4.4)
     // 3 alternative routes — default bar uses the Chief-Mate-Unlimited route (A).
     requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
     heldWhilst: 'Chief Mate (Yachts Unlimited)',
@@ -263,3 +273,9 @@ export const eligibleCertificates = (roleKey) => {
 /** Roles for a department (for the role dropdown). */
 export const rolesForDepartment = (deptId) =>
   Object.entries(ROLES).filter(([, r]) => r.department === deptId).map(([id, r]) => ({ id, ...r }));
+
+/** Yard-service day cap for a certificate (MSN 1858): OOW <3000GT counts up to
+ *  90 yard days; Chief Mate / Master up to 30. Falls back to the 90-day baseline
+ *  (e.g. engine certs under MSN 1859 §5.2) when a cert sets no override. */
+export const yardCapForCertificate = (certId) =>
+  CERTIFICATES[certId]?.yardCapDays ?? SERVICE_RULES.yardCapDays;

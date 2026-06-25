@@ -102,10 +102,17 @@ test('each validation rule blocks with an actionable error', () => {
   ds = assembleTestimonialDataset({ seafarer: SEAFARER, signatory: CAPTAIN, entries: [day('2026-09-01', 'seagoing', 0, false)] });
   assert.ok(validateTestimonial(ds, getVerifierProfile('other')).errors.some(e => e.code === 'SEAGOING_UNDER_15M'));
 
-  // standby cap exceeded (override cap small for the test)
+  // standby exceeds actual sea service: 5 standby days, 0 seagoing/watchkeeping.
   ds = assembleTestimonialDataset({ seafarer: SEAFARER, signatory: CAPTAIN,
     entries: Array.from({ length: 5 }, (_, i) => day(`2026-09-0${i + 1}`, 'standby', 0)) });
-  assert.ok(validateTestimonial(ds, getVerifierProfile('other'), { standbyCapDays: 3 }).errors.some(e => e.code === 'STANDBY_CAP_EXCEEDED'));
+  assert.ok(validateTestimonial(ds, getVerifierProfile('other')).errors.some(e => e.code === 'STANDBY_EXCEEDS_SEA_SERVICE'));
+
+  // standby within actual sea service is fine (2 standby ≤ 3 sea-service days).
+  ds = assembleTestimonialDataset({ seafarer: SEAFARER, signatory: CAPTAIN, entries: [
+    day('2026-09-01', 'seagoing', 0), day('2026-09-02', 'watchkeeping', 6), day('2026-09-03', 'watchkeeping', 6),
+    day('2026-09-04', 'standby', 0), day('2026-09-05', 'standby', 0)
+  ] });
+  assert.ok(!validateTestimonial(ds, getVerifierProfile('other')).errors.some(e => e.code === 'STANDBY_EXCEEDS_SEA_SERVICE'));
 
   // vessel missing gating facts
   ds = assembleTestimonialDataset({ seafarer: SEAFARER, signatory: CAPTAIN,

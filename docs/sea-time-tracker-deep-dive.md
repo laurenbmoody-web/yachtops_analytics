@@ -52,7 +52,7 @@ localStorage prototype (no Supabase tables yet):
 | Config-driven thresholds (not hard-coded) | ❌ | ✅ `getRulesConfig()` / `saveRulesConfig()` |
 | Multiple requirement bars (not one 1095 ring) | ❌ | ✅ seagoing 365 + watchkeeping 120 bars |
 | Human-readable qualify / non-qualify reason | ⚠️ partial | ✅ `qualificationReason` shown in day drawer |
-| Standby cap | ❌ | ⚠️ threshold stored (`standbyCapDays`), **substitution logic deferred** |
+| Standby cap | ❌ | ✅ rule = standby ≤ actual sea service (MSN 1858 §5.2 / MIN 498); enforced in `engine.js` + `testimonial/validate.js`. No flat day cap. Bar-substitution still deferred. |
 | MIN 642 export (PDF/CSV) | ❌ ("coming in V2") | ⬜ Phase 1 |
 | Captain sign-off + tamper-evident hash + QR | ❌ (stub) | ⬜ Phase 1/2 |
 | Captain attestation cockpit | ❌ (stub) | ⬜ Phase 2 |
@@ -114,7 +114,8 @@ live in `getDefaultRulesConfig()` and are trivially editable:
 | `requirements[seagoing-15m].targetDays` | 365 | MSN 1858 Amd 2 OOW thresholds |
 | `requirements[watchkeeping].targetDays` | 120 | MSN 1858 Amd 2 |
 | `requirements[*].gates.minGT` | 80 | GT bands (<500 / <3000 routes) |
-| `standbyCapDays` | 90 | template standby cap |
+| standby limit | ≤ actual sea service | MSN 1858 §5.2 / MIN 498 — no flat day cap |
+| `yardCapDays` | 90 (OOW) / 30 (Master·Chief Mate) | MSN 1858 §3.3–§3.6; per-cert via `yardCapForCertificate()` |
 
 The "UNVERIFIED" badge stays on screen until you set
 `reviewStatus: 'VERIFIED'` in config — so no "MCA-compliant" claim can leak out
@@ -200,9 +201,10 @@ payload + hash are rendered as text/URL for now).
 ## 6. Decisions I need from you (before Phase 1+)
 
 1. ~~**Persistence model.**~~ ✅ Resolved — moved to Supabase (see §5a).
-2. **Standby substitution.** Should capped standby days *substitute into* the
-   seagoing requirement (up to `standbyCapDays`), or just be displayed as a
-   tracked bucket? I've done the latter for now.
+2. **Standby substitution.** The cap rule is settled — standby counts only up to
+   your actual sea service (MSN 1858 §5.2 / MIN 498), no flat day figure. Open
+   question is only whether those eligible standby days *substitute into* the
+   seagoing bar, or stay a displayed-only bucket. I've done the latter for now.
 3. **Seagoing vs in-port.** I map `IN_PORT` / `ANCHOR` → **standby**. Some
    pathways treat in-port-underway-prep differently — confirm that's right.
 4. **Commercial-status gate.** The old code gated on commercial/private yacht.

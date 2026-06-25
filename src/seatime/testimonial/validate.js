@@ -3,7 +3,7 @@
 // self-certification hard fail — MCA will not accept self-certified seagoing
 // service, so we make producing one impossible.
 
-import { WATCHKEEPING_MIN_HOURS, SEAGOING_MIN_LENGTH_M, STANDBY_CAP_DAYS } from './types.js';
+import { WATCHKEEPING_MIN_HOURS, SEAGOING_MIN_LENGTH_M } from './types.js';
 import { SUPPORTING_DOC_LABELS } from './verifiers.js';
 
 // Combining diacritical marks U+0300–U+036F (built from escapes to keep this
@@ -19,14 +19,12 @@ const normName = (s) => String(s || '')
 /**
  * @param {import('./types.js').TestimonialDataset} dataset
  * @param {import('./types.js').VerifierProfile} verifierProfile
- * @param {{ standbyCapDays?:number }} [options]
  * @returns {import('./types.js').ValidationResult}
  */
-export const validateTestimonial = (dataset, verifierProfile, options = {}) => {
+export const validateTestimonial = (dataset, verifierProfile) => {
   const errors = [];
   const push = (code, message, field) => errors.push({ code, message, field });
 
-  const standbyCap = options.standbyCapDays ?? STANDBY_CAP_DAYS;
   const days = dataset?.days || [];
   const vessels = dataset?.vessels || [];
 
@@ -55,11 +53,15 @@ export const validateTestimonial = (dataset, verifierProfile, options = {}) => {
       'Fix the watch hours or re-tag the day.', 'days');
   }
 
-  // 4) Standby days exceed the regulatory cap. // TODO(MIN642): confirm cap.
-  const standbyTotal = dataset?.service?.totals?.standby ?? 0;
-  if (standbyTotal > standbyCap) {
-    push('STANDBY_CAP_EXCEEDED',
-      `${standbyTotal} standby days exceed the ${standbyCap}-day cap. Only ${standbyCap} may be claimed.`,
+  // 4) Standby may not exceed actual sea service. There is NO flat cap — the
+  //    ceiling is your seagoing + watchkeeping total. (MSN 1858 §5.2 / MIN 498)
+  const totals = dataset?.service?.totals || {};
+  const standbyTotal = totals.standby ?? 0;
+  const actualSeaService = (totals.seagoing ?? 0) + (totals.watchkeeping ?? 0);
+  if (standbyTotal > actualSeaService) {
+    push('STANDBY_EXCEEDS_SEA_SERVICE',
+      `${standbyTotal} standby days exceed your actual sea service (${actualSeaService} days). ` +
+      'MCA counts standby only up to your actual sea service (MSN 1858 §5.2); reduce the standby claimed.',
       'service.totals.standby');
   }
 
