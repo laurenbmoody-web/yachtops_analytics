@@ -20,11 +20,16 @@ export const profileDataToFormData = ({ personal, banking }) => {
   const nk = p.next_of_kin || {};
   const pref = p.preferences || {};
   const b = banking || {};
+  const dr = p.doctor_contact || {};
   const phones = Array.isArray(p.phones) ? p.phones : [];
   const primaryPhone = phones.find((x) => x?.value)?.value || '';
   return {
     dateOfBirth: p.date_of_birth || '',
     nationality: p.nationality || '',
+    placeOfBirth: p.place_of_birth || '',
+    secondNationality: p.second_nationality || '',
+    dualPassport: p.dual_passport ?? false,
+    dischargeBookNumber: p.discharge_book_number || '',
     prefix: p.prefix || '',
     preferredName: p.preferred_name || '',
     pronouns: p.pronouns || '',
@@ -37,6 +42,9 @@ export const profileDataToFormData = ({ personal, banking }) => {
     allergies: p.allergies_text || '',
     allergiesConfirmedAt: p.allergies_confirmed_at || '',
     medicalConditions: p.medical_conditions || '',
+    emergencyMedications: p.emergency_medications || '',
+    doctorContactName: dr.name || '',
+    doctorContactPhone: dr.phone || '',
     emergencyContactName: ec.name || '',
     emergencyContactRelationship: ec.relationship || '',
     emergencyContactPhone: ec.phone || '',
@@ -114,6 +122,10 @@ export const saveCrewProfileData = async (userId, f, actor = null) => {
     user_id: userId,
     date_of_birth: f.dateOfBirth || null,
     nationality: f.nationality || null,
+    place_of_birth: f.placeOfBirth || null,
+    second_nationality: f.secondNationality || null,
+    dual_passport: !!f.dualPassport,
+    discharge_book_number: f.dischargeBookNumber || null,
     prefix: f.prefix || null,
     preferred_name: f.preferredName || null,
     pronouns: f.pronouns || null,
@@ -125,6 +137,10 @@ export const saveCrewProfileData = async (userId, f, actor = null) => {
     allergies_text: f.allergies || null,
     allergies_confirmed_at: f.allergiesConfirmedAt || null,
     medical_conditions: f.medicalConditions || null,
+    emergency_medications: f.emergencyMedications || null,
+    doctor_contact: {
+      name: f.doctorContactName || '', phone: f.doctorContactPhone || '',
+    },
     emergency_contact: {
       name: f.emergencyContactName || '', relationship: f.emergencyContactRelationship || '',
       phone: f.emergencyContactPhone || '', email: f.emergencyContactEmail || '',
