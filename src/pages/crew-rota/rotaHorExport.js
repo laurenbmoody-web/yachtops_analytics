@@ -440,12 +440,9 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   // ── Grid geometry ──
   const dateColW = 66;
   const totalColW = 42;
-  const structColW = 34; // rest-pattern (rule 3) + 14h-stretch (rule 4) columns
-  const totalsW = totalColW * 2 + structColW * 2;
+  const totalsW = totalColW * 2;
   const gridLeft = M + dateColW;
   const gridRight = pageW - M - totalsW;
-  const patX = gridRight + totalColW * 2;                 // rest-pattern column
-  const strX = gridRight + totalColW * 2 + structColW;    // 14h-stretch column
   const gridW = gridRight - gridLeft;
   const slotW = gridW / 48; // 48 half-hour slots
 
@@ -466,10 +463,6 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.text('24h', gridRight + totalColW / 2, gridTop - 4, { align: 'center' });
   doc.text('Rest', gridRight + totalColW + totalColW / 2, gridTop - 12, { align: 'center' });
   doc.text('7d', gridRight + totalColW + totalColW / 2, gridTop - 4, { align: 'center' });
-  doc.text('Rest', patX + structColW / 2, gridTop - 12, { align: 'center' });
-  doc.text('pattern', patX + structColW / 2, gridTop - 4, { align: 'center' });
-  doc.text('14h', strX + structColW / 2, gridTop - 12, { align: 'center' });
-  doc.text('max', strX + structColW / 2, gridTop - 4, { align: 'center' });
 
   // Hour ticks (every 2h) + vertical hour gridlines (0..24)
   doc.setFontSize(5.5);
@@ -526,26 +519,6 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     doc.setTextColor(...(cell.weeklyLow ? WARN_TEXT : [0, 0, 0]));
     doc.text(String(Math.round(cell.pastWeekHours)), r7 + totalColW / 2, rowY + rowH / 2 + 2, { align: 'center' });
 
-    // Structural rules — flagged only on the day they breach. Rest pattern is a
-    // compound rule (>2 periods OR none ≥6h), so a single number would mislead:
-    // shade the cell only. 14h is a clean threshold, so show the actual hours.
-    doc.setFontSize(6.5);
-    if (cell.splitBreach) {
-      doc.setFillColor(...WARN_FILL); doc.rect(patX, rowY, structColW, rowH, 'F');
-      // A small cross marks the breach (no single number can express the
-      // compound rule). Drawn as vector lines — no font glyph to mis-render.
-      const cx = patX + structColW / 2;
-      const cy = rowY + rowH / 2;
-      doc.setDrawColor(...WARN_TEXT); doc.setLineWidth(0.9);
-      doc.line(cx - 2.2, cy - 2.2, cx + 2.2, cy + 2.2);
-      doc.line(cx - 2.2, cy + 2.2, cx + 2.2, cy - 2.2);
-    }
-    if (cell.stretchBreach) {
-      doc.setFillColor(...WARN_FILL); doc.rect(strX, rowY, structColW, rowH, 'F');
-      doc.setTextColor(...WARN_TEXT);
-      doc.text(`${Math.round(cell.longestStretch)}h`, strX + structColW / 2, rowY + rowH / 2 + 2, { align: 'center' });
-    }
-
     // row separator
     doc.setDrawColor(...GRID_LINE);
     doc.line(M, rowY + rowH, gridRight + totalsW, rowY + rowH);
@@ -565,8 +538,6 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.line(gridLeft, gridTop, gridLeft, gridBottom);
   doc.line(gridRight, gridTop, gridRight, gridBottom);
   doc.line(gridRight + totalColW, gridTop, gridRight + totalColW, gridBottom);
-  doc.line(patX, gridTop, patX, gridBottom);
-  doc.line(strX, gridTop, strX, gridBottom);
 
   // Legend
   let ly = gridBottom + 14;
@@ -583,7 +554,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   // Clarify what the two shaded positions mean (date cell vs rest figure).
   ly += 9;
   doc.setFontSize(6); doc.setTextColor(110);
-  doc.text('Shaded date = a non-conformity was recorded that day (any rule). Shaded 24h/7d figure = rest below the MLC minimum. Rest pattern cross = >2 rest periods or none of 6h+; 14h max = longest continuous on-duty (limit 14h).', M, ly);
+  doc.text('Shaded date = a non-conformity was recorded that day (any rule, detailed below). Shaded 24h/7d figure = rest below the MLC minimum.', M, ly);
 
   // ── Non-conformities (per-day table, with recorded reason) ──
   ly += 16;
