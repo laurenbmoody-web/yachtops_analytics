@@ -263,6 +263,11 @@ body.crew-profile-editorial {
   cursor: pointer;
 }
 .crew-profile-page .cp-field-card input.cp-inline-box:disabled { background: transparent !important; opacity: 1 !important; }
+/* Split-payment row: type select + amount + unit, inline. */
+.crew-profile-page .cp-split-row { display: flex; align-items: center; gap: 8px; }
+.crew-profile-page .cp-split-row select.cp-inline-select { flex: 1 1 auto; min-width: 0; }
+.crew-profile-page .cp-split-row input.cp-inline-box { flex: 0 0 90px; width: 90px; }
+.crew-profile-page .cp-split-unit { font-size: 13px; font-weight: 600; color: #6F7396; }
 .crew-profile-page .cp-field-card input:disabled,
 .crew-profile-page .cp-field-card textarea:disabled,
 .crew-profile-page .cp-field-card button[aria-haspopup="listbox"]:disabled {
