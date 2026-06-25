@@ -22,6 +22,9 @@ const DEFAULT_HOR_TEMPLATE = {
   standardRef: null,
   // Flag form / marine-notice number, printed in the header when set.
   formReference: null,
+  // Footer note some flags require on the record (e.g. copy-to-seafarer /
+  // endorsement statement). Printed near the signatures when set.
+  footerNote: null,
 };
 
 // Flags that commonly publish their OWN Record of Hours of Rest form: the Red
@@ -42,23 +45,18 @@ export const FLAGS_WITH_OWN_FORM = new Set([
 // references it from its own shipping/marine notice. So the only flag-specific
 // element is a CITATION of that notice (printed via `formReference`), and — if
 // the notice prescribes specific wording — the declaration/standard-ref text.
-// These notice numbers came from secondary sources (search), NOT the official
-// PDFs (which are access-blocked here), so they are NOT activated. Confirm the
-// current notice/revision + exact declaration wording from the flag's published
-// document, then move the entry into FLAG_HOR_TEMPLATES (uncomment) to activate.
-//
-//   Cayman Islands  — record/table established by Shipping Notice CISN 05/2014,
-//                     "based on ILO Guidelines" (i.e. IMO/ILO model).
-//                     → likely: { formReference: 'Cayman Islands Shipping Notice CISN 05/2014' }
-//                     src: cishipping.com (Master's/Yachtmaster's Handbooks);
-//                          redensigngroup.org REG Yacht Code (Jul 2024).
-//   Marshall Islands — Marine Notice MN 7-051 (rev -2), record format per Annex I,
-//                     "based on IMO/ILO Guidelines"; forms published as MI-300.
-//                     → likely: { formReference: 'RMI Marine Notice MN 7-051' }
-//                     src: register-iri.com (MN-7-051-2.pdf).
+//   Marshall Islands — ACTIVATED below, VERIFIED from the official MN 7-051-2
+//                     (Annex II "Model Format for Record of Hours of Rest"):
+//                     exact declaration + copy/endorsement footer; cites MI-108
+//                     §7.51. Confirmed the layout is the IMO/ILO model.
+//   Cayman Islands  — ACTIVATED below (citation), from Cayman GN 03/2022 which
+//                     names CISN 05/2014 as the recording notice. REG Yacht Code
+//                     uses the IMO/ILO model; default attestation retained as the
+//                     GN did not include CISN 05/2014's exact declaration text.
 //   Red Ensign Group (Jersey, Guernsey, Isle of Man, Bermuda, BVI, Gibraltar,
 //                     United Kingdom) — REG Yacht Code, MLC-aligned, standard
-//                     IMO/ILO format. → citation only, per each registry's notice.
+//                     IMO/ILO format. Citation only, per each registry's notice;
+//                     not yet sourced individually.
 //   Liberia / Panama / Malta — major registries; own marine notices not yet
 //                     sourced. Default IMO/ILO model applies until confirmed.
 
@@ -70,7 +68,22 @@ export const FLAGS_WITH_OWN_FORM = new Set([
 //     // standardRef: '…only if the notice prescribes a specific reference line…',
 //   },
 const FLAG_HOR_TEMPLATES = {
-  // (empty — research staged above; nothing activated until verified from source)
+  // VERIFIED from RMI Marine Notice 7-051-2, Annex II "Model Format for Record
+  // of Hours of Rest" (the IMO/ILO model). Declaration + footer are the exact
+  // wording from the notice; the table layout is already the IMO/ILO model.
+  'Marshall Islands': {
+    formReference: 'RMI Marine Notice 7-051-2, Annex II',
+    declaration: 'I agree that this record is an accurate reflection of the hours of rest of the seafarer concerned.',
+    standardRef: 'Minimum hours of rest per RMI Maritime Regulations MI-108 §7.51, in conformity with the ILO MLC 2006 and STCW 1978, as amended. Minimum rest: 10h in any 24h and 77h in any 7 days; rest in no more than 2 periods, one of at least 6h.',
+    footerNote: 'A copy of this record is to be given to the seafarer. This form is subject to examination and endorsement under procedures established by the Republic of the Marshall Islands.',
+  },
+  // VERIFIED governing notices from Cayman GN 03/2022 (Seafarer Rest & Fitness
+  // for Duty), which cites CISN 05/2014 as the hours-of-rest recording notice.
+  // Cayman is Red Ensign Group → IMO/ILO model format; the default attestation
+  // is retained (CISN 05/2014's exact declaration was not in the supplied GN).
+  'Cayman Islands': {
+    formReference: 'Cayman Islands Shipping Notice CISN 05/2014 · Guidance Note GN 03/2022',
+  },
 };
 
 // Resolve the template for a flag. Always returns a complete object (the
