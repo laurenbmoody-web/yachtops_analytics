@@ -210,6 +210,19 @@ const allergiesReadText = (f) => {
   }
 };
 
+// Read-only age from a date of birth (ISO). Returns null for missing/invalid
+// dates or implausible ages so callers can simply skip rendering.
+const computeAge = (iso) => {
+  if (!iso) return null;
+  const dob = new Date(`${String(iso).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(dob.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const m = now.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age -= 1;
+  return age >= 0 && age < 140 ? age : null;
+};
+
 const CrewProfile = () => {
   const navigate = useNavigate();
   const { crewId } = useParams();
@@ -1558,6 +1571,8 @@ const canEdit = (() => {
   };
 
   const renderPersonalDetails = () => {
+    const dob_age = computeAge(formData?.dateOfBirth);
+    const addressClasses = "flex w-full text-sm placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed";
     return (
       <div>
         <div className="cp-section-head">
@@ -1629,7 +1644,7 @@ const canEdit = (() => {
               <div className={`cp-static${formData?.pronouns ? '' : ' cp-empty'}`}>{formData?.pronouns || '—'}</div>
             )}
           </Field>
-          <Field label="Date of Birth">
+          <Field label="Date of Birth" hint={dob_age != null ? `Age ${dob_age}` : undefined}>
             {isEditing ? (
               <EditorialDatePicker
                 value={(formData?.dateOfBirth || '').slice(0, 10)}
@@ -1644,6 +1659,14 @@ const canEdit = (() => {
               </div>
             )}
           </Field>
+          <Field label="Place of Birth">
+            <Input
+              value={formData?.placeOfBirth}
+              onChange={(e) => handleInputChange('placeOfBirth', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="e.g. Cape Town, South Africa"
+            />
+          </Field>
           <Field label="Nationality">
             <Select
               options={nationalityOptions}
@@ -1652,6 +1675,44 @@ const canEdit = (() => {
               disabled={!isEditing}
               searchable={true}
               placeholder="Select nationality"
+            />
+          </Field>
+          <Field label="Second Nationality" hint={isEditing ? 'Optional' : undefined}>
+            <Select
+              options={nationalityOptions}
+              value={formData?.secondNationality}
+              onChange={(value) => handleInputChange('secondNationality', value)}
+              disabled={!isEditing}
+              searchable={true}
+              placeholder="None"
+            />
+          </Field>
+          <Field label="Dual Passport">
+            {isEditing ? (
+              <div className="cp-check-row">
+                <label className="cp-inline-check">
+                  <input
+                    type="checkbox"
+                    checked={!!formData?.dualPassport}
+                    onChange={(e) => handleInputChange('dualPassport', e?.target?.checked)}
+                  />
+                  <span>Holds a second passport</span>
+                </label>
+              </div>
+            ) : (
+              <div className="cp-role-tags">
+                {formData?.dualPassport
+                  ? <span className="cp-tag">Dual passport</span>
+                  : <span className="cp-static cp-empty">No</span>}
+              </div>
+            )}
+          </Field>
+          <Field label="Discharge Book № / SID" hint={isEditing ? "Seaman's Discharge Book or SID" : undefined}>
+            <Input
+              value={formData?.dischargeBookNumber}
+              onChange={(e) => handleInputChange('dischargeBookNumber', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
             />
           </Field>
           </div>
@@ -1767,6 +1828,31 @@ const canEdit = (() => {
             ) : (
               <div className={`cp-static${formData?.bloodType ? '' : ' cp-empty'}`}>{formData?.bloodType || '—'}</div>
             )}
+          </Field>
+          <Field label="Emergency Medications" full hint={isEditing ? 'Critical/regular meds first responders should know about' : undefined}>
+            <textarea
+              className={addressClasses}
+              value={formData?.emergencyMedications}
+              onChange={(e) => handleInputChange('emergencyMedications', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="e.g. Salbutamol inhaler (asthma); EpiPen — nut allergy"
+            />
+          </Field>
+          <Field label="Doctor / GP Name">
+            <Input
+              value={formData?.doctorContactName}
+              onChange={(e) => handleInputChange('doctorContactName', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
+          </Field>
+          <Field label="Doctor / GP Phone">
+            <Input
+              value={formData?.doctorContactPhone}
+              onChange={(e) => handleInputChange('doctorContactPhone', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
           </Field>
           </div>
         </div>
