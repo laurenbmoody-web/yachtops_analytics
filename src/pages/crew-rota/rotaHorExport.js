@@ -532,6 +532,13 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     doc.setFontSize(6.5);
     if (cell.splitBreach) {
       doc.setFillColor(...WARN_FILL); doc.rect(patX, rowY, structColW, rowH, 'F');
+      // A small cross marks the breach (no single number can express the
+      // compound rule). Drawn as vector lines — no font glyph to mis-render.
+      const cx = patX + structColW / 2;
+      const cy = rowY + rowH / 2;
+      doc.setDrawColor(...WARN_TEXT); doc.setLineWidth(0.9);
+      doc.line(cx - 2.2, cy - 2.2, cx + 2.2, cy + 2.2);
+      doc.line(cx - 2.2, cy + 2.2, cx + 2.2, cy - 2.2);
     }
     if (cell.stretchBreach) {
       doc.setFillColor(...WARN_FILL); doc.rect(strX, rowY, structColW, rowH, 'F');
@@ -576,7 +583,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   // Clarify what the two shaded positions mean (date cell vs rest figure).
   ly += 9;
   doc.setFontSize(6); doc.setTextColor(110);
-  doc.text('Shaded date = a non-conformity was recorded that day (any rule). Shaded 24h/7d figure = rest below the MLC minimum.', M, ly);
+  doc.text('Shaded date = a non-conformity was recorded that day (any rule). Shaded 24h/7d figure = rest below the MLC minimum. Rest pattern cross = >2 rest periods or none of 6h+; 14h max = longest continuous on-duty (limit 14h).', M, ly);
 
   // ── Non-conformities (per-day table, with recorded reason) ──
   ly += 16;
