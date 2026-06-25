@@ -1,6 +1,13 @@
 // Crew document taxonomy — categorised list the Documents tab adds from.
-// `fields` are type-specific inputs stored in personal_documents.details (jsonb).
-// `flagState` surfaces the issuing flag-state field (CoC / some visas).
+//
+// Per-type config (all optional; sensible defaults shown):
+//   fields          type-specific inputs stored in personal_documents.details (jsonb)
+//   flagState       surface the issuing flag-state field (CoC / discharge book)
+//   expiry          false → this doc has no expiry; hide the Expiry date field
+//                   (the field still shows if a value was already saved)
+//   number          false → hide the Document number field (letters, contracts)
+//   authorityLabel  relabel the "Issuing authority" field for this type
+// Defaults: expiry true, number true, authorityLabel "Issuing authority".
 
 import { NATIONALITIES } from '../../data/nationalities';
 
@@ -16,24 +23,36 @@ export const DOC_CATEGORIES = [
 // cert that needs it tracks the same field.
 const STCW_REFRESHER = { key: 'revalidation_date', label: 'Refresher / revalidation date', type: 'date' };
 
+// A commercial endorsement (RYA quals) is the part that actually expires — the
+// underlying certificate does not.
+const COMMERCIAL_ENDORSEMENT = { key: 'commercial_endorsement_expiry', label: 'Commercial endorsement expiry', type: 'date' };
+
+// Passport / national-ID identity fields. On a passport these also feed the
+// profile's Personal Details on save (see syncPassportToPersonalDetails).
+const IDENTITY_FIELDS = [
+  { key: 'country_of_issue', label: 'Country of issue' },
+  { key: 'nationality', label: 'Nationality', type: 'select', options: NATIONALITIES },
+  { key: 'date_of_birth', label: 'Date of birth', type: 'date' },
+  { key: 'place_of_birth', label: 'Place of birth' },
+];
+
 export const DOCUMENT_TYPES = [
   // Travel & identity
+  { id: 'passport', label: 'Passport', category: 'travel', fields: IDENTITY_FIELDS },
+  { id: 'national_id', label: 'National ID card', category: 'travel', fields: IDENTITY_FIELDS },
   {
-    id: 'passport', label: 'Passport', category: 'travel',
-    // Identity fields the passport is authoritative for — these feed the
-    // profile's Personal Details on save (see syncPassportToPersonalDetails).
-    fields: [
-      { key: 'country_of_issue', label: 'Country of issue' },
-      { key: 'nationality', label: 'Nationality', type: 'select', options: NATIONALITIES },
-      { key: 'date_of_birth', label: 'Date of birth', type: 'date' },
-      { key: 'place_of_birth', label: 'Place of birth' },
-    ],
+    // A discharge book is a record of sea service / identity book; it does not
+    // expire. Issued by a flag-state administration.
+    id: 'seamans_book', label: "Seaman's book / Discharge book", category: 'travel',
+    expiry: false, flagState: true, authorityLabel: 'Issuing administration',
   },
-  { id: 'national_id', label: 'National ID card', category: 'travel' },
-  { id: 'seamans_book', label: "Seaman's book / Discharge book", category: 'travel' },
   {
     id: 'tax_residency', label: 'Tax / Residency document', category: 'travel',
-    fields: [{ key: 'country', label: 'Country' }],
+    expiry: false,
+    fields: [
+      { key: 'country', label: 'Country' },
+      { key: 'tax_year', label: 'Tax year' },
+    ],
   },
   {
     id: 'visa_us_b1b2', label: 'Visa — US B1/B2', category: 'travel',
@@ -52,21 +71,29 @@ export const DOCUMENT_TYPES = [
     ],
   },
 
-  // Medical & safety. STCW survival/firefighting/security elements need a
-  // 5-yearly refresher, so they carry a revalidation/refresher date.
-  { id: 'eng1', label: 'ENG1 medical certificate', category: 'medical' },
-  { id: 'seafarer_medical', label: 'Seafarer medical (other)', category: 'medical' },
+  // Medical & safety. Medicals carry an expiry and an examining doctor/clinic;
+  // STCW survival/firefighting/security elements need a 5-yearly refresher.
+  {
+    id: 'eng1', label: 'ENG1 medical certificate', category: 'medical',
+    authorityLabel: 'Approved doctor / clinic',
+    fields: [{ key: 'restrictions', label: 'Restrictions / limitations' }],
+  },
+  {
+    id: 'seafarer_medical', label: 'Seafarer medical (other)', category: 'medical',
+    authorityLabel: 'Approved doctor / clinic',
+    fields: [{ key: 'restrictions', label: 'Restrictions / limitations' }],
+  },
   { id: 'stcw_basic', label: 'STCW Basic Safety Training', category: 'medical', fields: [STCW_REFRESHER] },
   { id: 'stcw_advanced_ff', label: 'STCW Advanced Firefighting', category: 'medical', fields: [STCW_REFRESHER] },
   { id: 'stcw_pscrb', label: 'STCW PSCRB (survival craft)', category: 'medical', fields: [STCW_REFRESHER] },
-  { id: 'stcw_medical_care', label: 'STCW Medical First Aid / Care', category: 'medical' },
+  { id: 'stcw_medical_care', label: 'STCW Medical First Aid / Care', category: 'medical', fields: [STCW_REFRESHER] },
   { id: 'pdsd', label: 'PSA / PDSD (ship security)', category: 'medical', fields: [STCW_REFRESHER] },
-  { id: 'sso_dsd', label: 'SSO / DSD (security officer / duties)', category: 'medical' },
+  { id: 'sso_dsd', label: 'SSO / DSD (security officer / duties)', category: 'medical', expiry: false },
 
   // Qualifications
   {
     id: 'coc', label: 'Certificate of Competency (CoC)', category: 'qualification',
-    flagState: true,
+    flagState: true, authorityLabel: 'Issuing administration',
     fields: [
       {
         key: 'grade', label: 'Licence grade', type: 'select',
@@ -82,24 +109,32 @@ export const DOCUMENT_TYPES = [
     ],
   },
   { id: 'gmdss', label: 'GMDSS / GOC / ROC', category: 'qualification' },
-  { id: 'ecdis', label: 'ECDIS (generic + type-specific)', category: 'qualification' },
-  { id: 'helm_management', label: 'HELM (Management)', category: 'qualification' },
-  { id: 'yachtmaster', label: 'RYA Yachtmaster', category: 'qualification' },
-  { id: 'powerboat', label: 'Powerboat Level 2', category: 'qualification' },
-  { id: 'food_hygiene', label: 'Food Hygiene', category: 'qualification' },
-  { id: 'aec', label: 'Approved Engine Course (AEC)', category: 'qualification' },
+  { id: 'ecdis', label: 'ECDIS (generic + type-specific)', category: 'qualification', expiry: false },
+  { id: 'helm_management', label: 'HELM (Management)', category: 'qualification', expiry: false },
+  {
+    id: 'yachtmaster', label: 'RYA Yachtmaster', category: 'qualification',
+    expiry: false, fields: [COMMERCIAL_ENDORSEMENT],
+  },
+  {
+    id: 'powerboat', label: 'Powerboat Level 2', category: 'qualification',
+    expiry: false, fields: [COMMERCIAL_ENDORSEMENT],
+  },
+  { id: 'food_hygiene', label: 'Food Hygiene', category: 'qualification', expiry: false },
+  { id: 'aec', label: 'Approved Engine Course (AEC)', category: 'qualification', expiry: false },
 
   // Issued documents — the kept-on-file record between the crew member and the
-  // employer: signed contracts, amendments, letters. COMMAND uploads these
-  // (a generated contract is only a draft until it's signed by both parties).
-  { id: 'employment_contract', label: 'Employment contract (signed)', category: 'issued' },
-  { id: 'contract_amendment', label: 'Contract amendment (signed)', category: 'issued' },
-  { id: 'offer_letter', label: 'Offer letter', category: 'issued' },
-  { id: 'certificate_of_employment', label: 'Certificate of employment', category: 'issued' },
-  { id: 'reference_letter', label: 'Reference letter', category: 'issued' },
-  { id: 'disciplinary_letter', label: 'Disciplinary / warning letter', category: 'issued' },
+  // employer: signed contracts, amendments, letters. These are records, not
+  // expiring credentials, and rarely carry a document number; the issuer is
+  // the employer/company, so the authority field reads "Issued by".
+  { id: 'employment_contract', label: 'Employment contract (signed)', category: 'issued', expiry: false, number: false, authorityLabel: 'Issued by' },
+  { id: 'contract_amendment', label: 'Contract amendment (signed)', category: 'issued', expiry: false, number: false, authorityLabel: 'Issued by' },
+  { id: 'offer_letter', label: 'Offer letter', category: 'issued', expiry: false, number: false, authorityLabel: 'Issued by' },
+  { id: 'certificate_of_employment', label: 'Certificate of employment', category: 'issued', expiry: false, number: false, authorityLabel: 'Issued by' },
+  { id: 'reference_letter', label: 'Reference letter', category: 'issued', expiry: false, number: false, authorityLabel: 'Issued by' },
+  { id: 'disciplinary_letter', label: 'Disciplinary / warning letter', category: 'issued', expiry: false, number: false, authorityLabel: 'Issued by' },
   {
     id: 'general_letter', label: 'Letter / document (other)', category: 'issued',
+    expiry: false, number: false, authorityLabel: 'Issued by',
     fields: [{ key: 'custom_label', label: 'Document name' }],
   },
 
