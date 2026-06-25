@@ -79,8 +79,9 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
   const setSF = (patch) => setForm(f => ({ ...f, ...patch }));
 
   // Signature — draw it (canvas) or type it (rendered in script). Drawing is the
-  // default so it reads as an actual signature, not just a printed name.
-  const [sigMode, setSigMode] = useState('draw');
+  // Signature — drawn on the canvas, with the printed full name underneath. A
+  // drawn mark reads as an actual signature (stands in for the ship's stamp);
+  // there is no typed-signature alternative.
   const padRef = useRef(null);
   const ctxRef = useRef(null);
   const drawingRef = useRef(false);
@@ -100,19 +101,18 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
     setHasInk(false); // setting canvas.width clears it
   };
   useEffect(() => {
-    if (sigMode !== 'draw') return undefined;
     setupPad();
     const onResize = () => setupPad(); // note: clears the pad on resize
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [sigMode]);
+  }, []);
 
   const padPos = (e) => { const r = padRef.current.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   const padDown = (e) => { const ctx = ctxRef.current; if (!ctx) return; drawingRef.current = true; const { x, y } = padPos(e); ctx.beginPath(); ctx.moveTo(x, y); padRef.current.setPointerCapture(e.pointerId); };
   const padMove = (e) => { if (!drawingRef.current) return; const ctx = ctxRef.current; const { x, y } = padPos(e); ctx.lineTo(x, y); ctx.stroke(); if (!hasInk) setHasInk(true); };
   const padUp = () => { drawingRef.current = false; };
   const clearPad = () => { const c = padRef.current, ctx = ctxRef.current; if (c && ctx) ctx.clearRect(0, 0, c.width, c.height); setHasInk(false); };
-  const signed = sigMode === 'draw' ? hasInk : form.name.trim().length > 1;
+  const signed = hasInk;
 
   const totDays = ps.reduce((s, e) => s + (e.days || 0), 0);
   const caps = [...new Set(ps.map(e => e.capacity).filter(Boolean))].join(', ') || '—';
@@ -128,9 +128,7 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
     name: form.name.trim(), cocNo: form.cocNo.trim(), cocGrade: form.cocGrade.trim(),
     email: form.email.trim(), phone: form.phone.trim(), place: form.place.trim(),
     cmdFrom: form.cmdFrom, cmdTo: form.cmdTo,
-    signature: sigMode === 'draw'
-      ? { kind: 'drawn', image: padRef.current ? padRef.current.toDataURL('image/png') : null }
-      : { kind: 'typed', text: form.name.trim() }
+    signature: { kind: 'drawn', image: padRef.current ? padRef.current.toDataURL('image/png') : null }
   });
 
   const content = (
@@ -231,22 +229,12 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
           </div>
         </div>
         <div className="cso-sig">
-          <div className="cso-flexrow">
-            <label className="cso-lbl">Sign here <span className="req">required</span></label>
-            <div className="cso-sigtabs">
-              <button type="button" className={`cso-sigtab${sigMode === 'draw' ? ' on' : ''}`} onClick={() => setSigMode('draw')}>Draw</button>
-              <button type="button" className={`cso-sigtab${sigMode === 'type' ? ' on' : ''}`} onClick={() => setSigMode('type')}>Type</button>
-            </div>
+          <label className="cso-lbl">Sign here <span className="req">required</span></label>
+          <div className="cso-pad">
+            <canvas ref={padRef} onPointerDown={padDown} onPointerMove={padMove} onPointerUp={padUp} onPointerLeave={padUp} />
+            {!hasInk && <span className="cso-pad-hint">Draw your signature here</span>}
+            <button type="button" className="cso-pad-clear" onClick={clearPad}>Clear</button>
           </div>
-          {sigMode === 'draw' ? (
-            <div className="cso-pad">
-              <canvas ref={padRef} onPointerDown={padDown} onPointerMove={padMove} onPointerUp={padUp} onPointerLeave={padUp} />
-              {!hasInk && <span className="cso-pad-hint">Draw your signature here</span>}
-              <button type="button" className="cso-pad-clear" onClick={clearPad}>Clear</button>
-            </div>
-          ) : (
-            <div className="cso-sigprev" style={{ opacity: form.name.trim() ? 1 : 0.35 }}>{form.name.trim() || 'Your signature'}</div>
-          )}
           <label className="cso-lbl" style={{ marginTop: 4 }}>Full name (printed) <span className="req">required</span></label>
           <input className="cso-input" value={form.name} onChange={e => setSF({ name: e.target.value })} placeholder="e.g. Henrik Sörensen" />
         </div>

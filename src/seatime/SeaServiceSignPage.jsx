@@ -13,13 +13,14 @@ import './captain-signoff.css';
 const Shell = ({ children }) => (
   <div style={{ minHeight: '100vh', background: '#FAFAF8', padding: '28px 16px 64px',
     fontFamily: "'Inter', system-ui, sans-serif", color: '#1C1B3A' }}>
-    <div style={{ textAlign: 'center', marginBottom: 22 }}>
-      <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 26, color: '#1C1B3A' }}>cargo</span>
-      <span style={{ color: '#AEB4C2', margin: '0 10px', fontWeight: 300 }}>|</span>
-      <span style={{ fontSize: 12, color: '#8B8478', fontWeight: 600, letterSpacing: '0.04em' }}>Sea-service sign-off</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 22 }}>
+      <img src="/centered-logo.svg" alt="Cargo" style={{ height: 30, width: 'auto', objectFit: 'contain' }} />
+      <span style={{ color: '#D8D4CB', fontWeight: 300, fontSize: 22, lineHeight: 1 }}>|</span>
+      <span style={{ fontSize: 11, color: '#8B8478', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Sea-service sign-off</span>
     </div>
     <div style={{ maxWidth: 760, margin: '0 auto', background: '#fff', border: '1px solid #ECEAE3',
       borderRadius: 16, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.18)', overflow: 'hidden' }}>
+      <div style={{ height: 4, background: '#1C1B3A' }} aria-hidden="true" />
       {children}
     </div>
     <p style={{ textAlign: 'center', marginTop: 26, fontSize: 11, color: '#AEB4C2' }}>
