@@ -1262,6 +1262,12 @@ const canEdit = (() => {
     setEmpSaving(true);
     const empPatch = {
       tenant_id: activeTenantId, user_id: crewId,
+      rank_held: empForm.rank_held || null,
+      department: empForm.department || null,
+      vessel_name: empForm.vessel_name || null,
+      rotation_status: empForm.rotation_status || null,
+      next_crew_change_date: empForm.next_crew_change_date || null,
+      benefits: empForm.benefits || {},
       contract_type: empForm.contract_type || null,
       start_date: empForm.start_date || null,
       end_date: empForm.end_date || null,
@@ -3697,6 +3703,12 @@ const canEdit = (() => {
     const editing = empEditing && canEditPermissions;
     const setE = (k, v) => setEmpForm((p) => ({ ...p, [k]: v }));
     const setC = (k, v) => setCompForm((p) => ({ ...(p || {}), [k]: v }));
+    const ben = empForm.benefits || {};
+    const setB = (k, v) => setEmpForm((p) => ({ ...p, benefits: { ...(p.benefits || {}), [k]: v } }));
+    const benTxt = (key, ph = '') => (
+      <input className="cp-inline-box" value={ben[key] || ''} placeholder={ph} onChange={(e) => setB(key, e.target.value)} />
+    );
+    const EMP_DEPARTMENTS = ['Deck', 'Engineering', 'Interior', 'Galley', 'Other'];
     const fmtDate = (d) => {
       if (!d) return '';
       const [y, m, day] = String(d).slice(0, 10).split('-');
@@ -3807,6 +3819,19 @@ const canEdit = (() => {
             {/* Left — field-card spec sheet (matches Personal Details) */}
             <div>
               <div className="cp-group">
+                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Role &amp; vessel</span><span className="line" /></div>
+                <div className="cp-grid">
+                  {fld('Rank held', empForm.rank_held, txt('rank_held', 'e.g. Chief Officer'))}
+                  {fld('Department', empForm.department,
+                    <select className="cp-inline-select" value={empForm.department || ''} onChange={(e) => setE('department', e.target.value)}>
+                      <option value="">—</option>
+                      {EMP_DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>)}
+                  {fld('Vessel', empForm.vessel_name, txt('vessel_name', 'e.g. M/Y Example'), { full: true })}
+                </div>
+              </div>
+
+              <div className="cp-group">
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Contract</span><span className="line" /></div>
                 <div className="cp-grid">
                   {fld('Contract type', empForm.contract_type,
@@ -3863,6 +3888,13 @@ const canEdit = (() => {
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Rotation &amp; leave</span><span className="line" /></div>
                 <div className="cp-grid">
                   {fld('Rotation pattern', empForm.rotation_pattern, txt('rotation_pattern', 'e.g. 2:2'))}
+                  {fld('Rotation status', empForm.rotation_status,
+                    <select className="cp-inline-select" value={empForm.rotation_status || ''} onChange={(e) => setE('rotation_status', e.target.value)}>
+                      <option value="">—</option>
+                      <option value="Onboard">Onboard</option>
+                      <option value="On leave">On leave</option>
+                    </select>)}
+                  {fld('Next crew change', fmtDate(empForm.next_crew_change_date), dte('next_crew_change_date'))}
                   {fld('Leave entitlement', empForm.leave_entitlement_days != null && empForm.leave_entitlement_days !== '' ? `${empForm.leave_entitlement_days} / days` : '',
                     <input className="cp-inline-box" type="number" min="0" placeholder="/ days" value={empForm.leave_entitlement_days ?? ''} onChange={(e) => setE('leave_entitlement_days', e.target.value)} />)}
                   {fld('Notice period', empForm.notice_period, txt('notice_period', 'e.g. 1 month'))}
@@ -3892,18 +3924,29 @@ const canEdit = (() => {
                         </span>
                       ) : (
                         <div className={`cp-static${salaryAmt != null ? '' : ' cp-empty'}`}>
-                          {salaryAmt != null ? `${money(salaryAmt)} / ${salaryPeriod === 'year' ? 'yr' : 'mo'}` : '—'}
+                          {salaryAmt != null ? `${money(salaryAmt)}${cur ? ` ${cur}` : ''} / ${salaryPeriod === 'year' ? 'yr' : 'mo'}` : '—'}
                         </div>
                       )}
                     </Field>
                     <Field label="Day rate">
                       <div className={`cp-static${derivedDayRate != null ? '' : ' cp-empty'}`}>
-                        {derivedDayRate != null ? money(derivedDayRate) : '—'}
+                        {derivedDayRate != null ? `${money(derivedDayRate)}${cur ? ` ${cur}` : ''}` : '—'}
                       </div>
                     </Field>
                   </div>
                 </div>
               )}
+
+              <div className="cp-group">
+                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Benefits</span><span className="line" /></div>
+                <div className="cp-grid">
+                  {fld('Travel allowance', ben.travelAllowance, benTxt('travelAllowance', 'e.g. 1 flight home per rotation'))}
+                  {fld('Health insurance — provider', ben.healthInsuranceProvider, benTxt('healthInsuranceProvider', 'e.g. Pantaenius'))}
+                  {fld('Health insurance — policy №', ben.healthInsurancePolicy, benTxt('healthInsurancePolicy', '—'))}
+                  {fld('Pension', ben.pension, benTxt('pension', 'e.g. 5% employer contribution'))}
+                  {fld('Bonus / tips structure', ben.bonus, benTxt('bonus', 'e.g. Discretionary, shared tips'), { full: true })}
+                </div>
+              </div>
 
               <div className="cp-group">
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Compliance</span><span className="line" /></div>
@@ -3916,9 +3959,13 @@ const canEdit = (() => {
                     certifiedCommercial: vesselCompliance?.certified_commercial,
                   }))}
                   {/* SEA reference is per-crew (their individual agreement number). */}
-                  {fld('SEA reference', empForm.sea_reference, txt('sea_reference'), { full: true })}
+                  <Field label="SEA reference" full hint={editing ? 'The crew member’s signed Seafarer Employment Agreement (SEA) number — enter when the signed SEA is filed' : undefined}>
+                    {editing
+                      ? txt('sea_reference', 'e.g. SEA-2026-014')
+                      : <div className={`cp-static${empForm.sea_reference ? '' : ' cp-empty'}`}>{empForm.sea_reference || '—'}</div>}
+                  </Field>
                 </div>
-                <p className="cp-set-note">Flag state (the governing law) is set once in Vessel Settings; the contract standard derives from the flag and whether the vessel is private or commercial.</p>
+                <p className="cp-set-note">SEA reference is the crew member’s individual Seafarer Employment Agreement number. Flag state (the governing law) is set once in Vessel Settings; the contract standard derives from the flag and whether the vessel is private or commercial.</p>
               </div>
 
               {!canEditPermissions && <p className="cp-set-note">Employment details are managed by COMMAND.</p>}
