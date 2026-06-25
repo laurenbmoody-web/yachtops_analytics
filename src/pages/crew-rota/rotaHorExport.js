@@ -124,6 +124,10 @@ function computeCellFull(windowShifts, memberId, dateStr) {
     pastWeekHours: mlc.pastWeekHours,
     dailyLow: !isOff && mlc.rest24h < MLC_DAILY_REST_MIN,
     weeklyLow: mlc.pastWeekHours < MLC_WEEKLY_REST_MIN,
+    splitBreach: !isOff && mlc.breaches.some((b) => b.rule === 'rest_period_split'),
+    stretchBreach: mlc.breaches.some((b) => b.rule === 'max_work_stretch_14h'),
+    periodCount: (mlc.restPeriods || []).length,
+    longestStretch: mlc.longestStretchHours || 0,
     breaches: mlc.breaches,
     intervals: onDutyIntervalsForDay(windowShifts, memberId, dateStr),
   };
@@ -233,6 +237,10 @@ const WARN_TEXT = [90, 26, 16];
 const OFF_TEXT = [150, 150, 150];
 const GRID_LINE = [205, 199, 187];
 const HOUR_LINE = [120, 120, 120];
+
+// jsPDF's base-14 fonts are WinAnsi-encoded and can't render ≤ / ≥ (they came
+// out as mojibake). Swap to ASCII so rule labels read correctly in the PDF.
+const asciiPdf = (s) => String(s ?? '').replace(/≤/g, '<=').replace(/≥/g, '>=');
 
 function fieldPair(doc, label, value, x, y, valueX) {
   doc.setFont('helvetica', 'bold');
@@ -432,9 +440,12 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   // ── Grid geometry ──
   const dateColW = 66;
   const totalColW = 42;
-  const totalsW = totalColW * 2;
+  const structColW = 34; // rest-pattern (rule 3) + 14h-stretch (rule 4) columns
+  const totalsW = totalColW * 2 + structColW * 2;
   const gridLeft = M + dateColW;
   const gridRight = pageW - M - totalsW;
+  const patX = gridRight + totalColW * 2;                 // rest-pattern column
+  const strX = gridRight + totalColW * 2 + structColW;    // 14h-stretch column
   const gridW = gridRight - gridLeft;
   const slotW = gridW / 48; // 48 half-hour slots
 
@@ -455,6 +466,10 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.text('24h', gridRight + totalColW / 2, gridTop - 4, { align: 'center' });
   doc.text('Rest', gridRight + totalColW + totalColW / 2, gridTop - 12, { align: 'center' });
   doc.text('7d', gridRight + totalColW + totalColW / 2, gridTop - 4, { align: 'center' });
+  doc.text('Rest', patX + structColW / 2, gridTop - 12, { align: 'center' });
+  doc.text('pattern', patX + structColW / 2, gridTop - 4, { align: 'center' });
+  doc.text('14h', strX + structColW / 2, gridTop - 12, { align: 'center' });
+  doc.text('max', strX + structColW / 2, gridTop - 4, { align: 'center' });
 
   // Hour ticks (every 2h) + vertical hour gridlines (0..24)
   doc.setFontSize(5.5);
@@ -504,6 +519,20 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     doc.setTextColor(...(cell.weeklyLow ? WARN_TEXT : [0, 0, 0]));
     doc.text(String(Math.round(cell.pastWeekHours)), r7 + totalColW / 2, rowY + rowH / 2 + 2, { align: 'center' });
 
+    // Structural rules — shown only on the day they breach (shaded + figure):
+    // rest pattern = number of rest periods; 14h = longest continuous on-duty.
+    doc.setFontSize(6.5);
+    if (cell.splitBreach) {
+      doc.setFillColor(...WARN_FILL); doc.rect(patX, rowY, structColW, rowH, 'F');
+      doc.setTextColor(...WARN_TEXT);
+      doc.text(`${cell.periodCount} pds`, patX + structColW / 2, rowY + rowH / 2 + 2, { align: 'center' });
+    }
+    if (cell.stretchBreach) {
+      doc.setFillColor(...WARN_FILL); doc.rect(strX, rowY, structColW, rowH, 'F');
+      doc.setTextColor(...WARN_TEXT);
+      doc.text(`${Math.round(cell.longestStretch)}h`, strX + structColW / 2, rowY + rowH / 2 + 2, { align: 'center' });
+    }
+
     // row separator
     doc.setDrawColor(...GRID_LINE);
     doc.line(M, rowY + rowH, gridRight + totalsW, rowY + rowH);
@@ -523,6 +552,8 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.line(gridLeft, gridTop, gridLeft, gridBottom);
   doc.line(gridRight, gridTop, gridRight, gridBottom);
   doc.line(gridRight + totalColW, gridTop, gridRight + totalColW, gridBottom);
+  doc.line(patX, gridTop, patX, gridBottom);
+  doc.line(strX, gridTop, strX, gridBottom);
 
   // Legend
   let ly = gridBottom + 14;
@@ -547,7 +578,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     if (!c.breaches || c.breaches.length === 0) continue;
     ncRows.push([
       dayRowLabel(ds),
-      c.breaches.map((b) => b.label).join(' · '),
+      c.breaches.map((b) => asciiPdf(b.label)).join(' · '),
       breachNoteFor(breachReasons, windowShifts, member, ds),
       breachAttributionFor(breachReasons, meta, member, ds),
     ]);
