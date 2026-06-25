@@ -7,7 +7,7 @@ import {
   runChecks, computeAssurance, buildTestimonialDataset, getVerifierProfiles,
   buildRequirementBars
 } from './engine.js';
-import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES } from './pathways.js';
+import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate } from './pathways.js';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from './seed.js';
 
 const V = SEED_VESSELS;
@@ -54,10 +54,28 @@ test('standby may not exceed actual seagoing service (MSN 1858 §5.2)', () => {
   assert.equal(b.standby, 30);
 });
 
-test('yard service is capped at 90 days', () => {
+test('yard service is capped at 90 days (OOW baseline)', () => {
   const b = computeBuckets([{ id: 'y', vesselId: 'v1', type: 'yard', days: 150, watchHours: 0 }], V, DEFAULT_CONFIG);
   assert.equal(b.yardRaw, 150);
   assert.equal(b.yard, 90);
+});
+
+test('yard cap is per certificate: 90 for OOW, 30 for Master/Chief Mate (MSN 1858)', () => {
+  assert.equal(yardCapForCertificate('OOW_YACHT_3000'), 90);
+  assert.equal(yardCapForCertificate('MASTER_YACHT_3000'), 30);
+  assert.equal(yardCapForCertificate('MASTER_YACHT_500'), 30);
+  assert.equal(yardCapForCertificate('CHIEF_MATE_YACHT_3000'), 30);
+  assert.equal(yardCapForCertificate('CHIEF_MATE_UNLIMITED'), 30);
+  // engine cert / unknown -> 90-day baseline (SERVICE_RULES.yardCapDays)
+  assert.equal(yardCapForCertificate('Y4'), SERVICE_RULES.yardCapDays);
+  assert.equal(yardCapForCertificate('nope'), 90);
+});
+
+test('computeBuckets honours a Master 30-day yard cap', () => {
+  const cfg = { ...DEFAULT_CONFIG, yardCapDays: yardCapForCertificate('MASTER_YACHT_3000') };
+  const b = computeBuckets([{ id: 'y', vesselId: 'v1', type: 'yard', days: 150, watchHours: 0 }], V, cfg);
+  assert.equal(b.yardRaw, 150);
+  assert.equal(b.yard, 30);
 });
 
 // --- requirement bars: prior + current vs pathway ----------------------------

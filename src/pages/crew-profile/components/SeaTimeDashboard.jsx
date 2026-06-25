@@ -10,7 +10,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
@@ -225,7 +225,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   }, [userId]);
 
   // ── derived ──
-  const buckets = useMemo(() => computeBuckets(entries, vessels, config), [entries, vessels]);
+  // Yard cap is per-certificate (90 for OOW, 30 for Master/Chief Mate) — fold it
+  // into the config so the yard bucket totals against the right MCA ceiling.
+  const buckets = useMemo(
+    () => computeBuckets(entries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) }),
+    [entries, vessels, config, targetId],
+  );
   const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert) : []), [buckets, prior, cert]);
   const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet }), [entries, vessels, signatory, verifier, docMet]);
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);

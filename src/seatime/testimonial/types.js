@@ -123,5 +123,8 @@ export const WATCHKEEPING_MIN_HOURS = 4;
 // Vessel length gate (m) for seagoing/OOW service. // TODO(MIN642): confirm.
 export const SEAGOING_MIN_LENGTH_M = 15;
 
-// Cap on standby days that may contribute. // TODO(MIN642): confirm exact cap.
-export const STANDBY_CAP_DAYS = 90;
+// Standby service has NO flat day cap. The limits (MSN 1858 §5.2 / MIN 498):
+// total standby may not exceed total actual sea service (seagoing + watchkeeping),
+// each period is ≤14 consecutive days, and ≤ the previous voyage. The total-vs-
+// sea-service rule is enforced in validate.js; the 90-day figure is YARD service,
+// which is per-certificate (see pathways.js yardCapForCertificate).
