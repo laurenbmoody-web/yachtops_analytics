@@ -1,9 +1,8 @@
-import React, { useEffect } from "react";
+import React from "react";
 import Routes from "./Routes";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { RoleProvider } from "./contexts/RoleContext";
-import { initializeReminderScheduler } from "./utils/horReminderAutomation";
 import { useTripsMigration } from "./hooks/useTripsMigration";
 import './utils/toast';
 import './lib/devGlobals';
@@ -17,10 +16,10 @@ function TripsMigrationRunner() {
 }
 
 function App() {
-  // Initialize HOR reminder scheduler on app load
-  useEffect(() => {
-    initializeReminderScheduler();
-  }, []);
+  // HOR reminders now run server-side (pg_cron `hor-weekly-reminders` →
+  // public.hor_send_weekly_reminders), so they fire reliably without a browser
+  // open and reach the DB notifications feed cross-device. The old client-side
+  // setInterval sweep was removed to avoid duplicate nudges.
 
   return (
     <ThemeProvider>
