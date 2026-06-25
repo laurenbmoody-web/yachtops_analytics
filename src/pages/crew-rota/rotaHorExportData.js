@@ -128,7 +128,8 @@ export function buildRestLogRows(crew, days, framedShifts) {
         cells,
         dailyBreachDays: cells.filter((x) => x.dailyLow).length,
         weeklyBreachDays: cells.filter((x) => x.weeklyLow).length,
-        structuralBreachDays: cells.filter((x) => x.splitBreach || x.stretchBreach).length,
+        splitBreachDays: cells.filter((x) => x.splitBreach).length,
+        stretchBreachDays: cells.filter((x) => x.stretchBreach).length,
       };
     });
     return { dept, color: byDept.get(dept)[0]?.departmentColor || '#5F5E5A', members };
@@ -172,7 +173,8 @@ export function clampExportToToday({ rows, days, meta, periodLabel, realToday })
           cells,
           dailyBreachDays: cells.filter((x) => x.dailyLow).length,
           weeklyBreachDays: cells.filter((x) => x.weeklyLow).length,
-          structuralBreachDays: cells.filter((x) => x.splitBreach || x.stretchBreach).length,
+          splitBreachDays: cells.filter((x) => x.splitBreach).length,
+        stretchBreachDays: cells.filter((x) => x.stretchBreach).length,
         };
       }),
     }))

@@ -191,7 +191,7 @@ export function buildRestLogCSV({ rows, days, meta }) {
   const header = [
     'Vessel', 'Period', 'Department', 'Crew', 'Role',
     ...days.map((d, i) => dayColLabel(d, i)),
-    'Daily breaches', 'Weekly breaches', 'Pattern/stretch breaches',
+    'Daily breaches', 'Weekly breaches', 'Rest-pattern breaches', '14h-stretch breaches',
   ];
   lines.push(header.map(csvField).join(','));
 
@@ -206,14 +206,14 @@ export function buildRestLogCSV({ rows, days, meta }) {
     const row = [
       vessel, period, m.dept, m.name, m.role || '',
       ...dayCells,
-      String(m.dailyBreachDays || 0), String(m.weeklyBreachDays || 0), String(m.structuralBreachDays || 0),
+      String(m.dailyBreachDays || 0), String(m.weeklyBreachDays || 0), String(m.splitBreachDays || 0), String(m.stretchBreachDays || 0),
     ];
     lines.push(row.map(csvField).join(','));
   }
 
   // Trailing key so the markers read without the PDF alongside.
   lines.push('');
-  lines.push('Cells = hours of rest per 24h ("off" = rest day). Breach-day counts per rule are in the Daily / Weekly / Pattern-stretch columns.');
+  lines.push('Cells = hours of rest per 24h ("off" = rest day). Breach-day counts per rule are in the Daily / Weekly / Rest-pattern / 14h-stretch columns.');
 
   // UTF-8 BOM so Excel reads any accented characters correctly.
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
@@ -263,14 +263,14 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   subParts.push(meta.periodLabel);
   doc.text(subParts.join('  ·  '), 40, 55);
   doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
-  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = a day with an MLC/STCW non-conformity. Counts by rule are in the three right-hand columns; the exact rule for each day is listed in that seafarer’s record.', 40, 84);
+  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = a day with an MLC/STCW non-conformity. The four right-hand columns count breach-days per rule; each day’s exact rule is listed in that seafarer’s record.', 40, 84);
   doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
 
   const head = [[
     'Crew', 'Role', 'Dept',
     ...days.map((d, i) => dayColLabel(d, i)),
-    'Daily\nbreach', 'Weekly\nbreach', 'Pattern/\nstretch',
+    'Daily\nbreach', 'Weekly\nbreach', 'Rest\npattern', '14h\nstretch',
   ]];
   const wide = days.length > 10;
   const body = members.map((m) => {
@@ -288,7 +288,8 @@ function drawSummaryPage(doc, members, days, meta, logo) {
       m.name, m.role || '—', m.dept, ...dayCells,
       { content: String(m.dailyBreachDays), styles: m.dailyBreachDays > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
       { content: String(m.weeklyBreachDays), styles: m.weeklyBreachDays > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
-      { content: String(m.structuralBreachDays || 0), styles: (m.structuralBreachDays || 0) > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
+      { content: String(m.splitBreachDays || 0), styles: (m.splitBreachDays || 0) > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
+      { content: String(m.stretchBreachDays || 0), styles: (m.stretchBreachDays || 0) > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
     ];
   });
 
@@ -300,6 +301,15 @@ function drawSummaryPage(doc, members, days, meta, logo) {
     styles: { fontSize: wide ? 5.5 : 8, cellPadding: wide ? 2 : 3, halign: 'center', valign: 'middle', lineColor: GRID_LINE, lineWidth: 0.5 },
     headStyles: { fillColor: NAVY, textColor: CREAM, fontSize: wide ? 5.5 : 7.5, halign: 'center' },
     columnStyles: { 0: { halign: 'left', cellWidth: wide ? 60 : 90 }, 1: { halign: 'left' }, 2: { halign: 'left' } },
+    // Weighted divider between the month's day columns and the four breach-count
+    // columns, so the per-rule tallies read as a separate zone.
+    didDrawCell: (data) => {
+      if (data.column.index === 3 + days.length && data.section !== 'foot') {
+        doc.setDrawColor(...HOUR_LINE);
+        doc.setLineWidth(1.4);
+        doc.line(data.cell.x, data.cell.y, data.cell.x, data.cell.y + data.cell.height);
+      }
+    },
     theme: 'grid',
   });
 }
