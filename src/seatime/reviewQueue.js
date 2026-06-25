@@ -46,7 +46,7 @@ export const SEATIME_REVIEW_QUEUE = [
       captainName: 'Capt. James Okafor', captainCoc: 'GBR-CoC-559302', captainCocGrade: 'Master (Yachts) <500GT', captainEmail: 'j.okafor@example.com',
       cmdFrom: '2026-04-01', cmdTo: null,
       periods: [
-        { id: 'e6', dateMain: '03 – 10 Apr', days: 8, type: 'standby', watchHours: 0, capacity: 'Chief Officer', detailOverride: 'Counts up to your sea-service days', from: '2026-04-03', to: '2026-04-10' },
+        { id: 'e6', dateMain: '03 – 10 Apr', days: 8, type: 'standby', watchHours: 0, capacity: 'Chief Officer', detailOverride: 'Can’t exceed your sea-service days', from: '2026-04-03', to: '2026-04-10' },
         { id: 'e7', dateMain: '15 – 22 Apr', days: 8, type: 'yard', watchHours: 0, capacity: 'Chief Officer', detailOverride: 'Shipyard / refit service', from: '2026-04-15', to: '2026-04-22' }
       ]
     }
