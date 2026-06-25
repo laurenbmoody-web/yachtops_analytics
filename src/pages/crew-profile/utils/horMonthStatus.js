@@ -61,6 +61,27 @@ export async function fetchVesselHorSettings(tenantId) {
   };
 }
 
+// Vessel identity for the official IMO/ILO "Record of Hours of Rest" header.
+// One vessel per tenant (maybeSingle). Returns nulls when unset so the PDF
+// header degrades gracefully rather than throwing.
+export async function fetchVesselIdentity(tenantId) {
+  const fallback = { name: null, flag: null, portOfRegistry: null, imoNumber: null, officialNumber: null };
+  if (!tenantId) return fallback;
+  const { data, error } = await supabase
+    .from('vessels')
+    .select('name, flag, port_of_registry, imo_number, official_number')
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (error || !data) return fallback;
+  return {
+    name: data.name || null,
+    flag: data.flag || null,
+    portOfRegistry: data.port_of_registry || null,
+    imoNumber: data.imo_number || null,
+    officialNumber: data.official_number || null,
+  };
+}
+
 // Status row for one crew member's month, or null if untouched (open).
 export async function fetchMonthStatus({ tenantId, subjectUserId, year, jsMonth }) {
   if (!tenantId || !subjectUserId) return null;

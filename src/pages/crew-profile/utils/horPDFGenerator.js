@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import JSZip from 'jszip';
-import { getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, BREACH_TYPES, BREACH_DISPLAY_INFO } from './horStorage';
+import { getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, BREACH_TYPES, BREACH_DISPLAY_INFO, getHorDbTenantId } from './horStorage';
+import { fetchVesselIdentity } from './horMonthStatus';
 import { getBreachNotesForMonth } from './horBreachNotesStorage';
 import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN, MLC_MAX_WORK_STRETCH, MLC_STANDARD_REF } from '../../crew-rota/restHours';
 
@@ -41,6 +42,8 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   const breaches = detectBreaches(crew?.id);
   const entries = getCrewWorkEntries(crew?.id);
   const breachNotes = getBreachNotesForMonth(crew?.id, year, monthIndex);
+  // Vessel identity for the official Record header (degrades gracefully if unset).
+  const vessel = await fetchVesselIdentity(getHorDbTenantId());
 
   // Filter entries for this month
   const monthEntries = entries?.filter(entry => {
@@ -53,7 +56,7 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   // === HEADER ===
   doc?.setFontSize(16);
   doc?.setFont('helvetica', 'bold');
-  doc?.text('Hours of Rest Audit Report', margin, yPosition);
+  doc?.text('Record of Hours of Rest', margin, yPosition);
   
   doc?.setFontSize(8);
   doc?.setFont('helvetica', 'normal');
@@ -66,6 +69,21 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   doc?.text(doc?.splitTextToSize(MLC_STANDARD_REF, contentWidth), margin, yPosition);
   doc?.setTextColor(0, 0, 0);
   yPosition += 7;
+
+  // === VESSEL IDENTITY (official Record header) ===
+  // IMO number where assigned; small craft without one fall back to the
+  // official number / registry number.
+  const vesselIdLine = [
+    `Ship: ${vessel?.name || crew?.vesselName || '—'}`,
+    `Flag: ${vessel?.flag || '—'}`,
+    vessel?.imoNumber ? `IMO No.: ${vessel.imoNumber}` : `Official No.: ${vessel?.officialNumber || '—'}`,
+    `Port of registry: ${vessel?.portOfRegistry || '—'}`,
+  ].join('     ·     ');
+  doc?.setFontSize(8);
+  doc?.setFont('helvetica', 'bold');
+  doc?.text(vesselIdLine, margin, yPosition);
+  doc?.setFont('helvetica', 'normal');
+  yPosition += 6;
 
   // === CREW INFO & SUMMARY (Side by side) ===
   const leftColX = margin;
@@ -115,9 +133,10 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   // === DAILY BREAKDOWN TABLE WITH 48 INCREMENTS ===
   // Table configuration
   const daysInMonth = calendarData?.length;
-  const cellWidth = 5.5; // Width for each 30-min increment cell
   const cellHeight = 4; // Height for each day row
   const rowLabelWidth = 8; // Width for day number column
+  const restColWidth = 13; // Right-hand "Total hours of rest" column (official IMO/ILO form)
+  const cellWidth = (contentWidth - rowLabelWidth - restColWidth) / 48; // 30-min cell, sized to leave room for the rest column
   const tableStartX = margin;
   const tableStartY = yPosition;
 
@@ -131,6 +150,8 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
     const hourLabel = String(hour)?.padStart(2, '0') + ':00';
     doc?.text(hourLabel, x, tableStartY, { align: 'center' });
   }
+  // Rest-total column header
+  doc?.text('Rest (h)', tableStartX + rowLabelWidth + (48 * cellWidth) + restColWidth / 2, tableStartY, { align: 'center' });
 
   yPosition = tableStartY + 3;
 
@@ -180,6 +201,17 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
       doc?.rect(cellX, cellY, cellWidth, cellHeight, 'S');
     }
 
+    // Total hours of rest for the 24h day (official form requirement):
+    // 48 half-hour blocks minus those worked, × 0.5h.
+    const restHoursDay = (48 - (workedSegments?.size || 0)) * 0.5;
+    const restColX = tableStartX + rowLabelWidth + (48 * cellWidth);
+    doc?.setDrawColor(180, 180, 180);
+    doc?.setLineWidth(0.1);
+    doc?.rect(restColX, rowY, restColWidth, cellHeight, 'S');
+    doc?.setFontSize(7);
+    doc?.setFont('helvetica', 'normal');
+    doc?.text(restHoursDay.toFixed(1), restColX + restColWidth / 2, rowY + cellHeight / 2 + 1, { align: 'center' });
+
     // Draw outer border for row
     doc?.setDrawColor(0, 0, 0);
     doc?.setLineWidth(0.3);
@@ -189,7 +221,7 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   // Draw outer border for entire table
   doc?.setDrawColor(0, 0, 0);
   doc?.setLineWidth(0.4);
-  const tableWidth = rowLabelWidth + (48 * cellWidth);
+  const tableWidth = rowLabelWidth + (48 * cellWidth) + restColWidth;
   const tableHeight = daysInMonth * cellHeight;
   doc?.rect(tableStartX, yPosition, tableWidth, tableHeight, 'S');
 
@@ -214,6 +246,32 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   
   doc?.text('(Each cell = 30 minutes)', legendX + 55, yPosition);
 
+  yPosition += 10;
+
+  // === DECLARATION & SIGNATURES (official Record requirement) ===
+  // The Record must be signed by the seafarer and the master / authorised
+  // person regardless of whether any breach occurred. Guard the page fit.
+  if (yPosition > pageHeight - 30) { doc?.addPage(); yPosition = margin + 4; }
+  doc?.setDrawColor(200, 200, 200);
+  doc?.setLineWidth(0.2);
+  doc?.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 5;
+  doc?.setFontSize(7.5);
+  doc?.setFont('helvetica', 'italic');
+  doc?.text('I declare that this is an accurate record of the hours of rest of the seafarer named above.', margin, yPosition);
+  doc?.setFont('helvetica', 'normal');
+  yPosition += 12;
+  const sigColW = contentWidth / 2;
+  doc?.setDrawColor(0, 0, 0);
+  doc?.setLineWidth(0.3);
+  doc?.line(margin, yPosition, margin + sigColW - 16, yPosition);            // seafarer signature line
+  doc?.line(margin + sigColW, yPosition, pageWidth - margin - 20, yPosition); // master signature line
+  yPosition += 4;
+  doc?.setFontSize(7);
+  doc?.text(`Seafarer: ${crew?.fullName || ''}`, margin, yPosition);
+  doc?.text('Date:', margin + sigColW - 14, yPosition);
+  doc?.text('Master / authorised person', margin + sigColW, yPosition);
+  doc?.text('Date:', pageWidth - margin - 18, yPosition);
   yPosition += 8;
 
   // === BREACHES SECTION (Page 2 if breaches exist) ===
