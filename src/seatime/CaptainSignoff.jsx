@@ -7,6 +7,37 @@ import './captain-signoff.css';
 const fmtDate = (iso) => { if (!iso) return '—'; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : iso; };
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+// UK date entry. A native <input type="date"> renders in the browser's OS
+// locale (mm/dd/yyyy on US machines), which breaks the dd/mm/yyyy house style.
+// This is a plain text field that always shows and accepts dd/mm/yyyy while
+// keeping the form value in ISO (yyyy-mm-dd) — the command-date comparisons
+// downstream (cmdFrom <= cmdTo, partial-command span) all assume ISO.
+const isoToUk = (iso) => { if (!iso) return ''; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : ''; };
+const ukToIso = (uk) => {
+  const s = String(uk).replace(/\D/g, '');
+  if (s.length !== 8) return '';
+  const d = +s.slice(0, 2), m = +s.slice(2, 4), y = +s.slice(4);
+  const dt = new Date(y, m - 1, d);
+  return (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d)
+    ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : '';
+};
+function UkDateInput({ value, onChange }) {
+  const [text, setText] = useState(isoToUk(value));
+  // Sync from an external value (e.g. the async particulars prefill) without
+  // clobbering mid-edit typing: only overwrite when the incoming ISO differs
+  // from what's already typed. While typing an incomplete date the parent
+  // value is '' and ukToIso(text) is '' too, so this never wipes the input.
+  useEffect(() => { if ((value || '') !== ukToIso(text)) setText(isoToUk(value)); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onType = (e) => {
+    const s = e.target.value.replace(/\D/g, '').slice(0, 8);
+    const out = s.length > 4 ? `${s.slice(0, 2)}/${s.slice(2, 4)}/${s.slice(4)}`
+      : s.length > 2 ? `${s.slice(0, 2)}/${s.slice(2)}` : s;
+    setText(out);
+    onChange(ukToIso(out));
+  };
+  return <input className="cso-input" value={text} onChange={onType} placeholder="dd/mm/yyyy" inputMode="numeric" maxLength={10} />;
+}
+
 // CaptainSignoff — the MSN 1858 sign-off ceremony for one COMMAND SPELL.
 // Shared by the crew profile (variant="modal", portaled & dismissable) and the
 // reviews inbox (variant="pane", fills the right column). The parent owns the
@@ -184,11 +215,11 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
           <div className="cso-grid">
             <div className="cso-fld">
               <label className="cso-lbl">In command from <span className="req">required</span></label>
-              <input className="cso-input" type="date" value={form.cmdFrom} onChange={e => setSF({ cmdFrom: e.target.value })} />
+              <UkDateInput value={form.cmdFrom} onChange={iso => setSF({ cmdFrom: iso })} />
             </div>
             <div className="cso-fld">
               <label className="cso-lbl">In command to <span className="req">required</span></label>
-              <input className="cso-input" type="date" value={form.cmdTo} onChange={e => setSF({ cmdTo: e.target.value })} />
+              <UkDateInput value={form.cmdTo} onChange={iso => setSF({ cmdTo: iso })} />
             </div>
           </div>
           {partialCmd && (
