@@ -2719,12 +2719,17 @@ const canEdit = (() => {
           const recipients = Object.entries(horMemberTiers)
             .filter(([uid, tier]) => uid !== crewId && (tier === 'COMMAND' || tier === approverTier))
             .map(([uid]) => uid);
+          // Flag non-conformities at the approval gate so the approver knows the
+          // month carries rest breaches to review (not just a routine sign-off).
+          const breachDays = buildMonthBreaches().length;
           await Promise.all(recipients.map((uid) => sendDbNotification(uid, {
             type: 'HOR_APPROVAL_PENDING',
-            title: 'Hours of Rest awaiting approval',
-            message: `${who} submitted ${monthLabelFor(horCurrentMonth)} Hours of Rest for approval.`,
+            title: breachDays > 0 ? 'Hours of Rest — breaches to review' : 'Hours of Rest awaiting approval',
+            message: breachDays > 0
+              ? `${who} submitted ${monthLabelFor(horCurrentMonth)} Hours of Rest with ${breachDays} breach day${breachDays === 1 ? '' : 's'} to review.`
+              : `${who} submitted ${monthLabelFor(horCurrentMonth)} Hours of Rest for approval.`,
             actionUrl: `/profile/${crewId}?tab=hor&period=${period}`,
-            severity: 'warn',
+            severity: breachDays > 0 ? 'urgent' : 'warn',
           })));
         }
         // Trust/self-cert lands at 'confirmed' in one step — file the signed
