@@ -317,20 +317,58 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // `via`: 'app' (in-app notification) or 'email' (secure-link, master off Cargo).
   const requestVessel = async (v, via = 'app') => {
     if (!canGenerate) { flash('Resolve all validation checks first'); return; }
+
+    // Email route — the master has left Cargo / has no account. Mint a public,
+    // token-based sign link (create_sea_service_sign_request) and email it; the
+    // master signs at /sea-service/sign/:token with no login. The link is also
+    // copied to the clipboard so it can be shared directly.
+    if (via === 'email') {
+      if (usingSample || !tenantId || !userId) { setVA(v.key, { status: 'requested', mode: v.mode }); flash('Preview only — no live record on the sample'); return; }
+      const email = (v.captainEmail || '').trim() || (typeof window !== 'undefined' ? (window.prompt(`Email address for ${v.captainName || 'the captain'}?`) || '').trim() : '');
+      const snapshot = {
+        seafarer: { fullName: seafarer.fullName },
+        unit: {
+          name: v.name, flag: v.flag, gt: v.gt, lengthM: v.lengthM, imo: v.imo,
+          mode: 'virtual', multi: v.multi, cmdLabel: v.cmdLabel,
+          captainName: v.captainName, captainCoc: v.captainCoc || '', captainCocGrade: v.captainCocGrade || '',
+          captainEmail: email, cmdFrom: v.cmdFrom || '', cmdTo: v.cmdTo || '',
+          periods: (v.periods || []).map(p => ({ id: p.id, dateMain: p.dateMain, days: p.days, type: p.type, capacity: p.capacity, watchHours: p.watchHours, from: p.from, to: p.to })),
+        },
+      };
+      let token;
+      try {
+        const { data, error } = await supabase.rpc('create_sea_service_sign_request', {
+          p_row_ids: liveRowIdsFor(v), p_captain_name: v.captainName || null, p_captain_email: email || null, p_snapshot: snapshot,
+        });
+        if (error) throw error;
+        token = data?.token;
+      } catch (e) { console.error(e); flash('Could not create the signing link'); return; }
+      if (!token) { flash('Could not create the signing link'); return; }
+      const link = `${window.location.origin}/sea-service/sign/${token}`;
+      if (email) {
+        supabase.functions.invoke('send-sea-service-signature-request', {
+          body: { token, captainEmail: email, captainName: v.captainName, seafarerName: seafarer.fullName, vesselName: v.name, dayCount: v.days },
+        }).catch(() => {});
+      }
+      try { await navigator.clipboard?.writeText(link); } catch { /* clipboard may be unavailable */ }
+      await loadLive();
+      flash(email ? `Signing link emailed to ${email} — link also copied` : `Signing link copied — share it with ${v.captainName || 'the captain'}`);
+      return;
+    }
+
+    // In-app route — the master has an active Cargo account. submitEntries flips
+    // the rows to pending AND fires sendSeaTimeSubmission, notifying the active
+    // COMMAND member(s) via the nav bell + a courtesy email.
     if (!usingSample && tenantId && userId) {
       try {
-        // submitEntries flips the rows to pending AND fires sendSeaTimeSubmission
-        // server-side, which notifies the signing master(s) (active COMMAND) via
-        // the nav bell + a courtesy email. No client-side notify needed.
         await submitEntries(tenantId, liveRowIdsFor(v), { signedName: seafarer.fullName });
         await loadLive();
       } catch (e) { console.error(e); flash('Could not send for attestation'); return; }
     } else {
       setVA(v.key, { status: 'requested', mode: v.mode });
     }
-    flash(via === 'email' ? `Secure signing link emailed to ${v.captainName || 'the captain'}`
-      : v.mode === 'virtual' ? `Sent to ${v.captainName || 'the captain'} to sign your service`
-        : `Sent to ${v.captainName || 'the captain'} to verify your service`);
+    flash(v.mode === 'virtual' ? `Sent to ${v.captainName || 'the captain'} to sign your service`
+      : `Sent to ${v.captainName || 'the captain'} to verify your service`);
   };
 
   // The master attests one vessel — a Cargo stamp when both are aboard, else a
