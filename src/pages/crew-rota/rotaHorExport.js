@@ -18,6 +18,7 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getHorTemplateForFlag } from './flagHorTemplates';
 import {
   ON_DUTY_TYPES,
   assessMlc,
@@ -259,7 +260,7 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(0);
-  doc.text('Record of Hours of Rest — Summary', 40, 40);
+  doc.text(`${meta.horTemplate.recordTitle} — Summary`, 40, 40);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -269,8 +270,9 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   if (meta.flagState) subParts.push(meta.flagState);
   if (meta.departmentName) subParts.push(meta.departmentName);
   subParts.push(meta.periodLabel);
+  if (meta.horTemplate.formReference) subParts.push(meta.horTemplate.formReference);
   doc.text(subParts.join('  ·  '), 40, 55);
-  doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
+  doc.text(`${meta.horTemplate.standardRef || STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
   doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = a day with an MLC/STCW non-conformity. The four right-hand columns count breach-days per rule; each day’s exact rule is listed in that seafarer’s record.', 40, 84);
   doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
@@ -412,12 +414,13 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(0);
-  doc.text('RECORD OF HOURS OF REST', M, 38);
+  doc.text(meta.horTemplate.recordTitle.toUpperCase(), M, 38);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(90);
-  doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
+  doc.text(`${meta.horTemplate.standardRef || STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
   doc.text(`Generated ${meta.generatedAt}`, pageW - M, 46, { align: 'right' });
+  if (meta.horTemplate.formReference) doc.text(meta.horTemplate.formReference, pageW - M, 54, { align: 'right' });
 
   // ── Identity block (two columns) ──
   const colL = M;
@@ -576,7 +579,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   if (ncRows.length === 0) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(40, 110, 60);
     doc.text('None recorded for this period.', M, ly + 12);
-    drawSignatureBlock(doc, pageW, pageH, M, undefined, undefined, sigs);
+    drawSignatureBlock(doc, pageW, pageH, M, undefined, meta.horTemplate.declaration, sigs);
     return;
   }
 
@@ -618,8 +621,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   });
   let endY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 64) + 24;
   if (endY > pageH - M - 64) { doc.addPage(); endY = M + 48; }
-  drawSignatureBlock(doc, pageW, pageH, M, endY,
-    'I confirm the non-conformities listed above and the reasons recorded are a true and accurate account.', sigs);
+  drawSignatureBlock(doc, pageW, pageH, M, endY, meta.horTemplate.ncDeclaration, sigs);
 }
 
 // Render the full Record of Hours of Rest document and return the jsPDF doc.
@@ -627,6 +629,15 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
 // attach/email) so every delivery path produces the identical document.
 async function renderRestLogDoc({ rows, days, meta, windowShifts = [], breachReasons = {}, signatures = {} }) {
   const members = flatten(rows);
+  // Resolve the flag's Record template once (defaults to the IMO/ILO model) and
+  // carry it on meta so every page renders the same flag-correct titles,
+  // declarations and reference. Verified flag forms live in flagHorTemplates.js.
+  const horTemplate = getHorTemplateForFlag(meta.flagState);
+  meta = { ...meta, horTemplate };
+  if (horTemplate.publishesOwnForm && horTemplate.usingDefault) {
+    // eslint-disable-next-line no-console
+    console.warn(`[HOR] ${meta.flagState} commonly publishes its own Record of Hours of Rest form. Exporting the IMO/ILO model (accepted) until a verified ${meta.flagState} template is added to flagHorTemplates.js.`);
+  }
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const logo = await loadCargoLogo();
 
