@@ -8,9 +8,10 @@ import {
 } from '../documentTypes';
 import {
   fetchCrewDocuments, deleteCrewDocument, getExpiryStatus,
-  EXPIRY_STATUS_CLASSES, formatDocDate, parseDocumentFile,
+  EXPIRY_STATUS_CLASSES, formatDocDate,
 } from '../utils/crewDocuments';
 import AddDocumentModal from './AddDocumentModal';
+import BatchReviewModal from './BatchReviewModal';
 
 const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPresetHandled, onProfileSynced }) => {
   const [docs, setDocs] = useState([]);
@@ -20,66 +21,45 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   const [presetType, setPresetType] = useState(null);
   const [presetDetails, setPresetDetails] = useState(null);
 
-  // AI scan-and-autofill queue.
-  const [prefill, setPrefill] = useState(null);
-  const [prefillFile, setPrefillFile] = useState(null);
-  const [scanQueue, setScanQueue] = useState([]);
-  const [scanIdx, setScanIdx] = useState(0);
-  const [scanning, setScanning] = useState(false);
+  // Batch upload — drop/select several files, parse + review them together.
+  const [batchFiles, setBatchFiles] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
   const scanInputRef = useRef(null);
 
-  const processOne = useCallback(async (files, idx) => {
-    setScanning(true);
-    try {
-      const suggestion = await parseDocumentFile(files[idx]);
-      setEditing(null);
-      setPresetType(null);
-      setPrefill(suggestion);
-      setPrefillFile(files[idx]);
-      setModalOpen(true);
-    } catch (e) {
-      showToast(`Couldn't read ${files[idx]?.name || 'file'}`, 'error');
-      if (idx + 1 < files.length) { setScanIdx(idx + 1); processOne(files, idx + 1); }
-      else { setScanQueue([]); setScanIdx(0); }
-    } finally {
-      setScanning(false);
-    }
-  }, []);
+  // Only image/PDF files can be parsed; ignore anything else that's dropped.
+  const openBatch = (fileList) => {
+    const files = Array.from(fileList || []).filter((f) => /^image\/|application\/pdf/.test(f.type));
+    if (!files.length) { showToast('Drop image or PDF documents to upload', 'error'); return; }
+    setBatchFiles(files);
+  };
 
-  const onScanFiles = (e) => {
-    const files = Array.from(e.target.files || []);
+  const onPickFiles = (e) => {
+    const files = e.target.files;
+    openBatch(files);
     e.target.value = '';
-    if (!files.length) return;
-    setScanQueue(files);
-    setScanIdx(0);
-    processOne(files, 0);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (!canEdit) return;
+    openBatch(e.dataTransfer?.files);
   };
 
   // Opened from elsewhere (e.g. the Sea Time held-certs drawer) with a doc type
   // + grade to pre-fill.
   useEffect(() => {
     if (!openPreset) return;
-    setEditing(null); setPrefill(null); setPrefillFile(null);
+    setEditing(null);
     setPresetType(openPreset.docType || null);
     setPresetDetails(openPreset.grade ? { grade: openPreset.grade } : null);
     setModalOpen(true);
     onPresetHandled && onPresetHandled();
   }, [openPreset, onPresetHandled]);
 
-  // Closing the modal (saved or cancelled) advances the scan queue.
   const closeModal = () => {
     setModalOpen(false);
-    setPrefill(null);
-    setPrefillFile(null);
     setPresetDetails(null);
-    if (scanQueue.length && scanIdx + 1 < scanQueue.length) {
-      const next = scanIdx + 1;
-      setScanIdx(next);
-      processOne(scanQueue, next);
-    } else {
-      setScanQueue([]);
-      setScanIdx(0);
-    }
   };
 
   const load = useCallback(async () => {
@@ -158,7 +138,25 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   const additional = docs.filter((d) => !CORE_DOCUMENT_TYPE_IDS.includes(d.doc_type));
 
   return (
-    <div>
+    <div
+      style={{ position: 'relative' }}
+      onDragOver={canEdit ? (e) => { e.preventDefault(); setDragOver(true); } : undefined}
+      onDragLeave={canEdit ? (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); } : undefined}
+      onDrop={canEdit ? onDrop : undefined}
+    >
+      {dragOver && (
+        <div
+          className="flex flex-col items-center justify-center gap-2 text-sm font-semibold"
+          style={{
+            position: 'absolute', inset: 0, zIndex: 5, borderRadius: 14,
+            border: '2px dashed #C65A1A', background: 'rgba(251,239,233,0.92)', color: '#7A2E1E',
+            pointerEvents: 'none',
+          }}
+        >
+          <Icon name="UploadCloud" size={28} style={{ color: '#C65A1A' }} />
+          Drop to upload &amp; auto-fill
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div>
           <div className="cp-section-head">
@@ -173,7 +171,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
               type="file"
               accept="image/*,application/pdf"
               multiple
-              onChange={onScanFiles}
+              onChange={onPickFiles}
               className="hidden"
             />
             <Button variant="outline" iconName="Sparkles" size="sm" onClick={() => scanInputRef.current?.click()}>
@@ -184,11 +182,11 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         )}
       </div>
 
-      {scanning && (
-        <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs" style={{ background: '#FAEEDA', color: '#7A2E1E' }}>
-          <LogoSpinner size={14} />
-          <span>Reading your upload{scanQueue.length > 1 ? ` ${scanIdx + 1} of ${scanQueue.length}` : ''}…</span>
-        </div>
+      {canEdit && (
+        <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5">
+          <Icon name="UploadCloud" size={13} style={{ color: '#C65A1A' }} />
+          Drag &amp; drop documents anywhere here, or use “Auto-fill from upload”, to scan several at once.
+        </p>
       )}
 
       {!loading && soonest && (
@@ -270,8 +268,17 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         existing={editing}
         presetType={presetType}
         presetDetails={presetDetails}
-        prefill={prefill}
-        prefillFile={prefillFile}
+      />
+
+      <BatchReviewModal
+        isOpen={!!batchFiles}
+        files={batchFiles}
+        onClose={() => setBatchFiles(null)}
+        onSaved={load}
+        onProfileSynced={onProfileSynced}
+        userId={userId}
+        tenantId={tenantId}
+        createdBy={createdBy}
       />
     </div>
   );
