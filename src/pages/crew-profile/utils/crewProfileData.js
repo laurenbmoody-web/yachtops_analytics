@@ -124,6 +124,11 @@ export const profileDataToFormData = ({ personal, banking }) => {
     tea: pref.tea || '',
     // A little about you
     comfortFood: pref.comfortFood || '',
+    // Uniform & kit sizes (onboarding) — stored under preferences.uniformSizes.
+    uniformTop: pref.uniformSizes?.top || '',
+    uniformBottom: pref.uniformSizes?.bottom || '',
+    uniformJacket: pref.uniformSizes?.jacket || '',
+    uniformShoe: pref.uniformSizes?.shoe || '',
     // Retained from earlier versions so nothing is lost on save, even though the
     // redesigned Preferences tab no longer surfaces a dedicated drinks section.
     alcoholicPreference: pref.alcoholicPreference || 'None',
@@ -199,6 +204,10 @@ export const saveCrewProfileData = async (userId, f, actor = null) => {
       spiceLevel: f.spiceLevel || '', breakfast: f.breakfast || '',
       coffeeOrder: f.coffeeOrder || '', tea: f.tea || '',
       comfortFood: f.comfortFood || '',
+      uniformSizes: {
+        top: f.uniformTop || '', bottom: f.uniformBottom || '',
+        jacket: f.uniformJacket || '', shoe: f.uniformShoe || '',
+      },
       alcoholicPreference: f.alcoholicPreference || '',
       nonAlcoholicPreferences: f.nonAlcoholicPreferences || '',
     },
