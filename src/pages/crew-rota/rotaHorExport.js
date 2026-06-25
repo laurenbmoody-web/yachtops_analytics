@@ -191,15 +191,17 @@ export function buildRestLogCSV({ rows, days, meta }) {
   const header = [
     'Vessel', 'Period', 'Department', 'Crew', 'Role',
     ...days.map((d, i) => dayColLabel(d, i)),
-    'Daily breaches', 'Weekly breaches',
+    'Daily breaches', 'Weekly breaches', 'Pattern/stretch breaches',
   ];
   lines.push(header.map(csvField).join(','));
 
-  // One cell: rest hours (or "off"), with * daily / # weekly breach markers.
+  // One cell: rest hours (or "off"), with breach markers for all four rules.
   const cellText = (c) => {
     let s = restLabel(c);
     if (c && !c.isOff && c.dailyLow) s += '*';
     if (c && c.weeklyLow) s += '#';
+    if (c && c.stretchBreach) s += '+';
+    if (c && c.splitBreach) s += '~';
     return s;
   };
 
@@ -210,14 +212,14 @@ export function buildRestLogCSV({ rows, days, meta }) {
     const row = [
       vessel, period, m.dept, m.name, m.role || '',
       ...dayCells,
-      String(m.dailyBreachDays || 0), String(m.weeklyBreachDays || 0),
+      String(m.dailyBreachDays || 0), String(m.weeklyBreachDays || 0), String(m.structuralBreachDays || 0),
     ];
     lines.push(row.map(csvField).join(','));
   }
 
   // Trailing key so the markers read without the PDF alongside.
   lines.push('');
-  lines.push('Cells = hours of rest per 24h ("off" = rest day). * = daily-rest breach, # = weekly-rest breach.');
+  lines.push('Cells = hours of rest per 24h ("off" = rest day). * daily rest <10h, # weekly rest <77h, + >14h continuous on-duty, ~ split rest pattern (need <=2 periods, one >=6h).');
 
   // UTF-8 BOM so Excel reads any accented characters correctly.
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
@@ -267,33 +269,36 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   subParts.push(meta.periodLabel);
   doc.text(subParts.join('  ·  '), 40, 55);
   doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
-  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = below MLC minimum · * daily · # weekly.', 40, 84);
+  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = MLC/STCW non-conformity. Markers: * daily rest <10h · # weekly rest <77h · + >14h continuous on-duty · ~ split rest pattern (need ≤2 periods, one ≥6h).', 40, 84);
   doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
 
   const head = [[
     'Crew', 'Role', 'Dept',
     ...days.map((d, i) => dayColLabel(d, i)),
-    'Daily\nbreach', 'Weekly\nbreach',
+    'Daily\nbreach', 'Weekly\nbreach', 'Pattern/\nstretch',
   ]];
   const wide = days.length > 10;
   const body = members.map((m) => {
     const dayCells = m.cells.map((c) => {
-      const breach = c && (c.dailyLow || c.weeklyLow);
+      const breach = c && (c.dailyLow || c.weeklyLow || c.splitBreach || c.stretchBreach);
       const styles = {};
       if (breach) { styles.fillColor = WARN_FILL; styles.textColor = WARN_TEXT; styles.fontStyle = 'bold'; }
       else if (!c || c.isOff) { styles.textColor = OFF_TEXT; }
-      // Markers mirror the CSV so daily vs weekly breaches are distinguishable
-      // (the shading alone can't tell them apart).
+      // Markers mirror the CSV + per-seafarer record so all four MLC/STCW rules
+      // are distinguishable at a glance (shading alone can't tell them apart).
       let content = restLabel(c);
       if (c && !c.isOff && c.dailyLow) content += '*';
       if (c && c.weeklyLow) content += '#';
+      if (c && c.stretchBreach) content += '+';
+      if (c && c.splitBreach) content += '~';
       return { content, styles };
     });
     return [
       m.name, m.role || '—', m.dept, ...dayCells,
       { content: String(m.dailyBreachDays), styles: m.dailyBreachDays > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
       { content: String(m.weeklyBreachDays), styles: m.weeklyBreachDays > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
+      { content: String(m.structuralBreachDays || 0), styles: (m.structuralBreachDays || 0) > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
     ];
   });
 

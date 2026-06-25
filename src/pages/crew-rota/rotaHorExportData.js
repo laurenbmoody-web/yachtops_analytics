@@ -58,6 +58,10 @@ export function computeCell(memberId, dateStr, windowShifts) {
     dailyLow: !isOff && mlc.rest24h < MLC_DAILY_REST_MIN,
     marginal: !isOff && mlc.rest24h >= MLC_DAILY_REST_MIN && mlc.rest24h < MLC_DAILY_REST_MIN + 1,
     weeklyLow: mlc.pastWeekHours < MLC_WEEKLY_REST_MIN,
+    // Structural MLC/STCW rules — surfaced so the summary can't under-report a
+    // breach the per-seafarer record (which lists all four) does flag.
+    splitBreach: !isOff && mlc.breaches.some((b) => b.rule === 'rest_period_split'),
+    stretchBreach: mlc.breaches.some((b) => b.rule === 'max_work_stretch_14h'),
   };
 }
 
@@ -124,6 +128,7 @@ export function buildRestLogRows(crew, days, framedShifts) {
         cells,
         dailyBreachDays: cells.filter((x) => x.dailyLow).length,
         weeklyBreachDays: cells.filter((x) => x.weeklyLow).length,
+        structuralBreachDays: cells.filter((x) => x.splitBreach || x.stretchBreach).length,
       };
     });
     return { dept, color: byDept.get(dept)[0]?.departmentColor || '#5F5E5A', members };
@@ -167,6 +172,7 @@ export function clampExportToToday({ rows, days, meta, periodLabel, realToday })
           cells,
           dailyBreachDays: cells.filter((x) => x.dailyLow).length,
           weeklyBreachDays: cells.filter((x) => x.weeklyLow).length,
+          structuralBreachDays: cells.filter((x) => x.splitBreach || x.stretchBreach).length,
         };
       }),
     }))
