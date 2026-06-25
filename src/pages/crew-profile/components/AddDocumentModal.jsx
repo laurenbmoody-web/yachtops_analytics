@@ -4,8 +4,8 @@ import Button from '../../../components/ui/Button';
 import ModalShell from '../../../components/ui/ModalShell';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
-import { getDocType } from '../documentTypes';
-import { parseDocumentFile, persistCrewDocument } from '../utils/crewDocuments';
+import { getDocType, getDocTypeLabel } from '../documentTypes';
+import { parseDocumentFile, persistCrewDocument, findDuplicateDoc } from '../utils/crewDocuments';
 import { syncPassportToPersonalDetails } from '../utils/crewProfileData';
 import DocumentFields from './DocumentFields';
 
@@ -25,7 +25,7 @@ const blank = {
   fileUrl: null, fileName: null, mimeType: null, sizeBytes: null,
 };
 
-const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, tenantId, createdBy, existing, presetType, presetDetails, prefill, prefillFile }) => {
+const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, tenantId, createdBy, existing, presetType, presetDetails, prefill, prefillFile, existingDocs = [] }) => {
   const [form, setForm] = useState(blank);
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -167,8 +167,13 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
     }
   };
 
+  const duplicate = !form.id ? findDuplicateDoc(existingDocs, form) : null;
+
   const handleSave = async () => {
     if (!form.docType) { showToast('Pick a document type', 'error'); return; }
+    if (duplicate && !window.confirm(
+      `This looks like a duplicate of a ${getDocTypeLabel(duplicate.doc_type, duplicate.details)} already on file. Add it anyway?`,
+    )) return;
     setSaving(true);
     try {
       const saved = await persistCrewDocument({ form, file, userId, tenantId, createdBy });
@@ -293,6 +298,16 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
             </div>
           )}
       </div>
+
+      {duplicate && (
+        <div className="flex items-start gap-2 mt-4 px-3 py-2 rounded-lg text-xs" style={{ background: '#FBEFE9', color: '#7A2E1E' }}>
+          <Icon name="Copy" size={14} className="flex-shrink-0 mt-0.5" />
+          <span>
+            Looks like a duplicate — there's already a {getDocTypeLabel(duplicate.doc_type, duplicate.details)}
+            {duplicate.expiry_date ? ` expiring ${fmtVal(duplicate.expiry_date)}` : ''} on file. Saving adds another copy.
+          </span>
+        </div>
+      )}
 
       <div className="flex justify-end gap-3 mt-6">
         <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>

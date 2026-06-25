@@ -1,5 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient';
-import { getDocType } from '../documentTypes';
+import { getDocType, allowsMultipleDocs } from '../documentTypes';
 
 const BUCKET = 'crew-documents';
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -168,6 +168,56 @@ export const persistCrewDocument = async ({ form, file, userId, tenantId, create
     mimeType: fileMeta.mimeType ?? form.mimeType,
     sizeBytes: fileMeta.sizeBytes ?? form.sizeBytes,
   });
+};
+
+// Recency key for a document — latest expiry wins, then latest issue, then
+// most recently created. YYYY-MM-DD / ISO timestamps sort lexicographically.
+const recencyKey = (d) => `${d.expiry_date || ''}|${d.issue_date || ''}|${d.created_at || ''}`;
+
+/**
+ * Split a flat document list into the *current* record per single-instance type
+ * and the older records it supersedes. Types that legitimately allow several at
+ * once (visas, issued letters, …) each stay current. Returns:
+ *   { currents: [...docs], previousById: Map(currentId -> [olderDocs]) }
+ * so the UI shows one live row per credential with prior versions tucked under
+ * it, and alerts count only what's current.
+ */
+export const groupDocumentVersions = (docs = []) => {
+  const single = new Map();
+  const currents = [];
+  for (const d of docs) {
+    if (allowsMultipleDocs(d.doc_type)) { currents.push(d); continue; }
+    const arr = single.get(d.doc_type) || [];
+    arr.push(d);
+    single.set(d.doc_type, arr);
+  }
+  const previousById = new Map();
+  for (const arr of single.values()) {
+    arr.sort((a, b) => recencyKey(b).localeCompare(recencyKey(a)));
+    currents.push(arr[0]);
+    if (arr.length > 1) previousById.set(arr[0].id, arr.slice(1));
+  }
+  return { currents, previousById };
+};
+
+/**
+ * Find an existing document that looks like a duplicate of `form` (same type and
+ * either the same document number or the same issue+expiry dates). Used to warn
+ * before adding a second identical copy. A refreshed cert (different expiry) is
+ * NOT a duplicate — that's handled by version grouping instead.
+ */
+export const findDuplicateDoc = (docs = [], form = {}) => {
+  if (!form.docType) return null;
+  const n = (v) => String(v ?? '').trim().toLowerCase();
+  return docs.find((d) => {
+    if (d.id === form.id) return false;
+    if (d.doc_type !== form.docType) return false;
+    const sameNumber = n(d.document_number) && n(d.document_number) === n(form.documentNumber);
+    const sameDates = (!!d.issue_date || !!d.expiry_date)
+      && (d.issue_date || '') === (form.issueDate || '')
+      && (d.expiry_date || '') === (form.expiryDate || '');
+    return sameNumber || sameDates;
+  }) || null;
 };
 
 export const deleteCrewDocument = async (id) => {

@@ -5,7 +5,7 @@ import LogoSpinner from '../../../components/LogoSpinner';
 import ModalShell from '../../../components/ui/ModalShell';
 import { showToast } from '../../../utils/toast';
 import { getDocTypeLabel } from '../documentTypes';
-import { parseDocumentFile, persistCrewDocument } from '../utils/crewDocuments';
+import { parseDocumentFile, persistCrewDocument, findDuplicateDoc } from '../utils/crewDocuments';
 import { syncPassportToPersonalDetails } from '../utils/crewProfileData';
 import DocumentFields from './DocumentFields';
 
@@ -33,7 +33,7 @@ const formFromSuggestion = (s) => ({
  * collapsed row that expands to edit. "Save all" files every reviewed row into
  * the Documents tab in one go (passports also feed Personal Details).
  */
-const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, userId, tenantId, createdBy }) => {
+const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, userId, tenantId, createdBy, existingDocs = [] }) => {
   const [items, setItems] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -133,6 +133,7 @@ const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, us
             it.form.expiryDate && `exp ${fmtDate(it.form.expiryDate)}`,
           ].filter(Boolean).join(' · ');
           const canOpen = it.status !== 'parsing';
+          const dup = it.status !== 'parsing' && it.form.docType ? findDuplicateDoc(existingDocs, it.form) : null;
           return (
             <div key={it.id} style={{ borderBottom: '1px solid #F0F1F5' }}>
               <div
@@ -155,6 +156,11 @@ const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, us
                     {it.file.name}{summary ? ` · ${summary}` : ''}
                   </div>
                 </div>
+                {dup && (
+                  <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#FBEFE9', color: '#7A2E1E' }} title="A matching document is already on file">
+                    <Icon name="Copy" size={11} /> Possible duplicate
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); removeItem(it.id); }}
