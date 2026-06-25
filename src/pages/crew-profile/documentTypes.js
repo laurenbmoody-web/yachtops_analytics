@@ -40,6 +40,9 @@ const COMMERCIAL_ENDORSEMENT = { key: 'commercial_endorsement_expiry', label: 'C
 // Single/multiple-entry, shared by the visa types.
 const VISA_ENTRIES = { key: 'entries', label: 'Entries', type: 'select', options: ['Single', 'Multiple'] };
 
+// RYA practical certificates are awarded in a power or sail discipline.
+const DISCIPLINE = { key: 'discipline', label: 'Discipline', type: 'select', options: ['Power', 'Sail'] };
+
 // Passport / national-ID identity fields. On a passport these also feed the
 // profile's Personal Details on save (see syncPassportToPersonalDetails).
 const IDENTITY_FIELDS = [
@@ -58,7 +61,13 @@ export const DOCUMENT_TYPES = [
   // ── Travel & identity ───────────────────────────────────────────────────
   { id: 'passport', label: 'Passport', category: 'travel', fields: IDENTITY_FIELDS },
   { id: 'national_id', label: 'National ID card', category: 'travel', fields: IDENTITY_FIELDS },
-  { id: 'driving_licence', label: 'Driving licence', category: 'travel' },
+  {
+    id: 'driving_licence', label: 'Driving licence', category: 'travel',
+    fields: [
+      { key: 'country', label: 'Country of issue' },
+      { key: 'categories', label: 'Categories', placeholder: 'e.g. B, BE, A2' },
+    ],
+  },
   {
     // A discharge book is a record of sea service / identity book — it does not
     // expire. Issued by a flag-state administration.
@@ -152,6 +161,7 @@ export const DOCUMENT_TYPES = [
           'Engineering — MEOL (Yachts)', 'Engineering — SV / Y4', 'Engineering — Y3', 'Engineering — Y2', 'Engineering — Y1',
         ],
       },
+      { key: 'limitations', label: 'Limitations / endorsements', placeholder: 'e.g. <3000GT, near-coastal' },
     ],
   },
   {
@@ -172,12 +182,13 @@ export const DOCUMENT_TYPES = [
   {
     id: 'yachtmaster', label: 'RYA Yachtmaster', category: 'deck', expiry: false,
     fields: [
+      DISCIPLINE,
       { key: 'grade', label: 'Grade', type: 'select', options: ['Yachtmaster Coastal', 'Yachtmaster Offshore', 'Yachtmaster Ocean'] },
       COMMERCIAL_ENDORSEMENT,
     ],
   },
-  { id: 'rya_day_skipper', label: 'RYA Day Skipper', category: 'deck', expiry: false },
-  { id: 'rya_coastal_skipper', label: 'RYA Coastal Skipper', category: 'deck', expiry: false },
+  { id: 'rya_day_skipper', label: 'RYA Day Skipper', category: 'deck', expiry: false, fields: [DISCIPLINE] },
+  { id: 'rya_coastal_skipper', label: 'RYA Coastal Skipper', category: 'deck', expiry: false, fields: [DISCIPLINE] },
   {
     id: 'powerboat', label: 'RYA Powerboat Level 2', category: 'deck', expiry: false,
     fields: [COMMERCIAL_ENDORSEMENT],
@@ -203,21 +214,33 @@ export const DOCUMENT_TYPES = [
   { id: 'silver_service', label: 'Silver Service / Food & Beverage', category: 'interior', expiry: false },
   {
     id: 'wine_spirits', label: 'Wine & Spirits (WSET)', category: 'interior', expiry: false,
-    fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Level 1', 'Level 2', 'Level 3', 'Level 4'] }],
+    fields: [
+      { key: 'discipline', label: 'Discipline', type: 'select', options: ['Wine', 'Spirits', 'Sake'] },
+      { key: 'level', label: 'Level', type: 'select', options: ['Level 1', 'Level 2', 'Level 3', 'Level 4'] },
+    ],
   },
   { id: 'barista', label: 'Barista', category: 'interior', expiry: false },
   { id: 'mixology', label: 'Cocktail / Mixology', category: 'interior', expiry: false },
   { id: 'yacht_purser', label: 'Yacht Purser / Administration', category: 'interior', expiry: false },
-  { id: 'guest_interior', label: 'GUEST interior crew course', category: 'interior', expiry: false },
+  {
+    id: 'guest_interior', label: 'GUEST interior crew course', category: 'interior', expiry: false,
+    fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Introduction (Junior)', 'Advanced (Senior)', 'Management (Chief)', 'Purser'] }],
+  },
   { id: 'ships_cook', label: "Ship's Cook Certificate", category: 'interior', expiry: false },
   { id: 'culinary', label: 'Culinary / chef qualification', category: 'interior', fields: [NAMED_CERT] },
   { id: 'interior_other', label: 'Other interior / service certificate', category: 'interior', fields: [NAMED_CERT] },
 
   // ── Watersports & dive ──────────────────────────────────────────────────
-  { id: 'pwc_jetski', label: 'PWC / Jet Ski', category: 'watersports', expiry: false },
+  {
+    id: 'pwc_jetski', label: 'PWC / Jet Ski', category: 'watersports', expiry: false,
+    fields: [{ key: 'qualification_type', label: 'Type', type: 'select', options: ['Proficiency', 'Instructor'] }],
+  },
   {
     id: 'dive', label: 'Diving (PADI / scuba)', category: 'watersports', expiry: false,
-    fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Open Water', 'Advanced Open Water', 'Rescue Diver', 'Divemaster', 'Instructor'] }],
+    fields: [
+      { key: 'agency', label: 'Agency', type: 'select', options: ['PADI', 'SSI', 'BSAC', 'RAID', 'SDI', 'TDI', 'CMAS', 'NAUI', 'Other'] },
+      { key: 'level', label: 'Level', type: 'select', options: ['Open Water', 'Advanced Open Water', 'Rescue Diver', 'Divemaster', 'Instructor'] },
+    ],
   },
   { id: 'waterski', label: 'Water-ski / Wakeboard instructor', category: 'watersports', expiry: false },
   { id: 'watersports_other', label: 'Other watersports / dive certificate', category: 'watersports', fields: [NAMED_CERT] },
