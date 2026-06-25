@@ -1541,7 +1541,7 @@ const canEdit = (() => {
               placeholder="None"
             />
           </Field>
-          <Field label="Passport" hint="Held in Documents">
+          <Field label="Passport">
             <div className="cp-static cp-birthday">
               {passportSummary
                 ? <span>{passportSummary}</span>
