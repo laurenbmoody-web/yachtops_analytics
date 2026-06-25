@@ -244,6 +244,10 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
       {/* File — attaching one reads the document to fill or check the fields. */}
       <div className="mt-4">
         <label className={labelCls}>File (optional)</label>
+        <p className="text-xs text-muted-foreground mb-2 flex items-start gap-1.5">
+          <Icon name="Sparkles" size={13} className="flex-shrink-0 mt-0.5" style={{ color: '#C65A1A' }} />
+          Add the document and we’ll read it to fill in the details automatically — or, if you’ve already typed them, we’ll check them against the file.
+        </p>
         <input
           type="file"
           accept="image/*,application/pdf"
