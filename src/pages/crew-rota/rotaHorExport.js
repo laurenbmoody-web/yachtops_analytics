@@ -195,15 +195,9 @@ export function buildRestLogCSV({ rows, days, meta }) {
   ];
   lines.push(header.map(csvField).join(','));
 
-  // One cell: rest hours (or "off"), with breach markers for all four rules.
-  const cellText = (c) => {
-    let s = restLabel(c);
-    if (c && !c.isOff && c.dailyLow) s += '*';
-    if (c && c.weeklyLow) s += '#';
-    if (c && c.stretchBreach) s += '+';
-    if (c && c.splitBreach) s += '~';
-    return s;
-  };
+  // One cell: rest hours per 24h (or "off"). Breach detail lives in the
+  // per-rule count columns, matching the PDF summary.
+  const cellText = (c) => restLabel(c);
 
   const vessel = meta.vesselName || '';
   const period = meta.periodLabel || '';
@@ -219,7 +213,7 @@ export function buildRestLogCSV({ rows, days, meta }) {
 
   // Trailing key so the markers read without the PDF alongside.
   lines.push('');
-  lines.push('Cells = hours of rest per 24h ("off" = rest day). * daily rest <10h, # weekly rest <77h, + >14h continuous on-duty, ~ split rest pattern (need <=2 periods, one >=6h).');
+  lines.push('Cells = hours of rest per 24h ("off" = rest day). Breach-day counts per rule are in the Daily / Weekly / Pattern-stretch columns.');
 
   // UTF-8 BOM so Excel reads any accented characters correctly.
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
@@ -269,7 +263,7 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   subParts.push(meta.periodLabel);
   doc.text(subParts.join('  ·  '), 40, 55);
   doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
-  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = MLC/STCW non-conformity. Markers: * daily rest <10h · # weekly rest <77h · + >14h continuous on-duty · ~ split rest pattern (need ≤2 periods, one ≥6h).', 40, 84);
+  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = a day with an MLC/STCW non-conformity. Counts by rule are in the three right-hand columns; the exact rule for each day is listed in that seafarer’s record.', 40, 84);
   doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
 
@@ -285,14 +279,10 @@ function drawSummaryPage(doc, members, days, meta, logo) {
       const styles = {};
       if (breach) { styles.fillColor = WARN_FILL; styles.textColor = WARN_TEXT; styles.fontStyle = 'bold'; }
       else if (!c || c.isOff) { styles.textColor = OFF_TEXT; }
-      // Markers mirror the CSV + per-seafarer record so all four MLC/STCW rules
-      // are distinguishable at a glance (shading alone can't tell them apart).
-      let content = restLabel(c);
-      if (c && !c.isOff && c.dailyLow) content += '*';
-      if (c && c.weeklyLow) content += '#';
-      if (c && c.stretchBreach) content += '+';
-      if (c && c.splitBreach) content += '~';
-      return { content, styles };
+      // Clean overview: just the rest figure, shaded if that day breached any
+      // rule. The per-rule breakdown is in the right-hand columns; the exact
+      // rule per day is in each seafarer's record ("Recorded non-conformities").
+      return { content: restLabel(c), styles };
     });
     return [
       m.name, m.role || '—', m.dept, ...dayCells,
