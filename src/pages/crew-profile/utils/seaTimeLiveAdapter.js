@@ -48,7 +48,7 @@ export const adaptLiveEntries = (rows) => {
       label: cur.label, from: cur.from, to: cur.to, days: cur.days,
       type: cur.type, watchHours: cur.watchHours, capacity: cur.capacity, source: cur.source,
       masterName: cur.masterName, masterAboard: cur.masterAboard, masterOnCargo: cur.masterOnCargo,
-      vstatus: cur.vstatus,
+      vstatus: cur.vstatus, rejectionReason: cur.rejectionReason || null,
       dateMain: main, dateSub: `${yr} · ${cur.days}${cur.days === 1 ? ' day' : ' days'}`, excluded: false
     });
   };
@@ -69,7 +69,7 @@ export const adaptLiveEntries = (rows) => {
       cur = {
         vesselId: id, type: r.serviceType, watchHours: r.watchHours || 0, capacity: r.capacityServed || '',
         source: src, masterName: master, masterAboard: !!r.masterAboard, masterOnCargo: !!r.masterOnCargo,
-        vstatus, from: r.date, to: r.date, days: 1, ids: [r.id],
+        vstatus, rejectionReason: r.rejectionReason || null, from: r.date, to: r.date, days: 1, ids: [r.id],
         label: `${(vessels[id]?.name) || 'Vessel'} · ${r.serviceType}`
       };
     }

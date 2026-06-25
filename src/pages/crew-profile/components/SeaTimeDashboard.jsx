@@ -76,7 +76,8 @@ const ATT_CHIP = {
   attested_virtual:  { label: 'Signed by captain',   color: '#3F7A52', bg: '#E7F0E9' },
   attested_external: { label: 'Testimonial uploaded',color: '#4A5263', bg: '#EEF0F3' },
   requested:         { label: 'Awaiting captain',    color: '#7A5A12', bg: '#FBEFD9' },
-  outstanding:       { label: 'Not verified yet',    color: '#A32D2D', bg: '#FCEDEA' }
+  outstanding:       { label: 'Not verified yet',    color: '#A32D2D', bg: '#FCEDEA' },
+  declined:          { label: 'Declined',            color: '#C65A1A', bg: '#FBEFE9' }
 };
 
 // Cargo-styled select (native <select> menus can't be themed). `variant`:
@@ -263,7 +264,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       // action (sample, or this session) overrides via vesselAttest.
       const sig = periods.filter(p => p.vstatus === 'captain_signed').length;
       const pen = periods.filter(p => p.vstatus === 'pending').length;
-      const derived = periods.length && sig === periods.length ? 'attested' : pen > 0 ? 'requested' : 'outstanding';
+      const rej = periods.filter(p => p.vstatus === 'rejected').length;
+      // A master's decline takes priority over a fresh "outstanding" so the crew
+      // see the reason and can't blindly re-request without actioning it.
+      const derived = periods.length && sig === periods.length ? 'attested'
+        : pen > 0 ? 'requested'
+          : rej > 0 ? 'declined'
+            : 'outstanding';
+      const declineReason = periods.find(p => p.vstatus === 'rejected')?.rejectionReason || '';
       const att = vesselAttest[cmd.key] || { status: derived, mode };
       const reach = mode === 'virtual' ? (cmd.onCargo ? 'inapp' : 'email') : null;
       const cap = (cmd.name || 'Master').replace('Capt. ', '');
@@ -283,7 +291,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         ...v, key: cmd.key, cmdId: cmd.id, multi, cmdLabel, periods, days,
         captainName: cmd.name, captainCoc: cmd.coc, captainCocGrade: cmd.cocGrade, captainEmail: cmd.email,
         captainMember: cmd.member, captainOnCargo: cmd.onCargo, cmdFrom: cmd.from, cmdTo: cmd.to,
-        mode, att, reach, cap, masterNote, how
+        mode, att, reach, cap, masterNote, how, declineReason
       };
     }).filter(Boolean);
   });
@@ -851,7 +859,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                             {v.multi && <span className="std-vcmd"><Icon name="GitBranch" size={10} /> {v.cmdLabel}</span>}
                           </div>
                           <div className="std-vmeta">{v.flag} · {v.gt}GT · {v.lengthM}m · <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{v.captainName || 'Captain'}</b> · {v.masterNote}</div>
-                          <div className="std-vhow">{done && v.att.fileName ? `Uploaded · ${v.att.fileName}` : v.how}</div>
+                          <div className="std-vhow" style={v.att.status === 'declined' ? { color: '#B14E16' } : undefined}>{v.att.status === 'declined'
+                            ? `${v.captainName || 'The captain'} declined${v.declineReason ? ` — “${v.declineReason}”` : ''}. Edit the days and resend.`
+                            : (done && v.att.fileName ? `Uploaded · ${v.att.fileName}` : v.how)}</div>
                         </div>
                         <div className="std-vact">
                           <span className="std-vchip" style={{ color: ck.color, background: ck.bg }}>
@@ -868,15 +878,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                             </button>
                           )}
                           {/* Crew — ask the captain. In-app while reachable, secure email when off Cargo (upload as last resort). */}
-                          {!done && v.mode !== 'external' && !canAttest && v.att.status === 'outstanding' && (
+                          {!done && v.mode !== 'external' && !canAttest && (v.att.status === 'outstanding' || v.att.status === 'declined') && (
                             v.reach === 'email' ? (
                               <div className="std-flex std-ac" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => requestVessel(v, 'email')}><Icon name="Mail" size={13} /> Email for signature</button>
+                                <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => requestVessel(v, 'email')}><Icon name="Mail" size={13} /> {v.att.status === 'declined' ? 'Edit & resend' : 'Email for signature'}</button>
                                 <button className="std-vbtn ghost" disabled={!canGenerate} onClick={() => openUpload(v)}><Icon name="Upload" size={13} /> Upload instead</button>
                               </div>
                             ) : (
                               <button className="std-vbtn rust" disabled={!canGenerate} onClick={() => requestVessel(v, 'app')}>
-                                <Icon name="Send" size={13} /> {v.mode === 'stamp' ? 'Ask captain to verify' : 'Ask captain to sign'}
+                                <Icon name="Send" size={13} /> {v.att.status === 'declined' ? 'Edit & resend' : (v.mode === 'stamp' ? 'Ask captain to verify' : 'Ask captain to sign')}
                               </button>
                             )
                           )}
