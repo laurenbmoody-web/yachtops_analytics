@@ -36,6 +36,10 @@ export const setHorDbContext = ({ tenantId, horDayStartHour } = {}) => {
   _horDbTenantId = tenantId || null;
   if (horDayStartHour !== undefined) _horDayStartHour = horDayStartHour || 0;
 };
+// Active tenant for the HOR surface — lets the PDF generator pull the vessel
+// identity (flag/IMO) for the official Record header without threading it
+// through every call site.
+export const getHorDbTenantId = () => _horDbTenantId;
 
 // Merge a crew member's DB actuals into the cache for a month, reconciling with
 // any cached edited rows. Call BEFORE syncRotaBaselineEntries so baseline only
