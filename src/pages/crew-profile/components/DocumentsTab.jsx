@@ -175,7 +175,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
               className="hidden"
             />
             <Button variant="outline" iconName="Sparkles" size="sm" onClick={() => scanInputRef.current?.click()}>
-              Auto-fill from upload
+              Upload &amp; auto-fill
             </Button>
             <Button iconName="Plus" size="sm" onClick={() => openAdd()}>Add document</Button>
           </div>
@@ -185,7 +185,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
       {canEdit && (
         <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5">
           <Icon name="UploadCloud" size={13} style={{ color: '#C65A1A' }} />
-          Drag &amp; drop documents anywhere here, or use “Auto-fill from upload”, to scan several at once.
+          Drag &amp; drop documents anywhere here, or use “Upload &amp; auto-fill”, to scan several at once.
         </p>
       )}
 
