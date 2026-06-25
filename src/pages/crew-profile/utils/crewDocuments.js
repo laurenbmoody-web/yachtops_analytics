@@ -230,6 +230,11 @@ export const deleteCrewDocument = async (id) => {
  * first. RLS scopes the result automatically: a crew member sees only their
  * own; COMMAND sees their whole tenant's crew. Each row is enriched with the
  * crew member's name for the dashboard list.
+ *
+ * Superseded records are excluded: we pull each crew member's full document set
+ * and keep only the current record per single-instance type (same rule as the
+ * profile tab), so last cycle's expired cert never raises a stale alert once a
+ * refreshed one is on file.
  */
 export const fetchExpiringDocuments = async (withinDays = 90) => {
   const cutoff = new Date();
@@ -238,21 +243,33 @@ export const fetchExpiringDocuments = async (withinDays = 90) => {
 
   const { data, error } = await supabase
     ?.from('personal_documents')
-    ?.select('id, user_id, doc_type, details, expiry_date')
-    ?.not('expiry_date', 'is', null)
-    ?.lte('expiry_date', cutoffStr)
-    ?.order('expiry_date', { ascending: true });
+    ?.select('id, user_id, doc_type, details, expiry_date, issue_date, created_at');
   if (error) {
     console.error('[docs] expiring fetch failed', error);
     return [];
   }
-  const docs = data || [];
-  const ids = [...new Set(docs.map((d) => d.user_id).filter(Boolean))];
+
+  // Keep only current records, grouped per crew member (version grouping is
+  // per person + type), then narrow to the expiring window.
+  const byUser = new Map();
+  for (const d of data || []) {
+    const a = byUser.get(d.user_id) || [];
+    a.push(d);
+    byUser.set(d.user_id, a);
+  }
+  const docs = [];
+  for (const arr of byUser.values()) docs.push(...groupDocumentVersions(arr).currents);
+
+  const expiring = docs
+    .filter((d) => d.expiry_date && String(d.expiry_date).slice(0, 10) <= cutoffStr)
+    .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
+
+  const ids = [...new Set(expiring.map((d) => d.user_id).filter(Boolean))];
   const names = {};
   if (ids.length) {
     const { data: profs } = await supabase?.from('profiles')?.select('id, full_name')?.in('id', ids);
     (profs || []).forEach((p) => { names[p.id] = p.full_name; });
   }
-  return docs.map((d) => ({ ...d, crew_name: names[d.user_id] || null }));
+  return expiring.map((d) => ({ ...d, crew_name: names[d.user_id] || null }));
 };
 
