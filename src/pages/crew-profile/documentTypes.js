@@ -10,29 +10,46 @@ export const DOC_CATEGORIES = [
   { id: 'other', label: 'Other' },
 ];
 
+// STCW "updating" / refresher revalidation (5-year cycle). Shared so every
+// cert that needs it tracks the same field.
+const STCW_REFRESHER = { key: 'revalidation_date', label: 'Refresher / revalidation date', type: 'date' };
+
 export const DOCUMENT_TYPES = [
   // Travel & identity
   { id: 'passport', label: 'Passport', category: 'travel' },
   { id: 'national_id', label: 'National ID card', category: 'travel' },
   { id: 'seamans_book', label: "Seaman's book / Discharge book", category: 'travel' },
-  { id: 'visa_us_b1b2', label: 'Visa — US B1/B2', category: 'travel' },
-  { id: 'visa_schengen', label: 'Visa — Schengen', category: 'travel' },
+  {
+    id: 'tax_residency', label: 'Tax / Residency document', category: 'travel',
+    fields: [{ key: 'country', label: 'Country' }],
+  },
+  {
+    id: 'visa_us_b1b2', label: 'Visa — US B1/B2', category: 'travel',
+    fields: [{ key: 'max_stay', label: 'Max stay (days per entry)' }],
+  },
+  {
+    id: 'visa_schengen', label: 'Visa — Schengen', category: 'travel',
+    fields: [{ key: 'max_stay', label: 'Max stay (days per entry)' }],
+  },
   {
     id: 'visa_other', label: 'Visa — other', category: 'travel',
     fields: [
-      { key: 'visa_class', label: 'Visa class' },
+      { key: 'visa_class', label: 'Visa class / type' },
       { key: 'country', label: 'Country' },
+      { key: 'max_stay', label: 'Max stay (days per entry)' },
     ],
   },
 
-  // Medical & safety
+  // Medical & safety. STCW survival/firefighting/security elements need a
+  // 5-yearly refresher, so they carry a revalidation/refresher date.
   { id: 'eng1', label: 'ENG1 medical certificate', category: 'medical' },
   { id: 'seafarer_medical', label: 'Seafarer medical (other)', category: 'medical' },
-  { id: 'stcw_basic', label: 'STCW Basic Safety Training', category: 'medical' },
-  { id: 'stcw_advanced_ff', label: 'STCW Advanced Firefighting', category: 'medical' },
-  { id: 'stcw_pscrb', label: 'STCW PSCRB (survival craft)', category: 'medical' },
+  { id: 'stcw_basic', label: 'STCW Basic Safety Training', category: 'medical', fields: [STCW_REFRESHER] },
+  { id: 'stcw_advanced_ff', label: 'STCW Advanced Firefighting', category: 'medical', fields: [STCW_REFRESHER] },
+  { id: 'stcw_pscrb', label: 'STCW PSCRB (survival craft)', category: 'medical', fields: [STCW_REFRESHER] },
   { id: 'stcw_medical_care', label: 'STCW Medical First Aid / Care', category: 'medical' },
-  { id: 'pdsd', label: 'PSA / PDSD (ship security)', category: 'medical' },
+  { id: 'pdsd', label: 'PSA / PDSD (ship security)', category: 'medical', fields: [STCW_REFRESHER] },
+  { id: 'sso_dsd', label: 'SSO / DSD (security officer / duties)', category: 'medical' },
 
   // Qualifications
   {
@@ -53,6 +70,8 @@ export const DOCUMENT_TYPES = [
     ],
   },
   { id: 'gmdss', label: 'GMDSS / GOC / ROC', category: 'qualification' },
+  { id: 'ecdis', label: 'ECDIS (generic + type-specific)', category: 'qualification' },
+  { id: 'helm_management', label: 'HELM (Management)', category: 'qualification' },
   { id: 'yachtmaster', label: 'RYA Yachtmaster', category: 'qualification' },
   { id: 'powerboat', label: 'Powerboat Level 2', category: 'qualification' },
   { id: 'food_hygiene', label: 'Food Hygiene', category: 'qualification' },
@@ -82,7 +101,7 @@ export const DOCUMENT_TYPES = [
 // Documents every crew member is expected to hold — always shown as slots
 // on the Documents tab (filled or as an empty prompt). Everything else is
 // added on demand via "Add document".
-export const CORE_DOCUMENT_TYPE_IDS = ['passport', 'stcw_basic', 'eng1', 'pdsd'];
+export const CORE_DOCUMENT_TYPE_IDS = ['passport', 'stcw_basic', 'eng1', 'pdsd', 'seamans_book', 'tax_residency'];
 
 export const getDocType = (id) => DOCUMENT_TYPES.find((t) => t.id === id) || null;
 

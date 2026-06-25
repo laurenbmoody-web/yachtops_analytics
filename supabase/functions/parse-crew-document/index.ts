@@ -27,9 +27,9 @@ const corsHeaders = {
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
 
 const DOC_TYPE_IDS = [
-  'passport', 'national_id', 'seamans_book', 'visa_us_b1b2', 'visa_schengen', 'visa_other',
-  'eng1', 'seafarer_medical', 'stcw_basic', 'stcw_advanced_ff', 'stcw_pscrb', 'stcw_medical_care', 'pdsd',
-  'coc', 'gmdss', 'yachtmaster', 'powerboat', 'food_hygiene', 'aec', 'other',
+  'passport', 'national_id', 'seamans_book', 'tax_residency', 'visa_us_b1b2', 'visa_schengen', 'visa_other',
+  'eng1', 'seafarer_medical', 'stcw_basic', 'stcw_advanced_ff', 'stcw_pscrb', 'stcw_medical_care', 'pdsd', 'sso_dsd',
+  'coc', 'gmdss', 'ecdis', 'helm_management', 'yachtmaster', 'powerboat', 'food_hygiene', 'aec', 'other',
 ];
 
 const PROMPT = `You are reading a single maritime crew document (passport, visa, seafarer medical, STCW certificate, Certificate of Competency, etc.).
