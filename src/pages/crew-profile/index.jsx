@@ -1584,6 +1584,16 @@ const canEdit = (() => {
   const renderPersonalDetails = () => {
     const dob_age = computeAge(formData?.dateOfBirth);
     const addressClasses = "flex w-full text-sm placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed";
+    // Read-only passport mirror — single source of truth stays in Documents.
+    const passportDoc = (crewDocs || []).find((d) => d.doc_type === 'passport');
+    const passportSummary = passportDoc
+      ? [
+          passportDoc.document_number ? `••${String(passportDoc.document_number).slice(-4)}` : 'On file',
+          passportDoc.expiry_date
+            ? `expires ${new Date(`${String(passportDoc.expiry_date).slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+            : null,
+        ].filter(Boolean).join(' · ')
+      : '';
     return (
       <div>
         <div className="cp-section-head">
@@ -1725,6 +1735,16 @@ const canEdit = (() => {
               disabled={!isEditing}
               placeholder="—"
             />
+          </Field>
+          <Field label="Passport" hint="Held in Documents">
+            <div className="cp-static cp-birthday">
+              {passportSummary
+                ? <span>{passportSummary}</span>
+                : <span className="cp-empty">Not added</span>}
+              <button type="button" className="cp-allergy-jump" onClick={() => { setActiveSection('documents'); setIsEditing(false); }}>
+                {passportDoc ? 'Documents' : 'Add in Documents'} ›
+              </button>
+            </div>
           </Field>
           </div>
         </div>
