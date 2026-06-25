@@ -8,7 +8,7 @@ import {
 } from '../documentTypes';
 import {
   fetchCrewDocuments, deleteCrewDocument, getExpiryStatus,
-  EXPIRY_STATUS_CLASSES, formatDocDate,
+  EXPIRY_STATUS_CLASSES, formatDocDate, groupDocumentVersions,
 } from '../utils/crewDocuments';
 import AddDocumentModal from './AddDocumentModal';
 import BatchReviewModal from './BatchReviewModal';
@@ -25,6 +25,8 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   const [batchFiles, setBatchFiles] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const scanInputRef = useRef(null);
+  // Expanded "earlier versions" rows, keyed by the current doc's id.
+  const [openPrev, setOpenPrev] = useState({});
 
   // Only image/PDF files can be parsed; ignore anything else that's dropped.
   const openBatch = (fileList) => {
@@ -89,13 +91,19 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     }
   };
 
-  const flagged = docs.map((d) => getExpiryStatus(d.expiry_date));
+  // Show one live row per credential: the newest record is "current"; older
+  // same-type records are superseded and tucked underneath. Alerts and the
+  // soonest-expiry heads-up count only what's current, so a refreshed cert
+  // silences the old one instead of double-counting it.
+  const { currents, previousById } = groupDocumentVersions(docs);
+
+  const flagged = currents.map((d) => getExpiryStatus(d.expiry_date));
   const expiredCount = flagged.filter((s) => s.level === 'expired').length;
   const soonCount = flagged.filter((s) => s.level === 'red' || s.level === 'amber').length;
 
   // The nearest still-valid expiry, for an at-a-glance heads-up at the top.
   const todayStart = new Date(new Date().toDateString());
-  const soonest = docs
+  const soonest = currents
     .filter((d) => d.expiry_date && new Date(`${String(d.expiry_date).slice(0, 10)}T00:00:00`) >= todayStart)
     .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)))[0];
 
@@ -125,17 +133,51 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     </div>
   );
 
-  const renderDocRow = (d) => (
-    <div key={d.id} className="cp-doc-row">
-      <div className="min-w-0">
-        <div className="cp-doc-title">{getDocTypeLabel(d.doc_type, d.details)}</div>
-        <div className="cp-doc-meta">{metaBits(d).map((b, i) => <span key={i}>{b}</span>)}</div>
+  const renderDocRow = (d) => {
+    const prev = previousById.get(d.id);
+    const open = !!openPrev[d.id];
+    return (
+      <div key={d.id}>
+        <div className="cp-doc-row">
+          <div className="min-w-0">
+            <div className="cp-doc-title">{getDocTypeLabel(d.doc_type, d.details)}</div>
+            <div className="cp-doc-meta">{metaBits(d).map((b, i) => <span key={i}>{b}</span>)}</div>
+          </div>
+          {renderActions(d)}
+        </div>
+        {prev?.length > 0 && (
+          <div style={{ paddingLeft: 2, marginTop: 2 }}>
+            <button
+              type="button"
+              onClick={() => setOpenPrev((s) => ({ ...s, [d.id]: !s[d.id] }))}
+              className="inline-flex items-center gap-1 text-[11px]"
+              style={{ color: '#8B8478' }}
+            >
+              <Icon name={open ? 'ChevronUp' : 'ChevronDown'} size={12} />
+              {prev.length} earlier version{prev.length > 1 ? 's' : ''} on file
+            </button>
+            {open && prev.map((p) => (
+              <div key={p.id} className="flex items-center justify-between py-1.5" style={{ borderTop: '1px dashed #ECEAE3' }}>
+                <span className="text-[11px] text-muted-foreground truncate">
+                  {[...metaBits(p), 'superseded'].join(' · ')}
+                </span>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {p.file_url && (
+                    <a href={p.file_url} target="_blank" rel="noreferrer" className="p-1 hover:bg-muted rounded text-muted-foreground" title="View file"><Icon name="Paperclip" size={13} /></a>
+                  )}
+                  {canEdit && (
+                    <button onClick={() => handleDelete(p)} className="p-1 hover:bg-red-50 rounded text-red-500" title="Delete this old version"><Icon name="Trash2" size={13} /></button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      {renderActions(d)}
-    </div>
-  );
+    );
+  };
 
-  const additional = docs.filter((d) => !CORE_DOCUMENT_TYPE_IDS.includes(d.doc_type));
+  const additional = currents.filter((d) => !CORE_DOCUMENT_TYPE_IDS.includes(d.doc_type));
 
   return (
     <div
@@ -222,7 +264,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
             </div>
             <div className="space-y-2">
               {coreDocumentTypes().map((t) => {
-                const existing = docs.find((d) => d.doc_type === t.id);
+                const existing = currents.find((d) => d.doc_type === t.id);
                 if (existing) return renderDocRow(existing);
                 return (
                   <div key={t.id} className="cp-doc-row cp-doc-empty">
@@ -268,6 +310,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         existing={editing}
         presetType={presetType}
         presetDetails={presetDetails}
+        existingDocs={docs}
       />
 
       <BatchReviewModal
@@ -279,6 +322,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         userId={userId}
         tenantId={tenantId}
         createdBy={createdBy}
+        existingDocs={docs}
       />
     </div>
   );

@@ -198,6 +198,19 @@ export const DOCUMENT_TYPES = [
 // not a core slot.
 export const CORE_DOCUMENT_TYPE_IDS = ['passport', 'stcw_basic', 'eng1', 'pdsd', 'seamans_book'];
 
+// Types where holding several distinct records at once is normal — multiple
+// visas, a stack of issued letters/contracts, tax docs per year. Everything
+// else is single-instance: a newer record supersedes the older one in the UI
+// (e.g. a refreshed STCW certificate replaces last cycle's).
+const MULTI_INSTANCE_IDS = new Set([
+  'visa_us_b1b2', 'visa_schengen', 'visa_other', 'tax_residency',
+  'employment_contract', 'contract_amendment', 'offer_letter',
+  'certificate_of_employment', 'reference_letter', 'disciplinary_letter',
+  'general_letter', 'other',
+]);
+
+export const allowsMultipleDocs = (id) => MULTI_INSTANCE_IDS.has(id);
+
 export const getDocType = (id) => DOCUMENT_TYPES.find((t) => t.id === id) || null;
 
 export const coreDocumentTypes = () =>
