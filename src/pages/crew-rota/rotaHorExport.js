@@ -526,13 +526,12 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     doc.setTextColor(...(cell.weeklyLow ? WARN_TEXT : [0, 0, 0]));
     doc.text(String(Math.round(cell.pastWeekHours)), r7 + totalColW / 2, rowY + rowH / 2 + 2, { align: 'center' });
 
-    // Structural rules — shown only on the day they breach (shaded + figure):
-    // rest pattern = number of rest periods; 14h = longest continuous on-duty.
+    // Structural rules — flagged only on the day they breach. Rest pattern is a
+    // compound rule (>2 periods OR none ≥6h), so a single number would mislead:
+    // shade the cell only. 14h is a clean threshold, so show the actual hours.
     doc.setFontSize(6.5);
     if (cell.splitBreach) {
       doc.setFillColor(...WARN_FILL); doc.rect(patX, rowY, structColW, rowH, 'F');
-      doc.setTextColor(...WARN_TEXT);
-      doc.text(`${cell.periodCount} pds`, patX + structColW / 2, rowY + rowH / 2 + 2, { align: 'center' });
     }
     if (cell.stretchBreach) {
       doc.setFillColor(...WARN_FILL); doc.rect(strX, rowY, structColW, rowH, 'F');
