@@ -472,17 +472,24 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     const cell = computeCellFull(windowShifts, member.id, days[i]);
     const rowY = gridTop + i * rowH;
 
-    // weekend tint on the date label cell
+    // Date-label cell: shade it for ANY non-conformity that day — so breaches
+    // that don't show in the 24h/7d rest columns (the 14h-stretch and split-
+    // rest rules) are still visibly flagged here, matching the list below.
+    // A breach shade wins over the plain weekend tint.
+    const anyBreach = (cell.breaches?.length || 0) > 0;
     const wd = parseLocal(days[i]).getDay();
-    if (wd === 0 || wd === 6) {
+    if (anyBreach) {
+      doc.setFillColor(...WARN_FILL);
+      doc.rect(M, rowY, dateColW, rowH, 'F');
+    } else if (wd === 0 || wd === 6) {
       doc.setFillColor(247, 244, 238);
       doc.rect(M, rowY, dateColW, rowH, 'F');
     }
 
     // date label
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', anyBreach ? 'bold' : 'normal');
     doc.setFontSize(6.5);
-    doc.setTextColor(60);
+    doc.setTextColor(...(anyBreach ? WARN_TEXT : [60, 60, 60]));
     doc.text(dayRowLabel(days[i]), M + 3, rowY + rowH / 2 + 2);
 
     // work blocks (navy fill)
@@ -533,8 +540,13 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.rect(M + 78, ly - 6, 9, 7);
   doc.text('rest', M + 91, ly);
   doc.setFillColor(...WARN_FILL); doc.rect(M + 120, ly - 6, 9, 7, 'F');
-  doc.text('below MLC minimum', M + 133, ly);
+  doc.text('non-conformity', M + 133, ly);
   doc.text('Overnight work is attributed to the day it commenced.', pageW - M, ly, { align: 'right' });
+
+  // Clarify what the two shaded positions mean (date cell vs rest figure).
+  ly += 9;
+  doc.setFontSize(6); doc.setTextColor(110);
+  doc.text('Shaded date = a non-conformity was recorded that day (any rule). Shaded 24h/7d figure = rest below the MLC minimum.', M, ly);
 
   // ── Non-conformities (per-day table, with recorded reason) ──
   ly += 16;
