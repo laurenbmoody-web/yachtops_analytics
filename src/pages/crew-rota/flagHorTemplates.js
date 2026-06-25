@@ -36,18 +36,41 @@ export const FLAGS_WITH_OWN_FORM = new Set([
   'Marshall Islands', 'Liberia', 'Panama', 'Malta',
 ]);
 
+// ── Research notes (Jun 2026) — verify against the official PDF before use ────
+// Headline finding: the flags below DO NOT use a different record layout — each
+// adopts the IMO/ILO model format (the one this export already produces) and
+// references it from its own shipping/marine notice. So the only flag-specific
+// element is a CITATION of that notice (printed via `formReference`), and — if
+// the notice prescribes specific wording — the declaration/standard-ref text.
+// These notice numbers came from secondary sources (search), NOT the official
+// PDFs (which are access-blocked here), so they are NOT activated. Confirm the
+// current notice/revision + exact declaration wording from the flag's published
+// document, then move the entry into FLAG_HOR_TEMPLATES (uncomment) to activate.
+//
+//   Cayman Islands  — record/table established by Shipping Notice CISN 05/2014,
+//                     "based on ILO Guidelines" (i.e. IMO/ILO model).
+//                     → likely: { formReference: 'Cayman Islands Shipping Notice CISN 05/2014' }
+//                     src: cishipping.com (Master's/Yachtmaster's Handbooks);
+//                          redensigngroup.org REG Yacht Code (Jul 2024).
+//   Marshall Islands — Marine Notice MN 7-051 (rev -2), record format per Annex I,
+//                     "based on IMO/ILO Guidelines"; forms published as MI-300.
+//                     → likely: { formReference: 'RMI Marine Notice MN 7-051' }
+//                     src: register-iri.com (MN-7-051-2.pdf).
+//   Red Ensign Group (Jersey, Guernsey, Isle of Man, Bermuda, BVI, Gibraltar,
+//                     United Kingdom) — REG Yacht Code, MLC-aligned, standard
+//                     IMO/ILO format. → citation only, per each registry's notice.
+//   Liberia / Panama / Malta — major registries; own marine notices not yet
+//                     sourced. Default IMO/ILO model applies until confirmed.
+
 // Verified per-flag overrides. ADD ONLY from a flag's official published form,
-// then the export uses it automatically. Worked example (commented — fill from
-// the real form and uncomment):
-//
+// then the export uses it automatically. Shape:
 //   'Marshall Islands': {
-//     formReference: 'MI Marine Notice 7-051 / MI-300',
-//     declaration: '…exact declaration wording from the MI form…',
-//     // standardRef: '…only if MI prescribes a specific reference line…',
+//     formReference: 'RMI Marine Notice MN 7-051',
+//     // declaration: '…exact wording, only if the notice prescribes it…',
+//     // standardRef: '…only if the notice prescribes a specific reference line…',
 //   },
-//
 const FLAG_HOR_TEMPLATES = {
-  // (empty — no flag-specific forms sourced/verified yet)
+  // (empty — research staged above; nothing activated until verified from source)
 };
 
 // Resolve the template for a flag. Always returns a complete object (the
