@@ -195,6 +195,7 @@ export default function ReviewsPage() {
         try { await signEntries(activeTenantId, rowIds, { signedName: record?.name }); }
         catch (e) { console.error(e); showToast('Could not sign — check your permissions', { error: true }); return; }
         await seatimeLive.refetch();
+        supabase.functions.invoke('notify-seatime-signoff', { body: { action: 'signed', entryIds: rowIds } }).catch(() => {});
       } else {
         setSeatimeQueue(q => q.filter(i => i.id !== stSelected.id));
       }
@@ -208,6 +209,7 @@ export default function ReviewsPage() {
         try { await rejectEntries(activeTenantId, rowIds, reason || 'Declined by the master'); }
         catch (e) { console.error(e); showToast('Could not decline', { error: true }); return; }
         await seatimeLive.refetch();
+        supabase.functions.invoke('notify-seatime-signoff', { body: { action: 'declined', entryIds: rowIds } }).catch(() => {});
       } else {
         setSeatimeQueue(q => q.filter(i => i.id !== stSelected.id));
       }
