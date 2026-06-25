@@ -114,8 +114,8 @@ export const BREACH_DISPLAY_INFO = {
     code: 'REST_LT_10_IN_24H'
   },
   [BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H]: {
-    displayName: 'No continuous 6-hour rest period',
-    helperText: 'The longest uninterrupted rest period was less than the required 6 hours.',
+    displayName: 'Rest not in the required 2-period pattern',
+    helperText: 'MLC A2.3 / STCW A-VIII/1: rest may be in no more than 2 periods, one of at least 6 hours. This day’s rest was split into too many periods or had no single period of at least 6 hours.',
     code: 'NO_6H_CONTINUOUS_REST_IN_24H'
   },
   [BREACH_TYPES?.REST_LT_77_IN_7D]: {
@@ -132,7 +132,7 @@ export const BREACH_DISPLAY_INFO = {
 
 const BREACH_LABELS = {
   [BREACH_TYPES?.REST_LT_10_IN_24H]: 'Less than 10 hours rest in 24h rolling window',
-  [BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H]: 'No 6-hour continuous rest in 24h window after previous rest',
+  [BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H]: 'Rest not in max 2 periods, one of at least 6h',
   [BREACH_TYPES?.REST_LT_77_IN_7D]: 'Less than 77 hours rest in 7-day rolling window',
   [BREACH_TYPES?.WORK_GT_14H_CONTINUOUS]: 'More than 14 hours continuous on-duty'
 };
@@ -368,7 +368,7 @@ const buildEpisode = (type, dateStr, b) => {
       break;
     case 'rest_period_split':
       longestRestHours = b.actual?.longest ?? 0; worstValue = longestRestHours;
-      supportingDetail = `Rest split into ${b.actual?.periodCount} period(s); longest ${Number(longestRestHours).toFixed(1)}h (need ≤2 periods, one ≥6h)`;
+      supportingDetail = `Rest split into ${b.actual?.periodCount} period(s); longest ${Number(longestRestHours).toFixed(1)}h (MLC A2.3: max 2 rest periods, one of at least 6h)`;
       break;
     case 'max_work_stretch_14h':
       worstValue = b.actual;
