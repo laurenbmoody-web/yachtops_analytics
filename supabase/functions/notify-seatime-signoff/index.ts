@@ -67,8 +67,8 @@ async function resolveEmail(userId: string): Promise<string> {
   return email;
 }
 
-function renderEmail({ name, action, vessel, master, days }: {
-  name: string; action: 'signed' | 'declined'; vessel: string; master: string; days: number | null;
+function renderEmail({ name, action, vessel, master, days, href }: {
+  name: string; action: 'signed' | 'declined'; vessel: string; master: string; days: number | null; href: string;
 }): string {
   const d = days != null ? ` (${days} day${days === 1 ? '' : 's'})` : '';
   const signed = action === 'signed';
@@ -88,7 +88,7 @@ function renderEmail({ name, action, vessel, master, days }: {
           <p style="margin:0 0 14px;font-family:${SANS};font-size:15px;line-height:1.6;color:${DARK_TEXT};">${name ? `${esc(name)},` : 'Hello,'}</p>
           <p style="margin:0 0 18px;font-family:${SANS};font-size:15px;line-height:1.6;color:${DARK_TEXT};">${body}</p>
           <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr><td>
-            <a href="${esc(SITE_URL)}/my-profile" style="display:inline-block;padding:13px 26px;background:${NAVY};color:${WHITE};font-family:${SANS};font-size:14px;font-weight:600;text-decoration:none;border-radius:4px;">View your sea service</a>
+            <a href="${esc(href)}" style="display:inline-block;padding:13px 26px;background:${NAVY};color:${WHITE};font-family:${SANS};font-size:14px;font-weight:600;text-decoration:none;border-radius:4px;">View your sea service</a>
           </td></tr></table>
           <p style="margin:28px 0 0;font-family:${SANS};font-size:12px;line-height:1.5;color:${MUTED_TEXT};">You're receiving this because you requested this sea-service sign-off in Cargo.</p>
         </td></tr>
@@ -141,17 +141,20 @@ Deno.serve(async (req: Request) => {
       ? `${master} signed your sea service${vessel ? ` on ${vessel}` : ''}${d}.`
       : `${master} declined your sea service${vessel ? ` on ${vessel}` : ''}${d} — returned to draft.`;
 
+    // Deep-link straight to the seafarer's Sea Time tab (not just their profile).
+    const seaTimePath = `/profile/${seafarerId}?tab=seatime`;
+
     // (1) Bell — a notifications row for the seafarer.
     await supaInsert('notifications', {
       user_id: seafarerId, type: 'sea_time', severity: 'info',
-      title, message, action_url: '/my-profile', read: false, created_at: new Date().toISOString(),
+      title, message, action_url: seaTimePath, read: false, created_at: new Date().toISOString(),
     });
 
     // (2) Courtesy email (best-effort).
     if (RESEND_API_KEY) {
       const email = await resolveEmail(seafarerId);
       if (email) {
-        const html = renderEmail({ name: seafarerName, action, vessel, master, days });
+        const html = renderEmail({ name: seafarerName, action, vessel, master, days, href: `${SITE_URL}${seaTimePath}` });
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
