@@ -2,20 +2,22 @@ import { jsPDF } from 'jspdf';
 import JSZip from 'jszip';
 import { getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, BREACH_TYPES, BREACH_DISPLAY_INFO } from './horStorage';
 import { getBreachNotesForMonth } from './horBreachNotesStorage';
-import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN, MLC_STANDARD_REF } from '../../crew-rota/restHours';
+import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN, MLC_MAX_WORK_STRETCH, MLC_STANDARD_REF } from '../../crew-rota/restHours';
 
 // Human-readable labels for enforced breach types (for PDF display)
 const ENFORCED_BREACH_LABELS = {
   [BREACH_TYPES?.REST_LT_10_IN_24H]: BREACH_DISPLAY_INFO?.[BREACH_TYPES?.REST_LT_10_IN_24H]?.displayName + ` (${BREACH_DISPLAY_INFO?.[BREACH_TYPES?.REST_LT_10_IN_24H]?.code})`,
   [BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H]: BREACH_DISPLAY_INFO?.[BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H]?.displayName + ` (${BREACH_DISPLAY_INFO?.[BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H]?.code})`,
-  [BREACH_TYPES?.REST_LT_77_IN_7D]: BREACH_DISPLAY_INFO?.[BREACH_TYPES?.REST_LT_77_IN_7D]?.displayName + ` (${BREACH_DISPLAY_INFO?.[BREACH_TYPES?.REST_LT_77_IN_7D]?.code})`
+  [BREACH_TYPES?.REST_LT_77_IN_7D]: BREACH_DISPLAY_INFO?.[BREACH_TYPES?.REST_LT_77_IN_7D]?.displayName + ` (${BREACH_DISPLAY_INFO?.[BREACH_TYPES?.REST_LT_77_IN_7D]?.code})`,
+  [BREACH_TYPES?.WORK_GT_14H_CONTINUOUS]: BREACH_DISPLAY_INFO?.[BREACH_TYPES?.WORK_GT_14H_CONTINUOUS]?.displayName + ` (${BREACH_DISPLAY_INFO?.[BREACH_TYPES?.WORK_GT_14H_CONTINUOUS]?.code})`
 };
 
 // Filter only enforced breach types
 const ENFORCED_BREACH_TYPES = [
   BREACH_TYPES?.REST_LT_10_IN_24H,
   BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H,
-  BREACH_TYPES?.REST_LT_77_IN_7D
+  BREACH_TYPES?.REST_LT_77_IN_7D,
+  BREACH_TYPES?.WORK_GT_14H_CONTINUOUS
 ];
 
 export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) => {
@@ -457,6 +459,8 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
           humanTitle = 'No continuous 6-hour rest';
         } else if (episode?.breachType === BREACH_TYPES?.REST_LT_77_IN_7D) {
           humanTitle = `< ${MLC_WEEKLY_REST_MIN} hours rest in 7 days`;
+        } else if (episode?.breachType === BREACH_TYPES?.WORK_GT_14H_CONTINUOUS) {
+          humanTitle = `> ${MLC_MAX_WORK_STRETCH} hours continuous on-duty`;
         }
         
         // Truncate if too long
@@ -472,6 +476,8 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
           evidenceText = `Longest rest: ${episode?.worstValue?.toFixed(1)}h (min 6h)`;
         } else if (episode?.breachType === BREACH_TYPES?.REST_LT_77_IN_7D) {
           evidenceText = `7-day rest: ${episode?.worstValue?.toFixed(1)}h (min 77h)`;
+        } else if (episode?.breachType === BREACH_TYPES?.WORK_GT_14H_CONTINUOUS) {
+          evidenceText = `On duty: ${episode?.worstValue?.toFixed(1)}h (max 14h)`;
         }
         const evidenceWrapped = doc?.splitTextToSize(evidenceText, colWidths?.evidence - 2);
         doc?.text(evidenceWrapped?.[0] || evidenceText, cellX, cellY);
