@@ -113,6 +113,12 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   const expiredCount = flagged.filter((s) => s.level === 'expired').length;
   const soonCount = flagged.filter((s) => s.level === 'red' || s.level === 'amber').length;
 
+  // The nearest still-valid expiry, for an at-a-glance heads-up at the top.
+  const todayStart = new Date(new Date().toDateString());
+  const soonest = docs
+    .filter((d) => d.expiry_date && new Date(`${String(d.expiry_date).slice(0, 10)}T00:00:00`) >= todayStart)
+    .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)))[0];
+
   // Meta line shared by core + additional rows.
   const metaBits = (d) => [
     d.document_number && `№ ${d.document_number}`,
@@ -182,6 +188,13 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs" style={{ background: '#FAEEDA', color: '#7A2E1E' }}>
           <LogoSpinner size={14} />
           <span>Reading your upload{scanQueue.length > 1 ? ` ${scanIdx + 1} of ${scanQueue.length}` : ''}…</span>
+        </div>
+      )}
+
+      {!loading && soonest && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-xs" style={{ background: '#FAFAF8', border: '1px solid #ECEAE3', color: '#6B7280' }}>
+          <Icon name="CalendarClock" size={14} style={{ color: '#C65A1A' }} />
+          <span>Soonest expiry: <strong style={{ color: '#1C1B3A' }}>{getDocTypeLabel(soonest.doc_type, soonest.details)}</strong> · {formatDocDate(soonest.expiry_date)}</span>
         </div>
       )}
 
