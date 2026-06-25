@@ -132,7 +132,12 @@ export const DOCUMENT_TYPES = [
   { id: 'stcw_basic', label: 'STCW Basic Safety Training (combined)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
   { id: 'stcw_pst', label: 'STCW Personal Survival Techniques (PST)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
   { id: 'stcw_fpff', label: 'STCW Fire Prevention & Fire Fighting (basic)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
-  { id: 'stcw_efa', label: 'STCW Elementary First Aid (EFA)', category: 'safety' },
+  // Elementary First Aid (A-VI/1 §2.1.3) — a Basic element, but UNLIKE the
+  // survival/fire elements it needs no 5-yearly refresher. Often held as a
+  // standalone MCA course (e.g. MSOS), separate from the EFA module inside the
+  // combined Basic Safety Training. No expiry by default; a provider-printed
+  // validity still shows when present.
+  { id: 'stcw_efa', label: 'Elementary First Aid (EFA)', category: 'safety', expiry: false },
   { id: 'stcw_pssr', label: 'STCW Personal Safety & Social Responsibility (PSSR)', category: 'safety', expiry: false },
   { id: 'stcw_advanced_ff', label: 'STCW Advanced Firefighting', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
   { id: 'stcw_pscrb', label: 'STCW PSCRB (survival craft)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
