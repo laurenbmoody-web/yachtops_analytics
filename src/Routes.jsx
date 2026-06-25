@@ -71,6 +71,7 @@ import ReturnSlipPage from './pages/provisioning/ReturnSlipPage';
 import ReturnConfirmPage from './pages/provisioning/ReturnConfirmPage';
 import SupplierConfirmOrder from './pages/provisioning/SupplierConfirmOrder';
 import DeliverySigningPage from './pages/supplier-portal/views/DeliverySigningPage';
+import SeaServiceSignPage from './seatime/SeaServiceSignPage';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
 import SupplierRoleGuard from './components/SupplierRoleGuard';
@@ -1054,6 +1055,7 @@ const Routes = () => {
         <Route path="/return-confirm" element={<ReturnConfirmPage />} />
         <Route path="/order/confirm/:token" element={<SupplierConfirmOrder />} />
         <Route path="/delivery-sign/:token" element={<DeliverySigningPage />} />
+        <Route path="/sea-service/sign/:token" element={<SeaServiceSignPage />} />
         <Route path="/invite-accept" element={<InviteAcceptPage />} />
         <Route path="/invite" element={<InviteRedirect />} />
         <Route path="/accept-invite" element={<InviteRedirect />} />
