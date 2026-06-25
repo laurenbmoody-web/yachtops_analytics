@@ -79,6 +79,14 @@ const ATT_CHIP = {
   outstanding:       { label: 'Not verified yet',    color: '#A32D2D', bg: '#FCEDEA' },
   declined:          { label: 'Declined',            color: '#C65A1A', bg: '#FBEFE9' }
 };
+// Read-only verification chip shown inline on each log period. Tapping it jumps
+// to that ship in Step 03 (where the actions live). Draft/unsubmitted days show
+// no chip — the chip only appears once a period is in the sign-off pipeline.
+const VLOG_CHIP = {
+  captain_signed: { label: 'Signed',           color: '#3F7A52', bg: '#E7F0E9' },
+  pending:        { label: 'Awaiting captain',  color: '#7A5A12', bg: '#FBEFD9' },
+  rejected:       { label: 'Declined',          color: '#C65A1A', bg: '#FBEFE9' }
+};
 
 // Cargo-styled select (native <select> menus can't be themed). `variant`:
 //   'dept' — serif inline trigger · 'goal' — rounded pill trigger.
@@ -315,6 +323,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const toggleDoc = (id) => { setDocMet(d => ({ ...d, [id]: !d[id] })); resetSignoff(); };
   const reclassify = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, type: 'standby', detailOverride: 'Reclassified from watchkeeping' } : e)); resetSignoff(); flash('Entry reclassified to standby'); };
   const excludeEntry = (id) => { setEntries(es => es.map(e => e.id === id ? { ...e, excluded: true } : e)); resetSignoff(); flash('Entry excluded from the pack'); };
+  // Jump from a log period's status chip to that ship's row in Step 03.
+  const jumpToVerify = (vesselId) => {
+    const el = (vesselId && document.querySelector(`[data-vessel="${vesselId}"]`)) || document.getElementById('std-verify');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   // Per-command-spell row ids — so requests and sign-offs touch only the periods
   // that fall inside that one master's command dates.
@@ -698,6 +711,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         <div className="std-avs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo} · {detail}</div>
                       </div>
                       <div className="std-aright">
+                        {!isExcluded && VLOG_CHIP[e.vstatus] && (
+                          <button type="button" className="std-pill" onClick={() => jumpToVerify(e.vesselId)}
+                            title={e.vstatus === 'rejected' && e.rejectionReason ? `Declined — “${e.rejectionReason}”. View in Step 03.` : `${VLOG_CHIP[e.vstatus].label} — view in Step 03`}
+                            style={{ color: VLOG_CHIP[e.vstatus].color, background: VLOG_CHIP[e.vstatus].bg, border: 'none', cursor: 'pointer' }}>
+                            {e.vstatus === 'captain_signed' && <Icon name="Check" size={12} />} {VLOG_CHIP[e.vstatus].label}
+                          </button>
+                        )}
                         {isExcluded && <span className="std-pill" style={{ color: '#5A6478', background: '#EEF0F3' }}>Excluded from pack</span>}
                         {isQual && <span className="std-pill" style={{ color: tm.color, background: tm.bg }}><Icon name="Check" size={12} /> {qualLabel}</span>}
                         {isBad && (
@@ -822,7 +842,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             </div>
 
             {/* 03 Attest by vessel — one master per ship */}
-            <div className="std-fstep">
+            <div className="std-fstep" id="std-verify">
               <div className="std-fnum">03</div>
               <div>
                 <div className="std-fhead">
@@ -851,7 +871,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     const rm = ROUTE_META[v.mode], ck = ATT_CHIP[chipKey(v)];
                     const done = v.att.status === 'attested';
                     return (
-                      <div className={`std-vrow${done ? ' done' : ''}`} key={v.key}>
+                      <div className={`std-vrow${done ? ' done' : ''}`} key={v.key} data-vessel={v.id}>
                         <span className="std-vrail" style={{ background: rm.color }} />
                         <div className="std-vmain">
                           <div className="std-vtop">
