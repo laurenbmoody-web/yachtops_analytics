@@ -133,7 +133,17 @@ const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, us
             it.form.expiryDate && `exp ${fmtDate(it.form.expiryDate)}`,
           ].filter(Boolean).join(' · ');
           const canOpen = it.status !== 'parsing';
-          const dup = it.status !== 'parsing' && it.form.docType ? findDuplicateDoc(existingDocs, it.form) : null;
+          // Flag duplicates against both what's already on file AND the other
+          // rows in this same upload (e.g. the same cert as a jpg and a pdf).
+          const otherRows = items
+            .filter((o) => o.id !== it.id && o.status !== 'error' && o.form.docType)
+            .map((o) => ({
+              id: o.id, doc_type: o.form.docType, document_number: o.form.documentNumber,
+              issue_date: o.form.issueDate, expiry_date: o.form.expiryDate,
+            }));
+          const dup = it.status !== 'parsing' && it.form.docType
+            ? findDuplicateDoc([...existingDocs, ...otherRows], { ...it.form, id: it.id })
+            : null;
           return (
             <div key={it.id} style={{ borderBottom: '1px solid #F0F1F5' }}>
               <div

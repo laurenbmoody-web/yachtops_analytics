@@ -13,8 +13,13 @@ import { NATIONALITIES } from '../../data/nationalities';
 
 export const DOC_CATEGORIES = [
   { id: 'travel', label: 'Travel & identity' },
-  { id: 'medical', label: 'Medical & safety' },
-  { id: 'qualification', label: 'Qualifications' },
+  { id: 'medical', label: 'Medical & fitness' },
+  { id: 'safety', label: 'Safety & security (STCW)' },
+  { id: 'deck', label: 'Deck & navigation' },
+  { id: 'engineering', label: 'Engineering' },
+  { id: 'interior', label: 'Interior & service' },
+  { id: 'watersports', label: 'Watersports & dive' },
+  { id: 'qualification', label: 'Other qualifications' },
   { id: 'issued', label: 'Issued documents' },
   { id: 'other', label: 'Other' },
 ];
@@ -81,7 +86,7 @@ export const DOCUMENT_TYPES = [
     ],
   },
 
-  // ── Medical & safety ────────────────────────────────────────────────────
+  // ── Medical & fitness ───────────────────────────────────────────────────
   {
     id: 'eng1', label: 'ENG1 medical certificate', category: 'medical',
     authorityLabel: 'Approved doctor / clinic',
@@ -99,18 +104,28 @@ export const DOCUMENT_TYPES = [
       { key: 'restrictions', label: 'Restrictions / limitations' },
     ],
   },
-  { id: 'stcw_basic', label: 'STCW Basic Safety Training', category: 'medical', expiryLabel: STCW_REFRESHER_LABEL },
-  { id: 'stcw_advanced_ff', label: 'STCW Advanced Firefighting', category: 'medical', expiryLabel: STCW_REFRESHER_LABEL },
-  { id: 'stcw_pscrb', label: 'STCW PSCRB (survival craft)', category: 'medical', expiryLabel: STCW_REFRESHER_LABEL },
-  // Medical First Aid / Care and the security proficiencies carry no 5-yearly
-  // refresher, so no expiry.
-  { id: 'stcw_medical_care', label: 'STCW Medical First Aid / Care', category: 'medical', expiry: false },
-  { id: 'pdsd', label: 'Security training (PSA / PDSD)', category: 'medical', expiry: false },
-  { id: 'sso_dsd', label: 'Ship Security Officer (SSO)', category: 'medical', expiry: false },
 
-  // ── Qualifications ──────────────────────────────────────────────────────
+  // ── Safety & security (STCW) ────────────────────────────────────────────
+  // STCW Basic Safety Training is the combined cert; its survival-craft and
+  // fire elements (PST, FPFF, AFF, PSCRB) need a 5-yearly refresher, tracked as
+  // the expiry. Elementary First Aid (A-VI/1 §2.1.3) is a Basic element and is
+  // NOT the same as Medical First Aid / Care (A-VI/4).
+  { id: 'stcw_basic', label: 'STCW Basic Safety Training (combined)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
+  { id: 'stcw_pst', label: 'STCW Personal Survival Techniques (PST)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
+  { id: 'stcw_fpff', label: 'STCW Fire Prevention & Fire Fighting (basic)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
+  { id: 'stcw_efa', label: 'STCW Elementary First Aid (EFA)', category: 'safety' },
+  { id: 'stcw_pssr', label: 'STCW Personal Safety & Social Responsibility (PSSR)', category: 'safety', expiry: false },
+  { id: 'stcw_advanced_ff', label: 'STCW Advanced Firefighting', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
+  { id: 'stcw_pscrb', label: 'STCW PSCRB (survival craft)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
+  { id: 'stcw_medical_care', label: 'STCW Medical First Aid / Care (A-VI/4)', category: 'safety', expiry: false },
+  { id: 'pdsd', label: 'Security training (PSA / PDSD)', category: 'safety', expiry: false },
+  { id: 'sso_dsd', label: 'Ship Security Officer (SSO)', category: 'safety', expiry: false },
+  { id: 'crowd_management', label: 'Crowd Management', category: 'safety', expiry: false },
+  { id: 'crisis_management', label: 'Crisis Management & Human Behaviour', category: 'safety', expiry: false },
+
+  // ── Deck & navigation ───────────────────────────────────────────────────
   {
-    id: 'coc', label: 'Certificate of Competency (CoC)', category: 'qualification',
+    id: 'coc', label: 'Certificate of Competency (CoC)', category: 'deck',
     flagState: true, authorityLabel: 'Issuing administration',
     fields: [
       {
@@ -126,39 +141,65 @@ export const DOCUMENT_TYPES = [
     ],
   },
   {
-    id: 'gmdss', label: 'GMDSS Radio Operator', category: 'qualification',
+    id: 'gmdss', label: 'GMDSS Radio Operator (GOC / ROC)', category: 'deck',
     fields: [{ key: 'certificate_type', label: 'Certificate', type: 'select', options: ['GOC (General)', 'ROC (Restricted)'] }],
   },
+  { id: 'src', label: 'Short Range Certificate (SRC / VHF radio)', category: 'deck', expiry: false },
+  { id: 'lrc', label: 'Long Range Certificate (LRC)', category: 'deck', expiry: false },
   {
-    // ECDIS certificates don't expire; generic vs type-specific (manufacturer
-    // /model) matters operationally.
-    id: 'ecdis', label: 'ECDIS', category: 'qualification', expiry: false,
+    id: 'ecdis', label: 'ECDIS', category: 'deck', expiry: false,
     fields: [{ key: 'ecdis_type', label: 'Type', placeholder: 'Generic, or e.g. Furuno FMD-3300' }],
   },
+  { id: 'radar_arpa', label: 'Radar / ARPA', category: 'deck', expiry: false },
   {
-    id: 'helm_management', label: 'HELM (Leadership & Management)', category: 'qualification', expiry: false,
+    id: 'helm_management', label: 'HELM (Leadership & Management)', category: 'deck', expiry: false,
     fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Operational', 'Management'] }],
   },
   {
-    id: 'yachtmaster', label: 'RYA Yachtmaster', category: 'qualification', expiry: false,
+    id: 'yachtmaster', label: 'RYA Yachtmaster', category: 'deck', expiry: false,
     fields: [
       { key: 'grade', label: 'Grade', type: 'select', options: ['Yachtmaster Coastal', 'Yachtmaster Offshore', 'Yachtmaster Ocean'] },
       COMMERCIAL_ENDORSEMENT,
     ],
   },
+  { id: 'rya_day_skipper', label: 'RYA Day Skipper', category: 'deck', expiry: false },
+  { id: 'rya_coastal_skipper', label: 'RYA Coastal Skipper', category: 'deck', expiry: false },
   {
-    id: 'powerboat', label: 'RYA Powerboat Level 2', category: 'qualification', expiry: false,
+    id: 'powerboat', label: 'RYA Powerboat Level 2', category: 'deck', expiry: false,
     fields: [COMMERCIAL_ENDORSEMENT],
   },
+  { id: 'tender_operator', label: 'Tender Operator', category: 'deck', expiry: false },
+  { id: 'edh', label: 'Efficient Deck Hand (EDH)', category: 'deck', expiry: false },
+
+  // ── Engineering ─────────────────────────────────────────────────────────
   {
-    // No statutory expiry, but vessels typically require renewal every 5 years.
-    id: 'food_hygiene', label: 'Food Hygiene', category: 'qualification', expiryLabel: 'Renewal due',
-    fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Level 1', 'Level 2', 'Level 3', 'Level 4'] }],
-  },
-  {
-    id: 'aec', label: 'Approved Engine Course (AEC)', category: 'qualification', expiry: false,
+    id: 'aec', label: 'Approved Engine Course (AEC)', category: 'engineering', expiry: false,
     fields: [{ key: 'level', label: 'Course', type: 'select', options: ['AEC 1', 'AEC 2', 'AEC 1 & 2'] }],
   },
+  { id: 'meol', label: 'Marine Engine Operator Licence (MEOL)', category: 'engineering', expiry: false },
+
+  // ── Interior & service ──────────────────────────────────────────────────
+  {
+    id: 'food_hygiene', label: 'Food Hygiene', category: 'interior', expiryLabel: 'Renewal due',
+    fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Level 1', 'Level 2', 'Level 3', 'Level 4'] }],
+  },
+  { id: 'silver_service', label: 'Silver Service / Food & Beverage', category: 'interior', expiry: false },
+  {
+    id: 'wine_spirits', label: 'Wine & Spirits (WSET)', category: 'interior', expiry: false,
+    fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Level 1', 'Level 2', 'Level 3', 'Level 4'] }],
+  },
+  { id: 'barista', label: 'Barista', category: 'interior', expiry: false },
+  { id: 'mixology', label: 'Cocktail / Mixology', category: 'interior', expiry: false },
+  { id: 'yacht_purser', label: 'Yacht Purser / Administration', category: 'interior', expiry: false },
+  { id: 'guest_interior', label: 'GUEST interior crew course', category: 'interior', expiry: false },
+
+  // ── Watersports & dive ──────────────────────────────────────────────────
+  { id: 'pwc_jetski', label: 'PWC / Jet Ski', category: 'watersports', expiry: false },
+  {
+    id: 'dive', label: 'Diving (PADI / scuba)', category: 'watersports', expiry: false,
+    fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Open Water', 'Advanced Open Water', 'Rescue Diver', 'Divemaster', 'Instructor'] }],
+  },
+  { id: 'waterski', label: 'Water-ski / Wakeboard instructor', category: 'watersports', expiry: false },
 
   // ── Issued documents ────────────────────────────────────────────────────
   // The kept-on-file record between crew member and employer: signed contracts,
