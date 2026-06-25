@@ -2995,7 +2995,13 @@ const canEdit = (() => {
     const last24HoursRest = horData?.last24HoursRest || 24;
     const last7DaysRest = horData?.last7DaysRest || 168;
 
-    const breaches = horData?.breaches || [];
+    // Scope the Breaches panel to the viewed month — keyed by the breach date
+    // (window-end), matching how the calendar, the "Breach days" KPI, sign-off
+    // and the month's breach reasons are all already scoped. Without this the
+    // list alone showed every prior month's breaches (e.g. May while June is
+    // open), disagreeing with its own count.
+    const monthPrefix = `${horCurrentMonth?.getFullYear()}-${String((horCurrentMonth?.getMonth() ?? 0) + 1).padStart(2, '0')}-`;
+    const breaches = (horData?.breaches || []).filter((b) => String(b?.dateStr || '').startsWith(monthPrefix));
 
     const getDaysInMonth = (date) => {
       const year = date?.getFullYear();
