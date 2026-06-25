@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient';
+import { getDocType } from '../documentTypes';
 
 const BUCKET = 'crew-documents';
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -133,6 +134,40 @@ export const saveCrewDocument = async (doc) => {
   }
   if (res?.error) throw res.error;
   return res?.data;
+};
+
+/**
+ * Upload the attached file (if any) and persist a document from the in-memory
+ * form shape used by the Add/Edit modal and the batch review. Shared so both
+ * paths save identically. Returns the saved row.
+ */
+export const persistCrewDocument = async ({ form, file, userId, tenantId, createdBy }) => {
+  const typeDef = getDocType(form.docType);
+  let fileMeta = {};
+  if (file) {
+    const up = await uploadDocumentFile(userId, file);
+    fileMeta = {
+      fileUrl: up.file_url, fileName: up.file_name,
+      mimeType: up.mime_type, sizeBytes: up.size_bytes,
+      details: { ...form.details, storage_path: up.storage_path },
+    };
+  }
+  return saveCrewDocument({
+    id: form.id,
+    userId, tenantId, createdBy,
+    category: typeDef?.category || 'other',
+    docType: form.docType,
+    documentNumber: form.documentNumber,
+    issuingAuthority: form.issuingAuthority,
+    flagState: form.flagState,
+    issueDate: form.issueDate || null,
+    expiryDate: form.expiryDate || null,
+    details: fileMeta.details || form.details,
+    fileUrl: fileMeta.fileUrl ?? form.fileUrl,
+    fileName: fileMeta.fileName ?? form.fileName,
+    mimeType: fileMeta.mimeType ?? form.mimeType,
+    sizeBytes: fileMeta.sizeBytes ?? form.sizeBytes,
+  });
 };
 
 export const deleteCrewDocument = async (id) => {
