@@ -77,6 +77,11 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
   if (!isOpen) return null;
 
   const typeDef = getDocType(form.docType);
+  // Honour the type's field config; still show a field if a value was already
+  // saved (don't strand legacy data on a type that now hides it).
+  const showNumber = typeDef?.number !== false || !!form.documentNumber;
+  const showExpiry = typeDef?.expiry !== false || !!form.expiryDate;
+  const authorityLabel = typeDef?.authorityLabel || 'Issuing authority';
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setDetail = (k, v) => setForm((f) => ({ ...f, details: { ...f.details, [k]: v } }));
 
@@ -279,12 +284,14 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
           </select>
         </div>
 
+        {showNumber && (
+          <div>
+            <label className={labelCls}>Document number</label>
+            <Input value={form.documentNumber} onChange={(e) => set('documentNumber', e.target.value)} placeholder="—" />
+          </div>
+        )}
         <div>
-          <label className={labelCls}>Document number</label>
-          <Input value={form.documentNumber} onChange={(e) => set('documentNumber', e.target.value)} placeholder="—" />
-        </div>
-        <div>
-          <label className={labelCls}>Issuing authority</label>
+          <label className={labelCls}>{authorityLabel}</label>
           <Input value={form.issuingAuthority} onChange={(e) => set('issuingAuthority', e.target.value)} placeholder="—" />
         </div>
 
@@ -299,10 +306,12 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
           <label className={labelCls}>Issue date</label>
           <DateInput className={boxCls} value={form.issueDate || ''} onChange={(e) => set('issueDate', e.target.value)} />
         </div>
-        <div>
-          <label className={labelCls}>Expiry date</label>
-          <DateInput className={boxCls} value={form.expiryDate || ''} onChange={(e) => set('expiryDate', e.target.value)} />
-        </div>
+        {showExpiry && (
+          <div>
+            <label className={labelCls}>Expiry date</label>
+            <DateInput className={boxCls} value={form.expiryDate || ''} onChange={(e) => set('expiryDate', e.target.value)} />
+          </div>
+        )}
 
         {/* Type-specific fields → details jsonb */}
         {(typeDef?.fields || []).map((f) => (
