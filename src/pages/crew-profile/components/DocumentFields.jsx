@@ -1,7 +1,7 @@
 import React from 'react';
 import Input from '../../../components/ui/Input';
 import DateInput from '../../../components/ui/DateInput';
-import { groupedDocumentTypes, getDocType } from '../documentTypes';
+import { groupedDocumentTypes, getDocType, suggestedExpiry } from '../documentTypes';
 
 const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5';
 const boxCls = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -19,12 +19,27 @@ const DocumentFields = ({ form, onSet, onSetDetail, lockType = false }) => {
   const authorityLabel = typeDef?.authorityLabel || 'Issuing authority';
   const expiryLabel = typeDef?.expiryLabel || 'Expiry date';
 
+  // For refresher-type certs, auto-fill the expiry/refresher date from the issue
+  // date (issue + N years) when expiry is empty or still holds the previously
+  // auto-derived value — never clobber a date the user set by hand.
+  const onSetWithDerive = (k, v) => {
+    onSet(k, v);
+    if (k === 'issueDate') {
+      const next = suggestedExpiry(form.docType, v);
+      const prev = suggestedExpiry(form.docType, form.issueDate);
+      if (next && (!form.expiryDate || form.expiryDate === prev)) onSet('expiryDate', next);
+    } else if (k === 'docType') {
+      const next = suggestedExpiry(v, form.issueDate);
+      if (next && !form.expiryDate) onSet('expiryDate', next);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Type picker (categorised) */}
       <div className="md:col-span-2">
         <label className={labelCls}>Document type</label>
-        <select className={boxCls} value={form.docType} disabled={lockType} onChange={(e) => onSet('docType', e.target.value)}>
+        <select className={boxCls} value={form.docType} disabled={lockType} onChange={(e) => onSetWithDerive('docType', e.target.value)}>
           <option value="">Select a document type…</option>
           {groupedDocumentTypes().map((g) => (
             <optgroup key={g.id} label={g.label}>
@@ -54,7 +69,7 @@ const DocumentFields = ({ form, onSet, onSetDetail, lockType = false }) => {
 
       <div>
         <label className={labelCls}>Issue date</label>
-        <DateInput className={boxCls} value={form.issueDate || ''} onChange={(e) => onSet('issueDate', e.target.value)} />
+        <DateInput className={boxCls} value={form.issueDate || ''} onChange={(e) => onSetWithDerive('issueDate', e.target.value)} />
       </div>
       {showExpiry && (
         <div>
