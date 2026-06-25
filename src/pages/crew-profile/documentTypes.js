@@ -2,6 +2,8 @@
 // `fields` are type-specific inputs stored in personal_documents.details (jsonb).
 // `flagState` surfaces the issuing flag-state field (CoC / some visas).
 
+import { NATIONALITIES } from '../../data/nationalities';
+
 export const DOC_CATEGORIES = [
   { id: 'travel', label: 'Travel & identity' },
   { id: 'medical', label: 'Medical & safety' },
@@ -22,7 +24,7 @@ export const DOCUMENT_TYPES = [
     // profile's Personal Details on save (see syncPassportToPersonalDetails).
     fields: [
       { key: 'country_of_issue', label: 'Country of issue' },
-      { key: 'nationality', label: 'Nationality' },
+      { key: 'nationality', label: 'Nationality', type: 'select', options: NATIONALITIES },
       { key: 'date_of_birth', label: 'Date of birth', type: 'date' },
       { key: 'place_of_birth', label: 'Place of birth' },
     ],
