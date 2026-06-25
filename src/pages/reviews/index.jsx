@@ -90,8 +90,14 @@ export default function ReviewsPage() {
   // Sea-time sign-off queue. Live: pending entries across the tenant the master
   // can sign (RLS-scoped); the sample is a fallback when there's no tenant.
   const signerName = currentTenantMember?.full_name || user?.user_metadata?.full_name || null;
-  const seatimeLive = useSeaTimeSignoffs(activeCategory === 'seatime' ? activeTenantId : null, signerName);
+  // Load unconditionally (not gated on the active category) so the sidebar badge
+  // stays accurate from any inbox tab — the rota/order count badges work the same
+  // way. Without this the Sea-time row showed no number unless you were already
+  // sitting on its tab.
+  const seatimeLive = useSeaTimeSignoffs(activeTenantId, signerName);
   const [seatimeQueue, setSeatimeQueue] = useState(SEATIME_REVIEW_QUEUE);
+  // Live pending count when there's a tenant; the sample queue as the fallback.
+  const seatimeCount = (activeTenantId ? seatimeLive.items : seatimeQueue).length;
 
   // The signing master's own signatory particulars on file — CoC number/grade
   // (personal_documents), contact phone (crew_personal_details) and login email
@@ -213,7 +219,7 @@ export default function ReviewsPage() {
       <>
         <Header />
         <div className="rv-page">
-          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: stItems.length }} />
+          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount }} />
           <SeaTimeReviewPanel items={stItems} loading={stLoading} selectedId={stSelected?.id} onSelect={stSelect} eyebrow={eyebrow} />
           <section className="rv-rightpane-col" aria-label="Sign-off detail">
             {stSelected ? (
@@ -264,7 +270,7 @@ export default function ReviewsPage() {
       <>
         <Header />
         <div className="rv-page">
-          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: ordersItems.length }} />
+          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: ordersItems.length, seatime: seatimeCount }} />
           <OrdersReviewPanel
             items={ordersItems}
             loading={provisioningApprovals.loading}
@@ -306,7 +312,7 @@ export default function ReviewsPage() {
     <>
       <Header />
       <div className="rv-page">
-        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length }} />
+        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount }} />
 
         {/* Middle — list strip */}
         <section className="rv-liststrip" aria-label="Rota submissions">
