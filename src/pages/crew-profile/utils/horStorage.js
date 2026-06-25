@@ -14,7 +14,7 @@
 // (buildBlockMap, checkRestEventWindow, …) are retained but no longer drive the
 // surfaced verdicts.
 
-import { assessMlc, restForDay, restForWeek, reframeToOperationalDay, segmentsToShifts } from '../../crew-rota/restHours';
+import { assessMlc, restForDay, restForWeek, maxWorkStretch, reframeToOperationalDay, segmentsToShifts } from '../../crew-rota/restHours';
 import { upsertWorkEntryDay, deleteWorkEntryDay } from './horWorkEntries';
 
 const HOR_STORAGE_KEY = 'cargo_hor_entries';
@@ -810,6 +810,19 @@ export const calculateLast7DaysRest = (crewId) => {
 };
 
 /**
+ * Longest continuous on-duty stretch (hours) across the most recent rolling
+ * 7-day window — rule 4 (≤14h). Mirrors calculateLast7DaysRest's windowing so
+ * the KPI is a rolling figure, not a calendar-month one. 0 when nothing logged.
+ */
+export const calculateLatestLongestStretch = (crewId) => {
+  const date = latestLoggedDate(crewId);
+  if (!date) return 0;
+  const start = addDaysStr(date, -6);
+  const weekShifts = crewShifts(crewId).filter((s) => s.date >= start && s.date <= date);
+  return maxWorkStretch(weekShifts).longestStretchHours;
+};
+
+/**
  * Get rest hours for a specific date (daily view)
  * This is informational only - compliance uses rolling windows
  */
@@ -1453,6 +1466,7 @@ export default {
   getCrewWorkEntries,
   calculateLast24HoursRest,
   calculateLast7DaysRest,
+  calculateLatestLongestStretch,
   getRestHoursForDate,
   getMonthCalendarData,
   detectBreaches,

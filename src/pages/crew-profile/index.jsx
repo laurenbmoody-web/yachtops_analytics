@@ -27,7 +27,7 @@ import { uploadDocumentFile, saveCrewDocument } from './utils/crewDocuments';
 import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
-import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
+import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, calculateLatestLongestStretch, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
 import { fetchWorkEntriesForMonth } from './utils/horWorkEntries';
 import { fetchRotaBaselineForMonth } from './utils/horBaseline';
 import { fetchVesselHorSettings, fetchMonthStatus, fetchActiveMemberTiers, submitMonth as submitMonthDb, approveMonth as approveMonthDb, reopenMonth as reopenMonthDb, lockMonth as lockMonthDb } from './utils/horMonthStatus';
@@ -654,6 +654,7 @@ const CrewProfile = () => {
     setHorData({
       last24HoursRest: complianceStatus?.last24HoursRest,
       last7DaysRest: complianceStatus?.last7DaysRest,
+      longestStretchHours: calculateLatestLongestStretch(crewId),
       isCompliant: complianceStatus?.isCompliant,
       calendarData,
       breaches
@@ -3023,6 +3024,11 @@ const canEdit = (() => {
     // Daily marginal band mirrors the agreed language: amber at 10–11h rest.
     const dailyTone = last24HoursRest >= 11 ? '' : last24HoursRest >= 10 ? 'amber' : 'red';
     const weeklyTone = last7DaysRest >= 77 ? '' : 'red';
+    // Rule 4 (≤14h continuous on-duty), rolling 7-day. Amber marginal band at
+    // 13–14h mirrors the daily 10–11h amber; red once the 14h max is exceeded.
+    const longestStretch = horData?.longestStretchHours || 0;
+    const stretchDisplay = Number.isInteger(longestStretch) ? longestStretch : longestStretch.toFixed(1);
+    const stretchTone = longestStretch <= 13 ? '' : longestStretch <= 14 ? 'amber' : 'red';
     const ratedDays = calendarData.filter(d => d?.status).length;
     const breachDayCount = calendarData.filter(d => d?.status === 'breach').length;
     const compliantDays = calendarData.filter(d => d?.status && d?.status !== 'breach').length;
@@ -3329,6 +3335,10 @@ const canEdit = (() => {
               <div className={`cp-kpi${weeklyTone ? ` cp-kpi-${weeklyTone}` : ''}`}>
                 <div className="cp-kpi-n">{last7DaysRest}h</div>
                 <div className="cp-kpi-l">Last 7-day rest</div>
+              </div>
+              <div className={`cp-kpi${stretchTone ? ` cp-kpi-${stretchTone}` : ''}`}>
+                <div className="cp-kpi-n">{stretchDisplay}h</div>
+                <div className="cp-kpi-l">Longest on-duty</div>
               </div>
               <div className={`cp-kpi${monthTone ? ` cp-kpi-${monthTone}` : ''}`}>
                 <div className="cp-kpi-n">{monthCompliantPct}%</div>
