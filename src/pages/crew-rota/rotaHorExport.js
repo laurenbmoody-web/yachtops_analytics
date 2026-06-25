@@ -367,12 +367,16 @@ function breachAttributionFor(breachReasons, meta, member, ds) {
 // `sigs` is supplied ({ master, seafarer }, each { img:{dataUrl,w,h}, name, date })
 // the captured e-signatures are drawn above the lines with the signed name +
 // date — the signed record sent to management. Otherwise the lines are blank.
-function drawSignatureBlock(doc, pageW, pageH, M, atY, caption, sigs) {
+function drawSignatureBlock(doc, pageW, pageH, M, atY, caption, sigs, footerNote) {
   const sy = atY != null ? atY : pageH - M - 46;
   doc.setDrawColor(...GRID_LINE); doc.setLineWidth(0.5);
   doc.line(M, sy - 10, pageW - M, sy - 10);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(70);
   doc.text(caption || 'I confirm that the above is a true record of the seafarer’s hours of rest for the period stated.', M, sy);
+  if (footerNote) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(120);
+    doc.text(footerNote, M, sy + 12, { maxWidth: pageW - 2 * M });
+  }
   doc.setFont('helvetica', 'normal'); doc.setTextColor(0); doc.setFontSize(8);
   const sigW = (pageW - 2 * M - 40) / 2;
   const line1 = sy + 30;
@@ -579,7 +583,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   if (ncRows.length === 0) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(40, 110, 60);
     doc.text('None recorded for this period.', M, ly + 12);
-    drawSignatureBlock(doc, pageW, pageH, M, undefined, meta.horTemplate.declaration, sigs);
+    drawSignatureBlock(doc, pageW, pageH, M, undefined, meta.horTemplate.declaration, sigs, meta.horTemplate.footerNote);
     return;
   }
 
@@ -690,6 +694,9 @@ export async function exportRestLogPDF(args) {
 export async function buildSeafarerHorPDF({ member, days, meta, windowShifts = [], breachReasons = {}, signature = null }) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const logo = await loadCargoLogo();
+  // Resolve the flag's Record template (defaults to IMO/ILO) — same as
+  // renderRestLogDoc; drawSeafarerRecord reads titles/declarations from it.
+  meta = { ...meta, horTemplate: getHorTemplateForFlag(meta.flagState) };
   // Match renderRestLogDoc: reframe to the operational day before the grid recomputes.
   const framedShifts = reframeToOperationalDay(windowShifts, meta.horDayStartHour || 0);
   drawSeafarerRecord(doc, member, days, framedShifts, meta, logo, breachReasons, signature);
