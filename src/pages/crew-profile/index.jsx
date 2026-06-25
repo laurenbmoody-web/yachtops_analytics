@@ -241,6 +241,7 @@ const CrewProfile = () => {
   const [showSecondEmergency, setShowSecondEmergency] = useState(false);
   const [showAccountNumber, setShowAccountNumber] = useState(false);
   const [showBankAddress, setShowBankAddress] = useState(false);
+  const [showSecondAccount, setShowSecondAccount] = useState(false);
   const [cakeSurprise, setCakeSurprise] = useState(false);
   const [showQuickEntry, setShowQuickEntry] = useState(false);
   const [selectedHORDates, setSelectedHORDates] = useState([]);
@@ -2153,6 +2154,11 @@ const canEdit = (() => {
     const role = currentUser?.role?.toUpperCase();
     const canReveal = role === 'CAPTAIN' || role === 'PURSER' || role === 'ADMIN';
 
+    const hasSecondAccount = !!(formData?.bank2AccountHolder || formData?.bank2AccountNumber);
+    const secondAccountOpen = showSecondAccount || hasSecondAccount;
+    const show2SortCode = formData?.bank2Country === 'United Kingdom';
+    const show2RoutingNumber = formData?.bank2Country === 'United States';
+
     return (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
@@ -2324,6 +2330,95 @@ const canEdit = (() => {
                   searchable={true}
                 />
               </Field>
+            </div>
+          )}
+        </div>
+
+        {/* Optional Second Account — split payments */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Second account</span>
+            <span className="t" style={{ fontSize: 13, color: '#9098B1' }}>· split payment, optional</span>
+            <span className="line" />
+            {isEditing && !secondAccountOpen && (
+              <button type="button" className="cp-phone-add" onClick={() => setShowSecondAccount(true)}>+ Add a second account</button>
+            )}
+          </div>
+          {secondAccountOpen && (
+            <div className="cp-grid">
+              <Field label="Split" full hint={isEditing ? 'How pay is divided between the two accounts' : undefined}>
+                {isEditing ? (
+                  <div className="cp-split-row">
+                    <select
+                      className="cp-inline-select"
+                      value={formData?.bankSplitType || ''}
+                      onChange={(e) => handleInputChange('bankSplitType', e?.target?.value)}
+                    >
+                      <option value="">—</option>
+                      <option value="percent">% of net to this account</option>
+                      <option value="fixed">Fixed amount to this account</option>
+                    </select>
+                    {formData?.bankSplitType && (
+                      <input
+                        className="cp-inline-box"
+                        type="number"
+                        min="0"
+                        step={formData?.bankSplitType === 'percent' ? '1' : '0.01'}
+                        value={formData?.bankSplitValue || ''}
+                        onChange={(e) => handleInputChange('bankSplitValue', e?.target?.value)}
+                        placeholder={formData?.bankSplitType === 'percent' ? 'e.g. 30' : 'e.g. 500'}
+                      />
+                    )}
+                    {formData?.bankSplitType === 'percent' && <span className="cp-split-unit">%</span>}
+                    {formData?.bankSplitType === 'fixed' && <span className="cp-split-unit">{formData?.bank2Currency || formData?.bankCurrency || ''}</span>}
+                  </div>
+                ) : (
+                  <div className={`cp-static${formData?.bankSplitType && formData?.bankSplitValue ? '' : ' cp-empty'}`}>
+                    {formData?.bankSplitType === 'percent' && formData?.bankSplitValue
+                      ? `${formData.bankSplitValue}% of net to this account`
+                      : formData?.bankSplitType === 'fixed' && formData?.bankSplitValue
+                        ? `${formData?.bank2Currency || formData?.bankCurrency || ''} ${formData.bankSplitValue} to this account`
+                        : 'No split set'}
+                  </div>
+                )}
+              </Field>
+              <Field label="Account Holder Name">
+                <Input value={formData?.bank2AccountHolder} onChange={(e) => handleInputChange('bank2AccountHolder', e?.target?.value)} disabled={!isEditing} placeholder="—" />
+              </Field>
+              <Field label="Bank Name">
+                <Input value={formData?.bank2Name} onChange={(e) => handleInputChange('bank2Name', e?.target?.value)} disabled={!isEditing} placeholder="—" />
+              </Field>
+              <Field label="Account Number / IBAN" hint="Masked for security">
+                <Input value={maskAccountNumber(formData?.bank2AccountNumber)} onChange={(e) => handleInputChange('bank2AccountNumber', e?.target?.value)} disabled={!isEditing} placeholder="—" />
+                {isEditing && ibanWarning(formData?.bank2AccountNumber) && (
+                  <p className="cp-field-warn">{ibanWarning(formData?.bank2AccountNumber)}</p>
+                )}
+              </Field>
+              <Field label="SWIFT / BIC">
+                <Input value={formData?.bank2SwiftBic} onChange={(e) => handleInputChange('bank2SwiftBic', e?.target?.value)} disabled={!isEditing} placeholder="—" />
+                {isEditing && swiftWarning(formData?.bank2SwiftBic) && (
+                  <p className="cp-field-warn">{swiftWarning(formData?.bank2SwiftBic)}</p>
+                )}
+              </Field>
+              <Field label="Currency">
+                <Select options={currencyOptions} value={formData?.bank2Currency} onChange={(value) => handleInputChange('bank2Currency', value)} disabled={!isEditing} searchable={true} />
+              </Field>
+              <Field label="Country">
+                <Select options={countryOptions} value={formData?.bank2Country} onChange={(value) => handleInputChange('bank2Country', value)} disabled={!isEditing} searchable={true} />
+              </Field>
+              <Field label="Account Type">
+                <Select options={accountTypeOptions} value={formData?.bank2AccountType} onChange={(value) => handleInputChange('bank2AccountType', value)} disabled={!isEditing} placeholder="Select account type (optional)" />
+              </Field>
+              {show2SortCode && (
+                <Field label="Sort Code" hint="Format: XX-XX-XX">
+                  <Input value={formData?.bank2SortCode} onChange={(e) => handleInputChange('bank2SortCode', e?.target?.value)} disabled={!isEditing} placeholder="XX-XX-XX" />
+                </Field>
+              )}
+              {show2RoutingNumber && (
+                <Field label="Routing Number (ABA)">
+                  <Input value={formData?.bank2RoutingNumber} onChange={(e) => handleInputChange('bank2RoutingNumber', e?.target?.value)} disabled={!isEditing} placeholder="9-digit routing number" />
+                </Field>
+              )}
             </div>
           )}
         </div>

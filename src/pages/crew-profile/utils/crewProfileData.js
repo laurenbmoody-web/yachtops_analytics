@@ -20,6 +20,7 @@ export const profileDataToFormData = ({ personal, banking }) => {
   const nk = p.next_of_kin || {};
   const pref = p.preferences || {};
   const b = banking || {};
+  const sa = b.secondary_account || {};
   const dr = p.doctor_contact || {};
   const phones = Array.isArray(p.phones) ? p.phones : [];
   const primaryPhone = phones.find((x) => x?.value)?.value || '';
@@ -88,6 +89,18 @@ export const profileDataToFormData = ({ personal, banking }) => {
     bankAddressLine2: b.address_line2 || '',
     bankAddressCity: b.city || '',
     bankAddressCountry: b.address_country || '',
+    // Optional second account (split payments) — lives in a jsonb blob.
+    bank2AccountHolder: sa.accountHolder || '',
+    bank2Name: sa.bankName || '',
+    bank2AccountNumber: sa.accountNumber || '',
+    bank2SwiftBic: sa.swiftBic || '',
+    bank2Currency: sa.currency || '',
+    bank2Country: sa.country || '',
+    bank2AccountType: sa.accountType || '',
+    bank2SortCode: sa.sortCode || '',
+    bank2RoutingNumber: sa.routingNumber || '',
+    bankSplitType: sa.splitType || '',
+    bankSplitValue: sa.splitValue || '',
     // Banking audit (read-only display).
     bankingLastEditedByName: b.last_edited_by_name || '',
     bankingUpdatedAt: b.updated_at || '',
@@ -207,6 +220,14 @@ export const saveCrewProfileData = async (userId, f, actor = null) => {
     address_line2: f.bankAddressLine2 || null,
     city: f.bankAddressCity || null,
     address_country: f.bankAddressCountry || null,
+    secondary_account: {
+      accountHolder: f.bank2AccountHolder || '', bankName: f.bank2Name || '',
+      accountNumber: f.bank2AccountNumber || '', swiftBic: f.bank2SwiftBic || '',
+      currency: f.bank2Currency || '', country: f.bank2Country || '',
+      accountType: f.bank2AccountType || '', sortCode: f.bank2SortCode || '',
+      routingNumber: f.bank2RoutingNumber || '',
+      splitType: f.bankSplitType || '', splitValue: f.bankSplitValue || '',
+    },
     last_edited_by: actor?.id || null,
     last_edited_by_name: actor?.name || null,
     updated_at: now,
