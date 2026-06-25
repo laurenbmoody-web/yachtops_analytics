@@ -11,17 +11,17 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // countries, so the number is entered as [dial code] + [local number]. Curated
 // to common yacht-crew nationalities; extend freely.
 const DIAL_CODES = [
-  ['+44', '+44 United Kingdom'], ['+1', '+1 USA / Canada'], ['+33', '+33 France'],
-  ['+34', '+34 Spain'], ['+39', '+39 Italy'], ['+31', '+31 Netherlands'],
-  ['+49', '+49 Germany'], ['+41', '+41 Switzerland'], ['+32', '+32 Belgium'],
-  ['+351', '+351 Portugal'], ['+30', '+30 Greece'], ['+385', '+385 Croatia'],
-  ['+356', '+356 Malta'], ['+377', '+377 Monaco'], ['+353', '+353 Ireland'],
-  ['+46', '+46 Sweden'], ['+47', '+47 Norway'], ['+45', '+45 Denmark'],
-  ['+358', '+358 Finland'], ['+48', '+48 Poland'], ['+380', '+380 Ukraine'],
-  ['+7', '+7 Russia / Kazakhstan'], ['+27', '+27 South Africa'], ['+61', '+61 Australia'],
-  ['+64', '+64 New Zealand'], ['+63', '+63 Philippines'], ['+971', '+971 UAE'],
-  ['+90', '+90 Turkey'], ['+55', '+55 Brazil'], ['+54', '+54 Argentina'],
-  ['+52', '+52 Mexico'], ['+1268', '+1268 Antigua & Barbuda'], ['+1284', '+1284 BVI'],
+  ['+44', 'United Kingdom'], ['+1', 'USA / Canada'], ['+33', 'France'],
+  ['+34', 'Spain'], ['+39', 'Italy'], ['+31', 'Netherlands'],
+  ['+49', 'Germany'], ['+41', 'Switzerland'], ['+32', 'Belgium'],
+  ['+351', 'Portugal'], ['+30', 'Greece'], ['+385', 'Croatia'],
+  ['+356', 'Malta'], ['+377', 'Monaco'], ['+353', 'Ireland'],
+  ['+46', 'Sweden'], ['+47', 'Norway'], ['+45', 'Denmark'],
+  ['+358', 'Finland'], ['+48', 'Poland'], ['+380', 'Ukraine'],
+  ['+7', 'Russia / Kazakhstan'], ['+27', 'South Africa'], ['+61', 'Australia'],
+  ['+64', 'New Zealand'], ['+63', 'Philippines'], ['+971', 'UAE'],
+  ['+90', 'Turkey'], ['+55', 'Brazil'], ['+54', 'Argentina'],
+  ['+52', 'Mexico'], ['+1268', 'Antigua & Barbuda'], ['+1284', 'BVI'],
 ];
 const CODES_BY_LEN = DIAL_CODES.map(d => d[0]).sort((a, b) => b.length - a.length);
 // Split a stored "+33 6 12 …" into { code, number } so the prefill lands in the
@@ -34,6 +34,46 @@ const splitPhone = (raw) => {
   }
   return { code: '+44', number: s };
 };
+
+// Country dial-code picker. Collapsed it shows just the code (compact, e.g.
+// "+44"); the list shows the country name + code. A native <select> can't show
+// different collapsed vs list text, so this is a small custom popover.
+function CodeSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  return (
+    <div ref={ref} style={{ position: 'relative', flex: '0 0 86px' }}>
+      <button type="button" className="cso-input" aria-haspopup="listbox" aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, width: '100%', cursor: 'pointer' }}>
+        <span>{value}</span>
+        <Icon name="ChevronDown" size={14} color="#8B8478" />
+      </button>
+      {open && (
+        <div role="listbox" style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 60,
+          width: 248, maxHeight: 244, overflowY: 'auto', background: '#fff', border: '1px solid #ECEAE3',
+          borderRadius: 10, boxShadow: '0 16px 40px -12px rgba(28,27,58,0.28)' }}>
+          {DIAL_CODES.map(([code, country]) => (
+            <button type="button" key={code + country} role="option" aria-selected={code === value}
+              onClick={() => { onChange(code); setOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, width: '100%',
+                textAlign: 'left', padding: '8px 12px', border: 'none', cursor: 'pointer', fontSize: 13,
+                background: code === value ? '#FBEFE9' : '#fff', color: '#1C1B3A' }}>
+              <span>{country}</span>
+              <span style={{ color: '#8B8478' }}>{code}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // UK date entry. A native <input type="date"> renders in the browser's OS
 // locale (mm/dd/yyyy on US machines), which breaks the dd/mm/yyyy house style.
@@ -156,14 +196,27 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
   // A master may have commanded only part of the logged span (change of
   // command); flag the dates that then need a separate master's testimonial.
   const partialCmd = !!(form.cmdFrom && form.cmdTo && (form.cmdFrom > spanFrom || form.cmdTo < spanTo));
-  const canSign = signed && form.name.trim().length > 1 && form.cocNo.trim().length > 1 && EMAIL_RE.test(form.email.trim()) && !!form.cmdFrom && !!form.cmdTo && form.cmdFrom <= form.cmdTo;
+  // Every required field must be present before signing — including the drawn
+  // signature and the printed full name. The Sign button is disabled while any
+  // remain, and submit() hard-guards on the same check.
+  const missing = [
+    !signed && 'signature',
+    form.name.trim().length <= 1 && 'full name',
+    form.cocNo.trim().length <= 1 && 'CoC number',
+    !EMAIL_RE.test(form.email.trim()) && 'contact email',
+    (!form.cmdFrom || !form.cmdTo || form.cmdFrom > form.cmdTo) && 'command dates',
+  ].filter(Boolean);
+  const canSign = missing.length === 0;
 
-  const submit = () => onSign({
-    name: form.name.trim(), cocNo: form.cocNo.trim(), cocGrade: form.cocGrade.trim(),
-    email: form.email.trim(), phone: form.phone.trim() ? `${form.phoneCode} ${form.phone.trim()}` : '', place: form.place.trim(),
-    cmdFrom: form.cmdFrom, cmdTo: form.cmdTo,
-    signature: { kind: 'drawn', image: padRef.current ? padRef.current.toDataURL('image/png') : null }
-  });
+  const submit = () => {
+    if (!canSign) return; // hard guard — the button is also disabled
+    onSign({
+      name: form.name.trim(), cocNo: form.cocNo.trim(), cocGrade: form.cocGrade.trim(),
+      email: form.email.trim(), phone: form.phone.trim() ? `${form.phoneCode} ${form.phone.trim()}` : '', place: form.place.trim(),
+      cmdFrom: form.cmdFrom, cmdTo: form.cmdTo,
+      signature: { kind: 'drawn', image: padRef.current ? padRef.current.toDataURL('image/png') : null }
+    });
+  };
 
   const content = (
     <>
@@ -242,9 +295,7 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
             <div className="cso-fld">
               <label className="cso-lbl">Contact phone <span className="opt">optional</span></label>
               <div style={{ display: 'flex', gap: 8 }}>
-                <select className="cso-input" style={{ flex: '0 0 116px', paddingLeft: 10, paddingRight: 6 }} value={form.phoneCode} onChange={e => setSF({ phoneCode: e.target.value })} aria-label="Country dialling code">
-                  {DIAL_CODES.map(([code, label]) => <option key={label} value={code}>{label}</option>)}
-                </select>
+                <CodeSelect value={form.phoneCode} onChange={c => setSF({ phoneCode: c })} />
                 <input className="cso-input" style={{ flex: 1 }} value={form.phone} onChange={e => setSF({ phone: e.target.value })} placeholder="phone number" inputMode="tel" />
               </div>
             </div>
@@ -284,6 +335,9 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
           </div>
         ) : (
           <button className="cso-declinelink" onClick={() => setDeclineOpen(true)}>Something’s not right? Decline this request</button>
+        )}
+        {!declineOpen && !canSign && (
+          <div className="cso-vs" style={{ marginTop: 10, color: '#A6712C' }}>Still needed before signing: {missing.join(', ')}.</div>
         )}
       </div>
       <div className="cso-foot">
