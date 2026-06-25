@@ -775,14 +775,18 @@ const CrewProfile = () => {
   const handleSameAsEmergencyToggle = (checked) => {
     setSameAsEmergency(checked);
     if (checked) {
-      // Auto-fill Next of Kin from Emergency Contact
+      // Auto-fill Next of Kin from Emergency Contact (full standard field set).
       setFormData(prev => ({
         ...prev,
         nextOfKinName: prev?.emergencyContactName,
         nextOfKinRelationship: prev?.emergencyContactRelationship,
         nextOfKinPhone: prev?.emergencyContactPhone,
         nextOfKinEmail: prev?.emergencyContactEmail,
-        nextOfKinAddress: prev?.emergencyContactAddress
+        nextOfKinAddress: prev?.emergencyContactAddress,
+        nextOfKinCountry: prev?.emergencyContactCountry,
+        nextOfKinPreferredMethod: prev?.emergencyContactPreferredMethod,
+        nextOfKinNotifyMedical: prev?.emergencyContactNotifyMedical,
+        nextOfKinHandlesAffairs: prev?.emergencyContactHandlesAffairs,
       }));
     }
   };
@@ -1910,6 +1914,74 @@ const canEdit = (() => {
       );
     };
 
+    // Role tags (medical / handles-affairs) for any contact, keyed by prefix.
+    const roleField = (prefix, disabled = false) => (
+      <Field label="This contact's role" hint={isEditing && !disabled ? 'Flag what this person handles — they may differ' : undefined}>
+        {isEditing && !disabled ? (
+          <div className="cp-check-row">
+            <label className="cp-inline-check">
+              <input
+                type="checkbox"
+                checked={!!formData?.[`${prefix}NotifyMedical`]}
+                onChange={(e) => handleInputChange(`${prefix}NotifyMedical`, e?.target?.checked)}
+              />
+              <span>Notify in a medical emergency</span>
+            </label>
+            <label className="cp-inline-check">
+              <input
+                type="checkbox"
+                checked={!!formData?.[`${prefix}HandlesAffairs`]}
+                onChange={(e) => handleInputChange(`${prefix}HandlesAffairs`, e?.target?.checked)}
+              />
+              <span>Handles affairs / decisions</span>
+            </label>
+          </div>
+        ) : (
+          <div className="cp-role-tags">
+            {formData?.[`${prefix}NotifyMedical`] && <span className="cp-tag">Medical emergency</span>}
+            {formData?.[`${prefix}HandlesAffairs`] && <span className="cp-tag">Handles affairs</span>}
+            {!formData?.[`${prefix}NotifyMedical`] && !formData?.[`${prefix}HandlesAffairs`] && (
+              <span className="cp-static cp-empty">No role flagged</span>
+            )}
+          </div>
+        )}
+      </Field>
+    );
+
+    // One shared contact field-set used by all three blocks (primary emergency,
+    // second emergency, next of kin), keyed by a formData prefix. `disabled`
+    // layers on top of !isEditing (e.g. next-of-kin "same as emergency").
+    const contactFields = (prefix, { disabled = false, requiredName = false, requiredPhone = false } = {}) => {
+      const dis = !isEditing || disabled;
+      return (
+        <>
+          <Field label="Full Name" required={requiredName}>
+            <Input value={formData?.[`${prefix}Name`]} onChange={(e) => handleInputChange(`${prefix}Name`, e?.target?.value)} disabled={dis} placeholder="—" />
+          </Field>
+          <Field label="Relationship">
+            <Input value={formData?.[`${prefix}Relationship`]} onChange={(e) => handleInputChange(`${prefix}Relationship`, e?.target?.value)} disabled={dis} placeholder="—" />
+          </Field>
+          <Field label="Phone / Contact Number" required={requiredPhone}>
+            <Input value={formData?.[`${prefix}Phone`]} onChange={(e) => handleInputChange(`${prefix}Phone`, e?.target?.value)} disabled={dis} placeholder="—" />
+          </Field>
+          <Field label="Email">
+            <Input type="email" value={formData?.[`${prefix}Email`]} onChange={(e) => handleInputChange(`${prefix}Email`, e?.target?.value)} disabled={dis} placeholder="—" />
+          </Field>
+          <Field label="Country / Time Zone" hint={isEditing && !disabled ? "So crew know when it's a sensible hour to call" : undefined}>
+            <Input value={formData?.[`${prefix}Country`]} onChange={(e) => handleInputChange(`${prefix}Country`, e?.target?.value)} disabled={dis} placeholder="e.g. UK (GMT/BST)" />
+          </Field>
+          <Field label="Preferred Contact Method">
+            {methodField(`${prefix}PreferredMethod`, disabled)}
+          </Field>
+          <Field label="Address" full>
+            <textarea className={addressClasses} value={formData?.[`${prefix}Address`]} onChange={(e) => handleInputChange(`${prefix}Address`, e?.target?.value)} disabled={dis} placeholder="—" />
+          </Field>
+          {roleField(prefix, disabled)}
+          {verifiedField(`${prefix}LastVerified`, disabled)}
+        </>
+      );
+    };
+
     const hasSecond = !!(formData?.emergencyContact2Name || formData?.emergencyContact2Phone);
     const secondOpen = showSecondEmergency || hasSecond;
 
@@ -1926,90 +1998,7 @@ const canEdit = (() => {
             <span className="dia">◆</span><span className="t">Primary emergency contact</span><span className="line" />
           </div>
           <div className="cp-grid">
-            <Field label="Full Name" required>
-              <Input
-                value={formData?.emergencyContactName}
-                onChange={(e) => handleInputChange('emergencyContactName', e?.target?.value)}
-                disabled={!isEditing}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Relationship">
-              <Input
-                value={formData?.emergencyContactRelationship}
-                onChange={(e) => handleInputChange('emergencyContactRelationship', e?.target?.value)}
-                disabled={!isEditing}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Phone / Contact Number" required>
-              <Input
-                value={formData?.emergencyContactPhone}
-                onChange={(e) => handleInputChange('emergencyContactPhone', e?.target?.value)}
-                disabled={!isEditing}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Email">
-              <Input
-                type="email"
-                value={formData?.emergencyContactEmail}
-                onChange={(e) => handleInputChange('emergencyContactEmail', e?.target?.value)}
-                disabled={!isEditing}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Country / Time Zone" hint={isEditing ? 'So crew know when it\'s a sensible hour to call' : undefined}>
-              <Input
-                value={formData?.emergencyContactCountry}
-                onChange={(e) => handleInputChange('emergencyContactCountry', e?.target?.value)}
-                disabled={!isEditing}
-                placeholder="e.g. UK (GMT/BST)"
-              />
-            </Field>
-            <Field label="Preferred Contact Method">
-              {methodField('emergencyContactPreferredMethod')}
-            </Field>
-            <Field label="Address" full>
-              <textarea
-                className={addressClasses}
-                value={formData?.emergencyContactAddress}
-                onChange={(e) => handleInputChange('emergencyContactAddress', e?.target?.value)}
-                disabled={!isEditing}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="This contact's role" hint={isEditing ? 'Flag what this person handles — they may differ' : undefined}>
-              {isEditing ? (
-                <div className="cp-check-row">
-                  <label className="cp-inline-check">
-                    <input
-                      type="checkbox"
-                      checked={!!formData?.emergencyContactNotifyMedical}
-                      onChange={(e) => handleInputChange('emergencyContactNotifyMedical', e?.target?.checked)}
-                    />
-                    <span>Notify in a medical emergency</span>
-                  </label>
-                  <label className="cp-inline-check">
-                    <input
-                      type="checkbox"
-                      checked={!!formData?.emergencyContactHandlesAffairs}
-                      onChange={(e) => handleInputChange('emergencyContactHandlesAffairs', e?.target?.checked)}
-                    />
-                    <span>Handles affairs / decisions</span>
-                  </label>
-                </div>
-              ) : (
-                <div className="cp-role-tags">
-                  {formData?.emergencyContactNotifyMedical && <span className="cp-tag">Medical emergency</span>}
-                  {formData?.emergencyContactHandlesAffairs && <span className="cp-tag">Handles affairs</span>}
-                  {!formData?.emergencyContactNotifyMedical && !formData?.emergencyContactHandlesAffairs && (
-                    <span className="cp-static cp-empty">No role flagged</span>
-                  )}
-                </div>
-              )}
-            </Field>
-            {verifiedField('emergencyContactLastVerified')}
+            {contactFields('emergencyContact', { requiredName: true, requiredPhone: true })}
           </div>
         </div>
 
@@ -2023,50 +2012,7 @@ const canEdit = (() => {
           </div>
           {secondOpen && (
             <div className="cp-grid">
-              <Field label="Full Name">
-                <Input
-                  value={formData?.emergencyContact2Name}
-                  onChange={(e) => handleInputChange('emergencyContact2Name', e?.target?.value)}
-                  disabled={!isEditing}
-                  placeholder="—"
-                />
-              </Field>
-              <Field label="Relationship">
-                <Input
-                  value={formData?.emergencyContact2Relationship}
-                  onChange={(e) => handleInputChange('emergencyContact2Relationship', e?.target?.value)}
-                  disabled={!isEditing}
-                  placeholder="—"
-                />
-              </Field>
-              <Field label="Phone / Contact Number">
-                <Input
-                  value={formData?.emergencyContact2Phone}
-                  onChange={(e) => handleInputChange('emergencyContact2Phone', e?.target?.value)}
-                  disabled={!isEditing}
-                  placeholder="—"
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  type="email"
-                  value={formData?.emergencyContact2Email}
-                  onChange={(e) => handleInputChange('emergencyContact2Email', e?.target?.value)}
-                  disabled={!isEditing}
-                  placeholder="—"
-                />
-              </Field>
-              <Field label="Country / Time Zone">
-                <Input
-                  value={formData?.emergencyContact2Country}
-                  onChange={(e) => handleInputChange('emergencyContact2Country', e?.target?.value)}
-                  disabled={!isEditing}
-                  placeholder="e.g. AUS (AEST)"
-                />
-              </Field>
-              <Field label="Preferred Contact Method">
-                {methodField('emergencyContact2PreferredMethod')}
-              </Field>
+              {contactFields('emergencyContact2')}
             </div>
           )}
         </div>
@@ -2087,52 +2033,7 @@ const canEdit = (() => {
             )}
           </div>
           <div className="cp-grid">
-            <Field label="Full Name">
-              <Input
-                value={formData?.nextOfKinName}
-                onChange={(e) => handleInputChange('nextOfKinName', e?.target?.value)}
-                disabled={!isEditing || sameAsEmergency}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Relationship">
-              <Input
-                value={formData?.nextOfKinRelationship}
-                onChange={(e) => handleInputChange('nextOfKinRelationship', e?.target?.value)}
-                disabled={!isEditing || sameAsEmergency}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Phone / Contact Number">
-              <Input
-                value={formData?.nextOfKinPhone}
-                onChange={(e) => handleInputChange('nextOfKinPhone', e?.target?.value)}
-                disabled={!isEditing || sameAsEmergency}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Email">
-              <Input
-                type="email"
-                value={formData?.nextOfKinEmail}
-                onChange={(e) => handleInputChange('nextOfKinEmail', e?.target?.value)}
-                disabled={!isEditing || sameAsEmergency}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Preferred Contact Method">
-              {methodField('nextOfKinPreferredMethod', sameAsEmergency)}
-            </Field>
-            {verifiedField('nextOfKinLastVerified', sameAsEmergency)}
-            <Field label="Address" full>
-              <textarea
-                className={addressClasses}
-                value={formData?.nextOfKinAddress}
-                onChange={(e) => handleInputChange('nextOfKinAddress', e?.target?.value)}
-                disabled={!isEditing || sameAsEmergency}
-                placeholder="—"
-              />
-            </Field>
+            {contactFields('nextOfKin', { disabled: sameAsEmergency })}
           </div>
         </div>
 
