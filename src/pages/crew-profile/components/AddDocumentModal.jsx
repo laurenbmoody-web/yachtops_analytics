@@ -4,7 +4,7 @@ import Button from '../../../components/ui/Button';
 import ModalShell from '../../../components/ui/ModalShell';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
-import { getDocType, getDocTypeLabel } from '../documentTypes';
+import { getDocType, getDocTypeLabel, suggestedExpiry } from '../documentTypes';
 import { parseDocumentFile, persistCrewDocument, findDuplicateDoc } from '../utils/crewDocuments';
 import { syncPassportToPersonalDetails } from '../utils/crewProfileData';
 import DocumentFields from './DocumentFields';
@@ -97,17 +97,22 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
       const s = await parseDocumentFile(selected);
 
       if (!hasInput) {
-        // Auto-fill mode — populate everything from the scan.
-        setForm((f) => ({
-          ...f,
-          docType: f.docType || s.doc_type || '',
-          documentNumber: s.document_number || '',
-          issuingAuthority: s.issuing_authority || '',
-          flagState: s.flag_state || '',
-          issueDate: s.issue_date || '',
-          expiryDate: s.expiry_date || '',
-          details: { ...f.details, ...(s.details || {}) },
-        }));
+        // Auto-fill mode — populate everything from the scan. For refresher
+        // certs with only an issue date, derive the refresher/expiry date.
+        setForm((f) => {
+          const docType = f.docType || s.doc_type || '';
+          const issueDate = s.issue_date || '';
+          return {
+            ...f,
+            docType,
+            documentNumber: s.document_number || '',
+            issuingAuthority: s.issuing_authority || '',
+            flagState: s.flag_state || '',
+            issueDate,
+            expiryDate: s.expiry_date || suggestedExpiry(docType, issueDate) || '',
+            details: { ...f.details, ...(s.details || {}) },
+          };
+        });
         setAdvisory({
           kind: 'filled',
           messages: ['We filled the fields from your upload — please check each one before saving.'],

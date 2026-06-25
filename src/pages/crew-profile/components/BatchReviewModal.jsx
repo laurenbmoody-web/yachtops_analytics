@@ -4,7 +4,7 @@ import Button from '../../../components/ui/Button';
 import LogoSpinner from '../../../components/LogoSpinner';
 import ModalShell from '../../../components/ui/ModalShell';
 import { showToast } from '../../../utils/toast';
-import { getDocTypeLabel } from '../documentTypes';
+import { getDocTypeLabel, suggestedExpiry } from '../documentTypes';
 import { parseDocumentFile, persistCrewDocument, findDuplicateDoc } from '../utils/crewDocuments';
 import { syncPassportToPersonalDetails } from '../utils/crewProfileData';
 import DocumentFields from './DocumentFields';
@@ -18,15 +18,22 @@ const fmtDate = (v) =>
     ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}`
     : v;
 
-const formFromSuggestion = (s) => ({
-  docType: s?.doc_type || '',
-  documentNumber: s?.document_number || '',
-  issuingAuthority: s?.issuing_authority || '',
-  flagState: s?.flag_state || '',
-  issueDate: s?.issue_date || '',
-  expiryDate: s?.expiry_date || '',
-  details: s?.details || {},
-});
+const formFromSuggestion = (s) => {
+  const docType = s?.doc_type || '';
+  const issueDate = s?.issue_date || '';
+  // A scanned refresher cert often shows only an issue date — derive the
+  // refresher/expiry from it (issue + N years) when none was read.
+  const expiryDate = s?.expiry_date || suggestedExpiry(docType, issueDate) || '';
+  return {
+    docType,
+    documentNumber: s?.document_number || '',
+    issuingAuthority: s?.issuing_authority || '',
+    flagState: s?.flag_state || '',
+    issueDate,
+    expiryDate,
+    details: s?.details || {},
+  };
+};
 
 /**
  * Drop several documents at once → each is read by the AI, then shown as a

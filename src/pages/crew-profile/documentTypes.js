@@ -7,6 +7,9 @@
 //                   (the field still shows if a value was already saved)
 //   number          false → hide the Document number field (letters, contracts)
 //   authorityLabel  relabel the "Issuing authority" field for this type
+//   expiryLabel     relabel the "Expiry date" field (e.g. "Refresher due")
+//   refreshYears    N → the expiry/refresher date auto-fills to issue date + N
+//                   years (e.g. STCW 5-yearly), still user-overridable
 // Defaults: expiry true, number true, authorityLabel "Issuing authority".
 
 import { NATIONALITIES } from '../../data/nationalities';
@@ -117,20 +120,20 @@ export const DOCUMENT_TYPES = [
   // fire elements (PST, FPFF, AFF, PSCRB) need a 5-yearly refresher, tracked as
   // the expiry. Elementary First Aid (A-VI/1 §2.1.3) is a Basic element and is
   // NOT the same as Medical First Aid / Care (A-VI/4).
-  { id: 'stcw_basic', label: 'STCW Basic Safety Training (combined)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
-  { id: 'stcw_pst', label: 'STCW Personal Survival Techniques (PST)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
-  { id: 'stcw_fpff', label: 'STCW Fire Prevention & Fire Fighting (basic)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
+  { id: 'stcw_basic', label: 'STCW Basic Safety Training (combined)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
+  { id: 'stcw_pst', label: 'STCW Personal Survival Techniques (PST)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
+  { id: 'stcw_fpff', label: 'STCW Fire Prevention & Fire Fighting (basic)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
   { id: 'stcw_efa', label: 'STCW Elementary First Aid (EFA)', category: 'safety' },
   { id: 'stcw_pssr', label: 'STCW Personal Safety & Social Responsibility (PSSR)', category: 'safety', expiry: false },
-  { id: 'stcw_advanced_ff', label: 'STCW Advanced Firefighting', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
-  { id: 'stcw_pscrb', label: 'STCW PSCRB (survival craft)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
+  { id: 'stcw_advanced_ff', label: 'STCW Advanced Firefighting', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
+  { id: 'stcw_pscrb', label: 'STCW PSCRB (survival craft)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
   { id: 'stcw_medical_care', label: 'STCW Medical First Aid / Care (A-VI/4)', category: 'safety', expiry: false },
   { id: 'pdsd', label: 'Security training (PSA / PDSD)', category: 'safety', expiry: false },
   { id: 'sso_dsd', label: 'Ship Security Officer (SSO)', category: 'safety', expiry: false },
   { id: 'crowd_management', label: 'Crowd Management', category: 'safety', expiry: false },
   { id: 'crisis_management', label: 'Crisis Management & Human Behaviour', category: 'safety', expiry: false },
-  { id: 'frb', label: 'STCW Fast Rescue Boat (FRB)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
-  { id: 'huet', label: 'Helicopter Underwater Escape Training (HUET)', category: 'safety', expiryLabel: 'Renewal due' },
+  { id: 'frb', label: 'STCW Fast Rescue Boat (FRB)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL, refreshYears: 5 },
+  { id: 'huet', label: 'Helicopter Underwater Escape Training (HUET)', category: 'safety', expiryLabel: 'Renewal due', refreshYears: 4 },
   { id: 'enclosed_spaces', label: 'Entry into Enclosed Spaces', category: 'safety', expiry: false },
   { id: 'safety_other', label: 'Other safety / security certificate', category: 'safety', fields: [NAMED_CERT] },
 
@@ -194,7 +197,7 @@ export const DOCUMENT_TYPES = [
 
   // ── Interior & service ──────────────────────────────────────────────────
   {
-    id: 'food_hygiene', label: 'Food Hygiene', category: 'interior', expiryLabel: 'Renewal due',
+    id: 'food_hygiene', label: 'Food Hygiene', category: 'interior', expiryLabel: 'Renewal due', refreshYears: 5,
     fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Level 1', 'Level 2', 'Level 3', 'Level 4'] }],
   },
   { id: 'silver_service', label: 'Silver Service / Food & Beverage', category: 'interior', expiry: false },
@@ -281,6 +284,17 @@ const MULTI_INSTANCE_IDS = new Set([
 export const allowsMultipleDocs = (id) => MULTI_INSTANCE_IDS.has(id);
 
 export const getDocType = (id) => DOCUMENT_TYPES.find((t) => t.id === id) || null;
+
+// For a type with a known refresh interval (refreshYears), the expiry/refresher
+// date this issue date implies (issue + N years), as YYYY-MM-DD. '' otherwise.
+export const suggestedExpiry = (docType, issueDate) => {
+  const years = getDocType(docType)?.refreshYears;
+  if (!years || !/^\d{4}-\d{2}-\d{2}$/.test(String(issueDate || ''))) return '';
+  const [y, m, d] = issueDate.split('-').map(Number);
+  const dt = new Date(y + years, m - 1, d);
+  const p = (x) => String(x).padStart(2, '0');
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+};
 
 export const coreDocumentTypes = () =>
   CORE_DOCUMENT_TYPE_IDS.map(getDocType).filter(Boolean);
