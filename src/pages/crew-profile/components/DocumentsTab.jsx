@@ -4,7 +4,7 @@ import Button from '../../../components/ui/Button';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
 import {
-  DOC_CATEGORIES, CORE_DOCUMENT_TYPE_IDS, coreDocumentTypes, getDocTypeLabel,
+  DOC_CATEGORIES, CORE_DOCUMENT_TYPE_IDS, coreDocumentTypes, getDocTypeLabel, getDocType,
 } from '../documentTypes';
 import {
   fetchCrewDocuments, deleteCrewDocument, getExpiryStatus,
@@ -285,7 +285,9 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
 
           {/* Additional documents — visas, role-specific quals, other */}
           {additional.length > 0 && DOC_CATEGORIES.map((cat) => {
-            const rows = additional.filter((d) => (d.category || 'other') === cat.id);
+            // Group by the type's current category so docs saved before a
+            // taxonomy change still land in the right section.
+            const rows = additional.filter((d) => (getDocType(d.doc_type)?.category || d.category || 'other') === cat.id);
             if (rows.length === 0) return null;
             return (
               <div className="cp-group" key={cat.id}>
