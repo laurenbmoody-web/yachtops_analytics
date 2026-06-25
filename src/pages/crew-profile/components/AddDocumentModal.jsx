@@ -82,6 +82,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
   const showNumber = typeDef?.number !== false || !!form.documentNumber;
   const showExpiry = typeDef?.expiry !== false || !!form.expiryDate;
   const authorityLabel = typeDef?.authorityLabel || 'Issuing authority';
+  const expiryLabel = typeDef?.expiryLabel || 'Expiry date';
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setDetail = (k, v) => setForm((f) => ({ ...f, details: { ...f.details, [k]: v } }));
 
@@ -308,7 +309,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
         </div>
         {showExpiry && (
           <div>
-            <label className={labelCls}>Expiry date</label>
+            <label className={labelCls}>{expiryLabel}</label>
             <DateInput className={boxCls} value={form.expiryDate || ''} onChange={(e) => set('expiryDate', e.target.value)} />
           </div>
         )}
@@ -330,7 +331,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
             ) : f.type === 'date' ? (
               <DateInput className={boxCls} value={form.details?.[f.key] || ''} onChange={(e) => setDetail(f.key, e.target.value)} />
             ) : (
-              <Input value={form.details?.[f.key] || ''} onChange={(e) => setDetail(f.key, e.target.value)} placeholder="—" />
+              <Input value={form.details?.[f.key] || ''} onChange={(e) => setDetail(f.key, e.target.value)} placeholder={f.placeholder || '—'} />
             )}
           </div>
         ))}

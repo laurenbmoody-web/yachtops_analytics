@@ -16,7 +16,6 @@ const WEIGHTS = {
   doc_coc: 5,
   doc_pdsd: 3,
   doc_seamans_book: 2,
-  doc_tax_residency: 2,
   // Safety-critical personal info.
   emergency: 4,
   // Core identity.
@@ -46,8 +45,8 @@ export const computeProfileCompletion = ({ formData = {}, crewMember = {}, docs 
     { key: 'emergency', label: 'Emergency contact', tab: 'emergency', done: !!f.emergencyContactName && !!f.emergencyContactPhone },
   ];
 
-  // Core documents everyone needs (incl. the universal additions: discharge
-  // book, tax/residency), + CoC for command roles.
+  // Core documents everyone needs (incl. the discharge book), + CoC for
+  // command roles.
   const docReqs = [...CORE_DOCUMENT_TYPE_IDS];
   if (isCommand) docReqs.push('coc');
   docReqs.forEach((id) => {
