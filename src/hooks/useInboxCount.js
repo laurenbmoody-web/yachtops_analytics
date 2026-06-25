@@ -11,6 +11,12 @@
 //      status = 'pending'. RLS already scopes by approver_id so we
 //      can ask Postgrest for a head:'exact' count directly.
 //
+//   3. Sea-time sign-offs — pending sea-service the master signs,
+//      counted via the same queue builder the Reviews sidebar uses so
+//      the nav badge matches the "Sea-time sign-off" count exactly.
+//      Gated to COMMAND (the master is who attests), otherwise a crew
+//      member would see their own submitted-but-unsigned days counted.
+//
 // Polled at 30s; subscribed for realtime on the provisioning queue so
 // the badge ticks up the moment an approval request lands. Rotas
 // retain the poll-only cadence to match the existing pattern.
@@ -20,6 +26,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTenant } from '../contexts/TenantContext';
 import { fetchInboxPending } from './inboxScope';
+import { useSeaTimeSignoffs } from '../pages/reviews/useSeaTimeSignoffs';
 
 const POLL_MS = 30_000;
 
@@ -31,6 +38,17 @@ export function useInboxCount() {
   const tier = currentTenantMember?.permission_tier;
   const departmentId = currentTenantMember?.department_id || null;
   const tenantId = activeTenantId || currentTenantMember?.tenant_id || null;
+
+  // Sea-time sign-off queue — only COMMAND (the master) attests these, so gate
+  // the query by tier. Reuses the Reviews queue builder so this count is the
+  // same one the "Sea-time sign-off" sidebar badge shows.
+  const signerName = currentTenantMember?.full_name || user?.user_metadata?.full_name || null;
+  const seatime = useSeaTimeSignoffs(tier === 'COMMAND' ? tenantId : null, signerName);
+  useEffect(() => {
+    if (tier !== 'COMMAND' || !tenantId) return undefined;
+    const id = setInterval(() => { seatime.refetch(); }, POLL_MS);
+    return () => clearInterval(id);
+  }, [tier, tenantId, seatime.refetch]);
 
   // Rota queue — existing poll loop.
   useEffect(() => {
@@ -86,5 +104,5 @@ export function useInboxCount() {
     };
   }, [user?.id]);
 
-  return rotaCount + provisioningCount;
+  return rotaCount + provisioningCount + seatime.items.length;
 }
