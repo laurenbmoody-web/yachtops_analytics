@@ -570,6 +570,21 @@ const CrewProfile = () => {
     loadCrewProfile();
   }, [crewId]);
 
+  // Re-pull persisted Personal Details + banking into the form. Called after a
+  // passport upload feeds new identity fields into Personal Details, so the
+  // change is reflected without a full page reload.
+  const refreshPersonalDetails = async () => {
+    if (!crewId) return;
+    try {
+      const saved = await fetchCrewProfileData(crewId);
+      if (saved?.personal || saved?.banking) {
+        setFormData((prev) => ({ ...prev, ...profileDataToFormData(saved) }));
+      }
+    } catch (e) {
+      console.warn('[profile] personal details refresh failed', e);
+    }
+  };
+
   // Load HOR data when HOR section is active (re-runs on month navigation so
   // the rota baseline is pulled for the month being viewed).
   useEffect(() => {
@@ -4071,6 +4086,7 @@ const canEdit = (() => {
             canEdit={canEdit}
             openPreset={docPreset}
             onPresetHandled={() => setDocPreset(null)}
+            onProfileSynced={refreshPersonalDetails}
           />
         );
       case 'banking':

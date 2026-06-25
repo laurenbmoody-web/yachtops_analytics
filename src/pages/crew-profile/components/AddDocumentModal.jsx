@@ -8,14 +8,15 @@ import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
 import { groupedDocumentTypes, getDocType } from '../documentTypes';
 import { saveCrewDocument, uploadDocumentFile, parseDocumentFile } from '../utils/crewDocuments';
+import { syncPassportToPersonalDetails } from '../utils/crewProfileData';
 
 // Loose match for verifying typed input against a scanned value: trim, collapse
 // whitespace, case-insensitive. Dates are already normalised to YYYY-MM-DD.
 const norm = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
-// Show dates the Cargo way (dd/mm/yyyy) when advising on a mismatch.
-const showVal = (key, v) =>
-  (key === 'issueDate' || key === 'expiryDate') && /^\d{4}-\d{2}-\d{2}$/.test(v)
+// Show YYYY-MM-DD dates the Cargo way (dd/mm/yyyy) when advising on a mismatch.
+const fmtVal = (v) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? ''))
     ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}`
     : v;
 
@@ -25,7 +26,7 @@ const blank = {
   fileUrl: null, fileName: null, mimeType: null, sizeBytes: null,
 };
 
-const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdBy, existing, presetType, presetDetails, prefill, prefillFile }) => {
+const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, tenantId, createdBy, existing, presetType, presetDetails, prefill, prefillFile }) => {
   const [form, setForm] = useState(blank);
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -133,7 +134,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
         const cur = form[key];
         if (!cur || String(cur).trim() === '') fills[key] = parsed;
         else if (norm(cur) !== norm(parsed)) {
-          conflicts.push(`${label}: you entered “${showVal(key, cur)}”, the document shows “${showVal(key, parsed)}”.`);
+          conflicts.push(`${label}: you entered “${fmtVal(cur)}”, the document shows “${fmtVal(parsed)}”.`);
         }
       });
 
@@ -143,7 +144,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
         const cur = form.details?.[fd.key];
         if (!cur || String(cur).trim() === '') detailFills[fd.key] = parsed;
         else if (norm(cur) !== norm(parsed)) {
-          conflicts.push(`${fd.label}: you entered “${cur}”, the document shows “${parsed}”.`);
+          conflicts.push(`${fd.label}: you entered “${fmtVal(cur)}”, the document shows “${fmtVal(parsed)}”.`);
         }
       });
 
@@ -180,7 +181,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
           details: { ...form.details, storage_path: up.storage_path },
         };
       }
-      await saveCrewDocument({
+      const saved = await saveCrewDocument({
         id: form.id,
         userId, tenantId, createdBy,
         category: typeDef?.category || 'other',
@@ -196,8 +197,46 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
         mimeType: fileMeta.mimeType ?? form.mimeType,
         sizeBytes: fileMeta.sizeBytes ?? form.sizeBytes,
       });
+      // Adopt the new row's id so the modal can stay open (passport conflicts)
+      // without a second save inserting a duplicate.
+      if (saved?.id && !form.id) setForm((f) => ({ ...f, id: saved.id }));
       showToast(form.id ? 'Document updated' : 'Document added', 'success');
+
+      // A passport is the source of truth for the holder's identity — feed any
+      // parsed details into the profile's Personal Details (filling blanks),
+      // and surface anything that disagrees with what's already on file.
+      let sync = null;
+      if (form.docType === 'passport') {
+        try {
+          sync = await syncPassportToPersonalDetails(userId, {
+            date_of_birth: form.details?.date_of_birth,
+            nationality: form.details?.nationality,
+            place_of_birth: form.details?.place_of_birth,
+          });
+        } catch (e) {
+          console.error('[docs] passport → personal details sync failed', e);
+        }
+      }
+
       onSaved?.();
+      if (sync && (sync.updated.length || sync.conflicts.length)) onProfileSynced?.();
+
+      if (sync?.updated.length) {
+        showToast(`Personal details updated from passport: ${sync.updated.join(', ')}`, 'success');
+      }
+      if (sync?.conflicts.length) {
+        // Keep the modal open so the discrepancies are read; we don't overwrite
+        // existing Personal Details automatically.
+        setAdvisory({
+          kind: 'warn',
+          messages: [
+            'Saved. These passport details differ from the crew member’s Personal Details — review and update there if needed:',
+            ...sync.conflicts.map((c) => `${c.label}: profile shows “${fmtVal(c.profile)}”, passport shows “${fmtVal(c.passport)}”.`),
+          ],
+        });
+        setSaving(false);
+        return;
+      }
       onClose?.();
     } catch (e) {
       console.error('[docs] save failed', e);

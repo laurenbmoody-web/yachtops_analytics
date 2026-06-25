@@ -18,8 +18,12 @@ export const DOCUMENT_TYPES = [
   // Travel & identity
   {
     id: 'passport', label: 'Passport', category: 'travel',
+    // Identity fields the passport is authoritative for — these feed the
+    // profile's Personal Details on save (see syncPassportToPersonalDetails).
     fields: [
       { key: 'country_of_issue', label: 'Country of issue' },
+      { key: 'nationality', label: 'Nationality' },
+      { key: 'date_of_birth', label: 'Date of birth', type: 'date' },
       { key: 'place_of_birth', label: 'Place of birth' },
     ],
   },

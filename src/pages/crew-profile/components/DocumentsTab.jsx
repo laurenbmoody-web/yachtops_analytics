@@ -12,7 +12,7 @@ import {
 } from '../utils/crewDocuments';
 import AddDocumentModal from './AddDocumentModal';
 
-const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPresetHandled }) => {
+const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPresetHandled, onProfileSynced }) => {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -263,6 +263,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         isOpen={modalOpen}
         onClose={closeModal}
         onSaved={load}
+        onProfileSynced={onProfileSynced}
         userId={userId}
         tenantId={tenantId}
         createdBy={createdBy}
