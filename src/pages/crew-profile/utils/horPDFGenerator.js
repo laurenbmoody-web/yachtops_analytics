@@ -53,19 +53,43 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
 
   const monthName = month?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
-  // === HEADER ===
-  doc?.setFontSize(16);
-  doc?.setFont('helvetica', 'bold');
-  doc?.text('Record of Hours of Rest', margin, yPosition);
-  
-  doc?.setFontSize(8);
+  // ── Cargo editorial palette (see CLAUDE.md) ──────────────────────────────
+  const NAVY = [28, 27, 58];
+  const TERRA = [198, 90, 26];
+  const MUTED = [139, 132, 120];
+  const SAGE = [94, 142, 111];
+
+  // === BRANDED MASTHEAD ===
+  // Cargo wordmark + terracotta accent over the official title. The IMO/ILO
+  // model format is content-led, not layout-locked, so branding is fine as
+  // long as the required fields + work/rest table stay auditable below.
+  doc?.setFont('times', 'bold');
+  doc?.setFontSize(20);
+  doc?.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc?.text('Cargo', margin, yPosition + 1);
+  const wmW = doc?.getTextWidth('Cargo') || 16;
+  doc?.setFillColor(TERRA[0], TERRA[1], TERRA[2]);
+  doc?.circle(margin + wmW + 2.4, yPosition - 1.4, 1.1, 'F');
   doc?.setFont('helvetica', 'normal');
-  doc?.text(`Generated: ${new Date()?.toLocaleString('en-GB')} | Timezone: UTC`, pageWidth - margin, yPosition, { align: 'right' });
+  doc?.setFontSize(7.5);
+  doc?.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+  doc?.text(`Generated ${new Date()?.toLocaleString('en-GB')} · UTC`, pageWidth - margin, yPosition - 2, { align: 'right' });
+  yPosition += 6;
+
+  doc?.setFont('times', 'bold');
+  doc?.setFontSize(15);
+  doc?.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc?.text('Record of Hours of Rest', margin, yPosition);
+  yPosition += 2.5;
+  doc?.setDrawColor(TERRA[0], TERRA[1], TERRA[2]);
+  doc?.setLineWidth(0.6);
+  doc?.line(margin, yPosition, pageWidth - margin, yPosition);
   yPosition += 5;
 
   // Canonical IMO/ILO standard reference — shared verbatim with the rota export.
+  doc?.setFont('helvetica', 'normal');
   doc?.setFontSize(7);
-  doc?.setTextColor(110, 110, 110);
+  doc?.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
   doc?.text(doc?.splitTextToSize(MLC_STANDARD_REF, contentWidth), margin, yPosition);
   doc?.setTextColor(0, 0, 0);
   yPosition += 7;
@@ -81,8 +105,10 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   ].join('     ·     ');
   doc?.setFontSize(8);
   doc?.setFont('helvetica', 'bold');
+  doc?.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
   doc?.text(vesselIdLine, margin, yPosition);
   doc?.setFont('helvetica', 'normal');
+  doc?.setTextColor(0, 0, 0);
   yPosition += 6;
 
   // === CREW INFO & SUMMARY (Side by side) ===
@@ -91,9 +117,11 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   const startY = yPosition;
 
   // Left: Crew Info
-  doc?.setFontSize(10);
+  doc?.setFontSize(8);
   doc?.setFont('helvetica', 'bold');
-  doc?.text('Crew Member', leftColX, yPosition);
+  doc?.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+  doc?.text('CREW MEMBER', leftColX, yPosition);
+  doc?.setTextColor(0, 0, 0);
   yPosition += 5;
   doc?.setFontSize(8);
   doc?.setFont('helvetica', 'normal');
@@ -107,9 +135,11 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
 
   // Right: Summary
   yPosition = startY;
-  doc?.setFontSize(10);
+  doc?.setFontSize(8);
   doc?.setFont('helvetica', 'bold');
-  doc?.text('Compliance Summary', rightColX, yPosition);
+  doc?.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+  doc?.text('COMPLIANCE SUMMARY', rightColX, yPosition);
+  doc?.setTextColor(0, 0, 0);
   yPosition += 5;
   doc?.setFontSize(8);
   doc?.setFont('helvetica', 'normal');
@@ -119,11 +149,11 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   yPosition += 4;
   
   if (breaches?.length > 0) {
-    doc?.setTextColor(200, 0, 0);
+    doc?.setTextColor(TERRA[0], TERRA[1], TERRA[2]);
     doc?.text(`Breaches: ${breaches?.length}`, rightColX, yPosition);
     doc?.setTextColor(0, 0, 0);
   } else {
-    doc?.setTextColor(0, 150, 0);
+    doc?.setTextColor(SAGE[0], SAGE[1], SAGE[2]);
     doc?.text('No Breaches', rightColX, yPosition);
     doc?.setTextColor(0, 0, 0);
   }
@@ -150,8 +180,10 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
     const hourLabel = String(hour)?.padStart(2, '0') + ':00';
     doc?.text(hourLabel, x, tableStartY, { align: 'center' });
   }
-  // Rest-total column header
+  // Rest-total column header (terracotta accent)
+  doc?.setTextColor(TERRA[0], TERRA[1], TERRA[2]);
   doc?.text('Rest (h)', tableStartX + rowLabelWidth + (48 * cellWidth) + restColWidth / 2, tableStartY, { align: 'center' });
+  doc?.setTextColor(0, 0, 0);
 
   yPosition = tableStartY + 3;
 
@@ -186,8 +218,8 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
       const isWorkPeriod = workedSegments?.has(increment);
 
       if (isWorkPeriod) {
-        // Work period - shaded
-        doc?.setFillColor(100, 100, 100);
+        // Work period - shaded (Cargo navy ink)
+        doc?.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
         doc?.rect(cellX, cellY, cellWidth, cellHeight, 'F');
       } else {
         // Rest period - clear/white
@@ -233,8 +265,8 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   const legendX = margin;
   doc?.text('Legend:', legendX, yPosition);
   
-  // Shaded box
-  doc?.setFillColor(100, 100, 100);
+  // Shaded box (Cargo navy ink)
+  doc?.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
   doc?.rect(legendX + 12, yPosition - 2.5, 4, 3, 'F');
   doc?.text('Work Hours', legendX + 17, yPosition);
   
@@ -252,27 +284,39 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   // The Record must be signed by the seafarer and the master / authorised
   // person regardless of whether any breach occurred. Guard the page fit.
   if (yPosition > pageHeight - 30) { doc?.addPage(); yPosition = margin + 4; }
-  doc?.setDrawColor(200, 200, 200);
+  doc?.setDrawColor(221, 217, 207);
   doc?.setLineWidth(0.2);
   doc?.line(margin, yPosition, pageWidth - margin, yPosition);
   yPosition += 5;
   doc?.setFontSize(7.5);
   doc?.setFont('helvetica', 'italic');
+  doc?.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
   doc?.text('I declare that this is an accurate record of the hours of rest of the seafarer named above.', margin, yPosition);
   doc?.setFont('helvetica', 'normal');
+  doc?.setTextColor(0, 0, 0);
   yPosition += 12;
   const sigColW = contentWidth / 2;
-  doc?.setDrawColor(0, 0, 0);
+  doc?.setDrawColor(NAVY[0], NAVY[1], NAVY[2]);
   doc?.setLineWidth(0.3);
   doc?.line(margin, yPosition, margin + sigColW - 16, yPosition);            // seafarer signature line
   doc?.line(margin + sigColW, yPosition, pageWidth - margin - 20, yPosition); // master signature line
   yPosition += 4;
   doc?.setFontSize(7);
+  doc?.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
   doc?.text(`Seafarer: ${crew?.fullName || ''}`, margin, yPosition);
-  doc?.text('Date:', margin + sigColW - 14, yPosition);
   doc?.text('Master / authorised person', margin + sigColW, yPosition);
+  doc?.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+  doc?.text('Date:', margin + sigColW - 14, yPosition);
   doc?.text('Date:', pageWidth - margin - 18, yPosition);
+  doc?.setTextColor(0, 0, 0);
   yPosition += 8;
+
+  // Branded footer.
+  doc?.setFontSize(6.5);
+  doc?.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+  doc?.text('Generated with Cargo', margin, pageHeight - 6);
+  doc?.text('MLC 2006 / STCW compliant record', pageWidth - margin, pageHeight - 6, { align: 'right' });
+  doc?.setTextColor(0, 0, 0);
 
   // === BREACHES SECTION (Page 2 if breaches exist) ===
   // Filter breach episodes to only enforced types and within selected month
@@ -296,10 +340,18 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
     yPosition = 15; // 15mm top margin
 
     // === HEADER (TOP) ===
+    doc?.setFont('times', 'bold');
+    doc?.setFontSize(11);
+    doc?.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+    doc?.text('Cargo', margin, yPosition - 1);
     doc?.setFontSize(16);
-    doc?.setFont('helvetica', 'bold');
-    doc?.text('Hours of Rest — Breach Summary', margin, yPosition);
+    doc?.text('Hours of Rest — Breach Summary', margin, yPosition + 6);
+    doc?.setTextColor(0, 0, 0);
     yPosition += 8;
+    doc?.setDrawColor(TERRA[0], TERRA[1], TERRA[2]);
+    doc?.setLineWidth(0.6);
+    doc?.line(margin, yPosition + 1, pageWidth - margin, yPosition + 1);
+    yPosition += 4;
 
     // Subtitle (single line)
     doc?.setFontSize(9);
