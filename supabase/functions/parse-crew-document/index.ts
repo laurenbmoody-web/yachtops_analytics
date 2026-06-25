@@ -82,6 +82,11 @@ Extract these fields and return ONLY a JSON object (no markdown, no backticks):
 
 Rules:
 - Choose the single best doc_type id; use "other" if unsure and put a short name in details.custom_label.
+- Classify by what the document fundamentally IS, not by a single keyword. Key distinctions among easily-confused maritime docs:
+  • seamans_book = a Seaman's Discharge Book / Seafarer's Identity Document (SID) / record-of-sea-service book issued by a flag-state shipping registry (e.g. Cayman Islands, Marshall Islands, UK MCA, Liberia). It records voyages, ranks and discharges and identifies the seafarer. It is NOT a medical. A flag-state registry as issuer + sea-service/discharge records ⇒ seamans_book, even if it carries a validity/expiry.
+  • eng1 = the UK MCA "ENG1" medical fitness certificate specifically.
+  • seafarer_medical = any other flag's seafarer medical fitness certificate. These are signed by an approved medical practitioner and state fitness for sea ("fit for duty", "fit/unfit", examiner/doctor name, restrictions). Choose a medical type ONLY when the document is a doctor's fitness certificate.
+  • coc = a Certificate of Competency / licence stating a capacity/grade (Master, Chief Mate, OOW, Engineer). gmdss/ecdis/yachtmaster/etc are training certificates for that specific skill.
 - For a passport (or national ID), populate the holder's identity in details: country_of_issue (issuing country as a full name, expanding any code such as "GBR" → "United Kingdom"), nationality, date_of_birth ("YYYY-MM-DD"), and place_of_birth (exactly as printed). Omit any field that is not visible.
 - nationality MUST be the demonym (e.g. a UK/GBR passport → "British", a French passport → "French"), NOT a country name, and MUST be exactly one of: ${JSON.stringify(NATIONALITIES)}. If none fit, return the standard English demonym as printed.
 - Dates MUST be YYYY-MM-DD. Convert any format (e.g. 14 MAR 2026, 03/14/2026) correctly; if a date is ambiguous prefer day/month/year. Use null if not present.
