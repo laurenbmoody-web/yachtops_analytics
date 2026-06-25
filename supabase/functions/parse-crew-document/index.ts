@@ -29,21 +29,25 @@ const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
 
 const DOC_TYPE_IDS = [
   // travel & identity
-  'passport', 'national_id', 'seamans_book', 'tax_residency', 'visa_us_b1b2', 'visa_schengen', 'visa_other',
+  'passport', 'national_id', 'driving_licence', 'seamans_book', 'tax_residency', 'visa_us_b1b2', 'visa_schengen', 'visa_other',
   // medical
   'eng1', 'seafarer_medical',
   // safety & security (STCW)
   'stcw_basic', 'stcw_pst', 'stcw_fpff', 'stcw_efa', 'stcw_pssr', 'stcw_advanced_ff', 'stcw_pscrb',
   'stcw_medical_care', 'pdsd', 'sso_dsd', 'crowd_management', 'crisis_management',
+  'frb', 'huet', 'enclosed_spaces', 'safety_other',
   // deck & navigation
   'coc', 'gmdss', 'src', 'lrc', 'ecdis', 'radar_arpa', 'helm_management', 'yachtmaster',
-  'rya_day_skipper', 'rya_coastal_skipper', 'powerboat', 'tender_operator', 'edh',
+  'rya_day_skipper', 'rya_coastal_skipper', 'powerboat', 'tender_operator', 'edh', 'yacht_rating', 'deck_other',
   // engineering
-  'aec', 'meol',
+  'aec', 'meol', 'engineering_other',
   // interior & service
   'food_hygiene', 'silver_service', 'wine_spirits', 'barista', 'mixology', 'yacht_purser', 'guest_interior',
+  'ships_cook', 'culinary', 'interior_other',
   // watersports & dive
-  'pwc_jetski', 'dive', 'waterski',
+  'pwc_jetski', 'dive', 'waterski', 'watersports_other',
+  // professional & administrative
+  'professional_other',
   // issued documents
   'employment_contract', 'contract_amendment', 'offer_letter', 'certificate_of_employment',
   'reference_letter', 'disciplinary_letter', 'general_letter',
@@ -114,6 +118,10 @@ Rules:
   • Interior/service: Yacht Purser or purser/administration course → yacht_purser; WSET wine/spirits → wine_spirits; barista → barista; cocktail/mixology → mixology; silver service / food & beverage → silver_service; GUEST interior course → guest_interior; food hygiene/safety → food_hygiene.
   • Watersports: PWC/jet-ski → pwc_jetski; PADI/scuba diving → dive; water-ski/wakeboard → waterski.
   • Engineering: AEC → aec; MEOL → meol.
+  • More safety: Fast Rescue Boat (FRB) → frb; Helicopter Underwater Escape Training (HUET) → huet; Entry into Enclosed Spaces → enclosed_spaces.
+  • More deck: Yacht Rating / Navigational Watch Rating (NWR) / Able Seafarer (Deck) → yacht_rating. Interior: Ship's Cook Certificate → ships_cook; a cookery/chef qualification → culinary (put the printed title in details.custom_label).
+  • Driving licence → driving_licence.
+- CATCH-ALLS for the long tail: prefer a specific id above; but if the document is a recognised crew qualification with NO specific id, use the matching DEPARTMENT catch-all and ALWAYS put the certificate's printed title in details.custom_label — safety/STCW → safety_other; deck/navigation → deck_other; engineering → engineering_other; interior/service → interior_other (or culinary for cookery); watersports/dive → watersports_other; business / IT / AV / satcom / security-management / academic / surveying / project-management / HR / finance → professional_other. Use plain 'other' only when no department fits.
 - For a passport (or national ID), populate the holder's identity in details: country_of_issue (issuing country as a full name, expanding any code such as "GBR" → "United Kingdom"), nationality, date_of_birth ("YYYY-MM-DD"), and place_of_birth (exactly as printed). Omit any field that is not visible.
 - nationality MUST be the demonym (e.g. a UK/GBR passport → "British", a French passport → "French"), NOT a country name, and MUST be exactly one of: ${JSON.stringify(NATIONALITIES)}. If none fit, return the standard English demonym as printed.
 - Where the document type has extra detail fields, fill the ones you can read using these exact keys/values (omit any you cannot read): medical (eng1/seafarer_medical) → result one of ["Fit","Fit with restrictions","Unfit"] plus restrictions text; gmdss → certificate_type one of ["GOC (General)","ROC (Restricted)"]; food_hygiene → level one of ["Level 1","Level 2","Level 3","Level 4"]; aec → level one of ["AEC 1","AEC 2","AEC 1 & 2"]; yachtmaster → grade one of ["Yachtmaster Coastal","Yachtmaster Offshore","Yachtmaster Ocean"]; helm_management → level one of ["Operational","Management"]; visas → entries one of ["Single","Multiple"] plus max_stay; tax_residency → country and tax_year. For a CoC, the 5-yearly revalidation date is the expiry_date.

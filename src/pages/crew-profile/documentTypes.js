@@ -19,10 +19,16 @@ export const DOC_CATEGORIES = [
   { id: 'engineering', label: 'Engineering' },
   { id: 'interior', label: 'Interior & service' },
   { id: 'watersports', label: 'Watersports & dive' },
+  { id: 'professional', label: 'Professional & administrative' },
   { id: 'qualification', label: 'Other qualifications' },
   { id: 'issued', label: 'Issued documents' },
   { id: 'other', label: 'Other' },
 ];
+
+// A free-text "named certificate" field — used by the per-department catch-all
+// buckets so any qualification we don't model specifically still files into the
+// right department keeping its exact printed title.
+const NAMED_CERT = { key: 'custom_label', label: 'Certificate name' };
 
 // Commercial endorsement (RYA quals) — the part that actually expires; the
 // underlying certificate of competence does not.
@@ -49,6 +55,7 @@ export const DOCUMENT_TYPES = [
   // ── Travel & identity ───────────────────────────────────────────────────
   { id: 'passport', label: 'Passport', category: 'travel', fields: IDENTITY_FIELDS },
   { id: 'national_id', label: 'National ID card', category: 'travel', fields: IDENTITY_FIELDS },
+  { id: 'driving_licence', label: 'Driving licence', category: 'travel' },
   {
     // A discharge book is a record of sea service / identity book — it does not
     // expire. Issued by a flag-state administration.
@@ -122,6 +129,10 @@ export const DOCUMENT_TYPES = [
   { id: 'sso_dsd', label: 'Ship Security Officer (SSO)', category: 'safety', expiry: false },
   { id: 'crowd_management', label: 'Crowd Management', category: 'safety', expiry: false },
   { id: 'crisis_management', label: 'Crisis Management & Human Behaviour', category: 'safety', expiry: false },
+  { id: 'frb', label: 'STCW Fast Rescue Boat (FRB)', category: 'safety', expiryLabel: STCW_REFRESHER_LABEL },
+  { id: 'huet', label: 'Helicopter Underwater Escape Training (HUET)', category: 'safety', expiryLabel: 'Renewal due' },
+  { id: 'enclosed_spaces', label: 'Entry into Enclosed Spaces', category: 'safety', expiry: false },
+  { id: 'safety_other', label: 'Other safety / security certificate', category: 'safety', fields: [NAMED_CERT] },
 
   // ── Deck & navigation ───────────────────────────────────────────────────
   {
@@ -170,6 +181,8 @@ export const DOCUMENT_TYPES = [
   },
   { id: 'tender_operator', label: 'Tender Operator', category: 'deck', expiry: false },
   { id: 'edh', label: 'Efficient Deck Hand (EDH)', category: 'deck', expiry: false },
+  { id: 'yacht_rating', label: 'Yacht / Deck Rating (NWR / Able Seafarer)', category: 'deck', expiry: false },
+  { id: 'deck_other', label: 'Other deck / navigation certificate', category: 'deck', fields: [NAMED_CERT] },
 
   // ── Engineering ─────────────────────────────────────────────────────────
   {
@@ -177,6 +190,7 @@ export const DOCUMENT_TYPES = [
     fields: [{ key: 'level', label: 'Course', type: 'select', options: ['AEC 1', 'AEC 2', 'AEC 1 & 2'] }],
   },
   { id: 'meol', label: 'Marine Engine Operator Licence (MEOL)', category: 'engineering', expiry: false },
+  { id: 'engineering_other', label: 'Other engineering certificate', category: 'engineering', fields: [NAMED_CERT] },
 
   // ── Interior & service ──────────────────────────────────────────────────
   {
@@ -192,6 +206,9 @@ export const DOCUMENT_TYPES = [
   { id: 'mixology', label: 'Cocktail / Mixology', category: 'interior', expiry: false },
   { id: 'yacht_purser', label: 'Yacht Purser / Administration', category: 'interior', expiry: false },
   { id: 'guest_interior', label: 'GUEST interior crew course', category: 'interior', expiry: false },
+  { id: 'ships_cook', label: "Ship's Cook Certificate", category: 'interior', expiry: false },
+  { id: 'culinary', label: 'Culinary / chef qualification', category: 'interior', fields: [NAMED_CERT] },
+  { id: 'interior_other', label: 'Other interior / service certificate', category: 'interior', fields: [NAMED_CERT] },
 
   // ── Watersports & dive ──────────────────────────────────────────────────
   { id: 'pwc_jetski', label: 'PWC / Jet Ski', category: 'watersports', expiry: false },
@@ -200,6 +217,13 @@ export const DOCUMENT_TYPES = [
     fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Open Water', 'Advanced Open Water', 'Rescue Diver', 'Divemaster', 'Instructor'] }],
   },
   { id: 'waterski', label: 'Water-ski / Wakeboard instructor', category: 'watersports', expiry: false },
+  { id: 'watersports_other', label: 'Other watersports / dive certificate', category: 'watersports', fields: [NAMED_CERT] },
+
+  // ── Professional & administrative ───────────────────────────────────────
+  // Business / IT / AV / security-management / academic / surveying / project
+  // management etc. — captured by department so the exact title is preserved
+  // without modelling hundreds of niche courses individually.
+  { id: 'professional_other', label: 'Professional / administrative certificate', category: 'professional', fields: [NAMED_CERT] },
 
   // ── Issued documents ────────────────────────────────────────────────────
   // The kept-on-file record between crew member and employer: signed contracts,
@@ -248,6 +272,10 @@ const MULTI_INSTANCE_IDS = new Set([
   'employment_contract', 'contract_amendment', 'offer_letter',
   'certificate_of_employment', 'reference_letter', 'disciplinary_letter',
   'general_letter', 'other',
+  // Per-department catch-alls hold distinct named certificates, so several can
+  // co-exist (they must not supersede one another).
+  'safety_other', 'deck_other', 'engineering_other', 'culinary',
+  'interior_other', 'watersports_other', 'professional_other',
 ]);
 
 export const allowsMultipleDocs = (id) => MULTI_INSTANCE_IDS.has(id);
@@ -260,7 +288,10 @@ export const coreDocumentTypes = () =>
 export const getDocTypeLabel = (id, details) => {
   const t = getDocType(id);
   if (!t) return id || 'Document';
-  if (id === 'other' && details?.custom_label) return details.custom_label;
+  // Named-certificate buckets (other, the per-department catch-alls, letters)
+  // show the specific title the user/parser captured.
+  const named = (t.fields || []).some((f) => f.key === 'custom_label');
+  if (named && details?.custom_label) return details.custom_label;
   return t.label;
 };
 
