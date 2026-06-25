@@ -341,7 +341,9 @@ export function assessMlc({ dayShifts = [], weekShifts = [] } = {}) {
     },
     {
       rule: 'rest_period_split',
-      label: 'Rest in ≤2 periods, one ≥6h',
+      // ASCII only — this label is rendered in the HOR PDF (jsPDF's Helvetica
+      // can't encode ≤/≥, which come out as garbage).
+      label: 'Rest in max 2 periods, one of 6h+',
       satisfied: split.satisfied,
       actual: { periodCount: split.periodCount, longest: split.longest },
       limit: { maxPeriods: MLC_MAX_REST_PERIODS, longestMin: MLC_LONGEST_REST_PERIOD_MIN },
