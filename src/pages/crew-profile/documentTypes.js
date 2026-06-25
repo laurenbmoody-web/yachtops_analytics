@@ -16,7 +16,13 @@ const STCW_REFRESHER = { key: 'revalidation_date', label: 'Refresher / revalidat
 
 export const DOCUMENT_TYPES = [
   // Travel & identity
-  { id: 'passport', label: 'Passport', category: 'travel' },
+  {
+    id: 'passport', label: 'Passport', category: 'travel',
+    fields: [
+      { key: 'country_of_issue', label: 'Country of issue' },
+      { key: 'place_of_birth', label: 'Place of birth' },
+    ],
+  },
   { id: 'national_id', label: 'National ID card', category: 'travel' },
   { id: 'seamans_book', label: "Seaman's book / Discharge book", category: 'travel' },
   {

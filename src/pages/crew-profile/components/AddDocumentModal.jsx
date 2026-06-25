@@ -4,9 +4,20 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import ModalShell from '../../../components/ui/ModalShell';
 import DateInput from '../../../components/ui/DateInput';
+import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
 import { groupedDocumentTypes, getDocType } from '../documentTypes';
-import { saveCrewDocument, uploadDocumentFile } from '../utils/crewDocuments';
+import { saveCrewDocument, uploadDocumentFile, parseDocumentFile } from '../utils/crewDocuments';
+
+// Loose match for verifying typed input against a scanned value: trim, collapse
+// whitespace, case-insensitive. Dates are already normalised to YYYY-MM-DD.
+const norm = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+// Show dates the Cargo way (dd/mm/yyyy) when advising on a mismatch.
+const showVal = (key, v) =>
+  (key === 'issueDate' || key === 'expiryDate') && /^\d{4}-\d{2}-\d{2}$/.test(v)
+    ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}`
+    : v;
 
 const blank = {
   docType: '', documentNumber: '', issuingAuthority: '', flagState: '',
@@ -18,9 +29,15 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
   const [form, setForm] = useState(blank);
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  // Result of reading a file the user attached inside the modal:
+  // { kind: 'filled' | 'ok' | 'warn' | 'error', messages: string[] }.
+  const [advisory, setAdvisory] = useState(null);
 
   useEffect(() => {
     if (!isOpen) return;
+    setScanning(false);
+    setAdvisory(null);
     if (existing) {
       setForm({
         id: existing.id,
@@ -61,6 +78,94 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
   const typeDef = getDocType(form.docType);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setDetail = (k, v) => setForm((f) => ({ ...f, details: { ...f.details, [k]: v } }));
+
+  // Attaching a file inside the modal triggers a read:
+  //   • nothing typed yet → parse the document and fill the fields;
+  //   • already typed     → fill any blanks and flag where the typed value
+  //     disagrees with what the document shows.
+  const handleFileSelect = async (selected) => {
+    setFile(selected);
+    setAdvisory(null);
+    if (!selected) return;
+
+    const detailVals = Object.values(form.details || {}).filter((v) => v != null && String(v).trim() !== '');
+    const hasInput = [form.documentNumber, form.issuingAuthority, form.flagState, form.issueDate, form.expiryDate]
+      .some((v) => v && String(v).trim() !== '') || detailVals.length > 0;
+
+    setScanning(true);
+    try {
+      const s = await parseDocumentFile(selected);
+
+      if (!hasInput) {
+        // Auto-fill mode — populate everything from the scan.
+        setForm((f) => ({
+          ...f,
+          docType: f.docType || s.doc_type || '',
+          documentNumber: s.document_number || '',
+          issuingAuthority: s.issuing_authority || '',
+          flagState: s.flag_state || '',
+          issueDate: s.issue_date || '',
+          expiryDate: s.expiry_date || '',
+          details: { ...f.details, ...(s.details || {}) },
+        }));
+        setAdvisory({
+          kind: 'filled',
+          messages: ['We filled the fields from your upload — please check each one before saving.'],
+        });
+        return;
+      }
+
+      // Verify mode — fill blanks, flag conflicts on fields already typed.
+      const specs = [
+        ['documentNumber', 'Document number', s.document_number],
+        ['issuingAuthority', 'Issuing authority', s.issuing_authority],
+        ['issueDate', 'Issue date', s.issue_date],
+        ['expiryDate', 'Expiry date', s.expiry_date],
+      ];
+      if (typeDef?.flagState) specs.push(['flagState', 'Issuing flag state', s.flag_state]);
+
+      const fills = {};
+      const detailFills = {};
+      const conflicts = [];
+
+      specs.forEach(([key, label, parsed]) => {
+        if (!parsed) return;
+        const cur = form[key];
+        if (!cur || String(cur).trim() === '') fills[key] = parsed;
+        else if (norm(cur) !== norm(parsed)) {
+          conflicts.push(`${label}: you entered “${showVal(key, cur)}”, the document shows “${showVal(key, parsed)}”.`);
+        }
+      });
+
+      (typeDef?.fields || []).forEach((fd) => {
+        const parsed = s.details?.[fd.key];
+        if (!parsed) return;
+        const cur = form.details?.[fd.key];
+        if (!cur || String(cur).trim() === '') detailFills[fd.key] = parsed;
+        else if (norm(cur) !== norm(parsed)) {
+          conflicts.push(`${fd.label}: you entered “${cur}”, the document shows “${parsed}”.`);
+        }
+      });
+
+      if (Object.keys(fills).length || Object.keys(detailFills).length) {
+        setForm((f) => ({ ...f, ...fills, details: { ...f.details, ...detailFills } }));
+      }
+
+      setAdvisory(
+        conflicts.length
+          ? { kind: 'warn', messages: ['These fields don’t match your upload — please double-check:', ...conflicts] }
+          : { kind: 'ok', messages: ['Your details match the uploaded document.'] },
+      );
+    } catch (e) {
+      console.error('[docs] file parse failed', e);
+      setAdvisory({
+        kind: 'error',
+        messages: ['Couldn’t read this file automatically — the file is still attached, just fill the fields in manually.'],
+      });
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!form.docType) { showToast('Pick a document type', 'error'); return; }
@@ -182,16 +287,21 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
           </div>
         ))}
 
-        {/* File */}
+        {/* File — attaching one reads the document to fill or check the fields. */}
         <div className="md:col-span-2">
           <label className={labelCls}>File (optional)</label>
           <input
             type="file"
             accept="image/*,application/pdf"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground"
+            disabled={scanning}
+            onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+            className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground disabled:opacity-60"
           />
-          {file ? (
+          {scanning ? (
+            <p className="text-xs mt-1.5 flex items-center gap-1.5" style={{ color: '#7A2E1E' }}>
+              <LogoSpinner size={12} /> Reading your upload…
+            </p>
+          ) : file ? (
             <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
               <Icon name="Paperclip" size={12} /> {file.name} {prefill && !form.id ? '(from your upload)' : '(attached)'}
             </p>
@@ -200,12 +310,36 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
               <Icon name="Paperclip" size={12} /> {form.fileName} (keep existing)
             </p>
           ) : null}
+
+          {advisory && !scanning && (
+            <div
+              className="flex items-start gap-2 mt-2 px-3 py-2 rounded-lg text-xs"
+              style={
+                advisory.kind === 'warn'
+                  ? { background: '#FBEFE9', color: '#7A2E1E' }
+                  : advisory.kind === 'error'
+                    ? { background: '#FAFAF8', border: '1px solid #ECEAE3', color: '#6B7280' }
+                    : advisory.kind === 'ok'
+                      ? { background: '#ECF7EE', color: '#1E7A3E' }
+                      : { background: '#FAEEDA', color: '#7A2E1E' }
+              }
+            >
+              <Icon
+                name={advisory.kind === 'warn' ? 'AlertTriangle' : advisory.kind === 'ok' ? 'CheckCircle' : advisory.kind === 'error' ? 'Info' : 'Sparkles'}
+                size={14}
+                className="flex-shrink-0 mt-0.5"
+              />
+              <div className="space-y-0.5">
+                {advisory.messages.map((m, i) => <div key={i}>{m}</div>)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="flex justify-end gap-3 mt-6">
         <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button onClick={handleSave} loading={saving}>{form.id ? 'Save changes' : 'Add document'}</Button>
+        <Button onClick={handleSave} loading={saving} disabled={scanning}>{form.id ? 'Save changes' : 'Add document'}</Button>
       </div>
     </ModalShell>
   );
