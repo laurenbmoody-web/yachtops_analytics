@@ -72,6 +72,8 @@ export default function SeaServiceSignPage() {
       });
       if (error) throw error;
       if (!data?.ok) { setErr(data?.error === 'expired' ? 'This link has expired.' : 'This link has already been used.'); return; }
+      // Notify the seafarer (bell + email) — best-effort, never blocks the sign.
+      supabase.functions.invoke('notify-seatime-signoff', { body: { action: 'signed', token } }).catch(() => {});
       setStatus('done');
     } catch (e) { console.error('[SeaServiceSign] sign', e); setErr('Something went wrong — please try again.'); }
   };
@@ -81,6 +83,7 @@ export default function SeaServiceSignPage() {
     try {
       const { error } = await supabase.rpc('decline_sea_service_sign_request', { p_token: token, p_reason: reason || null });
       if (error) throw error;
+      supabase.functions.invoke('notify-seatime-signoff', { body: { action: 'declined', token } }).catch(() => {});
       setStatus('declined');
     } catch (e) { console.error('[SeaServiceSign] decline', e); setErr('Something went wrong — please try again.'); }
   };

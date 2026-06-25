@@ -7,6 +7,34 @@ import './captain-signoff.css';
 const fmtDate = (iso) => { if (!iso) return '—'; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : iso; };
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+// Country dial codes for the contact-phone field — masters sign from many
+// countries, so the number is entered as [dial code] + [local number]. Curated
+// to common yacht-crew nationalities; extend freely.
+const DIAL_CODES = [
+  ['+44', '+44 United Kingdom'], ['+1', '+1 USA / Canada'], ['+33', '+33 France'],
+  ['+34', '+34 Spain'], ['+39', '+39 Italy'], ['+31', '+31 Netherlands'],
+  ['+49', '+49 Germany'], ['+41', '+41 Switzerland'], ['+32', '+32 Belgium'],
+  ['+351', '+351 Portugal'], ['+30', '+30 Greece'], ['+385', '+385 Croatia'],
+  ['+356', '+356 Malta'], ['+377', '+377 Monaco'], ['+353', '+353 Ireland'],
+  ['+46', '+46 Sweden'], ['+47', '+47 Norway'], ['+45', '+45 Denmark'],
+  ['+358', '+358 Finland'], ['+48', '+48 Poland'], ['+380', '+380 Ukraine'],
+  ['+7', '+7 Russia / Kazakhstan'], ['+27', '+27 South Africa'], ['+61', '+61 Australia'],
+  ['+64', '+64 New Zealand'], ['+63', '+63 Philippines'], ['+971', '+971 UAE'],
+  ['+90', '+90 Turkey'], ['+55', '+55 Brazil'], ['+54', '+54 Argentina'],
+  ['+52', '+52 Mexico'], ['+1268', '+1268 Antigua & Barbuda'], ['+1284', '+1284 BVI'],
+];
+const CODES_BY_LEN = DIAL_CODES.map(d => d[0]).sort((a, b) => b.length - a.length);
+// Split a stored "+33 6 12 …" into { code, number } so the prefill lands in the
+// selector + the field; unknown/blank numbers default the code to +44.
+const splitPhone = (raw) => {
+  const s = String(raw || '').trim();
+  if (s.startsWith('+')) {
+    const code = CODES_BY_LEN.find(c => s.startsWith(c));
+    if (code) return { code, number: s.slice(code.length).trim() };
+  }
+  return { code: '+44', number: s };
+};
+
 // UK date entry. A native <input type="date"> renders in the browser's OS
 // locale (mm/dd/yyyy on US machines), which breaks the dd/mm/yyyy house style.
 // This is a plain text field that always shows and accepts dd/mm/yyyy while
@@ -52,33 +80,39 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
   const ps = v.periods || [];
   const froms = ps.map(e => e.from).filter(Boolean).sort();
   const tos = ps.map(e => e.to).filter(Boolean).sort();
-  const [form, setForm] = useState(() => ({
-    name: signerName || (v.captainName || '').replace('Capt. ', ''),
-    cocNo: v.captainCoc || signerCoc || '',
-    cocGrade: v.captainCocGrade || signerCocGrade || '',
-    email: v.captainEmail || signerEmail || '',
-    phone: signerPhone || '',
-    place: '',
-    cmdFrom: v.cmdFrom || froms[0] || '',
-    cmdTo: v.cmdTo || tos[tos.length - 1] || ''
-  }));
+  const [form, setForm] = useState(() => {
+    const sp = splitPhone(signerPhone);
+    return {
+      name: signerName || (v.captainName || '').replace('Capt. ', ''),
+      cocNo: v.captainCoc || signerCoc || '',
+      cocGrade: v.captainCocGrade || signerCocGrade || '',
+      email: v.captainEmail || signerEmail || '',
+      phoneCode: sp.code,
+      phone: sp.number,
+      place: '',
+      cmdFrom: v.cmdFrom || froms[0] || '',
+      cmdTo: v.cmdTo || tos[tos.length - 1] || ''
+    };
+  });
   // The signer's particulars (CoC, grade, email, phone) load async from the
   // crew record. Backfill any field the master hasn't touched once they arrive,
   // so the form pre-fills from data on file without ever clobbering typing.
   useEffect(() => {
-    setForm(f => ({
-      ...f,
-      cocNo: f.cocNo || signerCoc || '',
-      cocGrade: f.cocGrade || signerCocGrade || '',
-      email: f.email || signerEmail || '',
-      phone: f.phone || signerPhone || ''
-    }));
+    setForm(f => {
+      const next = {
+        ...f,
+        cocNo: f.cocNo || signerCoc || '',
+        cocGrade: f.cocGrade || signerCocGrade || '',
+        email: f.email || signerEmail || '',
+      };
+      if (!f.phone && signerPhone) { const sp = splitPhone(signerPhone); next.phone = sp.number; next.phoneCode = sp.code; }
+      return next;
+    });
   }, [signerCoc, signerCocGrade, signerEmail, signerPhone]);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
   const setSF = (patch) => setForm(f => ({ ...f, ...patch }));
 
-  // Signature — draw it (canvas) or type it (rendered in script). Drawing is the
   // Signature — drawn on the canvas, with the printed full name underneath. A
   // drawn mark reads as an actual signature (stands in for the ship's stamp);
   // there is no typed-signature alternative.
@@ -126,7 +160,7 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
 
   const submit = () => onSign({
     name: form.name.trim(), cocNo: form.cocNo.trim(), cocGrade: form.cocGrade.trim(),
-    email: form.email.trim(), phone: form.phone.trim(), place: form.place.trim(),
+    email: form.email.trim(), phone: form.phone.trim() ? `${form.phoneCode} ${form.phone.trim()}` : '', place: form.place.trim(),
     cmdFrom: form.cmdFrom, cmdTo: form.cmdTo,
     signature: { kind: 'drawn', image: padRef.current ? padRef.current.toDataURL('image/png') : null }
   });
@@ -207,7 +241,12 @@ export default function CaptainSignoff({ unit, seafarer, isEng = false, signerNa
             </div>
             <div className="cso-fld">
               <label className="cso-lbl">Contact phone <span className="opt">optional</span></label>
-              <input className="cso-input" value={form.phone} onChange={e => setSF({ phone: e.target.value })} placeholder="+…" />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select className="cso-input" style={{ flex: '0 0 116px', paddingLeft: 10, paddingRight: 6 }} value={form.phoneCode} onChange={e => setSF({ phoneCode: e.target.value })} aria-label="Country dialling code">
+                  {DIAL_CODES.map(([code, label]) => <option key={label} value={code}>{label}</option>)}
+                </select>
+                <input className="cso-input" style={{ flex: 1 }} value={form.phone} onChange={e => setSF({ phone: e.target.value })} placeholder="phone number" inputMode="tel" />
+              </div>
             </div>
           </div>
           <div className="cso-grid">
