@@ -2704,6 +2704,29 @@ const canEdit = (() => {
           )}
         </div>
 
+        {/* Uniform & kit — sizes used to order crew uniform at onboarding. */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Uniform &amp; kit</span>
+            <span className="t" style={{ fontSize: 13, color: '#9098B1' }}>· for onboarding</span>
+            <span className="line" />
+          </div>
+          <div className="cp-grid">
+            <Field label="Shirt / Top">
+              <Input value={formData?.uniformTop} onChange={(e) => handleInputChange('uniformTop', e?.target?.value)} disabled={!isEditing} placeholder="e.g. M / 40" />
+            </Field>
+            <Field label="Trousers / Shorts">
+              <Input value={formData?.uniformBottom} onChange={(e) => handleInputChange('uniformBottom', e?.target?.value)} disabled={!isEditing} placeholder="e.g. 32R" />
+            </Field>
+            <Field label="Jacket / Outer">
+              <Input value={formData?.uniformJacket} onChange={(e) => handleInputChange('uniformJacket', e?.target?.value)} disabled={!isEditing} placeholder="e.g. M" />
+            </Field>
+            <Field label="Shoe Size">
+              <Input value={formData?.uniformShoe} onChange={(e) => handleInputChange('uniformShoe', e?.target?.value)} disabled={!isEditing} placeholder="e.g. UK 9 / EU 43" />
+            </Field>
+          </div>
+        </div>
+
         {/* Single Save/Cancel buttons at bottom */}
         {isEditing && (
           <div className="flex justify-end gap-3 pt-2">
