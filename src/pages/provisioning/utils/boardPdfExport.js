@@ -2,18 +2,26 @@ import jsPDF from 'jspdf';
 
 // Provisioning-board PDF exporter.
 //
-// Captures the in-app board with html2canvas and embeds the
-// resulting tall image into a paginated jsPDF, then opens the PDF
-// in a new tab via a blob URL. The chief gets the editorial page
-// they see on screen (typography, chips, hairlines, terracotta
-// accents) inside a viewer that supports orientation / save / print
-// without the browser's print dialog.
+// Captures the in-app board page and embeds it into a paginated
+// A4 PDF, then opens it in a new tab via a blob URL — chief gets
+// the editorial page they see on screen inside a real PDF viewer
+// instead of fighting the browser's print dialog.
 //
-// Full bleed: no page margins — the captured page goes edge to edge
-// so the chips and KPI cards render at full readable size instead
-// of being shrunk inside a narrow column. The captured DOM still
-// carries its own padding so the content has visual breathing room
-// against the page edge.
+// Render engine: html-to-image (SVG foreignObject), not html2canvas.
+// html2canvas re-rasterises everything itself and famously chokes
+// on a handful of CSS that we lean on heavily:
+//   * `var()` inside `background` (kills the supplier-progress bar)
+//   * baseline alignment inside flex pills (the chip numbers and
+//     "received" label drift apart)
+//   * pseudo-elements + thin progress-bar fills
+//   * custom-loaded fonts that aren't fully cached at capture time
+// html-to-image hands the live computed styles to the browser's
+// own SVG renderer via foreignObject — what the browser paints on
+// screen is what comes back, pills and bars included.
+//
+// Full bleed: zero page margins, capture target picks the inner
+// content host so the page content goes edge-to-edge (the captured
+// DOM still has its own padding so it doesn't feel cramped).
 
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
@@ -25,61 +33,19 @@ const IGNORED_SELECTORS = [
   '.cargo-ribbon',
 ];
 
-const shouldIgnore = (el) => {
-  if (!el || el.nodeType !== 1) return false;
-  return IGNORED_SELECTORS.some((sel) => {
-    try { return el.matches?.(sel); } catch { return false; }
+const shouldFilter = (node) => {
+  if (!node || node.nodeType !== 1) return true;
+  return !IGNORED_SELECTORS.some((sel) => {
+    try { return node.matches?.(sel); } catch { return false; }
   });
 };
 
-// Slice a tall source canvas into A4-page-sized chunks at the given
-// scale (canvas px → mm). Each slice is drawn into a fresh canvas
-// and pushed as a JPEG to the doc as a separate page.
-const paginateCanvasToPdf = (sourceCanvas, doc, { scale }) => {
-  const pageContentMm = A4_HEIGHT_MM;
-  const slicePxHeight = Math.floor(pageContentMm / scale);
-  const usableWidthMm = A4_WIDTH_MM;
-
-  let yOffsetPx = 0;
-  let firstPage = true;
-
-  while (yOffsetPx < sourceCanvas.height) {
-    const sliceHeight = Math.min(slicePxHeight, sourceCanvas.height - yOffsetPx);
-
-    const sliceCanvas = document.createElement('canvas');
-    sliceCanvas.width = sourceCanvas.width;
-    sliceCanvas.height = sliceHeight;
-    const ctx = sliceCanvas.getContext('2d');
-    // White background for any transparent regions in the source.
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-    ctx.drawImage(sourceCanvas, 0, -yOffsetPx);
-
-    const imgData = sliceCanvas.toDataURL('image/jpeg', 0.92);
-    if (!firstPage) doc.addPage();
-    doc.addImage(
-      imgData,
-      'JPEG',
-      0,
-      0,
-      usableWidthMm,
-      sliceHeight * scale,
-    );
-
-    firstPage = false;
-    yOffsetPx += sliceHeight;
-  }
-};
-
 // Pick the tightest element that wraps the printable board content.
-// `.pv-dashboard` is the outer page wrapper and tends to include
-// the page's left/right gutter padding (so the resulting capture
-// has empty bands on either side and the actual content looks
-// small inside a wide canvas). Prefer the EditorialPageShell's
-// inner content host when available — that's the column whose
-// width matches the title + chips + items table.
+// `.pv-dashboard` is the outer page wrapper and carries the page
+// gutter padding, so prefer the EditorialPageShell's inner content
+// host when available — the canvas then matches the actual content
+// column rather than the gutter.
 const pickCaptureTarget = () => {
-  // Tighter selectors first.
   const candidates = [
     '.editorial-shell-content',
     '.editorial-page-shell',
@@ -93,6 +59,50 @@ const pickCaptureTarget = () => {
   return null;
 };
 
+// Slice the tall captured image down into A4-portrait pages and
+// push each as a JPEG into the doc. White fills any transparent
+// gap so the page edge stays clean.
+const paginateImageToPdf = async (image, doc) => {
+  const pageContentMm = A4_HEIGHT_MM;
+  const pageWidthMm = A4_WIDTH_MM;
+  const scale = pageWidthMm / image.naturalWidth;
+  const slicePxHeight = Math.floor(pageContentMm / scale);
+
+  let yOffsetPx = 0;
+  let firstPage = true;
+
+  while (yOffsetPx < image.naturalHeight) {
+    const sliceHeight = Math.min(slicePxHeight, image.naturalHeight - yOffsetPx);
+
+    const sliceCanvas = document.createElement('canvas');
+    sliceCanvas.width = image.naturalWidth;
+    sliceCanvas.height = sliceHeight;
+    const ctx = sliceCanvas.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+    ctx.drawImage(image, 0, -yOffsetPx);
+
+    const imgData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+    if (!firstPage) doc.addPage();
+    doc.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, sliceHeight * scale);
+
+    firstPage = false;
+    yOffsetPx += sliceHeight;
+  }
+};
+
+// Wait for any pending @font-face files to resolve before capture,
+// otherwise the first paint inside the SVG foreignObject can land
+// before DM Serif / Inter are ready and the export renders in a
+// fallback serif.
+const waitForFonts = async () => {
+  try {
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+  } catch { /* progress regardless */ }
+};
+
 // Capture the in-app board and open the resulting PDF in a new tab.
 export const openBoardPdf = async () => {
   const target = pickCaptureTarget();
@@ -101,30 +111,44 @@ export const openBoardPdf = async () => {
     return;
   }
 
-  // Dynamic import — keeps html2canvas out of the main chunk.
-  const html2canvas = (await import('html2canvas')).default;
+  await waitForFonts();
 
-  // scale: 2 keeps the typography crisp at common viewing zoom.
-  // useCORS lets any tenant logo / supplier mark render instead of
-  // tainting the canvas and aborting the export. We pass an
-  // explicit width so html2canvas captures the element's own
-  // scrollWidth — important when the page has overflowed
-  // horizontally on a narrow viewport.
-  const canvas = await html2canvas(target, {
-    scale: 2,
-    useCORS: true,
+  // Dynamic import — keeps html-to-image out of the main chunk.
+  const { toPng } = await import('html-to-image');
+
+  // pixelRatio: 2 keeps the typography crisp at typical viewing
+  // zoom. cacheBust forces any non-data-URL images on the page
+  // (tenant logo / supplier marks) to refetch with a CORS-friendly
+  // request, so a stale cache hit doesn't taint the canvas.
+  const dataUrl = await toPng(target, {
+    pixelRatio: 2,
+    cacheBust: true,
     backgroundColor: '#FFFFFF',
-    logging: false,
-    ignoreElements: shouldIgnore,
+    filter: shouldFilter,
     width: target.scrollWidth,
     height: target.scrollHeight,
-    windowWidth: target.scrollWidth,
+    style: {
+      // Pin the captured node's box to its scroll size so html-to-
+      // image doesn't truncate when the page has overflowed below
+      // the viewport. Inline so it overrides any transient layout
+      // animation in flight at capture time.
+      transform: 'none',
+      width: `${target.scrollWidth}px`,
+      height: `${target.scrollHeight}px`,
+    },
+  });
+
+  // Decode the PNG so paginateImageToPdf can read naturalWidth /
+  // naturalHeight and draw slices into the per-page canvases.
+  const image = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = dataUrl;
   });
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const scale = A4_WIDTH_MM / canvas.width;
-
-  paginateCanvasToPdf(canvas, doc, { scale });
+  await paginateImageToPdf(image, doc);
 
   const blob = doc.output('blob');
   const url = URL.createObjectURL(blob);
