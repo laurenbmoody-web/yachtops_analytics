@@ -130,7 +130,7 @@ test('missing required supporting doc blocks generation', () => {
 // --- a new verifier is addable via config object ONLY ------------------------
 test('verifier list is data; profiles all expose the same shape', () => {
   const ids = getVerifierProfiles().map(v => v.id);
-  assert.deepEqual(ids, ['pya', 'transport_malta', 'mca']);
+  assert.deepEqual(ids, ['nautilus', 'pya', 'transport_malta', 'mca']);
   for (const v of getVerifierProfiles()) {
     assert.ok(Array.isArray(v.docs) && typeof v.instructions === 'string' && typeof v.fee === 'string');
   }

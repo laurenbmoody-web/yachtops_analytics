@@ -52,6 +52,19 @@ export const SOURCE_META = {
 
 // ── Verifier profiles — config-driven; a 4th is data ONLY (no engine change) ─
 export const VERIFIER_PROFILES = {
+  nautilus: {
+    id: 'nautilus', label: 'Nautilus', short: 'Nautilus', name: 'Nautilus International',
+    docs: [
+      { id: 'passport', label: 'Certified passport copy' },
+      { id: 'email', label: "Signatory's verified email" },
+      { id: 'srb', label: 'Discharge book / SRB scan' }
+    ],
+    fee: 'Verification via Nautilus International (MIN 543 authorised); fees per their member tariff.',
+    // Nautilus issue their own SST form — Cargo fills Parts 1–2 from your record;
+    // the master signs Parts 3–4 and Nautilus verify (Part 5).
+    instructions: 'Nautilus International verify yacht sea service for the MCA (MIN 543). Export your pre-filled Nautilus testimonial here, have the master sign and stamp it, then submit to Nautilus to verify with the signatory.',
+    lastReviewed: '2026-06-26'
+  },
   pya: {
     id: 'pya', label: 'PYA', short: 'PYA', name: 'PYA — Professional Yachting Association',
     docs: [
