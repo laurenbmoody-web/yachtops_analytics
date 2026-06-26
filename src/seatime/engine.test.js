@@ -257,6 +257,33 @@ test('OOW 250/115 split: all-standby cannot satisfy the 250 seagoing-only floor'
   assert.equal(oow2.find(x => x.key === 'combined').current, 50); // 300 - 250 overflow
 });
 
+test('Master <3000GT §3.6 OR-branch computes from vessel GT/length', () => {
+  const md = SERVICE_RULES.monthDays;
+  const vsl = {
+    big: { gt: 600, lengthM: 30 },   // ≥24m AND ≥500GT
+    mid: { gt: 200, lengthM: 26 },   // ≥24m only
+    sm:  { gt: 100, lengthM: 18 },   // neither
+    nodim: { gt: null, lengthM: null } // size unknown
+  };
+  // 200 days on the 26m (length route) + 190 days on the 600GT/30m vessel.
+  const entries = [
+    { id: '1', vesselId: 'mid', type: 'seagoing', days: 200, watchHours: 8 },
+    { id: '2', vesselId: 'big', type: 'seagoing', days: 190, watchHours: 8 },
+    { id: '3', vesselId: 'nodim', type: 'seagoing', days: 40, watchHours: 8 }
+  ];
+  const b = computeBuckets(entries, vsl, DEFAULT_CONFIG);
+  assert.equal(b.metres24Days, 390);          // 200 + 190 on ≥24m
+  assert.equal(b.gt500Days, 190);             // only the 600GT vessel
+  assert.equal(b.sizeUnknownDays, 40);        // the no-dimension vessel
+  const bars = buildRequirementBars(b, {}, CERTIFICATES.MASTER_YACHT_3000);
+  const ht = bars.find(x => x.key === 'higherTonnage');
+  assert.ok(ht, 'higher-tonnage OR-branch bar present');
+  assert.equal(ht.met, true);                 // 390 ≥ 12mo(360) on the length route
+  assert.equal(ht.detail.metresTarget, 12 * md);
+  assert.equal(ht.detail.gtTarget, 6 * md);
+  assert.equal(ht.detail.sizeUnknownDays, 40);
+});
+
 test('small-vessel command entry routes exist and are notice-verified', () => {
   for (const id of ['MASTER_CODE_200_COASTAL', 'MASTER_CODE_200_UNLIMITED']) {
     const c = CERTIFICATES[id];

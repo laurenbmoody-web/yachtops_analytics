@@ -867,6 +867,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                           <div className="l">{rq.label}{rq.advisory && <span className="stp-advtag">advisory</span>}</div>
                           <div className="v">{rq.required ? <>{rq.current} <em>/ {rq.required}</em></> : '—'}</div>
                           <div className="meter"><i style={{ width: `${rq.pct}%` }} /></div>
+                          {rq.orBranch && rq.detail && (
+                            <div className="stp-orhint">
+                              by length {rq.detail.metres24}/{rq.detail.metresTarget} · by tonnage {rq.detail.gt500}/{rq.detail.gtTarget}
+                              {rq.detail.sizeUnknownDays > 0 ? ` · ${rq.detail.sizeUnknownDays} day${rq.detail.sizeUnknownDays === 1 ? '' : 's'} without vessel size not counted` : ''}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
