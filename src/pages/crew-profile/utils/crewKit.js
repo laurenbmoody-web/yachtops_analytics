@@ -172,6 +172,32 @@ export const reinstateKitItem = async (id) => {
   if (error) throw error;
 };
 
+// ── History — append-only audit log of issued-kit changes ────────────────────
+export const logKitEvent = async ({ kitId, userId, tenantId, action, detail, actorId, actorName }) => {
+  if (!userId || !action || !actorId) return;
+  const { error } = await supabase?.from('crew_kit_events')?.insert({
+    kit_id: kitId || null,
+    user_id: userId,
+    tenant_id: tenantId || null,
+    action,
+    detail: detail || {},
+    actor_id: actorId,
+    actor_name: actorName || null,
+  });
+  if (error) console.error('[kit] event log failed', error); // non-blocking
+};
+
+export const fetchKitEvents = async (userId) => {
+  if (!userId) return [];
+  const { data, error } = await supabase
+    ?.from('crew_kit_events')
+    ?.select('*')
+    ?.eq('user_id', userId)
+    ?.order('created_at', { ascending: false });
+  if (error) { console.error('[kit] events fetch failed', error); return []; }
+  return data || [];
+};
+
 // ── Uniform sizes — live in crew_personal_details.preferences.uniformSizes;
 // surfaced on the Issued Kit tab (moved off Preferences) without disturbing
 // other prefs. Gender-aware: a `fit` profile drives which garments show, since
