@@ -150,6 +150,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [heldOpen, setHeldOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState('all');
   const [logView, setLogView] = useState('list');
+  const [ledgerScope, setLedgerScope] = useState('all'); // 'all' | 'cargo' (Cargo-tracked only)
   const [verifier, setVerifier] = useState('nautilus');
   const signatory = 'master'; // self-attestation is never permitted (MSN 1858)
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -307,27 +308,27 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   }, [userId]);
 
   // ── derived ──
-  // The Sea Time view is scoped to CARGO-TRACKED service — the vessels Cargo
-  // auto-logs (rota / status / AIS). Off-Cargo and pre-Cargo service isn't shown
-  // day-by-day here; it's captured as the Prior-service baseline that feeds the
-  // pathway. A vessel counts as Cargo-tracked once it has any auto-logged day.
+  // Cargo-tracked vessels = those Cargo auto-logs (rota / status / AIS); a vessel
+  // qualifies once it has any auto-logged day. Off-Cargo vessels the crew adds
+  // manually still show and still count toward the pathway — they just aren't
+  // Cargo-verifiable (so they're excluded from the per-endorser export). The
+  // ledger has a toggle to show all vessels or Cargo-tracked only.
   const cargoVesselIds = useMemo(() => new Set(entries.filter(e => e.source === 'vessel').map(e => e.vesselId)), [entries]);
-  const cargoEntries = useMemo(() => entries.filter(e => cargoVesselIds.has(e.vesselId)), [entries, cargoVesselIds]);
   // Yard cap is per-certificate (90 for OOW, 30 for Master/Chief Mate) — fold it
   // into the config so the yard bucket totals against the right MCA ceiling.
   const buckets = useMemo(
-    () => computeBuckets(cargoEntries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) }),
-    [cargoEntries, vessels, config, targetId],
+    () => computeBuckets(entries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) }),
+    [entries, vessels, config, targetId],
   );
   const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert) : []), [buckets, prior, cert]);
-  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries: cargoEntries, vessels, config, signatory, verifier, docMet }), [cargoEntries, vessels, signatory, verifier, docMet]);
-  const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries: cargoEntries, vessels, signatory, verifier }), [seafarer, cargoEntries, vessels, signatory, verifier]);
+  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet }), [entries, vessels, signatory, verifier, docMet]);
+  const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
   // days-to-go tracks the certificate's largest single requirement (headline gate)
   const primary = requirements.reduce((a, b) => (b.required > (a?.required || 0) ? b : a), null) || requirements[0];
   const daysToGo = primary ? primary.remaining : 0;
-  const live = cargoEntries.filter(e => !e.excluded);
+  const live = entries.filter(e => !e.excluded);
   const totalLoggedDays = live.reduce((s, e) => s + (e.days || 0), 0);
   const badCount = live.filter(e => !classify(e, vessels[e.vesselId], config).qual).length;
   const hasAttention = badCount > 0;
@@ -859,21 +860,30 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
 
   // ── logged-service ledger (part of the Countdown page) ──
   const LedgerTable = () => {
-    const shown = cargoEntries.filter(e => serviceFilter === 'all' || e.type === serviceFilter);
-    const excludedCount = cargoEntries.filter(e => e.excluded).length;
-    const prevDays = 0; // off-Cargo service is captured in the Prior-service baseline now
+    const scoped = ledgerScope === 'cargo' ? entries.filter(e => cargoVesselIds.has(e.vesselId)) : entries;
+    const shown = scoped.filter(e => serviceFilter === 'all' || e.type === serviceFilter);
+    const excludedCount = scoped.filter(e => e.excluded).length;
+    const offCargoDays = entries.filter(e => !e.excluded && !cargoVesselIds.has(e.vesselId)).reduce((s, e) => s + (e.days || 0), 0);
     return (
       <div className="std-ledger std-card" ref={ledgerRef} style={{ overflow: 'hidden' }}>
-        <div className="lhead" style={{ padding: '20px 18px 0', alignItems: 'flex-start' }}>
+        <div className="lhead" style={{ padding: '20px 18px 0', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
           <h4>Logged sea service</h4>
-          <div className="std-toggle">
-            <button className={logView === 'list' ? 'on' : ''} onClick={() => setLogView('list')} title="List view" aria-label="List view"><Icon name="List" size={15} /></button>
-            <button className={logView === 'calendar' ? 'on' : ''} onClick={() => setLogView('calendar')} title="Calendar view" aria-label="Calendar view"><Icon name="Calendar" size={15} /></button>
+          <div className="std-flex std-ac" style={{ gap: 10, marginLeft: 'auto' }}>
+            {offCargoDays > 0 && (
+              <div className="std-toggle">
+                <button className={ledgerScope === 'all' ? 'on' : ''} onClick={() => setLedgerScope('all')} title="All vessels">All</button>
+                <button className={ledgerScope === 'cargo' ? 'on' : ''} onClick={() => setLedgerScope('cargo')} title="Cargo-tracked only">Cargo-tracked</button>
+              </div>
+            )}
+            <div className="std-toggle">
+              <button className={logView === 'list' ? 'on' : ''} onClick={() => setLogView('list')} title="List view" aria-label="List view"><Icon name="List" size={15} /></button>
+              <button className={logView === 'calendar' ? 'on' : ''} onClick={() => setLogView('calendar')} title="Calendar view" aria-label="Calendar view"><Icon name="Calendar" size={15} /></button>
+            </div>
           </div>
         </div>
         {logView === 'calendar' && (
           <div style={{ padding: '16px 18px 0' }}>
-            <SeaServiceCalendar entries={entries} vessels={vessels} config={config} serviceFilter={serviceFilter} />
+            <SeaServiceCalendar entries={scoped} vessels={vessels} config={config} serviceFilter={serviceFilter} />
           </div>
         )}
         <div style={{ padding: '8px 18px 0', display: logView === 'list' ? 'block' : 'none' }}>
@@ -898,10 +908,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 {g.items.map(e => {
                   const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
                   const isExcluded = !!e.excluded, isQual = !isExcluded && c.qual, isBad = !isExcluded && !c.qual;
-                  // Provenance: a ship on Cargo (the captain confirms your days
-                  // in-app) vs one off Cargo (you'll add a signed testimonial).
-                  const isCargo = routeForVessel(v) !== 'external';
-                  const provLabel = isCargo ? 'On Cargo' : 'Off Cargo';
+                  // Provenance: Cargo-tracked (auto-logged on a Cargo vessel —
+                  // verifiable/exportable) vs off-Cargo, self-recorded (counts
+                  // toward the pathway, but you supply your own testimonial).
+                  const isCargo = cargoVesselIds.has(e.vesselId);
+                  const provLabel = isCargo ? 'Cargo-tracked' : 'Off-Cargo · self-recorded';
                   const provCol = isCargo ? { color: '#3F7A52', tint: '#EFF6F1' } : { color: '#5A6478', tint: '#F4F5F7' };
                   const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch · ${e.capacity}` : (e.detailOverride || `${tm.hint} · ${e.capacity}`);
                   const qualWord = e.type === 'seagoing' ? 'seagoing' : e.type === 'watchkeeping' ? 'watchkeeping' : e.type === 'standby' ? 'standby' : 'shipyard';
@@ -971,7 +982,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         </div>
         <div className="std-foot" style={{ padding: '14px 18px 18px' }}>
           {live.length} entries in pack · {buckets.total} qualifying days{excludedCount ? ` · ${excludedCount} excluded` : ''}
-          {prevDays > 0 && <> · <b style={{ color: '#5A6478' }}>{prevDays} {prevDays === 1 ? 'day' : 'days'} on a previous ship</b> — you’ll add a testimonial</>}
+          {offCargoDays > 0 && <> · <b style={{ color: '#5A6478' }}>{offCargoDays} {offCargoDays === 1 ? 'day' : 'days'} off-Cargo</b> — counts toward your pathway, but not Cargo-verifiable (use your own testimonial)</>}
         </div>
       </div>
     );
@@ -1013,7 +1024,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       )}
       {prior.onboard > 0 && (
         <div className="std-filternote">
-          Tiles show <b>Cargo-tracked</b> service. Your pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
+          Pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> entered before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
         </div>
       )}
 
