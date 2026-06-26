@@ -203,7 +203,7 @@ export default function ReviewsPage() {
             seafarer: stSelected.seafarer,
             vessel: { name: u.name, flag: u.flag, imo: u.imo, gt: u.gt, lengthM: u.lengthM },
             periods: u.periods || [],
-            signatory: { name: record?.name, rank: 'Master', cocNumber: record?.cocNo, signedAt: new Date().toISOString().slice(0, 10) },
+            signatory: { name: record?.name, rank: 'Master', cocNumber: record?.cocNo, signedAt: new Date().toISOString().slice(0, 10), signatureImage: record?.signature?.image || null },
           });
           await supabase.functions.invoke('store-seatime-testimonial', { body: { entryIds: rowIds, pdfBase64: bytesToBase64(bytes) } });
         } catch (e2) { console.error('[reviews] testimonial', e2); }

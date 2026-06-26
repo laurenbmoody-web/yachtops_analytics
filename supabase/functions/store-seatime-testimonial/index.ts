@@ -8,7 +8,13 @@
 // session-less master path works — the rows it touches are derived server-side.
 //
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-// Body: { pdfBase64: string, token?: string, entryIds?: string[] }
+// Body: { pdfBase64: string, token?: string, entryIds?: string[],
+//         markVerified?: boolean, contentType?: string, ext?: string,
+//         signedName?: string }
+//
+// markVerified is set by the manual-upload path: the crew uploaded the master's
+// own signed paper testimonial (PDF or image) for a ship that isn't on Cargo, so
+// the entries are flipped to captain_signed here (no app/email signing ceremony).
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response>) => void;
@@ -39,7 +45,7 @@ async function supaGet(path: string) {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const { pdfBase64, token, entryIds } = await req.json();
+    const { pdfBase64, token, entryIds, markVerified, contentType, ext, signedName } = await req.json();
     if (!pdfBase64) return json({ error: 'pdfBase64 required' }, 400);
 
     let ids: string[] = [], tenant = '', userId = '', vessel = '';
@@ -65,12 +71,14 @@ Deno.serve(async (req: Request) => {
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
 
+    const safeExt = String(ext || 'pdf').replace(/[^a-z0-9]+/gi, '').toLowerCase() || 'pdf';
+    const fileType = String(contentType || 'application/pdf');
     const safe = (vessel || 'vessel').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'vessel';
-    const path = `${tenant}/${userId}/${safe}-${Date.now()}.pdf`;
+    const path = `${tenant}/${userId}/${safe}-${Date.now()}.${safeExt}`;
 
     const up = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY, 'Content-Type': 'application/pdf', 'x-upsert': 'true' },
+      headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY, 'Content-Type': fileType, 'x-upsert': 'true' },
       body: bytes,
     });
     if (!up.ok) {
@@ -79,10 +87,19 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'upload failed' }, 500);
     }
 
+    // Stamp the path onto the entries; the manual-upload path also flips them to
+    // captain_signed (the uploaded paper IS the master's attestation).
+    const patch: Record<string, unknown> = { testimonial_path: path };
+    if (markVerified) {
+      patch.verification_status = 'captain_signed';
+      patch.signed_at = new Date().toISOString();
+      patch.locked = true;
+      if (signedName) patch.signed_name = signedName;
+    }
     await fetch(`${SUPABASE_URL}/rest/v1/sea_service_entries?id=in.(${ids.join(',')})`, {
       method: 'PATCH',
       headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ testimonial_path: path }),
+      body: JSON.stringify(patch),
     }).catch(() => {});
 
     return json({ ok: true, path });

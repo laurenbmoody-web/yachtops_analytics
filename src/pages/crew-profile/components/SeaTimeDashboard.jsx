@@ -192,14 +192,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const [rows, prof, pd] = await Promise.all([
         fetchEntriesForUser(tenantId, userId, 'mca-oow-yachts'),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality')?.eq('user_id', userId)?.maybeSingle()
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number')?.eq('user_id', userId)?.maybeSingle()
       ]);
       const fullName = prof?.data?.full_name || [prof?.data?.first_name, prof?.data?.surname].filter(Boolean).join(' ') || currentUser?.fullName || 'Seafarer';
       if (rows && rows.length) {
         const { vessels: vMap, entries: ents } = adaptLiveEntries(rows);
         const dates = rows.map(r => r.date).filter(Boolean).sort();
         setVessels(vMap); setEntries(ents);
-        setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, dischargeBookNo: '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
+        setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, dischargeBookNo: pd?.data?.discharge_book_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
         setPrior(ZERO_PRIOR); // TODO: store a lifetime accrual baseline per seafarer.
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
@@ -443,14 +443,42 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // on an explicit confirmation of that before recording the file.
   const openUpload = (v) => { setExtStamped(false); setExtConfirm(v); };
   const pickExternalFile = () => { setUploadFor(extConfirm.key); setExtConfirm(null); fileRef.current?.click(); };
-  const onExternalFile = (e) => {
+  // Read a File as a base64 string (sans data: prefix) for transport to the edge function.
+  const fileToBase64 = (file) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => { const s = String(r.result || ''); resolve(s.slice(s.indexOf(',') + 1)); };
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+  const onExternalFile = async (e) => {
     const f = e.target.files?.[0];
-    if (f && uploadFor) {
-      setVA(uploadFor, { status: 'attested', mode: 'external', fileName: f.name, at: new Date().toISOString().slice(0, 10) });
-      setSignoffMeta(m => ({ ...m, [uploadFor]: { ...(m[uploadFor] || {}), mode: 'external', stamped: true, fileName: f.name, at: new Date().toISOString().slice(0, 10) } }));
-      flash('Testimonial uploaded');
-    }
+    const key = uploadFor;
     setUploadFor(null); if (fileRef.current) fileRef.current.value = '';
+    if (!f || !key) return;
+    const unit = recVessels.find(x => x.key === key);
+    // Sample mode (or no unit) keeps the in-memory mock so the demo still works.
+    if (usingSample || !unit || !tenantId || !userId) {
+      setVA(key, { status: 'attested', mode: 'external', fileName: f.name, at: new Date().toISOString().slice(0, 10) });
+      setSignoffMeta(m => ({ ...m, [key]: { ...(m[key] || {}), mode: 'external', stamped: true, fileName: f.name, at: new Date().toISOString().slice(0, 10) } }));
+      flash('Testimonial uploaded');
+      return;
+    }
+    // Live: store the master's signed paper in the private bucket, stamp its path
+    // onto the rows, and flip them to captain_signed (the paper IS the attestation).
+    try {
+      flash('Uploading testimonial…');
+      const ext = (f.name.split('.').pop() || 'pdf').toLowerCase();
+      const base64 = await fileToBase64(f);
+      const { data, error } = await supabase.functions.invoke('store-seatime-testimonial', {
+        body: { entryIds: liveRowIdsFor(unit), pdfBase64: base64, markVerified: true, contentType: f.type || 'application/pdf', ext, signedName: unit.captainName || null },
+      });
+      if (error || !data?.ok) throw error || new Error('store failed');
+      await loadLive();
+      flash('Testimonial uploaded & verified');
+    } catch (err) {
+      console.error('[seatime] external upload', err);
+      flash('Could not upload the testimonial');
+    }
   };
 
   const signatoryMeta = { name: 'Each ship’s captain', rank: 'Master', signedAt: '2026-04-22' };
