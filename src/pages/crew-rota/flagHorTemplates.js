@@ -85,8 +85,10 @@ export const FLAGS_WITH_OWN_FORM = new Set([
 // wording — so the IMO/ILO model + the default attestation are correct; we add
 // the G6 reference and the record-duty footer.
 const REG_G6 = {
+  // standardRef = the rules; formReference = the citation. Keep them distinct so
+  // the consolidated reference line doesn't repeat "REG Yacht Code Annex G6".
   formReference: 'Red Ensign Group Yacht Code — Common Annex G6 (Hours of Work and Rest)',
-  standardRef: 'Red Ensign Group Yacht Code, Annex G6 (per STCW, MLC and national legislation). Minimum rest: not less than 10h in any 24h and 77h in any 7 days; rest in no more than 2 periods, one of at least 6h, the interval not exceeding 14h.',
+  standardRef: 'Minimum rest (STCW / MLC / national legislation): not less than 10h in any 24h and 77h in any 7 days; rest in no more than 2 periods, one of at least 6h, the interval not exceeding 14h.',
   footerNote: 'Each record is endorsed by the master or authorised person and the seafarer; a copy is retained by the seafarer (REG Yacht Code, Annex G6).',
 };
 

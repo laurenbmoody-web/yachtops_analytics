@@ -270,9 +270,11 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   if (meta.flagState) subParts.push(meta.flagState);
   if (meta.departmentName) subParts.push(meta.departmentName);
   subParts.push(meta.periodLabel);
-  if (meta.horTemplate.formReference) subParts.push(meta.horTemplate.formReference);
   doc.text(subParts.join('  ·  '), 40, 55);
-  doc.text(`${meta.horTemplate.standardRef || STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
+  const sumRef = meta.horTemplate.formReference
+    ? `${meta.horTemplate.standardRef || STANDARD_REF}  ·  ${meta.horTemplate.formReference}`
+    : (meta.horTemplate.standardRef || STANDARD_REF);
+  doc.text(`${sumRef}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
   doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = a day with an MLC/STCW non-conformity. The four right-hand columns count breach-days per rule; each day’s exact rule is listed in that seafarer’s record.', 40, 84);
   doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
@@ -422,9 +424,11 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(90);
-  doc.text(`${meta.horTemplate.standardRef || STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
+  const recRef = meta.horTemplate.formReference
+    ? `${meta.horTemplate.standardRef || STANDARD_REF}  ·  ${meta.horTemplate.formReference}`
+    : (meta.horTemplate.standardRef || STANDARD_REF);
+  doc.text(`${recRef}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
   doc.text(`Generated ${meta.generatedAt}`, pageW - M, 46, { align: 'right' });
-  if (meta.horTemplate.formReference) doc.text(meta.horTemplate.formReference, pageW - M, 54, { align: 'right' });
 
   // ── Identity block (two columns) ──
   const colL = M;
