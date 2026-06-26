@@ -161,7 +161,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                 <button
                   key={d}
                   type="button"
-                  className={`act-mcell ${day > today0() ? 'is-future' : ''} ${sameDay(day, today0()) ? 'is-today' : ''} ${sameDay(day, selectedDay) ? 'is-sel' : ''}`}
+                  className={`act-mcell ${stat === 'active' ? 'is-active' : ''} ${day > today0() ? 'is-future' : ''} ${sameDay(day, today0()) ? 'is-today' : ''} ${sameDay(day, selectedDay) ? 'is-sel' : ''}`}
                   onClick={() => setSelectedDay(day)}
                   title={`${stat ? getStatusLabel(stat) : 'No data'}${entry && travelSummary(entry) ? ` — ${travelSummary(entry)}` : ''}`}
                 >
