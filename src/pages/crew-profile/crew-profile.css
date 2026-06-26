@@ -735,7 +735,7 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-empty {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 48px 16px; text-align: center; color: #8B8478;
-  border: 1px dashed #E5E7EB; border-radius: 14px; background: #FCFBF8;
+  border: 1px dashed #E5E7EB; border-radius: 14px; background: #FFFFFF;
 }
 .crew-profile-page .kit-empty p { font-size: 13.5px; margin: 0; }
 
@@ -776,14 +776,16 @@ body.crew-profile-editorial {
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
 }
 .crew-profile-page .kit-field > span em { font-style: normal; color: #C65A1A; margin-left: 4px; }
+/* Inputs match the Personal Details fields (white card, soft grey border,
+   terracotta focus halo) rather than a cream fill. */
 .crew-profile-page .kit-field input,
 .crew-profile-page .kit-field select {
-  width: 100%; font-size: 14px; color: #1C1B3A; background: #FAFAF8;
-  border: 1px solid #E8E6DF; border-radius: 10px; padding: 9px 11px; outline: none;
+  width: 100%; font-size: 14px; color: #1C1B3A; background: #FFFFFF;
+  border: 1px solid #E5E7EB; border-radius: 9px; padding: 9px 11px; outline: none;
 }
 .crew-profile-page .kit-field input:focus,
 .crew-profile-page .kit-field select:focus {
-  border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff;
+  border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7;
 }
 .crew-profile-page .kit-panel-foot {
   display: flex; justify-content: flex-end; gap: 10px;
@@ -807,6 +809,7 @@ body.crew-profile-editorial {
   background: #EEEDE8; border-radius: 999px; padding: 3px 9px; white-space: nowrap;
 }
 .crew-profile-page .kit-fit-field { max-width: 240px; margin-bottom: 18px; }
+.crew-profile-page .kit-add-bar { margin-bottom: 18px; }
 .crew-profile-page .kit-size-grid {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 20px; margin-top: 8px;
 }
@@ -845,7 +848,7 @@ body.crew-profile-editorial {
 /* Manager return bar */
 .crew-profile-page .kit-return-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 9px 14px; border: 1px solid #ECEAE3; border-radius: 10px; background: #FAFAF8;
+  padding: 9px 14px; border: 1px solid #E5E7EB; border-radius: 10px; background: #FFFFFF;
   font-size: 12.5px; color: #8B8478; margin-bottom: 16px;
 }
 .crew-profile-page .kit-return-bar button {
