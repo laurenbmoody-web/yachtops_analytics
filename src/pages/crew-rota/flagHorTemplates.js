@@ -59,9 +59,11 @@ export const FLAGS_WITH_OWN_FORM = new Set([
 //                     G6 prescribes the rest limits + record duties but NOT a
 //                     form/declaration, so the IMO/ILO model + default attestation
 //                     stand. UK adds MSN 1895(M). Cayman keeps its national notice.
-//   Malta           — Transport Malta Merchant Shipping Notice 105 Rev.2 (MLC
-//                     implementation); IMO/ILO model. Needs the notice to verify
-//                     the record declaration/format before activating.
+//   Malta           — ACTIVATED (citation). MS Notice 105 Rev.2 reviewed: it is
+//                     general MLC implementation guidance, NOT a record form, so
+//                     Malta uses the IMO/ILO model + default attestation; we cite
+//                     the Malta MLC framework. National MLC Rules would be needed
+//                     for any Malta-specific declaration.
 //   EU flags (Netherlands, France, Italy, Spain, Madeira/Portugal, Monaco) —
 //                     implement EU Directive 1999/63/EC alongside MLC; IMO/ILO
 //                     model. Per-state notice needed to activate a citation.
@@ -114,6 +116,15 @@ const FLAG_HOR_TEMPLATES = {
   'British Virgin Islands': REG_G6,
   'Gibraltar': REG_G6,
   'United Kingdom': { ...REG_G6, formReference: `${REG_G6.formReference} · UK MSN 1895(M)` },
+  // Malta — MS Notice 105 Rev.2 reviewed: it is general MLC 2006 implementation
+  // guidance (definitions, scope, DMLC, inspections) and does NOT prescribe a
+  // hours-of-rest record form or declaration. Malta uses the IMO/ILO model (also
+  // per EU Directive 1999/63/EC), so the default record + attestation stand; we
+  // cite the Malta MLC framework. A record-specific declaration would need
+  // Malta's national MLC Rules, not this notice.
+  'Malta': {
+    formReference: 'Malta Merchant Shipping Directorate — MLC 2006 (MS Notice 105 Rev.2)',
+  },
 };
 
 // Resolve the template for a flag. Always returns a complete object (the
