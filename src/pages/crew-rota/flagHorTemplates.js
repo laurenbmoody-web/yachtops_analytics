@@ -18,8 +18,11 @@ const DEFAULT_HOR_TEMPLATE = {
   // Declarations printed above the signature lines.
   declaration: 'I confirm that the above is a true record of the seafarer’s hours of rest for the period stated.',
   ncDeclaration: 'I confirm the non-conformities listed above and the reasons recorded are a true and accurate account.',
-  // null → use the shared MLC_STANDARD_REF (restHours.js).
-  standardRef: null,
+  // The minimum-rest rules, stated on the record (as the IMO/ILO model form
+  // does). The generic "MLC A2.3 / STCW A-VIII/1" citation is intentionally
+  // omitted — it's a given, and the flag's governing reference sits in the
+  // footer instead.
+  standardRef: 'Minimum rest: 10h in any 24h and 77h in any 7 days; rest in no more than 2 periods, one of at least 6h.',
   // Flag form / marine-notice number, printed in the header when set.
   formReference: null,
   // Footer note some flags require on the record (e.g. copy-to-seafarer /
@@ -88,7 +91,7 @@ const REG_G6 = {
   // standardRef = the rules; formReference = the citation. Keep them distinct so
   // the consolidated reference line doesn't repeat "REG Yacht Code Annex G6".
   formReference: 'Red Ensign Group Yacht Code — Common Annex G6 (Hours of Work and Rest)',
-  standardRef: 'Minimum rest (STCW / MLC / national legislation): not less than 10h in any 24h and 77h in any 7 days; rest in no more than 2 periods, one of at least 6h, the interval not exceeding 14h.',
+  standardRef: 'Minimum rest: not less than 10h in any 24h and 77h in any 7 days; rest in no more than 2 periods, one of at least 6h, the interval not exceeding 14h.',
   footerNote: 'Each record is endorsed by the master or authorised person and the seafarer; a copy is retained by the seafarer (REG Yacht Code, Annex G6).',
 };
 
@@ -97,9 +100,9 @@ const FLAG_HOR_TEMPLATES = {
   // of Hours of Rest" (the IMO/ILO model). Declaration + footer are the exact
   // wording from the notice; the table layout is already the IMO/ILO model.
   'Marshall Islands': {
-    formReference: 'RMI Marine Notice 7-051-2, Annex II',
+    formReference: 'RMI Maritime Regulations MI-108 §7.51 · Marine Notice 7-051-2, Annex II',
     declaration: 'I agree that this record is an accurate reflection of the hours of rest of the seafarer concerned.',
-    standardRef: 'Minimum hours of rest per RMI Maritime Regulations MI-108 §7.51, in conformity with the ILO MLC 2006 and STCW 1978, as amended. Minimum rest: 10h in any 24h and 77h in any 7 days; rest in no more than 2 periods, one of at least 6h.',
+    standardRef: 'Minimum rest: 10h in any 24h and 77h in any 7 days; rest in no more than 2 periods, one of at least 6h.',
     footerNote: 'A copy of this record is to be given to the seafarer. This form is subject to examination and endorsement under procedures established by the Republic of the Marshall Islands.',
   },
   // VERIFIED governing notices from Cayman GN 03/2022 (Seafarer Rest & Fitness

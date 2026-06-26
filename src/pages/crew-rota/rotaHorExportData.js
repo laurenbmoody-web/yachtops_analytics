@@ -151,7 +151,10 @@ export function buildRestLogMeta({
     crewNames: Object.fromEntries((crew || []).filter((c) => c.userId).map((c) => [c.userId, c.name])),
     crewRoles: Object.fromEntries((crew || []).filter((c) => c.userId).map((c) => [c.userId, getRoleDisplayName(c.role)])),
     horDayStartHour: dayStartHour,
-    basisLabel: mlcBasisLabel(dayStartHour),
+    // Only disclose the assessment basis when it's non-standard (an operational
+    // day commencing >0h). Calendar-day (00:00–24:00) is exactly what the IMO/ILO
+    // record form uses, so stating it just adds noise — omit it there.
+    basisLabel: dayStartHour ? mlcBasisLabel(dayStartHour) : '',
     generatedAt: new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
   };
 }
