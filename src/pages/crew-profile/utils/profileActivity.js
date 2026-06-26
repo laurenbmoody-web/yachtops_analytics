@@ -1,7 +1,7 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { getStatusLabel } from '../../../utils/crewStatus';
 import { getDocTypeLabel } from '../documentTypes';
-import { calKind, travelSummary } from './crewCalendar';
+import { travelSummary } from './crewCalendar';
 
 // One unified activity feed for a crew profile, aggregated from the event
 // sources we already capture. Each source is queried independently and failures
@@ -94,7 +94,7 @@ export const fetchProfileActivity = async (userId) => {
     const range = `${fmtShort(c.start_date)}${String(c.end_date).slice(0, 10) !== String(c.start_date).slice(0, 10) ? ` – ${fmtShort(c.end_date)}` : ''}`;
     events.push({
       id: `cal-${c.id}`, at: c.created_at, category: 'travel',
-      title: `${calKind(c.kind).label}: ${range}`,
+      title: `${getStatusLabel(c.kind)}: ${range}`,
       detail: travelSummary(c) || c.note || '', actor: c.actor_name || '',
     });
   });
