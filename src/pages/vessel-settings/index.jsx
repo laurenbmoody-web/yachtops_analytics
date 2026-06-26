@@ -64,6 +64,10 @@ const VesselSettings = () => {
     official_number: '',
     company_name: '',
     company_address: '',
+    company_email: '',
+    company_phone: '',
+    company_country: '',
+    company_postcode: '',
     logo_url: '',
     loa_m: '',
     gt: '',
@@ -193,6 +197,10 @@ const VesselSettings = () => {
         official_number: vesselData?.official_number || '',
         company_name: vesselData?.company_name || '',
         company_address: vesselData?.company_address || '',
+        company_email: vesselData?.company_email || '',
+        company_phone: vesselData?.company_phone || '',
+        company_country: vesselData?.company_country || '',
+        company_postcode: vesselData?.company_postcode || '',
         logo_url: vesselData?.logo_url || '',
         loa_m: vesselData?.loa_m || '',
         gt: vesselData?.gt || '',
@@ -376,6 +384,10 @@ const VesselSettings = () => {
         official_number: formState?.official_number || null,
         company_name: formState?.company_name || null,
         company_address: formState?.company_address || null,
+        company_email: formState?.company_email?.trim() || null,
+        company_phone: formState?.company_phone?.trim() || null,
+        company_country: formState?.company_country?.trim() || null,
+        company_postcode: formState?.company_postcode?.trim() || null,
         logo_url: formState?.logo_url || null,
         loa_m: formState?.loa_m ? parseFloat(formState?.loa_m) : null,
         gt: formState?.gt ? parseInt(formState?.gt, 10) : null,
@@ -996,6 +1008,43 @@ const VesselSettings = () => {
                       )}
                     </div>
                     {logoUploadError && <p className="text-xs text-red-600 mt-1">{logoUploadError}</p>}
+                  </div>
+                  {/* Company contact — fills Part 1 of the Nautilus sea-service testimonial. */}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Company Email</label>
+                    <Input
+                      value={formState?.company_email || ''}
+                      onChange={(e) => handleInputChange('company_email', e?.target?.value)}
+                      placeholder="Official company / yacht email"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Company Phone</label>
+                    <Input
+                      value={formState?.company_phone || ''}
+                      onChange={(e) => handleInputChange('company_phone', e?.target?.value)}
+                      placeholder="e.g. +44 …"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Post Code</label>
+                    <Input
+                      value={formState?.company_postcode || ''}
+                      onChange={(e) => handleInputChange('company_postcode', e?.target?.value)}
+                      placeholder="ZIP / post code"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Country</label>
+                    <Input
+                      value={formState?.company_country || ''}
+                      onChange={(e) => handleInputChange('company_country', e?.target?.value)}
+                      placeholder="Country of the company / owner"
+                      disabled={viewMode || !canEdit}
+                    />
                   </div>
                 </div>
               </div>
