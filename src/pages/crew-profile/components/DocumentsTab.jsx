@@ -13,21 +13,25 @@ import {
 import AddDocumentModal from './AddDocumentModal';
 import BatchReviewModal from './BatchReviewModal';
 
-// Each category's editorial face: a soft-tinted lucide glyph (no cheesy icons),
-// reused on the overview tiles and the jump rail.
-const CAT_STYLE = {
-  travel:       { icon: 'Plane',         bg: '#ECEFF5', ink: '#5B6B8C' },
-  medical:      { icon: 'HeartPulse',    bg: '#FBECEB', ink: '#C0504D' },
-  safety:       { icon: 'LifeBuoy',      bg: '#E5F0ED', ink: '#2E7D6B' },
-  deck:         { icon: 'Compass',       bg: '#E7EFF2', ink: '#3E6A8E' },
-  engineering:  { icon: 'Wrench',        bg: '#F1EEF6', ink: '#6E5B97' },
-  interior:     { icon: 'Wine',          bg: '#EEF3EA', ink: '#7C9A6B' },
-  watersports:  { icon: 'Waves',         bg: '#E9F1F6', ink: '#4B85A8' },
-  professional: { icon: 'Briefcase',     bg: '#F2F0EB', ink: '#8B7A55' },
-  qualification:{ icon: 'GraduationCap', bg: '#F0EEF7', ink: '#6E5B97' },
-  issued:       { icon: 'FileText',      bg: '#F2F0EB', ink: '#8B8478' },
-  other:        { icon: 'Files',         bg: '#F0F1F5', ink: '#7A7E8C' },
+// Each category's glyph (no cheesy icons). The chip is a single calm neutral
+// across every category so colour only ever signals status (pills + bars),
+// never category — a coloured icon was being read as an alert.
+const CAT_ICON = {
+  travel: 'Plane',
+  medical: 'HeartPulse',
+  safety: 'LifeBuoy',
+  deck: 'Compass',
+  engineering: 'Wrench',
+  interior: 'Wine',
+  watersports: 'Waves',
+  professional: 'Briefcase',
+  qualification: 'GraduationCap',
+  issued: 'FileText',
+  other: 'Files',
 };
+const catIcon = (id) => CAT_ICON[id] || CAT_ICON.other;
+const ICON_BG = '#F0EFF3';
+const ICON_INK = '#605D78';
 
 // Traffic-light bucket for one document — colours always carry meaning:
 //   ok = valid / in date OR simply doesn't expire (held & fine)
@@ -151,6 +155,13 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   const attentionCount = expiredCount + expiringCount;
 
   const todayStart = new Date(new Date().toDateString());
+
+  // dd/mm/yyyy per the editorial design system (the tiles read tighter than the
+  // long "05 Dec 2028" form).
+  const fmtDate = (d) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ''));
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : formatDocDate(d);
+  };
 
   // Meta line shared by core + additional rows.
   const metaBits = (d) => [
@@ -284,10 +295,10 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     let foot;
     if (expired.length) {
       const d = expired[0];
-      foot = { label: 'Needs attention', value: `${getDocTypeLabel(d.doc_type, d.details)} expired ${formatDocDate(d.expiry_date)}`, bad: true };
+      foot = { label: 'Needs attention', value: `${getDocTypeLabel(d.doc_type, d.details)} expired ${fmtDate(d.expiry_date)}`, bad: true };
     } else if (future.length) {
       const d = future[0];
-      foot = { label: 'Soonest renewal', value: `${getDocTypeLabel(d.doc_type, d.details)} · ${formatDocDate(d.expiry_date)}` };
+      foot = { label: 'Soonest renewal', value: `${getDocTypeLabel(d.doc_type, d.details)} · ${fmtDate(d.expiry_date)}` };
     } else if (counts.miss && inCat.length === 0) {
       foot = null;
     } else if (counts.miss) {
@@ -314,7 +325,6 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
 
   // ── Tiles ─────────────────────────────────────────────────────────────────
   const renderTile = (s) => {
-    const st = CAT_STYLE[s.id] || CAT_STYLE.other;
     if (s.isEmpty) {
       return (
         <button
@@ -324,7 +334,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
           onClick={canEdit ? () => openAdd() : undefined}
         >
           <div className="cd-tile-top">
-            <span className="cd-ico" style={{ background: '#F1EFE9' }}><Icon name={st.icon} size={19} style={{ color: '#A8A296' }} /></span>
+            <span className="cd-ico" style={{ background: '#F1EFE9' }}><Icon name={catIcon(s.id)} size={19} style={{ color: '#A8A296' }} /></span>
           </div>
           <div className="cd-tile-name">{s.label}</div>
           <div className="cd-tile-break">No documents yet</div>
@@ -335,29 +345,14 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     return (
       <button key={s.id} type="button" className="cd-tile" onClick={() => setSelected(s.id)}>
         <div className="cd-tile-top">
-          <span className="cd-ico" style={{ background: st.bg }}><Icon name={st.icon} size={19} style={{ color: st.ink }} /></span>
+          <span className="cd-ico" style={{ background: ICON_BG }}><Icon name={catIcon(s.id)} size={19} style={{ color: ICON_INK }} /></span>
           {s.pill && <span className={`cd-pill ${s.pill.cls}`}>{s.pill.label}</span>}
         </div>
         <div className="cd-tile-name">{s.label}</div>
-        <div className="cd-tile-break">
-          {[
-            s.counts.bad ? <span key="b" className="rd">{s.counts.bad} expired</span> : null,
-            s.counts.amber ? <span key="a">{s.counts.amber} expiring</span> : null,
-            s.counts.ok ? <span key="o"><b>{s.counts.ok}</b> valid</span> : null,
-            s.counts.miss ? <span key="m">{s.counts.miss} missing</span> : null,
-          ].filter(Boolean).reduce((acc, el, i) => (i === 0 ? [el] : [...acc, <span key={`s${i}`} className="cd-sep"> · </span>, el]), [])}
-          {s.noExpiry > 0 && s.counts.ok > 0 && !s.counts.bad && !s.counts.amber && (
-            <span className="cd-faint">&nbsp;({s.noExpiry} no expiry)</span>
-          )}
-          {s.historic.length > 0 && (
-            <span className="cd-faint">&nbsp;· {s.historic.length} historic</span>
-          )}
-        </div>
         <div className="cd-spacer" />
         <div className="cd-bar">{s.segments.map((seg, i) => <i key={i} className={seg.cls} style={{ width: `${seg.width}%` }} />)}</div>
         {s.foot && (
           <div className="cd-soon">
-            <span className="cd-eyebrow">{s.foot.label}&nbsp;</span>
             <span className={`cd-soon-v ${s.foot.bad ? 'bad' : ''}`}>{s.foot.value}</span>
           </div>
         )}
@@ -376,11 +371,10 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     // Non-core historic records get tucked into their own subsection; a historic
     // core record (e.g. STCW Basic) stays inline so the requirement reads as met.
     const restHistoric = inCat.filter((d) => !coreIds.includes(d.doc_type) && isHistoric(d));
-    const st = CAT_STYLE[catId] || CAT_STYLE.other;
     return (
       <div>
         <div className="cd-detail-head">
-          <span className="cd-ico" style={{ background: st.bg }}><Icon name={st.icon} size={18} style={{ color: st.ink }} /></span>
+          <span className="cd-ico" style={{ background: ICON_BG }}><Icon name={catIcon(catId)} size={18} style={{ color: ICON_INK }} /></span>
           <h4>{cat.label}</h4>
           {canEdit && <Button variant="outline" size="xs" iconName="Plus" onClick={() => openAdd()}>Add</Button>}
         </div>
