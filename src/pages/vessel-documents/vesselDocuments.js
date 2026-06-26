@@ -162,31 +162,62 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
     }));
   }
 
-  // Crew Certification → one folder per crew member who has filed documents.
+  // Crew Certification → one folder per crew member who has filed documents,
+  // enriched with role / department / tenure / expiry so the view can be
+  // organised and filtered.
   if (parentId === VIRT_CREW) {
     const { data, error } = await supabase
       .from('personal_documents')
-      .select('user_id')
+      .select('user_id, expiry_date')
       .eq('tenant_id', tenantId)
       .not('file_url', 'is', null)
       .neq('category', CREW_DOC_EXCLUDE);
     if (error) { console.error('[vault] crew list failed', error); return []; }
-    const counts = new Map();
-    (data || []).forEach((d) => counts.set(d.user_id, (counts.get(d.user_id) || 0) + 1));
-    const ids = [...counts.keys()].filter(Boolean);
+    const today = new Date().toISOString().slice(0, 10);
+    const agg = new Map(); // user_id → { count, expired, soonest }
+    (data || []).forEach((d) => {
+      if (!d.user_id) return;
+      const a = agg.get(d.user_id) || { count: 0, expired: 0, soonest: null };
+      a.count += 1;
+      if (d.expiry_date) {
+        if (d.expiry_date < today) a.expired += 1;
+        if (!a.soonest || d.expiry_date < a.soonest) a.soonest = d.expiry_date;
+      }
+      agg.set(d.user_id, a);
+    });
+    const ids = [...agg.keys()];
     if (!ids.length) return [];
-    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', ids);
-    const names = {};
-    (profs || []).forEach((p) => { names[p.id] = p.full_name; });
-    return ids
-      .map((uid) => ({
+    const [{ data: profs }, { data: members }] = await Promise.all([
+      supabase.from('profiles').select('id, full_name').in('id', ids),
+      supabase.from('tenant_members')
+        .select('user_id, role, display_name, department_id, start_date, joined_at')
+        .eq('tenant_id', tenantId).in('user_id', ids),
+    ]);
+    const names = {}; (profs || []).forEach((p) => { names[p.id] = p.full_name; });
+    const mem = {}; (members || []).forEach((m) => { mem[m.user_id] = m; });
+    const deptIds = [...new Set((members || []).map((m) => m.department_id).filter(Boolean))];
+    const depts = {};
+    if (deptIds.length) {
+      const { data: d } = await supabase.from('departments').select('id, name').in('id', deptIds);
+      (d || []).forEach((x) => { depts[x.id] = x.name; });
+    }
+    return ids.map((uid) => {
+      const a = agg.get(uid); const m = mem[uid] || {};
+      return {
         id: `${VIRT_CREW}:${uid}`,
         kind: 'folder',
         system: true,
-        name: names[uid] || 'Crew member',
-        meta: `${counts.get(uid)} document${counts.get(uid) !== 1 ? 's' : ''}`,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+        crew: true,
+        name: names[uid] || m.display_name || 'Crew member',
+        role: m.role || null,
+        dept: m.department_id ? (depts[m.department_id] || null) : null,
+        since: m.start_date || m.joined_at || null,
+        docCount: a.count,
+        expiredCount: a.expired,
+        soonestExpiry: a.soonest,
+        meta: `${a.count} document${a.count !== 1 ? 's' : ''}`,
+      };
+    }).sort((x, y) => x.name.localeCompare(y.name, undefined, { sensitivity: 'base' }));
   }
 
   // Crew Certification → one crew member's documents (read-only lens; the file

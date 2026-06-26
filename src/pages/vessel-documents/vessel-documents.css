@@ -89,6 +89,22 @@
 .vd-idx-go { flex: 0 0 auto; color: #C9C4B8; }
 .vd-idx-row:hover .vd-idx-go { color: #C65A1A; }
 
+/* ── Crew Certification — organise / filter bar + crew rows ──────────────── */
+.vd-crewbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 6px 14px; flex-wrap: wrap; }
+.vd-crewbar-count { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #8B8478; font-weight: 600; }
+.vd-crewbar-controls { display: flex; align-items: center; gap: 10px; }
+.vd-select-wrap { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #8B8478; }
+.vd-select { font: inherit; font-size: 13px; font-weight: 600; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E8E6DF; border-radius: 999px; padding: 7px 30px 7px 13px; cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B8478' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat; background-position: right 11px center; transition: border-color 0.12s ease, box-shadow 0.12s ease; }
+.vd-select:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.vd-select:hover { border-color: #D7DAE2; }
+
+.vd-crew-row .vd-crew-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 0 1 auto; }
+.vd-crew-name { font-size: 14px; font-weight: 600; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-crew-sub { font-size: 11.5px; color: #AEB4C2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-empty-inline { padding: 28px 8px; text-align: center; font-size: 13px; color: #8B8478; }
+
 /* Row actions — appear on hover, quiet until then */
 .vd-actions { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.12s ease; }
 .vd-row:hover .vd-actions, .vd-row:focus-within .vd-actions,
