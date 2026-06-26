@@ -142,64 +142,64 @@ export const CERTIFICATES = {
     ]
   },
 
-  // ============ ENGINE — MSN 1859 (WITHDRAWN 10 Jan 2023 → MSN 1904) ============
-  // Figures below are faithful to MSN 1859 but that notice is withdrawn; the live
-  // route is MSN 1904 §5.9.2 "Limited to Yachts" SV CoCs. Kept as legacy IDs,
-  // flagged SUPERSEDED so the UI shows "confirm against MSN 1904" not a hard figure.
+  // ====== ENGINE — MSN 1904 §5.9.2 (Small Vessel CoC, "Limited to Yachts") ======
+  // The old MSN 1859 "Y-grade" yacht-engineer ladder was withdrawn (10 Jan 2023)
+  // and consolidated into MSN 1904 (with MIN 524 + MIN 594). Yacht engineers now
+  // hold STCW Small Vessel CoCs endorsed "Limited to Yachts". Figures: MSN 1904
+  // §5.9.2, cross-checked against MIN 642 Annex A (MIN 642 itself expired 1 Dec
+  // 2025 — used as corroborating summary only; the MSN is the binding source).
+  //   legacyAlias = the nearest old Y-grade, for crew who still think in Y-grades.
+  //   The precise legacy→SV conversion is LEGACY_GRADE_CONVERSION (MSN 1904 §8.5).
+  // Yacht seagoing = days actually UNDERWAY with main propulsion in full use; yard
+  // time never counts as seagoing; up to 2 months at-anchor/fast-to-shore on own
+  // power may count as watchkeeping (MSN 1904 §5.9).
   MEOL_Y: {
-    family: 'ENGINE', label: 'Marine Engine Operator Licence (Yacht)', short: 'MEOL (Y)',
-    msn: 'MSN 1859 §3.3 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
-    requires: { onboardMonths: 24, minPowerKW: 200 },
-    note: 'MSN 1859 figure (withdrawn): 24 months as yacht engineer on yachts ≥200kW — OR 36 months dual deck/engineer (≥50% in the engine room). Live route: MSN 1904 MEOL Small Vessel (200–750kW), confirm figures.'
+    family: 'ENGINE', label: 'MEOL — Small Vessel (Yacht)', short: 'MEOL (SV·Y)',
+    legacyAlias: 'MEOL (Yachts)',
+    msn: 'MSN 1904 §3.2', verified: 'HIGH',
+    requires: { onboardMonths: 24, seagoingMonths: 6, minPowerKW: 200 },
+    note: 'Non-STCW entry licence (operate 200–750kW). 24 months onboard as a Small Vessel engineer incl. ≥6 months seagoing on yachts ≥200kW — OR 36 months as dual-purpose deckhand/engineer incl. ≥6 months seagoing. Requires AEC 1 & 2; min age 19; ENG1.'
   },
-  Y4: {
-    family: 'ENGINE', label: 'Chief Engineer (Y4) — STCW III/3', short: 'Y4',
-    msn: 'MSN 1859 §3.4 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
-    requires: { onboardMonths: 42, onboardMonthsAtPower: 12, actualSeaServiceMonths: 6, minPowerKW: 350 },
-    routes: [
-      { whilstHolding: null, onboardMonths: 42, onboardMonthsAtPower: 12, actualSeaServiceMonths: 6, minPowerKW: 350 },
-      { whilstHolding: 'MEOL (yacht or MN)', onboardMonths: 12, actualSeaServiceMonths: 6, minPowerKW: 350 },
-      { whilstHolding: 'MN SMEOL', onboardMonths: 6, actualSeaServiceMonths: 3, minPowerKW: 350 }
-    ]
+  EOOW_SV_Y: {
+    family: 'ENGINE', label: 'EOOW Engineer — Small Vessel (Yacht)', short: 'EOOW SV (Y)',
+    legacyAlias: '≈ Y4',
+    msn: 'MSN 1904 §5.9.2', verified: 'HIGH',
+    requires: { onboardMonths: 12, seagoingMonths: 4, minPowerKW: 350 },
+    heldWhilst: 'MEOL (or an approved cadetship)',
+    note: 'Experienced route: 12 months onboard on yachts ≥350kW, including ≥4 months actual seagoing (days underway). Up to 2 further months at-anchor / fast-to-shore on own power count as watchkeeping (6 months of watch out of 24). STCW III/1. CoC caps: <9000kW, <3000GT.'
   },
-  Y3: {
-    family: 'ENGINE', label: 'Chief Engineer (Y3) — STCW III/3', short: 'Y3',
-    msn: 'MSN 1859 §3.5 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
-    requires: { onboardMonths: 9, actualSeaServiceMonths: 3, minPowerKW: 350 },
-    heldWhilst: 'Y4',
-    routes: [
-      { whilstHolding: 'Y4', onboardMonths: 9, actualSeaServiceMonths: 3, minPowerKW: 350 },
-      { whilstHolding: null, onboardMonths: 51, onboardMonthsAtPower: 21, actualSeaServiceMonths: 9, minPowerKW: 350 }
-    ]
+  CHIEF_SV_500_Y: {
+    family: 'ENGINE', label: 'Chief Engineer — Small Vessel <500GT / <3000kW (Yacht)', short: 'Chief SV <500GT (Y)',
+    legacyAlias: '≈ Y3',
+    msn: 'MSN 1904 §5.9.2', verified: 'HIGH',
+    requires: { onboardMonths: 6, seagoingMonths: 4, minPowerKW: 350 },
+    heldWhilst: 'EOOW Engineer SV (Yacht)',
+    note: '6 months onboard as EOOW SV on yachts ≥350kW, incl. ≥4 months seagoing (underway), whilst holding the EOOW SV yacht CoC. STCW III/3. CoC caps: <500GT & <3000kW.'
   },
-  Y2: {
-    family: 'ENGINE', label: 'Chief Engineer (Y2) — STCW III/2', short: 'Y2',
-    msn: 'MSN 1859 §3.6 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
-    requires: { onboardMonths: 15, actualSeaServiceMonths: 9, minPowerKW: 350 },
-    heldWhilst: 'Y3 (or Y4)',
+  CHIEF_SV_3000_Y: {
+    family: 'ENGINE', label: 'Chief Engineer — Small Vessel <3000GT / <9000kW (Yacht)', short: 'Chief SV <3000GT (Y)',
+    legacyAlias: '≈ Y2 / Y1',
+    msn: 'MSN 1904 §5.9.2', verified: 'HIGH',
+    requires: { onboardMonths: 12, seagoingMonths: 8, minPowerKW: 350 },
+    heldWhilst: 'EOOW Engineer SV (Yacht)',
+    note: '12 months onboard ≥350kW incl. ≥8 months seagoing — of which ≥4 months on yachts ≥750kW — whilst holding EOOW SV; OR 6 months onboard incl. ≥4 months seagoing whilst holding Chief SV <500GT. STCW III/2. CoC caps: <3000GT & <9000kW.',
     routes: [
-      { whilstHolding: 'Y4', onboardMonths: 24, actualSeaServiceMonths: 12, minPowerKW: 350 },
-      { whilstHolding: 'Y3', onboardMonths: 15, actualSeaServiceMonths: 9, minPowerKW: 350 }
-    ]
-  },
-  Y1: {
-    family: 'ENGINE', label: 'Chief Engineer (Y1) — STCW III/2', short: 'Y1',
-    msn: 'MSN 1859 §3.7 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
-    requires: { onboardMonths: 12, minPowerKW: 1500, minGT: 500 },
-    heldWhilst: 'Y2',
-    note: 'Motor yachts ≥1500kW & ≥500GT, OR sailing yachts ≥1500kW & ≥1000GT — 12 months whilst holding Y2.',
-    routes: [
-      { whilstHolding: 'Y2', onboardMonths: 12, minPowerKW: 1500, minGT: 500, hull: 'motor' },
-      { whilstHolding: 'Y2', onboardMonths: 12, minPowerKW: 1500, minGT: 1000, hull: 'sail' }
+      { whilstHolding: 'EOOW Engineer SV (Yacht)', onboardMonths: 12, seagoingMonths: 8, minPowerKW: 350, seagoingMinPowerKW: 750 },
+      { whilstHolding: 'Chief Engineer SV <500GT (Yacht)', onboardMonths: 6, seagoingMonths: 4, minPowerKW: 350 }
     ]
   },
 
-  // ===================== ETO — STCW A-III/6 (not in these notices) =============
+  // ===================== ETO — MSN 1860 (M) Amendment 1 (HIGH) =================
   ETO_COC: {
-    family: 'ETO', label: 'Electro-Technical Officer (STCW A-III/6)', short: 'ETO',
-    msn: 'STCW A-III/6', verified: 'PENDING',
-    requires: { seagoingMonths: 12 },
-    note: 'Not covered by MSN 1858/1859. // TODO: confirm 12 months combined workshop + seagoing against STCW A-III/6.'
+    family: 'ETO', label: 'Electro-Technical Officer (STCW III/6)', short: 'ETO',
+    msn: 'MSN 1860 Amd 1 §3.2', verified: 'HIGH',
+    requires: { seagoingMonths: 6, minPowerKW: 750 },
+    note: 'Cadet / FD-HND route (§3.2): 12 months combined seagoing + workshop, including ≥6 months seagoing on ships ≥750kW + ≥3 months approved workshop skills. Cargo tracks the 6-month seagoing portion; workshop training is logged separately. Non-cadet route (§4.2) is set case-by-case by the MCA between 6 and 33 months — no single figure. Recency: 6 months seagoing in the 5 years before CoC issue. Min age 18; ENG1; High Voltage (Management); oral STCW III/6. Form MSF 4259. Revalidation per MSN 1861.',
+    routes: [
+      { label: 'Cadet / FD-HND (§3.2)', seagoingMonths: 6, workshopMonths: 3, combinedMonths: 12, minPowerKW: 750 },
+      { label: 'Non-cadet — set case-by-case by the MCA (§4.2)', seagoingMonthsMin: 6, seagoingMonthsMax: 33, minPowerKW: 750, mcaAssessed: true },
+      { label: 'Electro-technical Rating (§4.3)', combinedMonths: 36, minPowerKW: 750 }
+    ]
   }
 };
 
@@ -217,12 +217,11 @@ export const CERTIFICATE_ROUTES = {
   MASTER_YACHT_3000:     ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_500', 'MASTER_YACHT_3000'],
   CHIEF_MATE_UNLIMITED:  ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED'],
   MASTER_UNLIMITED:      ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
-  // ENGINE
-  MEOL_Y: ['MEOL_Y'],
-  Y4: ['MEOL_Y', 'Y4'],
-  Y3: ['MEOL_Y', 'Y4', 'Y3'],
-  Y2: ['MEOL_Y', 'Y4', 'Y3', 'Y2'],
-  Y1: ['MEOL_Y', 'Y4', 'Y3', 'Y2', 'Y1'],
+  // ENGINE — MSN 1904 Small Vessel (Yacht) ladder
+  MEOL_Y:         ['MEOL_Y'],
+  EOOW_SV_Y:      ['MEOL_Y', 'EOOW_SV_Y'],
+  CHIEF_SV_500_Y: ['MEOL_Y', 'EOOW_SV_Y', 'CHIEF_SV_500_Y'],
+  CHIEF_SV_3000_Y:['MEOL_Y', 'EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
   // ETO
   ETO_COC: ['ETO_COC']
 };
@@ -230,14 +229,14 @@ export const CERTIFICATE_ROUTES = {
 /** Sensible career-ceiling goals offered per family (entry certs excluded). */
 export const GOAL_OPTIONS = {
   DECK: ['MASTER_YACHT_500', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
-  ENGINE: ['Y4', 'Y3', 'Y2', 'Y1'],
+  ENGINE: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
   ETO: ['ETO_COC']
 };
 
-export const DEFAULT_GOAL = { DECK: 'MASTER_YACHT_3000', ENGINE: 'Y1', ETO: 'ETO_COC' };
+export const DEFAULT_GOAL = { DECK: 'MASTER_YACHT_3000', ENGINE: 'CHIEF_SV_3000_Y', ETO: 'ETO_COC' };
 
 /** Certificate families a department can work toward (drives the pathway).
- *  Engineering carries both the Y-grade engine ladder and the ETO route. */
+ *  Engineering carries both the Small Vessel engine ladder and the ETO route. */
 export const DEPT_FAMILIES = {
   deck: ['DECK'],
   engineering: ['ENGINE', 'ETO'],
@@ -256,15 +255,23 @@ export const GRADE_TO_CERT = {
   'Master <500GT': 'MASTER_YACHT_500',
   'Master <3000GT': 'MASTER_YACHT_3000',
   'Master unlimited': 'MASTER_UNLIMITED',
+  // In-force MSN 1904 Small Vessel (Yacht) grades — canonical (listed first so
+  // CERT_TO_GRADE presets the current name when adding a held cert).
   'Engineering — MEOL (Yachts)': 'MEOL_Y',
-  'Engineering — SV / Y4': 'Y4',
-  'Engineering — Y3': 'Y3',
-  'Engineering — Y2': 'Y2',
-  'Engineering — Y1': 'Y1',
-  'Y4 / OOW (Yachts)': 'Y4',
-  'Y3 / Master <500GT': 'Y3',
-  'Y2 / Master <3000GT': 'Y2',
-  'Y1 / Master <3000GT (>500GT)': 'Y1'
+  'Engineering — EOOW SV (Yachts)': 'EOOW_SV_Y',
+  'Engineering — Chief SV <500GT (Yachts)': 'CHIEF_SV_500_Y',
+  'Engineering — Chief SV <3000GT (Yachts)': 'CHIEF_SV_3000_Y',
+  // Legacy MSN 1859 Y-grade CoCs a crew member may still hold → mapped to the
+  // SV rung they convert across to (MSN 1904 §8.5 / MIN 642 §7). Held-position
+  // approximation; the exact conversion top-up is in LEGACY_GRADE_CONVERSION.
+  'Engineering — SV / Y4': 'EOOW_SV_Y',
+  'Engineering — Y3': 'CHIEF_SV_500_Y',
+  'Engineering — Y2': 'CHIEF_SV_3000_Y',
+  'Engineering — Y1': 'CHIEF_SV_3000_Y',
+  'Y4 / OOW (Yachts)': 'EOOW_SV_Y',
+  'Y3 / Master <500GT': 'CHIEF_SV_500_Y',
+  'Y2 / Master <3000GT': 'CHIEF_SV_3000_Y',
+  'Y1 / Master <3000GT (>500GT)': 'CHIEF_SV_3000_Y'
 };
 
 /** Reverse of GRADE_TO_CERT — the CoC `grade` to preset when adding a held cert. */
@@ -310,4 +317,39 @@ export const certConfidence = (cert) => {
       : level === 'MEDIUM' ? 'Provisional — confirm figures'
       : 'Not yet verified — confirm figures'
   };
+};
+
+// ── Legacy MSN 1859 "Y-grade" CoC → in-force MSN 1904 Small Vessel CoC.
+// For crew who still HOLD an old Y-grade certificate: where it converts to, the
+// MCA conversion code, and the service/course top-up. Figures from MIN 642 §7.3
+// (expired 1 Dec 2025) — the binding text is MSN 1904 §8.5, so each is marked
+// 'PROVISIONAL' (the UI shows "confirm against MSN 1904 §8.5"). Conversions B and
+// E need no extra sea time — courses + ENG1 only. ────────────────────────────
+export const LEGACY_GRADE_CONVERSION = {
+  Y4: { to: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'], code: 'A1–A3', verified: 'PROVISIONAL',
+        topUp: '6mo onboard / 4mo seagoing ≥350kW (EOOW) up to 12mo seagoing incl. 6mo ≥750kW (Chief <3000GT).' },
+  Y3: { to: ['CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'], code: 'B / C', verified: 'PROVISIONAL',
+        topUp: 'Courses + ENG1 only for Chief <500GT (code B); 12mo onboard incl. 6mo seagoing for Chief <3000GT (code C).' },
+  Y2: { to: ['CHIEF_SV_3000_Y'], code: 'D', verified: 'PROVISIONAL',
+        topUp: '3 months seagoing on yachts ≥750kW.' },
+  Y1: { to: ['CHIEF_SV_3000_Y'], code: 'E', verified: 'PROVISIONAL',
+        topUp: 'Courses + ENG1 only (Y1 is the highest legacy grade).' }
+};
+
+// ── CoC revalidation — ONE universal procedure for every CoC (MSN 1861 Amd 1).
+// Cargo treats this as a shared "stay-current" node, not a per-rung requirement.
+// Three alternative service branches, OR 30 months in an acceptable occupation
+// (Annex A). Department service gates differ. Form MSF 4201 (MSF 4258 for the
+// §9 alternative/lapsed route). HIGH — verbatim from the in-force notice. ──────
+export const REVALIDATION = {
+  msn: 'MSN 1861 Amd 1 §3.2', verified: 'HIGH', form: 'MSF 4201', altForm: 'MSF 4258',
+  validityYears: 5,
+  serviceBranches: [
+    { label: '12 months seagoing in the last 5 years', months: 12, windowYears: 5 },
+    { label: '3 months seagoing in the last 6 months', months: 3, windowMonths: 6 },
+    { label: '3 months as supernumerary, immediately prior', months: 3, supernumerary: true }
+  ],
+  occupationAlternative: { label: '30 months in an acceptable occupation (Annex A)', months: 30 },
+  gates: { deck: '>80GT or ≥24m', engineer: '≥750kW', eto: '≥750kW', yacht: 'per the yacht MSN' },
+  note: 'Revalidate every 5 years. If your CoC has lapsed, the §9 alternative route issues a temporary lower-rank CoC valid 6 months; full revalidation follows a further 3 months seagoing. A valid ENG1 is required.'
 };
