@@ -266,6 +266,22 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     return () => { cancel = true; };
   }, [userId, tenantId]);
 
+  // Never let the goal sit below the crew member's highest held qualification in
+  // the current family: if they already hold a CoC above (or off) the default
+  // goal's route, raise the goal to it so the pathway reflects what they hold
+  // (it then shows "achieved"; they can still manually aim higher). Height = how
+  // many rungs a cert's own route has.
+  useEffect(() => {
+    if (!family) return;
+    const heldInFamily = Object.keys(heldCerts).filter(id => CERTIFICATES[id]?.family === family);
+    if (!heldInFamily.length) return;
+    const height = (id) => routeFor(id).length;
+    const highestHeld = heldInFamily.reduce((a, b) => (height(b) > height(a) ? b : a));
+    if (!routeFor(goalId).includes(highestHeld) && height(highestHeld) >= height(goalId)) {
+      setGoalId(highestHeld);
+    }
+  }, [heldCerts, family, goalId]);
+
   // Resolve the Part-4 endorser for ONE command spell — the master who covered
   // those dates (stamped on the auto-logged rows). Pull their name + CoC from
   // their Cargo record. If that captain IS the seafarer (own service as master),
