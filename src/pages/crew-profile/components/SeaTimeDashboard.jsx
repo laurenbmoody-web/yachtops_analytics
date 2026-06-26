@@ -11,7 +11,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
@@ -837,6 +837,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     <div>
                       <div className="stp-eyebrow">Now working toward · {r.msn}{isGoal ? ' · your goal' : ''}</div>
                       <h4 className="stp-title">{r.label}</h4>
+                      {certConfidence(r).authoritative === false && (
+                        <div className="stp-provisional">{certConfidence(r).label} — these figures aren’t yet confirmed against {r.msn}. Treat as a guide and verify with your training provider before applying.</div>
+                      )}
                     </div>
                     <div className="stp-fig"><span className="big">{daysToGo}</span><span className="cap">{daysToGo === 1 ? 'day to go' : 'days to go'}</span></div>
                   </div>
@@ -848,8 +851,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   {requirements.length > 0 ? (
                     <div className="stp-reqs">
                       {requirements.map(rq => (
-                        <div className={`stp-req ${rq.met ? 'done' : ''}`} key={rq.key}>
-                          <div className="l">{rq.label}</div>
+                        <div className={`stp-req ${rq.met ? 'done' : ''}${rq.advisory ? ' advisory' : ''}`} key={rq.key}>
+                          <div className="l">{rq.label}{rq.advisory && <span className="stp-advtag">advisory</span>}</div>
                           <div className="v">{rq.required ? <>{rq.current} <em>/ {rq.required}</em></> : '—'}</div>
                           <div className="meter"><i style={{ width: `${rq.pct}%` }} /></div>
                         </div>
@@ -1154,7 +1157,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       {/* ── certification journey: NoE → oral exam → CoC ── */}
       {(() => {
         const j = journey || JOURNEY_DEFAULT;
-        const eligible = requirements.length > 0 && requirements.every(r => r.met);
+        const conf = certConfidence(cert);
+        // Hard requirements only (advisory bars like recency guide but don't gate).
+        // An un-verified route never declares "requirements met" off a figure we
+        // haven't confirmed against the notice.
+        const hardReqs = requirements.filter(r => !r.advisory);
+        const eligible = conf.authoritative && hardReqs.length > 0 && hardReqs.every(r => r.met);
         const noeExpiry = addYearsIso(j.noe?.issueDate, 5);
         const oralExpiry = addYearsIso(j.oral?.passDate, 3);
         const noeDte = daysUntil(noeExpiry), oralDte = daysUntil(oralExpiry);
@@ -1174,7 +1182,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             <div className="std-vs" style={{ marginTop: 2, marginBottom: 12 }}>NoE / NoA → oral exam → CoC. Cargo tracks your progress and the MCA validity timers; the milestones are yours to confirm.{MSF_FORMS[deptId] ? ` Apply with ${MSF_FORMS[deptId].form} (${MSF_FORMS[deptId].notice}).` : ' Apply with the MSF form for your route.'}</div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Stage n="01" label="Eligibility" state={eligible ? 'done' : 'active'}
-                line={eligible ? 'Service requirements met' : `${requirements.filter(r => !r.met).length} requirement(s) to go`} />
+                line={!conf.authoritative ? 'Confirm figures with your route' : eligible ? 'Service requirements met' : `${hardReqs.filter(r => !r.met).length} requirement(s) to go`}
+                warn={!conf.authoritative ? `${conf.label} · ${conf.notice || 'see notice'}` : null} />
               <Stage n="02" label="Notice of Eligibility"
                 state={j.noe?.status === 'issued' ? 'done' : j.noe?.status === 'applied' ? 'active' : 'todo'}
                 line={j.noe?.status === 'issued' ? `Issued ${fmtDate(j.noe.issueDate)}` : j.noe?.status === 'applied' ? 'Applied — awaiting NoE' : 'Not applied'}

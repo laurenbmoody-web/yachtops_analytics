@@ -279,3 +279,19 @@ export const rolesForDepartment = (deptId) =>
  *  (e.g. engine certs under MSN 1859 §5.2) when a cert sets no override. */
 export const yardCapForCertificate = (certId) =>
   CERTIFICATES[certId]?.yardCapDays ?? SERVICE_RULES.yardCapDays;
+
+/** Confidence of a certificate's encoded thresholds, for the UI to gate display.
+ *  HIGH = stated verbatim in the cited notice; anything else is provisional and
+ *  must be flagged "confirm against [notice]" rather than shown as authoritative,
+ *  so crew on a not-yet-verified route are never given a wrong eligibility figure. */
+export const certConfidence = (cert) => {
+  const level = cert?.verified || 'PENDING';
+  return {
+    level,
+    authoritative: level === 'HIGH',
+    notice: cert?.msn || null,
+    label: level === 'HIGH' ? 'Notice-verified'
+      : level === 'MEDIUM' ? 'Provisional — confirm figures'
+      : 'Not yet verified — confirm figures'
+  };
+};

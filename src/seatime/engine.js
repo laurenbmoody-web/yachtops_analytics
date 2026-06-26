@@ -218,10 +218,14 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
     actualSea: (prior.seagoing || 0) + buckets.seagoing + buckets.watchkeeping
   };
   const r = cert?.requires || {};
+  // Each bar carries the route's confidence so the UI never presents an
+  // unverified threshold as authoritative. provisional = the cert's figures
+  // aren't HIGH-confidence from the cited notice (e.g. ETO STCW A-III/6).
+  const provisional = cert?.verified && cert.verified !== 'HIGH';
   const bars = [];
-  const add = (key, label, current, targetDays) => {
+  const add = (key, label, current, targetDays, extra = {}) => {
     const met = current >= targetDays;
-    bars.push({ key, label, current, required: targetDays, met, remaining: Math.max(0, targetDays - current), pct: targetDays ? Math.min(100, Math.round(current / targetDays * 100)) : 100 });
+    bars.push({ key, label, current, required: targetDays, met, remaining: Math.max(0, targetDays - current), pct: targetDays ? Math.min(100, Math.round(current / targetDays * 100)) : 100, provisional, ...extra });
   };
   if (r.onboardMonths) add('onboard', 'Onboard yacht service', cur.onboard, r.onboardMonths * md);
   if (r.seagoingDays) add('seagoing', `Seagoing service${r.minVesselMetres ? ` (≥${r.minVesselMetres}m)` : ''}`, cur.seagoing, r.seagoingDays);
@@ -229,8 +233,10 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
   if (r.watchkeepingDays) add('watchkeeping', 'Watchkeeping service', cur.watchkeeping, r.watchkeepingDays);
   if (r.actualSeaServiceMonths) add('actualSea', 'Actual sea service', cur.actualSea, r.actualSeaServiceMonths * md);
   // Recency — the MCA needs ≥6 months qualifying seagoing service within the last
-  // 5 years at NoE/CoC issue. Applies to every CoC, so always shown when known.
-  if (recentDays != null) add('recency', 'Recent service · 6mo in last 5yr', recentDays, 6 * md);
+  // 5 years at NoE/CoC issue (MSN 1856 §17.2/§19.1). Its application point varies
+  // by route (entry CoC vs revalidation), so it's shown as advisory guidance, not
+  // a hard gate that blocks the eligibility flag.
+  if (recentDays != null) add('recency', 'Recent service · 6mo in last 5yr', recentDays, 6 * md, { advisory: true });
   if (!bars.length) bars.push({ key: 'none', label: 'No additional qualifying service required', current: 0, required: 0, met: true, remaining: 0, pct: 100 });
   return bars;
 };
