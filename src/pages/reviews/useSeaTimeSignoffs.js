@@ -52,12 +52,18 @@ export function useSeaTimeSignoffs(tenantId, signerName) {
         byUser.get(r.user_id).push(r);
       }
 
-      // Seafarer names for the cards.
+      // Seafarer names + testimonial particulars (DOB / nationality / discharge
+      // book) for the cards and the generated PDF — mirrors the email-link path
+      // so an in-app sign-off produces a fully-populated testimonial.
       const userIds = [...byUser.keys()];
-      const nameMap = {};
+      const nameMap = {}, detailMap = {};
       if (userIds.length) {
-        const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+        const [{ data: profs }, { data: details }] = await Promise.all([
+          supabase.from('profiles').select('id, full_name').in('id', userIds),
+          supabase.from('crew_personal_details').select('user_id, date_of_birth, nationality, discharge_book_number').in('user_id', userIds),
+        ]);
         for (const p of profs || []) nameMap[p.id] = p.full_name;
+        for (const d of details || []) detailMap[d.user_id] = d;
       }
 
       // One sign-off unit per (seafarer, vessel, command spell). The captain
@@ -79,7 +85,13 @@ export function useSeaTimeSignoffs(tenantId, signerName) {
             next.push({
               id: `${userId}:${cmd.key || `${vesselId}:${cmd.id}`}`,
               requestedAt,
-              seafarer: { fullName: nameMap[userId] || 'Seafarer' },
+              seafarer: {
+                fullName: nameMap[userId] || 'Seafarer',
+                dob: detailMap[userId]?.date_of_birth || null,
+                nationality: detailMap[userId]?.nationality || null,
+                dischargeBookNo: detailMap[userId]?.discharge_book_number || '',
+                cocHeld: '',
+              },
               unit: {
                 ...v, mode, multi,
                 cmdLabel: multi ? `In command ${fmtDate(cmd.from) || '—'} – ${fmtDate(cmd.to) || 'present'}` : null,
