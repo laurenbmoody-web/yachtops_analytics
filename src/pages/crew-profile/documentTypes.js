@@ -60,6 +60,19 @@ const STCW_REFRESHER_LABEL = 'Refresher due (5-yearly)';
 export const DOCUMENT_TYPES = [
   // ── Travel & identity ───────────────────────────────────────────────────
   { id: 'passport', label: 'Passport', category: 'travel', fields: IDENTITY_FIELDS },
+  {
+    // A photocopy of the passport endorsed "certified true copy" and signed by a
+    // professional (solicitor, notary, accountant…). This is the proof of
+    // identity the Sea Service / testimonial pack requires, so its presence
+    // satisfies that requirement automatically. Distinct from the passport
+    // itself — it doesn't expire, and doesn't feed Personal Details.
+    id: 'passport_certified_copy', label: 'Passport — certified true copy', category: 'travel',
+    expiry: false, authorityLabel: 'Certified by',
+    fields: [
+      { key: 'certifier_profession', label: 'Certifier profession', placeholder: 'e.g. solicitor, notary, accountant' },
+      { key: 'certification_date', label: 'Date certified', type: 'date' },
+    ],
+  },
   { id: 'national_id', label: 'National ID card', category: 'travel', fields: IDENTITY_FIELDS },
   {
     id: 'driving_licence', label: 'Driving licence', category: 'travel',
