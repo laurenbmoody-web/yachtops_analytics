@@ -349,7 +349,6 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
           {s.pill && <span className={`cd-pill ${s.pill.cls}`}>{s.pill.label}</span>}
         </div>
         <div className="cd-tile-name">{s.label}</div>
-        <div className="cd-spacer" />
         <div className="cd-bar">{s.segments.map((seg, i) => <i key={i} className={seg.cls} style={{ width: `${seg.width}%` }} />)}</div>
         {s.foot && (
           <div className="cd-soon">
