@@ -76,7 +76,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
     setLoading(true);
     const [acts, sh, ents] = await Promise.all([
       fetchProfileActivity(userId),
-      supabase.from('crew_status_history').select('*').eq('user_id', userId).order('changed_at', { ascending: true }),
+      supabase.from('crew_status_history').select('*').eq('user_id', userId).neq('source', 'calendar').order('changed_at', { ascending: true }),
       fetchCalendarEntries(userId),
     ]);
     setActivity(acts);
