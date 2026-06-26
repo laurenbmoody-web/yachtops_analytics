@@ -80,7 +80,7 @@ export default function SeaServiceSignPage() {
           seafarer: info?.snapshot?.seafarer || { fullName: info?.seafarer_name },
           vessel: { name: unit.name, flag: unit.flag, imo: unit.imo, gt: unit.gt, lengthM: unit.lengthM },
           periods: unit.periods || [],
-          signatory: { name: record.name, rank: 'Master', cocNumber: record.cocNo, signedAt: new Date().toISOString().slice(0, 10) },
+          signatory: { name: record.name, rank: 'Master', cocNumber: record.cocNo, signedAt: new Date().toISOString().slice(0, 10), signatureImage: record.signature?.image || null },
         });
         await supabase.functions.invoke('store-seatime-testimonial', { body: { token, pdfBase64: bytesToBase64(bytes) } });
       } catch (e2) { console.error('[SeaServiceSign] testimonial', e2); }

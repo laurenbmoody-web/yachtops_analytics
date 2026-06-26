@@ -104,24 +104,31 @@ export const renderPackPdf = async ({ dataset, verifier, assurance, qrDataUrl, s
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(138, 127, 99); doc.text(`${lab} days`, bx + 4, y + 14);
     bx += 45;
   }
-  y += 18;
+  y += 16;
 
   // ── Signatory (left) + verification (right), as one clean band ─────────────
   rule(false); y += 8;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
   doc.text('SIGNED BY THE MASTER', M, y);
-  doc.setFont('helvetica', 'italic'); doc.setFontSize(16); doc.setTextColor(26, 34, 51);
-  doc.text(signatoryMeta?.name || '—', M, y + 9);
+  // The drawn signature itself, when present, then the printed name beneath it.
+  let ny = y + 5;
+  if (signatoryMeta?.signatureImage) {
+    try { doc.addImage(signatoryMeta.signatureImage, 'PNG', M, ny, 48, 15); } catch { /* bad image */ }
+    ny += 18;
+  }
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(15); doc.setTextColor(26, 34, 51);
+  doc.text(signatoryMeta?.name || '—', M, ny + 4);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 120);
-  doc.text(`${signatoryMeta?.rank || 'Master'}${signatoryMeta?.cocNumber ? ' · CoC ' + signatoryMeta.cocNumber : ''}${signatoryMeta?.signedAt ? ' · ' + fmtDate(signatoryMeta.signedAt) : ''}`, M, y + 15);
+  doc.text(`${signatoryMeta?.rank || 'Master'}${signatoryMeta?.cocNumber ? ' · CoC ' + signatoryMeta.cocNumber : ''}${signatoryMeta?.signedAt ? ' · ' + fmtDate(signatoryMeta.signedAt) : ''}`, M, ny + 10);
 
-  const qx = 150, qy = y - 4;
-  if (qrDataUrl) doc.addImage(qrDataUrl, 'PNG', qx, qy, 26, 26);
+  // QR (right) with the verification text clearly BELOW it — never overlapping.
+  const qx = 152, qy = y + 2;
+  if (qrDataUrl) doc.addImage(qrDataUrl, 'PNG', qx, qy, 24, 24);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(138, 127, 99);
-  doc.text('SCAN TO VERIFY', qx, qy + 30);
+  doc.text('SCAN TO VERIFY', qx, qy + 29);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
-  doc.text(assurance.verificationRef, qx, qy + 33.5);
-  doc.text(`sha256:${assurance.contentHash}`.slice(0, 32) + '…', qx, qy + 37);
+  doc.text(assurance.verificationRef, qx, qy + 32.5);
+  doc.text(`sha256:${assurance.contentHash.slice(0, 30)}…`, qx, qy + 36);
 
   // Footer instructions
   y = 280;
