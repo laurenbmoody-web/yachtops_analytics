@@ -601,6 +601,155 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-doc-empty .cp-doc-title { color: #6F7396; font-weight: 500; }
 
+/* ── Documents dashboard — category health tiles + jump rail ───────────
+   Editorial redesign of the Documents tab: a crew-readiness strip, a
+   By category / By renewal toggle, and square category tiles whose
+   traffic-light bar always means something (green = valid / no expiry,
+   amber = expiring ≤90d, red = expired, grey = a required doc missing). */
+.crew-profile-page .cd-eyebrow {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
+}
+
+/* Crew readiness strip */
+.crew-profile-page .cd-ready {
+  display: flex; align-items: center; gap: 20px;
+  padding: 4px 2px 16px; border-bottom: 1px solid #ECEAE3; margin-bottom: 4px;
+}
+.crew-profile-page .cd-ready-pct {
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 30px; line-height: 1; color: #C65A1A;
+}
+.crew-profile-page .cd-ready-pct.is-full { color: #2E7D52; }
+.crew-profile-page .cd-ready-body { min-width: 0; }
+.crew-profile-page .cd-ready-t { font-size: 13.5px; font-weight: 600; color: #1C1B3A; margin: 4px 0 7px; }
+.crew-profile-page .cd-ready-track { height: 5px; background: #F0F1F5; border-radius: 999px; overflow: hidden; max-width: 280px; }
+.crew-profile-page .cd-ready-track i { display: block; height: 100%; background: #2E7D52; border-radius: 999px; }
+.crew-profile-page .cd-ready-att { margin-left: auto; display: flex; gap: 12px; font-size: 12.5px; font-weight: 600; }
+.crew-profile-page .cd-ready-att .bad { color: #A32D2D; }
+.crew-profile-page .cd-ready-att .amb { color: #9A6A00; }
+.crew-profile-page .cd-ready-att .ok { color: #2E7D52; }
+
+/* Controls — toggle + breadcrumb */
+.crew-profile-page .cd-controls {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin: 18px 0 10px; flex-wrap: wrap;
+}
+.crew-profile-page .cd-crumb {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #C65A1A; background: none; border: 0; cursor: pointer; padding: 0;
+}
+.crew-profile-page .cd-seg {
+  display: inline-flex; background: #fff; border: 1px solid #ECEAE3; border-radius: 999px; padding: 3px;
+}
+.crew-profile-page .cd-seg button {
+  border: 0; background: none; border-radius: 999px; padding: 7px 16px;
+  font-size: 12px; font-weight: 600; color: #8B8478; cursor: pointer;
+}
+.crew-profile-page .cd-seg button.on { background: #C65A1A; color: #fff; }
+
+/* Legend */
+.crew-profile-page .cd-legend { display: flex; gap: 18px; align-items: center; margin: 2px 0 6px; flex-wrap: wrap; }
+.crew-profile-page .cd-legend > span { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #55506A; }
+.crew-profile-page .cd-sw { width: 14px; height: 8px; border-radius: 3px; display: inline-block; }
+.crew-profile-page .cd-sw.ok { background: #2E7D52; }
+.crew-profile-page .cd-sw.amber { background: #D8932A; }
+.crew-profile-page .cd-sw.bad { background: #A32D2D; }
+.crew-profile-page .cd-sw.miss { background: #C4C8D0; }
+
+/* Two-column: sticky rail + content */
+.crew-profile-page .cd-cols { display: grid; grid-template-columns: 210px 1fr; gap: 28px; align-items: start; margin-top: 16px; }
+.crew-profile-page .cd-single { margin-top: 12px; }
+.crew-profile-page .cd-rail { position: sticky; top: 12px; }
+.crew-profile-page .cd-rail-eyebrow { padding: 0 6px 8px; }
+.crew-profile-page .cd-nav {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 9px 8px; font-size: 13px; cursor: pointer; color: #1C1B3A;
+  background: none; border: 0; border-bottom: 1px solid #F0F1F5; text-align: left;
+}
+.crew-profile-page .cd-nav:last-child { border-bottom: none; }
+.crew-profile-page .cd-nav:hover { color: #C65A1A; }
+.crew-profile-page .cd-nav svg { flex: none; stroke: #8B8478; }
+.crew-profile-page .cd-nav:hover svg, .crew-profile-page .cd-nav.on svg { stroke: #C65A1A; }
+.crew-profile-page .cd-nav.on { color: #C65A1A; font-weight: 600; }
+.crew-profile-page .cd-nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crew-profile-page .cd-nav-cnt {
+  margin-left: auto; font-size: 11px; color: #8B8478; font-variant-numeric: tabular-nums;
+  display: flex; align-items: center; gap: 7px;
+}
+.crew-profile-page .cd-nav.empty { color: #AEB4C2; }
+.crew-profile-page .cd-nav.empty svg { stroke: #AEB4C2; }
+.crew-profile-page .cd-nav.empty .cd-nav-cnt { color: #AEB4C2; }
+.crew-profile-page .cd-nav.attn { color: #A32D2D; }
+.crew-profile-page .cd-nav.attn svg { stroke: #A32D2D; }
+.crew-profile-page .cd-nav-dot { width: 6px; height: 6px; border-radius: 50%; background: #A32D2D; }
+.crew-profile-page .cd-rail-rule { height: 1px; background: #ECEAE3; margin: 8px 6px; }
+
+/* Tile grid */
+.crew-profile-page .cd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.crew-profile-page .cd-tile {
+  aspect-ratio: 1 / 1; display: flex; flex-direction: column; text-align: left;
+  background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; padding: 18px;
+  box-shadow: 0 20px 44px -30px rgba(28,27,58,.30); cursor: pointer;
+  transition: transform .14s ease, box-shadow .14s ease;
+}
+.crew-profile-page .cd-tile:hover { transform: translateY(-2px); box-shadow: 0 26px 52px -28px rgba(28,27,58,.34); }
+.crew-profile-page .cd-tile-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.crew-profile-page .cd-ico { width: 40px; height: 40px; border-radius: 12px; flex: none; display: grid; place-items: center; }
+.crew-profile-page .cd-pill {
+  font-size: 10px; font-weight: 700; letter-spacing: .4px; padding: 4px 10px; border-radius: 999px;
+  white-space: nowrap; margin-top: 2px;
+}
+.crew-profile-page .cd-pill.ok { background: #ECF7EE; color: #2E7D52; }
+.crew-profile-page .cd-pill.bad { background: #FBE9E7; color: #A32D2D; }
+.crew-profile-page .cd-pill.amber { background: #FBF1E1; color: #9A6A00; }
+.crew-profile-page .cd-pill.miss { background: #F0F1F5; color: #6B7280; }
+.crew-profile-page .cd-tile-name {
+  font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 19px; line-height: 1.15;
+  color: #1C1B3A; margin-top: 15px;
+}
+.crew-profile-page .cd-tile-break { font-size: 11.5px; color: #8B8478; margin-top: 4px; }
+.crew-profile-page .cd-tile-break b { color: #1C1B3A; font-weight: 600; }
+.crew-profile-page .cd-tile-break .rd { color: #A32D2D; font-weight: 600; }
+.crew-profile-page .cd-tile-break .cd-faint { color: #AEB4C2; }
+.crew-profile-page .cd-spacer { flex: 1; }
+.crew-profile-page .cd-bar { display: flex; height: 7px; border-radius: 999px; overflow: hidden; background: #F0F1F5; }
+.crew-profile-page .cd-bar i { display: block; height: 100%; }
+.crew-profile-page .cd-bar .cd-ok { background: #2E7D52; }
+.crew-profile-page .cd-bar .cd-amber { background: #D8932A; }
+.crew-profile-page .cd-bar .cd-bad { background: #A32D2D; }
+.crew-profile-page .cd-bar .cd-miss { background: #C4C8D0; }
+.crew-profile-page .cd-soon { margin-top: 10px; }
+.crew-profile-page .cd-soon-v { font-size: 12px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.crew-profile-page .cd-soon-v.bad { color: #A32D2D; }
+/* Empty department tile — dashed invitation, no shadow */
+.crew-profile-page .cd-tile.is-empty {
+  border: 1px dashed #DCD8CE; background: #FCFBF8; box-shadow: none; cursor: pointer;
+}
+.crew-profile-page .cd-tile.is-empty:hover { transform: none; box-shadow: none; border-color: #C65A1A; }
+.crew-profile-page .cd-tile.is-empty .cd-tile-name { color: #A39E92; }
+.crew-profile-page .cd-tile-add { margin-top: auto; font-size: 12px; font-weight: 600; color: #C65A1A; }
+
+/* Drill-in / list headers within the content column */
+.crew-profile-page .cd-detail-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  padding-bottom: 10px; border-bottom: 1px solid #F0F1F5;
+}
+.crew-profile-page .cd-detail-head .cd-ico { width: 34px; height: 34px; border-radius: 10px; }
+.crew-profile-page .cd-detail-head h4 {
+  font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 19px; color: #1C1B3A; margin: 0;
+}
+.crew-profile-page .cd-detail-head > :last-child { margin-left: auto; }
+.crew-profile-page .cd-muted { font-size: 13px; color: #8B8478; padding: 8px 2px; }
+.crew-profile-page .cd-sep { color: #D7D3C9; }
+
+@media (max-width: 900px) {
+  .crew-profile-page .cd-cols { grid-template-columns: 1fr; }
+  .crew-profile-page .cd-rail { position: static; display: flex; flex-wrap: wrap; gap: 4px; }
+  .crew-profile-page .cd-rail .cd-nav { width: auto; border-bottom: 0; }
+  .crew-profile-page .cd-rail-eyebrow, .crew-profile-page .cd-rail-rule { display: none; }
+  .crew-profile-page .cd-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ── HOR — editorial KPI tiles + soft-green calendar ───────────────────
    Visual-only restyle, matching the rota rest-log KPI strip (.rl-kpi) and
    the approved profile-HOR hybrid mockup (soft-green "B"). The compliance

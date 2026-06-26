@@ -13,6 +13,40 @@ import {
 import AddDocumentModal from './AddDocumentModal';
 import BatchReviewModal from './BatchReviewModal';
 
+// Each category's editorial face: a soft-tinted lucide glyph (no cheesy icons),
+// reused on the overview tiles and the jump rail.
+const CAT_STYLE = {
+  travel:       { icon: 'Plane',         bg: '#ECEFF5', ink: '#5B6B8C' },
+  medical:      { icon: 'HeartPulse',    bg: '#FBECEB', ink: '#C0504D' },
+  safety:       { icon: 'LifeBuoy',      bg: '#E5F0ED', ink: '#2E7D6B' },
+  deck:         { icon: 'Compass',       bg: '#E7EFF2', ink: '#3E6A8E' },
+  engineering:  { icon: 'Wrench',        bg: '#F1EEF6', ink: '#6E5B97' },
+  interior:     { icon: 'Wine',          bg: '#EEF3EA', ink: '#7C9A6B' },
+  watersports:  { icon: 'Waves',         bg: '#E9F1F6', ink: '#4B85A8' },
+  professional: { icon: 'Briefcase',     bg: '#F2F0EB', ink: '#8B7A55' },
+  qualification:{ icon: 'GraduationCap', bg: '#F0EEF7', ink: '#6E5B97' },
+  issued:       { icon: 'FileText',      bg: '#F2F0EB', ink: '#8B8478' },
+  other:        { icon: 'Files',         bg: '#F0F1F5', ink: '#7A7E8C' },
+};
+
+// Departments we always surface as a tile so the page reads complete and invites
+// filling the gaps; the remaining buckets appear only once they hold something.
+const ALWAYS_SHOWN_CATS = ['travel', 'medical', 'safety', 'deck', 'engineering', 'interior', 'watersports', 'professional'];
+
+// Traffic-light bucket for one document — colours always carry meaning:
+//   ok = valid / in date OR simply doesn't expire (held & fine)
+//   amber = expiring within 90 days · bad = expired
+// (a category's grey "missing" segment comes from un-held required docs, below).
+const bucketOf = (d) => {
+  if (!d.expiry_date) return 'ok';
+  const lvl = getExpiryStatus(d.expiry_date).level;
+  if (lvl === 'expired') return 'bad';
+  if (lvl === 'red' || lvl === 'amber') return 'amber';
+  return 'ok';
+};
+
+const catOf = (d) => getDocType(d.doc_type)?.category || d.category || 'other';
+
 const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPresetHandled, onProfileSynced }) => {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +54,12 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   const [editing, setEditing] = useState(null);
   const [presetType, setPresetType] = useState(null);
   const [presetDetails, setPresetDetails] = useState(null);
+
+  // View state: "By category" (overview grid → drill into a category) vs the
+  // flat "By renewal" timeline. `selected` is null on the overview, a category
+  // id when drilled in, or the virtual '__attention' / '__all' lists.
+  const [mode, setMode] = useState('category');
+  const [selected, setSelected] = useState(null);
 
   // Batch upload — drop/select several files, parse + review them together.
   const [batchFiles, setBatchFiles] = useState(null);
@@ -97,15 +137,18 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   // silences the old one instead of double-counting it.
   const { currents, previousById } = groupDocumentVersions(docs);
 
+  // ── Crew readiness — driven by the always-required core documents ─────────
+  const coreTypes = coreDocumentTypes();
+  const heldCore = coreTypes.filter((t) => currents.some((d) => d.doc_type === t.id)).length;
+  const readinessPct = coreTypes.length ? Math.round((heldCore / coreTypes.length) * 100) : 100;
+  const missingCoreCount = coreTypes.length - heldCore;
+
   const flagged = currents.map((d) => getExpiryStatus(d.expiry_date));
   const expiredCount = flagged.filter((s) => s.level === 'expired').length;
-  const soonCount = flagged.filter((s) => s.level === 'red' || s.level === 'amber').length;
+  const expiringCount = flagged.filter((s) => s.level === 'red' || s.level === 'amber').length;
+  const attentionCount = expiredCount + expiringCount;
 
-  // The nearest still-valid expiry, for an at-a-glance heads-up at the top.
   const todayStart = new Date(new Date().toDateString());
-  const soonest = currents
-    .filter((d) => d.expiry_date && new Date(`${String(d.expiry_date).slice(0, 10)}T00:00:00`) >= todayStart)
-    .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)))[0];
 
   // Meta line shared by core + additional rows.
   const metaBits = (d) => [
@@ -177,7 +220,267 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     );
   };
 
-  const additional = currents.filter((d) => !CORE_DOCUMENT_TYPE_IDS.includes(d.doc_type));
+  // An un-held required document — dashed prompt to add it.
+  const renderEmptySlot = (t) => (
+    <div key={t.id} className="cp-doc-row cp-doc-empty">
+      <div className="min-w-0">
+        <div className="cp-doc-title">{t.label}</div>
+        <div className="cp-doc-meta"><span>Not added yet</span></div>
+      </div>
+      {canEdit ? (
+        <Button variant="outline" size="xs" iconName="Plus" onClick={() => openAdd(t.id)}>Add</Button>
+      ) : (
+        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${EXPIRY_STATUS_CLASSES.none}`}>Missing</span>
+      )}
+    </div>
+  );
+
+  // ── Per-category summary used by the tiles + rail ─────────────────────────
+  const summaryFor = (cat) => {
+    const inCat = currents.filter((d) => catOf(d) === cat.id);
+    const coreInCat = coreTypes.filter((t) => t.category === cat.id);
+    const missingCore = coreInCat.filter((t) => !currents.some((d) => d.doc_type === t.id));
+
+    const counts = { ok: 0, amber: 0, bad: 0, miss: missingCore.length };
+    inCat.forEach((d) => { counts[bucketOf(d)] += 1; });
+    const totalSeg = counts.ok + counts.amber + counts.bad + counts.miss;
+
+    const order = [['bad', 'cd-bad'], ['amber', 'cd-amber'], ['ok', 'cd-ok'], ['miss', 'cd-miss']];
+    const segments = totalSeg
+      ? order.filter(([k]) => counts[k] > 0).map(([k, cls]) => ({ cls, width: (counts[k] / totalSeg) * 100 }))
+      : [];
+
+    const future = inCat
+      .filter((d) => d.expiry_date && new Date(`${String(d.expiry_date).slice(0, 10)}T00:00:00`) >= todayStart)
+      .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
+    const expired = inCat
+      .filter((d) => getExpiryStatus(d.expiry_date).level === 'expired')
+      .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
+    const noExpiry = inCat.filter((d) => !d.expiry_date).length;
+
+    let pill;
+    if (counts.bad) pill = { cls: 'bad', label: `${counts.bad} expired` };
+    else if (counts.amber) pill = { cls: 'amber', label: `${counts.amber} expiring` };
+    else if (counts.miss && inCat.length === 0) pill = null;
+    else if (counts.miss) pill = { cls: 'miss', label: `${counts.miss} missing` };
+    else pill = { cls: 'ok', label: inCat.some((d) => d.expiry_date) ? (inCat.length > 1 ? 'All valid' : 'Valid') : 'Held' };
+
+    let foot;
+    if (expired.length) {
+      const d = expired[0];
+      foot = { label: 'Needs attention', value: `${getDocTypeLabel(d.doc_type, d.details)} expired ${formatDocDate(d.expiry_date)}`, bad: true };
+    } else if (future.length) {
+      const d = future[0];
+      foot = { label: 'Soonest renewal', value: `${getDocTypeLabel(d.doc_type, d.details)} · ${formatDocDate(d.expiry_date)}` };
+    } else if (counts.miss && inCat.length === 0) {
+      foot = null;
+    } else if (counts.miss) {
+      foot = { label: 'Required', value: `${counts.miss} document${counts.miss > 1 ? 's' : ''} missing` };
+    } else {
+      foot = { label: 'On file', value: `${inCat.length} document${inCat.length > 1 ? 's' : ''} · no expiry` };
+    }
+
+    return {
+      id: cat.id, label: cat.label, inCat, counts, segments, pill, foot, noExpiry,
+      isEmpty: inCat.length === 0 && counts.miss === 0,
+      attn: counts.bad > 0 || counts.amber > 0,
+    };
+  };
+
+  const visibleCats = DOC_CATEGORIES.filter((c) =>
+    ALWAYS_SHOWN_CATS.includes(c.id) || currents.some((d) => catOf(d) === c.id));
+  const summaries = visibleCats.map(summaryFor);
+
+  // ── Tiles ─────────────────────────────────────────────────────────────────
+  const renderTile = (s) => {
+    const st = CAT_STYLE[s.id] || CAT_STYLE.other;
+    if (s.isEmpty) {
+      return (
+        <button
+          key={s.id}
+          type="button"
+          className="cd-tile is-empty"
+          onClick={canEdit ? () => openAdd() : undefined}
+        >
+          <div className="cd-tile-top">
+            <span className="cd-ico" style={{ background: '#F1EFE9' }}><Icon name={st.icon} size={21} style={{ color: '#A8A296' }} /></span>
+          </div>
+          <div className="cd-tile-name">{s.label}</div>
+          <div className="cd-tile-break">No documents yet</div>
+          {canEdit && <div className="cd-tile-add">+ Add a document</div>}
+        </button>
+      );
+    }
+    return (
+      <button key={s.id} type="button" className="cd-tile" onClick={() => setSelected(s.id)}>
+        <div className="cd-tile-top">
+          <span className="cd-ico" style={{ background: st.bg }}><Icon name={st.icon} size={21} style={{ color: st.ink }} /></span>
+          {s.pill && <span className={`cd-pill ${s.pill.cls}`}>{s.pill.label}</span>}
+        </div>
+        <div className="cd-tile-name">{s.label}</div>
+        <div className="cd-tile-break">
+          {[
+            s.counts.bad ? <span key="b" className="rd">{s.counts.bad} expired</span> : null,
+            s.counts.amber ? <span key="a">{s.counts.amber} expiring</span> : null,
+            s.counts.ok ? <span key="o"><b>{s.counts.ok}</b> valid</span> : null,
+            s.counts.miss ? <span key="m">{s.counts.miss} missing</span> : null,
+          ].filter(Boolean).reduce((acc, el, i) => (i === 0 ? [el] : [...acc, <span key={`s${i}`} className="cd-sep"> · </span>, el]), [])}
+          {s.noExpiry > 0 && s.counts.ok > 0 && !s.counts.bad && !s.counts.amber && (
+            <span className="cd-faint">&nbsp;({s.noExpiry} no expiry)</span>
+          )}
+        </div>
+        <div className="cd-spacer" />
+        <div className="cd-bar">{s.segments.map((seg, i) => <i key={i} className={seg.cls} style={{ width: `${seg.width}%` }} />)}</div>
+        {s.foot && (
+          <div className="cd-soon">
+            <span className="cd-eyebrow">{s.foot.label}&nbsp;</span>
+            <span className={`cd-soon-v ${s.foot.bad ? 'bad' : ''}`}>{s.foot.value}</span>
+          </div>
+        )}
+      </button>
+    );
+  };
+
+  // ── Drill-in: one category's documents (core slots + held docs) ──────────
+  const renderCategoryDetail = (catId) => {
+    const cat = DOC_CATEGORIES.find((c) => c.id === catId);
+    if (!cat) return null;
+    const coreInCat = coreTypes.filter((t) => t.category === catId);
+    const coreIds = coreInCat.map((t) => t.id);
+    const inCat = currents.filter((d) => catOf(d) === catId);
+    const rest = inCat.filter((d) => !coreIds.includes(d.doc_type));
+    const st = CAT_STYLE[catId] || CAT_STYLE.other;
+    return (
+      <div>
+        <div className="cd-detail-head">
+          <span className="cd-ico" style={{ background: st.bg }}><Icon name={st.icon} size={18} style={{ color: st.ink }} /></span>
+          <h4>{cat.label}</h4>
+          {canEdit && <Button variant="outline" size="xs" iconName="Plus" onClick={() => openAdd()}>Add</Button>}
+        </div>
+        <div className="space-y-2">
+          {coreInCat.map((t) => {
+            const ex = inCat.find((d) => d.doc_type === t.id);
+            return ex ? renderDocRow(ex) : renderEmptySlot(t);
+          })}
+          {rest.map(renderDocRow)}
+          {coreInCat.length === 0 && rest.length === 0 && (
+            <p className="cd-muted">No documents in this category yet.</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Flat lists: attention + all ──────────────────────────────────────────
+  const attentionDocs = currents
+    .filter((d) => ['bad', 'amber'].includes(bucketOf(d)))
+    .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
+
+  const renderAttention = () => (
+    <div>
+      <div className="cd-detail-head">
+        <span className="cd-ico" style={{ background: '#FBE9E7' }}><Icon name="AlertTriangle" size={18} style={{ color: '#A32D2D' }} /></span>
+        <h4>Needs attention</h4>
+      </div>
+      {attentionDocs.length ? (
+        <div className="space-y-2">{attentionDocs.map(renderDocRow)}</div>
+      ) : (
+        <p className="cd-muted">Nothing expired or expiring within 90 days.</p>
+      )}
+    </div>
+  );
+
+  const renderAll = () => (
+    <div>
+      {visibleCats.map((cat) => {
+        const inCat = currents.filter((d) => catOf(d) === cat.id);
+        const coreInCat = coreTypes.filter((t) => t.category === cat.id);
+        if (inCat.length === 0 && coreInCat.length === 0) return null;
+        const coreIds = coreInCat.map((t) => t.id);
+        const rest = inCat.filter((d) => !coreIds.includes(d.doc_type));
+        return (
+          <div className="cp-group" key={cat.id}>
+            <div className="cp-group-head">
+              <span className="dia">◆</span><span className="t">{cat.label}</span><span className="line" />
+            </div>
+            <div className="space-y-2">
+              {coreInCat.map((t) => {
+                const ex = inCat.find((d) => d.doc_type === t.id);
+                return ex ? renderDocRow(ex) : renderEmptySlot(t);
+              })}
+              {rest.map(renderDocRow)}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // ── By renewal — flat chronological timeline ─────────────────────────────
+  const renderRenewalTimeline = () => {
+    const dated = currents.filter((d) => d.expiry_date);
+    const overdue = dated.filter((d) => getExpiryStatus(d.expiry_date).level === 'expired')
+      .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
+    const soon = dated.filter((d) => ['red', 'amber'].includes(getExpiryStatus(d.expiry_date).level))
+      .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
+    const later = dated.filter((d) => getExpiryStatus(d.expiry_date).level === 'green')
+      .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
+    const noExp = currents.filter((d) => !d.expiry_date);
+    const section = (key, label, rows) => rows.length > 0 && (
+      <div className="cp-group" key={key}>
+        <div className="cp-group-head">
+          <span className="dia">◆</span><span className="t">{label}</span><span className="line" />
+        </div>
+        <div className="space-y-2">{rows.map(renderDocRow)}</div>
+      </div>
+    );
+    if (!dated.length && !noExp.length) return <p className="cd-muted">No documents yet.</p>;
+    return (
+      <div>
+        {section('overdue', 'Overdue', overdue)}
+        {section('soon', 'Next 90 days', soon)}
+        {section('later', 'Later', later)}
+        {section('noexp', "Doesn't expire", noExp)}
+      </div>
+    );
+  };
+
+  // ── Jump rail ────────────────────────────────────────────────────────────
+  const railItem = (key, label, iconName, count, opts = {}) => {
+    const on = selected === key;
+    const cls = ['cd-nav', on ? 'on' : '', opts.empty ? 'empty' : '', opts.attn ? 'attn' : ''].filter(Boolean).join(' ');
+    return (
+      <button type="button" className={cls} onClick={() => setSelected(key)}>
+        <Icon name={iconName} size={15} />
+        <span className="cd-nav-label">{label}</span>
+        <span className="cd-nav-cnt">{opts.dot && <span className="cd-nav-dot" />}{count}</span>
+      </button>
+    );
+  };
+
+  const renderRail = () => (
+    <div className="cd-rail">
+      <div className="cd-eyebrow cd-rail-eyebrow">Jump to</div>
+      <button type="button" className={`cd-nav ${selected === null ? 'on' : ''}`} onClick={() => setSelected(null)}>
+        <Icon name="LayoutGrid" size={15} />
+        <span className="cd-nav-label">Overview</span>
+      </button>
+      {attentionCount > 0 && railItem('__attention', 'Needs attention', 'AlertTriangle', attentionCount, { attn: true })}
+      {railItem('__all', 'All documents', 'Files', currents.length)}
+      <div className="cd-rail-rule" />
+      {summaries.map((s) => railItem(
+        s.id, s.label, (CAT_STYLE[s.id] || CAT_STYLE.other).icon, s.inCat.length,
+        { empty: s.isEmpty, dot: s.attn },
+      ))}
+    </div>
+  );
+
+  const renderCategoryBody = () => {
+    if (selected === null) return <div className="cd-grid">{summaries.map(renderTile)}</div>;
+    if (selected === '__attention') return renderAttention();
+    if (selected === '__all') return renderAll();
+    return renderCategoryDetail(selected);
+  };
 
   return (
     <div
@@ -231,73 +534,61 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         </p>
       )}
 
-      {!loading && soonest && (
-        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-xs" style={{ background: '#FAFAF8', border: '1px solid #ECEAE3', color: '#6B7280' }}>
-          <Icon name="CalendarClock" size={14} style={{ color: '#C65A1A' }} />
-          <span>Soonest expiry: <strong style={{ color: '#1C1B3A' }}>{getDocTypeLabel(soonest.doc_type, soonest.details)}</strong> · {formatDocDate(soonest.expiry_date)}</span>
-        </div>
-      )}
-
-      {!loading && (expiredCount > 0 || soonCount > 0) && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {expiredCount > 0 && (
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${EXPIRY_STATUS_CLASSES.expired}`}>
-              <Icon name="AlertTriangle" size={13} /> {expiredCount} expired
-            </span>
-          )}
-          {soonCount > 0 && (
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${EXPIRY_STATUS_CLASSES.amber}`}>
-              <Icon name="Clock" size={13} /> {soonCount} expiring within 90 days
-            </span>
-          )}
-        </div>
-      )}
-
       {loading ? (
         <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>
       ) : (
         <>
-          {/* Core documents — always shown as slots */}
-          <div className="cp-group">
-            <div className="cp-group-head">
-              <span className="dia">◆</span><span className="t">Required for all crew</span><span className="line" />
+          {/* Crew readiness — required-document coverage at a glance */}
+          <div className="cd-ready">
+            <span className={`cd-ready-pct ${readinessPct === 100 ? 'is-full' : ''}`}>{readinessPct}%</span>
+            <div className="cd-ready-body">
+              <div className="cd-eyebrow">Crew readiness</div>
+              <div className="cd-ready-t">{heldCore} of {coreTypes.length} required documents held · {missingCoreCount} missing</div>
+              <div className="cd-ready-track"><i style={{ width: `${readinessPct}%` }} /></div>
             </div>
-            <div className="space-y-2">
-              {coreDocumentTypes().map((t) => {
-                const existing = currents.find((d) => d.doc_type === t.id);
-                if (existing) return renderDocRow(existing);
-                return (
-                  <div key={t.id} className="cp-doc-row cp-doc-empty">
-                    <div className="min-w-0">
-                      <div className="cp-doc-title">{t.label}</div>
-                      <div className="cp-doc-meta"><span>Not added yet</span></div>
-                    </div>
-                    {canEdit ? (
-                      <Button variant="outline" size="xs" iconName="Plus" onClick={() => openAdd(t.id)}>Add</Button>
-                    ) : (
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${EXPIRY_STATUS_CLASSES.none}`}>Missing</span>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="cd-ready-att">
+              {expiredCount > 0 && <span className="bad">{expiredCount} expired</span>}
+              {expiringCount > 0 && <span className="amb">{expiringCount} expiring</span>}
+              {attentionCount === 0 && <span className="ok">All in date</span>}
             </div>
           </div>
 
-          {/* Additional documents — visas, role-specific quals, other */}
-          {additional.length > 0 && DOC_CATEGORIES.map((cat) => {
-            // Group by the type's current category so docs saved before a
-            // taxonomy change still land in the right section.
-            const rows = additional.filter((d) => (getDocType(d.doc_type)?.category || d.category || 'other') === cat.id);
-            if (rows.length === 0) return null;
-            return (
-              <div className="cp-group" key={cat.id}>
-                <div className="cp-group-head">
-                  <span className="dia">◆</span><span className="t">{cat.label}</span><span className="line" />
-                </div>
-                <div className="space-y-2">{rows.map(renderDocRow)}</div>
-              </div>
-            );
-          })}
+          {/* Controls — view toggle + breadcrumb */}
+          <div className="cd-controls">
+            <div className="cd-eyebrow">
+              {mode === 'renewal' ? 'Documents by renewal date'
+                : selected === null ? 'Documents by category'
+                : (
+                  <button type="button" className="cd-crumb" onClick={() => setSelected(null)}>
+                    <Icon name="ChevronLeft" size={12} /> All categories
+                  </button>
+                )}
+            </div>
+            <div className="cd-seg">
+              <button type="button" className={mode === 'category' ? 'on' : ''} onClick={() => setMode('category')}>By category</button>
+              <button type="button" className={mode === 'renewal' ? 'on' : ''} onClick={() => setMode('renewal')}>By renewal</button>
+            </div>
+          </div>
+
+          {/* Legend — what the traffic-light bars mean */}
+          {mode === 'category' && selected === null && (
+            <div className="cd-legend">
+              <span className="cd-eyebrow">Each bar =</span>
+              <span><i className="cd-sw ok" />Valid / no expiry</span>
+              <span><i className="cd-sw amber" />Expiring ≤90 days</span>
+              <span><i className="cd-sw bad" />Expired</span>
+              <span><i className="cd-sw miss" />Missing (required)</span>
+            </div>
+          )}
+
+          {mode === 'renewal' ? (
+            <div className="cd-single">{renderRenewalTimeline()}</div>
+          ) : (
+            <div className="cd-cols">
+              {renderRail()}
+              <div className="cd-content">{renderCategoryBody()}</div>
+            </div>
+          )}
         </>
       )}
 
