@@ -124,6 +124,16 @@ const StpSelect = ({ value, options, onChange, variant = 'dept', label }) => {
   );
 };
 
+// Common maritime CoC flag-state codes → country names (for the Nautilus
+// "Issuing Country" box). Falls through to the raw value for anything unlisted.
+const COUNTRY_NAMES = {
+  GB: 'United Kingdom', UK: 'United Kingdom', US: 'United States', USA: 'United States',
+  MT: 'Malta', KY: 'Cayman Islands', BM: 'Bermuda', MH: 'Marshall Islands', LR: 'Liberia',
+  PA: 'Panama', NL: 'Netherlands', FR: 'France', ES: 'Spain', IT: 'Italy', DE: 'Germany',
+  AU: 'Australia', NZ: 'New Zealand', ZA: 'South Africa', IE: 'Ireland', JE: 'Jersey', GG: 'Guernsey',
+};
+const countryName = (code) => { if (!code) return ''; const k = String(code).trim().toUpperCase(); return COUNTRY_NAMES[k] || code; };
+
 const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, canAttest = false }) => {
   const config = DEFAULT_CONFIG;
   const [deptId, setDeptId] = useState('deck');
@@ -202,11 +212,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       if (captainId && captainId !== userId) {
         const [cp, coc] = await Promise.all([
           supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', captainId)?.maybeSingle(),
-          supabase?.from('personal_documents')?.select('document_number, details')?.eq('user_id', captainId)?.eq('doc_type', 'coc')?.order('expiry_date', { ascending: false, nullsFirst: false })?.limit(1)?.maybeSingle(),
+          supabase?.from('personal_documents')?.select('document_number, issuing_authority, flag_state')?.eq('user_id', captainId)?.eq('doc_type', 'coc')?.order('expiry_date', { ascending: false, nullsFirst: false })?.limit(1)?.maybeSingle(),
         ]);
         const cd = cp?.data || {};
         const name = (cd.first_name && cd.surname) ? `${cd.first_name} ${cd.surname}` : (cd.full_name || '');
-        setEndorser({ position: 'Master', name, cocNo: coc?.data?.document_number || '', issuingAuthority: '' });
+        // "Issuing Country" on the form = the CoC's flag state (the country),
+        // mapped from its ISO code; fall back to the issuing authority text.
+        const cc = coc?.data || {};
+        const issuingCountry = countryName(cc.flag_state) || cc.issuing_authority || '';
+        setEndorser({ position: 'Master', name, cocNo: cc.document_number || '', issuingCountry });
       } else {
         // Seafarer is the master → owner/responsible person endorses.
         setEndorser({ position: 'ResponsiblePerson', organisation: companyData?.company_name || '', positionHeld: '' });
