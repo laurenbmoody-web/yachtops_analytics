@@ -201,6 +201,31 @@ export const groupDocumentVersions = (docs = []) => {
 };
 
 /**
+ * STCW Basic Safety Training is a bundle of four elements (PST, FPFF, EFA,
+ * PSSR). Of these, only PST and FPFF carry a 5-yearly refresher — and in
+ * practice crew revalidate those elements individually rather than re-issuing
+ * the original combined certificate. So an *expired* combined `stcw_basic` is
+ * not a gap once the crew holds current PST **and** FPFF: their basic safety
+ * training is up to date through the element refreshers, and the old combined
+ * cert is just a historic record.
+ *
+ * Returns the set of document ids that should be treated as historic (kept on
+ * file, counted as held, but excluded from expiry alerts and status). Operates
+ * on a single crew member's current documents.
+ */
+export const findHistoricDocIds = (currents = []) => {
+  const ids = new Set();
+  const heldCurrent = (typeId) =>
+    currents.some((d) => d.doc_type === typeId && getExpiryStatus(d.expiry_date).level !== 'expired');
+  if (heldCurrent('stcw_pst') && heldCurrent('stcw_fpff')) {
+    currents.forEach((d) => {
+      if (d.doc_type === 'stcw_basic' && getExpiryStatus(d.expiry_date).level === 'expired') ids.add(d.id);
+    });
+  }
+  return ids;
+};
+
+/**
  * Find an existing document that looks like a duplicate of `form` (same type and
  * either the same document number or the same issue+expiry dates). Used to warn
  * before adding a second identical copy. A refreshed cert (different expiry) is
@@ -258,7 +283,11 @@ export const fetchExpiringDocuments = async (withinDays = 90) => {
     byUser.set(d.user_id, a);
   }
   const docs = [];
-  for (const arr of byUser.values()) docs.push(...groupDocumentVersions(arr).currents);
+  for (const arr of byUser.values()) {
+    const cur = groupDocumentVersions(arr).currents;
+    const historic = findHistoricDocIds(cur);
+    docs.push(...cur.filter((d) => !historic.has(d.id)));
+  }
 
   const expiring = docs
     .filter((d) => d.expiry_date && String(d.expiry_date).slice(0, 10) <= cutoffStr)

@@ -8,7 +8,7 @@ import {
 } from '../documentTypes';
 import {
   fetchCrewDocuments, deleteCrewDocument, getExpiryStatus,
-  EXPIRY_STATUS_CLASSES, formatDocDate, groupDocumentVersions,
+  EXPIRY_STATUS_CLASSES, formatDocDate, groupDocumentVersions, findHistoricDocIds,
 } from '../utils/crewDocuments';
 import AddDocumentModal from './AddDocumentModal';
 import BatchReviewModal from './BatchReviewModal';
@@ -28,10 +28,6 @@ const CAT_STYLE = {
   issued:       { icon: 'FileText',      bg: '#F2F0EB', ink: '#8B8478' },
   other:        { icon: 'Files',         bg: '#F0F1F5', ink: '#7A7E8C' },
 };
-
-// Departments we always surface as a tile so the page reads complete and invites
-// filling the gaps; the remaining buckets appear only once they hold something.
-const ALWAYS_SHOWN_CATS = ['travel', 'medical', 'safety', 'deck', 'engineering', 'interior', 'watersports', 'professional'];
 
 // Traffic-light bucket for one document — colours always carry meaning:
 //   ok = valid / in date OR simply doesn't expire (held & fine)
@@ -60,6 +56,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   // id when drilled in, or the virtual '__attention' / '__all' lists.
   const [mode, setMode] = useState('category');
   const [selected, setSelected] = useState(null);
+  const [showEmpty, setShowEmpty] = useState(false);
 
   // Batch upload — drop/select several files, parse + review them together.
   const [batchFiles, setBatchFiles] = useState(null);
@@ -137,13 +134,18 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   // silences the old one instead of double-counting it.
   const { currents, previousById } = groupDocumentVersions(docs);
 
+  // A historic record (e.g. an expired combined STCW Basic that's been refreshed
+  // via element revalidations) is still held, but shouldn't raise expiry alerts.
+  const historicIds = findHistoricDocIds(currents);
+  const isHistoric = (d) => historicIds.has(d.id);
+
   // ── Crew readiness — driven by the always-required core documents ─────────
   const coreTypes = coreDocumentTypes();
   const heldCore = coreTypes.filter((t) => currents.some((d) => d.doc_type === t.id)).length;
   const readinessPct = coreTypes.length ? Math.round((heldCore / coreTypes.length) * 100) : 100;
   const missingCoreCount = coreTypes.length - heldCore;
 
-  const flagged = currents.map((d) => getExpiryStatus(d.expiry_date));
+  const flagged = currents.filter((d) => !isHistoric(d)).map((d) => getExpiryStatus(d.expiry_date));
   const expiredCount = flagged.filter((s) => s.level === 'expired').length;
   const expiringCount = flagged.filter((s) => s.level === 'red' || s.level === 'amber').length;
   const attentionCount = expiredCount + expiringCount;
@@ -159,11 +161,17 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     d.expiry_date ? `Expires ${formatDocDate(d.expiry_date)}` : 'No expiry',
   ].filter(Boolean);
 
-  const renderActions = (d) => (
+  const renderActions = (d, opts = {}) => (
     <div className="flex items-center gap-2 flex-shrink-0">
-      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${EXPIRY_STATUS_CLASSES[getExpiryStatus(d.expiry_date).level]}`}>
-        {getExpiryStatus(d.expiry_date).label}
-      </span>
+      {opts.historic ? (
+        <span className="cd-historic-pill" title="Basic Safety Training is kept current through individual element refreshers (PST, FPFF). The original combined certificate is retained as a historic record.">
+          Historic
+        </span>
+      ) : (
+        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${EXPIRY_STATUS_CLASSES[getExpiryStatus(d.expiry_date).level]}`}>
+          {getExpiryStatus(d.expiry_date).label}
+        </span>
+      )}
       {d.file_url && (
         <a href={d.file_url} target="_blank" rel="noreferrer" className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="View file"><Icon name="Paperclip" size={15} /></a>
       )}
@@ -176,17 +184,21 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     </div>
   );
 
-  const renderDocRow = (d) => {
+  const renderDocRow = (d, opts = {}) => {
     const prev = previousById.get(d.id);
     const open = !!openPrev[d.id];
+    const historic = opts.historic;
     return (
       <div key={d.id}>
-        <div className="cp-doc-row">
+        <div className={`cp-doc-row${historic ? ' cd-historic-row' : ''}`}>
           <div className="min-w-0">
             <div className="cp-doc-title">{getDocTypeLabel(d.doc_type, d.details)}</div>
-            <div className="cp-doc-meta">{metaBits(d).map((b, i) => <span key={i}>{b}</span>)}</div>
+            <div className="cp-doc-meta">
+              {metaBits(d).map((b, i) => <span key={i}>{b}</span>)}
+              {historic && <span className="cd-historic-note">Refreshed via element revalidations (PST, FPFF)</span>}
+            </div>
           </div>
-          {renderActions(d)}
+          {renderActions(d, { historic })}
         </div>
         {prev?.length > 0 && (
           <div style={{ paddingLeft: 2, marginTop: 2 }}>
@@ -235,9 +247,12 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     </div>
   );
 
-  // ── Per-category summary used by the tiles + rail ─────────────────────────
+  // ── Per-category summary used by the tiles ───────────────────────────────
   const summaryFor = (cat) => {
-    const inCat = currents.filter((d) => catOf(d) === cat.id);
+    const allInCat = currents.filter((d) => catOf(d) === cat.id);
+    // Historic records are kept on file but don't drive status, counts or alerts.
+    const inCat = allInCat.filter((d) => !isHistoric(d));
+    const historic = allInCat.filter(isHistoric);
     const coreInCat = coreTypes.filter((t) => t.category === cat.id);
     const missingCore = coreInCat.filter((t) => !currents.some((d) => d.doc_type === t.id));
 
@@ -263,6 +278,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     else if (counts.amber) pill = { cls: 'amber', label: `${counts.amber} expiring` };
     else if (counts.miss && inCat.length === 0) pill = null;
     else if (counts.miss) pill = { cls: 'miss', label: `${counts.miss} missing` };
+    else if (inCat.length === 0) pill = null;
     else pill = { cls: 'ok', label: inCat.some((d) => d.expiry_date) ? (inCat.length > 1 ? 'All valid' : 'Valid') : 'Held' };
 
     let foot;
@@ -276,20 +292,25 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
       foot = null;
     } else if (counts.miss) {
       foot = { label: 'Required', value: `${counts.miss} document${counts.miss > 1 ? 's' : ''} missing` };
-    } else {
+    } else if (inCat.length > 0) {
       foot = { label: 'On file', value: `${inCat.length} document${inCat.length > 1 ? 's' : ''} · no expiry` };
+    } else {
+      foot = null;
     }
 
     return {
-      id: cat.id, label: cat.label, inCat, counts, segments, pill, foot, noExpiry,
+      id: cat.id, label: cat.label, inCat, historic, counts, segments, pill, foot, noExpiry,
       isEmpty: inCat.length === 0 && counts.miss === 0,
       attn: counts.bad > 0 || counts.amber > 0,
     };
   };
 
-  const visibleCats = DOC_CATEGORIES.filter((c) =>
-    ALWAYS_SHOWN_CATS.includes(c.id) || currents.some((d) => catOf(d) === c.id));
-  const summaries = visibleCats.map(summaryFor);
+  // Only categories that actually hold something (or owe a required doc) show by
+  // default; empty departments stay tucked away behind a reveal toggle so the
+  // page isn't padded with blank tiles, but can still be opened to add to.
+  const allSummaries = DOC_CATEGORIES.map(summaryFor);
+  const activeSummaries = allSummaries.filter((s) => !s.isEmpty);
+  const emptySummaries = allSummaries.filter((s) => s.isEmpty);
 
   // ── Tiles ─────────────────────────────────────────────────────────────────
   const renderTile = (s) => {
@@ -328,6 +349,9 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
           {s.noExpiry > 0 && s.counts.ok > 0 && !s.counts.bad && !s.counts.amber && (
             <span className="cd-faint">&nbsp;({s.noExpiry} no expiry)</span>
           )}
+          {s.historic.length > 0 && (
+            <span className="cd-faint">&nbsp;· {s.historic.length} historic</span>
+          )}
         </div>
         <div className="cd-spacer" />
         <div className="cd-bar">{s.segments.map((seg, i) => <i key={i} className={seg.cls} style={{ width: `${seg.width}%` }} />)}</div>
@@ -348,7 +372,10 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     const coreInCat = coreTypes.filter((t) => t.category === catId);
     const coreIds = coreInCat.map((t) => t.id);
     const inCat = currents.filter((d) => catOf(d) === catId);
-    const rest = inCat.filter((d) => !coreIds.includes(d.doc_type));
+    const rest = inCat.filter((d) => !coreIds.includes(d.doc_type) && !isHistoric(d));
+    // Non-core historic records get tucked into their own subsection; a historic
+    // core record (e.g. STCW Basic) stays inline so the requirement reads as met.
+    const restHistoric = inCat.filter((d) => !coreIds.includes(d.doc_type) && isHistoric(d));
     const st = CAT_STYLE[catId] || CAT_STYLE.other;
     return (
       <div>
@@ -360,20 +387,26 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         <div className="space-y-2">
           {coreInCat.map((t) => {
             const ex = inCat.find((d) => d.doc_type === t.id);
-            return ex ? renderDocRow(ex) : renderEmptySlot(t);
+            return ex ? renderDocRow(ex, { historic: isHistoric(ex) }) : renderEmptySlot(t);
           })}
-          {rest.map(renderDocRow)}
-          {coreInCat.length === 0 && rest.length === 0 && (
+          {rest.map((d) => renderDocRow(d))}
+          {coreInCat.length === 0 && rest.length === 0 && restHistoric.length === 0 && (
             <p className="cd-muted">No documents in this category yet.</p>
           )}
         </div>
+        {restHistoric.length > 0 && (
+          <div className="cd-historic-group">
+            <div className="cd-historic-head">Historic — kept on file, not counted toward expiries</div>
+            <div className="space-y-2">{restHistoric.map((d) => renderDocRow(d, { historic: true }))}</div>
+          </div>
+        )}
       </div>
     );
   };
 
   // ── Flat lists: attention + all ──────────────────────────────────────────
   const attentionDocs = currents
-    .filter((d) => ['bad', 'amber'].includes(bucketOf(d)))
+    .filter((d) => !isHistoric(d) && ['bad', 'amber'].includes(bucketOf(d)))
     .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
 
   const renderAttention = () => (
@@ -392,29 +425,32 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
 
   // ── By renewal — flat chronological timeline ─────────────────────────────
   const renderRenewalTimeline = () => {
-    const dated = currents.filter((d) => d.expiry_date);
+    const active = currents.filter((d) => !isHistoric(d));
+    const dated = active.filter((d) => d.expiry_date);
     const overdue = dated.filter((d) => getExpiryStatus(d.expiry_date).level === 'expired')
       .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
     const soon = dated.filter((d) => ['red', 'amber'].includes(getExpiryStatus(d.expiry_date).level))
       .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
     const later = dated.filter((d) => getExpiryStatus(d.expiry_date).level === 'green')
       .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
-    const noExp = currents.filter((d) => !d.expiry_date);
-    const section = (key, label, rows) => rows.length > 0 && (
+    const noExp = active.filter((d) => !d.expiry_date);
+    const historic = currents.filter(isHistoric);
+    const section = (key, label, rows, opts = {}) => rows.length > 0 && (
       <div className="cp-group" key={key}>
         <div className="cp-group-head">
           <span className="dia">◆</span><span className="t">{label}</span><span className="line" />
         </div>
-        <div className="space-y-2">{rows.map(renderDocRow)}</div>
+        <div className="space-y-2">{rows.map((d) => renderDocRow(d, opts))}</div>
       </div>
     );
-    if (!dated.length && !noExp.length) return <p className="cd-muted">No documents yet.</p>;
+    if (!dated.length && !noExp.length && !historic.length) return <p className="cd-muted">No documents yet.</p>;
     return (
       <div>
         {section('overdue', 'Overdue', overdue)}
         {section('soon', 'Next 90 days', soon)}
         {section('later', 'Later', later)}
         {section('noexp', "Doesn't expire", noExp)}
+        {section('historic', 'Historic', historic, { historic: true })}
       </div>
     );
   };
@@ -424,16 +460,18 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   const renderCategoryBody = () => {
     if (selected === '__attention') return renderAttention();
     if (selected && selected !== '__attention') return renderCategoryDetail(selected);
+    const shown = showEmpty ? [...activeSummaries, ...emptySummaries] : activeSummaries;
     return (
       <>
-        <div className="cd-legend">
-          <span className="cd-eyebrow">Each bar =</span>
-          <span><i className="cd-sw ok" />Valid / no expiry</span>
-          <span><i className="cd-sw amber" />Expiring ≤90 days</span>
-          <span><i className="cd-sw bad" />Expired</span>
-          <span><i className="cd-sw miss" />Missing (required)</span>
-        </div>
-        <div className="cd-grid">{summaries.map(renderTile)}</div>
+        <div className="cd-grid">{shown.map(renderTile)}</div>
+        {emptySummaries.length > 0 && (
+          <button type="button" className="cd-show-empty" onClick={() => setShowEmpty((v) => !v)}>
+            <Icon name={showEmpty ? 'ChevronUp' : 'Plus'} size={13} />
+            {showEmpty
+              ? 'Hide empty departments'
+              : `Show ${emptySummaries.length} more ${emptySummaries.length === 1 ? 'department' : 'departments'}`}
+          </button>
+        )}
       </>
     );
   };
