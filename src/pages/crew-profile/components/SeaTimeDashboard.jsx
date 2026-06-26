@@ -307,21 +307,27 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   }, [userId]);
 
   // ── derived ──
+  // The Sea Time view is scoped to CARGO-TRACKED service — the vessels Cargo
+  // auto-logs (rota / status / AIS). Off-Cargo and pre-Cargo service isn't shown
+  // day-by-day here; it's captured as the Prior-service baseline that feeds the
+  // pathway. A vessel counts as Cargo-tracked once it has any auto-logged day.
+  const cargoVesselIds = useMemo(() => new Set(entries.filter(e => e.source === 'vessel').map(e => e.vesselId)), [entries]);
+  const cargoEntries = useMemo(() => entries.filter(e => cargoVesselIds.has(e.vesselId)), [entries, cargoVesselIds]);
   // Yard cap is per-certificate (90 for OOW, 30 for Master/Chief Mate) — fold it
   // into the config so the yard bucket totals against the right MCA ceiling.
   const buckets = useMemo(
-    () => computeBuckets(entries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) }),
-    [entries, vessels, config, targetId],
+    () => computeBuckets(cargoEntries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) }),
+    [cargoEntries, vessels, config, targetId],
   );
   const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert) : []), [buckets, prior, cert]);
-  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet }), [entries, vessels, signatory, verifier, docMet]);
-  const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
+  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries: cargoEntries, vessels, config, signatory, verifier, docMet }), [cargoEntries, vessels, signatory, verifier, docMet]);
+  const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries: cargoEntries, vessels, signatory, verifier }), [seafarer, cargoEntries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
   // days-to-go tracks the certificate's largest single requirement (headline gate)
   const primary = requirements.reduce((a, b) => (b.required > (a?.required || 0) ? b : a), null) || requirements[0];
   const daysToGo = primary ? primary.remaining : 0;
-  const live = entries.filter(e => !e.excluded);
+  const live = cargoEntries.filter(e => !e.excluded);
   const totalLoggedDays = live.reduce((s, e) => s + (e.days || 0), 0);
   const badCount = live.filter(e => !classify(e, vessels[e.vesselId], config).qual).length;
   const hasAttention = badCount > 0;
@@ -853,9 +859,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
 
   // ── logged-service ledger (part of the Countdown page) ──
   const LedgerTable = () => {
-    const shown = entries.filter(e => serviceFilter === 'all' || e.type === serviceFilter);
-    const excludedCount = entries.filter(e => e.excluded).length;
-    const prevDays = entries.filter(e => !e.excluded && routeForVessel(vessels[e.vesselId]) === 'external').reduce((s, e) => s + (e.days || 0), 0);
+    const shown = cargoEntries.filter(e => serviceFilter === 'all' || e.type === serviceFilter);
+    const excludedCount = cargoEntries.filter(e => e.excluded).length;
+    const prevDays = 0; // off-Cargo service is captured in the Prior-service baseline now
     return (
       <div className="std-ledger std-card" ref={ledgerRef} style={{ overflow: 'hidden' }}>
         <div className="lhead" style={{ padding: '20px 18px 0', alignItems: 'flex-start' }}>
@@ -1003,6 +1009,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       {serviceFilter !== 'all' && (
         <div className="std-filternote">
           Showing <b>{TYPE_META[serviceFilter].label}</b> only · <button type="button" onClick={() => setServiceFilter('all')}>Show all</button>
+        </div>
+      )}
+      {prior.onboard > 0 && (
+        <div className="std-filternote">
+          Tiles show <b>Cargo-tracked</b> service. Your pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
         </div>
       )}
 
