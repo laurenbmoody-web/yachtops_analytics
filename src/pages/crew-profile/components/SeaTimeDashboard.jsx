@@ -11,7 +11,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
@@ -922,7 +922,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     </div>
                     {h.legacy && (
                       <div className="stp-convert">
-                        <b>This is a legacy {h.legacy.key} certificate.</b> Since 2023 the yacht-engineer scheme moved to Small Vessel CoCs — under the current system your {h.legacy.key} converts to {h.legacy.to.map(id => CERTIFICATES[id]?.short).filter(Boolean).join(' / ')} (MCA conversion {h.legacy.code}). Typical top-up: {h.legacy.topUp} Confirm the exact requirement with your training provider, then upload your converted CoC here.
+                        <b>This is a legacy {h.legacy.key} certificate.</b> Since 2023 the yacht-engineer scheme moved to Small Vessel CoCs — under the current system your {h.legacy.key} converts to {h.legacy.to.map(id => CERTIFICATES[id]?.short).filter(Boolean).join(' / ')} (MCA conversion {h.legacy.code}). Typical top-up: {h.legacy.topUp} Every conversion also needs {CONVERSION_RECENCY.months} months’ seagoing in the last {CONVERSION_RECENCY.windowYears} years ({CONVERSION_RECENCY.msn}). Confirm the exact requirement with your training provider, then upload your converted CoC here.
                       </div>
                     )}
                     </>
