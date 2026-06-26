@@ -357,7 +357,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       if (usingSample || !tenantId || !userId) { setVA(v.key, { status: 'requested', mode: v.mode }); flash('Preview only — no live record on the sample'); return; }
       const email = (v.captainEmail || '').trim() || (typeof window !== 'undefined' ? (window.prompt(`Email address for ${v.captainName || 'the captain'}?`) || '').trim() : '');
       const snapshot = {
-        seafarer: { fullName: seafarer.fullName },
+        seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, nationality: seafarer.nationality, dischargeBookNo: seafarer.dischargeBookNo, cocHeld: seafarer.cocHeld },
         unit: {
           name: v.name, flag: v.flag, gt: v.gt, lengthM: v.lengthM, imo: v.imo,
           mode: 'virtual', multi: v.multi, cmdLabel: v.cmdLabel,
@@ -715,8 +715,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         : e.vstatus === 'rejected' ? VLOG_CHIP.rejected
                           : !isCargo ? { label: 'Add testimonial', color: '#4A5263' }
                             : null;
+                  // The whole row is the click target: open the testimonial if one
+                  // exists, else jump to that ship in Step 03.
+                  const rowAction = !isExcluded && e.testimonialPath ? () => viewTestimonial(e.testimonialPath)
+                    : (vlog ? () => jumpToVerify(e.vesselId) : null);
                   return (
-                    <div className="std-arow" key={e.id} style={{ opacity: isExcluded ? 0.55 : 1 }}>
+                    <div className="std-arow" key={e.id}
+                      role={rowAction ? 'button' : undefined} tabIndex={rowAction ? 0 : undefined}
+                      onClick={rowAction || undefined}
+                      onKeyDown={rowAction ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); rowAction(); } } : undefined}
+                      style={{ opacity: isExcluded ? 0.55 : 1, cursor: rowAction ? 'pointer' : undefined }}>
                       <span className="std-arail" style={{ background: isExcluded ? '#CBC8C0' : tm.color }} />
                       <div className="std-adate">{e.dateMain}<span>{e.days} {e.days === 1 ? 'day' : 'days'}</span></div>
                       <div className="std-amid">
@@ -730,16 +738,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         <div className="std-avs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo} · {detail}</div>
                       </div>
                       <div className="std-aright">
-                        {/* Verification status — a quiet dot + word (no filled pill); taps through to Step 03. */}
+                        {/* Status — a quiet dot + word; the row itself is the click target
+                            (opens the testimonial when signed, else jumps to Step 03). */}
                         {vlog && (
-                          <button type="button" onClick={() => jumpToVerify(e.vesselId)}
-                            title={vlog.label === 'Declined' && e.rejectionReason ? `Declined — “${e.rejectionReason}”. View in Step 03.` : `${vlog.label} — view in Step 03`}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600, color: vlog.color }}>
+                          <span title={vlog.label === 'Declined' && e.rejectionReason ? `Declined — “${e.rejectionReason}”` : (e.testimonialPath ? 'Open testimonial' : `${vlog.label} — view in Step 03`)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: vlog.color }}>
                             <span style={{ width: 7, height: 7, borderRadius: '50%', background: vlog.color, flexShrink: 0 }} />{vlog.label}
-                          </button>
-                        )}
-                        {!isExcluded && e.testimonialPath && (
-                          <button type="button" onClick={() => viewTestimonial(e.testimonialPath)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontSize: 11, fontWeight: 600, color: '#C65A1A' }}>View testimonial</button>
+                          </span>
                         )}
                         {isExcluded && <span className="std-avs" style={{ color: '#8B8478' }}>Excluded from pack</span>}
                         {/* Qualifying note — faint, no fill. */}
@@ -750,7 +755,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#A32D2D', flexShrink: 0 }} />Non-qualifying
                             </span>
                             <div className="std-avs" style={{ color: '#A32D2D', textAlign: 'right', maxWidth: 230 }}>{c.reason}</div>
-                            <button className="std-fix" onClick={() => e.type === 'watchkeeping' ? reclassify(e.id) : excludeEntry(e.id)}>
+                            <button className="std-fix" onClick={(ev) => { ev.stopPropagation(); e.type === 'watchkeeping' ? reclassify(e.id) : excludeEntry(e.id); }}>
                               {e.type === 'watchkeeping' ? 'Reclassify to standby' : 'Exclude from pack'}
                             </button>
                           </>
