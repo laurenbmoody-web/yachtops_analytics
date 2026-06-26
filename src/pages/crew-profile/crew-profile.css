@@ -609,11 +609,15 @@ body.crew-profile-editorial {
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
 }
 
-/* Controls — toggle + breadcrumb */
+/* Controls — section heading (or breadcrumb) + view toggle. Extra top space so
+   the toggle clears the Upload / Add buttons above it. */
 .crew-profile-page .cd-controls {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin: 4px 0 10px; flex-wrap: wrap;
+  margin: 26px 0 14px; flex-wrap: wrap;
 }
+/* The "Documents by category" heading reuses the editorial group-head (terracotta
+   diamond + serif label + hairline ruler); flex lets the ruler run to the toggle. */
+.crew-profile-page .cd-head-inline { flex: 1; min-width: 220px; margin-bottom: 0; }
 .crew-profile-page .cd-crumb {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
