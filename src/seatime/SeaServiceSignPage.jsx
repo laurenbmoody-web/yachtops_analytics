@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import CaptainSignoff from './CaptainSignoff';
+import { buildSpellTestimonialPdf, bytesToBase64 } from './packExport';
 import './captain-signoff.css';
 
 // /sea-service/sign/:token — public, no-login captain sign-off for a master who
@@ -72,6 +73,17 @@ export default function SeaServiceSignPage() {
       });
       if (error) throw error;
       if (!data?.ok) { setErr(data?.error === 'expired' ? 'This link has expired.' : 'This link has already been used.'); return; }
+      // Generate + store the per-ship testimonial PDF (best-effort, never blocks).
+      try {
+        const unit = info?.snapshot?.unit || {};
+        const bytes = await buildSpellTestimonialPdf({
+          seafarer: info?.snapshot?.seafarer || { fullName: info?.seafarer_name },
+          vessel: { name: unit.name, flag: unit.flag, imo: unit.imo, gt: unit.gt, lengthM: unit.lengthM },
+          periods: unit.periods || [],
+          signatory: { name: record.name, rank: 'Master', cocNumber: record.cocNo, signedAt: new Date().toISOString().slice(0, 10) },
+        });
+        await supabase.functions.invoke('store-seatime-testimonial', { body: { token, pdfBase64: bytesToBase64(bytes) } });
+      } catch (e2) { console.error('[SeaServiceSign] testimonial', e2); }
       // Notify the seafarer (bell + email) — best-effort, never blocks the sign.
       supabase.functions.invoke('notify-seatime-signoff', { body: { action: 'signed', token } }).catch(() => {});
       setStatus('done');

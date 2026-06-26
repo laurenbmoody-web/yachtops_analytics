@@ -16,6 +16,7 @@ import OrderApprovalRightPane from './OrderApprovalRightPane';
 import { useProvisioningApprovals } from './useProvisioningApprovals';
 import SeaTimeReviewPanel from './SeaTimeReviewPanel';
 import CaptainSignoff from '../../seatime/CaptainSignoff';
+import { buildSpellTestimonialPdf, bytesToBase64 } from '../../seatime/packExport';
 import { SEATIME_REVIEW_QUEUE } from '../../seatime/reviewQueue';
 import { useSeaTimeSignoffs } from './useSeaTimeSignoffs';
 import { signEntries, rejectEntries } from '../crew-profile/utils/seaTimeService';
@@ -195,6 +196,17 @@ export default function ReviewsPage() {
         try { await signEntries(activeTenantId, rowIds, { signedName: record?.name }); }
         catch (e) { console.error(e); showToast('Could not sign — check your permissions', { error: true }); return; }
         await seatimeLive.refetch();
+        // Generate + store the per-ship testimonial PDF (best-effort).
+        try {
+          const u = stSelected.unit;
+          const bytes = await buildSpellTestimonialPdf({
+            seafarer: stSelected.seafarer,
+            vessel: { name: u.name, flag: u.flag, imo: u.imo, gt: u.gt, lengthM: u.lengthM },
+            periods: u.periods || [],
+            signatory: { name: record?.name, rank: 'Master', cocNumber: record?.cocNo, signedAt: new Date().toISOString().slice(0, 10) },
+          });
+          await supabase.functions.invoke('store-seatime-testimonial', { body: { entryIds: rowIds, pdfBase64: bytesToBase64(bytes) } });
+        } catch (e2) { console.error('[reviews] testimonial', e2); }
         supabase.functions.invoke('notify-seatime-signoff', { body: { action: 'signed', entryIds: rowIds } }).catch(() => {});
       } else {
         setSeatimeQueue(q => q.filter(i => i.id !== stSelected.id));
