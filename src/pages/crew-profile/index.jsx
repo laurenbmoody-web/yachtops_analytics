@@ -1472,15 +1472,7 @@ const canEdit = (() => {
               />
             </Field>
           </div>
-          <Field label="Preferred Name">
-            <Input
-              value={formData?.preferredName}
-              onChange={(e) => handleInputChange('preferredName', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="—"
-            />
-          </Field>
-          <div className="cp-field-full" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="cp-field-full cp-name-row">
             <Field label="Sex">
               {isEditing ? (
                 <select
@@ -1512,6 +1504,14 @@ const canEdit = (() => {
               ) : (
                 <div className={`cp-static${formData?.pronouns ? '' : ' cp-empty'}`}>{formData?.pronouns || '—'}</div>
               )}
+            </Field>
+            <Field label="Preferred Name">
+              <Input
+                value={formData?.preferredName}
+                onChange={(e) => handleInputChange('preferredName', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="—"
+              />
             </Field>
           </div>
           <Field label="Date of Birth">
