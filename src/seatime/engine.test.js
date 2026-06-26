@@ -111,12 +111,13 @@ test('a clean dataset with all docs + master signatory can generate', () => {
 });
 
 // --- self-certification is impossible to produce (hard fail) ------------------
-test('a self-certified pack can never be generated', () => {
-  const clean = [{ id: 'b', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 14 }];
-  const r = runChecks({ entries: clean, vessels: V, signatory: 'self', verifier: 'pya',
-    docMet: { passport: true, email: true, srb: true } });
+test('Cargo-tracked service with no master on record blocks generation', () => {
+  // An auto-logged (source: vessel) day with no master can't be endorsed.
+  const clean = [{ id: 'b', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 14, source: 'vessel' }];
+  const r = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'pya',
+    docMet: { passport: true, srb: true } });
   assert.equal(r.canGenerate, false);
-  assert.ok(r.checks.some(c => !c.ok && /self-certification/.test(c.label)));
+  assert.ok(r.checks.some(c => !c.ok && /Endorsing master/.test(c.label)));
 });
 
 // --- missing required doc blocks; switching verifier re-derives docs ----------
