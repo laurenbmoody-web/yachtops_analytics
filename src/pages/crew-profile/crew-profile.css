@@ -649,14 +649,15 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cd-seg button.on { background: #C65A1A; color: #fff; }
 
-/* Legend */
-.crew-profile-page .cd-legend { display: flex; gap: 18px; align-items: center; margin: 2px 0 6px; flex-wrap: wrap; }
-.crew-profile-page .cd-legend > span { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #55506A; }
-.crew-profile-page .cd-sw { width: 14px; height: 8px; border-radius: 3px; display: inline-block; }
-.crew-profile-page .cd-sw.ok { background: #2E7D52; }
-.crew-profile-page .cd-sw.amber { background: #D8932A; }
-.crew-profile-page .cd-sw.bad { background: #A32D2D; }
-.crew-profile-page .cd-sw.miss { background: #C4C8D0; }
+/* Reveal toggle for empty departments — a quiet, full-width invitation under
+   the grid so blank tiles don't clutter the default view. */
+.crew-profile-page .cd-show-empty {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 14px;
+  font-size: 12px; font-weight: 600; color: #8B8478;
+  background: none; border: 0; cursor: pointer; padding: 4px 2px;
+}
+.crew-profile-page .cd-show-empty:hover { color: #C65A1A; }
+.crew-profile-page .cd-show-empty svg { stroke: currentColor; }
 
 /* Two-column: sticky rail + content */
 /* Tile grid — full width (the profile's own sidebar is the only nav; the
@@ -721,6 +722,22 @@ body.crew-profile-editorial {
 .crew-profile-page .cd-detail-head > :last-child { margin-left: auto; }
 .crew-profile-page .cd-muted { font-size: 13px; color: #8B8478; padding: 8px 2px; }
 .crew-profile-page .cd-sep { color: #D7D3C9; }
+
+/* Historic records — held on file, but refreshed/superseded so they no longer
+   drive expiry status (e.g. an old combined STCW Basic kept current via its
+   element revalidations). Muted, with a neutral "Historic" pill. */
+.crew-profile-page .cd-historic-row { background: #FBFAF7; border-color: #ECEAE3; }
+.crew-profile-page .cd-historic-row .cp-doc-title { color: #6B6657; font-weight: 500; }
+.crew-profile-page .cd-historic-pill {
+  display: inline-block; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  font-size: 11px; font-weight: 700; background: #EEEDE8; color: #7A7568;
+}
+.crew-profile-page .cd-historic-note { color: #A39E92; font-style: italic; }
+.crew-profile-page .cd-historic-group { margin-top: 16px; }
+.crew-profile-page .cd-historic-head {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #AEB4C2; margin-bottom: 8px;
+}
 
 
 /* ── HOR — editorial KPI tiles + soft-green calendar ───────────────────
