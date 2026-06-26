@@ -387,7 +387,7 @@ export default function VesselDocuments() {
               <span className="bar" />
               <span className="muted">Command &amp; Chief</span>
             </p>
-            <h1 className="editorial-greeting">Ship&apos;s, <em>papers</em><span className="period">.</span></h1>
+            <h1 className="editorial-greeting">Vessel, <em>documents</em><span className="period">.</span></h1>
           </div>
 
           {/* Breadcrumb + toolbar */}
