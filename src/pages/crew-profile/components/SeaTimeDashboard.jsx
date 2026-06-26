@@ -695,7 +695,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   const provLabel = isCargo ? 'On Cargo' : 'Off Cargo';
                   const provCol = isCargo ? { color: '#3F7A52', tint: '#EFF6F1' } : { color: '#5A6478', tint: '#F4F5F7' };
                   const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch · ${e.capacity}` : (e.detailOverride || `${tm.hint} · ${e.capacity}`);
-                  const qualLabel = e.type === 'seagoing' ? 'Qualifies · seagoing' : e.type === 'watchkeeping' ? 'Qualifies · watchkeeping' : e.type === 'standby' ? 'Counts · standby' : 'Counts · shipyard';
+                  const qualWord = e.type === 'seagoing' ? 'seagoing' : e.type === 'watchkeeping' ? 'watchkeeping' : e.type === 'standby' ? 'standby' : 'shipyard';
                   return (
                     <div className="std-arow" key={e.id} style={{ opacity: isExcluded ? 0.55 : 1 }}>
                       <span className="std-arail" style={{ background: isExcluded ? '#CBC8C0' : tm.color }} />
@@ -711,18 +711,22 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         <div className="std-avs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo} · {detail}</div>
                       </div>
                       <div className="std-aright">
+                        {/* Verification status — a quiet dot + word (no filled pill); taps through to Step 03. */}
                         {!isExcluded && VLOG_CHIP[e.vstatus] && (
-                          <button type="button" className="std-pill" onClick={() => jumpToVerify(e.vesselId)}
+                          <button type="button" onClick={() => jumpToVerify(e.vesselId)}
                             title={e.vstatus === 'rejected' && e.rejectionReason ? `Declined — “${e.rejectionReason}”. View in Step 03.` : `${VLOG_CHIP[e.vstatus].label} — view in Step 03`}
-                            style={{ color: VLOG_CHIP[e.vstatus].color, background: VLOG_CHIP[e.vstatus].bg, border: 'none', cursor: 'pointer' }}>
-                            {e.vstatus === 'captain_signed' && <Icon name="Check" size={12} />} {VLOG_CHIP[e.vstatus].label}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600, color: VLOG_CHIP[e.vstatus].color }}>
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: VLOG_CHIP[e.vstatus].color, flexShrink: 0 }} />{VLOG_CHIP[e.vstatus].label}
                           </button>
                         )}
-                        {isExcluded && <span className="std-pill" style={{ color: '#5A6478', background: '#EEF0F3' }}>Excluded from pack</span>}
-                        {isQual && <span className="std-pill" style={{ color: tm.color, background: tm.bg }}><Icon name="Check" size={12} /> {qualLabel}</span>}
+                        {isExcluded && <span className="std-avs" style={{ color: '#8B8478' }}>Excluded from pack</span>}
+                        {/* Qualifying note — faint, no fill. */}
+                        {isQual && <span className="std-avs" style={{ color: '#AEB4C2', fontWeight: 500 }}>{qualWord}</span>}
                         {isBad && (
                           <>
-                            <span className="std-pill" style={{ color: '#A32D2D', background: '#FCEDEA' }}><Icon name="X" size={12} /> Non-qualifying</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#A32D2D' }}>
+                              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#A32D2D', flexShrink: 0 }} />Non-qualifying
+                            </span>
                             <div className="std-avs" style={{ color: '#A32D2D', textAlign: 'right', maxWidth: 230 }}>{c.reason}</div>
                             <button className="std-fix" onClick={() => e.type === 'watchkeeping' ? reclassify(e.id) : excludeEntry(e.id)}>
                               {e.type === 'watchkeeping' ? 'Reclassify to standby' : 'Exclude from pack'}
