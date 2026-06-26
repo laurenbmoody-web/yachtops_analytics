@@ -88,6 +88,7 @@ const rowToEntry = (row, pathId, config) => {
     // route / master-of-record enrichment (drives stamp/virtual/external + split)
     cargoRegistered: row.vessel_cargo_registered,
     masterName: row.master_name,
+    masterUserId: row.master_user_id,
     masterAboard: row.master_aboard,
     masterOnCargo: row.master_on_cargo,
     verificationStatus: mapVerificationOut(row.verification_status),

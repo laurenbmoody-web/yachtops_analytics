@@ -166,7 +166,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [entries, setEntries] = useState(SEED_ENTRIES);
   const [seafarer, setSeafarer] = useState(SEED_SEAFARER);
   const [company, setCompany] = useState({}); // vessel's company/shipowner contact (Nautilus Part 1)
-  const [endorser, setEndorser] = useState(null); // Part 4 endorser (covering captain, or company)
   const [prior, setPrior] = useState(SEED_PRIOR);
   const [usingSample, setUsingSample] = useState(true);
   const toastTimer = useRef(null);
@@ -199,33 +198,28 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const startPathway = () => setGoalId(goalForDept(deptId) || 'MASTER_YACHT_3000');
   const stopPathway = () => setGoalId('');
 
-  // Resolve the Part-4 endorser. The auto-logged service is all on this Cargo
-  // vessel, so the master who covered it is the vessel's COMMAND user — pull their
-  // name + CoC. If the seafarer is themselves the captain (own master service),
-  // the endorser must be the owner/company (a responsible person), not self.
-  const resolveEndorser = async (companyData) => {
+  // Resolve the Part-4 endorser for ONE command spell — the master who covered
+  // those dates (stamped on the auto-logged rows). Pull their name + CoC from
+  // their Cargo record. If that captain IS the seafarer (own service as master),
+  // the endorser becomes the owner/company (a responsible person), not self.
+  const resolveEndorserFor = async (captainId, captainName) => {
+    if (!captainId || captainId === userId) {
+      return { position: 'ResponsiblePerson', organisation: company?.company_name || '', positionHeld: '' };
+    }
     try {
-      const { data: cmd } = await supabase?.from('tenant_members')
-        ?.select('user_id')?.eq('tenant_id', tenantId)?.eq('role', 'COMMAND')
-        ?.order('created_at', { ascending: true })?.limit(1)?.maybeSingle() || {};
-      const captainId = cmd?.user_id || null;
-      if (captainId && captainId !== userId) {
-        const [cp, coc] = await Promise.all([
-          supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', captainId)?.maybeSingle(),
-          supabase?.from('personal_documents')?.select('document_number, issuing_authority, flag_state')?.eq('user_id', captainId)?.eq('doc_type', 'coc')?.order('expiry_date', { ascending: false, nullsFirst: false })?.limit(1)?.maybeSingle(),
-        ]);
-        const cd = cp?.data || {};
-        const name = (cd.first_name && cd.surname) ? `${cd.first_name} ${cd.surname}` : (cd.full_name || '');
-        // "Issuing Country" on the form = the CoC's flag state (the country),
-        // mapped from its ISO code; fall back to the issuing authority text.
-        const cc = coc?.data || {};
-        const issuingCountry = countryName(cc.flag_state) || cc.issuing_authority || '';
-        setEndorser({ position: 'Master', name, cocNo: cc.document_number || '', issuingCountry });
-      } else {
-        // Seafarer is the master → owner/responsible person endorses.
-        setEndorser({ position: 'ResponsiblePerson', organisation: companyData?.company_name || '', positionHeld: '' });
-      }
-    } catch (e) { console.warn('[seatime] endorser resolve failed', e); setEndorser(null); }
+      const [cp, coc] = await Promise.all([
+        supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', captainId)?.maybeSingle(),
+        supabase?.from('personal_documents')?.select('document_number, issuing_authority, flag_state')?.eq('user_id', captainId)?.eq('doc_type', 'coc')?.order('expiry_date', { ascending: false, nullsFirst: false })?.limit(1)?.maybeSingle(),
+      ]);
+      const cd = cp?.data || {};
+      const name = (cd.first_name && cd.surname) ? `${cd.first_name} ${cd.surname}` : (cd.full_name || captainName || '');
+      const cc = coc?.data || {};
+      const issuingCountry = countryName(cc.flag_state) || cc.issuing_authority || '';
+      return { position: 'Master', name, cocNo: cc.document_number || '', issuingCountry };
+    } catch (e) {
+      console.warn('[seatime] endorser resolve failed', e);
+      return { position: 'Master', name: captainName || '', cocNo: '', issuingCountry: '' };
+    }
   };
 
   // ── load live data ──
@@ -244,10 +238,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const fullName = (p.first_name && p.surname) ? `${p.first_name} ${p.surname}`
         : (p.full_name || currentUser?.fullName || 'Seafarer');
       setCompany(ves?.data || {});
-      // Resolve the endorser (Part 4) — the vessel's captain + their CoC, from
-      // their Cargo record. If the seafarer IS the captain (their own service as
-      // master), the endorser becomes the company (responsible person) instead.
-      resolveEndorser(ves?.data || {});
       if (rows && rows.length) {
         const { vessels: vMap, entries: ents } = adaptLiveEntries(rows);
         const dates = rows.map(r => r.date).filter(Boolean).sort();
@@ -576,17 +566,34 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     downloadBytes(bytes, `sea-service-record-${seafarer.fullName.replace(/\s+/g, '-')}.csv`, 'text/csv');
   };
 
-  // Fill the real Nautilus SST (Parts 1–2) for one vessel — the Nautilus form is
-  // per-ship, so we scope to the vessel with the most logged service (the current
-  // one). Multi-ship crew export one form per ship; v1 does the primary ship.
-  const onExportNautilus = async () => {
+  // A Nautilus/PYA testimonial is per command spell: one document per master, for
+  // the dates THEY were in command. Split the auto-logged service on the primary
+  // vessel by the stamped captain. Manual entries (off-Cargo/prior) and other
+  // vessels are excluded — only this vessel's Cargo-tracked service is endorsable.
+  const nautilusSpells = useMemo(() => {
+    const autos = live.filter(e => e.source === 'vessel'); // vessel_auto only
+    if (!autos.length) return [];
+    const byVessel = {};
+    for (const e of autos) byVessel[e.vesselId] = (byVessel[e.vesselId] || 0) + (e.days || 0);
+    const primaryId = Object.keys(byVessel).sort((a, b) => byVessel[b] - byVessel[a])[0];
+    const mine = autos.filter(e => e.vesselId === primaryId);
+    const groups = {};
+    for (const e of mine) {
+      const key = e.masterUserId || e.masterName || 'unattributed';
+      (groups[key] ||= { captainId: e.masterUserId || null, captainName: e.masterName || '', entries: [] }).entries.push(e);
+    }
+    return Object.values(groups).map(g => {
+      const froms = g.entries.map(e => e.from).filter(Boolean).sort();
+      const tos = g.entries.map(e => e.to).filter(Boolean).sort();
+      return { ...g, vesselId: primaryId, from: froms[0] || null, to: tos[tos.length - 1] || null, days: g.entries.reduce((s, e) => s + (e.days || 0), 0) };
+    }).sort((a, b) => String(a.from).localeCompare(String(b.from)));
+  }, [live]);
+
+  // Build + download ONE captain's Nautilus testimonial, scoped to that spell.
+  const onDownloadSpell = async (spell) => {
     try {
-      const byVessel = {};
-      for (const e of live) byVessel[e.vesselId] = (byVessel[e.vesselId] || 0) + (e.days || 0);
-      const primaryId = Object.keys(byVessel).sort((a, b) => byVessel[b] - byVessel[a])[0];
-      if (!primaryId) { flash('No sea service to export yet'); return; }
-      const v = vessels[primaryId] || {};
-      const mine = live.filter(e => e.vesselId === primaryId);
+      const v = vessels[spell.vesselId] || {};
+      const mine = spell.entries;
       const b = computeBuckets(mine, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) });
       const froms = mine.map(e => e.from).filter(Boolean).sort();
       const tos = mine.map(e => e.to).filter(Boolean).sort();
@@ -595,14 +602,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const spanDays = (from && to) ? Math.round((new Date(to) - new Date(from)) / 86400000) + 1 : totalDaysOnboard;
       const standbyPassages = mine.filter(e => e.type === 'standby')
         .map(e => ({ from: e.from, to: e.to, days: e.days })).sort((a, b) => String(a.from).localeCompare(String(b.from)));
-      // Capacity = the rank served most (so auto-logged rank wins over a stray
-      // sample entry) rather than just the first row's.
       const capCount = {};
       for (const e of mine) if (e.capacity) capCount[e.capacity] = (capCount[e.capacity] || 0) + (e.days || 0);
       const capacity = Object.keys(capCount).sort((a, b) => capCount[b] - capCount[a])[0] || '';
-      // Company address → first lines + post code for the form's separate fields.
       const addrLines = String(company.company_address || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       flash('Building Nautilus form…');
+      const endorser = await resolveEndorserFor(spell.captainId, spell.captainName);
       const pdfBytes = await buildNautilusSST({
         seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, dischargeBook: seafarer.dischargeBookNo, nautilusNo: seafarer.membershipNo },
         vessel: { type: v.type, flag: v.flag, name: v.name, imo: v.imo, officialNo: v.officialNo, lengthM: v.lengthM, gt: v.gt, kw: company.propulsion_kw },
@@ -616,15 +621,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           email: company.company_email || '',
         },
         service: {
-          capacity,
-          from, to,
-          totalDaysOnboard,
+          capacity, from, to, totalDaysOnboard,
           leaveDays: Math.max(0, spanDays - totalDaysOnboard),
           actualSea: b.seagoing, standby: b.standby, yard: b.yard, watchkeeping: b.watchkeeping,
         },
         standbyPassages,
       });
-      downloadBytes(pdfBytes, `nautilus-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}-${seafarer.fullName.replace(/\s+/g, '-')}.pdf`);
+      const who = (endorser.name || spell.captainName || 'captain').replace(/\s+/g, '-');
+      downloadBytes(pdfBytes, `nautilus-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}-${who}.pdf`);
       flash('Nautilus form ready');
     } catch (e) { console.error('[seatime] nautilus export', e); flash('Could not build the Nautilus form'); }
   };
@@ -1138,19 +1142,31 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           {/* Parked export when sign-off is hidden — the per-voyage service data the
               crew hands to PYA/Nautilus. (Form-faithful export is the next build.) */}
           {!SHOW_SIGNOFF && (
-            <div className="std-issue">
-              <div>
-                <div className="mlabel">Export · for {vp.name}</div>
-                <div className="std-issue-h">{live.length} entries · {buckets.total} qualifying days — {verifier === 'nautilus'
-                  ? 'fill your Nautilus testimonial, ready for the master to sign and Nautilus to verify'
-                  : `export your record to start your ${vp.label} submission`}</div>
-              </div>
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {verifier === 'nautilus' && (
-                  <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={onExportNautilus}><Icon name="FileText" size={15} /> Export Nautilus form (PDF)</button>
-                )}
+            <div className="std-issue" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 14 }}>
+              <div className="std-flex std-between" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <div className="mlabel">Export · for {vp.name}</div>
+                  <div className="std-issue-h">{verifier === 'nautilus'
+                    ? 'One testimonial per captain — each endorses only the dates they were in command. Manual & off-Cargo days are excluded.'
+                    : `${live.length} entries · ${buckets.total} qualifying days — export your record to start your ${vp.label} submission`}</div>
+                </div>
                 <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Service data (CSV)</button>
               </div>
+              {verifier === 'nautilus' && (
+                nautilusSpells.length === 0
+                  ? <div className="std-foot" style={{ padding: 0 }}>No Cargo-tracked service to export yet — it auto-logs from your current vessel.</div>
+                  : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {nautilusSpells.map((s, i) => (
+                        <div key={i} className="std-flex std-between std-ac" style={{ gap: 12, padding: '10px 12px', border: '1px solid #ECEAE3', borderRadius: 10, background: '#FAFAF8' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#1C1B3A', fontSize: 13 }}>{s.captainId === userId ? 'Your service as Master' : (s.captainName || 'Captain')}</div>
+                            <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}</div>
+                          </div>
+                          <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
+                        </div>
+                      ))}
+                    </div>
+              )}
             </div>
           )}
 
