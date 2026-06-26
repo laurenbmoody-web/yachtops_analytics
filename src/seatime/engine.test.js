@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_CONFIG, PATHWAYS, classify, computeBuckets, computeRequirements,
   runChecks, computeAssurance, buildTestimonialDataset, getVerifierProfiles,
-  buildRequirementBars
+  buildRequirementBars, recentQualifyingDays
 } from './engine.js';
 import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate } from './pathways.js';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from './seed.js';
@@ -87,6 +87,21 @@ test('computeRequirements adds prior accrual and flags met/remaining', () => {
   assert.equal(total.required, 730);
   assert.equal(total.remaining, 79);
   assert.equal(total.met, false);
+});
+
+// --- recency: 6 months qualifying seagoing service in the last 5 years --------
+test('recency counts only qualifying seagoing days within the last 5 years', () => {
+  const asOf = new Date('2026-06-26T00:00:00Z');
+  const entries = [
+    { type: 'seagoing', from: '2026-01-01', to: '2026-01-30', days: 30 },     // recent: 30
+    { type: 'watchkeeping', from: '2025-06-01', to: '2025-06-10', days: 10 }, // recent: 10
+    { type: 'seagoing', from: '2019-01-01', to: '2019-01-31', days: 31 },     // >5y ago: 0
+    { type: 'standby', from: '2026-02-01', to: '2026-02-10', days: 10 },      // not qualifying: 0
+  ];
+  assert.equal(recentQualifyingDays(entries, asOf), 40);
+  // The bar shows it against the 6-month (180-day) target.
+  const bars = buildRequirementBars({ seagoing: 0, watchkeeping: 0, standby: 0, yard: 0, total: 0 }, {}, CERTIFICATES[0], 40);
+  assert.ok(bars.some(b => b.key === 'recency' && b.required === 180 && b.current === 40 && !b.met));
 });
 
 // --- validation gate ---------------------------------------------------------

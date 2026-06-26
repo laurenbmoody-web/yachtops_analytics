@@ -8,7 +8,7 @@ import SeaServiceCalendar from './SeaServiceCalendar';
 import { SHOW_SIGNOFF } from '../../../seatime/signoffFlag';
 import {
   DEFAULT_CONFIG, TYPE_META, SOURCE_META, VERIFIER_PROFILES,
-  classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset
+  classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
   DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate
@@ -326,7 +326,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     () => computeBuckets(entries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) }),
     [entries, vessels, config, targetId],
   );
-  const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert) : []), [buckets, prior, cert]);
+  // Recent qualifying seagoing service in the last 5 years (MCA recency rule).
+  const recentDays = useMemo(() => recentQualifyingDays(entries.filter(e => !e.excluded)), [entries]);
+  const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert, recentDays) : []), [buckets, prior, cert, recentDays]);
   // Supporting-doc checks tick automatically when the matching profile document is
   // on file (passport, seaman's book); other docs keep their manual toggle.
   const docMetEffective = useMemo(() => {
