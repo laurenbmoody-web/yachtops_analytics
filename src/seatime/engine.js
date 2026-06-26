@@ -54,10 +54,12 @@ export const SOURCE_META = {
 export const VERIFIER_PROFILES = {
   nautilus: {
     id: 'nautilus', label: 'Nautilus', short: 'Nautilus', name: 'Nautilus International',
+    // profileDoc = the personal_documents doc_type that satisfies it, so the
+    // check ticks automatically when the crew has it on file (no email needed
+    // now that sign-off is parked).
     docs: [
-      { id: 'passport', label: 'Certified passport copy' },
-      { id: 'email', label: "Signatory's verified email" },
-      { id: 'srb', label: 'Discharge book / SRB scan' }
+      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport' },
+      { id: 'srb', label: 'Discharge book / SRB scan', profileDoc: 'seamans_book' }
     ],
     fee: 'Verification via Nautilus International (MIN 543 authorised); fees per their member tariff.',
     // Nautilus issue their own SST form — Cargo fills Parts 1–2 from your record;
@@ -68,9 +70,8 @@ export const VERIFIER_PROFILES = {
   pya: {
     id: 'pya', label: 'PYA', short: 'PYA', name: 'PYA — Professional Yachting Association',
     docs: [
-      { id: 'passport', label: 'Certified passport copy' },
-      { id: 'email', label: "Signatory's verified email" },
-      { id: 'srb', label: 'Discharge book / SRB scan' }
+      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport' },
+      { id: 'srb', label: 'Discharge book / SRB scan', profileDoc: 'seamans_book' }
     ],
     fee: '€50 per testimonial (minimum 2 on first submission) for non-members; included for PYA members.',
     // PYA build the testimonial on their portal — Cargo's record is used to complete it / as evidence.
@@ -248,11 +249,14 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
     ? { ok: false, label: 'Vessel records complete', detail: `Vessel "${incompleteVessel?.name || 'unknown'}" is missing GT or registered length.` }
     : { ok: true, label: 'Vessel records complete', detail: 'GT and registered length present for every vessel.' });
 
-  // 5) Signatory & self-certification — HARD FAIL if self.
-  const selfCert = signatory === 'self';
-  checks.push(selfCert
-    ? { ok: false, label: 'Signatory & self-certification', detail: 'Hard fail (MIN 642): the MCA will not accept self-certificated seagoing service. Assign a different master.' }
-    : { ok: true, label: 'Signatory & self-certification', detail: 'Signed by the master — not the seafarer.' });
+  // 5) Endorsing master on record — the Nautilus/PYA testimonial is per-master,
+  //    so every Cargo-tracked period must carry the master who covered it (they
+  //    sign the exported form; Cargo no longer captures a signature in-app).
+  const cargoTracked = (entries || []).filter(e => e.source === 'vessel' && !e.excluded);
+  const noMasterDays = cargoTracked.filter(e => !e.masterUserId && !e.masterName).reduce((s, e) => s + (e.days || 0), 0);
+  checks.push(noMasterDays > 0
+    ? { ok: false, label: 'Endorsing master on record', detail: `${noMasterDays} day(s) of Cargo-tracked service have no master on record to endorse them.` }
+    : { ok: true, label: 'Endorsing master on record', detail: 'Every Cargo-tracked period has an identified master to endorse it on the exported form.' });
 
   // 6) Supporting documents for the selected verifier.
   const docs = VERIFIER_PROFILES[verifier]?.docs || [];

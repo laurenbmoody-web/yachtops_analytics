@@ -147,6 +147,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [deptId, setDeptId] = useState('deck');
   const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
   const [heldCerts, setHeldCerts] = useState({});          // certId -> { issueDate, number, fileUrl, fileName, docId }
+  const [docsOnFile, setDocsOnFile] = useState({});        // doc_type -> { fileUrl, fileName, docId } from the profile
   const [heldOpen, setHeldOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState('all');
   const [logView, setLogView] = useState('list');
@@ -298,12 +299,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     if (!userId) return;
     fetchCrewDocuments(userId).then(docs => {
       const held = {};
+      const onFile = {};
       for (const d of docs || []) {
+        // Supporting docs for the verifier submission, pulled from the profile.
+        if (!onFile[d.doc_type]) onFile[d.doc_type] = { fileUrl: d.file_url, fileName: d.file_name, docId: d.id };
         if (d.doc_type !== 'coc') continue;
         const cid = GRADE_TO_CERT[d.details?.grade];
         if (cid) held[cid] = { issueDate: d.issue_date, number: d.document_number, fileUrl: d.file_url, fileName: d.file_name, docId: d.id };
       }
       setHeldCerts(held);
+      setDocsOnFile(onFile);
     }).catch(e => console.error('held certs load failed', e));
   }, [userId]);
 
@@ -321,7 +326,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     [entries, vessels, config, targetId],
   );
   const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert) : []), [buckets, prior, cert]);
-  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet }), [entries, vessels, signatory, verifier, docMet]);
+  // Supporting-doc checks tick automatically when the matching profile document is
+  // on file (passport, seaman's book); other docs keep their manual toggle.
+  const docMetEffective = useMemo(() => {
+    const out = { ...docMet };
+    for (const d of (VERIFIER_PROFILES[verifier]?.docs || [])) {
+      if (d.profileDoc) out[d.id] = !!docsOnFile[d.profileDoc]?.fileUrl; // needs an actual scan on file
+    }
+    return out;
+  }, [docMet, verifier, docsOnFile]);
+  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective }), [entries, vessels, signatory, verifier, docMetEffective]);
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
@@ -943,13 +957,21 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         <div className="std-flex std-ac" style={{ gap: 7, flexWrap: 'wrap' }}>
                           <span className="std-avn">{v.name}</span>
                           <span className="std-tag" style={{ color: sm.color, background: sm.bg }}>{sm.label}</span>
-                          <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: provCol.color, background: provCol.tint }} title={isCargo ? 'This vessel is on Cargo — the captain confirms your days in-app' : 'This vessel isn’t on Cargo — you’ll add a signed testimonial for these days'}>
+                          <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: provCol.color, background: provCol.tint }} title={isCargo ? 'Cargo-tracked — auto-logged on a Cargo vessel; verifiable and exportable' : 'Off-Cargo, self-recorded — counts toward your pathway, but supply your own testimonial as evidence'}>
                             <span className="pm" style={isCargo ? { background: provCol.color } : { borderColor: provCol.color }} />{provLabel}
                           </span>
                         </div>
                         <div className="std-avs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo} · {detail}</div>
                       </div>
                       <div className="std-aright">
+                        {/* Attached testimonial — for an off-Cargo entry the crew uploaded
+                            their own signed paper, viewable here on demand. */}
+                        {!isExcluded && e.testimonialPath && (
+                          <button type="button" onClick={(ev) => { ev.stopPropagation(); viewTestimonial(e.testimonialPath); }}
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600, color: '#C65A1A', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <Icon name="FileText" size={13} /> View testimonial
+                          </button>
+                        )}
                         {/* Status — a quiet dot + word; the row itself is the click target
                             (opens the testimonial when signed, else jumps to Step 03). */}
                         {vlog && (
@@ -1079,11 +1101,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <div className="std-ftitle">Supporting documents</div>
                 <div className="std-docs">
                   {vp.docs.map(d => {
-                    const met = !!docMet[d.id];
+                    const onFile = d.profileDoc ? docsOnFile[d.profileDoc] : null;
+                    const met = !!docMetEffective[d.id];
+                    // Profile-backed docs are read-only (pulled from Documents);
+                    // others keep the manual toggle.
                     return (
-                      <div className={`std-doc2${met ? ' on' : ''}`} key={d.id} onClick={() => toggleDoc(d.id)}>
+                      <div className={`std-doc2${met ? ' on' : ''}`} key={d.id} onClick={d.profileDoc ? undefined : () => toggleDoc(d.id)} style={d.profileDoc ? { cursor: 'default' } : undefined}>
                         <span className="ring">{met && <Icon name="Check" size={12} color="#fff" />}</span>
                         <span className="dl">{d.label}</span>
+                        {d.profileDoc && (onFile?.fileUrl
+                          ? <a href={onFile.fileUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: '#C65A1A', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="Paperclip" size={12} /> View</a>
+                          : <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#A6712C' }}>Add to your profile documents</span>)}
                       </div>
                     );
                   })}
