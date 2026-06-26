@@ -104,6 +104,21 @@ test('recency counts only qualifying seagoing days within the last 5 years', () 
   assert.ok(bars.some(b => b.key === 'recency' && b.required === 180 && b.current === 40 && !b.met));
 });
 
+// --- safety: never present an unverified threshold as authoritative ----------
+test('recency bar is advisory, not a hard gate', () => {
+  const bars = buildRequirementBars({ seagoing: 0, watchkeeping: 0, standby: 0, yard: 0, total: 0 }, {}, CERTIFICATES.OOW_YACHT_3000, 40);
+  const recency = bars.find(b => b.key === 'recency');
+  assert.equal(recency.advisory, true);
+  // HIGH-confidence cert → its hard bars are not flagged provisional.
+  assert.ok(bars.filter(b => !b.advisory).every(b => !b.provisional));
+});
+
+test('a not-yet-verified route flags every bar provisional', () => {
+  const bars = buildRequirementBars({ seagoing: 0, watchkeeping: 0, standby: 0, yard: 0, total: 0 }, {}, CERTIFICATES.ETO_COC);
+  assert.ok(bars.length > 0);
+  assert.ok(bars.every(b => b.provisional === true));
+});
+
 // --- validation gate ---------------------------------------------------------
 test('seed data blocks generation until flagged entries are resolved', () => {
   const r = runChecks({ entries: SEED_ENTRIES, vessels: V, signatory: 'master', verifier: 'pya',
