@@ -3,22 +3,29 @@ import autoTable from 'jspdf-autotable';
 
 // Provisioning-board PDF exporter.
 //
-// Replaces the previous "Print / PDF" button behaviour (which fired
-// window.print() and made the user wrestle with the browser's print
-// dialog to save as PDF). This builds a real PDF in-browser and
-// opens it as a blob URL in a new tab so the chief lands in the
-// browser's PDF viewer — full orientation / scale / save controls
-// without going through a print preview.
+// Earlier passes shipped two things in turn — first a window.print()
+// fallback (the user got dropped into the browser print dialog), then
+// a heavy autoTable layout with a navy header strip + a full grid per
+// category. The grid layout read like a spreadsheet dump and didn't
+// feel like Cargo at all: boxed cells, repeated table headers under
+// every section, empty Brand / Unit cost / Total columns wasting
+// space.
 //
-// Layout: A4 portrait. Editorial header strip (navy / terracotta
-// like the in-app shell), board metadata block, then items grouped
-// by category with a small table per group.
+// This rewrite leans on the editorial design system: a serif-feel
+// title in italic, terracotta accent line, tracked-caps section
+// labels, hairline-only row separators (no cell boxes), and only
+// the columns that the current board actually populates.
+//
+// jsPDF ships Helvetica only — we can't embed DM Serif Display
+// without TTF asset wiring. Italic Helvetica at scale stands in for
+// the magazine-cover title; tracked caps + terracotta give the
+// section labels the same rhythm as the in-app surfaces.
 
 const NAVY = [28, 27, 58];
 const TERRA = [198, 90, 26];
-const FIELD_BG = [250, 250, 248];
 const HAIRLINE = [236, 234, 227];
-const MUTED = [107, 111, 122];
+const MUTED = [139, 132, 120];      // soft muted-strong from the palette
+const FAINT = [174, 180, 194];      // faint hairline ink
 const INK = [28, 27, 58];
 
 const formatDate = (d) => {
@@ -57,131 +64,210 @@ const groupItemsByCategory = (items) => {
   return keys.map((k) => ({ category: k, items: groups.get(k) }));
 };
 
-export const generateBoardPdf = ({ list, items, trip }) => {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 14;
+// Letter-spaced caps — fakes the tracking jsPDF doesn't expose.
+// Joins each glyph with a thin space so the section labels read as
+// editorial small-caps even though we're using Helvetica.
+const trackedCaps = (s) => (s || '').toUpperCase().split('').join(' ');
 
-  // ── Header strip ──────────────────────────────────────────────────────────
-  doc.setFillColor(...NAVY);
-  doc.rect(0, 0, pageWidth, 26, 'F');
+// Decide which optional columns to render based on whether any item
+// on the board carries a value. A confirmed board with no brand,
+// notes, or estimated cost would otherwise render four empty
+// columns just to host the qty.
+const pickColumns = (items) => {
+  const any = (pred) => (items || []).some(pred);
+  const hasBrand  = any((i) => i.brand && String(i.brand).trim());
+  const hasNotes  = any((i) => i.notes && String(i.notes).trim());
+  const hasSize   = any((i) => i.size && String(i.size).trim());
+  const hasCost   = any((i) => i.estimated_unit_cost != null && i.estimated_unit_cost !== '');
+  return { hasBrand, hasNotes, hasSize, hasCost };
+};
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.text((list?.title || 'Provisioning board').toUpperCase(), margin, 14);
+// Draw the editorial header — italic serif-feel title, tracked-caps
+// meta strip, terracotta hairline rule.
+const drawHeader = (doc, list, trip, pageWidth, margin) => {
+  // Big italic title — Helvetica italic stands in for DM Serif.
+  doc.setFont('helvetica', 'bolditalic');
+  doc.setFontSize(26);
+  doc.setTextColor(...INK);
+  const title = list?.title || 'Provisioning board';
+  doc.text(title, margin, 24);
 
+  // Trailing terracotta full stop — picks up the in-app "CHARTER
+  // 10.07.26, Bridge." mannerism so the doc head reads as Cargo.
+  doc.setTextColor(...TERRA);
+  const titleW = doc.getTextWidth(title);
+  doc.text('.', margin + titleW, 24);
+
+  // Tracked-caps meta strip.
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(220, 215, 200);
-  const headerMeta = [
+  doc.setFontSize(7.5);
+  doc.setTextColor(...MUTED);
+  const meta = [
     list?.status ? cleanStatusLabel(list.status) : null,
     trip?.start_date && trip?.end_date
       ? `${formatDate(trip.start_date)} – ${formatDate(trip.end_date)}`
       : null,
-    list?.port_location ? `Port: ${list.port_location}` : null,
-    list?.currency ? `Currency: ${list.currency}` : null,
-  ].filter(Boolean).join('   ·   ');
-  if (headerMeta) doc.text(headerMeta, margin, 21);
+    list?.port_location ? `Port ${list.port_location}` : null,
+    list?.currency || null,
+  ].filter(Boolean).map((s) => trackedCaps(s)).join('   ·   ');
+  if (meta) doc.text(meta, margin, 31);
 
-  // Right-aligned "exported on" stamp.
-  doc.setTextColor(220, 215, 200);
+  // Right-aligned exported-on stamp, also tracked-caps.
+  const stamp = trackedCaps(`Exported ${formatDate(new Date())}`);
+  const stampW = doc.getTextWidth(stamp);
+  doc.text(stamp, pageWidth - margin - stampW, 31);
+
+  // Terracotta hairline rule.
+  doc.setDrawColor(...TERRA);
+  doc.setLineWidth(0.3);
+  doc.line(margin, 36, pageWidth - margin, 36);
+};
+
+// Draw a category label — tracked-caps in terracotta with the item
+// count on the right, no fill, hairline below.
+const drawCategoryLabel = (doc, cat, count, cursorY, pageWidth, margin) => {
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  const stamp = `Exported ${formatDate(new Date())}`;
-  const stampWidth = doc.getTextWidth(stamp);
-  doc.text(stamp, pageWidth - margin - stampWidth, 21);
+  doc.setTextColor(...TERRA);
+  doc.text(trackedCaps(cat), margin, cursorY);
 
-  // ── Items grouped by category ─────────────────────────────────────────────
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...MUTED);
+  const countLabel = trackedCaps(`${count} item${count === 1 ? '' : 's'}`);
+  const countW = doc.getTextWidth(countLabel);
+  doc.text(countLabel, pageWidth - margin - countW, cursorY);
+
+  doc.setDrawColor(...HAIRLINE);
+  doc.setLineWidth(0.2);
+  doc.line(margin, cursorY + 2.4, pageWidth - margin, cursorY + 2.4);
+};
+
+export const generateBoardPdf = ({ list, items, trip }) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 18;
+
+  drawHeader(doc, list, trip, pageWidth, margin);
+
   const groups = groupItemsByCategory(items);
-  let cursorY = 36;
+  const cols = pickColumns(items);
 
-  const head = [['Item', 'Brand', 'Notes', 'Size', 'Unit', 'Qty', 'Unit cost', 'Total', 'Status']];
+  // Build the column schema dynamically — only include columns that
+  // any item on the board populates. Item is always present; qty +
+  // unit come along as the always-on numerics.
+  const headRow = ['Item'];
+  const widths = [];
+  const colStyles = {};
+  const colKeys = ['name'];
 
-  groups.forEach((group, gIdx) => {
-    // Category strip.
-    if (cursorY > pageHeight - 40) {
-      doc.addPage();
-      cursorY = 16;
+  if (cols.hasBrand)  { headRow.push('Brand');  widths.push(28); colKeys.push('brand'); }
+  if (cols.hasNotes)  { headRow.push('Notes');  widths.push(null); colKeys.push('notes'); }
+  if (cols.hasSize)   { headRow.push('Size');   widths.push(14); colKeys.push('size'); }
+  headRow.push('Unit'); widths.push(16); colKeys.push('unit');
+  headRow.push('Qty');  widths.push(10); colKeys.push('qty');
+  if (cols.hasCost) {
+    headRow.push('Unit cost'); widths.push(18); colKeys.push('cost');
+    headRow.push('Total');     widths.push(18); colKeys.push('total');
+  }
+
+  // Build columnStyles from the picked columns. Index 0 is Item —
+  // give it the remaining width via cellWidth: 'auto'.
+  colKeys.forEach((key, idx) => {
+    const w = widths[idx - 1];
+    if (idx === 0) {
+      colStyles[0] = { cellWidth: 'auto', fontStyle: 'bold', textColor: INK };
+    } else if (key === 'notes') {
+      colStyles[idx] = { cellWidth: 'auto', fontStyle: 'italic', textColor: MUTED };
+    } else {
+      colStyles[idx] = {
+        cellWidth: w,
+        halign: ['qty', 'cost', 'total', 'size'].includes(key) ? 'right' : 'left',
+        textColor: ['cost', 'total', 'qty'].includes(key) ? INK : MUTED,
+      };
     }
-    doc.setFillColor(...FIELD_BG);
-    doc.rect(margin, cursorY, pageWidth - margin * 2, 7, 'F');
-    doc.setDrawColor(...HAIRLINE);
-    doc.setLineWidth(0.2);
-    doc.line(margin, cursorY + 7, pageWidth - margin, cursorY + 7);
-    doc.setTextColor(...TERRA);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.text(group.category.toUpperCase(), margin + 2, cursorY + 5);
-    doc.setTextColor(...MUTED);
-    doc.setFont('helvetica', 'normal');
-    const countLabel = `${group.items.length} item${group.items.length === 1 ? '' : 's'}`;
-    const countW = doc.getTextWidth(countLabel);
-    doc.text(countLabel, pageWidth - margin - 2 - countW, cursorY + 5);
-    cursorY += 10;
+  });
 
-    // Table rows for this group.
+  let cursorY = 46;
+
+  groups.forEach((group) => {
+    // Page-break before category if there's no room for at least the
+    // label + two rows.
+    if (cursorY > pageHeight - 32) {
+      doc.addPage();
+      cursorY = 22;
+    }
+
+    drawCategoryLabel(doc, group.category, group.items.length, cursorY, pageWidth, margin);
+    cursorY += 5;
+
+    // Map each item into the dynamic column row.
     const body = group.items.map((it) => {
       const qty = it.quantity_ordered;
       const cost = it.estimated_unit_cost;
       const total = (qty != null && cost != null) ? (Number(qty) * Number(cost)) : null;
-      return [
-        it.name || '',
-        it.brand || '',
-        it.notes || '',
-        it.size || '',
-        it.unit || '',
-        qty != null ? String(qty) : '',
-        formatMoney(cost),
-        formatMoney(total),
-        cleanStatusLabel(it.status),
-      ];
+      return colKeys.map((key) => {
+        switch (key) {
+          case 'name':  return it.name || '';
+          case 'brand': return it.brand || '';
+          case 'notes': return it.notes || '';
+          case 'size':  return it.size || '';
+          case 'unit':  return it.unit || '';
+          case 'qty':   return qty != null ? String(qty) : '';
+          case 'cost':  return formatMoney(cost);
+          case 'total': return formatMoney(total);
+          default:      return '';
+        }
+      });
     });
 
     autoTable(doc, {
-      head,
+      head: [headRow],
       body,
       startY: cursorY,
       margin: { left: margin, right: margin },
       theme: 'plain',
       styles: {
         font: 'helvetica',
-        fontSize: 8.5,
+        fontSize: 9,
         textColor: INK,
-        cellPadding: { top: 1.8, right: 2, bottom: 1.8, left: 2 },
+        cellPadding: { top: 2.4, right: 2, bottom: 2.4, left: 0 },
         lineColor: HAIRLINE,
-        lineWidth: 0.1,
+        lineWidth: 0,                // no cell borders
+        valign: 'middle',
       },
       headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: MUTED,
-        fontStyle: 'bold',
-        fontSize: 7.5,
+        fillColor: false,            // no header fill
+        textColor: FAINT,
+        fontStyle: 'normal',
+        fontSize: 7,
+        cellPadding: { top: 0, right: 2, bottom: 2.4, left: 0 },
         lineWidth: 0,
       },
-      columnStyles: {
-        0: { cellWidth: 38 },               // Item
-        1: { cellWidth: 22 },               // Brand
-        2: { cellWidth: 'auto' },           // Notes
-        3: { cellWidth: 14, halign: 'right' }, // Size
-        4: { cellWidth: 14 },               // Unit
-        5: { cellWidth: 10, halign: 'right' }, // Qty
-        6: { cellWidth: 16, halign: 'right' }, // Unit cost
-        7: { cellWidth: 16, halign: 'right' }, // Total
-        8: { cellWidth: 18 },               // Status
+      bodyStyles: {
+        // Hairline under each row instead of full cell borders.
+        lineColor: HAIRLINE,
+        lineWidth: { bottom: 0.1 },
       },
-      didDrawPage: (data) => {
-        // Footer with page numbers.
-        const str = `Page ${doc.getNumberOfPages()}`;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
+      columnStyles: colStyles,
+      didDrawPage: () => {
+        // Footer — small cargo mark + page n.
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(7.5);
         doc.setTextColor(...MUTED);
-        doc.text(str, pageWidth - margin, pageHeight - 6, { align: 'right' });
-        doc.text('cargo', margin, pageHeight - 6);
+        doc.text(trackedCaps('cargo'), margin, pageHeight - 9);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...FAINT);
+        const pageStr = trackedCaps(`Page ${doc.getNumberOfPages()}`);
+        const w = doc.getTextWidth(pageStr);
+        doc.text(pageStr, pageWidth - margin - w, pageHeight - 9);
       },
     });
 
-    cursorY = doc.lastAutoTable.finalY + 6;
+    cursorY = doc.lastAutoTable.finalY + 8;
   });
 
   if (groups.length === 0) {
