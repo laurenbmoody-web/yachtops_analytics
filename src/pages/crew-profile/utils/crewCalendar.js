@@ -1,15 +1,10 @@
 import { supabase } from '../../../lib/supabaseClient';
 
-// Scheduled leave / travel entries shown on the Activity calendar.
-// Each kind maps to a crew-status colour so the days tint on the month grid.
-export const CALENDAR_KINDS = [
-  { id: 'leave', label: 'Leave', status: 'on_leave' },
-  { id: 'travel', label: 'Travel day', status: 'travelling' },
-  { id: 'joining', label: 'Joining vessel', status: 'travelling' },
-  { id: 'disembarking', label: 'Disembarking', status: 'travelling' },
-  { id: 'other', label: 'Other', status: 'invited' },
-];
-export const calKind = (id) => CALENDAR_KINDS.find((k) => k.id === id) || CALENDAR_KINDS[4];
+// Scheduled status entries shown on the Activity calendar. The entry's `kind`
+// column holds a crew-status value (active / on_leave / rotational_leave /
+// travelling / …) — the SAME vocabulary as the "Change status" picker — so the
+// calendar and the status chip never disagree. Travel detail (route, flight,
+// times) is captured on Travelling entries.
 
 export const TRANSPORTS = ['Flight', 'Train', 'Ferry', 'Car', 'Other'];
 
@@ -30,7 +25,7 @@ export const saveCalendarEntry = async (entry) => {
   const payload = {
     user_id: entry.userId,
     tenant_id: entry.tenantId || null,
-    kind: entry.kind || 'leave',
+    kind: entry.kind || 'on_leave',
     start_date: entry.startDate || null,
     end_date: entry.endDate || entry.startDate || null,
     from_location: entry.fromLocation || null,

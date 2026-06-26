@@ -1426,29 +1426,31 @@ body.crew-profile-editorial {
    Explicit grid rows so the panel starts at the day cells (not the nav) and
    stretches down to meet the bottom of the grid. */
 .crew-profile-page .act-calwrap {
-  display: grid; grid-template-columns: minmax(0, 540px) 270px; grid-template-rows: auto auto auto auto;
-  column-gap: 24px; align-items: start; margin-top: 6px;
+  display: grid; grid-template-columns: minmax(0, 680px) 330px; grid-template-rows: auto auto auto auto;
+  column-gap: 40px; justify-content: space-between; align-items: start; margin-top: 6px;
 }
 .crew-profile-page .act-cal-nav { grid-column: 1; grid-row: 1; }
 .crew-profile-page .act-row-wd { grid-column: 1; grid-row: 2; }
 .crew-profile-page .act-row-days { grid-column: 1; grid-row: 3; }
 .crew-profile-page .act-row-legend { grid-column: 1; grid-row: 4; }
-.crew-profile-page .act-daypanel { grid-column: 2; grid-row: 3; align-self: stretch; }
-.crew-profile-page .act-mgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+/* Notes panel: far right, spanning the weekday row down to the legend so it's a
+   tall card the height of the calendar. */
+.crew-profile-page .act-daypanel { grid-column: 2; grid-row: 2 / 5; align-self: stretch; }
+.crew-profile-page .act-mgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .crew-profile-page .act-mhead { margin-bottom: 5px; }
-.crew-profile-page .act-mwd { text-align: center; font-size: 8.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; }
+.crew-profile-page .act-mwd { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; }
 /* Clean white day cells; leave/travel/leave-status get a coloured bottom tab. */
 .crew-profile-page .act-mcell {
-  aspect-ratio: 1 / 0.86; border: 1px solid #F0F1F5; border-radius: 8px; padding: 5px 6px; position: relative;
+  aspect-ratio: 1 / 0.82; border: 1px solid #F0F1F5; border-radius: 9px; padding: 7px 9px; position: relative;
   display: block; text-align: left; background: #fff; cursor: pointer; font: inherit; overflow: hidden;
   transition: border-color .1s ease;
 }
 .crew-profile-page .act-mcell:hover { border-color: #E1DCCF; }
 .crew-profile-page .act-mcell.is-blank { background: transparent; border: 0; cursor: default; }
-.crew-profile-page .act-mnum { font-size: 10.5px; font-weight: 600; color: #1C1B3A; }
+.crew-profile-page .act-mnum { font-size: 12px; font-weight: 600; color: #1C1B3A; }
 .crew-profile-page .act-mtab {
-  position: absolute; left: 0; right: 0; bottom: 0; font-size: 7.5px; font-weight: 700; color: #fff;
-  text-align: center; padding: 2px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  position: absolute; left: 0; right: 0; bottom: 0; font-size: 8.5px; font-weight: 700; color: #fff;
+  text-align: center; padding: 3px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .crew-profile-page .act-mcell.is-future { opacity: 0.55; }
 .crew-profile-page .act-mcell.is-today { border-color: #C65A1A; }
