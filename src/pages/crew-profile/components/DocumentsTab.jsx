@@ -517,17 +517,19 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>
       ) : (
         <>
-          {/* Controls — view toggle + breadcrumb */}
+          {/* Controls — section heading (or breadcrumb) + view toggle */}
           <div className="cd-controls">
-            <div className="cd-eyebrow">
-              {mode === 'renewal' ? 'Documents by renewal date'
-                : selected === null ? 'Documents by category'
-                : (
-                  <button type="button" className="cd-crumb" onClick={() => setSelected(null)}>
-                    <Icon name="ChevronLeft" size={12} /> All categories
-                  </button>
-                )}
-            </div>
+            {mode === 'category' && selected !== null ? (
+              <button type="button" className="cd-crumb" onClick={() => setSelected(null)}>
+                <Icon name="ChevronLeft" size={12} /> All categories
+              </button>
+            ) : (
+              <div className="cp-group-head cd-head-inline">
+                <span className="dia">◆</span>
+                <span className="t">{mode === 'renewal' ? 'Documents by renewal' : 'Documents by category'}</span>
+                <span className="line" />
+              </div>
+            )}
             <div className="cd-seg">
               <button type="button" className={mode === 'category' ? 'on' : ''} onClick={() => setMode('category')}>By category</button>
               <button type="button" className={mode === 'renewal' ? 'on' : ''} onClick={() => setMode('renewal')}>By renewal</button>
