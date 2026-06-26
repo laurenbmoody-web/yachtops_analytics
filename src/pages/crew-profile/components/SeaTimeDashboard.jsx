@@ -155,6 +155,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [vessels, setVessels] = useState(SEED_VESSELS);
   const [entries, setEntries] = useState(SEED_ENTRIES);
   const [seafarer, setSeafarer] = useState(SEED_SEAFARER);
+  const [company, setCompany] = useState({}); // vessel's company/shipowner contact (Nautilus Part 1)
   const [prior, setPrior] = useState(SEED_PRIOR);
   const [usingSample, setUsingSample] = useState(true);
   const toastTimer = useRef(null);
@@ -191,12 +192,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const loadLive = async () => {
     if (!tenantId || !userId) return;
     try {
-      const [rows, prof, pd] = await Promise.all([
+      const [rows, prof, pd, ves] = await Promise.all([
         fetchEntriesForUser(tenantId, userId, 'mca-oow-yachts'),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number')?.eq('user_id', userId)?.maybeSingle()
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('vessels')?.select('company_name, company_address, company_email, company_phone, company_country, company_postcode')?.eq('tenant_id', tenantId)?.maybeSingle()
       ]);
-      const fullName = prof?.data?.full_name || [prof?.data?.first_name, prof?.data?.surname].filter(Boolean).join(' ') || currentUser?.fullName || 'Seafarer';
+      // Prefer the structured first + surname over a free-text full_name (which can
+      // get polluted with a rank); fall back to full_name, then the session user.
+      const p = prof?.data || {};
+      const fullName = (p.first_name && p.surname) ? `${p.first_name} ${p.surname}`
+        : (p.full_name || currentUser?.fullName || 'Seafarer');
+      setCompany(ves?.data || {});
       if (rows && rows.length) {
         const { vessels: vMap, entries: ents } = adaptLiveEntries(rows);
         const dates = rows.map(r => r.date).filter(Boolean).sort();
@@ -544,13 +551,27 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const spanDays = (from && to) ? Math.round((new Date(to) - new Date(from)) / 86400000) + 1 : totalDaysOnboard;
       const standbyPassages = mine.filter(e => e.type === 'standby')
         .map(e => ({ from: e.from, to: e.to, days: e.days })).sort((a, b) => String(a.from).localeCompare(String(b.from)));
+      // Capacity = the rank served most (so auto-logged rank wins over a stray
+      // sample entry) rather than just the first row's.
+      const capCount = {};
+      for (const e of mine) if (e.capacity) capCount[e.capacity] = (capCount[e.capacity] || 0) + (e.days || 0);
+      const capacity = Object.keys(capCount).sort((a, b) => capCount[b] - capCount[a])[0] || '';
+      // Company address → first lines + post code for the form's separate fields.
+      const addrLines = String(company.company_address || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       flash('Building Nautilus form…');
       const pdfBytes = await buildNautilusSST({
         seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, dischargeBook: seafarer.dischargeBookNo },
         vessel: { type: v.type, flag: v.flag, name: v.name, imo: v.imo, officialNo: v.officialNo, lengthM: v.lengthM, gt: v.gt, kw: v.kw },
-        company: {},
+        company: {
+          shipowner: company.company_name || '',
+          addr1: addrLines[0] || '', addr2: addrLines[1] || '',
+          zip: company.company_postcode || addrLines[addrLines.length - 1] || '',
+          country: company.company_country || '',
+          phone: company.company_phone || '',
+          email: company.company_email || '',
+        },
         service: {
-          capacity: mine[0]?.capacity || '',
+          capacity,
           from, to,
           totalDaysOnboard,
           leaveDays: Math.max(0, spanDays - totalDaysOnboard),
