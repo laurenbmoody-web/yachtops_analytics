@@ -821,7 +821,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <button className={`stp-step ${status}${isGoal ? ' goal' : ''}`} key={r.id} type="button" onClick={onClick}>
                   <span className="stp-m" />
                   <span className="stp-row">
-                    <span className="nm">{r.label} <span className="ref">{shortMsn(r.msn)}</span>{isGoal && <span className="goaltag">Goal</span>}</span>
+                    <span className="nm">{r.label} <span className="ref">{shortMsn(r.msn)}</span>{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}{isGoal && <span className="goaltag">Goal</span>}</span>
                     <span className={`st ${status}`}>{isHeld ? <>Held{heldCerts[r.id].issueDate ? <> · <span className="dt">{fmtDate(heldCerts[r.id].issueDate)}</span></> : ''}</> : 'Upcoming'}</span>
                   </span>
                 </button>
@@ -834,7 +834,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <div className="stp-feathead">
                     <div>
                       <div className="stp-eyebrow">Now working toward · {r.msn}{isGoal ? ' · your goal' : ''}</div>
-                      <h4 className="stp-title">{r.label}</h4>
+                      <h4 className="stp-title">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}</h4>
                       {certConfidence(r).authoritative === false && (
                         <div className="stp-provisional">{certConfidence(r).label} — these figures aren’t yet confirmed against {r.msn}. Treat as a guide and verify with your training provider before applying.</div>
                       )}
@@ -909,7 +909,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <div className={`stp-drc ${h ? 'held' : ''}`} key={c.id}>
                   <div className="row">
                     <span className="mk">{h ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
-                    <div className="nm">{c.label} <span className="ref">{shortMsn(c.msn)}</span></div>
+                    <div className="nm">{c.label} <span className="ref">{shortMsn(c.msn)}</span>{c.legacyAlias && <span className="stp-alias">{c.legacyAlias}</span>}</div>
                   </div>
                   {h ? (
                     <div className="meta">

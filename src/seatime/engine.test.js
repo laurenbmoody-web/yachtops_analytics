@@ -67,7 +67,7 @@ test('yard cap is per certificate: 90 for OOW, 30 for Master/Chief Mate (MSN 185
   assert.equal(yardCapForCertificate('CHIEF_MATE_YACHT_3000'), 30);
   assert.equal(yardCapForCertificate('CHIEF_MATE_UNLIMITED'), 30);
   // engine cert / unknown -> 90-day baseline (SERVICE_RULES.yardCapDays)
-  assert.equal(yardCapForCertificate('Y4'), SERVICE_RULES.yardCapDays);
+  assert.equal(yardCapForCertificate('CHIEF_SV_3000_Y'), SERVICE_RULES.yardCapDays);
   assert.equal(yardCapForCertificate('nope'), 90);
 });
 
@@ -114,20 +114,29 @@ test('recency bar is advisory, not a hard gate', () => {
 });
 
 test('a not-yet-verified route flags every bar provisional', () => {
-  const bars = buildRequirementBars({ seagoing: 0, watchkeeping: 0, standby: 0, yard: 0, total: 0 }, {}, CERTIFICATES.ETO_COC);
+  // Synthetic PENDING cert — tests the mechanism independent of which real cert
+  // happens to be unverified (all shipped routes are now HIGH).
+  const pending = { verified: 'PENDING', requires: { seagoingMonths: 6 } };
+  const bars = buildRequirementBars({ seagoing: 0, watchkeeping: 0, standby: 0, yard: 0, total: 0 }, {}, pending);
   assert.ok(bars.length > 0);
   assert.ok(bars.every(b => b.provisional === true));
 });
 
-test('the engine ladder is flagged superseded (MSN 1859 withdrawn → MSN 1904)', () => {
-  for (const id of ['MEOL_Y', 'Y4', 'Y3', 'Y2', 'Y1']) {
+test('the engine ladder is rebuilt against in-force MSN 1904 (not withdrawn 1859)', () => {
+  for (const id of ['MEOL_Y', 'EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y']) {
     const cert = CERTIFICATES[id];
-    assert.equal(cert.verified, 'SUPERSEDED', `${id} must not present withdrawn figures as HIGH`);
-    assert.equal(cert.supersededBy, 'MSN 1904');
-    // Non-HIGH → provisional bars → never declares eligibility off withdrawn figures.
-    const bars = buildRequirementBars({ seagoing: 0, watchkeeping: 0, standby: 0, yard: 0, total: 0 }, {}, cert);
-    assert.ok(bars.every(b => b.provisional === true));
+    assert.equal(cert.verified, 'HIGH', `${id} should be notice-verified`);
+    assert.match(cert.msn, /MSN 1904/, `${id} must cite the in-force notice`);
+    // No withdrawn-notice citations remain on the engine family.
+    assert.doesNotMatch(cert.msn, /1859/);
   }
+});
+
+test('ETO is verified against in-force MSN 1860 with the corrected 6-month figure', () => {
+  const eto = CERTIFICATES.ETO_COC;
+  assert.equal(eto.verified, 'HIGH');
+  assert.match(eto.msn, /MSN 1860/);
+  assert.equal(eto.requires.seagoingMonths, 6); // was wrongly 12
 });
 
 // --- validation gate ---------------------------------------------------------
@@ -213,9 +222,9 @@ test('certificate requirement bars reflect each CoC (MSN 1858)', () => {
   assert.equal(cm[0].key, 'none');
 });
 
-test('engine certificates use kW gates (MSN 1859)', () => {
-  assert.equal(CERTIFICATES.Y4.requires.minPowerKW, 350);
-  assert.equal(CERTIFICATES.Y1.requires.minPowerKW, 1500);
+test('engine certificates use kW gates (MSN 1904 Small Vessel)', () => {
+  assert.equal(CERTIFICATES.EOOW_SV_Y.requires.minPowerKW, 350);
+  assert.equal(CERTIFICATES.CHIEF_SV_3000_Y.requires.minPowerKW, 350);
   assert.equal(CERTIFICATES.MEOL_Y.requires.minPowerKW, 200);
 });
 
