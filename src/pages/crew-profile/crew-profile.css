@@ -1382,3 +1382,45 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-prob-date { min-width: 150px; }
 .crew-profile-page .cp-prob-sep { font-size: 11px; color: #AEB4C2; letter-spacing: .5px; text-transform: uppercase; font-weight: 700; }
 .crew-profile-page .cp-prob-hint { font-size: 11.5px; color: #C65A1A; margin: 8px 0 0; }
+
+/* ── Activity (Status History) — unified, filterable editorial timeline ─── */
+.crew-profile-page .act-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 16px; }
+.crew-profile-page .act-pill {
+  font-size: 12px; font-weight: 600; color: #6B7280; background: #fff;
+  border: 1px solid #ECEAE3; border-radius: 999px; padding: 5px 13px; cursor: pointer;
+}
+.crew-profile-page .act-pill:hover { border-color: #D7D3C9; }
+.crew-profile-page .act-pill.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
+
+.crew-profile-page .act-list { display: flex; flex-direction: column; }
+.crew-profile-page .act-item {
+  display: flex; align-items: flex-start; gap: 13px; padding: 13px 2px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.crew-profile-page .act-item:last-child { border-bottom: 0; }
+.crew-profile-page .act-ic {
+  width: 30px; height: 30px; border-radius: 9px; flex: none; display: grid; place-items: center; margin-top: 1px;
+}
+.crew-profile-page .act-body { flex: 1; min-width: 0; }
+.crew-profile-page .act-title { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+.crew-profile-page .act-detail { font-size: 12px; color: #6B7280; margin-top: 2px; }
+.crew-profile-page .act-actor { font-size: 11px; color: #8B8478; margin-top: 2px; }
+.crew-profile-page .act-when {
+  font-size: 11.5px; color: #8B8478; white-space: nowrap; flex: none; margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status calendar */
+.crew-profile-page .act-cal { margin-top: 6px; }
+.crew-profile-page .act-cal-nav { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.crew-profile-page .act-cal-nav button { color: #8B8478; background: none; border: 0; cursor: pointer; padding: 4px; border-radius: 8px; }
+.crew-profile-page .act-cal-nav button:hover { background: #F4F2EC; color: #1C1B3A; }
+.crew-profile-page .act-cal-nav span { font-size: 13.5px; font-weight: 600; color: #1C1B3A; min-width: 130px; text-align: center; }
+.crew-profile-page .act-cal-row { display: flex; gap: 2px; }
+.crew-profile-page .act-cal-num { flex: 1; text-align: center; font-size: 9px; color: #AEB4C2; margin-bottom: 3px; }
+.crew-profile-page .act-cal-cell { flex: 1; height: 28px; border-radius: 4px; }
+.crew-profile-page .act-cal-cell.is-future { opacity: 0.3; }
+.crew-profile-page .act-cal-empty { background: #F0F1F5; }
+.crew-profile-page .act-cal-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
+.crew-profile-page .act-cal-legend span { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #6B7280; }
+.crew-profile-page .act-sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }

@@ -948,7 +948,7 @@ const canEdit = (() => {
     { key: 'documents', label: 'Documents', icon: 'FileText' },
     { key: 'hor', label: 'Hours of Rest (HOR)', icon: 'Clock' },
     { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' },
-    { key: 'history', label: 'Status History', icon: 'Activity' },
+    { key: 'history', label: 'Activity', icon: 'Activity' },
     { key: 'contract', label: 'Contract / Employment', icon: 'FileSignature' },
     { key: 'kit', label: 'Issued Kit', icon: 'Shirt' },
     { key: 'permissions', label: 'Permissions', icon: 'ShieldCheck' },
