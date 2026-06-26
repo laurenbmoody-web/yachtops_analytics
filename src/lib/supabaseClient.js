@@ -33,6 +33,23 @@ const customStorageAdapter = {
   }
 };
 
+// Serialise auth operations (token refresh, getSession, etc.) within this tab.
+// We can't use the default navigator.locks implementation — under React Strict
+// Mode's double-mount it produced "Lock acquisition timed out after 10000ms" —
+// but we MUST NOT run refreshes concurrently either: parallel refreshes reuse
+// the same rotating refresh token, which trips Supabase's reuse detection and
+// REVOKES the session (token_revoked), logging the user out mid-session.
+//
+// A promise-chain mutex gives us mutual exclusion without navigator.locks: each
+// locked section waits for the previous to settle. The chain swallows rejections
+// so it can never get stuck, while callers still receive fn()'s real result.
+let authLockChain = Promise.resolve();
+const serialAuthLock = async (_name, _acquireTimeout, fn) => {
+  const result = authLockChain.then(fn, fn);
+  authLockChain = result.then(() => {}, () => {});
+  return result;
+};
+
 // Singleton Supabase client with enhanced lock handling
 // CRITICAL: This client is created ONCE and reused everywhere
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -43,14 +60,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,    // Detect session from URL (for magic links, recovery, etc.)
     storage: customStorageAdapter, // Custom storage with error handling
     storageKey: 'supabase.auth.token', // Default key
-    // FIX: Bypass navigator.locks to prevent orphaned lock timeouts
-    // This resolves "Lock acquisition timed out after 10000ms" errors
-    // caused by React Strict Mode's double-mount behavior.
-    // Server-side session refresh still uses locks where needed.
-    lock: async (_name, _acquireTimeout, fn) => {
-      // Execute the function immediately without acquiring a Web Lock
-      return await fn();
-    }
+    // In-tab mutex (see serialAuthLock) — serialises refreshes so the rotating
+    // refresh token is never used concurrently, while avoiding the navigator.locks
+    // timeouts that React Strict Mode's double-mount triggered.
+    lock: serialAuthLock,
   },
   // Add global options for better error handling
   global: {
