@@ -664,14 +664,10 @@ async function renderRestLogDoc({ rows, days, meta, windowShifts = [], breachRea
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(140);
-    doc.text(
-      `${meta.vesselName || 'Vessel'} · ${meta.periodLabel} · Page ${i} of ${total}`,
-      pageW / 2, pageH - 16, { align: 'center' },
-    );
-    doc.text(`Generated ${meta.generatedAt}`, pageW - 40, pageH - 16, { align: 'right' });
-    // Flag governing-body reference, bottom-left (depends on the vessel's flag) —
-    // its own row above the page line so long citations never clash with it.
-    if (meta.horTemplate.formReference) doc.text(meta.horTemplate.formReference, 40, pageH - 26, { align: 'left' });
+    // One aligned baseline: flag governing-body reference left, page + generated
+    // right. (Vessel/period are already in each page's header identity block.)
+    doc.text(`Page ${i} of ${total} · Generated ${meta.generatedAt}`, pageW - 40, pageH - 16, { align: 'right' });
+    if (meta.horTemplate.formReference) doc.text(meta.horTemplate.formReference, 40, pageH - 16, { align: 'left' });
   }
 
   return doc;
@@ -710,12 +706,10 @@ export async function buildSeafarerHorPDF({ member, days, meta, windowShifts = [
     doc.setFontSize(7);
     doc.setTextColor(140);
     doc.text(
-      `${meta.vesselName || 'Vessel'} · ${member.name} · ${meta.periodLabel} · Page ${i} of ${total}`,
-      pageW / 2, pageH - 16, { align: 'center' },
+      `Page ${i} of ${total} · Generated ${meta.generatedAt}`,
+      pageW - 36, pageH - 16, { align: 'right' },
     );
-    doc.text(`Generated ${meta.generatedAt}`, pageW - 36, pageH - 16, { align: 'right' });
-    // Flag governing-body reference, bottom-left (depends on the vessel's flag).
-    if (meta.horTemplate.formReference) doc.text(meta.horTemplate.formReference, 36, pageH - 26, { align: 'left' });
+    if (meta.horTemplate.formReference) doc.text(meta.horTemplate.formReference, 36, pageH - 16, { align: 'left' });
   }
   return { blob: doc.output('blob'), filename: `${seafarerFileBase(meta, member)}.pdf` };
 }
