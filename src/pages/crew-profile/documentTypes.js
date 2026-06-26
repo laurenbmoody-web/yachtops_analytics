@@ -172,6 +172,7 @@ export const DOCUMENT_TYPES = [
       {
         key: 'grade', label: 'Capacity / grade', type: 'select',
         options: [
+          'Master Code <200GT (150nm)', 'Master Code <200GT (Unlimited)',
           'Master <500GT', 'Master <3000GT', 'Master unlimited',
           'Chief Mate <3000GT', 'Chief Mate unlimited',
           'OOW <3000GT', 'OOW unlimited',

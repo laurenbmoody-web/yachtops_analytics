@@ -220,11 +220,12 @@ test('certificate requirement bars reflect each CoC (MSN 1858)', () => {
   const md = SERVICE_RULES.monthDays;
   const b = computeBuckets(SEED_ENTRIES, SEED_VESSELS, DEFAULT_CONFIG);
 
-  // OOW <3000GT: 36 months onboard + 365 seagoing days (no watchkeeping bar).
+  // OOW <3000GT: 36 months onboard + the 250 seagoing-only / 115 combined split.
   const oow = buildRequirementBars(b, SEED_PRIOR, CERTIFICATES.OOW_YACHT_3000);
-  assert.deepEqual(oow.map(x => x.key).sort(), ['onboard', 'seagoing']);
+  assert.deepEqual(oow.map(x => x.key).sort(), ['combined', 'onboard', 'seagoing']);
   assert.equal(oow.find(x => x.key === 'onboard').required, 36 * md);
-  assert.equal(oow.find(x => x.key === 'seagoing').required, 365);
+  assert.equal(oow.find(x => x.key === 'seagoing').required, 250);  // seagoing-only floor
+  assert.equal(oow.find(x => x.key === 'combined').required, 115);  // combined top-up
   assert.ok(!oow.some(x => x.key === 'watchkeeping')); // OOW has no watchkeeping-day figure
 
   // Master <500GT: 12 months + 120 watchkeeping days.
@@ -239,6 +240,31 @@ test('certificate requirement bars reflect each CoC (MSN 1858)', () => {
   // Chief Mate <3000GT: no additional service.
   const cm = buildRequirementBars(b, SEED_PRIOR, CERTIFICATES.CHIEF_MATE_YACHT_3000);
   assert.equal(cm[0].key, 'none');
+});
+
+test('OOW 250/115 split: all-standby cannot satisfy the 250 seagoing-only floor', () => {
+  // 400 standby days, zero seagoing: the combined top-up (115) is satisfied, but
+  // the 250 seagoing-only bar is not — so the crew member is NOT yet qualified.
+  const b = { seagoing: 0, watchkeeping: 0, standby: 400, yard: 0, total: 400, onboardDays: 1100 };
+  const oow = buildRequirementBars(b, {}, CERTIFICATES.OOW_YACHT_3000);
+  const seagoing = oow.find(x => x.key === 'seagoing');
+  const combined = oow.find(x => x.key === 'combined');
+  assert.equal(seagoing.met, false, 'standby cannot make up the 250 seagoing-only days');
+  assert.equal(combined.met, true, 'standby counts toward the 115 combined top-up');
+  // Seagoing beyond 250 spills into the combined bar (no double-count below 250).
+  const b2 = { seagoing: 300, watchkeeping: 0, standby: 0, yard: 0, total: 300, onboardDays: 1100 };
+  const oow2 = buildRequirementBars(b2, {}, CERTIFICATES.OOW_YACHT_3000);
+  assert.equal(oow2.find(x => x.key === 'combined').current, 50); // 300 - 250 overflow
+});
+
+test('small-vessel command entry routes exist and are notice-verified', () => {
+  for (const id of ['MASTER_CODE_200_COASTAL', 'MASTER_CODE_200_UNLIMITED']) {
+    const c = CERTIFICATES[id];
+    assert.equal(c.family, 'DECK');
+    assert.equal(c.verified, 'HIGH');
+    assert.match(c.msn, /MSN 1858/);
+    assert.equal(c.requires.seagoingMonths, 6);
+  }
 });
 
 test('engine certificates use kW gates (MSN 1904 Small Vessel)', () => {

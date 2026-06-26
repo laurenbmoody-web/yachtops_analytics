@@ -229,6 +229,15 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
   };
   if (r.onboardMonths) add('onboard', 'Onboard yacht service', cur.onboard, r.onboardMonths * md);
   if (r.seagoingDays) add('seagoing', `Seagoing service${r.minVesselMetres ? ` (≥${r.minVesselMetres}m)` : ''}`, cur.seagoing, r.seagoingDays);
+  // MSN 1858 §3.3 OOW split: 365 = 250 seagoing-only + 115 days that may be any
+  // combination of seagoing/standby/yard. Modelling both bars stops all-standby
+  // service from falsely qualifying — the 250 seagoing-only bar must be met too.
+  // The combined bar counts seagoing *beyond* the 250 plus standby + (capped) yard.
+  if (r.combinedTopUpDays) {
+    const seaOverflow = Math.max(0, cur.seagoing - (r.seagoingDays || 0));
+    const combined = seaOverflow + (prior.standby || 0) + (buckets.standby || 0) + (prior.yard || 0) + (buckets.yard || 0);
+    add('combined', 'Combined top-up (seagoing/standby/yard)', combined, r.combinedTopUpDays);
+  }
   if (r.seagoingMonths) add('seagoing', 'Seagoing service', cur.seagoing, r.seagoingMonths * md);
   if (r.watchkeepingDays) add('watchkeeping', 'Watchkeeping service', cur.watchkeeping, r.watchkeepingDays);
   if (r.actualSeaServiceMonths) add('actualSea', 'Actual sea service', cur.actualSea, r.actualSeaServiceMonths * md);
