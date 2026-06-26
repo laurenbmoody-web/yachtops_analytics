@@ -42,8 +42,16 @@ import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/uti
 export const PROVISIONING_STATUS = {
   DRAFT: 'draft',
   PENDING_APPROVAL: 'pending_approval',
-  QUOTE_RECEIVED: 'quote_received',
   SENT_TO_SUPPLIER: 'sent_to_supplier',
+  QUOTE_RECEIVED: 'quote_received',
+  // CONFIRMED / PARTIALLY_CONFIRMED were written by approveAllQuotes
+  // and rendered by the in-app status chip palette, but were missing
+  // from this enum — so the Edit-Board modal's <select> couldn't
+  // round-trip the value. A board in 'confirmed' state landed back
+  // on 'draft' because the option simply wasn't there, and saving
+  // overwrote the real status with the stale fallback.
+  CONFIRMED: 'confirmed',
+  PARTIALLY_CONFIRMED: 'partially_confirmed',
   PARTIALLY_DELIVERED: 'partially_delivered',
   DELIVERED_WITH_DISCREPANCIES: 'delivered_with_discrepancies',
   DELIVERED: 'delivered',
