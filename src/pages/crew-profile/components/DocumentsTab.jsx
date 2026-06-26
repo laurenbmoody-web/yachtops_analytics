@@ -390,32 +390,6 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     </div>
   );
 
-  const renderAll = () => (
-    <div>
-      {visibleCats.map((cat) => {
-        const inCat = currents.filter((d) => catOf(d) === cat.id);
-        const coreInCat = coreTypes.filter((t) => t.category === cat.id);
-        if (inCat.length === 0 && coreInCat.length === 0) return null;
-        const coreIds = coreInCat.map((t) => t.id);
-        const rest = inCat.filter((d) => !coreIds.includes(d.doc_type));
-        return (
-          <div className="cp-group" key={cat.id}>
-            <div className="cp-group-head">
-              <span className="dia">◆</span><span className="t">{cat.label}</span><span className="line" />
-            </div>
-            <div className="space-y-2">
-              {coreInCat.map((t) => {
-                const ex = inCat.find((d) => d.doc_type === t.id);
-                return ex ? renderDocRow(ex) : renderEmptySlot(t);
-              })}
-              {rest.map(renderDocRow)}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-
   // ── By renewal — flat chronological timeline ─────────────────────────────
   const renderRenewalTimeline = () => {
     const dated = currents.filter((d) => d.expiry_date);
@@ -445,41 +419,23 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     );
   };
 
-  // ── Jump rail ────────────────────────────────────────────────────────────
-  const railItem = (key, label, iconName, count, opts = {}) => {
-    const on = selected === key;
-    const cls = ['cd-nav', on ? 'on' : '', opts.empty ? 'empty' : '', opts.attn ? 'attn' : ''].filter(Boolean).join(' ');
-    return (
-      <button type="button" className={cls} onClick={() => setSelected(key)}>
-        <Icon name={iconName} size={15} />
-        <span className="cd-nav-label">{label}</span>
-        <span className="cd-nav-cnt">{opts.dot && <span className="cd-nav-dot" />}{count}</span>
-      </button>
-    );
-  };
-
-  const renderRail = () => (
-    <div className="cd-rail">
-      <div className="cd-eyebrow cd-rail-eyebrow">Jump to</div>
-      <button type="button" className={`cd-nav ${selected === null ? 'on' : ''}`} onClick={() => setSelected(null)}>
-        <Icon name="LayoutGrid" size={15} />
-        <span className="cd-nav-label">Overview</span>
-      </button>
-      {attentionCount > 0 && railItem('__attention', 'Needs attention', 'AlertTriangle', attentionCount, { attn: true })}
-      {railItem('__all', 'All documents', 'Files', currents.length)}
-      <div className="cd-rail-rule" />
-      {summaries.map((s) => railItem(
-        s.id, s.label, (CAT_STYLE[s.id] || CAT_STYLE.other).icon, s.inCat.length,
-        { empty: s.isEmpty, dot: s.attn },
-      ))}
-    </div>
-  );
-
+  // The category body: overview grid, a drilled-in category, or the
+  // needs-attention list. Tiles are the navigation — no separate side rail.
   const renderCategoryBody = () => {
-    if (selected === null) return <div className="cd-grid">{summaries.map(renderTile)}</div>;
     if (selected === '__attention') return renderAttention();
-    if (selected === '__all') return renderAll();
-    return renderCategoryDetail(selected);
+    if (selected && selected !== '__attention') return renderCategoryDetail(selected);
+    return (
+      <>
+        <div className="cd-legend">
+          <span className="cd-eyebrow">Each bar =</span>
+          <span><i className="cd-sw ok" />Valid / no expiry</span>
+          <span><i className="cd-sw amber" />Expiring ≤90 days</span>
+          <span><i className="cd-sw bad" />Expired</span>
+          <span><i className="cd-sw miss" />Missing (required)</span>
+        </div>
+        <div className="cd-grid">{summaries.map(renderTile)}</div>
+      </>
+    );
   };
 
   return (
@@ -547,8 +503,8 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
               <div className="cd-ready-track"><i style={{ width: `${readinessPct}%` }} /></div>
             </div>
             <div className="cd-ready-att">
-              {expiredCount > 0 && <span className="bad">{expiredCount} expired</span>}
-              {expiringCount > 0 && <span className="amb">{expiringCount} expiring</span>}
+              {expiredCount > 0 && <button type="button" className="bad" onClick={() => { setMode('category'); setSelected('__attention'); }}>{expiredCount} expired</button>}
+              {expiringCount > 0 && <button type="button" className="amb" onClick={() => { setMode('category'); setSelected('__attention'); }}>{expiringCount} expiring</button>}
               {attentionCount === 0 && <span className="ok">All in date</span>}
             </div>
           </div>
@@ -570,25 +526,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
             </div>
           </div>
 
-          {/* Legend — what the traffic-light bars mean */}
-          {mode === 'category' && selected === null && (
-            <div className="cd-legend">
-              <span className="cd-eyebrow">Each bar =</span>
-              <span><i className="cd-sw ok" />Valid / no expiry</span>
-              <span><i className="cd-sw amber" />Expiring ≤90 days</span>
-              <span><i className="cd-sw bad" />Expired</span>
-              <span><i className="cd-sw miss" />Missing (required)</span>
-            </div>
-          )}
-
-          {mode === 'renewal' ? (
-            <div className="cd-single">{renderRenewalTimeline()}</div>
-          ) : (
-            <div className="cd-cols">
-              {renderRail()}
-              <div className="cd-content">{renderCategoryBody()}</div>
-            </div>
-          )}
+          {mode === 'renewal' ? renderRenewalTimeline() : renderCategoryBody()}
         </>
       )}
 

@@ -623,7 +623,9 @@ body.crew-profile-editorial {
 .crew-profile-page .cd-ready-t { font-size: 13.5px; font-weight: 600; color: #1C1B3A; margin: 4px 0 7px; }
 .crew-profile-page .cd-ready-track { height: 5px; background: #F0F1F5; border-radius: 999px; overflow: hidden; max-width: 280px; }
 .crew-profile-page .cd-ready-track i { display: block; height: 100%; background: #2E7D52; border-radius: 999px; }
-.crew-profile-page .cd-ready-att { margin-left: auto; display: flex; gap: 12px; font-size: 12.5px; font-weight: 600; }
+.crew-profile-page .cd-ready-att { margin-left: auto; display: flex; gap: 14px; font-size: 12.5px; font-weight: 600; }
+.crew-profile-page .cd-ready-att button { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; cursor: pointer; }
+.crew-profile-page .cd-ready-att button:hover { text-decoration: underline; }
 .crew-profile-page .cd-ready-att .bad { color: #A32D2D; }
 .crew-profile-page .cd-ready-att .amb { color: #9A6A00; }
 .crew-profile-page .cd-ready-att .ok { color: #2E7D52; }
@@ -657,38 +659,11 @@ body.crew-profile-editorial {
 .crew-profile-page .cd-sw.miss { background: #C4C8D0; }
 
 /* Two-column: sticky rail + content */
-.crew-profile-page .cd-cols { display: grid; grid-template-columns: 210px 1fr; gap: 28px; align-items: start; margin-top: 16px; }
-.crew-profile-page .cd-single { margin-top: 12px; }
-.crew-profile-page .cd-rail { position: sticky; top: 12px; }
-.crew-profile-page .cd-rail-eyebrow { padding: 0 6px 8px; }
-.crew-profile-page .cd-nav {
-  display: flex; align-items: center; gap: 11px; width: 100%;
-  padding: 9px 8px; font-size: 13px; cursor: pointer; color: #1C1B3A;
-  background: none; border: 0; border-bottom: 1px solid #F0F1F5; text-align: left;
-}
-.crew-profile-page .cd-nav:last-child { border-bottom: none; }
-.crew-profile-page .cd-nav:hover { color: #C65A1A; }
-.crew-profile-page .cd-nav svg { flex: none; stroke: #8B8478; }
-.crew-profile-page .cd-nav:hover svg, .crew-profile-page .cd-nav.on svg { stroke: #C65A1A; }
-.crew-profile-page .cd-nav.on { color: #C65A1A; font-weight: 600; }
-.crew-profile-page .cd-nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.crew-profile-page .cd-nav-cnt {
-  margin-left: auto; font-size: 11px; color: #8B8478; font-variant-numeric: tabular-nums;
-  display: flex; align-items: center; gap: 7px;
-}
-.crew-profile-page .cd-nav.empty { color: #AEB4C2; }
-.crew-profile-page .cd-nav.empty svg { stroke: #AEB4C2; }
-.crew-profile-page .cd-nav.empty .cd-nav-cnt { color: #AEB4C2; }
-.crew-profile-page .cd-nav.attn { color: #A32D2D; }
-.crew-profile-page .cd-nav.attn svg { stroke: #A32D2D; }
-.crew-profile-page .cd-nav-dot { width: 6px; height: 6px; border-radius: 50%; background: #A32D2D; }
-.crew-profile-page .cd-rail-rule { height: 1px; background: #ECEAE3; margin: 8px 6px; }
-
-/* Tile grid */
-/* Auto-filling grid — compact, squarish tiles that stay ~250px wide at any
-   page width instead of stretching into giant slabs. */
+/* Tile grid — full width (the profile's own sidebar is the only nav; the
+   tiles themselves drill in, so there's no second in-tab rail). Auto-fills to
+   ~3–4 roomy, squarish tiles with editorial whitespace. */
 .crew-profile-page .cd-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(236px, 1fr)); gap: 14px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(272px, 1fr)); gap: 16px; margin-top: 4px;
 }
 .crew-profile-page .cd-tile {
   min-height: 178px; display: flex; flex-direction: column; text-align: left;
@@ -747,12 +722,6 @@ body.crew-profile-editorial {
 .crew-profile-page .cd-muted { font-size: 13px; color: #8B8478; padding: 8px 2px; }
 .crew-profile-page .cd-sep { color: #D7D3C9; }
 
-@media (max-width: 900px) {
-  .crew-profile-page .cd-cols { grid-template-columns: 1fr; }
-  .crew-profile-page .cd-rail { position: static; display: flex; flex-wrap: wrap; gap: 4px; }
-  .crew-profile-page .cd-rail .cd-nav { width: auto; border-bottom: 0; }
-  .crew-profile-page .cd-rail-eyebrow, .crew-profile-page .cd-rail-rule { display: none; }
-}
 
 /* ── HOR — editorial KPI tiles + soft-green calendar ───────────────────
    Visual-only restyle, matching the rota rest-log KPI strip (.rl-kpi) and
