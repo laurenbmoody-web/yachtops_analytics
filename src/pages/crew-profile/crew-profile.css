@@ -798,6 +798,34 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .kit-ack-list li:last-child { border-bottom: 0; }
 .crew-profile-page .kit-ack-cat { font-size: 11px; color: #8B8478; white-space: nowrap; }
+
+/* Uniform sizes block (moved from Preferences) */
+.crew-profile-page .kit-inline-edit {
+  margin-left: 8px; font-size: 12px; font-weight: 600; color: #C65A1A;
+  background: none; border: 0; cursor: pointer; white-space: nowrap;
+}
+.crew-profile-page .kit-inline-edit:hover { text-decoration: underline; }
+.crew-profile-page .kit-size-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.crew-profile-page .kit-size-read { display: flex; flex-direction: column; gap: 3px; }
+.crew-profile-page .kit-size-read .lbl {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
+}
+.crew-profile-page .kit-size-read .val { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.crew-profile-page .kit-size-read .val.empty { font-weight: 400; color: #AEB4C2; }
+
+/* Manager return bar */
+.crew-profile-page .kit-return-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 14px; border: 1px solid #ECEAE3; border-radius: 10px; background: #FAFAF8;
+  font-size: 12.5px; color: #8B8478; margin-bottom: 16px;
+}
+.crew-profile-page .kit-return-bar button {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 600; color: #C65A1A; background: none; border: 0; cursor: pointer;
+}
+.crew-profile-page .kit-return-bar button:hover { text-decoration: underline; }
+
+@media (max-width: 740px) { .crew-profile-page .kit-size-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .crew-profile-page .kit-form { grid-template-columns: 1fr; } }
 
 /* ── HOR — editorial KPI tiles + soft-green calendar ───────────────────
