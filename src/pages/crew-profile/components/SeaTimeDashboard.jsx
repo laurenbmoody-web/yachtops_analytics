@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase';
 import { fetchEntriesForUser, addManualEntries, submitEntries, signEntries } from '../utils/seaTimeService';
 import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import SeaServiceCalendar from './SeaServiceCalendar';
+import { SHOW_SIGNOFF } from '../../../seatime/signoffFlag';
 import {
   DEFAULT_CONFIG, TYPE_META, SOURCE_META, VERIFIER_PROFILES,
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset
@@ -737,16 +738,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   // Verification status for the log, route-aware: an off-Cargo
                   // (external) vessel is verified by an uploaded testimonial, so an
                   // un-verified one prompts "Add testimonial" rather than nothing.
-                  const vlog = isExcluded ? null
-                    : e.vstatus === 'captain_signed' ? (isCargo ? VLOG_CHIP.captain_signed : { label: 'Uploaded', color: '#4A5263' })
-                      : e.vstatus === 'pending' ? VLOG_CHIP.pending
-                        : e.vstatus === 'rejected' ? VLOG_CHIP.rejected
-                          : !isCargo ? { label: 'Add testimonial', color: '#4A5263' }
-                            : null;
-                  // The whole row is the click target: open the testimonial if one
-                  // exists, else jump to that ship in Step 03.
-                  const rowAction = !isExcluded && e.testimonialPath ? () => viewTestimonial(e.testimonialPath)
-                    : (vlog ? () => jumpToVerify(e.vesselId) : null);
+                  // Sign-off parked: the log no longer carries verification status
+                  // or links to a captain sign-off step — it's purely the service record.
+                  const vlog = !SHOW_SIGNOFF ? null
+                    : isExcluded ? null
+                      : e.vstatus === 'captain_signed' ? (isCargo ? VLOG_CHIP.captain_signed : { label: 'Uploaded', color: '#4A5263' })
+                        : e.vstatus === 'pending' ? VLOG_CHIP.pending
+                          : e.vstatus === 'rejected' ? VLOG_CHIP.rejected
+                            : !isCargo ? { label: 'Add testimonial', color: '#4A5263' }
+                              : null;
+                  const rowAction = !SHOW_SIGNOFF ? null
+                    : !isExcluded && e.testimonialPath ? () => viewTestimonial(e.testimonialPath)
+                      : (vlog ? () => jumpToVerify(e.vesselId) : null);
                   return (
                     <div className="std-arow" key={e.id}
                       role={rowAction ? 'button' : undefined} tabIndex={rowAction ? 0 : undefined}
@@ -845,9 +848,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         <div className="std-dossier">
           <div className="std-dossier-h">
             <div>
-              <div className="mlabel rustlabel">Captain-verified · MSN 1858</div>
-              <h3>Sea Service Testimonial Pack</h3>
-              <div className="sub">Your sea service, confirmed by each ship’s captain — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.</div>
+              <div className="mlabel rustlabel">{SHOW_SIGNOFF ? 'Captain-verified · MSN 1858' : 'For your verifying organisation · MSN 1858'}</div>
+              <h3>{SHOW_SIGNOFF ? 'Sea Service Testimonial Pack' : 'Sea Service Record'}</h3>
+              <div className="sub">{SHOW_SIGNOFF
+                ? 'Your sea service, confirmed by each ship’s captain — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.'
+                : 'Your compiled sea service, ready to export for PYA or Nautilus to verify. They issue the testimonial your captain signs — Cargo just gets your record right first.'}</div>
             </div>
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
@@ -900,7 +905,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               </div>
             </div>
 
-            {/* 03 Attest by vessel — one master per ship */}
+            {/* 03 Attest by vessel — one master per ship (parked: sign-off hidden) */}
+            {SHOW_SIGNOFF && (
             <div className="std-fstep" id="std-verify">
               <div className="std-fnum">03</div>
               <div>
@@ -986,8 +992,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 </div>
               </div>
             </div>
+            )}
           </div>
 
+          {SHOW_SIGNOFF && (
           <div className="std-issue">
             <div>
               <div className="mlabel">Step 03 · Captain sign-off</div>
@@ -1001,8 +1009,21 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               ? <span className="std-genbtn" style={{ marginLeft: 'auto', background: '#E7F0E9', color: '#3F7A52' }}><Icon name="Check" size={15} /> Verified</span>
               : <span className="std-genbtn" style={{ marginLeft: 'auto', background: '#FBF0DA', color: '#7A5A12' }}><Icon name="Clock" size={15} /> Confirm each ship above</span>}
           </div>
+          )}
 
-          {signed && (
+          {/* Parked export when sign-off is hidden — the per-voyage service data the
+              crew hands to PYA/Nautilus. (Form-faithful export is the next build.) */}
+          {!SHOW_SIGNOFF && (
+            <div className="std-issue">
+              <div>
+                <div className="mlabel">Export · for {vp.name}</div>
+                <div className="std-issue-h">{live.length} entries · {buckets.total} qualifying days — export your record to start your {vp.label} submission</div>
+              </div>
+              <button className="std-dl" style={{ marginLeft: 'auto', background: '#C65A1A', color: '#fff' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Export service data (CSV)</button>
+            </div>
+          )}
+
+          {SHOW_SIGNOFF && signed && (
             <div className="std-cert">
               <div className="frame">
                 <div>
