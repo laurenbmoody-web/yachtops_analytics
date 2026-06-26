@@ -11,7 +11,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY, DUAL_CAPACITY_RATE
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY, DUAL_CAPACITY_RATE, isDualCapacityRole
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
@@ -154,6 +154,13 @@ const addYearsIso = (iso, n) => { if (!iso) return ''; const [y, m, d] = String(
 const daysUntil = (iso) => { if (!iso) return null; return Math.round((new Date(iso + 'T00:00:00') - new Date()) / 86400000); };
 const yearOf = (e) => (e.from ? +String(e.from).slice(0, 4) : null);
 
+// Map a crew member's DB department (tenant_members → departments.name) to the
+// sea-time pathway department, so the tracker opens on the right ladder for the
+// crew member's actual role. Bridge officers sit on the deck pathway.
+const DEPT_NAME_TO_ID = {
+  Deck: 'deck', Bridge: 'deck', Engineering: 'engineering', Interior: 'interior', Galley: 'galley'
+};
+
 const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, canAttest = false }) => {
   const config = DEFAULT_CONFIG;
   const [deptId, setDeptId] = useState('deck');
@@ -239,6 +246,25 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const changeDept = (id) => { setDeptId(id); setGoalId(goalForDept(id)); };
   const startPathway = () => setGoalId(goalForDept(deptId) || 'MASTER_YACHT_3000');
   const stopPathway = () => setGoalId('');
+
+  // Role-aware default: open the tracker on the crew member's actual department,
+  // and auto-apply the 50% dual rate if their assigned role is a dual deck+engine
+  // role (Mate/Engineer, Deck/Engineer) — which holds whichever ladder they view.
+  useEffect(() => {
+    if (!userId || !tenantId) return;
+    let cancel = false;
+    (async () => {
+      const { data } = await supabase
+        .from('tenant_members')
+        .select('departments(name), role:roles!role_id(name)')
+        .eq('tenant_id', tenantId).eq('user_id', userId).eq('active', true).maybeSingle();
+      if (cancel || !data) return;
+      const mapped = DEPT_NAME_TO_ID[data.departments?.name];
+      if (mapped) { setDeptId(mapped); setGoalId(goalForDept(mapped)); }
+      if (isDualCapacityRole(data.role?.name || '')) setDualMode(true);
+    })();
+    return () => { cancel = true; };
+  }, [userId, tenantId]);
 
   // Resolve the Part-4 endorser for ONE command spell — the master who covered
   // those dates (stamped on the auto-logged rows). Pull their name + CoC from
