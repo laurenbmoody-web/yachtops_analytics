@@ -14,6 +14,7 @@ import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '../../utils/authStorage';
 import { getInitials } from '../../utils/profileHelpers';
 import DocumentsTab from './components/DocumentsTab';
+import IssuedKitTab from './components/IssuedKitTab';
 import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData, logBankingView } from './utils/crewProfileData';
 import { ibanWarning, swiftWarning } from './utils/bankingValidation';
 import { fetchCrewDocuments } from './utils/crewDocuments';
@@ -949,6 +950,7 @@ const canEdit = (() => {
     { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' },
     { key: 'history', label: 'Status History', icon: 'Activity' },
     { key: 'contract', label: 'Contract / Employment', icon: 'FileSignature' },
+    { key: 'kit', label: 'Issued Kit', icon: 'Shirt' },
     { key: 'permissions', label: 'Permissions', icon: 'ShieldCheck' },
     { key: 'notifications', label: 'Notifications', icon: 'Bell' },
   ];
@@ -956,7 +958,7 @@ const canEdit = (() => {
   // Grouped left rail (Option C): items live under quiet section labels.
   const navGroups = [
     { label: 'Profile', keys: ['personal', 'emergency', 'banking', 'preferences', 'documents'] },
-    { label: 'Employment', keys: ['contract'] },
+    { label: 'Employment', keys: ['contract', 'kit'] },
     { label: 'Compliance', keys: ['hor', 'seatime'] },
     { label: 'Activity', keys: ['history'] },
     { label: 'Settings', keys: ['permissions', 'notifications'] },
@@ -3933,6 +3935,17 @@ const canEdit = (() => {
             openPreset={docPreset}
             onPresetHandled={() => setDocPreset(null)}
             onProfileSynced={refreshPersonalDetails}
+          />
+        );
+      case 'kit':
+        return (
+          <IssuedKitTab
+            userId={crewId}
+            tenantId={activeTenantId}
+            currentUserId={session?.user?.id}
+            currentUserName={myProfile?.full_name || ''}
+            canManage={isVesselAdmin || currentUserPermissionTier === 'COMMAND'}
+            isOwnProfile={isOwnProfile}
           />
         );
       case 'banking':
