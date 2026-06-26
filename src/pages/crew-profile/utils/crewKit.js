@@ -173,16 +173,27 @@ export const reinstateKitItem = async (id) => {
 };
 
 // ── Uniform sizes — live in crew_personal_details.preferences.uniformSizes;
-// surfaced here (moved off the Preferences tab) without disturbing other prefs.
-const BLANK_SIZES = { top: '', bottom: '', jacket: '', shoe: '' };
+// surfaced on the Issued Kit tab (moved off Preferences) without disturbing
+// other prefs. Gender-aware: a `fit` profile drives which garments show, since
+// men's/women's bottoms size differently (waist 30/32 vs dress 8/10, skorts,
+// dresses). All keys are strings stored in the jsonb blob — no schema change.
+export const UNIFORM_SIZE_KEYS = [
+  'fit', 'top', 'trousers', 'shorts', 'skort', 'dress', 'jacket', 'fleece',
+  'belt', 'shoe', 'cap', 'gloves', 'foulies', 'notes',
+];
+const blankSizes = () => UNIFORM_SIZE_KEYS.reduce((o, k) => { o[k] = ''; return o; }, {});
 
 export const fetchUniformSizes = async (userId) => {
-  if (!userId) return { ...BLANK_SIZES };
+  if (!userId) return blankSizes();
   const { data, error } = await supabase
     ?.from('crew_personal_details')?.select('preferences')?.eq('user_id', userId)?.maybeSingle();
-  if (error) { console.error('[kit] uniform fetch failed', error); return { ...BLANK_SIZES }; }
+  if (error) { console.error('[kit] uniform fetch failed', error); return blankSizes(); }
   const u = data?.preferences?.uniformSizes || {};
-  return { top: u.top || '', bottom: u.bottom || '', jacket: u.jacket || '', shoe: u.shoe || '' };
+  const out = blankSizes();
+  UNIFORM_SIZE_KEYS.forEach((k) => { out[k] = u[k] || ''; });
+  // Back-compat: the original model stored trousers/shorts together as `bottom`.
+  if (!out.trousers && u.bottom) out.trousers = u.bottom;
+  return out;
 };
 
 export const saveUniformSizes = async (userId, sizes) => {
@@ -190,13 +201,8 @@ export const saveUniformSizes = async (userId, sizes) => {
   const { data, error: readErr } = await supabase
     ?.from('crew_personal_details')?.select('preferences')?.eq('user_id', userId)?.maybeSingle();
   if (readErr) throw readErr;
-  const preferences = {
-    ...(data?.preferences || {}),
-    uniformSizes: {
-      top: sizes.top || '', bottom: sizes.bottom || '',
-      jacket: sizes.jacket || '', shoe: sizes.shoe || '',
-    },
-  };
+  const uniformSizes = UNIFORM_SIZE_KEYS.reduce((o, k) => { o[k] = sizes[k] || ''; return o; }, {});
+  const preferences = { ...(data?.preferences || {}), uniformSizes };
   const { error } = await supabase
     ?.from('crew_personal_details')
     ?.upsert({ user_id: userId, preferences, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
