@@ -227,7 +227,8 @@ const VesselSettings = () => {
         bonded_stores_enabled: vesselData?.bonded_stores_enabled || false,
         multi_location_storage: vesselData?.multi_location_storage || false,
         hero_image_url: vesselData?.hero_image_url || '',
-        use_custom_hero: vesselData?.use_custom_hero || false
+        use_custom_hero: vesselData?.use_custom_hero || false,
+        feedback_widget_enabled: vesselData?.feedback_widget_enabled !== false
       };
 
       console.log('[VESSEL SETTINGS] Initialized formState:', initialFormData);
@@ -655,6 +656,24 @@ const VesselSettings = () => {
     }
   };
 
+  const handleToggleFeedbackWidget = async (enabled) => {
+    if (!canEdit) return;
+    try {
+      setFormState(prev => ({ ...prev, feedback_widget_enabled: enabled }));
+      const { error: updateError } = await supabase
+        ?.from('vessels')
+        ?.upsert({ tenant_id: tenantId, feedback_widget_enabled: enabled }, { onConflict: 'tenant_id' });
+      if (updateError) {
+        setSaveError(`Failed to toggle: ${updateError?.message || 'Unknown error'}`);
+        setFormState(prev => ({ ...prev, feedback_widget_enabled: !enabled }));
+      } else {
+        await loadVesselSettings();
+      }
+    } catch (err) {
+      setSaveError(`Unexpected error: ${err?.message || 'Something went wrong'}`);
+    }
+  };
+
   const handleRevertToBlueprint = async () => {
     if (!canEdit) return;
 
@@ -841,6 +860,25 @@ const VesselSettings = () => {
                     </Button>
                   </div>
                 )}
+              </div>
+
+              {/* Beta feedback widget */}
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h3 className="text-lg font-medium text-foreground mb-1">Feedback button</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Shows a small “Feedback” tab on every page so crew can send a note or voice memo
+                  straight to the Cargo team. Helpful while the app is new — switch it off any time.
+                </p>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <Checkbox
+                    checked={formState?.feedback_widget_enabled !== false}
+                    onCheckedChange={handleToggleFeedbackWidget}
+                    disabled={!canEdit}
+                  />
+                  <span className="text-sm font-medium text-foreground">
+                    Show the feedback button on this vessel
+                  </span>
+                </label>
               </div>
 
               {/* Vessel Identity */}

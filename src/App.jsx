@@ -4,6 +4,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { RoleProvider } from "./contexts/RoleContext";
 import { useTripsMigration } from "./hooks/useTripsMigration";
+import FeedbackWidget from "./components/feedback/FeedbackWidget";
 import './utils/toast';
 import './lib/devGlobals';
 
@@ -27,6 +28,7 @@ function App() {
         <RoleProvider>
           <TripsMigrationRunner />
           <Routes />
+          <FeedbackWidget />
         </RoleProvider>
       </AuthProvider>
     </ThemeProvider>
