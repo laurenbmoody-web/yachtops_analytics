@@ -149,7 +149,8 @@ export const CERTIFICATES = {
   // §5.9.2, cross-checked against MIN 642 Annex A (MIN 642 itself expired 1 Dec
   // 2025 — used as corroborating summary only; the MSN is the binding source).
   //   legacyAlias = the nearest old Y-grade, for crew who still think in Y-grades.
-  //   The precise legacy→SV conversion is LEGACY_GRADE_CONVERSION (MSN 1904 §8.5).
+  //   The precise legacy→SV conversion is LEGACY_GRADE_CONVERSION (MIN 642 §7.3,
+  //   to which MSN 1904 §12.1 delegates — provisional, see that map's note).
   // Yacht seagoing = days actually UNDERWAY with main propulsion in full use; yard
   // time never counts as seagoing; up to 2 months at-anchor/fast-to-shore on own
   // power may count as watchkeeping (MSN 1904 §5.9).
@@ -262,7 +263,7 @@ export const GRADE_TO_CERT = {
   'Engineering — Chief SV <500GT (Yachts)': 'CHIEF_SV_500_Y',
   'Engineering — Chief SV <3000GT (Yachts)': 'CHIEF_SV_3000_Y',
   // Legacy MSN 1859 Y-grade CoCs a crew member may still hold → mapped to the
-  // SV rung they convert across to (MSN 1904 §8.5 / MIN 642 §7). Held-position
+  // SV rung they convert across to (MIN 642 §7, per MSN 1904 §12.1). Held-position
   // approximation; the exact conversion top-up is in LEGACY_GRADE_CONVERSION.
   'Engineering — SV / Y4': 'EOOW_SV_Y',
   'Engineering — Y3': 'CHIEF_SV_500_Y',
@@ -321,10 +322,16 @@ export const certConfidence = (cert) => {
 
 // ── Legacy MSN 1859 "Y-grade" CoC → in-force MSN 1904 Small Vessel CoC.
 // For crew who still HOLD an old Y-grade certificate: where it converts to, the
-// MCA conversion code, and the service/course top-up. Figures from MIN 642 §7.3
-// (expired 1 Dec 2025) — the binding text is MSN 1904 §8.5, so each is marked
-// 'PROVISIONAL' (the UI shows "confirm against MSN 1904 §8.5"). Conversions B and
-// E need no extra sea time — courses + ENG1 only. ────────────────────────────
+// MCA conversion code, and the service/course top-up.
+// SOURCING (important): the in-force MSN 1904 contains NO conversion table — §12.1
+// delegates the detail back to MIN 642 ("This is available in MIN 642"). So these
+// numbers exist ONLY in MIN 642 §7.3, which expired 1 Dec 2025 with no successor.
+// They are not contradicted by MSN 1904 but cannot be independently corroborated
+// in force, so each stays 'PROVISIONAL' (UI: "confirm with your training provider")
+// and must not be promoted to HIGH on a §8.5/MSN-1904 basis — that footnote was a
+// stale cross-reference. Open item: MIN 642 §7.3.5 (Conversion C) mixes "Y3"/"Y4"
+// wording — unresolved; only the MCA / a re-issued MIN can settle it.
+// Conversions B and E need no extra sea time — courses + ENG1 only. ────────────
 export const LEGACY_GRADE_CONVERSION = {
   Y4: { to: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'], code: 'A1–A3', verified: 'PROVISIONAL',
         topUp: '6mo onboard / 4mo seagoing ≥350kW (EOOW) up to 12mo seagoing incl. 6mo ≥750kW (Chief <3000GT).' },
