@@ -186,7 +186,30 @@ export const computeRequirements = (buckets, prior, pathway) => {
  * CoC tracks its real MCA thresholds. Months convert at SERVICE_RULES.monthDays.
  * `prior` = lifetime accrual baseline { onboard, seagoing, watchkeeping }.
  */
-export const buildRequirementBars = (buckets, prior = {}, cert) => {
+// Qualifying seagoing service (seagoing + watchkeeping) whose days fall within
+// the last `years` years — the MCA's recency rule: at least 6 months of
+// qualifying seagoing service in the 5 years immediately preceding NoE/CoC issue
+// (MSN 1856 §17.2/§19.1; MSN 1858 §5.1). Counts only the in-window days of each
+// period; undated baselines can't be assessed for recency and are excluded.
+export const recentQualifyingDays = (entries, asOf = new Date(), years = 5) => {
+  const end = asOf instanceof Date ? asOf : new Date(asOf);
+  const start = new Date(end); start.setFullYear(start.getFullYear() - years);
+  const MS = 86400000;
+  let total = 0;
+  for (const e of entries || []) {
+    if (e.excluded) continue;
+    if (e.type !== 'seagoing' && e.type !== 'watchkeeping') continue;
+    if (!e.from) continue;
+    const f = new Date(e.from + 'T00:00:00');
+    const t = e.to ? new Date(e.to + 'T00:00:00') : f;
+    const oStart = f > start ? f : start;
+    const oEnd = t < end ? t : end;
+    if (oEnd >= oStart) total += Math.round((oEnd - oStart) / MS) + 1;
+  }
+  return total;
+};
+
+export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = null) => {
   const md = SERVICE_RULES.monthDays;
   const cur = {
     onboard: (prior.onboard || 0) + (buckets.onboardDays || 0),
@@ -205,6 +228,9 @@ export const buildRequirementBars = (buckets, prior = {}, cert) => {
   if (r.seagoingMonths) add('seagoing', 'Seagoing service', cur.seagoing, r.seagoingMonths * md);
   if (r.watchkeepingDays) add('watchkeeping', 'Watchkeeping service', cur.watchkeeping, r.watchkeepingDays);
   if (r.actualSeaServiceMonths) add('actualSea', 'Actual sea service', cur.actualSea, r.actualSeaServiceMonths * md);
+  // Recency — the MCA needs ≥6 months qualifying seagoing service within the last
+  // 5 years at NoE/CoC issue. Applies to every CoC, so always shown when known.
+  if (recentDays != null) add('recency', 'Recent service · 6mo in last 5yr', recentDays, 6 * md);
   if (!bars.length) bars.push({ key: 'none', label: 'No additional qualifying service required', current: 0, required: 0, met: true, remaining: 0, pct: 100 });
   return bars;
 };
