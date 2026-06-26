@@ -323,25 +323,38 @@ export const certConfidence = (cert) => {
 // ── Legacy MSN 1859 "Y-grade" CoC → in-force MSN 1904 Small Vessel CoC.
 // For crew who still HOLD an old Y-grade certificate: where it converts to, the
 // MCA conversion code, and the service/course top-up.
-// SOURCING (important): the in-force MSN 1904 contains NO conversion table — §12.1
-// delegates the detail back to MIN 642 ("This is available in MIN 642"). So these
-// numbers exist ONLY in MIN 642 §7.3, which expired 1 Dec 2025 with no successor.
-// They are not contradicted by MSN 1904 but cannot be independently corroborated
-// in force, so each stays 'PROVISIONAL' (UI: "confirm with your training provider")
-// and must not be promoted to HIGH on a §8.5/MSN-1904 basis — that footnote was a
-// stale cross-reference. Open item: MIN 642 §7.3.5 (Conversion C) mixes "Y3"/"Y4"
-// wording — unresolved; only the MCA / a re-issued MIN can settle it.
-// Conversions B and E need no extra sea time — courses + ENG1 only. ────────────
+// SOURCING: the in-force MSN 1904 carries NO conversion table — §12.1 delegates
+// the detail to MIN 642 ("This is available in MIN 642"). The conversion CODES,
+// target bands, source-grade gates and recency rule ARE corroborated in force by
+// GOV.UK "Engineering Officers and Ratings" guidance (updated 2 Feb 2026, i.e.
+// after MIN 642 expired) — `codeVerified:'HIGH'`. That page also confirms
+// Conversion C is the Y3 route (resolving MIN 642 §7.3.5's "Y3/Y4" wording bug).
+// The per-conversion service month-counts (topUp) are NOT restated anywhere in
+// force — they exist only in MIN 642 §7.3 (expired 1 Dec 2025), so `verified` stays
+// 'PROVISIONAL' (UI: "confirm with your training provider"). `from` = the source
+// grade's GT/kW/STCW-class gate (note Y1 is III/2; Y2–Y4 are III/3). Conversions
+// B and E need no extra sea time — courses + ENG1 only. ───────────────────────
 export const LEGACY_GRADE_CONVERSION = {
-  Y4: { to: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'], code: 'A1–A3', verified: 'PROVISIONAL',
+  Y4: { from: 'Chief Engineer III/3 · <200GT & <1500kW', to: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
+        code: 'A1–A3', verified: 'PROVISIONAL', codeVerified: 'HIGH',
         topUp: '6mo onboard / 4mo seagoing ≥350kW (EOOW) up to 12mo seagoing incl. 6mo ≥750kW (Chief <3000GT).' },
-  Y3: { to: ['CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'], code: 'B / C', verified: 'PROVISIONAL',
+  Y3: { from: 'Chief Engineer III/3 · <500GT & <3000kW', to: ['CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
+        code: 'B / C', verified: 'PROVISIONAL', codeVerified: 'HIGH',
         topUp: 'Courses + ENG1 only for Chief <500GT (code B); 12mo onboard incl. 6mo seagoing for Chief <3000GT (code C).' },
-  Y2: { to: ['CHIEF_SV_3000_Y'], code: 'D', verified: 'PROVISIONAL',
+  Y2: { from: 'Chief Engineer III/3 · <3000GT & <3000kW', to: ['CHIEF_SV_3000_Y'],
+        code: 'D', verified: 'PROVISIONAL', codeVerified: 'HIGH',
         topUp: '3 months seagoing on yachts ≥750kW.' },
-  Y1: { to: ['CHIEF_SV_3000_Y'], code: 'E', verified: 'PROVISIONAL',
+  Y1: { from: 'Chief Engineer III/2 · <3000GT & <9000kW', to: ['CHIEF_SV_3000_Y'],
+        code: 'E', verified: 'PROVISIONAL', codeVerified: 'HIGH',
         topUp: 'Courses + ENG1 only (Y1 is the highest legacy grade).' }
 };
+
+// Every Y-grade conversion ALSO requires recent service: 6 months' seagoing in
+// the last 5 years (MSN 1904 §11.1 — in force; mirrored by the GOV.UK Engineering
+// Officers and Ratings guidance, 2 Feb 2026). Applies on top of each conversion's
+// service top-up. The yacht structure is closed — conversions are for existing
+// Y-grade holders only (no new NoEs except resits).
+export const CONVERSION_RECENCY = { months: 6, windowYears: 5, msn: 'MSN 1904 §11.1', verified: 'HIGH' };
 
 // Grade strings (documentTypes.js) that denote a LEGACY MSN 1859 Y-grade CoC,
 // mapped to their conversion key — so when a crew member records/uploads an old

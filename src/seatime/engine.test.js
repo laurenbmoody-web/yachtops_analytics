@@ -7,7 +7,7 @@ import {
   runChecks, computeAssurance, buildTestimonialDataset, getVerifierProfiles,
   buildRequirementBars, recentQualifyingDays
 } from './engine.js';
-import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate } from './pathways.js';
+import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate, LEGACY_GRADE_CONVERSION, CONVERSION_RECENCY, legacyConversionForGrade } from './pathways.js';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from './seed.js';
 
 const V = SEED_VESSELS;
@@ -137,6 +137,25 @@ test('ETO is verified against in-force MSN 1860 with the corrected 6-month figur
   assert.equal(eto.verified, 'HIGH');
   assert.match(eto.msn, /MSN 1860/);
   assert.equal(eto.requires.seagoingMonths, 6); // was wrongly 12
+});
+
+test('legacy Y-grade conversions: codes corroborated in force, month-counts provisional', () => {
+  for (const [key, c] of Object.entries(LEGACY_GRADE_CONVERSION)) {
+    // The conversion code/structure is confirmed by the in-force GOV.UK guidance…
+    assert.equal(c.codeVerified, 'HIGH', `${key} code should be in-force corroborated`);
+    // …but the service month-counts only live in the expired MIN 642, so the
+    // figure stays provisional and the nudge says "confirm with your provider".
+    assert.equal(c.verified, 'PROVISIONAL');
+    assert.ok(c.to.every(id => CERTIFICATES[id]), `${key} targets must be real certs`);
+  }
+  // Conversion C is the Y3 route (resolved from the in-force guidance).
+  assert.match(LEGACY_GRADE_CONVERSION.Y3.code, /C/);
+  // The universal in-force recency gate is carried.
+  assert.equal(CONVERSION_RECENCY.months, 6);
+  assert.equal(CONVERSION_RECENCY.verified, 'HIGH');
+  // A held legacy grade string resolves to its conversion.
+  assert.equal(legacyConversionForGrade('Engineering — Y3').key, 'Y3');
+  assert.equal(legacyConversionForGrade('OOW <3000GT'), null);
 });
 
 // --- validation gate ---------------------------------------------------------
