@@ -138,6 +138,24 @@ export const fetchEntriesForUser = async (tenantId, userId, pathId) => {
   return (data || []).map(r => rowToEntry(r, pathId, config));
 };
 
+/**
+ * A user's sea service across EVERY vessel they've served on — sea service is a
+ * personal career record, not a per-vessel one. No tenant filter: row-level
+ * security scopes it correctly per viewer (the seafarer sees all their vessels;
+ * a COMMAND user viewing them sees only their own vessel's portion). Classified
+ * against the current vessel's config (MCA rules are not vessel-specific).
+ */
+export const fetchEntriesAcrossVessels = async (userId, pathId, configTenantId) => {
+  const config = await getConfig(configTenantId);
+  const { data, error } = await supabase
+    ?.from(TABLE)
+    ?.select('*')
+    ?.eq('user_id', userId)
+    ?.order('entry_date', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(r => rowToEntry(r, pathId, config));
+};
+
 /** Calendar map { 'yyyy-mm-dd': entry } for a given month. */
 export const getMonthCalendarData = async (tenantId, userId, pathId, year, month) => {
   const config = await getConfig(tenantId);
@@ -302,6 +320,7 @@ export default {
   getConfig,
   saveConfig,
   fetchEntriesForUser,
+  fetchEntriesAcrossVessels,
   getMonthCalendarData,
   getProgressSummary,
   addManualEntries,

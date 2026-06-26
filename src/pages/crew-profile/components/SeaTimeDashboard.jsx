@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabase';
-import { fetchEntriesForUser, addManualEntries, submitEntries, signEntries, syncFromVessel } from '../utils/seaTimeService';
+import { fetchEntriesForUser, fetchEntriesAcrossVessels, addManualEntries, submitEntries, signEntries, syncFromVessel } from '../utils/seaTimeService';
 import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import SeaServiceCalendar from './SeaServiceCalendar';
 import { SHOW_SIGNOFF } from '../../../seatime/signoffFlag';
@@ -226,11 +226,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const loadLive = async () => {
     if (!tenantId || !userId) return;
     try {
+      // Sea service is a personal career record — fetch across EVERY Cargo vessel
+      // the crew member has served on (RLS scopes it: the seafarer sees all their
+      // vessels; a COMMAND viewer sees only their own vessel's portion).
       const [rows, prof, pd, ves] = await Promise.all([
-        fetchEntriesForUser(tenantId, userId, 'mca-oow-yachts'),
+        fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
         supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number')?.eq('user_id', userId)?.maybeSingle(),
-        supabase?.from('vessels')?.select('company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw')?.eq('tenant_id', tenantId)?.maybeSingle()
+        supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw')?.eq('tenant_id', tenantId)?.maybeSingle()
       ]);
       // Prefer the structured first + surname over a free-text full_name (which can
       // get polluted with a rank); fall back to full_name, then the session user.
@@ -566,28 +569,25 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     downloadBytes(bytes, `sea-service-record-${seafarer.fullName.replace(/\s+/g, '-')}.csv`, 'text/csv');
   };
 
-  // A Nautilus/PYA testimonial is per command spell: one document per master, for
-  // the dates THEY were in command. Split the auto-logged service on the primary
-  // vessel by the stamped captain. Manual entries (off-Cargo/prior) and other
-  // vessels are excluded — only this vessel's Cargo-tracked service is endorsable.
+  // A Nautilus/PYA testimonial is per command spell: one document per master, per
+  // vessel, for the dates THEY were in command. Split the auto-logged service by
+  // (vessel × captain) across every Cargo vessel the crew served on. Manual
+  // entries (off-Cargo / prior) are excluded — only Cargo-tracked service is
+  // endorsable this way.
   const nautilusSpells = useMemo(() => {
     const autos = live.filter(e => e.source === 'vessel'); // vessel_auto only
     if (!autos.length) return [];
-    const byVessel = {};
-    for (const e of autos) byVessel[e.vesselId] = (byVessel[e.vesselId] || 0) + (e.days || 0);
-    const primaryId = Object.keys(byVessel).sort((a, b) => byVessel[b] - byVessel[a])[0];
-    const mine = autos.filter(e => e.vesselId === primaryId);
     const groups = {};
-    for (const e of mine) {
-      const key = e.masterUserId || e.masterName || 'unattributed';
-      (groups[key] ||= { captainId: e.masterUserId || null, captainName: e.masterName || '', entries: [] }).entries.push(e);
+    for (const e of autos) {
+      const key = `${e.vesselId}::${e.masterUserId || e.masterName || 'unattributed'}`;
+      (groups[key] ||= { vesselId: e.vesselId, captainId: e.masterUserId || null, captainName: e.masterName || '', entries: [] }).entries.push(e);
     }
     return Object.values(groups).map(g => {
       const froms = g.entries.map(e => e.from).filter(Boolean).sort();
       const tos = g.entries.map(e => e.to).filter(Boolean).sort();
-      return { ...g, vesselId: primaryId, from: froms[0] || null, to: tos[tos.length - 1] || null, days: g.entries.reduce((s, e) => s + (e.days || 0), 0) };
-    }).sort((a, b) => String(a.from).localeCompare(String(b.from)));
-  }, [live]);
+      return { ...g, from: froms[0] || null, to: tos[tos.length - 1] || null, days: g.entries.reduce((s, e) => s + (e.days || 0), 0) };
+    }).sort((a, b) => (vessels[a.vesselId]?.name || '').localeCompare(vessels[b.vesselId]?.name || '') || String(a.from).localeCompare(String(b.from)));
+  }, [live, vessels]);
 
   // Build + download ONE captain's Nautilus testimonial, scoped to that spell.
   const onDownloadSpell = async (spell) => {
@@ -605,20 +605,24 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const capCount = {};
       for (const e of mine) if (e.capacity) capCount[e.capacity] = (capCount[e.capacity] || 0) + (e.days || 0);
       const capacity = Object.keys(capCount).sort((a, b) => capCount[b] - capCount[a])[0] || '';
-      const addrLines = String(company.company_address || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      // Company contact + kW are vessel-settings of the CURRENT vessel only; for a
+      // previous Cargo vessel we don't have them, so leave Part 1 blank there.
+      const isCurrentVessel = company?.imo_number && v.imo && String(company.imo_number) === String(v.imo);
+      const co = isCurrentVessel ? company : {};
+      const addrLines = String(co.company_address || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       flash('Building Nautilus form…');
       const endorser = await resolveEndorserFor(spell.captainId, spell.captainName);
       const pdfBytes = await buildNautilusSST({
         seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, dischargeBook: seafarer.dischargeBookNo, nautilusNo: seafarer.membershipNo },
-        vessel: { type: v.type, flag: v.flag, name: v.name, imo: v.imo, officialNo: v.officialNo, lengthM: v.lengthM, gt: v.gt, kw: company.propulsion_kw },
+        vessel: { type: v.type, flag: v.flag, name: v.name, imo: v.imo, officialNo: v.officialNo, lengthM: v.lengthM, gt: v.gt, kw: co.propulsion_kw },
         endorser,
         company: {
-          shipowner: company.company_name || '',
+          shipowner: co.company_name || '',
           addr1: addrLines[0] || '', addr2: addrLines[1] || '',
-          zip: company.company_postcode || addrLines[addrLines.length - 1] || '',
-          country: company.company_country || '',
-          phone: company.company_phone || '',
-          email: company.company_email || '',
+          zip: co.company_postcode || addrLines[addrLines.length - 1] || '',
+          country: co.company_country || '',
+          phone: co.company_phone || '',
+          email: co.company_email || '',
         },
         service: {
           capacity, from, to, totalDaysOnboard,
@@ -1159,7 +1163,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                       {nautilusSpells.map((s, i) => (
                         <div key={i} className="std-flex std-between std-ac" style={{ gap: 12, padding: '10px 12px', border: '1px solid #ECEAE3', borderRadius: 10, background: '#FAFAF8' }}>
                           <div>
-                            <div style={{ fontWeight: 600, color: '#1C1B3A', fontSize: 13 }}>{s.captainId === userId ? 'Your service as Master' : (s.captainName || 'Captain')}</div>
+                            <div style={{ fontWeight: 600, color: '#1C1B3A', fontSize: 13 }}>{vessels[s.vesselId]?.name || 'Vessel'} · {s.captainId === userId ? 'your service as Master' : (s.captainName || 'Captain')}</div>
                             <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}</div>
                           </div>
                           <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
