@@ -303,7 +303,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
           onClick={canEdit ? () => openAdd() : undefined}
         >
           <div className="cd-tile-top">
-            <span className="cd-ico" style={{ background: '#F1EFE9' }}><Icon name={st.icon} size={21} style={{ color: '#A8A296' }} /></span>
+            <span className="cd-ico" style={{ background: '#F1EFE9' }}><Icon name={st.icon} size={19} style={{ color: '#A8A296' }} /></span>
           </div>
           <div className="cd-tile-name">{s.label}</div>
           <div className="cd-tile-break">No documents yet</div>
@@ -314,7 +314,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     return (
       <button key={s.id} type="button" className="cd-tile" onClick={() => setSelected(s.id)}>
         <div className="cd-tile-top">
-          <span className="cd-ico" style={{ background: st.bg }}><Icon name={st.icon} size={21} style={{ color: st.ink }} /></span>
+          <span className="cd-ico" style={{ background: st.bg }}><Icon name={st.icon} size={19} style={{ color: st.ink }} /></span>
           {s.pill && <span className={`cd-pill ${s.pill.cls}`}>{s.pill.label}</span>}
         </div>
         <div className="cd-tile-name">{s.label}</div>
