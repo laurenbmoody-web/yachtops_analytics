@@ -10,6 +10,7 @@ import {
   uploadKitSignature, acknowledgeKitItems, signedKitSignatureUrl, kitSignatureDataUrl,
   recordKitReturn, markKitLost, reinstateKitItem,
   fetchUniformSizes, saveUniformSizes,
+  logKitEvent, fetchKitEvents,
 } from '../utils/crewKit';
 import { exportKitReceipt } from '../utils/kitReceiptExport';
 
@@ -98,6 +99,8 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   const [returnName, setReturnName] = useState(currentUserName || '');
 
   const [sigUrls, setSigUrls] = useState({});
+  const [events, setEvents] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Uniform sizes (moved from the Preferences tab).
   const [sizes, setSizes] = useState({});
@@ -108,13 +111,17 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [kit, sz] = await Promise.all([fetchCrewKit(userId), fetchUniformSizes(userId)]);
+      const [kit, sz, ev] = await Promise.all([fetchCrewKit(userId), fetchUniformSizes(userId), fetchKitEvents(userId)]);
       setItems(kit);
       setSizes(sz);
+      setEvents(ev);
     } catch { showToast('Failed to load issued kit', 'error'); }
     finally { setLoading(false); }
   }, [userId]);
   useEffect(() => { if (userId) load(); }, [userId, load]);
+
+  const logEvent = (action, detail = {}, kitId = null) =>
+    logKitEvent({ kitId, userId, tenantId, action, detail, actorId: currentUserId, actorName: currentUserName });
 
   // Resolve signed URLs for signatures so they can be shown inline.
   useEffect(() => {
@@ -143,18 +150,35 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
     if (!form.item.trim()) { showToast('Item name is required', 'error'); return; }
     setBusy(true);
     try {
-      await saveKitItem({
+      const saved = await saveKitItem({
         id: editing?.id,
         userId, tenantId, createdBy: currentUserId,
         issuedBy: editing ? editing.issued_by : currentUserId,
         issuedByName: editing ? editing.issued_by_name : currentUserName,
         ...form,
       });
+      // History — issued vs edited (with a brief field diff).
+      if (editing) {
+        const fields = [['item', 'name'], ['size', 'size'], ['quantity', 'qty'], ['condition_issued', 'condition'], ['category', 'category']];
+        const changes = fields
+          .map(([col, label]) => {
+            const from = String(editing[col] ?? '');
+            const to = String(col === 'condition_issued' ? form.conditionIssued : col === 'category' ? form.category : form[col] ?? '');
+            return from !== to ? { label, from, to } : null;
+          })
+          .filter(Boolean);
+        await logEvent('edited', { item: form.item, changes }, editing.id);
+      } else {
+        await logEvent('issued', { item: form.item, size: form.size, quantity: Number(form.quantity) || 1, category: form.category }, saved?.id);
+      }
       // Reflect a sized garment back to the crew member's profile sizes, so the
       // recorded size always matches what's actually being worn/issued.
       const key = sizeKeyFor(form.item);
       if (canManage && key && form.size && (sizes[key] || '') !== form.size) {
-        try { await saveUniformSizes(userId, { ...sizes, [key]: form.size }); } catch { /* non-blocking */ }
+        try {
+          await saveUniformSizes(userId, { ...sizes, [key]: form.size });
+          await logEvent('size_changed', { garment: key, from: sizes[key] || '', to: form.size }, saved?.id);
+        } catch { /* non-blocking */ }
       }
       showToast(editing ? 'Item updated' : 'Item issued', 'success');
       setFormOpen(false);
@@ -165,8 +189,11 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
 
   const remove = async (it) => {
     if (!window.confirm(`Remove "${it.item}" from the kit register? This cannot be undone.`)) return;
-    try { await deleteKitItem(it.id); showToast('Item removed', 'success'); load(); }
-    catch { showToast('Delete failed', 'error'); }
+    try {
+      await deleteKitItem(it.id);
+      await logEvent('removed', { item: it.item });
+      showToast('Item removed', 'success'); load();
+    } catch { showToast('Delete failed', 'error'); }
   };
 
   const unacked = items.filter((i) => i.status === 'in_service' && !i.acknowledged_at);
@@ -179,6 +206,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
     try {
       const path = await uploadKitSignature(currentUserId, ackSig, 'ack');
       await acknowledgeKitItems(unacked.map((i) => i.id), { signaturePath: path, signedName: ackName || currentUserName });
+      await logEvent('acknowledged', { count: unacked.length, items: unacked.map((i) => i.item) });
       showToast('Receipt acknowledged — thank you', 'success');
       setAckOpen(false); setAckSig(null);
       load();
@@ -206,6 +234,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         signedName: returnName || currentUserName,
         returnedTo: currentUserId,
       });
+      await logEvent('returned', { count: returnTarget.length, items: returnTarget.map((i) => i.item), condition: returnForm.condition });
       showToast('Return recorded', 'success');
       setReturnOpen(false);
       load();
@@ -215,11 +244,11 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
 
   const lose = async (it) => {
     if (!window.confirm(`Mark "${it.item}" as lost / damaged?`)) return;
-    try { await markKitLost(it.id); showToast('Marked lost / damaged', 'success'); load(); }
+    try { await markKitLost(it.id); await logEvent('lost', { item: it.item }, it.id); showToast('Marked lost / damaged', 'success'); load(); }
     catch { showToast('Update failed', 'error'); }
   };
   const reinstate = async (it) => {
-    try { await reinstateKitItem(it.id); showToast('Item reinstated', 'success'); load(); }
+    try { await reinstateKitItem(it.id); await logEvent('reinstated', { item: it.item }, it.id); showToast('Item reinstated', 'success'); load(); }
     catch { showToast('Update failed', 'error'); }
   };
 
@@ -246,6 +275,30 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
       });
     } catch (e) { showToast(e.message || 'Could not generate receipt', 'error'); }
     finally { setBusy(false); }
+  };
+
+  const garmentLabel = (k) => SIZE_FIELDS.find((f) => f.key === k)?.label || k;
+  const describeEvent = (ev) => {
+    const d = ev.detail || {};
+    switch (ev.action) {
+      case 'issued': return `Issued ${d.item}${d.size ? ` (${d.size})` : ''}${d.quantity > 1 ? ` ×${d.quantity}` : ''}`;
+      case 'edited': {
+        const ch = (d.changes || []).map((c) => `${c.label} ${c.from || '—'}→${c.to || '—'}`).join(', ');
+        return `Edited ${d.item}${ch ? ` — ${ch}` : ''}`;
+      }
+      case 'acknowledged': return `Acknowledged receipt of ${d.count} item${d.count > 1 ? 's' : ''}`;
+      case 'returned': return `Returned ${d.count} item${d.count > 1 ? 's' : ''}${d.condition ? ` — ${d.condition}` : ''}`;
+      case 'lost': return `Marked ${d.item} lost / damaged`;
+      case 'reinstated': return `Reinstated ${d.item}`;
+      case 'removed': return `Removed ${d.item}`;
+      case 'size_changed': return `Updated ${garmentLabel(d.garment)} size to ${d.to}`;
+      default: return ev.action;
+    }
+  };
+  const eventWhen = (ts) => {
+    const dt = new Date(ts);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
   };
 
   const statusPill = (it) => {
@@ -416,6 +469,31 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                 </div>
               )}
             </>
+          )}
+
+          {/* History — append-only audit log */}
+          {events.length > 0 && (
+            <div className="cp-group kit-history">
+              <div className="cp-group-head">
+                <span className="dia">◆</span><span className="t">History</span><span className="line" />
+                <button type="button" className="kit-history-toggle" onClick={() => setHistoryOpen((o) => !o)}>
+                  {historyOpen ? 'Hide' : `Show (${events.length})`}
+                </button>
+              </div>
+              {historyOpen && (
+                <ul className="kit-history-list">
+                  {events.map((ev) => (
+                    <li key={ev.id}>
+                      <span className="kit-ev-dot" />
+                      <div className="kit-ev-body">
+                        <div className="kit-ev-desc">{describeEvent(ev)}</div>
+                        <div className="kit-ev-meta">{eventWhen(ev.created_at)}{ev.actor_name ? ` · ${ev.actor_name}` : ''}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </>
       )}

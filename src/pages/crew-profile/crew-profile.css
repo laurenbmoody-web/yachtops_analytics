@@ -824,6 +824,24 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .kit-size-hint:hover { text-decoration: underline; }
 
+/* History — audit log */
+.crew-profile-page .kit-history { margin-top: 26px; }
+.crew-profile-page .kit-history-toggle {
+  margin-left: 8px; font-size: 12px; font-weight: 600; color: #C65A1A;
+  background: none; border: 0; cursor: pointer; white-space: nowrap;
+}
+.crew-profile-page .kit-history-toggle:hover { text-decoration: underline; }
+.crew-profile-page .kit-history-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.crew-profile-page .kit-history-list li {
+  display: flex; gap: 11px; padding: 9px 2px; border-bottom: 1px solid #F4F2EC;
+}
+.crew-profile-page .kit-history-list li:last-child { border-bottom: 0; }
+.crew-profile-page .kit-ev-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #D9D5CC; margin-top: 5px; flex: none;
+}
+.crew-profile-page .kit-ev-desc { font-size: 13px; color: #1C1B3A; }
+.crew-profile-page .kit-ev-meta { font-size: 11px; color: #8B8478; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
 /* Manager return bar */
 .crew-profile-page .kit-return-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
