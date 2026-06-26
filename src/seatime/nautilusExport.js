@@ -45,6 +45,12 @@ const check2 = (form, name) => {
   try { form.getCheckBox(P2 + name).check(); }
   catch (e) { console.warn('[nautilus] p2 checkbox skipped:', name, e?.message); }
 };
+const setChoice2 = (form, name, val) => {
+  const s = str(val);
+  if (!s) return;
+  try { const dd = form.getDropdown(P2 + name); dd.addOptions([s]); dd.select(s); }
+  catch (e) { console.warn('[nautilus] p2 choice skipped:', name, e?.message); }
+};
 
 // Standby-passages table: 10 rows of (voyage started, voyage ended, days). The
 // field names are non-sequential — this is the geometry-derived order.
@@ -139,7 +145,7 @@ export const buildNautilusSST = async ({ seafarer = {}, vessel = {}, company = {
     } else {
       check2(form, 'Master[0]');
       setText2(form, 'Name2[1]', endorser.cocNo);
-      // Issuing country (Country[2]) left blank — we don't store it; the master picks it.
+      setChoice2(form, 'Country[2]', endorser.issuingCountry); // from the CoC's flag state
     }
   }
 
