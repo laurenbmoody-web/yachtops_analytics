@@ -133,9 +133,13 @@ export const CERTIFICATES = {
     family: 'DECK', label: 'Master (Yachts <3000GT)', short: 'Master <3000GT',
     msn: 'MSN 1858 Amd 2 §3.6', verified: 'HIGH',
     yardCapDays: 30,                // Master: max 30 yard days (1858 §3.6)
-    requires: { onboardMonths: 24, watchkeepingDays: 240, minVesselMetres: 15 },
+    requires: {
+      onboardMonths: 24, watchkeepingDays: 240, minVesselMetres: 15,
+      // §3.6 sub-gate, computed from each vessel's recorded GT + length.
+      higherTonnage: { metresMonths: 12, metresMin: 24, gtMonths: 6, gtMin: 500 }
+    },
     heldWhilst: 'OOW (Yachts <3000GT) II/1',
-    note: 'All service ≥15m AND include 12 months on ≥24m OR 6 months on ≥500GT.'
+    note: 'All service ≥15m AND include 12 months on ≥24m OR 6 months on ≥500GT. The larger-vessel bar is computed from each vessel’s GT/length on record; the prior-service baseline and any entry without vessel size can’t be size-attributed.'
   },
   CHIEF_MATE_UNLIMITED: {
     family: 'DECK', label: 'Chief Mate (Yachts Unlimited)', short: 'Chief Mate Unltd',

@@ -150,7 +150,19 @@ export const computeBuckets = (entries, vessels, config = DEFAULT_CONFIG) => {
   const standby = Math.min(standbyRaw, actualSeagoing);
   const yard = Math.min(yardRaw, config.yardCapDays ?? 90);
   const onboardDays = live.reduce((n, e) => n + e.days, 0); // onboard = signed-on, any activity
-  return { seagoing, watchkeeping, standby, standbyRaw, yard, yardRaw, actualSeagoing, onboardDays, total: seagoing + watchkeeping + standby + yard };
+  // Larger-vessel onboard service, for the MSN 1858 §3.6 "12mo ≥24m OR 6mo ≥500GT"
+  // sub-gate. Onboard = signed-on time, so count all non-excluded days by the
+  // vessel's recorded size. Days on a vessel with no GT/length on record can't be
+  // size-classified → sizeUnknownDays (surfaced so we never silently undercount).
+  let metres24Days = 0, gt500Days = 0, sizeUnknownDays = 0;
+  for (const e of live) {
+    const v = vessels[e.vesselId];
+    if (!v || v.lengthM == null || v.gt == null) { sizeUnknownDays += e.days; continue; }
+    if (v.lengthM >= 24) metres24Days += e.days;
+    if (v.gt >= 500) gt500Days += e.days;
+  }
+  return { seagoing, watchkeeping, standby, standbyRaw, yard, yardRaw, actualSeagoing, onboardDays,
+    metres24Days, gt500Days, sizeUnknownDays, total: seagoing + watchkeeping + standby + yard };
 };
 
 /**
@@ -241,6 +253,27 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
   if (r.seagoingMonths) add('seagoing', 'Seagoing service', cur.seagoing, r.seagoingMonths * md);
   if (r.watchkeepingDays) add('watchkeeping', 'Watchkeeping service', cur.watchkeeping, r.watchkeepingDays);
   if (r.actualSeaServiceMonths) add('actualSea', 'Actual sea service', cur.actualSea, r.actualSeaServiceMonths * md);
+  // MSN 1858 §3.6 OR-branch: within the onboard service, either N months on
+  // vessels ≥Xm OR M months on vessels ≥YGT. Met if EITHER route is satisfied;
+  // the bar tracks whichever route the crew is closer to completing.
+  if (r.higherTonnage) {
+    const ht = r.higherTonnage;
+    const m24 = buckets.metres24Days || 0;
+    const g500 = buckets.gt500Days || 0;
+    const metresTarget = ht.metresMonths * md, gtTarget = ht.gtMonths * md;
+    const metresMet = m24 >= metresTarget, gtMet = g500 >= gtTarget;
+    const met = metresMet || gtMet;
+    const useGt = met ? gtMet : (gtTarget ? g500 / gtTarget : 0) >= (metresTarget ? m24 / metresTarget : 0);
+    const current = useGt ? g500 : m24, required = useGt ? gtTarget : metresTarget;
+    bars.push({
+      key: 'higherTonnage',
+      label: `Larger-vessel service (${ht.metresMonths}mo ≥${ht.metresMin}m or ${ht.gtMonths}mo ≥${ht.gtMin}GT)`,
+      current, required, met, remaining: met ? 0 : Math.max(0, required - current),
+      pct: required ? Math.min(100, Math.round((current / required) * 100)) : 100,
+      provisional, orBranch: true,
+      detail: { metres24: m24, metresTarget, gt500: g500, gtTarget, sizeUnknownDays: buckets.sizeUnknownDays || 0 }
+    });
+  }
   // Recency — the MCA needs ≥6 months qualifying seagoing service within the last
   // 5 years at NoE/CoC issue (MSN 1856 §17.2/§19.1). Its application point varies
   // by route (entry CoC vs revalidation), so it's shown as advisory guidance, not
