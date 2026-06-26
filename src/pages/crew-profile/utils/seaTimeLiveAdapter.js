@@ -47,7 +47,7 @@ export const adaptLiveEntries = (rows) => {
       id: cur.ids[0], rowIds: cur.ids, vesselId: cur.vesselId,
       label: cur.label, from: cur.from, to: cur.to, days: cur.days,
       type: cur.type, watchHours: cur.watchHours, capacity: cur.capacity, source: cur.source,
-      masterName: cur.masterName, masterAboard: cur.masterAboard, masterOnCargo: cur.masterOnCargo,
+      masterName: cur.masterName, masterUserId: cur.masterUserId, masterAboard: cur.masterAboard, masterOnCargo: cur.masterOnCargo,
       vstatus: cur.vstatus, rejectionReason: cur.rejectionReason || null, testimonialPath: cur.testimonialPath || null,
       dateMain: main, dateSub: `${yr} · ${cur.days}${cur.days === 1 ? ' day' : ' days'}`, excluded: false
     });
@@ -61,14 +61,14 @@ export const adaptLiveEntries = (rows) => {
     const sameRun = cur &&
       cur.vesselId === id && cur.type === r.serviceType && cur.capacity === (r.capacityServed || '') &&
       cur.watchHours === (r.watchHours || 0) && cur.source === src &&
-      cur.masterName === master && cur.vstatus === vstatus && cur.to && nextDay(cur.to) === r.date;
+      cur.masterName === master && cur.masterUserId === (r.masterUserId || null) && cur.vstatus === vstatus && cur.to && nextDay(cur.to) === r.date;
     if (sameRun) {
       cur.to = r.date; cur.days += 1; cur.ids.push(r.id);
     } else {
       flush();
       cur = {
         vesselId: id, type: r.serviceType, watchHours: r.watchHours || 0, capacity: r.capacityServed || '',
-        source: src, masterName: master, masterAboard: !!r.masterAboard, masterOnCargo: !!r.masterOnCargo,
+        source: src, masterName: master, masterUserId: r.masterUserId || null, masterAboard: !!r.masterAboard, masterOnCargo: !!r.masterOnCargo,
         vstatus, rejectionReason: r.rejectionReason || null, testimonialPath: r.testimonialPath || null, from: r.date, to: r.date, days: 1, ids: [r.id],
         label: `${(vessels[id]?.name) || 'Vessel'} · ${r.serviceType}`
       };
