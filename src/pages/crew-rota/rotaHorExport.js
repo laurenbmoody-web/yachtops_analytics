@@ -272,7 +272,7 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   subParts.push(meta.periodLabel);
   doc.text(subParts.join('  ·  '), 40, 55);
   doc.text(`${meta.horTemplate.standardRef || STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
-  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = a day with an MLC/STCW non-conformity. The four right-hand columns count breach-days per rule; each day’s exact rule is listed in that seafarer’s record.', 40, 84);
+  doc.text('Figures = hours of REST per 24h. Shaded = a non-conformity; the four right-hand columns count breach-days per rule, with each day’s exact rule in that seafarer’s record.', 40, 84, { maxWidth: pageW - 80 });
   doc.setTextColor(0);
 
   const head = [[
