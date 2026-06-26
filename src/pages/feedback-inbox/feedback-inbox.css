@@ -1,0 +1,87 @@
+/* Feedback inbox — editorial (Cargo) styling. */
+
+.fbi-page { min-height: 100vh; background: #FAFAF8; }
+.fbi-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 92px 20px 80px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.fbi-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.fbi-kicker {
+  display: block;
+  font-size: 9px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: #C65A1A; margin-bottom: 4px;
+}
+.fbi-title {
+  margin: 0;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 30px; line-height: 1; color: #1C1B3A;
+}
+.fbi-title em { font-style: italic; color: #C65A1A; }
+.fbi-sub { margin: 8px 0 22px; font-size: 13px; color: #8B8478; }
+
+.fbi-filters { display: flex; gap: 8px; }
+.fbi-chip {
+  padding: 6px 14px;
+  border: 1px solid #E8E6DF;
+  background: #FFFFFF;
+  border-radius: 999px;
+  font-size: 12px; font-weight: 500; color: #6B7280;
+  cursor: pointer;
+}
+.fbi-chip.is-on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+
+.fbi-empty { padding: 40px 0; text-align: center; color: #8B8478; font-size: 14px; }
+
+.fbi-list { list-style: none; margin: 0; padding: 0; }
+.fbi-item {
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.fbi-item.is-new { border-left: 3px solid #C65A1A; }
+
+.fbi-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.fbi-who { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.fbi-name { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.fbi-email { font-size: 12px; color: #8B8478; }
+.fbi-when { font-size: 11px; color: #AEB4C2; white-space: nowrap; }
+
+.fbi-msg {
+  margin: 10px 0 0;
+  font-size: 14.5px; line-height: 1.6; color: #1C1B3A;
+  white-space: pre-wrap;
+}
+
+.fbi-audio { margin-top: 12px; }
+.fbi-player { width: 100%; height: 38px; }
+.fbi-load-audio {
+  border: 1px solid #E8E6DF;
+  background: #FAFAF8;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px; color: #1C1B3A; cursor: pointer;
+}
+.fbi-load-audio:hover { border-color: #C65A1A; }
+
+.fbi-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.fbi-tag {
+  font-size: 10px; letter-spacing: 0.4px;
+  padding: 3px 9px; border-radius: 999px;
+  background: #FBEFE9; color: #C65A1A; font-weight: 600;
+}
+.fbi-tag.soft { background: #F6F5F2; color: #8B8478; font-weight: 500; }
+
+.fbi-item-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0F1F5; }
+.fbi-act {
+  padding: 6px 14px;
+  border: none; border-radius: 8px;
+  background: #C65A1A; color: #FFFFFF;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.fbi-act.ghost { background: #FFFFFF; color: #6B7280; border: 1px solid #E8E6DF; }
+.fbi-act.ghost:hover { border-color: #C65A1A; color: #1C1B3A; }

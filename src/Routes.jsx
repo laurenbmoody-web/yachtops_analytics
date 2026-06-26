@@ -50,6 +50,7 @@ import WelcomePage from './marketing/pages/WelcomePage';
 import ContactPage from './marketing/pages/ContactPage';
 import VesselSignupFlowStep1 from './pages/vessel-signup-flow-step-1';
 import VesselSettings from './pages/vessel-settings';
+import FeedbackInbox from './pages/feedback-inbox';
 import Membership from './pages/membership';
 import SettingsPage from './pages/settings';
 import MyProfileManagement from './pages/NotFound';
@@ -1098,6 +1099,9 @@ const Routes = () => {
         {/* Vessel Settings - Command/Chief Only (granular role check inside component) */}
         <Route path="/settings/vessel" element={<VesselAdminRoute><VesselSettings /></VesselAdminRoute>} />
         
+        {/* Feedback inbox — owner-only (component + RLS both gate to owner email) */}
+        <Route path="/feedback-inbox" element={<ProtectedRoute requiresTenant={false}><FeedbackInbox /></ProtectedRoute>} />
+
         {/* Settings Page - Protected Route */}
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         

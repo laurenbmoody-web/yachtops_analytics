@@ -1,0 +1,178 @@
+/* Beta feedback widget — editorial (Cargo) styling. Floating tab + composer,
+   pinned bottom-right, clear of mobile safe areas. */
+
+.fbw-root {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 2147483000; /* above app chrome, below toasts if any */
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ── The tab ── */
+.fbw-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 15px;
+  background: #C65A1A;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow: 0 10px 26px -8px rgba(198, 90, 26, 0.55);
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.fbw-tab:hover { background: #B14E16; transform: translateY(-1px); box-shadow: 0 14px 30px -8px rgba(198, 90, 26, 0.6); }
+.fbw-tab svg { display: block; }
+
+/* ── The composer ── */
+.fbw-panel {
+  width: 340px;
+  max-width: calc(100vw - 28px);
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 18px 18px 16px;
+  animation: fbw-pop 0.16s ease-out;
+}
+@keyframes fbw-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.fbw-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.fbw-kicker {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #C65A1A;
+  margin-bottom: 2px;
+}
+.fbw-title {
+  margin: 0;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 20px;
+  line-height: 1;
+  color: #1C1B3A;
+}
+.fbw-title em { font-style: italic; color: #C65A1A; }
+.fbw-x {
+  border: none;
+  background: transparent;
+  color: #8B8478;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.fbw-x:hover { color: #1C1B3A; }
+
+.fbw-lead { margin: 0 0 12px; font-size: 12.5px; line-height: 1.5; color: #6B7280; }
+
+.fbw-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #E8E6DF;
+  background: #FAFAF8;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1C1B3A;
+  resize: vertical;
+  min-height: 84px;
+}
+.fbw-textarea:focus {
+  outline: none;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px #FAECE7;
+  background: #FFFFFF;
+}
+.fbw-textarea::placeholder { color: #AEB4C2; }
+
+/* ── Voice ── */
+.fbw-voice { margin-top: 10px; }
+.fbw-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: #FFFFFF;
+  border: 1px solid #E8E6DF;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1C1B3A;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.fbw-rec:hover { border-color: #C65A1A; }
+.fbw-rec-dot { width: 9px; height: 9px; border-radius: 999px; background: #C65A1A; }
+.fbw-rec.is-rec { border-color: #C65A1A; background: #FBEFE9; }
+.fbw-rec.is-rec .fbw-rec-dot { animation: fbw-pulse 1s ease-in-out infinite; }
+@keyframes fbw-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.fbw-clip { display: flex; align-items: center; gap: 10px; }
+.fbw-audio { height: 36px; flex: 1; min-width: 0; }
+.fbw-clip-x {
+  border: none;
+  background: transparent;
+  color: #8B8478;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.fbw-clip-x:hover { color: #C65A1A; }
+
+.fbw-err { margin: 10px 0 0; font-size: 12px; color: #B14E16; }
+
+/* ── Actions ── */
+.fbw-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+.fbw-context { font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; color: #AEB4C2; }
+.fbw-btn {
+  padding: 9px 20px;
+  background: #C65A1A;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.fbw-btn:hover { background: #B14E16; }
+.fbw-btn:disabled { opacity: 0.6; cursor: default; }
+.fbw-btn-ghost {
+  padding: 9px 16px;
+  background: #FFFFFF;
+  color: #1C1B3A;
+  border: 1px solid #E8E6DF;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.fbw-btn-ghost:hover { border-color: #C65A1A; }
+
+/* ── Sent state ── */
+.fbw-done { text-align: center; padding: 14px 6px 6px; }
+.fbw-done-mark {
+  width: 42px; height: 42px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: #FBEFE9;
+  color: #C65A1A;
+  font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+}
+.fbw-done p { margin: 0 0 16px; font-size: 14px; color: #1C1B3A; }
+.fbw-done-actions { display: flex; gap: 10px; justify-content: center; }
