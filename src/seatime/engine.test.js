@@ -119,6 +119,17 @@ test('a not-yet-verified route flags every bar provisional', () => {
   assert.ok(bars.every(b => b.provisional === true));
 });
 
+test('the engine ladder is flagged superseded (MSN 1859 withdrawn → MSN 1904)', () => {
+  for (const id of ['MEOL_Y', 'Y4', 'Y3', 'Y2', 'Y1']) {
+    const cert = CERTIFICATES[id];
+    assert.equal(cert.verified, 'SUPERSEDED', `${id} must not present withdrawn figures as HIGH`);
+    assert.equal(cert.supersededBy, 'MSN 1904');
+    // Non-HIGH → provisional bars → never declares eligibility off withdrawn figures.
+    const bars = buildRequirementBars({ seagoing: 0, watchkeeping: 0, standby: 0, yard: 0, total: 0 }, {}, cert);
+    assert.ok(bars.every(b => b.provisional === true));
+  }
+});
+
 // --- validation gate ---------------------------------------------------------
 test('seed data blocks generation until flagged entries are resolved', () => {
   const r = runChecks({ entries: SEED_ENTRIES, vessels: V, signatory: 'master', verifier: 'pya',
