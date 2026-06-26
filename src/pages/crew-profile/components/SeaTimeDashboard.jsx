@@ -696,6 +696,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   const provCol = isCargo ? { color: '#3F7A52', tint: '#EFF6F1' } : { color: '#5A6478', tint: '#F4F5F7' };
                   const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch · ${e.capacity}` : (e.detailOverride || `${tm.hint} · ${e.capacity}`);
                   const qualWord = e.type === 'seagoing' ? 'seagoing' : e.type === 'watchkeeping' ? 'watchkeeping' : e.type === 'standby' ? 'standby' : 'shipyard';
+                  // Verification status for the log, route-aware: an off-Cargo
+                  // (external) vessel is verified by an uploaded testimonial, so an
+                  // un-verified one prompts "Add testimonial" rather than nothing.
+                  const vlog = isExcluded ? null
+                    : e.vstatus === 'captain_signed' ? (isCargo ? VLOG_CHIP.captain_signed : { label: 'Uploaded', color: '#4A5263' })
+                      : e.vstatus === 'pending' ? VLOG_CHIP.pending
+                        : e.vstatus === 'rejected' ? VLOG_CHIP.rejected
+                          : !isCargo ? { label: 'Add testimonial', color: '#4A5263' }
+                            : null;
                   return (
                     <div className="std-arow" key={e.id} style={{ opacity: isExcluded ? 0.55 : 1 }}>
                       <span className="std-arail" style={{ background: isExcluded ? '#CBC8C0' : tm.color }} />
@@ -712,11 +721,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                       </div>
                       <div className="std-aright">
                         {/* Verification status — a quiet dot + word (no filled pill); taps through to Step 03. */}
-                        {!isExcluded && VLOG_CHIP[e.vstatus] && (
+                        {vlog && (
                           <button type="button" onClick={() => jumpToVerify(e.vesselId)}
-                            title={e.vstatus === 'rejected' && e.rejectionReason ? `Declined — “${e.rejectionReason}”. View in Step 03.` : `${VLOG_CHIP[e.vstatus].label} — view in Step 03`}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600, color: VLOG_CHIP[e.vstatus].color }}>
-                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: VLOG_CHIP[e.vstatus].color, flexShrink: 0 }} />{VLOG_CHIP[e.vstatus].label}
+                            title={vlog.label === 'Declined' && e.rejectionReason ? `Declined — “${e.rejectionReason}”. View in Step 03.` : `${vlog.label} — view in Step 03`}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600, color: vlog.color }}>
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: vlog.color, flexShrink: 0 }} />{vlog.label}
                           </button>
                         )}
                         {isExcluded && <span className="std-avs" style={{ color: '#8B8478' }}>Excluded from pack</span>}
