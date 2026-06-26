@@ -146,8 +146,12 @@ export const saveCrewProfileData = async (userId, f, actor = null) => {
   // preferences.uniformSizes). This save replaces the whole preferences blob, so
   // preserve the current DB sizes rather than clobbering them with stale form
   // state from a tab that no longer edits them.
-  const { data: existingPd } = await supabase
-    ?.from('crew_personal_details')?.select('preferences')?.eq('user_id', userId)?.maybeSingle() || {};
+  // Snapshot the current rows before we overwrite them, both to preserve the
+  // Issued-Kit-owned uniform sizes and to diff every changed field for the audit.
+  const [{ data: existingPd }, { data: existingBank }] = await Promise.all([
+    supabase?.from('crew_personal_details')?.select('*')?.eq('user_id', userId)?.maybeSingle() || Promise.resolve({}),
+    supabase?.from('crew_banking')?.select('*')?.eq('user_id', userId)?.maybeSingle() || Promise.resolve({}),
+  ]);
   const keepUniformSizes = existingPd?.preferences?.uniformSizes || {
     top: f.uniformTop || '', bottom: f.uniformBottom || '',
     jacket: f.uniformJacket || '', shoe: f.uniformShoe || '',
@@ -260,6 +264,66 @@ export const saveCrewProfileData = async (userId, f, actor = null) => {
   ]);
   if (pdRes?.error) throw pdRes.error;
   if (bankRes?.error) throw bankRes.error;
+
+  // Field-level audit (non-blocking) — only after a successful save.
+  try {
+    await logProfileFieldChanges(userId, f.tenantId || null, actor, {
+      personalOld: existingPd, personalNew: personal,
+      bankOld: existingBank, bankNew: banking,
+    });
+  } catch (e) { console.error('[profile] audit log failed', e); }
+};
+
+// Personal Details scalar fields we audit with old → new values.
+const PD_AUDIT_FIELDS = [
+  ['date_of_birth', 'Date of birth'], ['nationality', 'Nationality'], ['place_of_birth', 'Place of birth'],
+  ['second_nationality', 'Second nationality'], ['dual_passport', 'Dual passport'],
+  ['discharge_book_number', 'Discharge book no.'], ['verifier_membership_number', 'Verifier membership no.'],
+  ['prefix', 'Prefix'], ['preferred_name', 'Preferred name'], ['sex', 'Sex'], ['pronouns', 'Pronouns'],
+  ['secondary_email', 'Secondary email'], ['home_address', 'Home address'], ['blood_type', 'Blood type'],
+  ['allergies_status', 'Allergies status'], ['allergies_text', 'Allergies'],
+  ['medical_conditions', 'Medical conditions'], ['emergency_medications', 'Emergency medications'],
+];
+// Nested JSON columns audited coarsely (changed yes/no, no values).
+const PD_AUDIT_JSON = [
+  ['emergency_contact', 'Emergency contact'], ['next_of_kin', 'Next of kin'],
+  ['doctor_contact', 'Doctor contact'], ['preferences', 'Preferences'], ['phones', 'Phone numbers'],
+];
+// Banking fields are audited as "changed" only — values are sensitive, so we
+// don't copy account numbers into a second table.
+const BANK_AUDIT_FIELDS = [
+  ['account_holder', 'Account holder'], ['bank_name', 'Bank name'], ['account_number', 'Account number'],
+  ['swift_bic', 'SWIFT / BIC'], ['currency', 'Currency'], ['country', 'Country'], ['account_type', 'Account type'],
+  ['sort_code', 'Sort code'], ['routing_number', 'Routing number'],
+  ['address_line1', 'Bank address'], ['address_line2', 'Bank address line 2'], ['city', 'Bank city'], ['address_country', 'Bank country'],
+  ['secondary_account', 'Secondary account'],
+];
+
+const auditNorm = (v) => (v === null || v === undefined ? '' : String(v));
+
+const logProfileFieldChanges = async (userId, tenantId, actor, { personalOld, personalNew, bankOld, bankNew }) => {
+  if (!actor?.id) return; // RLS requires actor_id = auth.uid()
+  const rows = [];
+  const base = { user_id: userId, tenant_id: tenantId, actor_id: actor.id, actor_name: actor.name || null };
+
+  for (const [col, label] of PD_AUDIT_FIELDS) {
+    if (auditNorm(personalOld?.[col]) !== auditNorm(personalNew?.[col])) {
+      rows.push({ ...base, area: 'personal', field: col, label, old_value: auditNorm(personalOld?.[col]) || null, new_value: auditNorm(personalNew?.[col]) || null });
+    }
+  }
+  for (const [col, label] of PD_AUDIT_JSON) {
+    if (JSON.stringify(personalOld?.[col] ?? null) !== JSON.stringify(personalNew?.[col] ?? null)) {
+      rows.push({ ...base, area: 'personal', field: col, label, old_value: null, new_value: null });
+    }
+  }
+  for (const [col, label] of BANK_AUDIT_FIELDS) {
+    const changed = col === 'secondary_account'
+      ? JSON.stringify(bankOld?.[col] ?? null) !== JSON.stringify(bankNew?.[col] ?? null)
+      : auditNorm(bankOld?.[col]) !== auditNorm(bankNew?.[col]);
+    if (changed) rows.push({ ...base, area: 'banking', field: col, label, old_value: null, new_value: null });
+  }
+
+  if (rows.length) await supabase?.from('crew_profile_events')?.insert(rows);
 };
 
 // Passport detail keys → crew_personal_details columns the passport is the
