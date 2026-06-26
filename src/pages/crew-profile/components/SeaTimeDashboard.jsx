@@ -17,6 +17,7 @@ import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
+import { buildNautilusSST } from '../../../seatime/nautilusExport';
 import CaptainSignoff from '../../../seatime/CaptainSignoff';
 import './sea-time-dashboard.css';
 
@@ -131,7 +132,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [heldOpen, setHeldOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState('all');
   const [logView, setLogView] = useState('list');
-  const [verifier, setVerifier] = useState('pya');
+  const [verifier, setVerifier] = useState('nautilus');
   const signatory = 'master'; // self-attestation is never permitted (MSN 1858)
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -522,6 +523,44 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     const csv = [cols.map(esc).join(','), ...rows].join('\r\n');
     const bytes = new TextEncoder().encode('﻿' + csv);
     downloadBytes(bytes, `sea-service-record-${seafarer.fullName.replace(/\s+/g, '-')}.csv`, 'text/csv');
+  };
+
+  // Fill the real Nautilus SST (Parts 1–2) for one vessel — the Nautilus form is
+  // per-ship, so we scope to the vessel with the most logged service (the current
+  // one). Multi-ship crew export one form per ship; v1 does the primary ship.
+  const onExportNautilus = async () => {
+    try {
+      const byVessel = {};
+      for (const e of live) byVessel[e.vesselId] = (byVessel[e.vesselId] || 0) + (e.days || 0);
+      const primaryId = Object.keys(byVessel).sort((a, b) => byVessel[b] - byVessel[a])[0];
+      if (!primaryId) { flash('No sea service to export yet'); return; }
+      const v = vessels[primaryId] || {};
+      const mine = live.filter(e => e.vesselId === primaryId);
+      const b = computeBuckets(mine, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) });
+      const froms = mine.map(e => e.from).filter(Boolean).sort();
+      const tos = mine.map(e => e.to).filter(Boolean).sort();
+      const from = froms[0] || null, to = tos[tos.length - 1] || null;
+      const totalDaysOnboard = mine.reduce((s, e) => s + (e.days || 0), 0);
+      const spanDays = (from && to) ? Math.round((new Date(to) - new Date(from)) / 86400000) + 1 : totalDaysOnboard;
+      const standbyPassages = mine.filter(e => e.type === 'standby')
+        .map(e => ({ from: e.from, to: e.to, days: e.days })).sort((a, b) => String(a.from).localeCompare(String(b.from)));
+      flash('Building Nautilus form…');
+      const pdfBytes = await buildNautilusSST({
+        seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, dischargeBook: seafarer.dischargeBookNo },
+        vessel: { type: v.type, flag: v.flag, name: v.name, imo: v.imo, officialNo: v.officialNo, lengthM: v.lengthM, gt: v.gt, kw: v.kw },
+        company: {},
+        service: {
+          capacity: mine[0]?.capacity || '',
+          from, to,
+          totalDaysOnboard,
+          leaveDays: Math.max(0, spanDays - totalDaysOnboard),
+          actualSea: b.seagoing, standby: b.standby, yard: b.yard, watchkeeping: b.watchkeeping,
+        },
+        standbyPassages,
+      });
+      downloadBytes(pdfBytes, `nautilus-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}-${seafarer.fullName.replace(/\s+/g, '-')}.pdf`);
+      flash('Nautilus form ready');
+    } catch (e) { console.error('[seatime] nautilus export', e); flash('Could not build the Nautilus form'); }
   };
 
   const formDays = () => { const { from, to } = form; if (!from || !to) return 1; const d = Math.round((new Date(to) - new Date(from)) / 86400000) + 1; return d > 0 ? d : 1; };
@@ -1036,9 +1075,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             <div className="std-issue">
               <div>
                 <div className="mlabel">Export · for {vp.name}</div>
-                <div className="std-issue-h">{live.length} entries · {buckets.total} qualifying days — export your record to start your {vp.label} submission</div>
+                <div className="std-issue-h">{live.length} entries · {buckets.total} qualifying days — {verifier === 'nautilus'
+                  ? 'fill your Nautilus testimonial, ready for the master to sign and Nautilus to verify'
+                  : `export your record to start your ${vp.label} submission`}</div>
               </div>
-              <button className="std-dl" style={{ marginLeft: 'auto', background: '#C65A1A', color: '#fff' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Export service data (CSV)</button>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {verifier === 'nautilus' && (
+                  <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={onExportNautilus}><Icon name="FileText" size={15} /> Export Nautilus form (PDF)</button>
+                )}
+                <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Service data (CSV)</button>
+              </div>
             </div>
           )}
 
