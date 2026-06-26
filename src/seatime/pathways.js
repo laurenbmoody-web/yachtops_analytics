@@ -1,11 +1,21 @@
 // Sea Time Tracker — MCA qualifying-service thresholds, departments, roles and
 // certificates. Figures extracted from the live notices:
-//   DECK   — MSN 1858 (M) Amendment 2  (Deck Officers on Large Yachts 24m+)
-//   ENGINE — MSN 1859 (M+F)            (Yacht Engineer certification)
+//   DECK   — MSN 1858 (M) Amendment 2  (Deck Officers on Large Yachts 24m+)  IN FORCE
+//   ENGINE — MSN 1859 (M+F)            (Yacht Engineer certification)        WITHDRAWN
 //
-// Confidence: HIGH = stated verbatim in the notice (section cited); MEDIUM =
-// inferred; PENDING = not in these notices, confirm before production. Treat
-// every numeric threshold as config — see // TODO(MIN642)/(MSN18xx) markers.
+// ⚠️ ENGINE LADDER SUPERSEDED: MSN 1859 was withdrawn on 10 Jan 2023 and replaced
+// by MSN 1904 (Engineer Officer Small Vessel CoC). MSN 1904 does NOT use the
+// "Y1–Y4 / MEOL_Y" grade names — yacht engineers now obtain STCW Small Vessel
+// CoCs (EOOW III/1, Chief Eng III/3 / III/2, non-STCW MEOL SV) endorsed "Limited
+// to Yachts" via §5.9.2, with different (lower) service figures. The Y-grade
+// entries below are retained as legacy IDs but are marked verified:'SUPERSEDED'
+// so the UI never presents their withdrawn figures as fact. // TODO(MSN1904):
+// rebuild the engine ladder against MSN 1904 §5.9.2 once the SV-CoC mapping is agreed.
+//
+// Confidence: HIGH = stated verbatim in the IN-FORCE notice (section cited);
+// MEDIUM = inferred; SUPERSEDED = figures come from a withdrawn notice, confirm
+// against the replacement; PENDING = not in these notices, confirm before
+// production. Treat every numeric threshold as config.
 
 /** @typedef {'seagoing'|'watchkeeping'|'standby'|'yard'} ServiceType */
 /** @typedef {'deck'|'engineering'|'interior'|'galley'|'other'} Department */
@@ -132,16 +142,19 @@ export const CERTIFICATES = {
     ]
   },
 
-  // ===================== ENGINE — MSN 1859 (HIGH on figures) =====================
+  // ============ ENGINE — MSN 1859 (WITHDRAWN 10 Jan 2023 → MSN 1904) ============
+  // Figures below are faithful to MSN 1859 but that notice is withdrawn; the live
+  // route is MSN 1904 §5.9.2 "Limited to Yachts" SV CoCs. Kept as legacy IDs,
+  // flagged SUPERSEDED so the UI shows "confirm against MSN 1904" not a hard figure.
   MEOL_Y: {
     family: 'ENGINE', label: 'Marine Engine Operator Licence (Yacht)', short: 'MEOL (Y)',
-    msn: 'MSN 1859 §3.3', verified: 'HIGH',
+    msn: 'MSN 1859 §3.3 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
     requires: { onboardMonths: 24, minPowerKW: 200 },
-    note: '24 months as yacht engineer on yachts ≥200kW — OR 36 months dual deck/engineer (≥50% in the engine room).'
+    note: 'MSN 1859 figure (withdrawn): 24 months as yacht engineer on yachts ≥200kW — OR 36 months dual deck/engineer (≥50% in the engine room). Live route: MSN 1904 MEOL Small Vessel (200–750kW), confirm figures.'
   },
   Y4: {
     family: 'ENGINE', label: 'Chief Engineer (Y4) — STCW III/3', short: 'Y4',
-    msn: 'MSN 1859 §3.4', verified: 'HIGH',
+    msn: 'MSN 1859 §3.4 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
     requires: { onboardMonths: 42, onboardMonthsAtPower: 12, actualSeaServiceMonths: 6, minPowerKW: 350 },
     routes: [
       { whilstHolding: null, onboardMonths: 42, onboardMonthsAtPower: 12, actualSeaServiceMonths: 6, minPowerKW: 350 },
@@ -151,7 +164,7 @@ export const CERTIFICATES = {
   },
   Y3: {
     family: 'ENGINE', label: 'Chief Engineer (Y3) — STCW III/3', short: 'Y3',
-    msn: 'MSN 1859 §3.5', verified: 'HIGH',
+    msn: 'MSN 1859 §3.5 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
     requires: { onboardMonths: 9, actualSeaServiceMonths: 3, minPowerKW: 350 },
     heldWhilst: 'Y4',
     routes: [
@@ -161,7 +174,7 @@ export const CERTIFICATES = {
   },
   Y2: {
     family: 'ENGINE', label: 'Chief Engineer (Y2) — STCW III/2', short: 'Y2',
-    msn: 'MSN 1859 §3.6', verified: 'HIGH',
+    msn: 'MSN 1859 §3.6 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
     requires: { onboardMonths: 15, actualSeaServiceMonths: 9, minPowerKW: 350 },
     heldWhilst: 'Y3 (or Y4)',
     routes: [
@@ -171,7 +184,7 @@ export const CERTIFICATES = {
   },
   Y1: {
     family: 'ENGINE', label: 'Chief Engineer (Y1) — STCW III/2', short: 'Y1',
-    msn: 'MSN 1859 §3.7', verified: 'HIGH',
+    msn: 'MSN 1859 §3.7 (withdrawn)', verified: 'SUPERSEDED', supersededBy: 'MSN 1904',
     requires: { onboardMonths: 12, minPowerKW: 1500, minGT: 500 },
     heldWhilst: 'Y2',
     note: 'Motor yachts ≥1500kW & ≥500GT, OR sailing yachts ≥1500kW & ≥1000GT — 12 months whilst holding Y2.',
@@ -289,8 +302,11 @@ export const certConfidence = (cert) => {
   return {
     level,
     authoritative: level === 'HIGH',
+    superseded: level === 'SUPERSEDED',
     notice: cert?.msn || null,
+    supersededBy: cert?.supersededBy || null,
     label: level === 'HIGH' ? 'Notice-verified'
+      : level === 'SUPERSEDED' ? `Superseded — confirm against ${cert?.supersededBy || 'the replacement notice'}`
       : level === 'MEDIUM' ? 'Provisional — confirm figures'
       : 'Not yet verified — confirm figures'
   };
