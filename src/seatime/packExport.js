@@ -104,7 +104,7 @@ export const renderPackPdf = async ({ dataset, verifier, assurance, qrDataUrl, s
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(138, 127, 99); doc.text(`${lab} days`, bx + 4, y + 14);
     bx += 45;
   }
-  y += 16;
+  y += 24; // clear the full 18mm box height so the section rule never strikes through
 
   // ── Signatory (left) + verification (right), as one clean band ─────────────
   rule(false); y += 8;
