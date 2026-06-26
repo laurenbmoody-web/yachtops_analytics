@@ -797,6 +797,30 @@
   border-color: var(--d-orange);
   box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.12);
 }
+
+/* Locked field — used on supplier-managed boards where the status
+   flows from the supplier flow rather than being set by hand. Reads
+   as a chip rather than an input so the chief doesn't expect it
+   to be editable. */
+.pv-edit-modal-readonly {
+  cursor: default;
+  background: #FAFAF8;
+  color: var(--d-navy-deep);
+  text-transform: capitalize;
+  font-weight: 500;
+}
+.pv-edit-modal-readonly:hover,
+.pv-edit-modal-readonly:focus {
+  background: #FAFAF8;
+  border-color: var(--d-border);
+  box-shadow: none;
+}
+.pv-edit-modal-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--d-muted, #8B8478);
+  line-height: 1.45;
+}
 .pv-edit-modal-textarea {
   resize: vertical;
   min-height: 76px;

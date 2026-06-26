@@ -262,7 +262,7 @@ const formatHistoryDiff = (action, meta) => {
 
 // ── Edit Board Modal ──────────────────────────────────────────────────────────
 
-const EditBoardModal = ({ list, onSaved, onClose }) => {
+const EditBoardModal = ({ list, supplierManaged = false, onSaved, onClose }) => {
   const [form, setForm] = useState({
     title: list.title || '',
     board_type: list.board_type || 'general',
@@ -292,21 +292,29 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
     currency: list.currency || 'GBP',
     trip_id: list.trip_id || '',
   }), [list]);
-  const isDirty = JSON.stringify(form) !== JSON.stringify(initial);
+  // When the status field is locked (supplier-managed boards) it
+  // isn't an editable surface, so a stale status value in `form`
+  // shouldn't mark the modal dirty.
+  const dirtyForm = supplierManaged ? { ...form, status: initial.status } : form;
+  const isDirty = JSON.stringify(dirtyForm) !== JSON.stringify(initial);
 
   const handleSave = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
     try {
-      const updated = await updateProvisioningList(list.id, {
+      // Never overwrite a supplier-managed status from this modal —
+      // even if the dropdown stayed editable in a stale render, the
+      // server-of-record for the lifecycle is the supplier flow.
+      const patch = {
         title: form.title.trim(),
         board_type: form.board_type,
-        status: form.status,
         notes: form.notes,
         port_location: form.port_location.trim() || null,
         currency: form.currency,
         trip_id: form.trip_id || null,
-      });
+      };
+      if (!supplierManaged) patch.status = form.status;
+      const updated = await updateProvisioningList(list.id, patch);
       onSaved(updated);
     } catch {
       showToast('Failed to save', 'error');
@@ -379,16 +387,34 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
           </div>
           <div className="pv-edit-modal-field">
             <label className="pv-edit-modal-label" htmlFor="ebm-status">Status</label>
-            <select
-              id="ebm-status"
-              value={form.status}
-              onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-              className="pv-edit-modal-select"
-            >
-              {Object.values(PROVISIONING_STATUS).map(v => (
-                <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
+            {supplierManaged ? (
+              // Supplier-managed boards: status flows from the
+              // supplier flow + receive events, not from a manual
+              // dropdown. Render the current value as a locked chip
+              // so the chief can see it but can't overwrite it
+              // (overrides would just get clobbered the next time a
+              // line moves anyway). The hint line points to where
+              // the lifecycle actually advances.
+              <>
+                <div className="pv-edit-modal-input pv-edit-modal-readonly" aria-readonly="true">
+                  {(form.status || 'draft').replace(/_/g, ' ')}
+                </div>
+                <p className="pv-edit-modal-hint">
+                  Managed by the supplier flow — advances as items move through quote / confirm / receive.
+                </p>
+              </>
+            ) : (
+              <select
+                id="ebm-status"
+                value={form.status}
+                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                className="pv-edit-modal-select"
+              >
+                {Object.values(PROVISIONING_STATUS).map(v => (
+                  <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 
@@ -4546,6 +4572,12 @@ const ProvisioningBoardDetail = () => {
       {showEditModal && (
         <EditBoardModal
           list={list}
+          // A board with any linked supplier order is supplier-managed:
+          // the status flows from the supplier flow (sent → quoted →
+          // confirmed → partially_delivered → delivered) plus from
+          // receive events, not from a manual dropdown. Pass the flag
+          // through so the modal can lock the field and explain why.
+          supplierManaged={supplierOrders.length > 0}
           onSaved={(updated) => { setList(prev => ({ ...prev, ...updated })); setShowEditModal(false); showToast('Board saved', 'success'); }}
           onClose={() => setShowEditModal(false)}
         />
