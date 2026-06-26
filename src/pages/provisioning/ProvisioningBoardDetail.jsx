@@ -2605,17 +2605,21 @@ const ProvisioningBoardDetail = () => {
                 >
                   <Icon name="LayoutGrid" style={{ width: 13, height: 13 }} /> Add from…
                 </button>
-                {/* Generates a real PDF client-side (jsPDF) and opens
-                    it in a new tab via blob URL. Earlier this fired
-                    window.print() and pushed the user through the
-                    browser's print dialog — no orientation control,
-                    no proper preview, no "save as PDF" without
-                    extra clicks. Opening the rendered PDF directly
-                    lets the chief use the browser's PDF viewer for
-                    save / print / orientation. */}
+                {/* Captures the rendered board with html2canvas and
+                    embeds the resulting tall image into a paginated
+                    jsPDF, then opens the PDF in a new tab via a
+                    blob URL. The chief gets the editorial page they
+                    see on screen — typography, chips, spacing —
+                    inside a real PDF viewer with proper save /
+                    print / orientation controls (the browser's
+                    print dialog hides orientation behind "More
+                    settings", which is what kicked this off). */}
                 <button
                   type="button"
-                  onClick={() => openBoardPdf({ list, items, trip })}
+                  onClick={() => openBoardPdf().catch((err) => {
+                    console.error('[BoardPdf] export failed:', err);
+                    window.alert('Could not generate the PDF. Try again, or check the browser console.');
+                  })}
                   className="cargo-ribbon-btn"
                   title="Open a PDF of the board in a new tab"
                 >
