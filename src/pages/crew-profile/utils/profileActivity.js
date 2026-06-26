@@ -36,13 +36,12 @@ const kitEventTitle = (k) => {
 
 export const fetchProfileActivity = async (userId) => {
   if (!userId) return [];
-  const [statusRes, docsRes, kitRes, horRes, bankRes, pdRes] = await Promise.all([
+  const [statusRes, docsRes, kitRes, horRes, profEvRes] = await Promise.all([
     supabase.from('crew_status_history').select('id, new_status, old_status, changed_at, changed_by_name, notes').eq('user_id', userId),
     supabase.from('personal_documents').select('id, doc_type, details, created_at, created_by').eq('user_id', userId),
     supabase.from('crew_kit_events').select('id, action, detail, actor_name, created_at').eq('user_id', userId),
     supabase.from('hor_month_status').select('period_year, period_month, submitted_at, submit_signed_name, confirmed_at, approve_signed_name').eq('subject_user_id', userId),
-    supabase.from('crew_banking').select('updated_at, last_edited_by_name').eq('user_id', userId).maybeSingle(),
-    supabase.from('crew_personal_details').select('updated_at').eq('user_id', userId).maybeSingle(),
+    supabase.from('crew_profile_events').select('id, area, label, old_value, new_value, actor_name, created_at').eq('user_id', userId),
   ]);
 
   const events = [];
@@ -73,8 +72,16 @@ export const fetchProfileActivity = async (userId) => {
     if (h.confirmed_at) events.push({ id: `hor-c-${h.period_year}-${h.period_month}`, at: h.confirmed_at, category: 'compliance', title: `Hours of Rest approved — ${m}`, detail: '', actor: h.approve_signed_name || '' });
   });
 
-  if (bankRes.data?.updated_at) events.push({ id: 'bank', at: bankRes.data.updated_at, category: 'banking', title: 'Banking details updated', detail: '', actor: bankRes.data.last_edited_by_name || '' });
-  if (pdRes.data?.updated_at) events.push({ id: 'pd', at: pdRes.data.updated_at, category: 'profile', title: 'Personal details updated', detail: '', actor: '' });
+  (profEvRes.data || []).forEach((p) => {
+    const hasValues = p.old_value != null || p.new_value != null;
+    events.push({
+      id: `pe-${p.id}`, at: p.created_at,
+      category: p.area === 'banking' ? 'banking' : 'profile',
+      title: hasValues ? `${p.label} changed` : `${p.label} updated`,
+      detail: hasValues ? `“${p.old_value || '—'}” → “${p.new_value || '—'}”` : '',
+      actor: p.actor_name || '',
+    });
+  });
 
   // Resolve actor names for events that only carry an id (documents).
   const ids = [...new Set(events.map((e) => e._actorId).filter(Boolean))];
