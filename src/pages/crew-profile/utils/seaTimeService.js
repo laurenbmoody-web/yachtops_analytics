@@ -224,6 +224,21 @@ export const addManualEntries = async (tenantId, userId, { period, vessel, note,
   return data?.length || 0;
 };
 
+/**
+ * Auto-log: materialise onboard-service days for the crew's current vessel from
+ * the management-owned employment record (authority dates, not crew self-entry).
+ * Idempotent server-side — safe to call on every load. Returns
+ * { inserted, has_start_date, period_from, period_to, reason? }.
+ */
+export const syncFromVessel = async (tenantId, userId) => {
+  if (!tenantId || !userId) return { inserted: 0, has_start_date: false };
+  const { data, error } = await supabase?.rpc('sync_sea_service_from_vessel', {
+    p_tenant_id: tenantId, p_user_id: userId
+  });
+  if (error) throw error;
+  return data || { inserted: 0, has_start_date: false };
+};
+
 /** Update a single entry (crew edits to own unlocked draft, or command). */
 export const updateEntry = async (id, updates) => {
   const patch = {};
@@ -289,6 +304,7 @@ export default {
   getMonthCalendarData,
   getProgressSummary,
   addManualEntries,
+  syncFromVessel,
   updateEntry,
   deleteEntry,
   submitEntries,

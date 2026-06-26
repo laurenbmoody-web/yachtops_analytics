@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabase';
-import { fetchEntriesForUser, addManualEntries, submitEntries, signEntries } from '../utils/seaTimeService';
+import { fetchEntriesForUser, addManualEntries, submitEntries, signEntries, syncFromVessel } from '../utils/seaTimeService';
 import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import SeaServiceCalendar from './SeaServiceCalendar';
 import { SHOW_SIGNOFF } from '../../../seatime/signoffFlag';
@@ -217,7 +217,22 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       console.error('sea-time live load failed', e);
     }
   };
-  useEffect(() => { loadLive(); /* eslint-disable-next-line */ }, [tenantId, userId]);
+  // Auto-log: materialise onboard days from the vessel's employment record, then
+  // load. Idempotent server-side, so it's safe to run on every mount — the crew
+  // never reconstruct dates by hand. If there's no authority-set join date yet,
+  // syncInfo.has_start_date is false and we prompt for COMMAND to set it.
+  const [syncInfo, setSyncInfo] = useState(null);
+  useEffect(() => {
+    if (!tenantId || !userId) return;
+    let cancelled = false;
+    (async () => {
+      try { const r = await syncFromVessel(tenantId, userId); if (!cancelled) setSyncInfo(r); }
+      catch (e) { console.warn('[seatime] auto-log sync failed', e); }
+      if (!cancelled) await loadLive();
+    })();
+    return () => { cancelled = true; };
+    /* eslint-disable-next-line */
+  }, [tenantId, userId]);
 
   // Held certificates derive from the crew member's CoC documents (Documents tab):
   // a `coc` document's `grade` maps to a ladder cert, and the document is linked.
@@ -711,7 +726,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           </div>
         )}
         <div style={{ padding: '8px 18px 0', display: logView === 'list' ? 'block' : 'none' }}>
-          {shown.length === 0 && <div className="std-foot">No sea service logged yet — use “Log sea time”.</div>}
+          {shown.length === 0 && (
+            syncInfo && syncInfo.has_start_date === false
+              ? <div className="std-foot">Your sea service will populate automatically once your <b>join date is confirmed by command</b> — it’s taken from your employment record, not entered by hand. You can still log a period manually with “Log sea time”.</div>
+              : <div className="std-foot">No sea service logged yet — it auto-logs from your current vessel, or use “Log sea time”.</div>
+          )}
           {(() => {
             const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             const groups = [];
