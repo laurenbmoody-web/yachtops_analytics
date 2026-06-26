@@ -3152,6 +3152,14 @@ const canEdit = (() => {
             {/* Top Summary — editorial KPI tiles (match the rota rest-log strip
                 + the approved hybrid mockup). */}
             <div className="cp-kpis">
+              <div className={`cp-kpi${monthTone ? ` cp-kpi-${monthTone}` : ''}`}>
+                <div className="cp-kpi-n">{monthCompliantPct}%</div>
+                <div className="cp-kpi-l">Month compliant</div>
+              </div>
+              <div className={`cp-kpi ${breachDayCount > 0 ? 'cp-kpi-red' : 'cp-kpi-ink'}`}>
+                <div className="cp-kpi-n">{breachDayCount}</div>
+                <div className="cp-kpi-l">Breach days</div>
+              </div>
               <div className={`cp-kpi${dailyTone ? ` cp-kpi-${dailyTone}` : ''}`}>
                 <div className="cp-kpi-n">{last24HoursRest}h</div>
                 <div className="cp-kpi-l">Last 24h rest</div>
@@ -3163,14 +3171,6 @@ const canEdit = (() => {
               <div className={`cp-kpi${stretchTone ? ` cp-kpi-${stretchTone}` : ''}`}>
                 <div className="cp-kpi-n">{stretchDisplay}h</div>
                 <div className="cp-kpi-l">Longest on-duty</div>
-              </div>
-              <div className={`cp-kpi${monthTone ? ` cp-kpi-${monthTone}` : ''}`}>
-                <div className="cp-kpi-n">{monthCompliantPct}%</div>
-                <div className="cp-kpi-l">Month compliant</div>
-              </div>
-              <div className={`cp-kpi ${breachDayCount > 0 ? 'cp-kpi-red' : 'cp-kpi-ink'}`}>
-                <div className="cp-kpi-n">{breachDayCount}</div>
-                <div className="cp-kpi-l">Breach days</div>
               </div>
             </div>
 
@@ -3285,7 +3285,7 @@ const canEdit = (() => {
             <div className="cp-flatcard p-6 flex flex-col">
               <div className="cp-section-head">
                 <span className="cp-section-kicker">Compliance</span>
-                <h3>Breaches</h3>
+                <h3><em>Breaches</em></h3>
               </div>
               {breaches?.length > 0 ? (
                 <ul className="cp-brlist">
