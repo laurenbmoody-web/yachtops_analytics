@@ -152,6 +152,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [serviceFilter, setServiceFilter] = useState('all');
   const [logView, setLogView] = useState('list');
   const [ledgerScope, setLedgerScope] = useState('all'); // 'all' | 'cargo' (Cargo-tracked only)
+  const [ledgerYear, setLedgerYear] = useState(null);    // selected year in the list view (null = latest)
   const [verifier, setVerifier] = useState('nautilus');
   const signatory = 'master'; // self-attestation is never permitted (MSN 1858)
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -873,9 +874,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   );
 
   // ── logged-service ledger (part of the Countdown page) ──
+  const yearOf = (e) => (e.from ? +String(e.from).slice(0, 4) : null);
   const LedgerTable = () => {
     const scoped = ledgerScope === 'cargo' ? entries.filter(e => cargoVesselIds.has(e.vesselId)) : entries;
-    const shown = scoped.filter(e => serviceFilter === 'all' || e.type === serviceFilter);
+    const typed = scoped.filter(e => serviceFilter === 'all' || e.type === serviceFilter);
+    // Split the logged service by year, newest first, navigated like the calendar.
+    const years = [...new Set(typed.map(yearOf).filter(Boolean))].sort((a, b) => a - b);
+    const activeYear = (ledgerYear && years.includes(ledgerYear)) ? ledgerYear : (years[years.length - 1] || null);
+    const yearIdx = years.indexOf(activeYear);
+    const shown = activeYear ? typed.filter(e => yearOf(e) === activeYear) : typed;
+    const yearDays = shown.filter(e => !e.excluded).reduce((s, e) => s + (e.days || 0), 0);
     const excludedCount = scoped.filter(e => e.excluded).length;
     const offCargoDays = entries.filter(e => !e.excluded && !cargoVesselIds.has(e.vesselId)).reduce((s, e) => s + (e.days || 0), 0);
     return (
@@ -901,6 +909,24 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           </div>
         )}
         <div style={{ padding: '8px 18px 0', display: logView === 'list' ? 'block' : 'none' }}>
+          {years.length > 0 && (
+            <div className="std-flex std-ac std-between" style={{ padding: '6px 0 10px', borderBottom: '1px solid #F0F1F5', marginBottom: 8 }}>
+              <div className="std-flex std-ac" style={{ gap: 8 }}>
+                <button type="button" aria-label="Previous year" disabled={yearIdx <= 0}
+                  onClick={() => setLedgerYear(years[yearIdx - 1])}
+                  style={{ border: '1px solid #ECEAE3', background: '#fff', borderRadius: 8, width: 28, height: 28, cursor: yearIdx <= 0 ? 'default' : 'pointer', opacity: yearIdx <= 0 ? 0.4 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="ChevronLeft" size={16} />
+                </button>
+                <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 20, color: '#1C1B3A', minWidth: 54, textAlign: 'center' }}>{activeYear}</span>
+                <button type="button" aria-label="Next year" disabled={yearIdx >= years.length - 1}
+                  onClick={() => setLedgerYear(years[yearIdx + 1])}
+                  style={{ border: '1px solid #ECEAE3', background: '#fff', borderRadius: 8, width: 28, height: 28, cursor: yearIdx >= years.length - 1 ? 'default' : 'pointer', opacity: yearIdx >= years.length - 1 ? 0.4 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="ChevronRight" size={16} />
+                </button>
+              </div>
+              <span className="std-vs">{yearDays} {yearDays === 1 ? 'day' : 'days'} in {activeYear}</span>
+            </div>
+          )}
           {shown.length === 0 && (
             syncInfo && syncInfo.has_start_date === false
               ? <div className="std-foot">Your sea service will populate automatically once your <b>join date is confirmed by command</b> — it’s taken from your employment record, not entered by hand. You can still log a period manually with “Log sea time”.</div>
@@ -942,9 +968,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                           : e.vstatus === 'rejected' ? VLOG_CHIP.rejected
                             : !isCargo ? { label: 'Add testimonial', color: '#4A5263' }
                               : null;
-                  const rowAction = !SHOW_SIGNOFF ? null
-                    : !isExcluded && e.testimonialPath ? () => viewTestimonial(e.testimonialPath)
-                      : (vlog ? () => jumpToVerify(e.vesselId) : null);
+                  // The whole row opens its attached testimonial when there is one;
+                  // (sign-off jump only applies in the parked sign-off mode).
+                  const rowAction = !isExcluded && e.testimonialPath ? () => viewTestimonial(e.testimonialPath)
+                    : (SHOW_SIGNOFF && vlog ? () => jumpToVerify(e.vesselId) : null);
                   return (
                     <div className="std-arow" key={e.id}
                       role={rowAction ? 'button' : undefined} tabIndex={rowAction ? 0 : undefined}
@@ -964,13 +991,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         <div className="std-avs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo} · {detail}</div>
                       </div>
                       <div className="std-aright">
-                        {/* Attached testimonial — for an off-Cargo entry the crew uploaded
-                            their own signed paper, viewable here on demand. */}
+                        {/* The row itself opens the attached testimonial — a small
+                            hint when one is present, no separate link. */}
                         {!isExcluded && e.testimonialPath && (
-                          <button type="button" onClick={(ev) => { ev.stopPropagation(); viewTestimonial(e.testimonialPath); }}
-                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600, color: '#C65A1A', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                            <Icon name="FileText" size={13} /> View testimonial
-                          </button>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#C65A1A', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <Icon name="FileText" size={13} /> Testimonial
+                          </span>
                         )}
                         {/* Status — a quiet dot + word; the row itself is the click target
                             (opens the testimonial when signed, else jumps to Step 03). */}
