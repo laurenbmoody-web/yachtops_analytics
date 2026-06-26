@@ -27,7 +27,9 @@ const SUPABASE_URL              = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 const FROM = 'Cargo Feedback <feedback@cargotechnology.co.uk>';
-const OWNER_EMAIL = 'lauren.moody@hotmail.co.uk';
+// Where feedback emails are delivered. Distinct from the in-app inbox owner
+// gate (RLS / inbox page), which keys on the viewer's login email.
+const RECIPIENT_EMAIL = 'feedback@cargotechnology.co.uk';
 const AUDIO_BUCKET = 'feedback-audio';
 
 const NAVY = '#1C1B3A';
@@ -270,7 +272,7 @@ Deno.serve(async (req: Request) => {
     const subject = `Feedback: ${subjectBits}${message.length > 60 ? '…' : ''}`;
     const payload: Record<string, unknown> = {
       from: FROM,
-      to: [OWNER_EMAIL],
+      to: [RECIPIENT_EMAIL],
       subject,
       html: renderEmail({
         message, kind, filerName, filerEmail,
