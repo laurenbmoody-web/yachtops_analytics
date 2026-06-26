@@ -336,6 +336,27 @@ export const LEGACY_GRADE_CONVERSION = {
         topUp: 'Courses + ENG1 only (Y1 is the highest legacy grade).' }
 };
 
+// Grade strings (documentTypes.js) that denote a LEGACY MSN 1859 Y-grade CoC,
+// mapped to their conversion key — so when a crew member records/uploads an old
+// certificate we can nudge them to convert it to the in-force SV CoC.
+export const LEGACY_GRADE_STRINGS = {
+  'Engineering — SV / Y4': 'Y4',
+  'Engineering — Y3': 'Y3',
+  'Engineering — Y2': 'Y2',
+  'Engineering — Y1': 'Y1',
+  'Y4 / OOW (Yachts)': 'Y4',
+  'Y3 / Master <500GT': 'Y3',
+  'Y2 / Master <3000GT': 'Y2',
+  'Y1 / Master <3000GT (>500GT)': 'Y1'
+};
+
+/** Conversion info for a held CoC `grade` string if it's a legacy Y-grade, else
+ *  null. Returns { key, to, code, topUp, verified } for the nudge. */
+export const legacyConversionForGrade = (grade) => {
+  const key = LEGACY_GRADE_STRINGS[grade];
+  return key ? { key, ...LEGACY_GRADE_CONVERSION[key] } : null;
+};
+
 // ── CoC revalidation — ONE universal procedure for every CoC (MSN 1861 Amd 1).
 // Cargo treats this as a shared "stay-current" node, not a per-rung requirement.
 // Three alternative service branches, OR 30 months in an acceptable occupation

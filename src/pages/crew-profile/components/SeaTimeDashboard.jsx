@@ -11,7 +11,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
@@ -329,7 +329,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         if (!onFile[d.doc_type]) onFile[d.doc_type] = { fileUrl: d.file_url, fileName: d.file_name, docId: d.id };
         if (d.doc_type !== 'coc') continue;
         const cid = GRADE_TO_CERT[d.details?.grade];
-        if (cid) held[cid] = { issueDate: d.issue_date, number: d.document_number, fileUrl: d.file_url, fileName: d.file_name, docId: d.id };
+        if (cid) held[cid] = { issueDate: d.issue_date, number: d.document_number, fileUrl: d.file_url, fileName: d.file_name, docId: d.id,
+          // If they recorded an old MSN 1859 Y-grade, remember it so we can nudge
+          // them to convert it to the in-force Small Vessel CoC.
+          legacy: legacyConversionForGrade(d.details?.grade) };
       }
       setHeldCerts(held);
       setDocsOnFile(onFile);
@@ -912,10 +915,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     <div className="nm">{c.label} <span className="ref">{shortMsn(c.msn)}</span>{c.legacyAlias && <span className="stp-alias">{c.legacyAlias}</span>}</div>
                   </div>
                   {h ? (
+                    <>
                     <div className="meta">
                       Held{h.issueDate ? ` · issued ${fmtDate(h.issueDate)}` : ''}{h.number ? ` · ${h.number}` : ''}
                       {h.fileUrl ? <> · <a href={h.fileUrl} target="_blank" rel="noreferrer">View document</a></> : ''}
                     </div>
+                    {h.legacy && (
+                      <div className="stp-convert">
+                        <b>This is a legacy {h.legacy.key} certificate.</b> Since 2023 the yacht-engineer scheme moved to Small Vessel CoCs — under the current system your {h.legacy.key} converts to {h.legacy.to.map(id => CERTIFICATES[id]?.short).filter(Boolean).join(' / ')} (MCA conversion {h.legacy.code}). Typical top-up: {h.legacy.topUp} Confirm the exact requirement with your training provider, then upload your converted CoC here.
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <button className="stp-dradd" type="button"
                       onClick={() => { setHeldOpen(false); onAddCertificate && onAddCertificate(CERT_TO_GRADE[c.id] || c.short); }}>
