@@ -18,15 +18,21 @@ const fmtDay = (d) => {
 };
 const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
 
-// ── Status occupancy calendar (kept, restyled) ───────────────────────────────
+// ── Status month-grid calendar ───────────────────────────────────────────────
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 function MonthCalendar({ periods }) {
-  const today = new Date();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const totalDays = daysInMonth(calYear, calMonth);
+  const firstDow = (new Date(calYear, calMonth, 1).getDay() + 6) % 7; // Monday-based
 
   const prev = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
   const next = () => { if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); } else setCalMonth((m) => m + 1); };
+  const goToday = () => { setCalYear(today.getFullYear()); setCalMonth(today.getMonth()); };
+
+  const cells = [...Array(firstDow).fill(null), ...Array.from({ length: totalDays }, (_, i) => i + 1)];
 
   return (
     <div className="act-cal">
@@ -34,20 +40,26 @@ function MonthCalendar({ periods }) {
         <button type="button" onClick={prev} aria-label="Previous month"><Icon name="ChevronLeft" size={16} /></button>
         <span>{MONTHS[calMonth]} {calYear}</span>
         <button type="button" onClick={next} aria-label="Next month"><Icon name="ChevronRight" size={16} /></button>
+        <button type="button" className="act-cal-today" onClick={goToday}>Today</button>
       </div>
-      <div className="act-cal-row">
-        {Array.from({ length: totalDays }, (_, i) => <div key={i} className="act-cal-num">{i + 1}</div>)}
+      <div className="act-mgrid act-mhead">
+        {WEEKDAYS.map((w) => <div key={w} className="act-mwd">{w}</div>)}
       </div>
-      <div className="act-cal-row">
-        {Array.from({ length: totalDays }, (_, i) => {
-          const day = new Date(calYear, calMonth, i + 1);
+      <div className="act-mgrid">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={`b${i}`} className="act-mcell is-blank" />;
+          const day = new Date(calYear, calMonth, d);
           const stat = getStatusForDay(periods, day);
+          const isToday = day.getTime() === today.getTime();
           return (
             <div
-              key={i}
-              title={`${i + 1} ${MONTHS[calMonth]}: ${stat ? getStatusLabel(stat) : 'No data'}`}
-              className={`act-cal-cell ${day > today ? 'is-future' : ''} ${stat ? getStatusCellClass(stat) : 'act-cal-empty'}`}
-            />
+              key={d}
+              title={`${d} ${MONTHS[calMonth]}: ${stat ? getStatusLabel(stat) : 'No data'}`}
+              className={`act-mcell ${stat ? getStatusCellClass(stat) : 'act-mcell-empty'} ${day > today ? 'is-future' : ''} ${isToday ? 'is-today' : ''}`}
+            >
+              <span className="act-mnum">{d}</span>
+              {stat && <span className="act-mstat">{getStatusLabel(stat)}</span>}
+            </div>
           );
         })}
       </div>
