@@ -143,16 +143,9 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
   const historicIds = findHistoricDocIds(currents);
   const isHistoric = (d) => historicIds.has(d.id);
 
-  // ── Crew readiness — driven by the always-required core documents ─────────
+  // The always-required core documents, used to surface empty required slots
+  // within each category (status itself is shown per-folder on the tiles).
   const coreTypes = coreDocumentTypes();
-  const heldCore = coreTypes.filter((t) => currents.some((d) => d.doc_type === t.id)).length;
-  const readinessPct = coreTypes.length ? Math.round((heldCore / coreTypes.length) * 100) : 100;
-  const missingCoreCount = coreTypes.length - heldCore;
-
-  const flagged = currents.filter((d) => !isHistoric(d)).map((d) => getExpiryStatus(d.expiry_date));
-  const expiredCount = flagged.filter((s) => s.level === 'expired').length;
-  const expiringCount = flagged.filter((s) => s.level === 'red' || s.level === 'amber').length;
-  const attentionCount = expiredCount + expiringCount;
 
   const todayStart = new Date(new Date().toDateString());
 
@@ -461,8 +454,8 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
           <button type="button" className="cd-show-empty" onClick={() => setShowEmpty((v) => !v)}>
             <Icon name={showEmpty ? 'ChevronUp' : 'Plus'} size={13} />
             {showEmpty
-              ? 'Hide empty departments'
-              : `Show ${emptySummaries.length} more ${emptySummaries.length === 1 ? 'department' : 'departments'}`}
+              ? 'Hide empty folders'
+              : `Show ${emptySummaries.length} more ${emptySummaries.length === 1 ? 'folder' : 'folders'}`}
           </button>
         )}
       </>
@@ -506,7 +499,13 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
               onChange={onPickFiles}
               className="hidden"
             />
-            <Button variant="outline" iconName="Sparkles" size="sm" onClick={() => scanInputRef.current?.click()}>
+            <Button
+              variant="outline"
+              iconName="Sparkles"
+              size="sm"
+              onClick={() => scanInputRef.current?.click()}
+              title="Scan several at once — or drag &amp; drop documents anywhere on this tab to auto-fill them."
+            >
               Upload &amp; auto-fill
             </Button>
             <Button iconName="Plus" size="sm" onClick={() => openAdd()}>Add document</Button>
@@ -514,32 +513,10 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         )}
       </div>
 
-      {canEdit && (
-        <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5">
-          <Icon name="UploadCloud" size={13} style={{ color: '#C65A1A' }} />
-          Drag &amp; drop documents anywhere here, or use “Upload &amp; auto-fill”, to scan several at once.
-        </p>
-      )}
-
       {loading ? (
         <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>
       ) : (
         <>
-          {/* Crew readiness — required-document coverage at a glance */}
-          <div className="cd-ready">
-            <span className={`cd-ready-pct ${readinessPct === 100 ? 'is-full' : ''}`}>{readinessPct}%</span>
-            <div className="cd-ready-body">
-              <div className="cd-eyebrow">Crew readiness</div>
-              <div className="cd-ready-t">{heldCore} of {coreTypes.length} required documents held · {missingCoreCount} missing</div>
-              <div className="cd-ready-track"><i style={{ width: `${readinessPct}%` }} /></div>
-            </div>
-            <div className="cd-ready-att">
-              {expiredCount > 0 && <button type="button" className="bad" onClick={() => { setMode('category'); setSelected('__attention'); }}>{expiredCount} expired</button>}
-              {expiringCount > 0 && <button type="button" className="amb" onClick={() => { setMode('category'); setSelected('__attention'); }}>{expiringCount} expiring</button>}
-              {attentionCount === 0 && <span className="ok">All in date</span>}
-            </div>
-          </div>
-
           {/* Controls — view toggle + breadcrumb */}
           <div className="cd-controls">
             <div className="cd-eyebrow">

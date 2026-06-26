@@ -567,7 +567,6 @@ body.crew-profile-editorial {
 
 .crew-profile-page .cp-avatar-col { position: relative; }
 .crew-profile-page .cp-completion-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-.crew-profile-page .cp-complete-note { font-size: 12px; font-weight: 600; color: #5C9B6A; }
 
 /* "What's left to fill in" dropdown, anchored under the % badge. */
 .crew-profile-page .cp-completion-pop {
@@ -610,30 +609,10 @@ body.crew-profile-editorial {
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
 }
 
-/* Crew readiness strip */
-.crew-profile-page .cd-ready {
-  display: flex; align-items: center; gap: 20px;
-  padding: 4px 2px 16px; border-bottom: 1px solid #ECEAE3; margin-bottom: 4px;
-}
-.crew-profile-page .cd-ready-pct {
-  font-family: 'DM Serif Display', Georgia, serif; font-size: 30px; line-height: 1; color: #C65A1A;
-}
-.crew-profile-page .cd-ready-pct.is-full { color: #2E7D52; }
-.crew-profile-page .cd-ready-body { min-width: 0; }
-.crew-profile-page .cd-ready-t { font-size: 13.5px; font-weight: 600; color: #1C1B3A; margin: 4px 0 7px; }
-.crew-profile-page .cd-ready-track { height: 5px; background: #F0F1F5; border-radius: 999px; overflow: hidden; max-width: 280px; }
-.crew-profile-page .cd-ready-track i { display: block; height: 100%; background: #2E7D52; border-radius: 999px; }
-.crew-profile-page .cd-ready-att { margin-left: auto; display: flex; gap: 14px; font-size: 12.5px; font-weight: 600; }
-.crew-profile-page .cd-ready-att button { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; cursor: pointer; }
-.crew-profile-page .cd-ready-att button:hover { text-decoration: underline; }
-.crew-profile-page .cd-ready-att .bad { color: #A32D2D; }
-.crew-profile-page .cd-ready-att .amb { color: #9A6A00; }
-.crew-profile-page .cd-ready-att .ok { color: #2E7D52; }
-
 /* Controls — toggle + breadcrumb */
 .crew-profile-page .cd-controls {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin: 18px 0 10px; flex-wrap: wrap;
+  margin: 4px 0 10px; flex-wrap: wrap;
 }
 .crew-profile-page .cd-crumb {
   display: inline-flex; align-items: center; gap: 4px;
