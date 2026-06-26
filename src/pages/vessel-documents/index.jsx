@@ -50,6 +50,8 @@ export default function VesselDocuments() {
   const [prompt, setPrompt] = useState(null);    // { mode, item }  text/date modal
   const [promptValue, setPromptValue] = useState('');
   const [move, setMove] = useState(null);        // { item, cwd, crumbs, folders } move picker
+  const [crewSort, setCrewSort] = useState('az'); // crew cert organise: az|za|expiry|tenure
+  const [crewDept, setCrewDept] = useState('all'); // crew cert department filter
   const fileRef = useRef(null);
   const seededRef = useRef(null);                // tenant whose empty vault we've already seeded
 
@@ -306,6 +308,69 @@ export default function VesselDocuments() {
     );
   };
 
+  // ── Crew Certification organise/filter ───────────────────────────────────
+  const inCrew = cwd === VIRT_CREW;
+  const crewDepts = inCrew
+    ? Array.from(new Set(items.map((i) => i.dept || '—'))).sort((a, b) => a.localeCompare(b))
+    : [];
+  const crewComparator = (mode) => (a, b) => {
+    const byName = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    if (mode === 'za') return -byName;
+    if (mode === 'expiry') return (a.soonestExpiry || '9999').localeCompare(b.soonestExpiry || '9999') || byName;
+    if (mode === 'tenure') return (a.since || '9999').localeCompare(b.since || '9999') || byName;
+    return byName;
+  };
+  const crewRows = inCrew
+    ? items
+      .filter((i) => crewDept === 'all' || (i.dept || '—') === crewDept)
+      .slice()
+      .sort(crewComparator(crewSort))
+    : [];
+
+  const renderCrewBar = () => (
+    <div className="vd-crewbar">
+      <span className="vd-crewbar-count"><Icon name="Users" size={14} /> {items.length} crew · {crewRows.length} shown</span>
+      <div className="vd-crewbar-controls">
+        <label className="vd-select-wrap">
+          <span>Dept</span>
+          <select className="vd-select" value={crewDept} onChange={(e) => setCrewDept(e.target.value)}>
+            <option value="all">All departments</option>
+            {crewDepts.map((d) => <option key={d} value={d}>{d === '—' ? 'No department' : d}</option>)}
+          </select>
+        </label>
+        <label className="vd-select-wrap">
+          <span>Sort</span>
+          <select className="vd-select" value={crewSort} onChange={(e) => setCrewSort(e.target.value)}>
+            <option value="az">Name A–Z</option>
+            <option value="za">Name Z–A</option>
+            <option value="expiry">Soonest expiry</option>
+            <option value="tenure">Longest standing</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  );
+
+  const renderCrewFolder = (f) => {
+    const sub = [f.role, f.dept].filter(Boolean).join(' · ');
+    const sinceYear = f.since ? new Date(f.since).getFullYear() : null;
+    return (
+      <button type="button" key={f.id} className="vd-idx-row vd-crew-row" onClick={() => setCwd(f.id)}>
+        <span className="vd-idx-fico vd-idx-linked"><Icon name="User" size={17} /></span>
+        <span className="vd-crew-main">
+          <span className="vd-crew-name">{f.name}</span>
+          <span className="vd-crew-sub">{sub || 'No department'}{crewSort === 'tenure' && sinceYear ? ` · since ${sinceYear}` : ''}</span>
+        </span>
+        <span className="vd-idx-lead" />
+        <span className="vd-idx-rt">
+          {f.expiredCount > 0 && <span className="vd-pill" style={{ background: '#FBE4DC', color: '#9A2B12' }}>{f.expiredCount} expired</span>}
+          <span className="vd-idx-meta">{f.meta}</span>
+        </span>
+        <Icon name="ChevronRight" size={15} className="vd-idx-go" />
+      </button>
+    );
+  };
+
   return (
     <>
       <Header />
@@ -322,7 +387,7 @@ export default function VesselDocuments() {
               <span className="bar" />
               <span className="muted">Command &amp; Chief</span>
             </p>
-            <h1 className="editorial-greeting">Ship&apos;s papers<span className="period">.</span></h1>
+            <h1 className="editorial-greeting">Ship&apos;s, <em>papers</em><span className="period">.</span></h1>
           </div>
 
           {/* Breadcrumb + toolbar */}
@@ -371,6 +436,15 @@ export default function VesselDocuments() {
                     {shelf.rootFiles.map((f, i) => renderFile(f, i + 1))}
                   </div>
                 )}
+              </>
+            ) : inCrew && items.length > 0 ? (
+              <>
+                {renderCrewBar()}
+                <div className="vd-idx">
+                  {crewRows.length === 0
+                    ? <div className="vd-empty-inline">No crew in this department.</div>
+                    : crewRows.map(renderCrewFolder)}
+                </div>
               </>
             ) : items.length === 0 ? (
               <div className="vd-empty">
