@@ -307,6 +307,34 @@ export const signEntries = async (tenantId, entryIds, { note, sigPath, signedNam
   return data;
 };
 
+/**
+ * Exact count of leave/absence days in [fromIso, toIso] from crew_status_history
+ * — the authoritative source the status chip writes to. A day counts as leave if
+ * the crew member's status in effect that day is anything other than 'active'
+ * (matching the auto-log's is_leave rule). Used to fill the testimonial's
+ * leave/absence total precisely, rather than the span-minus-days-aboard proxy.
+ * Returns null on failure so callers can fall back.
+ */
+export const fetchLeaveDaysInRange = async (userId, fromIso, toIso) => {
+  if (!userId || !fromIso || !toIso) return null;
+  const { data, error } = await supabase
+    .from('crew_status_history')
+    .select('new_status, changed_at')
+    .eq('user_id', userId)
+    .order('changed_at', { ascending: true });
+  if (error || !data) return null;
+  const changes = data.map(r => ({ d: String(r.changed_at).slice(0, 10), s: r.new_status }));
+  const end = new Date(toIso + 'T00:00:00');
+  let leave = 0;
+  for (let t = new Date(fromIso + 'T00:00:00'); t <= end; t.setDate(t.getDate() + 1)) {
+    const day = t.toISOString().slice(0, 10);
+    let status = 'active';
+    for (const c of changes) { if (c.d <= day) status = c.s; else break; }
+    if (status !== 'active') leave++;
+  }
+  return leave;
+};
+
 /** Command rejects pending entries with a reason. */
 export const rejectEntries = async (tenantId, entryIds, reason) => {
   const { data, error } = await supabase?.rpc('sea_time_reject_entries', {
@@ -329,5 +357,6 @@ export default {
   deleteEntry,
   submitEntries,
   signEntries,
-  rejectEntries
+  rejectEntries,
+  fetchLeaveDaysInRange
 };

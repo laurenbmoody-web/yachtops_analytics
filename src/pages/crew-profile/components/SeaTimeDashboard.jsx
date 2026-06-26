@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabase';
-import { fetchEntriesForUser, fetchEntriesAcrossVessels, addManualEntries, submitEntries, signEntries, syncFromVessel } from '../utils/seaTimeService';
+import { fetchEntriesForUser, fetchEntriesAcrossVessels, addManualEntries, submitEntries, signEntries, syncFromVessel, fetchLeaveDaysInRange } from '../utils/seaTimeService';
 import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import SeaServiceCalendar from './SeaServiceCalendar';
 import { SHOW_SIGNOFF } from '../../../seatime/signoffFlag';
@@ -747,7 +747,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         },
         service: {
           capacity, from, to, totalDaysOnboard,
-          leaveDays: Math.max(0, spanDays - totalDaysOnboard),
+          // Exact leave/absence from crew_status_history; fall back to the
+          // span-minus-days-aboard proxy if the lookup is unavailable.
+          leaveDays: (await fetchLeaveDaysInRange(userId, from, to)) ?? Math.max(0, spanDays - totalDaysOnboard),
           actualSea: b.seagoing, standby: b.standby, yard: b.yard, watchkeeping: b.watchkeeping,
         },
         standbyPassages,
@@ -1245,6 +1247,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       {serviceFilter !== 'all' && (
         <div className="std-filternote">
           Showing <b>{TYPE_META[serviceFilter].label}</b> only · <button type="button" onClick={() => setServiceFilter('all')}>Show all</button>
+        </div>
+      )}
+      {syncInfo?.excluded_leave_days > 0 && (
+        <div className="std-filternote">
+          <b>{syncInfo.excluded_leave_days} {syncInfo.excluded_leave_days === 1 ? 'day' : 'days'}</b> excluded as leave / rotational leave — your status showed you weren’t aboard, so {syncInfo.excluded_leave_days === 1 ? 'it doesn’t' : 'they don’t'} count toward your CoC. {syncInfo.excluded_leave_days === 1 ? 'It’s' : 'They’re'} still reported as leave on your testimonial.
         </div>
       )}
       {prior.onboard > 0 && (
