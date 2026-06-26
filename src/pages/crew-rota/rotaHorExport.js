@@ -276,7 +276,6 @@ function drawSummaryPage(doc, members, days, meta, logo) {
     : (meta.horTemplate.standardRef || STANDARD_REF);
   doc.text(`${sumRef}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
   doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = a day with an MLC/STCW non-conformity. The four right-hand columns count breach-days per rule; each day’s exact rule is listed in that seafarer’s record.', 40, 84);
-  doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
 
   const head = [[
@@ -428,7 +427,6 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     ? `${meta.horTemplate.standardRef || STANDARD_REF}  ·  ${meta.horTemplate.formReference}`
     : (meta.horTemplate.standardRef || STANDARD_REF);
   doc.text(`${recRef}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
-  doc.text(`Generated ${meta.generatedAt}`, pageW - M, 46, { align: 'right' });
 
   // ── Identity block (two columns) ──
   const colL = M;
@@ -676,6 +674,7 @@ async function renderRestLogDoc({ rows, days, meta, windowShifts = [], breachRea
       `${meta.vesselName || 'Vessel'} · ${meta.periodLabel} · Page ${i} of ${total}`,
       pageW / 2, pageH - 16, { align: 'center' },
     );
+    doc.text(`Generated ${meta.generatedAt}`, pageW - 40, pageH - 16, { align: 'right' });
   }
 
   return doc;
@@ -717,6 +716,7 @@ export async function buildSeafarerHorPDF({ member, days, meta, windowShifts = [
       `${meta.vesselName || 'Vessel'} · ${member.name} · ${meta.periodLabel} · Page ${i} of ${total}`,
       pageW / 2, pageH - 16, { align: 'center' },
     );
+    doc.text(`Generated ${meta.generatedAt}`, pageW - 36, pageH - 16, { align: 'right' });
   }
   return { blob: doc.output('blob'), filename: `${seafarerFileBase(meta, member)}.pdf` };
 }
