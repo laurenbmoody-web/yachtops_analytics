@@ -1208,6 +1208,29 @@ const ProvisioningBoardDetail = () => {
     return () => { cancelled = true; };
   }, [activeTab, list?.id]);
 
+  // Realtime: refresh the board itself when the receive-driven status
+  // trigger flips the list to partially_delivered / delivered_with_
+  // discrepancies / delivered. Without this, the chip in the header
+  // sat on the pre-receive status until a full page reload — the
+  // trigger had moved on, the UI hadn't.
+  useEffect(() => {
+    if (!list?.id) return;
+    const channel = supabase
+      .channel(`provisioning-list-${list.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'provisioning_lists',
+        filter: `id=eq.${list.id}`,
+      }, (payload) => {
+        if (payload.new) {
+          setList((prev) => (prev ? { ...prev, ...payload.new } : prev));
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [list?.id]);
+
   // Realtime: refresh supplier orders when supplier confirms on public page.
   // Requires supplier_orders to be added to supabase_realtime publication.
   useEffect(() => {
