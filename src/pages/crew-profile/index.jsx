@@ -1480,22 +1480,40 @@ const canEdit = (() => {
               placeholder="—"
             />
           </Field>
-          <Field label="Pronouns">
-            {isEditing ? (
-              <select
-                className="cp-inline-select"
-                value={formData?.pronouns || ''}
-                onChange={(e) => handleInputChange('pronouns', e?.target?.value)}
-              >
-                <option value="">—</option>
-                {['she/her', 'he/him', 'they/them', 'she/they', 'he/they', 'Prefer not to say'].map((o) => (
-                  <option key={o} value={o}>{o}</option>
-                ))}
-              </select>
-            ) : (
-              <div className={`cp-static${formData?.pronouns ? '' : ' cp-empty'}`}>{formData?.pronouns || '—'}</div>
-            )}
-          </Field>
+          <div className="cp-field-full" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Sex">
+              {isEditing ? (
+                <select
+                  className="cp-inline-select"
+                  value={formData?.sex || ''}
+                  onChange={(e) => handleInputChange('sex', e?.target?.value)}
+                >
+                  <option value="">—</option>
+                  {['Female', 'Male', 'Prefer not to say'].map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className={`cp-static${formData?.sex ? '' : ' cp-empty'}`}>{formData?.sex || '—'}</div>
+              )}
+            </Field>
+            <Field label="Pronouns">
+              {isEditing ? (
+                <select
+                  className="cp-inline-select"
+                  value={formData?.pronouns || ''}
+                  onChange={(e) => handleInputChange('pronouns', e?.target?.value)}
+                >
+                  <option value="">—</option>
+                  {['she/her', 'he/him', 'they/them', 'she/they', 'he/they', 'Prefer not to say'].map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className={`cp-static${formData?.pronouns ? '' : ' cp-empty'}`}>{formData?.pronouns || '—'}</div>
+              )}
+            </Field>
+          </div>
           <Field label="Date of Birth">
             {isEditing ? (
               <EditorialDatePicker
@@ -3921,6 +3939,7 @@ const canEdit = (() => {
             currentUserId={session?.user?.id}
             currentUserName={myProfile?.full_name || ''}
             crewName={crewMember?.fullName}
+            crewSex={formData?.sex}
             vesselName={empForm?.vessel_name}
             canManage={isVesselAdmin || currentUserPermissionTier === 'COMMAND'}
             isOwnProfile={isOwnProfile}

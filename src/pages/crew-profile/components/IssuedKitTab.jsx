@@ -75,7 +75,10 @@ const suggestSize = (name, sizes) => {
   return k && sizes?.[k] ? sizes[k] : '';
 };
 
-const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewName, vesselName, canManage, isOwnProfile }) => {
+// The crew member's recorded sex defaults the sizing profile.
+const sexToFit = (sex) => (sex === 'Female' ? 'womens' : sex === 'Male' ? 'mens' : '');
+
+const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewName, crewSex, vesselName, canManage, isOwnProfile }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -105,6 +108,8 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   // uniform-size inputs and the issue/return controls together.
   const [editMode, setEditMode] = useState(false);
   const canEditSizes = canManage || isOwnProfile;
+  const defaultFit = sexToFit(crewSex);
+  const effectiveFit = sizes.fit || defaultFit;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -250,7 +255,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
     catch { showToast('Update failed', 'error'); }
   };
 
-  const enterEdit = () => { setSizesForm(sizes); setEditMode(true); };
+  const enterEdit = () => { setSizesForm({ ...sizes, fit: sizes.fit || defaultFit }); setEditMode(true); };
   const exitEdit = async () => {
     const dirty = UNIFORM_SIZE_KEYS.some((k) => (sizesForm[k] || '') !== (sizes[k] || ''));
     if (dirty) {
@@ -377,12 +382,12 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
           {/* Uniform sizes (moved from Preferences) */}
           {(() => {
             const editing = editMode && canEditSizes;
-            const filled = SIZE_FIELDS.filter((f) => fieldVisible(f, sizes.fit) && sizes[f.key]);
+            const filled = SIZE_FIELDS.filter((f) => fieldVisible(f, effectiveFit) && sizes[f.key]);
             return (
               <div className="cp-group kit-sizes">
                 <div className="cp-group-head">
                   <span className="dia">◆</span><span className="t">Uniform sizes</span>
-                  {!editing && sizes.fit && <span className="kit-fit-chip">{fitLabel(sizes.fit)}</span>}
+                  {!editing && effectiveFit && <span className="kit-fit-chip">{fitLabel(effectiveFit)}</span>}
                   <span className="line" />
                 </div>
                 {editing ? (
