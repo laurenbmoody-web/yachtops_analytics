@@ -5,7 +5,7 @@
 // that master is still aboard / on Cargo) so the dashboard can derive the
 // stamp/virtual/external route and the change-of-command split from live data.
 
-const SOURCE_MAP = { ais_proposed: 'ais', rota_derived: 'rota', vessel_auto: 'rota', manual: 'manual' };
+const SOURCE_MAP = { ais_proposed: 'ais', rota_derived: 'rota', vessel_auto: 'vessel', manual: 'manual' };
 
 const fmtDM = (iso) => { const d = new Date(iso); return String(d.getDate()).padStart(2, '0') + ' ' + d.toLocaleString('en-GB', { month: 'short' }); };
 const nextDay = (iso) => { const d = new Date(iso); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; };

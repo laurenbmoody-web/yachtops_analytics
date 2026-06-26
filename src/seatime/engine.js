@@ -46,7 +46,8 @@ export const TYPE_META = {
 export const SOURCE_META = {
   manual: { label: 'MANUAL', color: '#6B7280', bg: '#F0F1F4' },
   ais:    { label: 'AIS',    color: '#3A5A74', bg: '#EDF1F5' },
-  rota:   { label: 'ROTA',   color: '#4F5D8A', bg: '#ECEEF6' }
+  rota:   { label: 'ROTA',   color: '#4F5D8A', bg: '#ECEEF6' },
+  vessel: { label: 'AUTO',   color: '#3F7A52', bg: '#EFF6F1' }
 };
 
 // ── Verifier profiles — config-driven; a 4th is data ONLY (no engine change) ─
