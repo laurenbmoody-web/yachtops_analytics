@@ -35,14 +35,48 @@ const SIZE_FIELDS = [
   { key: 'dress', label: 'Dress', ph: 'e.g. 10', fits: ['womens'] },
   { key: 'jacket', label: 'Jacket / Outer', ph: 'XS–XXL', fits: 'all' },
   { key: 'fleece', label: 'Fleece / Mid-layer', ph: 'XS–XXL', fits: 'all' },
+  { key: 'baseLayer', label: 'Base layer / Thermals', ph: 'XS–XXL', fits: 'all' },
   { key: 'belt', label: 'Belt', ph: 'waist / S–L', fits: 'all' },
   { key: 'shoe', label: 'Shoe / Deck shoe', ph: 'UK 9 / EU 43', fits: 'all' },
+  { key: 'socks', label: 'Socks', ph: 'S–XL / shoe size', fits: 'all' },
   { key: 'cap', label: 'Cap / Hat', ph: 'S/M/L or one-size', fits: 'all' },
   { key: 'gloves', label: 'Gloves', ph: 'S–XL', fits: 'all' },
   { key: 'foulies', label: 'Foul-weather gear', ph: 'S–XL', fits: 'all' },
+  { key: 'boardshorts', label: 'Boardshorts', ph: 'waist / S–XL', fits: 'all' },
+  { key: 'rashVest', label: 'Rash vest', ph: 'XS–XXL', fits: 'all' },
 ];
 const fieldVisible = (f, fit) => f.fits === 'all' || f.fits.includes(fit || 'unisex');
 const fitLabel = (id) => FIT_OPTIONS.find((o) => o.id === id)?.label;
+
+// Map an item's name to a recorded size, so issuing "Crew polo" pre-fills the
+// crew member's top size. First keyword match wins.
+const SIZE_KEYWORDS = [
+  [/rash\s*vest|rashie|rash\s*guard/i, 'rashVest'],
+  [/board\s*short/i, 'boardshorts'],
+  [/skort/i, 'skort'],
+  [/dress/i, 'dress'],
+  [/short/i, 'shorts'],
+  [/trouser|pant|chino|cargo/i, 'trousers'],
+  [/polo|shirt|t-?shirt|tee|top|blouse/i, 'top'],
+  [/jacket|coat|softshell|outer|gilet/i, 'jacket'],
+  [/fleece|jumper|sweater|sweat|mid-?layer|hoodie/i, 'fleece'],
+  [/thermal|base\s*layer/i, 'baseLayer'],
+  [/foul|wet\s*weather|oilskin|waterproof/i, 'foulies'],
+  [/belt/i, 'belt'],
+  [/sock/i, 'socks'],
+  [/glove/i, 'gloves'],
+  [/cap|hat|beanie|visor/i, 'cap'],
+  [/shoe|boot|deck\s*shoe|trainer|sandal|flip/i, 'shoe'],
+];
+const sizeKeyFor = (name) => {
+  if (!name) return '';
+  for (const [re, key] of SIZE_KEYWORDS) if (re.test(name)) return key;
+  return '';
+};
+const suggestSize = (name, sizes) => {
+  const k = sizeKeyFor(name);
+  return k && sizes?.[k] ? sizes[k] : '';
+};
 
 const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewName, vesselName, canManage, isOwnProfile }) => {
   const [items, setItems] = useState([]);
@@ -116,6 +150,12 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         issuedByName: editing ? editing.issued_by_name : currentUserName,
         ...form,
       });
+      // Reflect a sized garment back to the crew member's profile sizes, so the
+      // recorded size always matches what's actually being worn/issued.
+      const key = sizeKeyFor(form.item);
+      if (canManage && key && form.size && (sizes[key] || '') !== form.size) {
+        try { await saveUniformSizes(userId, { ...sizes, [key]: form.size }); } catch { /* non-blocking */ }
+      }
       showToast(editing ? 'Item updated' : 'Item issued', 'success');
       setFormOpen(false);
       load();
@@ -395,10 +435,27 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                 </select>
               </label>
               <label className="kit-field kit-col-2"><span>Item <em>required</em></span>
-                <input value={form.item} onChange={(e) => setF('item', e.target.value)} placeholder="e.g. Crew polo, foul-weather jacket, handheld radio" />
+                <input
+                  value={form.item}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setForm((f) => {
+                      const next = { ...f, item: v };
+                      if (!f.size) { const s = suggestSize(v, sizes); if (s) next.size = s; }
+                      return next;
+                    });
+                  }}
+                  placeholder="e.g. Crew polo, foul-weather jacket, handheld radio"
+                />
               </label>
               <label className="kit-field"><span>Size</span>
                 <input value={form.size} onChange={(e) => setF('size', e.target.value)} placeholder="e.g. M, 42, UK 8" />
+                {(() => {
+                  const s = suggestSize(form.item, sizes);
+                  return s && s !== form.size
+                    ? <button type="button" className="kit-size-hint" onClick={() => setF('size', s)}>Use profile size: {s}</button>
+                    : null;
+                })()}
               </label>
               <label className="kit-field"><span>Quantity</span>
                 <input type="number" min="1" value={form.quantity} onChange={(e) => setF('quantity', e.target.value)} />

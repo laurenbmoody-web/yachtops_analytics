@@ -179,7 +179,8 @@ export const reinstateKitItem = async (id) => {
 // dresses). All keys are strings stored in the jsonb blob — no schema change.
 export const UNIFORM_SIZE_KEYS = [
   'fit', 'top', 'trousers', 'shorts', 'skort', 'dress', 'jacket', 'fleece',
-  'belt', 'shoe', 'cap', 'gloves', 'foulies', 'notes',
+  'baseLayer', 'belt', 'shoe', 'socks', 'cap', 'gloves', 'foulies',
+  'boardshorts', 'rashVest', 'notes',
 ];
 const blankSizes = () => UNIFORM_SIZE_KEYS.reduce((o, k) => { o[k] = ''; return o; }, {});
 
