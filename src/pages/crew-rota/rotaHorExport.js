@@ -271,10 +271,7 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   if (meta.departmentName) subParts.push(meta.departmentName);
   subParts.push(meta.periodLabel);
   doc.text(subParts.join('  ·  '), 40, 55);
-  const sumRef = meta.horTemplate.formReference
-    ? `${meta.horTemplate.standardRef || STANDARD_REF}  ·  ${meta.horTemplate.formReference}`
-    : (meta.horTemplate.standardRef || STANDARD_REF);
-  doc.text(`${sumRef}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
+  doc.text(`${meta.horTemplate.standardRef || STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
   doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = a day with an MLC/STCW non-conformity. The four right-hand columns count breach-days per rule; each day’s exact rule is listed in that seafarer’s record.', 40, 84);
   doc.setTextColor(0);
 
@@ -423,10 +420,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(90);
-  const recRef = meta.horTemplate.formReference
-    ? `${meta.horTemplate.standardRef || STANDARD_REF}  ·  ${meta.horTemplate.formReference}`
-    : (meta.horTemplate.standardRef || STANDARD_REF);
-  doc.text(`${recRef}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
+  doc.text(`${meta.horTemplate.standardRef || STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
 
   // ── Identity block (two columns) ──
   const colL = M;
@@ -675,6 +669,9 @@ async function renderRestLogDoc({ rows, days, meta, windowShifts = [], breachRea
       pageW / 2, pageH - 16, { align: 'center' },
     );
     doc.text(`Generated ${meta.generatedAt}`, pageW - 40, pageH - 16, { align: 'right' });
+    // Flag governing-body reference, bottom-left (depends on the vessel's flag) —
+    // its own row above the page line so long citations never clash with it.
+    if (meta.horTemplate.formReference) doc.text(meta.horTemplate.formReference, 40, pageH - 26, { align: 'left' });
   }
 
   return doc;
@@ -717,6 +714,8 @@ export async function buildSeafarerHorPDF({ member, days, meta, windowShifts = [
       pageW / 2, pageH - 16, { align: 'center' },
     );
     doc.text(`Generated ${meta.generatedAt}`, pageW - 36, pageH - 16, { align: 'right' });
+    // Flag governing-body reference, bottom-left (depends on the vessel's flag).
+    if (meta.horTemplate.formReference) doc.text(meta.horTemplate.formReference, 36, pageH - 26, { align: 'left' });
   }
   return { blob: doc.output('blob'), filename: `${seafarerFileBase(meta, member)}.pdf` };
 }
