@@ -47,56 +47,6 @@ const SHORT_STATUS = {
 };
 const KIND_SHORT = { leave: 'Leave', travel: 'Travel', joining: 'Joining', disembarking: 'Disembark', other: 'Other' };
 
-// ── Compact status month-grid; clicking a day selects it ─────────────────────
-function MonthCalendar({ periods, entries, selectedDay, onSelectDay }) {
-  const today = today0();
-  const [calYear, setCalYear] = useState((selectedDay || today).getFullYear());
-  const [calMonth, setCalMonth] = useState((selectedDay || today).getMonth());
-  const totalDays = daysInMonth(calYear, calMonth);
-  const firstDow = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
-
-  const prev = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
-  const next = () => { if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); } else setCalMonth((m) => m + 1); };
-  const goToday = () => { setCalYear(today.getFullYear()); setCalMonth(today.getMonth()); onSelectDay(today); };
-
-  const cells = [...Array(firstDow).fill(null), ...Array.from({ length: totalDays }, (_, i) => i + 1)];
-
-  return (
-    <div className="act-cal">
-      <div className="act-cal-nav">
-        <button type="button" onClick={prev} aria-label="Previous month"><Icon name="ChevronLeft" size={16} /></button>
-        <span>{MONTHS[calMonth]} {calYear}</span>
-        <button type="button" onClick={next} aria-label="Next month"><Icon name="ChevronRight" size={16} /></button>
-        <button type="button" className="act-cal-today" onClick={goToday}>Today</button>
-      </div>
-      <div className="act-mgrid act-mhead">{WEEKDAYS.map((w) => <div key={w} className="act-mwd">{w}</div>)}</div>
-      <div className="act-mgrid">
-        {cells.map((d, i) => {
-          if (d === null) return <div key={`b${i}`} className="act-mcell is-blank" />;
-          const day = new Date(calYear, calMonth, d);
-          const entry = entryForDay(entries, day);
-          const stat = entry ? calKind(entry.kind).status : getStatusForDay(periods, day);
-          const showTab = stat && stat !== 'active';
-          const tabLabel = entry ? KIND_SHORT[entry.kind] : SHORT_STATUS[stat];
-          const isToday = sameDay(day, today);
-          const isSel = sameDay(day, selectedDay);
-          return (
-            <button
-              key={d}
-              type="button"
-              className={`act-mcell ${day > today ? 'is-future' : ''} ${isToday ? 'is-today' : ''} ${isSel ? 'is-sel' : ''}`}
-              onClick={() => onSelectDay(day)}
-              title={`${stat ? getStatusLabel(stat) : 'No data'}${entry && travelSummary(entry) ? ` — ${travelSummary(entry)}` : ''}`}
-            >
-              <span className="act-mnum">{d}</span>
-              {showTab && <span className="act-mtab" style={{ background: soft(stat).ink }}>{tabLabel}</span>}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 const blankEntry = () => ({
   kind: 'leave', startDate: todayIso(), endDate: todayIso(),
@@ -116,6 +66,11 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
   const [form, setForm] = useState(blankEntry());
   const [busy, setBusy] = useState(false);
   const [selectedDay, setSelectedDay] = useState(today0());
+  const [calYear, setCalYear] = useState(today0().getFullYear());
+  const [calMonth, setCalMonth] = useState(today0().getMonth());
+  const calPrev = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
+  const calNext = () => { if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); } else setCalMonth((m) => m + 1); };
+  const calToday = () => { const t = today0(); setCalYear(t.getFullYear()); setCalMonth(t.getMonth()); setSelectedDay(t); };
 
   const load = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
@@ -182,19 +137,45 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
           <button type="button" className={view === 'calendar' ? 'on' : ''} onClick={() => setView('calendar')}>Status calendar</button>
         </div>
       </div>
-      <p className="kit-sub">Everything recorded on this profile — status, leave &amp; travel, documents, kit, compliance, banking and profile edits.</p>
+      <div style={{ height: 16 }} />
 
       {loading ? (
         <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>
       ) : view === 'calendar' ? (
         <div className="act-calwrap">
-          <div className="act-calmain">
-            <MonthCalendar periods={periods} entries={entries} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
-            <div className="act-cal-legend">
-              {CREW_STATUSES.map(({ value, label }) => (
-                <span key={value}><i className="act-sw" style={{ background: soft(value).ink }} />{label}</span>
-              ))}
-            </div>
+          <div className="act-cal-nav">
+            <button type="button" onClick={calPrev} aria-label="Previous month"><Icon name="ChevronLeft" size={16} /></button>
+            <span>{MONTHS[calMonth]} {calYear}</span>
+            <button type="button" onClick={calNext} aria-label="Next month"><Icon name="ChevronRight" size={16} /></button>
+            <button type="button" className="act-cal-today" onClick={calToday}>Today</button>
+          </div>
+          <div className="act-mgrid act-mhead act-row-wd">{WEEKDAYS.map((w) => <div key={w} className="act-mwd">{w}</div>)}</div>
+          <div className="act-mgrid act-row-days">
+            {[...Array((new Date(calYear, calMonth, 1).getDay() + 6) % 7).fill(null), ...Array.from({ length: daysInMonth(calYear, calMonth) }, (_, i) => i + 1)].map((d, i) => {
+              if (d === null) return <div key={`b${i}`} className="act-mcell is-blank" />;
+              const day = new Date(calYear, calMonth, d);
+              const entry = entryForDay(entries, day);
+              const stat = entry ? calKind(entry.kind).status : getStatusForDay(periods, day);
+              const showTab = stat && stat !== 'active';
+              const tabLabel = entry ? KIND_SHORT[entry.kind] : SHORT_STATUS[stat];
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  className={`act-mcell ${day > today0() ? 'is-future' : ''} ${sameDay(day, today0()) ? 'is-today' : ''} ${sameDay(day, selectedDay) ? 'is-sel' : ''}`}
+                  onClick={() => setSelectedDay(day)}
+                  title={`${stat ? getStatusLabel(stat) : 'No data'}${entry && travelSummary(entry) ? ` — ${travelSummary(entry)}` : ''}`}
+                >
+                  <span className="act-mnum">{d}</span>
+                  {showTab && <span className="act-mtab" style={{ background: soft(stat).ink }}>{tabLabel}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="act-cal-legend act-row-legend">
+            {CREW_STATUSES.map(({ value, label }) => (
+              <span key={value}><i className="act-sw" style={{ background: soft(value).ink }} />{label}</span>
+            ))}
           </div>
           {(() => {
             const day = selectedDay;
