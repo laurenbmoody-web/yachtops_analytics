@@ -75,15 +75,31 @@ export const deleteKitItem = async (id) => {
 };
 
 // Upload a drawn signature PNG (data URL) to kit-signatures/{userId}/... and
-// return the stored object path (re-signed on display, never baked in).
-export const uploadKitSignature = async (userId, dataUrl) => {
+// return the stored object path (re-signed on display, never baked in). `kind`
+// distinguishes a crew acknowledgement from a captain's return sign-off.
+export const uploadKitSignature = async (userId, dataUrl, kind = 'ack') => {
   const blob = await (await fetch(dataUrl)).blob();
-  const path = `${userId}/${Date.now()}-kit-ack.png`;
+  const path = `${userId}/${Date.now()}-kit-${kind}.png`;
   const { error } = await supabase?.storage?.from(BUCKET)?.upload(path, blob, {
     cacheControl: '3600', upsert: false, contentType: 'image/png',
   });
   if (error) throw error;
   return path;
+};
+
+// Fetch a stored signature as a PNG data URL (for embedding in the receipt PDF).
+export const kitSignatureDataUrl = async (path) => {
+  const url = await signedKitSignatureUrl(path);
+  if (!url) return null;
+  try {
+    const blob = await (await fetch(url)).blob();
+    return await new Promise((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(blob);
+    });
+  } catch { return null; }
 };
 
 export const signedKitSignatureUrl = async (path) => {
@@ -110,5 +126,79 @@ export const acknowledgeKitItems = async (ids, { signaturePath, signedName }) =>
       updated_at: new Date().toISOString(),
     })
     ?.in('id', ids);
+  if (error) throw error;
+};
+
+/**
+ * Record kit handed back at offboarding — the manager/captain counter-signs to
+ * confirm the items returned, with their condition. (Phase 2.)
+ */
+export const recordKitReturn = async (ids, { returnedDate, condition, signaturePath, signedName, returnedTo }) => {
+  if (!ids?.length) return;
+  const { error } = await supabase
+    ?.from('crew_issued_kit')
+    ?.update({
+      status: 'returned',
+      returned_date: returnedDate || new Date().toISOString().slice(0, 10),
+      return_condition: condition || null,
+      return_signature_path: signaturePath || null,
+      return_signed_name: signedName || null,
+      returned_to: returnedTo || null,
+      updated_at: new Date().toISOString(),
+    })
+    ?.in('id', ids);
+  if (error) throw error;
+};
+
+// Mark an item lost / damaged (no hand-back signature).
+export const markKitLost = async (id) => {
+  const { error } = await supabase
+    ?.from('crew_issued_kit')
+    ?.update({ status: 'lost', updated_at: new Date().toISOString() })
+    ?.eq('id', id);
+  if (error) throw error;
+};
+
+// Reinstate a returned/lost item back into service (undo).
+export const reinstateKitItem = async (id) => {
+  const { error } = await supabase
+    ?.from('crew_issued_kit')
+    ?.update({
+      status: 'in_service', returned_date: null, return_condition: null,
+      return_signature_path: null, return_signed_name: null, returned_to: null,
+      updated_at: new Date().toISOString(),
+    })
+    ?.eq('id', id);
+  if (error) throw error;
+};
+
+// ── Uniform sizes — live in crew_personal_details.preferences.uniformSizes;
+// surfaced here (moved off the Preferences tab) without disturbing other prefs.
+const BLANK_SIZES = { top: '', bottom: '', jacket: '', shoe: '' };
+
+export const fetchUniformSizes = async (userId) => {
+  if (!userId) return { ...BLANK_SIZES };
+  const { data, error } = await supabase
+    ?.from('crew_personal_details')?.select('preferences')?.eq('user_id', userId)?.maybeSingle();
+  if (error) { console.error('[kit] uniform fetch failed', error); return { ...BLANK_SIZES }; }
+  const u = data?.preferences?.uniformSizes || {};
+  return { top: u.top || '', bottom: u.bottom || '', jacket: u.jacket || '', shoe: u.shoe || '' };
+};
+
+export const saveUniformSizes = async (userId, sizes) => {
+  // Read-merge-write so we don't clobber the rest of the preferences blob.
+  const { data, error: readErr } = await supabase
+    ?.from('crew_personal_details')?.select('preferences')?.eq('user_id', userId)?.maybeSingle();
+  if (readErr) throw readErr;
+  const preferences = {
+    ...(data?.preferences || {}),
+    uniformSizes: {
+      top: sizes.top || '', bottom: sizes.bottom || '',
+      jacket: sizes.jacket || '', shoe: sizes.shoe || '',
+    },
+  };
+  const { error } = await supabase
+    ?.from('crew_personal_details')
+    ?.upsert({ user_id: userId, preferences, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
   if (error) throw error;
 };

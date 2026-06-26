@@ -140,6 +140,17 @@ export const profileDataToFormData = ({ personal, banking }) => {
 export const saveCrewProfileData = async (userId, f, actor = null) => {
   if (!userId) return;
   const now = new Date().toISOString();
+
+  // Uniform sizes are now owned by the Issued Kit tab (which read-merge-writes
+  // preferences.uniformSizes). This save replaces the whole preferences blob, so
+  // preserve the current DB sizes rather than clobbering them with stale form
+  // state from a tab that no longer edits them.
+  const { data: existingPd } = await supabase
+    ?.from('crew_personal_details')?.select('preferences')?.eq('user_id', userId)?.maybeSingle() || {};
+  const keepUniformSizes = existingPd?.preferences?.uniformSizes || {
+    top: f.uniformTop || '', bottom: f.uniformBottom || '',
+    jacket: f.uniformJacket || '', shoe: f.uniformShoe || '',
+  };
   const phones = Array.isArray(f.phones) && f.phones.length
     ? f.phones.filter((x) => x && (x.value || x.label))
     : (f.phoneNumber ? [{ label: 'Mobile', value: f.phoneNumber }] : []);
@@ -206,10 +217,7 @@ export const saveCrewProfileData = async (userId, f, actor = null) => {
       spiceLevel: f.spiceLevel || '', breakfast: f.breakfast || '',
       coffeeOrder: f.coffeeOrder || '', tea: f.tea || '',
       comfortFood: f.comfortFood || '',
-      uniformSizes: {
-        top: f.uniformTop || '', bottom: f.uniformBottom || '',
-        jacket: f.uniformJacket || '', shoe: f.uniformShoe || '',
-      },
+      uniformSizes: keepUniformSizes,
       alcoholicPreference: f.alcoholicPreference || '',
       nonAlcoholicPreferences: f.nonAlcoholicPreferences || '',
     },
