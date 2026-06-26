@@ -58,7 +58,7 @@ export const VERIFIER_PROFILES = {
     // check ticks automatically when the crew has it on file (no email needed
     // now that sign-off is parked).
     docs: [
-      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport' },
+      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' },
       { id: 'srb', label: 'Discharge book / SRB scan', profileDoc: 'seamans_book' }
     ],
     fee: 'Verification via Nautilus International (MIN 543 authorised); fees per their member tariff.',
@@ -70,7 +70,7 @@ export const VERIFIER_PROFILES = {
   pya: {
     id: 'pya', label: 'PYA', short: 'PYA', name: 'PYA — Professional Yachting Association',
     docs: [
-      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport' },
+      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' },
       { id: 'srb', label: 'Discharge book / SRB scan', profileDoc: 'seamans_book' }
     ],
     fee: '€50 per testimonial (minimum 2 on first submission) for non-members; included for PYA members.',
@@ -81,7 +81,7 @@ export const VERIFIER_PROFILES = {
   transport_malta: {
     id: 'transport_malta', label: 'Transport Malta', short: 'Transport Malta', name: 'Transport Malta — Merchant Shipping Directorate',
     docs: [
-      { id: 'passport', label: 'Certified passport copy' },
+      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' },
       { id: 'sig', label: 'Authorised signatory details' },
       { id: 'srb', label: 'Discharge book / service record' }
     ],
@@ -94,7 +94,7 @@ export const VERIFIER_PROFILES = {
     docs: [
       { id: 'srb', label: 'Discharge Book with master’s stamps' },
       { id: 'stamp', label: 'Master’s signature & ship’s stamp' },
-      { id: 'passport', label: 'Certified passport copy' }
+      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' }
     ],
     fee: 'No verifier fee — submitted directly to the MCA with your CoC application.',
     instructions: 'Direct MCA route via your Discharge Book and a master-signed Testimonial of Sea Service (MSN 1858). Use this record as the testimonial — the master attests it; the MCA assess it with your application.',

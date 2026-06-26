@@ -262,16 +262,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       // Sea service is a personal career record — fetch across EVERY Cargo vessel
       // the crew member has served on (RLS scopes it: the seafarer sees all their
       // vessels; a COMMAND viewer sees only their own vessel's portion).
-      const [rows, prof, pd, ves, certCopy] = await Promise.all([
+      const [rows, prof, pd, ves] = await Promise.all([
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
         supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years')?.eq('user_id', userId)?.maybeSingle(),
         supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw')?.eq('tenant_id', tenantId)?.maybeSingle(),
-        // A certified true copy of the passport in Documents satisfies the
-        // pack's proof-of-identity requirement automatically.
-        supabase?.from('personal_documents')?.select('id')?.eq('user_id', userId)?.eq('doc_type', 'passport_certified_copy')?.limit(1)?.maybeSingle(),
       ]);
-      setDocMet((d) => ({ ...d, passport: !!certCopy?.data }));
+      // The certified passport copy auto-ticks the pack's proof-of-identity doc
+      // via docMetEffective + profileDoc (which also links the file) — see below.
       // Prefer the structured first + surname over a free-text full_name (which can
       // get polluted with a rank); fall back to full_name, then the session user.
       const p = prof?.data || {};
