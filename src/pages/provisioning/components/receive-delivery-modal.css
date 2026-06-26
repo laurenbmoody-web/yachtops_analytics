@@ -404,6 +404,52 @@
   font-weight: 600;
   color: var(--d-navy-deep);
 }
+/* Supplier name doubles as a click target for the collapse toggle —
+   bigger hit area than the small chevron. Strips button chrome so
+   it reads as the same plain label it always has. */
+.rdm-item-group-name-toggle {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.rdm-item-group-name-toggle:hover { color: var(--d-orange, #C65A1A); }
+.rdm-item-group-name-toggle:focus-visible {
+  outline: 2px solid var(--d-orange, #C65A1A);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Chevron — small terracotta-tinted toggle for collapsing a
+   supplier's section. Mirrors the existing
+   `.rdm-tier-head-chevron` look so the two collapse affordances
+   read as one vocabulary. */
+.rdm-item-group-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--d-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.rdm-item-group-chevron:hover,
+.rdm-item-group-chevron:focus-visible {
+  background: var(--d-soft, #FBEFE9);
+  color: var(--d-orange, #C65A1A);
+  outline: none;
+}
+
 .rdm-item-group-count {
   margin-left: auto;
   font-size: 11px;

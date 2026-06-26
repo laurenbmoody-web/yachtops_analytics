@@ -317,6 +317,16 @@ const ReceiveStep = ({
   const [organiseBySupplier, setOrganiseBySupplier] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [unmatchedExpanded, setUnmatchedExpanded] = useState(false);
+  // Per-supplier collapse state — Set of supplier names that the
+  // chief has collapsed. All groups start expanded (matches the
+  // current behaviour); the chevron lets a chief tucked into one
+  // supplier's section skip past it to the next.
+  const [collapsedSuppliers, setCollapsedSuppliers] = useState(() => new Set());
+  const toggleSupplierCollapsed = (name) => setCollapsedSuppliers(prev => {
+    const next = new Set(prev);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    return next;
+  });
   // Three-tier render only: starts collapsed so the crew lands on
   // Needs review + Confirmed (the actionable tiers) without scrolling
   // past 80 untouched rows. Click to expand inline.
@@ -612,14 +622,37 @@ const ReceiveStep = ({
           supplierGroups.map(([supplierName, groupItems]) => {
             const checkedCount = groupItems.filter(i => receiving[i.id]?.checked).length;
             const groupState = checkedCount === 0 ? 'none' : checkedCount === groupItems.length ? 'all' : 'some';
+            const isCollapsed = collapsedSuppliers.has(supplierName);
             return (
               <div key={supplierName}>
                 <div className="rdm-item-group-head" style={{ borderRadius: 0, border: 0, borderTop: '0.5px solid var(--d-border)', borderBottom: '0.5px solid var(--d-border)' }}>
                   <GroupCheckbox state={groupState} onChange={checked => onGroupChange(groupItems.map(i => i.id), checked)} />
-                  <span className="rdm-item-group-name">{supplierName}</span>
+                  {/* Chevron toggles the supplier's section
+                      so a chief tucked into one supplier can
+                      scroll past it to the next. Clicking the
+                      name does the same — bigger click target,
+                      same affordance. The checkbox stays its
+                      own discrete control. */}
+                  <button
+                    type="button"
+                    onClick={() => toggleSupplierCollapsed(supplierName)}
+                    className="rdm-item-group-chevron"
+                    aria-expanded={!isCollapsed}
+                    aria-label={isCollapsed ? `Expand ${supplierName}` : `Collapse ${supplierName}`}
+                    title={isCollapsed ? 'Expand section' : 'Collapse section'}
+                  >
+                    {isCollapsed ? '▸' : '▾'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleSupplierCollapsed(supplierName)}
+                    className="rdm-item-group-name rdm-item-group-name-toggle"
+                  >
+                    {supplierName}
+                  </button>
                   <span className="rdm-item-group-count">{groupItems.length} item{groupItems.length !== 1 ? 's' : ''}</span>
                 </div>
-                {groupItems.map(item => renderItemRow(item))}
+                {!isCollapsed && groupItems.map(item => renderItemRow(item))}
               </div>
             );
           })
