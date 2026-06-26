@@ -1439,6 +1439,7 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .act-mcell.is-future { opacity: 0.45; }
 .crew-profile-page .act-mcell.is-today { outline: 2px solid #C65A1A; outline-offset: -2px; }
+.crew-profile-page .act-mcell.has-entry { box-shadow: inset 0 0 0 1.5px rgba(28,27,58,0.18); }
 .crew-profile-page .act-cal-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; }
 .crew-profile-page .act-cal-legend span { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #6B7280; }
 .crew-profile-page .act-sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }

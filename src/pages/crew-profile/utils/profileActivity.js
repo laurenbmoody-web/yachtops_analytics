@@ -1,6 +1,7 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { getStatusLabel } from '../../../utils/crewStatus';
 import { getDocTypeLabel } from '../documentTypes';
+import { calKind, travelSummary } from './crewCalendar';
 
 // One unified activity feed for a crew profile, aggregated from the event
 // sources we already capture. Each source is queried independently and failures
@@ -8,9 +9,14 @@ import { getDocTypeLabel } from '../documentTypes';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
+const fmtShort = (d) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(d || '');
+};
 
 export const ACTIVITY_CATEGORIES = [
   { id: 'status', label: 'Status', icon: 'Activity', color: '#2F6080', bg: '#E8EFF4' },
+  { id: 'travel', label: 'Leave & travel', icon: 'Plane', color: '#2E7D6B', bg: '#E5F0ED' },
   { id: 'document', label: 'Documents', icon: 'FileText', color: '#6B57A0', bg: '#ECE7F6' },
   { id: 'kit', label: 'Kit', icon: 'Shirt', color: '#5C9B6A', bg: '#EAF3EC' },
   { id: 'compliance', label: 'Compliance', icon: 'Clock', color: '#C0504D', bg: '#FBECEB' },
@@ -36,12 +42,13 @@ const kitEventTitle = (k) => {
 
 export const fetchProfileActivity = async (userId) => {
   if (!userId) return [];
-  const [statusRes, docsRes, kitRes, horRes, profEvRes] = await Promise.all([
+  const [statusRes, docsRes, kitRes, horRes, profEvRes, calRes] = await Promise.all([
     supabase.from('crew_status_history').select('id, new_status, old_status, changed_at, changed_by_name, notes').eq('user_id', userId),
     supabase.from('personal_documents').select('id, doc_type, details, created_at, created_by').eq('user_id', userId),
     supabase.from('crew_kit_events').select('id, action, detail, actor_name, created_at').eq('user_id', userId),
     supabase.from('hor_month_status').select('period_year, period_month, submitted_at, submit_signed_name, confirmed_at, approve_signed_name').eq('subject_user_id', userId),
     supabase.from('crew_profile_events').select('id, area, label, old_value, new_value, actor_name, created_at').eq('user_id', userId),
+    supabase.from('crew_calendar_entries').select('*').eq('user_id', userId),
   ]);
 
   const events = [];
@@ -80,6 +87,15 @@ export const fetchProfileActivity = async (userId) => {
       title: hasValues ? `${p.label} changed` : `${p.label} updated`,
       detail: hasValues ? `“${p.old_value || '—'}” → “${p.new_value || '—'}”` : '',
       actor: p.actor_name || '',
+    });
+  });
+
+  (calRes.data || []).forEach((c) => {
+    const range = `${fmtShort(c.start_date)}${String(c.end_date).slice(0, 10) !== String(c.start_date).slice(0, 10) ? ` – ${fmtShort(c.end_date)}` : ''}`;
+    events.push({
+      id: `cal-${c.id}`, at: c.created_at, category: 'travel',
+      title: `${calKind(c.kind).label}: ${range}`,
+      detail: travelSummary(c) || c.note || '', actor: c.actor_name || '',
     });
   });
 

@@ -3958,7 +3958,15 @@ const canEdit = (() => {
       case 'seatime':
         return renderSeaTime();
       case 'history':
-        return <StatusHistoryTab userId={crewId} tenantId={activeTenantId} />;
+        return (
+          <StatusHistoryTab
+            userId={crewId}
+            tenantId={activeTenantId}
+            canManage={isVesselAdmin || currentUserPermissionTier === 'COMMAND'}
+            currentUserId={session?.user?.id}
+            currentUserName={myProfile?.full_name || ''}
+          />
+        );
       default:
         return renderPersonalDetails();
     }
