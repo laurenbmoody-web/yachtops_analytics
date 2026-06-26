@@ -142,6 +142,17 @@ const COUNTRY_NAMES = {
 };
 const countryName = (code) => { if (!code) return ''; const k = String(code).trim().toUpperCase(); return COUNTRY_NAMES[k] || code; };
 
+// Certification-journey defaults + the MCA validity timers (NoE 5y, oral pass 3y).
+const JOURNEY_DEFAULT = { noe: { status: 'not_applied', issueDate: '' }, oral: { status: 'not_booked', bookedDate: '', passDate: '' }, coc: { issuedDate: '' }, note: '' };
+// The NoE/NoA spans many routes, each with its own application form + Marine
+// Notice (gov.uk). The journey is the same; only the form differs by route.
+const MSF_FORMS = {
+  deck: { form: 'MSF 4343', notice: 'MSN 1858', label: 'Yacht Deck Officers' },
+  engineering: { form: 'MSF 4275', notice: 'MSN 1857', label: 'Engineer Officers' },
+};
+const addYearsIso = (iso, n) => { if (!iso) return ''; const [y, m, d] = String(iso).split('-'); return `${+y + n}-${m}-${d}`; };
+const daysUntil = (iso) => { if (!iso) return null; return Math.round((new Date(iso + 'T00:00:00') - new Date()) / 86400000); };
+
 const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, canAttest = false }) => {
   const config = DEFAULT_CONFIG;
   const [deptId, setDeptId] = useState('deck');
@@ -181,6 +192,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [priorBaseline, setPriorBaseline] = useState(null); // raw {seagoing,watchkeeping,standby,yard,note}
   const [priorOpen, setPriorOpen] = useState(false);
   const [priorDraft, setPriorDraft] = useState({ seagoing: '', watchkeeping: '', standby: '', yard: '', note: '' });
+  // Certification journey: NoE -> oral exam -> CoC, with the MCA validity timers.
+  const [journey, setJourney] = useState(null);
+  const [journeyOpen, setJourneyOpen] = useState(false);
+  const [journeyDraft, setJourneyDraft] = useState(null);
   const [usingSample, setUsingSample] = useState(true);
   const toastTimer = useRef(null);
   const ledgerRef = useRef(null);
@@ -246,7 +261,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const [rows, prof, pd, ves, certCopy] = await Promise.all([
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression')?.eq('user_id', userId)?.maybeSingle(),
         supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw')?.eq('tenant_id', tenantId)?.maybeSingle(),
         // A certified true copy of the passport in Documents satisfies the
         // pack's proof-of-identity requirement automatically.
@@ -266,6 +281,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, dischargeBookNo: pd?.data?.discharge_book_number || '', membershipNo: pd?.data?.verifier_membership_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
         setPriorBaseline(pd?.data?.sea_service_prior || {});
         setPrior(priorFromBaseline(pd?.data?.sea_service_prior)); // lifetime baseline accrued before Cargo
+        setJourney(pd?.data?.cert_progression || null);
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
         // Per-command-spell attestation is derived from each entry's verification
@@ -697,6 +713,21 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     } catch (e) { console.error('[seatime] save prior', e); flash('Could not save prior service'); }
   };
 
+  // Certification journey (NoE -> oral -> CoC).
+  const openJourney = () => { setJourneyDraft(JSON.parse(JSON.stringify(journey || JOURNEY_DEFAULT))); setJourneyOpen(true); };
+  const setJD = (path, val) => setJourneyDraft(d => { const n = JSON.parse(JSON.stringify(d || JOURNEY_DEFAULT)); const [a, b] = path.split('.'); if (b) { n[a] = { ...n[a], [b]: val }; } else { n[a] = val; } return n; });
+  const saveJourney = async () => {
+    const payload = journeyDraft || JOURNEY_DEFAULT;
+    setJourneyOpen(false);
+    if (usingSample || !userId) { setJourney(payload); flash('Journey saved (preview)'); return; }
+    try {
+      const { error } = await supabase.from('crew_personal_details').upsert({ user_id: userId, cert_progression: payload }, { onConflict: 'user_id' });
+      if (error) throw error;
+      setJourney(payload);
+      flash('Certification journey saved');
+    } catch (e) { console.error('[seatime] save journey', e); flash('Could not save the journey'); }
+  };
+
   const formDays = () => { const { from, to } = form; if (!from || !to) return 1; const d = Math.round((new Date(to) - new Date(from)) / 86400000) + 1; return d > 0 ? d : 1; };
   const saveEntry = async () => {
     const days = formDays();
@@ -1082,6 +1113,46 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         </div>
       )}
 
+      {/* ── certification journey: NoE → oral exam → CoC ── */}
+      {(() => {
+        const j = journey || JOURNEY_DEFAULT;
+        const eligible = requirements.length > 0 && requirements.every(r => r.met);
+        const noeExpiry = addYearsIso(j.noe?.issueDate, 5);
+        const oralExpiry = addYearsIso(j.oral?.passDate, 3);
+        const noeDte = daysUntil(noeExpiry), oralDte = daysUntil(oralExpiry);
+        const Stage = ({ n, label, state, line, warn }) => (
+          <div style={{ flex: '1 1 150px', minWidth: 150, border: '1px solid #ECEAE3', borderRadius: 12, padding: '12px 14px', background: state === 'done' ? '#EFF6F1' : '#FAFAF8' }}>
+            <div className="mlabel" style={{ marginBottom: 4 }}>{n} · {label}</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: state === 'done' ? '#3F7A52' : state === 'active' ? '#C65A1A' : '#8B8478' }}>{line}</div>
+            {warn && <div style={{ fontSize: 11.5, color: '#A6712C', marginTop: 3 }}>{warn}</div>}
+          </div>
+        );
+        return (
+          <div className="std-card" style={{ marginTop: 18, padding: '16px 18px' }}>
+            <div className="std-flex std-between std-ac" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <div className="mlabel rustlabel">Certification journey{cert?.label ? ` · ${cert.label}` : ''}</div>
+              <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={openJourney}><Icon name="Route" size={15} /> Update journey</button>
+            </div>
+            <div className="std-vs" style={{ marginTop: 2, marginBottom: 12 }}>NoE / NoA → oral exam → CoC. Cargo tracks your progress and the MCA validity timers; the milestones are yours to confirm.{MSF_FORMS[deptId] ? ` Apply with ${MSF_FORMS[deptId].form} (${MSF_FORMS[deptId].notice}).` : ' Apply with the MSF form for your route.'}</div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Stage n="01" label="Eligibility" state={eligible ? 'done' : 'active'}
+                line={eligible ? 'Service requirements met' : `${requirements.filter(r => !r.met).length} requirement(s) to go`} />
+              <Stage n="02" label="Notice of Eligibility"
+                state={j.noe?.status === 'issued' ? 'done' : j.noe?.status === 'applied' ? 'active' : 'todo'}
+                line={j.noe?.status === 'issued' ? `Issued ${fmtDate(j.noe.issueDate)}` : j.noe?.status === 'applied' ? 'Applied — awaiting NoE' : 'Not applied'}
+                warn={j.noe?.status === 'issued' && noeDte != null ? (noeDte < 0 ? 'NoE expired — reapply' : `Valid to ${fmtDate(noeExpiry)}${noeDte < 180 ? ` · ${noeDte}d left` : ''}`) : null} />
+              <Stage n="03" label="Oral exam"
+                state={j.oral?.status === 'passed' ? 'done' : (j.oral?.status === 'booked' || j.oral?.status === 'failed') ? 'active' : 'todo'}
+                line={j.oral?.status === 'passed' ? `Passed ${fmtDate(j.oral.passDate)}` : j.oral?.status === 'booked' ? 'Booked' : j.oral?.status === 'failed' ? 'Failed — reapply' : 'Not booked'}
+                warn={j.oral?.status === 'passed' && !j.coc?.issuedDate && oralDte != null ? (oralDte < 0 ? 'Pass expired — re-sit' : `Pass valid to ${fmtDate(oralExpiry)}${oralDte < 180 ? ` · ${oralDte}d left` : ''}`) : null} />
+              <Stage n="04" label="Certificate of Competency"
+                state={j.coc?.issuedDate ? 'done' : 'todo'}
+                line={j.coc?.issuedDate ? `Issued ${fmtDate(j.coc.issuedDate)}` : '—'} />
+            </div>
+          </div>
+        );
+      })()}
+
       <div style={{ marginTop: 18 }}>{LedgerTable()}</div>
 
       {/* ── pack generator ── */}
@@ -1405,6 +1476,59 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             <div className="cso-foot">
               <button className="cso-btn ghost" onClick={() => setPriorOpen(false)}>Cancel</button>
               <button className="cso-btn rust" onClick={savePrior}><Icon name="Check" size={15} /> Save prior service</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── certification journey editor ── */}
+      {journeyOpen && journeyDraft && createPortal(
+        <div className="cso-overlay" onClick={() => setJourneyOpen(false)}>
+          <div className="cso" role="dialog" aria-modal="true" aria-label="Certification journey" style={{ width: 520 }} onClick={e => e.stopPropagation()}>
+            <button className="cso-x" onClick={() => setJourneyOpen(false)} aria-label="Close"><Icon name="X" size={18} /></button>
+            <div className="cso-head">
+              <div className="cso-eyebrow">Pathway · NoE / NoA → oral → CoC</div>
+              <h3 className="cso-title">Certification journey</h3>
+              <div className="cso-sub">Record where you are in the MCA process. Cargo isn’t part of the MCA confirmation — these milestones are yours to keep, and they drive the validity reminders (NoE 5 years, oral pass 3 years).</div>
+            </div>
+            <div className="cso-body">
+              <div className="cso-fld">
+                <label className="cso-lbl">Notice of Eligibility / Assessment</label>
+                <div className="cso-grid">
+                  <select className="cso-input" value={journeyDraft.noe?.status || 'not_applied'} onChange={e => setJD('noe.status', e.target.value)}>
+                    <option value="not_applied">Not applied</option>
+                    <option value="applied">Applied — awaiting</option>
+                    <option value="issued">Issued</option>
+                  </select>
+                  <input className="cso-input" type="date" value={journeyDraft.noe?.issueDate || ''} onChange={e => setJD('noe.issueDate', e.target.value)} disabled={journeyDraft.noe?.status !== 'issued'} title="Issue date" />
+                </div>
+              </div>
+              <div className="cso-fld" style={{ marginTop: 12 }}>
+                <label className="cso-lbl">Oral examination</label>
+                <select className="cso-input" value={journeyDraft.oral?.status || 'not_booked'} onChange={e => setJD('oral.status', e.target.value)}>
+                  <option value="not_booked">Not booked</option>
+                  <option value="booked">Booked</option>
+                  <option value="passed">Passed</option>
+                  <option value="failed">Failed</option>
+                </select>
+                <div className="cso-grid" style={{ marginTop: 8 }}>
+                  <div><div className="cso-lbl" style={{ marginBottom: 3 }}>Booked for</div><input className="cso-input" type="date" value={journeyDraft.oral?.bookedDate || ''} onChange={e => setJD('oral.bookedDate', e.target.value)} /></div>
+                  <div><div className="cso-lbl" style={{ marginBottom: 3 }}>Passed on</div><input className="cso-input" type="date" value={journeyDraft.oral?.passDate || ''} onChange={e => setJD('oral.passDate', e.target.value)} disabled={journeyDraft.oral?.status !== 'passed'} /></div>
+                </div>
+              </div>
+              <div className="cso-fld" style={{ marginTop: 12 }}>
+                <label className="cso-lbl">CoC issued</label>
+                <input className="cso-input" type="date" value={journeyDraft.coc?.issuedDate || ''} onChange={e => setJD('coc.issuedDate', e.target.value)} />
+              </div>
+              <div className="cso-fld" style={{ marginTop: 12 }}>
+                <label className="cso-lbl">Note <span className="opt">optional</span></label>
+                <input className="cso-input" value={journeyDraft.note || ''} onChange={e => setJD('note', e.target.value)} placeholder="e.g. NoE ref, exam centre" />
+              </div>
+            </div>
+            <div className="cso-foot">
+              <button className="cso-btn ghost" onClick={() => setJourneyOpen(false)}>Cancel</button>
+              <button className="cso-btn rust" onClick={saveJourney}><Icon name="Check" size={15} /> Save journey</button>
             </div>
           </div>
         </div>,
