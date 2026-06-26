@@ -1390,7 +1390,6 @@ const canEdit = (() => {
                     </span>
                   )
                 ) : null}
-                {ringComplete && <span className="cp-complete-note">✓ Profile complete</span>}
               </div>
             </div>
           </div>
