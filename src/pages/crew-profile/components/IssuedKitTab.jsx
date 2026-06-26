@@ -9,7 +9,7 @@ import {
   fetchCrewKit, saveKitItem, deleteKitItem,
   uploadKitSignature, acknowledgeKitItems, signedKitSignatureUrl, kitSignatureDataUrl,
   recordKitReturn, markKitLost, reinstateKitItem,
-  fetchUniformSizes, saveUniformSizes,
+  fetchUniformSizes, saveUniformSizes, UNIFORM_SIZE_KEYS,
   logKitEvent, fetchKitEvents,
 } from '../utils/crewKit';
 import { exportKitReceipt } from '../utils/kitReceiptExport';
@@ -100,8 +100,10 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
 
   // Uniform sizes (moved from the Preferences tab).
   const [sizes, setSizes] = useState({});
-  const [sizesEditing, setSizesEditing] = useState(false);
   const [sizesForm, setSizesForm] = useState({});
+  // Single tab-wide edit mode (mirrors the "Edit profile" pattern): reveals the
+  // uniform-size inputs and the issue/return controls together.
+  const [editMode, setEditMode] = useState(false);
   const canEditSizes = canManage || isOwnProfile;
 
   const load = useCallback(async () => {
@@ -248,11 +250,16 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
     catch { showToast('Update failed', 'error'); }
   };
 
-  const saveSizes = async () => {
-    setBusy(true);
-    try { await saveUniformSizes(userId, sizesForm); setSizes(sizesForm); setSizesEditing(false); showToast('Sizes saved', 'success'); }
-    catch (e) { showToast(e.message || 'Could not save sizes', 'error'); }
-    finally { setBusy(false); }
+  const enterEdit = () => { setSizesForm(sizes); setEditMode(true); };
+  const exitEdit = async () => {
+    const dirty = UNIFORM_SIZE_KEYS.some((k) => (sizesForm[k] || '') !== (sizes[k] || ''));
+    if (dirty) {
+      setBusy(true);
+      try { await saveUniformSizes(userId, sizesForm); setSizes(sizesForm); showToast('Sizes saved', 'success'); }
+      catch (e) { showToast(e.message || 'Could not save sizes', 'error'); setBusy(false); return; }
+      finally { setBusy(false); }
+    }
+    setEditMode(false);
   };
 
   const downloadReceipt = async () => {
@@ -328,7 +335,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
             <img src={sigUrls[sigPath]} alt="Signature" className="kit-sig-thumb" title="Signature on file" />
           )}
           <span className={`cd-pill ${pill.cls}`}>{pill.label}</span>
-          {canManage && it.status === 'in_service' && (
+          {canManage && editMode && it.status === 'in_service' && (
             <>
               <button onClick={() => openReturn([it])} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="Record return"><Icon name="PackageCheck" size={15} /></button>
               <button onClick={() => lose(it)} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="Mark lost / damaged"><Icon name="TriangleAlert" size={15} /></button>
@@ -336,7 +343,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
               <button onClick={() => remove(it)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500" title="Remove"><Icon name="Trash2" size={15} /></button>
             </>
           )}
-          {canManage && it.status !== 'in_service' && (
+          {canManage && editMode && it.status !== 'in_service' && (
             <button onClick={() => reinstate(it)} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="Reinstate to in-service"><Icon name="Undo2" size={15} /></button>
           )}
         </div>
@@ -352,10 +359,13 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
           <h3>Issued Kit</h3>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {items.length > 0 && (
+          {items.length > 0 && !editMode && (
             <Button variant="outline" iconName="Download" size="sm" onClick={downloadReceipt} disabled={busy}>Receipt</Button>
           )}
-          {canManage && <Button iconName="Plus" size="sm" onClick={openIssue}>Issue item</Button>}
+          {canEditSizes && (editMode
+            ? <Button iconName="Check" size="sm" onClick={exitEdit} disabled={busy}>Done</Button>
+            : <Button variant="outline" iconName="Pencil" size="sm" onClick={enterEdit}>Edit</Button>
+          )}
         </div>
       </div>
       <p className="kit-sub">Uniform &amp; company kit issued to this crew member, signed for on receipt.</p>
@@ -366,18 +376,16 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         <>
           {/* Uniform sizes (moved from Preferences) */}
           {(() => {
+            const editing = editMode && canEditSizes;
             const filled = SIZE_FIELDS.filter((f) => fieldVisible(f, sizes.fit) && sizes[f.key]);
             return (
               <div className="cp-group kit-sizes">
                 <div className="cp-group-head">
                   <span className="dia">◆</span><span className="t">Uniform sizes</span>
-                  {!sizesEditing && sizes.fit && <span className="kit-fit-chip">{fitLabel(sizes.fit)}</span>}
+                  {!editing && sizes.fit && <span className="kit-fit-chip">{fitLabel(sizes.fit)}</span>}
                   <span className="line" />
-                  {canEditSizes && !sizesEditing && (
-                    <Button variant="outline" size="xs" iconName="Pencil" onClick={() => { setSizesForm(sizes); setSizesEditing(true); }}>Edit sizes</Button>
-                  )}
                 </div>
-                {sizesEditing ? (
+                {editing ? (
                   <>
                     <label className="kit-field kit-fit-field">
                       <span>Sizing profile</span>
@@ -398,13 +406,9 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                       <span>Other sizing notes <em>optional</em></span>
                       <input value={sizesForm.notes || ''} onChange={(e) => setSizesForm((s) => ({ ...s, notes: e.target.value }))} placeholder="e.g. prefers long-sleeve, runs small" />
                     </label>
-                    <div className="flex justify-end gap-2 mt-4">
-                      <Button variant="outline" size="sm" onClick={() => setSizesEditing(false)}>Cancel</Button>
-                      <Button size="sm" onClick={saveSizes} disabled={busy}>Save sizes</Button>
-                    </div>
                   </>
                 ) : filled.length === 0 && !sizes.notes ? (
-                  <p className="kit-size-none">No sizes recorded yet.{canEditSizes ? ' Use “Edit sizes” to add them.' : ''}</p>
+                  <p className="kit-size-none">No sizes recorded yet.{canEditSizes ? ' Use “Edit” to add them.' : ''}</p>
                 ) : (
                   <>
                     <div className="kit-size-grid">
@@ -422,11 +426,18 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
             );
           })()}
 
+          {/* Issue-item control (edit mode, managers) */}
+          {canManage && editMode && (
+            <div className="kit-add-bar">
+              <Button variant="outline" size="sm" iconName="Plus" onClick={openIssue}>Add item to issued kit</Button>
+            </div>
+          )}
+
           {items.length === 0 ? (
             <div className="kit-empty">
               <Icon name="Shirt" size={26} style={{ color: '#AEB4C2' }} />
               <p>No kit issued yet.</p>
-              {canManage && <Button variant="outline" size="sm" iconName="Plus" onClick={openIssue}>Issue the first item</Button>}
+              {canManage && editMode && <Button variant="outline" size="sm" iconName="Plus" onClick={openIssue}>Issue the first item</Button>}
             </div>
           ) : (
             <>
@@ -440,7 +451,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
               )}
 
               {/* Manager batch-return prompt */}
-              {canManage && inService.length > 0 && (
+              {canManage && editMode && inService.length > 0 && (
                 <div className="kit-return-bar">
                   <span>{inService.length} item{inService.length > 1 ? 's' : ''} in service</span>
                   <button onClick={() => openReturn(inService)}><Icon name="PackageCheck" size={14} /> Record return (all)</button>
