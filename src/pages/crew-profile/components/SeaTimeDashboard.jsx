@@ -156,6 +156,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [entries, setEntries] = useState(SEED_ENTRIES);
   const [seafarer, setSeafarer] = useState(SEED_SEAFARER);
   const [company, setCompany] = useState({}); // vessel's company/shipowner contact (Nautilus Part 1)
+  const [endorser, setEndorser] = useState(null); // Part 4 endorser (covering captain, or company)
   const [prior, setPrior] = useState(SEED_PRIOR);
   const [usingSample, setUsingSample] = useState(true);
   const toastTimer = useRef(null);
@@ -188,6 +189,31 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const startPathway = () => setGoalId(goalForDept(deptId) || 'MASTER_YACHT_3000');
   const stopPathway = () => setGoalId('');
 
+  // Resolve the Part-4 endorser. The auto-logged service is all on this Cargo
+  // vessel, so the master who covered it is the vessel's COMMAND user — pull their
+  // name + CoC. If the seafarer is themselves the captain (own master service),
+  // the endorser must be the owner/company (a responsible person), not self.
+  const resolveEndorser = async (companyData) => {
+    try {
+      const { data: cmd } = await supabase?.from('tenant_members')
+        ?.select('user_id')?.eq('tenant_id', tenantId)?.eq('role', 'COMMAND')
+        ?.order('created_at', { ascending: true })?.limit(1)?.maybeSingle() || {};
+      const captainId = cmd?.user_id || null;
+      if (captainId && captainId !== userId) {
+        const [cp, coc] = await Promise.all([
+          supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', captainId)?.maybeSingle(),
+          supabase?.from('personal_documents')?.select('document_number, details')?.eq('user_id', captainId)?.eq('doc_type', 'coc')?.order('expiry_date', { ascending: false, nullsFirst: false })?.limit(1)?.maybeSingle(),
+        ]);
+        const cd = cp?.data || {};
+        const name = (cd.first_name && cd.surname) ? `${cd.first_name} ${cd.surname}` : (cd.full_name || '');
+        setEndorser({ position: 'Master', name, cocNo: coc?.data?.document_number || '', issuingAuthority: '' });
+      } else {
+        // Seafarer is the master → owner/responsible person endorses.
+        setEndorser({ position: 'ResponsiblePerson', organisation: companyData?.company_name || '', positionHeld: '' });
+      }
+    } catch (e) { console.warn('[seatime] endorser resolve failed', e); setEndorser(null); }
+  };
+
   // ── load live data ──
   const loadLive = async () => {
     if (!tenantId || !userId) return;
@@ -195,8 +221,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const [rows, prof, pd, ves] = await Promise.all([
         fetchEntriesForUser(tenantId, userId, 'mca-oow-yachts'),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number')?.eq('user_id', userId)?.maybeSingle(),
-        supabase?.from('vessels')?.select('company_name, company_address, company_email, company_phone, company_country, company_postcode')?.eq('tenant_id', tenantId)?.maybeSingle()
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('vessels')?.select('company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw')?.eq('tenant_id', tenantId)?.maybeSingle()
       ]);
       // Prefer the structured first + surname over a free-text full_name (which can
       // get polluted with a rank); fall back to full_name, then the session user.
@@ -204,11 +230,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const fullName = (p.first_name && p.surname) ? `${p.first_name} ${p.surname}`
         : (p.full_name || currentUser?.fullName || 'Seafarer');
       setCompany(ves?.data || {});
+      // Resolve the endorser (Part 4) — the vessel's captain + their CoC, from
+      // their Cargo record. If the seafarer IS the captain (their own service as
+      // master), the endorser becomes the company (responsible person) instead.
+      resolveEndorser(ves?.data || {});
       if (rows && rows.length) {
         const { vessels: vMap, entries: ents } = adaptLiveEntries(rows);
         const dates = rows.map(r => r.date).filter(Boolean).sort();
         setVessels(vMap); setEntries(ents);
-        setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, dischargeBookNo: pd?.data?.discharge_book_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
+        setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, dischargeBookNo: pd?.data?.discharge_book_number || '', membershipNo: pd?.data?.verifier_membership_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
         setPrior(ZERO_PRIOR); // TODO: store a lifetime accrual baseline per seafarer.
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
@@ -560,8 +590,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const addrLines = String(company.company_address || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       flash('Building Nautilus form…');
       const pdfBytes = await buildNautilusSST({
-        seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, dischargeBook: seafarer.dischargeBookNo },
-        vessel: { type: v.type, flag: v.flag, name: v.name, imo: v.imo, officialNo: v.officialNo, lengthM: v.lengthM, gt: v.gt, kw: v.kw },
+        seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, dischargeBook: seafarer.dischargeBookNo, nautilusNo: seafarer.membershipNo },
+        vessel: { type: v.type, flag: v.flag, name: v.name, imo: v.imo, officialNo: v.officialNo, lengthM: v.lengthM, gt: v.gt, kw: company.propulsion_kw },
+        endorser,
         company: {
           shipowner: company.company_name || '',
           addr1: addrLines[0] || '', addr2: addrLines[1] || '',

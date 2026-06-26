@@ -70,6 +70,7 @@ const VesselSettings = () => {
     company_postcode: '',
     logo_url: '',
     loa_m: '',
+    propulsion_kw: '',
     gt: '',
     year_built: '',
     year_refit: '',
@@ -203,6 +204,7 @@ const VesselSettings = () => {
         company_postcode: vesselData?.company_postcode || '',
         logo_url: vesselData?.logo_url || '',
         loa_m: vesselData?.loa_m || '',
+        propulsion_kw: vesselData?.propulsion_kw ?? '',
         gt: vesselData?.gt || '',
         year_built: vesselData?.year_built || '',
         year_refit: vesselData?.year_refit || '',
@@ -390,6 +392,7 @@ const VesselSettings = () => {
         company_postcode: formState?.company_postcode?.trim() || null,
         logo_url: formState?.logo_url || null,
         loa_m: formState?.loa_m ? parseFloat(formState?.loa_m) : null,
+        propulsion_kw: formState?.propulsion_kw ? parseFloat(formState?.propulsion_kw) : null,
         gt: formState?.gt ? parseInt(formState?.gt, 10) : null,
         year_built: formState?.year_built ? parseInt(formState?.year_built, 10) : null,
         year_refit: formState?.year_refit ? parseInt(formState?.year_refit, 10) : null,
@@ -908,6 +911,16 @@ const VesselSettings = () => {
                       value={formState?.gt}
                       onChange={(e) => handleInputChange('gt', e?.target?.value)}
                       placeholder="e.g., 500"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Propulsion power (kW)</label>
+                    <Input
+                      type="number"
+                      value={formState?.propulsion_kw || ''}
+                      onChange={(e) => handleInputChange('propulsion_kw', e?.target?.value)}
+                      placeholder="e.g., 2400 — for engineer sea-service testimonials"
                       disabled={viewMode || !canEdit}
                     />
                   </div>

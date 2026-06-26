@@ -1578,6 +1578,14 @@ const canEdit = (() => {
               placeholder="—"
             />
           </Field>
+          <Field label="Nautilus / PYA membership №" hint={isEditing ? 'Auto-fills your sea-service testimonial export' : undefined}>
+            <Input
+              value={formData?.verifierMembershipNumber}
+              onChange={(e) => handleInputChange('verifierMembershipNumber', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
+          </Field>
           </div>
         </div>
 
