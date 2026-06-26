@@ -2,30 +2,25 @@ import jsPDF from 'jspdf';
 
 // Provisioning-board PDF exporter.
 //
-// Earlier passes tried to lay the board out from scratch in jsPDF
-// (first as a heavy autoTable, then as an editorial rewrite). Both
-// read worse than the in-app page they were trying to mirror —
-// jsPDF only ships Helvetica and our typography is half the point.
+// Captures the in-app board with html2canvas and embeds the
+// resulting tall image into a paginated jsPDF, then opens the PDF
+// in a new tab via a blob URL. The chief gets the editorial page
+// they see on screen (typography, chips, hairlines, terracotta
+// accents) inside a viewer that supports orientation / save / print
+// without the browser's print dialog.
 //
-// This pass takes the simpler route the user asked for: capture the
-// in-app page exactly as rendered (html2canvas → canvas), paginate
-// the resulting tall image across A4 pages, and open the PDF in a
-// new tab. The chief gets the editorial page they're already
-// looking at, but in a viewer that supports orientation / save /
-// print without the browser's print dialog.
-//
-// html2canvas is loaded dynamically so it doesn't bloat the main
-// chunk — only the user who clicks Print / PDF pays for it.
+// Full bleed: no page margins — the captured page goes edge to edge
+// so the chips and KPI cards render at full readable size instead
+// of being shrunk inside a narrow column. The captured DOM still
+// carries its own padding so the content has visual breathing room
+// against the page edge.
 
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
-const PAGE_MARGIN_MM = 10;
 
 // Class names whose elements should be skipped during capture.
 // The right ribbon hosts the Print / PDF button itself — capturing
-// it would print the button that triggered the export. Tabs /
-// search bar / bulk-action chrome are interactive controls that
-// don't help anyone reading a printed copy.
+// it would print the button that triggered the export.
 const IGNORED_SELECTORS = [
   '.cargo-ribbon',
 ];
@@ -40,10 +35,10 @@ const shouldIgnore = (el) => {
 // Slice a tall source canvas into A4-page-sized chunks at the given
 // scale (canvas px → mm). Each slice is drawn into a fresh canvas
 // and pushed as a JPEG to the doc as a separate page.
-const paginateCanvasToPdf = (sourceCanvas, doc, { scale, marginMm }) => {
-  const pageContentMm = A4_HEIGHT_MM - marginMm * 2;
+const paginateCanvasToPdf = (sourceCanvas, doc, { scale }) => {
+  const pageContentMm = A4_HEIGHT_MM;
   const slicePxHeight = Math.floor(pageContentMm / scale);
-  const usableWidthMm = A4_WIDTH_MM - marginMm * 2;
+  const usableWidthMm = A4_WIDTH_MM;
 
   let yOffsetPx = 0;
   let firstPage = true;
@@ -65,8 +60,8 @@ const paginateCanvasToPdf = (sourceCanvas, doc, { scale, marginMm }) => {
     doc.addImage(
       imgData,
       'JPEG',
-      marginMm,
-      marginMm,
+      0,
+      0,
       usableWidthMm,
       sliceHeight * scale,
     );
@@ -76,11 +71,31 @@ const paginateCanvasToPdf = (sourceCanvas, doc, { scale, marginMm }) => {
   }
 };
 
+// Pick the tightest element that wraps the printable board content.
+// `.pv-dashboard` is the outer page wrapper and tends to include
+// the page's left/right gutter padding (so the resulting capture
+// has empty bands on either side and the actual content looks
+// small inside a wide canvas). Prefer the EditorialPageShell's
+// inner content host when available — that's the column whose
+// width matches the title + chips + items table.
+const pickCaptureTarget = () => {
+  // Tighter selectors first.
+  const candidates = [
+    '.editorial-shell-content',
+    '.editorial-page-shell',
+    '.editorial-page',
+    '.pv-dashboard',
+  ];
+  for (const sel of candidates) {
+    const el = document.querySelector(sel);
+    if (el) return el;
+  }
+  return null;
+};
+
 // Capture the in-app board and open the resulting PDF in a new tab.
-// `targetSelector` defaults to the board's outer wrapper; callers
-// can pass a tighter selector if they only want part of the page.
-export const openBoardPdf = async ({ targetSelector = '.pv-dashboard' } = {}) => {
-  const target = document.querySelector(targetSelector);
+export const openBoardPdf = async () => {
+  const target = pickCaptureTarget();
   if (!target) {
     window.alert('Could not find the board content to export.');
     return;
@@ -91,20 +106,25 @@ export const openBoardPdf = async ({ targetSelector = '.pv-dashboard' } = {}) =>
 
   // scale: 2 keeps the typography crisp at common viewing zoom.
   // useCORS lets any tenant logo / supplier mark render instead of
-  // tainting the canvas and aborting the export.
+  // tainting the canvas and aborting the export. We pass an
+  // explicit width so html2canvas captures the element's own
+  // scrollWidth — important when the page has overflowed
+  // horizontally on a narrow viewport.
   const canvas = await html2canvas(target, {
     scale: 2,
     useCORS: true,
     backgroundColor: '#FFFFFF',
     logging: false,
     ignoreElements: shouldIgnore,
+    width: target.scrollWidth,
+    height: target.scrollHeight,
+    windowWidth: target.scrollWidth,
   });
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const usableWidthMm = A4_WIDTH_MM - PAGE_MARGIN_MM * 2;
-  const scale = usableWidthMm / canvas.width;
+  const scale = A4_WIDTH_MM / canvas.width;
 
-  paginateCanvasToPdf(canvas, doc, { scale, marginMm: PAGE_MARGIN_MM });
+  paginateCanvasToPdf(canvas, doc, { scale });
 
   const blob = doc.output('blob');
   const url = URL.createObjectURL(blob);
