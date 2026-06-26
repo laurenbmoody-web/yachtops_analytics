@@ -5,7 +5,7 @@ import LogoSpinner from '../../../components/LogoSpinner';
 import ModalShell from '../../../components/ui/ModalShell';
 import { showToast } from '../../../utils/toast';
 import { getDocTypeLabel, suggestedExpiry } from '../documentTypes';
-import { parseDocumentFile, persistCrewDocument, findDuplicateDoc } from '../utils/crewDocuments';
+import { parseDocumentFile, persistCrewDocument, findDuplicateDoc, identityMismatch } from '../utils/crewDocuments';
 import { syncPassportToPersonalDetails } from '../utils/crewProfileData';
 import DocumentFields from './DocumentFields';
 
@@ -40,7 +40,7 @@ const formFromSuggestion = (s) => {
  * collapsed row that expands to edit. "Save all" files every reviewed row into
  * the Documents tab in one go (passports also feed Personal Details).
  */
-const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, userId, tenantId, createdBy, existingDocs = [] }) => {
+const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, userId, tenantId, createdBy, crewName, crewDob, existingDocs = [] }) => {
   const [items, setItems] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -57,7 +57,8 @@ const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, us
         try {
           const s = await parseDocumentFile(row.file);
           if (cancelled) return;
-          setItems((prev) => prev.map((p) => (p.id === row.id ? { ...p, status: 'parsed', form: formFromSuggestion(s) } : p)));
+          const idm = identityMismatch(s, { name: crewName, dob: crewDob });
+          setItems((prev) => prev.map((p) => (p.id === row.id ? { ...p, status: 'parsed', form: formFromSuggestion(s), idMismatch: idm.mismatch ? idm : null } : p)));
         } catch (e) {
           console.error('[docs] batch parse failed', e);
           if (cancelled) return;
@@ -82,6 +83,10 @@ const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, us
 
   const saveAll = async () => {
     if (!savable.length) { showToast('Pick a type for at least one document', 'error'); return; }
+    const mismatched = savable.filter((i) => i.idMismatch);
+    if (mismatched.length && !window.confirm(
+      `${mismatched.length} document${mismatched.length === 1 ? '' : 's'} look like they belong to a different person than ${crewName || 'this crew member'} (${mismatched.map((m) => m.idMismatch.reasons.find((r) => r.field === 'name')?.holder).filter(Boolean).join(', ') || 'name/DOB mismatch'}). Add ${mismatched.length === 1 ? 'it' : 'them'} to this profile anyway?`,
+    )) return;
     setSaving(true);
     let ok = 0;
     let failed = 0;
@@ -173,6 +178,11 @@ const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, us
                     {it.file.name}{summary ? ` · ${summary}` : ''}
                   </div>
                 </div>
+                {it.idMismatch && (
+                  <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#FBE9E7', color: '#A32D2D' }} title={`Document holder: ${it.idMismatch.reasons.find((r) => r.field === 'name')?.holder || 'different DOB'}`}>
+                    <Icon name="AlertTriangle" size={11} /> Different holder?
+                  </span>
+                )}
                 {dup && (
                   <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#FBEFE9', color: '#7A2E1E' }} title="A matching document is already on file">
                     <Icon name="Copy" size={11} /> Possible duplicate

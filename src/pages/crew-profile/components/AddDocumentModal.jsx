@@ -5,7 +5,7 @@ import ModalShell from '../../../components/ui/ModalShell';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
 import { getDocType, getDocTypeLabel, suggestedExpiry } from '../documentTypes';
-import { parseDocumentFile, persistCrewDocument, findDuplicateDoc } from '../utils/crewDocuments';
+import { parseDocumentFile, persistCrewDocument, findDuplicateDoc, identityMismatch } from '../utils/crewDocuments';
 import { syncPassportToPersonalDetails } from '../utils/crewProfileData';
 import DocumentFields from './DocumentFields';
 
@@ -19,25 +19,38 @@ const fmtVal = (v) =>
     ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}`
     : v;
 
+// Strong warning when a parsed identity document looks like someone else's.
+const buildMismatchAdvisory = (idCheck) => {
+  const messages = ['This document doesn’t look like it belongs to this crew member — check you’re on the right profile:'];
+  for (const r of idCheck.reasons) {
+    if (r.field === 'name') messages.push(`Holder name: document shows “${r.holder}”, this profile is “${r.crew}”.`);
+    if (r.field === 'dob') messages.push(`Date of birth: document shows “${r.holder.slice(8, 10)}/${r.holder.slice(5, 7)}/${r.holder.slice(0, 4)}”, this profile is “${r.crew.slice(8, 10)}/${r.crew.slice(5, 7)}/${r.crew.slice(0, 4)}”.`);
+  }
+  return { kind: 'mismatch', messages };
+};
+
 const blank = {
   docType: '', documentNumber: '', issuingAuthority: '', flagState: '',
   issueDate: '', expiryDate: '', details: {},
   fileUrl: null, fileName: null, mimeType: null, sizeBytes: null,
 };
 
-const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, tenantId, createdBy, existing, presetType, presetDetails, prefill, prefillFile, existingDocs = [] }) => {
+const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, tenantId, createdBy, crewName, crewDob, existing, presetType, presetDetails, prefill, prefillFile, existingDocs = [] }) => {
   const [form, setForm] = useState(blank);
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   // Result of reading a file the user attached inside the modal:
-  // { kind: 'filled' | 'ok' | 'warn' | 'error', messages: string[] }.
+  // { kind: 'filled' | 'ok' | 'warn' | 'error' | 'mismatch', messages: string[] }.
   const [advisory, setAdvisory] = useState(null);
+  // Set when a parsed identity doc looks like it belongs to a different person.
+  const [identityWarn, setIdentityWarn] = useState(null);
 
   useEffect(() => {
     if (!isOpen) return;
     setScanning(false);
     setAdvisory(null);
+    setIdentityWarn(null);
     if (existing) {
       setForm({
         id: existing.id,
@@ -86,6 +99,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
   const handleFileSelect = async (selected) => {
     setFile(selected);
     setAdvisory(null);
+    setIdentityWarn(null);
     if (!selected) return;
 
     const detailVals = Object.values(form.details || {}).filter((v) => v != null && String(v).trim() !== '');
@@ -95,6 +109,9 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
     setScanning(true);
     try {
       const s = await parseDocumentFile(selected);
+      const idCheck = identityMismatch(s, { name: crewName, dob: crewDob });
+      const mismatchAdvisory = idCheck.mismatch ? buildMismatchAdvisory(idCheck) : null;
+      if (idCheck.mismatch) setIdentityWarn(idCheck);
 
       if (!hasInput) {
         // Auto-fill mode — populate everything from the scan. For refresher
@@ -113,7 +130,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
             details: { ...f.details, ...(s.details || {}) },
           };
         });
-        setAdvisory({
+        setAdvisory(mismatchAdvisory || {
           kind: 'filled',
           messages: ['We filled the fields from your upload — please check each one before saving.'],
         });
@@ -157,9 +174,10 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
       }
 
       setAdvisory(
-        conflicts.length
-          ? { kind: 'warn', messages: ['These fields don’t match your upload — please double-check:', ...conflicts] }
-          : { kind: 'ok', messages: ['Your details match the uploaded document.'] },
+        mismatchAdvisory
+          || (conflicts.length
+            ? { kind: 'warn', messages: ['These fields don’t match your upload — please double-check:', ...conflicts] }
+            : { kind: 'ok', messages: ['Your details match the uploaded document.'] }),
       );
     } catch (e) {
       console.error('[docs] file parse failed', e);
@@ -176,6 +194,9 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
 
   const handleSave = async () => {
     if (!form.docType) { showToast('Pick a document type', 'error'); return; }
+    if (identityWarn && !form.id && !window.confirm(
+      `This document looks like it belongs to ${identityWarn.reasons.find((r) => r.field === 'name')?.holder || 'someone else'}, not ${crewName || 'this crew member'}. Add it to this profile anyway?`,
+    )) return;
     if (duplicate && !window.confirm(
       `This looks like a duplicate of a ${getDocTypeLabel(duplicate.doc_type, duplicate.details)} already on file. Add it anyway?`,
     )) return;
@@ -283,17 +304,19 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
             <div
               className="flex items-start gap-2 mt-2 px-3 py-2 rounded-lg text-xs"
               style={
-                advisory.kind === 'warn'
-                  ? { background: '#FBEFE9', color: '#7A2E1E' }
-                  : advisory.kind === 'error'
-                    ? { background: '#FAFAF8', border: '1px solid #ECEAE3', color: '#6B7280' }
-                    : advisory.kind === 'ok'
-                      ? { background: '#ECF7EE', color: '#1E7A3E' }
-                      : { background: '#FAEEDA', color: '#7A2E1E' }
+                advisory.kind === 'mismatch'
+                  ? { background: '#FBE9E7', color: '#A32D2D', border: '1px solid #F2C9C0' }
+                  : advisory.kind === 'warn'
+                    ? { background: '#FBEFE9', color: '#7A2E1E' }
+                    : advisory.kind === 'error'
+                      ? { background: '#FAFAF8', border: '1px solid #ECEAE3', color: '#6B7280' }
+                      : advisory.kind === 'ok'
+                        ? { background: '#ECF7EE', color: '#1E7A3E' }
+                        : { background: '#FAEEDA', color: '#7A2E1E' }
               }
             >
               <Icon
-                name={advisory.kind === 'warn' ? 'AlertTriangle' : advisory.kind === 'ok' ? 'CheckCircle' : advisory.kind === 'error' ? 'Info' : 'Sparkles'}
+                name={advisory.kind === 'mismatch' || advisory.kind === 'warn' ? 'AlertTriangle' : advisory.kind === 'ok' ? 'CheckCircle' : advisory.kind === 'error' ? 'Info' : 'Sparkles'}
                 size={14}
                 className="flex-shrink-0 mt-0.5"
               />

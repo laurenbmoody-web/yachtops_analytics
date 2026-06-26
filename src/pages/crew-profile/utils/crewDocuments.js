@@ -245,6 +245,35 @@ export const findDuplicateDoc = (docs = [], form = {}) => {
   }) || null;
 };
 
+// Identity documents we can attribute to a named holder.
+const IDENTITY_DOC_TYPES = new Set(['passport', 'passport_certified_copy', 'national_id', 'driving_licence', 'seamans_book']);
+// Significant name tokens (drop short bits) for a loose person match.
+const nameTokens = (s) => String(s || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((t) => t.length >= 2);
+
+/**
+ * Does a parsed identity document look like it belongs to someone OTHER than the
+ * crew member it's being added to? Conservative — only flags when we actually
+ * have a holder name (or DOB) from the document AND the crew's own identity, and
+ * they clearly disagree (no shared name token, or different date of birth).
+ * Returns { mismatch, reasons:[{field, holder, crew}] }.
+ */
+export const identityMismatch = (parsed = {}, crew = {}) => {
+  if (!IDENTITY_DOC_TYPES.has(parsed.doc_type)) return { mismatch: false, reasons: [] };
+  const reasons = [];
+  const holder = parsed.details?.holder_name;
+  if (holder && crew.name) {
+    const a = nameTokens(holder);
+    const b = new Set(nameTokens(crew.name));
+    if (a.length && b.size && !a.some((t) => b.has(t))) reasons.push({ field: 'name', holder, crew: crew.name });
+  }
+  const dDob = String(parsed.details?.date_of_birth || '').slice(0, 10);
+  const cDob = String(crew.dob || '').slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dDob) && /^\d{4}-\d{2}-\d{2}$/.test(cDob) && dDob !== cDob) {
+    reasons.push({ field: 'dob', holder: dDob, crew: cDob });
+  }
+  return { mismatch: reasons.length > 0, reasons };
+};
+
 export const deleteCrewDocument = async (id) => {
   const { error } = await supabase?.from('personal_documents')?.delete()?.eq('id', id);
   if (error) throw error;
