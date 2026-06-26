@@ -33,6 +33,14 @@ const IcoPath = ({ d, color, size = 18 }) => (
 
 const fmtDate = (iso) => { if (!iso) return '—'; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : iso; };
 const ZERO_PRIOR = { seagoing: 0, watchkeeping: 0, total: 0 };
+// Lifetime sea service accrued before Cargo (a crew-entered lump sum) → the prior
+// shape the pathway adds on top of the auto-logged Cargo service.
+const priorFromBaseline = (b) => {
+  const n = (x) => Math.max(0, Math.round(+x || 0));
+  const sg = n(b?.seagoing), wk = n(b?.watchkeeping), sb = n(b?.standby), yd = n(b?.yard);
+  const onboard = sg + wk + sb + yd;
+  return { seagoing: sg, watchkeeping: wk, standby: sb, yard: yd, onboard, total: onboard };
+};
 
 // A testimonial is per-vessel and per-master: each master can only attest the
 // service served on HIS vessel. Attestation is anchored to the master OF RECORD
@@ -167,6 +175,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [seafarer, setSeafarer] = useState(SEED_SEAFARER);
   const [company, setCompany] = useState({}); // vessel's company/shipowner contact (Nautilus Part 1)
   const [prior, setPrior] = useState(SEED_PRIOR);
+  const [priorBaseline, setPriorBaseline] = useState(null); // raw {seagoing,watchkeeping,standby,yard,note}
+  const [priorOpen, setPriorOpen] = useState(false);
+  const [priorDraft, setPriorDraft] = useState({ seagoing: '', watchkeeping: '', standby: '', yard: '', note: '' });
   const [usingSample, setUsingSample] = useState(true);
   const toastTimer = useRef(null);
   const ledgerRef = useRef(null);
@@ -232,7 +243,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const [rows, prof, pd, ves] = await Promise.all([
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior')?.eq('user_id', userId)?.maybeSingle(),
         supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw')?.eq('tenant_id', tenantId)?.maybeSingle()
       ]);
       // Prefer the structured first + surname over a free-text full_name (which can
@@ -246,7 +257,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         const dates = rows.map(r => r.date).filter(Boolean).sort();
         setVessels(vMap); setEntries(ents);
         setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, dischargeBookNo: pd?.data?.discharge_book_number || '', membershipNo: pd?.data?.verifier_membership_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
-        setPrior(ZERO_PRIOR); // TODO: store a lifetime accrual baseline per seafarer.
+        setPriorBaseline(pd?.data?.sea_service_prior || {});
+        setPrior(priorFromBaseline(pd?.data?.sea_service_prior)); // lifetime baseline accrued before Cargo
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
         // Per-command-spell attestation is derived from each entry's verification
@@ -637,6 +649,26 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     } catch (e) { console.error('[seatime] nautilus export', e); flash('Could not build the Nautilus form'); }
   };
 
+  // Prior service before Cargo — a crew-entered lump sum that counts toward the
+  // pathway alongside the auto-logged Cargo service.
+  const openPrior = () => {
+    const b = priorBaseline || {};
+    setPriorDraft({ seagoing: b.seagoing ?? '', watchkeeping: b.watchkeeping ?? '', standby: b.standby ?? '', yard: b.yard ?? '', note: b.note || '' });
+    setPriorOpen(true);
+  };
+  const savePrior = async () => {
+    const clean = (x) => Math.max(0, Math.round(+x || 0)) || 0;
+    const payload = { seagoing: clean(priorDraft.seagoing), watchkeeping: clean(priorDraft.watchkeeping), standby: clean(priorDraft.standby), yard: clean(priorDraft.yard), note: (priorDraft.note || '').trim() };
+    setPriorOpen(false);
+    if (usingSample || !userId) { setPriorBaseline(payload); setPrior(priorFromBaseline(payload)); flash('Prior service saved (preview)'); return; }
+    try {
+      const { error } = await supabase.from('crew_personal_details').upsert({ user_id: userId, sea_service_prior: payload }, { onConflict: 'user_id' });
+      if (error) throw error;
+      setPriorBaseline(payload); setPrior(priorFromBaseline(payload));
+      flash('Prior service saved');
+    } catch (e) { console.error('[seatime] save prior', e); flash('Could not save prior service'); }
+  };
+
   const formDays = () => { const { from, to } = form; if (!from || !to) return 1; const d = Math.round((new Date(to) - new Date(from)) / 86400000) + 1; return d > 0 ? d : 1; };
   const saveEntry = async () => {
     const days = formDays();
@@ -944,6 +976,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       <div className="std-head">
         <div className="std-sechead"><h3 className="cp-hor-title">SEA&nbsp;TIME<span className="pn">,</span> <em>Tracker</em><span className="pn">.</span></h3></div>
         <div className="std-controls">
+          <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={openPrior}><Icon name="History" size={16} /> Prior service</button>
           <button className="std-logbtn" onClick={() => setDrawerOpen(true)}><Icon name="Plus" size={16} /> Log sea time</button>
         </div>
       </div>
@@ -1262,6 +1295,39 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           )}
         </div>
       </div>
+
+      {/* ── prior service before Cargo (lump-sum baseline) ── */}
+      {priorOpen && createPortal(
+        <div className="cso-overlay" onClick={() => setPriorOpen(false)}>
+          <div className="cso" role="dialog" aria-modal="true" aria-label="Prior service before Cargo" style={{ width: 480 }} onClick={e => e.stopPropagation()}>
+            <button className="cso-x" onClick={() => setPriorOpen(false)} aria-label="Close"><Icon name="X" size={18} /></button>
+            <div className="cso-head">
+              <div className="cso-eyebrow">Pathway · before Cargo</div>
+              <h3 className="cso-title">Prior sea service</h3>
+              <div className="cso-sub">Service you accrued <b>before Cargo</b> (or that can’t be auto-logged), as a lump sum. It counts toward your pathway alongside your Cargo-tracked service — keep your own testimonials as evidence for it.</div>
+            </div>
+            <div className="cso-body">
+              <div className="cso-grid">
+                {[['seagoing', 'Seagoing days'], ['watchkeeping', 'Watchkeeping days'], ['standby', 'Standby days'], ['yard', 'Shipyard days']].map(([k, label]) => (
+                  <div className="cso-fld" key={k}>
+                    <label className="cso-lbl">{label}</label>
+                    <input className="cso-input" type="number" min="0" value={priorDraft[k]} onChange={e => setPriorDraft(d => ({ ...d, [k]: e.target.value }))} placeholder="0" />
+                  </div>
+                ))}
+              </div>
+              <div className="cso-fld" style={{ marginTop: 12 }}>
+                <label className="cso-lbl">Note <span className="opt">optional</span></label>
+                <input className="cso-input" value={priorDraft.note} onChange={e => setPriorDraft(d => ({ ...d, note: e.target.value }))} placeholder="e.g. 2019–2023, prior to joining Cargo" />
+              </div>
+            </div>
+            <div className="cso-foot">
+              <button className="cso-btn ghost" onClick={() => setPriorOpen(false)}>Cancel</button>
+              <button className="cso-btn rust" onClick={savePrior}><Icon name="Check" size={15} /> Save prior service</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── log sea time drawer ── */}
       {drawerOpen && (
