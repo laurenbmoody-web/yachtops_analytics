@@ -152,6 +152,7 @@ const MSF_FORMS = {
 };
 const addYearsIso = (iso, n) => { if (!iso) return ''; const [y, m, d] = String(iso).split('-'); return `${+y + n}-${m}-${d}`; };
 const daysUntil = (iso) => { if (!iso) return null; return Math.round((new Date(iso + 'T00:00:00') - new Date()) / 86400000); };
+const yearOf = (e) => (e.from ? +String(e.from).slice(0, 4) : null);
 
 const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, canAttest = false }) => {
   const config = DEFAULT_CONFIG;
@@ -196,6 +197,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [journey, setJourney] = useState(null);
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [journeyDraft, setJourneyDraft] = useState(null);
+  // Years marked "accounted for" (verified + submitted toward a prior CoC) →
+  // collapsed in the ledger and excluded from the active pathway.
+  const [accounted, setAccounted] = useState({});
   const [usingSample, setUsingSample] = useState(true);
   const toastTimer = useRef(null);
   const ledgerRef = useRef(null);
@@ -261,7 +265,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const [rows, prof, pd, ves, certCopy] = await Promise.all([
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years')?.eq('user_id', userId)?.maybeSingle(),
         supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw')?.eq('tenant_id', tenantId)?.maybeSingle(),
         // A certified true copy of the passport in Documents satisfies the
         // pack's proof-of-identity requirement automatically.
@@ -282,6 +286,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         setPriorBaseline(pd?.data?.sea_service_prior || {});
         setPrior(priorFromBaseline(pd?.data?.sea_service_prior)); // lifetime baseline accrued before Cargo
         setJourney(pd?.data?.cert_progression || null);
+        setAccounted(pd?.data?.accounted_years || {});
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
         // Per-command-spell attestation is derived from each entry's verification
@@ -340,14 +345,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // Cargo-verifiable (so they're excluded from the per-endorser export). The
   // ledger has a toggle to show all vessels or Cargo-tracked only.
   const cargoVesselIds = useMemo(() => new Set(entries.filter(e => e.source === 'vessel').map(e => e.vesselId)), [entries]);
+  // Accounted-for years are excluded from the ACTIVE pathway (spent on a prior
+  // CoC) — but still shown (collapsed) in the ledger.
+  const accountedSet = useMemo(() => new Set(Object.keys(accounted || {}).map(Number)), [accounted]);
+  const pathwayEntries = useMemo(() => entries.filter(e => !accountedSet.has(yearOf(e))), [entries, accountedSet]);
   // Yard cap is per-certificate (90 for OOW, 30 for Master/Chief Mate) — fold it
   // into the config so the yard bucket totals against the right MCA ceiling.
   const buckets = useMemo(
-    () => computeBuckets(entries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) }),
-    [entries, vessels, config, targetId],
+    () => computeBuckets(pathwayEntries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) }),
+    [pathwayEntries, vessels, config, targetId],
   );
   // Recent qualifying seagoing service in the last 5 years (MCA recency rule).
-  const recentDays = useMemo(() => recentQualifyingDays(entries.filter(e => !e.excluded)), [entries]);
+  const recentDays = useMemo(() => recentQualifyingDays(pathwayEntries.filter(e => !e.excluded)), [pathwayEntries]);
   const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert, recentDays) : []), [buckets, prior, cert, recentDays]);
   // Supporting-doc checks tick automatically when the matching profile document is
   // on file (passport, seaman's book); other docs keep their manual toggle.
@@ -728,6 +737,21 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     } catch (e) { console.error('[seatime] save journey', e); flash('Could not save the journey'); }
   };
 
+  // Mark / reopen a year as "accounted for" (verified + submitted toward a CoC).
+  const toggleAccounted = async (year) => {
+    const next = { ...(accounted || {}) };
+    const isOn = !!next[year];
+    if (isOn) delete next[year];
+    else next[year] = { at: new Date().toISOString().slice(0, 10), note: cert?.label ? `Counted toward ${cert.label}` : '' };
+    setAccounted(next);
+    if (usingSample || !userId) { flash(isOn ? 'Year reopened (preview)' : 'Year accounted for (preview)'); return; }
+    try {
+      const { error } = await supabase.from('crew_personal_details').upsert({ user_id: userId, accounted_years: next }, { onConflict: 'user_id' });
+      if (error) throw error;
+      flash(isOn ? `${year} reopened` : `${year} marked accounted for`);
+    } catch (e) { console.error('[seatime] accounted', e); flash('Could not update'); setAccounted(accounted); }
+  };
+
   const formDays = () => { const { from, to } = form; if (!from || !to) return 1; const d = Math.round((new Date(to) - new Date(from)) / 86400000) + 1; return d > 0 ? d : 1; };
   const saveEntry = async () => {
     const days = formDays();
@@ -911,7 +935,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   );
 
   // ── logged-service ledger (part of the Countdown page) ──
-  const yearOf = (e) => (e.from ? +String(e.from).slice(0, 4) : null);
   const LedgerTable = () => {
     const scoped = ledgerScope === 'cargo' ? entries.filter(e => cargoVesselIds.has(e.vesselId)) : entries;
     const typed = scoped.filter(e => serviceFilter === 'all' || e.type === serviceFilter);
@@ -961,15 +984,30 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <Icon name="ChevronRight" size={16} />
                 </button>
               </div>
-              <span className="std-vs">{yearDays} {yearDays === 1 ? 'day' : 'days'} in {activeYear}</span>
+              <div className="std-flex std-ac" style={{ gap: 10 }}>
+                <span className="std-vs">{yearDays} {yearDays === 1 ? 'day' : 'days'} in {activeYear}</span>
+                {activeYear && (accountedSet.has(activeYear)
+                  ? <button type="button" onClick={() => toggleAccounted(activeYear)} className="std-vs" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C65A1A', fontWeight: 600 }}>Reopen</button>
+                  : <button type="button" onClick={() => toggleAccounted(activeYear)} className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC', padding: '4px 10px' }}><Icon name="CheckCheck" size={13} /> Mark accounted for</button>)}
+              </div>
             </div>
           )}
-          {shown.length === 0 && (
+          {activeYear && accountedSet.has(activeYear) && (
+            <div className="std-flex std-between std-ac" style={{ padding: '12px 14px', border: '1px solid #CDE6D3', background: '#EFF6F1', borderRadius: 10, marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#3F7A52' }}>{activeYear} · accounted for</div>
+                <div className="std-vs">{yearDays} {yearDays === 1 ? 'day' : 'days'} · verified &amp; submitted{accounted[activeYear]?.note ? ` — ${accounted[activeYear].note}` : ''}. Excluded from your active pathway.</div>
+              </div>
+              <Icon name="ShieldCheck" size={20} color="#3F7A52" />
+            </div>
+          )}
+          {!(activeYear && accountedSet.has(activeYear)) && shown.length === 0 && (
             syncInfo && syncInfo.has_start_date === false
               ? <div className="std-foot">Your sea service will populate automatically once your <b>join date is confirmed by command</b> — it’s taken from your employment record, not entered by hand. You can still log a period manually with “Log sea time”.</div>
               : <div className="std-foot">No sea service logged yet — it auto-logs from your current vessel, or use “Log sea time”.</div>
           )}
           {(() => {
+            if (activeYear && accountedSet.has(activeYear)) return null; // collapsed summary shown above
             const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             const groups = [];
             const idx = {};
