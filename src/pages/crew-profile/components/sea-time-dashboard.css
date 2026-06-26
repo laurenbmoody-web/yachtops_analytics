@@ -345,6 +345,9 @@
 button.stp-step{cursor:pointer;}
 .stp-m{position:absolute;left:0;top:15px;width:11px;height:11px;border-radius:50%;background:#fff;border:1.5px solid var(--faint);}
 .stp-step.held .stp-m{background:var(--sage);border-color:var(--sage);}
+/* 'complete' = covered by a higher held cert — sage like held, but lighter copy */
+.stp-step.complete .stp-m{background:var(--sage);border-color:var(--sage);opacity:.5;}
+.stp-row .st.complete{color:var(--sage-deep);opacity:.7;}
 .stp-step.target .stp-m{background:var(--rust);border-color:var(--rust);box-shadow:0 0 0 3px var(--rust-tint);}
 .stp-row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--hair);}
 .stp-row .nm{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:15px;color:var(--ink);}
@@ -385,6 +388,10 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-convert b{color:#C65A1A;}
 
 /* logging-only record */
+/* goal-achieved banner — shown when the held cert is the top of the route */
+.stp-achieved{display:flex;gap:12px;align-items:flex-start;margin-top:16px;padding:14px 16px;background:#EFF6F1;border:1px solid #D7E7DD;border-radius:12px;}
+.stp-achieved .nt{font-weight:700;font-size:13.5px;color:#1C1B3A;}
+.stp-achieved .ns{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;}
 .stp-loghero{display:grid;grid-template-columns:1fr auto;gap:30px;align-items:center;margin-top:6px;}
 @media(max-width:680px){.stp-loghero{grid-template-columns:1fr;gap:16px;}}
 .stp-loglead{font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:10px;max-width:520px;}

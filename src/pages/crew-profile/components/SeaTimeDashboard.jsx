@@ -215,7 +215,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const deptGoalOptions = deptFamilies.flatMap(f => GOAL_OPTIONS[f] || []);
   const family = goalId && CERTIFICATES[goalId] ? CERTIFICATES[goalId].family : null;
   const route = useMemo(() => routeFor(goalId), [goalId]);
-  const targetId = route.find(id => !heldCerts[id]) || goalId;
+  // The route is a strict progression — each rung requires the one below it, so
+  // holding a higher rung implies every rung at or below it is satisfied (a crew
+  // member who logged only their top CoC still counts as having the rest). The
+  // live target is therefore the first rung ABOVE the highest held cert; if the
+  // highest held cert is the goal itself, the route is complete (no target).
+  const highestHeldIdx = route.reduce((max, id, i) => (heldCerts[id] ? i : max), -1);
+  const targetId = highestHeldIdx >= route.length - 1 ? null : route[highestHeldIdx + 1];
+  const routeComplete = !targetId && route.length > 0;
   const cert = targetId && CERTIFICATES[targetId] ? CERTIFICATES[targetId] : null;
   const rungs = route.map(id => ({ id, ...CERTIFICATES[id] }));
   const familyCerts = family ? Object.entries(CERTIFICATES).filter(([, c]) => c.family === family).map(([id, c]) => ({ id, ...c })) : [];
@@ -812,20 +819,24 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         </div>
       </div>
 
-      {cert ? (
+      {route.length > 0 ? (
+        <>
         <div className="stp-spine">
           {rungs.map((r) => {
             const isHeld = !!heldCerts[r.id];
-            const status = isHeld ? 'held' : r.id === targetId ? 'target' : 'upcoming';
+            const idx = route.indexOf(r.id);
+            // 'complete' = below the highest held cert, so implied satisfied even
+            // if the crew member never logged that intermediate certificate.
+            const status = isHeld ? 'held' : (idx > -1 && idx < highestHeldIdx ? 'complete' : r.id === targetId ? 'target' : 'upcoming');
             const isGoal = r.id === goalId;
             if (status !== 'target') {
-              const onClick = isHeld ? () => setHeldOpen(true) : () => setGoalId(r.id);
+              const onClick = (isHeld || status === 'complete') ? () => setHeldOpen(true) : () => setGoalId(r.id);
               return (
                 <button className={`stp-step ${status}${isGoal ? ' goal' : ''}`} key={r.id} type="button" onClick={onClick}>
                   <span className="stp-m" />
                   <span className="stp-row">
                     <span className="nm">{r.label} <span className="ref">{shortMsn(r.msn)}</span>{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}{isGoal && <span className="goaltag">Goal</span>}</span>
-                    <span className={`st ${status}`}>{isHeld ? <>Held{heldCerts[r.id].issueDate ? <> · <span className="dt">{fmtDate(heldCerts[r.id].issueDate)}</span></> : ''}</> : 'Upcoming'}</span>
+                    <span className={`st ${status}`}>{isHeld ? <>Held{heldCerts[r.id].issueDate ? <> · <span className="dt">{fmtDate(heldCerts[r.id].issueDate)}</span></> : ''}</> : status === 'complete' ? 'Covered' : 'Upcoming'}</span>
                   </span>
                 </button>
               );
@@ -868,6 +879,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             );
           })}
         </div>
+        {routeComplete && (
+          <div className="stp-achieved">
+            <IcoPath d="M20 6L9 17l-5-5" color="#5E8E6F" size={22} />
+            <div>
+              <div className="nt">You hold {CERTIFICATES[goalId]?.label || 'your goal'} — the top of this pathway.</div>
+              <div className="ns">Every rung below counts as covered, so there’s nothing left to work toward here. Pick a higher goal to keep progressing, or switch to “just track my days”.</div>
+            </div>
+          </div>
+        )}
+        </>
       ) : (
         <div className="stp-loghero">
           <div>
@@ -1162,8 +1183,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         </div>
       )}
 
-      {/* ── certification journey: NoE → oral exam → CoC ── */}
-      {(() => {
+      {/* ── certification journey: NoE → oral exam → CoC (only while a target CoC
+            is in play — hidden once the goal is held / logging-only) ── */}
+      {cert && (() => {
         const j = journey || JOURNEY_DEFAULT;
         const conf = certConfidence(cert);
         // Hard requirements only (advisory bars like recency guide but don't gate).
