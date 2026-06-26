@@ -104,22 +104,24 @@ export const renderPackPdf = async ({ dataset, verifier, assurance, qrDataUrl, s
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(138, 127, 99); doc.text(`${lab} days`, bx + 4, y + 14);
     bx += 45;
   }
-  y += 26;
+  y += 18;
 
-  // Signatory
-  doc.setTextColor(26, 34, 51); doc.setFont('helvetica', 'italic'); doc.setFontSize(15);
-  doc.text(signatoryMeta?.name || '—', M, y); y += 6;
+  // ── Signatory (left) + verification (right), as one clean band ─────────────
+  rule(false); y += 8;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+  doc.text('SIGNED BY THE MASTER', M, y);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(16); doc.setTextColor(26, 34, 51);
+  doc.text(signatoryMeta?.name || '—', M, y + 9);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 120);
-  doc.text(`${signatoryMeta?.rank || ''}${signatoryMeta?.cocNumber ? ' · CoC ' + signatoryMeta.cocNumber : ''}${signatoryMeta?.signedAt ? ' · ' + fmtDate(signatoryMeta.signedAt) : ''}`, M, y);
+  doc.text(`${signatoryMeta?.rank || 'Master'}${signatoryMeta?.cocNumber ? ' · CoC ' + signatoryMeta.cocNumber : ''}${signatoryMeta?.signedAt ? ' · ' + fmtDate(signatoryMeta.signedAt) : ''}`, M, y + 15);
 
-  // QR + verification (right column)
-  if (qrDataUrl) doc.addImage(qrDataUrl, 'PNG', 150, y - 30, 30, 30);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(138, 127, 99);
-  doc.text('SCAN TO VERIFY', 150, y);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-  doc.text(assurance.verificationRef, 150, y + 4);
-  doc.text(`sha256:${assurance.contentHash}`.slice(0, 38), 150, y + 8);
-  doc.text(`sha256…${assurance.contentHash.slice(38)}`, 150, y + 11);
+  const qx = 150, qy = y - 4;
+  if (qrDataUrl) doc.addImage(qrDataUrl, 'PNG', qx, qy, 26, 26);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(138, 127, 99);
+  doc.text('SCAN TO VERIFY', qx, qy + 30);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
+  doc.text(assurance.verificationRef, qx, qy + 33.5);
+  doc.text(`sha256:${assurance.contentHash}`.slice(0, 32) + '…', qx, qy + 37);
 
   // Footer instructions
   y = 280;
