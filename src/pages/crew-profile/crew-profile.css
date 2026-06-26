@@ -1204,7 +1204,7 @@ body.crew-profile-editorial {
 /* Two-tone title: navy word + terracotta italic, matching HOR, Submitted. */
 .crew-profile-page .cp-section-head h3 em { font-style: italic; color: #C65A1A; }
 /* Breaches header — navy "Compliance," lead, smaller terracotta italic emphasis. */
-.crew-profile-page .cp-breach-head h3 em { font-size: 0.72em; }
+.crew-profile-page .cp-breach-head h3 em { font-size: 0.85em; }
 .crew-profile-page .cp-review-sub { margin-top: 6px; font-size: 13px; line-height: 1.5; color: #6B7280; }
 
 /* Compliance heat strip — rest hours per day; sage = compliant (green cap),

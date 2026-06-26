@@ -3284,7 +3284,7 @@ const canEdit = (() => {
                 while the month is still open. */}
             <div className="cp-flatcard p-6 flex flex-col">
               <div className="cp-section-head cp-breach-head">
-                <h3>Compliance, <em>breaches</em></h3>
+                <h3>COMPLIANCE, <em>breaches</em></h3>
               </div>
               {breaches?.length > 0 ? (
                 <ul className="cp-brlist">
