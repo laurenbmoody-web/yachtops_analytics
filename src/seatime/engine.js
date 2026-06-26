@@ -161,8 +161,17 @@ export const computeBuckets = (entries, vessels, config = DEFAULT_CONFIG) => {
     if (v.lengthM >= 24) metres24Days += e.days;
     if (v.gt >= 500) gt500Days += e.days;
   }
-  return { seagoing, watchkeeping, standby, standbyRaw, yard, yardRaw, actualSeagoing, onboardDays,
-    metres24Days, gt500Days, sizeUnknownDays, total: seagoing + watchkeeping + standby + yard };
+  // Dual deck+engine capacity: every qualifying day counts at 50% toward each CoC
+  // (MSN 1858 §5.1). config.dualRate (default 1) scales all day outputs so the
+  // same buckets feed both the deck and engine pathways at half credit.
+  const rate = config.dualRate ?? 1;
+  const s = (n) => (rate === 1 ? n : Math.round(n * rate));
+  return {
+    seagoing: s(seagoing), watchkeeping: s(watchkeeping), standby: s(standby), standbyRaw: s(standbyRaw),
+    yard: s(yard), yardRaw: s(yardRaw), actualSeagoing: s(actualSeagoing), onboardDays: s(onboardDays),
+    metres24Days: s(metres24Days), gt500Days: s(gt500Days), sizeUnknownDays: s(sizeUnknownDays),
+    total: s(seagoing + watchkeeping + standby + yard), dualRate: rate
+  };
 };
 
 /**

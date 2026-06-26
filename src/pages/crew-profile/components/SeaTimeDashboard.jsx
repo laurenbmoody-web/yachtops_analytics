@@ -11,7 +11,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY, DUAL_CAPACITY_RATE
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
@@ -157,6 +157,8 @@ const yearOf = (e) => (e.from ? +String(e.from).slice(0, 4) : null);
 const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, canAttest = false }) => {
   const config = DEFAULT_CONFIG;
   const [deptId, setDeptId] = useState('deck');
+  const [dualMode, setDualMode] = useState(false);   // dual deck+engine: 50% credit
+  const dualRate = dualMode ? DUAL_CAPACITY_RATE : 1;
   const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
   const [heldCerts, setHeldCerts] = useState({});          // certId -> { issueDate, number, fileUrl, fileName, docId }
   const [docsOnFile, setDocsOnFile] = useState({});        // doc_type -> { fileUrl, fileName, docId } from the profile
@@ -360,8 +362,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // Yard cap is per-certificate (90 for OOW, 30 for Master/Chief Mate) — fold it
   // into the config so the yard bucket totals against the right MCA ceiling.
   const buckets = useMemo(
-    () => computeBuckets(pathwayEntries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) }),
-    [pathwayEntries, vessels, config, targetId],
+    () => computeBuckets(pathwayEntries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId), dualRate }),
+    [pathwayEntries, vessels, config, targetId, dualRate],
   );
   // Recent qualifying seagoing service in the last 5 years (MCA recency rule).
   const recentDays = useMemo(() => recentQualifyingDays(pathwayEntries.filter(e => !e.excluded)), [pathwayEntries]);
@@ -808,7 +810,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           <div className="stp-controls">
             <StpSelect variant="goal" label="Department" value={deptId} options={deptOpts} onChange={changeDept} />
             {cert && <StpSelect variant="goal" label="Goal" value={goalId} options={goalOpts} onChange={setGoalId} />}
+            {cert && (family === 'DECK' || family === 'ENGINE') && (
+              <label className="stp-dual" title="On smaller yachts one person may serve as both deck and engineer. The MCA counts dual deck+engine service at 50% toward each Certificate of Competency (MSN 1858 §5.1).">
+                <input type="checkbox" checked={dualMode} onChange={(e) => setDualMode(e.target.checked)} />
+                Dual deck + engine role
+              </label>
+            )}
           </div>
+          {dualMode && (
+            <div className="stp-dualnote">Dual capacity: each day counts at <b>50%</b> toward this pathway — the same service also accrues at 50% toward the {family === 'DECK' ? 'engine' : 'deck'} ladder (MSN 1858 §5.1).</div>
+          )}
           <div className="stp-sub">{crossDiscipline ? 'Target chosen manually — not this crew member’s department' : cert ? 'Pathway set from this crew member’s department' : 'Logged service — for your record'}</div>
         </div>
         <div className="stp-links">

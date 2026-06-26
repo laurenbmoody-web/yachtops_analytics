@@ -71,6 +71,11 @@ export const ROLES = {
   second_engineer:{ label: 'Second Engineer',          department: 'engineering', accruesToward: ['ENGINE'], watchkeepingDomain: 'engine' },
   chief_engineer: { label: 'Chief Engineer',           department: 'engineering', accruesToward: ['ENGINE'], watchkeepingDomain: 'engine' },
   eto:            { label: 'ETO (Electro-Technical Officer)', department: 'engineering', accruesToward: ['ETO'], watchkeepingDomain: 'engine' },
+  // DUAL deck+engine (small-vessel combined capacity). Accrues to BOTH ladders,
+  // but each day counts at 50% toward each CoC (MSN 1858 §5.1 dual-capacity rate).
+  // `dbName` links to the roles-table job title so an assigned role can drive it.
+  mate_engineer:  { label: 'Mate/Engineer',  department: 'deck', accruesToward: ['DECK', 'ENGINE'], watchkeepingDomain: 'bridge', dualCapacity: true, dbName: 'Mate/Engineer' },
+  deck_engineer:  { label: 'Deck/Engineer',  department: 'deck', accruesToward: ['DECK', 'ENGINE'], watchkeepingDomain: 'bridge', dualCapacity: true, dbName: 'Deck/Engineer' },
   // INTERIOR / GALLEY — log days, no CoC credit
   stewardess:     { label: 'Stewardess',               department: 'interior', accruesToward: [], watchkeepingDomain: null },
   chief_stew:     { label: 'Chief Stewardess',         department: 'interior', accruesToward: [], watchkeepingDomain: null },
@@ -326,6 +331,14 @@ export const rolesForDepartment = (deptId) =>
  *  (e.g. engine certs under MSN 1859 §5.2) when a cert sets no override. */
 export const yardCapForCertificate = (certId) =>
   CERTIFICATES[certId]?.yardCapDays ?? SERVICE_RULES.yardCapDays;
+
+/** Dual deck+engine service counts at this rate toward each CoC (MSN 1858 §5.1). */
+export const DUAL_CAPACITY_RATE = SERVICE_RULES.dualCapacityRate;
+
+/** True if a roles-table job title (or sea-time role key) is a dual-capacity role. */
+export const isDualCapacityRole = (nameOrKey) =>
+  !!ROLES[nameOrKey]?.dualCapacity ||
+  Object.values(ROLES).some(r => r.dualCapacity && r.dbName === nameOrKey);
 
 /** Confidence of a certificate's encoded thresholds, for the UI to gate display.
  *  HIGH = stated verbatim in the cited notice; anything else is provisional and

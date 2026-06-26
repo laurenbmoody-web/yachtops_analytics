@@ -284,6 +284,21 @@ test('Master <3000GT §3.6 OR-branch computes from vessel GT/length', () => {
   assert.equal(ht.detail.sizeUnknownDays, 40);
 });
 
+test('dual deck+engine capacity scales every day-count to 50% (MSN 1858 §5.1)', () => {
+  const vsl = { v: { gt: 600, lengthM: 30, over15: true } };
+  const entries = [
+    { id: '1', vesselId: 'v', type: 'seagoing', days: 100, watchHours: 8 },
+    { id: '2', vesselId: 'v', type: 'watchkeeping', days: 40, watchHours: 8 }
+  ];
+  const full = computeBuckets(entries, vsl, DEFAULT_CONFIG);
+  const dual = computeBuckets(entries, vsl, { ...DEFAULT_CONFIG, dualRate: 0.5 });
+  assert.equal(full.seagoing, 100);
+  assert.equal(dual.seagoing, 50);          // halved
+  assert.equal(dual.watchkeeping, 20);      // halved
+  assert.equal(dual.metres24Days, 70);      // (100+40)/2 onboard days on ≥24m
+  assert.equal(dual.dualRate, 0.5);
+});
+
 test('small-vessel command entry routes exist and are notice-verified', () => {
   for (const id of ['MASTER_CODE_200_COASTAL', 'MASTER_CODE_200_UNLIMITED']) {
     const c = CERTIFICATES[id];
