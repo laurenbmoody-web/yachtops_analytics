@@ -13,7 +13,8 @@
 import { PDFDocument, PDFName, PDFBool } from 'pdf-lib';
 
 const TEMPLATE_URL = '/forms/nautilus_sst_template.pdf';
-const P = 'Organization[0].#subform[0].'; // page-1 subform prefix
+const P = 'Organization[0].#subform[0].';  // page-1 subform prefix
+const P2 = 'Organization[0].#subform[1].'; // page-2 subform prefix (Parts 3–5)
 
 const fmtUk = (iso) => { if (!iso) return ''; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : String(iso); };
 const str = (v) => (v == null || v === '' ? '' : String(v));
@@ -32,6 +33,17 @@ const setChoice = (form, name, val) => {
   if (!s) return;
   try { const dd = form.getDropdown(P + name); dd.addOptions([s]); dd.select(s); }
   catch (e) { console.warn('[nautilus] choice field skipped:', name, e?.message); }
+};
+// Page-2 (Parts 3–5) text field + checkbox helpers.
+const setText2 = (form, name, val) => {
+  const s = str(val);
+  if (!s) return;
+  try { form.getTextField(P2 + name).setText(s); }
+  catch (e) { console.warn('[nautilus] p2 text skipped:', name, e?.message); }
+};
+const check2 = (form, name) => {
+  try { form.getCheckBox(P2 + name).check(); }
+  catch (e) { console.warn('[nautilus] p2 checkbox skipped:', name, e?.message); }
 };
 
 // Standby-passages table: 10 rows of (voyage started, voyage ended, days). The
@@ -57,8 +69,12 @@ const PASSAGE_FIELDS = [
  * @param {Object} p.company  { shipowner, addr1, addr2, zip, country, phone, email }
  * @param {Object} p.service  { capacity, from, to, totalDaysOnboard, leaveDays, actualSea, standby, yard, watchkeeping }
  * @param {Array}  [p.standbyPassages]  [{ from, to, days }]
+ * @param {Object} [p.endorser]  Part 4 (the master/responsible person who'll sign):
+ *   { position: 'Master'|'ResponsiblePerson', name, cocNo, issuingAuthority, organisation, positionHeld }
+ *   — name + CoC pre-fill from the covering captain's Cargo record; the signature
+ *   itself is always left for them. Conduct/ability (Part 3) stay blank.
  */
-export const buildNautilusSST = async ({ seafarer = {}, vessel = {}, company = {}, service = {}, standbyPassages = [] }) => {
+export const buildNautilusSST = async ({ seafarer = {}, vessel = {}, company = {}, service = {}, standbyPassages = [], endorser = null }) => {
   const res = await fetch(TEMPLATE_URL);
   if (!res.ok) throw new Error(`Nautilus template not found (${res.status})`);
   const bytes = await res.arrayBuffer();
@@ -110,6 +126,22 @@ export const buildNautilusSST = async ({ seafarer = {}, vessel = {}, company = {
     setText(form, fEnd, fmtUk(pp.to));
     setText(form, fDays, pp.days);
   });
+
+  // Part 4 — endorsement. Pre-fill the endorser's name + capacity (+ CoC for a
+  // master, or organisation for a responsible person); the signature, date and
+  // issuing country are left for them. Part 3 (duties/conduct/ability) stays blank.
+  if (endorser) {
+    setText2(form, 'Name2[0]', endorser.name);
+    if (endorser.position === 'ResponsiblePerson') {
+      check2(form, 'ResponsiblePerson[0]');
+      setText2(form, 'Name2[2]', endorser.organisation);
+      setText2(form, 'Name2[3]', endorser.positionHeld);
+    } else {
+      check2(form, 'Master[0]');
+      setText2(form, 'Name2[1]', endorser.cocNo);
+      // Issuing country (Country[2]) left blank — we don't store it; the master picks it.
+    }
+  }
 
   // Ask viewers to regenerate field appearances so the values render.
   try {
