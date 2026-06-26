@@ -283,7 +283,10 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
     else if (counts.miss && inCat.length === 0) pill = null;
     else if (counts.miss) pill = { cls: 'miss', label: `${counts.miss} missing` };
     else if (inCat.length === 0) pill = null;
-    else pill = { cls: 'ok', label: inCat.some((d) => d.expiry_date) ? (inCat.length > 1 ? 'All valid' : 'Valid') : 'Held' };
+    // Storage-only folders (nothing expires, e.g. issued letters/contracts) need
+    // no status badge — the green bar + "no expiry" footer already say it's held.
+    else if (!inCat.some((d) => d.expiry_date)) pill = null;
+    else pill = { cls: 'ok', label: 'Valid' };
 
     let foot;
     if (expired.length) {
