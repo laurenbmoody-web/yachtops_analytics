@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +19,7 @@ import CaptainSignoff from '../../seatime/CaptainSignoff';
 import { buildSpellTestimonialPdf, bytesToBase64 } from '../../seatime/packExport';
 import { SEATIME_REVIEW_QUEUE } from '../../seatime/reviewQueue';
 import { useSeaTimeSignoffs } from './useSeaTimeSignoffs';
+import { SHOW_SIGNOFF } from '../../seatime/signoffFlag';
 import { signEntries, rejectEntries } from '../crew-profile/utils/seaTimeService';
 import './reviews.css';
 
@@ -95,10 +96,11 @@ export default function ReviewsPage() {
   // stays accurate from any inbox tab — the rota/order count badges work the same
   // way. Without this the Sea-time row showed no number unless you were already
   // sitting on its tab.
-  const seatimeLive = useSeaTimeSignoffs(activeTenantId, signerName);
+  // Parked: skip the query entirely when sign-off is hidden (null tenant = idle).
+  const seatimeLive = useSeaTimeSignoffs(SHOW_SIGNOFF ? activeTenantId : null, signerName);
   const [seatimeQueue, setSeatimeQueue] = useState(SEATIME_REVIEW_QUEUE);
   // Live pending count when there's a tenant; the sample queue as the fallback.
-  const seatimeCount = (activeTenantId ? seatimeLive.items : seatimeQueue).length;
+  const seatimeCount = !SHOW_SIGNOFF ? 0 : (activeTenantId ? seatimeLive.items : seatimeQueue).length;
 
   // The signing master's own signatory particulars on file — CoC number/grade
   // (personal_documents), contact phone (crew_personal_details) and login email
@@ -178,6 +180,10 @@ export default function ReviewsPage() {
   // After a decision: refetch the list. The selection effect above advances
   // ?selected to the next item (or clears it when the inbox empties).
   const handleResolved = () => { refetch(); };
+
+  // Sea-time sign-off is parked (PYA/Nautilus verify, not Cargo) — send anyone
+  // who lands on the old route back to the rota queue.
+  if (activeCategory === 'seatime' && !SHOW_SIGNOFF) return <Navigate to="/reviews/rotas" replace />;
 
   if (activeCategory === 'seatime') {
     // Live queue when there's a tenant; sample as a fallback. The signing master
