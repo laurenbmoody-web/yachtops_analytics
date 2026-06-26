@@ -3926,6 +3926,8 @@ const canEdit = (() => {
             tenantId={activeTenantId}
             createdBy={session?.user?.id}
             canEdit={canEdit}
+            crewName={crewMember?.fullName}
+            crewDob={formData?.dateOfBirth}
             openPreset={docPreset}
             onPresetHandled={() => setDocPreset(null)}
             onProfileSynced={refreshPersonalDetails}

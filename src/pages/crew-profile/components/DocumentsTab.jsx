@@ -47,7 +47,7 @@ const bucketOf = (d) => {
 
 const catOf = (d) => getDocType(d.doc_type)?.category || d.category || 'other';
 
-const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPresetHandled, onProfileSynced }) => {
+const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob, openPreset, onPresetHandled, onProfileSynced }) => {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -551,6 +551,8 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         userId={userId}
         tenantId={tenantId}
         createdBy={createdBy}
+        crewName={crewName}
+        crewDob={crewDob}
         existing={editing}
         presetType={presetType}
         presetDetails={presetDetails}
@@ -566,6 +568,8 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, openPreset, onPres
         userId={userId}
         tenantId={tenantId}
         createdBy={createdBy}
+        crewName={crewName}
+        crewDob={crewDob}
         existingDocs={docs}
       />
     </div>
