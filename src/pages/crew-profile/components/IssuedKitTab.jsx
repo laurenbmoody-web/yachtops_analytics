@@ -19,12 +19,30 @@ const blankForm = () => ({
   conditionIssued: 'New', issuedDate: today(), notes: '',
 });
 const RETURN_CONDITIONS = ['Good', 'Used', 'Damaged', 'Incomplete'];
-const SIZE_FIELDS = [
-  { key: 'top', label: 'Shirt / Top', ph: 'e.g. M / 40' },
-  { key: 'bottom', label: 'Trousers / Shorts', ph: 'e.g. 32R' },
-  { key: 'jacket', label: 'Jacket / Outer', ph: 'e.g. M' },
-  { key: 'shoe', label: 'Shoe size', ph: 'e.g. UK 9 / EU 43' },
+
+// Gender-aware sizing — men's/women's bottoms size differently (waist 30/32 vs
+// dress 8/10, skorts, dresses), so a `fit` profile drives which garments show.
+const FIT_OPTIONS = [
+  { id: 'womens', label: "Women's" },
+  { id: 'mens', label: "Men's" },
+  { id: 'unisex', label: 'Unisex' },
 ];
+const SIZE_FIELDS = [
+  { key: 'top', label: 'Shirt / Polo', ph: 'XS–XXL', fits: 'all' },
+  { key: 'trousers', label: 'Trousers', ph: "e.g. 32R or 10", fits: 'all' },
+  { key: 'shorts', label: 'Shorts', ph: 'waist e.g. 32', fits: ['mens', 'unisex'] },
+  { key: 'skort', label: 'Skort', ph: 'e.g. 8 / M', fits: ['womens'] },
+  { key: 'dress', label: 'Dress', ph: 'e.g. 10', fits: ['womens'] },
+  { key: 'jacket', label: 'Jacket / Outer', ph: 'XS–XXL', fits: 'all' },
+  { key: 'fleece', label: 'Fleece / Mid-layer', ph: 'XS–XXL', fits: 'all' },
+  { key: 'belt', label: 'Belt', ph: 'waist / S–L', fits: 'all' },
+  { key: 'shoe', label: 'Shoe / Deck shoe', ph: 'UK 9 / EU 43', fits: 'all' },
+  { key: 'cap', label: 'Cap / Hat', ph: 'S/M/L or one-size', fits: 'all' },
+  { key: 'gloves', label: 'Gloves', ph: 'S–XL', fits: 'all' },
+  { key: 'foulies', label: 'Foul-weather gear', ph: 'S–XL', fits: 'all' },
+];
+const fieldVisible = (f, fit) => f.fits === 'all' || f.fits.includes(fit || 'unisex');
+const fitLabel = (id) => FIT_OPTIONS.find((o) => o.id === id)?.label;
 
 const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewName, vesselName, canManage, isOwnProfile }) => {
   const [items, setItems] = useState([]);
@@ -48,9 +66,9 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   const [sigUrls, setSigUrls] = useState({});
 
   // Uniform sizes (moved from the Preferences tab).
-  const [sizes, setSizes] = useState({ top: '', bottom: '', jacket: '', shoe: '' });
+  const [sizes, setSizes] = useState({});
   const [sizesEditing, setSizesEditing] = useState(false);
-  const [sizesForm, setSizesForm] = useState({ top: '', bottom: '', jacket: '', shoe: '' });
+  const [sizesForm, setSizesForm] = useState({});
   const canEditSizes = canManage || isOwnProfile;
 
   const load = useCallback(async () => {
@@ -258,41 +276,62 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
       ) : (
         <>
           {/* Uniform sizes (moved from Preferences) */}
-          <div className="cp-group">
-            <div className="cp-group-head">
-              <span className="dia">◆</span><span className="t">Uniform sizes</span>
-              <span className="t" style={{ fontSize: 13, color: '#9098B1' }}>· for ordering</span>
-              <span className="line" />
-              {canEditSizes && !sizesEditing && (
-                <button className="kit-inline-edit" onClick={() => { setSizesForm(sizes); setSizesEditing(true); }}>Edit</button>
-              )}
-            </div>
-            {sizesEditing ? (
-              <>
-                <div className="kit-size-grid">
-                  {SIZE_FIELDS.map((f) => (
-                    <label key={f.key} className="kit-field">
-                      <span>{f.label}</span>
-                      <input value={sizesForm[f.key]} onChange={(e) => setSizesForm((s) => ({ ...s, [f.key]: e.target.value }))} placeholder={f.ph} />
+          {(() => {
+            const filled = SIZE_FIELDS.filter((f) => fieldVisible(f, sizes.fit) && sizes[f.key]);
+            return (
+              <div className="cp-group kit-sizes">
+                <div className="cp-group-head">
+                  <span className="dia">◆</span><span className="t">Uniform sizes</span>
+                  {!sizesEditing && sizes.fit && <span className="kit-fit-chip">{fitLabel(sizes.fit)}</span>}
+                  <span className="line" />
+                  {canEditSizes && !sizesEditing && (
+                    <Button variant="outline" size="xs" iconName="Pencil" onClick={() => { setSizesForm(sizes); setSizesEditing(true); }}>Edit sizes</Button>
+                  )}
+                </div>
+                {sizesEditing ? (
+                  <>
+                    <label className="kit-field kit-fit-field">
+                      <span>Sizing profile</span>
+                      <select value={sizesForm.fit || ''} onChange={(e) => setSizesForm((s) => ({ ...s, fit: e.target.value }))}>
+                        <option value="">Select…</option>
+                        {FIT_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                      </select>
                     </label>
-                  ))}
-                </div>
-                <div className="flex justify-end gap-2 mt-3">
-                  <Button variant="outline" size="sm" onClick={() => setSizesEditing(false)}>Cancel</Button>
-                  <Button size="sm" onClick={saveSizes} disabled={busy}>Save sizes</Button>
-                </div>
-              </>
-            ) : (
-              <div className="kit-size-grid">
-                {SIZE_FIELDS.map((f) => (
-                  <div key={f.key} className="kit-size-read">
-                    <span className="lbl">{f.label}</span>
-                    <span className={`val${sizes[f.key] ? '' : ' empty'}`}>{sizes[f.key] || '—'}</span>
-                  </div>
-                ))}
+                    <div className="kit-size-grid">
+                      {SIZE_FIELDS.filter((f) => fieldVisible(f, sizesForm.fit)).map((f) => (
+                        <label key={f.key} className="kit-field">
+                          <span>{f.label}</span>
+                          <input value={sizesForm[f.key] || ''} onChange={(e) => setSizesForm((s) => ({ ...s, [f.key]: e.target.value }))} placeholder={f.ph} />
+                        </label>
+                      ))}
+                    </div>
+                    <label className="kit-field kit-col-full">
+                      <span>Other sizing notes <em>optional</em></span>
+                      <input value={sizesForm.notes || ''} onChange={(e) => setSizesForm((s) => ({ ...s, notes: e.target.value }))} placeholder="e.g. prefers long-sleeve, runs small" />
+                    </label>
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button variant="outline" size="sm" onClick={() => setSizesEditing(false)}>Cancel</Button>
+                      <Button size="sm" onClick={saveSizes} disabled={busy}>Save sizes</Button>
+                    </div>
+                  </>
+                ) : filled.length === 0 && !sizes.notes ? (
+                  <p className="kit-size-none">No sizes recorded yet.{canEditSizes ? ' Use “Edit sizes” to add them.' : ''}</p>
+                ) : (
+                  <>
+                    <div className="kit-size-grid">
+                      {filled.map((f) => (
+                        <div key={f.key} className="kit-size-read">
+                          <span className="lbl">{f.label}</span>
+                          <span className="val">{sizes[f.key]}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {sizes.notes && <p className="kit-size-notes">{sizes.notes}</p>}
+                  </>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           {items.length === 0 ? (
             <div className="kit-empty">
