@@ -27,10 +27,18 @@ const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 
 // Class names whose elements should be skipped during capture.
-// The right ribbon hosts the Print / PDF button itself — capturing
-// it would print the button that triggered the export.
+//
+//   .cargo-ribbon  — right ribbon holds the Print / PDF button
+//                    itself, capturing it would print the trigger.
+//   .sg-root       — SummaryGauges (the bottom KPI cards). The
+//                    gauges' radial-gradient SVGs + count-up
+//                    animation don't survive the foreignObject
+//                    snapshot cleanly, so they render as half-
+//                    finished partials. Skipping them keeps the
+//                    PDF honest rather than printing broken KPIs.
 const IGNORED_SELECTORS = [
   '.cargo-ribbon',
+  '.sg-root',
 ];
 
 const shouldFilter = (node) => {

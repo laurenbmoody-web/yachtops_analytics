@@ -93,7 +93,12 @@ const SummaryGauges = ({
   const animPaid       = useCountUp(paidValue      || 0, 300);
 
   return (
-    <div>
+    // sg-root is the filter hook for the Print / PDF capture —
+    // the gauge SVGs render reliably in the live app but their
+    // count-up animation + radial gradient don't survive the
+    // foreignObject snapshot cleanly. Skipping the whole block
+    // keeps the PDF honest rather than printing half-rendered KPIs.
+    <div className="sg-root">
       <div className="sg-grid">
 
         {/* Card 1: Items */}
