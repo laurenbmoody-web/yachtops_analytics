@@ -54,12 +54,11 @@ export const FLAGS_WITH_OWN_FORM = new Set([
 //                     uses the IMO/ILO model; default attestation retained as the
 //                     GN did not include CISN 05/2014's exact declaration text.
 //   Red Ensign Group (Jersey, Guernsey, Isle of Man, Bermuda, BVI, Gibraltar,
-//                     United Kingdom) — ONE shared source covers all seven: the
-//                     REG Yacht Code, Common Annex G6 "Hours of Work and Rest"
-//                     (IMO/ILO model). UK publishes it as MSN 1895(M). So a
-//                     single doc (redensigngroup.org / gov.uk) verifies the
-//                     whole group at once. Not activated — official text not
-//                     retrievable here (403); supply the PDF to activate all 7.
+//                     United Kingdom) — ACTIVATED via shared REG_G6, VERIFIED
+//                     from the REG Yacht Code July 2024 Common Annexes, Annex G6.
+//                     G6 prescribes the rest limits + record duties but NOT a
+//                     form/declaration, so the IMO/ILO model + default attestation
+//                     stand. UK adds MSN 1895(M). Cayman keeps its national notice.
 //   Malta           — Transport Malta Merchant Shipping Notice 105 Rev.2 (MLC
 //                     implementation); IMO/ILO model. Needs the notice to verify
 //                     the record declaration/format before activating.
@@ -76,6 +75,19 @@ export const FLAGS_WITH_OWN_FORM = new Set([
 //     // declaration: '…exact wording, only if the notice prescribes it…',
 //     // standardRef: '…only if the notice prescribes a specific reference line…',
 //   },
+// Red Ensign Group — shared. The REG Yacht Code (Common Annex G6, Hours of Work
+// and Rest) is the single governing source for all REG flags. VERIFIED from the
+// REG Yacht Code July 2024 edition: G6 sets the rest limits and record duties
+// (each record endorsed by master/authorised person and the seafarer, a copy
+// retained by the seafarer) but does NOT prescribe a record form or declaration
+// wording — so the IMO/ILO model + the default attestation are correct; we add
+// the G6 reference and the record-duty footer.
+const REG_G6 = {
+  formReference: 'Red Ensign Group Yacht Code — Common Annex G6 (Hours of Work and Rest)',
+  standardRef: 'Red Ensign Group Yacht Code, Annex G6 (per STCW, MLC and national legislation). Minimum rest: not less than 10h in any 24h and 77h in any 7 days; rest in no more than 2 periods, one of at least 6h, the interval not exceeding 14h.',
+  footerNote: 'Each record is endorsed by the master or authorised person and the seafarer; a copy is retained by the seafarer (REG Yacht Code, Annex G6).',
+};
+
 const FLAG_HOR_TEMPLATES = {
   // VERIFIED from RMI Marine Notice 7-051-2, Annex II "Model Format for Record
   // of Hours of Rest" (the IMO/ILO model). Declaration + footer are the exact
@@ -93,6 +105,15 @@ const FLAG_HOR_TEMPLATES = {
   'Cayman Islands': {
     formReference: 'Cayman Islands Shipping Notice CISN 05/2014 · Guidance Note GN 03/2022',
   },
+  // Red Ensign Group (Cayman uses its national notice above; the rest share the
+  // REG Yacht Code Annex G6). UK additionally publishes it as MSN 1895(M).
+  'Jersey': REG_G6,
+  'Guernsey': REG_G6,
+  'Isle of Man': REG_G6,
+  'Bermuda': REG_G6,
+  'British Virgin Islands': REG_G6,
+  'Gibraltar': REG_G6,
+  'United Kingdom': { ...REG_G6, formReference: `${REG_G6.formReference} · UK MSN 1895(M)` },
 };
 
 // Resolve the template for a flag. Always returns a complete object (the
