@@ -1,229 +1,151 @@
 import React, { useState, useEffect } from 'react';
+import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
 import LogoSpinner from '../../../components/LogoSpinner';
 import {
-  CREW_STATUSES,
-  getStatusLabel, getStatusDotClass, getStatusCellClass,
+  CREW_STATUSES, getStatusLabel, getStatusCellClass,
   buildStatusPeriods, getStatusForDay,
 } from '../../../utils/crewStatus';
+import { fetchProfileActivity, ACTIVITY_CATEGORIES, activityCat } from '../utils/profileActivity';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
 
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
+const fmtDay = (d) => {
+  const x = new Date(d);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(x.getDate())}/${p(x.getMonth() + 1)}/${x.getFullYear()}`;
+};
+const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
 
-function fmtDate(dateStr) {
-  const d = new Date(dateStr);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-function daysInMonth(year, month) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-// ─── Calendar sub-component ───────────────────────────────────────────────────
-
+// ── Status occupancy calendar (kept, restyled) ───────────────────────────────
 function MonthCalendar({ periods }) {
   const today = new Date();
-  const [calYear,  setCalYear]  = useState(today.getFullYear());
+  const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
-
   const totalDays = daysInMonth(calYear, calMonth);
 
-  const prev = () => {
-    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
-    else                { setCalMonth(m => m - 1); }
-  };
-  const next = () => {
-    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
-    else                 { setCalMonth(m => m + 1); }
-  };
+  const prev = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
+  const next = () => { if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); } else setCalMonth((m) => m + 1); };
 
   return (
-    <div>
-      {/* Month navigation */}
-      <div className="flex items-center gap-4 mb-3">
-        <button
-          onClick={prev}
-          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ‹
-        </button>
-        <span className="text-sm font-medium text-foreground min-w-[120px] text-center">
-          {MONTHS[calMonth]} {calYear}
-        </span>
-        <button
-          onClick={next}
-          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ›
-        </button>
+    <div className="act-cal">
+      <div className="act-cal-nav">
+        <button type="button" onClick={prev} aria-label="Previous month"><Icon name="ChevronLeft" size={16} /></button>
+        <span>{MONTHS[calMonth]} {calYear}</span>
+        <button type="button" onClick={next} aria-label="Next month"><Icon name="ChevronRight" size={16} /></button>
       </div>
-
-      {/* Day labels */}
-      <div className="flex gap-0.5 mb-0.5">
-        {Array.from({ length: totalDays }, (_, i) => (
-          <div
-            key={i}
-            className="flex-1 text-center text-[10px] text-muted-foreground select-none"
-          >
-            {i + 1}
-          </div>
-        ))}
+      <div className="act-cal-row">
+        {Array.from({ length: totalDays }, (_, i) => <div key={i} className="act-cal-num">{i + 1}</div>)}
       </div>
-
-      {/* Status cells */}
-      <div className="flex gap-0.5">
+      <div className="act-cal-row">
         {Array.from({ length: totalDays }, (_, i) => {
-          const day  = new Date(calYear, calMonth, i + 1);
+          const day = new Date(calYear, calMonth, i + 1);
           const stat = getStatusForDay(periods, day);
-          const isFuture = day > today;
           return (
             <div
               key={i}
-              title={stat ? `${i + 1} ${MONTHS[calMonth]}: ${getStatusLabel(stat)}` : `${i + 1} ${MONTHS[calMonth]}: No data`}
-              className={`flex-1 h-7 rounded-sm ${
-                isFuture ? 'opacity-30' : ''
-              } ${stat ? getStatusCellClass(stat) : 'bg-muted/40'}`}
+              title={`${i + 1} ${MONTHS[calMonth]}: ${stat ? getStatusLabel(stat) : 'No data'}`}
+              className={`act-cal-cell ${day > today ? 'is-future' : ''} ${stat ? getStatusCellClass(stat) : 'act-cal-empty'}`}
             />
           );
         })}
       </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-4">
+      <div className="act-cal-legend">
         {CREW_STATUSES.map(({ value, label }) => (
-          <div key={value} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`w-3 h-3 rounded-sm ${getStatusCellClass(value)}`} />
-            {label}
-          </div>
+          <span key={value}><i className={`act-sw ${getStatusCellClass(value)}`} />{label}</span>
         ))}
       </div>
     </div>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
 const StatusHistoryTab = ({ userId, tenantId }) => {
-  const [history,    setHistory]    = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [subTab,     setSubTab]     = useState('timeline'); // 'timeline' | 'calendar'
+  const [activity, setActivity] = useState([]);
+  const [statusRows, setStatusRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('timeline'); // 'timeline' | 'calendar'
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    if (!userId || !tenantId) { setLoading(false); return; }
+    if (!userId) { setLoading(false); return undefined; }
     let cancelled = false;
-
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('crew_status_history')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('tenant_id', tenantId)
-        .order('changed_at', { ascending: true });
-
-      if (!cancelled) {
-        if (!error) setHistory(data || []);
-        setLoading(false);
-      }
+      const [acts, sh] = await Promise.all([
+        fetchProfileActivity(userId),
+        supabase.from('crew_status_history').select('*').eq('user_id', userId).order('changed_at', { ascending: true }),
+      ]);
+      if (cancelled) return;
+      setActivity(acts);
+      setStatusRows(sh.data || []);
+      setLoading(false);
     })();
-
     return () => { cancelled = true; };
   }, [userId, tenantId]);
 
-  const periods = buildStatusPeriods(history);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <LogoSpinner size={32} />
-      </div>
-    );
-  }
+  const periods = buildStatusPeriods(statusRows);
+  // Only offer filters for categories that actually have events.
+  const presentCats = ACTIVITY_CATEGORIES.filter((c) => activity.some((e) => e.category === c.id));
+  const shown = filter === 'all' ? activity : activity.filter((e) => e.category === filter);
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-foreground">Status History</h3>
-        <div className="flex gap-1 bg-muted rounded-lg p-1">
-          {['timeline', 'calendar'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setSubTab(tab)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
-                subTab === tab
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+    <div>
+      <div className="cd-controls" style={{ marginTop: 0 }}>
+        <div className="cp-section-head">
+          <span className="cp-section-num">08 /</span>
+          <h3>Activity</h3>
+        </div>
+        <div className="cd-seg">
+          <button type="button" className={view === 'timeline' ? 'on' : ''} onClick={() => setView('timeline')}>Timeline</button>
+          <button type="button" className={view === 'calendar' ? 'on' : ''} onClick={() => setView('calendar')}>Status calendar</button>
         </div>
       </div>
+      <p className="kit-sub">Everything recorded on this profile — status changes, documents, kit, compliance, banking and profile edits.</p>
 
-      {/* ── Calendar tab ── */}
-      {subTab === 'calendar' && (
+      {loading ? (
+        <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>
+      ) : view === 'calendar' ? (
         <MonthCalendar periods={periods} />
-      )}
-
-      {/* ── Timeline tab ── */}
-      {subTab === 'timeline' && (
+      ) : (
         <>
-          {history.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No status history yet.
-            </p>
+          {presentCats.length > 0 && (
+            <div className="act-pills">
+              <button type="button" className={`act-pill ${filter === 'all' ? 'on' : ''}`} onClick={() => setFilter('all')}>All</button>
+              {presentCats.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`act-pill ${filter === c.id ? 'on' : ''}`}
+                  onClick={() => setFilter(c.id)}
+                  style={filter === c.id ? { borderColor: c.color, color: c.color, background: c.bg } : undefined}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {shown.length === 0 ? (
+            <p className="cd-muted">No activity recorded yet.</p>
           ) : (
-            <div className="relative">
-              {/* Vertical line */}
-              <div className="absolute left-[9px] top-2 bottom-2 w-px bg-border" />
-
-              <div className="space-y-6">
-                {[...history].reverse().map((entry, i) => (
-                  <div key={entry.id} className="flex gap-4">
-                    {/* Dot */}
-                    <div className="relative flex-shrink-0 mt-1">
-                      <span
-                        className={`block w-5 h-5 rounded-full border-2 border-card ${getStatusDotClass(entry.new_status)}`}
-                      />
+            <div className="act-list">
+              {shown.map((e) => {
+                const c = activityCat(e.category);
+                return (
+                  <div key={e.id} className="act-item">
+                    <span className="act-ic" style={{ background: c.bg }}>
+                      <Icon name={c.icon} size={15} style={{ color: c.color }} />
+                    </span>
+                    <div className="act-body">
+                      <div className="act-title">{e.title}</div>
+                      {e.detail && <div className="act-detail">{e.detail}</div>}
+                      {e.actor && <div className="act-actor">by {e.actor}</div>}
                     </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 pb-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-sm font-semibold text-foreground">
-                          {getStatusLabel(entry.new_status)}
-                        </span>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {fmtDate(entry.changed_at)}
-                        </span>
-                      </div>
-
-                      {entry.old_status ? (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Changed by {entry.changed_by_name || 'Unknown'}
-                          {' '}from{' '}
-                          <span className="font-medium text-foreground">{getStatusLabel(entry.old_status)}</span>
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {entry.changed_by_name ? `Joined — ${entry.changed_by_name}` : 'Initial status on joining vessel'}
-                        </p>
-                      )}
-
-                      {entry.notes && (
-                        <p className="text-xs text-muted-foreground mt-1 bg-muted/40 rounded px-2 py-1">
-                          "{entry.notes}"
-                        </p>
-                      )}
-                    </div>
+                    <div className="act-when">{fmtDay(e.at)}</div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           )}
         </>
