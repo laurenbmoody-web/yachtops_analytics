@@ -367,8 +367,10 @@ function breachAttributionFor(breachReasons, meta, member, ds) {
 // date — the signed record sent to management. Otherwise the lines are blank.
 function drawSignatureBlock(doc, pageW, pageH, M, atY, caption, sigs, footerNote) {
   const sy = atY != null ? atY : pageH - M - 46;
+  // (No rule above the declaration — a blank line over an attestation reads
+  // like a "sign here" line. The declaration sits with whitespace above and
+  // its signature lines below.) Set the pen for the signature lines drawn later.
   doc.setDrawColor(...GRID_LINE); doc.setLineWidth(0.5);
-  doc.line(M, sy - 10, pageW - M, sy - 10);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(70);
   doc.text(caption || 'I confirm that the above is a true record of the seafarer’s hours of rest for the period stated.', M, sy);
   if (footerNote) {
