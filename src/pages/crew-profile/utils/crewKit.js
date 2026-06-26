@@ -205,8 +205,7 @@ export const fetchKitEvents = async (userId) => {
 // dresses). All keys are strings stored in the jsonb blob — no schema change.
 export const UNIFORM_SIZE_KEYS = [
   'fit', 'top', 'trousers', 'shorts', 'skort', 'dress', 'jacket', 'fleece',
-  'baseLayer', 'belt', 'shoe', 'socks', 'cap', 'gloves', 'foulies',
-  'boardshorts', 'rashVest', 'notes',
+  'belt', 'shoe', 'cap', 'gloves', 'foulies', 'boardshorts', 'rashVest', 'notes',
 ];
 const blankSizes = () => UNIFORM_SIZE_KEYS.reduce((o, k) => { o[k] = ''; return o; }, {});
 
