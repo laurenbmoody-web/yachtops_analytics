@@ -54,10 +54,19 @@ export const FLAGS_WITH_OWN_FORM = new Set([
 //                     uses the IMO/ILO model; default attestation retained as the
 //                     GN did not include CISN 05/2014's exact declaration text.
 //   Red Ensign Group (Jersey, Guernsey, Isle of Man, Bermuda, BVI, Gibraltar,
-//                     United Kingdom) — REG Yacht Code, MLC-aligned, standard
-//                     IMO/ILO format. Citation only, per each registry's notice;
-//                     not yet sourced individually.
-//   Liberia / Panama / Malta — major registries; own marine notices not yet
+//                     United Kingdom) — ONE shared source covers all seven: the
+//                     REG Yacht Code, Common Annex G6 "Hours of Work and Rest"
+//                     (IMO/ILO model). UK publishes it as MSN 1895(M). So a
+//                     single doc (redensigngroup.org / gov.uk) verifies the
+//                     whole group at once. Not activated — official text not
+//                     retrievable here (403); supply the PDF to activate all 7.
+//   Malta           — Transport Malta Merchant Shipping Notice 105 Rev.2 (MLC
+//                     implementation); IMO/ILO model. Needs the notice to verify
+//                     the record declaration/format before activating.
+//   EU flags (Netherlands, France, Italy, Spain, Madeira/Portugal, Monaco) —
+//                     implement EU Directive 1999/63/EC alongside MLC; IMO/ILO
+//                     model. Per-state notice needed to activate a citation.
+//   Liberia / Panama — major open registries; own marine notices not yet
 //                     sourced. Default IMO/ILO model applies until confirmed.
 
 // Verified per-flag overrides. ADD ONLY from a flag's official published form,
