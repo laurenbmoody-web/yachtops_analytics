@@ -85,17 +85,34 @@ export const ROLES = {
 // `routes` documents alternative service routes where the notice gives several. ─
 export const CERTIFICATES = {
   // ===================== DECK — MSN 1858 Amendment 2 (HIGH) =====================
+  // Small-vessel command entry tier (Code <200GT / OOW Yachts <500GT). Service is
+  // 6 months seagoing whilst holding the relevant RYA/IYT qualification (§3.1/§3.2);
+  // a separate, shorter line from the OOW <3000GT ladder below.
+  MASTER_CODE_200_COASTAL: {
+    family: 'DECK', label: 'Master (Code <200GT) / OOW Yachts <500GT — 150nm', short: 'Master <200GT · 150nm',
+    msn: 'MSN 1858 Amd 2 §3.1', verified: 'HIGH',
+    requires: { seagoingMonths: 6, minVesselMetres: 15 },
+    heldWhilst: 'RYA Yachtmaster Offshore (or IYT Master of Yachts Limited)',
+    note: 'STCW II/3, limited to 150nm from a safe haven. 6 months seagoing whilst holding an RYA Yachtmaster Offshore or IYT Master of Yachts Limited. Min age 18; ENG1; GMDSS ROC; form MSF 4343.'
+  },
+  MASTER_CODE_200_UNLIMITED: {
+    family: 'DECK', label: 'Master (Code <200GT) / OOW Yachts <500GT — Unlimited', short: 'Master <200GT · Unltd',
+    msn: 'MSN 1858 Amd 2 §3.2', verified: 'HIGH',
+    requires: { seagoingMonths: 6, minVesselMetres: 15 },
+    heldWhilst: 'RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited)',
+    note: 'STCW II/2, unlimited area. 6 months seagoing whilst holding an RYA Yachtmaster Ocean or IYT Master of Yachts Unlimited. Min age 18; ENG1; GMDSS GOC; form MSF 4343.'
+  },
   OOW_YACHT_3000: {
     family: 'DECK', label: 'OOW (Yachts <3000GT)', short: 'OOW <3000GT',
     msn: 'MSN 1858 Amd 2 §3.3', verified: 'HIGH',
     yardCapDays: 90,                // OOW: up to 90 yard days may count (1858 §3.3)
     requires: {
       onboardMonths: 36,            // 36 months onboard yacht service since age 16
-      seagoingDays: 365,            // ≥365 days seagoing on vessels ≥15m (250 seagoing + 115 combo)
+      seagoingDays: 250,            // ≥250 days seagoing-only on vessels ≥15m …
+      combinedTopUpDays: 115,       // … + 115 days combined seagoing/standby/yard = 365 total
       minVesselMetres: 15
-      // TODO(MSN1858): model the 250 + 115 split (115 may be seagoing/standby/yard combined).
     },
-    note: 'Entry watchkeeping CoC. 365 seagoing days = 250 days seagoing + 115 days combined seagoing/standby/yard.'
+    note: 'Entry watchkeeping CoC. 365 seagoing days = 250 days seagoing-only + 115 days that may combine seagoing/standby/yard. The 250 must be actual seagoing — standby/yard alone cannot make it up.'
   },
   CHIEF_MATE_YACHT_3000: {
     family: 'DECK', label: 'Chief Mate (Yachts <3000GT)', short: 'Chief Mate <3000GT',
@@ -211,7 +228,10 @@ export const DEFAULT_CERTIFICATE = 'OOW_YACHT_3000';
 // CoC documents) mark where they are; the live target is the first un-held rung
 // on the route. TODO(MSN-routes): confirm exact prerequisite chains vs 1858/1859.
 export const CERTIFICATE_ROUTES = {
-  // DECK
+  // DECK — small-vessel command entry tier (standalone, RYA/IYT based)
+  MASTER_CODE_200_COASTAL:   ['MASTER_CODE_200_COASTAL'],
+  MASTER_CODE_200_UNLIMITED: ['MASTER_CODE_200_UNLIMITED'],
+  // DECK — OOW <3000GT ladder
   OOW_YACHT_3000:        ['OOW_YACHT_3000'],
   CHIEF_MATE_YACHT_3000: ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000'],
   MASTER_YACHT_500:      ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_500'],
@@ -229,7 +249,7 @@ export const CERTIFICATE_ROUTES = {
 
 /** Sensible career-ceiling goals offered per family (entry certs excluded). */
 export const GOAL_OPTIONS = {
-  DECK: ['MASTER_YACHT_500', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
+  DECK: ['MASTER_CODE_200_COASTAL', 'MASTER_CODE_200_UNLIMITED', 'MASTER_YACHT_500', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
   ENGINE: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
   ETO: ['ETO_COC']
 };
@@ -250,6 +270,8 @@ export const routeFor = (goalId) => CERTIFICATE_ROUTES[goalId] || (goalId ? [goa
 
 /** Maps a personal_documents CoC `grade` (documentTypes.js) to a ladder cert id. */
 export const GRADE_TO_CERT = {
+  'Master Code <200GT (150nm)': 'MASTER_CODE_200_COASTAL',
+  'Master Code <200GT (Unlimited)': 'MASTER_CODE_200_UNLIMITED',
   'OOW <3000GT': 'OOW_YACHT_3000',
   'Chief Mate <3000GT': 'CHIEF_MATE_YACHT_3000',
   'Chief Mate unlimited': 'CHIEF_MATE_UNLIMITED',
