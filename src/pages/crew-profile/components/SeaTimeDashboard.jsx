@@ -169,6 +169,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
   const [heldCerts, setHeldCerts] = useState({});          // certId -> { issueDate, number, fileUrl, fileName, docId }
   const [docsOnFile, setDocsOnFile] = useState({});        // doc_type -> { fileUrl, fileName, docId } from the profile
+  const [untaggedCocs, setUntaggedCocs] = useState(0);     // CoC docs with no recognised grade -> can't be matched
   const [heldOpen, setHeldOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState('all');
   const [logView, setLogView] = useState('list');
@@ -375,6 +376,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     fetchCrewDocuments(userId).then(docs => {
       const held = {};
       const onFile = {};
+      let untagged = 0;
       for (const d of docs || []) {
         // Supporting docs for the verifier submission, pulled from the profile.
         if (!onFile[d.doc_type]) onFile[d.doc_type] = { fileUrl: d.file_url, fileName: d.file_name, docId: d.id };
@@ -384,9 +386,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           // If they recorded an old MSN 1859 Y-grade, remember it so we can nudge
           // them to convert it to the in-force Small Vessel CoC.
           legacy: legacyConversionForGrade(d.details?.grade) };
+        else untagged++;  // a CoC with no recognised grade — can't be matched to the ladder
       }
       setHeldCerts(held);
       setDocsOnFile(onFile);
+      setUntaggedCocs(untagged);
     }).catch(e => console.error('held certs load failed', e));
   }, [userId]);
 
@@ -871,6 +875,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             : <button className="stp-link rust" type="button" onClick={startPathway}>Working toward a certificate →</button>}
         </div>
       </div>
+
+      {untaggedCocs > 0 && (
+        <div className="stp-untagged">
+          <IcoPath d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" color="#A6712C" size={18} />
+          <div>{untaggedCocs} Certificate{untaggedCocs === 1 ? '' : 's'} of Competency {untaggedCocs === 1 ? 'is' : 'are'} uploaded without a grade set, so {untaggedCocs === 1 ? "it can't" : "they can't"} be matched to your pathway. Open <b>Documents</b> and set the certificate’s grade/level so it counts.</div>
+        </div>
+      )}
 
       {route.length > 0 ? (
         <>
