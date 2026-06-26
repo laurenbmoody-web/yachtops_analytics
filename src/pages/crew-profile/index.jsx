@@ -3283,9 +3283,8 @@ const canEdit = (() => {
                 its sign-off state. Crew can click a day to add/edit the reason
                 while the month is still open. */}
             <div className="cp-flatcard p-6 flex flex-col">
-              <div className="cp-section-head">
-                <span className="cp-section-kicker">Compliance</span>
-                <h3><em>Breaches</em></h3>
+              <div className="cp-section-head cp-breach-head">
+                <h3>Compliance, <em>breaches</em></h3>
               </div>
               {breaches?.length > 0 ? (
                 <ul className="cp-brlist">
