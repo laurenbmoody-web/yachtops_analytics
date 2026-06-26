@@ -40,6 +40,13 @@ const SOFT = {
 const soft = (s) => SOFT[s] || { bg: '#F6F5F1', ink: '#8B8478' };
 const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
+// Short labels for the bottom status tab (active = no tab; it's the default).
+const SHORT_STATUS = {
+  on_leave: 'Leave', rotational_leave: 'Rotation', medical_leave: 'Medical',
+  training_leave: 'Training', travelling: 'Travel', invited: 'Invited',
+};
+const KIND_SHORT = { leave: 'Leave', travel: 'Travel', joining: 'Joining', disembarking: 'Disembark', other: 'Other' };
+
 // ── Compact status month-grid; clicking a day selects it ─────────────────────
 function MonthCalendar({ periods, entries, selectedDay, onSelectDay }) {
   const today = today0();
@@ -69,7 +76,8 @@ function MonthCalendar({ periods, entries, selectedDay, onSelectDay }) {
           const day = new Date(calYear, calMonth, d);
           const entry = entryForDay(entries, day);
           const stat = entry ? calKind(entry.kind).status : getStatusForDay(periods, day);
-          const sc = soft(stat);
+          const showTab = stat && stat !== 'active';
+          const tabLabel = entry ? KIND_SHORT[entry.kind] : SHORT_STATUS[stat];
           const isToday = sameDay(day, today);
           const isSel = sameDay(day, selectedDay);
           return (
@@ -77,12 +85,11 @@ function MonthCalendar({ periods, entries, selectedDay, onSelectDay }) {
               key={d}
               type="button"
               className={`act-mcell ${day > today ? 'is-future' : ''} ${isToday ? 'is-today' : ''} ${isSel ? 'is-sel' : ''}`}
-              style={{ background: stat ? sc.bg : '#F8F7F3' }}
               onClick={() => onSelectDay(day)}
-              title={stat ? getStatusLabel(stat) : 'No data'}
+              title={`${stat ? getStatusLabel(stat) : 'No data'}${entry && travelSummary(entry) ? ` — ${travelSummary(entry)}` : ''}`}
             >
-              <span className="act-mnum" style={{ color: stat ? sc.ink : '#AEB4C2' }}>{d}</span>
-              {entry && <span className="act-mdot" style={{ background: sc.ink }} />}
+              <span className="act-mnum">{d}</span>
+              {showTab && <span className="act-mtab" style={{ background: soft(stat).ink }}>{tabLabel}</span>}
             </button>
           );
         })}
@@ -185,7 +192,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
             <MonthCalendar periods={periods} entries={entries} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
             <div className="act-cal-legend">
               {CREW_STATUSES.map(({ value, label }) => (
-                <span key={value}><i className="act-sw" style={{ background: soft(value).bg, boxShadow: `inset 0 0 0 1px ${soft(value).ink}40` }} />{label}</span>
+                <span key={value}><i className="act-sw" style={{ background: soft(value).ink }} />{label}</span>
               ))}
             </div>
           </div>
