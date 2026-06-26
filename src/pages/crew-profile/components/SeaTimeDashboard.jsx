@@ -280,6 +280,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           : rej > 0 ? 'declined'
             : 'outstanding';
       const declineReason = periods.find(p => p.vstatus === 'rejected')?.rejectionReason || '';
+      const testimonialPath = periods.find(p => p.testimonialPath)?.testimonialPath || null;
       const att = vesselAttest[cmd.key] || { status: derived, mode };
       const reach = mode === 'virtual' ? (cmd.onCargo ? 'inapp' : 'email') : null;
       const cap = (cmd.name || 'Master').replace('Capt. ', '');
@@ -299,7 +300,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         ...v, key: cmd.key, cmdId: cmd.id, multi, cmdLabel, periods, days,
         captainName: cmd.name, captainCoc: cmd.coc, captainCocGrade: cmd.cocGrade, captainEmail: cmd.email,
         captainMember: cmd.member, captainOnCargo: cmd.onCargo, cmdFrom: cmd.from, cmdTo: cmd.to,
-        mode, att, reach, cap, masterNote, how, declineReason
+        mode, att, reach, cap, masterNote, how, declineReason, testimonialPath
       };
     }).filter(Boolean);
   });
@@ -327,6 +328,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const jumpToVerify = (vesselId) => {
     const el = (vesselId && document.querySelector(`[data-vessel="${vesselId}"]`)) || document.getElementById('std-verify');
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  // Open a stored testimonial PDF via a short-lived signed URL.
+  const viewTestimonial = async (path) => {
+    if (!path) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('get-seatime-testimonial', { body: { path } });
+      if (error || !data?.url) throw error || new Error('no url');
+      window.open(data.url, '_blank', 'noopener');
+    } catch (e) { console.error('[seatime] view testimonial', e); flash('Could not open the testimonial'); }
   };
 
   // Per-command-spell row ids — so requests and sign-offs touch only the periods
@@ -728,6 +738,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                             <span style={{ width: 7, height: 7, borderRadius: '50%', background: vlog.color, flexShrink: 0 }} />{vlog.label}
                           </button>
                         )}
+                        {!isExcluded && e.testimonialPath && (
+                          <button type="button" onClick={() => viewTestimonial(e.testimonialPath)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontSize: 11, fontWeight: 600, color: '#C65A1A' }}>View testimonial</button>
+                        )}
                         {isExcluded && <span className="std-avs" style={{ color: '#8B8478' }}>Excluded from pack</span>}
                         {/* Qualifying note — faint, no fill. */}
                         {isQual && <span className="std-avs" style={{ color: '#AEB4C2', fontWeight: 500 }}>{qualWord}</span>}
@@ -895,6 +908,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                           <div className="std-vhow" style={v.att.status === 'declined' ? { color: '#B14E16' } : undefined}>{v.att.status === 'declined'
                             ? `${v.captainName || 'The captain'} declined${v.declineReason ? ` — “${v.declineReason}”` : ''}. Edit the days and resend.`
                             : (done && v.att.fileName ? `Uploaded · ${v.att.fileName}` : v.how)}</div>
+                          {v.testimonialPath && (
+                            <button type="button" onClick={() => viewTestimonial(v.testimonialPath)} style={{ marginTop: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600, color: '#C65A1A', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              <Icon name="FileText" size={13} /> View testimonial
+                            </button>
+                          )}
                         </div>
                         <div className="std-vact">
                           <span className="std-vchip" style={{ color: ck.color, background: ck.bg }}>

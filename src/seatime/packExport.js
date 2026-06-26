@@ -130,6 +130,40 @@ export const renderPackPdf = async ({ dataset, verifier, assurance, qrDataUrl, s
   return new Uint8Array(doc.output('arraybuffer'));
 };
 
+// Base64-encode PDF bytes for transport to the store-testimonial edge function.
+export const bytesToBase64 = (bytes) => {
+  const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < arr.length; i += chunk) bin += String.fromCharCode.apply(null, arr.subarray(i, i + chunk));
+  return btoa(bin);
+};
+
+// Build a single-command-spell Testimonial of Sea Service (Uint8Array) — used
+// when a master signs, so each ship gets its own stored, verifiable PDF. Reuses
+// renderPackPdf by shaping a one-vessel dataset; totals come from the periods.
+export const buildSpellTestimonialPdf = async ({ seafarer, vessel, periods = [], signatory, verifier }) => {
+  const totals = { seagoing: 0, watchkeeping: 0, standby: 0, yard: 0 };
+  for (const p of periods) { const k = p.type; if (totals[k] != null) totals[k] += (p.days || 0); }
+  const froms = periods.map(p => p.from).filter(Boolean).sort();
+  const tos = periods.map(p => p.to).filter(Boolean).sort();
+  const dataset = {
+    seafarer: {
+      fullName: seafarer?.fullName || 'Seafarer', dob: seafarer?.dob || null, nationality: seafarer?.nationality || null,
+      dischargeBookNo: seafarer?.dischargeBookNo || '', cocHeld: seafarer?.cocHeld || '',
+      periodFrom: froms[0] || null, periodTo: tos[tos.length - 1] || null,
+    },
+    vessels: [{ name: vessel?.name, flag: vessel?.flag, imo: vessel?.imo, gt: vessel?.gt, lengthM: vessel?.lengthM }],
+    service: { capacity: periods[0]?.capacity || '', totals },
+    signatory: signatory || null,
+  };
+  const assurance = buildAssurance(dataset);
+  let qrDataUrl = null;
+  try { qrDataUrl = await makeQrDataUrl(assurance.qrPayload); } catch { /* QR is optional */ }
+  const v = verifier || { name: 'Maritime & Coastguard Agency', label: 'MCA', instructions: 'Testimonial of sea service signed by the master under MSN 1858 — retain with your Discharge Book and Notice of Eligibility.' };
+  return renderPackPdf({ dataset, verifier: v, assurance, qrDataUrl, signatoryMeta: signatory });
+};
+
 export const downloadBytes = (bytes, filename, type = 'application/pdf') => {
   const blob = new Blob([bytes], { type });
   const url = URL.createObjectURL(blob);

@@ -98,6 +98,7 @@ const rowToEntry = (row, pathId, config) => {
     signedName: row.signed_name,
     recordHash: row.record_hash,
     rejectionReason: row.rejection_reason,
+    testimonialPath: row.testimonial_path,
     noteReason: row.note,
     documents: row.documents || []
   };
