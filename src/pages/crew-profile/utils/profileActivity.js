@@ -43,7 +43,7 @@ const kitEventTitle = (k) => {
 export const fetchProfileActivity = async (userId) => {
   if (!userId) return [];
   const [statusRes, docsRes, kitRes, horRes, profEvRes, calRes] = await Promise.all([
-    supabase.from('crew_status_history').select('id, new_status, old_status, changed_at, changed_by_name, notes').eq('user_id', userId),
+    supabase.from('crew_status_history').select('id, new_status, old_status, changed_at, changed_by_name, notes').eq('user_id', userId).neq('source', 'calendar'),
     supabase.from('personal_documents').select('id, doc_type, details, created_at, created_by').eq('user_id', userId),
     supabase.from('crew_kit_events').select('id, action, detail, actor_name, created_at').eq('user_id', userId),
     supabase.from('hor_month_status').select('period_year, period_month, submitted_at, submit_signed_name, confirmed_at, approve_signed_name').eq('subject_user_id', userId),
