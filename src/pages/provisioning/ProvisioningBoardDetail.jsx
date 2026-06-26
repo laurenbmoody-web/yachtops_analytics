@@ -8,6 +8,7 @@ import '../pantry/pantry.css';
 import './provisioning-dashboard.css';
 import StatusBadge from './components/StatusBadge';
 import { BOARD_TYPES } from './data/templates';
+import { openBoardPdf } from './utils/boardPdfExport';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import {
@@ -2604,15 +2605,19 @@ const ProvisioningBoardDetail = () => {
                 >
                   <Icon name="LayoutGrid" style={{ width: 13, height: 13 }} /> Add from…
                 </button>
-                {/* PDF + Print were two separate buttons that both called
-                    window.print() — the only difference was a toast hinting
-                    "Save as PDF in the print dialog" before PDF. Same dialog,
-                    same outcome. Collapsed into one entry point. */}
+                {/* Generates a real PDF client-side (jsPDF) and opens
+                    it in a new tab via blob URL. Earlier this fired
+                    window.print() and pushed the user through the
+                    browser's print dialog — no orientation control,
+                    no proper preview, no "save as PDF" without
+                    extra clicks. Opening the rendered PDF directly
+                    lets the chief use the browser's PDF viewer for
+                    save / print / orientation. */}
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => openBoardPdf({ list, items, trip })}
                   className="cargo-ribbon-btn"
-                  title="Print or Save as PDF (use the system dialog's PDF option)"
+                  title="Open a PDF of the board in a new tab"
                 >
                   <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print / PDF
                 </button>
