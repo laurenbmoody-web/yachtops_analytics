@@ -101,11 +101,10 @@ const SupplierOrdersIndex = () => {
     <>
       <Header />
       <main className="pv-dashboard" style={{ minHeight: 'calc(100vh - 64px)' }}>
-        {/* Centered max-width column — matches .dh-topbar-inner on the
-            Delivered tab (max-width: 1240px in delivery-history.css) so
-            the Sent/Delivered tab toggle is a swap of content within the
-            same column, not a layout reflow. */}
-        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 32px' }}>
+        {/* Full-bleed column. The Delivered tab (delivery-history.css
+            .dh-topbar-inner / .dh-main) is widened to match, so the
+            Sent/Delivered toggle stays a content swap, not a reflow. */}
+        <div style={{ margin: 0, padding: '24px 48px' }}>
         {/* Back to boards — nav chunk above the editorial header. The
             22px marginBottom matches the gap on the Delivered page (where
             .dh-topbar-inner padding-top provides the same rhythm). */}
