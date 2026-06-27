@@ -1311,35 +1311,62 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         const noeExpiry = addYearsIso(j.noe?.issueDate, 5);
         const oralExpiry = addYearsIso(j.oral?.passDate, 3);
         const noeDte = daysUntil(noeExpiry), oralDte = daysUntil(oralExpiry);
-        const Stage = ({ n, label, state, line, warn }) => (
-          <div style={{ flex: '1 1 150px', minWidth: 150, border: '1px solid #ECEAE3', borderRadius: 12, padding: '12px 14px', background: state === 'done' ? '#EFF6F1' : '#FAFAF8' }}>
-            <div className="mlabel" style={{ marginBottom: 4 }}>{n} · {label}</div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: state === 'done' ? '#3F7A52' : state === 'active' ? '#C65A1A' : '#8B8478' }}>{line}</div>
-            {warn && <div style={{ fontSize: 11.5, color: '#A6712C', marginTop: 3 }}>{warn}</div>}
-          </div>
-        );
+        // The specific outstanding requirements — so Eligibility says WHAT's left,
+        // not just a count. Binding (biggest gap) first.
+        const unmet = conf.authoritative
+          ? hardReqs.filter(r => !r.met).slice().sort((a, b) => b.remaining - a.remaining)
+          : [];
+        const steps = [
+          {
+            n: '01', label: 'Eligibility',
+            state: eligible ? 'done' : 'active',
+            line: !conf.authoritative ? 'Confirm figures' : eligible ? 'Requirements met' : `${unmet.length} to go`,
+            detail: !conf.authoritative
+              ? <div className="cj-detail">{conf.label} · {conf.notice || 'see notice'}</div>
+              : (!eligible && unmet.length)
+                ? <ul className="cj-reqs">{unmet.map(r => <li key={r.key}>{r.label} · <b>{r.remaining} {r.remaining === 1 ? 'day' : 'days'}</b></li>)}</ul>
+                : null,
+          },
+          {
+            n: '02', label: 'Notice of Eligibility',
+            state: j.noe?.status === 'issued' ? 'done' : j.noe?.status === 'applied' ? 'active' : 'todo',
+            line: j.noe?.status === 'issued' ? `Issued ${fmtDate(j.noe.issueDate)}` : j.noe?.status === 'applied' ? 'Awaiting NoE' : 'Not applied',
+            detail: j.noe?.status === 'issued' && noeDte != null
+              ? <div className="cj-detail">{noeDte < 0 ? 'Expired — reapply' : `Valid to ${fmtDate(noeExpiry)}${noeDte < 180 ? ` · ${noeDte}d left` : ''}`}</div> : null,
+          },
+          {
+            n: '03', label: 'Oral exam',
+            state: j.oral?.status === 'passed' ? 'done' : (j.oral?.status === 'booked' || j.oral?.status === 'failed') ? 'active' : 'todo',
+            line: j.oral?.status === 'passed' ? `Passed ${fmtDate(j.oral.passDate)}` : j.oral?.status === 'booked' ? 'Booked' : j.oral?.status === 'failed' ? 'Failed — re-sit' : 'Not booked',
+            detail: j.oral?.status === 'passed' && !j.coc?.issuedDate && oralDte != null
+              ? <div className="cj-detail">{oralDte < 0 ? 'Pass expired — re-sit' : `Pass valid to ${fmtDate(oralExpiry)}${oralDte < 180 ? ` · ${oralDte}d left` : ''}`}</div> : null,
+          },
+          {
+            n: '04', label: 'Certificate of Competency',
+            state: j.coc?.issuedDate ? 'done' : 'todo',
+            line: j.coc?.issuedDate ? `Issued ${fmtDate(j.coc.issuedDate)}` : 'Not issued',
+            detail: null,
+          },
+        ];
         return (
-          <div className="std-card" style={{ marginTop: 18, padding: '16px 18px' }}>
-            <div className="std-flex std-between std-ac" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <div className="cj" style={{ marginTop: 18 }}>
+            <div className="cj-head">
               <div className="mlabel rustlabel">Certification journey{cert?.label ? ` · ${cert.label}` : ''}</div>
-              <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={openJourney}><Icon name="Route" size={15} /> Update journey</button>
+              <button className="cj-update" onClick={openJourney}><Icon name="Route" size={15} /> Update journey</button>
             </div>
-            <div className="std-vs" style={{ marginTop: 2, marginBottom: 12 }}>NoE / NoA → oral exam → CoC. Cargo tracks your progress and the MCA validity timers; the milestones are yours to confirm.{MSF_FORMS[deptId] ? ` Apply with ${MSF_FORMS[deptId].form} (${MSF_FORMS[deptId].notice}).` : ' Apply with the MSF form for your route.'}</div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Stage n="01" label="Eligibility" state={eligible ? 'done' : 'active'}
-                line={!conf.authoritative ? 'Confirm figures with your route' : eligible ? 'Service requirements met' : `${hardReqs.filter(r => !r.met).length} requirement(s) to go`}
-                warn={!conf.authoritative ? `${conf.label} · ${conf.notice || 'see notice'}` : null} />
-              <Stage n="02" label="Notice of Eligibility"
-                state={j.noe?.status === 'issued' ? 'done' : j.noe?.status === 'applied' ? 'active' : 'todo'}
-                line={j.noe?.status === 'issued' ? `Issued ${fmtDate(j.noe.issueDate)}` : j.noe?.status === 'applied' ? 'Applied — awaiting NoE' : 'Not applied'}
-                warn={j.noe?.status === 'issued' && noeDte != null ? (noeDte < 0 ? 'NoE expired — reapply' : `Valid to ${fmtDate(noeExpiry)}${noeDte < 180 ? ` · ${noeDte}d left` : ''}`) : null} />
-              <Stage n="03" label="Oral exam"
-                state={j.oral?.status === 'passed' ? 'done' : (j.oral?.status === 'booked' || j.oral?.status === 'failed') ? 'active' : 'todo'}
-                line={j.oral?.status === 'passed' ? `Passed ${fmtDate(j.oral.passDate)}` : j.oral?.status === 'booked' ? 'Booked' : j.oral?.status === 'failed' ? 'Failed — reapply' : 'Not booked'}
-                warn={j.oral?.status === 'passed' && !j.coc?.issuedDate && oralDte != null ? (oralDte < 0 ? 'Pass expired — re-sit' : `Pass valid to ${fmtDate(oralExpiry)}${oralDte < 180 ? ` · ${oralDte}d left` : ''}`) : null} />
-              <Stage n="04" label="Certificate of Competency"
-                state={j.coc?.issuedDate ? 'done' : 'todo'}
-                line={j.coc?.issuedDate ? `Issued ${fmtDate(j.coc.issuedDate)}` : '—'} />
+            <div className="cj-intro">NoE / NoA → oral exam → CoC. Cargo tracks your progress and the MCA validity timers; the milestones are yours to confirm.{MSF_FORMS[deptId] ? ` Apply with ${MSF_FORMS[deptId].form} (${MSF_FORMS[deptId].notice}).` : ' Apply with the MSF form for your route.'}</div>
+            <div className="cj-steps">
+              {steps.map((s, i) => (
+                <button type="button" className={`cj-step ${s.state}`} key={s.n} onClick={openJourney} title="Update journey">
+                  <div className="cj-rail">
+                    <span className="cj-node">{s.state === 'done' ? <Icon name="Check" size={14} color="#fff" /> : s.n}</span>
+                    {i < steps.length - 1 && <span className="cj-line" />}
+                  </div>
+                  <div className="cj-steplabel">{s.label}</div>
+                  <div className="cj-statusline">{s.line}</div>
+                  {s.detail}
+                </button>
+              ))}
             </div>
           </div>
         );
