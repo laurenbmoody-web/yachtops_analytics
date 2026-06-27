@@ -92,8 +92,13 @@ const GhostBoardColumn = ({ onClick }) => (
 
 // ── New Board inline form ────────────────────────────────────────────────────
 
-const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
-  const [step, setStep] = useState(1);            // 1 = basics, 2 = start-from
+const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel }) => {
+  // Source-first flow: step 1 picks HOW you start (fresh / build from),
+  // step 2 collects the basics (name / type / trip / privacy). The
+  // Build-from picker opens after step 2 so it still has the trip +
+  // board type + guest count it needs to scale quantities.
+  const [step, setStep] = useState(1);            // 1 = source, 2 = basics
+  const [startMode, setStartMode] = useState(null); // 'blank' | 'build'
   const [title, setTitle] = useState('');
   const [boardType, setBoardType] = useState('');
   const [tripId, setTripId] = useState('');
@@ -166,13 +171,19 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   return (
     <div className="pv-wizard pv-dashboard">
 
-      {/* ── Step 1: Board basics ────────────────────────────────────────── */}
-      {step === 1 && (
+      {/* ── Step 2: Board basics ────────────────────────────────────────── */}
+      {step === 2 && !creating && (
         <>
-          <h3 className="pv-wizard-title">
-            <span className="pv-wizard-title-dot" aria-hidden="true" />
-            New Board
-          </h3>
+          <div className="pv-wizard-header">
+            <button onClick={() => setStep(1)} className="pv-wizard-back" aria-label="Back">←</button>
+            <h3 className="pv-wizard-title">
+              <span className="pv-wizard-title-dot" aria-hidden="true" />
+              New board
+            </h3>
+          </div>
+          <p className="pv-wizard-context">
+            {startMode === 'build' ? 'Build from…' : 'Start fresh'}
+          </p>
 
           {/* Board name */}
           <input
@@ -251,14 +262,21 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
 
           {localError && <p className="pv-wizard-error">{localError}</p>}
 
-          {/* Step 1 CTAs */}
+          {/* Step 2 CTA — depends on the source picked in step 1.
+              Start fresh creates the board straight away; Build
+              from… hands off to the picker (which now has the trip
+              + type + guest count it needs to scale quantities). */}
           <div className="pv-wizard-cta-row">
             <button
-              onClick={() => { if (title.trim()) setStep(2); }}
+              onClick={() => {
+                if (!title.trim()) return;
+                if (startMode === 'build') setShowPast(true);
+                else triggerCreate('blank', []);
+              }}
               disabled={!title.trim()}
               className="pv-wizard-btn pv-wizard-btn-primary"
             >
-              Next →
+              {startMode === 'build' ? 'Next → choose items' : 'Create board'}
             </button>
             <button onClick={onCancel} className="pv-wizard-btn pv-wizard-btn-ghost">
               Cancel
@@ -267,51 +285,45 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
         </>
       )}
 
-      {/* ── Step 2: Start from ──────────────────────────────────────────── */}
-      {step === 2 && !creating && (
+      {/* ── Step 1: How do you want to start? ───────────────────────────── */}
+      {/* Twin magazine tiles (editorial Option C): a terracotta top-rule,
+          serif title, muted descriptor. Picking a tile sets the source
+          mode and advances to the basics step. Source-first so the
+          fork leads the flow rather than trailing a long form. */}
+      {step === 1 && !creating && (
         <>
-          <div className="pv-wizard-header">
-            <button onClick={() => setStep(1)} className="pv-wizard-back" aria-label="Back">←</button>
-            <h3 className="pv-wizard-title">
-              <span className="pv-wizard-title-dot" aria-hidden="true" />
-              Start from
-            </h3>
-          </div>
-          <p className="pv-wizard-context">
-            Creating: <strong>{title}</strong>
-            {boardType && <span> · {BOARD_TYPES.find(b => b.value === boardType)?.label}</span>}
-          </p>
+          <h3 className="pv-wizard-title">
+            <span className="pv-wizard-title-dot" aria-hidden="true" />
+            New board
+          </h3>
+          <p className="pv-wizard-context">How do you want to start?</p>
 
-          {/* Two route cards — stacked vertically. Sprint 9c.5: collapsed
-              from three (Template / From past / Blank) to two. The unified
-              "Build from…" picker (PastActivityPicker) absorbs Templates as
-              a toggle position inside Boards (Live / Past / Templates) and
-              adds Catalogue + Suggestions tabs alongside Past orders. */}
-          <div className="pv-wizard-route-list">
+          <div className="pv-wizard-tile-grid">
             {[
-              { key: 'blank',  icon: 'Plus',    title: 'Start fresh', desc: 'Empty board, add items as you go' },
-              { key: 'build',  icon: 'Folder',  title: 'Build from…', desc: 'Boards · Past orders · Catalogue · Suggestions' },
+              { key: 'blank', title: 'Start fresh', desc: 'Empty board, add items as you go' },
+              { key: 'build', title: 'Build from…', desc: 'Boards · Past orders · Catalogue · Suggestions' },
             ].map(opt => (
               <button
                 key={opt.key}
-                onClick={() => {
-                  if (opt.key === 'blank') triggerCreate('blank', []);
-                  else setShowPast(true);
-                }}
-                className="pv-wizard-route-card"
+                onClick={() => { setStartMode(opt.key); setStep(2); }}
+                className="pv-wizard-tile"
               >
-                <span className="pv-wizard-route-icon" aria-hidden="true">
-                  <Icon name={opt.icon} size={22} strokeWidth={1.5} />
-                </span>
-                <span className="pv-wizard-route-text">
-                  <span className="pv-wizard-route-title">{opt.title}</span>
-                  <span className="pv-wizard-route-desc">{opt.desc}</span>
+                <span className="pv-wizard-tile-rule" aria-hidden="true" />
+                <span className="pv-wizard-tile-body">
+                  <span className="pv-wizard-tile-title">{opt.title}</span>
+                  <span className="pv-wizard-tile-desc">{opt.desc}</span>
                 </span>
               </button>
             ))}
           </div>
 
           {localError && <p className="pv-wizard-error">{localError}</p>}
+
+          <div className="pv-wizard-cta-row">
+            <button onClick={onCancel} className="pv-wizard-btn pv-wizard-btn-ghost">
+              Cancel
+            </button>
+          </div>
         </>
       )}
 
@@ -1150,6 +1162,7 @@ const ProvisioningWorkspace = () => {
                   trips={trips}
                   tenantId={activeTenantId}
                   userId={userId}
+                  userDept={userDept}
                   onCreated={handleCreateBoard}
                   onCancel={() => setShowNewBoard(false)}
                 />
