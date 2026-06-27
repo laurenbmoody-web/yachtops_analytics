@@ -346,18 +346,21 @@ const MASTER_TICKETS = [
   ...STCW_CORE,
   A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']),
   A('med', 'Medical First Aid', ['stcw_medical_care']),
+  A('ecdis', 'ECDIS', ['ecdis']),
   A('gmdss', 'GMDSS GOC', ['gmdss']),
   A('helm_m', 'HELM (Management)', ['helm_management']),
 ];
 export const ANCILLARY = {
   MASTER_CODE_200_COASTAL: [
     A('ym', 'RYA Yachtmaster Offshore (or IYT Master of Yachts Limited)', ['yachtmaster']),
+    A('edh', 'Efficient Deck Hand (EDH)', ['edh']),
     ...STCW_CORE,
     A('gmdss', 'GMDSS ROC (or GOC)', ['gmdss']),
     A('helm_o', 'HELM (Operational)', ['helm_management']),
   ],
   MASTER_CODE_200_UNLIMITED: [
     A('ym', 'RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited)', ['yachtmaster']),
+    A('edh', 'Efficient Deck Hand (EDH)', ['edh']),
     ...STCW_CORE,
     A('gmdss', 'GMDSS GOC', ['gmdss']),
     A('helm_o', 'HELM (Operational)', ['helm_management']),
@@ -375,11 +378,23 @@ export const ANCILLARY = {
   MASTER_YACHT_3000: MASTER_TICKETS,
   CHIEF_MATE_UNLIMITED: [...MASTER_TICKETS, A('naest', 'NAEST (Management)', ['radar_arpa', 'ecdis'])],
   MASTER_UNLIMITED: [...MASTER_TICKETS, A('naest', 'NAEST (Management)', ['radar_arpa', 'ecdis'])],
-  // ENGINE — MSN 1904 Small Vessel (Yacht)
+  // ENGINE — MSN 1904 Small Vessel (Yacht). AEC is the entry building block, so
+  // it's listed at every rung (held from below; shown so the picture is complete).
   MEOL_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care'])],
   EOOW_SV_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_o', 'HELM (Operational)', ['helm_management'])],
-  CHIEF_SV_500_Y: [...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'])],
-  CHIEF_SV_3000_Y: [...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'])],
+  CHIEF_SV_500_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'])],
+  CHIEF_SV_3000_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'])],
+  // ETO — MSN 1860 §7.3. HV (Management), GMDSS Radio Maintenance and ENEM are
+  // the electro-technical specialist tickets unique to this route.
+  ETO_COC: [
+    ...STCW_CORE,
+    A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']),
+    A('med', 'Medical First Aid', ['stcw_medical_care']),
+    A('hv', 'High Voltage (Management)', ['hv']),
+    A('helm_o', 'HELM (Operational)', ['helm_management']),
+    A('gmdss_rm', 'GMDSS Radio Maintenance', ['gmdss_radio_maint']),
+    A('enem', 'Electronic Nav Equipment Maintenance (ENEM)', ['enem']),
+  ],
 };
 
 /** The ancillary course requirements for a certificate (empty array if none modelled). */
