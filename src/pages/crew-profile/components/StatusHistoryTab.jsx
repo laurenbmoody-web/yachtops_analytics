@@ -44,7 +44,7 @@ const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.get
 
 // Short labels for the bottom status tab (active = no tab; it's the default).
 const SHORT_STATUS = {
-  on_leave: 'Leave', rotational_leave: 'Rotation', medical_leave: 'Medical',
+  active: 'Active', on_leave: 'Leave', rotational_leave: 'Rotational', medical_leave: 'Medical',
   training_leave: 'Training', travelling: 'Travel', invited: 'Invited',
 };
 
@@ -248,8 +248,8 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                 const day = new Date(calYear, calMonth, d);
                 const entry = entryForDay(entries, day);
                 const stat = entry ? entry.kind : getStatusForDay(periods, day);
-                const showTab = stat && stat !== 'active';
-                const tabLabel = SHORT_STATUS[stat];
+                const showTab = !!stat;
+                const tabLabel = SHORT_STATUS[stat] || getStatusLabel(stat);
                 const dim = statFilter && stat !== statFilter;
                 const hot = statFilter && stat === statFilter;
                 const onboard = isStampedOn(stamps, day);
@@ -263,7 +263,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                     title={`${stat ? getStatusLabel(stat) : 'No data'}${onboard ? ' · signed on (clock paused)' : ''}${entry && travelSummary(entry) ? ` — ${travelSummary(entry)}` : ''}`}
                   >
                     <span className="act-mnum">{d}</span>
-                    {onboard && <span className="act-mstamp" title="Signed onto vessel — clock paused"><Icon name="Stamp" size={11} /></span>}
+                    {onboard && <span className="act-mstamp" title="Signed onto vessel — clock paused"><Icon name="Stamp" size={14} /></span>}
                     {showTab && <span className="act-mtab" style={{ background: soft(stat).ink }}>{tabLabel}</span>}
                   </button>
                 );
