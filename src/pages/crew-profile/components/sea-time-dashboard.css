@@ -393,10 +393,12 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .cj-rail .cj-line{flex:1;height:2px;background:#ECEAE3;margin:0 5px;}
 .cj-rail .cj-line.done{background:var(--sage);}
 .cj-labels{display:flex;width:100%;}
-.cj-stepcell{flex:1;min-width:0;position:relative;}
-.cj-stepcell.pos-first{text-align:left;}
-.cj-stepcell.pos-mid{text-align:center;}
-.cj-stepcell.pos-last{text-align:right;}
+/* cells sized 1:2:2:1 so the two middle labels centre exactly on their nodes
+   (at 1/3 and 2/3), while first/last keep their edge alignment */
+.cj-stepcell{min-width:0;position:relative;}
+.cj-stepcell.pos-first{flex:1;text-align:left;}
+.cj-stepcell.pos-mid{flex:2;text-align:center;}
+.cj-stepcell.pos-last{flex:1;text-align:right;}
 .cj-step{width:100%;text-align:inherit;background:none;border:0;padding:0;cursor:pointer;}
 .cj-step.locked .cj-statusline{color:var(--faint);}
 .cj-eligchev{margin-left:5px;color:var(--faint);vertical-align:middle;transition:transform .15s;}
