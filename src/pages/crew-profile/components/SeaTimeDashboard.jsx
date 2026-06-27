@@ -11,7 +11,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY, DUAL_CAPACITY_RATE, isDualCapacityRole
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY, DUAL_CAPACITY_RATE, isDualCapacityRole, ancillaryFor
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
@@ -414,6 +414,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // Recent qualifying seagoing service in the last 5 years (MCA recency rule).
   const recentDays = useMemo(() => recentQualifyingDays(pathwayEntries.filter(e => !e.excluded)), [pathwayEntries]);
   const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert, recentDays) : []), [buckets, prior, cert, recentDays]);
+  // Ancillary courses/tickets for the target CoC, with held-state auto-detected
+  // from the crew member's documents (a course counts as held once a matching
+  // document type is on file).
+  const ancillary = useMemo(
+    () => (cert ? ancillaryFor(targetId).map(item => ({ ...item, met: item.anyOf.some(t => !!docsOnFile[t]) })) : []),
+    [cert, targetId, docsOnFile],
+  );
+  const ancillaryDone = ancillary.filter(a => a.met).length;
   // Supporting-doc checks tick automatically when the matching profile document is
   // on file (passport, seaman's book); other docs keep their manual toggle.
   const docMetEffective = useMemo(() => {
@@ -973,6 +981,28 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             </div>
           </div>
           <div className="stp-logtotal"><div className="n">{buckets.total}</div><div className="u">Sea days logged</div></div>
+        </div>
+      )}
+
+      {cert && ancillary.length > 0 && (
+        <div className="stp-courses">
+          <div className="stp-courses-head">
+            <span className="mlabel rustlabel">Courses &amp; tickets</span>
+            <span className="stp-courses-count" style={{ color: ancillaryDone === ancillary.length ? '#5E8E6F' : '#C65A1A' }}>{ancillaryDone} of {ancillary.length} on file</span>
+          </div>
+          <div className="stp-courses-sub">Required for {cert.short} alongside your sea time — auto-detected from your Documents. The MCA won’t issue the CoC without these.</div>
+          <div className="stp-courses-list">
+            {ancillary.map(a => (
+              <div className={`stp-course ${a.met ? 'has' : 'missing'}`} key={a.key}>
+                <span className="ck">{a.met ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
+                <div className="cl">
+                  <div className="nm">{a.label}</div>
+                  {a.note && <div className="nt">{a.note}</div>}
+                </div>
+                {!a.met && <span className="st">Not on file</span>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

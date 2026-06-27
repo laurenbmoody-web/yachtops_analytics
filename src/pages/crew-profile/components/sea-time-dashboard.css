@@ -381,6 +381,20 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-req.advisory{opacity:.78;}
 /* OR-branch sub-hint — shows both routes (length vs tonnage) + uncounted days */
 .stp-orhint{margin-top:6px;font-size:9px;letter-spacing:.02em;color:var(--muted);}
+/* courses & tickets checklist — the "courses" half of CoC eligibility */
+.stp-courses{margin-top:18px;padding-top:16px;border-top:1px solid #F0F1F5;}
+.stp-courses-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+.stp-courses-count{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
+.stp-courses-sub{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:4px;}
+.stp-courses-list{margin-top:10px;}
+.stp-course{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid #F0F1F5;}
+.stp-course .ck{width:16px;flex-shrink:0;display:flex;justify-content:center;padding-top:1px;}
+.stp-course .ck .dot{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--faint);}
+.stp-course .cl{flex:1;}
+.stp-course .cl .nm{font-size:13px;color:var(--ink);}
+.stp-course.missing .cl .nm{color:var(--muted);}
+.stp-course .cl .nt{font-size:11px;color:#A6712C;margin-top:2px;line-height:1.45;}
+.stp-course .st{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);white-space:nowrap;align-self:center;}
 /* untagged-CoC nudge — a certificate uploaded without a grade can't be matched */
 .stp-untagged{display:flex;gap:10px;align-items:flex-start;margin-top:14px;padding:11px 13px;background:#FBF3E8;border:1px solid #EFD9B8;border-radius:10px;font-size:12px;line-height:1.5;color:#7A4A12;}
 .stp-untagged b{color:#1C1B3A;}
