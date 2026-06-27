@@ -226,6 +226,12 @@ export const DOCUMENT_TYPES = [
     fields: [{ key: 'level', label: 'Course', type: 'select', options: ['AEC 1', 'AEC 2', 'AEC 1 & 2'] }],
   },
   { id: 'meol', label: 'Marine Engine Operator Licence (MEOL)', category: 'engineering', expiry: false },
+  {
+    id: 'hv', label: 'High Voltage (Operational / Management)', category: 'engineering', expiry: false,
+    fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Operational', 'Management'] }],
+  },
+  { id: 'gmdss_radio_maint', label: 'GMDSS Radio Maintenance', category: 'engineering', expiry: false },
+  { id: 'enem', label: 'Electronic Navigation Equipment Maintenance (ENEM)', category: 'engineering', expiry: false },
   { id: 'engineering_other', label: 'Other engineering certificate', category: 'engineering', fields: [NAMED_CERT] },
 
   // ── Interior & service ──────────────────────────────────────────────────

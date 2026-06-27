@@ -307,9 +307,14 @@ test('ancillary course requirements are modelled with valid doc-type matchers', 
   assert.ok(edh && edh.anyOf.includes('edh'));
   assert.match(edh.note, /18 months/);
   assert.ok(oow.some(a => a.anyOf.includes('yachtmaster')));
-  // Every item resolves to at least one document type to detect from.
-  for (const id of ['OOW_YACHT_3000', 'MASTER_YACHT_3000', 'MEOL_Y', 'CHIEF_SV_3000_Y']) {
-    for (const a of ancillaryFor(id)) assert.ok(Array.isArray(a.anyOf) && a.anyOf.length > 0, `${id}/${a.key}`);
+  // Deck officer certs carry ECDIS; ETO carries its electro-technical tickets.
+  assert.ok(ancillaryFor('MASTER_YACHT_3000').some(a => a.anyOf.includes('ecdis')));
+  assert.ok(ancillaryFor('ETO_COC').some(a => a.anyOf.includes('enem')));
+  // Every modelled CoC across all families has a non-empty, valid checklist.
+  for (const id of ['MASTER_CODE_200_COASTAL', 'OOW_YACHT_3000', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MEOL_Y', 'EOOW_SV_Y', 'CHIEF_SV_3000_Y', 'ETO_COC']) {
+    const items = ancillaryFor(id);
+    assert.ok(items.length > 0, `${id} should have a course checklist`);
+    for (const a of items) assert.ok(Array.isArray(a.anyOf) && a.anyOf.length > 0, `${id}/${a.key}`);
   }
   assert.deepEqual(ancillaryFor('NOPE'), []);
 });
