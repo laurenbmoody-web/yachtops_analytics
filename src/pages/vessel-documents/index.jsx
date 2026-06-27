@@ -293,7 +293,7 @@ export default function VesselDocuments() {
               Historic
             </span>
           ) : f.expiry_date ? (
-            <span className="vd-pill" style={{ background: pill.bg, color: pill.fg }} title={`Expires ${formatDocDate(f.expiry_date)}`}>
+            <span className="vd-pill" style={{ background: pill.bg, color: pill.fg }} title={st.level === 'advisory' ? 'Recommended refresh — not mandatory' : `Expires ${formatDocDate(f.expiry_date)}`}>
               {st.level === 'green' ? `Valid · ${formatDocDate(f.expiry_date)}` : st.label}
             </span>
           ) : null}

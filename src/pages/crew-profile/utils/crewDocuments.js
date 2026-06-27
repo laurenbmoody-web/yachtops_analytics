@@ -46,7 +46,7 @@ export const getDocStatus = (doc = {}) => {
   const s = getExpiryStatus(doc.expiry_date);
   if (doc.expiry_date && isAdvisoryDocType(doc.doc_type)) {
     return s.level === 'expired'
-      ? { level: 'advisory', label: 'Renewal due', days: s.days }
+      ? { level: 'advisory', label: 'Refresh optional', days: s.days }
       : { level: 'green', label: 'Valid', days: s.days };
   }
   return s;
