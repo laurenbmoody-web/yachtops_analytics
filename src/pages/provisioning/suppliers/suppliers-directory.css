@@ -27,7 +27,9 @@
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
-.sd-dir-inner { max-width: 1280px; margin: 0 auto; padding: 56px 48px 80px; }
+/* Full-bleed: the directory fills the viewport width (was capped at
+   1280px and centred). Side padding keeps the cards off the edge. */
+.sd-dir-inner { max-width: none; margin: 0; padding: 56px 48px 80px; }
 
 /* ─── Editorial header ─────────────────────────────────────── */
 .sd-dir-back {

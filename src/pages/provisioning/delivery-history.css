@@ -46,9 +46,11 @@
   border-bottom: 0.5px solid var(--di-hairline);
 }
 .dh-topbar-inner {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 22px 32px 18px;
+  /* Full-bleed to match the Sent tab (SupplierOrdersIndex) so the
+     Sent/Delivered toggle doesn't reflow the column width. */
+  max-width: none;
+  margin: 0;
+  padding: 22px 48px 18px;
 }
 .dh-breadcrumb {
   display: flex;
@@ -134,9 +136,9 @@
 
 /* ── Page main column ───────────────────────────────────────── */
 .dh-main {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 28px 32px 96px;
+  max-width: none;
+  margin: 0;
+  padding: 28px 48px 96px;
 }
 
 /* ── Toolbar (count + export) ───────────────────────────────── */
