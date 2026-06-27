@@ -90,6 +90,21 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
   const presentCats = ACTIVITY_CATEGORIES.filter((c) => activity.some((e) => e.category === c.id));
   const shown = filter === 'all' ? activity : activity.filter((e) => e.category === filter);
 
+  // Day-count per status for the displayed month (calendar entry wins, else the
+  // status timeline). Drives the KPI strip under the grid.
+  const monthCounts = () => {
+    const counts = {};
+    const dim = daysInMonth(calYear, calMonth);
+    for (let d = 1; d <= dim; d++) {
+      const day = new Date(calYear, calMonth, d);
+      const entry = entryForDay(entries, day);
+      const stat = entry ? entry.kind : getStatusForDay(periods, day);
+      if (stat) counts[stat] = (counts[stat] || 0) + 1;
+    }
+    return counts;
+  };
+  const kpiLabel = (v) => SHORT_STATUS[v] || getStatusLabel(v);
+
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const dateIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const openAdd = (iso) => { setEditing(null); setForm({ ...blankEntry(), ...(iso ? { startDate: iso, endDate: iso } : {}) }); setEntryOpen(true); };
@@ -171,10 +186,18 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
               );
             })}
           </div>
-          <div className="act-cal-legend act-row-legend">
-            {CREW_STATUSES.map(({ value, label }) => (
-              <span key={value}><i className="act-sw" style={{ background: soft(value).ink }} />{label}</span>
-            ))}
+          <div className="act-kpis act-row-legend">
+            {(() => {
+              const counts = monthCounts();
+              const present = CREW_STATUSES.filter((s) => counts[s.value]);
+              if (!present.length) return <span className="act-kpi-empty">No status data for {MONTHS[calMonth]}.</span>;
+              return present.map(({ value }) => (
+                <span key={value} className="act-kpi">
+                  <i style={{ background: soft(value).ink }} />
+                  <b>{counts[value]}</b><span>{kpiLabel(value)}</span>
+                </span>
+              ));
+            })()}
           </div>
           {(() => {
             const day = selectedDay;
