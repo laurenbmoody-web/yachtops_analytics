@@ -7,7 +7,7 @@ import {
   runChecks, computeAssurance, buildTestimonialDataset, getVerifierProfiles,
   buildRequirementBars, recentQualifyingDays
 } from './engine.js';
-import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate, LEGACY_GRADE_CONVERSION, CONVERSION_RECENCY, legacyConversionForGrade } from './pathways.js';
+import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate, LEGACY_GRADE_CONVERSION, CONVERSION_RECENCY, legacyConversionForGrade, ancillaryFor } from './pathways.js';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from './seed.js';
 
 const V = SEED_VESSELS;
@@ -297,6 +297,21 @@ test('dual deck+engine capacity scales every day-count to 50% (MSN 1858 §5.1)',
   assert.equal(dual.watchkeeping, 20);      // halved
   assert.equal(dual.metres24Days, 70);      // (100+40)/2 onboard days on ≥24m
   assert.equal(dual.dualRate, 0.5);
+});
+
+test('ancillary course requirements are modelled with valid doc-type matchers', () => {
+  // OOW carries EDH (with its 18-month timing note) + Yachtmaster + STCW set.
+  const oow = ancillaryFor('OOW_YACHT_3000');
+  assert.ok(oow.length > 0);
+  const edh = oow.find(a => a.key === 'edh');
+  assert.ok(edh && edh.anyOf.includes('edh'));
+  assert.match(edh.note, /18 months/);
+  assert.ok(oow.some(a => a.anyOf.includes('yachtmaster')));
+  // Every item resolves to at least one document type to detect from.
+  for (const id of ['OOW_YACHT_3000', 'MASTER_YACHT_3000', 'MEOL_Y', 'CHIEF_SV_3000_Y']) {
+    for (const a of ancillaryFor(id)) assert.ok(Array.isArray(a.anyOf) && a.anyOf.length > 0, `${id}/${a.key}`);
+  }
+  assert.deepEqual(ancillaryFor('NOPE'), []);
 });
 
 test('small-vessel command entry routes exist and are notice-verified', () => {

@@ -332,6 +332,59 @@ export const rolesForDepartment = (deptId) =>
 export const yardCapForCertificate = (certId) =>
   CERTIFICATES[certId]?.yardCapDays ?? SERVICE_RULES.yardCapDays;
 
+// ── Ancillary courses / tickets required for each CoC (the "courses" half of
+// eligibility, alongside the sea-time bars). Each item lists the documentTypes.js
+// doc-type ids that satisfy it (anyOf — met if the crew holds any of them), so the
+// tracker auto-detects what they hold from the Documents tab. Exam-only modules
+// (e.g. Celestial Nav, GSK) aren't documents, so they're not listed here. ───────
+const A = (key, label, anyOf, note) => ({ key, label, anyOf, ...(note ? { note } : {}) });
+const STCW_CORE = [
+  A('stcw', 'STCW Basic Safety Training', ['stcw_basic']),
+  A('pscrb', 'Survival Craft & Rescue Boats (PSCRB)', ['stcw_pscrb']),
+];
+const MASTER_TICKETS = [
+  ...STCW_CORE,
+  A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']),
+  A('med', 'Medical First Aid', ['stcw_medical_care']),
+  A('gmdss', 'GMDSS GOC', ['gmdss']),
+  A('helm_m', 'HELM (Management)', ['helm_management']),
+];
+export const ANCILLARY = {
+  MASTER_CODE_200_COASTAL: [
+    A('ym', 'RYA Yachtmaster Offshore (or IYT Master of Yachts Limited)', ['yachtmaster']),
+    ...STCW_CORE,
+    A('gmdss', 'GMDSS ROC (or GOC)', ['gmdss']),
+    A('helm_o', 'HELM (Operational)', ['helm_management']),
+  ],
+  MASTER_CODE_200_UNLIMITED: [
+    A('ym', 'RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited)', ['yachtmaster']),
+    ...STCW_CORE,
+    A('gmdss', 'GMDSS GOC', ['gmdss']),
+    A('helm_o', 'HELM (Operational)', ['helm_management']),
+  ],
+  OOW_YACHT_3000: [
+    A('ym', 'RYA Yachtmaster Offshore (or IYT / RYA equivalent)', ['yachtmaster', 'rya_coastal_skipper']),
+    A('edh', 'Efficient Deck Hand (EDH)', ['edh'], 'Must be held ≥18 months before the CoC is issued (§3.3d).'),
+    ...STCW_CORE,
+    A('gmdss', 'GMDSS GOC', ['gmdss']),
+    A('helm_o', 'HELM (Operational)', ['helm_management']),
+    A('ecdis', 'ECDIS', ['ecdis']),
+  ],
+  CHIEF_MATE_YACHT_3000: MASTER_TICKETS,
+  MASTER_YACHT_500: MASTER_TICKETS,
+  MASTER_YACHT_3000: MASTER_TICKETS,
+  CHIEF_MATE_UNLIMITED: [...MASTER_TICKETS, A('naest', 'NAEST (Management)', ['radar_arpa', 'ecdis'])],
+  MASTER_UNLIMITED: [...MASTER_TICKETS, A('naest', 'NAEST (Management)', ['radar_arpa', 'ecdis'])],
+  // ENGINE — MSN 1904 Small Vessel (Yacht)
+  MEOL_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care'])],
+  EOOW_SV_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_o', 'HELM (Operational)', ['helm_management'])],
+  CHIEF_SV_500_Y: [...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'])],
+  CHIEF_SV_3000_Y: [...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'])],
+};
+
+/** The ancillary course requirements for a certificate (empty array if none modelled). */
+export const ancillaryFor = (certId) => ANCILLARY[certId] || [];
+
 /** Dual deck+engine service counts at this rate toward each CoC (MSN 1858 §5.1). */
 export const DUAL_CAPACITY_RATE = SERVICE_RULES.dualCapacityRate;
 
