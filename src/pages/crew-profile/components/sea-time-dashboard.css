@@ -388,15 +388,16 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .cj-ctx{font-size:12px;color:var(--muted);margin-top:4px;}
 .cj-progress{font-size:11px;font-weight:600;color:var(--muted);background:#FAFAF8;border:1px solid #ECEAE3;border-radius:999px;padding:6px 13px;white-space:nowrap;}
 .cj-progress b{color:var(--rust);font-weight:700;}
-/* full-width track: nodes + connecting line edge-to-edge, terminal node at right */
-.cj-track{display:flex;align-items:center;width:100%;margin-bottom:13px;}
-.cj-tracknode{display:flex;align-items:center;flex:1;min-width:0;}
-.cj-tracknode .cj-line{flex:1;height:2px;background:#ECEAE3;margin:0 4px;}
-.cj-tracknode.done .cj-line{background:var(--sage);}
+/* full-width rail: 4 nodes spaced edge-to-edge with 3 connecting lines */
+.cj-rail{display:flex;align-items:center;width:100%;margin-bottom:13px;}
+.cj-rail .cj-line{flex:1;height:2px;background:#ECEAE3;margin:0 5px;}
+.cj-rail .cj-line.done{background:var(--sage);}
 .cj-labels{display:flex;width:100%;}
-.cj-labelspacer{flex:0 0 26px;}
-.cj-stepcell{flex:1;min-width:0;position:relative;padding-right:12px;}
-.cj-step{width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer;}
+.cj-stepcell{flex:1;min-width:0;position:relative;}
+.cj-stepcell.pos-first{text-align:left;}
+.cj-stepcell.pos-mid{text-align:center;}
+.cj-stepcell.pos-last{text-align:right;}
+.cj-step{width:100%;text-align:inherit;background:none;border:0;padding:0;cursor:pointer;}
 .cj-step.locked .cj-statusline{color:var(--faint);}
 .cj-eligchev{margin-left:5px;color:var(--faint);vertical-align:middle;transition:transform .15s;}
 .cj-step.open .cj-eligchev{color:var(--rust);}
