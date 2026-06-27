@@ -1354,15 +1354,26 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               </div>
               <div className="cj-progress"><b>{doneCount}</b> of 4 complete</div>
             </div>
-            <div className="cj-steps">
-              {steps.map((s, i) => (
-                <div className={`cj-stepcell${s.key === 'elig' && eligOpen ? ' open' : ''}`} key={s.n}>
-                  <button type="button" className={`cj-step ${s.state}${s.key === 'elig' && eligOpen ? ' open' : ''}`} onClick={() => clickStep(s)}
+            {/* full-width track: nodes + connecting line edge-to-edge, with a
+                terminal node at the far right */}
+            <div className="cj-track">
+              {steps.map((s) => (
+                <div className={`cj-tracknode ${s.state}`} key={s.n}>
+                  <button type="button" className={`cj-node ${s.state}`} onClick={() => clickStep(s)}
                     title={s.key === 'elig' ? 'Show requirements' : `Update ${s.label}`}>
-                    <div className="cj-rail">
-                      <span className="cj-node">{s.state === 'done' ? <Icon name="Check" size={14} color="#fff" /> : s.state === 'locked' ? <Icon name="Lock" size={11} /> : s.n}</span>
-                      {i < steps.length - 1 && <span className="cj-line" />}
-                    </div>
+                    {s.state === 'done' ? <Icon name="Check" size={14} color="#fff" /> : s.state === 'locked' ? <Icon name="Lock" size={11} /> : s.n}
+                  </button>
+                  <span className="cj-line" />
+                </div>
+              ))}
+              <span className="cj-node cj-endnode" aria-hidden="true" />
+            </div>
+            {/* labels sit under their nodes; a trailing spacer matches the terminal node */}
+            <div className="cj-labels">
+              {steps.map((s) => (
+                <div className={`cj-stepcell${s.key === 'elig' && eligOpen ? ' open' : ''}`} key={s.n}>
+                  <button type="button" className={`cj-step ${s.state}`} onClick={() => clickStep(s)}
+                    title={s.key === 'elig' ? 'Show requirements' : `Update ${s.label}`}>
                     <div className="cj-steplabel">{s.label}{s.key === 'elig' && <Icon name="ChevronDown" size={12} className="cj-eligchev" style={{ transform: eligOpen ? 'rotate(180deg)' : 'none' }} />}</div>
                     <div className="cj-statusline">{s.line}</div>
                     {s.detail}
@@ -1384,6 +1395,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   )}
                 </div>
               ))}
+              <span className="cj-labelspacer" aria-hidden="true" />
             </div>
           </div>
         );

@@ -388,11 +388,15 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .cj-ctx{font-size:12px;color:var(--muted);margin-top:4px;}
 .cj-progress{font-size:11px;font-weight:600;color:var(--muted);background:#FAFAF8;border:1px solid #ECEAE3;border-radius:999px;padding:6px 13px;white-space:nowrap;}
 .cj-progress b{color:var(--rust);font-weight:700;}
-.cj-steps{display:flex;gap:0;flex-wrap:wrap;width:100%;}
-.cj-stepcell{flex:1 1 0;min-width:160px;position:relative;align-self:flex-start;}
-.cj-step{width:100%;text-align:left;background:none;border:0;padding:0 16px 4px 0;cursor:pointer;}
-.cj-step.locked .cj-node{background:#FAFAF8;border-color:#ECEAE3;color:#C9C4BA;}
-.cj-step.locked:hover .cj-node{border-color:var(--rust);color:var(--rust);}
+/* full-width track: nodes + connecting line edge-to-edge, terminal node at right */
+.cj-track{display:flex;align-items:center;width:100%;margin-bottom:13px;}
+.cj-tracknode{display:flex;align-items:center;flex:1;min-width:0;}
+.cj-tracknode .cj-line{flex:1;height:2px;background:#ECEAE3;margin:0 4px;}
+.cj-tracknode.done .cj-line{background:var(--sage);}
+.cj-labels{display:flex;width:100%;}
+.cj-labelspacer{flex:0 0 26px;}
+.cj-stepcell{flex:1;min-width:0;position:relative;padding-right:12px;}
+.cj-step{width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer;}
 .cj-step.locked .cj-statusline{color:var(--faint);}
 .cj-eligchev{margin-left:5px;color:var(--faint);vertical-align:middle;transition:transform .15s;}
 .cj-step.open .cj-eligchev{color:var(--rust);}
@@ -415,24 +419,23 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .cso-note{font-size:11.5px;line-height:1.5;color:#7A4A12;background:#FBF3E8;border:1px solid #EFD9B8;border-radius:8px;padding:9px 11px;margin-bottom:12px;}
 .cso-resit{margin-top:12px;}
 .cso-resit .cso-btn{margin-top:10px;}
-.cj-rail{display:flex;align-items:center;gap:8px;margin-bottom:11px;}
-.cj-node{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border:1.5px solid #E5E7EB;color:#8B8478;background:#fff;transition:all .15s;}
-.cj-line{flex:1;height:1.5px;background:#ECEAE3;}
-.cj-step.done .cj-node{background:var(--sage);border-color:var(--sage);color:#fff;}
-.cj-step.done .cj-line{background:var(--sage);}
-.cj-step.active .cj-node{background:var(--rust);border-color:var(--rust);color:#fff;box-shadow:0 0 0 3px var(--rust-tint);}
+.cj-node{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;border:1.5px solid #E5E7EB;color:#8B8478;background:#fff;cursor:pointer;padding:0;transition:all .15s;}
+.cj-node.done{background:var(--sage);border-color:var(--sage);color:#fff;}
+.cj-node.active{background:var(--rust);border-color:var(--rust);color:#fff;box-shadow:0 0 0 3px var(--rust-tint);}
+.cj-node.locked{background:#FAFAF8;border-color:#ECEAE3;color:#C9C4BA;}
+.cj-node.cj-endnode{cursor:default;}
+button.cj-node:hover{border-color:var(--rust);}
 .cj-steplabel{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B8478;}
 .cj-statusline{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:16px;margin-top:3px;color:var(--ink);line-height:1.25;}
 .cj-step.done .cj-statusline{color:var(--sage-deep);}
 .cj-step.active .cj-statusline{color:var(--rust);}
 .cj-step.todo .cj-statusline{color:var(--faint);}
-.cj-step:hover .cj-node{border-color:var(--rust);}
 .cj-step:hover .cj-statusline{color:var(--rust);}
 .cj-reqs{margin:8px 0 0;padding:0;list-style:none;}
 .cj-reqs li{font-size:11.5px;color:var(--muted);padding:2px 0;line-height:1.4;}
 .cj-reqs li b{color:var(--rust);font-weight:600;}
 .cj-detail{font-size:11px;color:#A6712C;margin-top:5px;line-height:1.45;}
-@media(max-width:640px){.cj-stepcell{flex:1 1 100%;}.cj-step{padding-bottom:14px;}.cj-line{display:none;}.cj-elig-pop{width:100%;}}
+@media(max-width:640px){.cj-labels{flex-wrap:wrap;}.cj-stepcell{flex:1 1 100%;padding-bottom:14px;}.cj-labelspacer{display:none;}.cj-elig-pop{width:100%;}}
 /* courses & tickets checklist — the "courses" half of CoC eligibility */
 .stp-courses{margin-top:18px;padding-top:16px;border-top:1px solid #F0F1F5;}
 .stp-courses-head{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;background:none;border:0;padding:0;cursor:pointer;text-align:left;}
