@@ -22,9 +22,10 @@ import './vessel-documents.css';
 const PILL = {
   expired: { bg: '#FBE4DC', fg: '#9A2B12' },
   red:     { bg: '#FBE4DC', fg: '#9A2B12' },
-  amber:   { bg: '#FBEFD9', fg: '#8A5A12' },
-  green:   { bg: '#E3EFE4', fg: '#3F7A52' },
-  none:    { bg: '#F0F1F5', fg: '#8B8478' },
+  amber:    { bg: '#FBEFD9', fg: '#8A5A12' },
+  green:    { bg: '#E3EFE4', fg: '#3F7A52' },
+  advisory: { bg: '#F0F1F5', fg: '#6B7280' },
+  none:     { bg: '#F0F1F5', fg: '#8B8478' },
 };
 
 const fmtSize = (n) => {
@@ -277,7 +278,8 @@ export default function VesselDocuments() {
   );
 
   const renderFile = (f, n) => {
-    const st = getExpiryStatus(f.expiry_date);
+    // Crew docs carry a precomputed (advisory-aware) status; others derive from date.
+    const st = f.statusLevel ? { level: f.statusLevel, label: f.statusLabel } : getExpiryStatus(f.expiry_date);
     const pill = PILL[st.level] || PILL.none;
     return (
       <div key={f.id} className="vd-idx-row" role="button" tabIndex={0} onClick={() => openFile(f)} onKeyDown={(e) => { if (e.key === 'Enter') openFile(f); }}>
