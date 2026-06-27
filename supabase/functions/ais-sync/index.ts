@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
   const supa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   const { data: vessels, error: vErr } = await supa
-    .from("vessels").select("id, tenant_id, name, mmsi, imo_number").not("mmsi", "is", null);
+    .from("vessels").select("tenant_id, name, mmsi, imo_number").not("mmsi", "is", null);
   if (vErr) return json({ ok: false, error: "vessel lookup: " + vErr.message });
   if (!vessels?.length) return json({ ok: true, count: 0, note: "no vessels with an MMSI" });
 
@@ -71,11 +71,12 @@ Deno.serve(async (req) => {
       maritime_zone: country ? "coastal_or_land" : "offshore",
       note: countryName, updated_at: nowIso,
     };
+    // One vessel per tenant (vessels is keyed by tenant_id), so vessel_id stays null.
     const { data: existing } = await supa.from("vessel_positions").select("id")
-      .eq("tenant_id", v.tenant_id).eq("vessel_id", v.id).eq("observed_on", today).eq("source", "ais").maybeSingle();
+      .eq("tenant_id", v.tenant_id).is("vessel_id", null).eq("observed_on", today).eq("source", "ais").maybeSingle();
     let upErr;
     if (existing) ({ error: upErr } = await supa.from("vessel_positions").update(row).eq("id", existing.id));
-    else ({ error: upErr } = await supa.from("vessel_positions").insert({ ...row, tenant_id: v.tenant_id, vessel_id: v.id, observed_on: today, source: "ais" }));
+    else ({ error: upErr } = await supa.from("vessel_positions").insert({ ...row, tenant_id: v.tenant_id, observed_on: today, source: "ais" }));
 
     results.push({ vessel: v.name, ok: !upErr, lat, lon, country, countryName, schengen, upsertError: upErr?.message, raw: debug ? raw : undefined });
   }
