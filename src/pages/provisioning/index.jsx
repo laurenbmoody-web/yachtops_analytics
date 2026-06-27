@@ -99,6 +99,10 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
   // board type + guest count it needs to scale quantities.
   const [step, setStep] = useState(1);            // 1 = source, 2 = basics
   const [startMode, setStartMode] = useState(null); // 'blank' | 'build'
+  // Build-from path stages the picked items here while the chief fills
+  // in the basics, then triggerCreate sends them with the new board.
+  const [stagedItems, setStagedItems] = useState([]);
+  const [stagedSource, setStagedSource] = useState('past');
   const [title, setTitle] = useState('');
   const [boardType, setBoardType] = useState('');
   const [tripId, setTripId] = useState('');
@@ -152,6 +156,12 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
     : null;
 
   // ── Render sub-picker (overlaid inside the card) ─────────────────────────
+  // Build-from path: the picker opens straight from the step-1 tile, so
+  // onUse STAGES the chosen items and advances to the basics step rather
+  // than creating immediately (the board still needs a name / type /
+  // trip). Guest-count scaling inside the picker no-ops until a trip is
+  // set — the chief picks the trip on the next step, and can re-open the
+  // picker via the back arrow to re-scale if they want.
   if (showPast) {
     return (
       <div className="pv-wizard pv-dashboard is-subview">
@@ -161,8 +171,13 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
           newGuestCount={guestCount}
           boardType={boardType}
           currentDepartment={userDept || null}
-          onUse={(items, source) => { setShowPast(false); triggerCreate(source || 'past', items); }}
-          onBack={() => setShowPast(false)}
+          onUse={(items, source) => {
+            setStagedItems(items || []);
+            setStagedSource(source || 'past');
+            setShowPast(false);
+            setStep(2);
+          }}
+          onBack={() => { setShowPast(false); setStep(1); }}
         />
       </div>
     );
@@ -175,14 +190,22 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
       {step === 2 && !creating && (
         <>
           <div className="pv-wizard-header">
-            <button onClick={() => setStep(1)} className="pv-wizard-back" aria-label="Back">←</button>
+            {/* Back: build-mode reopens the picker (re-pick / re-scale);
+                blank-mode returns to the source choice. */}
+            <button
+              onClick={() => { if (startMode === 'build') setShowPast(true); else setStep(1); }}
+              className="pv-wizard-back"
+              aria-label="Back"
+            >←</button>
             <h3 className="pv-wizard-title">
               <span className="pv-wizard-title-dot" aria-hidden="true" />
               New board
             </h3>
           </div>
           <p className="pv-wizard-context">
-            {startMode === 'build' ? 'Build from…' : 'Start fresh'}
+            {startMode === 'build'
+              ? <>Build from… · <strong>{stagedItems.length} item{stagedItems.length === 1 ? '' : 's'}</strong></>
+              : 'Start fresh'}
           </p>
 
           {/* Board name */}
@@ -262,21 +285,20 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
 
           {localError && <p className="pv-wizard-error">{localError}</p>}
 
-          {/* Step 2 CTA — depends on the source picked in step 1.
-              Start fresh creates the board straight away; Build
-              from… hands off to the picker (which now has the trip
-              + type + guest count it needs to scale quantities). */}
+          {/* Step 2 CTA — both paths create here. Build from… sends
+              the items staged from the picker; Start fresh sends an
+              empty board. */}
           <div className="pv-wizard-cta-row">
             <button
               onClick={() => {
                 if (!title.trim()) return;
-                if (startMode === 'build') setShowPast(true);
+                if (startMode === 'build') triggerCreate(stagedSource, stagedItems);
                 else triggerCreate('blank', []);
               }}
               disabled={!title.trim()}
               className="pv-wizard-btn pv-wizard-btn-primary"
             >
-              {startMode === 'build' ? 'Next → choose items' : 'Create board'}
+              Create board
             </button>
             <button onClick={onCancel} className="pv-wizard-btn pv-wizard-btn-ghost">
               Cancel
@@ -307,7 +329,14 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
             ].map(opt => (
               <button
                 key={opt.key}
-                onClick={() => { setStartMode(opt.key); setStep(2); }}
+                onClick={() => {
+                  setStartMode(opt.key);
+                  // Build from… jumps straight to the picker
+                  // (templates / past orders / catalogue /
+                  // suggestions). Start fresh goes to the basics.
+                  if (opt.key === 'build') setShowPast(true);
+                  else setStep(2);
+                }}
                 className="pv-wizard-tile"
               >
                 <span className="pv-wizard-tile-body">
