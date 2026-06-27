@@ -1466,11 +1466,8 @@ body.crew-profile-editorial {
 /* Tap-to-filter: non-matching days fade back, matching days pop. */
 .crew-profile-page .act-mcell.is-dim { opacity: .22; }
 .crew-profile-page .act-mcell.is-hot { transform: scale(1.04); z-index: 2; }
-/* Signed onto the crew list → a navy ribbon across the top (immigration paused). */
-.crew-profile-page .act-mcell.is-onboard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #1C1B3A; opacity: .55; }
-.crew-profile-page .act-mstamp { position: absolute; top: 4px; right: 5px; display: inline-flex; }
-.crew-profile-page .act-mstamp.on { color: #1C1B3A; }
-.crew-profile-page .act-mstamp.off { color: #AEB4C2; }
+/* Signed onto the crew list → a passport-stamp mark on the day (clock paused). */
+.crew-profile-page .act-mstamp { position: absolute; top: 4px; right: 5px; display: inline-flex; color: #C65A1A; opacity: .85; }
 /* Per-month KPI strip — each chip is a colour key + day-count for the status. */
 .crew-profile-page .act-kpis { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .crew-profile-page .act-kpi { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid #ECEAE3; border-radius: 999px; background: #FAFAF8; }

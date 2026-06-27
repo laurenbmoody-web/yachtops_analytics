@@ -93,8 +93,10 @@ export const computeResidency = ({ today, periods, entries, vesselByDate, stampe
   // Immigration (Schengen): a day counts only when NOT signed onto the crew list.
   const schengenUsed = perDay.slice(0, 180).filter((d) => !d.aboard && d.country && SCHENGEN.has(d.country)).length;
 
+  // Day-counts use only days the crew member is present and NOT signed on (a
+  // signed-on day is stamped out of the country, so it doesn't count).
   const tally = {};
-  perDay.forEach((d) => { if (d.country) tally[d.country] = (tally[d.country] || 0) + 1; });
+  perDay.forEach((d) => { if (d.country && !d.aboard) tally[d.country] = (tally[d.country] || 0) + 1; });
   const byCountry = Object.entries(tally).map(([code, days]) => ({ code, days })).sort((a, b) => b.days - a.days);
 
   // Latest known vessel country (today, else most recent in window).

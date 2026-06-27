@@ -252,19 +252,18 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                 const tabLabel = SHORT_STATUS[stat];
                 const dim = statFilter && stat !== statFilter;
                 const hot = statFilter && stat === statFilter;
-                const stamp = stampOnDay(stamps, day);
                 const onboard = isStampedOn(stamps, day);
                 return (
                   <button
                     key={d}
                     type="button"
-                    className={`act-mcell ${stat === 'active' ? 'is-active' : ''} ${onboard ? 'is-onboard' : ''} ${day > today0() ? 'is-future' : ''} ${sameDay(day, today0()) ? 'is-today' : ''} ${sameDay(day, selectedDay) && !statFilter ? 'is-sel' : ''} ${dim ? 'is-dim' : ''} ${hot ? 'is-hot' : ''}`}
+                    className={`act-mcell ${stat === 'active' ? 'is-active' : ''} ${day > today0() ? 'is-future' : ''} ${sameDay(day, today0()) ? 'is-today' : ''} ${sameDay(day, selectedDay) && !statFilter ? 'is-sel' : ''} ${dim ? 'is-dim' : ''} ${hot ? 'is-hot' : ''}`}
                     style={hot ? { boxShadow: `inset 0 0 0 2px ${soft(stat).ink}` } : undefined}
                     onClick={() => setSelectedDay(day)}
                     title={`${stat ? getStatusLabel(stat) : 'No data'}${onboard ? ' · signed on (clock paused)' : ''}${entry && travelSummary(entry) ? ` — ${travelSummary(entry)}` : ''}`}
                   >
                     <span className="act-mnum">{d}</span>
-                    {stamp && <span className={`act-mstamp ${stamp.kind}`} title={stamp.kind === 'on' ? 'Stamped onto vessel' : 'Stamped off vessel'}><Icon name="Anchor" size={9} /></span>}
+                    {onboard && <span className="act-mstamp" title="Signed onto vessel — clock paused"><Icon name="Stamp" size={11} /></span>}
                     {showTab && <span className="act-mtab" style={{ background: soft(stat).ink }}>{tabLabel}</span>}
                   </button>
                 );
@@ -335,14 +334,15 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                         <div className="act-dp-kind">Vessel crew list</div>
                         {dayStamp ? (
                           <div className="act-dp-line act-stamp-row">
-                            <Icon name={dayStamp.kind === 'on' ? 'Anchor' : 'LogOut'} size={13} />
+                            <Icon name="Stamp" size={13} />
                             {dayStamp.kind === 'on' ? 'Stamped onto vessel' : 'Stamped off vessel'}
                             {canManage && <button type="button" className="act-stamp-rm" onClick={() => removeStamp(dayStamp)} title="Remove stamp"><Icon name="X" size={12} /></button>}
                           </div>
                         ) : canManage ? (
                           <div className="act-stamp-actions">
-                            <button type="button" onClick={() => addStamp('on', day)}><Icon name="Anchor" size={12} /> Stamp on</button>
-                            <button type="button" onClick={() => addStamp('off', day)}><Icon name="LogOut" size={12} /> Stamp off</button>
+                            {onboardNow
+                              ? <button type="button" onClick={() => addStamp('off', day)}><Icon name="Stamp" size={12} /> Stamp off vessel</button>
+                              : <button type="button" onClick={() => addStamp('on', day)}><Icon name="Stamp" size={12} /> Stamp onto vessel</button>}
                           </div>
                         ) : null}
                         <div className="act-dp-note" style={{ marginTop: 6 }}>
