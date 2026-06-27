@@ -1022,11 +1022,37 @@ export const duplicateList = async (sourceListId, vesselId, userId) => {
     });
 
     if (items?.length) {
-      const itemPayload = items.map(({ id: _iid, created_at: _ic, ...item }) => ({
-        ...item,
-        list_id: newList.id,
-        status: ITEM_STATUS.PENDING,
-        quantity_received: null,
+      // Copy only the content columns — NOT the per-instance link /
+      // lifecycle state. Spreading `...item` (a SELECT * row) carried
+      // columns that belong to the SOURCE board's run: the supplier
+      // order link (supplier_order_item_id), the delivery batch FK
+      // (receive_batch_id), revised_at, payment_status, and the
+      // received quantities. Some of those are UNIQUE / FK-bound, so
+      // copying them onto a fresh board 400'd the insert — even though
+      // the board row itself (createProvisioningList above) had
+      // already been created, which is why it looked like "it copied
+      // but threw an error". Whitelisting the content columns and
+      // resetting status to draft makes the copy a clean new board.
+      const itemPayload = items.map((it) => ({
+        list_id:             newList.id,
+        name:                it.name,
+        quantity_ordered:    it.quantity_ordered ?? 1,
+        quantity_received:   null,
+        unit:                it.unit || null,
+        size:                it.size || null,
+        notes:               it.notes || null,
+        brand:               it.brand || null,
+        category:            it.category || null,
+        sub_category:        it.sub_category || null,
+        department:          it.department || null,
+        allergen_flags:      it.allergen_flags || [],
+        supplier_profile_id: it.supplier_profile_id || null,
+        supplier_name:       it.supplier_name || null,
+        estimated_unit_cost: it.estimated_unit_cost ?? null,
+        currency:            it.currency || null,
+        units_per_pack:      it.units_per_pack ?? null,
+        status:              ITEM_STATUS.DRAFT,
+        source:              it.source || null,
       }));
       await upsertItems(itemPayload);
     }
