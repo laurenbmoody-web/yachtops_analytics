@@ -286,11 +286,15 @@ export default function VesselDocuments() {
         <span className="vd-idx-lead" />
         <span className="vd-idx-rt">
           {f.readOnly && f.meta && <span className="vd-linkmeta">{f.meta}</span>}
-          {f.expiry_date && (
+          {f.historic ? (
+            <span className="vd-pill" style={{ background: '#F0F1F5', color: '#8B8478' }} title={f.expiry_date ? `Superseded — last valid ${formatDocDate(f.expiry_date)}` : 'Kept on file — superseded by a newer record'}>
+              Historic
+            </span>
+          ) : f.expiry_date ? (
             <span className="vd-pill" style={{ background: pill.bg, color: pill.fg }} title={`Expires ${formatDocDate(f.expiry_date)}`}>
               {st.level === 'green' ? `Valid · ${formatDocDate(f.expiry_date)}` : st.label}
             </span>
-          )}
+          ) : null}
           {f.size_bytes ? <span className="vd-size">{fmtSize(f.size_bytes)}</span> : null}
         </span>
         <span className="vd-actions" onClick={(e) => e.stopPropagation()}>

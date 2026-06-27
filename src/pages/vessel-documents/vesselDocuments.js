@@ -8,7 +8,7 @@
 import { supabase } from '../../lib/supabaseClient';
 
 export { getExpiryStatus, formatDocDate } from '../crew-profile/utils/crewDocuments';
-import { formatDocDate as fmtDocDate, getExpiryStatus } from '../crew-profile/utils/crewDocuments';
+import { formatDocDate as fmtDocDate, getExpiryStatus, groupDocumentVersions, findHistoricDocIds } from '../crew-profile/utils/crewDocuments';
 import { getDocTypeLabel } from '../crew-profile/documentTypes';
 
 const BUCKET = 'vessel-vault';
@@ -89,6 +89,31 @@ export async function fetchChildren({ tenantId, parentId = null }) {
   return parentId ? sorted : [...systemFolders(), ...sorted];
 }
 
+// Fetch a tenant's crew documents and tag each as `historic` — superseded by a
+// newer record of the same single-instance type, or the STCW combined-cert kept
+// on file once its elements are refreshed. Mirrors the crew-profile rules so an
+// expired-but-replaced cert reads as "Historic" here too, not a live expiry.
+// Version grouping is per crew member, so the full per-user set is grouped even
+// when only filed docs are later shown.
+async function fetchCrewDocsTagged(tenantId, userId = null) {
+  let q = supabase.from('personal_documents')
+    .select('id, user_id, doc_type, category, expiry_date, issue_date, created_at, file_url, file_name, mime_type, size_bytes, title, document_number, issuing_authority')
+    .eq('tenant_id', tenantId);
+  if (userId) q = q.eq('user_id', userId);
+  const { data, error } = await q;
+  if (error) { console.error('[vault] crew docs fetch failed', error); return []; }
+  const byUser = new Map();
+  (data || []).forEach((d) => { const a = byUser.get(d.user_id) || []; a.push(d); byUser.set(d.user_id, a); });
+  const out = [];
+  for (const arr of byUser.values()) {
+    const { currents } = groupDocumentVersions(arr);
+    const currentIds = new Set(currents.map((c) => c.id));
+    const historicIds = findHistoricDocIds(currents);
+    arr.forEach((d) => out.push({ ...d, historic: !currentIds.has(d.id) || historicIds.has(d.id) }));
+  }
+  return out;
+}
+
 // Children of a linked (virtual) folder. Returns items in the same shape the UI
 // expects, flagged `readOnly` (and carrying their source `bucket`) so the tree
 // opens them but never offers to mutate them.
@@ -166,20 +191,16 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
   // enriched with role / department / tenure / expiry so the view can be
   // organised and filtered.
   if (parentId === VIRT_CREW) {
-    const { data, error } = await supabase
-      .from('personal_documents')
-      .select('user_id, expiry_date')
-      .eq('tenant_id', tenantId)
-      .not('file_url', 'is', null)
-      .neq('category', CREW_DOC_EXCLUDE);
-    if (error) { console.error('[vault] crew list failed', error); return []; }
+    const visible = (await fetchCrewDocsTagged(tenantId))
+      .filter((d) => d.file_url && d.category !== CREW_DOC_EXCLUDE);
+    if (!visible.length) return [];
     const today = new Date().toISOString().slice(0, 10);
-    const agg = new Map(); // user_id → { count, expired, soonest }
-    (data || []).forEach((d) => {
+    const agg = new Map(); // user_id → { count, expired, soonest } (historic excluded from expiry)
+    visible.forEach((d) => {
       if (!d.user_id) return;
       const a = agg.get(d.user_id) || { count: 0, expired: 0, soonest: null };
       a.count += 1;
-      if (d.expiry_date) {
+      if (!d.historic && d.expiry_date) {
         if (d.expiry_date < today) a.expired += 1;
         if (!a.soonest || d.expiry_date < a.soonest) a.soonest = d.expiry_date;
       }
@@ -224,16 +245,14 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
   // opens via its stored signed URL, the same one the profile uses).
   if (parentId.startsWith(`${VIRT_CREW}:`)) {
     const uid = parentId.slice(`${VIRT_CREW}:`.length);
-    const { data, error } = await supabase
-      .from('personal_documents')
-      .select('id, doc_type, title, document_number, issuing_authority, category, expiry_date, file_url, file_name, mime_type, size_bytes')
-      .eq('tenant_id', tenantId)
-      .eq('user_id', uid)
-      .not('file_url', 'is', null)
-      .neq('category', CREW_DOC_EXCLUDE)
-      .order('expiry_date', { ascending: true, nullsFirst: false });
-    if (error) { console.error('[vault] crew docs failed', error); return []; }
-    return (data || []).map((d) => {
+    const docs = (await fetchCrewDocsTagged(tenantId, uid))
+      .filter((d) => d.file_url && d.category !== CREW_DOC_EXCLUDE);
+    // Current credentials first (soonest expiry up top); historic kept below.
+    docs.sort((a, b) => {
+      if (!!a.historic !== !!b.historic) return a.historic ? 1 : -1;
+      return String(a.expiry_date || '9999').localeCompare(String(b.expiry_date || '9999'));
+    });
+    return docs.map((d) => {
       const label = getDocTypeLabel(d.doc_type) || d.doc_type || 'Document';
       return {
         id: `virt:crewfile:${d.id}`,
@@ -242,6 +261,7 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
         url: d.file_url,
         name: d.title || label,
         expiry_date: d.expiry_date || null,
+        historic: d.historic,
         mime_type: d.mime_type,
         size_bytes: d.size_bytes || null,
         meta: d.document_number ? `No. ${d.document_number}` : (d.issuing_authority || label),
