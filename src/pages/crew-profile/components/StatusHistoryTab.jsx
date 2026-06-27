@@ -13,6 +13,7 @@ import {
   TRANSPORTS, travelSummary,
   fetchCalendarEntries, saveCalendarEntry, deleteCalendarEntry, entryForDay,
 } from '../utils/crewCalendar';
+import { computeResidency, visaForCountry, normIso, countryName, SCHENGEN } from '../utils/residency';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -94,6 +95,8 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
   const [calMonth, setCalMonth] = useState(today0().getMonth());
   const [statFilter, setStatFilter] = useState(null);
   const [animReady, setAnimReady] = useState(false);
+  const [vesselPos, setVesselPos] = useState([]);
+  const [crewNat, setCrewNat] = useState([]);
   const reduced = prefersReducedMotion();
   const calPrev = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
   const calNext = () => { if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); } else setCalMonth((m) => m + 1); };
@@ -102,16 +105,22 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
   const load = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
     setLoading(true);
-    const [acts, sh, ents] = await Promise.all([
+    const [acts, sh, ents, vp, pd] = await Promise.all([
       fetchProfileActivity(userId),
       supabase.from('crew_status_history').select('*').eq('user_id', userId).neq('source', 'calendar').order('changed_at', { ascending: true }),
       fetchCalendarEntries(userId),
+      tenantId
+        ? supabase.from('vessel_positions').select('observed_on, country_code').eq('tenant_id', tenantId)
+        : Promise.resolve({ data: [] }),
+      supabase.from('crew_personal_details').select('nationality, second_nationality').eq('user_id', userId).maybeSingle(),
     ]);
     setActivity(acts);
     setStatusRows(sh.data || []);
     setEntries(ents);
+    setVesselPos(vp?.data || []);
+    setCrewNat([pd?.data?.nationality, pd?.data?.second_nationality].map(normIso).filter(Boolean));
     setLoading(false);
-  }, [userId]);
+  }, [userId, tenantId]);
   useEffect(() => { load(); }, [load, tenantId]);
 
   // Trigger the load-in animation once the calendar view is mounted with data.
@@ -332,22 +341,62 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
             })()}
           </div>
 
-          {/* Column 3 — residency & visas (scaffolded until per-day location is captured) */}
+          {/* Column 3 — residency & visas */}
           <div className="act-col-res">
-            <div className="act-rescard">
-              <div className="act-res-h"><Icon name="Plane" size={13} /> Schengen · 90 / 180</div>
-              <div className="act-res-gauge"><i style={{ width: 0 }} /></div>
-              <div className="act-res-soon">Rolling 180-day day-count for the Schengen area. Switches on once travel locations are captured.</div>
-            </div>
-            <div className="act-rescard">
-              <div className="act-res-h"><Icon name="Globe" size={13} /> Tax residency</div>
-              <div className="act-res-soon">Per-country day counts for residency tests (e.g. UK SRT, 183-day rules). Needs day-by-day location.</div>
-            </div>
-            <div className="act-rescard">
-              <div className="act-res-h"><Icon name="ShieldCheck" size={13} /> Visas &amp; permits</div>
-              <div className="act-res-soon">Visa allowances and expiry, with 30-day breach alerts. Coming next.</div>
-            </div>
-            <span className="act-res-tag">Compliance tools · coming soon</span>
+            {(() => {
+              const vmap = {};
+              vesselPos.forEach((p) => { if (p.country_code) vmap[String(p.observed_on).slice(0, 10)] = p.country_code; });
+              const res = computeResidency({ today: today0(), periods, entries, vesselByDate: vmap });
+              const visa = visaForCountry(res.currentCountry, crewNat);
+              const schPct = Math.min(100, Math.round((res.schengenUsed / 90) * 100));
+              const visaInk = { free: '#2E7D52', limited: '#9A6A00', visa: '#B23B3B', unknown: '#6B7280' };
+              const natLabel = crewNat.length ? crewNat.map(countryName).join(' / ') : 'no nationality on file';
+              if (!res.hasData) {
+                return (
+                  <div className="act-rescard">
+                    <div className="act-res-h"><Icon name="Globe" size={13} /> Residency &amp; visas</div>
+                    <div className="act-res-soon">No location data yet. Days fill in automatically as the vessel’s AIS position is logged each day, plus any travel/training locations.</div>
+                  </div>
+                );
+              }
+              return (
+                <>
+                  <div className="act-rescard">
+                    <div className="act-res-h"><Icon name="Plane" size={13} /> Schengen · rolling 180 days</div>
+                    <div className="act-res-figure">
+                      <span className="act-res-num">{res.schengenUsed}</span>
+                      <span>days / 180 · limit 90 · {res.schengenUsed > 90
+                        ? <b style={{ color: '#B23B3B' }}>{res.schengenUsed - 90} over</b>
+                        : <b style={{ color: '#2E7D52' }}>{res.schengenRemaining} left</b>}</span>
+                    </div>
+                    <div className="act-res-gauge"><i style={{ width: animReady ? `${schPct}%` : 0, background: res.schengenUsed >= 90 ? '#B23B3B' : (schPct >= 80 ? '#C65A1A' : '#C65A1A') }} /></div>
+                  </div>
+
+                  <div className="act-rescard">
+                    <div className="act-res-h"><Icon name="Globe" size={13} /> Days by country · last 365</div>
+                    <div style={{ marginTop: 10 }}>
+                      {res.byCountry.slice(0, 5).map(({ code, days }) => (
+                        <div key={code} className="act-taxrow">
+                          <span>{countryName(code)}{SCHENGEN.has(code) ? <em> · Schengen</em> : null}</span>
+                          <b>{days}</b>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="act-rescard">
+                    <div className="act-res-h"><Icon name="ShieldCheck" size={13} /> Visa — where she is now</div>
+                    {visa ? (
+                      <>
+                        <div className="act-visa-region">{visa.region === 'Schengen' ? `${countryName(res.currentCountry)} · Schengen` : visa.region}</div>
+                        <div className="act-visa-line"><i style={{ background: visaInk[visa.level] }} />{visa.text}</div>
+                      </>
+                    ) : <div className="act-res-soon">Vessel at sea / location unknown — no country to assess.</div>}
+                    <div className="act-res-soon" style={{ marginTop: 10 }}>Based on {natLabel}. Seeded for Schengen &amp; US.</div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       ) : (
