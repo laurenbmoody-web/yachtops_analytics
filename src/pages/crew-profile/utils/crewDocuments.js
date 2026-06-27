@@ -1,5 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient';
-import { getDocType, allowsMultipleDocs } from '../documentTypes';
+import { getDocType, allowsMultipleDocs, isAdvisoryDocType } from '../documentTypes';
 
 const BUCKET = 'crew-documents';
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -27,11 +27,29 @@ export const getExpiryStatus = (expiryDate) => {
 };
 
 export const EXPIRY_STATUS_CLASSES = {
-  expired: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  red:     'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  amber:   'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-  green:   'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-  none:    'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+  expired:  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  red:      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  amber:    'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  green:    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  advisory: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  none:     'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+};
+
+/**
+ * Status for a *document* (not just a date). Identical to getExpiryStatus for
+ * normal credentials, but advisory types (e.g. Food Hygiene) never read as a
+ * hard expiry — their recommended refresh shows as a soft "Renewal due" once
+ * lapsed, and not at all while still in date. Use this anywhere the doc_type is
+ * known so renewals that are "good to do" don't masquerade as compliance gaps.
+ */
+export const getDocStatus = (doc = {}) => {
+  const s = getExpiryStatus(doc.expiry_date);
+  if (doc.expiry_date && isAdvisoryDocType(doc.doc_type)) {
+    return s.level === 'expired'
+      ? { level: 'advisory', label: 'Renewal due', days: s.days }
+      : { level: 'green', label: 'Valid', days: s.days };
+  }
+  return s;
 };
 
 // Unambiguous European date display (dd MMM yyyy).
@@ -315,7 +333,9 @@ export const fetchExpiringDocuments = async (withinDays = 90) => {
   for (const arr of byUser.values()) {
     const cur = groupDocumentVersions(arr).currents;
     const historic = findHistoricDocIds(cur);
-    docs.push(...cur.filter((d) => !historic.has(d.id)));
+    // Advisory renewals (e.g. Food Hygiene) are "good to do", not mandatory —
+    // keep them out of the expiry alert feed.
+    docs.push(...cur.filter((d) => !historic.has(d.id) && !isAdvisoryDocType(d.doc_type)));
   }
 
   const expiring = docs

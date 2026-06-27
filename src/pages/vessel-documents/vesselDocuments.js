@@ -8,8 +8,8 @@
 import { supabase } from '../../lib/supabaseClient';
 
 export { getExpiryStatus, formatDocDate } from '../crew-profile/utils/crewDocuments';
-import { formatDocDate as fmtDocDate, getExpiryStatus, groupDocumentVersions, findHistoricDocIds } from '../crew-profile/utils/crewDocuments';
-import { getDocTypeLabel } from '../crew-profile/documentTypes';
+import { formatDocDate as fmtDocDate, getExpiryStatus, getDocStatus, groupDocumentVersions, findHistoricDocIds } from '../crew-profile/utils/crewDocuments';
+import { getDocTypeLabel, isAdvisoryDocType } from '../crew-profile/documentTypes';
 
 const BUCKET = 'vessel-vault';
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -200,7 +200,9 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
       if (!d.user_id) return;
       const a = agg.get(d.user_id) || { count: 0, expired: 0, soonest: null };
       a.count += 1;
-      if (!d.historic && d.expiry_date) {
+      // Advisory renewals (Food Hygiene) aren't compliance expiries — leave them
+      // out of the expired flag and the soonest-renewal urgency.
+      if (!d.historic && d.expiry_date && !isAdvisoryDocType(d.doc_type)) {
         if (d.expiry_date < today) a.expired += 1;
         if (!a.soonest || d.expiry_date < a.soonest) a.soonest = d.expiry_date;
       }
@@ -246,11 +248,14 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
   if (parentId.startsWith(`${VIRT_CREW}:`)) {
     const uid = parentId.slice(`${VIRT_CREW}:`.length);
     const docs = (await fetchCrewDocsTagged(tenantId, uid))
-      .filter((d) => d.file_url && d.category !== CREW_DOC_EXCLUDE);
-    // Current credentials first (soonest expiry up top); historic kept below.
+      .filter((d) => d.file_url && d.category !== CREW_DOC_EXCLUDE)
+      .map((d) => ({ ...d, _st: getDocStatus(d) }));
+    // Live credentials first (soonest expiry up top), advisory renewals next,
+    // historic kept at the bottom.
     docs.sort((a, b) => {
-      if (!!a.historic !== !!b.historic) return a.historic ? 1 : -1;
-      return String(a.expiry_date || '9999').localeCompare(String(b.expiry_date || '9999'));
+      const rank = (d) => (d.historic ? 3 : d._st.level === 'advisory' ? 2 : 1);
+      return (rank(a) - rank(b))
+        || String(a.expiry_date || '9999').localeCompare(String(b.expiry_date || '9999'));
     });
     return docs.map((d) => {
       const label = getDocTypeLabel(d.doc_type) || d.doc_type || 'Document';
@@ -262,6 +267,8 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
         name: d.title || label,
         expiry_date: d.expiry_date || null,
         historic: d.historic,
+        statusLevel: d._st.level,
+        statusLabel: d._st.label,
         mime_type: d.mime_type,
         size_bytes: d.size_bytes || null,
         meta: d.document_number ? `No. ${d.document_number}` : (d.issuing_authority || label),

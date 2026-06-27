@@ -7,7 +7,7 @@ import {
   DOC_CATEGORIES, CORE_DOCUMENT_TYPE_IDS, coreDocumentTypes, getDocTypeLabel, getDocType,
 } from '../documentTypes';
 import {
-  fetchCrewDocuments, deleteCrewDocument, getExpiryStatus,
+  fetchCrewDocuments, deleteCrewDocument, getDocStatus,
   EXPIRY_STATUS_CLASSES, formatDocDate, groupDocumentVersions, findHistoricDocIds,
 } from '../utils/crewDocuments';
 import AddDocumentModal from './AddDocumentModal';
@@ -39,10 +39,10 @@ const ICON_INK = '#605D78';
 // (a category's grey "missing" segment comes from un-held required docs, below).
 const bucketOf = (d) => {
   if (!d.expiry_date) return 'ok';
-  const lvl = getExpiryStatus(d.expiry_date).level;
+  const lvl = getDocStatus(d).level; // advisory-aware: Food Hygiene won't read as a gap
   if (lvl === 'expired') return 'bad';
   if (lvl === 'red' || lvl === 'amber') return 'amber';
-  return 'ok';
+  return 'ok'; // green or advisory
 };
 
 const catOf = (d) => getDocType(d.doc_type)?.category || d.category || 'other';
@@ -172,8 +172,8 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
           Historic
         </span>
       ) : (
-        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${EXPIRY_STATUS_CLASSES[getExpiryStatus(d.expiry_date).level]}`}>
-          {getExpiryStatus(d.expiry_date).label}
+        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${EXPIRY_STATUS_CLASSES[getDocStatus(d).level]}`}>
+          {getDocStatus(d).label}
         </span>
       )}
       {d.file_url && (
@@ -273,7 +273,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
       .filter((d) => d.expiry_date && new Date(`${String(d.expiry_date).slice(0, 10)}T00:00:00`) >= todayStart)
       .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
     const expired = inCat
-      .filter((d) => getExpiryStatus(d.expiry_date).level === 'expired')
+      .filter((d) => getDocStatus(d).level === 'expired')
       .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
     const noExpiry = inCat.filter((d) => !d.expiry_date).length;
 
@@ -416,12 +416,11 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
   const renderRenewalTimeline = () => {
     const active = currents.filter((d) => !isHistoric(d));
     const dated = active.filter((d) => d.expiry_date);
-    const overdue = dated.filter((d) => getExpiryStatus(d.expiry_date).level === 'expired')
-      .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
-    const soon = dated.filter((d) => ['red', 'amber'].includes(getExpiryStatus(d.expiry_date).level))
-      .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
-    const later = dated.filter((d) => getExpiryStatus(d.expiry_date).level === 'green')
-      .sort((a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date)));
+    const byDate = (a, b) => String(a.expiry_date).localeCompare(String(b.expiry_date));
+    const overdue = dated.filter((d) => getDocStatus(d).level === 'expired').sort(byDate);
+    const soon = dated.filter((d) => ['red', 'amber'].includes(getDocStatus(d).level)).sort(byDate);
+    const advisoryDue = dated.filter((d) => getDocStatus(d).level === 'advisory').sort(byDate);
+    const later = dated.filter((d) => getDocStatus(d).level === 'green').sort(byDate);
     const noExp = active.filter((d) => !d.expiry_date);
     const historic = currents.filter(isHistoric);
     const section = (key, label, rows, opts = {}) => rows.length > 0 && (
@@ -437,6 +436,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
       <div>
         {section('overdue', 'Overdue', overdue)}
         {section('soon', 'Next 90 days', soon)}
+        {section('advisory', 'Renewal recommended', advisoryDue)}
         {section('later', 'Later', later)}
         {section('noexp', "Doesn't expire", noExp)}
         {section('historic', 'Historic', historic, { historic: true })}

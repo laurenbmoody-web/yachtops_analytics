@@ -236,7 +236,7 @@ export const DOCUMENT_TYPES = [
 
   // ── Interior & service ──────────────────────────────────────────────────
   {
-    id: 'food_hygiene', label: 'Food Hygiene', category: 'interior', expiryLabel: 'Renewal due', refreshYears: 5,
+    id: 'food_hygiene', label: 'Food Hygiene', category: 'interior', expiryLabel: 'Renewal due', refreshYears: 5, advisory: true,
     fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Level 1', 'Level 2', 'Level 3', 'Level 4'] }],
   },
   { id: 'silver_service', label: 'Silver Service / Food & Beverage', category: 'interior', expiry: false },
@@ -335,6 +335,12 @@ const MULTI_INSTANCE_IDS = new Set([
 export const allowsMultipleDocs = (id) => MULTI_INSTANCE_IDS.has(id);
 
 export const getDocType = (id) => DOCUMENT_TYPES.find((t) => t.id === id) || null;
+
+// Advisory types carry a recommended refresh (e.g. Food Hygiene, often redone
+// every 5 years) but lapsing isn't a compliance breach — it's "good to do", not
+// mandatory. Status derivation treats these as a soft "Renewal due" rather than
+// a hard expiry, and they don't drive expiry alerts.
+export const isAdvisoryDocType = (id) => !!getDocType(id)?.advisory;
 
 // For a type with a known refresh interval (refreshYears), the expiry/refresher
 // date this issue date implies (issue + N years), as YYYY-MM-DD. '' otherwise.
