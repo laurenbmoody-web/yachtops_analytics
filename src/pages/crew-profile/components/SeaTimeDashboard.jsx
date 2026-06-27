@@ -166,6 +166,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [deptId, setDeptId] = useState('deck');
   const [dualMode, setDualMode] = useState(false);   // dual deck+engine: 50% credit
   const dualRate = dualMode ? DUAL_CAPACITY_RATE : 1;
+  const [coursesOpen, setCoursesOpen] = useState(false);  // courses & tickets section
   const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
   const [heldCerts, setHeldCerts] = useState({});          // certId -> { issueDate, number, fileUrl, fileName, docId }
   const [docsOnFile, setDocsOnFile] = useState({});        // doc_type -> { fileUrl, fileName, docId } from the profile
@@ -986,23 +987,30 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
 
       {cert && ancillary.length > 0 && (
         <div className="stp-courses">
-          <div className="stp-courses-head">
+          <button type="button" className="stp-courses-head" aria-expanded={coursesOpen} onClick={() => setCoursesOpen(o => !o)}>
             <span className="mlabel rustlabel">Courses &amp; tickets</span>
-            <span className="stp-courses-count" style={{ color: ancillaryDone === ancillary.length ? '#5E8E6F' : '#C65A1A' }}>{ancillaryDone} of {ancillary.length} on file</span>
-          </div>
-          <div className="stp-courses-sub">Required for {cert.short} alongside your sea time — auto-detected from your Documents. The MCA won’t issue the CoC without these.</div>
-          <div className="stp-courses-list">
-            {ancillary.map(a => (
-              <div className={`stp-course ${a.met ? 'has' : 'missing'}`} key={a.key}>
-                <span className="ck">{a.met ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
-                <div className="cl">
-                  <div className="nm">{a.label}</div>
-                  {a.note && <div className="nt">{a.note}</div>}
-                </div>
-                {!a.met && <span className="st">Not on file</span>}
+            <span className="stp-courses-right">
+              <span className="stp-courses-count" style={{ color: ancillaryDone === ancillary.length ? '#5E8E6F' : '#C65A1A' }}>{ancillaryDone} of {ancillary.length} on file</span>
+              <Icon name="ChevronDown" size={16} className="stp-courses-chev" style={{ transform: coursesOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+            </span>
+          </button>
+          {coursesOpen && (
+            <>
+              <div className="stp-courses-sub">Required for {cert.short} alongside your sea time — auto-detected from your Documents. The MCA won’t issue the CoC without these.</div>
+              <div className="stp-courses-list">
+                {ancillary.map(a => (
+                  <div className={`stp-course ${a.met ? 'has' : 'missing'}`} key={a.key}>
+                    <span className="ck">{a.met ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
+                    <div className="cl">
+                      <div className="nm">{a.label}</div>
+                      {a.note && <div className="nt">{a.note}</div>}
+                    </div>
+                    {!a.met && <span className="st">Not on file</span>}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
       )}
 
