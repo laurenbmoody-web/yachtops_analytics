@@ -365,6 +365,61 @@
   color: var(--d-muted);
 }
 
+/* ── "How do you want to start?" — twin magazine tiles (editorial
+   Option C). Each tile: terracotta top-rule, serif title, muted
+   descriptor. Stacked vertically to fit the narrow wizard column;
+   lift + terracotta border on hover so the fork feels like a
+   deliberate choice, not a list item. ───────────────────────────── */
+.pv-wizard-tile-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+.pv-wizard-tile {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--d-border);
+  border-radius: 13px;
+  background: var(--d-card);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  overflow: hidden;
+  box-shadow: var(--d-shadow);
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+.pv-wizard-tile:hover {
+  border-color: var(--d-orange);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -12px rgba(198, 90, 26, 0.30);
+}
+.pv-wizard-tile-rule {
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, var(--d-orange), #E8A06B);
+}
+.pv-wizard-tile-body {
+  display: block;
+  padding: 16px 16px 18px;
+}
+.pv-wizard-tile-title {
+  display: block;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 400;
+  font-size: 18px;
+  color: var(--d-navy-deep);
+  letter-spacing: -0.005em;
+  margin-bottom: 5px;
+}
+.pv-wizard-tile-desc {
+  display: block;
+  font-size: 11.5px;
+  color: var(--d-muted);
+  line-height: 1.5;
+}
+
 /* ── Scrollable list area (templates, boards) ─────────────── */
 .pv-wizard-list {
   flex: 1;
