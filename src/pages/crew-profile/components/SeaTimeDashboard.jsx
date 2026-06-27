@@ -143,7 +143,12 @@ const COUNTRY_NAMES = {
 const countryName = (code) => { if (!code) return ''; const k = String(code).trim().toUpperCase(); return COUNTRY_NAMES[k] || code; };
 
 // Certification-journey defaults + the MCA validity timers (NoE 5y, oral pass 3y).
-const JOURNEY_DEFAULT = { noe: { status: 'not_applied', issueDate: '' }, oral: { status: 'not_booked', bookedDate: '', passDate: '' }, coc: { issuedDate: '' }, note: '' };
+const JOURNEY_DEFAULT = {
+  noe:  { status: 'not_applied', appliedDate: '', issueDate: '', ref: '' },
+  oral: { status: 'not_booked', bookedDate: '', passDate: '', ref: '', fails: [] },
+  coc:  { status: 'not_applied', appliedDate: '', issuedDate: '', ref: '' },
+  note: '',
+};
 // The NoE/NoA spans many routes, each with its own application form + Marine
 // Notice (gov.uk). The journey is the same; only the form differs by route.
 const MSF_FORMS = {
@@ -208,6 +213,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [journey, setJourney] = useState(null);
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [journeyDraft, setJourneyDraft] = useState(null);
+  const [journeyStep, setJourneyStep] = useState('noe');   // which milestone the modal is scoped to
+  const [eligOpen, setEligOpen] = useState(false);          // eligibility detail expand (step 01)
   // Years marked "accounted for" (verified + submitted toward a prior CoC) →
   // collapsed in the ledger and excluded from the active pathway.
   const [accounted, setAccounted] = useState({});
@@ -789,9 +796,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     } catch (e) { console.error('[seatime] save prior', e); flash('Could not save prior service'); }
   };
 
-  // Certification journey (NoE -> oral -> CoC).
-  const openJourney = () => { setJourneyDraft(JSON.parse(JSON.stringify(journey || JOURNEY_DEFAULT))); setJourneyOpen(true); };
+  // Certification journey (NoE -> oral -> CoC). The modal is scoped to one
+  // milestone (step) at a time, gated by progress.
+  const openJourney = (step = 'noe') => { setJourneyStep(step); setJourneyDraft(JSON.parse(JSON.stringify(journey || JOURNEY_DEFAULT))); setJourneyOpen(true); };
   const setJD = (path, val) => setJourneyDraft(d => { const n = JSON.parse(JSON.stringify(d || JOURNEY_DEFAULT)); const [a, b] = path.split('.'); if (b) { n[a] = { ...n[a], [b]: val }; } else { n[a] = val; } return n; });
+  // Oral re-sit: bank the failed attempt's date and reset for a fresh booking.
+  const addOralResit = () => setJourneyDraft(d => {
+    const n = JSON.parse(JSON.stringify(d || JOURNEY_DEFAULT));
+    const o = n.oral || {};
+    o.fails = [...(o.fails || []), o.bookedDate || o.passDate || ''].filter(Boolean);
+    o.status = 'booked'; o.bookedDate = ''; o.passDate = '';
+    n.oral = o; return n;
+  });
   const saveJourney = async () => {
     const payload = journeyDraft || JOURNEY_DEFAULT;
     setJourneyOpen(false);
@@ -1266,7 +1282,101 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       {/* ── pathway spine / logging-only record ── */}
       {PathwaySection()}
 
-      {/* ── bucket tiles — double as the service-type filter ── */}
+      {/* ── certification journey: NoE → oral exam → CoC (only while a target CoC
+            is in play — hidden once the goal is held / logging-only) ── */}
+      {cert && (() => {
+        const j = journey || JOURNEY_DEFAULT;
+        const conf = certConfidence(cert);
+        // Hard requirements only (advisory bars like recency guide but don't gate).
+        // An un-verified route never declares "requirements met" off a figure we
+        // haven't confirmed against the notice.
+        const hardReqs = requirements.filter(r => !r.advisory);
+        const eligible = conf.authoritative && hardReqs.length > 0 && hardReqs.every(r => r.met);
+        const noeExpiry = addYearsIso(j.noe?.issueDate, 5);
+        const oralExpiry = addYearsIso(j.oral?.passDate, 3);
+        const noeDte = daysUntil(noeExpiry), oralDte = daysUntil(oralExpiry);
+        // The specific outstanding requirements — so Eligibility says WHAT's left,
+        // not just a count. Binding (biggest gap) first.
+        const unmet = conf.authoritative
+          ? hardReqs.filter(r => !r.met).slice().sort((a, b) => b.remaining - a.remaining)
+          : [];
+        const noeIssued = j.noe?.status === 'issued';
+        const oralPassed = j.oral?.status === 'passed';
+        const cocIssued = j.coc?.status === 'issued' || !!j.coc?.issuedDate;
+        const steps = [
+          {
+            n: '01', label: 'Eligibility', key: 'elig', reachable: true,
+            state: eligible ? 'done' : 'active',
+            line: !conf.authoritative ? 'Confirm figures' : eligible ? 'Requirements met' : `${unmet.length} to go`,
+          },
+          {
+            n: '02', label: 'Notice of Eligibility', key: 'noe', reachable: eligible,
+            state: noeIssued ? 'done' : j.noe?.status === 'applied' ? 'active' : eligible ? 'todo' : 'locked',
+            line: noeIssued ? `Issued ${fmtDate(j.noe.issueDate)}` : j.noe?.status === 'applied' ? 'Awaiting NoE' : eligible ? 'Ready to apply' : 'Locked',
+            detail: noeIssued && noeDte != null
+              ? <div className="cj-detail">{noeDte < 0 ? 'Expired — reapply' : `Valid to ${fmtDate(noeExpiry)}${noeDte < 180 ? ` · ${noeDte}d left` : ''}`}{j.noe?.ref ? ` · ${j.noe.ref}` : ''}</div> : null,
+          },
+          {
+            n: '03', label: 'Oral exam', key: 'oral', reachable: noeIssued,
+            state: oralPassed ? 'done' : (j.oral?.status === 'booked' || j.oral?.status === 'failed') ? 'active' : noeIssued ? 'todo' : 'locked',
+            line: oralPassed ? `Passed ${fmtDate(j.oral.passDate)}` : j.oral?.status === 'booked' ? `Booked ${fmtDate(j.oral.bookedDate) || ''}`.trim() : j.oral?.status === 'failed' ? 'Failed — book re-sit' : noeIssued ? 'Not booked' : 'Locked',
+            detail: oralPassed && !cocIssued && oralDte != null
+              ? <div className="cj-detail">{oralDte < 0 ? 'Pass expired — re-sit' : `Pass valid to ${fmtDate(oralExpiry)}${oralDte < 180 ? ` · ${oralDte}d left` : ''}`}</div>
+              : (j.oral?.fails?.length ? <div className="cj-detail">Attempt {j.oral.fails.length + 1}</div> : null),
+          },
+          {
+            n: '04', label: 'Certificate of Competency', key: 'coc', reachable: oralPassed,
+            state: cocIssued ? 'done' : j.coc?.status === 'applied' ? 'active' : oralPassed ? 'todo' : 'locked',
+            line: cocIssued ? `Issued ${fmtDate(j.coc.issuedDate)}` : j.coc?.status === 'applied' ? 'Applied — awaiting' : oralPassed ? 'Ready to apply' : 'Locked',
+            detail: cocIssued && j.coc?.ref ? <div className="cj-detail">{j.coc.ref}</div> : null,
+          },
+        ];
+        const clickStep = (s) => {
+          if (s.key === 'elig') { setEligOpen(o => !o); return; }
+          if (!s.reachable) { flash('Finish the previous step first'); return; }
+          openJourney(s.key);
+        };
+        return (
+          <div className="cj" style={{ marginTop: 18 }}>
+            <div className="cj-head">
+              <div>
+                <div className="cj-eyebrow">Certification journey</div>
+                <h3 className="cj-title">{cert.label}{MSF_FORMS[deptId] ? <span className="cj-form"> · {MSF_FORMS[deptId].form}</span> : ''}</h3>
+              </div>
+            </div>
+            <div className="cj-steps">
+              {steps.map((s, i) => (
+                <button type="button" className={`cj-step ${s.state}${s.key === 'elig' && eligOpen ? ' open' : ''}`} key={s.n} onClick={() => clickStep(s)}
+                  title={s.key === 'elig' ? 'Show requirements' : s.reachable ? 'Update' : 'Finish the previous step first'}>
+                  <div className="cj-rail">
+                    <span className="cj-node">{s.state === 'done' ? <Icon name="Check" size={14} color="#fff" /> : s.state === 'locked' ? <Icon name="Lock" size={11} /> : s.n}</span>
+                    {i < steps.length - 1 && <span className="cj-line" />}
+                  </div>
+                  <div className="cj-steplabel">{s.label}{s.key === 'elig' && <Icon name="ChevronDown" size={12} className="cj-eligchev" style={{ transform: eligOpen ? 'rotate(180deg)' : 'none' }} />}</div>
+                  <div className="cj-statusline">{s.line}</div>
+                  {s.detail}
+                </button>
+              ))}
+            </div>
+            {eligOpen && (
+              <div className="cj-elig">
+                <div className="cj-elig-h">Service requirements · {cert.short}</div>
+                {hardReqs.map(r => (
+                  <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
+                    <span className="ck">{r.met ? <Icon name="Check" size={12} color="#3F7A52" /> : <span className="dot" />}</span>
+                    <span className="l">{r.label}</span>
+                    <span className="v">{r.current} / {r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
+                  </div>
+                ))}
+                {!conf.authoritative && <div className="cj-detail" style={{ marginTop: 8 }}>{conf.label} · {conf.notice || 'see notice'}</div>}
+                <div className="cj-elig-foot">{eligible ? 'All requirements met — apply for your Notice of Eligibility (step 02).' : 'Clear the outstanding service above before applying for your NoE.'}</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── KPI bucket tiles — double as the service-type filter for the log below ── */}
       <div className="std-bpills" style={{ marginTop: 18 }}>
         {[['seagoing', 'SEAGOING'], ['watchkeeping', 'WATCHKEEPING'], ['standby', 'STANDBY'], ['yard', 'SHIPYARD']].map(([k, up]) => {
           const tm = TYPE_META[k];
@@ -1297,80 +1407,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           Pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> entered before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
         </div>
       )}
-
-      {/* ── certification journey: NoE → oral exam → CoC (only while a target CoC
-            is in play — hidden once the goal is held / logging-only) ── */}
-      {cert && (() => {
-        const j = journey || JOURNEY_DEFAULT;
-        const conf = certConfidence(cert);
-        // Hard requirements only (advisory bars like recency guide but don't gate).
-        // An un-verified route never declares "requirements met" off a figure we
-        // haven't confirmed against the notice.
-        const hardReqs = requirements.filter(r => !r.advisory);
-        const eligible = conf.authoritative && hardReqs.length > 0 && hardReqs.every(r => r.met);
-        const noeExpiry = addYearsIso(j.noe?.issueDate, 5);
-        const oralExpiry = addYearsIso(j.oral?.passDate, 3);
-        const noeDte = daysUntil(noeExpiry), oralDte = daysUntil(oralExpiry);
-        // The specific outstanding requirements — so Eligibility says WHAT's left,
-        // not just a count. Binding (biggest gap) first.
-        const unmet = conf.authoritative
-          ? hardReqs.filter(r => !r.met).slice().sort((a, b) => b.remaining - a.remaining)
-          : [];
-        const steps = [
-          {
-            n: '01', label: 'Eligibility',
-            state: eligible ? 'done' : 'active',
-            line: !conf.authoritative ? 'Confirm figures' : eligible ? 'Requirements met' : `${unmet.length} to go`,
-            detail: !conf.authoritative
-              ? <div className="cj-detail">{conf.label} · {conf.notice || 'see notice'}</div>
-              : (!eligible && unmet.length)
-                ? <ul className="cj-reqs">{unmet.map(r => <li key={r.key}>{r.label} · <b>{r.remaining} {r.remaining === 1 ? 'day' : 'days'}</b></li>)}</ul>
-                : null,
-          },
-          {
-            n: '02', label: 'Notice of Eligibility',
-            state: j.noe?.status === 'issued' ? 'done' : j.noe?.status === 'applied' ? 'active' : 'todo',
-            line: j.noe?.status === 'issued' ? `Issued ${fmtDate(j.noe.issueDate)}` : j.noe?.status === 'applied' ? 'Awaiting NoE' : 'Not applied',
-            detail: j.noe?.status === 'issued' && noeDte != null
-              ? <div className="cj-detail">{noeDte < 0 ? 'Expired — reapply' : `Valid to ${fmtDate(noeExpiry)}${noeDte < 180 ? ` · ${noeDte}d left` : ''}`}</div> : null,
-          },
-          {
-            n: '03', label: 'Oral exam',
-            state: j.oral?.status === 'passed' ? 'done' : (j.oral?.status === 'booked' || j.oral?.status === 'failed') ? 'active' : 'todo',
-            line: j.oral?.status === 'passed' ? `Passed ${fmtDate(j.oral.passDate)}` : j.oral?.status === 'booked' ? 'Booked' : j.oral?.status === 'failed' ? 'Failed — re-sit' : 'Not booked',
-            detail: j.oral?.status === 'passed' && !j.coc?.issuedDate && oralDte != null
-              ? <div className="cj-detail">{oralDte < 0 ? 'Pass expired — re-sit' : `Pass valid to ${fmtDate(oralExpiry)}${oralDte < 180 ? ` · ${oralDte}d left` : ''}`}</div> : null,
-          },
-          {
-            n: '04', label: 'Certificate of Competency',
-            state: j.coc?.issuedDate ? 'done' : 'todo',
-            line: j.coc?.issuedDate ? `Issued ${fmtDate(j.coc.issuedDate)}` : 'Not issued',
-            detail: null,
-          },
-        ];
-        return (
-          <div className="cj" style={{ marginTop: 18 }}>
-            <div className="cj-head">
-              <div className="mlabel rustlabel">Certification journey{cert?.label ? ` · ${cert.label}` : ''}</div>
-              <button className="cj-update" onClick={openJourney}><Icon name="Route" size={15} /> Update journey</button>
-            </div>
-            <div className="cj-intro">NoE / NoA → oral exam → CoC. Cargo tracks your progress and the MCA validity timers; the milestones are yours to confirm.{MSF_FORMS[deptId] ? ` Apply with ${MSF_FORMS[deptId].form} (${MSF_FORMS[deptId].notice}).` : ' Apply with the MSF form for your route.'}</div>
-            <div className="cj-steps">
-              {steps.map((s, i) => (
-                <button type="button" className={`cj-step ${s.state}`} key={s.n} onClick={openJourney} title="Update journey">
-                  <div className="cj-rail">
-                    <span className="cj-node">{s.state === 'done' ? <Icon name="Check" size={14} color="#fff" /> : s.n}</span>
-                    {i < steps.length - 1 && <span className="cj-line" />}
-                  </div>
-                  <div className="cj-steplabel">{s.label}</div>
-                  <div className="cj-statusline">{s.line}</div>
-                  {s.detail}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
 
       <div style={{ marginTop: 18 }}>{LedgerTable()}</div>
 
@@ -1707,43 +1743,93 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           <div className="cso" role="dialog" aria-modal="true" aria-label="Certification journey" style={{ width: 520 }} onClick={e => e.stopPropagation()}>
             <button className="cso-x" onClick={() => setJourneyOpen(false)} aria-label="Close"><Icon name="X" size={18} /></button>
             <div className="cso-head">
-              <div className="cso-eyebrow">Pathway · NoE / NoA → oral → CoC</div>
-              <h3 className="cso-title">Certification journey</h3>
-              <div className="cso-sub">Record where you are in the MCA process. Cargo isn’t part of the MCA confirmation — these milestones are yours to keep, and they drive the validity reminders (NoE 5 years, oral pass 3 years).</div>
+              <div className="cso-eyebrow">Certification journey · Step {journeyStep === 'noe' ? '02' : journeyStep === 'oral' ? '03' : '04'}</div>
+              <h3 className="cso-title">{journeyStep === 'noe' ? 'Notice of Eligibility' : journeyStep === 'oral' ? 'Oral examination' : 'Certificate of Competency'}</h3>
+              <div className="cso-sub">{journeyStep === 'noe'
+                ? 'Apply with your MSF form once eligible. The NoE lets you book the oral exam and is valid 5 years.'
+                : journeyStep === 'oral'
+                  ? 'Book your MCA oral exam and record the result. A pass is valid 3 years; if you fail, add a re-sit.'
+                  : 'Apply for the CoC once your oral pass is in date, then record the certificate number when issued.'}</div>
             </div>
             <div className="cso-body">
-              <div className="cso-fld">
-                <label className="cso-lbl">Notice of Eligibility / Assessment</label>
-                <div className="cso-grid">
+              {journeyStep === 'noe' && (<>
+                <div className="cso-fld">
+                  <label className="cso-lbl">Status</label>
                   <select className="cso-input" value={journeyDraft.noe?.status || 'not_applied'} onChange={e => setJD('noe.status', e.target.value)}>
                     <option value="not_applied">Not applied</option>
                     <option value="applied">Applied — awaiting</option>
                     <option value="issued">Issued</option>
                   </select>
-                  <input className="cso-input" type="date" value={journeyDraft.noe?.issueDate || ''} onChange={e => setJD('noe.issueDate', e.target.value)} disabled={journeyDraft.noe?.status !== 'issued'} title="Issue date" />
                 </div>
-              </div>
-              <div className="cso-fld" style={{ marginTop: 12 }}>
-                <label className="cso-lbl">Oral examination</label>
-                <select className="cso-input" value={journeyDraft.oral?.status || 'not_booked'} onChange={e => setJD('oral.status', e.target.value)}>
-                  <option value="not_booked">Not booked</option>
-                  <option value="booked">Booked</option>
-                  <option value="passed">Passed</option>
-                  <option value="failed">Failed</option>
-                </select>
-                <div className="cso-grid" style={{ marginTop: 8 }}>
-                  <div><div className="cso-lbl" style={{ marginBottom: 3 }}>Booked for</div><input className="cso-input" type="date" value={journeyDraft.oral?.bookedDate || ''} onChange={e => setJD('oral.bookedDate', e.target.value)} /></div>
-                  <div><div className="cso-lbl" style={{ marginBottom: 3 }}>Passed on</div><input className="cso-input" type="date" value={journeyDraft.oral?.passDate || ''} onChange={e => setJD('oral.passDate', e.target.value)} disabled={journeyDraft.oral?.status !== 'passed'} /></div>
+                {(journeyDraft.noe?.status === 'applied' || journeyDraft.noe?.status === 'issued') && (
+                  <div className="cso-fld" style={{ marginTop: 12 }}>
+                    <label className="cso-lbl">Date applied</label>
+                    <input className="cso-input" type="date" value={journeyDraft.noe?.appliedDate || ''} onChange={e => setJD('noe.appliedDate', e.target.value)} />
+                  </div>
+                )}
+                {journeyDraft.noe?.status === 'issued' && (
+                  <div className="cso-grid" style={{ marginTop: 12 }}>
+                    <div><label className="cso-lbl">Issue date</label><input className="cso-input" type="date" value={journeyDraft.noe?.issueDate || ''} onChange={e => setJD('noe.issueDate', e.target.value)} /></div>
+                    <div><label className="cso-lbl">NoE reference no.</label><input className="cso-input" value={journeyDraft.noe?.ref || ''} onChange={e => setJD('noe.ref', e.target.value)} placeholder="e.g. NOE-12345" /></div>
+                  </div>
+                )}
+              </>)}
+
+              {journeyStep === 'oral' && (<>
+                {journeyDraft.oral?.fails?.length > 0 && (
+                  <div className="cso-note">{journeyDraft.oral.fails.length} previous attempt{journeyDraft.oral.fails.length === 1 ? '' : 's'} recorded — this is attempt {journeyDraft.oral.fails.length + 1}.</div>
+                )}
+                <div className="cso-fld">
+                  <label className="cso-lbl">Status</label>
+                  <select className="cso-input" value={journeyDraft.oral?.status || 'not_booked'} onChange={e => setJD('oral.status', e.target.value)}>
+                    <option value="not_booked">Not booked</option>
+                    <option value="booked">Booked</option>
+                    <option value="passed">Passed</option>
+                    <option value="failed">Failed</option>
+                  </select>
                 </div>
-              </div>
-              <div className="cso-fld" style={{ marginTop: 12 }}>
-                <label className="cso-lbl">CoC issued</label>
-                <input className="cso-input" type="date" value={journeyDraft.coc?.issuedDate || ''} onChange={e => setJD('coc.issuedDate', e.target.value)} />
-              </div>
-              <div className="cso-fld" style={{ marginTop: 12 }}>
-                <label className="cso-lbl">Note <span className="opt">optional</span></label>
-                <input className="cso-input" value={journeyDraft.note || ''} onChange={e => setJD('note', e.target.value)} placeholder="e.g. NoE ref, exam centre" />
-              </div>
+                {(journeyDraft.oral?.status === 'booked' || journeyDraft.oral?.status === 'failed' || journeyDraft.oral?.status === 'passed') && (
+                  <div className="cso-fld" style={{ marginTop: 12 }}>
+                    <label className="cso-lbl">Exam date</label>
+                    <input className="cso-input" type="date" value={journeyDraft.oral?.bookedDate || ''} onChange={e => setJD('oral.bookedDate', e.target.value)} />
+                  </div>
+                )}
+                {journeyDraft.oral?.status === 'passed' && (
+                  <div className="cso-grid" style={{ marginTop: 12 }}>
+                    <div><label className="cso-lbl">Passed on</label><input className="cso-input" type="date" value={journeyDraft.oral?.passDate || ''} onChange={e => setJD('oral.passDate', e.target.value)} /></div>
+                    <div><label className="cso-lbl">Pass reference no.</label><input className="cso-input" value={journeyDraft.oral?.ref || ''} onChange={e => setJD('oral.ref', e.target.value)} placeholder="e.g. exam ref" /></div>
+                  </div>
+                )}
+                {journeyDraft.oral?.status === 'failed' && (
+                  <div className="cso-resit">
+                    <div className="cso-note">This attempt was a fail. The MCA sets a minimum interval before re-sitting. Once you’ve re-booked, record it as a new attempt.</div>
+                    <button className="cso-btn ghost" type="button" onClick={addOralResit}><Icon name="Plus" size={14} /> Add re-sit (book again)</button>
+                  </div>
+                )}
+              </>)}
+
+              {journeyStep === 'coc' && (<>
+                <div className="cso-fld">
+                  <label className="cso-lbl">Status</label>
+                  <select className="cso-input" value={journeyDraft.coc?.status || 'not_applied'} onChange={e => setJD('coc.status', e.target.value)}>
+                    <option value="not_applied">Not applied</option>
+                    <option value="applied">Applied — awaiting</option>
+                    <option value="issued">Issued</option>
+                  </select>
+                </div>
+                {(journeyDraft.coc?.status === 'applied' || journeyDraft.coc?.status === 'issued') && (
+                  <div className="cso-fld" style={{ marginTop: 12 }}>
+                    <label className="cso-lbl">Date applied</label>
+                    <input className="cso-input" type="date" value={journeyDraft.coc?.appliedDate || ''} onChange={e => setJD('coc.appliedDate', e.target.value)} />
+                  </div>
+                )}
+                {journeyDraft.coc?.status === 'issued' && (
+                  <div className="cso-grid" style={{ marginTop: 12 }}>
+                    <div><label className="cso-lbl">Issue date</label><input className="cso-input" type="date" value={journeyDraft.coc?.issuedDate || ''} onChange={e => setJD('coc.issuedDate', e.target.value)} /></div>
+                    <div><label className="cso-lbl">Certificate no.</label><input className="cso-input" value={journeyDraft.coc?.ref || ''} onChange={e => setJD('coc.ref', e.target.value)} placeholder="CoC number" /></div>
+                  </div>
+                )}
+              </>)}
             </div>
             <div className="cso-foot">
               <button className="cso-btn ghost" onClick={() => setJourneyOpen(false)}>Cancel</button>
