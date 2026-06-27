@@ -74,7 +74,9 @@ export const visaForCountry = (countryIso, natIsos) => {
 
 // Build per-day country for the trailing window and derive the figures.
 // vesselByDate: { 'YYYY-MM-DD': 'GR', ... } from vessel_positions.
-export const computeResidency = ({ today, periods, entries, vesselByDate, windowDays = 365 }) => {
+// stampedOn(day): true while the crew member is signed onto the vessel crew list
+//   — those days pause the Schengen/visa clock (but still count for tax presence).
+export const computeResidency = ({ today, periods, entries, vesselByDate, stampedOn = () => false, windowDays = 365 }) => {
   const perDay = [];
   for (let i = 0; i < windowDays; i++) {
     const day = new Date(today);
@@ -85,10 +87,11 @@ export const computeResidency = ({ today, periods, entries, vesselByDate, window
     let country = null;
     if (status === 'active') country = vesselByDate[iso] || null;
     else if (status === 'training_leave') country = normIso(entry?.location_country);
-    perDay.push({ iso, status, country });
+    perDay.push({ iso, status, country, aboard: stampedOn(day) });
   }
 
-  const schengenUsed = perDay.slice(0, 180).filter((d) => d.country && SCHENGEN.has(d.country)).length;
+  // Immigration (Schengen): a day counts only when NOT signed onto the crew list.
+  const schengenUsed = perDay.slice(0, 180).filter((d) => !d.aboard && d.country && SCHENGEN.has(d.country)).length;
 
   const tally = {};
   perDay.forEach((d) => { if (d.country) tally[d.country] = (tally[d.country] || 0) + 1; });

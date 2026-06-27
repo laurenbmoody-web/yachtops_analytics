@@ -14,6 +14,7 @@ import {
   fetchCalendarEntries, saveCalendarEntry, deleteCalendarEntry, entryForDay,
 } from '../utils/crewCalendar';
 import { computeResidency, visaForCountry, normIso, countryName, SCHENGEN } from '../utils/residency';
+import { fetchStamps, saveStamp, deleteStamp, isStampedOn, stampOnDay } from '../utils/crewStamps';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -97,6 +98,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
   const [animReady, setAnimReady] = useState(false);
   const [vesselPos, setVesselPos] = useState([]);
   const [crewNat, setCrewNat] = useState([]);
+  const [stamps, setStamps] = useState([]);
   const reduced = prefersReducedMotion();
   const calPrev = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
   const calNext = () => { if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); } else setCalMonth((m) => m + 1); };
@@ -105,7 +107,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
   const load = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
     setLoading(true);
-    const [acts, sh, ents, vp, pd] = await Promise.all([
+    const [acts, sh, ents, vp, pd, st] = await Promise.all([
       fetchProfileActivity(userId),
       supabase.from('crew_status_history').select('*').eq('user_id', userId).neq('source', 'calendar').order('changed_at', { ascending: true }),
       fetchCalendarEntries(userId),
@@ -113,12 +115,14 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
         ? supabase.from('vessel_positions').select('observed_on, country_code').eq('tenant_id', tenantId)
         : Promise.resolve({ data: [] }),
       supabase.from('crew_personal_details').select('nationality, second_nationality').eq('user_id', userId).maybeSingle(),
+      fetchStamps(userId),
     ]);
     setActivity(acts);
     setStatusRows(sh.data || []);
     setEntries(ents);
     setVesselPos(vp?.data || []);
     setCrewNat([pd?.data?.nationality, pd?.data?.second_nationality].map(normIso).filter(Boolean));
+    setStamps(st);
     setLoading(false);
   }, [userId, tenantId]);
   useEffect(() => { load(); }, [load, tenantId]);
@@ -199,6 +203,18 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
     catch { showToast('Delete failed', 'error'); }
   };
 
+  const addStamp = async (kind, day) => {
+    try {
+      await saveStamp({ userId, tenantId, kind, stampDate: dateIso(day), actorId: currentUserId, actorName: currentUserName });
+      showToast(kind === 'on' ? 'Stamped onto vessel' : 'Stamped off vessel', 'success');
+      load();
+    } catch (e) { showToast(e.message || 'Could not save stamp', 'error'); }
+  };
+  const removeStamp = async (s) => {
+    try { await deleteStamp(s.id); showToast('Stamp removed', 'success'); load(); }
+    catch { showToast('Delete failed', 'error'); }
+  };
+
   return (
     <div>
       <div className="cd-controls" style={{ marginTop: 0 }}>
@@ -236,16 +252,19 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                 const tabLabel = SHORT_STATUS[stat];
                 const dim = statFilter && stat !== statFilter;
                 const hot = statFilter && stat === statFilter;
+                const stamp = stampOnDay(stamps, day);
+                const onboard = isStampedOn(stamps, day);
                 return (
                   <button
                     key={d}
                     type="button"
-                    className={`act-mcell ${stat === 'active' ? 'is-active' : ''} ${day > today0() ? 'is-future' : ''} ${sameDay(day, today0()) ? 'is-today' : ''} ${sameDay(day, selectedDay) && !statFilter ? 'is-sel' : ''} ${dim ? 'is-dim' : ''} ${hot ? 'is-hot' : ''}`}
+                    className={`act-mcell ${stat === 'active' ? 'is-active' : ''} ${onboard ? 'is-onboard' : ''} ${day > today0() ? 'is-future' : ''} ${sameDay(day, today0()) ? 'is-today' : ''} ${sameDay(day, selectedDay) && !statFilter ? 'is-sel' : ''} ${dim ? 'is-dim' : ''} ${hot ? 'is-hot' : ''}`}
                     style={hot ? { boxShadow: `inset 0 0 0 2px ${soft(stat).ink}` } : undefined}
                     onClick={() => setSelectedDay(day)}
-                    title={`${stat ? getStatusLabel(stat) : 'No data'}${entry && travelSummary(entry) ? ` — ${travelSummary(entry)}` : ''}`}
+                    title={`${stat ? getStatusLabel(stat) : 'No data'}${onboard ? ' · signed on (clock paused)' : ''}${entry && travelSummary(entry) ? ` — ${travelSummary(entry)}` : ''}`}
                   >
                     <span className="act-mnum">{d}</span>
+                    {stamp && <span className={`act-mstamp ${stamp.kind}`} title={stamp.kind === 'on' ? 'Stamped onto vessel' : 'Stamped off vessel'}><Icon name="Anchor" size={9} /></span>}
                     {showTab && <span className="act-mtab" style={{ background: soft(stat).ink }}>{tabLabel}</span>}
                   </button>
                 );
@@ -308,6 +327,30 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                   ) : (
                     <p className="act-dp-empty">No leave or travel logged for this day.</p>
                   )}
+                  {(() => {
+                    const dayStamp = stampOnDay(stamps, day);
+                    const onboardNow = isStampedOn(stamps, day);
+                    return (
+                      <div className="act-dp-stamp">
+                        <div className="act-dp-kind">Vessel crew list</div>
+                        {dayStamp ? (
+                          <div className="act-dp-line act-stamp-row">
+                            <Icon name={dayStamp.kind === 'on' ? 'Anchor' : 'LogOut'} size={13} />
+                            {dayStamp.kind === 'on' ? 'Stamped onto vessel' : 'Stamped off vessel'}
+                            {canManage && <button type="button" className="act-stamp-rm" onClick={() => removeStamp(dayStamp)} title="Remove stamp"><Icon name="X" size={12} /></button>}
+                          </div>
+                        ) : canManage ? (
+                          <div className="act-stamp-actions">
+                            <button type="button" onClick={() => addStamp('on', day)}><Icon name="Anchor" size={12} /> Stamp on</button>
+                            <button type="button" onClick={() => addStamp('off', day)}><Icon name="LogOut" size={12} /> Stamp off</button>
+                          </div>
+                        ) : null}
+                        <div className="act-dp-note" style={{ marginTop: 6 }}>
+                          {onboardNow ? 'Signed on — Schengen / visa clock paused.' : 'Not signed on — counts where in-country.'}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
@@ -346,7 +389,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
             {(() => {
               const vmap = {};
               vesselPos.forEach((p) => { if (p.country_code) vmap[String(p.observed_on).slice(0, 10)] = p.country_code; });
-              const res = computeResidency({ today: today0(), periods, entries, vesselByDate: vmap });
+              const res = computeResidency({ today: today0(), periods, entries, vesselByDate: vmap, stampedOn: (day) => isStampedOn(stamps, day) });
               const visa = visaForCountry(res.currentCountry, crewNat);
               const schPct = Math.min(100, Math.round((res.schengenUsed / 90) * 100));
               const visaInk = { free: '#2E7D52', limited: '#9A6A00', visa: '#B23B3B', unknown: '#6B7280' };
