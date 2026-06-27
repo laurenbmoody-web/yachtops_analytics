@@ -13,7 +13,7 @@ import {
 import {
   DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY, DUAL_CAPACITY_RATE, isDualCapacityRole, ancillaryFor
 } from '../../../seatime/pathways';
-import { fetchCrewDocuments } from '../utils/crewDocuments';
+import { fetchCrewDocuments, uploadDocumentFile } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
@@ -144,9 +144,9 @@ const countryName = (code) => { if (!code) return ''; const k = String(code).tri
 
 // Certification-journey defaults + the MCA validity timers (NoE 5y, oral pass 3y).
 const JOURNEY_DEFAULT = {
-  noe:  { status: 'not_applied', appliedDate: '', issueDate: '', ref: '' },
-  oral: { status: 'not_booked', bookedDate: '', passDate: '', ref: '', fails: [] },
-  coc:  { status: 'not_applied', appliedDate: '', issuedDate: '', ref: '' },
+  noe:  { status: 'not_applied', appliedDate: '', issueDate: '', ref: '', file: null },
+  oral: { status: 'not_booked', bookedDate: '', passDate: '', ref: '', fails: [], file: null },
+  coc:  { status: 'not_applied', appliedDate: '', issuedDate: '', ref: '', file: null },
   note: '',
 };
 // The NoE/NoA spans many routes, each with its own application form + Marine
@@ -800,6 +800,43 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // milestone (step) at a time, gated by progress.
   const openJourney = (step = 'noe') => { setJourneyStep(step); setJourneyDraft(JSON.parse(JSON.stringify(journey || JOURNEY_DEFAULT))); setJourneyOpen(true); };
   const setJD = (path, val) => setJourneyDraft(d => { const n = JSON.parse(JSON.stringify(d || JOURNEY_DEFAULT)); const [a, b] = path.split('.'); if (b) { n[a] = { ...n[a], [b]: val }; } else { n[a] = val; } return n; });
+  // Attach the milestone's paper (NoE letter / oral pass / CoC) — uploaded to the
+  // crew-documents bucket, its signed URL + path stored on the journey step.
+  const [journeyUploading, setJourneyUploading] = useState(false);
+  const onJourneyFile = async (stepKey, e) => {
+    const f = e.target.files?.[0];
+    if (e.target) e.target.value = '';
+    if (!f) return;
+    if (usingSample || !userId) { setJD(`${stepKey}.file`, { fileName: f.name, fileUrl: null }); flash('Attached (preview)'); return; }
+    try {
+      setJourneyUploading(true);
+      const up = await uploadDocumentFile(userId, f);
+      setJD(`${stepKey}.file`, { fileUrl: up.file_url, fileName: up.file_name, storagePath: up.storage_path });
+      flash('Document attached');
+    } catch (err) { console.error('[seatime] journey file', err); flash('Could not upload the document'); }
+    finally { setJourneyUploading(false); }
+  };
+  const journeyFileField = (stepKey, label) => {
+    const f = journeyDraft?.[stepKey]?.file;
+    return (
+      <div className="cso-fld" style={{ marginTop: 12 }}>
+        <label className="cso-lbl">{label} <span className="opt">optional</span></label>
+        {f?.fileName ? (
+          <div className="cso-file">
+            <Icon name="FileText" size={14} color="#C65A1A" />
+            <span className="nm">{f.fileName}</span>
+            {f.fileUrl && <a href={f.fileUrl} target="_blank" rel="noreferrer">View</a>}
+            <button type="button" onClick={() => setJD(`${stepKey}.file`, null)}>Remove</button>
+          </div>
+        ) : (
+          <label className={`cso-upload${journeyUploading ? ' busy' : ''}`}>
+            <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => onJourneyFile(stepKey, e)} />
+            <Icon name="Upload" size={14} /> {journeyUploading ? 'Uploading…' : 'Upload a scan or photo'}
+          </label>
+        )}
+      </div>
+    );
+  };
   // Oral re-sit: bank the failed attempt's date and reset for a fresh booking.
   const addOralResit = () => setJourneyDraft(d => {
     const n = JSON.parse(JSON.stringify(d || JOURNEY_DEFAULT));
@@ -1372,7 +1409,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <div className={`cj-stepcell pos-${i === 0 ? 'first' : i === steps.length - 1 ? 'last' : 'mid'}${s.key === 'elig' && eligOpen ? ' open' : ''}`} key={s.n}>
                   <button type="button" className={`cj-step ${s.state}`} onClick={() => clickStep(s)}
                     title={s.key === 'elig' ? 'Show requirements' : `Update ${s.label}`}>
-                    <div className="cj-steplabel">{s.label}{s.key === 'elig' && <Icon name="ChevronDown" size={12} className="cj-eligchev" style={{ transform: eligOpen ? 'rotate(180deg)' : 'none' }} />}</div>
+                    <div className="cj-steplabel">{s.label}{s.key === 'elig' && <Icon name="ChevronDown" size={12} className="cj-eligchev" style={{ transform: eligOpen ? 'rotate(180deg)' : 'none' }} />}{j[s.key]?.file?.fileName && <Icon name="Paperclip" size={11} className="cj-clip" />}</div>
                     <div className="cj-statusline">{s.line}</div>
                     {s.detail}
                   </button>
@@ -1795,6 +1832,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     <div><label className="cso-lbl">NoE reference no.</label><input className="cso-input" value={journeyDraft.noe?.ref || ''} onChange={e => setJD('noe.ref', e.target.value)} placeholder="e.g. NOE-12345" /></div>
                   </div>
                 )}
+                {journeyFileField('noe', 'NoE / NoA letter')}
               </>)}
 
               {journeyStep === 'oral' && (<>
@@ -1828,6 +1866,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     <button className="cso-btn ghost" type="button" onClick={addOralResit}><Icon name="Plus" size={14} /> Add re-sit (book again)</button>
                   </div>
                 )}
+                {journeyFileField('oral', 'Oral exam pass slip')}
               </>)}
 
               {journeyStep === 'coc' && (<>
@@ -1851,6 +1890,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     <div><label className="cso-lbl">Certificate no.</label><input className="cso-input" value={journeyDraft.coc?.ref || ''} onChange={e => setJD('coc.ref', e.target.value)} placeholder="CoC number" /></div>
                   </div>
                 )}
+                {journeyFileField('coc', 'Certificate of Competency')}
               </>)}
             </div>
             <div className="cso-foot">
