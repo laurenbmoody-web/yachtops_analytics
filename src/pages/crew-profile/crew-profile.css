@@ -1422,20 +1422,25 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .act-cal-today:hover { background: #FAECE7; }
 
-/* Two-column: compact month grid (capped so cells stay square-ish) + day panel.
-   Explicit grid rows so the panel starts at the day cells (not the nav) and
-   stretches down to meet the bottom of the grid. */
+/* Three columns on wide screens: calendar · day panel + 365-day KPIs ·
+   residency. Collapses to two then one as the viewport narrows so the whole
+   width carries content instead of leaving the day panel as an empty box. */
 .crew-profile-page .act-calwrap {
-  display: grid; grid-template-columns: minmax(0, 660px) 320px; grid-template-rows: auto auto auto auto;
-  column-gap: 24px; justify-content: start; align-items: start; margin-top: 6px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 330px 312px;
+  column-gap: 24px; align-items: start; margin-top: 6px;
 }
-.crew-profile-page .act-cal-nav { grid-column: 1; grid-row: 1; }
-.crew-profile-page .act-row-wd { grid-column: 1; grid-row: 2; }
-.crew-profile-page .act-row-days { grid-column: 1; grid-row: 3; }
-.crew-profile-page .act-row-legend { grid-column: 1; grid-row: 4; }
-/* Notes panel: far right, spanning the weekday row down to the legend so it's a
-   tall card the height of the calendar. */
-.crew-profile-page .act-daypanel { grid-column: 2; grid-row: 2 / 5; align-self: stretch; }
+.crew-profile-page .act-col-cal { min-width: 0; }
+.crew-profile-page .act-col-mid,
+.crew-profile-page .act-col-res { display: flex; flex-direction: column; gap: 14px; }
+/* Staggered rise as the cards mount (entering the calendar view). */
+@keyframes act-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.crew-profile-page .act-col-mid > *,
+.crew-profile-page .act-col-res > * { animation: act-rise .42s ease both; }
+.crew-profile-page .act-col-mid > *:nth-child(2) { animation-delay: .06s; }
+.crew-profile-page .act-col-res > *:nth-child(1) { animation-delay: .05s; }
+.crew-profile-page .act-col-res > *:nth-child(2) { animation-delay: .11s; }
+.crew-profile-page .act-col-res > *:nth-child(3) { animation-delay: .17s; }
+.crew-profile-page .act-col-res > *:nth-child(4) { animation-delay: .22s; }
 .crew-profile-page .act-mgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .crew-profile-page .act-mhead { margin-bottom: 5px; }
 .crew-profile-page .act-mwd { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; }
@@ -1443,9 +1448,9 @@ body.crew-profile-editorial {
 .crew-profile-page .act-mcell {
   aspect-ratio: 1 / 0.82; border: 1px solid #F0F1F5; border-radius: 9px; padding: 7px 9px; position: relative;
   display: block; text-align: left; background: #fff; cursor: pointer; font: inherit; overflow: hidden;
-  transition: border-color .1s ease;
+  transition: border-color .12s ease, transform .12s ease, opacity .22s ease, box-shadow .12s ease;
 }
-.crew-profile-page .act-mcell:hover { border-color: #E1DCCF; }
+.crew-profile-page .act-mcell:hover { border-color: #E1DCCF; transform: translateY(-1px); }
 .crew-profile-page .act-mcell.is-blank { background: transparent; border: 0; cursor: default; }
 .crew-profile-page .act-mnum { font-size: 12px; font-weight: 600; color: #1C1B3A; }
 .crew-profile-page .act-mtab {
@@ -1458,7 +1463,9 @@ body.crew-profile-editorial {
 .crew-profile-page .act-mcell.is-today { border-color: #C65A1A; }
 .crew-profile-page .act-mcell.is-today .act-mnum { color: #C65A1A; }
 .crew-profile-page .act-mcell.is-sel { box-shadow: inset 0 0 0 2px #1C1B3A; }
-.crew-profile-page .act-cal-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+/* Tap-to-filter: non-matching days fade back, matching days pop. */
+.crew-profile-page .act-mcell.is-dim { opacity: .22; }
+.crew-profile-page .act-mcell.is-hot { transform: scale(1.04); z-index: 2; }
 /* Per-month KPI strip — each chip is a colour key + day-count for the status. */
 .crew-profile-page .act-kpis { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .crew-profile-page .act-kpi { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid #ECEAE3; border-radius: 999px; background: #FAFAF8; }
@@ -1488,14 +1495,43 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .act-dp-add:hover { background: #FBEFE9; }
 .crew-profile-page .act-dp-empty { font-size: 13px; color: #8B8478; margin-top: 14px; }
-@media (max-width: 900px) {
-  .crew-profile-page .act-calwrap { grid-template-columns: 1fr; }
-  .crew-profile-page .act-cal-nav,
-  .crew-profile-page .act-row-wd,
-  .crew-profile-page .act-row-days,
-  .crew-profile-page .act-row-legend,
-  .crew-profile-page .act-daypanel { grid-column: 1; grid-row: auto; align-self: auto; }
-  .crew-profile-page .act-daypanel { margin-top: 14px; }
+/* Last-365-days KPI card — tappable rows that filter the calendar. */
+.crew-profile-page .act-statcard { border: 1px solid #ECEAE3; border-radius: 14px; padding: 14px 16px; background: #fff; }
+.crew-profile-page .act-statcard-h { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px; }
+.crew-profile-page .act-statcard-h em { font-style: normal; color: #AEB4C2; }
+.crew-profile-page .act-kpirow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 0; background: none; border-radius: 8px; cursor: pointer; font: inherit; text-align: left; transition: background .12s ease, opacity .2s ease; }
+.crew-profile-page .act-kpirow:hover { background: #FAFAF8; }
+.crew-profile-page .act-kpirow.on { background: #FAFAF8; }
+.crew-profile-page .act-kpirow.is-mute { opacity: .4; }
+.crew-profile-page .act-kpidot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.crew-profile-page .act-kpilab { font-size: 12.5px; color: #1C1B3A; width: 70px; flex: none; }
+.crew-profile-page .act-kpibar { flex: 1; height: 6px; border-radius: 999px; background: #F0F1F5; overflow: hidden; }
+.crew-profile-page .act-kpibar i { display: block; height: 100%; border-radius: 999px; transition: width .7s cubic-bezier(.22,.61,.36,1); }
+.crew-profile-page .act-kpival { font-size: 13px; font-weight: 700; color: #1C1B3A; font-variant-numeric: tabular-nums; width: 34px; text-align: right; }
+.crew-profile-page .act-filterpill { margin-top: 12px; font-size: 12px; color: #6B7280; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 999px; padding: 6px 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.crew-profile-page .act-filterpill:hover { background: #FBEFE9; color: #C65A1A; border-color: #F0D9CC; }
+.crew-profile-page .act-filterpill b { font-weight: 700; }
+/* Residency & visas — scaffolded; switches on once per-day location is captured. */
+.crew-profile-page .act-rescard { border: 1px solid #ECEAE3; border-radius: 14px; padding: 14px 16px; background: #fff; }
+.crew-profile-page .act-res-h { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; display: flex; align-items: center; gap: 7px; }
+.crew-profile-page .act-res-gauge { height: 11px; border-radius: 999px; background: #F0F1F5; overflow: hidden; margin: 11px 0 2px; }
+.crew-profile-page .act-res-soon { font-size: 12px; color: #8B8478; line-height: 1.5; margin-top: 8px; }
+.crew-profile-page .act-res-tag { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; padding: 2px 2px; }
+
+@media (max-width: 1180px) {
+  .crew-profile-page .act-calwrap { grid-template-columns: minmax(0, 1fr) 330px; }
+  .crew-profile-page .act-col-res { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; margin-top: 14px; }
+  .crew-profile-page .act-col-res .act-rescard { flex: 1 1 240px; }
+  .crew-profile-page .act-col-res .act-res-tag { flex-basis: 100%; }
 }
-.crew-profile-page .act-cal-legend span { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #6B7280; }
-.crew-profile-page .act-sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+@media (max-width: 760px) {
+  .crew-profile-page .act-calwrap { grid-template-columns: 1fr; }
+  .crew-profile-page .act-col-mid { margin-top: 14px; }
+  .crew-profile-page .act-col-res { flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crew-profile-page .act-col-mid > *,
+  .crew-profile-page .act-col-res > * { animation: none; }
+  .crew-profile-page .act-kpibar i { transition: none; }
+  .crew-profile-page .act-mcell { transition: none; }
+}
