@@ -389,24 +389,28 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .cj-progress{font-size:11px;font-weight:600;color:var(--muted);background:#FAFAF8;border:1px solid #ECEAE3;border-radius:999px;padding:6px 13px;white-space:nowrap;}
 .cj-progress b{color:var(--rust);font-weight:700;}
 .cj-steps{display:flex;gap:0;flex-wrap:wrap;width:100%;}
-.cj-step{flex:1 1 0;min-width:160px;text-align:left;background:none;border:0;padding:0 16px 4px 0;cursor:pointer;align-self:flex-start;}
+.cj-stepcell{flex:1 1 0;min-width:160px;position:relative;align-self:flex-start;}
+.cj-step{width:100%;text-align:left;background:none;border:0;padding:0 16px 4px 0;cursor:pointer;}
 .cj-step.locked .cj-node{background:#FAFAF8;border-color:#ECEAE3;color:#C9C4BA;}
 .cj-step.locked:hover .cj-node{border-color:var(--rust);color:var(--rust);}
 .cj-step.locked .cj-statusline{color:var(--faint);}
 .cj-eligchev{margin-left:5px;color:var(--faint);vertical-align:middle;transition:transform .15s;}
 .cj-step.open .cj-eligchev{color:var(--rust);}
-/* eligibility detail (expanded under step 01) */
-.cj-elig{margin-top:16px;padding:14px 16px;background:#FAFAF8;border:1px solid #ECEAE3;border-radius:12px;}
-.cj-elig-h{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B8478;margin-bottom:8px;}
-.cj-elig-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #F0F1F5;}
+/* eligibility — small floating popover anchored under step 01 */
+.cj-elig-pop{position:absolute;top:100%;left:0;margin-top:10px;width:296px;max-width:86vw;background:#fff;border:1px solid #ECEAE3;border-radius:12px;box-shadow:0 24px 60px -16px rgba(28,27,58,0.32);padding:13px 15px 13px;z-index:40;}
+.cj-elig-pop::before{content:'';position:absolute;top:-6px;left:18px;width:11px;height:11px;background:#fff;border-left:1px solid #ECEAE3;border-top:1px solid #ECEAE3;transform:rotate(45deg);}
+.cj-elig-x{position:absolute;top:9px;right:9px;background:none;border:0;color:var(--faint);cursor:pointer;padding:2px;line-height:0;}
+.cj-elig-x:hover{color:var(--rust);}
+.cj-elig-h{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B8478;margin-bottom:6px;padding-right:18px;}
+.cj-elig-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F0F1F5;}
 .cj-elig-row:last-of-type{border-bottom:0;}
-.cj-elig-row .ck{width:16px;display:flex;justify-content:center;flex-shrink:0;}
-.cj-elig-row .ck .dot{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--rust);}
-.cj-elig-row .l{flex:1;font-size:12.5px;color:var(--muted);}
+.cj-elig-row .ck{width:14px;display:flex;justify-content:center;flex-shrink:0;}
+.cj-elig-row .ck .dot{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--rust);}
+.cj-elig-row .l{flex:1;font-size:11.5px;color:var(--muted);}
 .cj-elig-row.met .l{color:var(--ink);}
-.cj-elig-row .v{font-size:11.5px;color:var(--muted);white-space:nowrap;}
+.cj-elig-row .v{font-size:10.5px;color:var(--muted);white-space:nowrap;}
 .cj-elig-row .v em{font-style:normal;color:var(--rust);font-weight:600;}
-.cj-elig-foot{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5;}
+.cj-elig-foot{font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.5;}
 /* journey modal — fail/re-sit note */
 .cso-note{font-size:11.5px;line-height:1.5;color:#7A4A12;background:#FBF3E8;border:1px solid #EFD9B8;border-radius:8px;padding:9px 11px;margin-bottom:12px;}
 .cso-resit{margin-top:12px;}
@@ -428,7 +432,7 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .cj-reqs li{font-size:11.5px;color:var(--muted);padding:2px 0;line-height:1.4;}
 .cj-reqs li b{color:var(--rust);font-weight:600;}
 .cj-detail{font-size:11px;color:#A6712C;margin-top:5px;line-height:1.45;}
-@media(max-width:640px){.cj-step{flex:1 1 100%;padding-bottom:14px;}.cj-line{display:none;}}
+@media(max-width:640px){.cj-stepcell{flex:1 1 100%;}.cj-step{padding-bottom:14px;}.cj-line{display:none;}.cj-elig-pop{width:100%;}}
 /* courses & tickets checklist — the "courses" half of CoC eligibility */
 .stp-courses{margin-top:18px;padding-top:16px;border-top:1px solid #F0F1F5;}
 .stp-courses-head{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;background:none;border:0;padding:0;cursor:pointer;text-align:left;}

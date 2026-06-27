@@ -1349,32 +1349,35 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             </div>
             <div className="cj-steps">
               {steps.map((s, i) => (
-                <button type="button" className={`cj-step ${s.state}${s.key === 'elig' && eligOpen ? ' open' : ''}`} key={s.n} onClick={() => clickStep(s)}
-                  title={s.key === 'elig' ? 'Show requirements' : `Update ${s.label}`}>
-                  <div className="cj-rail">
-                    <span className="cj-node">{s.state === 'done' ? <Icon name="Check" size={14} color="#fff" /> : s.state === 'locked' ? <Icon name="Lock" size={11} /> : s.n}</span>
-                    {i < steps.length - 1 && <span className="cj-line" />}
-                  </div>
-                  <div className="cj-steplabel">{s.label}{s.key === 'elig' && <Icon name="ChevronDown" size={12} className="cj-eligchev" style={{ transform: eligOpen ? 'rotate(180deg)' : 'none' }} />}</div>
-                  <div className="cj-statusline">{s.line}</div>
-                  {s.detail}
-                </button>
+                <div className={`cj-stepcell${s.key === 'elig' && eligOpen ? ' open' : ''}`} key={s.n}>
+                  <button type="button" className={`cj-step ${s.state}${s.key === 'elig' && eligOpen ? ' open' : ''}`} onClick={() => clickStep(s)}
+                    title={s.key === 'elig' ? 'Show requirements' : `Update ${s.label}`}>
+                    <div className="cj-rail">
+                      <span className="cj-node">{s.state === 'done' ? <Icon name="Check" size={14} color="#fff" /> : s.state === 'locked' ? <Icon name="Lock" size={11} /> : s.n}</span>
+                      {i < steps.length - 1 && <span className="cj-line" />}
+                    </div>
+                    <div className="cj-steplabel">{s.label}{s.key === 'elig' && <Icon name="ChevronDown" size={12} className="cj-eligchev" style={{ transform: eligOpen ? 'rotate(180deg)' : 'none' }} />}</div>
+                    <div className="cj-statusline">{s.line}</div>
+                    {s.detail}
+                  </button>
+                  {s.key === 'elig' && eligOpen && (
+                    <div className="cj-elig-pop" role="dialog" aria-label="Service requirements">
+                      <button className="cj-elig-x" onClick={() => setEligOpen(false)} aria-label="Close"><Icon name="X" size={13} /></button>
+                      <div className="cj-elig-h">Service requirements</div>
+                      {hardReqs.map(r => (
+                        <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
+                          <span className="ck">{r.met ? <Icon name="Check" size={11} color="#3F7A52" /> : <span className="dot" />}</span>
+                          <span className="l">{r.label}</span>
+                          <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining}</em>}</span>
+                        </div>
+                      ))}
+                      {!conf.authoritative && <div className="cj-detail" style={{ marginTop: 6 }}>{conf.label}</div>}
+                      <div className="cj-elig-foot">{eligible ? 'All met — apply for your NoE.' : 'Clear the outstanding service first.'}</div>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
-            {eligOpen && (
-              <div className="cj-elig">
-                <div className="cj-elig-h">Service requirements · {cert.short}</div>
-                {hardReqs.map(r => (
-                  <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
-                    <span className="ck">{r.met ? <Icon name="Check" size={12} color="#3F7A52" /> : <span className="dot" />}</span>
-                    <span className="l">{r.label}</span>
-                    <span className="v">{r.current} / {r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
-                  </div>
-                ))}
-                {!conf.authoritative && <div className="cj-detail" style={{ marginTop: 8 }}>{conf.label} · {conf.notice || 'see notice'}</div>}
-                <div className="cj-elig-foot">{eligible ? 'All requirements met — apply for your Notice of Eligibility (step 02).' : 'Clear the outstanding service above before applying for your NoE.'}</div>
-              </div>
-            )}
           </div>
         );
       })()}
