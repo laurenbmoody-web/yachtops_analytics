@@ -292,11 +292,13 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
           fork leads the flow rather than trailing a long form. */}
       {step === 1 && !creating && (
         <>
-          <h3 className="pv-wizard-title">
-            <span className="pv-wizard-title-dot" aria-hidden="true" />
-            New board
+          {/* Editorial headline carries the prompt itself — the plain
+              "New board" eyebrow is dropped. Serif with an italic
+              terracotta accent on "start?", echoing the page
+              headlines. */}
+          <h3 className="pv-wizard-start-head">
+            How do you want to <em>start?</em>
           </h3>
-          <p className="pv-wizard-context">How do you want to start?</p>
 
           <div className="pv-wizard-tile-grid">
             {[
@@ -308,7 +310,6 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
                 onClick={() => { setStartMode(opt.key); setStep(2); }}
                 className="pv-wizard-tile"
               >
-                <span className="pv-wizard-tile-rule" aria-hidden="true" />
                 <span className="pv-wizard-tile-body">
                   <span className="pv-wizard-tile-title">{opt.title}</span>
                   <span className="pv-wizard-tile-desc">{opt.desc}</span>

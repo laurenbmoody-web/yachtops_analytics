@@ -365,11 +365,25 @@
   color: var(--d-muted);
 }
 
-/* ── "How do you want to start?" — twin magazine tiles (editorial
-   Option C). Each tile: terracotta top-rule, serif title, muted
-   descriptor. Stacked vertically to fit the narrow wizard column;
-   lift + terracotta border on hover so the fork feels like a
-   deliberate choice, not a list item. ───────────────────────────── */
+/* ── "How do you want to start?" — editorial headline + twin
+   magazine tiles (Option C). The headline replaces the plain
+   "New board" eyebrow: DM Serif with an italic terracotta accent.
+   Tiles are borderless-on-rest with a serif title + muted
+   descriptor; lift + terracotta border on hover so the fork feels
+   like a deliberate choice, not a list item. ──────────────────── */
+.pv-wizard-start-head {
+  margin: 2px 0 16px;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--d-navy-deep);
+}
+.pv-wizard-start-head em {
+  font-style: italic;
+  color: var(--d-orange);
+}
 .pv-wizard-tile-grid {
   display: flex;
   flex-direction: column;
@@ -395,14 +409,9 @@
   transform: translateY(-2px);
   box-shadow: 0 12px 24px -12px rgba(198, 90, 26, 0.30);
 }
-.pv-wizard-tile-rule {
-  display: block;
-  height: 4px;
-  background: linear-gradient(90deg, var(--d-orange), #E8A06B);
-}
 .pv-wizard-tile-body {
   display: block;
-  padding: 16px 16px 18px;
+  padding: 18px 16px;
 }
 .pv-wizard-tile-title {
   display: block;
