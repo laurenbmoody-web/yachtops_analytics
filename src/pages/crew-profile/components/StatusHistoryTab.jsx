@@ -44,7 +44,7 @@ const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.get
 
 // Short labels for the bottom status tab (active = no tab; it's the default).
 const SHORT_STATUS = {
-  active: 'Active', on_leave: 'Leave', rotational_leave: 'Rotational', medical_leave: 'Medical',
+  active: 'Active', on_leave: 'Leave', rotational_leave: 'Rotational leave', medical_leave: 'Medical',
   training_leave: 'Training', travelling: 'Travel', invited: 'Invited',
 };
 
