@@ -418,6 +418,18 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .cj-elig-row .v{font-size:10.5px;color:var(--muted);white-space:nowrap;}
 .cj-elig-row .v em{font-style:normal;color:var(--rust);font-weight:600;}
 .cj-elig-foot{font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.5;}
+/* journey card — attached-document paperclip */
+.cj-clip{margin-left:6px;color:var(--rust);vertical-align:middle;}
+/* journey modal — milestone document upload */
+.cso-upload{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#1C1B3A;background:#FAFAF8;border:1px dashed #D9D5CC;border-radius:10px;padding:10px 13px;cursor:pointer;}
+.cso-upload:hover{border-color:var(--rust);color:var(--rust);}
+.cso-upload.busy{opacity:.6;pointer-events:none;}
+.cso-file{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);background:#FBEFE9;border:1px solid #F0D7C8;border-radius:10px;padding:9px 12px;}
+.cso-file .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cso-file a{color:#C65A1A;font-weight:600;text-decoration:none;}
+.cso-file a:hover{text-decoration:underline;}
+.cso-file button{background:none;border:0;color:var(--muted);font-size:11px;cursor:pointer;}
+.cso-file button:hover{color:#A32D2D;}
 /* journey modal — fail/re-sit note */
 .cso-note{font-size:11.5px;line-height:1.5;color:#7A4A12;background:#FBF3E8;border:1px solid #EFD9B8;border-radius:8px;padding:9px 11px;margin-bottom:12px;}
 .cso-resit{margin-top:12px;}
