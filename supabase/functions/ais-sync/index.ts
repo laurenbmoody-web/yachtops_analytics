@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
     // Single location call — 1 credit.
     const ep = `https://datadocked.com/api/vessels_operations/get-vessel-location?imo_or_mmsi=${encodeURIComponent(id)}`;
     let raw: unknown = null, lat: number | null = null, lon: number | null = null;
+    let navStatus = "", ulocDest = "", destination = "";
     try {
       const r = await fetch(ep, { headers: { accept: "application/json", "x-api-key": apiKey } });
       const body = await r.json().catch(() => null);
@@ -49,6 +50,9 @@ Deno.serve(async (req) => {
       const d = (body && (body as Record<string, unknown>).data) ? (body as Record<string, unknown>).data as Record<string, unknown> : (body as Record<string, unknown>);
       lat = num(d?.lat ?? d?.latitude ?? d?.last_position_latitude ?? d?.LAT);
       lon = num(d?.lon ?? d?.longitude ?? d?.last_position_longitude ?? d?.LON);
+      navStatus = String(d?.navigationalStatus ?? d?.navStatus ?? "");
+      ulocDest = String(d?.unlocodeDestination ?? "");
+      destination = String(d?.destination ?? "");
     } catch (e) { raw = { error: String(e) }; }
 
     if (lat == null || lon == null) {
@@ -56,20 +60,33 @@ Deno.serve(async (req) => {
       continue;
     }
 
+    // Country: try a land reverse-geocode first (she's in port / on a coast).
     let country: string | null = null, countryName: string | null = null;
+    let zone = "offshore";
     try {
       const g = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
       const gj = await g.json();
       country = gj?.countryCode || null;
       countryName = gj?.countryName || null;
-    } catch (_) { /* offshore / failed → unknown */ }
+      if (country) zone = "coastal_or_land";
+    } catch (_) { /* over water / failed */ }
+
+    // Over water but moored/anchored at a port → use the port's UN/LOCODE country.
+    if (!country) {
+      const stopped = /moor|anchor|berth|port/i.test(navStatus);
+      if (stopped && ulocDest.length >= 2) {
+        country = ulocDest.slice(0, 2).toUpperCase();
+        countryName = destination || country;
+        zone = "in_port";
+      }
+    }
 
     const schengen = country ? SCHENGEN.has(country) : null;
     const row = {
       observed_at: nowIso, latitude: lat, longitude: lon,
-      country_code: country, schengen,
-      maritime_zone: country ? "coastal_or_land" : "offshore",
-      note: countryName, updated_at: nowIso,
+      country_code: country, schengen, maritime_zone: zone,
+      note: [navStatus, countryName].filter(Boolean).join(" · ") || null,
+      updated_at: nowIso,
     };
     // One vessel per tenant (vessels is keyed by tenant_id), so vessel_id stays null.
     const { data: existing } = await supa.from("vessel_positions").select("id")
