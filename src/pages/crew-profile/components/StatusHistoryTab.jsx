@@ -49,7 +49,8 @@ const SHORT_STATUS = {
 
 const blankEntry = () => ({
   kind: 'on_leave', startDate: todayIso(), endDate: todayIso(),
-  fromLocation: '', toLocation: '', transport: '', transportNo: '', departTime: '', arriveTime: '', note: '',
+  fromLocation: '', toLocation: '', location: '', locationCountry: '',
+  transport: '', transportNo: '', departTime: '', arriveTime: '', note: '',
 });
 
 const prefersReducedMotion = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -161,7 +162,8 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
     setEditing(e);
     setForm({
       kind: e.kind || 'on_leave', startDate: String(e.start_date).slice(0, 10), endDate: String(e.end_date).slice(0, 10),
-      fromLocation: e.from_location || '', toLocation: e.to_location || '', transport: e.transport || '',
+      fromLocation: e.from_location || '', toLocation: e.to_location || '',
+      location: e.location || '', locationCountry: e.location_country || '', transport: e.transport || '',
       transportNo: e.transport_no || '', departTime: e.depart_time || '', arriveTime: e.arrive_time || '', note: e.note || '',
     });
     setEntryOpen(true);
@@ -279,6 +281,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                     <div className="act-dp-entry">
                       <div className="act-dp-kind">{getStatusLabel(entry.kind)}</div>
                       <div className="act-dp-line">{fmtDay(entry.start_date)}{oneDay ? '' : ` – ${fmtDay(entry.end_date)}`}</div>
+                      {entry.location && <div className="act-dp-line">{entry.location}{entry.location_country ? ` · ${entry.location_country}` : ''}</div>}
                       {travelSummary(entry) && <div className="act-dp-line">{travelSummary(entry)}</div>}
                       {(entry.depart_time || entry.arrive_time) && <div className="act-dp-line">Dep {entry.depart_time || '—'} · Arr {entry.arrive_time || '—'}</div>}
                       {entry.note && <div className="act-dp-note">{entry.note}</div>}
@@ -428,6 +431,16 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                   </label>
                   <label className="kit-field"><span>Arrive</span>
                     <input value={form.arriveTime} onChange={(e) => setF('arriveTime', e.target.value)} placeholder="e.g. 12:55" />
+                  </label>
+                </>
+              )}
+              {form.kind === 'training_leave' && (
+                <>
+                  <label className="kit-field"><span>Location</span>
+                    <input value={form.location} onChange={(e) => setF('location', e.target.value)} placeholder="e.g. Antibes, France" />
+                  </label>
+                  <label className="kit-field"><span>Country <em>residency</em></span>
+                    <input value={form.locationCountry} onChange={(e) => setF('locationCountry', e.target.value)} placeholder="e.g. France" />
                   </label>
                 </>
               )}

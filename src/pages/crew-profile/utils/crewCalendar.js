@@ -30,6 +30,8 @@ export const saveCalendarEntry = async (entry) => {
     end_date: entry.endDate || entry.startDate || null,
     from_location: entry.fromLocation || null,
     to_location: entry.toLocation || null,
+    location: entry.location || null,
+    location_country: entry.locationCountry || null,
     transport: entry.transport || null,
     transport_no: entry.transportNo || null,
     depart_time: entry.departTime || null,
