@@ -1308,6 +1308,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             n: '01', label: 'Eligibility', key: 'elig', reachable: true,
             state: eligible ? 'done' : 'active',
             line: !conf.authoritative ? 'Confirm figures' : eligible ? 'Requirements met' : `${unmet.length} to go`,
+            // A sub-line so the column matches the others' height and the binding
+            // requirement shows on the card without opening the popover.
+            detail: !conf.authoritative
+              ? <div className="cj-detail">{conf.notice || 'see notice'}</div>
+              : eligible
+                ? <div className="cj-detail">All requirements met</div>
+                : (unmet[0] ? <div className="cj-detail">{unmet[0].label} · {unmet[0].remaining} to go</div> : null),
           },
           {
             n: '02', label: 'Notice of Eligibility', key: 'noe', reachable: eligible,
