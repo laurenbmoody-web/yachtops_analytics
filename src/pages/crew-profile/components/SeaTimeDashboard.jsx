@@ -1331,23 +1331,26 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             detail: cocIssued && j.coc?.ref ? <div className="cj-detail">{j.coc.ref}</div> : null,
           },
         ];
+        // Every step is openable so the crew can see each stage; the lock styling
+        // still signals where they actually are in the real-world process.
         const clickStep = (s) => {
           if (s.key === 'elig') { setEligOpen(o => !o); return; }
-          if (!s.reachable) { flash('Finish the previous step first'); return; }
           openJourney(s.key);
         };
+        const doneCount = steps.filter(s => s.state === 'done').length;
         return (
           <div className="cj" style={{ marginTop: 18 }}>
             <div className="cj-head">
               <div>
-                <div className="cj-eyebrow">Certification journey</div>
-                <h3 className="cj-title">{cert.label}{MSF_FORMS[deptId] ? <span className="cj-form"> · {MSF_FORMS[deptId].form}</span> : ''}</h3>
+                <h3 className="cj-title">Certification journey</h3>
+                <div className="cj-ctx">Working toward {cert.short}{MSF_FORMS[deptId] ? ` · Apply with ${MSF_FORMS[deptId].form} (${MSF_FORMS[deptId].notice})` : ''}</div>
               </div>
+              <div className="cj-progress"><b>{doneCount}</b> of 4 complete</div>
             </div>
             <div className="cj-steps">
               {steps.map((s, i) => (
                 <button type="button" className={`cj-step ${s.state}${s.key === 'elig' && eligOpen ? ' open' : ''}`} key={s.n} onClick={() => clickStep(s)}
-                  title={s.key === 'elig' ? 'Show requirements' : s.reachable ? 'Update' : 'Finish the previous step first'}>
+                  title={s.key === 'elig' ? 'Show requirements' : `Update ${s.label}`}>
                   <div className="cj-rail">
                     <span className="cj-node">{s.state === 'done' ? <Icon name="Check" size={14} color="#fff" /> : s.state === 'locked' ? <Icon name="Lock" size={11} /> : s.n}</span>
                     {i < steps.length - 1 && <span className="cj-line" />}
