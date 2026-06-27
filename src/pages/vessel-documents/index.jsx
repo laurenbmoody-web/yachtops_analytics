@@ -53,6 +53,8 @@ export default function VesselDocuments() {
   const [move, setMove] = useState(null);        // { item, cwd, crumbs, folders } move picker
   const [crewSort, setCrewSort] = useState('az'); // crew cert organise: az|za|expiry|tenure
   const [crewDept, setCrewDept] = useState('all'); // crew cert department filter
+  const [crewDocSort, setCrewDocSort] = useState('status'); // member docs: status|az|za|expiry
+  const [crewDocCat, setCrewDocCat] = useState('all'); // member docs: category filter
   const fileRef = useRef(null);
   const seededRef = useRef(null);                // tenant whose empty vault we've already seeded
 
@@ -96,6 +98,8 @@ export default function VesselDocuments() {
   }, [activeTenantId, cwd]);
 
   useEffect(() => { load(); }, [load]);
+  // Reset per-folder filters when you move between folders.
+  useEffect(() => { setCrewDept('all'); setCrewDocCat('all'); }, [cwd]);
 
   const folders = items.filter((i) => i.kind === 'folder');
   const files = items.filter((i) => i.kind === 'file');
@@ -357,6 +361,57 @@ export default function VesselDocuments() {
     </div>
   );
 
+  // ── Crew member's documents: filter by category, sort ─────────────────────
+  const inCrewMember = typeof cwd === 'string' && cwd.startsWith(`${VIRT_CREW}:`);
+  const crewDocCats = inCrewMember
+    ? Array.from(new Map(files.map((f) => [f.cat, f.catLabel])).entries())
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+    : [];
+  const crewDocComparator = (mode) => (a, b) => {
+    const byName = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    const byExp = String(a.expiry_date || '9999').localeCompare(String(b.expiry_date || '9999'));
+    if (mode === 'az') return byName;
+    if (mode === 'za') return -byName;
+    if (mode === 'expiry') {
+      if (!!a.historic !== !!b.historic) return a.historic ? 1 : -1;
+      return byExp || byName;
+    }
+    // status: live → advisory → historic, then soonest expiry
+    const rank = (d) => (d.historic ? 3 : d.statusLevel === 'advisory' ? 2 : 1);
+    return (rank(a) - rank(b)) || byExp || byName;
+  };
+  const crewDocFiles = inCrewMember
+    ? files
+      .filter((f) => crewDocCat === 'all' || f.cat === crewDocCat)
+      .slice()
+      .sort(crewDocComparator(crewDocSort))
+    : [];
+
+  const renderCrewDocBar = () => (
+    <div className="vd-crewbar">
+      <span className="vd-crewbar-count"><Icon name="FileText" size={14} /> {files.length} documents · {crewDocFiles.length} shown</span>
+      <div className="vd-crewbar-controls">
+        <label className="vd-select-wrap">
+          <span>Category</span>
+          <select className="vd-select" value={crewDocCat} onChange={(e) => setCrewDocCat(e.target.value)}>
+            <option value="all">All categories</option>
+            {crewDocCats.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </label>
+        <label className="vd-select-wrap">
+          <span>Sort</span>
+          <select className="vd-select" value={crewDocSort} onChange={(e) => setCrewDocSort(e.target.value)}>
+            <option value="status">Status</option>
+            <option value="az">Name A–Z</option>
+            <option value="za">Name Z–A</option>
+            <option value="expiry">Soonest expiry</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  );
+
   const renderCrewFolder = (f) => {
     const sub = [f.role, f.dept].filter(Boolean).join(' · ');
     const sinceYear = f.since ? new Date(f.since).getFullYear() : null;
@@ -450,6 +505,15 @@ export default function VesselDocuments() {
                   {crewRows.length === 0
                     ? <div className="vd-empty-inline">No crew in this department.</div>
                     : crewRows.map(renderCrewFolder)}
+                </div>
+              </>
+            ) : inCrewMember && items.length > 0 ? (
+              <>
+                {renderCrewDocBar()}
+                <div className="vd-idx">
+                  {crewDocFiles.length === 0
+                    ? <div className="vd-empty-inline">No documents in this category.</div>
+                    : crewDocFiles.map((f, i) => renderFile(f, i + 1))}
                 </div>
               </>
             ) : items.length === 0 ? (

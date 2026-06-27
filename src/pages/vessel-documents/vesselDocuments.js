@@ -9,7 +9,9 @@ import { supabase } from '../../lib/supabaseClient';
 
 export { getExpiryStatus, formatDocDate } from '../crew-profile/utils/crewDocuments';
 import { formatDocDate as fmtDocDate, getExpiryStatus, getDocStatus, groupDocumentVersions, findHistoricDocIds } from '../crew-profile/utils/crewDocuments';
-import { getDocTypeLabel, isAdvisoryDocType } from '../crew-profile/documentTypes';
+import { getDocTypeLabel, isAdvisoryDocType, getDocType, DOC_CATEGORIES } from '../crew-profile/documentTypes';
+
+const CAT_LABEL = Object.fromEntries(DOC_CATEGORIES.map((c) => [c.id, c.label]));
 
 const BUCKET = 'vessel-vault';
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -259,6 +261,7 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
     });
     return docs.map((d) => {
       const label = getDocTypeLabel(d.doc_type) || d.doc_type || 'Document';
+      const cat = getDocType(d.doc_type)?.category || d.category || 'other';
       return {
         id: `virt:crewfile:${d.id}`,
         kind: 'file',
@@ -269,6 +272,8 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
         historic: d.historic,
         statusLevel: d._st.level,
         statusLabel: d._st.label,
+        cat,
+        catLabel: CAT_LABEL[cat] || 'Other',
         mime_type: d.mime_type,
         size_bytes: d.size_bytes || null,
         meta: d.document_number ? `No. ${d.document_number}` : (d.issuing_authority || label),
