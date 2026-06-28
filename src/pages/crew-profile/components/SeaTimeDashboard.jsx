@@ -922,30 +922,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const PathwaySection = () => (
     <>
     <div className="std-card std-pad std-pathway">
-      <div className="stp-head">
-        <div>
-          <div className="stp-dept">
-            {crossDiscipline ? `Working toward ${familyWord}` : cert ? familyPathLabel : 'Logged service'}
-          </div>
-          {/* Logging-only: no target title to anchor the popover to, so keep a
-              light department picker here; with a pathway, dept + goal live in
-              the popover under the “Now working toward” title. */}
-          {!cert && (
-            <div className="stp-controls">
-              <StpSelect variant="goal" label="Department" value={deptId} options={deptOpts} onChange={changeDept} />
-            </div>
-          )}
-          {dualMode && (
-            <div className="stp-dualnote">Dual capacity: each day counts at <b>50%</b> toward this pathway — the same service also accrues at 50% toward the {family === 'DECK' ? 'engine' : 'deck'} ladder (MSN 1858 §5.1).</div>
-          )}
-          <div className="stp-sub">{crossDiscipline ? 'Target chosen manually — not this crew member’s department' : cert ? 'Pathway set from this crew member’s department · tap the title to change' : 'Logged service — for your record'}</div>
-        </div>
-        <div className="stp-links">
-          {cert
-            ? <button className="stp-link rust" type="button" onClick={() => setHeldOpen(true)}>Certificates held{heldCount ? ` (${heldCount})` : ''} →</button>
-            : <button className="stp-link rust" type="button" onClick={startPathway}>Working toward a certificate →</button>}
-        </div>
-      </div>
+      {dualMode && (
+        <div className="stp-dualnote">Dual capacity: each day counts at <b>50%</b> toward this pathway — the same service also accrues at 50% toward the {family === 'DECK' ? 'engine' : 'deck'} ladder (MSN 1858 §5.1).</div>
+      )}
 
       {untaggedCocs > 0 && (
         <div className="stp-untagged">
@@ -1348,6 +1327,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       <div className="std-head">
         <div className="std-sechead"><h3 className="cp-hor-title">SEA&nbsp;TIME<span className="pn">,</span> <em>Tracker</em><span className="pn">.</span></h3></div>
         <div className="std-controls">
+          {cert
+            ? <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => setHeldOpen(true)}><Icon name="Award" size={16} /> Certificates held{heldCount ? ` (${heldCount})` : ''}</button>
+            : <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={startPathway}><Icon name="Award" size={16} /> Work toward a certificate</button>}
           <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={openPrior}><Icon name="History" size={16} /> Prior service</button>
           <button className="std-logbtn" onClick={() => setDrawerOpen(true)}><Icon name="Plus" size={16} /> Log sea time</button>
         </div>
