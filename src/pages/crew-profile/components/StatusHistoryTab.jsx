@@ -390,7 +390,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
               const vmap = {};
               vesselPos.forEach((p) => { if (p.country_code) vmap[String(p.observed_on).slice(0, 10)] = p.country_code; });
               const res = computeResidency({ today: today0(), periods, entries, vesselByDate: vmap, stampedOn: (day) => isStampedOn(stamps, day) });
-              const visa = visaForCountry(res.currentCountry, crewNat);
+              const visa = visaForCountry(res.vesselCountry, crewNat);
               const schPct = Math.min(100, Math.round((res.schengenUsed / 90) * 100));
               const visaInk = { free: '#2E7D52', limited: '#9A6A00', visa: '#B23B3B', unknown: '#6B7280' };
               if (!res.hasData) {
@@ -425,14 +425,14 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                         </div>
                       ))}
                     </div>
-                    <div className="act-res-soon">Counts working days — aboard the vessel or in training. Travel and leave aren't counted yet.</div>
+                    <div className="act-res-soon">Located from the vessel's position aboard and logged travel ashore. Days we can't place aren't counted.</div>
                   </div>
 
                   <div className="act-rescard">
                     <div className="act-res-h"><Icon name="ShieldCheck" size={13} /> Visa — current vessel location</div>
                     {visa ? (
                       <>
-                        <div className="act-visa-region">{visa.region === 'Schengen' ? `${countryName(res.currentCountry)} · Schengen` : visa.region}</div>
+                        <div className="act-visa-region">{visa.region === 'Schengen' ? `${countryName(res.vesselCountry)} · Schengen` : visa.region}</div>
                         <div className="act-visa-line"><i style={{ background: visaInk[visa.level] }} />{visa.text}</div>
                       </>
                     ) : <div className="act-res-soon">Vessel at sea / location unknown — no country to assess.</div>}
