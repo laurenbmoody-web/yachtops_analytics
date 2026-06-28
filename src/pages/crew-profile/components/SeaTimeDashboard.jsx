@@ -994,11 +994,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                         <div className="stp-cfg" role="dialog" aria-label="Change pathway">
                           <div className="stp-cfg-sec">
                             <div className="stp-cfg-lbl">Department</div>
-                            <div className="stp-cfg-chips">
-                              {deptOpts.map(o => (
-                                <button key={o.value} type="button" className={`stp-cfg-chip${o.value === deptId ? ' on' : ''}`} onClick={() => changeDept(o.value)}>{o.label}</button>
-                              ))}
-                            </div>
+                            <StpSelect variant="plain" value={deptId} options={deptOpts} onChange={changeDept} />
                           </div>
                           <div className="stp-cfg-sec">
                             <div className="stp-cfg-lbl">Goal</div>
