@@ -425,6 +425,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                         </div>
                       ))}
                     </div>
+                    <div className="act-res-soon">Counted from the vessel's position on active days, plus training locations. Days signed onto the crew list, travelling or on leave aren't counted.</div>
                   </div>
 
                   <div className="act-rescard">
