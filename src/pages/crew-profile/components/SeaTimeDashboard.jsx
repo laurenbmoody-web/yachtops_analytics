@@ -439,7 +439,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     }
     return out;
   }, [docMet, verifier, docsOnFile]);
-  const { checks, advisories, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective, cert, buckets, requirements }), [entries, vessels, config, signatory, verifier, docMetEffective, cert, buckets, requirements]);
+  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective, cert, buckets }), [entries, vessels, config, signatory, verifier, docMetEffective, cert, buckets]);
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
@@ -1507,22 +1507,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     </div>
                   ))}
                 </div>
-                {cert && advisories.length > 0 && (
-                  <div className="std-adv">
-                    <div className="std-adv-h">How your record maps to {cert.short} <span>· informational — these accrue over time and don’t block your testimonial</span></div>
-                    {advisories.map((a, i) => (
-                      <div className="std-adv-row" key={a.key || i}>
-                        <span className="mk" style={{ color: a.ok ? '#5E8E6F' : (a.ok === null ? '#8B8478' : '#A6712C') }}>
-                          <Icon name={a.ok ? 'Check' : (a.ok === null ? 'Info' : 'Clock')} size={13} />
-                        </span>
-                        <div className="std-adv-main">
-                          <div className="std-adv-top"><span className="al">{a.label}</span><span className="ad">{a.detail}</span></div>
-                          {typeof a.pct === 'number' && <div className="std-adv-bar"><i style={{ width: `${a.pct}%`, background: a.ok ? '#5E8E6F' : '#C9A24A' }} /></div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 

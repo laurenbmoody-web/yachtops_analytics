@@ -197,25 +197,22 @@ test('missing required supporting doc blocks generation', () => {
   assert.ok(r.checks.some(c => !c.ok && /Supporting documents/.test(c.label)));
 });
 
-// --- validation is pathway-aware when a target cert is supplied --------------
-test('cert-aware checks gate on the route, surface advisories, never block on accrual', () => {
+// --- validation checks are pathway-relevant, and only what's in the log ------
+test('cert-aware gate names the route threshold; accrual never blocks attestation', () => {
   // OOW <3000GT: metre-gated (≥15m). Clean service on the 68m v3.
   const clean = [
     { id: 'a', vesselId: 'v3', type: 'watchkeeping', watchHours: 8, days: 24 },
     { id: 'b', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 14 }
   ];
   const cert = CERTIFICATES.OOW_YACHT_3000;
-  const buckets = computeBuckets(clean, V, DEFAULT_CONFIG);
-  const requirements = buildRequirementBars(buckets, {}, cert, 40);
   const r = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'pya',
-    docMet: { passport: true, srb: true }, cert, buckets, requirements });
-  // Integrity passes → can generate even though the 365-day route is far from met.
+    docMet: { passport: true, srb: true }, cert });
+  // Integrity passes → can attest even though the 365-day route is far from met.
   assert.equal(r.canGenerate, true);
   // The size gate names the route's own threshold, not a flat default.
   assert.ok(r.checks.some(c => c.ok && /Vessel size gate/.test(c.label)));
-  // Pathway progress rides as advisory and does NOT count toward the hard gate.
-  assert.ok(r.advisories.length > 0);
-  assert.ok(r.advisories.some(a => a.advisory && a.pct != null));
+  // No pathway-progress bars in the attestation gate — that lives upstream.
+  assert.equal(r.advisories, undefined);
 });
 
 test('a tonnage-gated route fails service on an under-GT vessel', () => {
@@ -228,15 +225,28 @@ test('a tonnage-gated route fails service on an under-GT vessel', () => {
   assert.ok(r.checks.some(c => !c.ok && /tonnage gate/.test(c.label)));
 });
 
-test('an engine route surfaces the kW gate as guidance, not a hard size check', () => {
+test('an engine route attests the kW gate (master-confirmed), no hard size check', () => {
   const cert = CERTIFICATES.EOOW_SV_Y; // minPowerKW gate
   const entries = [{ id: 'a', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 30 }];
   const r = runChecks({ entries, vessels: V, signatory: 'master', verifier: 'pya',
     docMet: { passport: true, srb: true }, cert });
-  // No hard size/tonnage check for engine — power isn't held per vessel.
+  // No metre/tonnage gate for engine — power isn't held per vessel.
   assert.ok(!r.checks.some(c => /size gate|tonnage gate/.test(c.label)));
-  // The power requirement rides as an advisory instead.
-  assert.ok(r.advisories.some(a => a.key === 'power' && /kW/.test(a.label)));
+  // The power requirement appears as a master-attested (passing) check instead.
+  assert.ok(r.checks.some(c => c.ok && /Propulsion power/.test(c.label) && /kW/.test(c.label)));
+});
+
+test('irrelevant checks are dropped — no standby/watchkeeping rows when none logged', () => {
+  // A pure seagoing log on a qualifying deck route: no watchkeeping, no standby.
+  const cert = CERTIFICATES.OOW_YACHT_3000;
+  const entries = [{ id: 'a', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 30 }];
+  const r = runChecks({ entries, vessels: V, signatory: 'master', verifier: 'pya',
+    docMet: { passport: true, srb: true }, cert });
+  assert.ok(!r.checks.some(c => /Standby within limit/.test(c.label)));
+  assert.ok(!r.checks.some(c => /Watchkeeping 4-hour/.test(c.label)));
+  // …but the route's vessel gate and the universal record checks remain.
+  assert.ok(r.checks.some(c => /Vessel size gate/.test(c.label)));
+  assert.ok(r.checks.some(c => /Vessel records complete/.test(c.label)));
 });
 
 // --- a new verifier is addable via config object ONLY ------------------------
