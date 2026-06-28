@@ -91,7 +91,17 @@ export const computeResidency = ({ today, periods, entries, vesselByDate, stampe
   }
 
   // Immigration (Schengen): a day counts only when NOT signed onto the crew list.
-  const schengenUsed = perDay.slice(0, 180).filter((d) => !d.aboard && d.country && SCHENGEN.has(d.country)).length;
+  // perDay runs today → back, so the last counted entry is the oldest in-window
+  // day — it ages out of the rolling 180 on its date + 180, easing the tally.
+  const countedDays = perDay.slice(0, 180).filter((d) => !d.aboard && d.country && SCHENGEN.has(d.country));
+  const schengenUsed = countedDays.length;
+  let schengenEasesOn = null;
+  if (countedDays.length) {
+    const [yy, mm, dd] = countedDays[countedDays.length - 1].iso.split('-').map(Number);
+    const roll = new Date(yy, mm - 1, dd);
+    roll.setDate(roll.getDate() + 180);
+    schengenEasesOn = dateIso(roll);
+  }
 
   // Days by country = physical presence (for tax tests like the UK SRT), so it
   // counts every day the body was in a country — signed-on days included. Only
@@ -107,6 +117,7 @@ export const computeResidency = ({ today, periods, entries, vesselByDate, stampe
   return {
     schengenUsed,
     schengenRemaining: Math.max(0, 90 - schengenUsed),
+    schengenEasesOn,
     byCountry,
     currentCountry: current,
     hasData: byCountry.length > 0,

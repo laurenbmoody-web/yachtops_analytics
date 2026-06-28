@@ -410,9 +410,10 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                       <span className="act-res-num">{res.schengenUsed}<span className="act-res-den"> / 90</span></span>
                       <span>days used · {res.schengenUsed > 90
                         ? <b style={{ color: '#B23B3B' }}>{res.schengenUsed - 90} over limit</b>
-                        : <b style={{ color: '#2E7D52' }}>{res.schengenRemaining} left</b>}</span>
+                        : <b style={{ color: '#2E7D52' }}>{res.schengenRemaining} left today</b>}</span>
                     </div>
                     <div className="act-res-gauge"><i style={{ width: animReady ? `${schPct}%` : 0, background: res.schengenUsed >= 90 ? '#B23B3B' : (schPct >= 80 ? '#C65A1A' : '#C65A1A') }} /></div>
+                    <div className="act-res-soon">Rolling window, so it eases over time{res.schengenEasesOn ? ` — the earliest counted day ages out on ${fmtDay(`${res.schengenEasesOn}T00:00:00`)}` : ''}.</div>
                   </div>
 
                   <div className="act-rescard">
