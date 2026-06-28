@@ -1537,7 +1537,7 @@ const canEdit = (() => {
               value={formData?.placeOfBirth}
               onChange={(e) => handleInputChange('placeOfBirth', e?.target?.value)}
               disabled={!isEditing}
-              placeholder="e.g. Cape Town, South Africa"
+              placeholder={isEditing ? 'e.g. Cape Town, South Africa' : '—'}
             />
           </Field>
           <Field label="Nationality">
@@ -1855,7 +1855,7 @@ const canEdit = (() => {
             <Input type="email" value={formData?.[`${prefix}Email`]} onChange={(e) => handleInputChange(`${prefix}Email`, e?.target?.value)} disabled={dis} placeholder="—" />
           </Field>
           <Field label="Country / Time Zone" hint={isEditing && !disabled ? "So crew know when it's a sensible hour to call" : undefined}>
-            <Input value={formData?.[`${prefix}Country`]} onChange={(e) => handleInputChange(`${prefix}Country`, e?.target?.value)} disabled={dis} placeholder="e.g. UK (GMT/BST)" />
+            <Input value={formData?.[`${prefix}Country`]} onChange={(e) => handleInputChange(`${prefix}Country`, e?.target?.value)} disabled={dis} placeholder={dis ? '—' : 'e.g. UK (GMT/BST)'} />
           </Field>
           <Field label="Preferred Contact Method">
             {methodField(`${prefix}PreferredMethod`, disabled)}
@@ -2430,7 +2430,7 @@ const canEdit = (() => {
                     value={formData?.dietaryNotes}
                     onChange={(e) => handleInputChange('dietaryNotes', e?.target?.value)}
                     disabled={!isEditing}
-                    placeholder="e.g. intolerances, textures to avoid"
+                    placeholder={isEditing ? 'e.g. intolerances, textures to avoid' : '—'}
                   />
                 </Field>
               </div>
@@ -2471,7 +2471,7 @@ const canEdit = (() => {
                 value={formData?.breakfast}
                 onChange={(e) => handleInputChange('breakfast', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. Grab-and-go, full cooked"
+                placeholder={isEditing ? 'e.g. Grab-and-go, full cooked' : '—'}
               />
             </Field>
             <Field label="Snacks">
@@ -2479,7 +2479,7 @@ const canEdit = (() => {
                 value={formData?.favouriteSnacks}
                 onChange={(e) => handleInputChange('favouriteSnacks', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. Salted nuts, dark chocolate"
+                placeholder={isEditing ? 'e.g. Salted nuts, dark chocolate' : '—'}
               />
             </Field>
           </div>
@@ -2496,7 +2496,7 @@ const canEdit = (() => {
                 value={formData?.coffeeOrder}
                 onChange={(e) => handleInputChange('coffeeOrder', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. Flat white, oat, no sugar"
+                placeholder={isEditing ? 'e.g. Flat white, oat, no sugar' : '—'}
               />
             </Field>
             <Field label="Tea">
@@ -2504,7 +2504,7 @@ const canEdit = (() => {
                 value={formData?.tea}
                 onChange={(e) => handleInputChange('tea', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. Builders, splash of milk"
+                placeholder={isEditing ? 'e.g. Builders, splash of milk' : '—'}
               />
             </Field>
           </div>
@@ -2538,7 +2538,7 @@ const canEdit = (() => {
                 value={formData?.tasteNotes}
                 onChange={(e) => handleInputChange('tasteNotes', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. Loves blue cheese · no pineapple on pizza"
+                placeholder={isEditing ? 'e.g. Loves blue cheese · no pineapple on pizza' : '—'}
               />
             </Field>
           </div>
@@ -2570,7 +2570,7 @@ const canEdit = (() => {
                 value={formData?.cakePreference}
                 onChange={(e) => handleInputChange('cakePreference', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. Chocolate, vanilla sponge"
+                placeholder={isEditing ? 'e.g. Chocolate, vanilla sponge' : '—'}
               />
             </Field>
             <Field label="Comfort food / pick-me-up" full>
@@ -2578,7 +2578,7 @@ const canEdit = (() => {
                 value={formData?.comfortFood}
                 onChange={(e) => handleInputChange('comfortFood', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. Mac & cheese after a rough watch"
+                placeholder={isEditing ? 'e.g. Mac & cheese after a rough watch' : '—'}
               />
             </Field>
           </div>
