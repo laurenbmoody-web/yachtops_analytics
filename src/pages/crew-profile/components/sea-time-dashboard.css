@@ -383,10 +383,14 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-cfg{position:absolute;top:calc(100% + 10px);left:0;z-index:50;width:288px;max-width:84vw;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);padding:14px;animation:stdIn .14s ease both;}
 .stp-cfg-sec{margin-bottom:12px;}
 .stp-cfg-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
-.stp-cfg-chips{display:flex;flex-wrap:wrap;gap:6px;}
-.stp-cfg-chip{font-family:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--panel);border:1px solid var(--hair-2);border-radius:999px;padding:5px 13px;cursor:pointer;transition:all .12s;}
-.stp-cfg-chip:hover{border-color:var(--rust);color:var(--rust);}
-.stp-cfg-chip.on{background:var(--rust);border-color:var(--rust);color:#fff;}
+/* Department: a clean single-line dropdown (no pills) inside the popover. */
+.stp-cfg .stp-dd.plain{display:block;width:100%;}
+.stp-cfg .stp-dd.plain .stp-dd-btn{width:100%;justify-content:space-between;background:var(--panel);border:1px solid var(--hair-2);border-radius:9px;padding:9px 12px;}
+.stp-cfg .stp-dd.plain .stp-dd-btn .lbl{font-size:13px;font-weight:600;color:var(--ink);}
+.stp-cfg .stp-dd.plain .stp-dd-btn .chev{color:var(--muted);}
+.stp-cfg .stp-dd.plain .stp-dd-btn:hover{border-color:var(--rust);}
+.stp-cfg .stp-dd.plain .stp-dd-btn:hover .lbl{color:var(--rust);}
+.stp-cfg .stp-dd.plain .stp-dd-menu{min-width:0;width:100%;left:0;right:0;}
 .stp-cfg-list{display:flex;flex-direction:column;gap:1px;max-height:248px;overflow-y:auto;}
 .stp-cfg-opt{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:inherit;}
 .stp-cfg-opt:hover{background:var(--soft,#FAFAF8);}
