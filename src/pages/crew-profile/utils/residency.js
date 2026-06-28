@@ -13,6 +13,7 @@
 
 import { getStatusForDay } from '../../../utils/crewStatus';
 import { entryForDay } from './crewCalendar';
+import { resolveCountry } from './airports';
 
 export const SCHENGEN = new Set([
   'AT', 'BE', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IS', 'IT', 'LV',
@@ -77,6 +78,18 @@ export const visaForCountry = (countryIso, natIsos) => {
 // stampedOn(day): true while the crew member is signed onto the vessel crew list
 //   — those days pause the Schengen/visa clock (but still count for tax presence).
 export const computeResidency = ({ today, periods, entries, vesselByDate, stampedOn = () => false, windowDays = 365 }) => {
+  // Travel legs, oldest first — each is a flight/ferry into a country. Ashore
+  // days take the country of the last inbound leg (you're there until you leave).
+  const legs = (entries || [])
+    .filter((e) => e.kind === 'travelling')
+    .map((e) => ({ sd: String(e.start_date).slice(0, 10), to: resolveCountry(e.to_location), from: resolveCountry(e.from_location) }))
+    .sort((a, b) => a.sd.localeCompare(b.sd));
+  const arrivalAsOf = (iso) => {
+    let c = null;
+    for (const lg of legs) { if (lg.sd <= iso) { if (lg.to) c = lg.to; } else break; }
+    return c;
+  };
+
   const perDay = [];
   for (let i = 0; i < windowDays; i++) {
     const day = new Date(today);
@@ -85,8 +98,21 @@ export const computeResidency = ({ today, periods, entries, vesselByDate, stampe
     const entry = entryForDay(entries, day);
     const status = entry ? entry.kind : getStatusForDay(periods, day);
     let country = null;
-    if (status === 'active') country = vesselByDate[iso] || null;
-    else if (status === 'training_leave') country = normIso(entry?.location_country);
+    if (status === 'active') {
+      // Aboard → the vessel's AIS position (handles sea crossings between countries).
+      country = vesselByDate[iso] || null;
+    } else if (status === 'travelling' && entry) {
+      // A travel day counts as the Schengen side if either end is Schengen
+      // (entry and exit days both count as presence), else the arrival.
+      const to = resolveCountry(entry.to_location);
+      const from = resolveCountry(entry.from_location);
+      country = (to && SCHENGEN.has(to)) ? to : (from && SCHENGEN.has(from)) ? from : (to || from || arrivalAsOf(iso));
+    } else if (status === 'training_leave') {
+      country = normIso(entry?.location_country) || arrivalAsOf(iso);
+    } else {
+      // Leave / other off-vessel day → wherever they last flew into.
+      country = arrivalAsOf(iso);
+    }
     perDay.push({ iso, status, country, aboard: stampedOn(day) });
   }
 
@@ -110,16 +136,21 @@ export const computeResidency = ({ today, periods, entries, vesselByDate, stampe
   perDay.forEach((d) => { if (d.country) tally[d.country] = (tally[d.country] || 0) + 1; });
   const byCountry = Object.entries(tally).map(([code, days]) => ({ code, days })).sort((a, b) => b.days - a.days);
 
-  // Latest known vessel country (today, else most recent in window).
-  let current = perDay[0]?.country || null;
-  if (!current) { const hit = perDay.find((d) => d.country); current = hit ? hit.country : null; }
+  // Vessel's current country (today, else most recent position) — for the visa
+  // card, which is about where the boat is, not where the crew member is.
+  const todayKey = dateIso(today);
+  let vesselCountry = vesselByDate[todayKey] || null;
+  if (!vesselCountry) {
+    const ks = Object.keys(vesselByDate).filter((k) => k <= todayKey).sort();
+    vesselCountry = ks.length ? vesselByDate[ks[ks.length - 1]] : null;
+  }
 
   return {
     schengenUsed,
     schengenRemaining: Math.max(0, 90 - schengenUsed),
     schengenEasesOn,
     byCountry,
-    currentCountry: current,
+    vesselCountry,
     hasData: byCountry.length > 0,
   };
 };
@@ -129,5 +160,9 @@ const ISO_NAME = {
   GR: 'Greece', FR: 'France', IT: 'Italy', ES: 'Spain', US: 'United States',
   GB: 'United Kingdom', HR: 'Croatia', ME: 'Montenegro', TR: 'Türkiye',
   MC: 'Monaco', PT: 'Portugal', NL: 'Netherlands', DE: 'Germany', MT: 'Malta',
+  IE: 'Ireland', CY: 'Cyprus', GI: 'Gibraltar', CH: 'Switzerland', AT: 'Austria',
+  BE: 'Belgium', DK: 'Denmark', NO: 'Norway', SE: 'Sweden', FI: 'Finland',
+  AE: 'United Arab Emirates', QA: 'Qatar', BS: 'Bahamas', SX: 'Sint Maarten',
+  AG: 'Antigua & Barbuda', LC: 'St Lucia', BB: 'Barbados',
 };
 export const countryName = (code) => ISO_NAME[code] || code;
