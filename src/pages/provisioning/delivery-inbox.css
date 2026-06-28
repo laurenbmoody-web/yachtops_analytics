@@ -45,9 +45,11 @@
 }
 
 .di-page {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 32px 32px 96px;
+  /* Full-bleed to match the Suppliers / Orders pages (was capped at
+     1240px and centred). 48px side padding keeps content off the edge. */
+  max-width: none;
+  margin: 0;
+  padding: 32px 48px 96px;
 }
 
 /* ── Back link + editorial header ──────────────────────────── */
