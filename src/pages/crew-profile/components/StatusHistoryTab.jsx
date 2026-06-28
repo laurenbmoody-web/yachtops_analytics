@@ -425,7 +425,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                         </div>
                       ))}
                     </div>
-                    <div className="act-res-soon">Days physically spent in each country, for tax residency. Travel and leave days aren't counted yet.</div>
+                    <div className="act-res-soon">Counts working days — aboard the vessel or in training. Travel and leave aren't counted yet.</div>
                   </div>
 
                   <div className="act-rescard">
