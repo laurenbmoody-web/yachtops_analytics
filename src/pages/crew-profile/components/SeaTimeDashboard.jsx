@@ -439,7 +439,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     }
     return out;
   }, [docMet, verifier, docsOnFile]);
-  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective }), [entries, vessels, signatory, verifier, docMetEffective]);
+  const { checks, advisories, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective, cert, buckets, requirements }), [entries, vessels, config, signatory, verifier, docMetEffective, cert, buckets, requirements]);
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
@@ -1497,7 +1497,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <span className="std-flabel">Validate</span>
                   <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{passed} of {total} cleared</span>
                 </div>
-                <div className="std-ftitle">Every rule must clear</div>
+                <div className="std-ftitle">Every rule must clear{cert ? <span className="std-fagainst"> · checked against {cert.short}</span> : ''}</div>
                 <div className="std-fprog"><i className="std-grow" style={{ display: 'block', height: '100%', width: `${readinessPct}%`, background: canGenerate ? '#5E8E6F' : '#C65A1A', borderRadius: 999 }} /></div>
                 <div className="std-chks">
                   {checks.map((c, i) => (
@@ -1507,6 +1507,22 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     </div>
                   ))}
                 </div>
+                {cert && advisories.length > 0 && (
+                  <div className="std-adv">
+                    <div className="std-adv-h">How your record maps to {cert.short} <span>· informational — these accrue over time and don’t block your testimonial</span></div>
+                    {advisories.map((a, i) => (
+                      <div className="std-adv-row" key={a.key || i}>
+                        <span className="mk" style={{ color: a.ok ? '#5E8E6F' : (a.ok === null ? '#8B8478' : '#A6712C') }}>
+                          <Icon name={a.ok ? 'Check' : (a.ok === null ? 'Info' : 'Clock')} size={13} />
+                        </span>
+                        <div className="std-adv-main">
+                          <div className="std-adv-top"><span className="al">{a.label}</span><span className="ad">{a.detail}</span></div>
+                          {typeof a.pct === 'number' && <div className="std-adv-bar"><i style={{ width: `${a.pct}%`, background: a.ok ? '#5E8E6F' : '#C9A24A' }} /></div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

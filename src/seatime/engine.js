@@ -292,8 +292,26 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
   return bars;
 };
 
+// The qualifying-vessel gate for a target certificate. Each yacht route gates
+// service differently — deck on registered length (or GT for the unlimited
+// rungs), engine on propulsion power — so the validation must read the gate off
+// the cert rather than hard-code "≥15m". Returns null when the route sets none.
+const vesselGateFor = (cert) => {
+  const r = cert?.requires || {};
+  if (r.minVesselMetres) return { kind: 'metres', min: r.minVesselMetres, unit: 'm',  label: `Vessel size gate (≥${r.minVesselMetres}m)` };
+  if (r.minGT)           return { kind: 'gt',     min: r.minGT,           unit: 'GT', label: `Vessel tonnage gate (≥${r.minGT}GT)` };
+  if (r.minPowerKW)      return { kind: 'kw',     min: r.minPowerKW,      unit: 'kW', label: `Propulsion power (≥${r.minPowerKW}kW)` };
+  return null;
+};
+
 // ── Validation gate — generation BLOCKED unless every rule passes ───────────
 /**
+ * Pathway-aware validation of the exported sea-service record. The hard `checks`
+ * gate generation (the record must be accurate and verifiable); the `advisories`
+ * map the recorded service onto the TARGET certificate's thresholds but never
+ * block — the testimonial certifies service done to date, which the crew accrue
+ * toward the CoC over time. Pass `cert` (from CERTIFICATES) to gate against the
+ * real route; omit it for the generic ≥15m deck default.
  * @param {Object} p
  * @param {Array}  p.entries
  * @param {Object} p.vessels
@@ -301,31 +319,65 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
  * @param {'master'|'self'} p.signatory
  * @param {string} p.verifier   verifier id
  * @param {Object} p.docMet     map docId -> boolean
- * @returns {{ checks:Array, canGenerate:boolean, passed:number, total:number, readinessPct:number }}
+ * @param {Object} [p.cert]     target certificate (CERTIFICATES[id])
+ * @param {Object} [p.buckets]  precomputed buckets (recomputed if absent)
+ * @param {Array}  [p.requirements] requirement bars (buildRequirementBars) for advisories
+ * @returns {{ checks:Array, advisories:Array, canGenerate:boolean, passed:number, total:number, readinessPct:number }}
  */
-export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory, verifier, docMet = {} }) => {
+export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory, verifier, docMet = {}, cert = null, buckets = null, requirements = null }) => {
   const live = entries.filter(e => !e.excluded);
   const checks = [];
+  const advisories = [];
+  const b = buckets || computeBuckets(entries, vessels, config);
+  const isEngine = cert?.family === 'ENGINE';
 
-  // 1) Watchkeeping 4-hour rule.
+  // 1) Watchkeeping 4-hour rule — a logging-integrity rule that holds on any
+  //    route: a day tagged watchkeeping must record ≥4h bridge watch
+  //    (MSN 1858/1904 §5). Passes trivially when no watchkeeping is logged.
   const badWatch = live.filter(e => e.type === 'watchkeeping' && Number(e.watchHours) < config.watchMinHours);
   checks.push(badWatch.length
     ? { ok: false, label: 'Watchkeeping 4-hour rule', detail: `${badWatch.length} entry tagged watchkeeping with under ${config.watchMinHours}h watch — re-tag or correct before generating.` }
     : { ok: true, label: 'Watchkeeping 4-hour rule', detail: `Every watchkeeping day records ≥${config.watchMinHours}h bridge watch.` });
 
-  // 2) Vessel size gate (≥ minLengthM).
-  const badSize = live.filter(e => e.type === 'seagoing' && !vessels[e.vesselId]?.over15);
-  checks.push(badSize.length
-    ? { ok: false, label: `Vessel size gate (≥${config.minLengthM}m)`, detail: `Seagoing service claimed on a vessel under ${config.minLengthM}m — exclude it or change the pathway.` }
-    : { ok: true, label: `Vessel size gate (≥${config.minLengthM}m)`, detail: `All qualifying seagoing service is on vessels ≥${config.minLengthM}m.` });
+  // 2) Qualifying-vessel gate — read off the TARGET certificate, not a flat
+  //    ≥15m. Deck routes gate seagoing/watchkeeping on registered length (or GT
+  //    for the unlimited rungs); engine routes gate on propulsion power, which
+  //    Cargo doesn't hold per vessel, so that's surfaced as guidance below
+  //    rather than a hard fail. With no cert we keep the legacy ≥15m default.
+  const gate = vesselGateFor(cert);
+  if (!cert) {
+    const badSize = live.filter(e => e.type === 'seagoing' && !vessels[e.vesselId]?.over15);
+    checks.push(badSize.length
+      ? { ok: false, label: `Vessel size gate (≥${config.minLengthM}m)`, detail: `Seagoing service claimed on a vessel under ${config.minLengthM}m — exclude it or change the pathway.` }
+      : { ok: true, label: `Vessel size gate (≥${config.minLengthM}m)`, detail: `All qualifying seagoing service is on vessels ≥${config.minLengthM}m.` });
+  } else if (gate && (gate.kind === 'metres' || gate.kind === 'gt')) {
+    const qualifying = live.filter(e => e.type === 'seagoing' || e.type === 'watchkeeping');
+    const bad = qualifying.filter(e => {
+      const v = vessels[e.vesselId];
+      if (!v) return false; // missing record caught by check 4
+      if (gate.kind === 'metres') return gate.min === 15 ? !v.over15 : (v.lengthM != null && v.lengthM < gate.min);
+      return v.gt != null && v.gt < gate.min; // gt
+    });
+    const badDays = bad.reduce((s, e) => s + (e.days || 0), 0);
+    checks.push(bad.length
+      ? { ok: false, label: gate.label, detail: `${badDays} day(s) of qualifying service are on a vessel under ${gate.min}${gate.unit} — ${cert.short} can't count them. Exclude the period or change the goal.` }
+      : { ok: true, label: gate.label, detail: `All qualifying service for ${cert.short} is on vessels ≥${gate.min}${gate.unit}.` });
+  } else if (gate && gate.kind === 'kw') {
+    // Propulsion power isn't held per vessel in Cargo — the signing master
+    // attests it on the testimonial, so this rides as guidance, not a hard gate.
+    advisories.push({ ok: null, advisory: true, key: 'power', label: gate.label,
+      detail: `${cert.short} requires ≥${gate.min}kW propulsion — the master confirms this on the signed testimonial.` });
+  }
+  // (a route may set no vessel gate at all — e.g. Chief Mate concurrent with OOW.)
 
   // 3) Standby within limit — standby may not exceed actual seagoing service.
-  const b = computeBuckets(entries, vessels, config);
+  const stbyRef = isEngine ? 'the MCA standby rule' : 'MSN 1858 §5.2';
   checks.push(b.standbyRaw > b.actualSeagoing
-    ? { ok: false, label: 'Standby within limit', detail: `Standby (${b.standbyRaw}d) exceeds actual seagoing service (${b.actualSeagoing}d). MCA caps standby at your seagoing total (MSN 1858 §5.2) — exclude the excess.` }
-    : { ok: true, label: 'Standby within limit', detail: `${b.standbyRaw}d standby ≤ ${b.actualSeagoing}d actual seagoing — within limit (MSN 1858 §5.2).` });
+    ? { ok: false, label: 'Standby within limit', detail: `Standby (${b.standbyRaw}d) exceeds actual seagoing service (${b.actualSeagoing}d). The MCA caps standby at your seagoing total (${stbyRef}) — exclude the excess.` }
+    : { ok: true, label: 'Standby within limit', detail: `${b.standbyRaw}d standby ≤ ${b.actualSeagoing}d actual seagoing — within limit (${stbyRef}).` });
 
-  // 4) Vessel records complete (GT + registered length present).
+  // 4) Vessel records complete (GT + registered length present — both print on
+  //    the testimonial and drive the tonnage/size gates).
   const usedVessels = [...new Set(live.map(e => e.vesselId))].map(id => vessels[id]);
   const incompleteVessel = usedVessels.find(v => !v || v.gt == null || v.lengthM == null);
   checks.push(incompleteVessel
@@ -348,8 +400,24 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
     ? { ok: false, label: 'Supporting documents', detail: `${missing.length} required document(s) outstanding for ${VERIFIER_PROFILES[verifier]?.short}.` }
     : { ok: true, label: 'Supporting documents', detail: `All ${VERIFIER_PROFILES[verifier]?.short} supporting documents attached.` });
 
+  // Advisory — how the recorded service maps to the target route's thresholds.
+  // These reflect the pathway but DON'T gate generation: the crew export the
+  // testimonial to certify service to date and accrue toward the CoC over time.
+  if (cert && Array.isArray(requirements)) {
+    for (const bar of requirements) {
+      if (bar.key === 'none') continue;
+      const status = bar.met
+        ? 'Requirement met'
+        : `${bar.current} of ${bar.required} day(s)${bar.remaining ? ` · ${bar.remaining} to go` : ''}`;
+      const note = bar.advisory
+        ? ' · guidance, not a hard gate'
+        : (bar.provisional ? ' · figures provisional pending notice confirmation' : '');
+      advisories.push({ ok: bar.met, advisory: true, key: bar.key, label: bar.label, pct: bar.pct, detail: `${status}${note}` });
+    }
+  }
+
   const passed = checks.filter(c => c.ok).length;
-  return { checks, canGenerate: checks.every(c => c.ok), passed, total: checks.length, readinessPct: Math.round((passed / checks.length) * 100) };
+  return { checks, advisories, canGenerate: checks.every(c => c.ok), passed, total: checks.length, readinessPct: Math.round((passed / checks.length) * 100) };
 };
 
 // ── Tamper-evident hash (FNV-1a from the mock) ──────────────────────────────

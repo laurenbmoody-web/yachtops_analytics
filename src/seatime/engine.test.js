@@ -197,6 +197,48 @@ test('missing required supporting doc blocks generation', () => {
   assert.ok(r.checks.some(c => !c.ok && /Supporting documents/.test(c.label)));
 });
 
+// --- validation is pathway-aware when a target cert is supplied --------------
+test('cert-aware checks gate on the route, surface advisories, never block on accrual', () => {
+  // OOW <3000GT: metre-gated (≥15m). Clean service on the 68m v3.
+  const clean = [
+    { id: 'a', vesselId: 'v3', type: 'watchkeeping', watchHours: 8, days: 24 },
+    { id: 'b', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 14 }
+  ];
+  const cert = CERTIFICATES.OOW_YACHT_3000;
+  const buckets = computeBuckets(clean, V, DEFAULT_CONFIG);
+  const requirements = buildRequirementBars(buckets, {}, cert, 40);
+  const r = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'pya',
+    docMet: { passport: true, srb: true }, cert, buckets, requirements });
+  // Integrity passes → can generate even though the 365-day route is far from met.
+  assert.equal(r.canGenerate, true);
+  // The size gate names the route's own threshold, not a flat default.
+  assert.ok(r.checks.some(c => c.ok && /Vessel size gate/.test(c.label)));
+  // Pathway progress rides as advisory and does NOT count toward the hard gate.
+  assert.ok(r.advisories.length > 0);
+  assert.ok(r.advisories.some(a => a.advisory && a.pct != null));
+});
+
+test('a tonnage-gated route fails service on an under-GT vessel', () => {
+  // Chief Mate Unlimited gates on ≥500GT; v1 is 380GT.
+  const cert = CERTIFICATES.CHIEF_MATE_UNLIMITED;
+  const entries = [{ id: 'a', vesselId: 'v1', type: 'seagoing', watchHours: 0, days: 30 }];
+  const r = runChecks({ entries, vessels: V, signatory: 'master', verifier: 'pya',
+    docMet: { passport: true, srb: true }, cert });
+  assert.equal(r.canGenerate, false);
+  assert.ok(r.checks.some(c => !c.ok && /tonnage gate/.test(c.label)));
+});
+
+test('an engine route surfaces the kW gate as guidance, not a hard size check', () => {
+  const cert = CERTIFICATES.EOOW_SV_Y; // minPowerKW gate
+  const entries = [{ id: 'a', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 30 }];
+  const r = runChecks({ entries, vessels: V, signatory: 'master', verifier: 'pya',
+    docMet: { passport: true, srb: true }, cert });
+  // No hard size/tonnage check for engine — power isn't held per vessel.
+  assert.ok(!r.checks.some(c => /size gate|tonnage gate/.test(c.label)));
+  // The power requirement rides as an advisory instead.
+  assert.ok(r.advisories.some(a => a.key === 'power' && /kW/.test(a.label)));
+});
+
 // --- a new verifier is addable via config object ONLY ------------------------
 test('verifier list is data; profiles all expose the same shape', () => {
   const ids = getVerifierProfiles().map(v => v.id);

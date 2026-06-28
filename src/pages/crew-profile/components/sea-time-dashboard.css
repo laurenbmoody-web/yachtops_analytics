@@ -100,6 +100,9 @@
 .std-fix{background:#fff;color:var(--rust);border:1px solid #EBD3C2;border-radius:8px;padding:6px 11px;font-weight:600;font-size:11.5px;cursor:pointer;margin-top:6px;}
 .std-fix:hover{background:#FAECE7;}
 .std-foot{padding:14px 0 2px;font-size:12px;color:var(--muted);}
+/* value/subtitle caption — was undefined, so it inherited the default size/colour
+   and read out of line with the rest of the UI (e.g. "7 days in 2026"). */
+.std-vs{font-family:inherit;font-size:12px;line-height:1.5;color:var(--muted);}
 .std-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px;}
 
 /* ── testimonial: one cohesive surface, navy header band (Option A) ── */
@@ -143,6 +146,25 @@
 .std-chk .el{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.3;}
 .std-chk.bad .el{color:var(--clay);}
 .std-chk .ed{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.45;}
+
+/* "checked against [cert]" suffix on the validate title — a quiet, non-serif
+   accent so the route is named without competing with the serif heading. */
+.std-fagainst{font-family:'Inter',system-ui,sans-serif;font-size:12px;font-weight:600;color:var(--rust);letter-spacing:0;}
+
+/* Pathway-progress advisories — how the record maps to the target CoC. These
+   are informational (don't gate generation), so they read as a soft, indented
+   sub-cluster under the hard checks, not as pass/fail rows. */
+.std-adv{margin-top:14px;padding-top:12px;border-top:1px solid var(--hair);}
+.std-adv-h{font-size:11px;font-weight:700;color:var(--ink);margin-bottom:8px;}
+.std-adv-h span{font-weight:500;color:var(--muted);}
+.std-adv-row{display:flex;gap:9px;align-items:flex-start;padding:7px 0;}
+.std-adv-row .mk{flex:none;margin-top:1px;width:14px;display:inline-flex;justify-content:center;}
+.std-adv-main{flex:1;min-width:0;}
+.std-adv-top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;}
+.std-adv-top .al{font-size:12px;font-weight:600;color:var(--ink);}
+.std-adv-top .ad{font-size:11px;color:var(--muted);}
+.std-adv-bar{height:3px;border-radius:999px;background:#EFEDE7;overflow:hidden;margin-top:5px;max-width:300px;}
+.std-adv-bar i{display:block;height:100%;border-radius:999px;}
 
 /* documents — hairline rows + ring toggle */
 .std-docs{display:flex;flex-direction:column;margin-top:6px;}
