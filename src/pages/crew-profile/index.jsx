@@ -1726,7 +1726,7 @@ const canEdit = (() => {
               value={formData?.emergencyMedications}
               onChange={(e) => handleInputChange('emergencyMedications', e?.target?.value)}
               disabled={!isEditing}
-              placeholder="e.g. Salbutamol inhaler (asthma); EpiPen — nut allergy"
+              placeholder={isEditing ? 'e.g. Salbutamol inhaler (asthma); EpiPen — nut allergy' : '—'}
             />
           </Field>
           <Field label="Doctor / GP Name">
