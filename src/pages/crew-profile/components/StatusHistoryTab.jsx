@@ -430,14 +430,14 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                   </div>
 
                   <div className="act-rescard">
-                    <div className="act-res-h"><Icon name="ShieldCheck" size={13} /> Visa — where she is now</div>
+                    <div className="act-res-h"><Icon name="ShieldCheck" size={13} /> Visa — current vessel location</div>
                     {visa ? (
                       <>
                         <div className="act-visa-region">{visa.region === 'Schengen' ? `${countryName(res.currentCountry)} · Schengen` : visa.region}</div>
                         <div className="act-visa-line"><i style={{ background: visaInk[visa.level] }} />{visa.text}</div>
                       </>
                     ) : <div className="act-res-soon">Vessel at sea / location unknown — no country to assess.</div>}
-                    <div className="act-res-soon" style={{ marginTop: 10 }}>Based on {natLabel}. Seeded for Schengen &amp; US.</div>
+                    <div className="act-res-soon" style={{ marginTop: 10 }}>Based on this crew member's nationality ({natLabel}). Only Schengen and US visa rules are set up so far.</div>
                   </div>
                 </>
               );
