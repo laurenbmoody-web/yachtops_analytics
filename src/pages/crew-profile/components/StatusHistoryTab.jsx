@@ -407,9 +407,9 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                   <div className="act-rescard">
                     <div className="act-res-h"><Icon name="Plane" size={13} /> Schengen · rolling 180 days</div>
                     <div className="act-res-figure">
-                      <span className="act-res-num">{res.schengenUsed}</span>
-                      <span>days / 180 · limit 90 · {res.schengenUsed > 90
-                        ? <b style={{ color: '#B23B3B' }}>{res.schengenUsed - 90} over</b>
+                      <span className="act-res-num">{res.schengenUsed}<span className="act-res-den"> / 90</span></span>
+                      <span>days used · {res.schengenUsed > 90
+                        ? <b style={{ color: '#B23B3B' }}>{res.schengenUsed - 90} over limit</b>
                         : <b style={{ color: '#2E7D52' }}>{res.schengenRemaining} left</b>}</span>
                     </div>
                     <div className="act-res-gauge"><i style={{ width: animReady ? `${schPct}%` : 0, background: res.schengenUsed >= 90 ? '#B23B3B' : (schPct >= 80 ? '#C65A1A' : '#C65A1A') }} /></div>
