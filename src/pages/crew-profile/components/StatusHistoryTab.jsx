@@ -393,7 +393,6 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
               const visa = visaForCountry(res.currentCountry, crewNat);
               const schPct = Math.min(100, Math.round((res.schengenUsed / 90) * 100));
               const visaInk = { free: '#2E7D52', limited: '#9A6A00', visa: '#B23B3B', unknown: '#6B7280' };
-              const natLabel = crewNat.length ? crewNat.map(countryName).join(' / ') : 'no nationality on file';
               if (!res.hasData) {
                 return (
                   <div className="act-rescard">
@@ -437,7 +436,6 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                         <div className="act-visa-line"><i style={{ background: visaInk[visa.level] }} />{visa.text}</div>
                       </>
                     ) : <div className="act-res-soon">Vessel at sea / location unknown — no country to assess.</div>}
-                    <div className="act-res-soon" style={{ marginTop: 10 }}>Based on this crew member's nationality ({natLabel}). Only Schengen and US visa rules are set up so far.</div>
                   </div>
                 </>
               );
