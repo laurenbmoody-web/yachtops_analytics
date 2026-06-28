@@ -215,6 +215,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [journeyDraft, setJourneyDraft] = useState(null);
   const [journeyStep, setJourneyStep] = useState('noe');   // which milestone the modal is scoped to
   const [eligOpen, setEligOpen] = useState(false);          // eligibility detail expand (step 01)
+  const [pathwayCfgOpen, setPathwayCfgOpen] = useState(false); // dept/goal popover anchored to the target title
+  const cfgRef = useRef(null);
   // Years marked "accounted for" (verified + submitted toward a prior CoC) →
   // collapsed in the ledger and excluded from the active pathway.
   const [accounted, setAccounted] = useState({});
@@ -254,7 +256,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // (or logging-only when the department accrues toward nothing).
   const changeDept = (id) => { setDeptId(id); setGoalId(goalForDept(id)); };
   const startPathway = () => setGoalId(goalForDept(deptId) || 'MASTER_YACHT_3000');
-  const stopPathway = () => setGoalId('');
+  const stopPathway = () => { setGoalId(''); setPathwayCfgOpen(false); };
+
+  // Close the anchored dept/goal popover on any outside click.
+  useEffect(() => {
+    if (!pathwayCfgOpen) return;
+    const onDoc = (e) => { if (cfgRef.current && !cfgRef.current.contains(e.target)) setPathwayCfgOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [pathwayCfgOpen]);
 
   // Role-aware default: open the tracker on the crew member's actual department,
   // and auto-apply the 50% dual rate if their assigned role is a dual deck+engine
@@ -917,25 +927,22 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           <div className="stp-dept">
             {crossDiscipline ? `Working toward ${familyWord}` : cert ? familyPathLabel : 'Logged service'}
           </div>
-          <div className="stp-controls">
-            <StpSelect variant="goal" label="Department" value={deptId} options={deptOpts} onChange={changeDept} />
-            {cert && <StpSelect variant="goal" label="Goal" value={goalId} options={goalOpts} onChange={setGoalId} />}
-            {cert && (family === 'DECK' || family === 'ENGINE') && (
-              <label className="stp-dual" title="On smaller yachts one person may serve as both deck and engineer. The MCA counts dual deck+engine service at 50% toward each Certificate of Competency (MSN 1858 §5.1).">
-                <input type="checkbox" checked={dualMode} onChange={(e) => setDualMode(e.target.checked)} />
-                Dual deck + engine role
-              </label>
-            )}
-          </div>
+          {/* Logging-only: no target title to anchor the popover to, so keep a
+              light department picker here; with a pathway, dept + goal live in
+              the popover under the “Now working toward” title. */}
+          {!cert && (
+            <div className="stp-controls">
+              <StpSelect variant="goal" label="Department" value={deptId} options={deptOpts} onChange={changeDept} />
+            </div>
+          )}
           {dualMode && (
             <div className="stp-dualnote">Dual capacity: each day counts at <b>50%</b> toward this pathway — the same service also accrues at 50% toward the {family === 'DECK' ? 'engine' : 'deck'} ladder (MSN 1858 §5.1).</div>
           )}
-          <div className="stp-sub">{crossDiscipline ? 'Target chosen manually — not this crew member’s department' : cert ? 'Pathway set from this crew member’s department' : 'Logged service — for your record'}</div>
+          <div className="stp-sub">{crossDiscipline ? 'Target chosen manually — not this crew member’s department' : cert ? 'Pathway set from this crew member’s department · tap the title to change' : 'Logged service — for your record'}</div>
         </div>
         <div className="stp-links">
-          {cert && <button className="stp-link rust" type="button" onClick={() => setHeldOpen(true)}>Certificates held{heldCount ? ` (${heldCount})` : ''} →</button>}
           {cert
-            ? <button className="stp-link" type="button" onClick={stopPathway}>Just track my days — no certificate</button>
+            ? <button className="stp-link rust" type="button" onClick={() => setHeldOpen(true)}>Certificates held{heldCount ? ` (${heldCount})` : ''} →</button>
             : <button className="stp-link rust" type="button" onClick={startPathway}>Working toward a certificate →</button>}
         </div>
       </div>
@@ -974,11 +981,45 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <span className="stp-m" />
                 <div className="stp-feat">
                   <div className="stp-feathead">
-                    <div>
+                    <div className="stp-titlewrap" ref={cfgRef}>
                       <div className="stp-eyebrow">Now working toward · {r.msn}{isGoal ? ' · your goal' : ''}</div>
-                      <h4 className="stp-title">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}</h4>
+                      <button type="button" className={`stp-titlebtn${pathwayCfgOpen ? ' open' : ''}`} onClick={() => setPathwayCfgOpen(o => !o)} aria-haspopup="dialog" aria-expanded={pathwayCfgOpen} title="Change department or goal">
+                        <h4 className="stp-title">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}</h4>
+                        <svg className="stp-titlechev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                      </button>
                       {certConfidence(r).authoritative === false && (
                         <div className="stp-provisional">{certConfidence(r).label} — these figures aren’t yet confirmed against {r.msn}. Treat as a guide and verify with your training provider before applying.</div>
+                      )}
+                      {pathwayCfgOpen && (
+                        <div className="stp-cfg" role="dialog" aria-label="Change pathway">
+                          <div className="stp-cfg-sec">
+                            <div className="stp-cfg-lbl">Department</div>
+                            <div className="stp-cfg-chips">
+                              {deptOpts.map(o => (
+                                <button key={o.value} type="button" className={`stp-cfg-chip${o.value === deptId ? ' on' : ''}`} onClick={() => changeDept(o.value)}>{o.label}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="stp-cfg-sec">
+                            <div className="stp-cfg-lbl">Goal</div>
+                            <div className="stp-cfg-list">
+                              {goalOpts.map(o => (
+                                <button key={o.value} type="button" role="option" aria-selected={o.value === goalId}
+                                  className={`stp-cfg-opt${o.value === goalId ? ' on' : ''}`} onClick={() => setGoalId(o.value)}>
+                                  <span className="ck"><Icon name="Check" size={13} /></span>
+                                  <span className="txt"><span className="t">{o.label}</span>{o.sub && <span className="s">{o.sub}</span>}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          {(family === 'DECK' || family === 'ENGINE') && (
+                            <label className="stp-cfg-dual" title="On smaller yachts one person may serve as both deck and engineer. The MCA counts dual deck+engine service at 50% toward each Certificate of Competency (MSN 1858 §5.1).">
+                              <input type="checkbox" checked={dualMode} onChange={(e) => setDualMode(e.target.checked)} />
+                              <span>Dual deck + engine role <em>— counts at 50% toward each CoC</em></span>
+                            </label>
+                          )}
+                          <button type="button" className="stp-cfg-stop" onClick={stopPathway}>Just track my days — no certificate</button>
+                        </div>
                       )}
                     </div>
                     <div className="stp-fig"><span className="big">{daysToGo}</span><span className="cap">{daysToGo === 1 ? 'day to go' : 'days to go'}</span></div>
