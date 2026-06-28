@@ -1083,15 +1083,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         </div>
       )}
 
-      {cert && (
-        <div className={`std-nudge ${hasAttention ? '' : 'clear'}`} style={{ marginTop: 18 }}>
-          <IcoPath d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2ZM9 21h6M10 17v4m4-4v4" color={hasAttention ? '#C65A1A' : '#5E8E6F'} size={20} />
+      {/* Only surface the nudge when there's something to act on — the
+          "all good / private to you" filler banner was noise otherwise. */}
+      {cert && hasAttention && (
+        <div className="std-nudge" style={{ marginTop: 18 }}>
+          <IcoPath d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2ZM9 21h6M10 17v4m4-4v4" color="#C65A1A" size={20} />
           <div>
-            <div className="nt">{hasAttention ? `${badCount} logged ${badCount === 1 ? 'entry needs' : 'entries need'} attention.` : 'Your logged service is qualifying and on track.'}</div>
-            <div className="ns">{hasAttention ? 'Non-qualifying service is excluded from your totals — review and re-tag to keep your pack clean.' : 'Keep logging — projected eligibility updates as you add service.'}</div>
-            {!hasAttention && <div className="priv">Private to you.</div>}
+            <div className="nt">{badCount} logged {badCount === 1 ? 'entry needs' : 'entries need'} attention.</div>
+            <div className="ns">Non-qualifying service is excluded from your totals — review and re-tag to keep your pack clean.</div>
           </div>
-          {hasAttention && <button className="std-reviewbtn" onClick={() => ledgerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Review</button>}
+          <button className="std-reviewbtn" onClick={() => ledgerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Review</button>
         </div>
       )}
     </div>

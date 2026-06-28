@@ -334,7 +334,7 @@
 }
 
 /* ── Pathway: progression spine (Condensed A) + logging-only record ── */
-.std-pathway{padding:24px 28px;}
+.std-pathway{padding:12px 28px 24px;}
 .stp-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;padding-bottom:16px;margin-bottom:6px;border-bottom:1px solid var(--hair);}
 .stp-dept{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--rust);}
 .stp-rank{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:20px;color:var(--ink);margin-top:6px;border:0;background:transparent;padding:0 22px 0 0;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B8478' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 2px center;}
@@ -346,7 +346,7 @@
 .stp-link.rust{color:var(--rust);border-color:#EAD7C6;}
 
 /* spine */
-.stp-spine{position:relative;margin-top:8px;}
+.stp-spine{position:relative;margin-top:0;}
 .stp-spine:before{content:"";position:absolute;left:5px;top:14px;bottom:16px;width:1px;background:var(--hair-2);}
 .stp-step{position:relative;display:block;width:100%;padding:0 0 0 30px;text-align:left;background:none;border:0;font-family:inherit;}
 button.stp-step{cursor:pointer;}
