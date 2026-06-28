@@ -369,6 +369,38 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-feathead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;}
 .stp-eyebrow{font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:var(--rust);}
 .stp-title{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:21px;color:var(--ink);margin:6px 0 0;line-height:1.05;}
+
+/* The "Now working toward" title doubles as the pathway picker — clicking it
+   opens an anchored popover to change department/goal, so the two chip pills
+   that used to crowd the card header are gone. */
+.stp-titlewrap{position:relative;}
+.stp-titlebtn{display:inline-flex;align-items:center;gap:7px;background:none;border:0;padding:0;margin:0;cursor:pointer;text-align:left;font-family:inherit;}
+.stp-titlebtn .stp-title{transition:color .12s;}
+.stp-titlebtn:hover .stp-title,.stp-titlebtn.open .stp-title{color:var(--rust);}
+.stp-titlechev{color:var(--faint);flex:none;margin-top:8px;transition:transform .15s,color .12s;}
+.stp-titlebtn:hover .stp-titlechev{color:var(--rust);}
+.stp-titlebtn.open .stp-titlechev{transform:rotate(180deg);color:var(--rust);}
+.stp-cfg{position:absolute;top:calc(100% + 10px);left:0;z-index:50;width:288px;max-width:84vw;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);padding:14px;animation:stdIn .14s ease both;}
+.stp-cfg-sec{margin-bottom:12px;}
+.stp-cfg-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+.stp-cfg-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.stp-cfg-chip{font-family:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--panel);border:1px solid var(--hair-2);border-radius:999px;padding:5px 13px;cursor:pointer;transition:all .12s;}
+.stp-cfg-chip:hover{border-color:var(--rust);color:var(--rust);}
+.stp-cfg-chip.on{background:var(--rust);border-color:var(--rust);color:#fff;}
+.stp-cfg-list{display:flex;flex-direction:column;gap:1px;max-height:248px;overflow-y:auto;}
+.stp-cfg-opt{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:inherit;}
+.stp-cfg-opt:hover{background:var(--soft,#FAFAF8);}
+.stp-cfg-opt.on{background:var(--rust-tint);}
+.stp-cfg-opt .ck{width:14px;flex:none;display:inline-flex;color:var(--rust);}
+.stp-cfg-opt:not(.on) .ck{visibility:hidden;}
+.stp-cfg-opt .t{font-size:13px;font-weight:600;color:var(--ink);display:block;}
+.stp-cfg-opt.on .t{color:var(--rust);}
+.stp-cfg-opt .s{font-size:10.5px;color:var(--muted);display:block;margin-top:1px;}
+.stp-cfg-dual{display:flex;align-items:flex-start;gap:8px;font-size:11.5px;color:var(--ink);cursor:pointer;padding:9px 4px 4px;border-top:1px solid var(--hair);margin-top:4px;line-height:1.4;}
+.stp-cfg-dual input{accent-color:var(--rust);width:14px;height:14px;cursor:pointer;margin-top:1px;flex:none;}
+.stp-cfg-dual em{color:var(--muted);font-style:normal;}
+.stp-cfg-stop{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--hair);margin-top:6px;padding:10px 4px 2px;font-family:inherit;font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer;}
+.stp-cfg-stop:hover{color:var(--rust);}
 .stp-fig{text-align:right;white-space:nowrap;}
 .stp-fig .big{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:30px;color:var(--rust);line-height:.9;}
 .stp-fig .cap{display:block;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
