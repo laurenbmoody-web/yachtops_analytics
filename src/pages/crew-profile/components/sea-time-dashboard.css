@@ -151,21 +151,6 @@
    accent so the route is named without competing with the serif heading. */
 .std-fagainst{font-family:'Inter',system-ui,sans-serif;font-size:12px;font-weight:600;color:var(--rust);letter-spacing:0;}
 
-/* Pathway-progress advisories — how the record maps to the target CoC. These
-   are informational (don't gate generation), so they read as a soft, indented
-   sub-cluster under the hard checks, not as pass/fail rows. */
-.std-adv{margin-top:14px;padding-top:12px;border-top:1px solid var(--hair);}
-.std-adv-h{font-size:11px;font-weight:700;color:var(--ink);margin-bottom:8px;}
-.std-adv-h span{font-weight:500;color:var(--muted);}
-.std-adv-row{display:flex;gap:9px;align-items:flex-start;padding:7px 0;}
-.std-adv-row .mk{flex:none;margin-top:1px;width:14px;display:inline-flex;justify-content:center;}
-.std-adv-main{flex:1;min-width:0;}
-.std-adv-top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;}
-.std-adv-top .al{font-size:12px;font-weight:600;color:var(--ink);}
-.std-adv-top .ad{font-size:11px;color:var(--muted);}
-.std-adv-bar{height:3px;border-radius:999px;background:#EFEDE7;overflow:hidden;margin-top:5px;max-width:300px;}
-.std-adv-bar i{display:block;height:100%;border-radius:999px;}
-
 /* documents — hairline rows + ring toggle */
 .std-docs{display:flex;flex-direction:column;margin-top:6px;}
 .std-doc2{display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid var(--hair);cursor:pointer;}
