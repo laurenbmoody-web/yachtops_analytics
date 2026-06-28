@@ -426,7 +426,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                         </div>
                       ))}
                     </div>
-                    <div className="act-res-soon">Physical presence, for tax — from the vessel's position on active days (signed-on days included, unlike Schengen), plus training locations. Travel and leave days aren't located yet.</div>
+                    <div className="act-res-soon">Days physically spent in each country, for tax residency. Travel and leave days aren't counted yet.</div>
                   </div>
 
                   <div className="act-rescard">
