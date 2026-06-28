@@ -1511,7 +1511,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         <div className="std-dossier">
           <div className="std-dossier-h">
             <div>
-              <div className="mlabel rustlabel">{SHOW_SIGNOFF ? 'Captain-verified · MSN 1858' : 'For your verifying organisation · MSN 1858'}</div>
               <h3>{SHOW_SIGNOFF ? 'Sea Service Testimonial Pack' : 'Sea Service Record'}</h3>
               <div className="sub">{SHOW_SIGNOFF
                 ? 'Your sea service, confirmed by each ship’s captain — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.'
