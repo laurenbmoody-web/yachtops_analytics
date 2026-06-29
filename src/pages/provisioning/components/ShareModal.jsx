@@ -14,10 +14,13 @@ import './share-modal.css';
 //   Share link    — token links for view / edit access without an account.
 
 const LINK_PERMS   = [{ value: 'view', label: 'Can view' }, { value: 'edit', label: 'Can edit' }];
+// Permissions stack: edit includes view, approve includes edit. The
+// "& edit" suffix on approve makes that explicit in the picker (the
+// label otherwise reads like three exclusive tiers).
 const COLLAB_PERMS = [
   { value: 'view',    label: 'Can view' },
   { value: 'edit',    label: 'Can edit' },
-  { value: 'approve', label: 'Can approve' },
+  { value: 'approve', label: 'Can approve & edit' },
 ];
 
 const AVATAR_COLOURS = ['#C65A1A', '#1C1B3A', '#2E7D5A', '#7C5BC7', '#B14E16', '#3B6FB0'];
@@ -286,6 +289,7 @@ const ShareModal = ({ list, crewMembers, currentUserId, onClose }) => {
                 <span>New collaborators can</span>
                 <PermSelect value={newCollabPerm} options={COLLAB_PERMS} onChange={setNewCollabPerm} />
               </div>
+              <p className="shm-perm-hint">Each level includes the ones before it — editors can view, approvers can edit.</p>
 
               <div style={{ marginTop: 18 }}>
                 {collaborators.length === 0 ? (
