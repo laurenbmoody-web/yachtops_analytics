@@ -513,6 +513,24 @@ export const upsertItems = async (items) => {
   }
 };
 
+// Best-effort supplier contact email for a profile id — used to
+// pre-fill the recipient on the "email confirmation" draft after a
+// manual quote is confirmed. Returns null if unresolvable.
+export const fetchSupplierContactEmail = async (supplierProfileId) => {
+  if (!supplierProfileId) return null;
+  try {
+    const { data, error } = await supabase
+      ?.from('supplier_profiles')
+      ?.select('contact_email, email')
+      ?.eq('id', supplierProfileId)
+      ?.maybeSingle();
+    if (error) return null;
+    return data?.contact_email || data?.email || null;
+  } catch {
+    return null;
+  }
+};
+
 // Apply quoted unit prices from a manual supplier quote onto the board
 // lines. `updates` = [{ id, estimated_unit_cost }]. Writes each cost so
 // the line totals (qty × cost) reflect the supplier's quote. Returns the
