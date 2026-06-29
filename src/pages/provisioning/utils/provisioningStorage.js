@@ -513,6 +513,28 @@ export const upsertItems = async (items) => {
   }
 };
 
+// Apply quoted unit prices from a manual supplier quote onto the board
+// lines. `updates` = [{ id, estimated_unit_cost }]. Writes each cost so
+// the line totals (qty × cost) reflect the supplier's quote. Returns the
+// count applied. Used by the quote-review flow after AI extraction.
+export const applyQuotedPrices = async (updates) => {
+  const rows = (updates || []).filter(u => u?.id && u?.estimated_unit_cost != null);
+  if (rows.length === 0) return 0;
+  let applied = 0;
+  for (const u of rows) {
+    const { error } = await supabase
+      ?.from('provisioning_items')
+      ?.update({ estimated_unit_cost: u.estimated_unit_cost })
+      ?.eq('id', u.id);
+    if (error) {
+      console.error('[provisioningStorage] applyQuotedPrices row error:', error.message, u.id);
+    } else {
+      applied += 1;
+    }
+  }
+  return applied;
+};
+
 export const deleteProvisioningItem = async (itemId) => {
   try {
     const { error } = await supabase
