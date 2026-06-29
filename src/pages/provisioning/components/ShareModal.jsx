@@ -38,18 +38,33 @@ const PermSelect = ({ value, options, onChange }) => (
   </select>
 );
 
-const Avatar = ({ name, email, url, size = 32 }) => (
-  <div
-    className="shm-avatar"
-    style={{
-      width: size, height: size, fontSize: size <= 28 ? 10 : 11,
-      background: url ? 'transparent' : avatarColour(email || name),
-      backgroundImage: url ? `url(${url})` : undefined,
-    }}
-  >
-    {!url && initialsOf(name, email)}
-  </div>
-);
+// Renders the user's real profile photo (profiles.avatar_url) as an
+// <img>, falling back to hashed-colour initials if there's no avatar
+// or the image fails to load. Using <img> + onError (rather than a CSS
+// background) means a broken/expired URL degrades to initials instead
+// of a blank circle.
+const Avatar = ({ name, email, url, size = 32 }) => {
+  const [broken, setBroken] = useState(false);
+  const showImg = url && !broken;
+  return (
+    <div
+      className="shm-avatar"
+      style={{
+        width: size, height: size, fontSize: size <= 28 ? 10 : 11,
+        background: showImg ? '#F0F1F5' : avatarColour(email || name),
+      }}
+    >
+      {showImg ? (
+        <img
+          src={url}
+          alt={name || email || ''}
+          className="shm-avatar-img"
+          onError={() => setBroken(true)}
+        />
+      ) : initialsOf(name, email)}
+    </div>
+  );
+};
 
 // ── Share-link row ────────────────────────────────────────────────────────────
 const ShareLinkRow = ({ share, onRevoke }) => {
