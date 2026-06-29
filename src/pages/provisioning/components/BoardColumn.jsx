@@ -157,8 +157,8 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteCli
           )}
           {onShare && (
             <button onClick={() => { setOpen(false); onShare(); }} className="pv-menu-item">
-              <span className="pv-menu-item-icon"><Icon name="Share2" className="w-3.5 h-3.5" /></span>
-              Share board
+              <span className="pv-menu-item-icon"><Icon name="Users" className="w-3.5 h-3.5" /></span>
+              Collaborators
             </button>
           )}
           <button onClick={() => { setOpen(false); setPaletteOpen(true); }} className="pv-menu-item">
