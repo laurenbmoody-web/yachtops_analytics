@@ -345,9 +345,9 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                               : <button type="button" onClick={() => addStamp('on', day)}><Icon name="Stamp" size={12} /> Stamp onto vessel</button>}
                           </div>
                         ) : null}
-                        <div className="act-dp-note" style={{ marginTop: 6 }}>
-                          {onboardNow ? 'Signed on — Schengen / visa clock paused.' : 'Not signed on — counts where in-country.'}
-                        </div>
+                        {onboardNow && (
+                          <div className="act-dp-note" style={{ marginTop: 6 }}>Signed on — Schengen / visa clock paused.</div>
+                        )}
                       </div>
                     );
                   })()}
