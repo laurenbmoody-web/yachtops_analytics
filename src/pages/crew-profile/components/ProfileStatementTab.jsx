@@ -44,7 +44,7 @@ const DETAILS = [
 // Light, client-side guard so nobody hammers the API: a per-user daily cap and a
 // short cool-down between drafts. Not a security control (RLS/auth handle that) —
 // just a courtesy throttle to keep AI cost sane.
-const DAILY_CAP = 10;
+const DAILY_CAP = 5; // one go by hand + one in each of the four voices
 const COOLDOWN_SECONDS = 12;
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const usageKey = (userId) => `cargo.aiDrafts.${userId}.${todayKey()}`;
