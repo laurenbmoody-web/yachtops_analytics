@@ -348,7 +348,7 @@ body.crew-profile-editorial {
 /* Allergy cross-reference — read-only mirror of the Personal Details record. */
 .crew-profile-page .cp-allergy-ref {
   display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px; border-radius: 10px; border: 1px solid #E6E8EF; background: #F8FAFC;
+  padding: 10px 12px; border-radius: 9px; border: 1px solid #E5E7EB; background: #FFFFFF;
 }
 .crew-profile-page .cp-allergy-ref .ic { flex: 0 0 auto; }
 .crew-profile-page .cp-allergy-ref .body { min-width: 0; }

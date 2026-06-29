@@ -1390,13 +1390,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       <div className="cp-tab-head">
         <div className="cp-section-head"><span className="cp-section-num">10 /</span><h3>Sea Time Tracker</h3></div>
         <div className="cp-tab-actions std-controls">
-          {cert
-            ? <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => setHeldOpen(true)}><Icon name="Award" size={16} /> Certificates held{heldCount ? ` (${heldCount})` : ''}</button>
-            : <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={startPathway}><Icon name="Award" size={16} /> Work toward a certificate</button>}
           <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={openPrior}><Icon name="History" size={16} /> Prior service</button>
           <button className="std-logbtn" onClick={() => setDrawerOpen(true)}><Icon name="Plus" size={16} /> Log sea time</button>
         </div>
       </div>
+
+      {/* Clickable section sub-header — the cert action moved off the toolbar:
+          work toward a certificate (or jump to held certificates). */}
+      <button type="button" className="cp-group-head std-pathhead" onClick={cert ? () => setHeldOpen(true) : startPathway}>
+        <span className="dia">◆</span>
+        <span className="t">{cert ? `Certificates held${heldCount ? ` (${heldCount})` : ''}` : 'Work toward a certificate'}</span>
+        <Icon name="ChevronRight" size={14} className="std-pathhead-chev" />
+        <span className="line" />
+      </button>
 
       {/* ── pathway spine / logging-only record ── */}
       {PathwaySection()}
