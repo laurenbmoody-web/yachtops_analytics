@@ -763,6 +763,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
 
   // Build + download ONE captain's Nautilus testimonial, scoped to that spell.
   const onDownloadSpell = async (spell) => {
+    if (!canGenerate) { flash('Resolve the outstanding validation checks first'); return; }
     try {
       const v = vessels[spell.vesselId] || {};
       const mine = spell.entries;
@@ -1673,6 +1674,51 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               </div>
             </div>
             )}
+
+            {/* 03 Export & submit — the deliverable for the chosen verifier.
+                Gated on canGenerate (steps 01-02), coherent for every verifier:
+                the per-captain breakdown for all; the Nautilus form PDF only for
+                Nautilus (the one form Cargo builds); CSV + instructions always. */}
+            {!SHOW_SIGNOFF && (
+              <div className="std-fstep" id="std-verify">
+                <div className="std-fnum">03</div>
+                <div>
+                  <div className="std-fhead">
+                    <span className="std-flabel">Export &amp; submit · for {vp.name}</span>
+                    <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{canGenerate ? 'Ready to export' : 'Locked'}</span>
+                  </div>
+                  <div className="std-ftitle">Hand your record to {vp.short}</div>
+                  {!canGenerate && (
+                    <div className="std-fnote" style={{ color: '#A32D2D' }}>
+                      <Icon name="Lock" size={13} /> Locked until steps 01–02 clear — {checks.filter(c => !c.ok).length} check{checks.filter(c => !c.ok).length === 1 ? '' : 's'} still outstanding above.
+                    </div>
+                  )}
+                  <div className="std-export-instr">{vp.instructions}</div>
+                  {nautilusSpells.length === 0 ? (
+                    <div className="std-foot" style={{ padding: '10px 0 0' }}>No Cargo-tracked service to export yet — it auto-logs from your current vessel. You can still export your full record as CSV below.</div>
+                  ) : (
+                    <div className="std-spells">
+                      <div className="std-spells-lbl">One testimonial per captain — each endorses only the dates they were in command. Manual &amp; off-Cargo days are excluded.</div>
+                      {nautilusSpells.map((s, i) => (
+                        <div key={i} className="std-spell">
+                          <div className="std-spell-main">
+                            <div className="nm">{vessels[s.vesselId]?.name || 'Vessel'} · {s.captainId === userId ? 'your service as Master' : (s.captainName || 'Captain')}</div>
+                            <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}</div>
+                          </div>
+                          {verifier === 'nautilus'
+                            ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
+                            : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="std-export-actions">
+                    <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Service data (CSV)</button>
+                    <span className="std-fee">{vp.fee}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {SHOW_SIGNOFF && (
@@ -1689,37 +1735,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               ? <span className="std-genbtn" style={{ marginLeft: 'auto', background: '#E7F0E9', color: '#3F7A52' }}><Icon name="Check" size={15} /> Verified</span>
               : <span className="std-genbtn" style={{ marginLeft: 'auto', background: '#FBF0DA', color: '#7A5A12' }}><Icon name="Clock" size={15} /> Confirm each ship above</span>}
           </div>
-          )}
-
-          {/* Parked export when sign-off is hidden — the per-voyage service data the
-              crew hands to PYA/Nautilus. (Form-faithful export is the next build.) */}
-          {!SHOW_SIGNOFF && (
-            <div className="std-issue" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 14 }}>
-              <div className="std-flex std-between" style={{ alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                <div>
-                  <div className="mlabel">Export · for {vp.name}</div>
-                  <div className="std-issue-h">{verifier === 'nautilus'
-                    ? 'One testimonial per captain — each endorses only the dates they were in command. Manual & off-Cargo days are excluded.'
-                    : `${live.length} entries · ${buckets.total} qualifying days — export your record to start your ${vp.label} submission`}</div>
-                </div>
-                <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Service data (CSV)</button>
-              </div>
-              {verifier === 'nautilus' && (
-                nautilusSpells.length === 0
-                  ? <div className="std-foot" style={{ padding: 0 }}>No Cargo-tracked service to export yet — it auto-logs from your current vessel.</div>
-                  : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {nautilusSpells.map((s, i) => (
-                        <div key={i} className="std-flex std-between std-ac" style={{ gap: 12, padding: '10px 12px', border: '1px solid #ECEAE3', borderRadius: 10, background: '#FAFAF8' }}>
-                          <div>
-                            <div style={{ fontWeight: 600, color: '#1C1B3A', fontSize: 13 }}>{vessels[s.vesselId]?.name || 'Vessel'} · {s.captainId === userId ? 'your service as Master' : (s.captainName || 'Captain')}</div>
-                            <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}</div>
-                          </div>
-                          <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
-                        </div>
-                      ))}
-                    </div>
-              )}
-            </div>
           )}
 
           {SHOW_SIGNOFF && signed && (

@@ -202,6 +202,16 @@
 .std-doc2.on .dl{color:var(--sage-deep);}
 .std-fee{font-size:11.5px;color:var(--muted);margin-top:13px;line-height:1.5;}
 
+/* Step 03 — export & submit */
+.std-export-instr{font-size:12px;color:var(--muted);line-height:1.55;margin:8px 0 14px;max-width:640px;}
+.std-spells{display:flex;flex-direction:column;gap:8px;}
+.std-spells-lbl{font-size:11.5px;color:var(--muted);line-height:1.5;margin-bottom:2px;}
+.std-spell{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 14px;border:1px solid #ECEAE3;border-radius:11px;background:#FAFAF8;}
+.std-spell-main .nm{font-size:13px;font-weight:600;color:var(--ink);}
+.std-spell-tag{font-size:11px;font-weight:600;color:var(--muted);background:#fff;border:1px solid #ECEAE3;border-radius:999px;padding:5px 11px;white-space:nowrap;}
+.std-export-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:16px;}
+.std-export-actions .std-fee{margin-top:0;}
+
 /* authorise — editorial option rows */
 .std-opts{display:flex;gap:28px;flex-wrap:wrap;margin-top:8px;}
 .std-opt{display:flex;align-items:center;gap:11px;cursor:pointer;}
