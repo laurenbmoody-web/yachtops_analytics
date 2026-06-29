@@ -87,7 +87,7 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
           .eq('list_id', request.list_id),
         supabase
           .from('provisioning_lists')
-          .select('id, title, trip_id, port_location, currency, estimated_cost, actual_cost, department, tenant_id, board_type, created_at')
+          .select('id, title, trip_id, port_location, currency, estimated_cost, actual_cost, department, tenant_id, board_type, created_at, quote_file_url, quote_file_name, quote_file_uploaded_at')
           .eq('id', request.list_id)
           .maybeSingle(),
         supabase
@@ -319,6 +319,21 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
           )}
           {list?.port_location && (
             <span className="ord-rp-chip">Port: <strong>&nbsp;{list.port_location}</strong></span>
+          )}
+          {/* Supplier quote PDF — so the approver can review the actual
+              quote document, not just the priced lines. Opens in a new
+              tab. Only shows when a quote file has been attached. */}
+          {list?.quote_file_url && (
+            <a
+              className="ord-rp-chip ord-rp-chip-quote"
+              href={list.quote_file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={list.quote_file_name || 'View supplier quote'}
+            >
+              <Icon name="FileText" size={12} className="ord-rp-chip-icon" />
+              <strong>View supplier quote</strong>
+            </a>
           )}
           {allergenGuests.length > 0 && (
             <div className="ord-rp-chip-allergen-wrap" ref={allergenRef}>
