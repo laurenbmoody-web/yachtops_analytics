@@ -942,7 +942,7 @@ const canEdit = (() => {
 
   const navigationSections = [
     { key: 'personal', label: 'Personal Details', icon: 'User' },
-    { key: 'statement', label: 'Profile statement', icon: 'PenLine' },
+    { key: 'statement', label: 'Crew Profile', icon: 'PenLine' },
     { key: 'emergency', label: 'Emergency / Next of Kin', icon: 'Phone' },
     { key: 'documents', label: 'Documents', icon: 'FileText' },
     { key: 'banking', label: 'Banking', icon: 'CreditCard' },
