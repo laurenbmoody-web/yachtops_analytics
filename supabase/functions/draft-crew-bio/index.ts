@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
   let payload: Record<string, string> = {};
   try { payload = await req.json(); } catch { /* empty */ }
-  const { name = "", role = "", nationality = "", hometown = "", languages = "", interests = "", funFact = "", favouriteDestination = "", yearsYachting = "", vessel = "", draft = "", mode = "draft", tone = "warm" } = payload;
+  const { name = "", role = "", nationality = "", hometown = "", languages = "", studies = "", interests = "", funFact = "", favouriteDestination = "", yearsYachting = "", vessel = "", draft = "", mode = "draft", tone = "warm" } = payload;
 
   // Voice / tone the crew member picked. Default to "warm" if unknown.
   const TONES: Record<string, string> = {
@@ -40,6 +40,7 @@ Deno.serve(async (req) => {
     nationality && `Nationality: ${nationality}`,
     hometown && `Hometown: ${hometown}`,
     languages && `Languages: ${languages}`,
+    studies && `Studies / training: ${studies}`,
     interests && `Interests / hobbies: ${interests}`,
     favouriteDestination && `Favourite destination: ${favouriteDestination}`,
     funFact && `Fun fact / hidden talent: ${funFact}`,

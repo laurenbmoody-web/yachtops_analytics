@@ -29,6 +29,18 @@ const TONES = [
   { key: 'adventurous', label: 'Adventurous' },
 ];
 
+// The detail boxes, in the order the crew member fills them. `key` matches the
+// form state; the readout view shows the same order.
+const DETAILS = [
+  { key: 'yearsYachting', label: 'Years in yachting', placeholder: 'e.g. 8 years' },
+  { key: 'hometown', label: 'Hometown', placeholder: 'e.g. Cornwall, UK' },
+  { key: 'languages', label: 'Languages', placeholder: 'e.g. English, French' },
+  { key: 'studies', label: 'Studies', placeholder: 'e.g. BSc Marine Biology' },
+  { key: 'interests', label: 'Interests / hobbies', placeholder: 'e.g. Freediving, photography' },
+  { key: 'favouriteDestination', label: 'Favourite destination', placeholder: 'e.g. The Cyclades' },
+  { key: 'funFact', label: 'Fun fact / hidden talent', placeholder: 'e.g. I can juggle fire' },
+];
+
 // Light, client-side guard so nobody hammers the API: a per-user daily cap and a
 // short cool-down between drafts. Not a security control (RLS/auth handle that) —
 // just a courtesy throttle to keep AI cost sane.
@@ -47,24 +59,27 @@ const bumpUsage = (userId) => {
   } catch { return DAILY_CAP; }
 };
 
+const EMPTY = { statement: '', funFact: '', hometown: '', languages: '', studies: '', interests: '', favouriteDestination: '', yearsYachting: '' };
+
 const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, nationality, vesselName, canEdit, isOwnProfile }) => {
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(null); // 'draft' | 'polish' | null
   const [tone, setTone] = useState('warm');
   const [used, setUsed] = useState(0);
   const [cooldown, setCooldown] = useState(0);
   const cdTimer = useRef(null);
-  const [form, setForm] = useState({ statement: '', funFact: '', hometown: '', languages: '', interests: '', favouriteDestination: '', yearsYachting: '' });
+  const [form, setForm] = useState(EMPTY);
 
   const load = useCallback(async () => {
     setLoading(true);
     const d = await fetchProfileStatement(userId);
-    if (d) setForm({
+    setForm(d ? {
       statement: d.statement || '', funFact: d.fun_fact || '', hometown: d.hometown || '',
-      languages: d.languages || '', interests: d.interests || '',
+      languages: d.languages || '', studies: d.studies || '', interests: d.interests || '',
       favouriteDestination: d.favourite_destination || '', yearsYachting: d.years_yachting || '',
-    });
+    } : EMPTY);
     setLoading(false);
   }, [userId]);
   useEffect(() => { if (userId) load(); }, [userId, load]);
@@ -82,20 +97,26 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
 
   const save = async () => {
     setSaving(true);
-    try { await saveProfileStatement({ userId, tenantId, actorId: currentUserId, ...form }); showToast('Profile statement saved', 'success'); }
-    catch (e) { showToast(e.message || 'Could not save', 'error'); }
+    try {
+      await saveProfileStatement({ userId, tenantId, actorId: currentUserId, ...form });
+      showToast('Profile statement saved', 'success');
+      setEditing(false);
+    } catch (e) { showToast(e.message || 'Could not save', 'error'); }
     finally { setSaving(false); }
   };
 
+  const cancel = () => { load(); setEditing(false); };
+
   const capped = used >= DAILY_CAP;
-  const runAI = async () => {
+  // mode 'draft' = a fresh write in the chosen voice (overwrites); 'polish' =
+  // keep the crew member's words, just tidy them.
+  const runAI = async (mode) => {
     if (capped) { showToast('Daily AI limit reached — edit by hand or try again tomorrow', 'error'); return; }
-    setAiBusy(true);
+    setAiBusy(mode);
     try {
       const statement = await draftStatementWithAI({
-        mode: form.statement.trim() ? 'polish' : 'draft',
-        name: crewName, role, nationality, vessel: vesselName, tone,
-        hometown: form.hometown, languages: form.languages, interests: form.interests,
+        mode, name: crewName, role, nationality, vessel: vesselName, tone,
+        hometown: form.hometown, languages: form.languages, studies: form.studies, interests: form.interests,
         funFact: form.funFact, favouriteDestination: form.favouriteDestination, yearsYachting: form.yearsYachting,
         draft: form.statement,
       });
@@ -103,87 +124,120 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
         setF('statement', statement);
         setUsed(bumpUsage(userId));
         setCooldown(COOLDOWN_SECONDS);
-        showToast('Draft ready — review and tweak it', 'success');
+        showToast(mode === 'polish' ? 'Polished — review and tweak it' : 'Draft ready — review and tweak it', 'success');
       } else showToast('No draft returned — try adding a few details', 'error');
     } catch (e) { showToast(e.message || 'AI assist is unavailable right now', 'error'); }
-    finally { setAiBusy(false); }
+    finally { setAiBusy(null); }
   };
 
   if (loading) return <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>;
-  const readOnly = !canEdit;
+
   const words = form.statement.trim() ? form.statement.trim().split(/\s+/).length : 0;
-  const aiDisabled = aiBusy || cooldown > 0 || capped;
-  const aiLabel = aiBusy ? 'Writing…' : cooldown > 0 ? `Wait ${cooldown}s` : (form.statement.trim() ? 'Polish with AI' : 'Write with AI');
+  const hasText = !!form.statement.trim();
+  const aiLocked = !!aiBusy || cooldown > 0 || capped;
+  const filledDetails = DETAILS.filter((d) => (form[d.key] || '').trim());
 
   return (
     <div>
-      <div className="cp-section-head">
-        <span className="cp-section-num">02 /</span>
-        <h3>Profile statement</h3>
-      </div>
-      <p className="cd-muted" style={{ marginTop: -6, marginBottom: 22, maxWidth: 640 }}>
-        A short introduction for the guest information book — a glimpse of who you are, not just what you do.{' '}
-        {isOwnProfile ? 'Write it in your own voice — or let AI give you a head start.' : 'Written by the crew member; COMMAND can edit.'}
-      </p>
-
-      <div className="ps-wrap">
-        <div className="ps-main">
-          <label className="ps-label">Your statement <em>shown to guests</em></label>
-          <textarea
-            className="ps-area" rows={8} value={form.statement} disabled={readOnly}
-            onChange={(e) => setF('statement', e.target.value)}
-            placeholder="e.g. Hi, I'm Lauren — your Captain for this charter. Originally from Cornwall, I've spent over a decade exploring the world by sea, and there's nothing I love more than sharing a sunset passage with guests."
-          />
-          <div className="ps-meta">
-            <span className={words > 90 ? 'ps-over' : ''}>{words} {words === 1 ? 'word' : 'words'}</span>
-            <span className="ps-hint">· aim for ~60–80 to fit three crew to a page</span>
+      <div className="cp-tab-head">
+        <div className="cp-section-head">
+          <span className="cp-section-num">02 /</span>
+          <h3>Profile statement</h3>
+        </div>
+        {canEdit && !editing && (
+          <div className="cp-tab-actions">
+            <Button variant="outline" iconName="Edit" onClick={() => setEditing(true)}>
+              {hasText || filledDetails.length ? 'Edit statement' : 'Write statement'}
+            </Button>
           </div>
+        )}
+      </div>
+      <p className="cp-section-sub">A short introduction for the guest information book — a glimpse of who you are, not just what you do.</p>
+      <div className="cp-group-head"><span className="dia">◆</span><span className="t">Your introduction</span><span className="line" /></div>
 
-          {canEdit && (
-            <>
+      {/* ---------------- READ-ONLY VIEW ---------------- */}
+      {!editing && (
+        <div className="ps-wrap">
+          <div className="ps-main">
+            {hasText
+              ? <div className="ps-readout">{form.statement}</div>
+              : <div className="ps-empty">No statement yet.{canEdit ? ' Use “Write statement” to add one — AI can give you a head start.' : ''}</div>}
+          </div>
+          <div className="ps-side">
+            {filledDetails.length > 0 && (
+              <div className="ps-readfields">
+                {filledDetails.map((d) => (
+                  <div className="ps-readfield" key={d.key}>
+                    <span>{d.label}</span>
+                    <p>{form[d.key]}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- EDIT VIEW ---------------- */}
+      {editing && (
+        <>
+          <div className="ps-wrap">
+            <div className="ps-main">
+              <label className="ps-label">Your statement <em>shown to guests</em></label>
+              <textarea
+                className="ps-area" rows={8} value={form.statement}
+                onChange={(e) => setF('statement', e.target.value)}
+                placeholder="e.g. I'm Lauren, a Yorkshire lass who somehow ended up spending a decade at sea. Off-duty you'll find me underwater, on the padel court, or behind a camera."
+              />
+              <div className="ps-meta">
+                <span className={words > 90 ? 'ps-over' : ''}>{words} {words === 1 ? 'word' : 'words'}</span>
+                <span className="ps-hint">· aim for ~60–80 to fit three crew to a page</span>
+              </div>
+
               <div className="ps-voice">
                 <span className="ps-voice-lbl">Voice</span>
                 {TONES.map((t) => (
-                  <button
-                    key={t.key} type="button"
-                    className={`ps-tone${tone === t.key ? ' on' : ''}`}
-                    onClick={() => setTone(t.key)}
-                  >{t.label}</button>
+                  <button key={t.key} type="button" className={`ps-tone${tone === t.key ? ' on' : ''}`} onClick={() => setTone(t.key)}>{t.label}</button>
                 ))}
               </div>
+
               <div className="ps-aibar">
-                <button type="button" className="ps-aibtn" onClick={runAI} disabled={aiDisabled}>
-                  <Icon name={aiBusy ? 'Loader2' : 'Sparkles'} size={15} className={aiBusy ? 'animate-spin' : ''} />
-                  {aiLabel}
+                <button type="button" className="ps-aibtn" onClick={() => runAI('draft')} disabled={aiLocked}>
+                  <Icon name={aiBusy === 'draft' ? 'Loader2' : 'Sparkles'} size={15} className={aiBusy === 'draft' ? 'animate-spin' : ''} />
+                  {aiBusy === 'draft' ? 'Writing…' : cooldown > 0 ? `Wait ${cooldown}s` : (hasText ? 'Rewrite with AI' : 'Write with AI')}
                 </button>
-                <span className="ps-aihint">
-                  {capped
-                    ? 'Daily AI limit reached — edit by hand or try tomorrow.'
-                    : `Uses the details on the right · ${DAILY_CAP - used} draft${DAILY_CAP - used === 1 ? '' : 's'} left today.`}
-                </span>
+                {hasText && (
+                  <button type="button" className="ps-aibtn ghost" onClick={() => runAI('polish')} disabled={aiLocked}>
+                    <Icon name={aiBusy === 'polish' ? 'Loader2' : 'Wand2'} size={15} className={aiBusy === 'polish' ? 'animate-spin' : ''} />
+                    {aiBusy === 'polish' ? 'Polishing…' : 'Polish mine'}
+                  </button>
+                )}
               </div>
-            </>
-          )}
-        </div>
+              <div className="ps-aihint">
+                {capped
+                  ? 'Daily AI limit reached — edit by hand or try tomorrow.'
+                  : hasText
+                    ? <>Pick a voice, then <b>Rewrite</b> for a fresh take — or <b>Polish</b> to keep your words. {DAILY_CAP - used} left today.</>
+                    : <>Pick a voice and let AI draft from the details on the right. {DAILY_CAP - used} drafts left today.</>}
+              </div>
+            </div>
 
-        <div className="ps-side">
-          <Field label="Fun fact / hidden talent" value={form.funFact} onChange={(v) => setF('funFact', v)} placeholder="e.g. Once cooked for a head of state — and can juggle fire" readOnly={readOnly} />
-          <Field label="Hometown" value={form.hometown} onChange={(v) => setF('hometown', v)} placeholder="e.g. Cornwall, UK" readOnly={readOnly} />
-          <Field label="Languages" value={form.languages} onChange={(v) => setF('languages', v)} placeholder="e.g. English, French" readOnly={readOnly} />
-          <Field label="Interests / hobbies" value={form.interests} onChange={(v) => setF('interests', v)} placeholder="e.g. Freediving, cooking, photography" readOnly={readOnly} />
-          <Field label="Favourite destination" value={form.favouriteDestination} onChange={(v) => setF('favouriteDestination', v)} placeholder="e.g. The Cyclades at dawn" readOnly={readOnly} />
-          <Field label="Years in yachting" value={form.yearsYachting} onChange={(v) => setF('yearsYachting', v)} placeholder="e.g. 8 years, or Since 2016" readOnly={readOnly} />
-          <div className="ps-prompts">
-            <div className="ps-prompts-h">Need a spark?</div>
-            <ul>{PROMPTS.map((p) => <li key={p}>{p}</li>)}</ul>
+            <div className="ps-side">
+              {DETAILS.map((d) => (
+                <Field key={d.key} label={d.label} value={form[d.key]} onChange={(v) => setF(d.key, v)} placeholder={d.placeholder} />
+              ))}
+              <div className="ps-prompts">
+                <div className="ps-prompts-h">Need a spark?</div>
+                <ul>{PROMPTS.map((p) => <li key={p}>{p}</li>)}</ul>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {canEdit && (
-        <div style={{ marginTop: 24 }}>
-          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save statement'}</Button>
-        </div>
+          <div className="ps-actions">
+            <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save statement'}</Button>
+            <Button variant="outline" onClick={cancel} disabled={saving}>Cancel</Button>
+          </div>
+        </>
       )}
     </div>
   );
