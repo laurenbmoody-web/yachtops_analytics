@@ -43,15 +43,24 @@ const SIZE_FIELDS = [
   { key: 'shorts', label: 'Shorts', ph: 'waist e.g. 32', fits: ['mens', 'unisex'] },
   { key: 'skort', label: 'Skort', ph: 'e.g. 8 / M', fits: ['womens'] },
   { key: 'dress', label: 'Dress', ph: 'e.g. 10', fits: ['womens'] },
-  { key: 'jacket', label: 'Jacket / Outer', ph: 'XS–XXL', fits: 'all' },
+  { key: 'rashVest', label: 'Rash vest', ph: 'XS–XXL', fits: 'all' },
+  { key: 'boardshorts', label: 'Boardshorts', ph: 'waist / S–XL', fits: 'all' },
   { key: 'fleece', label: 'Fleece / Mid-layer', ph: 'XS–XXL', fits: 'all' },
+  { key: 'jacket', label: 'Jacket / Outer', ph: 'XS–XXL', fits: 'all' },
+  { key: 'foulies', label: 'Foul-weather gear', ph: 'S–XL', fits: 'all' },
   { key: 'belt', label: 'Belt', ph: 'waist / S–L', fits: 'all' },
-  { key: 'shoe', label: 'Shoe / Deck shoe', ph: 'number, e.g. 9', fits: 'all' },
   { key: 'cap', label: 'Cap / Hat', ph: 'S/M/L or one-size', fits: 'all' },
   { key: 'gloves', label: 'Gloves', ph: 'S–XL', fits: 'all' },
-  { key: 'foulies', label: 'Foul-weather gear', ph: 'S–XL', fits: 'all' },
-  { key: 'boardshorts', label: 'Boardshorts', ph: 'waist / S–XL', fits: 'all' },
-  { key: 'rashVest', label: 'Rash vest', ph: 'XS–XXL', fits: 'all' },
+  { key: 'shoe', label: 'Shoe / Deck shoe', ph: 'number, e.g. 9', fits: 'all' },
+];
+const FIELD_BY_KEY = SIZE_FIELDS.reduce((m, f) => { m[f.key] = f; return m; }, {});
+// Editorial grouping for the ledger layout — garments ordered into the rows
+// the crew member reads them in (core → active/layers → protection → footwear).
+const SIZE_GROUPS = [
+  { label: 'Core', keys: ['top', 'trousers', 'shorts', 'skort', 'dress'] },
+  { label: 'Active & layers', keys: ['rashVest', 'boardshorts', 'fleece', 'jacket'] },
+  { label: 'Protection & accessories', keys: ['foulies', 'belt', 'cap', 'gloves'] },
+  { label: 'Footwear', keys: ['shoe'] },
 ];
 const fieldVisible = (f, fit) => f.fits === 'all' || f.fits.includes(fit || 'unisex');
 const fitLabel = (id) => FIT_OPTIONS.find((o) => o.id === id)?.label;
@@ -418,18 +427,27 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                         </select>
                       </label>
                     </div>
-                    <div className="kit-size-grid">
-                      {SIZE_FIELDS.filter((f) => fieldVisible(f, sizesForm.fit)).map((f) => {
-                        const trio = f.key === 'shoe' ? formatShoeTrio(sizesForm.shoe, sizesForm.region, sizesForm.fit) : null;
-                        return (
-                          <label key={f.key} className="kit-field">
-                            <span>{f.label}</span>
-                            <input value={sizesForm[f.key] || ''} onChange={(e) => setSizesForm((s) => ({ ...s, [f.key]: e.target.value }))} placeholder={f.ph} />
-                            {f.key === 'shoe' && trio && <span className="kit-shoe-conv">{trio}</span>}
-                          </label>
-                        );
-                      })}
-                    </div>
+                    {SIZE_GROUPS.map((g) => {
+                      const fields = g.keys.map((k) => FIELD_BY_KEY[k]).filter((f) => f && fieldVisible(f, sizesForm.fit));
+                      if (!fields.length) return null;
+                      return (
+                        <div key={g.label} className="kit-sgroup">
+                          <p className="kit-sgroup-h">{g.label}</p>
+                          <div className="kit-size-grid">
+                            {fields.map((f) => {
+                              const trio = f.key === 'shoe' ? formatShoeTrio(sizesForm.shoe, sizesForm.region, sizesForm.fit) : null;
+                              return (
+                                <label key={f.key} className="kit-field">
+                                  <span>{f.label}</span>
+                                  <input value={sizesForm[f.key] || ''} onChange={(e) => setSizesForm((s) => ({ ...s, [f.key]: e.target.value }))} placeholder={f.ph} />
+                                  {f.key === 'shoe' && trio && <span className="kit-shoe-conv">{trio}</span>}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                     <label className="kit-field kit-col-full">
                       <span>Other sizing notes <em>optional</em></span>
                       <input value={sizesForm.notes || ''} onChange={(e) => setSizesForm((s) => ({ ...s, notes: e.target.value }))} placeholder="e.g. prefers long-sleeve, runs small" />
@@ -439,13 +457,24 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                   <p className="kit-size-none">No sizes recorded yet.{canEditSizes ? ' Use “Edit” to add them.' : ''}</p>
                 ) : (
                   <>
-                    <div className="kit-size-grid">
-                      {filled.map((f) => {
-                        const trio = f.key === 'shoe' ? formatShoeTrio(sizes.shoe, sizes.region, effectiveFit) : null;
+                    <div className="kit-ledger">
+                      {SIZE_GROUPS.map((g) => {
+                        const rows = g.keys
+                          .map((k) => FIELD_BY_KEY[k])
+                          .filter((f) => f && fieldVisible(f, effectiveFit) && sizes[f.key]);
+                        if (!rows.length) return null;
                         return (
-                          <div key={f.key} className="kit-size-read">
-                            <span className="lbl">{f.label}</span>
-                            <span className="val">{trio || sizes[f.key]}</span>
+                          <div key={g.label} className="kit-lgrp">
+                            <p className="kit-lgrp-h">{g.label}</p>
+                            {rows.map((f) => {
+                              const trio = f.key === 'shoe' ? formatShoeTrio(sizes.shoe, sizes.region, effectiveFit) : null;
+                              return (
+                                <div key={f.key} className={`kit-lrow${f.key === 'shoe' ? ' is-shoe' : ''}`}>
+                                  <span className="l">{f.label}</span>
+                                  <span className="v">{trio || sizes[f.key]}</span>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })}
