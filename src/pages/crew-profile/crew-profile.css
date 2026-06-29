@@ -128,7 +128,7 @@ body.crew-profile-editorial {
 }
 /* Documents view toggle — sits on its own row beneath the ruled heading (like
    the other tabs' section → content flow), rather than inline with the rule. */
-.crew-profile-page .cd-seg-row { display: flex; justify-content: flex-end; margin: 12px 0 16px; }
+.crew-profile-page .cd-seg-row { display: flex; justify-content: flex-start; margin: 10px 0 14px; }
 .crew-profile-page .cp-section-sub {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 13px;
