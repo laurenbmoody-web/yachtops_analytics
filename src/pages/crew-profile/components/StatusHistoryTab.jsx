@@ -217,17 +217,18 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
 
   return (
     <div>
-      <div className="cd-controls" style={{ marginTop: 0 }}>
+      <div className="cp-tab-head">
         <div className="cp-section-head">
           <span className="cp-section-num">11 /</span>
           <h3>Activity</h3>
         </div>
-        <div className="cd-seg">
-          <button type="button" className={view === 'timeline' ? 'on' : ''} onClick={() => setView('timeline')}>Timeline</button>
-          <button type="button" className={view === 'calendar' ? 'on' : ''} onClick={() => setView('calendar')}>Status calendar</button>
+        <div className="cp-tab-actions">
+          <div className="cd-seg">
+            <button type="button" className={view === 'timeline' ? 'on' : ''} onClick={() => setView('timeline')}>Timeline</button>
+            <button type="button" className={view === 'calendar' ? 'on' : ''} onClick={() => setView('calendar')}>Status calendar</button>
+          </div>
         </div>
       </div>
-      <div style={{ height: 16 }} />
 
       {loading ? (
         <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>

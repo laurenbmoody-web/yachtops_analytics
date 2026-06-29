@@ -142,7 +142,7 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
       <div className="cp-tab-head">
         <div className="cp-section-head">
           <span className="cp-section-num">02 /</span>
-          <h3>Profile statement</h3>
+          <h3>Crew Profile</h3>
         </div>
         {canEdit && !editing && (
           <div className="cp-tab-actions">
