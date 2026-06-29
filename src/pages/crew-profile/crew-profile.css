@@ -126,9 +126,9 @@ body.crew-profile-editorial {
   position: absolute; top: 0; right: 0;
   display: flex; align-items: center; gap: 8px;
 }
-/* Documents "by category" bar — top-align so the heading sits a consistent 18px
-   below the title rather than being pushed down by the taller view toggle. */
-.crew-profile-page .cd-controls-top { align-items: flex-start; }
+/* Documents view toggle — sits on its own row beneath the ruled heading (like
+   the other tabs' section → content flow), rather than inline with the rule. */
+.crew-profile-page .cd-seg-row { display: flex; justify-content: flex-end; margin: 12px 0 16px; }
 .crew-profile-page .cp-section-sub {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 13px;
