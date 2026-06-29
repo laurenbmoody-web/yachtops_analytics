@@ -85,9 +85,29 @@ export const ROLES = {
   other:          { label: 'Other',                    department: 'other', accruesToward: [], watchkeepingDomain: null }
 };
 
+// Officer-grade capacity test. The higher CoCs require the qualifying service to
+// be performed "as a deck/engineer officer" whilst holding the lower CoC (MSN
+// 1858 Master/Chief Mate; MSN 1904 Chief Engineer levels), so rating service
+// (deckhand, motorman, cadet, bosun, steward…) does NOT count toward them. The
+// capacity field is free text, so we exclude only CLEARLY non-officer ranks and
+// count everything else — including blanks — as officer, to never silently drop
+// ambiguous service. (Watchkeeping is officer-grade by definition: in full
+// charge of a navigational/engine watch — MSN 1858/1904 §5.)
+const RATING_CAPACITY = /\b(deck\s*hands?|deck\s*rating|ratings?|cadets?|trainees?|apprentices?|bo'?sun|boatswain|able\s*seaman|ordinary\s*seaman|motor\s*man|motormen|oiler|greaser|wiper|engine\s*rating|steward(?:ess)?|cook|chef|galley)\b/i;
+export const isOfficerCapacity = (capacity) => {
+  const s = String(capacity || '').trim();
+  if (!s) return true;                 // unknown — don't silently drop; the crew can set the capacity
+  return !RATING_CAPACITY.test(s);
+};
+
 // ── Certificates. `requires` fields drive the progress bars (only the fields
 // present are shown). Months are converted to days at SERVICE_RULES.monthDays.
-// `routes` documents alternative service routes where the notice gives several. ─
+// `routes` documents alternative service routes where the notice gives several.
+// `heldWhilstCert` = the prerequisite CoC (a CERTIFICATES id) whose qualifying
+// service must be performed WHILE HOLDING it; `asOfficer` = that service must be
+// in an officer capacity. Both gate the requirement bars in the engine so a
+// higher cert only counts officer service dated after the prerequisite was held
+// (MSN 1858 §3.4-3.6 / §4; MSN 1904 §5.9.2). Entry certs set neither. ─────────
 export const CERTIFICATES = {
   // ===================== DECK — MSN 1858 Amendment 2 (HIGH) =====================
   // Small-vessel command entry tier (Code <200GT / OOW Yachts <500GT). Service is
@@ -132,7 +152,7 @@ export const CERTIFICATES = {
     msn: 'MSN 1858 Amd 2 §3.5', verified: 'HIGH',
     yardCapDays: 30,                // Master: max 30 yard days (1858 §3.5)
     requires: { onboardMonths: 12, watchkeepingDays: 120, minVesselMetres: 15 },
-    heldWhilst: 'OOW (Yachts <3000GT) II/1'
+    heldWhilst: 'OOW (Yachts <3000GT) II/1', heldWhilstCert: 'OOW_YACHT_3000', asOfficer: true
   },
   MASTER_YACHT_3000: {
     family: 'DECK', label: 'Master (Yachts <3000GT)', short: 'Master <3000GT',
@@ -143,7 +163,7 @@ export const CERTIFICATES = {
       // §3.6 sub-gate, computed from each vessel's recorded GT + length.
       higherTonnage: { metresMonths: 12, metresMin: 24, gtMonths: 6, gtMin: 500 }
     },
-    heldWhilst: 'OOW (Yachts <3000GT) II/1',
+    heldWhilst: 'OOW (Yachts <3000GT) II/1', heldWhilstCert: 'OOW_YACHT_3000', asOfficer: true,
     note: 'All service ≥15m AND include 12 months on ≥24m OR 6 months on ≥500GT. The larger-vessel bar is computed from each vessel’s GT/length on record; the prior-service baseline and any entry without vessel size can’t be size-attributed.'
   },
   CHIEF_MATE_UNLIMITED: {
@@ -151,7 +171,7 @@ export const CERTIFICATES = {
     msn: 'MSN 1858 Amd 2 §4.3', verified: 'HIGH',
     yardCapDays: 30,                // Chief Mate: max 30 yard days (1858 §4.3)
     requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
-    heldWhilst: 'OOW Unlimited (or Master Yachts <3000GT II/1)',
+    heldWhilst: 'OOW Unlimited (or Master Yachts <3000GT II/1)', heldWhilstCert: 'MASTER_YACHT_3000', asOfficer: true,
     note: 'OOW-Unlimited route: 12 months onboard as OOW incl. 6 months seagoing, all on a yacht ≥500GT.'
   },
   MASTER_UNLIMITED: {
@@ -160,7 +180,7 @@ export const CERTIFICATES = {
     yardCapDays: 30,                // Master: max 30 yard days (1858 §4.4)
     // 3 alternative routes — default bar uses the Chief-Mate-Unlimited route (A).
     requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
-    heldWhilst: 'Chief Mate (Yachts Unlimited)',
+    heldWhilst: 'Chief Mate (Yachts Unlimited)', heldWhilstCert: 'CHIEF_MATE_UNLIMITED', asOfficer: true,
     routes: [
       { whilstHolding: 'Chief Mate Yachts Unlimited', onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
       { whilstHolding: 'Master Yachts <3000GT II/2', onboardMonths: 6, seagoingMonths: 3, minGT: 500 },
@@ -192,7 +212,11 @@ export const CERTIFICATES = {
     legacyAlias: '≈ Y4',
     msn: 'MSN 1904 §5.9.2', verified: 'HIGH',
     requires: { onboardMonths: 12, seagoingMonths: 4, minPowerKW: 350 },
-    heldWhilst: 'MEOL (or an approved cadetship)',
+    // Entry officer CoC (STCW III/1) — MSN 1904 §4.4 Experienced Seafarer Route
+    // does NOT require a lower engineer CoC as a prerequisite (verified against
+    // MSN 1904 + MCA-approved training schools). A TRB / approved cadetship is a
+    // training route, not a held CoC, so there is no `heldWhilstCert` gate.
+    entryNote: 'Built via a Training Record Book / approved cadetship — no lower engineer CoC is a prerequisite.',
     note: 'Experienced route: 12 months onboard on yachts ≥350kW, including ≥4 months actual seagoing (days underway). Up to 2 further months at-anchor / fast-to-shore on own power count as watchkeeping (6 months of watch out of 24). STCW III/1. CoC caps: <9000kW, <3000GT.'
   },
   CHIEF_SV_500_Y: {
@@ -200,7 +224,7 @@ export const CERTIFICATES = {
     legacyAlias: '≈ Y3',
     msn: 'MSN 1904 §5.9.2', verified: 'HIGH',
     requires: { onboardMonths: 6, seagoingMonths: 4, minPowerKW: 350 },
-    heldWhilst: 'EOOW Engineer SV (Yacht)',
+    heldWhilst: 'EOOW Engineer SV (Yacht)', heldWhilstCert: 'EOOW_SV_Y', asOfficer: true,
     note: '6 months onboard as EOOW SV on yachts ≥350kW, incl. ≥4 months seagoing (underway), whilst holding the EOOW SV yacht CoC. STCW III/3. CoC caps: <500GT & <3000kW.'
   },
   CHIEF_SV_3000_Y: {
@@ -208,7 +232,7 @@ export const CERTIFICATES = {
     legacyAlias: '≈ Y2 / Y1',
     msn: 'MSN 1904 §5.9.2', verified: 'HIGH',
     requires: { onboardMonths: 12, seagoingMonths: 8, minPowerKW: 350 },
-    heldWhilst: 'EOOW Engineer SV (Yacht)',
+    heldWhilst: 'EOOW Engineer SV (Yacht)', heldWhilstCert: 'EOOW_SV_Y', asOfficer: true,
     note: '12 months onboard ≥350kW incl. ≥8 months seagoing — of which ≥4 months on yachts ≥750kW — whilst holding EOOW SV; OR 6 months onboard incl. ≥4 months seagoing whilst holding Chief SV <500GT. STCW III/2. CoC caps: <3000GT & <9000kW.',
     routes: [
       { whilstHolding: 'EOOW Engineer SV (Yacht)', onboardMonths: 12, seagoingMonths: 8, minPowerKW: 350, seagoingMinPowerKW: 750 },

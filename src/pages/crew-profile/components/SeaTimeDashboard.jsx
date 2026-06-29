@@ -430,9 +430,23 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     () => computeBuckets(pathwayEntries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId), dualRate }),
     [pathwayEntries, vessels, config, targetId, dualRate],
   );
+  // A higher CoC only counts service done AS AN OFFICER, WHILE HOLDING its
+  // prerequisite (MSN 1858 §3.4-3.6/§4; MSN 1904 §5.9.2). So its requirement
+  // bars run on a gated bucket set: officer-capacity service dated on/after the
+  // date the prerequisite CoC was held. `whileHoldingISO` is that date (null if
+  // the crew hasn't recorded the prerequisite's issue date — then we gate by
+  // officer capacity only and flag it). Prior (pre-Cargo) service has no dates
+  // and is trusted as entered. Entry certs (no asOfficer) use the plain buckets.
+  const whileHoldingISO = cert?.heldWhilstCert ? (heldCerts[cert.heldWhilstCert]?.issueDate || null) : null;
+  const reqBuckets = useMemo(
+    () => (cert?.asOfficer
+      ? computeBuckets(pathwayEntries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId), dualRate, officerOnly: true, sinceISO: whileHoldingISO })
+      : buckets),
+    [cert, pathwayEntries, vessels, config, targetId, dualRate, whileHoldingISO, buckets],
+  );
   // Recent qualifying seagoing service in the last 5 years (MCA recency rule).
   const recentDays = useMemo(() => recentQualifyingDays(pathwayEntries.filter(e => !e.excluded)), [pathwayEntries]);
-  const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert, recentDays) : []), [buckets, prior, cert, recentDays]);
+  const requirements = useMemo(() => (cert ? buildRequirementBars(reqBuckets, prior, cert, recentDays) : []), [reqBuckets, prior, cert, recentDays]);
   // Ancillary courses/tickets for the target CoC, with held-state auto-detected
   // from the crew member's documents (a course counts as held once a matching
   // document type is on file).
@@ -1038,6 +1052,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     </div>
                   ) : (
                     <div className="stp-sub" style={{ marginTop: 12 }}>No additional qualifying service required — may be applied for alongside the certificate above.</div>
+                  )}
+                  {r.asOfficer && (
+                    <div className="stp-whilst">
+                      <Icon name="Info" size={13} />
+                      <div>{whileHoldingISO
+                        ? <>Counts <b>deck/engineer-officer service from {fmtDate(whileHoldingISO)}</b> — when you held {CERTIFICATES[r.heldWhilstCert]?.short || r.heldWhilst}. Earlier and rating service counted toward that certificate, not this one (MSN 1858 / MSN 1904).</>
+                        : <>Only <b>officer service whilst holding {CERTIFICATES[r.heldWhilstCert]?.short || r.heldWhilst}</b> counts toward this CoC. Set that certificate’s issue date under <b>Certificates held</b> so only qualifying service is counted — for now it’s gated by capacity only.</>}</div>
+                    </div>
                   )}
                   {r.note && <div className="stp-cnote">{r.note}</div>}
                 </div>

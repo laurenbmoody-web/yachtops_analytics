@@ -10,7 +10,7 @@
 /** @typedef {'seagoing'|'watchkeeping'|'standby'|'yard'} ServiceType */
 /** @typedef {'manual'|'ais'|'rota'} Source */
 
-import { SERVICE_RULES } from './pathways.js';
+import { SERVICE_RULES, isOfficerCapacity } from './pathways.js';
 
 // ── Config — thresholds sourced from MSN 1858 Amd 2 (deck) / MSN 1859 (engine).
 // Standby is NOT a flat cap: it may not exceed actual seagoing service (1858
@@ -136,7 +136,13 @@ export const classify = (entry, vessel, config = DEFAULT_CONFIG) => {
  * @returns {{ seagoing:number, watchkeeping:number, standby:number, standbyRaw:number, yard:number, total:number }}
  */
 export const computeBuckets = (entries, vessels, config = DEFAULT_CONFIG) => {
-  const live = entries.filter(e => !e.excluded);
+  // While-holding + officer gating for higher CoCs. `config.sinceISO` keeps only
+  // service dated on/after the date the prerequisite CoC was held; `officerOnly`
+  // keeps only officer-capacity service. Both are off by default, so entry certs
+  // and existing callers are unaffected (MSN 1858 §3.4-3.6/§4; MSN 1904 §5.9.2).
+  let live = entries.filter(e => !e.excluded);
+  if (config.sinceISO) live = live.filter(e => e.from && e.from >= config.sinceISO);
+  if (config.officerOnly) live = live.filter(e => isOfficerCapacity(e.capacity));
   let seagoing = 0, watchkeeping = 0, standbyRaw = 0, yardRaw = 0;
   for (const e of live) {
     const c = classify(e, vessels[e.vesselId], config);
