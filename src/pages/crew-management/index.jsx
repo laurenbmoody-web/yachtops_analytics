@@ -16,6 +16,7 @@ import EditAssignmentModal from './components/EditAssignmentModal';
 import EditEmploymentModal from './components/EditEmploymentModal';
 import StatusChangeModal from './components/StatusChangeModal';
 import CrewCalendar from './components/CrewCalendar';
+import GuestBookExportModal from './components/GuestBookExportModal';
 import { supabase } from '../../lib/supabaseClient';
 import { getMyContext } from '../../utils/authHelpers';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,6 +41,7 @@ const CrewManagement = () => {
   const [currentUserRole, setCurrentUserRole] = useState(null); // NEW: Store tenant_members.permission_tier
   const [users, setUsers] = useState([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showGuestBook, setShowGuestBook] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [showViewProfileModal, setShowViewProfileModal] = useState(false);
@@ -775,7 +777,19 @@ const CrewManagement = () => {
           <>
             {/* INVITE CREW BUTTON - Moved here to sit above Pending Invites */}
             {shouldShowInviteButton && (
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-end items-center gap-3 mb-4">
+                {canInvite && (
+                  <button
+                    type="button"
+                    onClick={() => setShowGuestBook(true)}
+                    aria-label="Export guest book"
+                    className="bg-white text-[#1C1B3A] border border-[#E5E7EB] hover:bg-[#FAFAF8] shadow-sm flex items-center gap-2 px-5 py-3 text-sm font-semibold rounded-lg transition-colors"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <Icon name="BookOpen" size={18} />
+                    Export guest book
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleInviteClick}
@@ -1023,6 +1037,15 @@ const CrewManagement = () => {
           isOpen={showInviteModal}
           onClose={() => setShowInviteModal(false)}
           onSuccess={handleInviteSuccess}
+        />
+      )}
+      {/* Guest-book export */}
+      {showGuestBook && (
+        <GuestBookExportModal
+          open={showGuestBook}
+          onClose={() => setShowGuestBook(false)}
+          tenantId={activeTenantId}
+          crew={users.filter((u) => u.status !== 'invited' && u.fullName)}
         />
       )}
       {/* Status Change Modal */}
