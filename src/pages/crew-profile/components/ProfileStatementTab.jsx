@@ -152,48 +152,23 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
           </div>
         )}
       </div>
-      <p className="cp-section-sub">A short introduction for the guest information book — a glimpse of who you are, not just what you do.</p>
       <div className="cp-group-head"><span className="dia">◆</span><span className="t">Your introduction</span><span className="line" /></div>
 
-      {/* ---------------- READ-ONLY VIEW ---------------- */}
-      {!editing && (
-        <div className="ps-wrap">
-          <div className="ps-main">
-            {hasText
-              ? <div className="ps-readout">{form.statement}</div>
-              : <div className="ps-empty">No statement yet.{canEdit ? ' Use “Write statement” to add one — AI can give you a head start.' : ''}</div>}
+      <div className="ps-wrap">
+        <div className="ps-main">
+          <label className="ps-label">Your statement <em>shown to guests</em></label>
+          <textarea
+            className="ps-area" rows={8} value={form.statement} disabled={!editing}
+            onChange={(e) => setF('statement', e.target.value)}
+            placeholder="e.g. I'm Lauren, a Yorkshire lass who somehow ended up spending a decade at sea. Off-duty you'll find me underwater, on the padel court, or behind a camera."
+          />
+          <div className="ps-meta">
+            <span className={words > 90 ? 'ps-over' : ''}>{words} {words === 1 ? 'word' : 'words'}</span>
+            <span className="ps-hint">· aim for ~60–80 to fit three crew to a page</span>
           </div>
-          <div className="ps-side">
-            {filledDetails.length > 0 && (
-              <div className="ps-readfields">
-                {filledDetails.map((d) => (
-                  <div className="ps-readfield" key={d.key}>
-                    <span>{d.label}</span>
-                    <p>{form[d.key]}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* ---------------- EDIT VIEW ---------------- */}
-      {editing && (
-        <>
-          <div className="ps-wrap">
-            <div className="ps-main">
-              <label className="ps-label">Your statement <em>shown to guests</em></label>
-              <textarea
-                className="ps-area" rows={8} value={form.statement}
-                onChange={(e) => setF('statement', e.target.value)}
-                placeholder="e.g. I'm Lauren, a Yorkshire lass who somehow ended up spending a decade at sea. Off-duty you'll find me underwater, on the padel court, or behind a camera."
-              />
-              <div className="ps-meta">
-                <span className={words > 90 ? 'ps-over' : ''}>{words} {words === 1 ? 'word' : 'words'}</span>
-                <span className="ps-hint">· aim for ~60–80 to fit three crew to a page</span>
-              </div>
-
+          {editing && (
+            <>
               <div className="ps-voice">
                 <span className="ps-voice-lbl">Voice</span>
                 {TONES.map((t) => (
@@ -220,24 +195,28 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
                     ? <>Pick a voice, then <b>Rewrite</b> for a fresh take — or <b>Polish</b> to keep your words. {DAILY_CAP - used} left today.</>
                     : <>Pick a voice and let AI draft from the details on the right. {DAILY_CAP - used} drafts left today.</>}
               </div>
-            </div>
+            </>
+          )}
+        </div>
 
-            <div className="ps-side">
-              {DETAILS.map((d) => (
-                <Field key={d.key} label={d.label} value={form[d.key]} onChange={(v) => setF(d.key, v)} placeholder={d.placeholder} />
-              ))}
-              <div className="ps-prompts">
-                <div className="ps-prompts-h">Need a spark?</div>
-                <ul>{PROMPTS.map((p) => <li key={p}>{p}</li>)}</ul>
-              </div>
+        <div className="ps-side">
+          {DETAILS.map((d) => (
+            <Field key={d.key} label={d.label} value={form[d.key]} onChange={(v) => setF(d.key, v)} placeholder={d.placeholder} readOnly={!editing} />
+          ))}
+          {editing && (
+            <div className="ps-prompts">
+              <div className="ps-prompts-h">Need a spark?</div>
+              <ul>{PROMPTS.map((p) => <li key={p}>{p}</li>)}</ul>
             </div>
-          </div>
+          )}
+        </div>
+      </div>
 
-          <div className="ps-actions">
-            <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save statement'}</Button>
-            <Button variant="outline" onClick={cancel} disabled={saving}>Cancel</Button>
-          </div>
-        </>
+      {editing && (
+        <div className="ps-actions">
+          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save statement'}</Button>
+          <Button variant="outline" onClick={cancel} disabled={saving}>Cancel</Button>
+        </div>
       )}
     </div>
   );
