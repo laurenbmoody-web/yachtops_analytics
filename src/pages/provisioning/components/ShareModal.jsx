@@ -129,10 +129,15 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
         onFocus={() => setOpen(true)}
         placeholder="Search crew by name or email…"
       />
-      {open && filtered.length > 0 && (
-        <div className="shm-search-menu" onMouseDown={e => e.preventDefault()}>
-          {filtered.map(c => (
-            <button key={c.id} className="shm-search-item" onClick={() => { onSelect(c); setQuery(''); setOpen(false); }}>
+      {/* Inline results — plain hairline rows in the modal flow, not a
+          floating menu. The modal body is the single scroll surface, so
+          there's no box-within-a-box clipping past the panel edge. */}
+      {open && (
+        <div className="shm-search-inline">
+          {filtered.length === 0 ? (
+            <p className="shm-search-none">No matching crew.</p>
+          ) : filtered.map(c => (
+            <button key={c.id} className="shm-search-item" onMouseDown={e => e.preventDefault()} onClick={() => { onSelect(c); setQuery(''); setOpen(false); }}>
               <Avatar name={c.full_name} email={c.email} url={c.avatar_url} size={28} />
               <div style={{ minWidth: 0 }}>
                 <p className="shm-collab-name">{c.full_name || c.email}</p>
