@@ -411,11 +411,17 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-reqs{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:16px;}
 @media(max-width:680px){.stp-reqs{grid-template-columns:1fr;gap:11px;}}
 .stp-req .l{font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
-.stp-req .v{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:15px;margin-top:3px;color:var(--ink);}
-.stp-req .v em{font-style:normal;color:var(--faint);font-size:11.5px;}
-.stp-req .meter{height:2px;background:var(--hair-2);margin-top:8px;position:relative;}
-.stp-req .meter i{position:absolute;left:0;top:0;height:2px;background:var(--rust);}
-.stp-req.done .meter i{background:var(--sage);} .stp-req.done .l{color:var(--sage-deep);}
+.stp-reqtop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:5px 0 8px;}
+.stp-req .v{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:18px;line-height:1;color:var(--ink);}
+.stp-req .v em{font-style:normal;font-family:'Inter',system-ui,sans-serif;color:var(--faint);font-size:11.5px;}
+.stp-reqpill{font-size:9.5px;font-weight:700;letter-spacing:.02em;border-radius:999px;padding:3px 8px;white-space:nowrap;}
+.stp-reqpill.met{background:#EFF6F1;color:var(--sage-deep);}
+.stp-reqpill.togo{background:var(--rust-tint);color:var(--rust);}
+.stp-req.advisory .stp-reqpill.togo{background:#F6ECD8;color:#A6712C;}
+.stp-track{height:7px;background:#EFEDE7;border-radius:999px;overflow:hidden;}
+.stp-track i{display:block;height:100%;border-radius:999px;background:var(--rust);}
+.stp-req.done .stp-track i{background:var(--sage);}
+.stp-req.done .l{color:var(--sage-deep);}
 .stp-accrual{font-size:12px;color:var(--muted);margin-top:14px;padding-left:12px;border-left:2px solid var(--rust);line-height:1.5;}
 .stp-accrual b{color:var(--ink);}
 .stp-cnote{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5;}
@@ -519,8 +525,18 @@ button.cj-node:hover{border-color:var(--rust);}
 .stp-dual input{accent-color:var(--rust);width:13px;height:13px;cursor:pointer;}
 .stp-dualnote{margin-top:8px;font-size:11.5px;line-height:1.5;color:#7A3D14;background:#FBEFE9;border:1px solid #F0D7C8;border-radius:8px;padding:8px 10px;}
 .stp-dualnote b{color:#C65A1A;}
-.stp-req.advisory .meter i{background:#C9A24B;}
+.stp-req.advisory .stp-track i{background:#C9A24B;}
 .stp-advtag{display:inline-block;margin-left:6px;font-size:7.5px;font-weight:700;letter-spacing:.06em;color:#A6712C;background:#F6ECD8;border-radius:999px;padding:1px 6px;vertical-align:middle;}
+
+/* Status strip — slim, single-line pathway status under the spine (banner 2). */
+.stp-status{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:16px;padding:11px 15px;border:1px solid var(--hair-2);border-radius:10px;font-size:13px;color:var(--ink);}
+.stp-status .dot{width:7px;height:7px;border-radius:50%;background:var(--rust);flex:none;}
+.stp-status.ok .dot{background:var(--sage);}
+.stp-status b{font-weight:600;}
+.stp-status .sep{color:var(--faint);}
+.stp-status .msg{color:var(--muted);}
+.stp-status .go{margin-left:auto;background:none;border:0;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--rust);cursor:pointer;padding:0;white-space:nowrap;}
+.stp-status .go:hover{text-decoration:underline;}
 /* legacy-grade alias — secondary familiar name (e.g. "≈ Y4") beside the official CoC */
 .stp-alias{display:inline-block;margin-left:6px;font-size:9px;font-weight:600;color:#8B8478;background:#F6F5F2;border:1px solid #ECEAE3;border-radius:999px;padding:1px 7px;vertical-align:middle;white-space:nowrap;}
 /* legacy-CoC conversion nudge — prompt a Y-grade holder to convert + re-upload */

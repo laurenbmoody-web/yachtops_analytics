@@ -223,6 +223,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [usingSample, setUsingSample] = useState(true);
   const toastTimer = useRef(null);
   const ledgerRef = useRef(null);
+  const journeyRef = useRef(null); // certification-journey card, for the status strip CTA
 
   const flash = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2600); };
 
@@ -456,6 +457,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // days-to-go tracks the certificate's largest single requirement (headline gate)
   const primary = requirements.reduce((a, b) => (b.required > (a?.required || 0) ? b : a), null) || requirements[0];
   const daysToGo = primary ? primary.remaining : 0;
+  // Status-strip state: eligible once every HARD (non-advisory) requirement is
+  // met on an authoritative route; otherwise show the next rung after the target.
+  const hardReqBars = requirements.filter(r => !r.advisory);
+  const pathConf = cert ? certConfidence(cert) : null;
+  const eligibleNow = !!pathConf?.authoritative && hardReqBars.length > 0 && hardReqBars.every(r => r.met);
+  const nextRungCert = (() => {
+    const ti = targetId ? route.indexOf(targetId) : -1;
+    const nid = ti >= 0 ? route[ti + 1] : null;
+    return nid ? CERTIFICATES[nid] : null;
+  })();
   const live = entries.filter(e => !e.excluded);
   const totalLoggedDays = live.reduce((s, e) => s + (e.days || 0), 0);
   const badCount = live.filter(e => !classify(e, vessels[e.vesselId], config).qual).length;
@@ -1009,8 +1020,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                       {requirements.map(rq => (
                         <div className={`stp-req ${rq.met ? 'done' : ''}${rq.advisory ? ' advisory' : ''}`} key={rq.key}>
                           <div className="l">{rq.label}{rq.advisory && <span className="stp-advtag">advisory</span>}</div>
-                          <div className="v">{rq.required ? <>{rq.current} <em>/ {rq.required}</em></> : '—'}</div>
-                          <div className="meter"><i style={{ width: `${rq.pct}%` }} /></div>
+                          <div className="stp-reqtop">
+                            <span className="v">{rq.required ? <>{rq.current}<em>/{rq.required}</em></> : '—'}</span>
+                            {rq.required ? (rq.met
+                              ? <span className="stp-reqpill met">Met</span>
+                              : <span className="stp-reqpill togo">{rq.remaining} to go</span>) : null}
+                          </div>
+                          <div className="stp-track"><i style={{ width: `${rq.pct}%` }} /></div>
                           {rq.orBranch && rq.detail && (
                             <div className="stp-orhint">
                               by length {rq.detail.metres24}/{rq.detail.metresTarget} · by tonnage {rq.detail.gt500}/{rq.detail.gtTarget}
@@ -1029,6 +1045,24 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             );
           })}
         </div>
+        {!routeComplete && (
+          <div className={`stp-status${eligibleNow ? ' ok' : ''}`}>
+            <span className="dot" />
+            {eligibleNow ? (
+              <>
+                <b>Eligible now</b><span className="sep">·</span>
+                <span className="msg">all sea-time requirements met for {cert.short}</span>
+                <button type="button" className="go" onClick={() => journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Start certification journey →</button>
+              </>
+            ) : (
+              <>
+                <b>On track</b><span className="sep">·</span>
+                <span className="msg">{daysToGo} {daysToGo === 1 ? 'day' : 'days'} to go{nextRungCert ? <> <span className="sep">·</span> next: {nextRungCert.short}</> : ''}</span>
+                <button type="button" className="go" onClick={() => journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>View journey →</button>
+              </>
+            )}
+          </div>
+        )}
         {routeComplete && (
           <div className="stp-achieved">
             <IcoPath d="M20 6L9 17l-5-5" color="#5E8E6F" size={22} />
@@ -1403,7 +1437,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         };
         const doneCount = steps.filter(s => s.state === 'done').length;
         return (
-          <div className="cj" style={{ marginTop: 18 }}>
+          <div className="cj" id="cert-journey" ref={journeyRef} style={{ marginTop: 18 }}>
             <div className="cj-head">
               <div>
                 <h3 className="cj-title">Certification journey</h3>
