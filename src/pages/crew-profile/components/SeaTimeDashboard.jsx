@@ -1225,23 +1225,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             );
           })}
         </div>
-        {(serviceFilter !== 'all' || syncInfo?.excluded_leave_days > 0 || prior.onboard > 0) && (
+        {serviceFilter !== 'all' && (
           <div style={{ padding: '10px 18px 0' }}>
-            {serviceFilter !== 'all' && (
-              <div className="std-filternote">
-                Showing <b>{TYPE_META[serviceFilter].label}</b> only · <button type="button" onClick={() => setServiceFilter('all')}>Show all</button>
-              </div>
-            )}
-            {syncInfo?.excluded_leave_days > 0 && (
-              <div className="std-filternote">
-                <b>{syncInfo.excluded_leave_days} {syncInfo.excluded_leave_days === 1 ? 'day' : 'days'}</b> excluded as leave / rotational leave — your status showed you weren’t aboard, so {syncInfo.excluded_leave_days === 1 ? 'it doesn’t' : 'they don’t'} count toward your CoC. {syncInfo.excluded_leave_days === 1 ? 'It’s' : 'They’re'} still reported as leave on your testimonial.
-              </div>
-            )}
-            {prior.onboard > 0 && (
-              <div className="std-filternote">
-                Pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> entered before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
-              </div>
-            )}
+            <div className="std-filternote">
+              Showing <b>{TYPE_META[serviceFilter].label}</b> only · <button type="button" onClick={() => setServiceFilter('all')}>Show all</button>
+            </div>
           </div>
         )}
         {logView === 'calendar' && (
@@ -1385,8 +1373,20 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           })()}
         </div>
         <div className="std-foot" style={{ padding: '14px 18px 18px' }}>
-          {live.length} entries in pack · {buckets.total} qualifying days{excludedCount ? ` · ${excludedCount} excluded` : ''}
-          {offCargoDays > 0 && <> · <b style={{ color: '#5A6478' }}>{offCargoDays} {offCargoDays === 1 ? 'day' : 'days'} off-Cargo</b> — counts toward your pathway, but not Cargo-verifiable (use your own testimonial)</>}
+          {syncInfo?.excluded_leave_days > 0 && (
+            <div className="std-filternote">
+              <b>{syncInfo.excluded_leave_days} {syncInfo.excluded_leave_days === 1 ? 'day' : 'days'}</b> excluded as leave / rotational leave — your status showed you weren’t aboard, so {syncInfo.excluded_leave_days === 1 ? 'it doesn’t' : 'they don’t'} count toward your CoC. {syncInfo.excluded_leave_days === 1 ? 'It’s' : 'They’re'} still reported as leave on your testimonial.
+            </div>
+          )}
+          {prior.onboard > 0 && (
+            <div className="std-filternote">
+              Pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> entered before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
+            </div>
+          )}
+          <div style={{ marginTop: (syncInfo?.excluded_leave_days > 0 || prior.onboard > 0) ? 10 : 0 }}>
+            {live.length} entries in pack · {buckets.total} qualifying days{excludedCount ? ` · ${excludedCount} excluded` : ''}
+            {offCargoDays > 0 && <> · <b style={{ color: '#5A6478' }}>{offCargoDays} {offCargoDays === 1 ? 'day' : 'days'} off-Cargo</b> — counts toward your pathway, but not Cargo-verifiable (use your own testimonial)</>}
+          </div>
         </div>
       </div>
     );
