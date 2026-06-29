@@ -192,11 +192,11 @@ export const CERTIFICATES = {
   // The old MSN 1859 "Y-grade" yacht-engineer ladder was withdrawn (10 Jan 2023)
   // and consolidated into MSN 1904 (with MIN 524 + MIN 594). Yacht engineers now
   // hold STCW Small Vessel CoCs endorsed "Limited to Yachts". Figures: MSN 1904
-  // §5.9.2, cross-checked against MIN 642 Annex A (MIN 642 itself expired 1 Dec
-  // 2025 — used as corroborating summary only; the MSN is the binding source).
+  // §5.9.2, cross-checked against MIN 642 Annex A. MIN 642 is CURRENT and in use
+  // (confirmed by the MCA, Jun 2026) — it is the binding source for the legacy
+  // Y-grade conversion detail, to which MSN 1904 §12.1 delegates.
   //   legacyAlias = the nearest old Y-grade, for crew who still think in Y-grades.
-  //   The precise legacy→SV conversion is LEGACY_GRADE_CONVERSION (MIN 642 §7.3,
-  //   to which MSN 1904 §12.1 delegates — provisional, see that map's note).
+  //   The precise legacy→SV conversion is LEGACY_GRADE_CONVERSION (MIN 642 §7.3).
   // Yacht seagoing = days actually UNDERWAY with main propulsion in full use; yard
   // time never counts as seagoing; up to 2 months at-anchor/fast-to-shore on own
   // power may count as watchkeeping (MSN 1904 §5.9).
@@ -455,28 +455,32 @@ export const certConfidence = (cert) => {
 // For crew who still HOLD an old Y-grade certificate: where it converts to, the
 // MCA conversion code, and the service/course top-up.
 // SOURCING: the in-force MSN 1904 carries NO conversion table — §12.1 delegates
-// the detail to MIN 642 ("This is available in MIN 642"). The conversion CODES,
-// target bands, source-grade gates and recency rule ARE corroborated in force by
-// GOV.UK "Engineering Officers and Ratings" guidance (updated 2 Feb 2026, i.e.
-// after MIN 642 expired) — `codeVerified:'HIGH'`. That page also confirms
-// Conversion C is the Y3 route (resolving MIN 642 §7.3.5's "Y3/Y4" wording bug).
-// The per-conversion service month-counts (topUp) are NOT restated anywhere in
-// force — they exist only in MIN 642 §7.3 (expired 1 Dec 2025), so `verified` stays
-// 'PROVISIONAL' (UI: "confirm with your training provider"). `from` = the source
-// grade's GT/kW/STCW-class gate (note Y1 is III/2; Y2–Y4 are III/3). Conversions
-// B and E need no extra sea time — courses + ENG1 only. ───────────────────────
+// the detail to MIN 642 ("This is available in MIN 642"). MIN 642 is CURRENT and
+// in use (MCA confirmed, Jun 2026), so it is the binding source: codes, target
+// bands, source-grade gates, the §7.3 service top-ups and the recency rule are
+// all `verified:'HIGH'`. The conversion route is keyed off the grade the
+// seafarer HOLDS (MCA, Jun 2026):
+//   · Route C is the Y3 route. The "Y4" in its text is NOT a bug — Route C
+//     accepts the required seagoing service performed in EITHER a Y3 or Y4
+//     capacity; the MCA must see the outlined seagoing service (seagoingCapacity).
+//   · A seafarer who holds ONLY a Y4 cannot use Route C — they follow one of the
+//     Route A lines (A1–A3) instead.
+// `from` = the source grade's GT/kW/STCW-class gate (Y1 is III/2; Y2–Y4 are
+// III/3). Conversions B and E need no extra sea time — courses + ENG1 only. ────
 export const LEGACY_GRADE_CONVERSION = {
   Y4: { from: 'Chief Engineer III/3 · <200GT & <1500kW', to: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
-        code: 'A1–A3', verified: 'PROVISIONAL', codeVerified: 'HIGH',
+        code: 'A1–A3', verified: 'HIGH', codeVerified: 'HIGH',
+        note: 'Y4-only holders must follow a Route A line (A1–A3) — Route C is not open to them (MCA, Jun 2026).',
         topUp: '6mo onboard / 4mo seagoing ≥350kW (EOOW) up to 12mo seagoing incl. 6mo ≥750kW (Chief <3000GT).' },
   Y3: { from: 'Chief Engineer III/3 · <500GT & <3000kW', to: ['CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
-        code: 'B / C', verified: 'PROVISIONAL', codeVerified: 'HIGH',
+        code: 'B / C', verified: 'HIGH', codeVerified: 'HIGH',
+        seagoingCapacity: 'Route C accepts the required seagoing service in a Y3 OR Y4 capacity — the MCA must see the outlined seagoing service.',
         topUp: 'Courses + ENG1 only for Chief <500GT (code B); 12mo onboard incl. 6mo seagoing for Chief <3000GT (code C).' },
   Y2: { from: 'Chief Engineer III/3 · <3000GT & <3000kW', to: ['CHIEF_SV_3000_Y'],
-        code: 'D', verified: 'PROVISIONAL', codeVerified: 'HIGH',
+        code: 'D', verified: 'HIGH', codeVerified: 'HIGH',
         topUp: '3 months seagoing on yachts ≥750kW.' },
   Y1: { from: 'Chief Engineer III/2 · <3000GT & <9000kW', to: ['CHIEF_SV_3000_Y'],
-        code: 'E', verified: 'PROVISIONAL', codeVerified: 'HIGH',
+        code: 'E', verified: 'HIGH', codeVerified: 'HIGH',
         topUp: 'Courses + ENG1 only (Y1 is the highest legacy grade).' }
 };
 
