@@ -21,30 +21,41 @@ Deno.serve(async (req) => {
 
   let payload: Record<string, string> = {};
   try { payload = await req.json(); } catch { /* empty */ }
-  const { name = "", role = "", nationality = "", hometown = "", languages = "", interests = "", vessel = "", draft = "", mode = "draft", tone = "warm" } = payload;
+  const { name = "", role = "", nationality = "", hometown = "", languages = "", interests = "", funFact = "", favouriteDestination = "", yearsYachting = "", vessel = "", draft = "", mode = "draft", tone = "warm" } = payload;
 
   // Voice / tone the crew member picked. Default to "warm" if unknown.
   const TONES: Record<string, string> = {
-    warm: "Warm and friendly — approachable, personable, like greeting a guest you're genuinely glad to host.",
-    professional: "Polished and professional — composed, articulate and reassuring, conveying quiet competence.",
-    playful: "Light and playful — a touch of humour and personality, fun without being unprofessional.",
-    adventurous: "Adventurous and spirited — evoke a love of the sea, travel and the outdoors.",
+    warm: "Warm and friendly — approachable and genuine, the kind of person you'd happily share a meal with.",
+    professional: "Polished and self-assured — composed and articulate, but still a real person, not a brochure.",
+    playful: "Light and playful — a wink of humour and personality; let them not take themselves too seriously.",
+    adventurous: "Adventurous and spirited — a love of the sea, travel, the outdoors and the next horizon.",
   };
   const toneLine = TONES[tone] || TONES.warm;
 
   const facts = [
     name && `Name: ${name}`,
     role && `Role aboard: ${role}`,
+    yearsYachting && `Years in yachting: ${yearsYachting}`,
     vessel && `Current vessel: ${vessel}`,
     nationality && `Nationality: ${nationality}`,
     hometown && `Hometown: ${hometown}`,
     languages && `Languages: ${languages}`,
     interests && `Interests / hobbies: ${interests}`,
+    favouriteDestination && `Favourite destination: ${favouriteDestination}`,
+    funFact && `Fun fact / hidden talent: ${funFact}`,
   ].filter(Boolean).join("\n");
 
+  // This is a "who am I" introduction for the crew member, in a guest book. It
+  // should read like meeting a real, interesting person — NOT a service pitch.
+  const RULES = `This is a personal introduction, not a service statement. Rules:
+- Lead with the PERSON: where they're from, what they love, what makes them them. Personality over professionalism.
+- Their role can appear once, naturally and briefly — do NOT build the bio around service, hospitality or "making your stay perfect".
+- BANNED: "passionate about hospitality", "exceptional service", "your every need", "finest/effortless service", "ensure your time aboard", "go above and beyond", and any guest-pleasing mission statement.
+- Warm and human, a little character. First person. 2–3 sentences. No emojis, no clichés.`;
+
   const instruction = mode === "polish"
-    ? `Polish and lightly improve this luxury-yacht crew member's guest-facing profile statement for the guest information book. Keep their voice and all facts; fix grammar and flow. 2–4 sentences, first person. No emojis, no clichés like "passionate about hospitality". Return only the statement text.\n\nTone to lean into: ${toneLine}\n\nDraft:\n${draft}\n\nFacts:\n${facts}`
-    : `Write a guest-facing profile statement for a luxury-yacht crew member, for the guest information book. 2–4 sentences, first person, welcoming and personable, conveying their role and a little personality. No emojis, no clichés. Return only the statement text.\n\nTone to lean into: ${toneLine}\n\nFacts:\n${facts}${draft ? `\n\nNotes from the crew member:\n${draft}` : ""}`;
+    ? `Polish and lightly improve this yacht crew member's personal introduction for the guest information book. Keep their voice and facts; fix grammar and flow; strip out any soppy service-speak so it sounds like the real person. Return only the statement text.\n\n${RULES}\n\nTone to lean into: ${toneLine}\n\nDraft:\n${draft}\n\nFacts:\n${facts}`
+    : `Write a yacht crew member's personal introduction for the guest information book — a glimpse of who they are as a person.\n\n${RULES}\n\nTone to lean into: ${toneLine}\n\nReturn only the statement text.\n\nFacts:\n${facts}${draft ? `\n\nNotes from the crew member:\n${draft}` : ""}`;
 
   try {
     const aiRes = await fetch("https://api.anthropic.com/v1/messages", {

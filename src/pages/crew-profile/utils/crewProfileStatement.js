@@ -15,10 +15,12 @@ export const saveProfileStatement = async (s) => {
     user_id: s.userId,
     tenant_id: s.tenantId || null,
     statement: s.statement ?? null,
-    headline: s.headline ?? null,
+    fun_fact: s.funFact ?? null,
     hometown: s.hometown ?? null,
     languages: s.languages ?? null,
     interests: s.interests ?? null,
+    favourite_destination: s.favouriteDestination ?? null,
+    years_yachting: s.yearsYachting ?? null,
     updated_at: new Date().toISOString(),
     updated_by: s.actorId || null,
   };
@@ -28,9 +30,9 @@ export const saveProfileStatement = async (s) => {
 };
 
 // AI assist — draft from facts/notes, or polish an existing draft.
-export const draftStatementWithAI = async ({ mode, name, role, nationality, hometown, languages, interests, vessel, draft, tone }) => {
+export const draftStatementWithAI = async ({ mode, name, role, nationality, hometown, languages, interests, funFact, favouriteDestination, yearsYachting, vessel, draft, tone }) => {
   const { data, error } = await supabase.functions.invoke('draft-crew-bio', {
-    body: { mode, name, role, nationality, hometown, languages, interests, vessel, draft, tone },
+    body: { mode, name, role, nationality, hometown, languages, interests, funFact, favouriteDestination, yearsYachting, vessel, draft, tone },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
