@@ -23,12 +23,13 @@ Deno.serve(async (req) => {
   try { payload = await req.json(); } catch { /* empty */ }
   const { name = "", role = "", nationality = "", hometown = "", languages = "", studies = "", interests = "", funFact = "", favouriteDestination = "", yearsYachting = "", vessel = "", draft = "", mode = "draft", tone = "warm" } = payload;
 
-  // Voice / tone the crew member picked. Default to "warm" if unknown.
+  // Voice / tone the crew member picked. Default to "warm" if unknown. Each is
+  // written to push the model to commit hard so the four voices read distinctly.
   const TONES: Record<string, string> = {
-    warm: "Warm and friendly — approachable and genuine, the kind of person you'd happily share a meal with.",
-    professional: "Polished and self-assured — composed and articulate, but still a real person, not a brochure.",
-    playful: "Light and playful — a wink of humour and personality; let them not take themselves too seriously.",
-    adventurous: "Adventurous and spirited — a love of the sea, travel, the outdoors and the next horizon.",
+    warm: "Warm and friendly. Open with genuine warmth; conversational and heartfelt, the kind of person you'd happily share a long dinner with. Soft, personable phrasing.",
+    professional: "Polished and assured. Crisp, composed sentences and understated confidence — a sense of craft and quiet competence, but still a real human, never a brochure.",
+    playful: "Playful and witty. Lead with humour or a self-deprecating aside; light, cheeky, a wink in the writing. Have fun with it and don't take yourself too seriously.",
+    adventurous: "Adventurous and spirited. Open on movement, the sea and far horizons; energetic verbs, a wanderer's restlessness and an obvious love of the outdoors.",
   };
   const toneLine = TONES[tone] || TONES.warm;
 
@@ -56,7 +57,7 @@ Deno.serve(async (req) => {
 
   const instruction = mode === "polish"
     ? `Polish and lightly improve this yacht crew member's personal introduction for the guest information book. Keep their voice and facts; fix grammar and flow; strip out any soppy service-speak so it sounds like the real person. Return only the statement text.\n\n${RULES}\n\nTone to lean into: ${toneLine}\n\nDraft:\n${draft}\n\nFacts:\n${facts}`
-    : `Write a yacht crew member's personal introduction for the guest information book — a glimpse of who they are as a person.\n\n${RULES}\n\nTone to lean into: ${toneLine}\n\nReturn only the statement text.\n\nFacts:\n${facts}${draft ? `\n\nNotes from the crew member:\n${draft}` : ""}`;
+    : `Write a yacht crew member's personal introduction for the guest information book — a glimpse of who they are as a person.\n\nWrite it COMPLETELY FRESH from the facts below. Do NOT reuse or lightly edit any existing statement — start from a blank page and give it a different spin. Commit fully to the requested voice: let it drive the opening line, the rhythm, and what you choose to emphasise, so a different voice would produce a noticeably different introduction.\n\n${RULES}\n\nVoice — commit to it fully: ${toneLine}\n\nReturn only the statement text.\n\nFacts:\n${facts}`;
 
   try {
     const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
