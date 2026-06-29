@@ -832,13 +832,14 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .kit-sgroup .kit-size-grid { margin-top: 12px; }
 
-/* Read-mode ledger (Option D) — two dense columns of label → value rows under
-   group rules; values right-aligned like an invoice. */
-.crew-profile-page .kit-ledger {
-  margin-top: 10px; column-count: 2; column-gap: 46px;
+/* Read-mode ledger (Option D) — three dense columns of label → value rows under
+   group rules; values right-aligned like an invoice. Footwear sits full-width
+   underneath with its UK/US/EU trio. */
+.crew-profile-page .kit-ledger-cols {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 46px; margin-top: 10px;
 }
-.crew-profile-page .kit-lgrp { break-inside: avoid; margin-bottom: 18px; }
-.crew-profile-page .kit-lgrp:last-child { margin-bottom: 0; }
+.crew-profile-page .kit-lgrp { margin-bottom: 18px; }
+.crew-profile-page .kit-lgrp-foot { margin: 2px 0 0; }
 .crew-profile-page .kit-lgrp-h {
   font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
   color: #C65A1A; margin: 0 0 2px; padding-bottom: 6px; border-bottom: 1px solid #ECEAE3;
@@ -849,12 +850,9 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .kit-lrow .l { font-size: 12.5px; color: #8B8478; }
 .crew-profile-page .kit-lrow .v { font-size: 14px; font-weight: 600; color: #1C1B3A; text-align: right; }
-.crew-profile-page .kit-lrow.is-shoe {
-  background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 8px;
-  padding: 9px 10px; margin-top: 2px;
-}
-.crew-profile-page .kit-lrow.is-shoe .v { color: #C65A1A; font-size: 13px; }
-@media (max-width: 720px) { .crew-profile-page .kit-ledger { column-count: 1; } }
+.crew-profile-page .kit-lrow.is-foot .v { color: #C65A1A; font-size: 13px; }
+@media (max-width: 900px) { .crew-profile-page .kit-ledger-cols { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .crew-profile-page .kit-ledger-cols { grid-template-columns: 1fr; } }
 
 .crew-profile-page .kit-size-none { font-size: 13px; color: #8B8478; padding: 8px 2px 2px; }
 .crew-profile-page .kit-size-notes { font-size: 12.5px; color: #8B8478; font-style: italic; margin-top: 14px; }
