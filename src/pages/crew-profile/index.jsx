@@ -3101,6 +3101,9 @@ const canEdit = (() => {
             </div>
           )}
         </div>
+        <div className="cp-group-head" style={{ marginTop: 0 }}>
+          <span className="dia">◆</span><span className="t">Rest record</span><span className="line" />
+        </div>
         {/* Command-Only Toggle */}
         {isCommand && (
           <div className="cp-flatcard p-2 inline-flex gap-2">
@@ -3132,7 +3135,6 @@ const canEdit = (() => {
         ) : (
           // My HOR View (existing)
           (<>
-            <div className="cp-group-head"><span className="dia">◆</span><span className="t">Rest record</span><span className="line" /></div>
             {/* Signature receipt — the drawn signatures + audit trail captured
                 at submit (crew) and approve (captain). Shown once a month has
                 been signed; the image URLs are re-signed on each load. */}
