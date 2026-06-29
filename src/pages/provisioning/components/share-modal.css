@@ -269,14 +269,64 @@ select.shm-field { cursor: pointer; }
   margin-left: 6px;
 }
 
-/* ── Crew search — inline results (no floating box) ──────────── */
+/* ── Crew search — inline results grouped by department ──────── */
 .shm-search-wrap { margin-bottom: 14px; }
-/* Results sit in the modal flow as plain hairline rows; the modal
-   body is the single scroll surface, so nothing clips past the panel
-   edge. A top hairline separates the results from the input. */
+/* Results sit in the modal flow as plain hairline rows (no floating
+   menu). Capped at ~6 rows tall, then the list scrolls within itself
+   — keeps the input + grouping visible without a huge modal. */
 .shm-search-inline {
   margin-top: 6px;
   border-top: 1px solid #F0F1F5;
+  max-height: 296px;            /* ~6 crew rows */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #D4D2CB transparent;
+}
+.shm-search-inline::-webkit-scrollbar { width: 6px; }
+.shm-search-inline::-webkit-scrollbar-thumb { background: #D4D2CB; border-radius: 3px; }
+
+/* Department group header — tracked caps + chevron, terracotta on
+   hover. Sticky so the group label stays visible while its members
+   scroll under it. */
+.shm-dept-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 2px;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #F4F4F0;
+  cursor: pointer;
+  text-align: left;
+}
+.shm-dept-chev {
+  font-size: 10px;
+  color: #AEB4C2;
+  width: 12px;
+  flex-shrink: 0;
+  transition: color 0.12s ease;
+}
+.shm-dept-head:hover .shm-dept-chev { color: #C65A1A; }
+.shm-dept-name {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  flex: 1;
+}
+.shm-dept-head:hover .shm-dept-name { color: #1C1B3A; }
+.shm-dept-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #AEB4C2;
+  background: #F4F4F0;
+  border-radius: 999px;
+  padding: 1px 7px;
 }
 .shm-search-none {
   font-size: 12.5px;
