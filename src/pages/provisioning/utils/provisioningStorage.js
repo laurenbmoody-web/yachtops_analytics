@@ -1344,9 +1344,13 @@ export const fetchCollaborators = async (listId) => {
  */
 export const fetchCrewMembers = async (tenantId) => {
   try {
+    // department_id → departments(name) so the Share modal can group
+    // the crew picker by department. The embed is best-effort — if the
+    // FK can't resolve we still return the member with a null
+    // department (grouped under "Other").
     const { data, error } = await supabase
       ?.from('tenant_members')
-      ?.select('user_id, profiles!tenant_members_user_id_fkey(full_name, email, avatar_url)')
+      ?.select('user_id, department_id, departments(name), profiles!tenant_members_user_id_fkey(full_name, email, avatar_url)')
       ?.eq('tenant_id', tenantId)
       ?.eq('active', true);
     if (error) { console.error('[provisioningStorage] fetchCrewMembers error:', error.message); return []; }
@@ -1355,6 +1359,7 @@ export const fetchCrewMembers = async (tenantId) => {
       full_name: row.profiles?.full_name || null,
       email: row.profiles?.email || null,
       avatar_url: row.profiles?.avatar_url || null,
+      department: row.departments?.name || null,
     })).filter(m => m.id);
   } catch (err) {
     console.error('[provisioningStorage] fetchCrewMembers exception:', err.message);

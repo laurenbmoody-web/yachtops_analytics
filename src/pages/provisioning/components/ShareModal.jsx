@@ -107,6 +107,8 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
+  const [collapsed, setCollapsed] = useState(() => new Set());
+
   useEffect(() => {
     if (!open) return;
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -114,13 +116,40 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
     return () => document.removeEventListener('mousedown', h);
   }, [open]);
 
+  const q = query.toLowerCase();
   const filtered = (crewMembers || []).filter(c => {
     if (existingUserIds?.includes(c.id)) return false;
-    const q = query.toLowerCase();
     return !q || (c.full_name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q);
   });
-  // No slice cap — the full crew list renders inline and the modal
-  // body scrolls. Capping at 8 silently dropped crew off the bottom.
+
+  // Group by department, sorted alphabetically with "Other"
+  // (no-department) pinned last; crew sorted by name within a group.
+  const groups = (() => {
+    const map = new Map();
+    filtered.forEach(c => {
+      const dept = (c.department || '').trim() || 'Other';
+      if (!map.has(dept)) map.set(dept, []);
+      map.get(dept).push(c);
+    });
+    const keys = [...map.keys()].sort((a, b) => {
+      if (a === 'Other') return 1;
+      if (b === 'Other') return -1;
+      return a.localeCompare(b);
+    });
+    return keys.map(dept => ({
+      dept,
+      members: map.get(dept).sort((a, b) =>
+        (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '')),
+    }));
+  })();
+
+  const toggleDept = (dept) => setCollapsed(prev => {
+    const next = new Set(prev);
+    if (next.has(dept)) next.delete(dept); else next.add(dept);
+    return next;
+  });
+  // While actively searching, force every group open so matches show.
+  const isOpen = (dept) => (q ? true : !collapsed.has(dept));
 
   return (
     <div ref={ref} className="shm-search-wrap">
@@ -131,21 +160,36 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
         onFocus={() => setOpen(true)}
         placeholder="Search crew by name or email…"
       />
-      {/* Inline results — plain hairline rows in the modal flow, not a
-          floating menu. The modal body is the single scroll surface, so
-          there's no box-within-a-box clipping past the panel edge. */}
+      {/* Inline results, grouped by department with collapsible
+          headers. Plain rows in the modal flow (no floating menu); the
+          list caps at ~6 rows then scrolls within itself. */}
       {open && (
         <div className="shm-search-inline">
           {filtered.length === 0 ? (
             <p className="shm-search-none">No matching crew.</p>
-          ) : filtered.map(c => (
-            <button key={c.id} className="shm-search-item" onMouseDown={e => e.preventDefault()} onClick={() => { onSelect(c); setQuery(''); setOpen(false); }}>
-              <Avatar name={c.full_name} email={c.email} url={c.avatar_url} size={28} />
-              <div style={{ minWidth: 0 }}>
-                <p className="shm-collab-name">{c.full_name || c.email}</p>
-                {c.full_name && c.email && <p className="shm-collab-email">{c.email}</p>}
-              </div>
-            </button>
+          ) : groups.map(({ dept, members }) => (
+            <div key={dept} className="shm-dept-group">
+              <button
+                type="button"
+                className="shm-dept-head"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => toggleDept(dept)}
+                aria-expanded={isOpen(dept)}
+              >
+                <span className="shm-dept-chev">{isOpen(dept) ? '▾' : '▸'}</span>
+                <span className="shm-dept-name">{dept}</span>
+                <span className="shm-dept-count">{members.length}</span>
+              </button>
+              {isOpen(dept) && members.map(c => (
+                <button key={c.id} className="shm-search-item" onMouseDown={e => e.preventDefault()} onClick={() => { onSelect(c); setQuery(''); setOpen(false); }}>
+                  <Avatar name={c.full_name} email={c.email} url={c.avatar_url} size={28} />
+                  <div style={{ minWidth: 0 }}>
+                    <p className="shm-collab-name">{c.full_name || c.email}</p>
+                    {c.full_name && c.email && <p className="shm-collab-email">{c.email}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       )}
