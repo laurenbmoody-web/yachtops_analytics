@@ -7,7 +7,7 @@ import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import SeaServiceCalendar from './SeaServiceCalendar';
 import { SHOW_SIGNOFF } from '../../../seatime/signoffFlag';
 import {
-  DEFAULT_CONFIG, TYPE_META, SOURCE_META, VERIFIER_PROFILES,
+  DEFAULT_CONFIG, TYPE_META, SOURCE_META, VERIFIER_PROFILES, MCA_APPLICATION_DOCS,
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
@@ -1563,8 +1563,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             <div className="std-fstep">
               <div className="std-fnum">02</div>
               <div>
-                <div className="std-fhead"><span className="std-flabel">Attach documents · for {vp.name}</span></div>
-                <div className="std-ftitle">Supporting documents</div>
+                <div className="std-fhead"><span className="std-flabel">Attach documents · for {vp.short} verification</span></div>
+                <div className="std-ftitle">What {vp.short} need to verify your service</div>
                 <div className="std-docs">
                   {vp.docs.map(d => {
                     const onFile = d.profileDoc ? docsOnFile[d.profileDoc] : null;
@@ -1572,9 +1572,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     // Profile-backed docs are read-only (pulled from Documents);
                     // others keep the manual toggle.
                     return (
-                      <div className={`std-doc2${met ? ' on' : ''}`} key={d.id} onClick={d.profileDoc ? undefined : () => toggleDoc(d.id)} style={d.profileDoc ? { cursor: 'default' } : undefined}>
+                      <div className={`std-doc2${met ? ' on' : ''}${d.optional ? ' opt' : ''}`} key={d.id} onClick={d.profileDoc ? undefined : () => toggleDoc(d.id)} style={d.profileDoc ? { cursor: 'default' } : undefined}>
                         <span className="ring">{met && <Icon name="Check" size={12} color="#fff" />}</span>
-                        <span className="dl">{d.label}</span>
+                        <span className="dl">{d.label}{d.optional && <span className="std-doc-opt">optional</span>}</span>
                         {d.profileDoc && (onFile?.fileUrl
                           ? <a href={onFile.fileUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: '#C65A1A', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="Paperclip" size={12} /> View</a>
                           : <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#A6712C' }}>Add to your profile documents</span>)}
@@ -1583,6 +1583,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   })}
                 </div>
                 <div className="std-fee">{vp.fee}</div>
+                {/* The verifier only confirms identity + the testimonial; the full
+                    cert bundle goes to the MCA AFTER verification — name it so the
+                    crew isn't surprised, without re-collecting it here. */}
+                <div className="std-appnote">
+                  <span className="std-appnote-h">Then, for your MCA CoC application</span>
+                  <span>After {vp.short} verify your service, the MCA also needs: {MCA_APPLICATION_DOCS.join('; ')}. Your course certificates are tracked in <b>Courses &amp; tickets</b>, and your NoE &amp; oral in the <b>Certification journey</b>.</span>
+                </div>
               </div>
             </div>
 

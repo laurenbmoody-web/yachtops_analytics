@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_CONFIG, PATHWAYS, classify, computeBuckets, computeRequirements,
   runChecks, computeAssurance, buildTestimonialDataset, getVerifierProfiles,
-  buildRequirementBars, recentQualifyingDays
+  buildRequirementBars, recentQualifyingDays, MCA_APPLICATION_DOCS
 } from './engine.js';
 import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate, LEGACY_GRADE_CONVERSION, CONVERSION_RECENCY, legacyConversionForGrade, ancillaryFor, isOfficerCapacity } from './pathways.js';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from './seed.js';
@@ -234,6 +234,20 @@ test('missing required supporting doc blocks generation', () => {
   const r = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'pya', docMet: { passport: false, email: true, srb: true } });
   assert.equal(r.canGenerate, false);
   assert.ok(r.checks.some(c => !c.ok && /Supporting documents/.test(c.label)));
+});
+
+test('optional supporting docs do not gate; verifier-specific required docs do', () => {
+  const clean = [{ id: 'b', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 14 }];
+  // PYA: passport required, SRB optional — passport alone clears the doc gate.
+  const pya = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'pya', docMet: { passport: true } });
+  assert.equal(pya.canGenerate, true);
+  // Transport Malta also requires photos + medical + signatory — passport alone blocks.
+  const tm = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'transport_malta', docMet: { passport: true } });
+  assert.equal(tm.canGenerate, false);
+  assert.ok(tm.checks.some(c => !c.ok && /Supporting documents/.test(c.label)));
+  // The onward MCA-application bundle is named separately (not a verification doc).
+  assert.ok(MCA_APPLICATION_DOCS.length >= 5);
+  assert.ok(MCA_APPLICATION_DOCS.some(d => /ENG1/.test(d)) && MCA_APPLICATION_DOCS.some(d => /oral/i.test(d)));
 });
 
 // --- validation checks are pathway-relevant, and only what's in the log ------
