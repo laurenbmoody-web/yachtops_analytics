@@ -7,6 +7,7 @@ import { EditorialPageShell, EditorialTabNav, HelpHint, HelpHintBuckets } from '
 import '../pantry/pantry.css';
 import './provisioning-dashboard.css';
 import StatusBadge from './components/StatusBadge';
+import ShareModal from './components/ShareModal';
 import { BOARD_TYPES } from './data/templates';
 import { openBoardPdf } from './utils/boardPdfExport';
 import { useAuth } from '../../contexts/AuthContext';
@@ -43,6 +44,7 @@ import {
   approveAllQuotes,
   callerRequiresProvisioningApproval,
   fetchCollaborators,
+  fetchCrewMembers,
   fetchSupplierNotesSeenAt,
   markSupplierNotesSeen,
   queryOrderItemQuote,
@@ -552,6 +554,9 @@ const ProvisioningBoardDetail = () => {
   // This user's collaborator permission on the board (view / edit /
   // approve), or null if they're not an invited collaborator.
   const [collabPerm, setCollabPerm] = useState(null);
+  // Share / collaborate modal (opened from the ⋯ menu) + crew list.
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [crewMembers, setCrewMembers] = useState([]);
   const [allergenGuests, setAllergenGuests] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2298,6 +2303,16 @@ const ProvisioningBoardDetail = () => {
     return () => { cancelled = true; };
   }, [list?.id, user?.id]);
 
+  // Crew list for the Share modal's collaborator picker.
+  useEffect(() => {
+    if (!activeTenantId) { setCrewMembers([]); return undefined; }
+    let cancelled = false;
+    fetchCrewMembers(activeTenantId)
+      .then((rows) => { if (!cancelled) setCrewMembers(rows || []); })
+      .catch(() => { if (!cancelled) setCrewMembers([]); });
+    return () => { cancelled = true; };
+  }, [activeTenantId]);
+
   useEffect(() => {
     if (!list?.id || !user?.id) return undefined;
     let cancelled = false;
@@ -3193,6 +3208,9 @@ const ProvisioningBoardDetail = () => {
                           <Icon name="Pencil" style={{ width: 14, height: 14 }} /> Edit Board
                         </button>
                       )}
+                      <button onClick={() => { setShowMenu(false); setShowShareModal(true); }} className="pv-board-menu-item">
+                        <Icon name="Users" style={{ width: 14, height: 14 }} /> Collaborators
+                      </button>
                       <button onClick={handleDuplicate} className="pv-board-menu-item">
                         <Icon name="Copy" style={{ width: 14, height: 14 }} /> Duplicate
                       </button>
@@ -4617,6 +4635,27 @@ const ProvisioningBoardDetail = () => {
         )}
         </EditorialPageShell>
       </div>
+
+      {showShareModal && list && (
+        <ShareModal
+          list={list}
+          crewMembers={crewMembers}
+          currentUserId={user?.id}
+          onClose={() => {
+            setShowShareModal(false);
+            // Refresh this user's collaborator permission in case they
+            // changed their own access (or were removed) while open.
+            if (list?.id && user?.id) {
+              fetchCollaborators(list.id)
+                .then((rows) => {
+                  const mine = (rows || []).find((c) => c.user_id === user.id);
+                  setCollabPerm(mine?.permission || null);
+                })
+                .catch(() => {});
+            }
+          }}
+        />
+      )}
 
       {showEditModal && (
         <EditBoardModal
