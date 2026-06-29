@@ -83,7 +83,7 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
       const [itemsRes, listRes, ordersRes] = await Promise.all([
         supabase
           .from('provisioning_items')
-          .select('id, name, brand, size, quantity_ordered, unit, estimated_unit_cost, category, department, status, allergen_flags')
+          .select('id, name, brand, size, quantity_ordered, unit, estimated_unit_cost, quoted_unit_cost, category, department, status, allergen_flags')
           .eq('list_id', request.list_id),
         supabase
           .from('provisioning_lists')
@@ -167,7 +167,8 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
       est += qty * px;
     });
 
-    // Quoted total from supplier_order_items (quoted_price or agreed_price).
+    // Quoted total — from supplier_order_items (Cargo-supplier quote)
+    // AND from manual quotes stored on provisioning_items.quoted_unit_cost.
     let quoted = 0;
     let quotedAny = false;
     supplierOrders.forEach(o => {
@@ -177,6 +178,21 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
         if (px > 0) { quoted += qty * px; quotedAny = true; }
       });
     });
+    // Manual-quote lines: where a line carries a quoted_unit_cost,
+    // contribute the quoted figure (and the estimate for any line with
+    // no quoted price, so the quoted total stays a like-for-like board
+    // total rather than only the quoted subset).
+    // Only when there's no Cargo-supplier quote (manual-quote boards
+    // have no supplier_order_items) — supplier quotes take precedence.
+    const anyManualQuote = items.some(it => it.quoted_unit_cost != null);
+    if (anyManualQuote && quoted === 0) {
+      quotedAny = true;
+      quoted = items.reduce((acc, it) => {
+        const qty = Number(it.quantity_ordered) || 0;
+        const px = Number(it.quoted_unit_cost ?? it.estimated_unit_cost) || 0;
+        return acc + qty * px;
+      }, 0);
+    }
 
     return {
       itemCount: items.length,
@@ -476,7 +492,9 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
                 <tbody>
                   {rows.map(it => {
                     const qty = Number(it.quantity_ordered) || 0;
-                    const px  = Number(it.estimated_unit_cost) || 0;
+                    // Show the quoted unit price when a manual quote was
+                    // applied to this line, else the estimate.
+                    const px  = Number(it.quoted_unit_cost ?? it.estimated_unit_cost) || 0;
                     const sub = qty * px;
                     const hasAllergen = Array.isArray(it.allergen_flags) && it.allergen_flags.length > 0;
                     return (
