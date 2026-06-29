@@ -519,7 +519,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
       ) : (
         <>
           {/* Controls — section heading (or breadcrumb) + view toggle */}
-          <div className="cd-controls">
+          <div className="cd-controls cd-controls-top">
             {mode === 'category' && selected !== null ? (
               <button type="button" className="cd-crumb" onClick={() => setSelected(null)}>
                 <Icon name="ChevronLeft" size={12} /> All categories
