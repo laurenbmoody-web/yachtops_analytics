@@ -219,7 +219,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
     <div>
       <div className="cd-controls" style={{ marginTop: 0 }}>
         <div className="cp-section-head">
-          <span className="cp-section-num">10 /</span>
+          <span className="cp-section-num">11 /</span>
           <h3>Activity</h3>
         </div>
         <span className="cd-rule" />

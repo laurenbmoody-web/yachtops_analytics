@@ -487,7 +487,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
       )}
       <div className="cp-tab-head">
         <div className="cp-section-head">
-          <span className="cp-section-num">05 /</span>
+          <span className="cp-section-num">06 /</span>
           <h3>Documents</h3>
         </div>
         {canEdit && (
