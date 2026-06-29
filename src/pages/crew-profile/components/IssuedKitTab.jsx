@@ -391,7 +391,6 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
           )}
         </div>
       </div>
-      <p className="kit-sub">Uniform &amp; company kit issued to this crew member, signed for on receipt.</p>
 
       {loading ? (
         <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>
