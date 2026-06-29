@@ -3,11 +3,11 @@ import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
-import { fetchGuestBookEntries, exportGuestBookPDF, adaptTemplateFromImage, fetchVesselName } from '../utils/guestBookExport';
+import { fetchGuestBookEntries, exportGuestBookPDF, adaptTemplateFromImage, fetchVesselBrand, loadLogoForPdf, autoPerPage } from '../utils/guestBookExport';
 import './guest-book-export.css';
 
 const TEMPLATES = [
-  { key: 'classic', name: 'Classic portrait', blurb: 'Centred · 3 per page', per: 3 },
+  { key: 'classic', name: 'Classic', blurb: 'Centred · 3 per page', per: 3 },
   { key: 'side', name: 'Side-by-side', blurb: 'Photo left · 4 per page', per: 4 },
   { key: 'editorial', name: 'Editorial / dark', blurb: 'Full-bleed · 2 per page', per: 2 },
 ];
@@ -27,6 +27,8 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
   const [subtitle, setSubtitle] = useState('Your crew');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiNote, setAiNote] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [logo, setLogo] = useState(null); // { dataUrl, aspect } for the PDF
   const dragFrom = useRef(null);
   const fileRef = useRef(null);
 
@@ -34,15 +36,18 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [data, vname] = await Promise.all([
+    const [data, brand] = await Promise.all([
       fetchGuestBookEntries(tenantId, crew),
-      fetchVesselName(tenantId),
+      fetchVesselBrand(tenantId),
     ]);
     // statements first, then crew without one
     data.sort((a, b) => (b.hasStatement - a.hasStatement));
     setEntries(data);
     setOrder(data.map((_, i) => i));
-    if (vname) setTitle(vname);
+    if (brand.name) setTitle(brand.name);
+    setLogoUrl(brand.logoUrl || '');
+    setLogo(null);
+    if (brand.logoUrl) loadLogoForPdf(brand.logoUrl).then(setLogo);
     setLoading(false);
   }, [tenantId, crew]);
 
@@ -68,14 +73,16 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
   const orderedEntries = order.map((i) => entries[i]).filter(Boolean);
   const visible = includeMissing ? orderedEntries : orderedEntries.filter((e) => e.hasStatement);
   const missingCount = orderedEntries.length - orderedEntries.filter((e) => e.hasStatement).length;
-  const perResolved = perPage === 'auto'
-    ? Math.max(2, Math.min(4, Math.round(visible.reduce((a, e) => a + e.words, 0) / Math.max(1, visible.length) > 90 ? 2 : 3)))
-    : Number(perPage);
+  // Same auto logic the PDF uses, so the preview count matches the export.
+  const perResolved = perPage === 'auto' ? autoPerPage(visible, orientation) : Number(perPage);
+  // Grid shape — mirrors the generator (landscape doubles up into 2 columns).
+  const colCount = orientation === 'landscape' && perResolved >= 3 ? 2 : 1;
+  const rowCount = Math.max(1, Math.ceil(perResolved / colCount));
   const totalPages = Math.max(1, Math.ceil(visible.length / perResolved));
 
   const doExport = () => {
     const res = exportGuestBookPDF({
-      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing,
+      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing, logo,
     });
     if (!res.count) { showToast('No statements to export yet', 'error'); return; }
     showToast(`Guest book exported — ${res.count} crew across ${res.pages} page${res.pages === 1 ? '' : 's'}`, 'success');
@@ -211,10 +218,11 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
               </div>
               <div className={`gbx-page ${orientation}${dark ? ' dark' : ''}`}>
                 <div className="gbx-page-h">
+                  {logoUrl && <img className="gbx-logo" src={logoUrl} alt="" />}
                   <div className="t">{title || 'Our crew'}</div>
                   {subtitle && <div className="s">{subtitle}</div>}
                 </div>
-                <div className={`gbx-cards tpl-${template}`} style={{ '--cols': orientation === 'landscape' && perResolved >= 3 ? 2 : 1 }}>
+                <div className={`gbx-cards tpl-${template}`} style={{ '--cols': colCount, '--rows': rowCount }}>
                   {visible.slice(0, perResolved).map((en) => {
                     const fs = Math.max(minFont, Math.min(13, 13 - (en.words - 30) * (13 - minFont) / 70));
                     return (
