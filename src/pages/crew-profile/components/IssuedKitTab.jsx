@@ -376,12 +376,12 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+      <div className="cp-tab-head">
         <div className="cp-section-head">
           <span className="cp-section-num">07 /</span>
           <h3>Issued Kit</h3>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="cp-tab-actions">
           {items.length > 0 && !editMode && (
             <Button variant="outline" iconName="Download" size="sm" onClick={downloadReceipt} disabled={busy}>Receipt</Button>
           )}
