@@ -378,7 +378,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div className="cp-section-head">
-          <span className="cp-section-num">07 /</span>
+          <span className="cp-section-num">08 /</span>
           <h3>Issued Kit</h3>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

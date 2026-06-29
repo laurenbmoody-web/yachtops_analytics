@@ -15,6 +15,7 @@ import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '..
 import { getInitials } from '../../utils/profileHelpers';
 import DocumentsTab from './components/DocumentsTab';
 import IssuedKitTab from './components/IssuedKitTab';
+import ProfileStatementTab from './components/ProfileStatementTab';
 import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData, logBankingView } from './utils/crewProfileData';
 import { ibanWarning, swiftWarning } from './utils/bankingValidation';
 import { fetchCrewDocuments } from './utils/crewDocuments';
@@ -941,6 +942,7 @@ const canEdit = (() => {
 
   const navigationSections = [
     { key: 'personal', label: 'Personal Details', icon: 'User' },
+    { key: 'statement', label: 'Profile statement', icon: 'PenLine' },
     { key: 'emergency', label: 'Emergency / Next of Kin', icon: 'Phone' },
     { key: 'documents', label: 'Documents', icon: 'FileText' },
     { key: 'banking', label: 'Banking', icon: 'CreditCard' },
@@ -957,7 +959,7 @@ const canEdit = (() => {
 
   // Grouped left rail (Option C): items live under quiet section labels.
   const navGroups = [
-    { label: 'Profile', keys: ['personal', 'emergency', 'banking', 'preferences', 'documents'] },
+    { label: 'Profile', keys: ['personal', 'statement', 'emergency', 'banking', 'preferences', 'documents'] },
     { label: 'Employment', keys: ['contract', 'kit'] },
     { label: 'Compliance', keys: ['hor', 'seatime'] },
     { label: 'Activity', keys: ['history'] },
@@ -1875,7 +1877,7 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-section-head">
-          <span className="cp-section-num">02 /</span>
+          <span className="cp-section-num">03 /</span>
           <h3>Emergency</h3>
         </div>
 
@@ -2050,7 +2052,7 @@ const canEdit = (() => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
             <div className="cp-section-head">
-              <span className="cp-section-num">03 /</span>
+              <span className="cp-section-num">04 /</span>
               <h3>Banking</h3>
             </div>
           </div>
@@ -2389,7 +2391,7 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-section-head">
-          <span className="cp-section-num">04 /</span>
+          <span className="cp-section-num">05 /</span>
           <h3>Preferences</h3>
         </div>
 
@@ -3059,7 +3061,7 @@ const canEdit = (() => {
             on the right. The vessel-wide view carries no month, so just a title. */}
         <div className="cp-hor-head">
           <div className="cp-section-head" style={{ marginBottom: 0 }}>
-            <span className="cp-section-num">08 /</span>
+            <span className="cp-section-num">09 /</span>
             <h3>Hours of Rest</h3>
           </div>
           {!isVesselView && (
@@ -3369,7 +3371,7 @@ const canEdit = (() => {
   const renderDocuments = () => (
     <div>
       <div className="cp-section-head">
-        <span className="cp-section-num">05 /</span>
+        <span className="cp-section-num">06 /</span>
         <h3>Documents</h3>
       </div>
       <div className="cp-flatcard p-10 text-center">
@@ -3667,7 +3669,7 @@ const canEdit = (() => {
       <div>
         <div className="cp-hor-head" style={{ marginBottom: 22 }}>
           <div className="cp-section-head" style={{ marginBottom: 0 }}>
-            <span className="cp-section-num">06 /</span>
+            <span className="cp-section-num">07 /</span>
             <h3>Contract / Employment</h3>
           </div>
           {canEditPermissions && (
@@ -3915,6 +3917,19 @@ const canEdit = (() => {
         return renderNotifications();
       case 'personal':
         return renderPersonalDetails();
+      case 'statement':
+        return (
+          <ProfileStatementTab
+            userId={crewId}
+            tenantId={activeTenantId}
+            currentUserId={session?.user?.id}
+            crewName={crewMember?.fullName}
+            role={empForm?.rank_held || crewMember?.role || ''}
+            nationality={formData?.nationality || crewMember?.nationality || ''}
+            canEdit={isOwnProfile || isVesselAdmin || currentUserPermissionTier === 'COMMAND'}
+            isOwnProfile={isOwnProfile}
+          />
+        );
       case 'emergency':
         return renderEmergencyContact();
       case 'documents':
