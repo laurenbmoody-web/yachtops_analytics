@@ -75,11 +75,39 @@ export const fetchVesselName = async (tenantId) => {
   return data?.name || '';
 };
 
+/** Vessel name + logo for the document (title + letterhead mark). */
+export const fetchVesselBrand = async (tenantId) => {
+  if (!tenantId) return { name: '', logoUrl: '' };
+  const { data } = await supabase.from('vessels').select('name, logo_url').eq('tenant_id', tenantId).maybeSingle();
+  return { name: data?.name || '', logoUrl: data?.logo_url || '' };
+};
+
+/**
+ * Load a logo URL into a PNG data-URL (+ aspect ratio) for jsPDF.addImage.
+ * Drawn to a canvas so any format (incl. webp) becomes a PDF-safe PNG; returns
+ * null on CORS taint / load failure so the export just omits the mark.
+ */
+export const loadLogoForPdf = (url) => new Promise((resolve) => {
+  if (!url) { resolve(null); return; }
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      resolve({ dataUrl: canvas.toDataURL('image/png'), aspect: img.naturalWidth / img.naturalHeight || 1 });
+    } catch { resolve(null); }
+  };
+  img.onerror = () => resolve(null);
+  img.src = url;
+});
+
 // ---- PDF engine -----------------------------------------------------------
 
 // Per-page count when "auto": fewer cards as statements get wordier, and fewer
 // in landscape (cards are wider but shorter).
-const autoPerPage = (entries, orientation) => {
+export const autoPerPage = (entries, orientation) => {
   const avg = entries.length ? entries.reduce((a, e) => a + e.words, 0) / entries.length : 60;
   let n = avg > 95 ? 2 : avg > 60 ? 3 : 4;
   if (orientation === 'landscape') n = Math.min(n, 3);
@@ -166,7 +194,7 @@ const drawCard = (doc, t, x, y, w, h, entry, template, minFont) => {
 export const exportGuestBookPDF = ({
   title = 'Our crew', subtitle = '', entries = [],
   template = 'classic', orientation = 'portrait', perPage = 3, minFont = 9,
-  includeMissing = false,
+  includeMissing = false, logo = null,
 }) => {
   const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
   if (!list.length) return { pages: 0, count: 0 };
@@ -178,10 +206,13 @@ export const exportGuestBookPDF = ({
   const M = 16;
   const per = perPage === 'auto' ? autoPerPage(list, orientation) : Number(perPage);
 
-  const headerH = 22;
   const footerH = 12;
   const colCount = orientation === 'landscape' && per >= 3 ? 2 : 1;
   const rows = Math.ceil(per / colCount);
+
+  // Letterhead logo (centred above the title) — sized from its aspect ratio.
+  const logoH = logo?.dataUrl ? 13 : 0;
+  const logoW = logo?.dataUrl ? Math.min(50, logoH * (logo.aspect || 1)) : 0;
 
   const pages = [];
   for (let i = 0; i < list.length; i += per) pages.push(list.slice(i, i + per));
@@ -190,20 +221,27 @@ export const exportGuestBookPDF = ({
     if (pIdx > 0) doc.addPage();
     if (dark) { doc.setFillColor(...DARK_BG); doc.rect(0, 0, pageW, pageH, 'F'); }
 
-    // page header
+    // page header — optional logo, then title + subtitle + hairline
+    let hy = M - 5;
+    if (logo?.dataUrl) {
+      try { doc.addImage(logo.dataUrl, 'PNG', pageW / 2 - logoW / 2, hy, logoW, logoH); } catch { /* skip */ }
+      hy += logoH + 3;
+    }
     doc.setTextColor(...(dark ? PAPER : NAVY));
     doc.setFont('times', 'normal'); doc.setFontSize(20);
-    doc.text(title, pageW / 2, M, { align: 'center' });
+    doc.text(title, pageW / 2, hy + 6, { align: 'center' });
+    hy += 8;
     if (subtitle) {
       doc.setTextColor(...(dark ? DARK_ACCENT : MUTED));
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-      doc.text(subtitle.toUpperCase(), pageW / 2, M + 5, { align: 'center', charSpace: 0.6 });
+      doc.text(subtitle.toUpperCase(), pageW / 2, hy + 4, { align: 'center', charSpace: 0.6 });
+      hy += 5;
     }
     doc.setDrawColor(...(dark ? [51, 50, 90] : HAIR));
-    doc.line(M, M + 9, pageW - M, M + 9);
+    doc.line(M, hy + 4, pageW - M, hy + 4);
 
     // card grid
-    const gridY = M + 14;
+    const gridY = hy + 9;
     const gridH = pageH - gridY - footerH;
     const gridW = pageW - 2 * M;
     const colW = (gridW - (colCount - 1) * 8) / colCount;
