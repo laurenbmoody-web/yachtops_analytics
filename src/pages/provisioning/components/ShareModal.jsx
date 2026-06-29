@@ -107,7 +107,9 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  const [collapsed, setCollapsed] = useState(() => new Set());
+  // Departments are collapsed by default; this Set tracks the ones the
+  // user has expanded.
+  const [expanded, setExpanded] = useState(() => new Set());
 
   useEffect(() => {
     if (!open) return;
@@ -143,13 +145,14 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
     }));
   })();
 
-  const toggleDept = (dept) => setCollapsed(prev => {
+  const toggleDept = (dept) => setExpanded(prev => {
     const next = new Set(prev);
     if (next.has(dept)) next.delete(dept); else next.add(dept);
     return next;
   });
-  // While actively searching, force every group open so matches show.
-  const isOpen = (dept) => (q ? true : !collapsed.has(dept));
+  // Collapsed by default; expanded once the user opens a group. While
+  // actively searching, force every group open so matches show.
+  const isOpen = (dept) => (q ? true : expanded.has(dept));
 
   return (
     <div ref={ref} className="shm-search-wrap">
