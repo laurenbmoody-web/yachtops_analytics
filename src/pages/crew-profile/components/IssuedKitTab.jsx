@@ -13,6 +13,7 @@ import {
   logKitEvent, fetchKitEvents,
 } from '../utils/crewKit';
 import { exportKitReceipt } from '../utils/kitReceiptExport';
+import { formatShoeTrio } from '../utils/shoeSizes';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const blankForm = () => ({
@@ -28,6 +29,14 @@ const FIT_OPTIONS = [
   { id: 'mens', label: "Men's" },
   { id: 'unisex', label: 'Unisex' },
 ];
+// Sizing region — the country system the recorded numbers/letters follow, so a
+// "10" or "9" reads unambiguously (UK 10 ≠ US 10 ≠ EU 42).
+const REGION_OPTIONS = [
+  { id: 'UK', label: 'UK' },
+  { id: 'US', label: 'US' },
+  { id: 'EU', label: 'EU' },
+  { id: 'AU', label: 'AU' },
+];
 const SIZE_FIELDS = [
   { key: 'top', label: 'Shirt / Polo', ph: 'XS–XXL', fits: 'all' },
   { key: 'trousers', label: 'Trousers', ph: "e.g. 32R or 10", fits: 'all' },
@@ -37,7 +46,7 @@ const SIZE_FIELDS = [
   { key: 'jacket', label: 'Jacket / Outer', ph: 'XS–XXL', fits: 'all' },
   { key: 'fleece', label: 'Fleece / Mid-layer', ph: 'XS–XXL', fits: 'all' },
   { key: 'belt', label: 'Belt', ph: 'waist / S–L', fits: 'all' },
-  { key: 'shoe', label: 'Shoe / Deck shoe', ph: 'UK 9 / EU 43', fits: 'all' },
+  { key: 'shoe', label: 'Shoe / Deck shoe', ph: 'number, e.g. 9', fits: 'all' },
   { key: 'cap', label: 'Cap / Hat', ph: 'S/M/L or one-size', fits: 'all' },
   { key: 'gloves', label: 'Gloves', ph: 'S–XL', fits: 'all' },
   { key: 'foulies', label: 'Foul-weather gear', ph: 'S–XL', fits: 'all' },
@@ -388,24 +397,38 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                 <div className="cp-group-head">
                   <span className="dia">◆</span><span className="t">Uniform sizes</span>
                   {!editing && effectiveFit && <span className="kit-fit-chip">{fitLabel(effectiveFit)}</span>}
+                  {!editing && sizes.region && <span className="kit-fit-chip">{sizes.region} sizes</span>}
                   <span className="line" />
                 </div>
                 {editing ? (
                   <>
-                    <label className="kit-field kit-fit-field">
-                      <span>Sizing profile</span>
-                      <select value={sizesForm.fit || ''} onChange={(e) => setSizesForm((s) => ({ ...s, fit: e.target.value }))}>
-                        <option value="">Select…</option>
-                        {FIT_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                      </select>
-                    </label>
+                    <div className="kit-profile-row">
+                      <label className="kit-field kit-fit-field">
+                        <span>Sizing profile</span>
+                        <select value={sizesForm.fit || ''} onChange={(e) => setSizesForm((s) => ({ ...s, fit: e.target.value }))}>
+                          <option value="">Select…</option>
+                          {FIT_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                        </select>
+                      </label>
+                      <label className="kit-field kit-region-field">
+                        <span>Size region</span>
+                        <select value={sizesForm.region || ''} onChange={(e) => setSizesForm((s) => ({ ...s, region: e.target.value }))}>
+                          <option value="">Select…</option>
+                          {REGION_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                        </select>
+                      </label>
+                    </div>
                     <div className="kit-size-grid">
-                      {SIZE_FIELDS.filter((f) => fieldVisible(f, sizesForm.fit)).map((f) => (
-                        <label key={f.key} className="kit-field">
-                          <span>{f.label}</span>
-                          <input value={sizesForm[f.key] || ''} onChange={(e) => setSizesForm((s) => ({ ...s, [f.key]: e.target.value }))} placeholder={f.ph} />
-                        </label>
-                      ))}
+                      {SIZE_FIELDS.filter((f) => fieldVisible(f, sizesForm.fit)).map((f) => {
+                        const trio = f.key === 'shoe' ? formatShoeTrio(sizesForm.shoe, sizesForm.region, sizesForm.fit) : null;
+                        return (
+                          <label key={f.key} className="kit-field">
+                            <span>{f.label}</span>
+                            <input value={sizesForm[f.key] || ''} onChange={(e) => setSizesForm((s) => ({ ...s, [f.key]: e.target.value }))} placeholder={f.ph} />
+                            {f.key === 'shoe' && trio && <span className="kit-shoe-conv">{trio}</span>}
+                          </label>
+                        );
+                      })}
                     </div>
                     <label className="kit-field kit-col-full">
                       <span>Other sizing notes <em>optional</em></span>
@@ -417,12 +440,15 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                 ) : (
                   <>
                     <div className="kit-size-grid">
-                      {filled.map((f) => (
-                        <div key={f.key} className="kit-size-read">
-                          <span className="lbl">{f.label}</span>
-                          <span className="val">{sizes[f.key]}</span>
-                        </div>
-                      ))}
+                      {filled.map((f) => {
+                        const trio = f.key === 'shoe' ? formatShoeTrio(sizes.shoe, sizes.region, effectiveFit) : null;
+                        return (
+                          <div key={f.key} className="kit-size-read">
+                            <span className="lbl">{f.label}</span>
+                            <span className="val">{trio || sizes[f.key]}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                     {sizes.notes && <p className="kit-size-notes">{sizes.notes}</p>}
                   </>
