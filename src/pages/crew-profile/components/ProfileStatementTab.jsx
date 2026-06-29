@@ -12,6 +12,15 @@ const Field = ({ label, value, onChange, placeholder, readOnly }) => (
   </label>
 );
 
+// Prompts to help a crew member find their voice (and give the AI good material).
+const PROMPTS = [
+  'Where are you from — and how did you find your way into yachting?',
+  'A favourite charter, crossing or destination?',
+  'What do you get up to on your time off?',
+  'A language you speak, or a hidden talent?',
+  'Something guests are always surprised to learn about you?',
+];
+
 const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, nationality, canEdit, isOwnProfile }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -60,40 +69,48 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
         <span className="cp-section-num">02 /</span>
         <h3>Profile statement</h3>
       </div>
-      <p className="cd-muted" style={{ marginTop: -6, marginBottom: 18, maxWidth: 580 }}>
+      <p className="cd-muted" style={{ marginTop: -6, marginBottom: 22, maxWidth: 640 }}>
         A short, guest-facing introduction for the guest information book.{' '}
         {isOwnProfile ? 'Write it in your own voice — or let AI give you a head start.' : 'Written by the crew member; COMMAND can edit.'}
       </p>
 
-      <label className="ps-label">Your statement <em>shown to guests</em></label>
-      <textarea
-        className="ps-area" rows={5} value={form.statement} disabled={readOnly}
-        onChange={(e) => setF('statement', e.target.value)}
-        placeholder="e.g. Hi, I'm Lauren — your Captain for this charter. Originally from Cornwall, I've spent over a decade exploring the world by sea, and there's nothing I love more than sharing a sunset passage with guests."
-      />
-      <div className="ps-meta">
-        <span className={words > 90 ? 'ps-over' : ''}>{words} {words === 1 ? 'word' : 'words'}</span>
-        <span className="ps-hint">· aim for ~60–80 to fit three crew to a page</span>
-      </div>
-      {canEdit && (
-        <div className="ps-aibar">
-          <button type="button" className="ps-aibtn" onClick={runAI} disabled={aiBusy}>
-            <Icon name={aiBusy ? 'Loader2' : 'Sparkles'} size={15} className={aiBusy ? 'animate-spin' : ''} />
-            {aiBusy ? 'Writing…' : (form.statement.trim() ? 'Polish with AI' : 'Write with AI')}
-          </button>
-          <span className="ps-aihint">Uses the details below as a starting point.</span>
+      <div className="ps-wrap">
+        <div className="ps-main">
+          <label className="ps-label">Your statement <em>shown to guests</em></label>
+          <textarea
+            className="ps-area" rows={8} value={form.statement} disabled={readOnly}
+            onChange={(e) => setF('statement', e.target.value)}
+            placeholder="e.g. Hi, I'm Lauren — your Captain for this charter. Originally from Cornwall, I've spent over a decade exploring the world by sea, and there's nothing I love more than sharing a sunset passage with guests."
+          />
+          <div className="ps-meta">
+            <span className={words > 90 ? 'ps-over' : ''}>{words} {words === 1 ? 'word' : 'words'}</span>
+            <span className="ps-hint">· aim for ~60–80 to fit three crew to a page</span>
+          </div>
+          {canEdit && (
+            <div className="ps-aibar">
+              <button type="button" className="ps-aibtn" onClick={runAI} disabled={aiBusy}>
+                <Icon name={aiBusy ? 'Loader2' : 'Sparkles'} size={15} className={aiBusy ? 'animate-spin' : ''} />
+                {aiBusy ? 'Writing…' : (form.statement.trim() ? 'Polish with AI' : 'Write with AI')}
+              </button>
+              <span className="ps-aihint">Uses the details on the right as a starting point.</span>
+            </div>
+          )}
         </div>
-      )}
 
-      <div className="ps-grid">
-        <Field label="Headline / tagline" value={form.headline} onChange={(v) => setF('headline', v)} placeholder="e.g. Adventurous captain, keen freediver" readOnly={readOnly} />
-        <Field label="Hometown" value={form.hometown} onChange={(v) => setF('hometown', v)} placeholder="e.g. Cornwall, UK" readOnly={readOnly} />
-        <Field label="Languages" value={form.languages} onChange={(v) => setF('languages', v)} placeholder="e.g. English, French" readOnly={readOnly} />
-        <Field label="Interests / hobbies" value={form.interests} onChange={(v) => setF('interests', v)} placeholder="e.g. Freediving, cooking, photography" readOnly={readOnly} />
+        <div className="ps-side">
+          <Field label="Headline / tagline" value={form.headline} onChange={(v) => setF('headline', v)} placeholder="e.g. Adventurous captain, keen freediver" readOnly={readOnly} />
+          <Field label="Hometown" value={form.hometown} onChange={(v) => setF('hometown', v)} placeholder="e.g. Cornwall, UK" readOnly={readOnly} />
+          <Field label="Languages" value={form.languages} onChange={(v) => setF('languages', v)} placeholder="e.g. English, French" readOnly={readOnly} />
+          <Field label="Interests / hobbies" value={form.interests} onChange={(v) => setF('interests', v)} placeholder="e.g. Freediving, cooking, photography" readOnly={readOnly} />
+          <div className="ps-prompts">
+            <div className="ps-prompts-h">Need a spark?</div>
+            <ul>{PROMPTS.map((p) => <li key={p}>{p}</li>)}</ul>
+          </div>
+        </div>
       </div>
 
       {canEdit && (
-        <div style={{ marginTop: 22 }}>
+        <div style={{ marginTop: 24 }}>
           <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save statement'}</Button>
         </div>
       )}
