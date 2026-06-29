@@ -408,8 +408,15 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-fig{text-align:right;white-space:nowrap;}
 .stp-fig .big{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:30px;color:var(--rust);line-height:.9;}
 .stp-fig .cap{display:block;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
-.stp-reqs{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:16px;}
-@media(max-width:680px){.stp-reqs{grid-template-columns:1fr;gap:11px;}}
+/* Bars sit on one row — column count tracks the number of requirements (capped
+   at 4) so a 2-bar route doesn't stretch into quarter-width slivers. */
+.stp-reqs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px;}
+.stp-reqs[data-cols="1"]{grid-template-columns:1fr;}
+.stp-reqs[data-cols="2"]{grid-template-columns:repeat(2,1fr);}
+.stp-reqs[data-cols="3"]{grid-template-columns:repeat(3,1fr);}
+.stp-reqs[data-cols="4"]{grid-template-columns:repeat(4,1fr);}
+@media(max-width:900px){.stp-reqs[data-cols]{grid-template-columns:repeat(2,1fr);gap:13px;}}
+@media(max-width:560px){.stp-reqs[data-cols]{grid-template-columns:1fr;gap:11px;}}
 .stp-req .l{font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
 .stp-reqtop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:5px 0 8px;}
 .stp-req .v{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:18px;line-height:1;color:var(--ink);}
