@@ -3059,13 +3059,13 @@ const canEdit = (() => {
         {/* Header — editorial "HOR, <status>." (navy + terracotta serif),
             mirroring the LAUREN, Moody. name treatment, with the workflow action
             on the right. The vessel-wide view carries no month, so just a title. */}
-        <div className="cp-hor-head">
-          <div className="cp-section-head" style={{ marginBottom: 0 }}>
+        <div className="cp-tab-head">
+          <div className="cp-section-head">
             <span className="cp-section-num">09 /</span>
             <h3>Hours of Rest</h3>
           </div>
           {!isVesselView && (
-            <div className="cp-hor-actions">
+            <div className="cp-tab-actions">
               {/* Crew: submit own open month — only once the month has ended. */}
               {isOwnProfile && dbStatus === 'open' && monthComplete && (
                 <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={handleConfirmMonth}>
@@ -3133,6 +3133,7 @@ const canEdit = (() => {
         ) : (
           // My HOR View (existing)
           (<>
+            <div className="cp-group-head"><span className="dia">◆</span><span className="t">Rest record</span><span className="line" /></div>
             {/* Signature receipt — the drawn signatures + audit trail captured
                 at submit (crew) and approve (captain). Shown once a month has
                 been signed; the image URLs are re-signed on each load. */}
