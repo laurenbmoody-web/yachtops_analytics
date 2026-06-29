@@ -57,11 +57,14 @@ export const VERIFIER_PROFILES = {
     // profileDoc = the personal_documents doc_type that satisfies it, so the
     // check ticks automatically when the crew has it on file (no email needed
     // now that sign-off is parked).
+    // MIN 543 verification needs only ID + the signed testimonial; the master's
+    // CoC is a FIELD inside the testimonial (validated by Nautilus contacting the
+    // signatory), not a separate upload. SRB is supporting, not mandatory.
     docs: [
-      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' },
-      { id: 'srb', label: 'Discharge book / SRB scan', profileDoc: 'seamans_book' }
+      { id: 'passport', label: 'Attested passport copy (ID)', profileDoc: 'passport_certified_copy' },
+      { id: 'srb', label: 'Discharge book / Service Record Book scan', profileDoc: 'seamans_book', optional: true }
     ],
-    fee: 'Verification via Nautilus International (MIN 543 authorised); fees per their member tariff.',
+    fee: 'Members only — join Nautilus to use the service; a free Commercial Yacht SRB is included (MIN 543 authorised).',
     // Nautilus issue their own SST form — Cargo fills Parts 1–2 from your record;
     // the master signs Parts 3–4 and Nautilus verify (Part 5).
     instructions: 'Nautilus International verify yacht sea service for the MCA (MIN 543). Export your pre-filled Nautilus testimonial here, have the master sign and stamp it, then submit to Nautilus to verify with the signatory.',
@@ -70,8 +73,8 @@ export const VERIFIER_PROFILES = {
   pya: {
     id: 'pya', label: 'PYA', short: 'PYA', name: 'PYA — Professional Yachting Association',
     docs: [
-      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' },
-      { id: 'srb', label: 'Discharge book / SRB scan', profileDoc: 'seamans_book' }
+      { id: 'passport', label: 'Certified passport copy (ID)', profileDoc: 'passport_certified_copy' },
+      { id: 'srb', label: 'Discharge book / Service Record Book scan', profileDoc: 'seamans_book', optional: true }
     ],
     fee: '€50 per testimonial (minimum 2 on first submission) for non-members; included for PYA members.',
     // PYA build the testimonial on their portal — Cargo's record is used to complete it / as evidence.
@@ -80,29 +83,55 @@ export const VERIFIER_PROFILES = {
   },
   transport_malta: {
     id: 'transport_malta', label: 'Transport Malta', short: 'Transport Malta', name: 'Transport Malta — Merchant Shipping Directorate',
+    // Transport Malta's Seafarer Portal asks for more than the PYA/Nautilus
+    // route: ID + two photos + a medical + an authorised signatory, with the CoC
+    // where revalidating (PYD 210). SRB is supporting.
     docs: [
-      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' },
-      { id: 'sig', label: 'Authorised signatory details' },
-      { id: 'srb', label: 'Discharge book / service record' }
+      { id: 'passport', label: 'Passport or ID card copy', profileDoc: 'passport_certified_copy' },
+      { id: 'photos', label: 'Two passport-size photographs' },
+      { id: 'medical', label: 'Medical fitness certificate (ENG1)', profileDoc: 'eng1' },
+      { id: 'sig', label: 'Authorised signatory (Captain / CO / CE / Owner / Manager)' },
+      { id: 'srb', label: 'Discharge book / Seaman’s book', profileDoc: 'seamans_book', optional: true },
+      { id: 'coc', label: 'Current CoC + endorsements (if revalidating)', profileDoc: 'coc', optional: true }
     ],
-    fee: 'Verification via the Transport Malta yacht sea-service route (MIN 543 authorised).',
-    instructions: 'Transport Malta is an MCA-authorised verifier (MIN 543). Submit through their route using this captain-attested record as your evidence.',
+    fee: 'Verification via the Transport Malta Seafarer Portal (MIN 543 authorised); processing fee applies.',
+    instructions: 'Transport Malta is an MCA-authorised verifier (MIN 543). Fill the testimonial on their Seafarer Portal, send it to your signatory, then submit with your ID, photographs and medical — use this captain-attested record to fill it accurately.',
     lastReviewed: '2026-06-22'
   },
   mca: {
     id: 'mca', label: 'MCA · Discharge Book', short: 'the MCA', name: 'Maritime & Coastguard Agency (direct)',
+    // Direct MCA route: the testimonial must be backed by a SECOND form of
+    // evidence per vessel (Discharge Book entries / Certificates of Discharge)
+    // unless an MCA-approved SRB is used (MSN 1858 Annex F).
     docs: [
-      { id: 'srb', label: 'Discharge Book with master’s stamps' },
-      { id: 'stamp', label: 'Master’s signature & ship’s stamp' },
-      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' }
+      { id: 'srb', label: 'Discharge Book with master’s stamps', profileDoc: 'seamans_book' },
+      { id: 'stamp', label: 'Master’s signature & ship’s official stamp on the testimonial' },
+      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' },
+      { id: 'coc', label: 'Current CoC copy (if revalidating)', profileDoc: 'coc', optional: true }
     ],
-    fee: 'No verifier fee — submitted directly to the MCA with your CoC application.',
+    fee: 'No verifier fee — but note the MCA still needs a verified testimonial (PYA/Nautilus) unless you use an MCA-approved Service Record Book.',
     instructions: 'Direct MCA route via your Discharge Book and a master-signed Testimonial of Sea Service (MSN 1858). Use this record as the testimonial — the master attests it; the MCA assess it with your application.',
     lastReviewed: '2026-06-22'
   }
 };
 
 export const getVerifierProfiles = () => Object.values(VERIFIER_PROFILES).map(v => ({ ...v }));
+
+// The onward MCA CoC-application bundle — what the crew sends to the MCA AFTER
+// the testimonial is verified (distinct from the minimal verification docs
+// above). Cert/STCW course certs are tracked per-route in the Courses & tickets
+// checklist; NoE + oral live in the Certification journey. Listed here so the
+// dossier can name the full picture without re-collecting it (MSF 4343 §4A /
+// MSN 1858 / GOV.UK "apply for a UK CoC"). HIGH on the set; exact per-route
+// applicability is shown by the cert's own ancillary list.
+export const MCA_APPLICATION_DOCS = [
+  'the verified Sea Service Testimonial (+ your Service Record Book)',
+  'your Notice of Eligibility (NoE)',
+  'the oral-exam pass notification (valid 3 years)',
+  'a valid ENG1 medical',
+  'two passport-size photographs',
+  'your STCW & ancillary course certificates (PST, FPFF, EFA, PSSR, AFF, PSCRB, medical, GMDSS, ECDIS, HELM, security)'
+];
 
 // ── Qualification rules ─────────────────────────────────────────────────────
 /**
@@ -407,9 +436,9 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
     ? { ok: false, label: 'Endorsing master on record', detail: `${noMasterDays} day(s) of Cargo-tracked service have no master on record to endorse them.` }
     : { ok: true, label: 'Endorsing master on record', detail: 'Every Cargo-tracked period has an identified master to endorse it on the exported form.' });
 
-  // 6) Supporting documents for the selected verifier.
+  // 6) Supporting documents for the selected verifier (optional ones don't gate).
   const docs = VERIFIER_PROFILES[verifier]?.docs || [];
-  const missing = docs.filter(d => !docMet[d.id]);
+  const missing = docs.filter(d => !d.optional && !docMet[d.id]);
   checks.push(missing.length
     ? { ok: false, label: 'Supporting documents', detail: `${missing.length} required document(s) outstanding for ${VERIFIER_PROFILES[verifier]?.short}.` }
     : { ok: true, label: 'Supporting documents', detail: `All ${VERIFIER_PROFILES[verifier]?.short} supporting documents attached.` });

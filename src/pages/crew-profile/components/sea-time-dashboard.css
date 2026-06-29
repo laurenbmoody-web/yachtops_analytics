@@ -207,6 +207,12 @@
 .std-doc2.on .ring{background:var(--sage);border-color:var(--sage);}
 .std-doc2 .dl{font-size:13px;font-weight:600;color:var(--ink);}
 .std-doc2.on .dl{color:var(--sage-deep);}
+.std-doc2.opt .ring{border-style:dashed;}
+.std-doc-opt{margin-left:7px;font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);border:1px solid var(--hair-2);border-radius:999px;padding:1px 6px;vertical-align:middle;}
+/* Onward MCA-application note — names the full bundle without re-collecting it. */
+.std-appnote{display:block;margin-top:14px;padding:12px 14px;background:#FAFAF8;border:1px solid var(--hair);border-radius:10px;font-size:11.5px;line-height:1.55;color:var(--muted);}
+.std-appnote-h{display:block;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#A6712C;margin-bottom:5px;}
+.std-appnote b{color:var(--ink);font-weight:600;}
 .std-fee{font-size:11.5px;color:var(--muted);margin-top:13px;line-height:1.5;}
 
 /* Step 03 — export & submit */
