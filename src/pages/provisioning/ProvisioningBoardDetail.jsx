@@ -9,6 +9,7 @@ import './provisioning-dashboard.css';
 import StatusBadge from './components/StatusBadge';
 import ShareModal from './components/ShareModal';
 import QuoteReviewModal from './components/QuoteReviewModal';
+import QuoteConfirmEmailModal from './components/QuoteConfirmEmailModal';
 import { BOARD_TYPES } from './data/templates';
 import { openBoardPdf } from './utils/boardPdfExport';
 import { useAuth } from '../../contexts/AuthContext';
@@ -46,6 +47,7 @@ import {
   callerRequiresProvisioningApproval,
   fetchCollaborators,
   fetchCrewMembers,
+  fetchSupplierContactEmail,
   fetchSupplierNotesSeenAt,
   markSupplierNotesSeen,
   queryOrderItemQuote,
@@ -646,6 +648,9 @@ const ProvisioningBoardDetail = () => {
   // The just-uploaded quote file, held so the review modal can AI-read
   // it and apply the extracted prices to the board lines.
   const [quoteReviewFile, setQuoteReviewFile] = useState(null);
+  // After a manual quote is confirmed, optionally offer to email the
+  // supplier. { defaultEmail } when open, null when closed.
+  const [confirmEmailPrompt, setConfirmEmailPrompt] = useState(null);
 
   // ── Supplier Orders ──────────────────────────────────────────────────────
   const [showSendModal, setShowSendModal] = useState(false);
@@ -2504,6 +2509,17 @@ const ProvisioningBoardDetail = () => {
         showToast(msg, 'success');
       }
       setConfirmQuoteModalOpen(false);
+      // Manual quote (a file was uploaded, not a Cargo-supplier portal
+      // confirm)? Offer to email the supplier a confirmation. Resolve a
+      // best-effort default recipient from the board's supplier link;
+      // the modal lets the chief edit it before sending.
+      if (list?.quote_file_url) {
+        const supplierProfileId = items.find(i => i.supplier_profile_id)?.supplier_profile_id || null;
+        const defaultEmail = supplierProfileId
+          ? await fetchSupplierContactEmail(supplierProfileId).catch(() => null)
+          : null;
+        setConfirmEmailPrompt({ defaultEmail: defaultEmail || '' });
+      }
     } catch (err) {
       console.error('[ProvisioningBoardDetail] runConfirmQuote failed:', err);
       showToast(`Could not confirm: ${err.message || err}`, 'error');
@@ -4660,6 +4676,14 @@ const ProvisioningBoardDetail = () => {
             }
           }}
           onClose={() => setQuoteReviewFile(null)}
+        />
+      )}
+
+      {confirmEmailPrompt && (
+        <QuoteConfirmEmailModal
+          boardTitle={list?.title}
+          defaultEmail={confirmEmailPrompt.defaultEmail}
+          onClose={() => setConfirmEmailPrompt(null)}
         />
       )}
 
