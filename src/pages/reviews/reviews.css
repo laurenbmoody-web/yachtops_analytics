@@ -916,6 +916,16 @@
   border-color: transparent;
 }
 .ord-rp-chip-warn strong, .ord-rp-chip-warn .ord-rp-chip-icon { color: var(--d-danger); }
+/* Quote-file chip — reads as a terracotta link so the approver spots
+   the supplier quote document among the meta chips. */
+.ord-rp-chip-quote {
+  cursor: pointer;
+  text-decoration: none;
+  background: #FBEFE9;
+  border-color: #E8B89B;
+}
+.ord-rp-chip-quote strong, .ord-rp-chip-quote .ord-rp-chip-icon { color: #C65A1A; }
+.ord-rp-chip-quote:hover { background: #F8E2D6; }
 
 /* BODY */
 .ord-rp-body {
