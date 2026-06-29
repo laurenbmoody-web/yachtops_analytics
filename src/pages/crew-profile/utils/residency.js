@@ -21,14 +21,17 @@ export const SCHENGEN = new Set([
   'HR', 'BG', 'RO',
 ]);
 
-// EU/EEA + Switzerland passports = freedom of movement in Schengen. (Schengen
-// already covers these; Ireland is EU-but-not-Schengen, added explicitly.)
-const FREEDOM = new Set([...SCHENGEN, 'IE']);
-
-// Common nationalities visa-exempt for short Schengen stays (Annex II — partial,
-// the ones we see most on yachts). Visa-free but still bound by 90/180.
-const SCHENGEN_VISA_FREE = new Set(['GB', 'US', 'CA', 'AU', 'NZ', 'JP', 'KR', 'IL', 'BR', 'AR', 'CL', 'SG', 'AE', 'MX', 'ZA' /* note: ZA actually needs a visa; kept out below */]);
-SCHENGEN_VISA_FREE.delete('ZA');
+// Passport buckets used by the visa rules below. Approximate and weighted to the
+// nationalities/destinations seen on yachts; unmodelled cases fall through to
+// "check entry requirements" rather than guessing.
+const EEA_CH = new Set([...SCHENGEN, 'IE']); // freedom of movement (EU/EEA/CH)
+const SCHENGEN_EXEMPT = new Set(['GB', 'US', 'CA', 'AU', 'NZ', 'JP', 'KR', 'IL', 'BR', 'AR', 'CL', 'SG', 'AE', 'MX', 'HK', 'TW', 'BN', 'MY']);
+const US_VWP = new Set([...EEA_CH, 'GB', 'JP', 'KR', 'AU', 'NZ', 'SG', 'CL', 'BN', 'TW']);
+const UK_VISA_FREE = new Set([...EEA_CH, 'US', 'CA', 'AU', 'NZ', 'JP', 'KR', 'SG', 'IL', 'HK', 'TW', 'MY', 'BR', 'AR', 'CL', 'MX']);
+const UAE_VOA = new Set([...EEA_CH, 'GB', 'US', 'CA', 'AU', 'NZ', 'JP', 'KR', 'SG', 'HK', 'MY', 'IL']);
+const TR_VISA_FREE = new Set([...EEA_CH, 'GB', 'JP', 'KR', 'SG', 'NZ', 'BR', 'AR']);
+const BROAD_VISA_FREE = new Set([...EEA_CH, 'GB', 'US', 'CA', 'AU', 'NZ', 'JP', 'KR', 'SG', 'IL']); // Caribbean, Montenegro, etc.
+const CARIBBEAN = new Set(['BS', 'SX', 'AG', 'LC', 'BB', 'TC', 'AW', 'GP', 'MQ']);
 
 // Nationality string → ISO-2. Accepts ISO-2/ISO-3 or common names/demonyms.
 const NAME_TO_ISO = {
@@ -58,19 +61,45 @@ const dateIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2
 // Which visa applies for a crew member (by held nationalities) where the vessel
 // currently is. Returns { region, level, text } or null.
 //   level: 'free' (no action) | 'limited' (visa-free but capped) | 'visa' (needed) | 'unknown'
-export const visaForCountry = (countryIso, natIsos) => {
-  if (!countryIso) return null;
-  const held = (natIsos || []).filter(Boolean);
-  if (SCHENGEN.has(countryIso)) {
-    if (held.some((c) => FREEDOM.has(c))) return { region: 'Schengen', level: 'free', text: 'Freedom of movement — EU/EEA/CH passport' };
-    if (held.some((c) => SCHENGEN_VISA_FREE.has(c))) return { region: 'Schengen', level: 'limited', text: 'Visa-free, but bound by the 90/180 limit' };
+export const visaForCountry = (dest, natIsos) => {
+  if (!dest) return null;
+  const nats = (natIsos || []).filter(Boolean);
+  const some = (set) => nats.some((n) => set.has(n));
+  const name = countryName(dest);
+
+  // A national of the destination needs nothing (covers dual passports too).
+  if (nats.includes(dest)) return { region: name, level: 'free', text: `${name} national — no visa` };
+
+  if (SCHENGEN.has(dest)) {
+    if (some(EEA_CH)) return { region: 'Schengen', level: 'free', text: 'Freedom of movement — EU/EEA/CH passport' };
+    if (some(SCHENGEN_EXEMPT)) return { region: 'Schengen', level: 'limited', text: 'Visa-free, but bound by the 90/180 limit' };
     return { region: 'Schengen', level: 'visa', text: 'Schengen C visa required' };
   }
-  if (countryIso === 'US') {
-    if (held.includes('US')) return { region: 'United States', level: 'free', text: 'US national — no visa' };
+  if (dest === 'US' || dest === 'VI' || dest === 'PR') {
+    if (some(US_VWP)) return { region: 'United States', level: 'limited', text: 'ESTA / visa waiver — 90 days (crew: C1/D)' };
     return { region: 'United States', level: 'visa', text: 'B1/B2 (or C1/D crew) visa required' };
   }
-  return { region: countryIso, level: 'unknown', text: 'Entry rules not yet modelled' };
+  if (dest === 'GB') {
+    if (some(UK_VISA_FREE)) return { region: 'United Kingdom', level: 'limited', text: 'Visa-free visit — up to 6 months' };
+    return { region: 'United Kingdom', level: 'visa', text: 'UK visa required' };
+  }
+  if (dest === 'AE') {
+    if (some(UAE_VOA)) return { region: 'UAE', level: 'limited', text: 'Visa on arrival — 30–90 days' };
+    return { region: 'UAE', level: 'visa', text: 'UAE visa required' };
+  }
+  if (dest === 'TR') {
+    if (some(TR_VISA_FREE)) return { region: 'Türkiye', level: 'limited', text: 'Visa-free — 90 days in 180' };
+    return { region: 'Türkiye', level: 'visa', text: 'Türkiye e-Visa required' };
+  }
+  if (dest === 'ME' || dest === 'GI') {
+    if (some(BROAD_VISA_FREE)) return { region: name, level: 'limited', text: 'Visa-free visit — up to 90 days' };
+    return { region: name, level: 'visa', text: 'Visa required' };
+  }
+  if (CARIBBEAN.has(dest)) {
+    if (some(BROAD_VISA_FREE)) return { region: name, level: 'limited', text: 'Visa-free visit — typically 90–180 days' };
+    return { region: name, level: 'unknown', text: 'Check entry requirements' };
+  }
+  return { region: name, level: 'unknown', text: 'Entry rules not yet modelled' };
 };
 
 // Build per-day country for the trailing window and derive the figures.
