@@ -53,7 +53,8 @@ Deno.serve(async (req) => {
 - Lead with the PERSON: where they're from, what they love, what makes them them. Personality over professionalism.
 - Their role can appear once, naturally and briefly — do NOT build the bio around service, hospitality or "making your stay perfect".
 - BANNED: "passionate about hospitality", "exceptional service", "your every need", "finest/effortless service", "ensure your time aboard", "go above and beyond", and any guest-pleasing mission statement.
-- Warm and human, a little character. First person. 2–3 sentences. No emojis, no clichés.`;
+- LENGTH: aim for 60–80 words. This is a hard limit — never exceed 80 words. Count as you go and tighten ruthlessly; two or three short sentences is plenty.
+- Warm and human, a little character. First person. No emojis, no clichés.`;
 
   const instruction = mode === "polish"
     ? `Polish and lightly improve this yacht crew member's personal introduction for the guest information book. Keep their voice and facts; fix grammar and flow; strip out any soppy service-speak so it sounds like the real person. Return only the statement text.\n\n${RULES}\n\nTone to lean into: ${toneLine}\n\nDraft:\n${draft}\n\nFacts:\n${facts}`
