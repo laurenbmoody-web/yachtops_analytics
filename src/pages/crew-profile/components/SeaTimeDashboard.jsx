@@ -1179,7 +1179,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     </div>
                     {h.legacy && (
                       <div className="stp-convert">
-                        <b>This is a legacy {h.legacy.key} certificate.</b> Since 2023 the yacht-engineer scheme moved to Small Vessel CoCs — under the current system your {h.legacy.key} converts to {h.legacy.to.map(id => CERTIFICATES[id]?.short).filter(Boolean).join(' / ')} (MCA conversion {h.legacy.code}). Typical top-up: {h.legacy.topUp} Every conversion also needs {CONVERSION_RECENCY.months} months’ seagoing in the last {CONVERSION_RECENCY.windowYears} years ({CONVERSION_RECENCY.msn}). Confirm the exact requirement with your training provider, then upload your converted CoC here.
+                        <b>This is a legacy {h.legacy.key} certificate.</b> Since 2023 the yacht-engineer scheme moved to Small Vessel CoCs — under the current system your {h.legacy.key} converts to {h.legacy.to.map(id => CERTIFICATES[id]?.short).filter(Boolean).join(' / ')} (MCA conversion {h.legacy.code}, MIN 642). Typical top-up: {h.legacy.topUp} Every conversion also needs {CONVERSION_RECENCY.months} months’ seagoing in the last {CONVERSION_RECENCY.windowYears} years ({CONVERSION_RECENCY.msn}).{h.legacy.seagoingCapacity ? ` ${h.legacy.seagoingCapacity}` : ''}{h.legacy.note ? ` ${h.legacy.note}` : ''} The MCA assess your outlined seagoing service — confirm the exact requirement with them or your training provider, then upload your converted CoC here.
                       </div>
                     )}
                     </>

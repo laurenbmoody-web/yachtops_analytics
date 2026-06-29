@@ -176,17 +176,19 @@ test('ETO is verified against in-force MSN 1860 with the corrected 6-month figur
   assert.equal(eto.requires.seagoingMonths, 6); // was wrongly 12
 });
 
-test('legacy Y-grade conversions: codes corroborated in force, month-counts provisional', () => {
+test('legacy Y-grade conversions: codes + month-counts binding (MIN 642 current)', () => {
   for (const [key, c] of Object.entries(LEGACY_GRADE_CONVERSION)) {
-    // The conversion code/structure is confirmed by the in-force GOV.UK guidance…
+    // MIN 642 is current and in use (MCA, Jun 2026) — it is the binding source
+    // for the conversion codes AND the §7.3 service month-counts, so both are HIGH.
     assert.equal(c.codeVerified, 'HIGH', `${key} code should be in-force corroborated`);
-    // …but the service month-counts only live in the expired MIN 642, so the
-    // figure stays provisional and the nudge says "confirm with your provider".
-    assert.equal(c.verified, 'PROVISIONAL');
+    assert.equal(c.verified, 'HIGH');
     assert.ok(c.to.every(id => CERTIFICATES[id]), `${key} targets must be real certs`);
   }
-  // Conversion C is the Y3 route (resolved from the in-force guidance).
+  // Route C is the Y3 route; Y4-only holders must use a Route A line instead.
   assert.match(LEGACY_GRADE_CONVERSION.Y3.code, /C/);
+  assert.match(LEGACY_GRADE_CONVERSION.Y4.code, /A/);
+  // Route C accepts seagoing service in a Y3 or Y4 capacity (MCA clarification).
+  assert.match(LEGACY_GRADE_CONVERSION.Y3.seagoingCapacity, /Y3 OR Y4/);
   // The universal in-force recency gate is carried.
   assert.equal(CONVERSION_RECENCY.months, 6);
   assert.equal(CONVERSION_RECENCY.verified, 'HIGH');
