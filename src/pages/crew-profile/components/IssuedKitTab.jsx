@@ -457,8 +457,8 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                   <p className="kit-size-none">No sizes recorded yet.{canEditSizes ? ' Use “Edit” to add them.' : ''}</p>
                 ) : (
                   <>
-                    <div className="kit-ledger">
-                      {SIZE_GROUPS.map((g) => {
+                    <div className="kit-ledger-cols">
+                      {SIZE_GROUPS.filter((g) => g.label !== 'Footwear').map((g) => {
                         const rows = g.keys
                           .map((k) => FIELD_BY_KEY[k])
                           .filter((f) => f && fieldVisible(f, effectiveFit) && sizes[f.key]);
@@ -466,19 +466,37 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                         return (
                           <div key={g.label} className="kit-lgrp">
                             <p className="kit-lgrp-h">{g.label}</p>
-                            {rows.map((f) => {
-                              const trio = f.key === 'shoe' ? formatShoeTrio(sizes.shoe, sizes.region, effectiveFit) : null;
-                              return (
-                                <div key={f.key} className={`kit-lrow${f.key === 'shoe' ? ' is-shoe' : ''}`}>
-                                  <span className="l">{f.label}</span>
-                                  <span className="v">{trio || sizes[f.key]}</span>
-                                </div>
-                              );
-                            })}
+                            {rows.map((f) => (
+                              <div key={f.key} className="kit-lrow">
+                                <span className="l">{f.label}</span>
+                                <span className="v">{sizes[f.key]}</span>
+                              </div>
+                            ))}
                           </div>
                         );
                       })}
                     </div>
+                    {(() => {
+                      const foot = SIZE_GROUPS.find((g) => g.label === 'Footwear');
+                      const rows = foot.keys
+                        .map((k) => FIELD_BY_KEY[k])
+                        .filter((f) => f && fieldVisible(f, effectiveFit) && sizes[f.key]);
+                      if (!rows.length) return null;
+                      return (
+                        <div className="kit-lgrp kit-lgrp-foot">
+                          <p className="kit-lgrp-h">Footwear</p>
+                          {rows.map((f) => {
+                            const trio = f.key === 'shoe' ? formatShoeTrio(sizes.shoe, sizes.region, effectiveFit) : null;
+                            return (
+                              <div key={f.key} className="kit-lrow is-foot">
+                                <span className="l">{f.label}</span>
+                                <span className="v">{trio || sizes[f.key]}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                     {sizes.notes && <p className="kit-size-notes">{sizes.notes}</p>}
                   </>
                 )}
