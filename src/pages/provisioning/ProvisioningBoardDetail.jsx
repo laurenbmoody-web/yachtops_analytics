@@ -8,6 +8,7 @@ import '../pantry/pantry.css';
 import './provisioning-dashboard.css';
 import StatusBadge from './components/StatusBadge';
 import ShareModal from './components/ShareModal';
+import QuoteReviewModal from './components/QuoteReviewModal';
 import { BOARD_TYPES } from './data/templates';
 import { openBoardPdf } from './utils/boardPdfExport';
 import { useAuth } from '../../contexts/AuthContext';
@@ -642,6 +643,9 @@ const ProvisioningBoardDetail = () => {
   };
   const quoteFileInputRef = useRef(null);
   const [uploadingQuote, setUploadingQuote] = useState(false);
+  // The just-uploaded quote file, held so the review modal can AI-read
+  // it and apply the extracted prices to the board lines.
+  const [quoteReviewFile, setQuoteReviewFile] = useState(null);
 
   // ── Supplier Orders ──────────────────────────────────────────────────────
   const [showSendModal, setShowSendModal] = useState(false);
@@ -1825,6 +1829,9 @@ const ProvisioningBoardDetail = () => {
         showToast(result.flipped
           ? 'Quote attached — board ready to re-submit for approval'
           : 'Quote attached', 'success');
+        // Open the review modal so the AI can read the quote and the
+        // chief can apply the supplier's prices onto the board lines.
+        setQuoteReviewFile(file);
       }
     } catch (err) {
       showToast('Could not upload quote file', 'error');
@@ -4635,6 +4642,26 @@ const ProvisioningBoardDetail = () => {
         )}
         </EditorialPageShell>
       </div>
+
+      {quoteReviewFile && list && (
+        <QuoteReviewModal
+          list={list}
+          items={items}
+          file={quoteReviewFile}
+          onApplied={async (count) => {
+            setQuoteReviewFile(null);
+            if (count > 0) {
+              showToast(`Applied ${count} quoted price${count === 1 ? '' : 's'} to the board`, 'success');
+              // Re-pull the lines so the new unit costs + totals show.
+              try {
+                const fresh = await fetchListItems(id);
+                setItems(fresh || []);
+              } catch { /* best-effort */ }
+            }
+          }}
+          onClose={() => setQuoteReviewFile(null)}
+        />
+      )}
 
       {showShareModal && list && (
         <ShareModal

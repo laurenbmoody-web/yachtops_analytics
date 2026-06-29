@@ -1,0 +1,99 @@
+/* Quote review modal — editorial (Cargo) styling. Scoped under .qrm
+   because it portals over the board page. */
+.qrm-overlay {
+  position: fixed; inset: 0;
+  background: rgba(28, 27, 58, 0.42);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; z-index: var(--z-overlay, 1000);
+}
+.qrm-panel {
+  background: #fff;
+  border: 1px solid #ECEAE3;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  width: min(520px, 94vw);
+  max-height: 90vh;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.qrm { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+
+.qrm-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; padding: 20px 22px 14px; border-bottom: 1px solid #F0F1F5;
+}
+.qrm-eyebrow {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478; margin: 0 0 4px;
+}
+.qrm-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 22px; line-height: 1.1; color: #1C1B3A; margin: 0;
+}
+.qrm-title em { font-style: italic; color: #C65A1A; }
+.qrm-sub { font-size: 12px; color: #8B8478; margin: 3px 0 0; }
+.qrm-close { color: #9098B1; padding: 2px; border: 0; background: none; cursor: pointer; }
+.qrm-close:hover { color: #1C1B3A; }
+
+.qrm-body { padding: 16px 22px; overflow-y: auto; flex: 1; min-height: 0; }
+
+.qrm-state {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; padding: 36px 12px; color: #6B7280; font-size: 13.5px;
+}
+.qrm-state-sub { font-size: 12px; color: #AEB4C2; margin: 0; }
+.qrm-spin { color: #C65A1A; animation: qrm-spin 0.9s linear infinite; }
+@keyframes qrm-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .qrm-spin { animation: none; } }
+
+.qrm-section-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #AEB4C2; margin: 0 0 10px;
+}
+.qrm-rows { display: flex; flex-direction: column; }
+.qrm-row {
+  display: grid;
+  grid-template-columns: 1fr auto 120px;
+  align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid #F0F1F5;
+}
+.qrm-row-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.qrm-row-name {
+  font-size: 13.5px; font-weight: 500; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.qrm-conf {
+  flex-shrink: 0; font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; padding: 1px 7px; border-radius: 999px; border: 1px solid;
+}
+.qrm-conf-high   { background: #ECF3EA; color: #2E7D5A; border-color: #C9DEC4; }
+.qrm-conf-medium { background: #FBEFE9; color: #C65A1A; border-color: #E8B89B; }
+.qrm-conf-low    { background: #F4F4F0; color: #8B8478; border-color: #E0DED7; }
+.qrm-row-meta { font-size: 11.5px; color: #8B8478; white-space: nowrap; }
+
+.qrm-price { display: flex; align-items: center; gap: 4px; justify-self: end; }
+.qrm-price-cur { font-size: 12px; color: #8B8478; }
+.qrm-price-input {
+  width: 88px; text-align: right;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 13px; color: #1C1B3A;
+  background: #FAFAF8; border: 1px solid #E8E6DF; border-radius: 8px;
+  padding: 6px 8px; outline: none;
+}
+.qrm-price-input:focus { background: #fff; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+
+.qrm-unmatched { font-size: 11.5px; color: #AEB4C2; margin: 12px 0 0; }
+
+.qrm-foot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 14px 22px; border-top: 1px solid #F0F1F5;
+}
+.qrm-btn-ghost {
+  padding: 9px 16px; border-radius: 10px; border: 1px solid #E8E6DF;
+  background: #fff; color: #1C1B3A; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.qrm-btn-ghost:hover { background: #FAFAF8; }
+.qrm-btn-primary {
+  padding: 9px 16px; border-radius: 10px; border: 0;
+  background: #C65A1A; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.qrm-btn-primary:hover { background: #B14E16; }
+.qrm-btn-primary:disabled { opacity: 0.55; cursor: default; }
