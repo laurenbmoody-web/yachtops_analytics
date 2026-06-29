@@ -3667,21 +3667,21 @@ const canEdit = (() => {
 
     return (
       <div>
-        <div className="cp-hor-head" style={{ marginBottom: 18, paddingBottom: 0, borderBottom: 'none' }}>
-          <div className="cp-section-head" style={{ marginBottom: 0 }}>
+        <div className="cp-tab-head">
+          <div className="cp-section-head">
             <span className="cp-section-num">07 /</span>
-            <h3>Contract / Employment</h3>
+            <h3>Contract</h3>
           </div>
           {canEditPermissions && (
             editing ? (
-              <div className="cp-hor-actions">
+              <div className="cp-tab-actions">
                 <Button variant="outline" iconName="X" disabled={empSaving}
                   onClick={() => { setEmpEditing(false); setEmpLoaded(false); }}>Cancel Edit</Button>
                 <Button iconName={empSaving ? 'Loader2' : 'Save'} disabled={empSaving}
                   onClick={handleSaveEmployment}>{empSaving ? 'Saving…' : 'Save'}</Button>
               </div>
             ) : (
-              <div className="cp-hor-actions">
+              <div className="cp-tab-actions">
                 <Button variant="outline" iconName="Edit" onClick={() => setEmpEditing(true)}>Edit employment</Button>
               </div>
             )

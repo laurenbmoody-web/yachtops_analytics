@@ -222,7 +222,6 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
           <span className="cp-section-num">11 /</span>
           <h3>Activity</h3>
         </div>
-        <span className="cd-rule" />
         <div className="cd-seg">
           <button type="button" className={view === 'timeline' ? 'on' : ''} onClick={() => setView('timeline')}>Timeline</button>
           <button type="button" className={view === 'calendar' ? 'on' : ''} onClick={() => setView('calendar')}>Status calendar</button>
@@ -233,6 +232,8 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
       {loading ? (
         <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>
       ) : view === 'calendar' ? (
+        <>
+        <div className="cp-group-head"><span className="dia">◆</span><span className="t">Status calendar</span><span className="line" /></div>
         <div className="act-calwrap">
           {/* Column 1 — month calendar */}
           <div className="act-col-cal">
@@ -444,8 +445,10 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
             })()}
           </div>
         </div>
+        </>
       ) : (
         <>
+          <div className="cp-group-head"><span className="dia">◆</span><span className="t">Activity log</span><span className="line" /></div>
           {presentCats.length > 0 && (
             <div className="act-pills">
               <button type="button" className={`act-pill ${filter === 'all' ? 'on' : ''}`} onClick={() => setFilter('all')}>All</button>

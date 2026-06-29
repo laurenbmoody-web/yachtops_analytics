@@ -126,9 +126,9 @@ body.crew-profile-editorial {
   position: absolute; top: 0; right: 0;
   display: flex; align-items: center; gap: 8px;
 }
-/* Activity header hairline — runs from the title across to the view toggle, so
-   the Timeline / Status header is ruled like the other sections. */
-.crew-profile-page .cd-controls > .cd-rule { flex: 1; height: 1px; background: #E6E8EF; min-width: 24px; margin: 0 4px; }
+/* Documents "by category" bar — top-align so the heading sits a consistent 18px
+   below the title rather than being pushed down by the taller view toggle. */
+.crew-profile-page .cd-controls-top { align-items: flex-start; }
 .crew-profile-page .cp-section-sub {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 13px;
@@ -152,6 +152,7 @@ body.crew-profile-editorial {
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 18px;
+  margin-bottom: 18px;
   border-bottom: 1px solid #E6E8EF;
 }
 .crew-profile-page .cp-hor-title {
