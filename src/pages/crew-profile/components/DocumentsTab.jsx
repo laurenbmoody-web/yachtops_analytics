@@ -485,15 +485,13 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
           Drop to upload &amp; auto-fill
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <div>
-          <div className="cp-section-head">
-            <span className="cp-section-num">05 /</span>
-            <h3>Documents</h3>
-          </div>
+      <div className="cp-tab-head">
+        <div className="cp-section-head">
+          <span className="cp-section-num">05 /</span>
+          <h3>Documents</h3>
         </div>
         {canEdit && (
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="cp-tab-actions">
             <input
               ref={scanInputRef}
               type="file"

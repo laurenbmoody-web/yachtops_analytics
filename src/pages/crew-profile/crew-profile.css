@@ -116,6 +116,19 @@ body.crew-profile-editorial {
   margin: 0;
   line-height: 1;
 }
+/* Shared tab header — used by tabs that carry action buttons (Documents, Issued
+   Kit, Sea Time). The numbered title sits in normal flow exactly like Personal
+   Details (top of the pane, 18px gap below); the actions float top-right so they
+   never alter the title's alignment or spacing. */
+.crew-profile-page .cp-tab-head { position: relative; }
+.crew-profile-page .cp-tab-head > .cp-section-head { margin-bottom: 18px; }
+.crew-profile-page .cp-tab-actions {
+  position: absolute; top: 0; right: 0;
+  display: flex; align-items: center; gap: 8px;
+}
+/* Activity header hairline — runs from the title across to the view toggle, so
+   the Timeline / Status header is ruled like the other sections. */
+.crew-profile-page .cd-controls > .cd-rule { flex: 1; height: 1px; background: #E6E8EF; min-width: 24px; margin: 0 4px; }
 .crew-profile-page .cp-section-sub {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 13px;
@@ -613,7 +626,7 @@ body.crew-profile-editorial {
    the toggle clears the Upload / Add buttons above it. */
 .crew-profile-page .cd-controls {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin: 4px 0 14px; flex-wrap: wrap;
+  margin: 0 0 14px; flex-wrap: wrap;
 }
 /* The "Documents by category" heading reuses the editorial group-head (terracotta
    diamond + serif label + hairline ruler); flex lets the ruler run to the toggle. */
@@ -803,7 +816,7 @@ body.crew-profile-editorial {
 
 /* Uniform sizes block (moved from Preferences) — generously spaced and split
    off from the issued items below with a hairline. */
-.crew-profile-page .kit-sizes { margin: 8px 0 30px; padding-bottom: 24px; border-bottom: 1px solid #F0F1F5; }
+.crew-profile-page .kit-sizes { margin: 0 0 30px; padding-bottom: 24px; border-bottom: 1px solid #F0F1F5; }
 .crew-profile-page .kit-fit-chip {
   font-size: 10px; font-weight: 700; letter-spacing: 0.4px; color: #7A7568;
   background: #EEEDE8; border-radius: 999px; padding: 3px 9px; white-space: nowrap;

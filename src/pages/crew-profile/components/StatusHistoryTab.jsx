@@ -222,6 +222,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
           <span className="cp-section-num">10 /</span>
           <h3>Activity</h3>
         </div>
+        <span className="cd-rule" />
         <div className="cd-seg">
           <button type="button" className={view === 'timeline' ? 'on' : ''} onClick={() => setView('timeline')}>Timeline</button>
           <button type="button" className={view === 'calendar' ? 'on' : ''} onClick={() => setView('calendar')}>Status calendar</button>
