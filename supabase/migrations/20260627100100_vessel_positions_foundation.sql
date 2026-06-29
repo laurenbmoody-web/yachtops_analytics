@@ -36,6 +36,9 @@ create index if not exists vessel_positions_lookup
 alter table vessel_positions enable row level security;
 
 -- Any active member of the vessel can read positions.
+-- (drop-if-exists makes a re-run idempotent — the CI db push retries
+--  and a bare CREATE POLICY errors 42710 if the policy already exists.)
+drop policy if exists vessel_positions_tenant_read on vessel_positions;
 create policy vessel_positions_tenant_read on vessel_positions
   for select using (
     tenant_id in (
@@ -45,6 +48,7 @@ create policy vessel_positions_tenant_read on vessel_positions
   );
 
 -- COMMAND / CHIEF manage positions (and the AIS adapter runs as service role).
+drop policy if exists vessel_positions_command_write on vessel_positions;
 create policy vessel_positions_command_write on vessel_positions
   for all using (
     exists (
