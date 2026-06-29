@@ -195,6 +195,11 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
                     ? <>Pick a voice, then <b>Rewrite</b> for a fresh take — or <b>Polish</b> to keep your words. {DAILY_CAP - used} left today.</>
                     : <>Pick a voice and let AI draft from the details on the right. {DAILY_CAP - used} drafts left today.</>}
               </div>
+
+              <div className="ps-actions">
+                <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save statement'}</Button>
+                <Button variant="outline" onClick={cancel} disabled={saving}>Cancel</Button>
+              </div>
             </>
           )}
         </div>
@@ -211,13 +216,6 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
           )}
         </div>
       </div>
-
-      {editing && (
-        <div className="ps-actions">
-          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save statement'}</Button>
-          <Button variant="outline" onClick={cancel} disabled={saving}>Cancel</Button>
-        </div>
-      )}
     </div>
   );
 };
