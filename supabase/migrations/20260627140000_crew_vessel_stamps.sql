@@ -28,6 +28,8 @@ create index if not exists crew_vessel_stamps_lookup on crew_vessel_stamps (user
 alter table crew_vessel_stamps enable row level security;
 
 -- The crew member sees their own stamps; COMMAND/CHIEF in the tenant manage them.
+-- (drop-if-exists keeps the migration idempotent across db-push retries.)
+drop policy if exists crew_vessel_stamps_select on crew_vessel_stamps;
 create policy crew_vessel_stamps_select on crew_vessel_stamps
   for select using (
     user_id = auth.uid()
@@ -37,6 +39,7 @@ create policy crew_vessel_stamps_select on crew_vessel_stamps
         and permission_tier = any (array['COMMAND', 'CHIEF'])
     )
   );
+drop policy if exists crew_vessel_stamps_write on crew_vessel_stamps;
 create policy crew_vessel_stamps_write on crew_vessel_stamps
   for all using (
     tenant_id in (
