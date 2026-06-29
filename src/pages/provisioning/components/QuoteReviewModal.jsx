@@ -70,6 +70,7 @@ const QuoteReviewModal = ({ list, items, file, onApplied, onClose }) => {
             name: it.name,
             unit: it.unit,
             qty: it.quantity_ordered,
+            estimate: it.estimated_unit_cost != null ? Number(it.estimated_unit_cost) : null,
             price: l.unit_price != null ? String(l.unit_price) : '',
             confidence: l.match_confidence,
           });
@@ -95,7 +96,7 @@ const QuoteReviewModal = ({ list, items, file, onApplied, onClose }) => {
     setApplying(true);
     try {
       const count = await applyQuotedPrices(
-        applicable.map(r => ({ id: r.itemId, estimated_unit_cost: Number(r.price) })),
+        applicable.map(r => ({ id: r.itemId, quoted_unit_cost: Number(r.price) })),
       );
       onApplied?.(count);
     } catch {
@@ -153,6 +154,11 @@ const QuoteReviewModal = ({ list, items, file, onApplied, onClose }) => {
                         </div>
                         <div className="qrm-row-meta">
                           {r.qty != null && <span>{r.qty}{r.unit ? ` ${r.unit}` : ''}</span>}
+                          {r.estimate != null && (
+                            <span className="qrm-est" title="Your estimate (kept for comparison)">
+                              est {cur || '$'}{r.estimate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          )}
                         </div>
                         <div className="qrm-price">
                           <span className="qrm-price-cur">{cur || '$'}</span>
