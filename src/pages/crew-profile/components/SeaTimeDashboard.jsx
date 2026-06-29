@@ -1209,6 +1209,41 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             </div>
           </div>
         </div>
+        {/* Service-type totals — built into the log section; each cell also
+            filters the entries below to that type (out of sync floating above). */}
+        <div className="std-lkpis">
+          {[['seagoing', 'SEAGOING'], ['watchkeeping', 'WATCHKEEPING'], ['standby', 'STANDBY'], ['yard', 'SHIPYARD']].map(([k, up]) => {
+            const tm = TYPE_META[k];
+            const on = serviceFilter === k;
+            return (
+              <button key={k} type="button" aria-pressed={on} className={`std-lkpi${on ? ' on' : ''}`}
+                onClick={() => setServiceFilter(on ? 'all' : k)}
+                style={on ? { borderTopColor: tm.color, background: tm.bg } : undefined}>
+                <span className="l"><span className="dot" style={{ background: tm.color }} /> {up}</span>
+                <span className="n">{buckets[k]} <em>days</em></span>
+              </button>
+            );
+          })}
+        </div>
+        {(serviceFilter !== 'all' || syncInfo?.excluded_leave_days > 0 || prior.onboard > 0) && (
+          <div style={{ padding: '10px 18px 0' }}>
+            {serviceFilter !== 'all' && (
+              <div className="std-filternote">
+                Showing <b>{TYPE_META[serviceFilter].label}</b> only · <button type="button" onClick={() => setServiceFilter('all')}>Show all</button>
+              </div>
+            )}
+            {syncInfo?.excluded_leave_days > 0 && (
+              <div className="std-filternote">
+                <b>{syncInfo.excluded_leave_days} {syncInfo.excluded_leave_days === 1 ? 'day' : 'days'}</b> excluded as leave / rotational leave — your status showed you weren’t aboard, so {syncInfo.excluded_leave_days === 1 ? 'it doesn’t' : 'they don’t'} count toward your CoC. {syncInfo.excluded_leave_days === 1 ? 'It’s' : 'They’re'} still reported as leave on your testimonial.
+              </div>
+            )}
+            {prior.onboard > 0 && (
+              <div className="std-filternote">
+                Pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> entered before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
+              </div>
+            )}
+          </div>
+        )}
         {logView === 'calendar' && (
           <div style={{ padding: '16px 18px 0' }}>
             <SeaServiceCalendar entries={scoped} vessels={vessels} config={config} serviceFilter={serviceFilter} />
@@ -1488,38 +1523,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           </div>
         );
       })()}
-
-      {/* ── KPI bucket tiles — double as the service-type filter for the log below ── */}
-      <div className="std-bpills" style={{ marginTop: 18 }}>
-        {[['seagoing', 'SEAGOING'], ['watchkeeping', 'WATCHKEEPING'], ['standby', 'STANDBY'], ['yard', 'SHIPYARD']].map(([k, up]) => {
-          const tm = TYPE_META[k];
-          const on = serviceFilter === k;
-          const toggle = () => setServiceFilter(on ? 'all' : k);
-          return (
-            <button className={`std-bpill${on ? ' on' : ''}`} key={k} type="button" aria-pressed={on}
-              onClick={toggle}
-              style={{ borderTopColor: tm.color, ...(on ? { borderColor: tm.color, boxShadow: `0 0 0 2px ${tm.bg}` } : null) }}>
-              <div className="l"><span className="dot" style={{ background: tm.color }} /> {up}</div>
-              <div className="n">{buckets[k]}</div> <span className="u">days</span>
-            </button>
-          );
-        })}
-      </div>
-      {serviceFilter !== 'all' && (
-        <div className="std-filternote">
-          Showing <b>{TYPE_META[serviceFilter].label}</b> only · <button type="button" onClick={() => setServiceFilter('all')}>Show all</button>
-        </div>
-      )}
-      {syncInfo?.excluded_leave_days > 0 && (
-        <div className="std-filternote">
-          <b>{syncInfo.excluded_leave_days} {syncInfo.excluded_leave_days === 1 ? 'day' : 'days'}</b> excluded as leave / rotational leave — your status showed you weren’t aboard, so {syncInfo.excluded_leave_days === 1 ? 'it doesn’t' : 'they don’t'} count toward your CoC. {syncInfo.excluded_leave_days === 1 ? 'It’s' : 'They’re'} still reported as leave on your testimonial.
-        </div>
-      )}
-      {prior.onboard > 0 && (
-        <div className="std-filternote">
-          Pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> entered before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
-        </div>
-      )}
 
       <div style={{ marginTop: 18 }}>{LedgerTable()}</div>
 
