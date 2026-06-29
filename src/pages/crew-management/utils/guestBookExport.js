@@ -28,7 +28,7 @@ export const fetchGuestBookEntries = async (tenantId, crew = []) => {
   if (ids.length) {
     const { data, error } = await supabase
       .from('crew_profile_statements')
-      .select('user_id, statement, headline, hometown, languages, interests')
+      .select('user_id, statement, fun_fact, hometown, languages, interests, favourite_destination, years_yachting')
       .in('user_id', ids);
     if (error) console.error('[guestbook] statement fetch failed', error);
     for (const row of data || []) statements[row.user_id] = row;
@@ -42,10 +42,12 @@ export const fetchGuestBookEntries = async (tenantId, crew = []) => {
       role: c.roleTitle || c.role || '',
       department: c.department || '',
       statement: s.statement || '',
-      headline: s.headline || '',
+      funFact: s.fun_fact || '',
       hometown: s.hometown || '',
       languages: s.languages || '',
       interests: s.interests || '',
+      favouriteDestination: s.favourite_destination || '',
+      yearsYachting: s.years_yachting || '',
       words: wordCount(s.statement),
       hasStatement: !!(s.statement && s.statement.trim()),
     };

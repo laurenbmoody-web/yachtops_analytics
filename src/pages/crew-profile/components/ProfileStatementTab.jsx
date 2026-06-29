@@ -55,12 +55,16 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
   const [used, setUsed] = useState(0);
   const [cooldown, setCooldown] = useState(0);
   const cdTimer = useRef(null);
-  const [form, setForm] = useState({ statement: '', headline: '', hometown: '', languages: '', interests: '' });
+  const [form, setForm] = useState({ statement: '', funFact: '', hometown: '', languages: '', interests: '', favouriteDestination: '', yearsYachting: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
     const d = await fetchProfileStatement(userId);
-    if (d) setForm({ statement: d.statement || '', headline: d.headline || '', hometown: d.hometown || '', languages: d.languages || '', interests: d.interests || '' });
+    if (d) setForm({
+      statement: d.statement || '', funFact: d.fun_fact || '', hometown: d.hometown || '',
+      languages: d.languages || '', interests: d.interests || '',
+      favouriteDestination: d.favourite_destination || '', yearsYachting: d.years_yachting || '',
+    });
     setLoading(false);
   }, [userId]);
   useEffect(() => { if (userId) load(); }, [userId, load]);
@@ -92,6 +96,7 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
         mode: form.statement.trim() ? 'polish' : 'draft',
         name: crewName, role, nationality, vessel: vesselName, tone,
         hometown: form.hometown, languages: form.languages, interests: form.interests,
+        funFact: form.funFact, favouriteDestination: form.favouriteDestination, yearsYachting: form.yearsYachting,
         draft: form.statement,
       });
       if (statement) {
@@ -117,7 +122,7 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
         <h3>Profile statement</h3>
       </div>
       <p className="cd-muted" style={{ marginTop: -6, marginBottom: 22, maxWidth: 640 }}>
-        A short, guest-facing introduction for the guest information book.{' '}
+        A short introduction for the guest information book — a glimpse of who you are, not just what you do.{' '}
         {isOwnProfile ? 'Write it in your own voice — or let AI give you a head start.' : 'Written by the crew member; COMMAND can edit.'}
       </p>
 
@@ -162,10 +167,12 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
         </div>
 
         <div className="ps-side">
-          <Field label="Headline / tagline" value={form.headline} onChange={(v) => setF('headline', v)} placeholder="e.g. Adventurous captain, keen freediver" readOnly={readOnly} />
+          <Field label="Fun fact / hidden talent" value={form.funFact} onChange={(v) => setF('funFact', v)} placeholder="e.g. Once cooked for a head of state — and can juggle fire" readOnly={readOnly} />
           <Field label="Hometown" value={form.hometown} onChange={(v) => setF('hometown', v)} placeholder="e.g. Cornwall, UK" readOnly={readOnly} />
           <Field label="Languages" value={form.languages} onChange={(v) => setF('languages', v)} placeholder="e.g. English, French" readOnly={readOnly} />
           <Field label="Interests / hobbies" value={form.interests} onChange={(v) => setF('interests', v)} placeholder="e.g. Freediving, cooking, photography" readOnly={readOnly} />
+          <Field label="Favourite destination" value={form.favouriteDestination} onChange={(v) => setF('favouriteDestination', v)} placeholder="e.g. The Cyclades at dawn" readOnly={readOnly} />
+          <Field label="Years in yachting" value={form.yearsYachting} onChange={(v) => setF('yearsYachting', v)} placeholder="e.g. 8 years, or Since 2016" readOnly={readOnly} />
           <div className="ps-prompts">
             <div className="ps-prompts-h">Need a spark?</div>
             <ul>{PROMPTS.map((p) => <li key={p}>{p}</li>)}</ul>
