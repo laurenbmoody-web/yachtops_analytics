@@ -266,33 +266,34 @@ select.shm-field { cursor: pointer; }
   margin-left: 6px;
 }
 
-/* ── Crew search dropdown ────────────────────────────────────── */
-.shm-search-wrap { position: relative; margin-bottom: 14px; }
-.shm-search-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0; right: 0;
-  z-index: 5;
-  background: #fff;
-  border: 1px solid #ECEAE3;
-  border-radius: 12px;
-  box-shadow: 0 14px 36px -8px rgba(28, 27, 58, 0.22);
-  overflow: hidden;
-  max-height: 244px;
-  overflow-y: auto;
+/* ── Crew search — inline results (no floating box) ──────────── */
+.shm-search-wrap { margin-bottom: 14px; }
+/* Results sit in the modal flow as plain hairline rows; the modal
+   body is the single scroll surface, so nothing clips past the panel
+   edge. A top hairline separates the results from the input. */
+.shm-search-inline {
+  margin-top: 6px;
+  border-top: 1px solid #F0F1F5;
+}
+.shm-search-none {
+  font-size: 12.5px;
+  color: #AEB4C2;
+  padding: 12px 2px;
 }
 .shm-search-item {
   width: 100%;
   text-align: left;
-  padding: 9px 12px;
+  padding: 9px 2px;
   background: none;
   border: 0;
+  border-bottom: 1px solid #F4F4F0;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 10px;
   transition: background 0.1s ease;
 }
+.shm-search-item:last-child { border-bottom: 0; }
 .shm-search-item:hover { background: #FAFAF8; }
 .shm-default-perm {
   display: flex; align-items: center; gap: 8px;
