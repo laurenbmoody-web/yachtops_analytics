@@ -4,123 +4,104 @@ import {
   createShareLink, fetchShareLinks, revokeShareLink,
   addCollaborator, removeCollaborator, updateCollaboratorPermission, fetchCollaborators,
 } from '../utils/provisioningStorage';
+import './share-modal.css';
 
-// ── Permission selector ───────────────────────────────────────────────────────
+// Share-board modal — editorial rebuild. Two tabs:
+//   Collaborators — invite a crew member to view / edit / approve the
+//                   board. Backed by provisioning_list_collaborators;
+//                   RLS (20260627090000) grants edit collaborators real
+//                   item + board write access.
+//   Share link    — token links for view / edit access without an account.
 
 const LINK_PERMS   = [{ value: 'view', label: 'Can view' }, { value: 'edit', label: 'Can edit' }];
-const COLLAB_PERMS = [{ value: 'view', label: 'Can view' }, { value: 'edit', label: 'Can edit' }, { value: 'approve', label: 'Can approve' }];
+const COLLAB_PERMS = [
+  { value: 'view',    label: 'Can view' },
+  { value: 'edit',    label: 'Can edit' },
+  { value: 'approve', label: 'Can approve' },
+];
 
-const PermSelect = ({ value, options, onChange, small }) => (
-  <select
-    value={value}
-    onChange={e => onChange(e.target.value)}
-    style={{
-      fontSize: small ? 11 : 12, padding: small ? '2px 4px' : '4px 8px',
-      border: '1px solid var(--color-border, #E2E8F0)', borderRadius: 6,
-      background: 'var(--color-background, #F8FAFC)', color: 'var(--color-foreground, #1E3A5F)',
-      cursor: 'pointer', outline: 'none',
-    }}
-  >
+const AVATAR_COLOURS = ['#C65A1A', '#1C1B3A', '#2E7D5A', '#7C5BC7', '#B14E16', '#3B6FB0'];
+const avatarColour = (key) => {
+  const s = String(key || '?');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return AVATAR_COLOURS[h % AVATAR_COLOURS.length];
+};
+const initialsOf = (name, email) => (name || email || '?').trim().slice(0, 2).toUpperCase();
+
+const PermSelect = ({ value, options, onChange }) => (
+  <select className="shm-select-sm" value={value} onChange={e => onChange(e.target.value)}>
     {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
   </select>
 );
 
-// ── Copy link row ─────────────────────────────────────────────────────────────
+const Avatar = ({ name, email, url, size = 32 }) => (
+  <div
+    className="shm-avatar"
+    style={{
+      width: size, height: size, fontSize: size <= 28 ? 10 : 11,
+      background: url ? 'transparent' : avatarColour(email || name),
+      backgroundImage: url ? `url(${url})` : undefined,
+    }}
+  >
+    {!url && initialsOf(name, email)}
+  </div>
+);
 
+// ── Share-link row ────────────────────────────────────────────────────────────
 const ShareLinkRow = ({ share, onRevoke }) => {
   const [copied, setCopied] = useState(false);
   const url = `${window.location.origin}/provisioning/shared/${share.token}`;
-
-  const copy = () => {
-    navigator.clipboard?.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
+  const copy = () => navigator.clipboard?.writeText(url).then(() => {
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
+  });
+  const d = (iso) => new Date(iso).toLocaleDateString('en-GB');
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--color-border, #E2E8F0)' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 11, color: 'var(--color-muted-foreground, #94A3B8)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          …/shared/{share.token.slice(0, 12)}…
-        </p>
-        <p style={{ fontSize: 10, color: 'var(--color-muted-foreground, #94A3B8)', marginTop: 1 }}>
-          {share.permission === 'edit' ? 'Can edit' : 'Can view'} · Created {new Date(share.created_at).toLocaleDateString('en-GB')}
-          {share.last_accessed_at && ` · Last used ${new Date(share.last_accessed_at).toLocaleDateString('en-GB')}`}
+    <div className="shm-link-row">
+      <div className="shm-link-info">
+        <p className="shm-link-token">…/shared/{share.token.slice(0, 14)}…</p>
+        <p className="shm-link-meta">
+          {share.permission === 'edit' ? 'Can edit' : 'Can view'} · Created {d(share.created_at)}
+          {share.last_accessed_at && ` · Last used ${d(share.last_accessed_at)}`}
         </p>
       </div>
-      <button
-        onClick={copy}
-        style={{
-          fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', flexShrink: 0,
-          background: copied ? '#ECFDF5' : 'var(--color-muted, #F1F5F9)',
-          color: copied ? '#047857' : 'var(--color-foreground, #1E3A5F)',
-          border: '1px solid var(--color-border, #E2E8F0)',
-        }}
-      >
+      <button className={`shm-link-copy${copied ? ' is-copied' : ''}`} onClick={copy}>
         {copied ? '✓ Copied' : 'Copy'}
       </button>
-      <button
-        onClick={() => onRevoke(share.id)}
-        style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted-foreground, #94A3B8)', flexShrink: 0 }}
-        title="Revoke link"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+      <button className="shm-icon-btn" onClick={() => onRevoke(share.id)} title="Revoke link">
+        <Icon name="X" size={13} />
       </button>
     </div>
   );
 };
 
 // ── Collaborator row ──────────────────────────────────────────────────────────
-
-const CollaboratorRow = ({ collab, listId, onRemove, onPermChange }) => {
+const CollaboratorRow = ({ collab, listId, isSelf, onRemove }) => {
   const [perm, setPerm] = useState(collab.permission);
-  const initials = (collab.full_name || collab.email || '?').slice(0, 2).toUpperCase();
-
   const handlePermChange = async (val) => {
     setPerm(val);
     await updateCollaboratorPermission(listId, collab.user_id, val);
-    onPermChange?.();
   };
-
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--color-border, #E2E8F0)' }}>
-      <div style={{
-        width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
-        background: collab.avatar_url ? 'transparent' : '#4A90E2',
-        backgroundImage: collab.avatar_url ? `url(${collab.avatar_url})` : undefined,
-        backgroundSize: 'cover',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 11, fontWeight: 700, color: '#fff',
-      }}>
-        {!collab.avatar_url && initials}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-foreground, #1E3A5F)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <div className="shm-collab-row">
+      <Avatar name={collab.full_name} email={collab.email} url={collab.avatar_url} />
+      <div className="shm-collab-info">
+        <p className="shm-collab-name">
           {collab.full_name || collab.email || 'Unknown'}
+          {isSelf && <span className="shm-collab-you">You</span>}
         </p>
-        {collab.full_name && collab.email && (
-          <p style={{ fontSize: 11, color: 'var(--color-muted-foreground, #94A3B8)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{collab.email}</p>
-        )}
+        {collab.full_name && collab.email && <p className="shm-collab-email">{collab.email}</p>}
       </div>
-      <PermSelect value={perm} options={COLLAB_PERMS} onChange={handlePermChange} small />
-      <button
-        onClick={() => onRemove(collab.user_id)}
-        style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted-foreground, #94A3B8)', flexShrink: 0 }}
-        title="Remove"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+      <PermSelect value={perm} options={COLLAB_PERMS} onChange={handlePermChange} />
+      <button className="shm-icon-btn" onClick={() => onRemove(collab.user_id)} title="Remove">
+        <Icon name="X" size={13} />
       </button>
     </div>
   );
 };
 
 // ── Crew search dropdown ──────────────────────────────────────────────────────
-
 const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -140,46 +121,25 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
   }).slice(0, 8);
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} className="shm-search-wrap">
       <input
+        className="shm-field"
         value={query}
         onChange={e => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         placeholder="Search crew by name or email…"
-        style={{
-          width: '100%', padding: '8px 12px', fontSize: 13,
-          border: '1px solid var(--color-border, #E2E8F0)', borderRadius: 8,
-          background: 'var(--color-background, #F8FAFC)', color: 'var(--color-foreground, #1E3A5F)',
-          outline: 'none', boxSizing: 'border-box',
-        }}
       />
       {open && filtered.length > 0 && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--z-dropdown)', marginTop: 4,
-          background: 'var(--color-card, #fff)', border: '1px solid var(--color-border, #E2E8F0)',
-          borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden',
-        }}
-          onMouseDown={e => e.preventDefault()}
-        >
-          {filtered.map(c => {
-            const initials = (c.full_name || c.email || '?').slice(0, 2).toUpperCase();
-            return (
-              <button
-                key={c.id}
-                onClick={() => { onSelect(c); setQuery(''); setOpen(false); }}
-                style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
-                className="hover:bg-muted transition-colors"
-              >
-                <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: c.avatar_url ? 'transparent' : '#4A90E2', backgroundImage: c.avatar_url ? `url(${c.avatar_url})` : undefined, backgroundSize: 'cover', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff' }}>
-                  {!c.avatar_url && initials}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-foreground, #1E3A5F)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.full_name || c.email}</p>
-                  {c.full_name && c.email && <p style={{ fontSize: 11, color: 'var(--color-muted-foreground, #94A3B8)' }}>{c.email}</p>}
-                </div>
-              </button>
-            );
-          })}
+        <div className="shm-search-menu" onMouseDown={e => e.preventDefault()}>
+          {filtered.map(c => (
+            <button key={c.id} className="shm-search-item" onClick={() => { onSelect(c); setQuery(''); setOpen(false); }}>
+              <Avatar name={c.full_name} email={c.email} url={c.avatar_url} size={28} />
+              <div style={{ minWidth: 0 }}>
+                <p className="shm-collab-name">{c.full_name || c.email}</p>
+                {c.full_name && c.email && <p className="shm-collab-email">{c.email}</p>}
+              </div>
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -187,13 +147,12 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
 };
 
 // ── Main modal ────────────────────────────────────────────────────────────────
-
 const ShareModal = ({ list, crewMembers, currentUserId, onClose }) => {
-  const [tab, setTab] = useState('link'); // 'link' | 'people'
+  const [tab, setTab] = useState('people'); // 'people' | 'link' — people leads now
   const [shareLinks, setShareLinks] = useState([]);
   const [collaborators, setCollaborators] = useState([]);
   const [newLinkPerm, setNewLinkPerm] = useState('view');
-  const [newCollabPerm, setNewCollabPerm] = useState('view');
+  const [newCollabPerm, setNewCollabPerm] = useState('edit');
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -207,7 +166,6 @@ const ShareModal = ({ list, crewMembers, currentUserId, onClose }) => {
     const link = await createShareLink(list.id, newLinkPerm, currentUserId);
     if (link) {
       setShareLinks(prev => [link, ...prev]);
-      // Auto-copy the new link
       const url = `${window.location.origin}/provisioning/shared/${link.token}`;
       navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500); });
     }
@@ -237,125 +195,83 @@ const ShareModal = ({ list, crewMembers, currentUserId, onClose }) => {
   const existingCollabIds = collaborators.map(c => c.user_id);
 
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-overlay)', padding: 16 }}
-      onMouseDown={e => e.target === e.currentTarget && onClose()}
-    >
-      <div
-        style={{ background: 'var(--color-card, #fff)', borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.2)', width: '100%', maxWidth: 480, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}
-        onMouseDown={e => e.stopPropagation()}
-      >
+    <div className="shm-overlay" onMouseDown={e => e.target === e.currentTarget && onClose()}>
+      <div className="shm shm-panel" onMouseDown={e => e.stopPropagation()}>
+
         {/* Header */}
-        <div style={{ padding: '18px 20px 12px', borderBottom: '1px solid var(--color-border, #E2E8F0)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div className="shm-head">
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-foreground, #1E3A5F)', margin: 0 }}>Share board</h2>
-            <p style={{ fontSize: 12, color: 'var(--color-muted-foreground, #94A3B8)', margin: '3px 0 0' }}>{list.title}</p>
+            <p className="shm-eyebrow">Provisioning Board</p>
+            <h2 className="shm-title">Share, <em>collaborate</em>.</h2>
+            <p className="shm-collab-email" style={{ marginTop: 3 }}>{list.title}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-muted-foreground, #94A3B8)' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+          <button className="shm-close" onClick={onClose} aria-label="Close">
+            <Icon name="X" size={18} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border, #E2E8F0)', padding: '0 20px' }}>
-          {[{ id: 'link', label: 'Share link' }, { id: 'people', label: 'Collaborators' }].map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              style={{
-                padding: '10px 16px', fontSize: 13, fontWeight: tab === t.id ? 600 : 400,
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: tab === t.id ? 'var(--color-foreground, #1E3A5F)' : 'var(--color-muted-foreground, #94A3B8)',
-                borderBottom: tab === t.id ? '2px solid #4A90E2' : '2px solid transparent',
-                marginBottom: -1,
-              }}
-            >
-              {t.label}
-              {t.id === 'people' && collaborators.length > 0 && (
-                <span style={{ marginLeft: 6, fontSize: 10, background: '#4A90E2', color: '#fff', borderRadius: 20, padding: '1px 5px', fontWeight: 600 }}>
-                  {collaborators.length}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="shm-tabs">
+          <button className={`shm-tab${tab === 'people' ? ' is-active' : ''}`} onClick={() => setTab('people')}>
+            Collaborators
+            {collaborators.length > 0 && <span className="shm-tab-count">{collaborators.length}</span>}
+          </button>
+          <button className={`shm-tab${tab === 'link' ? ' is-active' : ''}`} onClick={() => setTab('link')}>
+            Share link
+            {shareLinks.length > 0 && <span className="shm-tab-count">{shareLinks.length}</span>}
+          </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
+        <div className="shm-body">
+
+          {tab === 'people' && (
+            <>
+              <CrewSearch crewMembers={crewMembers} existingUserIds={existingCollabIds} onSelect={handleAddCollab} />
+              <div className="shm-default-perm">
+                <span>New collaborators can</span>
+                <PermSelect value={newCollabPerm} options={COLLAB_PERMS} onChange={setNewCollabPerm} />
+              </div>
+
+              <div style={{ marginTop: 18 }}>
+                {collaborators.length === 0 ? (
+                  <p className="shm-empty">No collaborators yet.<br />Search a crew member above to invite them.</p>
+                ) : (
+                  <>
+                    <p className="shm-section-label">
+                      {collaborators.length} collaborator{collaborators.length !== 1 ? 's' : ''}
+                    </p>
+                    {collaborators.map(c => (
+                      <CollaboratorRow
+                        key={c.user_id}
+                        collab={c}
+                        listId={list.id}
+                        isSelf={c.user_id === currentUserId}
+                        onRemove={handleRemoveCollab}
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+            </>
+          )}
 
           {tab === 'link' && (
             <>
-              {/* Create link row */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+              <div className="shm-create-row">
                 <PermSelect value={newLinkPerm} options={LINK_PERMS} onChange={setNewLinkPerm} />
-                <button
-                  onClick={handleCreateLink}
-                  disabled={creating}
-                  style={{
-                    flex: 1, padding: '8px 12px', borderRadius: 8, cursor: creating ? 'wait' : 'pointer',
-                    background: '#1E3A5F', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  }}
-                >
+                <button className="shm-btn-primary" onClick={handleCreateLink} disabled={creating}>
                   <Icon name="Link" size={13} />
                   {creating ? 'Creating…' : copied ? '✓ Link copied!' : 'Create & copy link'}
                 </button>
               </div>
 
-              {/* Existing links */}
               {shareLinks.length === 0 ? (
-                <p style={{ fontSize: 13, color: 'var(--color-muted-foreground, #94A3B8)', textAlign: 'center', padding: '20px 0' }}>
-                  No active links. Create one above.
-                </p>
+                <p className="shm-empty">No active links. Create one above.</p>
               ) : (
                 <>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted-foreground, #94A3B8)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                    Active links
-                  </p>
-                  {shareLinks.map(s => (
-                    <ShareLinkRow key={s.id} share={s} onRevoke={handleRevoke} />
-                  ))}
-                </>
-              )}
-            </>
-          )}
-
-          {tab === 'people' && (
-            <>
-              {/* Add collaborator */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                <CrewSearch
-                  crewMembers={crewMembers}
-                  existingUserIds={existingCollabIds}
-                  onSelect={handleAddCollab}
-                />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 12, color: 'var(--color-muted-foreground, #94A3B8)' }}>Default permission:</span>
-                  <PermSelect value={newCollabPerm} options={COLLAB_PERMS} onChange={setNewCollabPerm} small />
-                </div>
-              </div>
-
-              {/* Collaborator list */}
-              {collaborators.length === 0 ? (
-                <p style={{ fontSize: 13, color: 'var(--color-muted-foreground, #94A3B8)', textAlign: 'center', padding: '20px 0' }}>
-                  No collaborators yet. Search for a crew member above.
-                </p>
-              ) : (
-                <>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted-foreground, #94A3B8)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                    {collaborators.length} collaborator{collaborators.length !== 1 ? 's' : ''}
-                  </p>
-                  {collaborators.map(c => (
-                    <CollaboratorRow
-                      key={c.user_id}
-                      collab={c}
-                      listId={list.id}
-                      onRemove={handleRemoveCollab}
-                      onPermChange={() => {}}
-                    />
-                  ))}
+                  <p className="shm-section-label">Active links</p>
+                  {shareLinks.map(s => <ShareLinkRow key={s.id} share={s} onRevoke={handleRevoke} />)}
                 </>
               )}
             </>

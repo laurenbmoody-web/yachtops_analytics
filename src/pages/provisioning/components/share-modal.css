@@ -1,0 +1,301 @@
+/* Share-board modal — editorial (Cargo) styling. DM Serif heading,
+   navy ink, terracotta accent, tracked-caps labels, soft borders,
+   rounded pills. Scoped under .shm because the modal is portaled to
+   document.body, outside the provisioning page tree. */
+
+.shm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 27, 58, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: var(--z-overlay, 1000);
+}
+.shm-panel {
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  width: min(480px, 94vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.shm { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+
+/* ── Header ──────────────────────────────────────────────────── */
+.shm-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.shm-eyebrow {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 4px;
+}
+.shm-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.1;
+  color: #1C1B3A;
+}
+.shm-title em { font-style: italic; color: #C65A1A; }
+.shm-close { color: #9098B1; padding: 2px; border: 0; background: none; cursor: pointer; }
+.shm-close:hover { color: #1C1B3A; }
+
+/* ── Tabs ────────────────────────────────────────────────────── */
+.shm-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 22px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.shm-tab {
+  position: relative;
+  padding: 12px 4px;
+  margin-right: 18px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8B8478;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: color 0.12s ease;
+}
+.shm-tab:hover { color: #1C1B3A; }
+.shm-tab.is-active { color: #1C1B3A; font-weight: 600; }
+.shm-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: #C65A1A;
+  border-radius: 2px 2px 0 0;
+}
+.shm-tab-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: #FBEFE9;
+  color: #C65A1A;
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.shm-tab.is-active .shm-tab-count { background: #C65A1A; color: #fff; }
+
+/* ── Body ────────────────────────────────────────────────────── */
+.shm-body { padding: 18px 22px 20px; overflow-y: auto; }
+.shm-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin: 0 0 8px;
+}
+
+/* ── Inputs / selects ────────────────────────────────────────── */
+.shm-field {
+  width: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  color: #1C1B3A;
+  background: #FAFAF8;
+  border: 1px solid #E8E6DF;
+  border-radius: 10px;
+  padding: 9px 12px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.shm-field::placeholder { color: #AEB4C2; }
+.shm-field:focus {
+  background: #fff;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px #FAECE7;
+}
+select.shm-field { cursor: pointer; }
+.shm-select-sm {
+  font-size: 11.5px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #E8E6DF;
+  background: #FAFAF8;
+  color: #1C1B3A;
+  cursor: pointer;
+  outline: none;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.shm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 0;
+  background: #C65A1A;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.shm-btn-primary:hover { background: #B14E16; }
+.shm-btn-primary:disabled { opacity: 0.6; cursor: default; }
+
+.shm-create-row { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; }
+.shm-create-row .shm-btn-primary { flex: 1; }
+
+/* ── Empty / section labels ──────────────────────────────────── */
+.shm-empty {
+  font-size: 13px;
+  color: #8B8478;
+  text-align: center;
+  padding: 28px 0;
+}
+.shm-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #AEB4C2;
+  margin: 6px 0 10px;
+}
+
+/* ── Share-link row ──────────────────────────────────────────── */
+.shm-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid #F0F1F5;
+}
+.shm-link-row:last-child { border-bottom: 0; }
+.shm-link-info { flex: 1; min-width: 0; }
+.shm-link-token {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: #6B7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shm-link-meta { font-size: 10.5px; color: #AEB4C2; margin-top: 2px; }
+.shm-link-copy {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 1px solid #E8E6DF;
+  background: #FAFAF8;
+  color: #1C1B3A;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.shm-link-copy:hover { border-color: #C65A1A; color: #C65A1A; }
+.shm-link-copy.is-copied {
+  background: #ECF3EA; color: #2E7D5A; border-color: #C9DEC4;
+}
+.shm-icon-btn {
+  flex-shrink: 0;
+  padding: 5px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: #AEB4C2;
+  border-radius: 7px;
+  line-height: 0;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.shm-icon-btn:hover { color: #C65A1A; background: #FBEFE9; }
+
+/* ── Collaborator row ────────────────────────────────────────── */
+.shm-collab-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 0;
+  border-bottom: 1px solid #F0F1F5;
+}
+.shm-collab-row:last-child { border-bottom: 0; }
+.shm-avatar {
+  width: 32px; height: 32px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+.shm-collab-info { flex: 1; min-width: 0; }
+.shm-collab-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.shm-collab-email {
+  font-size: 11.5px;
+  color: #8B8478;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.shm-collab-you {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: #C65A1A;
+  background: #FBEFE9; border-radius: 999px; padding: 1px 7px;
+  margin-left: 6px;
+}
+
+/* ── Crew search dropdown ────────────────────────────────────── */
+.shm-search-wrap { position: relative; margin-bottom: 14px; }
+.shm-search-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  z-index: 5;
+  background: #fff;
+  border: 1px solid #ECEAE3;
+  border-radius: 12px;
+  box-shadow: 0 14px 36px -8px rgba(28, 27, 58, 0.22);
+  overflow: hidden;
+  max-height: 244px;
+  overflow-y: auto;
+}
+.shm-search-item {
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.1s ease;
+}
+.shm-search-item:hover { background: #FAFAF8; }
+.shm-default-perm {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px;
+  font-size: 11.5px; color: #8B8478;
+}

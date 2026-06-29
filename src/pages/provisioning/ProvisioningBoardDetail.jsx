@@ -42,6 +42,7 @@ import {
   declineOrderItemQuote,
   approveAllQuotes,
   callerRequiresProvisioningApproval,
+  fetchCollaborators,
   fetchSupplierNotesSeenAt,
   markSupplierNotesSeen,
   queryOrderItemQuote,
@@ -548,6 +549,9 @@ const ProvisioningBoardDetail = () => {
   const [list, setList] = useState(null);
   const [items, setItems] = useState([]);
   const [trip, setTrip] = useState(null);
+  // This user's collaborator permission on the board (view / edit /
+  // approve), or null if they're not an invited collaborator.
+  const [collabPerm, setCollabPerm] = useState(null);
   const [allergenGuests, setAllergenGuests] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -756,8 +760,15 @@ const ProvisioningBoardDetail = () => {
     : (list?.department ? list.department.split(',').map(d => d.trim()) : []);
   const inSameDept = !listDepts.length || listDepts.some(d => d?.toLowerCase() === userDept.toLowerCase());
 
+  // The current user's collaborator permission on this board (null if
+  // not an invited collaborator). An 'edit' / 'approve' collaborator
+  // gets the same write affordances the RLS now grants them
+  // (20260627090000) — without this the UI would show a read-only
+  // board to someone the DB lets edit.
+  const isCollabEditor = collabPerm === 'edit' || collabPerm === 'approve';
+
   // Edit board metadata + add items: owner / COMMAND / CHIEF / HOD  (not CREW)
-  const canEdit = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
+  const canEdit = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept) || isCollabEditor;
   const canAddItems = canEdit;
   // Delete the board: owner / COMMAND / CHIEF  (HOD and CREW cannot delete boards)
   const canDelete = !!isOwner || userTier === 'COMMAND' || (userTier === 'CHIEF' && inSameDept);
@@ -855,7 +866,7 @@ const ProvisioningBoardDetail = () => {
       return !oi;
     });
   // Delete individual items: owner / COMMAND / CHIEF / HOD  (not CREW)
-  const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
+  const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept) || isCollabEditor;
 
   // Default department NAME (string) for new items: user's own dept from auth,
   // then board's dept, then vessel config, else null (→ GLOBAL). departments is
@@ -2271,6 +2282,21 @@ const ProvisioningBoardDetail = () => {
   // the History list. Persists across tab switches so the popover
   // hand-off survives a round-trip via the Items tab.
   const [historySourceFilter, setHistorySourceFilter] = useState('all');
+
+  // Resolve this user's collaborator permission so canEdit can grant
+  // an invited 'edit' / 'approve' collaborator the write affordances.
+  useEffect(() => {
+    if (!list?.id || !user?.id) { setCollabPerm(null); return undefined; }
+    let cancelled = false;
+    fetchCollaborators(list.id)
+      .then((rows) => {
+        if (cancelled) return;
+        const mine = (rows || []).find((c) => c.user_id === user.id);
+        setCollabPerm(mine?.permission || null);
+      })
+      .catch(() => { if (!cancelled) setCollabPerm(null); });
+    return () => { cancelled = true; };
+  }, [list?.id, user?.id]);
 
   useEffect(() => {
     if (!list?.id || !user?.id) return undefined;

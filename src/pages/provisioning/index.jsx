@@ -445,6 +445,11 @@ const ProvisioningWorkspace = () => {
   const canEditList = useCallback((list) => {
     if (userTier === 'COMMAND') return true;
     if (isOwner(list)) return true;
+    // Invited collaborator with edit / approve permission — honours the
+    // same access the RLS grants (20260627090000), so the UI doesn't
+    // present a read-only board to someone the DB lets write.
+    const myCollab = (collaboratorsByList[list.id] || []).find(c => c.user_id === userId);
+    if (myCollab && ['edit', 'approve'].includes(myCollab.permission)) return true;
     if (['CHIEF', 'HOD'].includes(userTier)) {
       const listDepts = Array.isArray(list.department)
         ? list.department.filter(Boolean)
@@ -452,7 +457,7 @@ const ProvisioningWorkspace = () => {
       return !listDepts.length || listDepts.some(d => d === userDept);
     }
     return false;
-  }, [userId, userTier, userDept, isOwner]);
+  }, [userId, userTier, userDept, isOwner, collaboratorsByList]);
 
   const canDeleteList = canEditList;
 
