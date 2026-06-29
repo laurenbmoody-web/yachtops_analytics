@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import LogoSpinner from '../../../components/LogoSpinner';
@@ -21,10 +21,40 @@ const PROMPTS = [
   'Something guests are always surprised to learn about you?',
 ];
 
-const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, nationality, canEdit, isOwnProfile }) => {
+// Voice options for the AI assist — keep in step with the edge function's TONES map.
+const TONES = [
+  { key: 'warm', label: 'Warm' },
+  { key: 'professional', label: 'Professional' },
+  { key: 'playful', label: 'Playful' },
+  { key: 'adventurous', label: 'Adventurous' },
+];
+
+// Light, client-side guard so nobody hammers the API: a per-user daily cap and a
+// short cool-down between drafts. Not a security control (RLS/auth handle that) —
+// just a courtesy throttle to keep AI cost sane.
+const DAILY_CAP = 10;
+const COOLDOWN_SECONDS = 12;
+const todayKey = () => new Date().toISOString().slice(0, 10);
+const usageKey = (userId) => `cargo.aiDrafts.${userId}.${todayKey()}`;
+const readUsage = (userId) => {
+  try { return Number(localStorage.getItem(usageKey(userId))) || 0; } catch { return 0; }
+};
+const bumpUsage = (userId) => {
+  try {
+    const n = readUsage(userId) + 1;
+    localStorage.setItem(usageKey(userId), String(n));
+    return n;
+  } catch { return DAILY_CAP; }
+};
+
+const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, nationality, vesselName, canEdit, isOwnProfile }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
+  const [tone, setTone] = useState('warm');
+  const [used, setUsed] = useState(0);
+  const [cooldown, setCooldown] = useState(0);
+  const cdTimer = useRef(null);
   const [form, setForm] = useState({ statement: '', headline: '', hometown: '', languages: '', interests: '' });
 
   const load = useCallback(async () => {
@@ -35,6 +65,15 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
   }, [userId]);
   useEffect(() => { if (userId) load(); }, [userId, load]);
 
+  // Seed today's usage count once we know whose profile this is.
+  useEffect(() => { if (userId) setUsed(readUsage(userId)); }, [userId]);
+  // Tick the cool-down down to zero.
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    cdTimer.current = setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(cdTimer.current);
+  }, [cooldown]);
+
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const save = async () => {
@@ -44,17 +83,23 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
     finally { setSaving(false); }
   };
 
+  const capped = used >= DAILY_CAP;
   const runAI = async () => {
+    if (capped) { showToast('Daily AI limit reached — edit by hand or try again tomorrow', 'error'); return; }
     setAiBusy(true);
     try {
       const statement = await draftStatementWithAI({
         mode: form.statement.trim() ? 'polish' : 'draft',
-        name: crewName, role, nationality,
+        name: crewName, role, nationality, vessel: vesselName, tone,
         hometown: form.hometown, languages: form.languages, interests: form.interests,
         draft: form.statement,
       });
-      if (statement) { setF('statement', statement); showToast('Draft ready — review and tweak it', 'success'); }
-      else showToast('No draft returned — try adding a few details', 'error');
+      if (statement) {
+        setF('statement', statement);
+        setUsed(bumpUsage(userId));
+        setCooldown(COOLDOWN_SECONDS);
+        showToast('Draft ready — review and tweak it', 'success');
+      } else showToast('No draft returned — try adding a few details', 'error');
     } catch (e) { showToast(e.message || 'AI assist is unavailable right now', 'error'); }
     finally { setAiBusy(false); }
   };
@@ -62,6 +107,8 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
   if (loading) return <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>;
   const readOnly = !canEdit;
   const words = form.statement.trim() ? form.statement.trim().split(/\s+/).length : 0;
+  const aiDisabled = aiBusy || cooldown > 0 || capped;
+  const aiLabel = aiBusy ? 'Writing…' : cooldown > 0 ? `Wait ${cooldown}s` : (form.statement.trim() ? 'Polish with AI' : 'Write with AI');
 
   return (
     <div>
@@ -86,14 +133,31 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
             <span className={words > 90 ? 'ps-over' : ''}>{words} {words === 1 ? 'word' : 'words'}</span>
             <span className="ps-hint">· aim for ~60–80 to fit three crew to a page</span>
           </div>
+
           {canEdit && (
-            <div className="ps-aibar">
-              <button type="button" className="ps-aibtn" onClick={runAI} disabled={aiBusy}>
-                <Icon name={aiBusy ? 'Loader2' : 'Sparkles'} size={15} className={aiBusy ? 'animate-spin' : ''} />
-                {aiBusy ? 'Writing…' : (form.statement.trim() ? 'Polish with AI' : 'Write with AI')}
-              </button>
-              <span className="ps-aihint">Uses the details on the right as a starting point.</span>
-            </div>
+            <>
+              <div className="ps-voice">
+                <span className="ps-voice-lbl">Voice</span>
+                {TONES.map((t) => (
+                  <button
+                    key={t.key} type="button"
+                    className={`ps-tone${tone === t.key ? ' on' : ''}`}
+                    onClick={() => setTone(t.key)}
+                  >{t.label}</button>
+                ))}
+              </div>
+              <div className="ps-aibar">
+                <button type="button" className="ps-aibtn" onClick={runAI} disabled={aiDisabled}>
+                  <Icon name={aiBusy ? 'Loader2' : 'Sparkles'} size={15} className={aiBusy ? 'animate-spin' : ''} />
+                  {aiLabel}
+                </button>
+                <span className="ps-aihint">
+                  {capped
+                    ? 'Daily AI limit reached — edit by hand or try tomorrow.'
+                    : `Uses the details on the right · ${DAILY_CAP - used} draft${DAILY_CAP - used === 1 ? '' : 's'} left today.`}
+                </span>
+              </div>
+            </>
           )}
         </div>
 

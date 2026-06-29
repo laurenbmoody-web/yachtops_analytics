@@ -3926,6 +3926,7 @@ const canEdit = (() => {
             crewName={crewMember?.fullName}
             role={empForm?.rank_held || crewMember?.role || ''}
             nationality={formData?.nationality || crewMember?.nationality || ''}
+            vesselName={empForm?.vessel_name || crewMember?.vessel || ''}
             canEdit={isOwnProfile || isVesselAdmin || currentUserPermissionTier === 'COMMAND'}
             isOwnProfile={isOwnProfile}
           />
