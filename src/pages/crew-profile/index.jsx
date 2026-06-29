@@ -3058,13 +3058,10 @@ const canEdit = (() => {
             mirroring the LAUREN, Moody. name treatment, with the workflow action
             on the right. The vessel-wide view carries no month, so just a title. */}
         <div className="cp-hor-head">
-          {isVesselView ? (
-            <h3 className="cp-hor-title">Hours of Rest</h3>
-          ) : (
-            <h3 className="cp-hor-title">
-              HOR<span className="pn">,</span> <em>{dbStatusLabel}</em><span className="pn">.</span>
-            </h3>
-          )}
+          <div className="cp-section-head" style={{ marginBottom: 0 }}>
+            <span className="cp-section-num">08 /</span>
+            <h3>Hours of Rest</h3>
+          </div>
           {!isVesselView && (
             <div className="cp-hor-actions">
               {/* Crew: submit own open month — only once the month has ended. */}
@@ -3669,9 +3666,10 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-hor-head" style={{ marginBottom: 22 }}>
-          <h3 className="cp-hor-title">
-            EMPLOYMENT<span className="pn">,</span> <em>Contract</em><span className="pn">.</span>
-          </h3>
+          <div className="cp-section-head" style={{ marginBottom: 0 }}>
+            <span className="cp-section-num">06 /</span>
+            <h3>Contract / Employment</h3>
+          </div>
           {canEditPermissions && (
             editing ? (
               <div className="cp-hor-actions">

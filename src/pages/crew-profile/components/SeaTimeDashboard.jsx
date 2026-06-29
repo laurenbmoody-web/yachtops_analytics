@@ -1395,7 +1395,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   return (
     <div className="std">
       <div className="std-head">
-        <div className="std-sechead"><h3 className="cp-hor-title">SEA&nbsp;TIME<span className="pn">,</span> <em>Tracker</em><span className="pn">.</span></h3></div>
+        <div className="std-sechead"><div className="cp-section-head" style={{ marginBottom: 0 }}><span className="cp-section-num">09 /</span><h3>Sea Time Tracker</h3></div></div>
         <div className="std-controls">
           {cert
             ? <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => setHeldOpen(true)}><Icon name="Award" size={16} /> Certificates held{heldCount ? ` (${heldCount})` : ''}</button>
