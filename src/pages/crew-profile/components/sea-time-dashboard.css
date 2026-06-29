@@ -112,6 +112,13 @@
 .std-leg-tlink{font-size:12px;font-weight:600;color:var(--rust);display:inline-flex;align-items:center;gap:5px;}
 .std-leg-bad{display:flex;flex-direction:column;align-items:flex-end;gap:5px;}
 .std-leg-bad .rsn{font-size:11px;color:#A32D2D;max-width:240px;line-height:1.4;}
+/* Footer notes — labelled, quiet ledger context (prior service / leave). */
+.std-lnotes{padding:14px 18px 18px;border-top:1px solid var(--hair);margin-top:2px;}
+.std-lnote{display:flex;gap:12px;align-items:baseline;padding:3px 0;font-size:12px;color:var(--muted);line-height:1.5;}
+.std-lnote .k{flex:none;min-width:96px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);}
+.std-lnote .v b{color:var(--ink);font-weight:600;}
+.std-lnote button{border:0;background:transparent;color:var(--rust);font-weight:600;font-size:12px;cursor:pointer;padding:0;margin-left:4px;font-family:inherit;}
+.std-lnote button:hover{text-decoration:underline;}
 .std-filternote{margin-top:10px;font-size:12px;color:var(--muted);}
 .std-filternote:first-child{margin-top:0;}
 .std-filternote b{color:var(--ink);}

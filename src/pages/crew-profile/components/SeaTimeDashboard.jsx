@@ -1213,7 +1213,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             band to filter the log below (Concept B: one object, not five). */}
         <div className="std-compwrap">
           <div className="std-comphd">
-            <span className="big">{buckets.total}<em>qualifying days</em></span>
+            <span className="big">{buckets.total}<em>qualifying days · {live.length} {live.length === 1 ? 'entry' : 'entries'}{offCargoDays > 0 ? ` · ${offCargoDays} off-Cargo` : ''}</em></span>
             {serviceFilter === 'all'
               ? <span className="hint">tap a band to filter</span>
               : <button type="button" className="std-comp-clear" onClick={() => setServiceFilter('all')}>Showing {TYPE_META[serviceFilter].label} · clear ×</button>}
@@ -1342,22 +1342,22 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             return out;
           })()}
         </div>
-        <div className="std-foot" style={{ padding: '14px 18px 18px' }}>
-          {syncInfo?.excluded_leave_days > 0 && (
-            <div className="std-filternote">
-              <b>{syncInfo.excluded_leave_days} {syncInfo.excluded_leave_days === 1 ? 'day' : 'days'}</b> excluded as leave / rotational leave — your status showed you weren’t aboard, so {syncInfo.excluded_leave_days === 1 ? 'it doesn’t' : 'they don’t'} count toward your CoC. {syncInfo.excluded_leave_days === 1 ? 'It’s' : 'They’re'} still reported as leave on your testimonial.
-            </div>
-          )}
-          {prior.onboard > 0 && (
-            <div className="std-filternote">
-              Pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> entered before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
-            </div>
-          )}
-          <div style={{ marginTop: (syncInfo?.excluded_leave_days > 0 || prior.onboard > 0) ? 10 : 0 }}>
-            {live.length} entries in pack · {buckets.total} qualifying days{excludedCount ? ` · ${excludedCount} excluded` : ''}
-            {offCargoDays > 0 && <> · <b style={{ color: '#5A6478' }}>{offCargoDays} {offCargoDays === 1 ? 'day' : 'days'} off-Cargo</b> — counts toward your pathway, but not Cargo-verifiable (use your own testimonial)</>}
+        {(prior.onboard > 0 || syncInfo?.excluded_leave_days > 0) && (
+          <div className="std-lnotes">
+            {prior.onboard > 0 && (
+              <div className="std-lnote">
+                <span className="k">Prior service</span>
+                <span className="v"><b>{prior.onboard} {prior.onboard === 1 ? 'day' : 'days'}</b> logged before Cargo, counting toward your pathway <button type="button" onClick={openPrior}>Edit</button></span>
+              </div>
+            )}
+            {syncInfo?.excluded_leave_days > 0 && (
+              <div className="std-lnote">
+                <span className="k">Leave</span>
+                <span className="v"><b>{syncInfo.excluded_leave_days} {syncInfo.excluded_leave_days === 1 ? 'day' : 'days'}</b> excluded — reported on your testimonial, not counted toward your CoC</span>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
     );
   };
