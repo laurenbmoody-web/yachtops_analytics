@@ -28,9 +28,9 @@ export const saveProfileStatement = async (s) => {
 };
 
 // AI assist — draft from facts/notes, or polish an existing draft.
-export const draftStatementWithAI = async ({ mode, name, role, nationality, hometown, languages, interests, draft }) => {
+export const draftStatementWithAI = async ({ mode, name, role, nationality, hometown, languages, interests, vessel, draft, tone }) => {
   const { data, error } = await supabase.functions.invoke('draft-crew-bio', {
-    body: { mode, name, role, nationality, hometown, languages, interests, draft },
+    body: { mode, name, role, nationality, hometown, languages, interests, vessel, draft, tone },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);

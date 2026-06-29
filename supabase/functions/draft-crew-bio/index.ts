@@ -21,11 +21,21 @@ Deno.serve(async (req) => {
 
   let payload: Record<string, string> = {};
   try { payload = await req.json(); } catch { /* empty */ }
-  const { name = "", role = "", nationality = "", hometown = "", languages = "", interests = "", draft = "", mode = "draft" } = payload;
+  const { name = "", role = "", nationality = "", hometown = "", languages = "", interests = "", vessel = "", draft = "", mode = "draft", tone = "warm" } = payload;
+
+  // Voice / tone the crew member picked. Default to "warm" if unknown.
+  const TONES: Record<string, string> = {
+    warm: "Warm and friendly — approachable, personable, like greeting a guest you're genuinely glad to host.",
+    professional: "Polished and professional — composed, articulate and reassuring, conveying quiet competence.",
+    playful: "Light and playful — a touch of humour and personality, fun without being unprofessional.",
+    adventurous: "Adventurous and spirited — evoke a love of the sea, travel and the outdoors.",
+  };
+  const toneLine = TONES[tone] || TONES.warm;
 
   const facts = [
     name && `Name: ${name}`,
     role && `Role aboard: ${role}`,
+    vessel && `Current vessel: ${vessel}`,
     nationality && `Nationality: ${nationality}`,
     hometown && `Hometown: ${hometown}`,
     languages && `Languages: ${languages}`,
@@ -33,8 +43,8 @@ Deno.serve(async (req) => {
   ].filter(Boolean).join("\n");
 
   const instruction = mode === "polish"
-    ? `Polish and lightly improve this luxury-yacht crew member's guest-facing profile statement for the guest information book. Keep their voice and all facts; fix grammar and flow; keep it warm, professional and welcoming. 2–4 sentences, first person. No emojis, no clichés like "passionate about hospitality". Return only the statement text.\n\nDraft:\n${draft}\n\nFacts:\n${facts}`
-    : `Write a warm, professional, guest-facing profile statement for a luxury-yacht crew member, for the guest information book. 2–4 sentences, first person, welcoming and personable, conveying their role and a little personality. No emojis, no clichés. Return only the statement text.\n\nFacts:\n${facts}${draft ? `\n\nNotes from the crew member:\n${draft}` : ""}`;
+    ? `Polish and lightly improve this luxury-yacht crew member's guest-facing profile statement for the guest information book. Keep their voice and all facts; fix grammar and flow. 2–4 sentences, first person. No emojis, no clichés like "passionate about hospitality". Return only the statement text.\n\nTone to lean into: ${toneLine}\n\nDraft:\n${draft}\n\nFacts:\n${facts}`
+    : `Write a guest-facing profile statement for a luxury-yacht crew member, for the guest information book. 2–4 sentences, first person, welcoming and personable, conveying their role and a little personality. No emojis, no clichés. Return only the statement text.\n\nTone to lean into: ${toneLine}\n\nFacts:\n${facts}${draft ? `\n\nNotes from the crew member:\n${draft}` : ""}`;
 
   try {
     const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
