@@ -118,7 +118,9 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
     if (existingUserIds?.includes(c.id)) return false;
     const q = query.toLowerCase();
     return !q || (c.full_name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q);
-  }).slice(0, 8);
+  });
+  // No slice cap — the full crew list renders inline and the modal
+  // body scrolls. Capping at 8 silently dropped crew off the bottom.
 
   return (
     <div ref={ref} className="shm-search-wrap">

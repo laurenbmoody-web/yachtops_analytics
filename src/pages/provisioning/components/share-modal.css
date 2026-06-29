@@ -97,7 +97,10 @@
 .shm-tab.is-active .shm-tab-count { background: #C65A1A; color: #fff; }
 
 /* ── Body ────────────────────────────────────────────────────── */
-.shm-body { padding: 18px 22px 20px; overflow-y: auto; }
+/* flex:1 + min-height:0 make the body the scroll container inside the
+   90vh-capped flex-column panel, so a long inline crew list scrolls
+   here (header + tabs stay pinned) instead of overflowing the panel. */
+.shm-body { padding: 18px 22px 20px; overflow-y: auto; flex: 1; min-height: 0; }
 .shm-label {
   font-size: 9px;
   font-weight: 700;
