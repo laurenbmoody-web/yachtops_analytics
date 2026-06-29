@@ -1016,7 +1016,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     </div>
                   )}
                   {requirements.length > 0 ? (
-                    <div className="stp-reqs">
+                    <div className="stp-reqs" data-cols={Math.min(requirements.length, 4)}>
                       {requirements.map(rq => (
                         <div className={`stp-req ${rq.met ? 'done' : ''}${rq.advisory ? ' advisory' : ''}`} key={rq.key}>
                           <div className="l">{rq.label}{rq.advisory && <span className="stp-advtag">advisory</span>}</div>
