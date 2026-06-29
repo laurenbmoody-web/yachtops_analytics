@@ -1209,29 +1209,33 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             </div>
           </div>
         </div>
-        {/* Service-type totals — built into the log section; each cell also
-            filters the entries below to that type (out of sync floating above). */}
-        <div className="std-lkpis">
-          {[['seagoing', 'SEAGOING'], ['watchkeeping', 'WATCHKEEPING'], ['standby', 'STANDBY'], ['yard', 'SHIPYARD']].map(([k, up]) => {
-            const tm = TYPE_META[k];
-            const on = serviceFilter === k;
-            return (
-              <button key={k} type="button" aria-pressed={on} className={`std-lkpi${on ? ' on' : ''}`}
-                onClick={() => setServiceFilter(on ? 'all' : k)}
-                style={on ? { borderTopColor: tm.color, background: tm.bg } : undefined}>
-                <span className="l"><span className="dot" style={{ background: tm.color }} /> {up}</span>
-                <span className="n">{buckets[k]} <em>days</em></span>
-              </button>
-            );
-          })}
-        </div>
-        {serviceFilter !== 'all' && (
-          <div style={{ padding: '10px 18px 0' }}>
-            <div className="std-filternote">
-              Showing <b>{TYPE_META[serviceFilter].label}</b> only · <button type="button" onClick={() => setServiceFilter('all')}>Show all</button>
-            </div>
+        {/* One bar carries the total, the type breakdown and the filter — tap a
+            band to filter the log below (Concept B: one object, not five). */}
+        <div className="std-compwrap">
+          <div className="std-comphd">
+            <span className="big">{buckets.total}<em>qualifying days · {live.length} {live.length === 1 ? 'entry' : 'entries'}{offCargoDays > 0 ? ` · ${offCargoDays} off-Cargo` : ''}</em></span>
+            {serviceFilter === 'all'
+              ? <span className="hint">tap a band to filter</span>
+              : <button type="button" className="std-comp-clear" onClick={() => setServiceFilter('all')}>Showing {TYPE_META[serviceFilter].label} · clear ×</button>}
           </div>
-        )}
+          <div className="std-comp" role="group" aria-label="Service by type — tap to filter">
+            {[['seagoing', 'Seagoing'], ['watchkeeping', 'Watchkeeping'], ['standby', 'Standby'], ['yard', 'Shipyard']].map(([k, label]) => {
+              const tm = TYPE_META[k], val = buckets[k];
+              if (!val) return null;
+              const on = serviceFilter === k, dim = serviceFilter !== 'all' && !on;
+              const small = val / (buckets.total || 1) < 0.1;
+              return (
+                <button key={k} type="button" aria-pressed={on} title={`${label} · ${val} days`}
+                  className={`std-comp-s${on ? ' on' : ''}${dim ? ' dim' : ''}${small ? ' sm' : ''}`}
+                  style={{ flexGrow: val, background: tm.color }}
+                  onClick={() => setServiceFilter(on ? 'all' : k)}>
+                  <span className="sl">{label}</span>
+                  <span className="sn">{val}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {logView === 'calendar' && (
           <div style={{ padding: '16px 18px 0' }}>
             <SeaServiceCalendar entries={scoped} vessels={vessels} config={config} serviceFilter={serviceFilter} />
@@ -1278,125 +1282,91 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           {(() => {
             if (activeYear && accountedSet.has(activeYear)) return null; // collapsed summary shown above
             const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-            const groups = [];
-            const idx = {};
+            // Single chronological pass: emit a month heading when the month
+            // changes and a vessel band when the vessel changes, so the vessel's
+            // flag/GT/IMO is shown ONCE per spell instead of on every row.
+            const out = [];
+            let lastMonth = null, lastVessel = null;
             shown.forEach(e => {
               const d = e.from ? new Date(e.from + 'T00:00:00') : null;
-              const key = d ? `${MONTHS[d.getMonth()]} ${d.getFullYear()}` : 'Earlier service';
-              if (idx[key] == null) { idx[key] = groups.length; groups.push({ key, items: [] }); }
-              groups[idx[key]].items.push(e);
+              const monthKey = d ? `${MONTHS[d.getMonth()]} ${d.getFullYear()}` : 'Earlier service';
+              if (monthKey !== lastMonth) { out.push(<div className="std-amonth" key={'m' + monthKey}>{monthKey}</div>); lastMonth = monthKey; lastVessel = null; }
+              const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
+              const isCargo = cargoVesselIds.has(e.vesselId);
+              if (e.vesselId !== lastVessel) {
+                const vm = [v.flag, v.gt != null ? `${v.gt} GT` : null, v.lengthM != null ? `${v.lengthM} m` : null, v.imo ? `IMO ${v.imo}` : null].filter(Boolean).join(' · ');
+                out.push(
+                  <div className="std-vband" key={'v' + e.id}>
+                    <span className="std-vband-dot" style={{ background: tm.color }} />
+                    <div className="std-vband-id"><span className="vn">{v.name || 'Vessel'}</span>{vm && <span className="vm">{vm}</span>}</div>
+                    <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ marginLeft: 'auto', color: isCargo ? '#3F7A52' : '#5A6478', background: isCargo ? '#EFF6F1' : '#F4F5F7' }}
+                      title={isCargo ? 'Cargo-tracked — auto-logged on a Cargo vessel; verifiable and exportable' : 'Off-Cargo, self-recorded — counts toward your pathway, but supply your own testimonial as evidence'}>
+                      <span className="pm" style={isCargo ? { background: '#3F7A52' } : { borderColor: '#5A6478' }} />{isCargo ? 'Cargo-tracked' : 'Off-Cargo'}
+                    </span>
+                  </div>
+                );
+                lastVessel = e.vesselId;
+              }
+              const isExcluded = !!e.excluded, isQual = !isExcluded && c.qual, isBad = !isExcluded && !c.qual;
+              const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch` : (e.detailOverride || tm.hint);
+              const rowAction = !isExcluded && e.testimonialPath ? () => viewTestimonial(e.testimonialPath) : null;
+              out.push(
+                <div className="std-leg" key={e.id}
+                  role={rowAction ? 'button' : undefined} tabIndex={rowAction ? 0 : undefined}
+                  onClick={rowAction || undefined}
+                  onKeyDown={rowAction ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); rowAction(); } } : undefined}
+                  style={{ opacity: isExcluded ? 0.55 : 1, cursor: rowAction ? 'pointer' : undefined }}>
+                  <span className="std-leg-rail" style={{ background: isExcluded ? '#CBC8C0' : tm.color }} />
+                  <div className="std-leg-dt"><b>{e.dateMain}</b><span>{e.days} {e.days === 1 ? 'day' : 'days'}</span></div>
+                  <div className="std-leg-mid">
+                    <div className="role">{e.capacity}</div>
+                    <div className="sub">{detail} · {sm.label.toLowerCase()}</div>
+                  </div>
+                  <div className="std-leg-right">
+                    {!isExcluded && e.testimonialPath && <span className="std-leg-tlink"><Icon name="FileText" size={13} /> Testimonial</span>}
+                    {isExcluded && <span className="std-leg-stat">Excluded</span>}
+                    {isQual && <span className="std-leg-pill" style={{ background: tm.bg, color: tm.color }}>{tm.label}</span>}
+                    {isBad && (
+                      <div className="std-leg-bad">
+                        <span className="std-leg-pill bad">Non-qualifying</span>
+                        <div className="rsn">{c.reason}</div>
+                        <button className="std-fix" onClick={(ev) => { ev.stopPropagation(); e.type === 'watchkeeping' ? reclassify(e.id) : excludeEntry(e.id); }}>
+                          {e.type === 'watchkeeping' ? 'Reclassify to standby' : 'Exclude from pack'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
             });
-            return groups.map(g => (
-              <div key={g.key} className="std-agroup">
-                <div className="std-amonth">{g.key}</div>
-                {g.items.map(e => {
-                  const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
-                  const isExcluded = !!e.excluded, isQual = !isExcluded && c.qual, isBad = !isExcluded && !c.qual;
-                  // Provenance: Cargo-tracked (auto-logged on a Cargo vessel —
-                  // verifiable/exportable) vs off-Cargo, self-recorded (counts
-                  // toward the pathway, but you supply your own testimonial).
-                  const isCargo = cargoVesselIds.has(e.vesselId);
-                  const provLabel = isCargo ? 'Cargo-tracked' : 'Off-Cargo · self-recorded';
-                  const provCol = isCargo ? { color: '#3F7A52', tint: '#EFF6F1' } : { color: '#5A6478', tint: '#F4F5F7' };
-                  const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch · ${e.capacity}` : (e.detailOverride || `${tm.hint} · ${e.capacity}`);
-                  const qualWord = e.type === 'seagoing' ? 'seagoing' : e.type === 'watchkeeping' ? 'watchkeeping' : e.type === 'standby' ? 'standby' : 'shipyard';
-                  // Verification status for the log, route-aware: an off-Cargo
-                  // (external) vessel is verified by an uploaded testimonial, so an
-                  // un-verified one prompts "Add testimonial" rather than nothing.
-                  // Sign-off parked: the log no longer carries verification status
-                  // or links to a captain sign-off step — it's purely the service record.
-                  const vlog = !SHOW_SIGNOFF ? null
-                    : isExcluded ? null
-                      : e.vstatus === 'captain_signed' ? (isCargo ? VLOG_CHIP.captain_signed : { label: 'Uploaded', color: '#4A5263' })
-                        : e.vstatus === 'pending' ? VLOG_CHIP.pending
-                          : e.vstatus === 'rejected' ? VLOG_CHIP.rejected
-                            : !isCargo ? { label: 'Add testimonial', color: '#4A5263' }
-                              : null;
-                  // The whole row opens its attached testimonial when there is one;
-                  // (sign-off jump only applies in the parked sign-off mode).
-                  const rowAction = !isExcluded && e.testimonialPath ? () => viewTestimonial(e.testimonialPath)
-                    : (SHOW_SIGNOFF && vlog ? () => jumpToVerify(e.vesselId) : null);
-                  return (
-                    <div className="std-arow" key={e.id}
-                      role={rowAction ? 'button' : undefined} tabIndex={rowAction ? 0 : undefined}
-                      onClick={rowAction || undefined}
-                      onKeyDown={rowAction ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); rowAction(); } } : undefined}
-                      style={{ opacity: isExcluded ? 0.55 : 1, cursor: rowAction ? 'pointer' : undefined }}>
-                      <span className="std-arail" style={{ background: isExcluded ? '#CBC8C0' : tm.color }} />
-                      <div className="std-adate">{e.dateMain}<span>{e.days} {e.days === 1 ? 'day' : 'days'}</span></div>
-                      <div className="std-amid">
-                        <div className="std-flex std-ac" style={{ gap: 7, flexWrap: 'wrap' }}>
-                          <span className="std-avn">{v.name}</span>
-                          <span className="std-tag" style={{ color: sm.color, background: sm.bg }}>{sm.label}</span>
-                          <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: provCol.color, background: provCol.tint }} title={isCargo ? 'Cargo-tracked — auto-logged on a Cargo vessel; verifiable and exportable' : 'Off-Cargo, self-recorded — counts toward your pathway, but supply your own testimonial as evidence'}>
-                            <span className="pm" style={isCargo ? { background: provCol.color } : { borderColor: provCol.color }} />{provLabel}
-                          </span>
-                        </div>
-                        <div className="std-avs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo} · {detail}</div>
-                      </div>
-                      <div className="std-aright">
-                        {/* The row itself opens the attached testimonial — a small
-                            hint when one is present, no separate link. */}
-                        {!isExcluded && e.testimonialPath && (
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#C65A1A', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                            <Icon name="FileText" size={13} /> Testimonial
-                          </span>
-                        )}
-                        {/* Status — a quiet dot + word; the row itself is the click target
-                            (opens the testimonial when signed, else jumps to Step 03). */}
-                        {vlog && (
-                          <span title={vlog.label === 'Declined' && e.rejectionReason ? `Declined — “${e.rejectionReason}”` : (e.testimonialPath ? 'Open testimonial' : `${vlog.label} — view in Step 03`)}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: vlog.color }}>
-                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: vlog.color, flexShrink: 0 }} />{vlog.label}
-                          </span>
-                        )}
-                        {isExcluded && <span className="std-avs" style={{ color: '#8B8478' }}>Excluded from pack</span>}
-                        {/* Qualifying note — faint, no fill. */}
-                        {isQual && <span className="std-avs" style={{ color: '#AEB4C2', fontWeight: 500 }}>{qualWord}</span>}
-                        {isBad && (
-                          <>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#A32D2D' }}>
-                              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#A32D2D', flexShrink: 0 }} />Non-qualifying
-                            </span>
-                            <div className="std-avs" style={{ color: '#A32D2D', textAlign: 'right', maxWidth: 230 }}>{c.reason}</div>
-                            <button className="std-fix" onClick={(ev) => { ev.stopPropagation(); e.type === 'watchkeeping' ? reclassify(e.id) : excludeEntry(e.id); }}>
-                              {e.type === 'watchkeeping' ? 'Reclassify to standby' : 'Exclude from pack'}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ));
+            return out;
           })()}
         </div>
-        <div className="std-foot" style={{ padding: '14px 18px 18px' }}>
-          {syncInfo?.excluded_leave_days > 0 && (
-            <div className="std-filternote">
-              <b>{syncInfo.excluded_leave_days} {syncInfo.excluded_leave_days === 1 ? 'day' : 'days'}</b> excluded as leave / rotational leave — your status showed you weren’t aboard, so {syncInfo.excluded_leave_days === 1 ? 'it doesn’t' : 'they don’t'} count toward your CoC. {syncInfo.excluded_leave_days === 1 ? 'It’s' : 'They’re'} still reported as leave on your testimonial.
-            </div>
-          )}
-          {prior.onboard > 0 && (
-            <div className="std-filternote">
-              Pathway also counts <b>{prior.onboard} prior {prior.onboard === 1 ? 'day' : 'days'}</b> entered before Cargo ({prior.seagoing} seagoing · {prior.watchkeeping} watchkeeping · {prior.standby} standby · {prior.yard} yard) · <button type="button" onClick={openPrior}>Edit</button>
-            </div>
-          )}
-          <div style={{ marginTop: (syncInfo?.excluded_leave_days > 0 || prior.onboard > 0) ? 10 : 0 }}>
-            {live.length} entries in pack · {buckets.total} qualifying days{excludedCount ? ` · ${excludedCount} excluded` : ''}
-            {offCargoDays > 0 && <> · <b style={{ color: '#5A6478' }}>{offCargoDays} {offCargoDays === 1 ? 'day' : 'days'} off-Cargo</b> — counts toward your pathway, but not Cargo-verifiable (use your own testimonial)</>}
+        {(prior.onboard > 0 || syncInfo?.excluded_leave_days > 0) && (
+          <div className="std-lnotes">
+            {prior.onboard > 0 && (
+              <div className="std-lnote">
+                <span className="k">Prior service</span>
+                <span className="v"><b>{prior.onboard} {prior.onboard === 1 ? 'day' : 'days'}</b> logged before Cargo, counting toward your pathway <button type="button" onClick={openPrior}>Edit</button></span>
+              </div>
+            )}
+            {syncInfo?.excluded_leave_days > 0 && (
+              <div className="std-lnote">
+                <span className="k">Leave</span>
+                <span className="v"><b>{syncInfo.excluded_leave_days} {syncInfo.excluded_leave_days === 1 ? 'day' : 'days'}</b> excluded — reported on your testimonial, not counted toward your CoC</span>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
     );
   };
 
   return (
     <div className="std">
-      <div className="std-head">
-        <div className="std-sechead"><div className="cp-section-head" style={{ marginBottom: 0 }}><span className="cp-section-num">10 /</span><h3>Sea Time Tracker</h3></div></div>
-        <div className="std-controls">
+      <div className="cp-tab-head">
+        <div className="cp-section-head"><span className="cp-section-num">10 /</span><h3>Sea Time Tracker</h3></div>
+        <div className="cp-tab-actions std-controls">
           {cert
             ? <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => setHeldOpen(true)}><Icon name="Award" size={16} /> Certificates held{heldCount ? ` (${heldCount})` : ''}</button>
             : <button className="std-logbtn" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={startPathway}><Icon name="Award" size={16} /> Work toward a certificate</button>}

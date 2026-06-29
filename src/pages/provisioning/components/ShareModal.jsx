@@ -14,10 +14,13 @@ import './share-modal.css';
 //   Share link    — token links for view / edit access without an account.
 
 const LINK_PERMS   = [{ value: 'view', label: 'Can view' }, { value: 'edit', label: 'Can edit' }];
+// Permissions stack: edit includes view, approve includes edit. The
+// "& edit" suffix on approve makes that explicit in the picker (the
+// label otherwise reads like three exclusive tiers).
 const COLLAB_PERMS = [
   { value: 'view',    label: 'Can view' },
   { value: 'edit',    label: 'Can edit' },
-  { value: 'approve', label: 'Can approve' },
+  { value: 'approve', label: 'Can approve & edit' },
 ];
 
 const AVATAR_COLOURS = ['#C65A1A', '#1C1B3A', '#2E7D5A', '#7C5BC7', '#B14E16', '#3B6FB0'];
@@ -35,18 +38,33 @@ const PermSelect = ({ value, options, onChange }) => (
   </select>
 );
 
-const Avatar = ({ name, email, url, size = 32 }) => (
-  <div
-    className="shm-avatar"
-    style={{
-      width: size, height: size, fontSize: size <= 28 ? 10 : 11,
-      background: url ? 'transparent' : avatarColour(email || name),
-      backgroundImage: url ? `url(${url})` : undefined,
-    }}
-  >
-    {!url && initialsOf(name, email)}
-  </div>
-);
+// Renders the user's real profile photo (profiles.avatar_url) as an
+// <img>, falling back to hashed-colour initials if there's no avatar
+// or the image fails to load. Using <img> + onError (rather than a CSS
+// background) means a broken/expired URL degrades to initials instead
+// of a blank circle.
+const Avatar = ({ name, email, url, size = 32 }) => {
+  const [broken, setBroken] = useState(false);
+  const showImg = url && !broken;
+  return (
+    <div
+      className="shm-avatar"
+      style={{
+        width: size, height: size, fontSize: size <= 28 ? 10 : 11,
+        background: showImg ? '#F0F1F5' : avatarColour(email || name),
+      }}
+    >
+      {showImg ? (
+        <img
+          src={url}
+          alt={name || email || ''}
+          className="shm-avatar-img"
+          onError={() => setBroken(true)}
+        />
+      ) : initialsOf(name, email)}
+    </div>
+  );
+};
 
 // ── Share-link row ────────────────────────────────────────────────────────────
 const ShareLinkRow = ({ share, onRevoke }) => {
@@ -286,6 +304,7 @@ const ShareModal = ({ list, crewMembers, currentUserId, onClose }) => {
                 <span>New collaborators can</span>
                 <PermSelect value={newCollabPerm} options={COLLAB_PERMS} onChange={setNewCollabPerm} />
               </div>
+              <p className="shm-perm-hint">Each level includes the ones before it — editors can view, approvers can edit.</p>
 
               <div style={{ marginTop: 18 }}>
                 {collaborators.length === 0 ? (

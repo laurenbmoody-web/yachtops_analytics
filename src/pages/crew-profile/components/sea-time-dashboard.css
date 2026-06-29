@@ -70,19 +70,55 @@
 .std-reviewbtn:hover{background:#FAECE7;}
 
 /* bucket tiles — cp-kpi pattern */
-/* Service-type totals, built into the Logged-sea-service card as an editorial
-   stat strip (not floating boxes). Each cell doubles as the service-type
-   filter; selected = type-tinted with a coloured top accent. */
-.std-lkpis{display:grid;grid-template-columns:repeat(4,1fr);margin:14px 0 0;border-top:1px solid #F0F1F5;border-bottom:1px solid #F0F1F5;}
-.std-lkpi{display:flex;flex-direction:column;gap:0;padding:13px 18px;text-align:left;font-family:inherit;cursor:pointer;background:none;border:0;border-left:1px solid #F0F1F5;border-top:2px solid transparent;transition:background .12s;}
-.std-lkpi:first-child{border-left:0;}
-.std-lkpi:hover{background:#FAFAF8;}
-.std-lkpi.on:hover{filter:brightness(.985);}
-.std-lkpi .l{display:flex;align-items:center;gap:7px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#7b7f93;}
-.std-lkpi .dot{width:7px;height:7px;border-radius:50%;flex:none;}
-.std-lkpi .n{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:24px;color:var(--ink);margin-top:6px;line-height:1;}
-.std-lkpi .n em{font-style:normal;font-family:'Inter',system-ui,sans-serif;font-size:11px;color:var(--muted);margin-left:3px;}
-@media(max-width:680px){.std-lkpis{grid-template-columns:repeat(2,1fr);}.std-lkpi:nth-child(3){border-left:0;}.std-lkpi:nth-child(n+3){border-top:1px solid #F0F1F5;}}
+/* One bar = total + breakdown + filter. A single proportional bar replaces the
+   KPI strip: each band is a service type, sized by its share; tap to filter. */
+.std-compwrap{padding:16px 18px 18px;}
+.std-comphd{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:11px;}
+.std-comphd .big{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:400;font-size:30px;line-height:.9;color:var(--ink);}
+.std-comphd .big em{font-style:normal;font-family:'Inter',system-ui,sans-serif;font-size:12px;font-weight:500;color:var(--muted);margin-left:8px;}
+.std-comphd .hint{font-size:11px;color:var(--faint);white-space:nowrap;}
+.std-comp-clear{border:0;background:transparent;font-family:inherit;font-size:11.5px;font-weight:600;color:var(--rust);cursor:pointer;padding:0;white-space:nowrap;}
+.std-comp-clear:hover{text-decoration:underline;}
+.std-comp{display:flex;gap:2px;height:48px;border-radius:12px;overflow:hidden;}
+.std-comp-s{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;min-width:0;padding:0 14px;border:0;cursor:pointer;color:#fff;font-family:inherit;text-align:left;overflow:hidden;transition:opacity .14s,filter .12s;}
+.std-comp-s:hover{filter:brightness(1.07);}
+.std-comp-s.dim{opacity:.32;}
+.std-comp-s.on{box-shadow:inset 0 0 0 2px rgba(255,255,255,.7);}
+.std-comp-s .sl{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:.9;white-space:nowrap;}
+.std-comp-s .sn{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:400;font-size:19px;line-height:1;margin-top:2px;}
+.std-comp-s.sm{padding:0 9px;align-items:center;justify-content:center;}
+.std-comp-s.sm .sl{display:none;}
+
+/* Vessel band — shown once per spell; flag/GT/IMO no longer repeat on each row. */
+.std-vband{display:flex;align-items:center;gap:11px;padding:15px 0 11px;border-bottom:1px solid var(--hair);}
+.std-vband-dot{width:9px;height:9px;border-radius:50%;flex:none;}
+.std-vband-id{display:flex;flex-direction:column;gap:1px;min-width:0;}
+.std-vband-id .vn{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:400;font-size:16px;color:var(--ink);line-height:1.1;}
+.std-vband-id .vm{font-size:11.5px;color:var(--muted);}
+
+/* Clean entry row — coloured rail, date, role + detail, status on the right. */
+.std-leg{display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--hair);}
+.std-leg-rail{width:3px;align-self:stretch;border-radius:3px;min-height:34px;flex:none;}
+.std-leg-dt{min-width:128px;flex:none;}
+.std-leg-dt b{font-size:13.5px;font-weight:600;color:var(--ink);}
+.std-leg-dt span{display:block;font-size:11px;color:var(--muted);margin-top:1px;}
+.std-leg-mid{flex:1;min-width:0;}
+.std-leg-mid .role{font-size:12.5px;font-weight:600;color:var(--ink);}
+.std-leg-mid .sub{font-size:11.5px;color:var(--muted);margin-top:1px;}
+.std-leg-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:auto;text-align:right;}
+.std-leg-pill{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:3px 10px;white-space:nowrap;}
+.std-leg-pill.bad{background:#F7E4E1;color:#A32D2D;}
+.std-leg-stat{font-size:11.5px;color:var(--muted);}
+.std-leg-tlink{font-size:12px;font-weight:600;color:var(--rust);display:inline-flex;align-items:center;gap:5px;}
+.std-leg-bad{display:flex;flex-direction:column;align-items:flex-end;gap:5px;}
+.std-leg-bad .rsn{font-size:11px;color:#A32D2D;max-width:240px;line-height:1.4;}
+/* Footer notes — labelled, quiet ledger context (prior service / leave). */
+.std-lnotes{padding:14px 18px 18px;border-top:1px solid var(--hair);margin-top:2px;}
+.std-lnote{display:flex;gap:12px;align-items:baseline;padding:3px 0;font-size:12px;color:var(--muted);line-height:1.5;}
+.std-lnote .k{flex:none;min-width:96px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);}
+.std-lnote .v b{color:var(--ink);font-weight:600;}
+.std-lnote button{border:0;background:transparent;color:var(--rust);font-weight:600;font-size:12px;cursor:pointer;padding:0;margin-left:4px;font-family:inherit;}
+.std-lnote button:hover{text-decoration:underline;}
 .std-filternote{margin-top:10px;font-size:12px;color:var(--muted);}
 .std-filternote:first-child{margin-top:0;}
 .std-filternote b{color:var(--ink);}
