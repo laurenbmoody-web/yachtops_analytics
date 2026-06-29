@@ -613,7 +613,7 @@ body.crew-profile-editorial {
    the toggle clears the Upload / Add buttons above it. */
 .crew-profile-page .cd-controls {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin: 26px 0 14px; flex-wrap: wrap;
+  margin: 4px 0 14px; flex-wrap: wrap;
 }
 /* The "Documents by category" heading reuses the editorial group-head (terracotta
    diamond + serif label + hairline ruler); flex lets the ruler run to the toggle. */

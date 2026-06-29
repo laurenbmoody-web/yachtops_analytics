@@ -3665,10 +3665,10 @@ const canEdit = (() => {
 
     return (
       <div>
-        <div className="cp-hor-head" style={{ marginBottom: 22 }}>
+        <div className="cp-hor-head" style={{ marginBottom: 18, paddingBottom: 0, borderBottom: 'none' }}>
           <div className="cp-section-head" style={{ marginBottom: 0 }}>
             <span className="cp-section-num">06 /</span>
-            <h3>Contract / Employment</h3>
+            <h3>Contract</h3>
           </div>
           {canEditPermissions && (
             editing ? (
