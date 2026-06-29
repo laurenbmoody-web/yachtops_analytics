@@ -436,6 +436,7 @@ const StatusHistoryTab = ({ userId, tenantId, canManage, currentUserId, currentU
                         <div className="act-visa-line"><i style={{ background: visaInk[visa.level] }} />{visa.text}</div>
                       </>
                     ) : <div className="act-res-soon">Vessel at sea / location unknown — no country to assess.</div>}
+                    <div className="act-res-soon" style={{ marginTop: 10 }}>Guidance only — confirm entry requirements before travel.</div>
                   </div>
                 </>
               );
