@@ -2408,7 +2408,6 @@ const canEdit = (() => {
                 <span className="dia">◆</span><span className="t">Dietary &amp; safety</span><span className="line" />
               </div>
               <div className={`cp-allergy-ref ${tone}`}>
-                <Icon name={hasAllergy ? 'AlertTriangle' : unset ? 'HelpCircle' : 'ShieldCheck'} size={18} className="ic" />
                 <div className="body">
                   <div className="lbl">Allergies {hasAllergy && <span className="sev">medical safety</span>}</div>
                   <div className="val">{allergiesReadText(formData)}</div>
