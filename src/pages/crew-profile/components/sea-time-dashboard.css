@@ -473,6 +473,10 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-accrual{font-size:12px;color:var(--muted);margin-top:14px;padding-left:12px;border-left:2px solid var(--rust);line-height:1.5;}
 .stp-accrual b{color:var(--ink);}
 .stp-cnote{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5;}
+/* While-holding / officer-capacity gate note for higher CoCs. */
+.stp-whilst{display:flex;gap:8px;align-items:flex-start;margin-top:13px;padding:10px 12px;background:#FBEFE9;border:1px solid #F0D7C8;border-radius:9px;font-size:11.5px;line-height:1.5;color:#7A3D14;}
+.stp-whilst svg{flex:none;margin-top:1px;color:#C65A1A;}
+.stp-whilst b{color:#A6450F;font-weight:600;}
 /* provisional / advisory — never present an unverified threshold as fact */
 .stp-provisional{margin-top:8px;font-size:11.5px;line-height:1.5;color:#A6712C;background:#FBF3E8;border:1px solid #EFD9B8;border-radius:8px;padding:8px 10px;}
 .stp-req.advisory{opacity:.78;}

@@ -7,7 +7,7 @@ import {
   runChecks, computeAssurance, buildTestimonialDataset, getVerifierProfiles,
   buildRequirementBars, recentQualifyingDays
 } from './engine.js';
-import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate, LEGACY_GRADE_CONVERSION, CONVERSION_RECENCY, legacyConversionForGrade, ancillaryFor } from './pathways.js';
+import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate, LEGACY_GRADE_CONVERSION, CONVERSION_RECENCY, legacyConversionForGrade, ancillaryFor, isOfficerCapacity } from './pathways.js';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from './seed.js';
 
 const V = SEED_VESSELS;
@@ -39,6 +39,43 @@ test('computeBuckets totals each type separately and caps standby', () => {
   assert.equal(b.standby, 8);
   assert.equal(b.yard, 8);
   assert.equal(b.total, 14 + 31 + 8 + 8);
+});
+
+// --- while-holding + officer-capacity gating for higher CoCs -----------------
+test('isOfficerCapacity excludes clear ratings, keeps officers and unknowns', () => {
+  assert.equal(isOfficerCapacity('Chief Officer'), true);
+  assert.equal(isOfficerCapacity('Master'), true);
+  assert.equal(isOfficerCapacity('Second Engineer'), true);
+  assert.equal(isOfficerCapacity('Lead Deckhand'), false);
+  assert.equal(isOfficerCapacity('Bosun'), false);
+  assert.equal(isOfficerCapacity('Motorman'), false);
+  assert.equal(isOfficerCapacity('Cadet'), false);
+  assert.equal(isOfficerCapacity(''), true); // unknown — never silently dropped
+});
+
+test('computeBuckets gates by officer capacity and while-holding date', () => {
+  const V2 = { v: { id: 'v', gt: 600, lengthM: 30, over15: true } };
+  const ents = [
+    { id: 'a', vesselId: 'v', type: 'seagoing', days: 20, capacity: 'Chief Officer', from: '2026-03-01' },
+    { id: 'b', vesselId: 'v', type: 'seagoing', days: 30, capacity: 'Lead Deckhand', from: '2026-03-01' }, // rating → dropped when officerOnly
+    { id: 'c', vesselId: 'v', type: 'seagoing', days: 10, capacity: 'Chief Officer', from: '2026-01-01' },  // before sinceISO → dropped
+  ];
+  assert.equal(computeBuckets(ents, V2, DEFAULT_CONFIG).seagoing, 60);                                   // ungated counts all
+  assert.equal(computeBuckets(ents, V2, { ...DEFAULT_CONFIG, officerOnly: true }).seagoing, 30);          // drops the deckhand
+  assert.equal(computeBuckets(ents, V2, { ...DEFAULT_CONFIG, officerOnly: true, sinceISO: '2026-02-01' }).seagoing, 20); // drops deckhand + pre-date
+});
+
+test('higher CoCs gate on a held prerequisite; entry certs do not', () => {
+  assert.equal(CERTIFICATES.MASTER_YACHT_3000.heldWhilstCert, 'OOW_YACHT_3000');
+  assert.equal(CERTIFICATES.MASTER_YACHT_3000.asOfficer, true);
+  assert.equal(CERTIFICATES.MASTER_YACHT_500.heldWhilstCert, 'OOW_YACHT_3000');
+  assert.equal(CERTIFICATES.CHIEF_SV_500_Y.heldWhilstCert, 'EOOW_SV_Y');
+  assert.equal(CERTIFICATES.CHIEF_SV_3000_Y.heldWhilstCert, 'EOOW_SV_Y');
+  // OOW, MEOL and EOOW are ENTRY certs — no while-holding prerequisite.
+  assert.equal(CERTIFICATES.OOW_YACHT_3000.asOfficer, undefined);
+  assert.equal(CERTIFICATES.MEOL_Y.heldWhilstCert, undefined);
+  assert.equal(CERTIFICATES.EOOW_SV_Y.heldWhilstCert, undefined); // was wrongly set to MEOL — corrected
+  assert.equal(CERTIFICATES.EOOW_SV_Y.asOfficer, undefined);
 });
 
 test('standby may not exceed actual seagoing service (MSN 1858 §5.2)', () => {
