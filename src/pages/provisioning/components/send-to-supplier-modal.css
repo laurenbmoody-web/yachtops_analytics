@@ -292,6 +292,67 @@
   margin: 8px 0 2px 28px;
 }
 
+/* Unassigned bucket — a shopping list that may split across suppliers.
+   Tick a subset, choose a supplier, assign: those items break out into
+   that supplier's order above and the rest stay here for the next round. */
+.stsm-row-unassigned .stsm-row-name { color: #1C1B3A; }
+
+/* Split control bar — sits full-width below the main row. Select-all
+   pill, the supplier picker, and the Assign button on one line; wraps
+   gracefully on narrow panels. */
+.stsm-assign-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 2px 28px;
+  flex-wrap: wrap;
+}
+.stsm-assign-picker { flex: 1; min-width: 180px; }
+.stsm-selectall {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #1C1B3A;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.stsm-selectall:hover:not(:disabled) { background: #FAFAF8; border-color: #D7DAE2; color: #C65A1A; }
+.stsm-selectall:disabled { cursor: default; opacity: 0.5; }
+.stsm-assign-bar .stsm-btn { height: 34px; flex-shrink: 0; }
+
+/* Selectable item list — same quiet indented list, but each row leads
+   with a checkbox so the chief can pick which items go to one supplier. */
+.stsm-itemlist-select .stsm-itemrow-select { padding: 3px 0; }
+.stsm-itemcheck {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+.stsm-itemcheck input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  accent-color: #C65A1A;
+  cursor: pointer;
+  margin: 0;
+}
+.stsm-itemcheck input[type="checkbox"]:disabled { cursor: default; opacity: 0.5; }
+.stsm-itemrow-select.is-sent .stsm-itemcheck { cursor: default; }
+
 /* Item list — reveals under a row when expanded. Quiet, indented,
    hairline-topped. */
 .stsm-itemlist {
