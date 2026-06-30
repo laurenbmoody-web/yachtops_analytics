@@ -495,12 +495,14 @@ const CrewManagement = () => {
     return () => { cancelled = true; };
   }, [activeTenantId, users]);
 
-  // Console: ensure a default selection when the view opens.
+  // Console: default to the TOP crew member in the rail (department hierarchy
+  // order — Bridge first), not the most-recently-joined.
   useEffect(() => {
     if (rosterView !== 'console') return;
     const ids = (users || []).map(u => u?.id);
     if (!selectedUserId || !ids.includes(selectedUserId)) {
-      setSelectedUserId(ids[0] || null);
+      const top = [...(users || [])].sort((a, b) => deptRank(a?.department) - deptRank(b?.department))[0];
+      setSelectedUserId(top?.id || ids[0] || null);
     }
   }, [rosterView, users]);
 
