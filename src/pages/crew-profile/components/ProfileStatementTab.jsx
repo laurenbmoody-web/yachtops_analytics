@@ -8,7 +8,7 @@ import { fetchProfileStatement, saveProfileStatement, draftStatementWithAI } fro
 const Field = ({ label, value, onChange, placeholder, readOnly }) => (
   <label className="ps-field">
     <span>{label}</span>
-    <input value={value} disabled={readOnly} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    <input value={value} disabled={readOnly} onChange={(e) => onChange(e.target.value)} placeholder={readOnly ? '' : placeholder} />
   </label>
 );
 
@@ -156,7 +156,6 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
 
       <div className="ps-wrap">
         <div className="ps-main">
-          <label className="ps-label">Your statement <em>shown to guests</em></label>
           <textarea
             className="ps-area" rows={8} value={form.statement} disabled={!editing}
             onChange={(e) => setF('statement', e.target.value)}
