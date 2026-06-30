@@ -20,6 +20,7 @@ import { getMyContext } from '../../utils/authHelpers';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { logActivity } from '../../utils/activityStorage';
+import { fetchExpiringDocuments, getExpiryStatus } from '../crew-profile/utils/crewDocuments';
 import '../../styles/editorial.css';
 import './crew-management.css';
 
@@ -28,6 +29,38 @@ const DEV_MODE = true;
 
 // Initials for the editorial avatar fallback.
 const initials = (n) => String(n || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
+
+// Canonical yacht department order for grouping; anything else sorts after, with
+// "no department" last.
+const DEPT_ORDER = ['Bridge', 'Deck', 'Engineering', 'Interior', 'Galley', 'Spa', 'Security', 'Aviation', 'Shore / Management'];
+const deptRank = (name) => {
+  if (!name || name === '—') return 999;
+  const i = DEPT_ORDER.indexOf(name);
+  return i === -1 ? 500 : i;
+};
+
+// dd/mm/yyyy per the Cargo date convention.
+const fmtDate = (d) => {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return '—';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+};
+
+// Compact tenure from a start date — "3y 2m", "5m", or "new".
+const tenure = (d) => {
+  if (!d) return null;
+  const start = new Date(d);
+  if (Number.isNaN(start.getTime())) return null;
+  const now = new Date();
+  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  if (now.getDate() < start.getDate()) months -= 1;
+  if (months < 1) return 'new';
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  return y > 0 ? `${y}y${m ? ` ${m}m` : ''}` : `${m}m`;
+};
 
 // Add this block - showToast helper function
 const showToast = (message, type = 'info') => {
@@ -67,6 +100,12 @@ const CrewManagement = () => {
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
   const [calendarRefresh, setCalendarRefresh] = useState(0);
   const [myProfile, setMyProfile] = useState(null);
+  // Roster filters + enrichment (compliance + return-from-leave dates).
+  const [deptFilter, setDeptFilter] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(null); // 'active' | 'away' | null
+  const [needsAttention, setNeedsAttention] = useState(false);
+  const [complianceByUser, setComplianceByUser] = useState({});
+  const [returnByUser, setReturnByUser] = useState({});
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -323,6 +362,58 @@ const CrewManagement = () => {
       fetchCrewData(showArchived);
     }
   }, [activeTenantId, inviteRefreshTrigger, showArchived]);
+
+  // Enrich the roster with document compliance + return-from-leave dates. Runs
+  // once the crew set is loaded; both are best-effort (failures leave the roster
+  // unannotated rather than blocking it).
+  useEffect(() => {
+    const ids = (users || []).map(u => u?.user_id).filter(Boolean);
+    if (!activeTenantId || ids.length === 0) { setComplianceByUser({}); setReturnByUser({}); return; }
+    let cancelled = false;
+
+    (async () => {
+      // Compliance — current expiring/expired docs (version-grouped, advisory
+      // excluded by the shared helper). Worst level wins per crew member.
+      try {
+        const expiring = await fetchExpiringDocuments(90);
+        const map = {};
+        for (const d of expiring || []) {
+          const { level } = getExpiryStatus(d.expiry_date);
+          const isExpired = level === 'expired';
+          const cur = map[d.user_id] || { expired: 0, warning: 0 };
+          if (isExpired) cur.expired += 1; else cur.warning += 1;
+          map[d.user_id] = cur;
+        }
+        Object.values(map).forEach(v => { v.worst = v.expired ? 'expired' : 'warning'; });
+        if (!cancelled) setComplianceByUser(map);
+      } catch (e) {
+        console.warn('[CREW] compliance enrich failed', e);
+        if (!cancelled) setComplianceByUser({});
+      }
+
+      // Return-from-leave — soonest future status change per away crew member.
+      try {
+        const nowIso = new Date().toISOString();
+        const { data } = await supabase
+          .from('crew_status_history')
+          .select('user_id, new_status, changed_at')
+          .eq('tenant_id', activeTenantId)
+          .in('user_id', ids)
+          .gt('changed_at', nowIso)
+          .order('changed_at', { ascending: true });
+        const map = {};
+        for (const row of (data || [])) {
+          if (!map[row.user_id]) map[row.user_id] = { date: row.changed_at, status: row.new_status };
+        }
+        if (!cancelled) setReturnByUser(map);
+      } catch (e) {
+        console.warn('[CREW] return-date enrich failed', e);
+        if (!cancelled) setReturnByUser({});
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [activeTenantId, users]);
 
   const handleInviteSuccess = () => {
     // Trigger refresh of pending invites section AND crew list
@@ -679,10 +770,119 @@ const CrewManagement = () => {
     );
   };
 
-  // Get final filtered and sorted users
-  const filteredUsers = getSortedUsers(getSearchFilteredUsers());
+  // Apply the editorial roster filters (department chip, status from header stat
+  // clicks, and the "needs attention" toggle) on top of search + sort.
+  const applyRosterFilters = (list) => (list || []).filter((u) => {
+    if (deptFilter && (u?.department || '—') !== deptFilter) return false;
+    if (statusFilter === 'active' && u?.status !== 'active') return false;
+    if (statusFilter === 'away' && (u?.status === 'active' || u?.status === 'invited' || !u?.status)) return false;
+    if (needsAttention && !complianceByUser[u?.user_id]) return false;
+    return true;
+  });
 
-  const filteredAndSortedUsers = getSortedUsers(getSearchFilteredUsers());
+  const filteredAndSortedUsers = applyRosterFilters(getSortedUsers(getSearchFilteredUsers()));
+
+  // Department chips — drawn from the whole loaded set so they stay stable.
+  const deptList = [...new Set((users || []).map((u) => u?.department || '—'))]
+    .sort((a, b) => deptRank(a) - deptRank(b) || a.localeCompare(b));
+
+  // Group the visible roster by department for the editorial sectioned table.
+  const groupedByDept = (() => {
+    const m = new Map();
+    for (const u of filteredAndSortedUsers) {
+      const key = u?.department || '—';
+      if (!m.has(key)) m.set(key, []);
+      m.get(key).push(u);
+    }
+    return [...m.entries()].sort((a, b) => deptRank(a[0]) - deptRank(b[0]) || a[0].localeCompare(b[0]));
+  })();
+
+  // Count of crew flagged for compliance attention (visible set).
+  const attentionCount = filteredAndSortedUsers.filter((u) => complianceByUser[u?.user_id]).length;
+
+  // Compliance badge — driven by the enriched expiry map. Absence of a flag means
+  // nothing expiring inside 90 days (shown quietly, not as a green "valid").
+  const renderCompliance = (user) => {
+    const comp = complianceByUser[user?.user_id];
+    if (!comp) return <span className="cm-comp ok">Clear</span>;
+    const cls = comp.worst === 'expired' ? 'expired' : 'warn';
+    const label = comp.expired
+      ? `${comp.expired} expired`
+      : `${comp.warning} expiring`;
+    return (
+      <button className={`cm-comp ${cls}`} title="View documents" onClick={() => navigate(`/profile/${user?.id}?tab=documents`)}>
+        <Icon name="AlertTriangle" size={12} />
+        {label}
+      </button>
+    );
+  };
+
+  const renderCrewRow = (user) => {
+    const isAway = user?.status && user?.status !== 'active' && user?.status !== 'invited';
+    const ret = returnByUser[user?.user_id];
+    const since = user?.start_date || user?.joined_at;
+    const ten = tenure(since);
+    return (
+      <tr key={user?.id}>
+        <td>
+          <div className="cm-person">
+            <span className="cm-av">{initials(user?.fullName)}</span>
+            <div style={{ minWidth: 0 }}>
+              <div className="cm-name">{user?.fullName}</div>
+              <div className="cm-sub">{user?.email}</div>
+            </div>
+          </div>
+        </td>
+        <td className="cm-cell-ink">{user?.roleTitle}</td>
+        <td><span className="cm-pill cm-pill-perm">{getEffectiveTierDisplay(user)}</span></td>
+        <td>
+          <div className="cm-tenure">{fmtDate(since)}</div>
+          {ten && <div className="cm-sub">{ten}</div>}
+        </td>
+        <td>
+          {hasEditPermission ? (
+            <button
+              className="cm-pill cm-pill-status"
+              onClick={() => setStatusChangeTarget({ userId: user?.id, currentStatus: user?.status, name: user?.fullName })}
+            >
+              <span className={`cm-dot s-${user?.status || 'unknown'}`} />
+              {getStatusLabel(user?.status)}
+              <Icon name="ChevronDown" size={11} className="cm-status-badge" />
+            </button>
+          ) : (
+            <span className="cm-pill cm-pill-status">
+              <span className={`cm-dot s-${user?.status || 'unknown'}`} />
+              {getStatusLabel(user?.status)}
+            </span>
+          )}
+          {isAway && ret && <div className="cm-sub is-accent">Back {fmtDate(ret.date)}</div>}
+        </td>
+        <td>{renderCompliance(user)}</td>
+        <td>
+          <div className="cm-acts">
+            <button className="cm-iconbtn" onClick={() => navigate(`/profile/${user?.id}`)} title="View profile">
+              <Icon name="Eye" size={16} />
+            </button>
+            {hasEditPermission && !showArchived && (
+              <>
+                <button className="cm-iconbtn" onClick={() => handleEditEmploymentClick(user)} title="Edit employment">
+                  <Icon name="Edit" size={16} />
+                </button>
+                <button className="cm-iconbtn" onClick={() => handleArchiveCrew(user?.id)} title="Archive">
+                  <Icon name="Archive" size={16} />
+                </button>
+              </>
+            )}
+            {showArchived && hasEditPermission && (
+              <button className="cm-iconbtn" onClick={() => handleRestoreCrew(user?.id)} title="Restore">
+                <Icon name="RotateCcw" size={16} />
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
 
   // Editorial header stats — drawn from the loaded crew set.
   const crewStats = {
@@ -733,11 +933,11 @@ const CrewManagement = () => {
             <span className="dot">●</span>
             <span>Crew</span>
             <span className="bar" />
-            <span className="muted">{crewStats.total} crew</span>
+            <button type="button" className={`cm-metabtn${statusFilter === null && !deptFilter ? ' is-on' : ''}`} onClick={() => { setStatusFilter(null); setDeptFilter(null); }}>{crewStats.total} crew</button>
             <span className="bar" />
-            <span className="muted">{crewStats.onBoard} on board</span>
+            <button type="button" className={`cm-metabtn${statusFilter === 'active' ? ' is-on' : ''}`} onClick={() => setStatusFilter(s => s === 'active' ? null : 'active')}>{crewStats.onBoard} on board</button>
             <span className="bar" />
-            <span className="muted">{crewStats.away} away</span>
+            <button type="button" className={`cm-metabtn${statusFilter === 'away' ? ' is-on' : ''}`} onClick={() => setStatusFilter(s => s === 'away' ? null : 'away')}>{crewStats.away} away</button>
             <span className="bar" />
             <span className="muted">{crewStats.departments} departments</span>
           </p>
@@ -837,6 +1037,24 @@ const CrewManagement = () => {
                 </div>
               )}
 
+              {/* Department chips + needs-attention toggle */}
+              {!showCalendar && deptList.length > 1 && (
+                <div className="cm-filters">
+                  <button className={`cm-chip${!deptFilter ? ' is-on' : ''}`} onClick={() => setDeptFilter(null)}>All</button>
+                  {deptList.map((d) => (
+                    <button key={d} className={`cm-chip${deptFilter === d ? ' is-on' : ''}`} onClick={() => setDeptFilter((cur) => cur === d ? null : d)}>
+                      {d === '—' ? 'Unassigned' : d}
+                    </button>
+                  ))}
+                  {(attentionCount > 0 || needsAttention) && (
+                    <button className={`cm-attn${needsAttention ? ' is-on' : ''}`} onClick={() => setNeedsAttention((v) => !v)}>
+                      <Icon name="AlertTriangle" size={13} />
+                      Needs attention{attentionCount ? ` · ${attentionCount}` : ''}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Calendar view */}
               {showCalendar && !showArchived && (
                 <div style={{ marginTop: '18px' }}>
@@ -849,12 +1067,12 @@ const CrewManagement = () => {
                 </div>
               )}
 
-              {/* Crew table — hidden when calendar view is active */}
+              {/* Crew table — grouped by department, hidden in calendar view */}
               {!showCalendar && (filteredAndSortedUsers?.length === 0 ? (
                 <div className="cm-empty">
                   <Icon name="Users" size={40} />
                   <h3>No crew members found</h3>
-                  <p>{searchQuery ? 'Try adjusting your search criteria' : 'Start by inviting crew members'}</p>
+                  <p>{searchQuery || deptFilter || statusFilter || needsAttention ? 'Try adjusting your search or filters' : 'Start by inviting crew members'}</p>
                 </div>
               ) : (
                 <div className="cm-table-wrap">
@@ -862,13 +1080,7 @@ const CrewManagement = () => {
                     <thead>
                       <tr>
                         <th className="cm-th-sort" onClick={() => handleSort('name')}>
-                          <span className="cm-th-inner">Name {renderSortIcon('name')}</span>
-                        </th>
-                        <th className="cm-th-sort" onClick={() => handleSort('email')}>
-                          <span className="cm-th-inner">Email {renderSortIcon('email')}</span>
-                        </th>
-                        <th className="cm-th-sort" onClick={() => handleSort('department')}>
-                          <span className="cm-th-inner">Department {renderSortIcon('department')}</span>
+                          <span className="cm-th-inner">Crew {renderSortIcon('name')}</span>
                         </th>
                         <th className="cm-th-sort" onClick={() => handleSort('role')}>
                           <span className="cm-th-inner">Role {renderSortIcon('role')}</span>
@@ -876,73 +1088,28 @@ const CrewManagement = () => {
                         <th className="cm-th-sort" onClick={() => handleSort('tier')}>
                           <span className="cm-th-inner">Permission {renderSortIcon('tier')}</span>
                         </th>
+                        <th>Since</th>
                         <th className="cm-th-sort" onClick={() => handleSort('status')}>
                           <span className="cm-th-inner">Status {renderSortIcon('status')}</span>
                         </th>
+                        <th>Compliance</th>
                         <th className="cm-th-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {filteredAndSortedUsers?.map(user => (
-                        <tr key={user?.id}>
-                          <td>
-                            <div className="cm-person">
-                              <span className="cm-av">{initials(user?.fullName)}</span>
-                              <span className="cm-name">{user?.fullName}</span>
-                            </div>
-                          </td>
-                          <td className="cm-cell-mut">{user?.email}</td>
-                          <td className="cm-cell-ink">{user?.department}</td>
-                          <td className="cm-cell-ink">{user?.roleTitle}</td>
-                          <td>
-                            <span className="cm-pill cm-pill-perm">{getEffectiveTierDisplay(user)}</span>
-                          </td>
-                          <td>
-                            {hasEditPermission ? (
-                              <button
-                                className="cm-pill cm-pill-status"
-                                onClick={() => setStatusChangeTarget({
-                                  userId:        user?.id,
-                                  currentStatus: user?.status,
-                                  name:          user?.fullName,
-                                })}
-                              >
-                                <span className={`cm-dot s-${user?.status || 'unknown'}`} />
-                                {getStatusLabel(user?.status)}
-                                <Icon name="ChevronDown" size={11} className="cm-status-badge" />
-                              </button>
-                            ) : (
-                              <span className="cm-pill cm-pill-status">
-                                <span className={`cm-dot s-${user?.status || 'unknown'}`} />
-                                {getStatusLabel(user?.status)}
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            <div className="cm-acts">
-                              <button className="cm-iconbtn" onClick={() => navigate(`/profile/${user?.id}`)} title="View profile">
-                                <Icon name="Eye" size={16} />
-                              </button>
-                              {hasEditPermission && !showArchived && (
-                                <>
-                                  <button className="cm-iconbtn" onClick={() => handleEditEmploymentClick(user)} title="Edit employment">
-                                    <Icon name="Edit" size={16} />
-                                  </button>
-                                  <button className="cm-iconbtn" onClick={() => handleArchiveCrew(user?.id)} title="Archive">
-                                    <Icon name="Archive" size={16} />
-                                  </button>
-                                </>
-                              )}
-                              {showArchived && hasEditPermission && (
-                                <button className="cm-iconbtn" onClick={() => handleRestoreCrew(user?.id)} title="Restore">
-                                  <Icon name="RotateCcw" size={16} />
-                                </button>
-                              )}
+                    {groupedByDept.map(([dept, members]) => (
+                      <tbody key={dept}>
+                        <tr className="cm-group-head">
+                          <td colSpan={7}>
+                            <div className="cm-group-inner">
+                              <span className="cm-group-name">{dept === '—' ? 'Unassigned' : dept}</span>
+                              <span className="cm-group-rule" />
+                              <span className="cm-group-count">{members.length}</span>
                             </div>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
+                        {members.map((user) => renderCrewRow(user))}
+                      </tbody>
+                    ))}
                   </table>
                 </div>
               ))}
