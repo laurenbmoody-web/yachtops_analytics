@@ -143,10 +143,10 @@ export const CERTIFICATES = {
     family: 'DECK', label: 'Chief Mate (Yachts <3000GT)', short: 'Chief Mate <3000GT',
     msn: 'MSN 1858 Amd 2 §3.4', verified: 'HIGH',
     yardCapDays: 30,                // Chief Mate / Master: max 30 yard days (1858 §3.4)
-    requires: {},                   // no additional sea time — concurrent with OOW <3000 II/1
-    oral: false,                    // no oral exam — endorsement of the OOW II/1 CoC by courses
+    requires: {},                   // no additional sea time — concurrent with OOW <3000 (MSN 1858 §3.4)
+    oral: false,                    // §3.4 lists NO oral exam (gov.uk has no Chief Mate yacht oral syllabus)
     heldWhilst: 'OOW (Yachts <3000GT) II/1',
-    note: 'No additional qualifying service or oral beyond OOW <3000GT — an endorsement of the OOW II/1 CoC gained by the management-level courses; may be applied for at the same time as OOW (gov.uk yacht oral syllabuses list no Chief Mate oral).'
+    note: 'A II/2 CoC with NO oral exam and no additional sea time (MSN 1858 §3.4): hold OOW <3000 II/1 (or complete its §3.3 requirements), plus RYA Yachtmaster Ocean and the management-level courses (incl. HELM Management). Applied for via MSF 4343 as an upgrade — may be done at the same time as OOW.'
   },
   MASTER_YACHT_500: {
     family: 'DECK', label: 'Master (Yachts <500GT)', short: 'Master <500GT',
@@ -172,9 +172,8 @@ export const CERTIFICATES = {
     msn: 'MSN 1858 Amd 2 §4.3', verified: 'HIGH',
     yardCapDays: 30,                // Chief Mate: max 30 yard days (1858 §4.3)
     requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
-    oral: false,                    // no Chief Mate (Yachts) oral syllabus — endorsement by courses + service
     heldWhilst: 'OOW Unlimited (or Master Yachts <3000GT II/1)', heldWhilstCert: 'MASTER_YACHT_3000', asOfficer: true,
-    note: 'OOW-Unlimited route: 12 months onboard as OOW incl. 6 months seagoing, all on a yacht ≥500GT. No Chief Mate oral — endorsed by the management courses.'
+    note: 'OOW-Unlimited route (MSN 1858 §4.3): 12 months onboard as OOW incl. 6 months seagoing, all on a yacht ≥500GT, plus the management-level academic modules, MCA assessments and an oral exam (§4.3(f)). Unlike Chief Mate <3000, this rung DOES require an oral.'
   },
   MASTER_UNLIMITED: {
     family: 'DECK', label: 'Master (Yachts Unlimited)', short: 'Master Unltd',
