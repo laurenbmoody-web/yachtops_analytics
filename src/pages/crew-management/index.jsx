@@ -310,6 +310,8 @@ const CrewManagement = () => {
           start_date,
           joined_at,
           org_order,
+          org_is_lead,
+          reports_to,
           department_id,
           role:roles!role_id(name, default_permission_tier),
           custom_role:tenant_custom_roles!custom_role_id(name, default_permission_tier),
@@ -362,6 +364,8 @@ const CrewManagement = () => {
           start_date: tm?.start_date || null,
           joined_at: tm?.joined_at,
           orgOrder: tm?.org_order ?? null,
+          isLead: tm?.org_is_lead ?? false,
+          reportsTo: tm?.reports_to ?? null,
           email: tm?.profiles?.email || null,
           fullName: tm?.profiles?.full_name || null,
           full_name: tm?.profiles?.full_name || null,
@@ -1257,21 +1261,20 @@ const CrewManagement = () => {
     );
   };
 
-  // Persist a department's manual order to tenant_members.org_order (0..n).
-  const persistHierOrder = async (ordered) => {
-    const idx = new Map(ordered.map((m, i) => [m.id, i]));
-    setUsers(prev => prev.map(u => idx.has(u.id) ? { ...u, orgOrder: idx.get(u.id) } : u));
+  // Persist a single member's org-tree change to tenant_members (optimistic).
+  const updateOrgMember = async (memberId, patch, local) => {
+    setUsers(prev => prev.map(u => u.id === memberId ? { ...u, ...local } : u));
     try {
-      await Promise.all(ordered.map((m, i) =>
-        supabase.from('tenant_members').update({ org_order: i }).eq('tenant_id', activeTenantId).eq('user_id', m.id)));
-    } catch (e) { console.warn('[CREW] hierarchy order save failed', e); }
+      await supabase.from('tenant_members').update(patch).eq('tenant_id', activeTenantId).eq('user_id', memberId);
+    } catch (e) { console.warn('[CREW] hierarchy save failed', e); }
   };
+  const setReportsTo = (id, parentId) => updateOrgMember(id, { reports_to: parentId, org_is_lead: false }, { reportsTo: parentId, isLead: false });
+  const makeLead = (id) => updateOrgMember(id, { reports_to: null, org_is_lead: true }, { reportsTo: null, isLead: true });
 
-  // ── Concept D — Chain of command (drag-to-reorder for COMMAND) ────────────
+  // ── Concept D — Chain of command (free-form, drag-editable for COMMAND) ────
   const renderHierarchy = () => {
     const canEdit = hasEditPermission;
     const crew = (users || []).filter(u => u?.status !== 'invited' && u?.fullName);
-    // Manual order wins; unset falls back to role seniority.
     const ord = (u) => (u.orgOrder != null ? u.orgOrder : 1000 + roleRank(u.roleTitle));
     const captain = [...crew].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle))[0];
     const isCaptain = captain && roleRank(captain.roleTitle) === 0 ? captain : null;
@@ -1282,54 +1285,61 @@ const CrewManagement = () => {
       if (!byDept.has(k)) byDept.set(k, []);
       byDept.get(k).push(u);
     }
-    const branches = [...byDept.entries()]
-      .sort((a, b) => deptRank(a[0]) - deptRank(b[0]) || a[0].localeCompare(b[0]))
-      .map(([dept, members]) => ({ dept, members: [...members].sort((a, b) => ord(a) - ord(b) || String(a.fullName).localeCompare(String(b.fullName))) }));
+    const branches = [...byDept.entries()].sort((a, b) => deptRank(a[0]) - deptRank(b[0]) || a[0].localeCompare(b[0]));
 
-    const onDrop = (dept, members) => {
-      if (!hierDrag || hierDrag.dept !== dept || !hierDrop || hierDrop.dept !== dept) { setHierDrag(null); setHierDrop(null); return; }
-      const from = members.findIndex(m => m.id === hierDrag.id);
-      if (from < 0) { setHierDrag(null); setHierDrop(null); return; }
-      let to = hierDrop.index;
-      const arr = [...members];
-      const [moved] = arr.splice(from, 1);
-      if (from < to) to -= 1;
-      arr.splice(to, 0, moved);
-      persistHierOrder(arr);
-      setHierDrag(null); setHierDrop(null);
+    // Build a per-department tree: leads (top-level peers) + a children map.
+    const buildDept = (members) => {
+      const idSet = new Set(members.map(m => m.id));
+      const senior = [...members].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle) || String(a.fullName).localeCompare(String(b.fullName)))[0];
+      const isLeadFn = (m) => m.isLead || (m.id === senior.id && !(m.reportsTo && idSet.has(m.reportsTo)));
+      const parentOf = (m) => {
+        if (isLeadFn(m)) return null;
+        if (m.reportsTo && idSet.has(m.reportsTo) && m.reportsTo !== m.id) return m.reportsTo;
+        return senior.id;
+      };
+      const childrenOf = {};
+      members.forEach((m) => { const p = parentOf(m); if (p) (childrenOf[p] ||= []).push(m); });
+      Object.values(childrenOf).forEach((arr) => arr.sort((a, b) => ord(a) - ord(b) || String(a.fullName).localeCompare(String(b.fullName))));
+      const leads = members.filter(isLeadFn).sort((a, b) => (a.id === senior.id ? -1 : b.id === senior.id ? 1 : ord(a) - ord(b)));
+      // Descendant set per member (cycle-safe drop guard).
+      const descendants = (rootId) => { const out = new Set(); const stack = [...(childrenOf[rootId] || [])]; while (stack.length) { const n = stack.pop(); if (out.has(n.id)) continue; out.add(n.id); (childrenOf[n.id] || []).forEach((c) => stack.push(c)); } return out; };
+      return { leads, childrenOf, descendants };
     };
-    const dragProps = (u, dept, i, members) => (canEdit ? {
+
+    const dragProps = (u, dept) => (canEdit ? {
       draggable: true,
       onDragStart: (e) => { setHierDrag({ id: u.id, dept }); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', u.id); } catch { /* */ } },
       onDragEnd: () => { setHierDrag(null); setHierDrop(null); },
-      onDragOver: (e) => {
-        if (!hierDrag || hierDrag.dept !== dept) return;
-        e.preventDefault();
-        const r = e.currentTarget.getBoundingClientRect();
-        const target = e.clientY < r.top + r.height / 2 ? i : i + 1;
-        setHierDrop(prev => (prev && prev.dept === dept && prev.index === target) ? prev : { dept, index: target });
-      },
-      onDrop: (e) => { e.preventDefault(); onDrop(dept, members); },
     } : {});
 
-    const staticNode = (u, cls = '') => (
-      <div className={`cm-node ${cls}`} onClick={() => navigate(`/profile/${u?.id}`)}>
-        <span className="cm-node-dot" style={{ background: statusColor(u?.status) }} />
-        <Avatar user={u} className="cm-node-av" />
-        <div className="cm-node-nm">{u?.fullName}</div>
-        <div className="cm-node-rl">{u?.roleTitle}</div>
-      </div>
-    );
+    // Drop ONTO a node → that member reports to this node. Guard against cycles:
+    // can't drop a person onto one of their own descendants.
+    const nodeDrop = (u, dept, descFn) => (canEdit ? {
+      onDragOver: (e) => {
+        if (!hierDrag || hierDrag.dept !== dept || hierDrag.id === u.id || descFn(hierDrag.id).has(u.id)) return;
+        e.preventDefault(); e.stopPropagation();
+        setHierDrop(prev => (prev?.type === 'node' && prev.id === u.id) ? prev : { type: 'node', id: u.id, dept });
+      },
+      onDrop: (e) => {
+        if (!hierDrag || hierDrag.dept !== dept || hierDrag.id === u.id || descFn(hierDrag.id).has(u.id)) return;
+        e.preventDefault(); e.stopPropagation();
+        setReportsTo(hierDrag.id, u.id);
+        setHierDrag(null); setHierDrop(null);
+      },
+    } : {});
 
-    const memberEl = (u, i, dept, members) => {
-      const head = i === 0;
+    const renderSubtree = (u, dept, childrenOf, descFn, depth, visited) => {
+      if (visited.has(u.id)) return null;
+      visited.add(u.id);
+      const kids = childrenOf[u.id] || [];
       const dragging = hierDrag?.id === u.id;
-      const cls = `${head ? 'cm-node' : 'cm-mini'}${canEdit ? ' is-draggable' : ''}${dragging ? ' is-dragging' : ''}`;
+      const isDropTarget = hierDrop?.type === 'node' && hierDrop.id === u.id;
+      const base = depth === 0 ? 'cm-node' : 'cm-mini';
+      const cls = `${base}${canEdit ? ' is-draggable' : ''}${dragging ? ' is-dragging' : ''}${isDropTarget ? ' is-drop' : ''}`;
       return (
-        <React.Fragment key={u.id}>
-          {hierDrop?.dept === dept && hierDrop.index === i && <div className="cm-drop" />}
-          <div className={cls} {...dragProps(u, dept, i, members)} onClick={() => { if (!hierDrag) navigate(`/profile/${u.id}`); }}>
-            {head ? (
+        <div key={u.id} className="cm-subtree">
+          <div className={cls} {...dragProps(u, dept)} {...nodeDrop(u, dept, descFn)} onClick={() => { if (!hierDrag) navigate(`/profile/${u.id}`); }}>
+            {depth === 0 ? (
               <>
                 <span className="cm-node-dot" style={{ background: statusColor(u.status) }} />
                 <Avatar user={u} className="cm-node-av" />
@@ -1344,29 +1354,50 @@ const CrewManagement = () => {
               </>
             )}
           </div>
-        </React.Fragment>
+          {kids.length > 0 && (
+            <>
+              <div className="cm-substem" />
+              <div className="cm-subreports">
+                {kids.map((k) => renderSubtree(k, dept, childrenOf, descFn, depth + 1, visited))}
+              </div>
+            </>
+          )}
+        </div>
       );
     };
 
     return (
       <div className="cm-tree">
-        {canEdit && <p className="cm-hier-hint"><Icon name="Move" size={12} /> Drag crew to reorder within a department — saved automatically</p>}
-        {isCaptain && (<>{staticNode(isCaptain, 'captain')}<div className="cm-stem" /></>)}
+        {canEdit && <p className="cm-hier-hint"><Icon name="Move" size={12} /> Drag onto a person to make them report to them · drag onto the department to make a top-level lead</p>}
+        {isCaptain && (<>
+          <div className="cm-node captain" onClick={() => navigate(`/profile/${isCaptain.id}`)}>
+            <span className="cm-node-dot" style={{ background: statusColor(isCaptain.status) }} />
+            <Avatar user={isCaptain} className="cm-node-av" />
+            <div className="cm-node-nm">{isCaptain.fullName}</div>
+            <div className="cm-node-rl">{isCaptain.roleTitle}</div>
+          </div>
+          <div className="cm-stem" />
+        </>)}
         <div className="cm-heads">
-          {branches.map(({ dept, members }) => (
-            <div key={dept} className="cm-branch">
-              {isCaptain && <div className="cm-branch-top" />}
-              <div className="cm-deptlabel">{dept === '—' ? 'Unassigned' : dept}</div>
-              <div
-                className="cm-branch-list"
-                onDragOver={(e) => { if (canEdit && hierDrag?.dept === dept) e.preventDefault(); }}
-                onDrop={(e) => { if (canEdit) { e.preventDefault(); onDrop(dept, members); } }}
-              >
-                {members.map((u, i) => memberEl(u, i, dept, members))}
-                {hierDrop?.dept === dept && hierDrop.index === members.length && <div className="cm-drop" />}
+          {branches.map(([dept, members]) => {
+            const { leads, childrenOf, descendants } = buildDept(members);
+            const leadsDropping = hierDrop?.type === 'leads' && hierDrop.dept === dept;
+            return (
+              <div key={dept} className="cm-branch">
+                {isCaptain && <div className="cm-branch-top" />}
+                <div
+                  className={`cm-deptlabel${canEdit ? ' is-droptarget' : ''}${leadsDropping ? ' is-drop' : ''}`}
+                  onDragOver={(e) => { if (canEdit && hierDrag?.dept === dept) { e.preventDefault(); setHierDrop({ type: 'leads', dept }); } }}
+                  onDrop={(e) => { if (canEdit && hierDrag?.dept === dept) { e.preventDefault(); makeLead(hierDrag.id); setHierDrag(null); setHierDrop(null); } }}
+                >
+                  {dept === '—' ? 'Unassigned' : dept}
+                </div>
+                <div className="cm-leads">
+                  {leads.map((l) => renderSubtree(l, dept, childrenOf, descendants, 0, new Set()))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );

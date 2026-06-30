@@ -295,13 +295,20 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-branch { display: flex; flex-direction: column; align-items: center; }
 .cm-branch-top { width: 2px; height: 26px; background: #D7DCE5; }
 .cm-deptlabel { font-family: 'DM Serif Display', serif; font-size: 17px; margin: 16px 0 14px; color: #1C1B3A; }
-.cm-branch-list { display: flex; flex-direction: column; align-items: center; gap: 11px; min-height: 40px; }
-.cm-hier-hint { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #6B7280; margin: 0 0 18px; }
-.cm-hier-hint svg { color: #C65A1A; }
+.cm-hier-hint { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #6B7280; margin: 0 0 18px; max-width: 640px; text-align: center; }
+.cm-hier-hint svg { color: #C65A1A; flex: 0 0 auto; }
 .cm-node.is-draggable, .cm-mini.is-draggable { cursor: grab; }
 .cm-node.is-draggable:active, .cm-mini.is-draggable:active { cursor: grabbing; }
 .cm-node.is-dragging, .cm-mini.is-dragging { opacity: 0.4; }
-.cm-drop { width: 214px; height: 44px; border: 2px dashed #C65A1A; border-radius: 11px; background: #F1F5F9; }
+.cm-node.is-drop, .cm-mini.is-drop { border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7; }
+.cm-deptlabel.is-droptarget { padding: 2px 12px; border-radius: 999px; transition: background 0.12s ease, box-shadow 0.12s ease; }
+.cm-deptlabel.is-drop { background: #F1F5F9; box-shadow: 0 0 0 2px #FAECE7; color: #C65A1A; }
+
+/* Free-form tree: leads side by side, each a sub-tree of reports beneath. */
+.cm-leads { display: flex; gap: 30px; align-items: flex-start; justify-content: center; }
+.cm-subtree { display: flex; flex-direction: column; align-items: center; }
+.cm-substem { width: 2px; height: 16px; background: #D7DCE5; margin: 11px 0; }
+.cm-subreports { display: flex; flex-direction: column; align-items: center; gap: 11px; }
 .cm-mini { display: flex; align-items: center; gap: 11px; background: #fff; border: 1px solid #E6E8EF; border-radius: 11px; padding: 9px 13px; min-width: 214px; cursor: pointer; transition: border-color 0.12s ease; }
 .cm-mini:hover { border-color: #CBD5E1; }
 .cm-mini-a { width: 30px; height: 30px; border-radius: 999px; background: #EEF2F6; color: #C65A1A; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
