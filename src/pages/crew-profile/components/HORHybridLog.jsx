@@ -143,7 +143,7 @@ const Wheel = ({ items, value, onChange }) => {
   );
 };
 
-const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthChange, onChanged }) => {
+const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthChange, onChanged, readOnly = false }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [brush, setBrush] = useState('duty');
@@ -270,6 +270,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   }, [persistDraft]);
 
   const applyBrush = (i) => {
+    if (readOnly) return;
     dirty.current = true;
     setDraftSegs((prev) => {
       const n = new Set(prev);
@@ -430,6 +431,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   };
 
   const onCalendarDay = (cd, e) => {
+    if (readOnly) return; // signed-off month — view only, no editor
     if (bulkMode) toggleBulk(cd.date, e.shiftKey);
     else setSelectedDate((cur) => (cur === cd.date ? null : cd.date)); // click again to collapse
   };
@@ -596,7 +598,12 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     <div className="cp-flatcard p-6">
       {/* Bulk-apply toolbar */}
       <div className="cp-hor-toolbar">
-        {!bulkMode ? (
+        {readOnly ? (
+          <div className="cp-hor-lockednote">
+            <Icon name="Lock" size={13} />
+            <span>This month is signed off and locked. A command user can unlock it to make changes.</span>
+          </div>
+        ) : !bulkMode ? (
           <>
             {/* The shift-type brush lives on this line (not inside each day box)
                 so the open day editor has more room for the hours readout. */}
