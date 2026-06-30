@@ -100,6 +100,37 @@ button.cm-pill-status:hover { border-color: #D9D7CF; background: #F6F5F2; }
 .cm-iconbtn:hover { color: #C65A1A; background: #FBEFE9; }
 .cm-status-badge { color: #C65A1A; }
 
+/* Crew availability calendar — editorial gantt, box-free. Month-nav pill, soft
+   day grid, refined status palette, hairline legend. */
+.cm-cal { margin-top: 18px; }
+.cm-cal-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.cm-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #ECEAE3; border-radius: 999px; padding: 7px 8px; font-size: 14px; font-weight: 600; font-family: 'DM Serif Display', Georgia, serif; color: #1C1B3A; }
+.cm-monthnav button { border: 0; background: #F6F5F2; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #8B8478; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; transition: color 0.12s ease, background 0.12s ease; }
+.cm-monthnav button:hover { color: #C65A1A; background: #FBEFE9; }
+.cm-monthnav span { padding: 0 6px; min-width: 132px; text-align: center; }
+
+.cm-cal-scroll { overflow-x: auto; padding-bottom: 4px; }
+.cm-cal-daynum { width: 20px; text-align: center; font-size: 9px; font-weight: 600; letter-spacing: 0.3px; color: #AEB4C2; user-select: none; flex: 0 0 auto; }
+.cm-cal-daynum.is-today { color: #C65A1A; font-weight: 700; }
+.cm-cal-row { display: flex; align-items: center; gap: 2px; margin-bottom: 3px; }
+.cm-cal-name { width: 150px; flex: 0 0 auto; font-size: 12.5px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
+a.cm-cal-name { color: #1C1B3A; text-decoration: none; transition: color 0.12s ease; }
+a.cm-cal-name:hover { color: #C65A1A; }
+.cm-cal-cell { width: 20px; height: 24px; border-radius: 4px; flex: 0 0 auto; background: #F0F1F5; }
+.cm-cal-cell.is-future { opacity: 0.34; }
+.cm-cal-cell.s-active { background: #7FCBA6; }
+.cm-cal-cell.s-on_leave { background: #E6C079; }
+.cm-cal-cell.s-rotational_leave { background: #C3AEEA; }
+.cm-cal-cell.s-medical_leave { background: #E8A29A; }
+.cm-cal-cell.s-training_leave { background: #9DBCF0; }
+.cm-cal-cell.s-travelling { background: #7FD3CA; }
+.cm-cal-cell.s-invited { background: #D8D6CF; }
+.cm-cal-empty { font-size: 13px; color: #8B8478; padding: 18px 0; text-align: center; }
+
+.cm-cal-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #ECEAE3; }
+.cm-cal-leg { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: #6B7280; }
+.cm-cal-leg span { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+
 /* Loading / error blocks — centred, box-free. */
 .cm-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 56px 0; text-align: center; }
 .cm-state h2 { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; }
