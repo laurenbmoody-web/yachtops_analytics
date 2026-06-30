@@ -167,7 +167,7 @@ const DEPT_NAME_TO_ID = {
   Deck: 'deck', Bridge: 'deck', Engineering: 'engineering', Interior: 'interior', Galley: 'galley'
 };
 
-const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, canAttest = false }) => {
+const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onAddDocument, canAttest = false }) => {
   const config = DEFAULT_CONFIG;
   const [deptId, setDeptId] = useState('deck');
   const [dualMode, setDualMode] = useState(false);   // dual deck+engine: 50% credit
@@ -251,8 +251,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // first un-held rung (the cert it was tracking).
   const docHeldIdx = route.reduce((max, id, i) => (heldCerts[id] ? i : max), -1);
   const baseTargetId = docHeldIdx >= route.length - 1 ? null : route[docHeldIdx + 1];
+  // A legacy single-object journey predates the per-cert map and multi-family
+  // routes — it was always the DECK pathway. Only attribute it to a DECK base
+  // target, never to engine/ETO/interior, so a finished deck journey can't mark
+  // an unrelated cert (e.g. the Yacht Purser) as held on a different pathway.
   const isLegacyJourney = journey && ('noe' in journey || 'oral' in journey || 'coc' in journey);
-  const journeyMap = isLegacyJourney ? (baseTargetId ? { [baseTargetId]: journey } : {}) : (journey || {});
+  const journeyMap = isLegacyJourney
+    ? (baseTargetId && CERTIFICATES[baseTargetId]?.family === 'DECK' ? { [baseTargetId]: journey } : {})
+    : (journey || {});
   const cocIssuedIn = (jr) => !!jr && (jr.coc?.status === 'issued' || !!jr.coc?.issuedDate);
   // A completed certification journey (CoC recorded as issued) means the crew now
   // holds that rung — fold it into the held set so the target advances to the next
@@ -273,6 +279,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const deptLabel = DEPARTMENTS[deptId]?.label || '—';
   const familyWord = family === 'DECK' ? 'Deck' : family === 'ENGINE' ? 'Engine' : family === 'ETO' ? 'ETO' : '';
   const familyPathLabel = family === 'DECK' ? 'Bridge pathway' : family === 'ENGINE' ? 'Engine pathway' : family === 'ETO' ? 'ETO pathway' : '';
+  // Who signs the testimonial, by department: the chief engineer for engine/ETO
+  // service (MSN 1904 §5.5), otherwise the captain.
+  const signerWord = (family === 'ENGINE' || family === 'ETO') ? 'chief engineer' : 'captain';
 
   const goalForDept = (id) => { const fams = DEPT_FAMILIES[id] || []; return fams.length ? (DEFAULT_GOAL[fams[0]] || '') : ''; };
   // Changing department re-defaults the goal to that department's ceiling
@@ -1260,18 +1269,25 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           </button>
           {coursesOpen && (
             <>
-              <div className="stp-courses-sub">Required for {cert.short} alongside your sea time — auto-detected from your Documents. The MCA won’t issue the CoC without these.</div>
+              <div className="stp-courses-sub">Required for {cert.short} alongside your sea time — auto-detected from your Documents.{interiorPathway ? ' The PYA / IAMI need these for the Purser CoC.' : ' The MCA won’t issue the CoC without these.'}</div>
               <div className="stp-courses-list">
-                {ancillary.map(a => (
-                  <div className={`stp-course ${a.met ? 'has' : 'missing'}`} key={a.key}>
-                    <span className="ck">{a.met ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
-                    <div className="cl">
-                      <div className="nm">{a.label}</div>
-                      {a.note && <div className="nt">{a.note}</div>}
+                {ancillary.map(a => {
+                  const addType = a.anyOf?.[0];
+                  const canAdd = !a.met && addType && onAddDocument;
+                  return (
+                    <div className={`stp-course ${a.met ? 'has' : 'missing'}${canAdd ? ' add' : ''}`} key={a.key}
+                      role={canAdd ? 'button' : undefined} tabIndex={canAdd ? 0 : undefined}
+                      onClick={canAdd ? () => onAddDocument(addType) : undefined}
+                      onKeyDown={canAdd ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onAddDocument(addType); } } : undefined}>
+                      <span className="ck">{a.met ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
+                      <div className="cl">
+                        <div className="nm">{a.label}</div>
+                        {a.note && <div className="nt">{a.note}</div>}
+                      </div>
+                      {!a.met && <span className="st">{canAdd ? <><Icon name="Plus" size={11} /> Add to Documents</> : 'Not on file'}</span>}
                     </div>
-                    {!a.met && <span className="st">Not on file</span>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
@@ -1735,8 +1751,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               <div className="sub">{interiorPathway
                 ? 'Your compiled senior yacht service, ready for the PYA to verify for your IAMI GUEST Yacht Purser CoC — submitted alongside your guest-on days and GUEST course certificates.'
                 : SHOW_SIGNOFF
-                  ? 'Your sea service, confirmed by each ship’s captain — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.'
-                  : 'Your compiled sea service, ready to export for PYA or Nautilus to verify. They issue the testimonial your captain signs — Cargo just gets your record right first.'}</div>
+                  ? `Your sea service, confirmed by each ship’s ${signerWord} — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.`
+                  : `Your compiled sea service, ready to export for PYA or Nautilus to verify. They issue the testimonial your ${signerWord} signs — Cargo just gets your record right first.`}</div>
             </div>
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
@@ -1911,7 +1927,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     <div className="std-spells">
                       <div className="std-spells-lbl">{interiorPathway
                         ? 'Your service under each captain, ready for the PYA to verify. Manual & off-Cargo days are excluded.'
-                        : 'One testimonial per captain — each endorses only the dates they were in command. Manual & off-Cargo days are excluded.'}</div>
+                        : `One testimonial per ${signerWord} — each endorses only the dates they covered. Manual & off-Cargo days are excluded.`}</div>
                       {nautilusSpells.map((s, i) => (
                         <div key={i} className="std-spell">
                           <div className="std-spell-main">
@@ -1920,7 +1936,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                           </div>
                           {verifier === 'nautilus'
                             ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
-                            : verifier === 'transport_malta'
+                            : (verifier === 'transport_malta' && family === 'DECK')
                               ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
                               : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
                         </div>

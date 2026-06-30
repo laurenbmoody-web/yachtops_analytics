@@ -624,7 +624,11 @@ button.cj-node:hover{border-color:var(--rust);}
 .stp-course .cl .nm{font-size:13px;color:var(--ink);}
 .stp-course.missing .cl .nm{color:var(--muted);}
 .stp-course .cl .nt{font-size:11px;color:#A6712C;margin-top:2px;line-height:1.45;}
-.stp-course .st{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);white-space:nowrap;align-self:center;}
+.stp-course .st{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);white-space:nowrap;align-self:center;display:inline-flex;align-items:center;gap:4px;}
+.stp-course.add{cursor:pointer;margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:8px;}
+.stp-course.add:hover{background:var(--soft,#FAFAF8);}
+.stp-course.add:hover .st{color:var(--rust);}
+.stp-course.add .st{color:var(--rust);}
 /* untagged-CoC nudge — a certificate uploaded without a grade can't be matched */
 .stp-untagged{display:flex;gap:10px;align-items:flex-start;margin-top:14px;padding:11px 13px;background:#FBF3E8;border:1px solid #EFD9B8;border-radius:10px;font-size:12px;line-height:1.5;color:#7A4A12;}
 .stp-untagged b{color:#1C1B3A;}

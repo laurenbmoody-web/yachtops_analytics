@@ -281,7 +281,11 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
     const met = current >= targetDays;
     bars.push({ key, label, current, required: targetDays, met, remaining: Math.max(0, targetDays - current), pct: targetDays ? Math.min(100, Math.round(current / targetDays * 100)) : 100, provisional, ...extra });
   };
-  if (r.onboardMonths) add('onboard', 'Onboard yacht service', cur.onboard, r.onboardMonths * md);
+  // onboardDays = an explicit day threshold (used where months DON'T convert at the
+  // MCA 30-day rule — e.g. the IAMI purser route counts calendar months, so its
+  // 24 months = 730 days, not 720). onboardMonths uses the MSN 30-day equivalence.
+  if (r.onboardDays) add('onboard', cert?.family === 'INTERIOR' ? 'Senior onboard yacht service' : 'Onboard yacht service', cur.onboard, r.onboardDays);
+  if (r.onboardMonths) add('onboard', cert?.family === 'INTERIOR' ? 'Senior onboard yacht service' : 'Onboard yacht service', cur.onboard, r.onboardMonths * md);
   if (r.seagoingDays) add('seagoing', `Seagoing service${r.minVesselMetres ? ` (≥${r.minVesselMetres}m)` : ''}`, cur.seagoing, r.seagoingDays);
   // MSN 1858 §3.3 OOW split: 365 = 250 seagoing-only + 115 days that may be any
   // combination of seagoing/standby/yard. Modelling both bars stops all-standby
@@ -320,7 +324,9 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
   // 5 years at NoE/CoC issue (MSN 1856 §17.2/§19.1). Its application point varies
   // by route (entry CoC vs revalidation), so it's shown as advisory guidance, not
   // a hard gate that blocks the eligibility flag.
-  if (recentDays != null) add('recency', 'Recent service · 6mo in last 5yr', recentDays, 6 * md, { advisory: true });
+  // Recency is an MCA STCW rule — it doesn't apply to the IAMI GUEST Yacht Purser
+  // route, so it's omitted for the INTERIOR family.
+  if (recentDays != null && cert?.family !== 'INTERIOR') add('recency', 'Recent service · 6mo in last 5yr', recentDays, 6 * md, { advisory: true });
   if (!bars.length) bars.push({ key: 'none', label: 'No additional qualifying service required', current: 0, required: 0, met: true, remaining: 0, pct: 100 });
   return bars;
 };
@@ -363,14 +369,25 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
   const checks = [];
   const b = buckets || computeBuckets(entries, vessels, config);
   const req = cert?.requires || {};
-  const isEngine = cert?.family === 'ENGINE';
+  const family = cert?.family || 'DECK';
+  const engineering = family === 'ENGINE' || family === 'ETO'; // engine-room domain
+  // Interior (Yacht Purser, IAMI GUEST) service isn't assessed on watchkeeping,
+  // vessel size/GT or standby — those are deck/engine STCW concepts. A purser's
+  // record is verified on senior onboard service + an endorser + ID/service docs,
+  // so the deck-specific checks are skipped for the INTERIOR family.
+  const interior = family === 'INTERIOR';
+  // The testimonial endorser by department: deck = the master; engine/ETO = the
+  // chief engineer (or master) (MSN 1904 §5.5); purser = the captain or manager.
+  const endorserWord = interior ? 'captain / manager' : engineering ? 'chief engineer / master' : 'master';
+  // Standby day-limit reference notice, by route.
+  const standbyRef = family === 'ENGINE' ? 'MSN 1904 §5' : family === 'ETO' ? 'MSN 1860 §6' : 'MSN 1858 §5.2';
 
   // 1) Watchkeeping 4-hour rule — only relevant when the route counts
   //    watchkeeping or the log actually holds watchkeeping days. A day tagged
   //    watchkeeping must record ≥4h watch (MSN 1858/1904 §5).
   const watchEntries = live.filter(e => e.type === 'watchkeeping');
-  if (watchEntries.length || req.watchkeepingDays) {
-    const watchWord = isEngine ? 'engine-room watch' : 'bridge watch';
+  if (!interior && (watchEntries.length || req.watchkeepingDays)) {
+    const watchWord = engineering ? 'engine-room watch' : 'bridge watch';
     const badWatch = watchEntries.filter(e => Number(e.watchHours) < config.watchMinHours);
     checks.push(badWatch.length
       ? { ok: false, label: 'Watchkeeping 4-hour rule', detail: `${badWatch.length} entry tagged watchkeeping with under ${config.watchMinHours}h watch — re-tag or correct before generating.` }
@@ -410,29 +427,31 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
 
   // 3) Standby within limit — only relevant when standby is actually logged;
   //    standby may not exceed actual seagoing service.
-  if (live.some(e => e.type === 'standby')) {
-    const stbyRef = isEngine ? 'the MCA standby rule' : 'MSN 1858 §5.2';
+  if (!interior && live.some(e => e.type === 'standby')) {
+    const stbyRef = standbyRef;
     checks.push(b.standbyRaw > b.actualSeagoing
       ? { ok: false, label: 'Standby within limit', detail: `Standby (${b.standbyRaw}d) exceeds actual seagoing service (${b.actualSeagoing}d). The MCA caps standby at your seagoing total (${stbyRef}) — exclude the excess.` }
       : { ok: true, label: 'Standby within limit', detail: `${b.standbyRaw}d standby ≤ ${b.actualSeagoing}d actual seagoing — within limit (${stbyRef}).` });
   }
 
-  // 4) Vessel records complete (GT + registered length present — both print on
-  //    the testimonial and drive the tonnage/size gates).
-  const usedVessels = [...new Set(live.map(e => e.vesselId))].map(id => vessels[id]);
-  const incompleteVessel = usedVessels.find(v => !v || v.gt == null || v.lengthM == null);
-  checks.push(incompleteVessel
-    ? { ok: false, label: 'Vessel records complete', detail: `Vessel "${incompleteVessel?.name || 'unknown'}" is missing GT or registered length.` }
-    : { ok: true, label: 'Vessel records complete', detail: 'GT and registered length present for every vessel.' });
+  // 4) Vessel records complete (GT + registered length) — these print on the MCA
+  //    testimonial and drive the tonnage/size gates, neither of which apply to a
+  //    purser, so the check is skipped for the INTERIOR family.
+  if (!interior) {
+    const usedVessels = [...new Set(live.map(e => e.vesselId))].map(id => vessels[id]);
+    const incompleteVessel = usedVessels.find(v => !v || v.gt == null || v.lengthM == null);
+    checks.push(incompleteVessel
+      ? { ok: false, label: 'Vessel records complete', detail: `Vessel "${incompleteVessel?.name || 'unknown'}" is missing GT or registered length.` }
+      : { ok: true, label: 'Vessel records complete', detail: 'GT and registered length present for every vessel.' });
+  }
 
-  // 5) Endorsing master on record — the Nautilus/PYA testimonial is per-master,
-  //    so every Cargo-tracked period must carry the master who covered it (they
-  //    sign the exported form; Cargo no longer captures a signature in-app).
+  // 5) Endorser on record — every Cargo-tracked period must carry the person who
+  //    can attest it on the exported form (endorserWord, by department above).
   const cargoTracked = (entries || []).filter(e => e.source === 'vessel' && !e.excluded);
   const noMasterDays = cargoTracked.filter(e => !e.masterUserId && !e.masterName).reduce((s, e) => s + (e.days || 0), 0);
   checks.push(noMasterDays > 0
-    ? { ok: false, label: 'Endorsing master on record', detail: `${noMasterDays} day(s) of Cargo-tracked service have no master on record to endorse them.` }
-    : { ok: true, label: 'Endorsing master on record', detail: 'Every Cargo-tracked period has an identified master to endorse it on the exported form.' });
+    ? { ok: false, label: `Endorsing ${endorserWord} on record`, detail: `${noMasterDays} day(s) of Cargo-tracked service have no ${endorserWord} on record to endorse them.` }
+    : { ok: true, label: `Endorsing ${endorserWord} on record`, detail: `Every Cargo-tracked period has an identified ${endorserWord} to endorse it on the exported form.` });
 
   // 6) Supporting documents for the selected verifier (optional ones don't gate).
   // Supporting docs for the testimonial verification — optional ones don't gate.

@@ -272,7 +272,9 @@ export const CERTIFICATES = {
   PURSER_COC: {
     family: 'INTERIOR', label: 'Yacht Purser (IAMI GUEST CoC)', short: 'Yacht Purser',
     msn: 'IAMI GUEST — Purser CoC', verified: 'HIGH',
-    requires: { onboardMonths: 24 },
+    // 24 CALENDAR months of senior service. IAMI has no MCA "30 days = 1 month"
+    // rule, so this is 24 × ~30.44 ≈ 730 days, NOT 720 — given as explicit days.
+    requires: { onboardDays: 730 },
     oral: false,                    // no oral / NoE — GUEST courses + PYA-verified service
     note: '24 months of verified yacht service in a SENIOR onboard role (Chief Stew / Purser) — OR 3 years in a maritime management/administration role (record that as prior service). Plus the IAMI GUEST course units and evidenced "guest-on days" (days with guests aboard). Verified by the PYA, not Nautilus.'
   }
