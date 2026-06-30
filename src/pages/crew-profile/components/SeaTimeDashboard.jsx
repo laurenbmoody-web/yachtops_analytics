@@ -167,7 +167,7 @@ const DEPT_NAME_TO_ID = {
   Deck: 'deck', Bridge: 'deck', Engineering: 'engineering', Interior: 'interior', Galley: 'galley'
 };
 
-const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, canAttest = false }) => {
+const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onAddDocument, canAttest = false }) => {
   const config = DEFAULT_CONFIG;
   const [deptId, setDeptId] = useState('deck');
   const [dualMode, setDualMode] = useState(false);   // dual deck+engine: 50% credit
@@ -251,8 +251,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // first un-held rung (the cert it was tracking).
   const docHeldIdx = route.reduce((max, id, i) => (heldCerts[id] ? i : max), -1);
   const baseTargetId = docHeldIdx >= route.length - 1 ? null : route[docHeldIdx + 1];
+  // A legacy single-object journey predates the per-cert map and multi-family
+  // routes — it was always the DECK pathway. Only attribute it to a DECK base
+  // target, never to engine/ETO/interior, so a finished deck journey can't mark
+  // an unrelated cert (e.g. the Yacht Purser) as held on a different pathway.
   const isLegacyJourney = journey && ('noe' in journey || 'oral' in journey || 'coc' in journey);
-  const journeyMap = isLegacyJourney ? (baseTargetId ? { [baseTargetId]: journey } : {}) : (journey || {});
+  const journeyMap = isLegacyJourney
+    ? (baseTargetId && CERTIFICATES[baseTargetId]?.family === 'DECK' ? { [baseTargetId]: journey } : {})
+    : (journey || {});
   const cocIssuedIn = (jr) => !!jr && (jr.coc?.status === 'issued' || !!jr.coc?.issuedDate);
   // A completed certification journey (CoC recorded as issued) means the crew now
   // holds that rung — fold it into the held set so the target advances to the next
@@ -1260,18 +1266,25 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           </button>
           {coursesOpen && (
             <>
-              <div className="stp-courses-sub">Required for {cert.short} alongside your sea time — auto-detected from your Documents. The MCA won’t issue the CoC without these.</div>
+              <div className="stp-courses-sub">Required for {cert.short} alongside your sea time — auto-detected from your Documents.{interiorPathway ? ' The PYA / IAMI need these for the Purser CoC.' : ' The MCA won’t issue the CoC without these.'}</div>
               <div className="stp-courses-list">
-                {ancillary.map(a => (
-                  <div className={`stp-course ${a.met ? 'has' : 'missing'}`} key={a.key}>
-                    <span className="ck">{a.met ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
-                    <div className="cl">
-                      <div className="nm">{a.label}</div>
-                      {a.note && <div className="nt">{a.note}</div>}
+                {ancillary.map(a => {
+                  const addType = a.anyOf?.[0];
+                  const canAdd = !a.met && addType && onAddDocument;
+                  return (
+                    <div className={`stp-course ${a.met ? 'has' : 'missing'}${canAdd ? ' add' : ''}`} key={a.key}
+                      role={canAdd ? 'button' : undefined} tabIndex={canAdd ? 0 : undefined}
+                      onClick={canAdd ? () => onAddDocument(addType) : undefined}
+                      onKeyDown={canAdd ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onAddDocument(addType); } } : undefined}>
+                      <span className="ck">{a.met ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
+                      <div className="cl">
+                        <div className="nm">{a.label}</div>
+                        {a.note && <div className="nt">{a.note}</div>}
+                      </div>
+                      {!a.met && <span className="st">{canAdd ? <><Icon name="Plus" size={11} /> Add to Documents</> : 'Not on file'}</span>}
                     </div>
-                    {!a.met && <span className="st">Not on file</span>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
