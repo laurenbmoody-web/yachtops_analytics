@@ -25,13 +25,18 @@ const wordCount = (s) => (String(s || '').trim() ? String(s).trim().split(/\s+/)
 export const fetchGuestBookEntries = async (tenantId, crew = []) => {
   const ids = crew.map((c) => c.user_id || c.id).filter(Boolean);
   let statements = {};
+  let photos = {};
   if (ids.length) {
-    const { data, error } = await supabase
-      .from('crew_profile_statements')
-      .select('user_id, statement, fun_fact, hometown, languages, interests, favourite_destination, years_yachting')
-      .in('user_id', ids);
-    if (error) console.error('[guestbook] statement fetch failed', error);
-    for (const row of data || []) statements[row.user_id] = row;
+    const [stmtRes, profRes] = await Promise.all([
+      supabase
+        .from('crew_profile_statements')
+        .select('user_id, statement, fun_fact, hometown, languages, interests, favourite_destination, years_yachting')
+        .in('user_id', ids),
+      supabase.from('profiles').select('id, avatar_url').in('id', ids),
+    ]);
+    if (stmtRes.error) console.error('[guestbook] statement fetch failed', stmtRes.error);
+    for (const row of stmtRes.data || []) statements[row.user_id] = row;
+    for (const row of profRes.data || []) photos[row.id] = row.avatar_url || '';
   }
   return crew.map((c) => {
     const uid = c.user_id || c.id;
@@ -41,6 +46,7 @@ export const fetchGuestBookEntries = async (tenantId, crew = []) => {
       name: c.fullName || c.full_name || 'Crew member',
       role: c.roleTitle || c.role || '',
       department: c.department || '',
+      photo: photos[uid] || c.avatarUrl || c.avatar_url || '',
       statement: s.statement || '',
       funFact: s.fun_fact || '',
       hometown: s.hometown || '',
@@ -103,6 +109,26 @@ export const loadLogoForPdf = (url) => new Promise((resolve) => {
   img.src = url;
 });
 
+/** Load a crew photo into a circular PNG data-URL (cover-cropped) for the PDF. */
+export const loadAvatarForPdf = (url, size = 180) => new Promise((resolve) => {
+  if (!url) { resolve(null); return; }
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try {
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.beginPath(); ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2); ctx.clip();
+      const s = Math.min(img.naturalWidth, img.naturalHeight);
+      ctx.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, size, size);
+      resolve(c.toDataURL('image/png'));
+    } catch { resolve(null); }
+  };
+  img.onerror = () => resolve(null);
+  img.src = url;
+});
+
 // ---- PDF engine -----------------------------------------------------------
 
 // Per-page count when "auto": fewer cards as statements get wordier, and fewer
@@ -138,7 +164,7 @@ const fitParagraph = (doc, text, width, hBudget, maxPt, minPt) => {
 // side, name/role/statement on the other. Side-by-side uses the card's WIDTH
 // (not its height), so the statement fits cleanly at any per-page count and in
 // landscape — and the photo alternates side ('classic') for editorial rhythm.
-const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0) => {
+const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0, avatar = null) => {
   const dark = template === 'editorial';
   const ink = dark ? DARK_INK : NAVY;
   const accent = dark ? DARK_ACCENT : TERRA;
@@ -146,30 +172,44 @@ const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0) => {
   const pad = 4;
   const photoLeft = template === 'classic' ? (idx % 2 === 0) : true;
 
-  const r = Math.min(13, h / 2 - pad);
+  const r = Math.min(14, h / 2 - pad);
   const photoCX = photoLeft ? x + pad + r : x + w - pad - r;
-  // monogram, vertically centred in the strip
-  doc.setFillColor(dark ? 51 : 233, dark ? 50 : 228, dark ? 90 : 220);
-  doc.circle(photoCX, y + h / 2, r, 'F');
-  doc.setTextColor(dark ? 200 : 160, dark ? 199 : 142, dark ? 220 : 125);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(r * 2.2);
-  doc.text(initials(entry.name), photoCX, y + h / 2 + r * 0.32, { align: 'center' });
-
-  // text column on the other side of the photo
   const gap = 6;
   const tx = photoLeft ? x + 2 * r + pad + gap : x + pad;
   const tw = w - 2 * r - pad * 2 - gap;
 
-  let cy = y + pad + 4;
+  // Measure the text block first, then centre the whole card (photo + text)
+  // within its slot — short statements sit with balanced space above/below
+  // rather than all the gap dropping to the bottom.
+  const nameH = 5.4;
+  const roleH = entry.role ? 4.5 : 0;
+  doc.setFont('helvetica', 'normal');
+  const fit = fitParagraph(doc, entry.statement || '—', tw, h - 2 * pad - nameH - roleH, 11, minFont);
+  const blockH = nameH + roleH + 3 + fit.lines.length * fit.lh;
+  const contentH = Math.max(blockH, 2 * r);
+  const topY = y + Math.max(0, (h - contentH) / 2);
+  const photoCY = topY + contentH / 2;
+
+  // photo — real avatar (circular PNG) if we have one, else a monogram disc
+  if (avatar) {
+    try { doc.addImage(avatar, 'PNG', photoCX - r, photoCY - r, 2 * r, 2 * r); } catch { /* fall through */ }
+  } else {
+    doc.setFillColor(dark ? 51 : 233, dark ? 50 : 228, dark ? 90 : 220);
+    doc.circle(photoCX, photoCY, r, 'F');
+    doc.setTextColor(dark ? 200 : 160, dark ? 199 : 142, dark ? 220 : 125);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(r * 2.2);
+    doc.text(initials(entry.name), photoCX, photoCY + r * 0.32, { align: 'center' });
+  }
+
+  let cy = topY + nameH;
   doc.setTextColor(...ink); doc.setFont('times', 'normal'); doc.setFontSize(14.5);
-  doc.text(entry.name, tx, cy); cy += 5;
+  doc.text(entry.name, tx, cy);
   if (entry.role) {
     doc.setTextColor(...accent); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-    doc.text(entry.role.toUpperCase(), tx, cy, { charSpace: 0.4 }); cy += 4.5;
+    doc.text(entry.role.toUpperCase(), tx, cy + roleH, { charSpace: 0.4 });
   }
-  doc.setTextColor(...bodyInk); doc.setFont('helvetica', 'normal');
-  const fit = fitParagraph(doc, entry.statement || '—', tw, y + h - cy - pad, 11, minFont);
-  doc.setFontSize(fit.pt);
+  cy += roleH + 3;
+  doc.setTextColor(...bodyInk); doc.setFont('helvetica', 'normal'); doc.setFontSize(fit.pt);
   fit.lines.forEach((ln, i) => doc.text(ln, tx, cy + 3 + i * fit.lh));
 };
 
@@ -180,7 +220,7 @@ const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0) => {
 export const exportGuestBookPDF = ({
   title = 'Our crew', subtitle = '', entries = [],
   template = 'classic', orientation = 'portrait', perPage = 3, minFont = 9,
-  includeMissing = false, logo = null,
+  includeMissing = false, logo = null, avatars = {},
 }) => {
   const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
   if (!list.length) return { pages: 0, count: 0 };
@@ -238,7 +278,7 @@ export const exportGuestBookPDF = ({
     pageEntries.forEach((entry, idx) => {
       const x = M;
       const y = gridY + idx * (rowH + 6);
-      drawCard(doc, x, y, colW, rowH, entry, template, minFont, idx);
+      drawCard(doc, x, y, colW, rowH, entry, template, minFont, idx, avatars[entry.userId]);
       // hairline between stacked strips
       if (idx < pageEntries.length - 1) {
         doc.setDrawColor(...(dark ? [44, 43, 78] : HAIR));

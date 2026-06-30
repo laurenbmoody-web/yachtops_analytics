@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
-import { fetchGuestBookEntries, exportGuestBookPDF, adaptTemplateFromImage, fetchVesselBrand, loadLogoForPdf, autoPerPage } from '../utils/guestBookExport';
+import { fetchGuestBookEntries, exportGuestBookPDF, adaptTemplateFromImage, fetchVesselBrand, loadLogoForPdf, loadAvatarForPdf, autoPerPage } from '../utils/guestBookExport';
 import './guest-book-export.css';
 
 const TEMPLATES = [
@@ -29,6 +29,7 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
   const [aiNote, setAiNote] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [logo, setLogo] = useState(null); // { dataUrl, aspect } for the PDF
+  const [avatars, setAvatars] = useState({}); // userId -> circular PNG data-URL
   const dragFrom = useRef(null);
   const fileRef = useRef(null);
 
@@ -48,6 +49,10 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
     setLogoUrl(brand.logoUrl || '');
     setLogo(null);
     if (brand.logoUrl) loadLogoForPdf(brand.logoUrl).then(setLogo);
+    // Pre-load crew photos as circular PNGs for the PDF (best-effort).
+    setAvatars({});
+    Promise.all(data.filter((e) => e.photo).map(async (e) => [e.userId, await loadAvatarForPdf(e.photo)]))
+      .then((pairs) => setAvatars(Object.fromEntries(pairs.filter(([, v]) => v))));
     setLoading(false);
   }, [tenantId, crew]);
 
@@ -78,10 +83,13 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
   // One full-width strip per row — mirrors the generator.
   const rowCount = Math.max(1, perResolved);
   const totalPages = Math.max(1, Math.ceil(visible.length / perResolved));
+  // Rough lines of statement that fit a strip at this density — keeps the
+  // preview's truncation honest with the export (which fits-then-truncates).
+  const bioLines = Math.max(3, Math.round((orientation === 'landscape' ? 16 : 30) / perResolved));
 
   const doExport = () => {
     const res = exportGuestBookPDF({
-      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing, logo,
+      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing, logo, avatars,
     });
     if (!res.count) { showToast('No statements to export yet', 'error'); return; }
     showToast(`Guest book exported — ${res.count} crew across ${res.pages} page${res.pages === 1 ? '' : 's'}`, 'success');
@@ -221,13 +229,15 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
                   <div className="t">{title || 'Our crew'}</div>
                   {subtitle && <div className="s">{subtitle}</div>}
                 </div>
-                <div className={`gbx-cards tpl-${template}`} style={{ '--cols': 1, '--rows': rowCount }}>
+                <div className={`gbx-cards tpl-${template}`} style={{ '--cols': 1, '--rows': rowCount, '--bio-lines': bioLines }}>
                   {visible.slice(0, perResolved).map((en, i) => {
                     const fs = Math.max(minFont, Math.min(13, 13 - (en.words - 30) * (13 - minFont) / 70));
                     const flip = template === 'classic' && i % 2 === 1;
                     return (
                       <div className={`gbx-card${flip ? ' flip' : ''}`} key={en.userId}>
-                        <span className="gbx-pic">{initials(en.name)}</span>
+                        {en.photo
+                          ? <img className="gbx-pic gbx-pic-img" src={en.photo} alt="" />
+                          : <span className="gbx-pic">{initials(en.name)}</span>}
                         <div className="gbx-card-body">
                           <div className="nm">{en.name}</div>
                           {en.role && <div className="rl">{en.role}</div>}
