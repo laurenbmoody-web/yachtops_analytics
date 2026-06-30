@@ -1258,6 +1258,10 @@ body.crew-profile-editorial {
 /* HOR signature receipt — editorial "signed ledger" (replaces the boxed cards).
    One panel, hairline-divided; a signing line under each drawn signature. */
 .crew-profile-page .cp-sigrcpt { display: grid; grid-template-columns: 1fr; background: #fff; border: 1px solid #ECEAE3; border-radius: 14px; overflow: hidden; }
+/* A single signature (self-certified, or crew-only before counter-sign) only
+   ever holds one column, so don't stretch the panel the full content width —
+   size it to a tidy receipt. The two-signature case (.two) still spans wide. */
+.crew-profile-page .cp-sigrcpt:not(.two) { max-width: 380px; }
 .crew-profile-page .cp-sig { padding: 16px 18px; }
 .crew-profile-page .cp-sigrcpt .cp-sig + .cp-sig { border-top: 1px solid #F0F1F5; }
 @media (min-width: 640px) {
