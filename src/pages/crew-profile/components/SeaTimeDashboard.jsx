@@ -209,6 +209,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [company, setCompany] = useState({}); // vessel's company/shipowner contact (Nautilus Part 1)
   const [prior, setPrior] = useState(SEED_PRIOR);
   const [priorBaseline, setPriorBaseline] = useState(null); // raw {seagoing,watchkeeping,standby,yard,note}
+  const [guestOnDays, setGuestOnDays] = useState(null);     // Yacht Purser evidence — days with guests aboard
   const [priorOpen, setPriorOpen] = useState(false);
   const [priorDraft, setPriorDraft] = useState({ seagoing: '', watchkeeping: '', standby: '', yard: '', note: '' });
   // Certification journey: NoE -> oral exam -> CoC, with the MCA validity timers.
@@ -356,7 +357,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const [rows, prof, pd, ves] = await Promise.all([
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years, guest_on_days')?.eq('user_id', userId)?.maybeSingle(),
         supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw, loa_m, typical_guest_count')?.eq('tenant_id', tenantId)?.maybeSingle(),
       ]);
       // The certified passport copy auto-ticks the pack's proof-of-identity doc
@@ -374,6 +375,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, dischargeBookNo: pd?.data?.discharge_book_number || '', membershipNo: pd?.data?.verifier_membership_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
         setPriorBaseline(pd?.data?.sea_service_prior || {});
         setPrior(priorFromBaseline(pd?.data?.sea_service_prior)); // lifetime baseline accrued before Cargo
+        setGuestOnDays(pd?.data?.guest_on_days ?? null);
         setJourney(pd?.data?.cert_progression || null);
         setAccounted(pd?.data?.accounted_years || {});
         setUsingSample(false);
@@ -522,6 +524,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const totalLoggedDays = live.reduce((s, e) => s + (e.days || 0), 0);
   const badCount = live.filter(e => !classify(e, vessels[e.vesselId], config).qual).length;
   const hasAttention = badCount > 0;
+  // Interior (Yacht Purser) service is verified by the PYA only — Nautilus and the
+  // MCA-route verifiers don't handle purser/interior service. Other families get
+  // the full list.
+  const verifierIds = useMemo(() => (cert?.family === 'INTERIOR' ? ['pya'] : Object.keys(VERIFIER_PROFILES)), [cert?.family]);
+  useEffect(() => { if (!verifierIds.includes(verifier)) setVerifier(verifierIds[0]); }, [verifierIds, verifier]);
   const vp = VERIFIER_PROFILES[verifier];
   const usedVessels = [...new Set(live.map(e => e.vesselId))].map(id => vessels[id]).filter(Boolean);
   const areasCruised = [...new Set(live.map(e => e.region).filter(Boolean))].join(', ') || '—';
@@ -912,6 +919,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     } catch (e) { console.error('[seatime] save prior', e); flash('Could not save prior service'); }
   };
 
+  // Guest-on days (Yacht Purser evidence). A verified count, not a hard gate —
+  // the IAMI route asks for it to be evidenced (captain/company or charter records).
+  const saveGuestOnDays = async (val) => {
+    const n = val === '' || val == null ? null : Math.max(0, Math.round(+val) || 0);
+    setGuestOnDays(n);
+    if (usingSample || !userId) { flash('Guest-on days saved (preview)'); return; }
+    try {
+      const { error } = await supabase.from('crew_personal_details').upsert({ user_id: userId, guest_on_days: n }, { onConflict: 'user_id' });
+      if (error) throw error;
+      flash('Guest-on days saved');
+    } catch (e) { console.error('[seatime] save guest-on days', e); flash('Could not save guest-on days'); }
+  };
+
   // Certification journey (NoE -> oral -> CoC). The modal is scoped to one
   // milestone (step) at a time, gated by progress.
   const openJourney = (step = 'noe') => { setJourneyStep(step); setCocListOpen(null); setJourneyDraft(JSON.parse(JSON.stringify(activeJourney))); setJourneyOpen(true); };
@@ -1144,6 +1164,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                     </div>
                   ) : (
                     <div className="stp-sub" style={{ marginTop: 12 }}>No additional qualifying service required — may be applied for alongside the certificate above.</div>
+                  )}
+                  {cert?.family === 'INTERIOR' && (
+                    <div className="stp-guest">
+                      <div className="stp-guest-main">
+                        <span className="mlabel rustlabel">Guest-on days</span>
+                        <span className="stp-guest-sub">Days with guests aboard (charters, shows, owner trips). Evidenced for your purser application by captain/company or charter records — not a fixed minimum.</span>
+                      </div>
+                      <div className="stp-guest-field">
+                        <input type="number" min="0" className="stp-guest-input" defaultValue={guestOnDays ?? ''} key={guestOnDays ?? 'e'}
+                          placeholder="0" onBlur={(e) => { const v = e.target.value; if (String(v) !== String(guestOnDays ?? '')) saveGuestOnDays(v); }} />
+                        <span className="stp-guest-unit">days</span>
+                      </div>
+                    </div>
                   )}
                   {r.asOfficer && (
                     <div className="stp-whilst">
@@ -1674,7 +1707,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
               <div className="std-vtabs">
-                {Object.values(VERIFIER_PROFILES).map(v => <button key={v.id} className={verifier === v.id ? 'on' : ''} onClick={() => pickVerifier(v.id)}>{v.label}</button>)}
+                {verifierIds.map(id => VERIFIER_PROFILES[id]).map(v => <button key={v.id} className={verifier === v.id ? 'on' : ''} onClick={() => pickVerifier(v.id)}>{v.label}</button>)}
               </div>
             </div>
           </div>
