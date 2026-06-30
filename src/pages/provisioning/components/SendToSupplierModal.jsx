@@ -73,7 +73,15 @@ const SendToSupplierModal = ({
   const [sentOrderCount, setSentOrderCount] = useState(0);
   const [sendingKey, setSendingKey] = useState(null);   // group key being sent
   const [sendingAll, setSendingAll] = useState(false);
-  const [unassignedSupplierId, setUnassignedSupplierId] = useState('');
+  // Per-item supplier overrides applied from the Unassigned bucket — lets
+  // the chief split a shopping list across multiple suppliers (select a
+  // subset → assign → they break out into their own order). Keyed by item
+  // id; each assignment also persists to provisioning_items so the split
+  // survives. supplierOverrides shadows the items prop in effectiveItems.
+  const [supplierOverrides, setSupplierOverrides] = useState({}); // id → {supplier_profile_id, supplier_name}
+  const [selectedUnassigned, setSelectedUnassigned] = useState(() => new Set()); // item ids
+  const [assignPickerId, setAssignPickerId] = useState('');   // supplier to assign the selection to
+  const [assigning, setAssigning] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState(() => new Set());
   const toggleExpanded = (k) => setExpandedKeys((prev) => {
     const next = new Set(prev);
@@ -92,7 +100,9 @@ const SendToSupplierModal = ({
     setSentOrderCount(0);
     setSendingKey(null);
     setSendingAll(false);
-    setUnassignedSupplierId('');
+    setSupplierOverrides({});
+    setSelectedUnassigned(new Set());
+    setAssignPickerId('');
     setExpandedKeys(new Set());
   }, [isOpen]);
 
@@ -109,12 +119,22 @@ const SendToSupplierModal = ({
   const vesselPfx = rawVesselType.includes('sail') ? 'S/Y' : 'M/Y';
   const prefixedVesselName = `${vesselPfx} ${vesselName || 'Vessel'}`;
 
+  // Items with the chief's in-modal supplier assignments applied on top
+  // of the persisted supplier_profile_id, so the grouping reflects splits
+  // the moment they're made.
+  const effectiveItems = useMemo(
+    () => items.map(it => (it.id && supplierOverrides[it.id]
+      ? { ...it, ...supplierOverrides[it.id] }
+      : it)),
+    [items, supplierOverrides],
+  );
+
   // ── Grouping ────────────────────────────────────────────────────
   const { groups, unassigned } = useMemo(() => {
     const byId = new Map(suppliers.map(s => [s.id, s]));
     const g = new Map();   // supplierId → { supplier, items: [{item,key}] }
     const un = [];          // { item, key, archivedOrigin }
-    items.forEach((it, i) => {
+    effectiveItems.forEach((it, i) => {
       const key = itemKey(it, i);
       const spid = it.supplier_profile_id;
       if (spid && byId.has(spid)) {
@@ -125,28 +145,41 @@ const SendToSupplierModal = ({
       }
     });
     return { groups: [...g.values()], unassigned: un };
-  }, [items, suppliers]);
+  }, [effectiveItems, suppliers]);
 
-  // Picking a supplier in the Unassigned row "moves" those items into
-  // the picked supplier's group for the purposes of sending — either
-  // merging into an existing supplier's row (so they ship in one
-  // order) or creating a new pending group when the supplier doesn't
-  // already have one. The actual provisioning_items.supplier_profile_id
-  // backfill happens at send time inside sendGroup.
-  const visualGroups = useMemo(() => {
-    if (!unassignedSupplierId || unassigned.length === 0) return groups;
-    const picked = suppliers.find(s => s.id === unassignedSupplierId);
-    if (!picked) return groups;
-    const existing = groups.find(gi => gi.supplier.id === picked.id);
-    if (existing) {
-      return groups.map(gi =>
-        gi.supplier.id === picked.id
-          ? { ...gi, items: [...gi.items, ...unassigned] }
-          : gi,
-      );
+  // Assignments now persist immediately (supplierOverrides → real groups),
+  // so the visual list is just the grouped result.
+  const visualGroups = groups;
+
+  // Assign the selected unassigned items to a supplier — splits a mixed
+  // shopping list across suppliers. Persists supplier_profile_id so the
+  // split sticks, and applies it locally so the items break out into the
+  // supplier's order straight away.
+  const assignSelectedToSupplier = async (supplierId) => {
+    const picked = suppliers.find(s => s.id === supplierId);
+    const ids = unassigned
+      .filter(r => selectedUnassigned.has(r.item.id) && r.item.id)
+      .map(r => r.item.id);
+    if (!picked || ids.length === 0) return;
+    setAssigning(true);
+    try {
+      const { error } = await setItemsSupplierProfile(ids, picked.id, picked.name || null);
+      if (error) throw error;
+      setSupplierOverrides(prev => {
+        const next = { ...prev };
+        ids.forEach(id => { next[id] = { supplier_profile_id: picked.id, supplier_name: picked.name || null }; });
+        return next;
+      });
+      setSelectedUnassigned(new Set());
+      setAssignPickerId('');
+      showToast(`${ids.length} ${ids.length === 1 ? 'item' : 'items'} assigned to ${picked.name || 'supplier'}`, 'success');
+    } catch (e) {
+      console.error('[SendToSupplierModal] assign selected failed:', e);
+      showToast('Could not assign items — try again', 'error');
+    } finally {
+      setAssigning(false);
     }
-    return [...groups, { supplier: picked, items: [...unassigned] }];
-  }, [groups, unassigned, unassignedSupplierId, suppliers]);
+  };
 
   const isSent = (k) => sentItemKeys.has(k);
   const groupUnsent = (gi) => gi.items.filter(x => !isSent(x.key));
@@ -168,8 +201,9 @@ const SendToSupplierModal = ({
     deliveryDate !== '' ||
     deliveryTime !== '' ||
     currency !== '' ||
-    deliveryContact !== defaultRequester ||
-    (unassigned.length > 0 && unassignedSupplierId !== '')
+    deliveryContact !== defaultRequester
+    // Supplier assignments persist as they're made, so they're never
+    // "unsaved" — no need to gate the close on them.
   );
   const isBusy = !!sendingKey || sendingAll;
 
@@ -476,7 +510,7 @@ const SendToSupplierModal = ({
       const created = await createSupplier({ tenant_id: tenantId, name });
       if (created?.id) {
         setSuppliers(prev => [...prev, created]);
-        setUnassignedSupplierId(created.id);
+        setAssignPickerId(created.id);
         return created;
       }
     } catch (err) {
@@ -486,8 +520,6 @@ const SendToSupplierModal = ({
   };
 
   if (!isOpen) return null;
-
-  const unassignedSupplier = suppliers.find(s => s.id === unassignedSupplierId) || null;
 
   // ── Render ──────────────────────────────────────────────────────
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -608,16 +640,18 @@ const SendToSupplierModal = ({
 
   const UnassignedRow = () => {
     const isOpen = expandedKeys.has('__unassigned__');
-    const supplier = unassignedSupplier;
-    // When a supplier is picked, the items merge into that supplier's
-    // row above (existing or new pending) — so the action buttons live
-    // there. The Unassigned row just hosts the picker for ongoing
-    // edits. When nothing is picked yet, buttons render disabled to
-    // signpost the "still to send" state.
-    const isMerged = !!supplier;
-    const mergedWithExisting = isMerged && groups.some(gi => gi.supplier.id === supplier.id);
+    const selectableRows = unassigned.filter(r => r.item.id && !isSent(r.key));
+    const selectedCount = selectableRows.filter(r => selectedUnassigned.has(r.item.id)).length;
+    const allSelected = selectableRows.length > 0 && selectedCount === selectableRows.length;
+    const toggleItem = (id) => setSelectedUnassigned((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    const toggleAll = () => setSelectedUnassigned(() =>
+      allSelected ? new Set() : new Set(selectableRows.map(r => r.item.id)));
     return (
-      <div className={`stsm-row stsm-row-unassigned${isOpen ? ' is-open' : ''}${isMerged ? ' is-merged' : ''}`}>
+      <div className={`stsm-row stsm-row-unassigned${isOpen ? ' is-open' : ''}`}>
         <button
           type="button"
           className="stsm-row-main"
@@ -633,45 +667,63 @@ const SendToSupplierModal = ({
               <span className="stsm-row-meta"> · {plural(unassigned.length, 'item')} waiting</span>
             </span>
             <span className="stsm-row-contact">
-              {isMerged
-                ? <>Will send with <strong>{supplier.name}</strong>{mergedWithExisting ? ' (merged above).' : '.'}</>
-                : 'Choose a supplier to send these on their way.'}
+              Going to different suppliers? Tick the items for one supplier, assign, repeat.
             </span>
           </span>
         </button>
-        {!isMerged && (
-          <div className="stsm-row-actions" onClick={(e) => e.stopPropagation()}>
-            <div className="stsm-btnpair">
-              <button
-                type="button"
-                disabled
-                className="stsm-btn stsm-btn-ghost is-disabled"
-              >
-                WhatsApp
-              </button>
-              <button
-                type="button"
-                disabled
-                className="stsm-btn stsm-btn-primary is-disabled"
-              >
-                Send
-              </button>
-            </div>
-            <span className="stsm-hint">Pick a supplier below to enable.</span>
+
+        {/* Split control — assign the ticked items to a supplier. They
+            break out into that supplier's order above; the rest stay
+            here for the next assignment. */}
+        <div className="stsm-assign-bar" onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="stsm-selectall" onClick={toggleAll} disabled={selectableRows.length === 0}>
+            {allSelected ? 'Clear' : 'Select all'}
+          </button>
+          <div className="stsm-assign-picker">
+            <SupplierPicker
+              value={assignPickerId}
+              suppliers={suppliers}
+              inputClassName={pickerInputCls}
+              placeholder={suppliersLoading ? 'Loading…' : 'Assign selected to…'}
+              onChange={(p) => setAssignPickerId(p ? p.id : '')}
+              allowAddNew
+              onAddNew={handleAddNewSupplier}
+            />
           </div>
-        )}
-        <div className="stsm-row-picker" onClick={(e) => e.stopPropagation()}>
-          <SupplierPicker
-            value={unassignedSupplierId}
-            suppliers={suppliers}
-            inputClassName={pickerInputCls}
-            placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier'}
-            onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
-            allowAddNew
-            onAddNew={handleAddNewSupplier}
-          />
+          <button
+            type="button"
+            className={`stsm-btn stsm-btn-primary${(!assignPickerId || selectedCount === 0 || assigning) ? ' is-disabled' : ''}`}
+            disabled={!assignPickerId || selectedCount === 0 || assigning}
+            onClick={() => assignSelectedToSupplier(assignPickerId)}
+          >
+            {assigning ? <><span className="stsm-spinner" /> Assigning…</> : (selectedCount ? `Assign ${selectedCount}` : 'Assign')}
+          </button>
         </div>
-        {isOpen && <ItemList rows={unassigned} />}
+
+        {isOpen && (
+          <ul className="stsm-itemlist stsm-itemlist-select">
+            {unassigned.map((r) => {
+              const it = r.item;
+              const sent = isSent(r.key);
+              const qty = it.quantity != null ? `${it.quantity}${it.unit ? ` ${it.unit}` : ''}` : '';
+              const checked = it.id ? selectedUnassigned.has(it.id) : false;
+              return (
+                <li key={r.key} className={`stsm-itemrow stsm-itemrow-select${sent ? ' is-sent' : ''}`}>
+                  <label className="stsm-itemcheck">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!it.id || sent}
+                      onChange={() => it.id && toggleItem(it.id)}
+                    />
+                    <span className="stsm-itemname">{it.name}</span>
+                  </label>
+                  {qty && <span className="stsm-itemqty">{qty}</span>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     );
   };
