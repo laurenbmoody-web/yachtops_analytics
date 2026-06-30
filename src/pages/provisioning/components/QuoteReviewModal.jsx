@@ -57,7 +57,13 @@ const QuoteReviewModal = ({ list, items, baselineCostById, file, onApplied, onCl
           // reads unit prices from any quote format (not just price-last).
           body: { base64, mediaType, batchItems: items, mode: 'quote' },
         });
-        if (fnError) throw new Error(fnError?.message || 'Could not read the quote.');
+        if (fnError) {
+          // functions.invoke surfaces a generic "non-2xx" string; try the
+          // response body for the real reason, else a friendly fallback.
+          let reason = '';
+          try { reason = (await fnError?.context?.json?.())?.error || ''; } catch { /* noop */ }
+          throw new Error(reason || "Couldn't read the quote automatically — the document service may be busy. Try again in a moment, or enter the prices by hand.");
+        }
 
         const lines = result?.line_items || [];
         const itemById = new Map((items || []).map(i => [i.id, i]));
