@@ -250,16 +250,15 @@ test('optional supporting docs do not gate; verifier-specific required docs do',
   assert.ok(MCA_APPLICATION_DOCS.some(d => /ENG1/.test(d)) && MCA_APPLICATION_DOCS.some(d => /oral/i.test(d)));
 });
 
-test('revalidation-only docs gate only when revalidating', () => {
+test('Transport Malta testimonial verification: ID + CVC + signatory only', () => {
   const clean = [{ id: 'b', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 14 }];
-  // Transport Malta base docs satisfied (passport, CVC, signatory); the reval
-  // docs (photos / medical / CoC) are absent.
-  const base = { passport: true, cvc: true, sig: true };
-  const plain = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'transport_malta', docMet: base });
-  assert.equal(plain.canGenerate, true); // a plain testimonial doesn't need them
-  const reval = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'transport_malta', docMet: base, revalidating: true });
-  assert.equal(reval.canGenerate, false); // revalidation makes photos/medical/CoC required
-  assert.ok(reval.checks.some(c => !c.ok && /Supporting documents/.test(c.label)));
+  // Verification needs only what supports the testimonial — passport, the CVC and
+  // the signatory; no CoC / photos / medical (those are CoC-application docs).
+  const r = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'transport_malta', docMet: { passport: true, cvc: true, sig: true } });
+  assert.equal(r.canGenerate, true);
+  const ids = getVerifierProfiles().find(v => v.id === 'transport_malta').docs.map(d => d.id);
+  assert.ok(!ids.includes('coc') && !ids.includes('photos') && !ids.includes('medical'));
+  assert.ok(ids.includes('cvc') && ids.includes('sig'));
 });
 
 // --- validation checks are pathway-relevant, and only what's in the log ------

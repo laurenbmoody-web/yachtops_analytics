@@ -83,26 +83,18 @@ export const VERIFIER_PROFILES = {
   },
   transport_malta: {
     id: 'transport_malta', label: 'Transport Malta', short: 'Transport Malta', name: 'Transport Malta — Merchant Shipping Directorate',
-    // Transport Malta's Seafarer Portal asks for more than the PYA/Nautilus
-    // route: ID + two photos + a medical + an authorised signatory, with the CoC
-    // where revalidating (PYD 210). Its deck testimonial form (S.L. 499.23)
-    // explicitly requires a copy of each vessel's Certificate of Registry / CVC.
-    // SRB is supporting.
-    // A plain sea-service testimonial needs only ID + the signed form + the
-    // Certificate of Registry/CVC per vessel (S.L. 499.23; PYA verify on TM's
-    // behalf). The photos / medical / CoC belong to the REVALIDATION submission
-    // (PYD 210) — `reval: true` makes them required only when revalidating.
+    // Verifying SERVICE only needs what supports the testimonial: ID, the signed
+    // testimonial form, and (per the S.L. 499.23 form) the Certificate of
+    // Registry / CVC for each vessel. SRB is supporting. CoC / photos / medical
+    // are CoC-application docs, NOT testimonial-verification docs.
     docs: [
       { id: 'passport', label: 'Passport or ID card copy', profileDoc: 'passport_certified_copy' },
       { id: 'cvc', label: 'Certificate of Registry / CVC — copy per vessel' },
       { id: 'sig', label: 'Authorised signatory (Captain / CO / CE / Owner / Manager)' },
-      { id: 'srb', label: 'Discharge book / Seaman’s book', profileDoc: 'seamans_book', optional: true },
-      { id: 'photos', label: 'Two passport-size photographs', reval: true },
-      { id: 'medical', label: 'Medical fitness certificate (ENG1)', profileDoc: 'eng1', reval: true },
-      { id: 'coc', label: 'Current CoC + endorsements', profileDoc: 'coc', reval: true }
+      { id: 'srb', label: 'Discharge book / Seaman’s book', profileDoc: 'seamans_book', optional: true }
     ],
     fee: 'Verification via the Transport Malta Seafarer Portal (MIN 543 authorised); processing fee applies.',
-    instructions: 'Transport Malta is an MCA-authorised verifier (MIN 543). Complete the deck testimonial (S.L. 499.23) on their Seafarer Portal and send it to your signatory, then submit with your ID, two photographs, medical and a copy of each vessel’s Certificate of Registry / CVC — use this captain-attested record to fill it accurately.',
+    instructions: 'Transport Malta is an MCA-authorised verifier (MIN 543). Complete the deck testimonial (S.L. 499.23) on their Seafarer Portal and send it to your signatory, then submit it with your ID and a copy of each vessel’s Certificate of Registry / CVC — use this captain-attested record to fill it accurately.',
     lastReviewed: '2026-06-22'
   },
   mca: {
@@ -113,8 +105,7 @@ export const VERIFIER_PROFILES = {
     docs: [
       { id: 'srb', label: 'Discharge Book with master’s stamps', profileDoc: 'seamans_book' },
       { id: 'stamp', label: 'Master’s signature & ship’s official stamp on the testimonial' },
-      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' },
-      { id: 'coc', label: 'Current CoC copy', profileDoc: 'coc', reval: true }
+      { id: 'passport', label: 'Certified passport copy', profileDoc: 'passport_certified_copy' }
     ],
     fee: 'No verifier fee — but note the MCA still needs a verified testimonial (PYA/Nautilus) unless you use an MCA-approved Service Record Book.',
     instructions: 'Direct MCA route via your Discharge Book and a master-signed Testimonial of Sea Service (MSN 1858). Use this record as the testimonial — the master attests it; the MCA assess it with your application.',
@@ -367,7 +358,7 @@ const vesselGateFor = (cert) => {
  * @param {Object} [p.buckets]  precomputed buckets (recomputed if absent)
  * @returns {{ checks:Array, canGenerate:boolean, passed:number, total:number, readinessPct:number }}
  */
-export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory, verifier, docMet = {}, cert = null, buckets = null, revalidating = false }) => {
+export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory, verifier, docMet = {}, cert = null, buckets = null }) => {
   const live = entries.filter(e => !e.excluded);
   const checks = [];
   const b = buckets || computeBuckets(entries, vessels, config);
@@ -444,11 +435,9 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
     : { ok: true, label: 'Endorsing master on record', detail: 'Every Cargo-tracked period has an identified master to endorse it on the exported form.' });
 
   // 6) Supporting documents for the selected verifier (optional ones don't gate).
-  // A doc gates generation when it's required: never if `optional` (supporting);
-  // `reval` docs only when revalidating an existing CoC; otherwise always.
+  // Supporting docs for the testimonial verification — optional ones don't gate.
   const docs = VERIFIER_PROFILES[verifier]?.docs || [];
-  const isRequiredDoc = (d) => !d.optional && (!d.reval || revalidating);
-  const missing = docs.filter(d => isRequiredDoc(d) && !docMet[d.id]);
+  const missing = docs.filter(d => !d.optional && !docMet[d.id]);
   checks.push(missing.length
     ? { ok: false, label: 'Supporting documents', detail: `${missing.length} required document(s) outstanding for ${VERIFIER_PROFILES[verifier]?.short}.` }
     : { ok: true, label: 'Supporting documents', detail: `All ${VERIFIER_PROFILES[verifier]?.short} supporting documents attached.` });
