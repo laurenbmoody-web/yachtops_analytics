@@ -3,11 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
 
 import { Department, UserStatus, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../utils/authStorage';
-import { CREW_STATUSES, getStatusLabel, getStatusDotClass, getStatusBadgeClasses } from '../../utils/crewStatus';
+import { getStatusLabel } from '../../utils/crewStatus';
 import InviteCrewModal from './components/InviteCrewModal';
 import PendingInvitesSection from './components/PendingInvitesSection';
 import EditCrewModal from './components/EditCrewModal';
@@ -22,9 +20,13 @@ import { getMyContext } from '../../utils/authHelpers';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { logActivity } from '../../utils/activityStorage';
+import './crew-management.css';
 
 // DEV_MODE constant
 const DEV_MODE = true;
+
+// Initials for the editorial avatar fallback.
+const initials = (n) => String(n || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
 
 // Add this block - showToast helper function
 const showToast = (message, type = 'info') => {
@@ -659,30 +661,35 @@ const CrewManagement = () => {
     });
   };
 
-  // Render sort icon
+  // Render sort icon — editorial chevron stack, terracotta when active.
   const renderSortIcon = (column) => {
-    if (sortConfig?.column !== column) {
-      return (
-        <div className="inline-flex flex-col ml-1 opacity-30">
-          <Icon name="ChevronUp" size={12} className="-mb-1" />
-          <Icon name="ChevronDown" size={12} />
-        </div>
-      );
+    const active = sortConfig?.column === column && sortConfig?.direction;
+    if (active === 'asc') {
+      return <span className="cm-sort-ico is-active"><Icon name="ChevronUp" size={12} /></span>;
     }
-
-    if (sortConfig?.direction === 'asc') {
-      return <Icon name="ChevronUp" size={14} className="inline ml-1 text-primary" />;
-    } else if (sortConfig?.direction === 'desc') {
-      return <Icon name="ChevronDown" size={14} className="inline ml-1 text-primary" />;
+    if (active === 'desc') {
+      return <span className="cm-sort-ico is-active"><Icon name="ChevronDown" size={12} /></span>;
     }
-
-    return null;
+    return (
+      <span className="cm-sort-ico">
+        <Icon name="ChevronUp" size={11} className="-mb-0.5" />
+        <Icon name="ChevronDown" size={11} />
+      </span>
+    );
   };
 
   // Get final filtered and sorted users
   const filteredUsers = getSortedUsers(getSearchFilteredUsers());
 
   const filteredAndSortedUsers = getSortedUsers(getSearchFilteredUsers());
+
+  // Editorial header stats — drawn from the loaded crew set.
+  const crewStats = {
+    total: users?.length || 0,
+    onBoard: users?.filter(u => u?.status === 'active')?.length || 0,
+    away: users?.filter(u => u?.status && u?.status !== 'active' && u?.status !== 'invited')?.length || 0,
+    departments: new Set((users || []).map(u => u?.department).filter(d => d && d !== '—')).size,
+  };
 
   // Check if user can invite (COMMAND or CHIEF)
   const canInvite = currentUser && (currentUser?.tier === 'COMMAND' || currentUser?.tier === 'CHIEF' || hasCommandAccess(currentUser));
@@ -710,314 +717,221 @@ const CrewManagement = () => {
   const shouldShowInviteButton = currentUser || !loading;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="cm-page">
       <Header />
-      {/* DEBUG: Route mounted indicator - ALWAYS VISIBLE */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed top-16 left-2 bg-yellow-200 text-yellow-900 px-2 py-1 text-xs font-mono rounded z-50">
-          Route: {location?.pathname}
-        </div>
-      )}
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Page Header - Title and subtitle only */}
-        <div className="flex items-center justify-between" style={{minHeight: '60px'}}>
+      <div className="cm-wrap">
+        {/* Editorial header — eyebrow, serif headline, lead, primary actions. */}
+        <div className="cm-head">
           <div>
-            <h1 className="text-3xl font-bold text-foreground" style={{fontSize: '30px', fontWeight: 'bold', marginBottom: '8px'}}>Crew Management</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage crew members, roles, and access permissions
+            <div className="cm-eyebrow">Crew</div>
+            <h1 className="cm-title">Crew <em>management</em></h1>
+            <p className="cm-lead">
+              Your people, their roles and access — kept in one place. Invite new
+              crew, track who's aboard and who's away, and export the guest book.
             </p>
           </div>
+          {shouldShowInviteButton && (
+            <div className="cm-actions">
+              {canInvite && (
+                <button type="button" onClick={() => setShowGuestBook(true)} className="cm-btn cm-btn-ghost" aria-label="Export guest book">
+                  <Icon name="BookOpen" size={16} />
+                  Export guest book
+                </button>
+              )}
+              <button type="button" onClick={handleInviteClick} className="cm-btn cm-btn-primary" aria-label="Invite Crew">
+                <Icon name="Mail" size={16} />
+                Invite crew
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Loading State - Small inline loader */}
+        {/* Loading State */}
         {loading && !timedOut && (
-          <div className="flex items-center justify-center py-12">
-            <LogoSpinner size={32} />
-          </div>
+          <div className="cm-state"><LogoSpinner size={32} /></div>
         )}
 
-        {/* Timeout State - Still loading with retry */}
+        {/* Timeout State */}
         {timedOut && loading && (
-          <div className="flex flex-col items-center justify-center py-12 gap-4">
-            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
-              <Icon name="AlertTriangle" size={32} className="text-yellow-600" />
-            </div>
-            <div className="text-center max-w-md">
-              <h2 className="text-xl font-semibold text-foreground mb-2">Still Loading</h2>
-              <p className="text-muted-foreground mb-6">
-                Crew data is taking longer than expected to load.
-              </p>
-              <Button onClick={fetchCrewData}>
-                Retry
-              </Button>
-            </div>
+          <div className="cm-state">
+            <div className="cm-state-ico warn"><Icon name="AlertTriangle" size={26} /></div>
+            <h2>Still loading</h2>
+            <p>Crew data is taking longer than expected to load.</p>
+            <button onClick={fetchCrewData} className="cm-btn cm-btn-primary">Retry</button>
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <div className="flex flex-col items-center justify-center py-12 gap-4">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-              <Icon name="AlertCircle" size={32} className="text-red-600" />
-            </div>
-            <div className="text-center max-w-md">
-              <h2 className="text-xl font-semibold text-foreground mb-2">Access / Data Unavailable</h2>
-              <p className="text-muted-foreground mb-6">
-                {error}
-              </p>
-              <Button onClick={fetchCrewData}>
-                Retry
-              </Button>
-            </div>
+          <div className="cm-state">
+            <div className="cm-state-ico err"><Icon name="AlertCircle" size={26} /></div>
+            <h2>Access / data unavailable</h2>
+            <p>{error}</p>
+            <button onClick={fetchCrewData} className="cm-btn cm-btn-primary">Retry</button>
           </div>
         )}
 
-        {/* Content - Show when not loading or when data exists */}
+        {/* Content */}
         {!loading && !error && (
           <>
-            {/* INVITE CREW BUTTON - Moved here to sit above Pending Invites */}
-            {shouldShowInviteButton && (
-              <div className="flex justify-end items-center gap-3 mb-4">
-                {canInvite && (
-                  <button
-                    type="button"
-                    onClick={() => setShowGuestBook(true)}
-                    aria-label="Export guest book"
-                    className="bg-white text-[#1C1B3A] border border-[#E5E7EB] hover:bg-[#FAFAF8] shadow-sm flex items-center gap-2 px-5 py-3 text-sm font-semibold rounded-lg transition-colors"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <Icon name="BookOpen" size={18} />
-                    Export guest book
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleInviteClick}
-                  aria-label="Invite Crew"
-                  className="bg-gray-900 text-white hover:bg-gray-800 shadow-sm flex items-center gap-2 px-5 py-3 text-sm font-semibold rounded-lg transition-colors"
-                  style={{
-                    cursor: 'pointer',
-                    pointerEvents: 'auto',
-                    zIndex: 10
-                  }}
-                >
-                  <Icon name="Mail" size={18} />
-                  Invite Crew
-                </button>
-              </div>
-            )}
+            {/* Stat strip — figures on a hairline */}
+            <div className="cm-sum">
+              <div className="cm-s"><b>{crewStats.total}</b><span>Crew</span></div>
+              <div className="cm-vr" />
+              <div className="cm-s"><b>{crewStats.onBoard}</b><span>On board</span></div>
+              <div className="cm-vr" />
+              <div className={`cm-s${crewStats.away ? ' is-accent' : ''}`}><b>{crewStats.away}</b><span>Away</span></div>
+              <div className="cm-vr" />
+              <div className="cm-s"><b>{crewStats.departments}</b><span>Departments</span></div>
+            </div>
 
             {/* Pending Invites Section */}
-            <PendingInvitesSection
-              refreshTrigger={inviteRefreshTrigger}
-            />
+            <PendingInvitesSection refreshTrigger={inviteRefreshTrigger} />
 
-            {/* Active / Archived / Calendar toggles */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => { setShowArchived(false); setShowCalendar(false); }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  !showArchived && !showCalendar ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                }`}
-              >
-                Active Crew
-              </button>
-              <button
-                onClick={() => { setShowArchived(true); setShowCalendar(false); }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  showArchived ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                }`}
-              >
-                Archived Crew
-              </button>
-              <button
-                onClick={() => { setShowArchived(false); setShowCalendar(true); }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                  showCalendar ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                }`}
-                title="Crew availability calendar"
-              >
-                <Icon name="CalendarDays" size={14} />
-                Calendar
-              </button>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search crew by name, email, or role..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e?.target?.value)}
-                  iconName="Search"
-                />
+            {/* Roster section */}
+            <div className="cm-section">
+              <div className="cm-sec-head">
+                <span className="cm-sec-name">Roster</span>
+                <span className="cm-sec-rule" />
+                <span className="cm-sec-meta">{filteredAndSortedUsers?.length || 0} {showArchived ? 'archived' : 'crew'}</span>
               </div>
-            </div>
 
-            {/* Calendar view */}
-            {showCalendar && !showArchived && (
-              <CrewCalendar
-                members={users}
-                tenantId={activeTenantId}
-                refreshToken={calendarRefresh}
-                canNavigate={isVesselAdmin || currentUserRole === 'COMMAND'}
-              />
-            )}
-
-            {/* Crew Table — hidden when calendar view is active */}
-            {!showCalendar && (filteredAndSortedUsers?.length === 0 ? (
-              <div className="text-center py-12">
-                <Icon name="Users" size={48} className="mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">No crew members found</h3>
-                <p className="text-muted-foreground">
-                  {searchQuery ? 'Try adjusting your search criteria' : 'Start by inviting crew members'}
-                </p>
+              {/* Active / Archived / Calendar toggles */}
+              <div className="cm-tabs">
+                <button
+                  onClick={() => { setShowArchived(false); setShowCalendar(false); }}
+                  className={`cm-tab${!showArchived && !showCalendar ? ' is-on' : ''}`}
+                >
+                  Active crew
+                </button>
+                <button
+                  onClick={() => { setShowArchived(true); setShowCalendar(false); }}
+                  className={`cm-tab${showArchived ? ' is-on' : ''}`}
+                >
+                  Archived crew
+                </button>
+                <button
+                  onClick={() => { setShowArchived(false); setShowCalendar(true); }}
+                  className={`cm-tab${showCalendar ? ' is-on' : ''}`}
+                  title="Crew availability calendar"
+                >
+                  <Icon name="CalendarDays" size={14} />
+                  Calendar
+                </button>
               </div>
-            ) : (
-              <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-muted/30 border-b border-border">
+
+              {/* Search */}
+              {!showCalendar && (
+                <div className="cm-search">
+                  <Icon name="Search" size={16} />
+                  <input
+                    placeholder="Search crew by name, email, or role…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e?.target?.value)}
+                  />
+                </div>
+              )}
+
+              {/* Calendar view */}
+              {showCalendar && !showArchived && (
+                <div style={{ marginTop: '18px' }}>
+                  <CrewCalendar
+                    members={users}
+                    tenantId={activeTenantId}
+                    refreshToken={calendarRefresh}
+                    canNavigate={isVesselAdmin || currentUserRole === 'COMMAND'}
+                  />
+                </div>
+              )}
+
+              {/* Crew table — hidden when calendar view is active */}
+              {!showCalendar && (filteredAndSortedUsers?.length === 0 ? (
+                <div className="cm-empty">
+                  <Icon name="Users" size={40} />
+                  <h3>No crew members found</h3>
+                  <p>{searchQuery ? 'Try adjusting your search criteria' : 'Start by inviting crew members'}</p>
+                </div>
+              ) : (
+                <div className="cm-table-wrap">
+                  <table className="cm-table">
+                    <thead>
                       <tr>
-                        <th 
-                          className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/50 transition-colors select-none"
-                          onClick={() => handleSort('name')}
-                        >
-                          <div className="flex items-center">
-                            Name
-                            {renderSortIcon('name')}
-                          </div>
+                        <th className="cm-th-sort" onClick={() => handleSort('name')}>
+                          <span className="cm-th-inner">Name {renderSortIcon('name')}</span>
                         </th>
-                        <th 
-                          className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/50 transition-colors select-none"
-                          onClick={() => handleSort('email')}
-                        >
-                          <div className="flex items-center">
-                            Email
-                            {renderSortIcon('email')}
-                          </div>
+                        <th className="cm-th-sort" onClick={() => handleSort('email')}>
+                          <span className="cm-th-inner">Email {renderSortIcon('email')}</span>
                         </th>
-                        <th 
-                          className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/50 transition-colors select-none"
-                          onClick={() => handleSort('department')}
-                        >
-                          <div className="flex items-center">
-                            Department
-                            {renderSortIcon('department')}
-                          </div>
+                        <th className="cm-th-sort" onClick={() => handleSort('department')}>
+                          <span className="cm-th-inner">Department {renderSortIcon('department')}</span>
                         </th>
-                        <th 
-                          className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/50 transition-colors select-none"
-                          onClick={() => handleSort('role')}
-                        >
-                          <div className="flex items-center">
-                            Role
-                            {renderSortIcon('role')}
-                          </div>
+                        <th className="cm-th-sort" onClick={() => handleSort('role')}>
+                          <span className="cm-th-inner">Role {renderSortIcon('role')}</span>
                         </th>
-                        <th 
-                          className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/50 transition-colors select-none"
-                          onClick={() => handleSort('tier')}
-                        >
-                          <div className="flex items-center">
-                            Permission
-                            {renderSortIcon('tier')}
-                          </div>
+                        <th className="cm-th-sort" onClick={() => handleSort('tier')}>
+                          <span className="cm-th-inner">Permission {renderSortIcon('tier')}</span>
                         </th>
-                        <th 
-                          className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/50 transition-colors select-none"
-                          onClick={() => handleSort('status')}
-                        >
-                          <div className="flex items-center">
-                            Status
-                            {renderSortIcon('status')}
-                          </div>
+                        <th className="cm-th-sort" onClick={() => handleSort('status')}>
+                          <span className="cm-th-inner">Status {renderSortIcon('status')}</span>
                         </th>
-                        <th className="text-right p-4 text-sm font-medium text-foreground">Actions</th>
+                        <th className="cm-th-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredAndSortedUsers?.map(user => (
-                        <tr key={user?.id} className="border-b border-border hover:bg-muted/20 transition-smooth">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <Icon name="User" size={18} className="text-primary" />
-                              </div>
-                              <span className="text-sm font-medium text-foreground">{user?.fullName}</span>
+                        <tr key={user?.id}>
+                          <td>
+                            <div className="cm-person">
+                              <span className="cm-av">{initials(user?.fullName)}</span>
+                              <span className="cm-name">{user?.fullName}</span>
                             </div>
                           </td>
-                          <td className="p-4 text-sm text-muted-foreground">{user?.email}</td>
-                          <td className="p-4 text-sm text-foreground">{user?.department}</td>
-                          <td className="p-4 text-sm text-foreground">{user?.roleTitle}</td>
-                          <td className="p-4">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                              {getEffectiveTierDisplay(user)}
-                            </span>
+                          <td className="cm-cell-mut">{user?.email}</td>
+                          <td className="cm-cell-ink">{user?.department}</td>
+                          <td className="cm-cell-ink">{user?.roleTitle}</td>
+                          <td>
+                            <span className="cm-pill cm-pill-perm">{getEffectiveTierDisplay(user)}</span>
                           </td>
-                          <td className="p-4">
+                          <td>
                             {hasEditPermission ? (
                               <button
+                                className="cm-pill cm-pill-status"
                                 onClick={() => setStatusChangeTarget({
                                   userId:        user?.id,
                                   currentStatus: user?.status,
                                   name:          user?.fullName,
                                 })}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${getStatusBadgeClasses(user?.status)}`}
                               >
-                                <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(user?.status)}`} />
+                                <span className={`cm-dot s-${user?.status || 'unknown'}`} />
                                 {getStatusLabel(user?.status)}
-                                <Icon name="ChevronDown" size={10} className="ml-0.5" />
+                                <Icon name="ChevronDown" size={11} className="cm-status-badge" />
                               </button>
                             ) : (
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(user?.status)}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(user?.status)}`} />
+                              <span className="cm-pill cm-pill-status">
+                                <span className={`cm-dot s-${user?.status || 'unknown'}`} />
                                 {getStatusLabel(user?.status)}
                               </span>
                             )}
                           </td>
-                          <td className="p-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/profile/${user?.id}`)}
-                                title="View Profile"
-                              >
+                          <td>
+                            <div className="cm-acts">
+                              <button className="cm-iconbtn" onClick={() => navigate(`/profile/${user?.id}`)} title="View profile">
                                 <Icon name="Eye" size={16} />
-                              </Button>
-
+                              </button>
                               {hasEditPermission && !showArchived && (
                                 <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditEmploymentClick(user)}
-                                    title="Edit Employment"
-                                  >
+                                  <button className="cm-iconbtn" onClick={() => handleEditEmploymentClick(user)} title="Edit employment">
                                     <Icon name="Edit" size={16} />
-                                  </Button>
-
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleArchiveCrew(user?.id)}
-                                    title="Archive"
-                                  >
+                                  </button>
+                                  <button className="cm-iconbtn" onClick={() => handleArchiveCrew(user?.id)} title="Archive">
                                     <Icon name="Archive" size={16} />
-                                  </Button>
+                                  </button>
                                 </>
                               )}
-
                               {showArchived && hasEditPermission && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleRestoreCrew(user?.id)}
-                                  title="Restore"
-                                >
+                                <button className="cm-iconbtn" onClick={() => handleRestoreCrew(user?.id)} title="Restore">
                                   <Icon name="RotateCcw" size={16} />
-                                </Button>
+                                </button>
                               )}
                             </div>
                           </td>
@@ -1026,8 +940,8 @@ const CrewManagement = () => {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </>
         )}
       </div>

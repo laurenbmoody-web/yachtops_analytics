@@ -1,0 +1,112 @@
+/* Crew Management — editorial (Cargo) system, box-free. Mirrors the crew-profile
+   / month-end pages: cool #F8FAFC ground, navy ink, terracotta reserved for
+   primary actions and what needs attention. Hairline rules + whitespace instead
+   of boxed cards. Prefix: cm-*. */
+
+.cm-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 24px 32px 64px; }
+.cm-wrap { max-width: 1280px; margin: 0 auto; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+
+/* Header — eyebrow + serif headline with terracotta-italic emphasis + lead, the
+   primary actions stacked on the right, a hairline beneath. */
+.cm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; padding-bottom: 22px; border-bottom: 1px solid #E6E8EF; }
+.cm-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #C65A1A; }
+.cm-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 32px; line-height: 1.04; color: #1C1B3A; margin-top: 11px; }
+.cm-title em { font-style: italic; color: #C65A1A; }
+.cm-lead { font-size: 14px; line-height: 1.5; color: #4B4A66; margin-top: 12px; max-width: 540px; }
+.cm-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+
+/* Buttons — terracotta primary, white ghost with a soft border. */
+.cm-btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 10px 16px; cursor: pointer; transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease; white-space: nowrap; }
+.cm-btn svg { flex: 0 0 auto; }
+.cm-btn-primary { background: #C65A1A; color: #fff; border: 1px solid #C65A1A; }
+.cm-btn-primary:hover { background: #B14E16; border-color: #B14E16; }
+.cm-btn-ghost { background: #fff; color: #1C1B3A; border: 1px solid #E5E7EB; }
+.cm-btn-ghost:hover { background: #FAFAF8; border-color: #D9D7CF; }
+
+/* Stat strip — figures separated by hairline dividers, no box. */
+.cm-sum { display: flex; align-items: flex-end; gap: 30px; padding: 20px 0; border-bottom: 1px solid #E6E8EF; }
+.cm-s b { font-family: 'DM Serif Display', Georgia, serif; font-size: 28px; line-height: 1; display: block; color: #1C1B3A; }
+.cm-s.is-accent b { color: #C65A1A; }
+.cm-s span { font-size: 9px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: #8B8478; margin-top: 7px; display: block; }
+.cm-vr { width: 1px; align-self: stretch; background: #E6E8EF; margin: 3px 0; }
+
+/* Section header — serif sub-head sitting on a hairline rule. */
+.cm-section { margin-top: 30px; }
+.cm-sec-head { display: flex; align-items: baseline; gap: 13px; margin-bottom: 4px; }
+.cm-sec-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 21px; }
+.cm-sec-rule { flex: 1; height: 1px; background: #E6E8EF; align-self: center; }
+.cm-sec-meta { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.cm-sec-sub { font-size: 12.5px; color: #8B8478; margin-bottom: 6px; }
+
+/* Quiet empty state — no boxed card. */
+.cm-empty { text-align: center; padding: 40px 0; color: #8B8478; }
+.cm-empty svg { margin: 0 auto 10px; opacity: 0.5; }
+.cm-empty h3 { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: #1C1B3A; margin-bottom: 4px; }
+.cm-empty p { font-size: 13px; }
+
+/* Segmented view toggle — editorial pills, selected = filled terracotta. */
+.cm-tabs { display: inline-flex; align-items: center; gap: 6px; margin-top: 22px; }
+.cm-tab { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280; background: #fff; border: 1px solid #ECEAE3; border-radius: 999px; padding: 7px 15px; cursor: pointer; transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease; }
+.cm-tab svg { flex: 0 0 auto; }
+.cm-tab:hover { color: #1C1B3A; border-color: #D9D7CF; }
+.cm-tab.is-on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+
+/* Search — soft field card with a terracotta focus halo. */
+.cm-search { position: relative; margin-top: 16px; }
+.cm-search svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #AEB4C2; pointer-events: none; }
+.cm-search input { width: 100%; font: inherit; font-size: 13.5px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 12px; padding: 11px 16px 11px 42px; transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease; }
+.cm-search input::placeholder { color: #AEB4C2; }
+.cm-search input:focus { outline: none; background: #fff; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+
+/* Crew list — a real table for sortable headers, styled as an editorial hairline
+   list (tracked-caps heads, no boxed card, soft row hover). */
+.cm-table-wrap { margin-top: 18px; overflow-x: auto; }
+.cm-table { width: 100%; border-collapse: collapse; }
+.cm-table thead th { text-align: left; padding: 0 14px 11px; border-bottom: 1px solid #E6E8EF; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; white-space: nowrap; }
+.cm-table thead th.cm-th-sort { cursor: pointer; user-select: none; }
+.cm-table thead th.cm-th-sort:hover { color: #1C1B3A; }
+.cm-table thead th.cm-th-right { text-align: right; }
+.cm-th-inner { display: inline-flex; align-items: center; gap: 3px; }
+.cm-sort-ico { display: inline-flex; flex-direction: column; line-height: 0; opacity: 0.4; }
+.cm-sort-ico.is-active { opacity: 1; color: #C65A1A; }
+
+.cm-table tbody tr { border-bottom: 1px solid #F0F1F5; transition: background 0.12s ease; }
+.cm-table tbody tr:hover { background: #FBFAF7; }
+.cm-table td { padding: 13px 14px; vertical-align: middle; }
+
+.cm-person { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cm-av { width: 38px; height: 38px; border-radius: 999px; flex: 0 0 auto; object-fit: cover; background: #FBEFE9; display: inline-flex; align-items: center; justify-content: center; color: #C65A1A; font-weight: 700; font-size: 13px; overflow: hidden; }
+.cm-name { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.cm-cell-mut { font-size: 13px; color: #6B7280; }
+.cm-cell-ink { font-size: 13px; color: #1C1B3A; }
+
+/* Pills — fully rounded. Permission = tinted terracotta; status = soft field
+   with a coloured dot. */
+.cm-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; font-size: 11px; font-weight: 600; padding: 4px 11px; white-space: nowrap; }
+.cm-pill-perm { background: #FBEFE9; color: #C65A1A; }
+.cm-pill-status { background: #FAFAF8; border: 1px solid #ECEAE3; color: #1C1B3A; }
+button.cm-pill-status { cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; transition: border-color 0.12s ease, background 0.12s ease; }
+button.cm-pill-status:hover { border-color: #D9D7CF; background: #F6F5F2; }
+.cm-dot { width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
+.cm-dot.s-active { background: #2E9E6B; }
+.cm-dot.s-on_leave { background: #C0851F; }
+.cm-dot.s-rotational_leave { background: #7C5CBF; }
+.cm-dot.s-medical_leave { background: #C65A1A; }
+.cm-dot.s-training_leave { background: #3B82F6; }
+.cm-dot.s-travelling { background: #0F9C8E; }
+.cm-dot.s-invited { background: #AEB4C2; }
+.cm-dot.s-unknown { background: #AEB4C2; }
+
+/* Row actions — quiet icon buttons. */
+.cm-acts { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.cm-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: 0; background: none; color: #8B8478; cursor: pointer; transition: color 0.12s ease, background 0.12s ease; }
+.cm-iconbtn:hover { color: #C65A1A; background: #FBEFE9; }
+.cm-status-badge { color: #C65A1A; }
+
+/* Loading / error blocks — centred, box-free. */
+.cm-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 56px 0; text-align: center; }
+.cm-state h2 { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; }
+.cm-state p { font-size: 13.5px; color: #6B7280; max-width: 420px; }
+.cm-state-ico { width: 56px; height: 56px; border-radius: 999px; display: flex; align-items: center; justify-content: center; }
+.cm-state-ico.warn { background: #FBEFE9; color: #C0851F; }
+.cm-state-ico.err { background: #FBEAE6; color: #C65A1A; }
