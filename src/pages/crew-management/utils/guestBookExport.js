@@ -134,57 +134,43 @@ const fitParagraph = (doc, text, width, hBudget, maxPt, minPt) => {
   return { pt: minPt, lines, lh };
 };
 
-const drawCard = (doc, t, x, y, w, h, entry, template, minFont) => {
+// One crew member as a horizontal strip: a vertically-centred monogram on one
+// side, name/role/statement on the other. Side-by-side uses the card's WIDTH
+// (not its height), so the statement fits cleanly at any per-page count and in
+// landscape — and the photo alternates side ('classic') for editorial rhythm.
+const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0) => {
   const dark = template === 'editorial';
   const ink = dark ? DARK_INK : NAVY;
   const accent = dark ? DARK_ACCENT : TERRA;
+  const bodyInk = dark ? [185, 184, 207] : [75, 74, 94];
   const pad = 4;
+  const photoLeft = template === 'classic' ? (idx % 2 === 0) : true;
 
-  const monogram = (cx, cy, r) => {
-    doc.setFillColor(dark ? 51 : 233, dark ? 50 : 228, dark ? 90 : 220);
-    doc.circle(cx, cy, r, 'F');
-    doc.setTextColor(dark ? 200 : 160, dark ? 199 : 142, dark ? 220 : 125);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(r * 2.4);
-    doc.text(initials(entry.name), cx, cy + r * 0.32, { align: 'center' });
-  };
+  const r = Math.min(13, h / 2 - pad);
+  const photoCX = photoLeft ? x + pad + r : x + w - pad - r;
+  // monogram, vertically centred in the strip
+  doc.setFillColor(dark ? 51 : 233, dark ? 50 : 228, dark ? 90 : 220);
+  doc.circle(photoCX, y + h / 2, r, 'F');
+  doc.setTextColor(dark ? 200 : 160, dark ? 199 : 142, dark ? 220 : 125);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(r * 2.2);
+  doc.text(initials(entry.name), photoCX, y + h / 2 + r * 0.32, { align: 'center' });
 
-  if (template === 'side') {
-    // photo/monogram left, text right
-    const r = Math.min(11, h / 2 - pad);
-    monogram(x + r + pad, y + r + pad, r);
-    const tx = x + 2 * r + pad * 2 + 4;
-    const tw = x + w - tx;
-    let cy = y + pad + 5;
-    doc.setTextColor(...ink); doc.setFont('times', 'normal'); doc.setFontSize(15);
-    doc.text(entry.name, tx, cy); cy += 5;
-    if (entry.role) {
-      doc.setTextColor(...accent); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-      doc.text(entry.role.toUpperCase(), tx, cy); cy += 4;
-    }
-    doc.setTextColor(dark ? 185 : 75, dark ? 184 : 74, dark ? 207 : 94);
-    doc.setFont('helvetica', 'normal');
-    const fit = fitParagraph(doc, entry.statement || '—', tw, y + h - cy - pad, 11, minFont);
-    doc.setFontSize(fit.pt);
-    fit.lines.forEach((ln, i) => doc.text(ln, tx, cy + 3 + i * fit.lh));
-  } else {
-    // classic / editorial — centred portrait
-    const cx = x + w / 2;
-    const r = Math.min(11, h * 0.16);
-    monogram(cx, y + pad + r, r);
-    let cy = y + pad + 2 * r + 5;
-    doc.setTextColor(...ink); doc.setFont('times', 'normal'); doc.setFontSize(15);
-    doc.text(entry.name, cx, cy, { align: 'center' }); cy += 5;
-    if (entry.role) {
-      doc.setTextColor(...accent); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-      doc.text(entry.role.toUpperCase(), cx, cy, { align: 'center' }); cy += 4;
-    }
-    doc.setTextColor(dark ? 185 : 75, dark ? 184 : 74, dark ? 207 : 94);
-    doc.setFont('helvetica', 'normal');
-    const tw = w - 2 * pad - 8;
-    const fit = fitParagraph(doc, entry.statement || '—', tw, y + h - cy - pad, 11, minFont);
-    doc.setFontSize(fit.pt);
-    fit.lines.forEach((ln, i) => doc.text(ln, cx, cy + 3 + i * fit.lh, { align: 'center' }));
+  // text column on the other side of the photo
+  const gap = 6;
+  const tx = photoLeft ? x + 2 * r + pad + gap : x + pad;
+  const tw = w - 2 * r - pad * 2 - gap;
+
+  let cy = y + pad + 4;
+  doc.setTextColor(...ink); doc.setFont('times', 'normal'); doc.setFontSize(14.5);
+  doc.text(entry.name, tx, cy); cy += 5;
+  if (entry.role) {
+    doc.setTextColor(...accent); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+    doc.text(entry.role.toUpperCase(), tx, cy, { charSpace: 0.4 }); cy += 4.5;
   }
+  doc.setTextColor(...bodyInk); doc.setFont('helvetica', 'normal');
+  const fit = fitParagraph(doc, entry.statement || '—', tw, y + h - cy - pad, 11, minFont);
+  doc.setFontSize(fit.pt);
+  fit.lines.forEach((ln, i) => doc.text(ln, tx, cy + 3 + i * fit.lh));
 };
 
 /**
@@ -207,8 +193,10 @@ export const exportGuestBookPDF = ({
   const per = perPage === 'auto' ? autoPerPage(list, orientation) : Number(perPage);
 
   const footerH = 12;
-  const colCount = orientation === 'landscape' && per >= 3 ? 2 : 1;
-  const rows = Math.ceil(per / colCount);
+  // Full-width horizontal strips, one per row — the statement reads across the
+  // page width, so it fits at any per-page count and in landscape.
+  const colCount = 1;
+  const rows = per;
 
   // Letterhead logo (centred above the title) — sized from its aspect ratio.
   const logoH = logo?.dataUrl ? 13 : 0;
@@ -248,13 +236,11 @@ export const exportGuestBookPDF = ({
     const rowH = (gridH - (rows - 1) * 6) / rows;
 
     pageEntries.forEach((entry, idx) => {
-      const c = idx % colCount;
-      const r = Math.floor(idx / colCount);
-      const x = M + c * (colW + 8);
-      const y = gridY + r * (rowH + 6);
-      drawCard(doc, null, x, y, colW, rowH, entry, template, minFont);
-      // hairline between stacked cards
-      if (r < rows - 1 || (idx + colCount < pageEntries.length)) {
+      const x = M;
+      const y = gridY + idx * (rowH + 6);
+      drawCard(doc, x, y, colW, rowH, entry, template, minFont, idx);
+      // hairline between stacked strips
+      if (idx < pageEntries.length - 1) {
         doc.setDrawColor(...(dark ? [44, 43, 78] : HAIR));
         doc.line(x, y + rowH + 3, x + colW, y + rowH + 3);
       }
