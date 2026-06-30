@@ -189,18 +189,25 @@ export const CERTIFICATES = {
     ]
   },
 
-  // ====== ENGINE — MSN 1904 §5.9.2 (Small Vessel CoC, "Limited to Yachts") ======
-  // The old MSN 1859 "Y-grade" yacht-engineer ladder was withdrawn (10 Jan 2023)
-  // and consolidated into MSN 1904 (with MIN 524 + MIN 594). Yacht engineers now
-  // hold STCW Small Vessel CoCs endorsed "Limited to Yachts". Figures: MSN 1904
-  // §5.9.2, cross-checked against MIN 642 Annex A. MIN 642 is CURRENT and in use
-  // (confirmed by the MCA, Jun 2026) — it is the binding source for the legacy
-  // Y-grade conversion detail, to which MSN 1904 §12.1 delegates.
+  // ====== ENGINE — MSN 1904 (Small Vessel CoC, "Limited to Yachts") ===========
+  // The old MSN 1859 "Y-grade" yacht-engineer ladder was withdrawn (10 Jan 2023);
+  // MSN 1904 now REPLACES MIN 524 and MIN 594 and is the in-force notice. Yacht
+  // engineers hold STCW Small Vessel CoCs endorsed "Limited to Yachts".
+  // Requirements below are taken from the yacht-restricted SV table in MSN 1904
+  // §5.8 (EOOW 12mo onboard / 5mo sea incl. ≤1mo workshop / 6mo watchkeeping;
+  // Chief <500 6mo / 4mo sea; Chief <3000 12mo / 8mo sea), verified against the
+  // primary PDF. Every SV rung has an MCA oral (MEOL §3.2f; EOOW §4.6d; Chief
+  // <500 §4.9d; Chief <3000 §4.10e). MIN 642 §7.2 is the binding source for the
+  // legacy Y-grade conversions (§12.1 delegates to it); codes/targets verified.
   //   legacyAlias = the nearest old Y-grade, for crew who still think in Y-grades.
-  //   The precise legacy→SV conversion is LEGACY_GRADE_CONVERSION (MIN 642 §7.3).
   // Yacht seagoing = days actually UNDERWAY with main propulsion in full use; yard
   // time never counts as seagoing; up to 2 months at-anchor/fast-to-shore on own
-  // power may count as watchkeeping (MSN 1904 §5.9).
+  // power may count as watchkeeping (MSN 1904 §5.8 fn 28).
+  // NOTE/TODO(§5.8 multiplier): MSN 1904 §5.8 credits yacht seagoing at 1.5× the
+  // days actually underway (capped at total contract time). The tracker counts
+  // raw underway days and does NOT yet apply the 1.5× credit — engineers' sea
+  // service may therefore read low. Left unapplied pending confirmation of whether
+  // the yacht-restricted table figures are already net of the multiplier.
   MEOL_Y: {
     family: 'ENGINE', label: 'MEOL — Small Vessel (Yacht)', short: 'MEOL (SV·Y)',
     legacyAlias: 'MEOL (Yachts)',
@@ -211,7 +218,7 @@ export const CERTIFICATES = {
   EOOW_SV_Y: {
     family: 'ENGINE', label: 'EOOW Engineer — Small Vessel (Yacht)', short: 'EOOW SV (Y)',
     legacyAlias: '≈ Y4',
-    msn: 'MSN 1904 §5.9.2', verified: 'HIGH',
+    msn: 'MSN 1904 §4 / §5.8', verified: 'HIGH',
     requires: { onboardMonths: 12, seagoingMonths: 4, minPowerKW: 350 },
     // Entry officer CoC (STCW III/1) — MSN 1904 §4.4 Experienced Seafarer Route
     // does NOT require a lower engineer CoC as a prerequisite (verified against
@@ -223,7 +230,7 @@ export const CERTIFICATES = {
   CHIEF_SV_500_Y: {
     family: 'ENGINE', label: 'Chief Engineer — Small Vessel <500GT / <3000kW (Yacht)', short: 'Chief SV <500GT (Y)',
     legacyAlias: '≈ Y3',
-    msn: 'MSN 1904 §5.9.2', verified: 'HIGH',
+    msn: 'MSN 1904 §4.9 / §5.8', verified: 'HIGH',
     requires: { onboardMonths: 6, seagoingMonths: 4, minPowerKW: 350 },
     heldWhilst: 'EOOW Engineer SV (Yacht)', heldWhilstCert: 'EOOW_SV_Y', asOfficer: true,
     note: '6 months onboard as EOOW SV on yachts ≥350kW, incl. ≥4 months seagoing (underway), whilst holding the EOOW SV yacht CoC. STCW III/3. CoC caps: <500GT & <3000kW.'
@@ -231,7 +238,7 @@ export const CERTIFICATES = {
   CHIEF_SV_3000_Y: {
     family: 'ENGINE', label: 'Chief Engineer — Small Vessel <3000GT / <9000kW (Yacht)', short: 'Chief SV <3000GT (Y)',
     legacyAlias: '≈ Y2 / Y1',
-    msn: 'MSN 1904 §5.9.2', verified: 'HIGH',
+    msn: 'MSN 1904 §4.10 / §5.8', verified: 'HIGH',
     requires: { onboardMonths: 12, seagoingMonths: 8, minPowerKW: 350 },
     heldWhilst: 'EOOW Engineer SV (Yacht)', heldWhilstCert: 'EOOW_SV_Y', asOfficer: true,
     note: '12 months onboard ≥350kW incl. ≥8 months seagoing — of which ≥4 months on yachts ≥750kW — whilst holding EOOW SV; OR 6 months onboard incl. ≥4 months seagoing whilst holding Chief SV <500GT. STCW III/2. CoC caps: <3000GT & <9000kW.',
@@ -488,11 +495,10 @@ export const LEGACY_GRADE_CONVERSION = {
 };
 
 // Every Y-grade conversion ALSO requires recent service: 6 months' seagoing in
-// the last 5 years (MSN 1904 §11.1 — in force; mirrored by the GOV.UK Engineering
-// Officers and Ratings guidance, 2 Feb 2026). Applies on top of each conversion's
-// service top-up. The yacht structure is closed — conversions are for existing
-// Y-grade holders only (no new NoEs except resits).
-export const CONVERSION_RECENCY = { months: 6, windowYears: 5, msn: 'MSN 1904 §11.1', verified: 'HIGH' };
+// the last 5 years (MSN 1904 §5.2, confirmed against the primary PDF). Applies on
+// top of each conversion's service top-up. The yacht structure is closed —
+// conversions are for existing Y-grade holders only (no new NoEs except resits).
+export const CONVERSION_RECENCY = { months: 6, windowYears: 5, msn: 'MSN 1904 §5.2', verified: 'HIGH' };
 
 // Grade strings (documentTypes.js) that denote a LEGACY MSN 1859 Y-grade CoC,
 // mapped to their conversion key — so when a crew member records/uploads an old
