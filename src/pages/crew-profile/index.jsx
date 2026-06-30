@@ -1147,6 +1147,7 @@ const canEdit = (() => {
       notice_period: empForm.notice_period || null,
       port_of_embarkation: empForm.port_of_embarkation || null,
       repatriation_destination: empForm.repatriation_destination || null,
+      cabin: empForm.cabin || null,
       sea_reference: empForm.sea_reference || null,
       // flag_state / governing_law are now inherited from the vessel (read-only).
       updated_at: new Date().toISOString(),
@@ -3843,6 +3844,7 @@ const canEdit = (() => {
                   {fld('End date', fmtDate(empForm.end_date), dte('end_date'))}
                   {fld('Port of embarkation', empForm.port_of_embarkation, txt('port_of_embarkation', 'e.g. Palma de Mallorca'))}
                   {fld('Repatriation destination', empForm.repatriation_destination, txt('repatriation_destination', 'e.g. United Kingdom'))}
+                  {fld('Cabin', empForm.cabin, txt('cabin', 'e.g. Lower deck · 3'))}
                 </div>
               </div>
 
