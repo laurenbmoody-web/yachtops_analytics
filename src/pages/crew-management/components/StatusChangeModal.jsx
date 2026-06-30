@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import { CREW_STATUSES, getStatusDotClass } from '../../../utils/crewStatus';
+import { TRANSPORTS } from '../../crew-profile/utils/crewCalendar';
 import ModalShell from '../../../components/ui/ModalShell';
 import './StatusChangeModal.css';
 
@@ -9,11 +10,16 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Statuses that imply the crew member is away — show travel/leave detail fields.
+const AWAY_STATUSES = new Set(['on_leave', 'rotational_leave', 'medical_leave', 'training_leave', 'travelling']);
+const EMPTY_TRAVEL = { endDate: '', fromLocation: '', toLocation: '', transport: '', transportNo: '', departTime: '', arriveTime: '' };
+
 const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStatus, saving }) => {
   const [selectedStatus, setSelectedStatus] = useState(currentStatus || 'active');
   const [notes, setNotes] = useState('');
   const [effectiveDate, setEffectiveDate] = useState(todayStr());
   const [effectiveTime, setEffectiveTime] = useState('00:00');
+  const [travel, setTravel] = useState(EMPTY_TRAVEL);
 
   useEffect(() => {
     if (isOpen) {
@@ -21,12 +27,15 @@ const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStat
       setNotes('');
       setEffectiveDate(todayStr());
       setEffectiveTime('00:00');
+      setTravel(EMPTY_TRAVEL);
     }
   }, [isOpen, currentStatus]);
 
   if (!isOpen) return null;
 
   const isFuture = effectiveDate > todayStr();
+  const showTravel = AWAY_STATUSES.has(selectedStatus);
+  const setT = (k, v) => setTravel((p) => ({ ...p, [k]: v }));
 
   return (
     <ModalShell onClose={onClose} isBusy={saving} panelClassName="scm-panel">
@@ -86,6 +95,31 @@ const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStat
             )}
           </div>
 
+          {/* Travel / leave detail — shown for away statuses, saved to the crew calendar */}
+          {showTravel && (
+            <div className="scm-field">
+              <label className="scm-label">Travel &amp; return <span className="opt">· optional</span></label>
+              <div className="scm-inputcard scm-travel">
+                <div className="scm-trow">
+                  <input placeholder="From (e.g. Palma)" value={travel.fromLocation} onChange={(e) => setT('fromLocation', e.target.value)} />
+                  <input placeholder="To (e.g. London)" value={travel.toLocation} onChange={(e) => setT('toLocation', e.target.value)} />
+                </div>
+                <div className="scm-trow">
+                  <select value={travel.transport} onChange={(e) => setT('transport', e.target.value)}>
+                    <option value="">Transport…</option>
+                    {TRANSPORTS.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <input placeholder="No. (e.g. BA492)" value={travel.transportNo} onChange={(e) => setT('transportNo', e.target.value)} />
+                </div>
+                <div className="scm-trow">
+                  <label className="scm-tlab">Departs<input type="time" value={travel.departTime} onChange={(e) => setT('departTime', e.target.value)} /></label>
+                  <label className="scm-tlab">Arrives<input type="time" value={travel.arriveTime} onChange={(e) => setT('arriveTime', e.target.value)} /></label>
+                </div>
+                <label className="scm-tlab scm-tfull">Returns / until<input type="date" value={travel.endDate} onChange={(e) => setT('endDate', e.target.value)} /></label>
+              </div>
+            </div>
+          )}
+
           {/* Notes */}
           <div className="scm-field">
             <label className="scm-label">Note <span className="opt">· optional</span></label>
@@ -111,7 +145,7 @@ const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStat
             </button>
             <button
               className="scm-btn scm-btn-primary"
-              onClick={() => onConfirm(selectedStatus, notes, effectiveDate, selectedStatus === 'travelling' ? effectiveTime : '00:00')}
+              onClick={() => onConfirm(selectedStatus, notes, effectiveDate, selectedStatus === 'travelling' ? effectiveTime : '00:00', showTravel ? travel : null)}
               disabled={saving || (selectedStatus === currentStatus && !isFuture)}
             >
               {saving ? 'Saving…' : isFuture ? 'Schedule' : 'Save'}

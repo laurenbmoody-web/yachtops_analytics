@@ -26,6 +26,32 @@ export const fmtKitDate = (d) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : '—';
 };
 
+// Cabin + interior laundry marking, stored on crew_employment (owner + COMMAND
+// readable). The interior manages these from the Issued Kit tab.
+export const fetchCabinAllocation = async (userId) => {
+  if (!userId) return {};
+  const { data, error } = await supabase
+    ?.from('crew_employment')
+    ?.select('cabin, laundry_number, laundry_colour')
+    ?.eq('user_id', userId)
+    ?.maybeSingle();
+  if (error) { console.error('[kit] cabin fetch failed', error); return {}; }
+  return data || {};
+};
+
+export const saveCabinAllocation = async (userId, tenantId, { cabin, laundryNumber, laundryColour }) => {
+  const { error } = await supabase
+    ?.from('crew_employment')
+    ?.upsert({
+      tenant_id: tenantId, user_id: userId,
+      cabin: cabin || null,
+      laundry_number: laundryNumber || null,
+      laundry_colour: laundryColour || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'tenant_id,user_id' });
+  if (error) throw error;
+};
+
 export const fetchCrewKit = async (userId) => {
   if (!userId) return [];
   const { data, error } = await supabase
