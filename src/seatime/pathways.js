@@ -370,23 +370,23 @@ const STCW_CORE = [
 const MASTER_TICKETS = [
   ...STCW_CORE,
   A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']),
-  A('med', 'Medical First Aid', ['stcw_medical_care']),
+  A('med', 'Medical First Aid / Care (A-VI/4)', ['stcw_medical_care']),
   A('ecdis', 'ECDIS', ['ecdis']),
   A('gmdss', 'GMDSS GOC', ['gmdss']),
   A('helm_m', 'HELM (Management)', ['helm_management']),
 ];
 export const ANCILLARY = {
+  // Master Code <200GT / OOW <500GT (§3.1–3.2): only the 4 STCW basics + GMDSS +
+  // HELM Operational per the §6.2 table — no EDH, no PSCRB, ECDIS optional.
   MASTER_CODE_200_COASTAL: [
     A('ym', 'RYA Yachtmaster Offshore (or IYT Master of Yachts Limited)', ['yachtmaster']),
-    A('edh', 'Efficient Deck Hand (EDH)', ['edh']),
-    ...STCW_CORE,
+    A('stcw', 'STCW Basic Safety Training', ['stcw_basic']),
     A('gmdss', 'GMDSS ROC (or GOC)', ['gmdss']),
     A('helm_o', 'HELM (Operational)', ['helm_management']),
   ],
   MASTER_CODE_200_UNLIMITED: [
     A('ym', 'RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited)', ['yachtmaster']),
-    A('edh', 'Efficient Deck Hand (EDH)', ['edh']),
-    ...STCW_CORE,
+    A('stcw', 'STCW Basic Safety Training', ['stcw_basic']),
     A('gmdss', 'GMDSS GOC', ['gmdss']),
     A('helm_o', 'HELM (Operational)', ['helm_management']),
   ],
@@ -398,7 +398,9 @@ export const ANCILLARY = {
     A('helm_o', 'HELM (Operational)', ['helm_management']),
     A('ecdis', 'ECDIS', ['ecdis']),
   ],
-  CHIEF_MATE_YACHT_3000: MASTER_TICKETS,
+  // Chief Mate <3000 also requires RYA Yachtmaster Ocean (§3.4b) on top of the
+  // management tickets; the Master rungs do not (they sit the MCA modules instead).
+  CHIEF_MATE_YACHT_3000: [...MASTER_TICKETS, A('ym', 'RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited)', ['yachtmaster'], 'Required for Chief Mate <3000 (MSN 1858 §3.4b).')],
   MASTER_YACHT_500: MASTER_TICKETS,
   MASTER_YACHT_3000: MASTER_TICKETS,
   CHIEF_MATE_UNLIMITED: [...MASTER_TICKETS, A('naest', 'NAEST (Management)', ['radar_arpa', 'ecdis'])],
