@@ -36,6 +36,13 @@ const QuoteReviewModal = ({ list, items, baselineCostById, file, onApplied, onCl
   const [applying, setApplying] = useState(false);
   const ranRef = useRef(false);
 
+  // Items that already carry an applied quote are "confirmed" — a later
+  // supplier quote (for the rest of a split shopping list) must not pull
+  // them back through. Only still-unquoted items are matchable here.
+  const isPriced = (i) => i.quoted_unit_cost != null && Number(i.quoted_unit_cost) > 0;
+  const quotableItems = (items || []).filter(i => !isPriced(i));
+  const lockedCount = (items || []).length - quotableItems.length;
+
   useEffect(() => {
     if (ranRef.current) return;            // parse once (file is stable)
     ranRef.current = true;
@@ -43,6 +50,12 @@ const QuoteReviewModal = ({ list, items, baselineCostById, file, onApplied, onCl
 
     const mediaType = resolveMediaType(file);
     if (!mediaType) { setStatus('error'); setError('Unsupported file type. Use PDF, JPG, PNG, WebP or HEIC.'); return; }
+
+    // Every item already carries a confirmed quote — nothing left to read.
+    if (quotableItems.length === 0) {
+      setRows([]); setUnmatchedCount(0); setStatus('done');
+      return;
+    }
 
     (async () => {
       try {
@@ -55,7 +68,9 @@ const QuoteReviewModal = ({ list, items, baselineCostById, file, onApplied, onCl
         const { data: result, error: fnError } = await supabase.functions.invoke('parseDeliveryNote', {
           // mode: 'quote' → the layout-agnostic LLM extractor, which
           // reads unit prices from any quote format (not just price-last).
-          body: { base64, mediaType, batchItems: items, mode: 'quote' },
+          // Only the still-unquoted items are offered for matching, so a
+          // second supplier's quote never re-touches already-confirmed lines.
+          body: { base64, mediaType, batchItems: quotableItems, mode: 'quote' },
         });
         if (fnError) {
           // functions.invoke surfaces a generic "non-2xx" string; try the
@@ -66,7 +81,7 @@ const QuoteReviewModal = ({ list, items, baselineCostById, file, onApplied, onCl
         }
 
         const lines = result?.line_items || [];
-        const itemById = new Map((items || []).map(i => [i.id, i]));
+        const itemById = new Map(quotableItems.map(i => [i.id, i]));
         const matched = [];
         let unmatched = 0;
         lines.forEach((l) => {
@@ -153,8 +168,17 @@ const QuoteReviewModal = ({ list, items, baselineCostById, file, onApplied, onCl
             <>
               {rows.length === 0 ? (
                 <div className="qrm-state">
-                  <p>No quote lines matched this board's items.</p>
-                  <p className="qrm-state-sub">The file is attached — enter prices on the board directly.</p>
+                  {lockedCount > 0 && quotableItems.length === 0 ? (
+                    <>
+                      <p>Every item on this board already has a confirmed quote.</p>
+                      <p className="qrm-state-sub">Nothing left to read from this quote. Reopen a line on the board if a price needs changing.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p>No quote lines matched this board's items.</p>
+                      <p className="qrm-state-sub">The file is attached — enter prices on the board directly.</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <>
@@ -215,6 +239,9 @@ const QuoteReviewModal = ({ list, items, baselineCostById, file, onApplied, onCl
                   })()}
                   {unmatchedCount > 0 && (
                     <p className="qrm-unmatched">{unmatchedCount} quote line{unmatchedCount === 1 ? '' : 's'} didn't match a board item — set those by hand if needed.</p>
+                  )}
+                  {lockedCount > 0 && (
+                    <p className="qrm-unmatched">{lockedCount} already-confirmed item{lockedCount === 1 ? '' : 's'} hidden — they keep their confirmed price and aren't re-quoted here.</p>
                   )}
                 </>
               )}
