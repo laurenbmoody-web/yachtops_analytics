@@ -279,6 +279,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const deptLabel = DEPARTMENTS[deptId]?.label || '—';
   const familyWord = family === 'DECK' ? 'Deck' : family === 'ENGINE' ? 'Engine' : family === 'ETO' ? 'ETO' : '';
   const familyPathLabel = family === 'DECK' ? 'Bridge pathway' : family === 'ENGINE' ? 'Engine pathway' : family === 'ETO' ? 'ETO pathway' : '';
+  // Who signs the testimonial, by department: the chief engineer for engine/ETO
+  // service (MSN 1904 §5.5), otherwise the captain.
+  const signerWord = (family === 'ENGINE' || family === 'ETO') ? 'chief engineer' : 'captain';
 
   const goalForDept = (id) => { const fams = DEPT_FAMILIES[id] || []; return fams.length ? (DEFAULT_GOAL[fams[0]] || '') : ''; };
   // Changing department re-defaults the goal to that department's ceiling
@@ -1748,8 +1751,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               <div className="sub">{interiorPathway
                 ? 'Your compiled senior yacht service, ready for the PYA to verify for your IAMI GUEST Yacht Purser CoC — submitted alongside your guest-on days and GUEST course certificates.'
                 : SHOW_SIGNOFF
-                  ? 'Your sea service, confirmed by each ship’s captain — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.'
-                  : 'Your compiled sea service, ready to export for PYA or Nautilus to verify. They issue the testimonial your captain signs — Cargo just gets your record right first.'}</div>
+                  ? `Your sea service, confirmed by each ship’s ${signerWord} — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.`
+                  : `Your compiled sea service, ready to export for PYA or Nautilus to verify. They issue the testimonial your ${signerWord} signs — Cargo just gets your record right first.`}</div>
             </div>
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
@@ -1924,7 +1927,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     <div className="std-spells">
                       <div className="std-spells-lbl">{interiorPathway
                         ? 'Your service under each captain, ready for the PYA to verify. Manual & off-Cargo days are excluded.'
-                        : 'One testimonial per captain — each endorses only the dates they were in command. Manual & off-Cargo days are excluded.'}</div>
+                        : `One testimonial per ${signerWord} — each endorses only the dates they covered. Manual & off-Cargo days are excluded.`}</div>
                       {nautilusSpells.map((s, i) => (
                         <div key={i} className="std-spell">
                           <div className="std-spell-main">
@@ -1933,7 +1936,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                           </div>
                           {verifier === 'nautilus'
                             ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
-                            : verifier === 'transport_malta'
+                            : (verifier === 'transport_malta' && family === 'DECK')
                               ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
                               : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
                         </div>

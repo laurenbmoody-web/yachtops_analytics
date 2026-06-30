@@ -281,6 +281,10 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
     const met = current >= targetDays;
     bars.push({ key, label, current, required: targetDays, met, remaining: Math.max(0, targetDays - current), pct: targetDays ? Math.min(100, Math.round(current / targetDays * 100)) : 100, provisional, ...extra });
   };
+  // onboardDays = an explicit day threshold (used where months DON'T convert at the
+  // MCA 30-day rule — e.g. the IAMI purser route counts calendar months, so its
+  // 24 months = 730 days, not 720). onboardMonths uses the MSN 30-day equivalence.
+  if (r.onboardDays) add('onboard', cert?.family === 'INTERIOR' ? 'Senior onboard yacht service' : 'Onboard yacht service', cur.onboard, r.onboardDays);
   if (r.onboardMonths) add('onboard', cert?.family === 'INTERIOR' ? 'Senior onboard yacht service' : 'Onboard yacht service', cur.onboard, r.onboardMonths * md);
   if (r.seagoingDays) add('seagoing', `Seagoing service${r.minVesselMetres ? ` (≥${r.minVesselMetres}m)` : ''}`, cur.seagoing, r.seagoingDays);
   // MSN 1858 §3.3 OOW split: 365 = 250 seagoing-only + 115 days that may be any
@@ -365,19 +369,25 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
   const checks = [];
   const b = buckets || computeBuckets(entries, vessels, config);
   const req = cert?.requires || {};
-  const isEngine = cert?.family === 'ENGINE';
+  const family = cert?.family || 'DECK';
+  const engineering = family === 'ENGINE' || family === 'ETO'; // engine-room domain
   // Interior (Yacht Purser, IAMI GUEST) service isn't assessed on watchkeeping,
   // vessel size/GT or standby — those are deck/engine STCW concepts. A purser's
   // record is verified on senior onboard service + an endorser + ID/service docs,
   // so the deck-specific checks are skipped for the INTERIOR family.
-  const interior = cert?.family === 'INTERIOR';
+  const interior = family === 'INTERIOR';
+  // The testimonial endorser by department: deck = the master; engine/ETO = the
+  // chief engineer (or master) (MSN 1904 §5.5); purser = the captain or manager.
+  const endorserWord = interior ? 'captain / manager' : engineering ? 'chief engineer / master' : 'master';
+  // Standby day-limit reference notice, by route.
+  const standbyRef = family === 'ENGINE' ? 'MSN 1904 §5' : family === 'ETO' ? 'MSN 1860 §6' : 'MSN 1858 §5.2';
 
   // 1) Watchkeeping 4-hour rule — only relevant when the route counts
   //    watchkeeping or the log actually holds watchkeeping days. A day tagged
   //    watchkeeping must record ≥4h watch (MSN 1858/1904 §5).
   const watchEntries = live.filter(e => e.type === 'watchkeeping');
   if (!interior && (watchEntries.length || req.watchkeepingDays)) {
-    const watchWord = isEngine ? 'engine-room watch' : 'bridge watch';
+    const watchWord = engineering ? 'engine-room watch' : 'bridge watch';
     const badWatch = watchEntries.filter(e => Number(e.watchHours) < config.watchMinHours);
     checks.push(badWatch.length
       ? { ok: false, label: 'Watchkeeping 4-hour rule', detail: `${badWatch.length} entry tagged watchkeeping with under ${config.watchMinHours}h watch — re-tag or correct before generating.` }
@@ -418,7 +428,7 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
   // 3) Standby within limit — only relevant when standby is actually logged;
   //    standby may not exceed actual seagoing service.
   if (!interior && live.some(e => e.type === 'standby')) {
-    const stbyRef = isEngine ? 'the MCA standby rule' : 'MSN 1858 §5.2';
+    const stbyRef = standbyRef;
     checks.push(b.standbyRaw > b.actualSeagoing
       ? { ok: false, label: 'Standby within limit', detail: `Standby (${b.standbyRaw}d) exceeds actual seagoing service (${b.actualSeagoing}d). The MCA caps standby at your seagoing total (${stbyRef}) — exclude the excess.` }
       : { ok: true, label: 'Standby within limit', detail: `${b.standbyRaw}d standby ≤ ${b.actualSeagoing}d actual seagoing — within limit (${stbyRef}).` });
@@ -436,9 +446,7 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
   }
 
   // 5) Endorser on record — every Cargo-tracked period must carry the person who
-  //    can attest it on the exported form: the ship's master for deck/engine, or
-  //    the captain/manager for a purser's senior service.
-  const endorserWord = interior ? 'captain / manager' : 'master';
+  //    can attest it on the exported form (endorserWord, by department above).
   const cargoTracked = (entries || []).filter(e => e.source === 'vessel' && !e.excluded);
   const noMasterDays = cargoTracked.filter(e => !e.masterUserId && !e.masterName).reduce((s, e) => s + (e.days || 0), 0);
   checks.push(noMasterDays > 0
