@@ -2316,8 +2316,16 @@ const ProvisioningBoardDetail = () => {
   const manualQuoteStage = hasManualQuote
     && list?.status !== PROVISIONING_STATUS.PENDING_APPROVAL
     && !DELIVERED_STATES.includes(list?.status);
-  // The board is awaiting a quote decision (Cargo-supplier OR manual).
-  const quoteDecisionStage = isQuoteReceived || manualQuoteStage;
+  // A part-confirmed board still has items waiting on a quote decision —
+  // a multi-supplier split where one supplier's quote is already in /
+  // confirmed but others are still outstanding. Keep the decision buttons
+  // open so the next supplier's quote can be submitted / confirmed without
+  // the board having to bounce back to 'quote_received' first. (Manual
+  // boards are already covered by manualQuoteStage, which spans partials.)
+  const isPartiallyConfirmed = list?.status === PROVISIONING_STATUS.PARTIALLY_CONFIRMED;
+  // The board is awaiting a quote decision (Cargo-supplier OR manual, and
+  // including a partially-confirmed split with items still outstanding).
+  const quoteDecisionStage = isQuoteReceived || manualQuoteStage || isPartiallyConfirmed;
   const canSubmitForApproval = list?.status === PROVISIONING_STATUS.DRAFT || quoteDecisionStage;
 
   // "Note from supplier" chip state. seenAt = ISO timestamp this
