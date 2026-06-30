@@ -154,7 +154,7 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
       </div>
       <div className="cp-group-head"><span className="dia">◆</span><span className="t">Your introduction</span><span className="line" /></div>
 
-      <div className="ps-wrap">
+      <div className={`ps-wrap${editing ? ' ps-wrap-edit' : ''}`}>
         <div className="ps-main">
           <textarea
             className="ps-area" rows={8} value={form.statement} disabled={!editing}
@@ -207,13 +207,15 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
           {DETAILS.map((d) => (
             <Field key={d.key} label={d.label} value={form[d.key]} onChange={(v) => setF(d.key, v)} placeholder={d.placeholder} readOnly={!editing} />
           ))}
-          {editing && (
+        </div>
+        {editing && (
+          <div className="ps-spark">
             <div className="ps-prompts">
               <div className="ps-prompts-h">Need a spark?</div>
               <ul>{PROMPTS.map((p) => <li key={p}>{p}</li>)}</ul>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
