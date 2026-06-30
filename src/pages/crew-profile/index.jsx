@@ -247,6 +247,7 @@ const CrewProfile = () => {
   const [showSecondAccount, setShowSecondAccount] = useState(false);
   const [cakeSurprise, setCakeSurprise] = useState(false);
   const [showQuickEntry, setShowQuickEntry] = useState(false);
+  const [confirmUnlock, setConfirmUnlock] = useState(false); // Unlock confirm popover
   const [selectedHORDates, setSelectedHORDates] = useState([]);
   // Initial HOR month honours a `?period=YYYY-MM` deep-link (e.g. month-end's
   // "Review & approve" opens the month being approved, not today's month).
@@ -3084,10 +3085,27 @@ const canEdit = (() => {
                   locked for edits. Only a command user can unlock it, which
                   reopens the month for corrections. */}
               {canLock && (dbStatus === 'confirmed' || dbStatus === 'locked') && (
-                <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleReopenMonth}>
-                  <Icon name="Unlock" size={16} />
-                  Unlock
-                </button>
+                <div className="cp-unlock-wrap">
+                  <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={() => setConfirmUnlock((v) => !v)}>
+                    <Icon name="Unlock" size={16} />
+                    Unlock
+                  </button>
+                  {confirmUnlock && (
+                    <>
+                      <div className="cp-unlock-backdrop" onClick={() => setConfirmUnlock(false)} />
+                      <div className="cp-unlock-pop" role="dialog" aria-label="Confirm unlock">
+                        <div className="cp-unlock-pop-title">Unlock this month?</div>
+                        <p className="cp-unlock-pop-body">
+                          Unlocking clears the sign-off and signature, so {crewMember?.firstName || crewMember?.fullName || 'the crew member'} will have to review, sign and submit this month again.
+                        </p>
+                        <div className="cp-unlock-pop-actions">
+                          <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={() => setConfirmUnlock(false)}>Cancel</button>
+                          <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={() => { setConfirmUnlock(false); handleReopenMonth(); }}>Unlock &amp; reopen</button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           )}
