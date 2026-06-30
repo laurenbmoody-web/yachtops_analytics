@@ -250,6 +250,18 @@ test('optional supporting docs do not gate; verifier-specific required docs do',
   assert.ok(MCA_APPLICATION_DOCS.some(d => /ENG1/.test(d)) && MCA_APPLICATION_DOCS.some(d => /oral/i.test(d)));
 });
 
+test('revalidation-only docs gate only when revalidating', () => {
+  const clean = [{ id: 'b', vesselId: 'v3', type: 'seagoing', watchHours: 0, days: 14 }];
+  // Transport Malta base docs satisfied (passport, CVC, signatory); the reval
+  // docs (photos / medical / CoC) are absent.
+  const base = { passport: true, cvc: true, sig: true };
+  const plain = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'transport_malta', docMet: base });
+  assert.equal(plain.canGenerate, true); // a plain testimonial doesn't need them
+  const reval = runChecks({ entries: clean, vessels: V, signatory: 'master', verifier: 'transport_malta', docMet: base, revalidating: true });
+  assert.equal(reval.canGenerate, false); // revalidation makes photos/medical/CoC required
+  assert.ok(reval.checks.some(c => !c.ok && /Supporting documents/.test(c.label)));
+});
+
 // --- validation checks are pathway-relevant, and only what's in the log ------
 test('cert-aware gate names the route threshold; accrual never blocks attestation', () => {
   // OOW <3000GT: metre-gated (≥15m). Clean service on the 68m v3.
