@@ -200,9 +200,9 @@ const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0, avatar = n
   if (avatar) {
     try { doc.addImage(avatar, 'PNG', photoCX - r, photoCY - r, 2 * r, 2 * r); } catch { /* fall through */ }
   } else {
-    doc.setFillColor(dark ? 51 : 233, dark ? 50 : 228, dark ? 90 : 220);
+    doc.setFillColor(233, 228, 220);
     doc.circle(photoCX, photoCY, r, 'F');
-    doc.setTextColor(dark ? 200 : 160, dark ? 199 : 142, dark ? 220 : 125);
+    doc.setTextColor(160, 142, 125);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(r * 2.2);
     doc.text(initials(entry.name), photoCX, photoCY + r * 0.32, { align: 'center' });
   }

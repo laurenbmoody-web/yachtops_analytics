@@ -7,8 +7,8 @@ import { fetchGuestBookEntries, exportGuestBookPDF, buildGuestBookPDF, exportGue
 import './guest-book-export.css';
 
 const TEMPLATES = [
+  { key: 'side', name: 'Classic', blurb: 'Photo left · 4 per page', per: 4 },
   { key: 'classic', name: 'Alternating', blurb: 'Photo alternates · 3 per page', per: 3 },
-  { key: 'side', name: 'Side-by-side', blurb: 'Photo left · 4 per page', per: 4 },
 ];
 
 // Editorial swatches for headings (names/title) and the accent (role labels).
@@ -208,7 +208,12 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
                 <div className="gbx-tpls">
                   {TEMPLATES.map((t) => (
                     <button key={t.key} className={`gbx-tpl${template === t.key ? ' on' : ''}`} onClick={() => pickTemplate(t)}>
-                      <span className={`gbx-tpl-thumb t-${t.key}`} />
+                      <span className={`gbx-tpl-thumb t-${t.key}`}>
+                        <span className="tpl-mini">
+                          <span className="tpl-row"><i className="d" /><i className="b" /></span>
+                          <span className={`tpl-row${t.key === 'classic' ? ' rev' : ''}`}><i className="d" /><i className="b" /></span>
+                        </span>
+                      </span>
                       <b>{t.name}</b><span>{t.blurb}</span>
                     </button>
                   ))}
