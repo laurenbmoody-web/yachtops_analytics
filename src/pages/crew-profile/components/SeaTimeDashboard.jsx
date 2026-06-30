@@ -510,6 +510,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     const oralPassed = !!j.oral?.passDate || j.oral?.status === 'passed';
     const hasEng1 = !!docsOnFile?.eng1?.fileUrl;
     const coursesState = !ancillary.length ? 'na' : (ancillaryDone === ancillary.length ? 'done' : ancillaryDone > 0 ? 'pending' : 'todo');
+    // Yacht Purser (IAMI GUEST) — verified senior service + GUEST courses +
+    // guest-on days, submitted to the PYA. No testimonial/NoE/oral/ENG1.
+    if (cert.family === 'INTERIOR') {
+      const guestDays = guestOnDays != null ? guestOnDays : (derivedGuest?.days ?? 0);
+      return [
+        { key: 'service', label: 'Verified senior yacht service (PYA)', detail: canGenerate ? 'Verified & ready to export' : 'Get your record verified first', state: canGenerate ? 'done' : 'todo' },
+        { key: 'courses', label: 'IAMI GUEST course units', detail: ancillary.length ? `${ancillaryDone} of ${ancillary.length} on file — see Courses & tickets` : 'See Courses & tickets', state: coursesState },
+        { key: 'guest', label: 'Guest-on days evidenced', detail: guestDays > 0 ? `${guestDays} day${guestDays === 1 ? '' : 's'} on record` : 'Record on the pathway above', state: guestDays > 0 ? 'done' : 'todo' },
+      ];
+    }
     // Chief Mate (Yachts) is a courses-only endorsement — no NoE, no oral, and no
     // fresh testimonial (the OOW service already covers it). Other rungs need the
     // full exam bundle.
@@ -522,7 +532,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       { key: 'eng1', label: 'Valid ENG1 medical', detail: hasEng1 ? 'On file' : 'Add to your Documents', state: hasEng1 ? 'done' : 'todo' },
       { key: 'photos', label: 'Two passport-size photographs', detail: '', state: 'todo' },
     ].filter(Boolean);
-  }, [cert, activeJourney, docsOnFile, ancillary, ancillaryDone, canGenerate]);
+  }, [cert, activeJourney, docsOnFile, ancillary, ancillaryDone, canGenerate, guestOnDays, derivedGuest]);
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
@@ -535,8 +545,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const hasAttention = badCount > 0;
   // Interior (Yacht Purser) service is verified by the PYA only — Nautilus and the
   // MCA-route verifiers don't handle purser/interior service. Other families get
-  // the full list.
-  const verifierIds = useMemo(() => (cert?.family === 'INTERIOR' ? ['pya'] : Object.keys(VERIFIER_PROFILES)), [cert?.family]);
+  // the full list. interiorPathway re-skins the dossier copy for the purser route.
+  const interiorPathway = cert?.family === 'INTERIOR';
+  const verifierIds = useMemo(() => (interiorPathway ? ['pya'] : Object.keys(VERIFIER_PROFILES)), [interiorPathway]);
   useEffect(() => { if (!verifierIds.includes(verifier)) setVerifier(verifierIds[0]); }, [verifierIds, verifier]);
   const vp = VERIFIER_PROFILES[verifier];
   const usedVessels = [...new Set(live.map(e => e.vesselId))].map(id => vessels[id]).filter(Boolean);
@@ -1720,10 +1731,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         <div className="std-dossier">
           <div className="std-dossier-h">
             <div>
-              <h3>{SHOW_SIGNOFF ? 'Sea Service Testimonial Pack' : 'Sea Service Record'}</h3>
-              <div className="sub">{SHOW_SIGNOFF
-                ? 'Your sea service, confirmed by each ship’s captain — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.'
-                : 'Your compiled sea service, ready to export for PYA or Nautilus to verify. They issue the testimonial your captain signs — Cargo just gets your record right first.'}</div>
+              <h3>{interiorPathway ? 'Purser service record' : SHOW_SIGNOFF ? 'Sea Service Testimonial Pack' : 'Sea Service Record'}</h3>
+              <div className="sub">{interiorPathway
+                ? 'Your compiled senior yacht service, ready for the PYA to verify for your IAMI GUEST Yacht Purser CoC — submitted alongside your guest-on days and GUEST course certificates.'
+                : SHOW_SIGNOFF
+                  ? 'Your sea service, confirmed by each ship’s captain — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.'
+                  : 'Your compiled sea service, ready to export for PYA or Nautilus to verify. They issue the testimonial your captain signs — Cargo just gets your record right first.'}</div>
             </div>
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
@@ -1889,12 +1902,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                       <Icon name="Lock" size={13} /> Locked until steps 01–02 clear — {checks.filter(c => !c.ok).length} check{checks.filter(c => !c.ok).length === 1 ? '' : 's'} still outstanding above.
                     </div>
                   )}
-                  <div className="std-export-instr">{vp.instructions}</div>
+                  <div className="std-export-instr">{interiorPathway
+                    ? 'The PYA verify your senior yacht service for the IAMI GUEST Yacht Purser CoC. Export your service record below, then submit it to the PYA with your guest-on days, GUEST course certificates and ID.'
+                    : vp.instructions}</div>
                   {nautilusSpells.length === 0 ? (
                     <div className="std-foot" style={{ padding: '10px 0 0' }}>No Cargo-tracked service to export yet — it auto-logs from your current vessel. You can still export your full record as CSV below.</div>
                   ) : (
                     <div className="std-spells">
-                      <div className="std-spells-lbl">One testimonial per captain — each endorses only the dates they were in command. Manual &amp; off-Cargo days are excluded.</div>
+                      <div className="std-spells-lbl">{interiorPathway
+                        ? 'Your service under each captain, ready for the PYA to verify. Manual & off-Cargo days are excluded.'
+                        : 'One testimonial per captain — each endorses only the dates they were in command. Manual & off-Cargo days are excluded.'}</div>
                       {nautilusSpells.map((s, i) => (
                         <div key={i} className="std-spell">
                           <div className="std-spell-main">
@@ -2143,11 +2160,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 return (<>
                   <div className="cj-cocsec">
                     <button type="button" className="cj-cocsec-toggle" onClick={() => setCocListOpen(!listOpen)} aria-expanded={listOpen}>
-                      <span className="cj-cocsec-h">What to send to the MCA</span>
+                      <span className="cj-cocsec-h">{interiorPathway ? 'What to send to the PYA' : 'What to send to the MCA'}</span>
                       <span className="cj-cocsec-count">{cocReady ? 'All ready' : `${doneN}/${appChecklist.length} ready`}<Icon name="ChevronDown" size={14} style={{ transform: listOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} /></span>
                     </button>
                     {listOpen && (<>
-                      <div className="cj-cocsec-sub">Your verified Sea Service Record is the evidence of sea service — the MCA also needs the rest of this bundle for {cert?.short || 'your CoC'}. We tick what we can detect; confirm the rest by hand.</div>
+                      <div className="cj-cocsec-sub">{interiorPathway
+                        ? <>Your verified service record is the evidence of senior service — the PYA also verify your guest-on days and GUEST course units for the Yacht Purser CoC. We tick what we can detect; confirm the rest by hand.</>
+                        : <>Your verified Sea Service Record is the evidence of sea service — the MCA also needs the rest of this bundle for {cert?.short || 'your CoC'}. We tick what we can detect; confirm the rest by hand.</>}</div>
                       <div className="cj-coclist">
                         {appChecklist.map(it => {
                           const auto = it.state === 'done' || it.state === 'na';
