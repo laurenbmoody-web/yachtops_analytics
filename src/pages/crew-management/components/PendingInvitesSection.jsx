@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
-import Button from '../../../components/ui/Button';
 import { supabase } from '../../../lib/supabaseClient';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -176,55 +175,58 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
 
   if (loading) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Pending Invites</h2>
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="cm-section">
+        <div className="cm-sec-head">
+          <span className="cm-sec-name">Pending invites</span>
+          <span className="cm-sec-rule" />
+        </div>
+        <p className="cm-sec-sub">Loading…</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Pending Invites</h2>
-        <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
-          <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-error">{error}</p>
+      <div className="cm-section">
+        <div className="cm-sec-head">
+          <span className="cm-sec-name">Pending invites</span>
+          <span className="cm-sec-rule" />
         </div>
+        <div className="cm-empty"><Icon name="AlertCircle" size={26} /><p>{error}</p></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      <div className="p-6 border-b border-border">
-        <h2 className="text-lg font-semibold text-foreground">Pending Invites</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage crew invitations that have not yet been accepted
-        </p>
+    <div className="cm-section">
+      <div className="cm-sec-head">
+        <span className="cm-sec-name">Pending invites</span>
+        <span className="cm-sec-rule" />
+        <span className="cm-sec-meta">{invites?.length || 0} awaiting</span>
       </div>
+      <p className="cm-sec-sub">Crew invitations that haven't been accepted yet.</p>
       {invites?.length === 0 ? (
-        <div className="p-6 text-center text-muted-foreground">
-          <Icon name="Mail" size={32} className="mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No pending invites</p>
+        <div className="cm-empty">
+          <Icon name="Mail" size={32} />
+          <p>No pending invites</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/30 border-b border-border">
+        <div className="cm-table-wrap">
+          <table className="cm-table">
+            <thead>
               <tr>
-                <th className="text-left p-4 text-sm font-medium text-foreground">Email</th>
-                <th className="text-left p-4 text-sm font-medium text-foreground">Role</th>
-                <th className="text-left p-4 text-sm font-medium text-foreground">Created</th>
-                <th className="text-left p-4 text-sm font-medium text-foreground">Status</th>
-                <th className="text-right p-4 text-sm font-medium text-foreground">Actions</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th>Status</th>
+                <th className="cm-th-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {invites?.map((invite) => (
-                <tr key={invite?.id} className="border-b border-border hover:bg-muted/20 transition-smooth">
-                  <td className="p-4 text-sm text-foreground">{invite?.email}</td>
-                  <td className="p-4 text-sm text-foreground">
+                <tr key={invite?.id}>
+                  <td className="cm-cell-ink">{invite?.email}</td>
+                  <td className="cm-cell-ink">
                     {(() => {
                       const roleName = invite?.role?.name || invite?.custom_role?.name || invite?.role_label;
                       const deptName = invite?.department?.name || invite?.department_label;
@@ -234,84 +236,57 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
                       return invite?.job_title_label || invite?.invited_role || '—';
                     })()}
                   </td>
-                  <td className="p-4 text-sm text-muted-foreground">
-                    {formatDate(invite?.created_at)}
-                  </td>
-                  <td className="p-4">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                  <td className="cm-cell-mut">{formatDate(invite?.created_at)}</td>
+                  <td>
+                    <span className="cm-pill cm-pill-status">
+                      <span className="cm-dot s-invited" />
                       {invite?.status || 'Pending'}
                     </span>
                   </td>
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td>
+                    <div className="cm-acts">
                       {/* Send invite email */}
                       {isCommandUser ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleSendEmail(invite)}
-                          title="Send invite email"
-                          disabled={sendingInviteId === invite?.id}
-                        >
-                          {sendingInviteId === invite?.id
-                            ? <LogoSpinner size={16} />
-                            : <Icon name="Mail" size={16} />
-                          }
-                        </Button>
+                        <button className="cm-iconbtn" onClick={() => handleSendEmail(invite)} title="Send invite email" disabled={sendingInviteId === invite?.id}>
+                          {sendingInviteId === invite?.id ? <LogoSpinner size={16} /> : <Icon name="Mail" size={16} />}
+                        </button>
                       ) : (
-                        <Button variant="ghost" size="sm" disabled title="Only COMMAND users can send emails">
-                          <Icon name="Mail" size={16} className="opacity-40" />
-                        </Button>
+                        <button className="cm-iconbtn" disabled title="Only COMMAND users can send emails" style={{ opacity: 0.4 }}>
+                          <Icon name="Mail" size={16} />
+                        </button>
                       )}
 
                       {/* Copy link */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleCopyLink(invite?.token)}
-                        title="Copy invite link"
-                      >
+                      <button className="cm-iconbtn" onClick={() => handleCopyLink(invite?.token)} title="Copy invite link">
                         <Icon name="Copy" size={16} />
-                      </Button>
+                      </button>
 
                       {/* Nudge (reminder email) */}
                       {isCommandUser ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <button
+                          className="cm-iconbtn"
                           onClick={() => handleNudge(invite)}
                           title="Send reminder email"
-                          className="text-primary hover:text-primary/80"
                           disabled={nudgingInviteId === invite?.id}
+                          style={{ width: 'auto', padding: '0 10px', fontWeight: 600, fontSize: '12px' }}
                         >
                           {nudgingInviteId === invite?.id ? 'Sending…' : 'Nudge'}
-                        </Button>
+                        </button>
                       ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled
-                          title="Only COMMAND users can nudge invites"
-                          className="opacity-40"
-                        >
+                        <button className="cm-iconbtn" disabled title="Only COMMAND users can nudge invites" style={{ width: 'auto', padding: '0 10px', fontWeight: 600, fontSize: '12px', opacity: 0.4 }}>
                           Nudge
-                        </Button>
+                        </button>
                       )}
 
                       {/* Revoke */}
                       {isCommandUser ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRevoke(invite?.id)}
-                          title="Revoke invite"
-                        >
+                        <button className="cm-iconbtn" onClick={() => handleRevoke(invite?.id)} title="Revoke invite">
                           <Icon name="Trash2" size={16} />
-                        </Button>
+                        </button>
                       ) : (
-                        <Button variant="ghost" size="sm" disabled title="Only COMMAND users can revoke invites">
-                          <Icon name="Trash2" size={16} className="opacity-40" />
-                        </Button>
+                        <button className="cm-iconbtn" disabled title="Only COMMAND users can revoke invites" style={{ opacity: 0.4 }}>
+                          <Icon name="Trash2" size={16} />
+                        </button>
                       )}
                     </div>
                   </td>
