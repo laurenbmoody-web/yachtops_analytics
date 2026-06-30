@@ -53,7 +53,9 @@ const QuoteReviewModal = ({ list, items, file, onApplied, onClose }) => {
           reader.readAsDataURL(file);
         });
         const { data: result, error: fnError } = await supabase.functions.invoke('parseDeliveryNote', {
-          body: { base64, mediaType, batchItems: items },
+          // mode: 'quote' → the layout-agnostic LLM extractor, which
+          // reads unit prices from any quote format (not just price-last).
+          body: { base64, mediaType, batchItems: items, mode: 'quote' },
         });
         if (fnError) throw new Error(fnError?.message || 'Could not read the quote.');
 
