@@ -18,6 +18,7 @@ import { sendDbNotification } from '../../../lib/dbNotifications';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
 import { buildNautilusSST } from '../../../seatime/nautilusExport';
+import { buildTransportMaltaSST } from '../../../seatime/transportMaltaExport';
 import CaptainSignoff from '../../../seatime/CaptainSignoff';
 import './sea-time-dashboard.css';
 
@@ -338,7 +339,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
         supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years')?.eq('user_id', userId)?.maybeSingle(),
-        supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw')?.eq('tenant_id', tenantId)?.maybeSingle(),
+        supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw, loa_m, typical_guest_count')?.eq('tenant_id', tenantId)?.maybeSingle(),
       ]);
       // The certified passport copy auto-ticks the pack's proof-of-identity doc
       // via docMetEffective + profileDoc (which also links the file) — see below.
@@ -832,6 +833,33 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       downloadBytes(pdfBytes, `nautilus-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}-${who}.pdf`);
       flash('Nautilus form ready');
     } catch (e) { console.error('[seatime] nautilus export', e); flash('Could not build the Nautilus form'); }
+  };
+
+  // Build + download the Transport Malta deck testimonial (S.L. 499.23) for one
+  // command spell. LOA + max passengers come from the current vessel's settings
+  // when the spell is on it; a previous vessel falls back to registered length.
+  const onDownloadSpellTM = async (spell) => {
+    if (!canGenerate) { flash('Resolve the outstanding validation checks first'); return; }
+    try {
+      const v = vessels[spell.vesselId] || {};
+      const isCurrentVessel = company?.imo_number && v.imo && String(company.imo_number) === String(v.imo);
+      const rows = spell.entries
+        .slice()
+        .sort((a, b) => String(a.from).localeCompare(String(b.from)))
+        .map(e => ({ from: e.from, to: e.to, capacity: e.capacity }));
+      flash('Building Transport Malta form…');
+      const pdfBytes = await buildTransportMaltaSST({
+        seafarer: { fullName: seafarer.fullName },
+        vessel: {
+          name: v.name, type: v.type, flag: v.flag, lengthM: v.lengthM,
+          loaM: isCurrentVessel ? company.loa_m : null,
+          maxPax: isCurrentVessel ? company.typical_guest_count : null,
+        },
+        rows,
+      });
+      downloadBytes(pdfBytes, `transport-malta-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
+      flash('Transport Malta form ready');
+    } catch (e) { console.error('[seatime] transport malta export', e); flash('Could not build the Transport Malta form'); }
   };
 
   // Prior service before Cargo — a crew-entered lump sum that counts toward the
@@ -1735,7 +1763,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                           </div>
                           {verifier === 'nautilus'
                             ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
-                            : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
+                            : verifier === 'transport_malta'
+                              ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
+                              : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
                         </div>
                       ))}
                     </div>
