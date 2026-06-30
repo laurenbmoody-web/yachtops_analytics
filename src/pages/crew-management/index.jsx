@@ -22,6 +22,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { logActivity } from '../../utils/activityStorage';
 import { fetchExpiringDocuments, getExpiryStatus, fetchCrewDocuments, groupDocumentVersions, findHistoricDocIds, getDocStatus, formatDocDate } from '../crew-profile/utils/crewDocuments';
 import { getDocType } from '../crew-profile/documentTypes';
+import { fetchCalendarEntries, travelSummary } from '../crew-profile/utils/crewCalendar';
 import '../../styles/editorial.css';
 import './crew-management.css';
 
@@ -82,6 +83,38 @@ const fmtDate = (d) => {
   return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()}`;
 };
 
+// Days until the next birthday (0 = today), or null if no/!valid DOB.
+const daysUntilBirthday = (dob) => {
+  if (!dob) return null;
+  const b = new Date(dob);
+  if (Number.isNaN(b.getTime())) return null;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  let next = new Date(now.getFullYear(), b.getMonth(), b.getDate());
+  if (next < now) next = new Date(now.getFullYear() + 1, b.getMonth(), b.getDate());
+  return Math.round((next - now) / 86400000);
+};
+
+// First phone value from the crew_personal_details.phones JSONB array.
+const firstPhone = (phones) => {
+  if (!Array.isArray(phones)) return null;
+  const p = phones.find((x) => x?.value);
+  return p?.value || null;
+};
+
+// Salary one-liner from a crew_compensation row.
+const CUR_SYM = { EUR: '€', USD: '$', GBP: '£', AUD: 'A$', NZD: 'NZ$', CAD: 'C$', CHF: 'Fr', ZAR: 'R' };
+const fmtSalary = (comp) => {
+  if (!comp || comp.salary_amount == null || comp.salary_amount === '') return null;
+  const sym = CUR_SYM[comp.salary_currency] || comp.salary_currency || '';
+  const per = comp.salary_period === 'year' ? 'yr' : 'mo';
+  return `${sym}${Number(comp.salary_amount).toLocaleString('en-GB')} / ${per}`;
+};
+const fmtDayRate = (comp) => {
+  if (!comp || comp.day_rate == null || comp.day_rate === '') return null;
+  const sym = CUR_SYM[comp.salary_currency] || comp.salary_currency || '';
+  return `${sym}${Number(comp.day_rate).toLocaleString('en-GB')}`;
+};
+
 // Compact tenure from a start date — "3y 2m", "5m", or "new".
 const tenure = (d) => {
   if (!d) return null;
@@ -135,6 +168,11 @@ const CrewManagement = () => {
   const [consoleDocs, setConsoleDocs] = useState([]);
   const [consoleDocsLoading, setConsoleDocsLoading] = useState(false);
   const [consoleEmp, setConsoleEmp] = useState(null); // crew_employment for the selected member
+  const [consoleComp, setConsoleComp] = useState(null); // crew_compensation (COMMAND-only via RLS)
+  const [consolePersonal, setConsolePersonal] = useState(null); // crew_personal_details (DOB, phones)
+  const [consoleEntries, setConsoleEntries] = useState([]); // crew_calendar_entries (leave / travel)
+  const [docsExpanded, setDocsExpanded] = useState(false);
+  const [flightPopover, setFlightPopover] = useState(null); // calendar entry shown in the popover
   const [statusChangeTarget, setStatusChangeTarget] = useState(null); // { userId, currentStatus, name }
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
   const [calendarRefresh, setCalendarRefresh] = useState(0);
@@ -466,20 +504,24 @@ const CrewManagement = () => {
     }
   }, [rosterView, users]);
 
-  // Console: load the selected crew member's documents + employment record.
+  // Console: load the selected crew member's documents, employment, compensation,
+  // personal details (DOB/phone) and leave/travel entries for the detail pane.
   useEffect(() => {
-    if (rosterView !== 'console' || !selectedUserId) { setConsoleDocs([]); setConsoleEmp(null); return; }
+    if (rosterView !== 'console' || !selectedUserId) {
+      setConsoleDocs([]); setConsoleEmp(null); setConsoleComp(null); setConsolePersonal(null); setConsoleEntries([]);
+      return;
+    }
     let cancelled = false;
     setConsoleDocsLoading(true);
-    setConsoleEmp(null);
+    setConsoleEmp(null); setConsoleComp(null); setConsolePersonal(null); setConsoleEntries([]); setDocsExpanded(false);
     (async () => {
       try {
         const docs = await fetchCrewDocuments(selectedUserId);
         const { currents } = groupDocumentVersions(docs || []);
         const historic = findHistoricDocIds(currents);
-        const list = currents
-          .filter(d => !historic.has(d.id))
-          .sort((a, b) => (getDocStatus(a).days ?? 99999) - (getDocStatus(b).days ?? 99999));
+        // Worst-first: expired, then expiring soonest, then valid, then no-expiry.
+        const sev = (d) => { const s = getDocStatus(d); return s.level === 'expired' ? -1e9 + (s.days ?? 0) : (s.days ?? 1e9); };
+        const list = currents.filter(d => !historic.has(d.id)).sort((a, b) => sev(a) - sev(b));
         if (!cancelled) setConsoleDocs(list);
       } catch (e) {
         console.warn('[CREW] console docs failed', e);
@@ -487,16 +529,32 @@ const CrewManagement = () => {
       } finally {
         if (!cancelled) setConsoleDocsLoading(false);
       }
-      // Employment record (contract type, rotation, next crew change) — best-effort.
+      // Employment + compensation + personal + calendar — each best-effort.
       try {
         const { data } = await supabase
           .from('crew_employment')
-          .select('contract_type, rotation_pattern, next_crew_change_date, port_of_embarkation')
+          .select('contract_type, rotation_pattern, next_crew_change_date, port_of_embarkation, repatriation_destination, leave_entitlement_days, notice_period, cabin')
           .eq('tenant_id', activeTenantId).eq('user_id', selectedUserId).maybeSingle();
         if (!cancelled) setConsoleEmp(data || null);
-      } catch (e) {
-        if (!cancelled) setConsoleEmp(null);
-      }
+      } catch { if (!cancelled) setConsoleEmp(null); }
+      try {
+        const { data } = await supabase
+          .from('crew_compensation')
+          .select('salary_amount, salary_currency, salary_period, day_rate')
+          .eq('tenant_id', activeTenantId).eq('user_id', selectedUserId).maybeSingle();
+        if (!cancelled) setConsoleComp(data || null);
+      } catch { if (!cancelled) setConsoleComp(null); }
+      try {
+        const { data } = await supabase
+          .from('crew_personal_details')
+          .select('date_of_birth, phones')
+          .eq('user_id', selectedUserId).maybeSingle();
+        if (!cancelled) setConsolePersonal(data || null);
+      } catch { if (!cancelled) setConsolePersonal(null); }
+      try {
+        const entries = await fetchCalendarEntries(selectedUserId);
+        if (!cancelled) setConsoleEntries(entries || []);
+      } catch { if (!cancelled) setConsoleEntries([]); }
     })();
     return () => { cancelled = true; };
   }, [rosterView, selectedUserId, activeTenantId]);
@@ -1016,6 +1074,35 @@ const CrewManagement = () => {
     const since = sel ? (sel.start_date || sel.joined_at) : null;
     const ret = sel ? returnByUser[sel.user_id] : null;
     const comp = sel ? complianceByUser[sel.user_id] : null;
+    const away = sel ? isAwayStatus(sel.status) : false;
+    const todayIso = new Date().toISOString().slice(0, 10);
+
+    // Leave / movement block — derived from the crew calendar. When away: the
+    // entry covering today (its end = return). When aboard: the next upcoming
+    // leave/travel entry (its start = next departure).
+    const sortByStart = (a, b) => String(a.start_date).localeCompare(String(b.start_date));
+    const current = (consoleEntries || []).filter(e => String(e.start_date).slice(0, 10) <= todayIso && todayIso <= String(e.end_date).slice(0, 10)).sort((a, b) => sortByStart(b, a))[0] || null;
+    const upcoming = (consoleEntries || []).filter(e => String(e.start_date).slice(0, 10) > todayIso).sort(sortByStart)[0] || null;
+    const moveEntry = away ? (current || upcoming) : upcoming;
+    const moveLabel = away ? 'Returns' : 'Leaves';
+    const moveDate = away
+      ? (current?.end_date ? fmtDate(current.end_date) : (ret ? fmtDate(ret.date) : null))
+      : (upcoming?.start_date ? fmtDate(upcoming.start_date) : null);
+    const moveLoc = away
+      ? (current?.to_location || current?.location || moveEntry?.to_location || null)
+      : (upcoming?.location || upcoming?.from_location || upcoming?.to_location || null);
+
+    const dob = consolePersonal?.date_of_birth || null;
+    const bdayIn = daysUntilBirthday(dob);
+    const bdaySoon = bdayIn != null && bdayIn <= 14;
+    const phone = firstPhone(consolePersonal?.phones);
+    const salary = fmtSalary(consoleComp);
+    const dayRate = fmtDayRate(consoleComp);
+
+    // Documents: collapsed shows only flagged (expired/expiring); expand shows all.
+    const flagged = consoleDocs.filter((d) => ['expired', 'red', 'amber'].includes(getDocStatus(d).level));
+    const docsShown = docsExpanded ? consoleDocs : (flagged.length ? flagged : consoleDocs.slice(0, 0));
+
     return (
       <div className="cm-console">
         <div className="cm-rail">
@@ -1044,70 +1131,102 @@ const CrewManagement = () => {
                 <Avatar user={sel} className="cm-dph" />
                 <div className="cm-dident">
                   <div className="cm-dname">{sel.fullName}</div>
-                  <div className="cm-drole">{sel.roleTitle} · {sel.department === '—' ? 'Unassigned' : sel.department}</div>
+                  <div className="cm-drole">{sel.roleTitle} · {sel.department === '—' ? 'Unassigned' : sel.department} · {getEffectiveTierDisplay(sel)}</div>
                   <button
                     className="cm-pill cm-pill-status cm-dstatus"
                     disabled={!hasEditPermission}
                     onClick={() => hasEditPermission && setStatusChangeTarget({ userId: sel.id, currentStatus: sel.status, name: sel.fullName })}
                   >
                     <span className="cm-dot" style={{ background: statusColor(sel.status) }} />
-                    {getStatusLabel(sel.status)}{isAwayStatus(sel.status) && ret ? ` · back ${fmtDate(ret.date)}` : ''}
+                    {getStatusLabel(sel.status)}
                     {hasEditPermission && <Icon name="ChevronDown" size={11} className="cm-status-badge" />}
                   </button>
                 </div>
                 <div className="cm-dactions">
+                  {bdaySoon && (
+                    <span className="cm-bday" title={`Birthday ${bdayIn === 0 ? 'today' : `in ${bdayIn} day${bdayIn === 1 ? '' : 's'}`}`}>
+                      <Icon name="Cake" size={16} />
+                      {bdayIn === 0 ? 'Today' : `${bdayIn}d`}
+                    </span>
+                  )}
                   <button className="cm-btn cm-btn-primary" onClick={() => navigate(`/profile/${sel.id}`)}>Open profile</button>
                 </div>
               </div>
 
-              {/* KPI strip — quick read on tenure, access, compliance */}
-              <div className="cm-dkpis">
-                <div className="cm-dkpi"><b>{tenure(since) || '—'}</b><span>Aboard</span></div>
-                <div className="cm-dkpi"><b>{getEffectiveTierDisplay(sel)}</b><span>Permission</span></div>
-                <div className={`cm-dkpi${comp ? ' warn' : ''}`}><b>{comp ? (comp.expired || comp.warning) : '✓'}</b><span>{comp ? (comp.expired ? 'Expired docs' : 'Expiring docs') : 'Docs clear'}</span></div>
-                {isAwayStatus(sel.status) && ret && <div className="cm-dkpi"><b>{fmtDate(ret.date)}</b><span>Returns</span></div>}
+              {/* Movement + cabin — leave/return with location (click for flight) */}
+              <div className="cm-dmove">
+                <button
+                  className="cm-dmove-item"
+                  disabled={!moveEntry}
+                  onClick={() => moveEntry && setFlightPopover(moveEntry)}
+                >
+                  <span className="cm-dmove-k">{moveLabel}</span>
+                  <span className="cm-dmove-v">
+                    {moveDate || '—'}{moveLoc ? ` · ${moveLoc}` : ''}
+                    {moveEntry && <Icon name="Plane" size={12} className="cm-dmove-ico" />}
+                  </span>
+                </button>
+                <div className="cm-dmove-item is-static">
+                  <span className="cm-dmove-k">Cabin</span>
+                  <span className="cm-dmove-v">{consoleEmp?.cabin || '—'}</span>
+                </div>
+                <div className="cm-dmove-item is-static">
+                  <span className="cm-dmove-k">Next of kin</span>
+                  <button className="cm-dmove-link" onClick={() => navigate(`/profile/${sel.id}?tab=emergency`)}>View →</button>
+                </div>
               </div>
 
               {/* Employment */}
               <div className="cm-dsec"><span>Employment</span><span className="cm-dsec-rule" /></div>
               <div className="cm-dgrid">
-                <div className="cm-drow"><span className="k">Department</span><span className="v">{sel.department === '—' ? '—' : sel.department}</span></div>
-                <div className="cm-drow"><span className="k">Role</span><span className="v">{sel.roleTitle || '—'}</span></div>
                 <div className="cm-drow"><span className="k">Aboard since</span><span className="v">{fmtDate(since)}</span></div>
                 <div className="cm-drow"><span className="k">Contract</span><span className="v">{consoleEmp?.contract_type || '—'}</span></div>
                 <div className="cm-drow"><span className="k">Rotation</span><span className="v">{consoleEmp?.rotation_pattern || '—'}</span></div>
-                <div className="cm-drow"><span className="k">Next crew change</span><span className="v">{consoleEmp?.next_crew_change_date ? fmtDate(consoleEmp.next_crew_change_date) : '—'}</span></div>
+                <div className="cm-drow"><span className="k">Embarkation</span><span className="v">{consoleEmp?.port_of_embarkation || '—'}</span></div>
+                <div className="cm-drow"><span className="k">Leave entitlement</span><span className="v">{consoleEmp?.leave_entitlement_days != null ? `${consoleEmp.leave_entitlement_days} days` : '—'}</span></div>
+                <div className="cm-drow"><span className="k">Notice period</span><span className="v">{consoleEmp?.notice_period || '—'}</span></div>
+                {salary && <div className="cm-drow"><span className="k">Salary</span><span className="v">{salary}</span></div>}
+                {dayRate && <div className="cm-drow"><span className="k">Day rate</span><span className="v">{dayRate}</span></div>}
               </div>
 
               {/* Contact */}
               <div className="cm-dsec"><span>Contact</span><span className="cm-dsec-rule" /></div>
               <div className="cm-dgrid">
                 <div className="cm-drow"><span className="k">Email</span><span className="v">{sel.email ? <a href={`mailto:${sel.email}`} className="cm-dlink">{sel.email}</a> : '—'}</span></div>
-                <div className="cm-drow"><span className="k">Embarkation</span><span className="v">{consoleEmp?.port_of_embarkation || '—'}</span></div>
+                <div className="cm-drow"><span className="k">Phone</span><span className="v">{phone ? <a href={`tel:${phone}`} className="cm-dlink">{phone}</a> : '—'}</span></div>
               </div>
 
-              {/* Documents */}
+              {/* Documents — flagged first, collapsible */}
               <div className="cm-dsec">
                 <span>Documents &amp; certificates</span>
                 <span className="cm-dsec-rule" />
-                <button className="cm-dsec-link" onClick={() => navigate(`/profile/${sel.id}?tab=documents`)}>View all</button>
+                {consoleDocs.length > 0 && (
+                  <button className="cm-dsec-link" onClick={() => setDocsExpanded((v) => !v)}>
+                    {docsExpanded ? 'Collapse' : `Show all (${consoleDocs.length})`}
+                  </button>
+                )}
               </div>
               {consoleDocsLoading ? (
                 <div className="cm-dempty">Loading…</div>
               ) : consoleDocs.length === 0 ? (
                 <div className="cm-dempty">No documents on file yet.</div>
               ) : (
-                <div className="cm-ddocs">
-                  {consoleDocs.map((d) => {
-                    const st = getDocStatus(d);
-                    return (
-                      <div key={d.id} className="cm-doc">
-                        {getDocType(d.doc_type)?.label || d.title || d.doc_type}
-                        <span className={`db ${st.level}`}>{d.expiry_date ? `${st.label} · ${formatDocDate(d.expiry_date)}` : 'On file'}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <>
+                  {!docsExpanded && flagged.length === 0 && (
+                    <div className="cm-dempty">All {consoleDocs.length} in date.</div>
+                  )}
+                  <div className="cm-ddocs">
+                    {docsShown.map((d) => {
+                      const st = getDocStatus(d);
+                      return (
+                        <div key={d.id} className="cm-doc">
+                          {getDocType(d.doc_type)?.label || d.title || d.doc_type}
+                          <span className={`db ${st.level}`}>{d.expiry_date ? `${st.label} · ${formatDocDate(d.expiry_date)}` : 'On file'}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </>
           )}
@@ -1384,6 +1503,30 @@ const CrewManagement = () => {
           </>
         )}
       </div>
+      {/* Flight / travel details popover (console movement block) */}
+      {flightPopover && (
+        <div className="cm-flyover" onClick={() => setFlightPopover(null)}>
+          <div className="cm-flycard" onClick={(e) => e.stopPropagation()}>
+            <div className="cm-fly-head">
+              <span>{flightPopover.kind === 'travelling' || flightPopover.transport ? 'Travel' : 'Leave'} details</span>
+              <button className="cm-fly-x" onClick={() => setFlightPopover(null)}><Icon name="X" size={15} /></button>
+            </div>
+            <div className="cm-fly-route">
+              {[flightPopover.from_location, flightPopover.to_location].filter(Boolean).join(' → ') || flightPopover.location || '—'}
+            </div>
+            <div className="cm-fly-grid">
+              <div><span>Dates</span><b>{fmtDate(flightPopover.start_date)}{flightPopover.end_date && flightPopover.end_date !== flightPopover.start_date ? ` – ${fmtDate(flightPopover.end_date)}` : ''}</b></div>
+              {(flightPopover.transport || flightPopover.transport_no) && <div><span>Transport</span><b>{[flightPopover.transport, flightPopover.transport_no].filter(Boolean).join(' ')}</b></div>}
+              {flightPopover.depart_time && <div><span>Departs</span><b>{flightPopover.depart_time}</b></div>}
+              {flightPopover.arrive_time && <div><span>Arrives</span><b>{flightPopover.arrive_time}</b></div>}
+            </div>
+            {flightPopover.note && <p className="cm-fly-note">{flightPopover.note}</p>}
+            {!flightPopover.transport && !flightPopover.transport_no && !flightPopover.depart_time && (
+              <p className="cm-fly-note">No flight details recorded yet.</p>
+            )}
+          </div>
+        </div>
+      )}
       {/* Invite Crew Modal - Render ONLY when showInviteModal is true */}
       {showInviteModal && (
         <InviteCrewModal

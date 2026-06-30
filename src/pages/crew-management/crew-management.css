@@ -226,13 +226,35 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-dstatus:disabled { cursor: default; }
 .cm-dactions { margin-left: auto; display: flex; gap: 9px; align-self: flex-start; }
 
-/* KPI strip — serif figures separated by hairlines. */
-.cm-dkpis { display: flex; align-items: stretch; gap: 0; margin: 26px 0 8px; border-top: 1px solid #E6E8EF; border-bottom: 1px solid #E6E8EF; }
-.cm-dkpi { flex: 1; padding: 16px 18px; }
-.cm-dkpi + .cm-dkpi { border-left: 1px solid #EEF1F5; }
-.cm-dkpi b { font-family: 'DM Serif Display', serif; font-size: 22px; line-height: 1; color: #1C1B3A; display: block; }
-.cm-dkpi.warn b { color: #C65A1A; }
-.cm-dkpi span { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #94A3B8; margin-top: 8px; display: block; }
+/* Birthday chip — sits beside Open profile when a birthday is ≤14 days out. */
+.cm-bday { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #C65A1A; background: #FBEAE6; border: 1px solid #F1C9BB; border-radius: 999px; padding: 8px 12px; white-space: nowrap; }
+.cm-bday svg { flex: 0 0 auto; }
+
+/* Movement strip — leave/return (clickable for flight), cabin, next of kin. */
+.cm-dmove { display: flex; align-items: stretch; margin: 24px 0 4px; border-top: 1px solid #E6E8EF; border-bottom: 1px solid #E6E8EF; }
+.cm-dmove-item { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 14px 18px; text-align: left; background: none; border: 0; font: inherit; cursor: pointer; }
+.cm-dmove-item + .cm-dmove-item { border-left: 1px solid #EEF1F5; }
+.cm-dmove-item.is-static { cursor: default; }
+.cm-dmove-item:not(.is-static):not(:disabled):hover { background: #F8FAFC; }
+.cm-dmove-item:disabled { cursor: default; }
+.cm-dmove-k { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #94A3B8; }
+.cm-dmove-v { font-size: 14px; font-weight: 600; color: #1C1B3A; display: inline-flex; align-items: center; gap: 7px; }
+.cm-dmove-ico { color: #C65A1A; }
+.cm-dmove-link { align-self: flex-start; font: inherit; font-size: 13px; font-weight: 600; color: #C65A1A; background: none; border: 0; padding: 0; cursor: pointer; }
+.cm-dmove-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Flight / travel details popover. */
+.cm-flyover { position: fixed; inset: 0; background: rgba(28,27,58,0.32); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.cm-flycard { width: 380px; max-width: calc(100vw - 32px); background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; padding: 22px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); }
+.cm-fly-head { display: flex; align-items: center; justify-content: space-between; }
+.cm-fly-head > span { font-size: 9px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: #6B7280; }
+.cm-fly-x { background: none; border: 0; color: #94A3B8; cursor: pointer; display: inline-flex; }
+.cm-fly-x:hover { color: #1C1B3A; }
+.cm-fly-route { font-family: 'DM Serif Display', serif; font-size: 22px; color: #1C1B3A; margin: 10px 0 16px; }
+.cm-fly-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+.cm-fly-grid span { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #94A3B8; display: block; margin-bottom: 3px; }
+.cm-fly-grid b { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.cm-fly-note { font-size: 13px; color: #6B7280; margin: 16px 0 0; line-height: 1.5; }
 
 /* Section header — tracked caps + hairline + optional link. */
 .cm-dsec { display: flex; align-items: center; gap: 12px; margin: 28px 0 4px; }
