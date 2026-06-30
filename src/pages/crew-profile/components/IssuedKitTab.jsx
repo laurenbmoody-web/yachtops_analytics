@@ -97,7 +97,7 @@ const suggestSize = (name, sizes) => {
 // The crew member's recorded sex defaults the sizing profile.
 const sexToFit = (sex) => (sex === 'Female' ? 'womens' : sex === 'Male' ? 'mens' : '');
 
-const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewName, crewSex, vesselName, canManage, isOwnProfile }) => {
+const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewName, crewSex, vesselName, vessel, canManage, isOwnProfile }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -314,8 +314,8 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         ackPath ? kitSignatureDataUrl(ackPath) : null,
         retPath ? kitSignatureDataUrl(retPath) : null,
       ]);
-      exportKitReceipt({
-        crewName: crewName || 'Crew member', vesselName,
+      await exportKitReceipt({
+        crewName: crewName || 'Crew member', vesselName, vessel,
         generatedAt: fmtKitDate(today()), items, ackSig: ackImg, returnSig: retImg,
       });
     } catch (e) { showToast(e.message || 'Could not generate receipt', 'error'); }
