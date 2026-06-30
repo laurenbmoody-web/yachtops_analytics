@@ -182,6 +182,15 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-hor-btn-ghost { background: #FFFFFF; border: 1px solid #E5E7EB; color: #1C1B3A; }
 .crew-profile-page .cp-hor-btn-ghost:hover { background: #FAFAF8; border-color: #D7DAE2; }
 
+/* Unlock confirm popover — anchored under the Unlock button; warns that
+   reopening voids the sign-off and bounces the month back to the crew. */
+.crew-profile-page .cp-unlock-wrap { position: relative; }
+.crew-profile-page .cp-unlock-backdrop { position: fixed; inset: 0; z-index: 40; }
+.crew-profile-page .cp-unlock-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 50; width: 290px; background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 16px; text-align: left; }
+.crew-profile-page .cp-unlock-pop-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 16px; color: #1C1B3A; margin-bottom: 6px; }
+.crew-profile-page .cp-unlock-pop-body { font-size: 12.5px; line-height: 1.5; color: #6B7280; margin: 0 0 14px; }
+.crew-profile-page .cp-unlock-pop-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
 /* Name row: narrow prefix + first + last, so the identity block pairs
    cleanly with no orphaned half-cell. */
 .crew-profile-page .cp-name-row {
