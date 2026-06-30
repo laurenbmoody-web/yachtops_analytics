@@ -88,20 +88,22 @@
 .gbx-cards { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(var(--cols, 1), 1fr); grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr)); gap: 10px 14px; }
 /* Horizontal strip — monogram beside the text, vertically centred. 'classic'
    alternates the photo side (.flip) for editorial rhythm. */
-.gbx-card { display: flex; flex-direction: row; align-items: stretch; gap: 14px; min-height: 0; overflow: hidden; }
+/* Card content is vertically centred in its slot — short statements sit with
+   balanced space above/below, matching how the PDF centres each strip (so the
+   preview shows the real airiness rather than looking packed). */
+.gbx-card { display: flex; flex-direction: row; align-items: center; align-self: center; gap: 14px; min-height: 0; max-height: 100%; overflow: hidden; }
 .gbx-card.flip { flex-direction: row-reverse; text-align: right; }
-.gbx-pic { width: 40px; height: 40px; align-self: center; border-radius: 999px; background: #E9E4DC; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #a08e7d; }
+.gbx-pic { width: 40px; height: 40px; align-self: center; border-radius: 999px; background: #E9E4DC; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #a08e7d; overflow: hidden; }
+.gbx-pic-img { object-fit: cover; color: transparent; }
 .gbx-page.dark .gbx-pic { background: #33325A; color: #C9C7E0; }
 .gbx-card-body { min-width: 0; min-height: 0; display: flex; flex-direction: column; flex: 1; }
 .gbx-card .nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; flex: none; }
 .gbx-card .rl { font-size: 7.5px; letter-spacing: .8px; text-transform: uppercase; color: #C65A1A; margin: 1px 0 5px; flex: none; }
 .gbx-page.dark .gbx-card .rl { color: #E6A57E; }
-/* Clamp the bio to its slot and fade the last line so it reads as 'continues',
-   matching how the PDF shrinks-then-truncates rather than overflowing. */
-.gbx-card .bio { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; color: #4b4a5e; line-height: 1.5; }
-.gbx-card .bio::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 16px; background: linear-gradient(rgba(255,255,255,0), #fff); pointer-events: none; }
+/* Clamp the statement to the lines that fit this density (with an ellipsis),
+   matching how the PDF shrinks-then-truncates. */
+.gbx-card .bio { color: #4b4a5e; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--bio-lines, 6); line-clamp: var(--bio-lines, 6); overflow: hidden; }
 .gbx-page.dark .gbx-card .bio { color: #B9B8CF; }
-.gbx-page.dark .gbx-card .bio::after { background: linear-gradient(rgba(28,27,58,0), #1C1B3A); }
 .gbx-empty { grid-column: 1 / -1; align-self: center; font-size: 12px; color: #AEB4C2; text-align: center; padding: 24px; }
 .gbx-page-foot { flex: none; position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 7px; color: #AEB4C2; letter-spacing: 1px; text-transform: uppercase; }
 
