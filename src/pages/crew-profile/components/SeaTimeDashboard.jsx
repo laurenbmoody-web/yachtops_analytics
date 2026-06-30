@@ -338,7 +338,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const [rows, prof, pd, ves] = await Promise.all([
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, passport_number, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years')?.eq('user_id', userId)?.maybeSingle(),
         supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw, loa_m, typical_guest_count')?.eq('tenant_id', tenantId)?.maybeSingle(),
       ]);
       // The certified passport copy auto-ticks the pack's proof-of-identity doc
@@ -353,7 +353,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         const { vessels: vMap, entries: ents } = adaptLiveEntries(rows);
         const dates = rows.map(r => r.date).filter(Boolean).sort();
         setVessels(vMap); setEntries(ents);
-        setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, dischargeBookNo: pd?.data?.discharge_book_number || '', membershipNo: pd?.data?.verifier_membership_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
+        setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, passportNo: pd?.data?.passport_number || '', dischargeBookNo: pd?.data?.discharge_book_number || '', membershipNo: pd?.data?.verifier_membership_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
         setPriorBaseline(pd?.data?.sea_service_prior || {});
         setPrior(priorFromBaseline(pd?.data?.sea_service_prior)); // lifetime baseline accrued before Cargo
         setJourney(pd?.data?.cert_progression || null);
@@ -848,11 +848,25 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         .slice()
         .sort((a, b) => String(a.from).localeCompare(String(b.from)))
         .map(e => ({ from: e.from, to: e.to, capacity: e.capacity }));
+      // The testimonial is endorsed by the vessel's master. For the crew's OWN
+      // service as Master they can't attest themselves, so the company signs:
+      // leave the position blank and name the company instead.
+      const isOwnMaster = spell.captainId === userId;
+      let signatoryName = '', position = '', companyName = '';
+      if (isOwnMaster) {
+        companyName = company?.company_name || '';
+      } else {
+        const endorser = await resolveEndorserFor(spell.captainId, spell.captainName);
+        signatoryName = endorser?.name || spell.captainName || '';
+        position = 'Master';
+      }
       flash('Pre-filling the Transport Malta form…');
       const pdfBytes = await buildTransportMaltaSST({
-        seafarer: { fullName: seafarer.fullName, idNo: seafarer.nationalId || seafarer.idNo },
+        seafarer: { fullName: seafarer.fullName, idNo: seafarer.passportNo },
         vessel: { name: v.name, type: v.type, flag: v.flag, officialNo: v.officialNo, loaM: v.lengthM, maxPax: v.maxPax },
         rows,
+        signatory: { name: signatoryName, position },
+        company: { name: companyName },
       });
       downloadBytes(pdfBytes, `transport-malta-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
       flash('Transport Malta form ready');
