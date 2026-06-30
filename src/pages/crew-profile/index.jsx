@@ -284,6 +284,8 @@ const CrewProfile = () => {
   // Contract / employment section
   const [empLoaded, setEmpLoaded] = useState(false);
   const [empForm, setEmpForm] = useState({});           // crew_employment fields
+  const [empRoles, setEmpRoles] = useState([]);         // roles lookup (id, name, department_id, default_permission_tier)
+  const [empDepts, setEmpDepts] = useState([]);         // departments lookup (id, name)
   const [compForm, setCompForm] = useState(null);       // crew_compensation (null = no access/none)
   const [empEditing, setEmpEditing] = useState(false);
   const [empSaving, setEmpSaving] = useState(false);
@@ -483,6 +485,7 @@ const CrewProfile = () => {
           department_id: membershipData?.department_id || null,
           role_id: membershipData?.role_id || null,
           custom_role_id: membershipData?.custom_role_id || null,
+          permissionTierOverride: membershipData?.permission_tier_override || null,
           effectiveTier:
             membershipData?.roles?.default_permission_tier ||
             membershipData?.custom_role?.default_permission_tier ||
@@ -1051,6 +1054,15 @@ const canEdit = (() => {
   // COMMAND-only (separate table so pay can't leak to the owner via RLS). Both
   // are COMMAND-editable (canEditPermissions).
   const EMP_CONTRACT_TYPES = ['Permanent', 'Rotational', 'Seasonal', 'Temporary', 'Freelance', 'Daywork'];
+  // Permission tiers — §07 Contract is the single place these are set.
+  const EMP_TIERS = [
+    { value: '', label: 'Use role default' },
+    { value: 'COMMAND', label: 'Command' },
+    { value: 'CHIEF', label: 'Chief' },
+    { value: 'HOD', label: 'Head of Department' },
+    { value: 'CREW', label: 'Crew' },
+    { value: 'VIEW_ONLY', label: 'View Only' },
+  ];
   useEffect(() => {
     if (activeSection !== 'contract' || !crewId || !activeTenantId || empLoaded) return;
     let cancelled = false;
@@ -1058,6 +1070,13 @@ const canEdit = (() => {
       const { data: emp } = await supabase
         .from('crew_employment').select('*')
         .eq('tenant_id', activeTenantId).eq('user_id', crewId).maybeSingle();
+      // Authoritative role/department lookups (drive tenant_members, the roster
+      // and access control). COMMAND-only edits, but load for everyone so the
+      // current role/department render by name.
+      const { data: roleRows } = await supabase
+        .from('roles').select('id, name, department_id, default_permission_tier').order('name', { ascending: true });
+      const { data: deptRows } = await supabase
+        .from('departments').select('id, name').order('name', { ascending: true });
       const { data: comp } = await supabase
         .from('crew_compensation').select('*')
         .eq('tenant_id', activeTenantId).eq('user_id', crewId).maybeSingle();
@@ -1081,7 +1100,17 @@ const canEdit = (() => {
         .eq('user_id', crewId).in('doc_type', ['generated_contract', 'employment_contract', 'Employment Contract'])
         .order('updated_at', { ascending: false }).limit(1).maybeSingle();
       if (cancelled) return;
-      setEmpForm(emp || {});
+      setEmpRoles(Array.from(new Map((roleRows || []).map(r => [r.id, r])).values()));
+      setEmpDepts(deptRows || []);
+      // Seed the authoritative role/department/permission from tenant_members so
+      // §07 edits them directly (single source of truth).
+      setEmpForm({
+        ...(emp || {}),
+        role_id: crewMember?.role_id || null,
+        custom_role_id: crewMember?.custom_role_id || null,
+        department_id: crewMember?.department_id || null,
+        permission_tier_override: crewMember?.permissionTierOverride || '',
+      });
       // null when the viewer can't read compensation (RLS) AND there's no row;
       // COMMAND always gets an object so the block renders for them.
       setCompForm(canEditPermissions ? (comp || {}) : (comp || null));
@@ -1096,11 +1125,14 @@ const canEdit = (() => {
   const handleSaveEmployment = async () => {
     if (!canEditPermissions || empSaving) return;
     setEmpSaving(true);
+    // Authoritative role/department/permission live on tenant_members; mirror the
+    // chosen names onto crew_employment so generated-contract tokens still fill.
+    const roleName = empRoles.find((r) => r.id === empForm.role_id)?.name || crewMember?.roleTitle || null;
+    const deptName = empDepts.find((d) => d.id === empForm.department_id)?.name || null;
     const empPatch = {
       tenant_id: activeTenantId, user_id: crewId,
-      rank_held: empForm.rank_held || null,
-      department: empForm.department || null,
-      vessel_name: empForm.vessel_name || null,
+      rank_held: roleName,
+      department: deptName,
       next_crew_change_date: empForm.next_crew_change_date || null,
       benefits: empForm.benefits || {},
       contract_type: empForm.contract_type || null,
@@ -1121,6 +1153,32 @@ const canEdit = (() => {
     };
     const { error: empErr } = await supabase
       .from('crew_employment').upsert(empPatch, { onConflict: 'tenant_id,user_id' });
+
+    // Authoritative role / department / permission → tenant_members (single
+    // source of truth for the roster, access control and guest book).
+    let memErr = null;
+    ({ error: memErr } = await supabase
+      .from('tenant_members')
+      .update({
+        role_id: empForm.role_id || null,
+        custom_role_id: empForm.custom_role_id || null,
+        department_id: empForm.department_id || null,
+        permission_tier_override: empForm.permission_tier_override || null,
+      })
+      .eq('tenant_id', activeTenantId)
+      .eq('user_id', crewId));
+    if (!memErr) {
+      setCrewMember((prev) => ({
+        ...prev,
+        role_id: empForm.role_id || null,
+        custom_role_id: empForm.custom_role_id || null,
+        department_id: empForm.department_id || null,
+        department: deptName,
+        roleTitle: roleName,
+        permissionTierOverride: empForm.permission_tier_override || null,
+      }));
+    }
+
     let compErr = null;
     if (compForm) {
       const amt = compForm.salary_amount === '' || compForm.salary_amount == null ? null : Number(compForm.salary_amount);
@@ -1139,8 +1197,8 @@ const canEdit = (() => {
         .from('crew_compensation').upsert(compPatch, { onConflict: 'tenant_id,user_id' }));
     }
     setEmpSaving(false);
-    if (empErr || compErr) {
-      showToast((empErr || compErr)?.message || 'Couldn’t save employment details', 'error');
+    if (empErr || compErr || memErr) {
+      showToast((empErr || compErr || memErr)?.message || 'Couldn’t save employment details', 'error');
       return;
     }
     setEmpEditing(false);
@@ -3589,13 +3647,22 @@ const canEdit = (() => {
   const renderContract = () => {
     const editing = empEditing && canEditPermissions;
     const setE = (k, v) => setEmpForm((p) => ({ ...p, [k]: v }));
+    // Authoritative role / department / permission (tenant_members) — current
+    // display names + the option lists that drive the selectors.
+    const curRoleName = empRoles.find((r) => r.id === empForm.role_id)?.name || crewMember?.roleTitle || '';
+    const curDeptName = empDepts.find((d) => d.id === empForm.department_id)?.name || crewMember?.department || '';
+    const rolesForDept = empForm.department_id ? empRoles.filter((r) => r.department_id === empForm.department_id) : empRoles;
+    const curTierLabel = (EMP_TIERS.find((t) => t.value === (empForm.permission_tier_override || ''))?.label) || 'Use role default';
+    const onDeptChange = (val) => setEmpForm((p) => {
+      const keepRole = empRoles.find((r) => r.id === p.role_id)?.department_id === val ? p.role_id : null;
+      return { ...p, department_id: val || null, role_id: keepRole };
+    });
     const setC = (k, v) => setCompForm((p) => ({ ...(p || {}), [k]: v }));
     const ben = empForm.benefits || {};
     const setB = (k, v) => setEmpForm((p) => ({ ...p, benefits: { ...(p.benefits || {}), [k]: v } }));
     const benTxt = (key, ph = '') => (
       <input className="cp-inline-box" value={ben[key] || ''} placeholder={ph} onChange={(e) => setB(key, e.target.value)} />
     );
-    const EMP_DEPARTMENTS = ['Deck', 'Engineering', 'Interior', 'Galley', 'Other'];
     const fmtDate = (d) => {
       if (!d) return '';
       const [y, m, day] = String(d).slice(0, 10).split('-');
@@ -3707,15 +3774,22 @@ const canEdit = (() => {
             {/* Left — field-card spec sheet (matches Personal Details) */}
             <div>
               <div className="cp-group">
-                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Role &amp; vessel</span><span className="line" /></div>
+                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Role &amp; access</span><span className="line" /></div>
                 <div className="cp-grid">
-                  {fld('Rank held', empForm.rank_held, txt('rank_held', 'e.g. Chief Officer'))}
-                  {fld('Department', empForm.department,
-                    <select className="cp-inline-select" value={empForm.department || ''} onChange={(e) => setE('department', e.target.value)}>
+                  {fld('Department', curDeptName,
+                    <select className="cp-inline-select" value={empForm.department_id || ''} onChange={(e) => onDeptChange(e.target.value)}>
                       <option value="">—</option>
-                      {EMP_DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                      {empDepts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>)}
-                  {fld('Vessel', empForm.vessel_name, txt('vessel_name', 'e.g. M/Y Example'), { full: true })}
+                  {fld('Role', curRoleName,
+                    <select className="cp-inline-select" value={empForm.role_id || ''} onChange={(e) => setEmpForm((p) => ({ ...p, role_id: e.target.value || null, custom_role_id: null }))}>
+                      <option value="">—</option>
+                      {rolesForDept.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>)}
+                  {fld('Permission tier', curTierLabel,
+                    <select className="cp-inline-select" value={empForm.permission_tier_override || ''} onChange={(e) => setE('permission_tier_override', e.target.value)}>
+                      {EMP_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>, { full: true })}
                 </div>
               </div>
 
