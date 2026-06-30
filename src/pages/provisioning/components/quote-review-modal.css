@@ -71,6 +71,22 @@
 .qrm-row-meta { font-size: 11.5px; color: #8B8478; white-space: nowrap; display: flex; gap: 8px; align-items: baseline; }
 .qrm-est { color: #AEB4C2; font-variant-numeric: tabular-nums; }
 
+/* Live change indicator — struck estimate + an up/down arrow with the
+   delta. Up (costs more) = terracotta, down (saving) = green. */
+.qrm-delta {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.qrm-delta.is-up   { color: #C65A1A; }
+.qrm-delta.is-down { color: #2E7D5A; }
+.qrm-est-strike { color: #AEB4C2; font-weight: 400; text-decoration: line-through; }
+
+/* Changed rows carry a faint terracotta left accent so they stand out
+   while scanning the list. */
+.qrm-row-changed { box-shadow: inset 2px 0 0 #E8B89B; padding-left: 8px; margin-left: -8px; }
+
+.qrm-section-changed { color: #C65A1A; font-weight: 700; }
+
 .qrm-price { display: flex; align-items: center; gap: 4px; justify-self: end; }
 .qrm-price-cur { font-size: 12px; color: #8B8478; }
 .qrm-price-input {

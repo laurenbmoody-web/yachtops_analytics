@@ -146,37 +146,61 @@ const QuoteReviewModal = ({ list, items, file, onApplied, onClose }) => {
                 </div>
               ) : (
                 <>
-                  <p className="qrm-section-label">{rows.length} matched line{rows.length === 1 ? '' : 's'} — check the prices</p>
-                  <div className="qrm-rows">
-                    {rows.map(r => (
-                      <div key={r.itemId} className="qrm-row">
-                        <div className="qrm-row-main">
-                          <span className="qrm-row-name">{r.name}</span>
-                          <span className={`qrm-conf qrm-conf-${r.confidence}`}>{CONF_LABEL[r.confidence] || r.confidence}</span>
+                  {(() => {
+                    const fmt = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const changedCount = rows.filter(r => {
+                      const p = Number(r.price);
+                      return r.estimate != null && !Number.isNaN(p) && p !== r.estimate;
+                    }).length;
+                    return (
+                      <>
+                        <p className="qrm-section-label">
+                          {rows.length} matched line{rows.length === 1 ? '' : 's'}
+                          {changedCount > 0
+                            ? <> · <span className="qrm-section-changed">{changedCount} differ{changedCount === 1 ? 's' : ''} from your estimate</span></>
+                            : ' — check the prices'}
+                        </p>
+                        <div className="qrm-rows">
+                          {rows.map(r => {
+                            const p = Number(r.price);
+                            const hasEst = r.estimate != null;
+                            const changed = hasEst && !Number.isNaN(p) && p !== r.estimate;
+                            const up = changed && p > r.estimate;
+                            return (
+                              <div key={r.itemId} className={`qrm-row${changed ? ' qrm-row-changed' : ''}`}>
+                                <div className="qrm-row-main">
+                                  <span className="qrm-row-name">{r.name}</span>
+                                  <span className={`qrm-conf qrm-conf-${r.confidence}`}>{CONF_LABEL[r.confidence] || r.confidence}</span>
+                                </div>
+                                <div className="qrm-row-meta">
+                                  {r.qty != null && <span>{r.qty}{r.unit ? ` ${r.unit}` : ''}</span>}
+                                  {changed && (
+                                    <span className={`qrm-delta ${up ? 'is-up' : 'is-down'}`} title={`Estimate was ${cur || '$'}${fmt(r.estimate)}`}>
+                                      <span className="qrm-est-strike">{cur || '$'}{fmt(r.estimate)}</span>
+                                      {up ? '▲' : '▼'} {cur || '$'}{fmt(Math.abs(p - r.estimate))}
+                                    </span>
+                                  )}
+                                  {hasEst && !changed && <span className="qrm-est">no change</span>}
+                                </div>
+                                <div className="qrm-price">
+                                  <span className="qrm-price-cur">{cur || '$'}</span>
+                                  <input
+                                    className="qrm-price-input"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={r.price}
+                                    placeholder="0.00"
+                                    onChange={e => setPrice(r.itemId, e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="qrm-row-meta">
-                          {r.qty != null && <span>{r.qty}{r.unit ? ` ${r.unit}` : ''}</span>}
-                          {r.estimate != null && (
-                            <span className="qrm-est" title="Your estimate (kept for comparison)">
-                              est {cur || '$'}{r.estimate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          )}
-                        </div>
-                        <div className="qrm-price">
-                          <span className="qrm-price-cur">{cur || '$'}</span>
-                          <input
-                            className="qrm-price-input"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={r.price}
-                            placeholder="0.00"
-                            onChange={e => setPrice(r.itemId, e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      </>
+                    );
+                  })()}
                   {unmatchedCount > 0 && (
                     <p className="qrm-unmatched">{unmatchedCount} quote line{unmatchedCount === 1 ? '' : 's'} didn't match a board item — set those by hand if needed.</p>
                   )}
