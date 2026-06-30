@@ -2173,15 +2173,17 @@ const ProvisioningBoardDetail = () => {
   // supplier match exists yet (pre-send rows + unmatched names).
   const effectiveCost = useCallback((i) => {
     const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
-    // Cargo-supplier confirmed price wins, then a manually-quoted price
-    // (quoted_unit_cost), then the chief's original estimate. So the
-    // money reflects whatever the supplier has committed to while the
-    // estimate stays on the row for variance.
-    if (oi?.supplierPrice != null && Number(oi.supplierPrice) > 0) {
-      return Number(oi.supplierPrice);
-    }
+    // An applied manual quote (quoted_unit_cost) is the chief's most
+    // recent explicit pricing action, so it wins — including over a
+    // Cargo-supplier confirmed price. Then the supplier's price, then
+    // the original estimate. (On a normal supplier board no manual
+    // quote exists, so quoted_unit_cost is null and the supplier price
+    // still wins — existing behaviour is unchanged.)
     if (i.quoted_unit_cost != null && Number(i.quoted_unit_cost) > 0) {
       return Number(i.quoted_unit_cost);
+    }
+    if (oi?.supplierPrice != null && Number(oi.supplierPrice) > 0) {
+      return Number(oi.supplierPrice);
     }
     return parseFloat(i.estimated_unit_cost) || 0;
   }, [itemStatusMap]);
@@ -3887,33 +3889,41 @@ const ProvisioningBoardDetail = () => {
                                 row's estimate stays editable. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
                               <span style={{ fontSize: 11, color: dim || '#94A3B8', flexShrink: 0 }}>{origSymbol}</span>
-                              {isReceived || supplierActed
+                              {item.quoted_unit_cost != null
+                                // A manual quote has been APPLIED — it wins over
+                                // any supplier/estimate figure (explicit chief
+                                // action). Show the quoted price (editable) with
+                                // the prior price (supplier price, else estimate)
+                                // struck through when it differs.
                                 ? (() => {
-                                    const supplierPrice = itemOrder?.supplierPrice;
-                                    if (supplierPrice != null && Number(supplierPrice) > 0) {
-                                      return (
-                                        <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 700 }}>
-                                          {Number(supplierPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                      );
-                                    }
-                                    return <span style={{ fontSize: 13, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{item.estimated_unit_cost ?? ''}</span>;
+                                    const sp = itemOrder?.supplierPrice;
+                                    const prior = (sp != null && Number(sp) > 0)
+                                      ? Number(sp)
+                                      : (item.estimated_unit_cost != null ? Number(item.estimated_unit_cost) : null);
+                                    const showStrike = prior != null && prior !== Number(item.quoted_unit_cost);
+                                    return (
+                                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                                        {showStrike && (
+                                          <span style={{ fontSize: 11, color: '#AEB4C2', textDecoration: 'line-through' }}>
+                                            {prior.toFixed(2)}
+                                          </span>
+                                        )}
+                                        <AlwaysEditCell value={item.quoted_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'quoted_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right', fontWeight: 700 }} />
+                                      </div>
+                                    );
                                   })()
-                                : item.quoted_unit_cost != null
-                                  // A manual quote has been applied — show the
-                                  // quoted price (editable), with the original
-                                  // estimate struck through beside it when they
-                                  // differ, so the variance is visible at a glance.
-                                  ? (
-                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                                      {item.estimated_unit_cost != null && Number(item.estimated_unit_cost) !== Number(item.quoted_unit_cost) && (
-                                        <span style={{ fontSize: 11, color: '#AEB4C2', textDecoration: 'line-through' }}>
-                                          {Number(item.estimated_unit_cost).toFixed(2)}
-                                        </span>
-                                      )}
-                                      <AlwaysEditCell value={item.quoted_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'quoted_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right', fontWeight: 700 }} />
-                                    </div>
-                                  )
+                                : isReceived || supplierActed
+                                  ? (() => {
+                                      const supplierPrice = itemOrder?.supplierPrice;
+                                      if (supplierPrice != null && Number(supplierPrice) > 0) {
+                                        return (
+                                          <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 700 }}>
+                                            {Number(supplierPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </span>
+                                        );
+                                      }
+                                      return <span style={{ fontSize: 13, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{item.estimated_unit_cost ?? ''}</span>;
+                                    })()
                                   : <AlwaysEditCell value={item.estimated_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'estimated_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right' }} />
                               }
                             </div>
@@ -3923,6 +3933,15 @@ const ProvisioningBoardDetail = () => {
                                 pre-send estimate × crew qty otherwise. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               {(() => {
+                                // An applied manual quote wins over the supplier
+                                // figure (matches effectiveCost + the Unit Cost
+                                // cell), so the Total reflects what the chief
+                                // just applied.
+                                if (item.quoted_unit_cost != null && Number(item.quoted_unit_cost) > 0) {
+                                  const qty = Number(item.quantity_ordered) || 0;
+                                  const total = qty * convertCost(Number(item.quoted_unit_cost));
+                                  return <span style={{ fontSize: 13, color: dim || '#0F172A', fontWeight: 600 }}>{dispSymbol}{total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>;
+                                }
                                 const supplierPrice = itemOrder?.supplierPrice;
                                 const supplierQty = itemOrder?.quantity;
                                 if (hasSupplierMatch && supplierPrice != null && Number(supplierPrice) > 0) {
