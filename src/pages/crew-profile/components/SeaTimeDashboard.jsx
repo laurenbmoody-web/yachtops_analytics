@@ -244,10 +244,27 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // member who logged only their top CoC still counts as having the rest). The
   // live target is therefore the first rung ABOVE the highest held cert; if the
   // highest held cert is the goal itself, the route is complete (no target).
-  const highestHeldIdx = route.reduce((max, id, i) => (heldCerts[id] ? i : max), -1);
+  // Per-certificate journeys: cert_progression is a map of certId -> {noe,oral,coc}.
+  // Legacy rows stored a single {noe,oral,coc}; treat that as the journey for the
+  // first un-held rung (the cert it was tracking).
+  const docHeldIdx = route.reduce((max, id, i) => (heldCerts[id] ? i : max), -1);
+  const baseTargetId = docHeldIdx >= route.length - 1 ? null : route[docHeldIdx + 1];
+  const isLegacyJourney = journey && ('noe' in journey || 'oral' in journey || 'coc' in journey);
+  const journeyMap = isLegacyJourney ? (baseTargetId ? { [baseTargetId]: journey } : {}) : (journey || {});
+  const cocIssuedIn = (jr) => !!jr && (jr.coc?.status === 'issued' || !!jr.coc?.issuedDate);
+  // A completed certification journey (CoC recorded as issued) means the crew now
+  // holds that rung — fold it into the held set so the target advances to the next
+  // rung, exactly as uploading the CoC document would.
+  const effectiveHeld = { ...heldCerts };
+  for (const [cid, jr] of Object.entries(journeyMap)) {
+    if (cocIssuedIn(jr) && !effectiveHeld[cid]) effectiveHeld[cid] = { issueDate: jr.coc.issuedDate || '', number: jr.coc.ref || '', fromJourney: true };
+  }
+  const highestHeldIdx = route.reduce((max, id, i) => (effectiveHeld[id] ? i : max), -1);
   const targetId = highestHeldIdx >= route.length - 1 ? null : route[highestHeldIdx + 1];
   const routeComplete = !targetId && route.length > 0;
   const cert = targetId && CERTIFICATES[targetId] ? CERTIFICATES[targetId] : null;
+  // The live journey is the current target's entry (fresh until they start it).
+  const activeJourney = (targetId && journeyMap[targetId]) ? journeyMap[targetId] : JOURNEY_DEFAULT;
   const rungs = route.map(id => ({ id, ...CERTIFICATES[id] }));
   const familyCerts = family ? Object.entries(CERTIFICATES).filter(([, c]) => c.family === family).map(([id, c]) => ({ id, ...c })) : [];
   const crossDiscipline = !!family && !deptFamilies.includes(family);
@@ -442,7 +459,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // the crew hasn't recorded the prerequisite's issue date — then we gate by
   // officer capacity only and flag it). Prior (pre-Cargo) service has no dates
   // and is trusted as entered. Entry certs (no asOfficer) use the plain buckets.
-  const whileHoldingISO = cert?.heldWhilstCert ? (heldCerts[cert.heldWhilstCert]?.issueDate || null) : null;
+  const whileHoldingISO = cert?.heldWhilstCert ? (effectiveHeld[cert.heldWhilstCert]?.issueDate || null) : null;
   const reqBuckets = useMemo(
     () => (cert?.asOfficer
       ? computeBuckets(pathwayEntries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId), dualRate, officerOnly: true, sinceISO: whileHoldingISO })
@@ -477,7 +494,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // can't detect (e.g. photos) are 'todo' and ticked by hand in the modal.
   const appChecklist = useMemo(() => {
     if (!cert) return [];
-    const j = journey || JOURNEY_DEFAULT;
+    const j = activeJourney;
     const noeIssued = !!j.noe?.issueDate || j.noe?.status === 'issued';
     const oralPassed = !!j.oral?.passDate || j.oral?.status === 'passed';
     const hasEng1 = !!docsOnFile?.eng1?.fileUrl;
@@ -490,23 +507,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       { key: 'photos', label: 'Two passport-size photographs', detail: '', state: 'todo' },
       { key: 'courses', label: `STCW & ancillary certificates for ${cert.short}`, detail: ancillary.length ? `${ancillaryDone} of ${ancillary.length} on file — see Courses & tickets` : 'None additional for this route', state: coursesState },
     ];
-  }, [cert, journey, docsOnFile, ancillary, ancillaryDone, canGenerate]);
+  }, [cert, activeJourney, docsOnFile, ancillary, ancillaryDone, canGenerate]);
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
   // days-to-go tracks the certificate's largest single requirement (headline gate)
   const primary = requirements.reduce((a, b) => (b.required > (a?.required || 0) ? b : a), null) || requirements[0];
   const daysToGo = primary ? primary.remaining : 0;
-  // Status-strip state: eligible once every HARD (non-advisory) requirement is
-  // met on an authoritative route; otherwise show the next rung after the target.
-  const hardReqBars = requirements.filter(r => !r.advisory);
-  const pathConf = cert ? certConfidence(cert) : null;
-  const eligibleNow = !!pathConf?.authoritative && hardReqBars.length > 0 && hardReqBars.every(r => r.met);
-  const nextRungCert = (() => {
-    const ti = targetId ? route.indexOf(targetId) : -1;
-    const nid = ti >= 0 ? route[ti + 1] : null;
-    return nid ? CERTIFICATES[nid] : null;
-  })();
   const live = entries.filter(e => !e.excluded);
   const totalLoggedDays = live.reduce((s, e) => s + (e.days || 0), 0);
   const badCount = live.filter(e => !classify(e, vessels[e.vesselId], config).qual).length;
@@ -811,8 +818,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const addrLines = String(co.company_address || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       flash('Building Nautilus form…');
       const endorser = await resolveEndorserFor(spell.captainId, spell.captainName);
+      // National ID = the passport number from the uploaded passport document.
+      const passportNo = docsOnFile.passport?.documentNumber || docsOnFile.passport_certified_copy?.documentNumber || seafarer.passportNo || '';
       const pdfBytes = await buildNautilusSST({
-        seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, dischargeBook: seafarer.dischargeBookNo, nautilusNo: seafarer.membershipNo },
+        seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, dischargeBook: seafarer.dischargeBookNo, nautilusNo: seafarer.membershipNo, nationalId: passportNo },
         vessel: { type: v.type, flag: v.flag, name: v.name, imo: v.imo, officialNo: v.officialNo, lengthM: v.lengthM, gt: v.gt, kw: co.propulsion_kw },
         endorser,
         company: {
@@ -901,7 +910,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
 
   // Certification journey (NoE -> oral -> CoC). The modal is scoped to one
   // milestone (step) at a time, gated by progress.
-  const openJourney = (step = 'noe') => { setJourneyStep(step); setCocListOpen(null); setJourneyDraft(JSON.parse(JSON.stringify(journey || JOURNEY_DEFAULT))); setJourneyOpen(true); };
+  const openJourney = (step = 'noe') => { setJourneyStep(step); setCocListOpen(null); setJourneyDraft(JSON.parse(JSON.stringify(activeJourney))); setJourneyOpen(true); };
   const setJD = (path, val) => setJourneyDraft(d => {
     const n = JSON.parse(JSON.stringify(d || JOURNEY_DEFAULT));
     const keys = path.split('.');
@@ -956,13 +965,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     n.oral = o; return n;
   });
   const saveJourney = async () => {
-    const payload = journeyDraft || JOURNEY_DEFAULT;
+    // cert_progression is a per-certificate map; write this draft under the live
+    // target so each rung keeps its own NoE/oral/CoC (and completed rungs persist
+    // as held, advancing the target).
+    const entry = journeyDraft || JOURNEY_DEFAULT;
+    const nextMap = targetId ? { ...journeyMap, [targetId]: entry } : journeyMap;
     setJourneyOpen(false);
-    if (usingSample || !userId) { setJourney(payload); flash('Journey saved (preview)'); return; }
+    if (usingSample || !userId) { setJourney(nextMap); flash('Journey saved (preview)'); return; }
     try {
-      const { error } = await supabase.from('crew_personal_details').upsert({ user_id: userId, cert_progression: payload }, { onConflict: 'user_id' });
+      const { error } = await supabase.from('crew_personal_details').upsert({ user_id: userId, cert_progression: nextMap }, { onConflict: 'user_id' });
       if (error) throw error;
-      setJourney(payload);
+      setJourney(nextMap);
       flash('Certification journey saved');
     } catch (e) { console.error('[seatime] save journey', e); flash('Could not save the journey'); }
   };
@@ -1009,7 +1022,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const shortMsn = (m) => String(m || '').replace('MSN 1858 Amd 2 ', '').replace('MSN 1859 ', '').replace('MSN 1858 ', '');
 
   // ── pathway: progression spine (Condensed A) or logging-only record ──
-  const heldCount = Object.keys(heldCerts).filter(id => CERTIFICATES[id]).length;
+  const heldCount = Object.keys(effectiveHeld).filter(id => CERTIFICATES[id]).length;
   const selectGoals = (() => {
     const ids = [...deptGoalOptions];
     if (goalId && !ids.includes(goalId)) ids.push(goalId);
@@ -1037,7 +1050,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         <>
         <div className="stp-spine">
           {rungs.map((r) => {
-            const isHeld = !!heldCerts[r.id];
+            const isHeld = !!effectiveHeld[r.id];
             const idx = route.indexOf(r.id);
             // 'complete' = below the highest held cert, so implied satisfied even
             // if the crew member never logged that intermediate certificate.
@@ -1050,7 +1063,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   <span className="stp-m" />
                   <span className="stp-row">
                     <span className="nm">{r.label} <span className="ref">{shortMsn(r.msn)}</span>{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}{isGoal && <span className="goaltag">Goal</span>}</span>
-                    <span className={`st ${status}`}>{isHeld ? <>Held{heldCerts[r.id].issueDate ? <> · <span className="dt">{fmtDate(heldCerts[r.id].issueDate)}</span></> : ''}</> : status === 'complete' ? 'Covered' : 'Upcoming'}</span>
+                    <span className={`st ${status}`}>{isHeld ? <>Held{effectiveHeld[r.id].issueDate ? <> · <span className="dt">{fmtDate(effectiveHeld[r.id].issueDate)}</span></> : ''}</> : status === 'complete' ? 'Covered' : 'Upcoming'}</span>
                   </span>
                 </button>
               );
@@ -1142,24 +1155,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             );
           })}
         </div>
-        {!routeComplete && (
-          <div className={`stp-status${eligibleNow ? ' ok' : ''}`}>
-            <span className="dot" />
-            {eligibleNow ? (
-              <>
-                <b>Eligible now</b><span className="sep">·</span>
-                <span className="msg">all sea-time requirements met for {cert.short}</span>
-                <button type="button" className="go" onClick={() => journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Start certification journey →</button>
-              </>
-            ) : (
-              <>
-                <b>On track</b><span className="sep">·</span>
-                <span className="msg">{daysToGo} {daysToGo === 1 ? 'day' : 'days'} to go{nextRungCert ? <> <span className="sep">·</span> next: {nextRungCert.short}</> : ''}</span>
-                <button type="button" className="go" onClick={() => journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>View journey →</button>
-              </>
-            )}
-          </div>
-        )}
         {routeComplete && (
           <div className="stp-achieved">
             <IcoPath d="M20 6L9 17l-5-5" color="#5E8E6F" size={22} />
@@ -1239,7 +1234,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           </div>
           <div className="stp-drlist">
             {familyCerts.map(c => {
-              const h = heldCerts[c.id];
+              const h = effectiveHeld[c.id];
               return (
                 <div className={`stp-drc ${h ? 'held' : ''}`} key={c.id}>
                   <div className="row">
@@ -1506,7 +1501,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       {/* ── certification journey: NoE → oral exam → CoC (only while a target CoC
             is in play — hidden once the goal is held / logging-only) ── */}
       {cert && (() => {
-        const j = journey || JOURNEY_DEFAULT;
+        const j = activeJourney;
         const conf = certConfidence(cert);
         // Hard requirements only (advisory bars like recency guide but don't gate).
         // An un-verified route never declares "requirements met" off a figure we
@@ -1524,18 +1519,25 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         const noeIssued = j.noe?.status === 'issued';
         const oralPassed = j.oral?.status === 'passed';
         const cocIssued = j.coc?.status === 'issued' || !!j.coc?.issuedDate;
+        const noeStarted = noeIssued || j.noe?.status === 'applied';
+        // Eligibility met but NoE not yet started → the call to action lives here:
+        // pulse the tick and prompt them to apply for the NoE.
+        const eligPrompt = eligible && !noeStarted;
         const steps = [
           {
             n: '01', label: 'Eligibility', key: 'elig', reachable: true,
             state: eligible ? 'done' : 'active',
+            pulse: eligPrompt,
             line: !conf.authoritative ? 'Confirm figures' : eligible ? 'Requirements met' : `${unmet.length} to go`,
             // A sub-line so the column matches the others' height and the binding
             // requirement shows on the card without opening the popover.
             detail: !conf.authoritative
               ? <div className="cj-detail">{conf.notice || 'see notice'}</div>
-              : eligible
-                ? <div className="cj-detail">All requirements met</div>
-                : (unmet[0] ? <div className="cj-detail">{unmet[0].label} · {unmet[0].remaining} to go</div> : null),
+              : eligPrompt
+                ? <div className="cj-detail cj-detail-cta">Apply for your NoE now →</div>
+                : eligible
+                  ? <div className="cj-detail">All requirements met</div>
+                  : (unmet[0] ? <div className="cj-detail">{unmet[0].label} · {unmet[0].remaining} to go</div> : null),
           },
           {
             n: '02', label: 'Notice of Eligibility', key: 'noe', reachable: eligible,
@@ -1579,7 +1581,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             <div className="cj-rail">
               {steps.map((s, i) => (
                 <React.Fragment key={s.n}>
-                  <button type="button" className={`cj-node ${s.state}`} onClick={() => clickStep(s)}
+                  <button type="button" className={`cj-node ${s.state}${s.pulse ? ' pulse' : ''}`} onClick={() => clickStep(s)}
                     title={s.key === 'elig' ? 'Show requirements' : `Update ${s.label}`}>
                     {s.state === 'done' ? <Icon name="Check" size={14} color="#fff" /> : s.state === 'locked' ? <Icon name="Lock" size={11} /> : s.n}
                   </button>
