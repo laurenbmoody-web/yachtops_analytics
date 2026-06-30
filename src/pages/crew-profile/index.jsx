@@ -2798,18 +2798,6 @@ const canEdit = (() => {
     }
   };
 
-  const handleLockMonth = async () => {
-    const year = horCurrentMonth?.getFullYear();
-    const month = horCurrentMonth?.getMonth();
-    try {
-      await lockMonthDb({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month });
-      showToast('Month locked', 'success');
-      await loadHORData();
-    } catch (e) {
-      showToast(e?.message || 'Failed to lock month', 'error');
-    }
-  };
-
   // Approver signs off / clears the sign-off on a documented breach reason.
   const handleSignOffBreach = async (date) => {
     try {
@@ -2905,6 +2893,10 @@ const canEdit = (() => {
     const requiredApproverRank = Math.max(subjectRank, horRankOf(approverTier));
     const canApprove = !isOwnProfile && viewerRank >= requiredApproverRank;
     const canLock = viewerTier === 'COMMAND';
+    // Once a month leaves 'open' the crew member has signed it (submit /
+    // self-certify / approved), so the record is locked — no one edits it until
+    // a command user unlocks (reopens) it. Mirrors the sign-off being binding.
+    const monthLocked = dbStatus !== 'open';
     const submitLabel = (vesselHorSettings?.mode === 'trust' || horSelfCertifies) ? 'Confirm Month' : 'Submit for Approval';
     // A confirmed month with only the submitter's signature (no counter-sign,
     // confirmed by the submitter) is a self-certification (e.g. the Master).
@@ -3088,14 +3080,13 @@ const canEdit = (() => {
                   </button>
                 </>
               )}
-              {/* Confirmed: reopen, and COMMAND can lock */}
-              {canApprove && dbStatus === 'confirmed' && (
-                <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleReopenMonth}>Reopen</button>
-              )}
-              {canLock && dbStatus === 'confirmed' && (
-                <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleLockMonth}>
-                  <Icon name="Lock" size={16} />
-                  Lock
+              {/* Signed off (confirmed / self-certified) or locked: the record is
+                  locked for edits. Only a command user can unlock it, which
+                  reopens the month for corrections. */}
+              {canLock && (dbStatus === 'confirmed' || dbStatus === 'locked') && (
+                <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleReopenMonth}>
+                  <Icon name="Unlock" size={16} />
+                  Unlock
                 </button>
               )}
             </div>
@@ -3295,6 +3286,7 @@ const canEdit = (() => {
               todayStr={todayStr}
               onMonthChange={handleMonthChange}
               onChanged={loadHORData}
+              readOnly={monthLocked}
             />
 
             {/* Breaches — editorial summary, mirroring the sign-off view. No red
