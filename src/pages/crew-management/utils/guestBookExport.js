@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import {
   Document, Packer, Paragraph, TextRun, ImageRun,
   Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, VerticalAlign,
+  PageOrientation, PageBreak,
 } from 'docx';
 import { supabase } from '../../../lib/supabaseClient';
 
@@ -332,6 +333,7 @@ const NO_BORDERS = ['top', 'bottom', 'left', 'right', 'insideHorizontal', 'insid
 export const exportGuestBookDOCX = async ({
   title = 'Our crew', subtitle = '', entries = [], includeMissing = false, logo = null, avatars = {}, showTitle = true,
   headingColor = '#1C1B3A', accentColor = '#C65A1A', titleSize = 20, subtitleSize = 8,
+  orientation = 'portrait', perPage = 3,
 }) => {
   const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
   if (!list.length) return { count: 0 };
@@ -384,15 +386,29 @@ export const exportGuestBookDOCX = async ({
     });
   };
 
+  const per = Math.max(1, Number(perPage) || 3);
   const body = [];
   list.forEach((e, i) => {
-    if (i > 0) body.push(new Paragraph({ spacing: { before: 200, after: 200 }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: 'ECEAE3' } }, children: [] }));
+    if (i > 0) {
+      if (i % per === 0) {
+        // New page every `per` crew — mirrors the PDF pagination.
+        body.push(new Paragraph({ children: [new PageBreak()] }));
+      } else {
+        body.push(new Paragraph({ spacing: { before: 200, after: 200 }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: 'ECEAE3' } }, children: [] }));
+      }
+    }
     body.push(personTable(e));
   });
 
+  const landscape = orientation === 'landscape';
   const doc = new Document({
     sections: [{
-      properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } },
+      properties: {
+        page: {
+          size: landscape ? { orientation: PageOrientation.LANDSCAPE } : { orientation: PageOrientation.PORTRAIT },
+          margin: { top: 720, bottom: 720, left: 900, right: 900 },
+        },
+      },
       children: [...head, ...body],
     }],
   });

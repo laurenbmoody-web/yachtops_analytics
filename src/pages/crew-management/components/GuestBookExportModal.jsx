@@ -24,6 +24,24 @@ const COLOURS = [
 
 const initials = (n) => String(n || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
 
+// Default yacht hierarchy: Captain → Chief Engineer → Engineering → Officers →
+// Deck → Chief Stew → Interior → Head Chef → Galley → Other. Order-sensitive
+// keyword checks (chief engineer before engineering, chief stew before interior,
+// head chef before galley, officers before deck).
+const crewRank = (entry) => {
+  const s = `${entry?.role || ''} ${entry?.department || ''}`.toLowerCase();
+  if (/\bcaptain\b|\bmaster\b|\bcapt\b/.test(s)) return 0;
+  if (/chief eng|\bce\b|\bc\/e\b|first eng|second eng|2nd eng|3rd eng|third eng/.test(s)) return 1;
+  if (/eng|eto|electro/.test(s)) return 2;
+  if (/officer|\boow\b|\bmate\b|bosun|\bo\.?o\.?w\b/.test(s)) return 3;
+  if (/deck/.test(s)) return 4;
+  if (/chief stew|\bchstew\b|head of (service|interior)|purser/.test(s)) return 5;
+  if (/stew|interior|housekeep|laundry|service|spa|massage|beauty/.test(s)) return 6;
+  if (/head chef|\bexecutive chef\b|exec chef/.test(s)) return 7;
+  if (/chef|galley|cook|sous/.test(s)) return 8;
+  return 9;
+};
+
 const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName = 'Our crew' }) => {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState([]);
@@ -60,8 +78,8 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
       fetchGuestBookEntries(tenantId, crew),
       fetchVesselBrand(tenantId),
     ]);
-    // statements first, then crew without one
-    data.sort((a, b) => (b.hasStatement - a.hasStatement));
+    // Default yacht hierarchy (rank), then statements first, then name.
+    data.sort((a, b) => crewRank(a) - crewRank(b) || (b.hasStatement - a.hasStatement) || String(a.name || '').localeCompare(String(b.name || '')));
     setEntries(data);
     setOrder(data.map((_, i) => i));
     if (brand.name) setTitle(brand.name);
@@ -133,7 +151,7 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
     if (!visible.length) return;
     setDocxBusy(true);
     try {
-      const res = await exportGuestBookDOCX({ title, subtitle, entries: visible, includeMissing, logo, avatars, showTitle, headingColor, accentColor, titleSize, subtitleSize });
+      const res = await exportGuestBookDOCX({ title, subtitle, entries: visible, orientation, perPage: perResolved, includeMissing, logo, avatars, showTitle, headingColor, accentColor, titleSize, subtitleSize });
       if (!res.count) { showToast('No statements to export yet', 'error'); return; }
       showToast(`Word document exported — ${res.count} crew`, 'success');
     } catch (e) {
