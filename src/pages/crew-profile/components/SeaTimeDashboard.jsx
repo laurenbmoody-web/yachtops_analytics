@@ -499,14 +499,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     const oralPassed = !!j.oral?.passDate || j.oral?.status === 'passed';
     const hasEng1 = !!docsOnFile?.eng1?.fileUrl;
     const coursesState = !ancillary.length ? 'na' : (ancillaryDone === ancillary.length ? 'done' : ancillaryDone > 0 ? 'pending' : 'todo');
+    // Chief Mate (Yachts) is a courses-only endorsement — no NoE, no oral, and no
+    // fresh testimonial (the OOW service already covers it). Other rungs need the
+    // full exam bundle.
+    const endorsement = cert.oral === false;
     return [
-      { key: 'test', label: 'Verified Sea Service Testimonial (+ your SRB)', detail: canGenerate ? 'Verified & ready to export' : 'Get your record verified first', state: canGenerate ? 'done' : 'todo' },
-      { key: 'noe', label: 'Notice of Eligibility (NoE)', detail: noeIssued ? 'On record' : 'Record it in step 02', state: noeIssued ? 'done' : 'todo' },
-      { key: 'oral', label: 'Oral exam pass (valid 3 years)', detail: oralPassed ? 'Passed' : 'Record it in step 03', state: oralPassed ? 'done' : 'todo' },
+      !endorsement && { key: 'test', label: 'Verified Sea Service Testimonial (+ your SRB)', detail: canGenerate ? 'Verified & ready to export' : 'Get your record verified first', state: canGenerate ? 'done' : 'todo' },
+      !endorsement && { key: 'noe', label: 'Notice of Eligibility (NoE)', detail: noeIssued ? 'On record' : 'Record it in step 02', state: noeIssued ? 'done' : 'todo' },
+      !endorsement && { key: 'oral', label: 'Oral exam pass (valid 3 years)', detail: oralPassed ? 'Passed' : 'Record it in step 03', state: oralPassed ? 'done' : 'todo' },
+      { key: 'courses', label: `Management-level courses for ${cert.short}`, detail: ancillary.length ? `${ancillaryDone} of ${ancillary.length} on file — see Courses & tickets` : 'None additional for this route', state: coursesState },
       { key: 'eng1', label: 'Valid ENG1 medical', detail: hasEng1 ? 'On file' : 'Add to your Documents', state: hasEng1 ? 'done' : 'todo' },
       { key: 'photos', label: 'Two passport-size photographs', detail: '', state: 'todo' },
-      { key: 'courses', label: `STCW & ancillary certificates for ${cert.short}`, detail: ancillary.length ? `${ancillaryDone} of ${ancillary.length} on file — see Courses & tickets` : 'None additional for this route', state: coursesState },
-    ];
+    ].filter(Boolean);
   }, [cert, activeJourney, docsOnFile, ancillary, ancillaryDone, canGenerate]);
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
@@ -1519,52 +1523,86 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         const noeIssued = j.noe?.status === 'issued';
         const oralPassed = j.oral?.status === 'passed';
         const cocIssued = j.coc?.status === 'issued' || !!j.coc?.issuedDate;
-        const noeStarted = noeIssued || j.noe?.status === 'applied';
-        // Eligibility met but NoE not yet started → the call to action lives here:
-        // pulse the tick and prompt them to apply for the NoE.
-        const eligPrompt = eligible && !noeStarted;
-        const steps = [
-          {
-            n: '01', label: 'Eligibility', key: 'elig', reachable: true,
-            state: eligible ? 'done' : 'active',
-            pulse: eligPrompt,
-            line: !conf.authoritative ? 'Confirm figures' : eligible ? 'Requirements met' : `${unmet.length} to go`,
-            // A sub-line so the column matches the others' height and the binding
-            // requirement shows on the card without opening the popover.
-            detail: !conf.authoritative
-              ? <div className="cj-detail">{conf.notice || 'see notice'}</div>
-              : eligPrompt
-                ? <div className="cj-detail cj-detail-cta">Apply for your NoE now →</div>
-                : eligible
-                  ? <div className="cj-detail">All requirements met</div>
-                  : (unmet[0] ? <div className="cj-detail">{unmet[0].label} · {unmet[0].remaining} to go</div> : null),
-          },
-          {
-            n: '02', label: 'Notice of Eligibility', key: 'noe', reachable: eligible,
-            state: noeIssued ? 'done' : j.noe?.status === 'applied' ? 'active' : eligible ? 'todo' : 'locked',
-            line: noeIssued ? `Issued ${fmtDate(j.noe.issueDate)}` : j.noe?.status === 'applied' ? 'Awaiting NoE' : eligible ? 'Ready to apply' : 'Locked',
-            detail: noeIssued && noeDte != null
-              ? <div className="cj-detail">{noeDte < 0 ? 'Expired — reapply' : `Valid to ${fmtDate(noeExpiry)}${noeDte < 180 ? ` · ${noeDte}d left` : ''}`}{j.noe?.ref ? ` · ${j.noe.ref}` : ''}</div> : null,
-          },
-          {
-            n: '03', label: 'Oral exam', key: 'oral', reachable: noeIssued,
-            state: oralPassed ? 'done' : (j.oral?.status === 'booked' || j.oral?.status === 'failed') ? 'active' : noeIssued ? 'todo' : 'locked',
-            line: oralPassed ? `Passed ${fmtDate(j.oral.passDate)}` : j.oral?.status === 'booked' ? `Booked ${fmtDate(j.oral.bookedDate) || ''}`.trim() : j.oral?.status === 'failed' ? 'Failed — book re-sit' : noeIssued ? 'Not booked' : 'Locked',
-            detail: oralPassed && !cocIssued && oralDte != null
-              ? <div className="cj-detail">{oralDte < 0 ? 'Pass expired — re-sit' : `Pass valid to ${fmtDate(oralExpiry)}${oralDte < 180 ? ` · ${oralDte}d left` : ''}`}</div>
-              : (j.oral?.fails?.length ? <div className="cj-detail">Attempt {j.oral.fails.length + 1}</div> : null),
-          },
-          {
-            n: '04', label: 'Certificate of Competency', key: 'coc', reachable: oralPassed,
-            state: cocIssued ? 'done' : j.coc?.status === 'applied' ? 'active' : oralPassed ? 'todo' : 'locked',
-            line: cocIssued ? `Issued ${fmtDate(j.coc.issuedDate)}` : j.coc?.status === 'applied' ? 'Applied — awaiting' : oralPassed ? 'Ready to apply' : 'Locked',
-            detail: cocIssued && j.coc?.ref ? <div className="cj-detail">{j.coc.ref}</div> : null,
-          },
-        ];
+        // Chief Mate (Yachts) is an ENDORSEMENT of the OOW II/1 CoC — gained by the
+        // management-level courses, with no oral exam (gov.uk lists no Chief Mate
+        // yacht oral). Those rungs get a Courses step in place of NoE → Oral.
+        const hasOral = cert.oral !== false;
+        const coursesTotal = ancillary.length;
+        const coursesComplete = coursesTotal === 0 ? true : ancillaryDone === coursesTotal;
+        const cocApplied = j.coc?.status === 'applied' || cocIssued;
+        const eligStep = {
+          n: '01', label: 'Eligibility', key: 'elig', reachable: true,
+          state: eligible ? 'done' : 'active',
+          line: !conf.authoritative ? 'Confirm figures' : eligible ? 'Requirements met' : `${unmet.length} to go`,
+        };
+        let steps;
+        if (hasOral) {
+          const noeStarted = noeIssued || j.noe?.status === 'applied';
+          const eligPrompt = eligible && !noeStarted;
+          eligStep.pulse = eligPrompt;
+          eligStep.detail = !conf.authoritative
+            ? <div className="cj-detail">{conf.notice || 'see notice'}</div>
+            : eligPrompt
+              ? <div className="cj-detail cj-detail-cta">Apply for your NoE now →</div>
+              : eligible
+                ? <div className="cj-detail">All requirements met</div>
+                : (unmet[0] ? <div className="cj-detail">{unmet[0].label} · {unmet[0].remaining} to go</div> : null);
+          steps = [
+            eligStep,
+            {
+              n: '02', label: 'Notice of Eligibility', key: 'noe', reachable: eligible,
+              state: noeIssued ? 'done' : j.noe?.status === 'applied' ? 'active' : eligible ? 'todo' : 'locked',
+              line: noeIssued ? `Issued ${fmtDate(j.noe.issueDate)}` : j.noe?.status === 'applied' ? 'Awaiting NoE' : eligible ? 'Ready to apply' : 'Locked',
+              detail: noeIssued && noeDte != null
+                ? <div className="cj-detail">{noeDte < 0 ? 'Expired — reapply' : `Valid to ${fmtDate(noeExpiry)}${noeDte < 180 ? ` · ${noeDte}d left` : ''}`}{j.noe?.ref ? ` · ${j.noe.ref}` : ''}</div> : null,
+            },
+            {
+              n: '03', label: 'Oral exam', key: 'oral', reachable: noeIssued,
+              state: oralPassed ? 'done' : (j.oral?.status === 'booked' || j.oral?.status === 'failed') ? 'active' : noeIssued ? 'todo' : 'locked',
+              line: oralPassed ? `Passed ${fmtDate(j.oral.passDate)}` : j.oral?.status === 'booked' ? `Booked ${fmtDate(j.oral.bookedDate) || ''}`.trim() : j.oral?.status === 'failed' ? 'Failed — book re-sit' : noeIssued ? 'Not booked' : 'Locked',
+              detail: oralPassed && !cocIssued && oralDte != null
+                ? <div className="cj-detail">{oralDte < 0 ? 'Pass expired — re-sit' : `Pass valid to ${fmtDate(oralExpiry)}${oralDte < 180 ? ` · ${oralDte}d left` : ''}`}</div>
+                : (j.oral?.fails?.length ? <div className="cj-detail">Attempt {j.oral.fails.length + 1}</div> : null),
+            },
+            {
+              n: '04', label: 'Certificate of Competency', key: 'coc', reachable: oralPassed,
+              state: cocIssued ? 'done' : j.coc?.status === 'applied' ? 'active' : oralPassed ? 'todo' : 'locked',
+              line: cocIssued ? `Issued ${fmtDate(j.coc.issuedDate)}` : j.coc?.status === 'applied' ? 'Applied — awaiting' : oralPassed ? 'Ready to apply' : 'Locked',
+              detail: cocIssued && j.coc?.ref ? <div className="cj-detail">{j.coc.ref}</div> : null,
+            },
+          ];
+        } else {
+          // Endorsement route: Eligibility → Courses → Certificate (no NoE/oral).
+          const endorsePrompt = eligible && !cocApplied;
+          eligStep.pulse = endorsePrompt;
+          eligStep.detail = !conf.authoritative
+            ? <div className="cj-detail">{conf.notice || 'see notice'}</div>
+            : endorsePrompt
+              ? <div className="cj-detail cj-detail-cta">{coursesComplete ? 'Apply to add the endorsement →' : 'Add your management courses →'}</div>
+              : eligible
+                ? <div className="cj-detail">No oral — endorsed by courses</div>
+                : (unmet[0] ? <div className="cj-detail">{unmet[0].label} · {unmet[0].remaining} to go</div> : null);
+          steps = [
+            eligStep,
+            {
+              n: '02', label: 'Courses', key: 'courses', reachable: eligible,
+              state: !eligible ? 'locked' : coursesComplete ? 'done' : ancillaryDone > 0 ? 'active' : 'todo',
+              line: !eligible ? 'Locked' : coursesComplete ? (coursesTotal ? 'All courses on file' : 'No extra courses') : `${ancillaryDone} of ${coursesTotal} on file`,
+              detail: eligible && coursesTotal > 0 && !coursesComplete ? <div className="cj-detail">Management-level courses for {cert.short}</div> : null,
+            },
+            {
+              n: '03', label: 'Certificate of Competency', key: 'coc', reachable: coursesComplete,
+              state: cocIssued ? 'done' : j.coc?.status === 'applied' ? 'active' : coursesComplete ? 'todo' : 'locked',
+              line: cocIssued ? `Endorsed ${fmtDate(j.coc.issuedDate)}` : j.coc?.status === 'applied' ? 'Applied — awaiting' : coursesComplete ? 'Ready to endorse' : 'Locked',
+              detail: cocIssued && j.coc?.ref ? <div className="cj-detail">{j.coc.ref}</div> : null,
+            },
+          ];
+        }
         // Every step is openable so the crew can see each stage; the lock styling
         // still signals where they actually are in the real-world process.
         const clickStep = (s) => {
           if (s.key === 'elig') { setEligOpen(o => !o); return; }
+          if (s.key === 'courses') { setCoursesOpen(true); journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
           openJourney(s.key);
         };
         const doneCount = steps.filter(s => s.state === 'done').length;
@@ -1575,9 +1613,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 <h3 className="cj-title">Certification journey</h3>
                 <div className="cj-ctx">Working toward {cert.short}{MSF_FORMS[deptId] ? ` · Apply with ${MSF_FORMS[deptId].form} (${MSF_FORMS[deptId].notice})` : ''}</div>
               </div>
-              <div className="cj-progress"><b>{doneCount}</b> of 4 complete</div>
+              <div className="cj-progress"><b>{doneCount}</b> of {steps.length} complete</div>
             </div>
-            {/* full-width rail: 4 nodes spaced edge-to-edge with 3 connecting lines */}
+            {/* full-width rail: nodes spaced edge-to-edge with connecting lines */}
             <div className="cj-rail">
               {steps.map((s, i) => (
                 <React.Fragment key={s.n}>
@@ -1971,7 +2009,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           <div className="cso" role="dialog" aria-modal="true" aria-label="Certification journey" style={{ width: 520 }} onClick={e => e.stopPropagation()}>
             <button className="cso-x" onClick={() => setJourneyOpen(false)} aria-label="Close"><Icon name="X" size={18} /></button>
             <div className="cso-head">
-              <div className="cso-eyebrow">Certification journey · Step {journeyStep === 'noe' ? '02' : journeyStep === 'oral' ? '03' : '04'}</div>
+              <div className="cso-eyebrow">Certification journey · Step {journeyStep === 'noe' ? '02' : journeyStep === 'oral' ? '03' : (cert?.oral === false ? '03' : '04')}</div>
               <h3 className="cso-title">{journeyStep === 'noe' ? 'Notice of Eligibility' : journeyStep === 'oral' ? 'Oral examination' : 'Certificate of Competency'}</h3>
               <div className="cso-sub">{journeyStep === 'noe'
                 ? 'Apply with your MSF form once eligible. The NoE lets you book the oral exam and is valid 5 years.'

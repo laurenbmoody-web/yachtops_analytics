@@ -144,8 +144,9 @@ export const CERTIFICATES = {
     msn: 'MSN 1858 Amd 2 §3.4', verified: 'HIGH',
     yardCapDays: 30,                // Chief Mate / Master: max 30 yard days (1858 §3.4)
     requires: {},                   // no additional sea time — concurrent with OOW <3000 II/1
+    oral: false,                    // no oral exam — endorsement of the OOW II/1 CoC by courses
     heldWhilst: 'OOW (Yachts <3000GT) II/1',
-    note: 'No additional qualifying service beyond OOW <3000GT; may be applied for at the same time.'
+    note: 'No additional qualifying service or oral beyond OOW <3000GT — an endorsement of the OOW II/1 CoC gained by the management-level courses; may be applied for at the same time as OOW (gov.uk yacht oral syllabuses list no Chief Mate oral).'
   },
   MASTER_YACHT_500: {
     family: 'DECK', label: 'Master (Yachts <500GT)', short: 'Master <500GT',
@@ -171,8 +172,9 @@ export const CERTIFICATES = {
     msn: 'MSN 1858 Amd 2 §4.3', verified: 'HIGH',
     yardCapDays: 30,                // Chief Mate: max 30 yard days (1858 §4.3)
     requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
+    oral: false,                    // no Chief Mate (Yachts) oral syllabus — endorsement by courses + service
     heldWhilst: 'OOW Unlimited (or Master Yachts <3000GT II/1)', heldWhilstCert: 'MASTER_YACHT_3000', asOfficer: true,
-    note: 'OOW-Unlimited route: 12 months onboard as OOW incl. 6 months seagoing, all on a yacht ≥500GT.'
+    note: 'OOW-Unlimited route: 12 months onboard as OOW incl. 6 months seagoing, all on a yacht ≥500GT. No Chief Mate oral — endorsed by the management courses.'
   },
   MASTER_UNLIMITED: {
     family: 'DECK', label: 'Master (Yachts Unlimited)', short: 'Master Unltd',
