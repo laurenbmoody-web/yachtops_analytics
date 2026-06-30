@@ -18,7 +18,7 @@ import { sendDbNotification } from '../../../lib/dbNotifications';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
 import { buildNautilusSST } from '../../../seatime/nautilusExport';
-import { buildTransportMaltaSST } from '../../../seatime/transportMaltaExport';
+import { buildTransportMaltaSST, buildTransportMaltaEngineSST } from '../../../seatime/transportMaltaExport';
 import CaptainSignoff from '../../../seatime/CaptainSignoff';
 import './sea-time-dashboard.css';
 
@@ -282,6 +282,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   // Who signs the testimonial, by department: the chief engineer for engine/ETO
   // service (MSN 1904 §5.5), otherwise the captain.
   const signerWord = (family === 'ENGINE' || family === 'ETO') ? 'chief engineer' : 'captain';
+  // The crew's OWN top rank on board — used when their own service can't be
+  // self-attested and the company signs instead.
+  const topRankWord = (family === 'ENGINE' || family === 'ETO') ? 'Chief Engineer' : 'Master';
 
   const goalForDept = (id) => { const fams = DEPT_FAMILIES[id] || []; return fams.length ? (DEFAULT_GOAL[fams[0]] || '') : ''; };
   // Changing department re-defaults the goal to that department's ceiling
@@ -892,11 +895,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
     } catch (e) { console.error('[seatime] nautilus export', e); flash('Could not build the Nautilus form'); }
   };
 
-  // Pre-fill the OFFICIAL Transport Malta deck testimonial (S.L. 499.23) for one
+  // Pre-fill the OFFICIAL Transport Malta testimonial (S.L. 499.23) for one
   // command spell — we stamp the factual service data onto Transport Malta's own
-  // PDF; the master completes the assessment + signs. LOA and max passengers are
-  // denormalised onto every Cargo-tracked day by the autolog sync
-  // (vessel_length_m = the vessel's LOA; vessel_max_pax = its typical_guest_count).
+  // PDF; the endorsing officer completes the assessment + signs. The deck variant
+  // carries LOA + max passengers (denormalised onto every Cargo-tracked day by
+  // the autolog sync: vessel_length_m = LOA, vessel_max_pax = typical_guest_count);
+  // the engineering variant carries the engine type & power column instead, and is
+  // endorsed by the chief engineer rather than the master.
   const onDownloadSpellTM = async (spell) => {
     if (!canGenerate) { flash('Resolve the outstanding validation checks first'); return; }
     try {
@@ -905,30 +910,36 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         .slice()
         .sort((a, b) => String(a.from).localeCompare(String(b.from)))
         .map(e => ({ from: e.from, to: e.to, capacity: e.capacity }));
-      // The testimonial is endorsed by the vessel's master. For the crew's OWN
-      // service as Master they can't attest themselves, so the company signs:
-      // leave the position blank and name the company instead.
-      const isOwnMaster = spell.captainId === userId;
+      // Engineering routes use Transport Malta's Engineering-personnel variant
+      // (engine-power column, chief-engineer endorser); deck routes use the deck
+      // form. The endorser signs — the crew's OWN service in the top rank can't
+      // be self-attested, so the company signs (position blank, company named).
+      const engineForm = family === 'ENGINE' || family === 'ETO';
+      const topRankPosition = engineForm ? 'Chief Engineer' : 'Master';
+      const isOwnTopRank = spell.captainId === userId;
       let signatoryName = '', position = '', companyName = '';
-      if (isOwnMaster) {
+      if (isOwnTopRank) {
         companyName = company?.company_name || '';
       } else {
         const endorser = await resolveEndorserFor(spell.captainId, spell.captainName);
         signatoryName = endorser?.name || spell.captainName || '';
-        position = 'Master';
+        position = topRankPosition;
       }
       // I.D. No. = the passport number from the uploaded passport document
       // (its document_number); fall back to the sample seafarer in preview.
       const passportNo = docsOnFile.passport?.documentNumber || docsOnFile.passport_certified_copy?.documentNumber || seafarer.passportNo || '';
       flash('Pre-filling the Transport Malta form…');
-      const pdfBytes = await buildTransportMaltaSST({
+      const build = engineForm ? buildTransportMaltaEngineSST : buildTransportMaltaSST;
+      const pdfBytes = await build({
         seafarer: { fullName: seafarer.fullName, idNo: passportNo },
-        vessel: { name: v.name, type: v.type, flag: v.flag, officialNo: v.officialNo, loaM: v.lengthM, maxPax: v.maxPax },
+        vessel: engineForm
+          ? { name: v.name, type: v.type, flag: v.flag, officialNo: v.officialNo, powerKW: v.powerKW ?? v.propulsionKW }
+          : { name: v.name, type: v.type, flag: v.flag, officialNo: v.officialNo, loaM: v.lengthM, maxPax: v.maxPax },
         rows,
         signatory: { name: signatoryName, position },
         company: { name: companyName },
       });
-      downloadBytes(pdfBytes, `transport-malta-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
+      downloadBytes(pdfBytes, `transport-malta-sst${engineForm ? '-engine' : ''}-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
       flash('Transport Malta form ready');
     } catch (e) { console.error('[seatime] transport malta export', e); flash('Could not build the Transport Malta form'); }
   };
@@ -1939,12 +1950,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       {nautilusSpells.map((s, i) => (
                         <div key={i} className="std-spell">
                           <div className="std-spell-main">
-                            <div className="nm">{vessels[s.vesselId]?.name || 'Vessel'} · {s.captainId === userId ? 'your service as Master' : (s.captainName || 'Captain')}</div>
+                            <div className="nm">{vessels[s.vesselId]?.name || 'Vessel'} · {s.captainId === userId ? `your service as ${topRankWord}` : (s.captainName || 'Captain')}</div>
                             <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}</div>
                           </div>
                           {verifier === 'nautilus'
                             ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
-                            : (verifier === 'transport_malta' && family === 'DECK')
+                            : (verifier === 'transport_malta' && (family === 'DECK' || family === 'ENGINE' || family === 'ETO'))
                               ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
                               : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
                         </div>

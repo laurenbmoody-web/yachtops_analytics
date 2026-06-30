@@ -94,7 +94,7 @@ export const VERIFIER_PROFILES = {
       { id: 'srb', label: 'Discharge book / Seaman’s book', profileDoc: 'seamans_book', optional: true }
     ],
     fee: 'Verification via the Transport Malta Seafarer Portal (MIN 543 authorised); processing fee applies.',
-    instructions: 'Transport Malta is an MCA-authorised verifier (MIN 543). Download the official deck testimonial (S.L. 499.23) here — Cargo pre-fills the service details onto Transport Malta’s own form for the master to complete and sign. Submit it via their Seafarer Portal with your ID and a copy of each vessel’s Certificate of Registry / CVC.',
+    instructions: 'Transport Malta is an MCA-authorised verifier (MIN 543). Download the official testimonial (S.L. 499.23) here — Cargo pre-fills the service details onto Transport Malta’s own form (the deck form, or the engineering-personnel form for engine/ETO routes) for the endorsing officer to complete and sign. Submit it via their Seafarer Portal with your ID and a copy of each vessel’s Certificate of Registry / CVC.',
     lastReviewed: '2026-06-22'
   },
   mca: {
