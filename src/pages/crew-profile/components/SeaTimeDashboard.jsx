@@ -184,6 +184,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [ledgerScope, setLedgerScope] = useState('all'); // 'all' | 'cargo' (Cargo-tracked only)
   const [ledgerYear, setLedgerYear] = useState(null);    // selected year in the list view (null = latest)
   const [verifier, setVerifier] = useState('nautilus');
+  const [revalidating, setRevalidating] = useState(false); // revalidating an existing CoC → reval-only docs become required
   const signatory = 'master'; // self-attestation is never permitted (MSN 1858)
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -466,7 +467,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     }
     return out;
   }, [docMet, verifier, docsOnFile]);
-  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective, cert, buckets }), [entries, vessels, config, signatory, verifier, docMetEffective, cert, buckets]);
+  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective, cert, buckets, revalidating }), [entries, vessels, config, signatory, verifier, docMetEffective, cert, buckets, revalidating]);
   // Cert-specific MCA CoC-application checklist — the bundle the crew sends AFTER
   // the testimonial is verified. Live state where we can detect it (testimonial
   // ready, NoE/oral from the journey, ENG1 from Documents, course count from the
@@ -1621,16 +1622,24 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               <div>
                 <div className="std-fhead"><span className="std-flabel">Attach documents · for {vp.short} verification</span></div>
                 <div className="std-ftitle">What {vp.short} need to verify your service</div>
+                {vp.docs.some(d => d.reval) && (
+                  <label className="std-reval">
+                    <input type="checkbox" checked={revalidating} onChange={(e) => { setRevalidating(e.target.checked); resetSignoff(); }} />
+                    <span>Revalidating an existing CoC? <em>— adds {vp.short}’s revalidation documents (photos, medical, current CoC)</em></span>
+                  </label>
+                )}
                 <div className="std-docs">
                   {vp.docs.map(d => {
                     const onFile = d.profileDoc ? docsOnFile[d.profileDoc] : null;
                     const met = !!docMetEffective[d.id];
-                    // Profile-backed docs are read-only (pulled from Documents);
-                    // others keep the manual toggle.
+                    // optional = always supporting; reval = only needed when
+                    // revalidating (otherwise shown faded with an "if revalidating" tag).
+                    const soft = d.optional || (d.reval && !revalidating);
+                    const tag = d.optional ? 'optional' : (d.reval && !revalidating) ? 'if revalidating' : null;
                     return (
-                      <div className={`std-doc2${met ? ' on' : ''}${d.optional ? ' opt' : ''}`} key={d.id} onClick={d.profileDoc ? undefined : () => toggleDoc(d.id)} style={d.profileDoc ? { cursor: 'default' } : undefined}>
+                      <div className={`std-doc2${met ? ' on' : ''}${soft ? ' opt' : ''}`} key={d.id} onClick={d.profileDoc ? undefined : () => toggleDoc(d.id)} style={d.profileDoc ? { cursor: 'default' } : undefined}>
                         <span className="ring">{met && <Icon name="Check" size={12} color="#fff" />}</span>
-                        <span className="dl">{d.label}{d.optional && <span className="std-doc-opt">optional</span>}</span>
+                        <span className="dl">{d.label}{tag && <span className="std-doc-opt">{tag}</span>}</span>
                         {d.profileDoc && (onFile?.fileUrl
                           ? <a href={onFile.fileUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: '#C65A1A', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="Paperclip" size={12} /> View</a>
                           : <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#A6712C' }}>Add to your profile documents</span>)}
