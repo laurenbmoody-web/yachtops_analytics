@@ -28,7 +28,7 @@ const resolveMediaType = (file) => {
 
 const CONF_LABEL = { high: 'High match', medium: 'Likely', low: 'Low match' };
 
-const QuoteReviewModal = ({ list, items, file, onApplied, onClose }) => {
+const QuoteReviewModal = ({ list, items, baselineCostById, file, onApplied, onClose }) => {
   const [status, setStatus] = useState('parsing'); // parsing | done | error
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);            // [{ itemId, name, price, confidence }]
@@ -72,7 +72,13 @@ const QuoteReviewModal = ({ list, items, file, onApplied, onClose }) => {
             name: it.name,
             unit: it.unit,
             qty: it.quantity_ordered,
-            estimate: it.estimated_unit_cost != null ? Number(it.estimated_unit_cost) : null,
+            // Variance baseline: the line's current effective cost
+            // (supplier price / prior quote / estimate), falling back to
+            // the raw estimate. So the delta shows against whatever the
+            // line costs today, not only a chief-entered estimate.
+            estimate: (baselineCostById && baselineCostById[it.id] != null)
+              ? Number(baselineCostById[it.id])
+              : (it.estimated_unit_cost != null ? Number(it.estimated_unit_cost) : null),
             price: l.unit_price != null ? String(l.unit_price) : '',
             confidence: l.match_confidence,
           });

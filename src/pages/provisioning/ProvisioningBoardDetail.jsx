@@ -2191,6 +2191,18 @@ const ProvisioningBoardDetail = () => {
     return parseFloat(i.quantity_ordered) || 0;
   }, [itemStatusMap]);
 
+  // Baseline cost per line for the quote-review variance — the line's
+  // CURRENT effective cost (supplier price / prior quote / estimate),
+  // not just estimated_unit_cost. On a Cargo-supplier board the estimate
+  // is often null and the real cost is the supplier's, so diffing only
+  // against estimated_unit_cost showed nothing. null when there's no
+  // baseline to compare against.
+  const baselineCostById = useMemo(() => {
+    const m = {};
+    items.forEach((i) => { const c = effectiveCost(i); m[i.id] = c > 0 ? c : null; });
+    return m;
+  }, [items, effectiveCost]);
+
   const grandTotals = useMemo(() => items.reduce((acc, i) => {
     const qty = effectiveOrderedQty(i);
     const qtyRec = parseFloat(i.quantity_received) || 0;
@@ -4687,6 +4699,7 @@ const ProvisioningBoardDetail = () => {
         <QuoteReviewModal
           list={list}
           items={items}
+          baselineCostById={baselineCostById}
           file={quoteReviewFile}
           onApplied={async (count) => {
             setQuoteReviewFile(null);
