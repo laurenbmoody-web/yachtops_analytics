@@ -813,7 +813,7 @@ const SendToSupplierModal = ({
                   </div>
                   <div className="stsm-field">
                     <label className="stsm-label">
-                      Order by date<span className="req">*</span>
+                      Delivery date<span className="req">*</span>
                     </label>
                     <div className="stsm-inputcard">
                       <DateInput

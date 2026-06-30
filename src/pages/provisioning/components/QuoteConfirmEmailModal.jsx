@@ -9,15 +9,27 @@ import './quote-review-modal.css';
 // nothing leaves silently to a stale address (the worry with manual
 // quotes, where the issuer's email often isn't the one on file).
 
-const QuoteConfirmEmailModal = ({ boardTitle, defaultEmail, onClose }) => {
+const QuoteConfirmEmailModal = ({ boardTitle, defaultEmail, quotedTotal, itemCount, onClose }) => {
   const [to, setTo] = useState(defaultEmail || '');
-  const subject = `Quote confirmed — ${boardTitle || 'provisioning order'}`;
-  const body = useMemo(() => (
-    `Hi,\n\n` +
-    `We've reviewed and confirmed your quote for "${boardTitle || 'our provisioning order'}".\n\n` +
-    `Please treat this as approval to proceed. We'll be in touch with delivery details.\n\n` +
-    `Many thanks.`
-  ), [boardTitle]);
+  const title = boardTitle || 'our provisioning order';
+  const subject = `Quote accepted — confirming order: ${boardTitle || 'provisioning order'}`;
+  const body = useMemo(() => {
+    // Spell out exactly what's being confirmed: the supplier's quoted
+    // prices are accepted as-is, and this email is the go-ahead to
+    // fulfil — nothing further is needed from us to begin.
+    const scope = [
+      itemCount ? `${itemCount} item${itemCount === 1 ? '' : 's'}` : null,
+      quotedTotal ? `quoted total ${quotedTotal}` : null,
+    ].filter(Boolean).join(', ');
+    return (
+      `Hi,\n\n` +
+      `We've reviewed your quote for "${title}"${scope ? ` (${scope})` : ''} and are accepting it as quoted.\n\n` +
+      `This email confirms the order: please treat it as our approval to proceed at the quoted prices. ` +
+      `No changes are needed and nothing further is required from us to begin fulfilment.\n\n` +
+      `Please reply to confirm you've received this and let us know the delivery date and any details we should be aware of.\n\n` +
+      `Many thanks.`
+    );
+  }, [title, quotedTotal, itemCount]);
 
   const openDraft = () => {
     const mailto = `mailto:${encodeURIComponent(to.trim())}` +
