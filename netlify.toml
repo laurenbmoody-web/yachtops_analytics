@@ -10,7 +10,11 @@
   # 2024-11-30), NOT a secret — it's hardcoded as the current-GA default in
   # the Supabase OCR functions, which the scanner matched against the env
   # var value and false-flagged as "exposed".
-  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL,VITE_STRIPE_PUBLISHABLE_KEY,VITE_GOOGLE_ANALYTICS_ID,AZURE_DOC_INTELLIGENCE_API_VERSION"
+  # Netlify reported the flagged key as VITE_AZURE_DOC_INTELLIGENCE_API_VERSION
+  # (with the VITE_ prefix) — a public API version date, not a secret. OMIT_KEYS
+  # is value-based, so listing the exact key name stops the scan for that value
+  # wherever it appears. (Both names listed in case either is configured.)
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL,VITE_STRIPE_PUBLISHABLE_KEY,VITE_GOOGLE_ANALYTICS_ID,VITE_AZURE_DOC_INTELLIGENCE_API_VERSION,AZURE_DOC_INTELLIGENCE_API_VERSION"
   # supabase/functions/** are Deno edge functions deployed to Supabase, not
   # bundled into the Netlify-published site. They read every secret via
   # Deno.env.get() (nothing hardcoded), so they shouldn't be scanned as part
