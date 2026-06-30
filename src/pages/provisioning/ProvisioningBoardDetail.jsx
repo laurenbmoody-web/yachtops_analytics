@@ -2567,7 +2567,13 @@ const ProvisioningBoardDetail = () => {
         const defaultEmail = supplierProfileId
           ? await fetchSupplierContactEmail(supplierProfileId).catch(() => null)
           : null;
-        setConfirmEmailPrompt({ defaultEmail: defaultEmail || '' });
+        setConfirmEmailPrompt({
+          defaultEmail: defaultEmail || '',
+          quotedTotal: convertedTotals?.estimated > 0
+            ? formatCurrency(convertedTotals.estimated, displayCurrency || 'GBP')
+            : '',
+          itemCount: items.length,
+        });
       }
     } catch (err) {
       console.error('[ProvisioningBoardDetail] runConfirmQuote failed:', err);
@@ -4768,6 +4774,8 @@ const ProvisioningBoardDetail = () => {
         <QuoteConfirmEmailModal
           boardTitle={list?.title}
           defaultEmail={confirmEmailPrompt.defaultEmail}
+          quotedTotal={confirmEmailPrompt.quotedTotal}
+          itemCount={confirmEmailPrompt.itemCount}
           onClose={() => setConfirmEmailPrompt(null)}
         />
       )}
