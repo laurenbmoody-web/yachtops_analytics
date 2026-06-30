@@ -182,6 +182,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [logView, setLogView] = useState('list');
   const [ledgerScope, setLedgerScope] = useState('all'); // 'all' | 'cargo' (Cargo-tracked only)
   const [ledgerYear, setLedgerYear] = useState(null);    // selected year in the list view (null = latest)
+  const [openMonths, setOpenMonths] = useState(null);    // collapsible month groups (null = untouched → latest month open)
   const [verifier, setVerifier] = useState('nautilus');
   const signatory = 'master'; // self-attestation is never permitted (MSN 1858)
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -338,7 +339,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       const [rows, prof, pd, ves] = await Promise.all([
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, passport_number, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years')?.eq('user_id', userId)?.maybeSingle(),
         supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw, loa_m, typical_guest_count')?.eq('tenant_id', tenantId)?.maybeSingle(),
       ]);
       // The certified passport copy auto-ticks the pack's proof-of-identity doc
@@ -353,7 +354,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         const { vessels: vMap, entries: ents } = adaptLiveEntries(rows);
         const dates = rows.map(r => r.date).filter(Boolean).sort();
         setVessels(vMap); setEntries(ents);
-        setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, passportNo: pd?.data?.passport_number || '', dischargeBookNo: pd?.data?.discharge_book_number || '', membershipNo: pd?.data?.verifier_membership_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
+        setSeafarer({ fullName, dob: pd?.data?.date_of_birth, nationality: pd?.data?.nationality, dischargeBookNo: pd?.data?.discharge_book_number || '', membershipNo: pd?.data?.verifier_membership_number || '', cocHeld: '', periodFrom: dates[0], periodTo: dates[dates.length - 1] });
         setPriorBaseline(pd?.data?.sea_service_prior || {});
         setPrior(priorFromBaseline(pd?.data?.sea_service_prior)); // lifetime baseline accrued before Cargo
         setJourney(pd?.data?.cert_progression || null);
@@ -400,7 +401,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       let untagged = 0;
       for (const d of docs || []) {
         // Supporting docs for the verifier submission, pulled from the profile.
-        if (!onFile[d.doc_type]) onFile[d.doc_type] = { fileUrl: d.file_url, fileName: d.file_name, docId: d.id };
+        // Carry the document number too (the passport doc is the source of truth
+        // for the holder's ID number on official forms).
+        if (!onFile[d.doc_type]) onFile[d.doc_type] = { fileUrl: d.file_url, fileName: d.file_name, docId: d.id, documentNumber: d.document_number || '' };
         if (d.doc_type !== 'coc') continue;
         const cid = GRADE_TO_CERT[d.details?.grade];
         if (cid) held[cid] = { issueDate: d.issue_date, number: d.document_number, fileUrl: d.file_url, fileName: d.file_name, docId: d.id,
@@ -860,9 +863,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
         signatoryName = endorser?.name || spell.captainName || '';
         position = 'Master';
       }
+      // I.D. No. = the passport number from the uploaded passport document
+      // (its document_number); fall back to the sample seafarer in preview.
+      const passportNo = docsOnFile.passport?.documentNumber || docsOnFile.passport_certified_copy?.documentNumber || seafarer.passportNo || '';
       flash('Pre-filling the Transport Malta form…');
       const pdfBytes = await buildTransportMaltaSST({
-        seafarer: { fullName: seafarer.fullName, idNo: seafarer.passportNo },
+        seafarer: { fullName: seafarer.fullName, idNo: passportNo },
         vessel: { name: v.name, type: v.type, flag: v.flag, officialNo: v.officialNo, loaM: v.lengthM, maxPax: v.maxPax },
         rows,
         signatory: { name: signatoryName, position },
@@ -1373,20 +1379,21 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
           {(() => {
             if (activeYear && accountedSet.has(activeYear)) return null; // collapsed summary shown above
             const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-            // Single chronological pass: emit a month heading when the month
-            // changes and a vessel band when the vessel changes, so the vessel's
-            // flag/GT/IMO is shown ONCE per spell instead of on every row.
-            const out = [];
-            let lastMonth = null, lastVessel = null;
+            // Group chronologically into months; each month is a collapsible
+            // section. A vessel band is emitted once per vessel run within a
+            // month, so its flag/GT/IMO shows once per spell, not on every row.
+            const groups = [];
+            let cur = null, lastVessel = null;
             shown.forEach(e => {
               const d = e.from ? new Date(e.from + 'T00:00:00') : null;
               const monthKey = d ? `${MONTHS[d.getMonth()]} ${d.getFullYear()}` : 'Earlier service';
-              if (monthKey !== lastMonth) { out.push(<div className="std-amonth" key={'m' + monthKey}>{monthKey}</div>); lastMonth = monthKey; lastVessel = null; }
+              if (!cur || cur.key !== monthKey) { cur = { key: monthKey, days: 0, count: 0, nodes: [] }; groups.push(cur); lastVessel = null; }
+              cur.count += 1; if (!e.excluded) cur.days += (e.days || 0);
               const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
               const isCargo = cargoVesselIds.has(e.vesselId);
               if (e.vesselId !== lastVessel) {
                 const vm = [v.flag, v.gt != null ? `${v.gt} GT` : null, v.lengthM != null ? `${v.lengthM} m` : null, v.imo ? `IMO ${v.imo}` : null].filter(Boolean).join(' · ');
-                out.push(
+                cur.nodes.push(
                   <div className="std-vband" key={'v' + e.id}>
                     <span className="std-vband-dot" style={{ background: tm.color }} />
                     <div className="std-vband-id"><span className="vn">{v.name || 'Vessel'}</span>{vm && <span className="vm">{vm}</span>}</div>
@@ -1401,7 +1408,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               const isExcluded = !!e.excluded, isQual = !isExcluded && c.qual, isBad = !isExcluded && !c.qual;
               const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch` : (e.detailOverride || tm.hint);
               const rowAction = !isExcluded && e.testimonialPath ? () => viewTestimonial(e.testimonialPath) : null;
-              out.push(
+              cur.nodes.push(
                 <div className="std-leg" key={e.id}
                   role={rowAction ? 'button' : undefined} tabIndex={rowAction ? 0 : undefined}
                   onClick={rowAction || undefined}
@@ -1430,7 +1437,28 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 </div>
               );
             });
-            return out;
+            // Default: only the most recent month open (so the page isn't a long
+            // scroll); once the crew toggles anything, respect their choice.
+            const latestKey = groups.length ? groups[groups.length - 1].key : null;
+            const effectiveOpen = openMonths ?? (latestKey ? new Set([latestKey]) : new Set());
+            const toggleMonth = (key) => setOpenMonths(prev => {
+              const base = prev ?? (latestKey ? new Set([latestKey]) : new Set());
+              const n = new Set(base);
+              n.has(key) ? n.delete(key) : n.add(key);
+              return n;
+            });
+            return groups.map(g => {
+              const open = effectiveOpen.has(g.key);
+              return (
+                <div className="std-agroup" key={'g' + g.key}>
+                  <button type="button" className={`std-amonth${open ? ' open' : ''}`} onClick={() => toggleMonth(g.key)} aria-expanded={open}>
+                    <span className="std-amonth-lbl">{g.key}</span>
+                    <span className="std-amonth-meta">{g.count} {g.count === 1 ? 'entry' : 'entries'} · {g.days} {g.days === 1 ? 'day' : 'days'}<Icon name="ChevronDown" size={13} className="std-amonth-chev" /></span>
+                  </button>
+                  {open && g.nodes}
+                </div>
+              );
+            });
           })()}
         </div>
         {(prior.onboard > 0 || syncInfo?.excluded_leave_days > 0) && (

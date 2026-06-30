@@ -395,7 +395,12 @@
 
 /* ── List view — Option A (voyage rail: month-grouped, left colour spine) ── */
 .std-agroup:first-child .std-amonth{padding-top:2px;}
-.std-amonth{font-size:9.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);padding:14px 0 7px;}
+.std-amonth{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;background:none;border:0;border-bottom:1px solid var(--hair);font-family:inherit;text-align:left;cursor:pointer;padding:14px 0 11px;}
+.std-amonth-lbl{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink);}
+.std-amonth-meta{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:var(--faint);white-space:nowrap;}
+.std-amonth-chev{transition:transform .15s;}
+.std-amonth.open .std-amonth-chev{transform:rotate(180deg);}
+.std-amonth:hover .std-amonth-lbl{color:var(--rust,#C65A1A);}
 .std-arow{display:grid;grid-template-columns:14px 110px 1fr auto;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--hair);}
 .std-arail{width:5px;height:40px;border-radius:3px;align-self:center;}
 .std-adate{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:15px;color:var(--ink);line-height:1.12;}

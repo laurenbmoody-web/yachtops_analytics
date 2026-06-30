@@ -1572,14 +1572,6 @@ const canEdit = (() => {
               </button>
             </div>
           </Field>
-          <Field label="Passport № / ID" hint={isEditing ? 'Pre-fills the I.D. No. on your sea-service testimonial export' : undefined}>
-            <Input
-              value={formData?.passportNumber}
-              onChange={(e) => handleInputChange('passportNumber', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="—"
-            />
-          </Field>
           <Field label="Dual Passport">
             {isEditing ? (
               <div className="cp-check-row">
