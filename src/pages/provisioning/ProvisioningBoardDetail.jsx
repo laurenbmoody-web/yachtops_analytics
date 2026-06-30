@@ -3892,24 +3892,23 @@ const ProvisioningBoardDetail = () => {
                               {item.quoted_unit_cost != null
                                 // A manual quote has been APPLIED — it wins over
                                 // any supplier/estimate figure (explicit chief
-                                // action). Show the quoted price (editable) with
-                                // the prior price (supplier price, else estimate)
-                                // struck through when it differs.
+                                // action). Show the quoted price (editable, bold)
+                                // on its own so the actual cost stays readable in
+                                // the narrow column. The prior price is surfaced
+                                // on hover (the before/after variance lives in the
+                                // quote review modal, where there's room).
                                 ? (() => {
                                     const sp = itemOrder?.supplierPrice;
                                     const prior = (sp != null && Number(sp) > 0)
                                       ? Number(sp)
                                       : (item.estimated_unit_cost != null ? Number(item.estimated_unit_cost) : null);
-                                    const showStrike = prior != null && prior !== Number(item.quoted_unit_cost);
+                                    const priorTitle = (prior != null && prior !== Number(item.quoted_unit_cost))
+                                      ? `Quoted price · was ${origSymbol}${prior.toFixed(2)}`
+                                      : 'Quoted price';
                                     return (
-                                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                                        {showStrike && (
-                                          <span style={{ fontSize: 11, color: '#AEB4C2', textDecoration: 'line-through' }}>
-                                            {prior.toFixed(2)}
-                                          </span>
-                                        )}
+                                      <span title={priorTitle} style={{ display: 'inline-flex', alignItems: 'center' }}>
                                         <AlwaysEditCell value={item.quoted_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'quoted_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right', fontWeight: 700 }} />
-                                      </div>
+                                      </span>
                                     );
                                   })()
                                 : isReceived || supplierActed
