@@ -6,7 +6,17 @@
 [build.environment]
   # These are legitimately public keys — safe to expose to the browser.
   # Whitelisted to suppress Netlify secrets-scanner false positives.
-  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL,VITE_STRIPE_PUBLISHABLE_KEY,VITE_GOOGLE_ANALYTICS_ID"
+  # AZURE_DOC_INTELLIGENCE_API_VERSION is a public API version date (e.g.
+  # 2024-11-30), NOT a secret — it's hardcoded as the current-GA default in
+  # the Supabase OCR functions, which the scanner matched against the env
+  # var value and false-flagged as "exposed".
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL,VITE_STRIPE_PUBLISHABLE_KEY,VITE_GOOGLE_ANALYTICS_ID,AZURE_DOC_INTELLIGENCE_API_VERSION"
+  # supabase/functions/** are Deno edge functions deployed to Supabase, not
+  # bundled into the Netlify-published site. They read every secret via
+  # Deno.env.get() (nothing hardcoded), so they shouldn't be scanned as part
+  # of the web build — excluding them stops server-side config (api versions,
+  # bucket ids, env var NAMES) from tripping the web secret scan.
+  SECRETS_SCAN_OMIT_PATHS = "supabase/functions/**"
   # Increase Node.js heap size to prevent OOM during Vite bundle step
   NODE_OPTIONS = "--max_old_space_size=4096"
 
