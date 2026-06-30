@@ -56,6 +56,7 @@ const STATUS_COLORS = {
   medical_leave: '#C65A1A', training_leave: '#3B82F6', travelling: '#0F9C8E', invited: '#AEB4C2',
 };
 const statusColor = (s) => STATUS_COLORS[s] || '#AEB4C2';
+const isAwayStatus = (s) => s && s !== 'active' && s !== 'invited';
 
 // Role seniority within a department (lower = more senior) — used to pick the
 // head of each branch in the hierarchy view. Heuristic, keyword-based.
@@ -133,6 +134,7 @@ const CrewManagement = () => {
   const [selectedUserId, setSelectedUserId] = useState(null); // console detail pane
   const [consoleDocs, setConsoleDocs] = useState([]);
   const [consoleDocsLoading, setConsoleDocsLoading] = useState(false);
+  const [consoleEmp, setConsoleEmp] = useState(null); // crew_employment for the selected member
   const [statusChangeTarget, setStatusChangeTarget] = useState(null); // { userId, currentStatus, name }
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
   const [calendarRefresh, setCalendarRefresh] = useState(0);
@@ -464,11 +466,12 @@ const CrewManagement = () => {
     }
   }, [rosterView, users]);
 
-  // Console: load the selected crew member's current documents for the detail pane.
+  // Console: load the selected crew member's documents + employment record.
   useEffect(() => {
-    if (rosterView !== 'console' || !selectedUserId) { setConsoleDocs([]); return; }
+    if (rosterView !== 'console' || !selectedUserId) { setConsoleDocs([]); setConsoleEmp(null); return; }
     let cancelled = false;
     setConsoleDocsLoading(true);
+    setConsoleEmp(null);
     (async () => {
       try {
         const docs = await fetchCrewDocuments(selectedUserId);
@@ -484,9 +487,19 @@ const CrewManagement = () => {
       } finally {
         if (!cancelled) setConsoleDocsLoading(false);
       }
+      // Employment record (contract type, rotation, next crew change) — best-effort.
+      try {
+        const { data } = await supabase
+          .from('crew_employment')
+          .select('contract_type, rotation_pattern, next_crew_change_date, port_of_embarkation')
+          .eq('tenant_id', activeTenantId).eq('user_id', selectedUserId).maybeSingle();
+        if (!cancelled) setConsoleEmp(data || null);
+      } catch (e) {
+        if (!cancelled) setConsoleEmp(null);
+      }
     })();
     return () => { cancelled = true; };
-  }, [rosterView, selectedUserId]);
+  }, [rosterView, selectedUserId, activeTenantId]);
 
   const handleInviteSuccess = () => {
     // Trigger refresh of pending invites section AND crew list
@@ -1029,36 +1042,63 @@ const CrewManagement = () => {
             <>
               <div className="cm-dhead">
                 <Avatar user={sel} className="cm-dph" />
-                <div>
+                <div className="cm-dident">
                   <div className="cm-dname">{sel.fullName}</div>
                   <div className="cm-drole">{sel.roleTitle} · {sel.department === '—' ? 'Unassigned' : sel.department}</div>
-                  <span className="cm-pill cm-pill-status" style={{ marginTop: '11px' }}>
+                  <button
+                    className="cm-pill cm-pill-status cm-dstatus"
+                    disabled={!hasEditPermission}
+                    onClick={() => hasEditPermission && setStatusChangeTarget({ userId: sel.id, currentStatus: sel.status, name: sel.fullName })}
+                  >
                     <span className="cm-dot" style={{ background: statusColor(sel.status) }} />
-                    {getStatusLabel(sel.status)}
-                  </span>
+                    {getStatusLabel(sel.status)}{isAwayStatus(sel.status) && ret ? ` · back ${fmtDate(ret.date)}` : ''}
+                    {hasEditPermission && <Icon name="ChevronDown" size={11} className="cm-status-badge" />}
+                  </button>
                 </div>
                 <div className="cm-dactions">
-                  {hasEditPermission && (
-                    <button className="cm-btn cm-btn-ghost" onClick={() => setStatusChangeTarget({ userId: sel.id, currentStatus: sel.status, name: sel.fullName })}>Change status</button>
-                  )}
                   <button className="cm-btn cm-btn-primary" onClick={() => navigate(`/profile/${sel.id}`)}>Open profile</button>
                 </div>
               </div>
-              <div className="cm-dgrid">
-                <div className="cm-drow"><span className="k">Permission</span><span className="v">{getEffectiveTierDisplay(sel)}</span></div>
-                <div className="cm-drow"><span className="k">Email</span><span className="v">{sel.email || '—'}</span></div>
-                <div className="cm-drow"><span className="k">Aboard since</span><span className="v">{fmtDate(since)}{tenure(since) ? ` · ${tenure(since)}` : ''}</span></div>
-                <div className="cm-drow"><span className="k">Status</span><span className="v">{getStatusLabel(sel.status)}{ret ? ` · back ${fmtDate(ret.date)}` : ''}</span></div>
-                <div className="cm-drow"><span className="k">Compliance</span><span className={`v${comp ? ' warn' : ''}`}>{comp ? (comp.expired ? `${comp.expired} expired` : `${comp.warning} expiring`) : 'All in date'}</span></div>
+
+              {/* KPI strip — quick read on tenure, access, compliance */}
+              <div className="cm-dkpis">
+                <div className="cm-dkpi"><b>{tenure(since) || '—'}</b><span>Aboard</span></div>
+                <div className="cm-dkpi"><b>{getEffectiveTierDisplay(sel)}</b><span>Permission</span></div>
+                <div className={`cm-dkpi${comp ? ' warn' : ''}`}><b>{comp ? (comp.expired || comp.warning) : '✓'}</b><span>{comp ? (comp.expired ? 'Expired docs' : 'Expiring docs') : 'Docs clear'}</span></div>
+                {isAwayStatus(sel.status) && ret && <div className="cm-dkpi"><b>{fmtDate(ret.date)}</b><span>Returns</span></div>}
               </div>
-              <div className="cm-ddocs">
-                <h3>Documents &amp; certificates</h3>
-                {consoleDocsLoading ? (
-                  <div className="cm-dempty">Loading…</div>
-                ) : consoleDocs.length === 0 ? (
-                  <div className="cm-dempty">No documents on file yet.</div>
-                ) : (
-                  consoleDocs.map((d) => {
+
+              {/* Employment */}
+              <div className="cm-dsec"><span>Employment</span><span className="cm-dsec-rule" /></div>
+              <div className="cm-dgrid">
+                <div className="cm-drow"><span className="k">Department</span><span className="v">{sel.department === '—' ? '—' : sel.department}</span></div>
+                <div className="cm-drow"><span className="k">Role</span><span className="v">{sel.roleTitle || '—'}</span></div>
+                <div className="cm-drow"><span className="k">Aboard since</span><span className="v">{fmtDate(since)}</span></div>
+                <div className="cm-drow"><span className="k">Contract</span><span className="v">{consoleEmp?.contract_type || '—'}</span></div>
+                <div className="cm-drow"><span className="k">Rotation</span><span className="v">{consoleEmp?.rotation_pattern || '—'}</span></div>
+                <div className="cm-drow"><span className="k">Next crew change</span><span className="v">{consoleEmp?.next_crew_change_date ? fmtDate(consoleEmp.next_crew_change_date) : '—'}</span></div>
+              </div>
+
+              {/* Contact */}
+              <div className="cm-dsec"><span>Contact</span><span className="cm-dsec-rule" /></div>
+              <div className="cm-dgrid">
+                <div className="cm-drow"><span className="k">Email</span><span className="v">{sel.email ? <a href={`mailto:${sel.email}`} className="cm-dlink">{sel.email}</a> : '—'}</span></div>
+                <div className="cm-drow"><span className="k">Embarkation</span><span className="v">{consoleEmp?.port_of_embarkation || '—'}</span></div>
+              </div>
+
+              {/* Documents */}
+              <div className="cm-dsec">
+                <span>Documents &amp; certificates</span>
+                <span className="cm-dsec-rule" />
+                <button className="cm-dsec-link" onClick={() => navigate(`/profile/${sel.id}?tab=documents`)}>View all</button>
+              </div>
+              {consoleDocsLoading ? (
+                <div className="cm-dempty">Loading…</div>
+              ) : consoleDocs.length === 0 ? (
+                <div className="cm-dempty">No documents on file yet.</div>
+              ) : (
+                <div className="cm-ddocs">
+                  {consoleDocs.map((d) => {
                     const st = getDocStatus(d);
                     return (
                       <div key={d.id} className="cm-doc">
@@ -1066,9 +1106,9 @@ const CrewManagement = () => {
                         <span className={`db ${st.level}`}>{d.expiry_date ? `${st.label} · ${formatDocDate(d.expiry_date)}` : 'On file'}</span>
                       </div>
                     );
-                  })
-                )}
-              </div>
+                  })}
+                </div>
+              )}
             </>
           )}
         </div>
