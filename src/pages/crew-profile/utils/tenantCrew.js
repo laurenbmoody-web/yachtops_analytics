@@ -14,7 +14,7 @@ export async function fetchTenantCrew(tenantId) {
       permission_tier,
       departments(name),
       role:roles!role_id(name),
-      profiles!tenant_members_user_id_fkey(full_name)
+      profiles!tenant_members_user_id_fkey(full_name, avatar_url)
     `)
     .eq('tenant_id', tenantId)
     .eq('active', true);
@@ -25,6 +25,7 @@ export async function fetchTenantCrew(tenantId) {
   return (data || []).map((tm) => ({
     id: tm.user_id,
     fullName: tm.profiles?.full_name || 'Unknown',
+    photo: tm.profiles?.avatar_url || '',
     department: tm.departments?.name || '—',
     roleTitle: tm.role?.name || '',
     tier: tm.permission_tier || null,

@@ -5,6 +5,15 @@ import './hor-review-modal.css';
 
 const initials = (n) => String(n || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
 
+// Crew avatar: photo when we have one, monogram initials as the fallback (and if
+// the image fails to load it's removed, revealing the initials underneath).
+const Avatar = ({ name, photo }) => (
+  <span className="hrm-av">
+    {initials(name)}
+    {photo ? <img className="hrm-av-img" src={photo} alt="" onError={(e) => e.currentTarget.remove()} /> : null}
+  </span>
+);
+
 // Which of the four buckets a roster row belongs to.
 const bucketOf = (r) =>
   (r.status === 'confirmed' || r.status === 'locked') ? 'signed'
@@ -177,7 +186,7 @@ export default function HorReviewModal({
                   {shown.filter((r) => (r.department || '—') === d).map((r) => (
                     <div key={r.id} className="hrm-row">
                       {checkOf(r)}
-                      <span className="hrm-av">{initials(r.fullName)}</span>
+                      <Avatar name={r.fullName} photo={r.photo} />
                       <div className="hrm-who">
                         <div className="hrm-nm">{r.fullName}</div>
                         <div className="hrm-rl">{r.roleTitle}</div>
