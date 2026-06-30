@@ -1,0 +1,98 @@
+/* Hours of Rest review modal — month-end. Navy rail (ring + status filters)
+   feeding a checklist of crew. Muted, editorial palette: sage = signed,
+   ink = awaiting you, terracotta = still to sign. Scoped under .hrm-*. */
+.hrm-overlay {
+  position: fixed; inset: 0; z-index: 1100; background: rgba(28, 27, 58, .42);
+  backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center;
+  padding: 30px 20px; font-family: 'Inter', system-ui, sans-serif;
+}
+.hrm-modal {
+  position: relative; width: 900px; max-width: 96vw; height: 600px; max-height: 90vh;
+  background: #fff; border-radius: 16px; box-shadow: 0 40px 90px -30px rgba(28, 27, 58, .5);
+  overflow: hidden; display: grid; grid-template-columns: 264px 1fr; color: #1C1B3A;
+}
+.hrm-x {
+  position: absolute; top: 18px; right: 18px; z-index: 2; border: none;
+  background: rgba(255, 255, 255, .08); color: #fff; width: 30px; height: 30px;
+  border-radius: 999px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.hrm-x:hover { background: rgba(255, 255, 255, .18); }
+
+/* ---- left rail ---- */
+.hrm-side { background: #1C1B3A; color: #E7E6EF; padding: 26px 22px; display: flex; flex-direction: column; }
+.hrm-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #8C8AB0; }
+.hrm-month { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 23px; margin: 8px 0 0; color: #fff; }
+.hrm-ring { align-self: center; position: relative; width: 132px; height: 132px; margin: 22px 0; }
+.hrm-ring-ctr { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.hrm-ring-ctr b { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 30px; color: #fff; line-height: 1; }
+.hrm-ring-ctr i { font-style: normal; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8C8AB0; margin-top: 4px; }
+.hrm-nav { display: flex; flex-direction: column; gap: 2px; }
+.hrm-nav button {
+  display: flex; align-items: center; gap: 11px; background: none; border: none; color: #C9C7DE;
+  font: inherit; font-size: 13px; text-align: left; padding: 11px 12px; border-radius: 9px; cursor: pointer; transition: .12s;
+}
+.hrm-nav button:hover { background: rgba(255, 255, 255, .06); }
+.hrm-nav button.on { background: rgba(255, 255, 255, .11); color: #fff; font-weight: 600; }
+.hrm-k { width: 8px; height: 8px; border-radius: 999px; flex: none; }
+.hrm-c { margin-left: auto; font-size: 12.5px; font-weight: 700; }
+.hrm-send { margin-top: auto; border-top: 1px solid rgba(255, 255, 255, .10); padding-top: 16px; }
+.hrm-send-note { font-size: 10.5px; color: #8C8AB0; line-height: 1.5; margin-bottom: 10px; }
+.hrm-inline { background: none; border: none; padding: 0; font: inherit; color: #C9C7DE; text-decoration: underline; cursor: pointer; }
+.hrm-send-btn {
+  width: 100%; font: inherit; font-size: 12.5px; font-weight: 600; background: #C65A1A; color: #fff;
+  border: none; border-radius: 9px; padding: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+}
+.hrm-send-btn:hover:not(:disabled) { background: #B14E16; }
+.hrm-send-btn:disabled { opacity: .5; cursor: default; }
+
+/* ---- right pane ---- */
+.hrm-main { display: flex; flex-direction: column; min-width: 0; }
+.hrm-mhead { padding: 22px 26px 16px; border-bottom: 1px solid #F1EFEA; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.hrm-ttl { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1C1B3A; }
+.hrm-sub { font-size: 11px; color: #6B7280; margin-top: 3px; }
+.hrm-remind-all {
+  font: inherit; font-size: 11.5px; font-weight: 600; color: #C65A1A; background: #fff; border: 1px solid #E8D5C8;
+  border-radius: 8px; padding: 7px 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.hrm-remind-all:hover:not(:disabled) { background: #FCF5F0; border-color: #C65A1A; }
+.hrm-remind-all:disabled { opacity: .6; cursor: default; }
+.hrm-list { flex: 1; overflow-y: auto; }
+.hrm-dept { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #AEB4C2; padding: 13px 26px 4px; }
+.hrm-row { display: flex; align-items: center; gap: 13px; padding: 11px 26px; border-bottom: 1px solid #F1EFEA; transition: background .12s; }
+.hrm-row:hover { background: #FBFAF8; }
+.hrm-chk { width: 22px; height: 22px; border-radius: 999px; flex: none; display: flex; align-items: center; justify-content: center; border: 1.5px solid #E5E7EB; color: #fff; }
+.hrm-chk.sage { background: #6E8B73; border-color: #6E8B73; }
+.hrm-chk.amber { border-color: #B7822E; color: #B7822E; font-weight: 700; font-size: 13px; }
+.hrm-chk.open { border-color: #E3CDBD; }
+.hrm-av { width: 34px; height: 34px; border-radius: 999px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; background: #F4F1EB; color: #9C8B79; }
+.hrm-who { min-width: 0; }
+.hrm-nm { font-size: 13.5px; font-weight: 600; line-height: 1.2; }
+.hrm-rl { font-size: 11px; color: #6B7280; margin-top: 1px; }
+.hrm-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.hrm-unlog { font-size: 11px; color: #6B7280; white-space: nowrap; }
+.hrm-unlog b { color: #C65A1A; font-weight: 600; }
+.hrm-prog { display: flex; align-items: center; gap: 9px; }
+.hrm-bar { width: 60px; height: 4px; border-radius: 2px; background: #EDEAE3; overflow: hidden; }
+.hrm-bar span { display: block; height: 100%; border-radius: 2px; background: #1C1B3A; }
+.hrm-frac { font-size: 10.5px; color: #AEB4C2; }
+.hrm-logged { font-size: 11px; color: #AEB4C2; }
+.hrm-muted { font-size: 11px; color: #8B8478; }
+.hrm-btn { font: inherit; font-size: 11.5px; font-weight: 600; border-radius: 8px; padding: 7px 13px; cursor: pointer; white-space: nowrap; border: 1px solid #E5E7EB; background: #fff; color: #1C1B3A; }
+.hrm-btn:hover { border-color: #8B8478; }
+.hrm-dark { background: #1C1B3A; color: #fff; border-color: #1C1B3A; }
+.hrm-dark:hover { background: #2a2952; }
+.hrm-link { font: inherit; font-size: 11.5px; font-weight: 600; border: none; background: none; color: #C65A1A; padding: 7px 4px; cursor: pointer; }
+.hrm-link:hover { color: #B14E16; }
+.hrm-view { font: inherit; font-size: 11px; font-weight: 600; color: #52704F; background: none; border: none; cursor: pointer; padding: 0; }
+.hrm-view:hover { opacity: .8; }
+.hrm-reminded { font-size: 11px; color: #8B8478; display: inline-flex; align-items: center; gap: 5px; }
+.hrm-empty { padding: 60px 26px; text-align: center; color: #AEB4C2; font-size: 13px; }
+
+@media (max-width: 720px) {
+  .hrm-modal { grid-template-columns: 1fr; height: 92vh; }
+  .hrm-side { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16px; padding: 18px; }
+  .hrm-ring { width: 84px; height: 84px; margin: 0; }
+  .hrm-ring svg { width: 84px; height: 84px; }
+  .hrm-nav { flex: 1; min-width: 200px; }
+  .hrm-send { width: 100%; margin-top: 8px; border-top: none; padding-top: 0; }
+}
