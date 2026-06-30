@@ -75,9 +75,8 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
   const missingCount = orderedEntries.length - orderedEntries.filter((e) => e.hasStatement).length;
   // Same auto logic the PDF uses, so the preview count matches the export.
   const perResolved = perPage === 'auto' ? autoPerPage(visible, orientation) : Number(perPage);
-  // Grid shape — mirrors the generator (landscape doubles up into 2 columns).
-  const colCount = orientation === 'landscape' && perResolved >= 3 ? 2 : 1;
-  const rowCount = Math.max(1, Math.ceil(perResolved / colCount));
+  // One full-width strip per row — mirrors the generator.
+  const rowCount = Math.max(1, perResolved);
   const totalPages = Math.max(1, Math.ceil(visible.length / perResolved));
 
   const doExport = () => {
@@ -222,11 +221,12 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
                   <div className="t">{title || 'Our crew'}</div>
                   {subtitle && <div className="s">{subtitle}</div>}
                 </div>
-                <div className={`gbx-cards tpl-${template}`} style={{ '--cols': colCount, '--rows': rowCount }}>
-                  {visible.slice(0, perResolved).map((en) => {
+                <div className={`gbx-cards tpl-${template}`} style={{ '--cols': 1, '--rows': rowCount }}>
+                  {visible.slice(0, perResolved).map((en, i) => {
                     const fs = Math.max(minFont, Math.min(13, 13 - (en.words - 30) * (13 - minFont) / 70));
+                    const flip = template === 'classic' && i % 2 === 1;
                     return (
-                      <div className="gbx-card" key={en.userId}>
+                      <div className={`gbx-card${flip ? ' flip' : ''}`} key={en.userId}>
                         <span className="gbx-pic">{initials(en.name)}</span>
                         <div className="gbx-card-body">
                           <div className="nm">{en.name}</div>
