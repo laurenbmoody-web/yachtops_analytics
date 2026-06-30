@@ -16,6 +16,11 @@ const DARK_BG = [28, 27, 58];
 const DARK_INK = [231, 230, 239];
 const DARK_ACCENT = [230, 165, 126];
 
+const hexToRgb = (hex, fallback) => {
+  const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(String(hex || ''));
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : fallback;
+};
+
 const initials = (name) =>
   String(name || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
 
@@ -168,11 +173,8 @@ const fitParagraph = (doc, text, width, hBudget, maxPt, minPt) => {
 // side, name/role/statement on the other. Side-by-side uses the card's WIDTH
 // (not its height), so the statement fits cleanly at any per-page count and in
 // landscape — and the photo alternates side ('classic') for editorial rhythm.
-const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0, avatar = null, valign = 'center') => {
-  const dark = template === 'editorial';
-  const ink = dark ? DARK_INK : NAVY;
-  const accent = dark ? DARK_ACCENT : TERRA;
-  const bodyInk = dark ? [185, 184, 207] : [75, 74, 94];
+const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0, avatar = null, valign = 'center', ink = NAVY, accent = TERRA) => {
+  const bodyInk = [75, 74, 94];
   const pad = 4;
   const photoLeft = template === 'classic' ? (idx % 2 === 0) : true;
 
@@ -225,11 +227,14 @@ export const buildGuestBookPDF = ({
   title = 'Our crew', subtitle = '', entries = [],
   template = 'classic', orientation = 'portrait', perPage = 3, minFont = 9,
   includeMissing = false, logo = null, avatars = {}, valign = 'center', showTitle = true,
+  headingColor = '#1C1B3A', accentColor = '#C65A1A', titleSize = 20, subtitleSize = 8,
 }) => {
   const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
   if (!list.length) return { doc: null, pages: 0, count: 0 };
 
-  const dark = template === 'editorial';
+  const headingRgb = hexToRgb(headingColor, NAVY);
+  const accentRgb = hexToRgb(accentColor, TERRA);
+  const dark = false;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: orientation === 'landscape' ? 'landscape' : 'portrait' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -260,14 +265,14 @@ export const buildGuestBookPDF = ({
       hy += logoH + 3;
     }
     if (showTitle && title) {
-      doc.setTextColor(...(dark ? PAPER : NAVY));
-      doc.setFont('times', 'normal'); doc.setFontSize(20);
-      doc.text(title, pageW / 2, hy + 6, { align: 'center' });
-      hy += 8;
+      doc.setTextColor(...headingRgb);
+      doc.setFont('times', 'normal'); doc.setFontSize(titleSize);
+      doc.text(title, pageW / 2, hy + titleSize * 0.3, { align: 'center' });
+      hy += titleSize * 0.42;
     }
     if (subtitle) {
-      doc.setTextColor(...(dark ? DARK_ACCENT : MUTED));
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(subtitleSize);
       doc.text(subtitle.toUpperCase(), pageW / 2, hy + 4, { align: 'center', charSpace: 0.6 });
       hy += 5;
     }
@@ -284,7 +289,7 @@ export const buildGuestBookPDF = ({
     pageEntries.forEach((entry, idx) => {
       const x = M;
       const y = gridY + idx * (rowH + 6);
-      drawCard(doc, x, y, colW, rowH, entry, template, minFont, idx, avatars[entry.userId], valign);
+      drawCard(doc, x, y, colW, rowH, entry, template, minFont, idx, avatars[entry.userId], valign, headingRgb, accentRgb);
       // hairline between stacked strips
       if (idx < pageEntries.length - 1) {
         doc.setDrawColor(...(dark ? [44, 43, 78] : HAIR));
@@ -326,9 +331,12 @@ const NO_BORDERS = ['top', 'bottom', 'left', 'right', 'insideHorizontal', 'insid
 
 export const exportGuestBookDOCX = async ({
   title = 'Our crew', subtitle = '', entries = [], includeMissing = false, logo = null, avatars = {}, showTitle = true,
+  headingColor = '#1C1B3A', accentColor = '#C65A1A', titleSize = 20, subtitleSize = 8,
 }) => {
   const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
   if (!list.length) return { count: 0 };
+  const headHex = String(headingColor || '#1C1B3A').replace('#', '');
+  const accHex = String(accentColor || '#C65A1A').replace('#', '');
 
   const head = [];
   if (logo?.dataUrl) {
@@ -341,13 +349,13 @@ export const exportGuestBookDOCX = async ({
   if (showTitle && title) {
     head.push(new Paragraph({
       alignment: AlignmentType.CENTER, spacing: { after: subtitle ? 40 : 200 },
-      children: [new TextRun({ text: title, bold: true, size: 40, font: 'Georgia', color: '1C1B3A' })],
+      children: [new TextRun({ text: title, bold: true, size: Math.round(titleSize * 2), font: 'Georgia', color: headHex })],
     }));
   }
   if (subtitle) {
     head.push(new Paragraph({
       alignment: AlignmentType.CENTER, spacing: { after: 220 },
-      children: [new TextRun({ text: subtitle.toUpperCase(), size: 16, color: '8B8478', characterSpacing: 30 })],
+      children: [new TextRun({ text: subtitle.toUpperCase(), size: Math.round(subtitleSize * 2), color: '8B8478', characterSpacing: 30 })],
     }));
   }
 
@@ -358,10 +366,10 @@ export const exportGuestBookDOCX = async ({
       ? [new ImageRun({ data: dataUrlToBytes(avatar), transformation: { width: 76, height: 76 } })]
       : [new TextRun({ text: initials(e.name), bold: true, size: 30, color: 'A08E7D' })];
     const textChildren = [
-      new Paragraph({ spacing: { after: 20 }, children: [new TextRun({ text: e.name, bold: true, size: 26, font: 'Georgia', color: '1C1B3A' })] }),
+      new Paragraph({ spacing: { after: 20 }, children: [new TextRun({ text: e.name, bold: true, size: 26, font: 'Georgia', color: headHex })] }),
     ];
     if (e.role) {
-      textChildren.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: e.role.toUpperCase(), size: 15, color: 'C65A1A', characterSpacing: 20 })] }));
+      textChildren.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: e.role.toUpperCase(), size: 15, color: accHex, characterSpacing: 20 })] }));
     }
     textChildren.push(new Paragraph({ children: [new TextRun({ text: e.statement || '—', size: 20, color: '4B4A5E' })] }));
     return new Table({

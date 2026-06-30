@@ -7,9 +7,19 @@ import { fetchGuestBookEntries, exportGuestBookPDF, buildGuestBookPDF, exportGue
 import './guest-book-export.css';
 
 const TEMPLATES = [
-  { key: 'classic', name: 'Classic', blurb: 'Centred · 3 per page', per: 3 },
+  { key: 'classic', name: 'Alternating', blurb: 'Photo alternates · 3 per page', per: 3 },
   { key: 'side', name: 'Side-by-side', blurb: 'Photo left · 4 per page', per: 4 },
-  { key: 'editorial', name: 'Editorial / dark', blurb: 'Full-bleed · 2 per page', per: 2 },
+];
+
+// Editorial swatches for headings (names/title) and the accent (role labels).
+const COLOURS = [
+  { hex: '#1C1B3A', name: 'Navy' },
+  { hex: '#C65A1A', name: 'Terracotta' },
+  { hex: '#2E5A4B', name: 'Forest' },
+  { hex: '#7B2D3B', name: 'Burgundy' },
+  { hex: '#9A6A00', name: 'Gold' },
+  { hex: '#44506A', name: 'Slate' },
+  { hex: '#2A2A2A', name: 'Charcoal' },
 ];
 
 const initials = (n) => String(n || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
@@ -23,6 +33,10 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
   const [perPage, setPerPage] = useState(3);
   const [valign, setValign] = useState('center'); // card spacing: center | top
   const [minFont, setMinFont] = useState(10);
+  const [headingColor, setHeadingColor] = useState('#1C1B3A');
+  const [accentColor, setAccentColor] = useState('#C65A1A');
+  const [titleSize, setTitleSize] = useState(20);
+  const [subtitleSize, setSubtitleSize] = useState(8);
   const [docxBusy, setDocxBusy] = useState(false);
   const [includeMissing, setIncludeMissing] = useState(false);
   const [title, setTitle] = useState(vesselName);
@@ -72,12 +86,12 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
     if (!vis.length) { setPdfUrl((old) => { if (old) URL.revokeObjectURL(old); return ''; }); return undefined; }
     const t = setTimeout(() => {
       try {
-        const { doc } = buildGuestBookPDF({ title, subtitle, entries: vis, template, orientation, perPage, minFont, includeMissing, logo, avatars, valign, showTitle });
+        const { doc } = buildGuestBookPDF({ title, subtitle, entries: vis, template, orientation, perPage, minFont, includeMissing, logo, avatars, valign, showTitle, headingColor, accentColor, titleSize, subtitleSize });
         if (doc) setPdfUrl((old) => { if (old) URL.revokeObjectURL(old); return String(doc.output('bloburl')); });
       } catch { /* ignore transient build errors while typing */ }
     }, 250);
     return () => clearTimeout(t);
-  }, [open, loading, entries, order, includeMissing, template, orientation, perPage, minFont, title, subtitle, logo, avatars, valign, showTitle]);
+  }, [open, loading, entries, order, includeMissing, template, orientation, perPage, minFont, title, subtitle, logo, avatars, valign, showTitle, headingColor, accentColor, titleSize, subtitleSize]);
 
   // Revoke the preview blob URL when the modal unmounts.
   useEffect(() => () => { setPdfUrl((old) => { if (old) URL.revokeObjectURL(old); return ''; }); }, []);
@@ -109,7 +123,7 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
 
   const doExport = () => {
     const res = exportGuestBookPDF({
-      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing, logo, avatars, valign, showTitle,
+      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing, logo, avatars, valign, showTitle, headingColor, accentColor, titleSize, subtitleSize,
     });
     if (!res.count) { showToast('No statements to export yet', 'error'); return; }
     showToast(`Guest book exported — ${res.count} crew across ${res.pages} page${res.pages === 1 ? '' : 's'}`, 'success');
@@ -119,7 +133,7 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
     if (!visible.length) return;
     setDocxBusy(true);
     try {
-      const res = await exportGuestBookDOCX({ title, subtitle, entries: visible, includeMissing, logo, avatars, showTitle });
+      const res = await exportGuestBookDOCX({ title, subtitle, entries: visible, includeMissing, logo, avatars, showTitle, headingColor, accentColor, titleSize, subtitleSize });
       if (!res.count) { showToast('No statements to export yet', 'error'); return; }
       showToast(`Word document exported — ${res.count} crew`, 'success');
     } catch (e) {
@@ -150,6 +164,27 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
       showToast(err.message || 'Could not read that layout', 'error');
     } finally { setAiBusy(false); if (fileRef.current) fileRef.current.value = ''; }
   };
+
+  const stepper = (label, val, set, min, max, suffix = '') => (
+    <div>
+      <div className="gbx-lbl">{label}</div>
+      <div className="gbx-stepper">
+        <button type="button" onClick={() => set(Math.max(min, val - 1))} disabled={val <= min} aria-label={`${label} down`}>−</button>
+        <span>{val}{suffix}</span>
+        <button type="button" onClick={() => set(Math.min(max, val + 1))} disabled={val >= max} aria-label={`${label} up`}>+</button>
+      </div>
+    </div>
+  );
+  const swatchRow = (label, val, set) => (
+    <div className="gbx-colorrow">
+      <div className="gbx-lbl">{label}</div>
+      <div className="gbx-swatches">
+        {COLOURS.map((c) => (
+          <button type="button" key={c.hex} title={c.name} className={`gbx-sw${val === c.hex ? ' on' : ''}`} style={{ background: c.hex }} onClick={() => set(c.hex)} />
+        ))}
+      </div>
+    </div>
+  );
 
   return createPortal(
     <div className="gbx-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -243,10 +278,11 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
                     <button className={valign === 'top' ? 'on' : ''} onClick={() => setValign('top')}>Top</button>
                   </div>
                 </div>
-                <div className="gbx-minfont">
-                  <div className="gbx-lbl">Minimum font · {minFont}pt</div>
-                  <input type="range" min="8" max="13" value={minFont} onChange={(e) => setMinFont(Number(e.target.value))} />
-                </div>
+                {stepper('Statement font', minFont, setMinFont, 8, 14, 'pt')}
+                {stepper('Title size', titleSize, setTitleSize, 12, 34, 'pt')}
+                {stepper('Subtitle size', subtitleSize, setSubtitleSize, 6, 14, 'pt')}
+                {swatchRow('Headings', headingColor, setHeadingColor)}
+                {swatchRow('Accent', accentColor, setAccentColor)}
                 <div className="gbx-titles">
                   <label>
                     <span className="gbx-title-row">Document title
