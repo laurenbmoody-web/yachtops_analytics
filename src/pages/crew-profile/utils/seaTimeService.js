@@ -82,7 +82,8 @@ const rowToEntry = (row, pathId, config) => {
     vesselFlag: row.vessel_flag,
     vesselImo: row.vessel_imo,
     grossTonnage: row.vessel_gt,
-    lengthM: row.vessel_length_m,
+    lengthM: row.vessel_length_m,   // = the vessel's LOA (loa_m), denormalised by the autolog sync
+    maxPax: row.vessel_max_pax,
     vesselType: row.vessel_type,
     vesselOfficialNo: row.vessel_official_number,
     // route / master-of-record enrichment (drives stamp/virtual/external + split)

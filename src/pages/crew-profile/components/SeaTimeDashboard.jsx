@@ -837,13 +837,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   };
 
   // Build + download the Transport Malta deck testimonial (S.L. 499.23) for one
-  // command spell. LOA + max passengers come from the current vessel's settings
-  // when the spell is on it; a previous vessel falls back to registered length.
+  // command spell. LOA and max passengers are denormalised onto every
+  // Cargo-tracked day by the autolog sync (vessel_length_m = the vessel's LOA;
+  // vessel_max_pax = its typical_guest_count), so they're accurate per vessel —
+  // no "current vessel only" fallback.
   const onDownloadSpellTM = async (spell) => {
     if (!canGenerate) { flash('Resolve the outstanding validation checks first'); return; }
     try {
       const v = vessels[spell.vesselId] || {};
-      const isCurrentVessel = company?.imo_number && v.imo && String(company.imo_number) === String(v.imo);
       const rows = spell.entries
         .slice()
         .sort((a, b) => String(a.from).localeCompare(String(b.from)))
@@ -851,11 +852,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       flash('Building Transport Malta form…');
       const pdfBytes = await buildTransportMaltaSST({
         seafarer: { fullName: seafarer.fullName },
-        vessel: {
-          name: v.name, type: v.type, flag: v.flag, lengthM: v.lengthM,
-          loaM: isCurrentVessel ? company.loa_m : null,
-          maxPax: isCurrentVessel ? company.typical_guest_count : null,
-        },
+        vessel: { name: v.name, type: v.type, flag: v.flag, loaM: v.lengthM, maxPax: v.maxPax },
         rows,
       });
       downloadBytes(pdfBytes, `transport-malta-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);

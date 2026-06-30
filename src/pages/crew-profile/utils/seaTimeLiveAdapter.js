@@ -28,6 +28,7 @@ export const adaptLiveEntries = (rows) => {
         officialNo: r.vesselOfficialNo || '',
         gt: r.grossTonnage != null ? Number(r.grossTonnage) : null,
         lengthM, over15: lengthM != null ? lengthM >= 15 : false,
+        maxPax: r.maxPax != null ? Number(r.maxPax) : null,
         type: r.vesselType || '',
         cargoRegistered: r.cargoRegistered == null ? false : !!r.cargoRegistered
       };
