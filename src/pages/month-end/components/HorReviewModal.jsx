@@ -18,7 +18,7 @@ const byDept = (a, b) => (DEPT_RANK[a] ?? 9) - (DEPT_RANK[b] ?? 9) || String(a).
 const NAV = [
   { key: 'all', label: 'All crew', dot: '#AEB4C2' },
   { key: 'open', label: 'To sign off', dot: '#C65A1A' },
-  { key: 'awaiting', label: 'Awaiting approval', dot: '#1C1B3A' },
+  { key: 'awaiting', label: 'Awaiting approval', dot: '#C79A4B' },
   { key: 'signed', label: 'Signed off', dot: '#6E8B73' },
 ];
 
