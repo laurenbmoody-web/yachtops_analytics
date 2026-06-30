@@ -3776,15 +3776,15 @@ const canEdit = (() => {
               <div className="cp-group">
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Role &amp; access</span><span className="line" /></div>
                 <div className="cp-grid">
-                  {fld('Department', curDeptName,
-                    <select className="cp-inline-select" value={empForm.department_id || ''} onChange={(e) => onDeptChange(e.target.value)}>
-                      <option value="">—</option>
-                      {empDepts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>)}
                   {fld('Role', curRoleName,
                     <select className="cp-inline-select" value={empForm.role_id || ''} onChange={(e) => setEmpForm((p) => ({ ...p, role_id: e.target.value || null, custom_role_id: null }))}>
                       <option value="">—</option>
                       {rolesForDept.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>)}
+                  {fld('Department', curDeptName,
+                    <select className="cp-inline-select" value={empForm.department_id || ''} onChange={(e) => onDeptChange(e.target.value)}>
+                      <option value="">—</option>
+                      {empDepts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>)}
                   {fld('Permission tier', curTierLabel,
                     <select className="cp-inline-select" value={empForm.permission_tier_override || ''} onChange={(e) => setE('permission_tier_override', e.target.value)}>
