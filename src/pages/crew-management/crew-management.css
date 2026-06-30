@@ -6,14 +6,17 @@
 .cm-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 24px 32px 64px; }
 .cm-wrap { max-width: 1280px; margin: 0 auto; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
 
-/* Header — eyebrow + serif headline with terracotta-italic emphasis + lead, the
-   primary actions stacked on the right, a hairline beneath. */
-.cm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; padding-bottom: 22px; border-bottom: 1px solid #E6E8EF; }
-.cm-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #C65A1A; }
-.cm-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 32px; line-height: 1.04; color: #1C1B3A; margin-top: 11px; }
-.cm-title em { font-style: italic; color: #C65A1A; }
-.cm-lead { font-size: 14px; line-height: 1.5; color: #4B4A66; margin-top: 12px; max-width: 540px; }
-.cm-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+/* Back link — muted, chevron, sits above the header (mirrors month-end). */
+.cm-back { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 500; color: #6B7280; margin-bottom: 22px; transition: color 0.12s ease; }
+.cm-back:hover { color: #1C1B3A; }
+.cm-back svg { flex: 0 0 auto; }
+
+/* Canonical Cargo editorial header — .editorial-meta strip (with the crew stats
+   folded in) + big uppercase .editorial-greeting headline; primary actions sit
+   on the right of the headline row. Hairline beneath the whole header. */
+.cm-head { padding-bottom: 22px; border-bottom: 1px solid #E6E8EF; }
+.cm-titlerow { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.cm-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding-top: 6px; }
 
 /* Buttons — terracotta primary, white ghost with a soft border. */
 .cm-btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 10px 16px; cursor: pointer; transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease; white-space: nowrap; }
@@ -22,13 +25,6 @@
 .cm-btn-primary:hover { background: #B14E16; border-color: #B14E16; }
 .cm-btn-ghost { background: #fff; color: #1C1B3A; border: 1px solid #E5E7EB; }
 .cm-btn-ghost:hover { background: #FAFAF8; border-color: #D9D7CF; }
-
-/* Stat strip — figures separated by hairline dividers, no box. */
-.cm-sum { display: flex; align-items: flex-end; gap: 30px; padding: 20px 0; border-bottom: 1px solid #E6E8EF; }
-.cm-s b { font-family: 'DM Serif Display', Georgia, serif; font-size: 28px; line-height: 1; display: block; color: #1C1B3A; }
-.cm-s.is-accent b { color: #C65A1A; }
-.cm-s span { font-size: 9px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: #8B8478; margin-top: 7px; display: block; }
-.cm-vr { width: 1px; align-self: stretch; background: #E6E8EF; margin: 3px 0; }
 
 /* Section header — serif sub-head sitting on a hairline rule. */
 .cm-section { margin-top: 30px; }

@@ -20,6 +20,7 @@ import { getMyContext } from '../../utils/authHelpers';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { logActivity } from '../../utils/activityStorage';
+import '../../styles/editorial.css';
 import './crew-management.css';
 
 // DEV_MODE constant
@@ -720,30 +721,45 @@ const CrewManagement = () => {
     <div className="cm-page">
       <Header />
       <div className="cm-wrap">
-        {/* Editorial header — eyebrow, serif headline, lead, primary actions. */}
+        {/* Back to dashboard */}
+        <button type="button" className="cm-back" onClick={() => navigate('/dashboard')}>
+          <Icon name="ChevronLeft" size={16} /> Back to Dashboard
+        </button>
+
+        {/* Canonical Cargo editorial header — meta strip (crew stats folded in) +
+            big uppercase greeting, primary actions on the right. */}
         <div className="cm-head">
-          <div>
-            <div className="cm-eyebrow">Crew</div>
-            <h1 className="cm-title">Crew <em>management</em></h1>
-            <p className="cm-lead">
-              Your people, their roles and access — kept in one place. Invite new
-              crew, track who's aboard and who's away, and export the guest book.
-            </p>
-          </div>
-          {shouldShowInviteButton && (
-            <div className="cm-actions">
-              {canInvite && (
-                <button type="button" onClick={() => setShowGuestBook(true)} className="cm-btn cm-btn-ghost" aria-label="Export guest book">
-                  <Icon name="BookOpen" size={16} />
-                  Export guest book
+          <p className="editorial-meta">
+            <span className="dot">●</span>
+            <span>Crew</span>
+            <span className="bar" />
+            <span className="muted">{crewStats.total} crew</span>
+            <span className="bar" />
+            <span className="muted">{crewStats.onBoard} on board</span>
+            <span className="bar" />
+            <span className="muted">{crewStats.away} away</span>
+            <span className="bar" />
+            <span className="muted">{crewStats.departments} departments</span>
+          </p>
+          <div className="cm-titlerow">
+            <h1 className="editorial-greeting">
+              Crew<span className="period">,</span> <em>{crewStats.away ? `${crewStats.away} away` : 'all aboard'}</em><span className="period">.</span>
+            </h1>
+            {shouldShowInviteButton && (
+              <div className="cm-actions">
+                {canInvite && (
+                  <button type="button" onClick={() => setShowGuestBook(true)} className="cm-btn cm-btn-ghost" aria-label="Export guest book">
+                    <Icon name="BookOpen" size={16} />
+                    Export guest book
+                  </button>
+                )}
+                <button type="button" onClick={handleInviteClick} className="cm-btn cm-btn-primary" aria-label="Invite Crew">
+                  <Icon name="Mail" size={16} />
+                  Invite crew
                 </button>
-              )}
-              <button type="button" onClick={handleInviteClick} className="cm-btn cm-btn-primary" aria-label="Invite Crew">
-                <Icon name="Mail" size={16} />
-                Invite crew
-              </button>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Loading State */}
@@ -774,17 +790,6 @@ const CrewManagement = () => {
         {/* Content */}
         {!loading && !error && (
           <>
-            {/* Stat strip — figures on a hairline */}
-            <div className="cm-sum">
-              <div className="cm-s"><b>{crewStats.total}</b><span>Crew</span></div>
-              <div className="cm-vr" />
-              <div className="cm-s"><b>{crewStats.onBoard}</b><span>On board</span></div>
-              <div className="cm-vr" />
-              <div className={`cm-s${crewStats.away ? ' is-accent' : ''}`}><b>{crewStats.away}</b><span>Away</span></div>
-              <div className="cm-vr" />
-              <div className="cm-s"><b>{crewStats.departments}</b><span>Departments</span></div>
-            </div>
-
             {/* Pending Invites Section */}
             <PendingInvitesSection refreshTrigger={inviteRefreshTrigger} />
 

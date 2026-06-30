@@ -197,21 +197,19 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
     );
   }
 
+  const count = invites?.length || 0;
+
   return (
     <div className="cm-section">
       <div className="cm-sec-head">
         <span className="cm-sec-name">Pending invites</span>
         <span className="cm-sec-rule" />
-        <span className="cm-sec-meta">{invites?.length || 0} awaiting</span>
+        <span className="cm-sec-meta">{count} awaiting</span>
       </div>
-      <p className="cm-sec-sub">Crew invitations that haven't been accepted yet.</p>
-      {invites?.length === 0 ? (
-        <div className="cm-empty">
-          <Icon name="Mail" size={32} />
-          <p>No pending invites</p>
-        </div>
-      ) : (
-        <div className="cm-table-wrap">
+      {count > 0 && (
+        <>
+          <p className="cm-sec-sub">Crew invitations that haven't been accepted yet.</p>
+          <div className="cm-table-wrap">
           <table className="cm-table">
             <thead>
               <tr>
@@ -294,7 +292,8 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
