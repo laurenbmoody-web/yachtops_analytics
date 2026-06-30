@@ -18,7 +18,6 @@ import { sendDbNotification } from '../../../lib/dbNotifications';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
 import { buildNautilusSST } from '../../../seatime/nautilusExport';
-import { buildTransportMaltaSST } from '../../../seatime/transportMaltaExport';
 import CaptainSignoff from '../../../seatime/CaptainSignoff';
 import './sea-time-dashboard.css';
 
@@ -147,7 +146,7 @@ const countryName = (code) => { if (!code) return ''; const k = String(code).tri
 const JOURNEY_DEFAULT = {
   noe:  { status: 'not_applied', appliedDate: '', issueDate: '', ref: '', file: null },
   oral: { status: 'not_booked', bookedDate: '', passDate: '', ref: '', fails: [], file: null },
-  coc:  { status: 'not_applied', appliedDate: '', issuedDate: '', ref: '', file: null },
+  coc:  { status: 'not_applied', appliedDate: '', issuedDate: '', ref: '', file: null, checklist: {} },
   note: '',
 };
 // The NoE/NoA spans many routes, each with its own application form + Marine
@@ -173,7 +172,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [dualMode, setDualMode] = useState(false);   // dual deck+engine: 50% credit
   const dualRate = dualMode ? DUAL_CAPACITY_RATE : 1;
   const [coursesOpen, setCoursesOpen] = useState(false);  // courses & tickets section
-  const [appTipsOpen, setAppTipsOpen] = useState(false);  // MCA-application tips checklist (dossier foot)
   const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
   const [heldCerts, setHeldCerts] = useState({});          // certId -> { issueDate, number, fileUrl, fileName, docId }
   const [docsOnFile, setDocsOnFile] = useState({});        // doc_type -> { fileUrl, fileName, docId } from the profile
@@ -467,11 +465,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     return out;
   }, [docMet, verifier, docsOnFile]);
   const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective, cert, buckets }), [entries, vessels, config, signatory, verifier, docMetEffective, cert, buckets]);
-  // Cert-specific MCA CoC-application checklist — the bundle the crew sends AFTER
-  // the testimonial is verified. Live state where we can detect it (testimonial
-  // ready, NoE/oral from the journey, ENG1 from Documents, course count from the
-  // ancillary list); 'todo' otherwise. Shown as a collapsible tip, not mixed
-  // into the verification docs.
+  // Cert-specific MCA CoC-application bundle — what the crew sends to the MCA to
+  // claim the certificate, shown inside the Certification journey's CoC step.
+  // Live state where we can detect it (verified testimonial, NoE/oral from the
+  // journey, ENG1 from Documents, courses from the ancillary list); the items we
+  // can't detect (e.g. photos) are 'todo' and ticked by hand in the modal.
   const appChecklist = useMemo(() => {
     if (!cert) return [];
     const j = journey || JOURNEY_DEFAULT;
@@ -480,9 +478,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     const hasEng1 = !!docsOnFile?.eng1?.fileUrl;
     const coursesState = !ancillary.length ? 'na' : (ancillaryDone === ancillary.length ? 'done' : ancillaryDone > 0 ? 'pending' : 'todo');
     return [
-      { key: 'test', label: 'Verified Sea Service Testimonial (+ your SRB)', detail: canGenerate ? 'Ready to export above' : 'Clear steps 01–02 first', state: canGenerate ? 'done' : 'todo' },
-      { key: 'noe', label: 'Notice of Eligibility (NoE)', detail: noeIssued ? 'On record' : 'Apply via the Certification journey', state: noeIssued ? 'done' : 'todo' },
-      { key: 'oral', label: 'Oral exam pass (valid 3 years)', detail: oralPassed ? 'Passed' : 'Booked once your NoE is issued', state: oralPassed ? 'done' : 'todo' },
+      { key: 'test', label: 'Verified Sea Service Testimonial (+ your SRB)', detail: canGenerate ? 'Verified & ready to export' : 'Get your record verified first', state: canGenerate ? 'done' : 'todo' },
+      { key: 'noe', label: 'Notice of Eligibility (NoE)', detail: noeIssued ? 'On record' : 'Record it in step 02', state: noeIssued ? 'done' : 'todo' },
+      { key: 'oral', label: 'Oral exam pass (valid 3 years)', detail: oralPassed ? 'Passed' : 'Record it in step 03', state: oralPassed ? 'done' : 'todo' },
       { key: 'eng1', label: 'Valid ENG1 medical', detail: hasEng1 ? 'On file' : 'Add to your Documents', state: hasEng1 ? 'done' : 'todo' },
       { key: 'photos', label: 'Two passport-size photographs', detail: '', state: 'todo' },
       { key: 'courses', label: `STCW & ancillary certificates for ${cert.short}`, detail: ancillary.length ? `${ancillaryDone} of ${ancillary.length} on file — see Courses & tickets` : 'None additional for this route', state: coursesState },
@@ -835,30 +833,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     } catch (e) { console.error('[seatime] nautilus export', e); flash('Could not build the Nautilus form'); }
   };
 
-  // Build + download the Transport Malta deck testimonial (S.L. 499.23) for one
-  // command spell. LOA and max passengers are denormalised onto every
-  // Cargo-tracked day by the autolog sync (vessel_length_m = the vessel's LOA;
-  // vessel_max_pax = its typical_guest_count), so they're accurate per vessel —
-  // no "current vessel only" fallback.
-  const onDownloadSpellTM = async (spell) => {
-    if (!canGenerate) { flash('Resolve the outstanding validation checks first'); return; }
-    try {
-      const v = vessels[spell.vesselId] || {};
-      const rows = spell.entries
-        .slice()
-        .sort((a, b) => String(a.from).localeCompare(String(b.from)))
-        .map(e => ({ from: e.from, to: e.to, capacity: e.capacity }));
-      flash('Building Transport Malta form…');
-      const pdfBytes = await buildTransportMaltaSST({
-        seafarer: { fullName: seafarer.fullName },
-        vessel: { name: v.name, type: v.type, flag: v.flag, loaM: v.lengthM, maxPax: v.maxPax },
-        rows,
-      });
-      downloadBytes(pdfBytes, `transport-malta-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
-      flash('Transport Malta form ready');
-    } catch (e) { console.error('[seatime] transport malta export', e); flash('Could not build the Transport Malta form'); }
-  };
-
   // Prior service before Cargo — a crew-entered lump sum that counts toward the
   // pathway alongside the auto-logged Cargo service.
   const openPrior = () => {
@@ -882,7 +856,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   // Certification journey (NoE -> oral -> CoC). The modal is scoped to one
   // milestone (step) at a time, gated by progress.
   const openJourney = (step = 'noe') => { setJourneyStep(step); setJourneyDraft(JSON.parse(JSON.stringify(journey || JOURNEY_DEFAULT))); setJourneyOpen(true); };
-  const setJD = (path, val) => setJourneyDraft(d => { const n = JSON.parse(JSON.stringify(d || JOURNEY_DEFAULT)); const [a, b] = path.split('.'); if (b) { n[a] = { ...n[a], [b]: val }; } else { n[a] = val; } return n; });
+  const setJD = (path, val) => setJourneyDraft(d => {
+    const n = JSON.parse(JSON.stringify(d || JOURNEY_DEFAULT));
+    const keys = path.split('.');
+    let o = n;
+    for (let i = 0; i < keys.length - 1; i++) { o[keys[i]] = o[keys[i]] ? { ...o[keys[i]] } : {}; o = o[keys[i]]; }
+    o[keys[keys.length - 1]] = val;
+    return n;
+  });
   // Attach the milestone's paper (NoE letter / oral pass / CoC) — uploaded to the
   // crew-documents bucket, its signed URL + path stored on the journey step.
   const [journeyUploading, setJourneyUploading] = useState(false);
@@ -1760,9 +1741,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                           </div>
                           {verifier === 'nautilus'
                             ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
-                            : verifier === 'transport_malta'
-                              ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
-                              : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
+                            : <span className="std-spell-tag">{verifier === 'transport_malta' ? 'Copy onto the official S.L. 499.23 form' : `Submit on the ${vp.short} route`}</span>}
                         </div>
                       ))}
                     </div>
@@ -1775,21 +1754,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               </div>
             )}
           </div>
-
-          {/* Applying for the CoC is a SEPARATE step from verifying service.
-              Surfaced as one button → a guided checklist modal, never mixed into
-              the verification flow above. */}
-          {!SHOW_SIGNOFF && cert && (
-            <div className="std-applybar">
-              <div className="std-applybar-txt">
-                <span className="mlabel rustlabel">Next step · applying for the CoC</span>
-                <span className="t">Once your record is verified, it’s the evidence for your {cert.short} application.</span>
-              </div>
-              <button type="button" className="std-applybtn" onClick={() => setAppTipsOpen(true)}>
-                <Icon name="ClipboardCheck" size={15} /> CoC application checklist
-              </button>
-            </div>
-          )}
 
           {SHOW_SIGNOFF && (
           <div className="std-issue">
@@ -1897,33 +1861,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       </div>
 
       {/* ── prior service before Cargo (lump-sum baseline) ── */}
-      {appTipsOpen && cert && createPortal(
-        <div className="cso-overlay" onClick={() => setAppTipsOpen(false)}>
-          <div className="cso" role="dialog" aria-modal="true" aria-label="CoC application checklist" style={{ width: 560 }} onClick={e => e.stopPropagation()}>
-            <button className="cso-x" onClick={() => setAppTipsOpen(false)} aria-label="Close"><Icon name="X" size={18} /></button>
-            <div className="cso-head">
-              <div className="cso-eyebrow">Applying for the CoC</div>
-              <h3 className="cso-title">{cert.short} — application checklist</h3>
-              <div className="cso-sub">A verified Sea Service Record is the <b>evidence of sea service</b> — the first step. To apply for the {cert.short} itself, the MCA also needs:</div>
-            </div>
-            <div className="cso-body">
-              <div className="std-appchecks one">
-                {appChecklist.map(item => {
-                  const ic = item.state === 'done' ? 'Check' : item.state === 'pending' ? 'Clock' : item.state === 'na' ? 'Minus' : 'Circle';
-                  const col = item.state === 'done' ? '#5E8E6F' : item.state === 'pending' ? '#A6712C' : '#AEB4C2';
-                  return (
-                    <div className={`std-appcheck ${item.state}`} key={item.key}>
-                      <span className="mk" style={{ color: col }}><Icon name={ic} size={14} /></span>
-                      <div><div className="l">{item.label}</div>{item.detail && <div className="d">{item.detail}</div>}</div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="std-apptips-foot">Your course certificates are tracked in <b>Courses &amp; tickets</b>; your NoE, oral and CoC in the <b>Certification journey</b>. Confirm the exact list for your route with your training provider.</div>
-            </div>
-          </div>
-        </div>, document.body)}
-
       {priorOpen && createPortal(
         <div className="cso-overlay" onClick={() => setPriorOpen(false)}>
           <div className="cso" role="dialog" aria-modal="true" aria-label="Prior service before Cargo" style={{ width: 480 }} onClick={e => e.stopPropagation()}>
@@ -1968,7 +1905,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 ? 'Apply with your MSF form once eligible. The NoE lets you book the oral exam and is valid 5 years.'
                 : journeyStep === 'oral'
                   ? 'Book your MCA oral exam and record the result. A pass is valid 3 years; if you fail, add a re-sit.'
-                  : 'Apply for the CoC once your oral pass is in date, then record the certificate number when issued.'}</div>
+                  : 'The final step. Pull your application bundle together below, record the date you apply, then add the certificate number once it’s issued.'}</div>
             </div>
             <div className="cso-body">
               {journeyStep === 'noe' && (<>
@@ -2029,29 +1966,62 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 {journeyFileField('oral', 'Oral exam pass slip')}
               </>)}
 
-              {journeyStep === 'coc' && (<>
-                <div className="cso-fld">
-                  <label className="cso-lbl">Status</label>
-                  <select className="cso-input" value={journeyDraft.coc?.status || 'not_applied'} onChange={e => setJD('coc.status', e.target.value)}>
-                    <option value="not_applied">Not applied</option>
-                    <option value="applied">Applied — awaiting</option>
-                    <option value="issued">Issued</option>
-                  </select>
-                </div>
-                {(journeyDraft.coc?.status === 'applied' || journeyDraft.coc?.status === 'issued') && (
-                  <div className="cso-fld" style={{ marginTop: 12 }}>
-                    <label className="cso-lbl">Date applied</label>
-                    <input className="cso-input" type="date" value={journeyDraft.coc?.appliedDate || ''} onChange={e => setJD('coc.appliedDate', e.target.value)} />
+              {journeyStep === 'coc' && (() => {
+                const ck = journeyDraft.coc?.checklist || {};
+                const itemDone = (it) => it.state === 'done' || it.state === 'na' || !!ck[it.key];
+                const cocReady = appChecklist.length > 0 && appChecklist.every(itemDone);
+                const cocStatus = journeyDraft.coc?.status || 'not_applied';
+                // Keep the application fields visible once they've applied even if a
+                // detected item later lapses, so a recorded date is never hidden.
+                const showApply = cocReady || cocStatus === 'applied' || cocStatus === 'issued';
+                return (<>
+                  <div className="cj-cocsec">
+                    <div className="cj-cocsec-h">What to send to the MCA</div>
+                    <div className="cj-cocsec-sub">Your verified Sea Service Record is the evidence of sea service — the MCA also needs the rest of this bundle for {cert?.short || 'your CoC'}. We tick what we can detect; confirm the rest by hand.</div>
+                    <div className="cj-coclist">
+                      {appChecklist.map(it => {
+                        const auto = it.state === 'done' || it.state === 'na';
+                        const ticked = itemDone(it);
+                        const ic = it.state === 'pending' ? 'Clock' : ticked ? 'CheckCircle' : 'Circle';
+                        return (
+                          <button type="button" key={it.key} className={`cj-cocitem${ticked ? ' on' : ''}${auto ? ' auto' : ''}`}
+                            disabled={auto} onClick={auto ? undefined : () => setJD(`coc.checklist.${it.key}`, !ck[it.key])}
+                            title={auto ? 'Tracked for you' : 'Tap to confirm'}>
+                            <span className="mk"><Icon name={ic} size={15} /></span>
+                            <span className="tx"><span className="l">{it.label}</span>{it.detail && <span className="d">{it.detail}</span>}</span>
+                            {auto && <span className="cj-cocauto">auto</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                )}
-                {journeyDraft.coc?.status === 'issued' && (
-                  <div className="cso-grid" style={{ marginTop: 12 }}>
-                    <div><label className="cso-lbl">Issue date</label><input className="cso-input" type="date" value={journeyDraft.coc?.issuedDate || ''} onChange={e => setJD('coc.issuedDate', e.target.value)} /></div>
-                    <div><label className="cso-lbl">Certificate no.</label><input className="cso-input" value={journeyDraft.coc?.ref || ''} onChange={e => setJD('coc.ref', e.target.value)} placeholder="CoC number" /></div>
-                  </div>
-                )}
-                {journeyFileField('coc', 'Certificate of Competency')}
-              </>)}
+                  {!showApply ? (
+                    <div className="cso-note">Tick everything you’ll send, then record your application date below.</div>
+                  ) : (<>
+                    <div className="cso-fld">
+                      <label className="cso-lbl">Application</label>
+                      <select className="cso-input" value={cocStatus} onChange={e => setJD('coc.status', e.target.value)}>
+                        <option value="not_applied">Bundle ready — not applied yet</option>
+                        <option value="applied">Applied — awaiting</option>
+                        <option value="issued">Issued</option>
+                      </select>
+                    </div>
+                    {(cocStatus === 'applied' || cocStatus === 'issued') && (
+                      <div className="cso-fld" style={{ marginTop: 12 }}>
+                        <label className="cso-lbl">Date applied</label>
+                        <input className="cso-input" type="date" value={journeyDraft.coc?.appliedDate || ''} onChange={e => setJD('coc.appliedDate', e.target.value)} />
+                      </div>
+                    )}
+                    {cocStatus === 'issued' && (
+                      <div className="cso-grid" style={{ marginTop: 12 }}>
+                        <div><label className="cso-lbl">Issue date</label><input className="cso-input" type="date" value={journeyDraft.coc?.issuedDate || ''} onChange={e => setJD('coc.issuedDate', e.target.value)} /></div>
+                        <div><label className="cso-lbl">Certificate no.</label><input className="cso-input" value={journeyDraft.coc?.ref || ''} onChange={e => setJD('coc.ref', e.target.value)} placeholder="CoC number" /></div>
+                      </div>
+                    )}
+                    {journeyFileField('coc', 'Certificate of Competency')}
+                  </>)}
+                </>);
+              })()}
             </div>
             <div className="cso-foot">
               <button className="cso-btn ghost" onClick={() => setJourneyOpen(false)}>Cancel</button>
