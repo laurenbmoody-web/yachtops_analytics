@@ -2807,7 +2807,9 @@ const ProvisioningBoardDetail = () => {
                       onClick={handleConfirmQuoteWithoutApprover}
                       className="cargo-ribbon-btn"
                       disabled={confirmingQuote}
-                      title="No approver configured — confirm the quote yourself. Locks all lines and notifies the supplier."
+                      title={hasManualQuote
+                        ? 'Confirm the quote yourself — locks the board at the quoted prices, then you can email the supplier.'
+                        : 'No approver configured — confirm the quote yourself. Locks all lines and notifies the supplier.'}
                     >
                       <Icon name="CheckCircle" style={{ width: 13, height: 13 }} />
                       {confirmingQuote ? 'Confirming…' : 'Confirm quote'}
@@ -4935,28 +4937,48 @@ const ProvisioningBoardDetail = () => {
             </button>
           </div>
           <div className="pv-edit-modal-body">
-            <p style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              color: 'var(--d-muted)',
-              margin: '0 0 14px',
-              lineHeight: 1.5,
-            }}>
-              Every quoted line will lock at the supplier's price, the order will flip to{' '}
-              <strong style={{ color: 'var(--d-navy-deep)' }}>confirmed</strong>, and the supplier
-              will be notified in their portal.
-            </p>
-            <p style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 12,
-              color: 'var(--d-muted-soft)',
-              fontStyle: 'italic',
-              margin: 0,
-              lineHeight: 1.5,
-            }}>
-              Lines still awaiting a quote on this or another supplier stay where they are —
-              only the quoted ones move.
-            </p>
+            {hasManualQuote ? (
+              // Manual quote: the supplier isn't a Cargo supplier (no
+              // portal). Confirm locks the board and offers an email draft.
+              <p style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'var(--d-muted)',
+                margin: 0,
+                lineHeight: 1.5,
+              }}>
+                The board will flip to{' '}
+                <strong style={{ color: 'var(--d-navy-deep)' }}>confirmed</strong>{' '}
+                at the quoted prices. Afterwards you can email the supplier a
+                confirmation — they're not on the Cargo portal, so nothing is
+                sent automatically.
+              </p>
+            ) : (
+              <>
+                <p style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  color: 'var(--d-muted)',
+                  margin: '0 0 14px',
+                  lineHeight: 1.5,
+                }}>
+                  Every quoted line will lock at the supplier's price, the order will flip to{' '}
+                  <strong style={{ color: 'var(--d-navy-deep)' }}>confirmed</strong>, and the supplier
+                  will be notified in their portal.
+                </p>
+                <p style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 12,
+                  color: 'var(--d-muted-soft)',
+                  fontStyle: 'italic',
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}>
+                  Lines still awaiting a quote on this or another supplier stay where they are —
+                  only the quoted ones move.
+                </p>
+              </>
+            )}
           </div>
           <div className="pv-edit-modal-foot">
             <button
