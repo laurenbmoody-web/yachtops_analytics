@@ -23,6 +23,7 @@ import { fetchSignedHorRecordsForMonth, getSignedHorRecordUrl } from '../crew-pr
 import { sendDbNotification } from '../../lib/dbNotifications';
 import { loadRotaHorExportData } from '../crew-rota/rotaHorExportData';
 import { buildRestLogPDF, buildRestLogCSV } from '../crew-rota/rotaHorExport';
+import HorReviewModal from './components/HorReviewModal';
 import './month-end.css';
 
 // Blob → base64 (no data: prefix) for JSON transport to the email edge function.
@@ -36,30 +37,6 @@ const blobToBase64 = (blob) => new Promise((resolve, reject) => {
 const TIER_RANK = { COMMAND: 3, CHIEF: 2, HOD: 1 };
 const rankOf = (t) => TIER_RANK[String(t || '').toUpperCase()] || 0;
 const pad2 = (n) => String(n).padStart(2, '0');
-
-// Per-crew roster row status (HOR detail view).
-const STATUS_META = {
-  open:      { label: 'Not started',       color: '#C65A1A', text: '#B14E16' },
-  submitted: { label: 'Awaiting approval', color: '#1C1B3A', text: '#1C1B3A' },
-  confirmed: { label: 'Confirmed',         color: '#5C9B6A', text: '#3F7A52' },
-  locked:    { label: 'Locked',            color: '#9098B1', text: '#6B7280' },
-};
-
-// The roster is split into collapsible status blocks (default collapsed); crew
-// are grouped by department inside each. The block header carries the status, so
-// rows drop their own status text — the dot + logged-coverage bar carry detail.
-// "Not started" and "In progress" both come from the un-submitted `open` status,
-// split on whether any days have been logged yet (matters mid-month, when a month
-// can't be signed off but crew are part-way through logging).
-const STATUS_BLOCKS = [
-  { key: 'submitted', label: 'Awaiting approval', theme: '#1C1B3A', match: (r) => r.status === 'submitted' },
-  { key: 'progress',  label: 'In progress',       theme: '#C65A1A', match: (r) => r.status === 'open' && r.logged > 0 },
-  { key: 'open',      label: 'Not started',       theme: '#C65A1A', match: (r) => r.status === 'open' && r.logged === 0 },
-  { key: 'confirmed', label: 'Confirmed',         theme: '#3F7A52', match: (r) => r.status === 'confirmed' || r.status === 'locked' },
-];
-const REMINDABLE = new Set(['progress', 'open']); // blocks whose crew can be nudged
-const DEPT_RANK = { Bridge: 0, Deck: 1, Engineering: 2, Interior: 3, Galley: 4 };
-const byDept = (a, b) => (DEPT_RANK[a] ?? 9) - (DEPT_RANK[b] ?? 9) || String(a).localeCompare(String(b));
 
 // Two-state display: terracotta is the only accent, reserved for what's still
 // to close; closed items recede into quiet grey. Language matches the page's
@@ -104,8 +81,7 @@ export default function MonthEnd() {
   const [reminded, setReminded] = useState({});    // userId -> true (this session)
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
-  const [openHor, setOpenHor] = useState(false);   // HOR pack expand
-  const [openBlocks, setOpenBlocks] = useState({}); // per-status-block expand (default collapsed)
+  const [horModalOpen, setHorModalOpen] = useState(false); // HOR review modal
   const [hideClosed, setHideClosed] = useState(false); // filter: hide closed items
   const [exporting, setExporting] = useState(false);   // building/sending the HOR pack
   const [sentRecord, setSentRecord] = useState(null);  // hor_management_sends row for this month
@@ -203,12 +179,6 @@ export default function MonthEnd() {
     return Number.isNaN(d.getTime()) ? '' : `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
   };
 
-  // Signed records filed in the vault for this month, in roster (dept) order.
-  const archivedList = useMemo(
-    () => rows.map((r) => ({ r, doc: archived[r.id] })).filter((x) => x.doc),
-    [rows, archived],
-  );
-
   // Open an archived signed PDF in a new tab via a fresh signed URL.
   const openArchived = async (doc) => {
     const url = await getSignedHorRecordUrl(doc.storage_path);
@@ -281,87 +251,14 @@ export default function MonthEnd() {
          counts.submitted ? `${counts.submitted} awaiting approval` : null]
         .filter(Boolean).join(' · ') || 'In sign-off';
 
-  // ── Per-crew roster row (HOR detail) ──────────────────────────────────────
-  // No per-row status text — the status block header carries it. The dot keeps
-  // the status colour and a "logged this month" bar surfaces who's behind.
-  const renderRosterRow = (r) => {
-    const meta = STATUS_META[r.status] || STATUS_META.open;
-    const signed = r.status === 'confirmed' || r.status === 'locked';
-    const pct = r.denom ? Math.round((r.logged / r.denom) * 100) : 0;
-    const barColor = signed ? '#5C9B6A' : (pct < 60 ? '#C65A1A' : '#9A958A');
-    return (
-      <div key={r.id} className="me-row">
-        <span className="me-dot" style={{ background: meta.color }} />
-        <div className="me-who">
-          <div className="me-name">{r.fullName}</div>
-          <div className="me-sub">{r.roleTitle}</div>
-        </div>
-        <div className="me-log" title="Days logged this month">
-          {r.logged > 0 ? (
-            <>
-              <div className="me-logbar"><span style={{ width: `${pct}%`, background: barColor }} /></div>
-              <span className="me-logfrac">{r.logged}/{r.denom || 0}</span>
-            </>
-          ) : (!signed && r.unlogged > 0 ? (
-            <span className="me-log-note">{r.unlogged} day{r.unlogged > 1 ? 's' : ''} unlogged</span>
-          ) : null)}
-        </div>
-        <div className="me-action">
-          {r.status === 'open' && (
-            reminded[r.id]
-              ? <span className="me-reminded"><Icon name="Check" size={14} /> Reminded</span>
-              : <button type="button" className="me-btn me-btn-ghost" onClick={() => remind(r)}>Remind</button>
-          )}
-          {r.status === 'submitted' && (
-            r.canApprove
-              ? <button type="button" className="me-btn me-btn-primary" onClick={() => navigate(`/profile/${r.id}?tab=hor&period=${year}-${pad2(jsMonth + 1)}`)}>Review &amp; approve</button>
-              : <span className="me-meta">Awaiting {approverTier.toLowerCase()}</span>
-          )}
-          {signed && (
-            <button type="button" className="me-btn me-btn-ghost me-btn-view" onClick={() => navigate(`/profile/${r.id}?tab=hor&period=${year}-${pad2(jsMonth + 1)}`)}>
-              <Icon name="Check" size={14} /> View
-            </button>
-          )}
-        </div>
-      </div>
-    );
+  // Open a crew member's signed record (from the modal's "Signed off" list) —
+  // the filed PDF if we have it, otherwise their HOR tab for the month.
+  const viewSigned = (r) => {
+    const doc = archived[r.id];
+    if (doc) openArchived(doc);
+    else navigate(`/profile/${r.id}?tab=hor&period=${year}-${pad2(jsMonth + 1)}`);
   };
-
-  // ── A collapsible status block (Awaiting approval / Not started / Confirmed),
-  // crew grouped by department inside. Default collapsed; chevron + label take
-  // the block's status colour. ───────────────────────────────────────────────
-  const renderStatusBlock = (blk) => {
-    const members = rows.filter(blk.match);
-    if (!members.length) return null;
-    const isOpen = !!openBlocks[blk.key];
-    const depts = [...new Set(members.map((m) => m.department).filter(Boolean))].sort(byDept);
-    const toggle = () => setOpenBlocks((p) => ({ ...p, [blk.key]: !p[blk.key] }));
-    return (
-      <div key={blk.key} className="me-block">
-        <div className="me-block-head">
-          <button type="button" className="me-block-toggle" aria-expanded={isOpen} onClick={toggle}>
-            <span className="me-chev" style={{ color: blk.theme }}>{isOpen ? '▾' : '▸'}</span>
-            <span className="me-block-dot" style={{ background: blk.theme }} />
-            <span className="me-block-label" style={{ color: blk.theme }}>{blk.label} · {members.length}</span>
-          </button>
-          {REMINDABLE.has(blk.key) ? (
-            <button type="button" className="me-btn me-btn-primary me-block-cta" disabled={busy} onClick={() => remindGroup(members)}>
-              <Icon name="Bell" size={14} />
-              {busy ? 'Sending…' : `Send reminders to all (${members.length})`}
-            </button>
-          ) : (
-            <span className="me-block-preview">{depts.join('  ·  ')}</span>
-          )}
-        </div>
-        {isOpen && depts.map((d) => (
-          <div key={d} className="me-dept-group">
-            <div className="me-dept">{d}</div>
-            {members.filter((m) => m.department === d).map(renderRosterRow)}
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const approveCrew = (r) => navigate(`/profile/${r.id}?tab=hor&period=${year}-${pad2(jsMonth + 1)}`);
 
   // ── A Planned placeholder pack line ───────────────────────────────────────
   const renderPlaceholder = (p) => (
@@ -458,65 +355,11 @@ export default function MonthEnd() {
                         {(horDone ? PACK.complete : PACK.outstanding).label}
                       </span>
                       <div className="mp-row-act">
-                        <button type="button" className={`mp-link${horDone ? ' is-mut' : ''}`} onClick={() => setOpenHor((v) => !v)} aria-expanded={openHor}>
-                          {openHor ? 'Hide' : 'Review'} {openHor ? '▴' : '→'}
+                        <button type="button" className={`mp-link${horDone ? ' is-mut' : ''}`} onClick={() => setHorModalOpen(true)}>
+                          Review →
                         </button>
                       </div>
                     </div>
-
-                    {openHor && (
-                      <div className="mp-detail">
-                        {loading ? (
-                          <div className="mp-empty">Loading…</div>
-                        ) : rows.length === 0 ? (
-                          <div className="mp-empty">No crew on this vessel yet.</div>
-                        ) : (
-                          <>
-                            {STATUS_BLOCKS.map(renderStatusBlock)}
-                            <div className="me-export">
-                              <span className="me-export-note">
-                                {!managementEmail
-                                  ? <>Set a management company email in <button type="button" className="me-link-inline" onClick={() => navigate('/vessel-settings')}>Vessel Settings</button> to send the monthly record</>
-                                  : sentRecord
-                                    ? <><span className="me-sent-tick"><Icon name="Check" size={13} /></span> Sent to management on <strong>{fmtDMY(sentRecord.sent_at)}</strong>{sentRecord.sent_by_name ? <> by <strong>{sentRecord.sent_by_name}</strong></> : null}{sentRecord.send_count > 1 ? ` · ${sentRecord.send_count}×` : ''}</>
-                                    : <>Record of Hours of Rest for {monthName} · sends to {managementName ? `${managementName} (${managementEmail})` : managementEmail}</>}
-                              </span>
-                              <button type="button" className={`me-btn ${sentRecord ? 'me-btn-ghost' : 'me-btn-primary'}`} disabled={exporting || !managementEmail} onClick={sendToManagement}>
-                                <Icon name="Send" size={14} /> {exporting ? 'Sending…' : (sentRecord ? 'Resend' : 'Send to management')}
-                              </button>
-                            </div>
-
-                            {/* Signed-records vault — each crew + master signed
-                                record is filed here under its month as it's
-                                signed off. Builds up to the full roster. */}
-                            <div className="me-vault">
-                              <div className="me-vault-head">
-                                <Icon name="Archive" size={13} />
-                                <span className="me-vault-title">Signed records · {monthName}</span>
-                                <span className="me-vault-count">{archivedList.length}{counts.total ? ` / ${counts.total}` : ''} filed</span>
-                              </div>
-                              {archivedList.length === 0 ? (
-                                <div className="me-vault-empty">No signed records yet — each crew member’s record is filed here once their month is signed off.</div>
-                              ) : (
-                                archivedList.map(({ r, doc }) => (
-                                  <button type="button" key={r.id} className="me-vault-row" onClick={() => openArchived(doc)} title="Open signed record">
-                                    <span className="me-vault-ico"><Icon name="FileText" size={15} /></span>
-                                    <span className="me-vault-who">
-                                      <span className="me-vault-name">{r.fullName}</span>
-                                      <span className="me-vault-sub">
-                                        {doc.master_signed_name ? `Crew + master signed` : 'Signed'}
-                                        {doc.archived_at ? ` · ${fmtDMY(doc.archived_at)}` : ''}
-                                      </span>
-                                    </span>
-                                    <span className="me-vault-open"><Icon name="ExternalLink" size={14} /> Open</span>
-                                  </button>
-                                ))
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
                   </>
                 )}
 
@@ -528,6 +371,28 @@ export default function MonthEnd() {
 
         {toast && <div className="me-toast">{toast}</div>}
       </div>
+
+      <HorReviewModal
+        open={horModalOpen}
+        onClose={() => setHorModalOpen(false)}
+        monthName={monthName}
+        monthLabel={monthLabel}
+        loading={loading}
+        rows={rows}
+        approverTier={approverTier}
+        reminded={reminded}
+        busy={busy}
+        onRemind={remind}
+        onRemindGroup={remindGroup}
+        onApprove={approveCrew}
+        onView={viewSigned}
+        managementEmail={managementEmail}
+        managementName={managementName}
+        sentRecord={sentRecord}
+        exporting={exporting}
+        onSend={sendToManagement}
+        onOpenSettings={() => navigate('/vessel-settings')}
+      />
     </>
   );
 }
