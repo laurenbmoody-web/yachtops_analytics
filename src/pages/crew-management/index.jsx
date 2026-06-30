@@ -20,7 +20,8 @@ import { getMyContext } from '../../utils/authHelpers';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { logActivity } from '../../utils/activityStorage';
-import { fetchExpiringDocuments, getExpiryStatus } from '../crew-profile/utils/crewDocuments';
+import { fetchExpiringDocuments, getExpiryStatus, fetchCrewDocuments, groupDocumentVersions, findHistoricDocIds, getDocStatus, formatDocDate } from '../crew-profile/utils/crewDocuments';
+import { getDocType } from '../crew-profile/documentTypes';
 import '../../styles/editorial.css';
 import './crew-management.css';
 
@@ -37,6 +38,28 @@ const deptRank = (name) => {
   if (!name || name === '—') return 999;
   const i = DEPT_ORDER.indexOf(name);
   return i === -1 ? 500 : i;
+};
+
+// Status dot colours for the gallery / console / hierarchy views.
+const STATUS_COLORS = {
+  active: '#2E9E6B', on_leave: '#C0851F', rotational_leave: '#7C5CBF',
+  medical_leave: '#C65A1A', training_leave: '#3B82F6', travelling: '#0F9C8E', invited: '#AEB4C2',
+};
+const statusColor = (s) => STATUS_COLORS[s] || '#AEB4C2';
+
+// Role seniority within a department (lower = more senior) — used to pick the
+// head of each branch in the hierarchy view. Heuristic, keyword-based.
+const roleRank = (role) => {
+  const s = String(role || '').toLowerCase();
+  if (/capt|master/.test(s)) return 0;
+  if (/chief officer|first officer|chief mate/.test(s)) return 1;
+  if (/chief eng/.test(s)) return 1;
+  if (/chief stew|head of (service|interior)|purser/.test(s)) return 1;
+  if (/head chef|exec.* chef/.test(s)) return 1;
+  if (/bosun/.test(s)) return 2;
+  if (/2nd|second|first |1st/.test(s)) return 3;
+  if (/3rd|third|sous/.test(s)) return 4;
+  return 6;
 };
 
 // dd/mm/yyyy per the Cargo date convention.
@@ -95,7 +118,11 @@ const CrewManagement = () => {
   const [showEditEmploymentModal, setShowEditEmploymentModal] = useState(false);
   const [editingEmploymentMember, setEditingEmploymentMember] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
+  // Roster presentation: gallery (default) · console · hierarchy · calendar.
+  const [rosterView, setRosterView] = useState('gallery');
+  const [selectedUserId, setSelectedUserId] = useState(null); // console detail pane
+  const [consoleDocs, setConsoleDocs] = useState([]);
+  const [consoleDocsLoading, setConsoleDocsLoading] = useState(false);
   const [statusChangeTarget, setStatusChangeTarget] = useState(null); // { userId, currentStatus, name }
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
   const [calendarRefresh, setCalendarRefresh] = useState(0);
@@ -414,6 +441,39 @@ const CrewManagement = () => {
 
     return () => { cancelled = true; };
   }, [activeTenantId, users]);
+
+  // Console: ensure a default selection when the view opens.
+  useEffect(() => {
+    if (rosterView !== 'console') return;
+    const ids = (users || []).map(u => u?.id);
+    if (!selectedUserId || !ids.includes(selectedUserId)) {
+      setSelectedUserId(ids[0] || null);
+    }
+  }, [rosterView, users]);
+
+  // Console: load the selected crew member's current documents for the detail pane.
+  useEffect(() => {
+    if (rosterView !== 'console' || !selectedUserId) { setConsoleDocs([]); return; }
+    let cancelled = false;
+    setConsoleDocsLoading(true);
+    (async () => {
+      try {
+        const docs = await fetchCrewDocuments(selectedUserId);
+        const { currents } = groupDocumentVersions(docs || []);
+        const historic = findHistoricDocIds(currents);
+        const list = currents
+          .filter(d => !historic.has(d.id))
+          .sort((a, b) => (getDocStatus(a).days ?? 99999) - (getDocStatus(b).days ?? 99999));
+        if (!cancelled) setConsoleDocs(list);
+      } catch (e) {
+        console.warn('[CREW] console docs failed', e);
+        if (!cancelled) setConsoleDocs([]);
+      } finally {
+        if (!cancelled) setConsoleDocsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rosterView, selectedUserId]);
 
   const handleInviteSuccess = () => {
     // Trigger refresh of pending invites section AND crew list
@@ -884,6 +944,171 @@ const CrewManagement = () => {
     );
   };
 
+  // ── Concept B — Crew gallery card ────────────────────────────────────────
+  const renderGalleryCard = (user) => {
+    const comp = complianceByUser[user?.user_id];
+    const since = user?.start_date || user?.joined_at;
+    const ten = tenure(since);
+    const isAway = user?.status && user?.status !== 'active' && user?.status !== 'invited';
+    const ret = returnByUser[user?.user_id];
+    return (
+      <div key={user?.id} className="cm-gcard" onClick={() => navigate(`/profile/${user?.id}`)}>
+        {comp && (
+          <span className={`cm-gribbon ${comp.worst === 'expired' ? 'exp' : 'warn'}`}>
+            {comp.expired ? `${comp.expired} expired` : `${comp.warning} expiring`}
+          </span>
+        )}
+        <div className="cm-gph">{initials(user?.fullName)}</div>
+        <div className="cm-gname">{user?.fullName}</div>
+        <div className="cm-grole">{user?.roleTitle}</div>
+        <div className="cm-gdept">{user?.department === '—' ? 'Unassigned' : user?.department}</div>
+        <button
+          className="cm-gstatus"
+          onClick={(e) => { e.stopPropagation(); if (hasEditPermission) setStatusChangeTarget({ userId: user?.id, currentStatus: user?.status, name: user?.fullName }); }}
+        >
+          <span className="cm-dot" style={{ background: statusColor(user?.status) }} />
+          {getStatusLabel(user?.status)}{isAway && ret ? ` · ${fmtDate(ret.date)}` : ''}
+        </button>
+        <div className="cm-gmeta">
+          <div className="cm-gstat"><b>{ten || '—'}</b><span>Aboard</span></div>
+          <div className={`cm-gstat${comp ? ' warn' : ''}`}><b>{comp ? (comp.expired || comp.warning) : '✓'}</b><span>{comp ? (comp.expired ? 'Expired' : 'Expiring') : 'Docs'}</span></div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Concept C — Console (master / detail) ────────────────────────────────
+  const renderConsole = () => {
+    const sel = filteredAndSortedUsers.find(u => u?.id === selectedUserId) || filteredAndSortedUsers[0] || null;
+    const since = sel ? (sel.start_date || sel.joined_at) : null;
+    const ret = sel ? returnByUser[sel.user_id] : null;
+    const comp = sel ? complianceByUser[sel.user_id] : null;
+    return (
+      <div className="cm-console">
+        <div className="cm-rail">
+          {groupedByDept.map(([dept, members]) => (
+            <div key={dept}>
+              <div className="cm-rail-grp">{dept === '—' ? 'Unassigned' : dept}</div>
+              {members.map((u) => (
+                <div key={u?.id} className={`cm-li${sel && u?.id === sel.id ? ' is-on' : ''}`} onClick={() => setSelectedUserId(u?.id)}>
+                  <span className="cm-li-av">{initials(u?.fullName)}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="cm-li-nm">{u?.fullName}</div>
+                    <div className="cm-li-rl">{u?.roleTitle}</div>
+                  </div>
+                  <span className="cm-li-dot" style={{ background: statusColor(u?.status) }} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="cm-detail">
+          {!sel ? (
+            <div className="cm-dempty">Select a crew member.</div>
+          ) : (
+            <>
+              <div className="cm-dhead">
+                <div className="cm-dph">{initials(sel.fullName)}</div>
+                <div>
+                  <div className="cm-dname">{sel.fullName}</div>
+                  <div className="cm-drole">{sel.roleTitle} · {sel.department === '—' ? 'Unassigned' : sel.department}</div>
+                  <span className="cm-pill cm-pill-status" style={{ marginTop: '11px' }}>
+                    <span className="cm-dot" style={{ background: statusColor(sel.status) }} />
+                    {getStatusLabel(sel.status)}
+                  </span>
+                </div>
+                <div className="cm-dactions">
+                  {hasEditPermission && (
+                    <button className="cm-btn cm-btn-ghost" onClick={() => setStatusChangeTarget({ userId: sel.id, currentStatus: sel.status, name: sel.fullName })}>Change status</button>
+                  )}
+                  <button className="cm-btn cm-btn-primary" onClick={() => navigate(`/profile/${sel.id}`)}>Open profile</button>
+                </div>
+              </div>
+              <div className="cm-dgrid">
+                <div className="cm-drow"><span className="k">Permission</span><span className="v">{getEffectiveTierDisplay(sel)}</span></div>
+                <div className="cm-drow"><span className="k">Email</span><span className="v">{sel.email || '—'}</span></div>
+                <div className="cm-drow"><span className="k">Aboard since</span><span className="v">{fmtDate(since)}{tenure(since) ? ` · ${tenure(since)}` : ''}</span></div>
+                <div className="cm-drow"><span className="k">Status</span><span className="v">{getStatusLabel(sel.status)}{ret ? ` · back ${fmtDate(ret.date)}` : ''}</span></div>
+                <div className="cm-drow"><span className="k">Compliance</span><span className={`v${comp ? ' warn' : ''}`}>{comp ? (comp.expired ? `${comp.expired} expired` : `${comp.warning} expiring`) : 'All in date'}</span></div>
+              </div>
+              <div className="cm-ddocs">
+                <h3>Documents &amp; certificates</h3>
+                {consoleDocsLoading ? (
+                  <div className="cm-dempty">Loading…</div>
+                ) : consoleDocs.length === 0 ? (
+                  <div className="cm-dempty">No documents on file yet.</div>
+                ) : (
+                  consoleDocs.map((d) => {
+                    const st = getDocStatus(d);
+                    return (
+                      <div key={d.id} className="cm-doc">
+                        {getDocType(d.doc_type)?.label || d.title || d.doc_type}
+                        <span className={`db ${st.level}`}>{d.expiry_date ? `${st.label} · ${formatDocDate(d.expiry_date)}` : 'On file'}</span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Concept D — Chain of command ─────────────────────────────────────────
+  const renderHierarchy = () => {
+    const crew = (users || []).filter(u => u?.status !== 'invited' && u?.fullName);
+    const captain = [...crew].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle))[0];
+    const isCaptain = captain && roleRank(captain.roleTitle) === 0 ? captain : null;
+    const rest = crew.filter(u => !isCaptain || u.id !== isCaptain.id);
+    const byDept = new Map();
+    for (const u of rest) {
+      const k = u?.department || '—';
+      if (!byDept.has(k)) byDept.set(k, []);
+      byDept.get(k).push(u);
+    }
+    const branches = [...byDept.entries()]
+      .sort((a, b) => deptRank(a[0]) - deptRank(b[0]) || a[0].localeCompare(b[0]))
+      .map(([dept, members]) => {
+        const sorted = [...members].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle) || String(a.fullName).localeCompare(String(b.fullName)));
+        return { dept, head: sorted[0], reports: sorted.slice(1) };
+      });
+
+    const node = (u, cls = '') => (
+      <div className={`cm-node ${cls}`} onClick={() => navigate(`/profile/${u?.id}`)}>
+        <span className="cm-node-dot" style={{ background: statusColor(u?.status) }} />
+        <div className="cm-node-av">{initials(u?.fullName)}</div>
+        <div className="cm-node-nm">{u?.fullName}</div>
+        <div className="cm-node-rl">{u?.roleTitle}</div>
+      </div>
+    );
+
+    return (
+      <div className="cm-tree">
+        {isCaptain && (<>{node(isCaptain, 'captain')}<div className="cm-stem" /></>)}
+        <div className="cm-heads">
+          {branches.map(({ dept, head, reports }) => (
+            <div key={dept} className="cm-branch">
+              {isCaptain && <div className="cm-branch-top" />}
+              {head && node(head)}
+              <div className="cm-deptlabel">{dept === '—' ? 'Unassigned' : dept}</div>
+              <div className="cm-reports">
+                {reports.map((u) => (
+                  <div key={u?.id} className="cm-mini" onClick={() => navigate(`/profile/${u?.id}`)}>
+                    <span className="cm-mini-a">{initials(u?.fullName)}</span>
+                    <div><div className="cm-mini-n">{u?.fullName}</div><div className="cm-mini-r">{u?.roleTitle}</div></div>
+                    <span className="cm-mini-d" style={{ background: statusColor(u?.status) }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   // Editorial header stats — drawn from the loaded crew set.
   const crewStats = {
     total: users?.length || 0,
@@ -1001,62 +1226,92 @@ const CrewManagement = () => {
                 <span className="cm-sec-meta">{filteredAndSortedUsers?.length || 0} {showArchived ? 'archived' : 'crew'}</span>
               </div>
 
-              {/* Active / Archived / Calendar toggles */}
-              <div className="cm-tabs">
-                <button
-                  onClick={() => { setShowArchived(false); setShowCalendar(false); }}
-                  className={`cm-tab${!showArchived && !showCalendar ? ' is-on' : ''}`}
-                >
-                  Active crew
+              {/* View switcher — Gallery (default) · Console · Hierarchy · Calendar */}
+              <div className="cm-views">
+                <button className={`cm-view${rosterView === 'gallery' ? ' is-on' : ''}`} onClick={() => setRosterView('gallery')}>
+                  <Icon name="LayoutGrid" size={14} /> Gallery
                 </button>
-                <button
-                  onClick={() => { setShowArchived(true); setShowCalendar(false); }}
-                  className={`cm-tab${showArchived ? ' is-on' : ''}`}
-                >
-                  Archived crew
+                <button className={`cm-view${rosterView === 'console' ? ' is-on' : ''}`} onClick={() => setRosterView('console')}>
+                  <Icon name="PanelLeft" size={14} /> Console
                 </button>
-                <button
-                  onClick={() => { setShowArchived(false); setShowCalendar(true); }}
-                  className={`cm-tab${showCalendar ? ' is-on' : ''}`}
-                  title="Crew availability calendar"
-                >
-                  <Icon name="CalendarDays" size={14} />
-                  Calendar
+                <button className={`cm-view${rosterView === 'hierarchy' ? ' is-on' : ''}`} onClick={() => { setShowArchived(false); setRosterView('hierarchy'); }}>
+                  <Icon name="Network" size={14} /> Hierarchy
+                </button>
+                <button className={`cm-view${rosterView === 'calendar' ? ' is-on' : ''}`} onClick={() => { setShowArchived(false); setRosterView('calendar'); }}>
+                  <Icon name="CalendarDays" size={14} /> Calendar
                 </button>
               </div>
 
-              {/* Search */}
-              {!showCalendar && (
-                <div className="cm-search">
-                  <Icon name="Search" size={16} />
-                  <input
-                    placeholder="Search crew by name, email, or role…"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e?.target?.value)}
-                  />
-                </div>
+              {/* Search + filters — gallery & console only */}
+              {(rosterView === 'gallery' || rosterView === 'console') && (
+                <>
+                  <div className="cm-search">
+                    <Icon name="Search" size={16} />
+                    <input
+                      placeholder="Search crew by name, email, or role…"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e?.target?.value)}
+                    />
+                  </div>
+                  <div className="cm-filters">
+                    {deptList.length > 1 && (
+                      <>
+                        <button className={`cm-chip${!deptFilter ? ' is-on' : ''}`} onClick={() => setDeptFilter(null)}>All</button>
+                        {deptList.map((d) => (
+                          <button key={d} className={`cm-chip${deptFilter === d ? ' is-on' : ''}`} onClick={() => setDeptFilter((cur) => cur === d ? null : d)}>
+                            {d === '—' ? 'Unassigned' : d}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    {(attentionCount > 0 || needsAttention) && (
+                      <button className={`cm-attn${needsAttention ? ' is-on' : ''}`} onClick={() => setNeedsAttention((v) => !v)}>
+                        <Icon name="AlertTriangle" size={13} />
+                        Needs attention{attentionCount ? ` · ${attentionCount}` : ''}
+                      </button>
+                    )}
+                    <button
+                      className={`cm-chip${showArchived ? ' is-on' : ''}`}
+                      style={deptList.length > 1 ? undefined : { marginLeft: 'auto' }}
+                      onClick={() => setShowArchived((v) => !v)}
+                    >
+                      {showArchived ? 'Viewing archived' : 'Show archived'}
+                    </button>
+                  </div>
+                </>
               )}
 
-              {/* Department chips + needs-attention toggle */}
-              {!showCalendar && deptList.length > 1 && (
-                <div className="cm-filters">
-                  <button className={`cm-chip${!deptFilter ? ' is-on' : ''}`} onClick={() => setDeptFilter(null)}>All</button>
-                  {deptList.map((d) => (
-                    <button key={d} className={`cm-chip${deptFilter === d ? ' is-on' : ''}`} onClick={() => setDeptFilter((cur) => cur === d ? null : d)}>
-                      {d === '—' ? 'Unassigned' : d}
-                    </button>
-                  ))}
-                  {(attentionCount > 0 || needsAttention) && (
-                    <button className={`cm-attn${needsAttention ? ' is-on' : ''}`} onClick={() => setNeedsAttention((v) => !v)}>
-                      <Icon name="AlertTriangle" size={13} />
-                      Needs attention{attentionCount ? ` · ${attentionCount}` : ''}
-                    </button>
-                  )}
-                </div>
+              {/* Gallery (B) */}
+              {rosterView === 'gallery' && (
+                filteredAndSortedUsers?.length === 0 ? (
+                  <div className="cm-empty">
+                    <Icon name="Users" size={40} />
+                    <h3>No crew members found</h3>
+                    <p>{searchQuery || deptFilter || statusFilter || needsAttention ? 'Try adjusting your search or filters' : 'Start by inviting crew members'}</p>
+                  </div>
+                ) : (
+                  <div className="cm-gallery">
+                    {filteredAndSortedUsers.map((user) => renderGalleryCard(user))}
+                  </div>
+                )
               )}
 
-              {/* Calendar view */}
-              {showCalendar && !showArchived && (
+              {/* Console (C) */}
+              {rosterView === 'console' && (
+                filteredAndSortedUsers?.length === 0 ? (
+                  <div className="cm-empty">
+                    <Icon name="Users" size={40} />
+                    <h3>No crew members found</h3>
+                    <p>{searchQuery || deptFilter || statusFilter || needsAttention ? 'Try adjusting your search or filters' : 'Start by inviting crew members'}</p>
+                  </div>
+                ) : renderConsole()
+              )}
+
+              {/* Hierarchy (D) */}
+              {rosterView === 'hierarchy' && renderHierarchy()}
+
+              {/* Calendar */}
+              {rosterView === 'calendar' && (
                 <div style={{ marginTop: '18px' }}>
                   <CrewCalendar
                     members={users}
@@ -1066,53 +1321,6 @@ const CrewManagement = () => {
                   />
                 </div>
               )}
-
-              {/* Crew table — grouped by department, hidden in calendar view */}
-              {!showCalendar && (filteredAndSortedUsers?.length === 0 ? (
-                <div className="cm-empty">
-                  <Icon name="Users" size={40} />
-                  <h3>No crew members found</h3>
-                  <p>{searchQuery || deptFilter || statusFilter || needsAttention ? 'Try adjusting your search or filters' : 'Start by inviting crew members'}</p>
-                </div>
-              ) : (
-                <div className="cm-table-wrap">
-                  <table className="cm-table">
-                    <thead>
-                      <tr>
-                        <th className="cm-th-sort" onClick={() => handleSort('name')}>
-                          <span className="cm-th-inner">Crew {renderSortIcon('name')}</span>
-                        </th>
-                        <th className="cm-th-sort" onClick={() => handleSort('role')}>
-                          <span className="cm-th-inner">Role {renderSortIcon('role')}</span>
-                        </th>
-                        <th className="cm-th-sort" onClick={() => handleSort('tier')}>
-                          <span className="cm-th-inner">Permission {renderSortIcon('tier')}</span>
-                        </th>
-                        <th>Since</th>
-                        <th className="cm-th-sort" onClick={() => handleSort('status')}>
-                          <span className="cm-th-inner">Status {renderSortIcon('status')}</span>
-                        </th>
-                        <th>Compliance</th>
-                        <th className="cm-th-right">Actions</th>
-                      </tr>
-                    </thead>
-                    {groupedByDept.map(([dept, members]) => (
-                      <tbody key={dept}>
-                        <tr className="cm-group-head">
-                          <td colSpan={7}>
-                            <div className="cm-group-inner">
-                              <span className="cm-group-name">{dept === '—' ? 'Unassigned' : dept}</span>
-                              <span className="cm-group-rule" />
-                              <span className="cm-group-count">{members.length}</span>
-                            </div>
-                          </td>
-                        </tr>
-                        {members.map((user) => renderCrewRow(user))}
-                      </tbody>
-                    ))}
-                  </table>
-                </div>
-              ))}
             </div>
           </>
         )}
