@@ -3968,7 +3968,8 @@ const canEdit = (() => {
             currentUserName={myProfile?.full_name || ''}
             crewName={crewMember?.fullName}
             crewSex={formData?.sex}
-            vesselName={empForm?.vessel_name}
+            vesselName={empForm?.vessel_name || vesselCompliance?.name}
+            vessel={vesselCompliance}
             canManage={isVesselAdmin || currentUserPermissionTier === 'COMMAND'}
             isOwnProfile={isOwnProfile}
           />
