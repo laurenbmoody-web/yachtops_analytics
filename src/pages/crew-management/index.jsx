@@ -22,7 +22,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { logActivity } from '../../utils/activityStorage';
 import { fetchExpiringDocuments, getExpiryStatus, fetchCrewDocuments, groupDocumentVersions, findHistoricDocIds, getDocStatus, formatDocDate } from '../crew-profile/utils/crewDocuments';
 import { getDocType } from '../crew-profile/documentTypes';
-import { fetchCalendarEntries, travelSummary } from '../crew-profile/utils/crewCalendar';
+import { fetchCalendarEntries, saveCalendarEntry } from '../crew-profile/utils/crewCalendar';
 import '../../styles/editorial.css';
 import './crew-management.css';
 
@@ -731,7 +731,7 @@ const CrewManagement = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus, notes, effectiveDate, effectiveTime = '00:00') => {
+  const handleStatusChange = async (newStatus, notes, effectiveDate, effectiveTime = '00:00', travel = null) => {
     if (!statusChangeTarget) return;
     const { userId, currentStatus: oldStatus } = statusChangeTarget;
     setStatusChangeSaving(true);
@@ -768,6 +768,22 @@ const CrewManagement = () => {
           .eq('user_id', userId);
         if (updErr) throw updErr;
         setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, status: newStatus } : u));
+      }
+
+      // Optional travel/leave detail → crew calendar (powers the console movement
+      // strip + flight popover). Only when something was actually entered.
+      if (travel && (travel.fromLocation || travel.toLocation || travel.transportNo || travel.transport || travel.departTime || travel.endDate)) {
+        try {
+          await saveCalendarEntry({
+            userId, tenantId: activeTenantId, kind: newStatus,
+            startDate: effectiveDate, endDate: travel.endDate || effectiveDate,
+            fromLocation: travel.fromLocation, toLocation: travel.toLocation,
+            transport: travel.transport, transportNo: travel.transportNo,
+            departTime: travel.departTime, arriveTime: travel.arriveTime,
+            actorId: session?.user?.id, actorName: myProfile?.full_name || null,
+          });
+          if (selectedUserId === userId) setConsoleEntries(await fetchCalendarEntries(userId));
+        } catch (e) { console.warn('[CREW] calendar entry save failed', e); }
       }
 
       setStatusChangeTarget(null);

@@ -799,6 +799,7 @@ body.crew-profile-editorial {
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
 }
 .crew-profile-page .kit-field > span em { font-style: normal; color: #C65A1A; margin-left: 4px; }
+.crew-profile-page .kit-field.kit-static b { font-size: 14px; font-weight: 600; color: #1C1B3A; }
 /* Inputs match the Personal Details fields (white card, soft grey border,
    terracotta focus halo) rather than a cream fill. */
 .crew-profile-page .kit-field input,

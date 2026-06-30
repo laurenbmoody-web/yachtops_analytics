@@ -10,6 +10,7 @@ import {
   uploadKitSignature, acknowledgeKitItems, signedKitSignatureUrl, kitSignatureDataUrl,
   recordKitReturn, markKitLost, reinstateKitItem,
   fetchUniformSizes, saveUniformSizes, UNIFORM_SIZE_KEYS,
+  fetchCabinAllocation, saveCabinAllocation,
   logKitEvent, fetchKitEvents,
 } from '../utils/crewKit';
 import { exportKitReceipt } from '../utils/kitReceiptExport';
@@ -122,6 +123,9 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   // Uniform sizes (moved from the Preferences tab).
   const [sizes, setSizes] = useState({});
   const [sizesForm, setSizesForm] = useState({});
+  // Cabin + interior laundry marking (stored on crew_employment).
+  const [alloc, setAlloc] = useState({});
+  const [allocForm, setAllocForm] = useState({});
   // Single tab-wide edit mode (mirrors the "Edit profile" pattern): reveals the
   // uniform-size inputs and the issue/return controls together.
   const [editMode, setEditMode] = useState(false);
@@ -132,10 +136,11 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [kit, sz, ev] = await Promise.all([fetchCrewKit(userId), fetchUniformSizes(userId), fetchKitEvents(userId)]);
+      const [kit, sz, ev, al] = await Promise.all([fetchCrewKit(userId), fetchUniformSizes(userId), fetchKitEvents(userId), fetchCabinAllocation(userId)]);
       setItems(kit);
       setSizes(sz);
       setEvents(ev);
+      setAlloc(al || {});
     } catch { showToast('Failed to load issued kit', 'error'); }
     finally { setLoading(false); }
   }, [userId]);
@@ -273,13 +278,27 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
     catch { showToast('Update failed', 'error'); }
   };
 
-  const enterEdit = () => { setSizesForm({ ...sizes, fit: sizes.fit || defaultFit }); setEditMode(true); };
+  const enterEdit = () => {
+    setSizesForm({ ...sizes, fit: sizes.fit || defaultFit });
+    setAllocForm({ cabin: alloc.cabin || '', laundryNumber: alloc.laundry_number || '', laundryColour: alloc.laundry_colour || '' });
+    setEditMode(true);
+  };
   const exitEdit = async () => {
-    const dirty = UNIFORM_SIZE_KEYS.some((k) => (sizesForm[k] || '') !== (sizes[k] || ''));
-    if (dirty) {
+    const sizesDirty = UNIFORM_SIZE_KEYS.some((k) => (sizesForm[k] || '') !== (sizes[k] || ''));
+    const allocDirty = (allocForm.cabin || '') !== (alloc.cabin || '')
+      || (allocForm.laundryNumber || '') !== (alloc.laundry_number || '')
+      || (allocForm.laundryColour || '') !== (alloc.laundry_colour || '');
+    if (sizesDirty || allocDirty) {
       setBusy(true);
-      try { await saveUniformSizes(userId, sizesForm); setSizes(sizesForm); showToast('Sizes saved', 'success'); }
-      catch (e) { showToast(e.message || 'Could not save sizes', 'error'); setBusy(false); return; }
+      try {
+        if (sizesDirty) { await saveUniformSizes(userId, sizesForm); setSizes(sizesForm); }
+        if (allocDirty) {
+          await saveCabinAllocation(userId, tenantId, allocForm);
+          setAlloc({ cabin: allocForm.cabin || null, laundry_number: allocForm.laundryNumber || null, laundry_colour: allocForm.laundryColour || null });
+        }
+        showToast('Saved', 'success');
+      }
+      catch (e) { showToast(e.message || 'Could not save', 'error'); setBusy(false); return; }
       finally { setBusy(false); }
     }
     setEditMode(false);
@@ -396,6 +415,31 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>
       ) : (
         <>
+          {/* Cabin & interior laundry marking */}
+          {(() => {
+            const editing = editMode && canEditSizes;
+            const hasAny = alloc.cabin || alloc.laundry_number || alloc.laundry_colour;
+            if (!editing && !hasAny) return null;
+            return (
+              <div className="cp-group kit-sizes">
+                <div className="cp-group-head"><span className="dia">◆</span><span className="t">Cabin &amp; laundry</span><span className="line" /></div>
+                {editing ? (
+                  <div className="kit-size-grid">
+                    <label className="kit-field"><span>Cabin</span><input value={allocForm.cabin || ''} onChange={(e) => setAllocForm((s) => ({ ...s, cabin: e.target.value }))} placeholder="e.g. Lower deck · 3" /></label>
+                    <label className="kit-field"><span>Laundry number</span><input value={allocForm.laundryNumber || ''} onChange={(e) => setAllocForm((s) => ({ ...s, laundryNumber: e.target.value }))} placeholder="e.g. 14" /></label>
+                    <label className="kit-field"><span>Laundry colour</span><input value={allocForm.laundryColour || ''} onChange={(e) => setAllocForm((s) => ({ ...s, laundryColour: e.target.value }))} placeholder="e.g. Blue" /></label>
+                  </div>
+                ) : (
+                  <div className="kit-size-grid">
+                    <div className="kit-field kit-static"><span>Cabin</span><b>{alloc.cabin || '—'}</b></div>
+                    <div className="kit-field kit-static"><span>Laundry number</span><b>{alloc.laundry_number || '—'}</b></div>
+                    <div className="kit-field kit-static"><span>Laundry colour</span><b>{alloc.laundry_colour || '—'}</b></div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Uniform sizes (moved from Preferences) */}
           {(() => {
             const editing = editMode && canEditSizes;
