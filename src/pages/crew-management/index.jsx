@@ -743,7 +743,7 @@ const CrewManagement = () => {
           </p>
           <div className="cm-titlerow">
             <h1 className="editorial-greeting">
-              Crew<span className="period">,</span> <em>{crewStats.away ? `${crewStats.away} away` : 'all aboard'}</em><span className="period">.</span>
+              Crew<span className="period">,</span> <em>management</em><span className="period">.</span>
             </h1>
             {shouldShowInviteButton && (
               <div className="cm-actions">

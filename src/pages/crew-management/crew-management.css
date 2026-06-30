@@ -3,8 +3,8 @@
    primary actions and what needs attention. Hairline rules + whitespace instead
    of boxed cards. Prefix: cm-*. */
 
-.cm-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 24px 32px 64px; }
-.cm-wrap { max-width: 1280px; margin: 0 auto; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+.cm-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 24px 40px 64px; }
+.cm-wrap { max-width: none; margin: 0; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
 
 /* Back link — muted, chevron, sits above the header (mirrors month-end). */
 .cm-back { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 500; color: #6B7280; margin-bottom: 22px; transition: color 0.12s ease; }
@@ -14,7 +14,7 @@
 /* Canonical Cargo editorial header — .editorial-meta strip (with the crew stats
    folded in) + big uppercase .editorial-greeting headline; primary actions sit
    on the right of the headline row. Hairline beneath the whole header. */
-.cm-head { padding-bottom: 22px; border-bottom: 1px solid #E6E8EF; }
+.cm-head { padding-bottom: 0; }
 .cm-titlerow { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .cm-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding-top: 6px; }
 
@@ -27,7 +27,8 @@
 .cm-btn-ghost:hover { background: #FAFAF8; border-color: #D9D7CF; }
 
 /* Section header — serif sub-head sitting on a hairline rule. */
-.cm-section { margin-top: 30px; }
+.cm-section { margin-top: 18px; }
+.cm-section + .cm-section { margin-top: 30px; }
 .cm-sec-head { display: flex; align-items: baseline; gap: 13px; margin-bottom: 4px; }
 .cm-sec-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 21px; }
 .cm-sec-rule { flex: 1; height: 1px; background: #E6E8EF; align-self: center; }
