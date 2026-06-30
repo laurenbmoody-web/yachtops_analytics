@@ -1,13 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
-import { getStatusCellClass, getStatusLabel, buildStatusPeriods, getStatusForDay, CREW_STATUSES } from '../../../utils/crewStatus';
+import { getStatusLabel, buildStatusPeriods, getStatusForDay, CREW_STATUSES } from '../../../utils/crewStatus';
 import LogoSpinner from '../../../components/LogoSpinner';
 
 const MONTHS = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ];
+
+// Editorial gantt palette — softer than the dashboard chips, keyed by status.
+const CAL_COLORS = {
+  active: '#7FCBA6',
+  on_leave: '#E6C079',
+  rotational_leave: '#C3AEEA',
+  medical_leave: '#E8A29A',
+  training_leave: '#9DBCF0',
+  travelling: '#7FD3CA',
+  invited: '#D8D6CF',
+};
+const calColor = (s) => CAL_COLORS[s] || '#F0F1F5';
 
 function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
@@ -70,77 +82,52 @@ const CrewCalendar = ({ members, tenantId, refreshToken, canNavigate }) => {
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-5">
-        <button
-          onClick={prev}
-          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-lg leading-none"
-        >
-          ‹
-        </button>
-        <span className="text-base font-semibold text-foreground min-w-[150px] text-center">
-          {MONTHS[calMonth]} {calYear}
-        </span>
-        <button
-          onClick={next}
-          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-lg leading-none"
-        >
-          ›
-        </button>
-
-        {loading && (
-          <LogoSpinner size={16} className="ml-2" />
-        )}
+    <div className="cm-cal">
+      {/* Month nav — editorial pill */}
+      <div className="cm-cal-head">
+        <div className="cm-monthnav">
+          <button onClick={prev} aria-label="Previous month">‹</button>
+          <span>{MONTHS[calMonth]} {calYear}</span>
+          <button onClick={next} aria-label="Next month">›</button>
+        </div>
+        {loading && <LogoSpinner size={16} />}
       </div>
 
       {/* Grid */}
-      <div className="overflow-x-auto">
+      <div className="cm-cal-scroll">
         <div style={{ minWidth: totalDays * 22 + 150 }}>
           {/* Day header row */}
-          <div className="flex items-center gap-0.5 mb-1 pl-[150px]">
+          <div className="cm-cal-row" style={{ paddingLeft: 150 }}>
             {Array.from({ length: totalDays }, (_, i) => {
               const d = new Date(calYear, calMonth, i + 1);
               const isToday = d.toDateString() === today.toDateString();
               return (
-                <div
-                  key={i}
-                  className={`w-5 text-center text-[9px] select-none font-mono ${
-                    isToday ? 'text-primary font-bold' : 'text-muted-foreground'
-                  }`}
-                >
-                  {i + 1}
-                </div>
+                <div key={i} className={`cm-cal-daynum${isToday ? ' is-today' : ''}`}>{i + 1}</div>
               );
             })}
           </div>
 
           {/* One row per member */}
           {members.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No crew members to display.</p>
+            <p className="cm-cal-empty">No crew members to display.</p>
           ) : (
             members.map(member => {
               const memberHistory = historyByUser[member.user_id] || [];
               const periods = buildStatusPeriods(memberHistory);
 
               return (
-                <div key={member.user_id} className="flex items-center gap-0.5 mb-1">
+                <div key={member.user_id} className="cm-cal-row">
                   {/* Member name */}
                   {canNavigate ? (
                     <Link
                       to={`/profile/${member.user_id}?tab=history`}
-                      className="w-[146px] flex-shrink-0 text-xs font-medium text-primary hover:underline truncate pr-1 mr-1"
+                      className="cm-cal-name"
                       title={`${member.fullName} — view status history`}
                     >
                       {member.fullName || '—'}
                     </Link>
                   ) : (
-                    <div
-                      className="w-[146px] flex-shrink-0 text-xs font-medium text-foreground truncate pr-1 mr-1"
-                      title={member.fullName}
-                    >
-                      {member.fullName || '—'}
-                    </div>
+                    <div className="cm-cal-name" title={member.fullName}>{member.fullName || '—'}</div>
                   )}
 
                   {/* Day cells */}
@@ -152,9 +139,8 @@ const CrewCalendar = ({ members, tenantId, refreshToken, canNavigate }) => {
                       <div
                         key={i}
                         title={stat ? `${member.fullName}: ${getStatusLabel(stat)} on ${i + 1} ${MONTHS[calMonth]}` : undefined}
-                        className={`w-5 h-6 rounded-sm flex-shrink-0 ${
-                          isFuture ? 'opacity-30' : ''
-                        } ${stat ? getStatusCellClass(stat) : 'bg-muted/30'}`}
+                        className={`cm-cal-cell${isFuture ? ' is-future' : ''}`}
+                        style={stat ? { background: calColor(stat) } : undefined}
                       />
                     );
                   })}
@@ -166,10 +152,10 @@ const CrewCalendar = ({ members, tenantId, refreshToken, canNavigate }) => {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-5 pt-4 border-t border-border">
+      <div className="cm-cal-legend">
         {CREW_STATUSES.map(({ value, label }) => (
-          <div key={value} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`w-3 h-3 rounded-sm flex-shrink-0 ${getStatusCellClass(value)}`} />
+          <div key={value} className="cm-cal-leg">
+            <span style={{ background: calColor(value) }} />
             {label}
           </div>
         ))}
