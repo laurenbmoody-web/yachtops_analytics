@@ -319,6 +319,112 @@ Example output: ["Wholemeal Sliced Bread", "Semi-Skimmed Milk 1L", "Extra Virgin
   }
 }
 
+// ── Quote line extraction (LLM, layout-agnostic) ──────────────────────────────
+//
+// Supplier quotes vary wildly — the unit price can be in any column, with
+// line totals / VAT / notes around it. The receipt/delivery extractors
+// assume the price is the last column, so they choke on real quotes. For
+// quotes we hand the OCR'd text + the board items to Claude and let it
+// read the document semantically: pull each priced line, distinguish the
+// UNIT price from a line total, and match it to a board item by index.
+//
+// Returns line_items in the same shape the receipt path produces:
+//   [{ raw_name, unit_price, line_total, quantity, unit,
+//      matched_item_id, match_confidence }]
+async function extractQuoteLineItems(analyzeResult: any, boardItems: any[]) {
+  const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
+
+  // Flatten the OCR into text Claude can read — prefer paragraphs, then
+  // raw content, plus a row-by-row dump of any tables (column order
+  // intact) so it can tell unit price from line total.
+  const tableText = (analyzeResult?.tables || []).map((t: any, ti: number) => {
+    const rows: Record<number, string[]> = {};
+    (t.cells || []).forEach((c: any) => {
+      (rows[c.rowIndex] ||= [])[c.columnIndex] = (c.content || '').trim();
+    });
+    const lines = Object.keys(rows).sort((a, b) => +a - +b)
+      .map((r) => (rows[+r] || []).join(' | '));
+    return `TABLE ${ti + 1}:\n${lines.join('\n')}`;
+  }).join('\n\n');
+  const bodyText = (analyzeResult?.content || '').slice(0, 12000);
+  const ocrText = `${tableText}\n\n${bodyText}`.slice(0, 14000);
+
+  if (!ANTHROPIC_API_KEY) {
+    console.warn('[parseDeliveryNote] quote mode but no ANTHROPIC_API_KEY — returning no lines');
+    return [];
+  }
+
+  // Compact, indexed board-item list for matching.
+  const boardList = boardItems.map((b: any, i: number) => {
+    const bits = [b.name, b.brand, b.size, b.unit].filter(Boolean).join(' · ');
+    return `${i}: ${bits}`;
+  }).join('\n');
+
+  const prompt = `You are reading a SUPPLIER QUOTE for a yacht's provisioning order. Extract every quoted line that has a UNIT price.
+
+BOARD ITEMS (index: name · brand · size · unit) — match each quote line to one of these by index:
+${boardList}
+
+QUOTE (OCR text + tables):
+${ocrText}
+
+Rules:
+- Return ONE entry per quote line that has a price.
+- unit_price = price for ONE unit, NOT a line total. If the quote shows both a unit price and a line total (qty × unit), return the UNIT price.
+- matched_index = the BOARD ITEM index this line refers to, or null if none is a confident match. Match on meaning, not exact spelling.
+- confidence = "high" | "medium" | "low".
+- Ignore subtotal / VAT / tax / total / delivery rows.
+Return ONLY a JSON array, no markdown:
+[{"raw_name": string, "unit_price": number, "matched_index": number|null, "confidence": "high"|"medium"|"low"}]`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!res.ok) {
+      console.error('[parseDeliveryNote] quote LLM error:', res.status, (await res.text()).slice(0, 300));
+      return [];
+    }
+    const data = await res.json();
+    const text = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((p: any) => p && p.unit_price != null && !Number.isNaN(Number(p.unit_price)))
+      .map((p: any) => {
+        const idx = Number.isInteger(p.matched_index) ? p.matched_index : null;
+        const bi = (idx != null && idx >= 0 && idx < boardItems.length) ? boardItems[idx] : null;
+        const conf = ['high', 'medium', 'low'].includes(p.confidence) ? p.confidence : 'medium';
+        return {
+          raw_name: String(p.raw_name || bi?.name || ''),
+          item_reference: null,
+          quantity: 1,
+          ordered_qty: null,
+          unit_price: Number(p.unit_price),
+          line_total: null,
+          unit: null,
+          matched_item_id: bi ? bi.id : null,
+          match_confidence: bi ? conf : 'none',
+          discrepancy: null,
+        };
+      });
+  } catch (e: any) {
+    console.error('[parseDeliveryNote] quote extraction failed:', e?.message);
+    return [];
+  }
+}
+
 // ── Poll until Azure operation completes ──────────────────────────────────────
 
 async function pollOperation(operationLocation: string, maxAttempts = 60, intervalMs = 2000): Promise<any> {
@@ -627,13 +733,16 @@ Deno.serve(async (req: Request) => {
   }
 
   const { base64, mediaType, batchItems } = body;
+  // mode: 'quote' switches the line extractor to the LLM (layout-agnostic)
+  // path. Anything else keeps the receipt/delivery-note behaviour.
+  const quoteMode = (body as any)?.mode === 'quote';
   if (!base64 || !mediaType || !batchItems) {
     return new Response(JSON.stringify({ error: 'Missing required fields: base64, mediaType, batchItems.' }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  console.log('[parseDeliveryNote] mediaType:', mediaType, '| base64 chars:', base64.length, '| batchItems:', batchItems.length);
+  console.log('[parseDeliveryNote] mediaType:', mediaType, '| base64 chars:', base64.length, '| batchItems:', batchItems.length, '| quoteMode:', quoteMode);
 
   // Decode base64 → bytes (same pattern as azureDocumentParser)
   const binaryStr = atob(base64);
@@ -719,10 +828,20 @@ Deno.serve(async (req: Request) => {
     console.log('[parseDeliveryNote] Polling operation:', operationLocation.slice(0, 80), '...');
     const analyzeResult = await pollOperation(operationLocation);
 
-    const documentType = detectDocumentType(analyzeResult);
+    const documentType = quoteMode ? 'quote' : detectDocumentType(analyzeResult);
     console.log('[parseDeliveryNote] Detected document type:', documentType);
 
-    const { invoiceNumber, invoiceDate, supplierName, supplierPhone, supplierEmail, supplierAddress, orderRef, orderDate, totalAmount, currency, lineItems } = await extractLineItems(analyzeResult, batchItems, documentType);
+    // Quote mode → LLM extractor (layout-agnostic). Otherwise the
+    // receipt/delivery extractor + metadata as before.
+    let invoiceNumber = null, invoiceDate = null, supplierName = null, supplierPhone = null,
+        supplierEmail = null, supplierAddress = null, orderRef = null, orderDate = null,
+        totalAmount = null, currency = null, lineItems: any[] = [];
+    if (quoteMode) {
+      lineItems = await extractQuoteLineItems(analyzeResult, batchItems);
+    } else {
+      ({ invoiceNumber, invoiceDate, supplierName, supplierPhone, supplierEmail, supplierAddress, orderRef, orderDate, totalAmount, currency, lineItems } =
+        await extractLineItems(analyzeResult, batchItems, documentType));
+    }
     console.log('[parseDeliveryNote] Extracted', lineItems.length, 'line items; matched:', lineItems.filter((l: any) => l.matched_item_id).length);
 
     const response = {
