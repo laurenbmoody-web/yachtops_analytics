@@ -137,6 +137,12 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
   const aiLocked = !!aiBusy || cooldown > 0 || capped;
   const filledDetails = DETAILS.filter((d) => (form[d.key] || '').trim());
 
+  // Example uses this crew member's own first name — never anyone else's.
+  const firstName = (crewName || '').trim().split(/\s+/)[0] || '';
+  const statementPlaceholder = firstName
+    ? `e.g. I'm ${firstName}, originally from a small harbour town, and I've spent the last few years chasing horizons by sea. Off-duty you'll usually find me in the water, behind a camera, or planning the next adventure.`
+    : "e.g. Originally from a small harbour town, I've spent the last few years chasing horizons by sea. Off-duty you'll usually find me in the water, behind a camera, or planning the next adventure.";
+
   return (
     <div>
       <div className="cp-tab-head">
@@ -159,7 +165,7 @@ const ProfileStatementTab = ({ userId, tenantId, currentUserId, crewName, role, 
           <textarea
             className="ps-area" rows={8} value={form.statement} disabled={!editing}
             onChange={(e) => setF('statement', e.target.value)}
-            placeholder="e.g. I'm Lauren, a Yorkshire lass who somehow ended up spending a decade at sea. Off-duty you'll find me underwater, on the padel court, or behind a camera."
+            placeholder={statementPlaceholder}
           />
           <div className="ps-meta">
             <span className={words > 90 ? 'ps-over' : ''}>{words} {words === 1 ? 'word' : 'words'}</span>
