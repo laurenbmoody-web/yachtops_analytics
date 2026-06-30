@@ -64,7 +64,8 @@
 .hrm-chk.sage { background: #6E8B73; border-color: #6E8B73; }
 .hrm-chk.amber { border-color: #B7822E; color: #B7822E; font-weight: 700; font-size: 13px; }
 .hrm-chk.open { border-color: #E3CDBD; }
-.hrm-av { width: 34px; height: 34px; border-radius: 999px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; background: #F4F1EB; color: #9C8B79; }
+.hrm-av { position: relative; width: 34px; height: 34px; border-radius: 999px; flex: none; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; background: #F4F1EB; color: #9C8B79; }
+.hrm-av-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .hrm-who { min-width: 0; }
 .hrm-nm { font-size: 13.5px; font-weight: 600; line-height: 1.2; }
 .hrm-rl { font-size: 11px; color: #6B7280; margin-top: 1px; }
