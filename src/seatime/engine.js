@@ -85,17 +85,20 @@ export const VERIFIER_PROFILES = {
     id: 'transport_malta', label: 'Transport Malta', short: 'Transport Malta', name: 'Transport Malta — Merchant Shipping Directorate',
     // Transport Malta's Seafarer Portal asks for more than the PYA/Nautilus
     // route: ID + two photos + a medical + an authorised signatory, with the CoC
-    // where revalidating (PYD 210). SRB is supporting.
+    // where revalidating (PYD 210). Its deck testimonial form (S.L. 499.23)
+    // explicitly requires a copy of each vessel's Certificate of Registry / CVC.
+    // SRB is supporting.
     docs: [
       { id: 'passport', label: 'Passport or ID card copy', profileDoc: 'passport_certified_copy' },
       { id: 'photos', label: 'Two passport-size photographs' },
       { id: 'medical', label: 'Medical fitness certificate (ENG1)', profileDoc: 'eng1' },
+      { id: 'cvc', label: 'Certificate of Registry / CVC — copy per vessel' },
       { id: 'sig', label: 'Authorised signatory (Captain / CO / CE / Owner / Manager)' },
       { id: 'srb', label: 'Discharge book / Seaman’s book', profileDoc: 'seamans_book', optional: true },
       { id: 'coc', label: 'Current CoC + endorsements (if revalidating)', profileDoc: 'coc', optional: true }
     ],
     fee: 'Verification via the Transport Malta Seafarer Portal (MIN 543 authorised); processing fee applies.',
-    instructions: 'Transport Malta is an MCA-authorised verifier (MIN 543). Fill the testimonial on their Seafarer Portal, send it to your signatory, then submit with your ID, photographs and medical — use this captain-attested record to fill it accurately.',
+    instructions: 'Transport Malta is an MCA-authorised verifier (MIN 543). Complete the deck testimonial (S.L. 499.23) on their Seafarer Portal and send it to your signatory, then submit with your ID, two photographs, medical and a copy of each vessel’s Certificate of Registry / CVC — use this captain-attested record to fill it accurately.',
     lastReviewed: '2026-06-22'
   },
   mca: {
