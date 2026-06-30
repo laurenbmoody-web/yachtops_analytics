@@ -1,4 +1,8 @@
 import { jsPDF } from 'jspdf';
+import {
+  Document, Packer, Paragraph, TextRun, ImageRun,
+  Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, VerticalAlign,
+} from 'docx';
 import { supabase } from '../../../lib/supabaseClient';
 
 // ---- palette (mirrors the Cargo editorial system) -------------------------
@@ -164,7 +168,7 @@ const fitParagraph = (doc, text, width, hBudget, maxPt, minPt) => {
 // side, name/role/statement on the other. Side-by-side uses the card's WIDTH
 // (not its height), so the statement fits cleanly at any per-page count and in
 // landscape — and the photo alternates side ('classic') for editorial rhythm.
-const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0, avatar = null) => {
+const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0, avatar = null, valign = 'center') => {
   const dark = template === 'editorial';
   const ink = dark ? DARK_INK : NAVY;
   const accent = dark ? DARK_ACCENT : TERRA;
@@ -187,7 +191,7 @@ const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0, avatar = n
   const fit = fitParagraph(doc, entry.statement || '—', tw, h - 2 * pad - nameH - roleH, 11, minFont);
   const blockH = nameH + roleH + 3 + fit.lines.length * fit.lh;
   const contentH = Math.max(blockH, 2 * r);
-  const topY = y + Math.max(0, (h - contentH) / 2);
+  const topY = valign === 'top' ? y + pad : y + Math.max(0, (h - contentH) / 2);
   const photoCY = topY + contentH / 2;
 
   // photo — real avatar (circular PNG) if we have one, else a monogram disc
@@ -220,7 +224,7 @@ const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0, avatar = n
 export const exportGuestBookPDF = ({
   title = 'Our crew', subtitle = '', entries = [],
   template = 'classic', orientation = 'portrait', perPage = 3, minFont = 9,
-  includeMissing = false, logo = null, avatars = {},
+  includeMissing = false, logo = null, avatars = {}, valign = 'center',
 }) => {
   const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
   if (!list.length) return { pages: 0, count: 0 };
@@ -278,7 +282,7 @@ export const exportGuestBookPDF = ({
     pageEntries.forEach((entry, idx) => {
       const x = M;
       const y = gridY + idx * (rowH + 6);
-      drawCard(doc, x, y, colW, rowH, entry, template, minFont, idx, avatars[entry.userId]);
+      drawCard(doc, x, y, colW, rowH, entry, template, minFont, idx, avatars[entry.userId], valign);
       // hairline between stacked strips
       if (idx < pageEntries.length - 1) {
         doc.setDrawColor(...(dark ? [44, 43, 78] : HAIR));
@@ -296,4 +300,89 @@ export const exportGuestBookPDF = ({
   const safe = String(title || 'crew').replace(/[^\w]+/g, '-');
   doc.save(`Guest-book-${safe}.pdf`);
   return { pages: pages.length, count: list.length };
+};
+
+// ---- Word (.docx) export --------------------------------------------------
+// An editable version of the guest book: a borderless photo|text table per crew
+// member, so the master can rearrange spacing, move people or retype in Word.
+
+const dataUrlToBytes = (dataUrl) => {
+  const bin = atob(String(dataUrl).split(',')[1] || '');
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+};
+const NO_BORDERS = ['top', 'bottom', 'left', 'right', 'insideHorizontal', 'insideVertical']
+  .reduce((o, k) => { o[k] = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }; return o; }, {});
+
+export const exportGuestBookDOCX = async ({
+  title = 'Our crew', subtitle = '', entries = [], includeMissing = false, logo = null, avatars = {},
+}) => {
+  const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
+  if (!list.length) return { count: 0 };
+
+  const head = [];
+  if (logo?.dataUrl) {
+    const h = 64; const w = Math.round(h * (logo.aspect || 1));
+    head.push(new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: { after: 60 },
+      children: [new ImageRun({ data: dataUrlToBytes(logo.dataUrl), transformation: { width: w, height: h } })],
+    }));
+  }
+  head.push(new Paragraph({
+    alignment: AlignmentType.CENTER, spacing: { after: subtitle ? 40 : 200 },
+    children: [new TextRun({ text: title, bold: true, size: 40, font: 'Georgia', color: '1C1B3A' })],
+  }));
+  if (subtitle) {
+    head.push(new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: { after: 220 },
+      children: [new TextRun({ text: subtitle.toUpperCase(), size: 16, color: '8B8478', characterSpacing: 30 })],
+    }));
+  }
+
+  // One borderless 2-column row per crew member: photo cell + text cell.
+  const personTable = (e) => {
+    const avatar = avatars[e.userId];
+    const photoChildren = avatar
+      ? [new ImageRun({ data: dataUrlToBytes(avatar), transformation: { width: 76, height: 76 } })]
+      : [new TextRun({ text: initials(e.name), bold: true, size: 30, color: 'A08E7D' })];
+    const textChildren = [
+      new Paragraph({ spacing: { after: 20 }, children: [new TextRun({ text: e.name, bold: true, size: 26, font: 'Georgia', color: '1C1B3A' })] }),
+    ];
+    if (e.role) {
+      textChildren.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: e.role.toUpperCase(), size: 15, color: 'C65A1A', characterSpacing: 20 })] }));
+    }
+    textChildren.push(new Paragraph({ children: [new TextRun({ text: e.statement || '—', size: 20, color: '4B4A5E' })] }));
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: NO_BORDERS,
+      rows: [new TableRow({
+        children: [
+          new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: photoChildren })] }),
+          new TableCell({ width: { size: 84, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, verticalAlign: VerticalAlign.CENTER, children: textChildren }),
+        ],
+      })],
+    });
+  };
+
+  const body = [];
+  list.forEach((e, i) => {
+    if (i > 0) body.push(new Paragraph({ spacing: { before: 200, after: 200 }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: 'ECEAE3' } }, children: [] }));
+    body.push(personTable(e));
+  });
+
+  const doc = new Document({
+    sections: [{
+      properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } },
+      children: [...head, ...body],
+    }],
+  });
+  const blob = await Packer.toBlob(doc);
+  const safe = String(title || 'crew').replace(/[^\w]+/g, '-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Guest-book-${safe}.docx`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  return { count: list.length };
 };
