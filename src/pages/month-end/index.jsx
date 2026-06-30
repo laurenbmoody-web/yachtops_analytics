@@ -403,11 +403,14 @@ export default function MonthEnd() {
               <h1 className="editorial-greeting">
                 {monthName}<span className="period">,</span> <em>{horDone ? 'on track' : 'still to close'}</em><span className="period">.</span>
               </h1>
-              <div className="mp-monthnav">
-                <button type="button" onClick={() => stepMonth(-1)} aria-label="Previous month">‹</button>
-                <span>{monthLabel}</span>
-                <button type="button" onClick={() => stepMonth(1)} aria-label="Next month">›</button>
-              </div>
+            </div>
+          </div>
+
+          <div className="mp-monthnav-row">
+            <div className="mp-monthnav">
+              <button type="button" onClick={() => stepMonth(-1)} aria-label="Previous month">‹</button>
+              <span>{monthLabel}</span>
+              <button type="button" onClick={() => stepMonth(1)} aria-label="Next month">›</button>
             </div>
           </div>
 
