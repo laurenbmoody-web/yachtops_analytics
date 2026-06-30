@@ -2525,16 +2525,33 @@ const ProvisioningBoardDetail = () => {
             ? 'partially_confirmed'
             : list?.status);
       // Manual quote (uploaded PDF, no Cargo supplier_order to confirm):
-      // approveAllQuotes had nothing to act on, so set the board
-      // confirmed directly — otherwise "Confirm quote" wouldn't change
-      // the status at all.
-      if ((!result || !result.affectedItems) && hasManualQuote && nextStatus !== 'confirmed') {
-        try {
-          await updateProvisioningList(id, { status: 'confirmed' });
-          nextStatus = 'confirmed';
-        } catch (e) {
-          console.error('[ProvisioningBoardDetail] manual confirm status update failed:', e);
+      // approveAllQuotes had nothing to act on. There's no per-line quote
+      // object, so derive the board rollup from how many items now carry
+      // an applied quote (quoted_unit_cost). An item is "confirmed" once a
+      // supplier's quote has been read onto it; the rest are still out to
+      // quote. Confirming only ever *advances* the rollup — already-priced
+      // items are never re-touched, and when a later supplier quote fills
+      // in the remaining items a second Confirm completes the board.
+      //   all priced  → confirmed
+      //   some priced → partially_confirmed
+      //   none priced → leave as-is (nothing to confirm yet)
+      const isPriced = (i) => i.quoted_unit_cost != null && Number(i.quoted_unit_cost) > 0;
+      const pricedItems = items.filter(isPriced);
+      let manualOutcome = null;   // { priced, total } when the manual branch ran
+      if ((!result || !result.affectedItems) && hasManualQuote) {
+        const total = items.length;
+        manualOutcome = { priced: pricedItems.length, total };
+        const manualStatus = total > 0 && pricedItems.length >= total
+          ? 'confirmed'
+          : (pricedItems.length > 0 ? 'partially_confirmed' : nextStatus);
+        if (manualStatus !== list?.status) {
+          try {
+            await updateProvisioningList(id, { status: manualStatus });
+          } catch (e) {
+            console.error('[ProvisioningBoardDetail] manual confirm status update failed:', e);
+          }
         }
+        nextStatus = manualStatus;
       }
       setList(prev => ({ ...prev, status: nextStatus }));
       // Tell the kanban (and any other surface that lists this
@@ -2551,6 +2568,13 @@ const ProvisioningBoardDetail = () => {
           'Lines confirmed — board status may take a moment to update. Refresh if it stays at "Quote in".',
           'info',
         );
+      } else if (manualOutcome) {
+        // Manual board: phrase the rollup in items, not Cargo orders.
+        const { priced, total } = manualOutcome;
+        const msg = priced >= total
+          ? `Quote confirmed — all ${total} item${total === 1 ? '' : 's'} confirmed`
+          : `Quote confirmed — ${priced} of ${total} items confirmed, others still awaiting a quote`;
+        showToast(msg, 'success');
       } else {
         const msg = result?.listFullyConfirmed
           ? 'Quote confirmed — supplier notified'
@@ -2567,12 +2591,20 @@ const ProvisioningBoardDetail = () => {
         const defaultEmail = supplierProfileId
           ? await fetchSupplierContactEmail(supplierProfileId).catch(() => null)
           : null;
+        // Scope the email to the items actually carrying a quote (the
+        // ones just confirmed) so a partial confirm doesn't overstate
+        // the count / total with still-unquoted lines.
+        const disp = displayCurrency || 'GBP';
+        const scopeItems = pricedItems.length > 0 ? pricedItems : items;
+        const scopeTotal = scopeItems.reduce((s, i) => {
+          const iCurr = i.currency || (list?.currency || 'GBP');
+          return s + effectiveOrderedQty(i)
+            * ((effectiveCost(i) / (fxRates[iCurr] || 1)) * (fxRates[disp] || 1));
+        }, 0);
         setConfirmEmailPrompt({
           defaultEmail: defaultEmail || '',
-          quotedTotal: convertedTotals?.estimated > 0
-            ? formatCurrency(convertedTotals.estimated, displayCurrency || 'GBP')
-            : '',
-          itemCount: items.length,
+          quotedTotal: scopeTotal > 0 ? formatCurrency(scopeTotal, disp) : '',
+          itemCount: scopeItems.length,
         });
       }
     } catch (err) {
