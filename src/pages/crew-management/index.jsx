@@ -5,7 +5,7 @@ import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
 
 import { Department, UserStatus, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../utils/authStorage';
-import { getStatusLabel } from '../../utils/crewStatus';
+import { getStatusLabel, CREW_STATUSES } from '../../utils/crewStatus';
 import InviteCrewModal from './components/InviteCrewModal';
 import PendingInvitesSection from './components/PendingInvitesSection';
 import EditCrewModal from './components/EditCrewModal';
@@ -30,6 +30,16 @@ const DEV_MODE = true;
 
 // Initials for the editorial avatar fallback.
 const initials = (n) => String(n || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
+
+// Avatar — real photo when one is on file, initials otherwise. Container styling
+// comes from the passed className; the img fills it.
+const Avatar = ({ user, className }) => (
+  <span className={className}>
+    {user?.photo
+      ? <img src={user.photo} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+      : initials(user?.fullName)}
+  </span>
+);
 
 // Canonical yacht department order for grouping; anything else sorts after, with
 // "no department" last.
@@ -129,7 +139,8 @@ const CrewManagement = () => {
   const [myProfile, setMyProfile] = useState(null);
   // Roster filters + enrichment (compliance + return-from-leave dates).
   const [deptFilter, setDeptFilter] = useState(null);
-  const [statusFilter, setStatusFilter] = useState(null); // 'active' | 'away' | null
+  const [statusFilter, setStatusFilter] = useState(null); // 'active' | 'away' | specific status | null
+  const [docsFilter, setDocsFilter] = useState(null); // 30 | 60 | 90 | 'expired' | null
   const [needsAttention, setNeedsAttention] = useState(false);
   const [complianceByUser, setComplianceByUser] = useState({});
   const [returnByUser, setReturnByUser] = useState({});
@@ -260,7 +271,7 @@ const CrewManagement = () => {
           role:roles!role_id(name, default_permission_tier),
           custom_role:tenant_custom_roles!custom_role_id(name, default_permission_tier),
           departments(name),
-          profiles!tenant_members_user_id_fkey(email, full_name)
+          profiles!tenant_members_user_id_fkey(email, full_name, avatar_url)
         `)?.eq('tenant_id', activeTenantId)?.eq('active', !archived)?.order('joined_at', { ascending: false });
       
       if (fetchError) {
@@ -310,6 +321,7 @@ const CrewManagement = () => {
           email: tm?.profiles?.email || null,
           fullName: tm?.profiles?.full_name || null,
           full_name: tm?.profiles?.full_name || null,
+          photo: tm?.profiles?.avatar_url || null,
           department: tm?.departments?.name || (tm?.department_id ? `Dept ${tm?.department_id?.substring(0, 8)}` : '—'),
           roleTitle: tm?.role?.name || tm?.custom_role?.name || 'No role',
         };
@@ -405,10 +417,11 @@ const CrewManagement = () => {
         const expiring = await fetchExpiringDocuments(90);
         const map = {};
         for (const d of expiring || []) {
-          const { level } = getExpiryStatus(d.expiry_date);
+          const { level, days } = getExpiryStatus(d.expiry_date);
           const isExpired = level === 'expired';
-          const cur = map[d.user_id] || { expired: 0, warning: 0 };
+          const cur = map[d.user_id] || { expired: 0, warning: 0, soonest: Infinity };
           if (isExpired) cur.expired += 1; else cur.warning += 1;
+          if (typeof days === 'number') cur.soonest = Math.min(cur.soonest, days);
           map[d.user_id] = cur;
         }
         Object.values(map).forEach(v => { v.worst = v.expired ? 'expired' : 'warning'; });
@@ -835,8 +848,15 @@ const CrewManagement = () => {
   const applyRosterFilters = (list) => (list || []).filter((u) => {
     if (deptFilter && (u?.department || '—') !== deptFilter) return false;
     if (statusFilter === 'active' && u?.status !== 'active') return false;
-    if (statusFilter === 'away' && (u?.status === 'active' || u?.status === 'invited' || !u?.status)) return false;
+    else if (statusFilter === 'away' && (u?.status === 'active' || u?.status === 'invited' || !u?.status)) return false;
+    else if (statusFilter && statusFilter !== 'active' && statusFilter !== 'away' && u?.status !== statusFilter) return false;
     if (needsAttention && !complianceByUser[u?.user_id]) return false;
+    if (docsFilter) {
+      const comp = complianceByUser[u?.user_id];
+      if (!comp) return false;
+      if (docsFilter === 'expired') { if (!comp.expired) return false; }
+      else if ((comp.soonest ?? Infinity) > Number(docsFilter)) return false;
+    }
     return true;
   });
 
@@ -958,7 +978,7 @@ const CrewManagement = () => {
             {comp.expired ? `${comp.expired} expired` : `${comp.warning} expiring`}
           </span>
         )}
-        <div className="cm-gph">{initials(user?.fullName)}</div>
+        <Avatar user={user} className="cm-gph" />
         <div className="cm-gname">{user?.fullName}</div>
         <div className="cm-grole">{user?.roleTitle}</div>
         <div className="cm-gdept">{user?.department === '—' ? 'Unassigned' : user?.department}</div>
@@ -991,7 +1011,7 @@ const CrewManagement = () => {
               <div className="cm-rail-grp">{dept === '—' ? 'Unassigned' : dept}</div>
               {members.map((u) => (
                 <div key={u?.id} className={`cm-li${sel && u?.id === sel.id ? ' is-on' : ''}`} onClick={() => setSelectedUserId(u?.id)}>
-                  <span className="cm-li-av">{initials(u?.fullName)}</span>
+                  <Avatar user={u} className="cm-li-av" />
                   <div style={{ minWidth: 0 }}>
                     <div className="cm-li-nm">{u?.fullName}</div>
                     <div className="cm-li-rl">{u?.roleTitle}</div>
@@ -1008,7 +1028,7 @@ const CrewManagement = () => {
           ) : (
             <>
               <div className="cm-dhead">
-                <div className="cm-dph">{initials(sel.fullName)}</div>
+                <Avatar user={sel} className="cm-dph" />
                 <div>
                   <div className="cm-dname">{sel.fullName}</div>
                   <div className="cm-drole">{sel.roleTitle} · {sel.department === '—' ? 'Unassigned' : sel.department}</div>
@@ -1078,7 +1098,7 @@ const CrewManagement = () => {
     const node = (u, cls = '') => (
       <div className={`cm-node ${cls}`} onClick={() => navigate(`/profile/${u?.id}`)}>
         <span className="cm-node-dot" style={{ background: statusColor(u?.status) }} />
-        <div className="cm-node-av">{initials(u?.fullName)}</div>
+        <Avatar user={u} className="cm-node-av" />
         <div className="cm-node-nm">{u?.fullName}</div>
         <div className="cm-node-rl">{u?.roleTitle}</div>
       </div>
@@ -1096,7 +1116,7 @@ const CrewManagement = () => {
               <div className="cm-reports">
                 {reports.map((u) => (
                   <div key={u?.id} className="cm-mini" onClick={() => navigate(`/profile/${u?.id}`)}>
-                    <span className="cm-mini-a">{initials(u?.fullName)}</span>
+                    <Avatar user={u} className="cm-mini-a" />
                     <div><div className="cm-mini-n">{u?.fullName}</div><div className="cm-mini-r">{u?.roleTitle}</div></div>
                     <span className="cm-mini-d" style={{ background: statusColor(u?.status) }} />
                   </div>
@@ -1242,43 +1262,42 @@ const CrewManagement = () => {
                 </button>
               </div>
 
-              {/* Search + filters — gallery & console only */}
+              {/* Search + filters — one line, gallery & console only */}
               {(rosterView === 'gallery' || rosterView === 'console') && (
-                <>
+                <div className="cm-toolbar">
                   <div className="cm-search">
                     <Icon name="Search" size={16} />
                     <input
-                      placeholder="Search crew by name, email, or role…"
+                      placeholder="Search crew…"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e?.target?.value)}
                     />
                   </div>
-                  <div className="cm-filters">
-                    {deptList.length > 1 && (
-                      <>
-                        <button className={`cm-chip${!deptFilter ? ' is-on' : ''}`} onClick={() => setDeptFilter(null)}>All</button>
-                        {deptList.map((d) => (
-                          <button key={d} className={`cm-chip${deptFilter === d ? ' is-on' : ''}`} onClick={() => setDeptFilter((cur) => cur === d ? null : d)}>
-                            {d === '—' ? 'Unassigned' : d}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                    {(attentionCount > 0 || needsAttention) && (
-                      <button className={`cm-attn${needsAttention ? ' is-on' : ''}`} onClick={() => setNeedsAttention((v) => !v)}>
-                        <Icon name="AlertTriangle" size={13} />
-                        Needs attention{attentionCount ? ` · ${attentionCount}` : ''}
-                      </button>
-                    )}
-                    <button
-                      className={`cm-chip${showArchived ? ' is-on' : ''}`}
-                      style={deptList.length > 1 ? undefined : { marginLeft: 'auto' }}
-                      onClick={() => setShowArchived((v) => !v)}
-                    >
-                      {showArchived ? 'Viewing archived' : 'Show archived'}
-                    </button>
-                  </div>
-                </>
+                  {deptList.length > 1 && (
+                    <select className="cm-select" value={deptFilter || ''} onChange={(e) => setDeptFilter(e.target.value || null)}>
+                      <option value="">All departments</option>
+                      {deptList.map((d) => <option key={d} value={d}>{d === '—' ? 'Unassigned' : d}</option>)}
+                    </select>
+                  )}
+                  <select className="cm-select" value={statusFilter || ''} onChange={(e) => setStatusFilter(e.target.value || null)}>
+                    <option value="">All statuses</option>
+                    <option value="active">On board</option>
+                    <option value="away">Away (any)</option>
+                    {CREW_STATUSES.filter(s => s.value !== 'active' && s.value !== 'invited').map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                  <select className="cm-select" value={docsFilter || ''} onChange={(e) => setDocsFilter(e.target.value ? (e.target.value === 'expired' ? 'expired' : Number(e.target.value)) : null)}>
+                    <option value="">All documents</option>
+                    <option value="expired">Expired</option>
+                    <option value="30">Expiring ≤ 30 days</option>
+                    <option value="60">Expiring ≤ 60 days</option>
+                    <option value="90">Expiring ≤ 90 days</option>
+                  </select>
+                  <button className={`cm-chip${showArchived ? ' is-on' : ''}`} onClick={() => setShowArchived((v) => !v)}>
+                    {showArchived ? 'Viewing archived' : 'Show archived'}
+                  </button>
+                </div>
               )}
 
               {/* Gallery (B) */}
