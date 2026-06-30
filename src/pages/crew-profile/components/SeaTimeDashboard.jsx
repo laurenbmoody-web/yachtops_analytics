@@ -184,7 +184,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [ledgerScope, setLedgerScope] = useState('all'); // 'all' | 'cargo' (Cargo-tracked only)
   const [ledgerYear, setLedgerYear] = useState(null);    // selected year in the list view (null = latest)
   const [verifier, setVerifier] = useState('nautilus');
-  const [revalidating, setRevalidating] = useState(false); // revalidating an existing CoC → reval-only docs become required
   const signatory = 'master'; // self-attestation is never permitted (MSN 1858)
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -467,7 +466,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     }
     return out;
   }, [docMet, verifier, docsOnFile]);
-  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective, cert, buckets, revalidating }), [entries, vessels, config, signatory, verifier, docMetEffective, cert, buckets, revalidating]);
+  const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective, cert, buckets }), [entries, vessels, config, signatory, verifier, docMetEffective, cert, buckets]);
   // Cert-specific MCA CoC-application checklist — the bundle the crew sends AFTER
   // the testimonial is verified. Live state where we can detect it (testimonial
   // ready, NoE/oral from the journey, ENG1 from Documents, course count from the
@@ -1619,24 +1618,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               <div>
                 <div className="std-fhead"><span className="std-flabel">Attach documents · for {vp.short} verification</span></div>
                 <div className="std-ftitle">What {vp.short} need to verify your service</div>
-                {vp.docs.some(d => d.reval) && (
-                  <label className="std-reval">
-                    <input type="checkbox" checked={revalidating} onChange={(e) => { setRevalidating(e.target.checked); resetSignoff(); }} />
-                    <span>Revalidating an existing CoC? <em>— adds {vp.short}’s revalidation documents (photos, medical, current CoC)</em></span>
-                  </label>
-                )}
                 <div className="std-docs">
                   {vp.docs.map(d => {
                     const onFile = d.profileDoc ? docsOnFile[d.profileDoc] : null;
                     const met = !!docMetEffective[d.id];
-                    // optional = always supporting; reval = only needed when
-                    // revalidating (otherwise shown faded with an "if revalidating" tag).
-                    const soft = d.optional || (d.reval && !revalidating);
-                    const tag = d.optional ? 'optional' : (d.reval && !revalidating) ? 'if revalidating' : null;
+                    // Profile-backed docs are read-only (pulled from Documents);
+                    // others keep the manual toggle. Optional = supporting.
                     return (
-                      <div className={`std-doc2${met ? ' on' : ''}${soft ? ' opt' : ''}`} key={d.id} onClick={d.profileDoc ? undefined : () => toggleDoc(d.id)} style={d.profileDoc ? { cursor: 'default' } : undefined}>
+                      <div className={`std-doc2${met ? ' on' : ''}${d.optional ? ' opt' : ''}`} key={d.id} onClick={d.profileDoc ? undefined : () => toggleDoc(d.id)} style={d.profileDoc ? { cursor: 'default' } : undefined}>
                         <span className="ring">{met && <Icon name="Check" size={12} color="#fff" />}</span>
-                        <span className="dl">{d.label}{tag && <span className="std-doc-opt">{tag}</span>}</span>
+                        <span className="dl">{d.label}{d.optional && <span className="std-doc-opt">optional</span>}</span>
                         {d.profileDoc && (onFile?.fileUrl
                           ? <a href={onFile.fileUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: '#C65A1A', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="Paperclip" size={12} /> View</a>
                           : <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#A6712C' }}>Add to your profile documents</span>)}
@@ -1785,36 +1776,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
             )}
           </div>
 
-          {/* Tip — the onward MCA CoC-application bundle, cert-specific. Kept out
-              of the verification flow above (the verifier only needs ID + the
-              testimonial); collapsed by default. */}
+          {/* Applying for the CoC is a SEPARATE step from verifying service.
+              Surfaced as one button → a guided checklist modal, never mixed into
+              the verification flow above. */}
           {!SHOW_SIGNOFF && cert && (
-            <div className="std-apptips">
-              <button type="button" className="std-apptips-head" aria-expanded={appTipsOpen} onClick={() => setAppTipsOpen(o => !o)}>
-                <span className="mlabel rustlabel">After verification · applying for the CoC</span>
-                <span className="std-apptips-right">
-                  <span className="t">{cert.short} — what the MCA needs next</span>
-                  <Icon name="ChevronDown" size={16} style={{ transform: appTipsOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
-                </span>
+            <div className="std-applybar">
+              <div className="std-applybar-txt">
+                <span className="mlabel rustlabel">Next step · applying for the CoC</span>
+                <span className="t">Once your record is verified, it’s the evidence for your {cert.short} application.</span>
+              </div>
+              <button type="button" className="std-applybtn" onClick={() => setAppTipsOpen(true)}>
+                <Icon name="ClipboardCheck" size={15} /> CoC application checklist
               </button>
-              {appTipsOpen && (
-                <div className="std-apptips-body">
-                  <div className="std-apptips-sub">Getting your testimonial verified is just the first step — it’s the evidence of sea service. To apply for the <b>{cert.short}</b> itself, the MCA also needs:</div>
-                  <div className="std-appchecks">
-                    {appChecklist.map(item => {
-                      const ic = item.state === 'done' ? 'Check' : item.state === 'pending' ? 'Clock' : item.state === 'na' ? 'Minus' : 'Circle';
-                      const col = item.state === 'done' ? '#5E8E6F' : item.state === 'pending' ? '#A6712C' : '#AEB4C2';
-                      return (
-                        <div className={`std-appcheck ${item.state}`} key={item.key}>
-                          <span className="mk" style={{ color: col }}><Icon name={ic} size={14} /></span>
-                          <div><div className="l">{item.label}</div>{item.detail && <div className="d">{item.detail}</div>}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="std-apptips-foot">Your course certificates are tracked in <b>Courses &amp; tickets</b>; your NoE, oral and CoC in the <b>Certification journey</b>. Confirm the exact list for your route with your training provider.</div>
-                </div>
-              )}
             </div>
           )}
 
@@ -1924,6 +1897,33 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       </div>
 
       {/* ── prior service before Cargo (lump-sum baseline) ── */}
+      {appTipsOpen && cert && createPortal(
+        <div className="cso-overlay" onClick={() => setAppTipsOpen(false)}>
+          <div className="cso" role="dialog" aria-modal="true" aria-label="CoC application checklist" style={{ width: 560 }} onClick={e => e.stopPropagation()}>
+            <button className="cso-x" onClick={() => setAppTipsOpen(false)} aria-label="Close"><Icon name="X" size={18} /></button>
+            <div className="cso-head">
+              <div className="cso-eyebrow">Applying for the CoC</div>
+              <h3 className="cso-title">{cert.short} — application checklist</h3>
+              <div className="cso-sub">A verified Sea Service Record is the <b>evidence of sea service</b> — the first step. To apply for the {cert.short} itself, the MCA also needs:</div>
+            </div>
+            <div className="cso-body">
+              <div className="std-appchecks one">
+                {appChecklist.map(item => {
+                  const ic = item.state === 'done' ? 'Check' : item.state === 'pending' ? 'Clock' : item.state === 'na' ? 'Minus' : 'Circle';
+                  const col = item.state === 'done' ? '#5E8E6F' : item.state === 'pending' ? '#A6712C' : '#AEB4C2';
+                  return (
+                    <div className={`std-appcheck ${item.state}`} key={item.key}>
+                      <span className="mk" style={{ color: col }}><Icon name={ic} size={14} /></span>
+                      <div><div className="l">{item.label}</div>{item.detail && <div className="d">{item.detail}</div>}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="std-apptips-foot">Your course certificates are tracked in <b>Courses &amp; tickets</b>; your NoE, oral and CoC in the <b>Certification journey</b>. Confirm the exact list for your route with your training provider.</div>
+            </div>
+          </div>
+        </div>, document.body)}
+
       {priorOpen && createPortal(
         <div className="cso-overlay" onClick={() => setPriorOpen(false)}>
           <div className="cso" role="dialog" aria-modal="true" aria-label="Prior service before Cargo" style={{ width: 480 }} onClick={e => e.stopPropagation()}>
