@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
-import { fetchGuestBookEntries, exportGuestBookPDF, adaptTemplateFromImage, fetchVesselBrand, loadLogoForPdf, loadAvatarForPdf, autoPerPage } from '../utils/guestBookExport';
+import { fetchGuestBookEntries, exportGuestBookPDF, exportGuestBookDOCX, adaptTemplateFromImage, fetchVesselBrand, loadLogoForPdf, loadAvatarForPdf, autoPerPage } from '../utils/guestBookExport';
 import './guest-book-export.css';
 
 const TEMPLATES = [
@@ -21,7 +21,9 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
   const [template, setTemplate] = useState('classic');
   const [orientation, setOrientation] = useState('portrait');
   const [perPage, setPerPage] = useState(3);
+  const [valign, setValign] = useState('center'); // card spacing: center | top
   const [minFont, setMinFont] = useState(10);
+  const [docxBusy, setDocxBusy] = useState(false);
   const [includeMissing, setIncludeMissing] = useState(false);
   const [title, setTitle] = useState(vesselName);
   const [subtitle, setSubtitle] = useState('Your crew');
@@ -89,10 +91,22 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
 
   const doExport = () => {
     const res = exportGuestBookPDF({
-      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing, logo, avatars,
+      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing, logo, avatars, valign,
     });
     if (!res.count) { showToast('No statements to export yet', 'error'); return; }
     showToast(`Guest book exported — ${res.count} crew across ${res.pages} page${res.pages === 1 ? '' : 's'}`, 'success');
+  };
+
+  const doExportWord = async () => {
+    if (!visible.length) return;
+    setDocxBusy(true);
+    try {
+      const res = await exportGuestBookDOCX({ title, subtitle, entries: visible, includeMissing, logo, avatars });
+      if (!res.count) { showToast('No statements to export yet', 'error'); return; }
+      showToast(`Word document exported — ${res.count} crew`, 'success');
+    } catch (e) {
+      showToast(e.message || 'Could not build the Word document', 'error');
+    } finally { setDocxBusy(false); }
   };
 
   // upload-your-own → AI reads the sample and maps it to our layout engine
@@ -206,6 +220,13 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
                     ))}
                   </div>
                 </div>
+                <div>
+                  <div className="gbx-lbl">Spacing</div>
+                  <div className="gbx-seg">
+                    <button className={valign === 'center' ? 'on' : ''} onClick={() => setValign('center')}>Balanced</button>
+                    <button className={valign === 'top' ? 'on' : ''} onClick={() => setValign('top')}>Top</button>
+                  </div>
+                </div>
                 <div className="gbx-minfont">
                   <div className="gbx-lbl">Minimum font · {minFont}pt</div>
                   <input type="range" min="8" max="13" value={minFont} onChange={(e) => setMinFont(Number(e.target.value))} />
@@ -229,7 +250,7 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
                   <div className="t">{title || 'Our crew'}</div>
                   {subtitle && <div className="s">{subtitle}</div>}
                 </div>
-                <div className={`gbx-cards tpl-${template}`} style={{ '--cols': 1, '--rows': rowCount, '--bio-lines': bioLines }}>
+                <div className={`gbx-cards tpl-${template} va-${valign}`} style={{ '--cols': 1, '--rows': rowCount, '--bio-lines': bioLines }}>
                   {visible.slice(0, perResolved).map((en, i) => {
                     const fs = Math.max(minFont, Math.min(13, 13 - (en.words - 30) * (13 - minFont) / 70));
                     const flip = template === 'classic' && i % 2 === 1;
@@ -262,8 +283,11 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
               {TEMPLATES.find((t) => t.key === template)?.name || 'Custom'} · {orientation} · {perPage === 'auto' ? `auto (${perResolved})` : perResolved} per page · {visible.length} crew → {totalPages} page{totalPages === 1 ? '' : 's'}
             </span>
             <button className="gbx-btn ghost" onClick={onClose}>Cancel</button>
+            <button className="gbx-btn ghost" onClick={doExportWord} disabled={!visible.length || docxBusy} title="Editable Word document">
+              <Icon name={docxBusy ? 'Loader2' : 'FileText'} size={15} className={docxBusy ? 'animate-spin' : ''} /> {docxBusy ? 'Building…' : 'Export Word'}
+            </button>
             <button className="gbx-btn primary" onClick={doExport} disabled={!visible.length}>
-              <Icon name="Download" size={15} /> Export guest book
+              <Icon name="Download" size={15} /> Export PDF
             </button>
           </footer>
         )}
