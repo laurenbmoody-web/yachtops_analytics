@@ -488,7 +488,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   );
   // Recent qualifying seagoing service in the last 5 years (MCA recency rule).
   const recentDays = useMemo(() => recentQualifyingDays(pathwayEntries.filter(e => !e.excluded)), [pathwayEntries]);
-  const requirements = useMemo(() => (cert ? buildRequirementBars(reqBuckets, prior, cert, recentDays) : []), [reqBuckets, prior, cert, recentDays]);
+  // Guest-on days for the Yacht Purser Route A gate — manual override if set,
+  // otherwise the count auto-derived from guest-carrying trips.
+  const effectiveGuestOn = guestOnDays != null ? guestOnDays : (derivedGuest?.days ?? 0);
+  const requirements = useMemo(() => (cert ? buildRequirementBars(reqBuckets, prior, cert, recentDays, effectiveGuestOn) : []), [reqBuckets, prior, cert, recentDays, effectiveGuestOn]);
   // Ancillary courses/tickets for the target CoC, with held-state auto-detected
   // from the crew member's documents (a course counts as held once a matching
   // document type is on file).
@@ -523,10 +526,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
     // guest-on days, submitted to the PYA. No testimonial/NoE/oral/ENG1.
     if (cert.family === 'INTERIOR') {
       const guestDays = guestOnDays != null ? guestOnDays : (derivedGuest?.days ?? 0);
+      const guestTarget = cert.requires?.guestOnDays || 0;
+      const guestMet = guestTarget ? guestDays >= guestTarget : guestDays > 0;
       return [
         { key: 'service', label: 'Verified senior yacht service (PYA)', detail: canGenerate ? 'Verified & ready to export' : 'Get your record verified first', state: canGenerate ? 'done' : 'todo' },
         { key: 'courses', label: 'IAMI GUEST course units', detail: ancillary.length ? `${ancillaryDone} of ${ancillary.length} on file — see Courses & tickets` : 'See Courses & tickets', state: coursesState },
-        { key: 'guest', label: 'Guest-on days evidenced', detail: guestDays > 0 ? `${guestDays} day${guestDays === 1 ? '' : 's'} on record` : 'Record on the pathway above', state: guestDays > 0 ? 'done' : 'todo' },
+        { key: 'guest', label: guestTarget ? `Guest-on days (Route A · ${guestTarget} min)` : 'Guest-on days evidenced', detail: guestTarget ? `${guestDays} of ${guestTarget} day${guestTarget === 1 ? '' : 's'} on record${guestMet ? '' : ' — or use Route B (3yr management)'}` : (guestDays > 0 ? `${guestDays} days on record` : 'Record on the pathway above'), state: guestMet ? 'done' : (guestDays > 0 ? 'pending' : 'todo') },
       ];
     }
     // Chief Mate (Yachts) is a courses-only endorsement — no NoE, no oral, and no
@@ -1199,12 +1204,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     const derivedTrips = derivedGuest?.trips ?? 0;
                     const overridden = guestOnDays != null && guestOnDays !== derived;
                     const shown = guestOnDays != null ? guestOnDays : derived;
+                    const target = cert?.requires?.guestOnDays || 0;
                     return (
                       <div className="stp-guest">
                         <div className="stp-guest-main">
-                          <span className="mlabel rustlabel">Guest-on days</span>
+                          <span className="mlabel rustlabel">Guest-on days{target ? <> · {shown}/{target}</> : null}</span>
                           <span className="stp-guest-sub">
-                            Days with guests aboard (charters, shows, owner trips).{' '}
+                            {target
+                              ? <><b>Route A</b> pairs your 12 months’ senior service with at least <b>{target} guest-on days</b> (charters, shows, owner trips). Or take <b>Route B</b> — 3 years in a maritime management/administration role, logged as prior service.{' '}</>
+                              : <>Days with guests aboard (charters, shows, owner trips).{' '}</>}
                             {derivedTrips > 0
                               ? <>Auto-counted from <b>{derivedTrips} trip{derivedTrips === 1 ? '' : 's'}</b> carrying guests on your record{overridden ? <> — overridden (auto-count {derived})</> : ' — edit to override'}.</>
                               : <>No guest-carrying trips on record yet — enter a verified total (captain/company or charter records).</>}

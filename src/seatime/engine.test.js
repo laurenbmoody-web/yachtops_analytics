@@ -400,6 +400,27 @@ test('Master <3000GT §3.6 OR-branch computes from vessel GT/length', () => {
   assert.equal(ht.detail.sizeUnknownDays, 40);
 });
 
+test('Yacht Purser Route A gates on 365 senior days AND 60 guest-on days', () => {
+  const purser = CERTIFICATES.PURSER_COC;
+  assert.ok(purser, 'PURSER_COC certificate present');
+  assert.equal(purser.family, 'INTERIOR');
+  const b = { seagoing: 0, watchkeeping: 0, standby: 0, yard: 0, total: 0, onboardDays: 400 };
+  // 400 senior days but only 20 guest-on days → guest bar NOT met.
+  const low = buildRequirementBars(b, {}, purser, null, 20);
+  const onboardLow = low.find(x => x.key === 'onboard');
+  const guestLow = low.find(x => x.key === 'guestOn');
+  assert.ok(onboardLow && onboardLow.met, '400 ≥ 365 senior days met');
+  assert.ok(guestLow, 'guest-on bar present for the purser route');
+  assert.equal(guestLow.required, 60);
+  assert.equal(guestLow.current, 20);
+  assert.equal(guestLow.met, false, '20 guest-on days does not satisfy the 60-day floor');
+  // 60 guest-on days → guest bar met.
+  const ok = buildRequirementBars(b, {}, purser, null, 60);
+  assert.equal(ok.find(x => x.key === 'guestOn').met, true);
+  // Recency does NOT apply to the interior family — no recency bar even when days passed.
+  assert.equal(low.find(x => x.key === 'recency'), undefined, 'recency omitted for INTERIOR');
+});
+
 test('dual deck+engine capacity scales every day-count to 50% (MSN 1858 §5.1)', () => {
   const vsl = { v: { gt: 600, lengthM: 30, over15: true } };
   const entries = [

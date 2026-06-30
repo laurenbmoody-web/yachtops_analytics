@@ -263,7 +263,7 @@ export const recentQualifyingDays = (entries, asOf = new Date(), years = 5) => {
   return total;
 };
 
-export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = null) => {
+export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = null, guestOnDays = 0) => {
   const md = SERVICE_RULES.monthDays;
   const cur = {
     onboard: (prior.onboard || 0) + (buckets.onboardDays || 0),
@@ -286,6 +286,11 @@ export const buildRequirementBars = (buckets, prior = {}, cert, recentDays = nul
   // 24 months = 730 days, not 720). onboardMonths uses the MSN 30-day equivalence.
   if (r.onboardDays) add('onboard', cert?.family === 'INTERIOR' ? 'Senior onboard yacht service' : 'Onboard yacht service', cur.onboard, r.onboardDays);
   if (r.onboardMonths) add('onboard', cert?.family === 'INTERIOR' ? 'Senior onboard yacht service' : 'Onboard yacht service', cur.onboard, r.onboardMonths * md);
+  // Guest-on days — the IAMI GUEST Yacht Purser Route A pairs the 12-month senior
+  // service requirement with ≥60 days where guests were aboard. Both gate, so the
+  // bar carries `routeA` for the UI to label it as the service-route condition.
+  // (Route B — 3 years maritime management — is logged as prior service instead.)
+  if (r.guestOnDays) add('guestOn', 'Guest-on days', guestOnDays, r.guestOnDays, { routeA: true });
   if (r.seagoingDays) add('seagoing', `Seagoing service${r.minVesselMetres ? ` (≥${r.minVesselMetres}m)` : ''}`, cur.seagoing, r.seagoingDays);
   // MSN 1858 §3.3 OOW split: 365 = 250 seagoing-only + 115 days that may be any
   // combination of seagoing/standby/yard. Modelling both bars stops all-standby
