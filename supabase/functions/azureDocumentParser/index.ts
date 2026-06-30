@@ -11,7 +11,18 @@ declare const Deno: { env: { get(key: string): string | undefined } };
 
 const AZURE_ENDPOINT = Deno.env.get('AZURE_DOC_INTELLIGENCE_ENDPOINT') || '';
 const AZURE_KEY = Deno.env.get('AZURE_DOC_INTELLIGENCE_KEY') || '';
-const AZURE_API_VERSION = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '';
+// Default to the current Document Intelligence v4.0 GA (matches the
+// /documentintelligence/ route) rather than blindly trusting the env
+// secret — Azure retired the older pinned version (analyze returns 410
+// "The requested API version has been retired."). A future env value
+// overrides only when it's itself non-retired.
+const _AZURE_API_VERSION_ENV = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '';
+const RETIRED_AZURE_API_VERS = new Set([
+  '2023-07-31', '2023-10-31-preview', '2024-02-29-preview', '2024-07-31-preview',
+]);
+const AZURE_API_VERSION = (_AZURE_API_VERSION_ENV && !RETIRED_AZURE_API_VERS.has(_AZURE_API_VERSION_ENV))
+  ? _AZURE_API_VERSION_ENV
+  : '2024-11-30';
 
 // ---------------------------------------------------------------------------
 // Normalize Azure Layout result into a table-friendly structure

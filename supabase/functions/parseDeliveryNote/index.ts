@@ -41,7 +41,21 @@ const AZURE_KEY       = Deno.env.get('AZURE_DOC_INTELLIGENCE_KEY') || '';
 // (fails loud with a clear error if missing — same pattern as
 // AZURE_ENDPOINT / AZURE_KEY). Recommended value to set in Supabase
 // function secrets: the current v4.0 GA release of the API.
-const AZURE_API_VER   = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '';
+// Current Document Intelligence v4.0 GA — matches the /documentintelligence/
+// route below. We DEFAULT to this rather than blindly trusting the env
+// secret, because the secret was pinned to an older api-version that Azure
+// has since RETIRED (the analyze call started returning 410 "The requested
+// API version has been retired."). A future env value only overrides if it's
+// also a current, non-retired version.
+const AZURE_API_VER_DEFAULT = '2024-11-30';
+const _AZURE_API_VER_ENV = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '';
+// Known-retired versions we must not use even if the secret still holds them.
+const RETIRED_AZURE_API_VERS = new Set([
+  '2023-07-31', '2023-10-31-preview', '2024-02-29-preview', '2024-07-31-preview',
+]);
+const AZURE_API_VER = (_AZURE_API_VER_ENV && !RETIRED_AZURE_API_VERS.has(_AZURE_API_VER_ENV))
+  ? _AZURE_API_VER_ENV
+  : AZURE_API_VER_DEFAULT;
 
 // ── Media-type byte sniffing ──────────────────────────────────────────────────
 // Defence-in-depth: don't trust the client's mediaType blindly. The client
