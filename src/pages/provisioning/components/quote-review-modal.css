@@ -11,7 +11,9 @@
   border: 1px solid #ECEAE3;
   border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
-  width: min(520px, 94vw);
+  /* Wider so the line (name + qty + struck baseline + delta + price
+     input) has room — the variance info squished the names at 520. */
+  width: min(680px, 94vw);
   max-height: 90vh;
   display: flex; flex-direction: column; overflow: hidden;
 }
