@@ -18,6 +18,7 @@ import { sendDbNotification } from '../../../lib/dbNotifications';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
 import { buildNautilusSST } from '../../../seatime/nautilusExport';
+import { buildTransportMaltaSST } from '../../../seatime/transportMaltaExport';
 import CaptainSignoff from '../../../seatime/CaptainSignoff';
 import './sea-time-dashboard.css';
 
@@ -214,6 +215,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [journeyDraft, setJourneyDraft] = useState(null);
   const [journeyStep, setJourneyStep] = useState('noe');   // which milestone the modal is scoped to
+  const [cocListOpen, setCocListOpen] = useState(null);     // CoC "what to send" collapse (null = auto: open while gathering)
   const [eligOpen, setEligOpen] = useState(false);          // eligibility detail expand (step 01)
   const [pathwayCfgOpen, setPathwayCfgOpen] = useState(false); // dept/goal popover anchored to the target title
   const cfgRef = useRef(null);
@@ -833,6 +835,30 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     } catch (e) { console.error('[seatime] nautilus export', e); flash('Could not build the Nautilus form'); }
   };
 
+  // Pre-fill the OFFICIAL Transport Malta deck testimonial (S.L. 499.23) for one
+  // command spell — we stamp the factual service data onto Transport Malta's own
+  // PDF; the master completes the assessment + signs. LOA and max passengers are
+  // denormalised onto every Cargo-tracked day by the autolog sync
+  // (vessel_length_m = the vessel's LOA; vessel_max_pax = its typical_guest_count).
+  const onDownloadSpellTM = async (spell) => {
+    if (!canGenerate) { flash('Resolve the outstanding validation checks first'); return; }
+    try {
+      const v = vessels[spell.vesselId] || {};
+      const rows = spell.entries
+        .slice()
+        .sort((a, b) => String(a.from).localeCompare(String(b.from)))
+        .map(e => ({ from: e.from, to: e.to, capacity: e.capacity }));
+      flash('Pre-filling the Transport Malta form…');
+      const pdfBytes = await buildTransportMaltaSST({
+        seafarer: { fullName: seafarer.fullName, idNo: seafarer.nationalId || seafarer.idNo },
+        vessel: { name: v.name, type: v.type, flag: v.flag, officialNo: v.officialNo, loaM: v.lengthM, maxPax: v.maxPax },
+        rows,
+      });
+      downloadBytes(pdfBytes, `transport-malta-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
+      flash('Transport Malta form ready');
+    } catch (e) { console.error('[seatime] transport malta export', e); flash('Could not build the Transport Malta form'); }
+  };
+
   // Prior service before Cargo — a crew-entered lump sum that counts toward the
   // pathway alongside the auto-logged Cargo service.
   const openPrior = () => {
@@ -855,7 +881,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
 
   // Certification journey (NoE -> oral -> CoC). The modal is scoped to one
   // milestone (step) at a time, gated by progress.
-  const openJourney = (step = 'noe') => { setJourneyStep(step); setJourneyDraft(JSON.parse(JSON.stringify(journey || JOURNEY_DEFAULT))); setJourneyOpen(true); };
+  const openJourney = (step = 'noe') => { setJourneyStep(step); setCocListOpen(null); setJourneyDraft(JSON.parse(JSON.stringify(journey || JOURNEY_DEFAULT))); setJourneyOpen(true); };
   const setJD = (path, val) => setJourneyDraft(d => {
     const n = JSON.parse(JSON.stringify(d || JOURNEY_DEFAULT));
     const keys = path.split('.');
@@ -1741,7 +1767,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                           </div>
                           {verifier === 'nautilus'
                             ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
-                            : <span className="std-spell-tag">{verifier === 'transport_malta' ? 'Copy onto the official S.L. 499.23 form' : `Submit on the ${vp.short} route`}</span>}
+                            : verifier === 'transport_malta'
+                              ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
+                              : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
                         </div>
                       ))}
                     </div>
@@ -1970,30 +1998,37 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                 const ck = journeyDraft.coc?.checklist || {};
                 const itemDone = (it) => it.state === 'done' || it.state === 'na' || !!ck[it.key];
                 const cocReady = appChecklist.length > 0 && appChecklist.every(itemDone);
+                const doneN = appChecklist.filter(itemDone).length;
+                const listOpen = cocListOpen == null ? !cocReady : cocListOpen;
                 const cocStatus = journeyDraft.coc?.status || 'not_applied';
                 // Keep the application fields visible once they've applied even if a
                 // detected item later lapses, so a recorded date is never hidden.
                 const showApply = cocReady || cocStatus === 'applied' || cocStatus === 'issued';
                 return (<>
                   <div className="cj-cocsec">
-                    <div className="cj-cocsec-h">What to send to the MCA</div>
-                    <div className="cj-cocsec-sub">Your verified Sea Service Record is the evidence of sea service — the MCA also needs the rest of this bundle for {cert?.short || 'your CoC'}. We tick what we can detect; confirm the rest by hand.</div>
-                    <div className="cj-coclist">
-                      {appChecklist.map(it => {
-                        const auto = it.state === 'done' || it.state === 'na';
-                        const ticked = itemDone(it);
-                        const ic = it.state === 'pending' ? 'Clock' : ticked ? 'CheckCircle' : 'Circle';
-                        return (
-                          <button type="button" key={it.key} className={`cj-cocitem${ticked ? ' on' : ''}${auto ? ' auto' : ''}`}
-                            disabled={auto} onClick={auto ? undefined : () => setJD(`coc.checklist.${it.key}`, !ck[it.key])}
-                            title={auto ? 'Tracked for you' : 'Tap to confirm'}>
-                            <span className="mk"><Icon name={ic} size={15} /></span>
-                            <span className="tx"><span className="l">{it.label}</span>{it.detail && <span className="d">{it.detail}</span>}</span>
-                            {auto && <span className="cj-cocauto">auto</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <button type="button" className="cj-cocsec-toggle" onClick={() => setCocListOpen(!listOpen)} aria-expanded={listOpen}>
+                      <span className="cj-cocsec-h">What to send to the MCA</span>
+                      <span className="cj-cocsec-count">{cocReady ? 'All ready' : `${doneN}/${appChecklist.length} ready`}<Icon name="ChevronDown" size={14} style={{ transform: listOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} /></span>
+                    </button>
+                    {listOpen && (<>
+                      <div className="cj-cocsec-sub">Your verified Sea Service Record is the evidence of sea service — the MCA also needs the rest of this bundle for {cert?.short || 'your CoC'}. We tick what we can detect; confirm the rest by hand.</div>
+                      <div className="cj-coclist">
+                        {appChecklist.map(it => {
+                          const auto = it.state === 'done' || it.state === 'na';
+                          const ticked = itemDone(it);
+                          const ic = it.state === 'pending' ? 'Clock' : ticked ? 'CheckCircle' : 'Circle';
+                          return (
+                            <button type="button" key={it.key} className={`cj-cocitem${ticked ? ' on' : ''}${auto ? ' auto' : ''}`}
+                              disabled={auto} onClick={auto ? undefined : () => setJD(`coc.checklist.${it.key}`, !ck[it.key])}
+                              title={auto ? 'Tracked for you' : 'Tap to confirm'}>
+                              <span className="mk"><Icon name={ic} size={15} /></span>
+                              <span className="tx"><span className="l">{it.label}</span>{it.detail && <span className="d">{it.detail}</span>}</span>
+                              {auto && <span className="cj-cocauto">auto</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>)}
                   </div>
                   {!showApply ? (
                     <div className="cso-note">Tick everything you’ll send, then record your application date below.</div>

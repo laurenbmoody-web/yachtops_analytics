@@ -2,7 +2,7 @@
    reviews inbox (right-pane). cso- = the ceremony; stq- = the inbox list. */
 @keyframes csoIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-.cso-overlay{position:fixed;inset:0;z-index:64;background:rgba(28,27,58,.46);display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;animation:csoIn .2s ease both;}
+.cso-overlay{position:fixed;inset:0;z-index:var(--z-overlay,1000);background:rgba(28,27,58,.46);display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;animation:csoIn .2s ease both;}
 .cso{position:relative;margin:auto;width:560px;max-width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;background:#fff;border:1px solid #ECEAE3;border-radius:16px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);font-family:'Inter',system-ui,sans-serif;animation:csoIn .22s ease both;}
 /* Right-pane variant — fills the inbox column instead of floating. */
 .cso.cso-pane{position:static;margin:0;transform:none;width:auto;max-width:none;max-height:none;height:100%;border:0;border-radius:0;box-shadow:none;animation:none;}

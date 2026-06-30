@@ -214,7 +214,9 @@
 /* CoC application bundle — folded into the Certification journey's CoC step.
    A tickable "what to send" list above the apply-date fields. */
 .cj-cocsec{margin-bottom:16px;}
-.cj-cocsec-h{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted,#8B8478);margin-bottom:5px;}
+.cj-cocsec-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:none;border:0;padding:0 0 5px;cursor:pointer;font-family:inherit;}
+.cj-cocsec-count{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);}
+.cj-cocsec-h{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted,#8B8478);}
 .cj-cocsec-sub{font-size:11.5px;color:var(--muted);line-height:1.5;margin-bottom:10px;}
 .cj-coclist{display:flex;flex-direction:column;}
 .cj-cocitem{display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;font-family:inherit;background:none;border:0;border-top:1px solid var(--hair,#F0F1F5);padding:10px 0;cursor:pointer;}
