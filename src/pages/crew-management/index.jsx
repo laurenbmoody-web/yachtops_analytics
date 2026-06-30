@@ -173,6 +173,8 @@ const CrewManagement = () => {
   const [consoleEntries, setConsoleEntries] = useState([]); // crew_calendar_entries (leave / travel)
   const [docsExpanded, setDocsExpanded] = useState(false);
   const [flightPopover, setFlightPopover] = useState(null); // calendar entry shown in the popover
+  const [hierDrag, setHierDrag] = useState(null); // { id, dept } being dragged
+  const [hierDrop, setHierDrop] = useState(null); // { dept, index } drop placeholder
   const [statusChangeTarget, setStatusChangeTarget] = useState(null); // { userId, currentStatus, name }
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
   const [calendarRefresh, setCalendarRefresh] = useState(0);
@@ -307,6 +309,7 @@ const CrewManagement = () => {
           active,
           start_date,
           joined_at,
+          org_order,
           department_id,
           role:roles!role_id(name, default_permission_tier),
           custom_role:tenant_custom_roles!custom_role_id(name, default_permission_tier),
@@ -358,6 +361,7 @@ const CrewManagement = () => {
           active: tm?.active,
           start_date: tm?.start_date || null,
           joined_at: tm?.joined_at,
+          orgOrder: tm?.org_order ?? null,
           email: tm?.profiles?.email || null,
           fullName: tm?.profiles?.full_name || null,
           full_name: tm?.profiles?.full_name || null,
@@ -1253,9 +1257,22 @@ const CrewManagement = () => {
     );
   };
 
-  // ── Concept D — Chain of command ─────────────────────────────────────────
+  // Persist a department's manual order to tenant_members.org_order (0..n).
+  const persistHierOrder = async (ordered) => {
+    const idx = new Map(ordered.map((m, i) => [m.id, i]));
+    setUsers(prev => prev.map(u => idx.has(u.id) ? { ...u, orgOrder: idx.get(u.id) } : u));
+    try {
+      await Promise.all(ordered.map((m, i) =>
+        supabase.from('tenant_members').update({ org_order: i }).eq('tenant_id', activeTenantId).eq('user_id', m.id)));
+    } catch (e) { console.warn('[CREW] hierarchy order save failed', e); }
+  };
+
+  // ── Concept D — Chain of command (drag-to-reorder for COMMAND) ────────────
   const renderHierarchy = () => {
+    const canEdit = hasEditPermission;
     const crew = (users || []).filter(u => u?.status !== 'invited' && u?.fullName);
+    // Manual order wins; unset falls back to role seniority.
+    const ord = (u) => (u.orgOrder != null ? u.orgOrder : 1000 + roleRank(u.roleTitle));
     const captain = [...crew].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle))[0];
     const isCaptain = captain && roleRank(captain.roleTitle) === 0 ? captain : null;
     const rest = crew.filter(u => !isCaptain || u.id !== isCaptain.id);
@@ -1267,12 +1284,35 @@ const CrewManagement = () => {
     }
     const branches = [...byDept.entries()]
       .sort((a, b) => deptRank(a[0]) - deptRank(b[0]) || a[0].localeCompare(b[0]))
-      .map(([dept, members]) => {
-        const sorted = [...members].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle) || String(a.fullName).localeCompare(String(b.fullName)));
-        return { dept, head: sorted[0], reports: sorted.slice(1) };
-      });
+      .map(([dept, members]) => ({ dept, members: [...members].sort((a, b) => ord(a) - ord(b) || String(a.fullName).localeCompare(String(b.fullName))) }));
 
-    const node = (u, cls = '') => (
+    const onDrop = (dept, members) => {
+      if (!hierDrag || hierDrag.dept !== dept || !hierDrop || hierDrop.dept !== dept) { setHierDrag(null); setHierDrop(null); return; }
+      const from = members.findIndex(m => m.id === hierDrag.id);
+      if (from < 0) { setHierDrag(null); setHierDrop(null); return; }
+      let to = hierDrop.index;
+      const arr = [...members];
+      const [moved] = arr.splice(from, 1);
+      if (from < to) to -= 1;
+      arr.splice(to, 0, moved);
+      persistHierOrder(arr);
+      setHierDrag(null); setHierDrop(null);
+    };
+    const dragProps = (u, dept, i, members) => (canEdit ? {
+      draggable: true,
+      onDragStart: (e) => { setHierDrag({ id: u.id, dept }); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', u.id); } catch { /* */ } },
+      onDragEnd: () => { setHierDrag(null); setHierDrop(null); },
+      onDragOver: (e) => {
+        if (!hierDrag || hierDrag.dept !== dept) return;
+        e.preventDefault();
+        const r = e.currentTarget.getBoundingClientRect();
+        const target = e.clientY < r.top + r.height / 2 ? i : i + 1;
+        setHierDrop(prev => (prev && prev.dept === dept && prev.index === target) ? prev : { dept, index: target });
+      },
+      onDrop: (e) => { e.preventDefault(); onDrop(dept, members); },
+    } : {});
+
+    const staticNode = (u, cls = '') => (
       <div className={`cm-node ${cls}`} onClick={() => navigate(`/profile/${u?.id}`)}>
         <span className="cm-node-dot" style={{ background: statusColor(u?.status) }} />
         <Avatar user={u} className="cm-node-av" />
@@ -1281,23 +1321,49 @@ const CrewManagement = () => {
       </div>
     );
 
+    const memberEl = (u, i, dept, members) => {
+      const head = i === 0;
+      const dragging = hierDrag?.id === u.id;
+      const cls = `${head ? 'cm-node' : 'cm-mini'}${canEdit ? ' is-draggable' : ''}${dragging ? ' is-dragging' : ''}`;
+      return (
+        <React.Fragment key={u.id}>
+          {hierDrop?.dept === dept && hierDrop.index === i && <div className="cm-drop" />}
+          <div className={cls} {...dragProps(u, dept, i, members)} onClick={() => { if (!hierDrag) navigate(`/profile/${u.id}`); }}>
+            {head ? (
+              <>
+                <span className="cm-node-dot" style={{ background: statusColor(u.status) }} />
+                <Avatar user={u} className="cm-node-av" />
+                <div className="cm-node-nm">{u.fullName}</div>
+                <div className="cm-node-rl">{u.roleTitle}</div>
+              </>
+            ) : (
+              <>
+                <Avatar user={u} className="cm-mini-a" />
+                <div><div className="cm-mini-n">{u.fullName}</div><div className="cm-mini-r">{u.roleTitle}</div></div>
+                <span className="cm-mini-d" style={{ background: statusColor(u.status) }} />
+              </>
+            )}
+          </div>
+        </React.Fragment>
+      );
+    };
+
     return (
       <div className="cm-tree">
-        {isCaptain && (<>{node(isCaptain, 'captain')}<div className="cm-stem" /></>)}
+        {canEdit && <p className="cm-hier-hint"><Icon name="Move" size={12} /> Drag crew to reorder within a department — saved automatically</p>}
+        {isCaptain && (<>{staticNode(isCaptain, 'captain')}<div className="cm-stem" /></>)}
         <div className="cm-heads">
-          {branches.map(({ dept, head, reports }) => (
+          {branches.map(({ dept, members }) => (
             <div key={dept} className="cm-branch">
               {isCaptain && <div className="cm-branch-top" />}
-              {head && node(head)}
               <div className="cm-deptlabel">{dept === '—' ? 'Unassigned' : dept}</div>
-              <div className="cm-reports">
-                {reports.map((u) => (
-                  <div key={u?.id} className="cm-mini" onClick={() => navigate(`/profile/${u?.id}`)}>
-                    <Avatar user={u} className="cm-mini-a" />
-                    <div><div className="cm-mini-n">{u?.fullName}</div><div className="cm-mini-r">{u?.roleTitle}</div></div>
-                    <span className="cm-mini-d" style={{ background: statusColor(u?.status) }} />
-                  </div>
-                ))}
+              <div
+                className="cm-branch-list"
+                onDragOver={(e) => { if (canEdit && hierDrag?.dept === dept) e.preventDefault(); }}
+                onDrop={(e) => { if (canEdit) { e.preventDefault(); onDrop(dept, members); } }}
+              >
+                {members.map((u, i) => memberEl(u, i, dept, members))}
+                {hierDrop?.dept === dept && hierDrop.index === members.length && <div className="cm-drop" />}
               </div>
             </div>
           ))}
