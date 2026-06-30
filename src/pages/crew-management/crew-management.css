@@ -216,20 +216,40 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-li-rl { font-size: 10.5px; color: #6B7280; }
 .cm-li-dot { margin-left: auto; width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
 
-.cm-detail { padding: 28px 32px; overflow-y: auto; }
-.cm-dhead { display: flex; align-items: center; gap: 18px; padding-bottom: 20px; border-bottom: 1px solid #E6E8EF; }
-.cm-dph { width: 82px; height: 82px; border-radius: 999px; background: #EEF2F6; color: #C65A1A; font-family: 'DM Serif Display', serif; font-size: 28px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
-.cm-dname { font-family: 'DM Serif Display', serif; font-size: 28px; line-height: 1; color: #1C1B3A; }
-.cm-drole { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #C65A1A; margin-top: 7px; }
-.cm-dactions { margin-left: auto; display: flex; gap: 9px; }
-.cm-dgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 40px; margin-top: 6px; }
-.cm-drow { display: flex; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid #EEF1F5; }
-.cm-drow .k { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; white-space: nowrap; }
+.cm-detail { padding: 30px 34px 36px; overflow-y: auto; }
+.cm-dhead { display: flex; align-items: center; gap: 20px; }
+.cm-dph { width: 84px; height: 84px; border-radius: 999px; background: #EEF2F6; color: #C65A1A; font-family: 'DM Serif Display', serif; font-size: 28px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.cm-dident { min-width: 0; }
+.cm-dname { font-family: 'DM Serif Display', serif; font-size: 29px; line-height: 1; color: #1C1B3A; }
+.cm-drole { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #C65A1A; margin-top: 8px; }
+.cm-dstatus { margin-top: 12px; }
+.cm-dstatus:disabled { cursor: default; }
+.cm-dactions { margin-left: auto; display: flex; gap: 9px; align-self: flex-start; }
+
+/* KPI strip — serif figures separated by hairlines. */
+.cm-dkpis { display: flex; align-items: stretch; gap: 0; margin: 26px 0 8px; border-top: 1px solid #E6E8EF; border-bottom: 1px solid #E6E8EF; }
+.cm-dkpi { flex: 1; padding: 16px 18px; }
+.cm-dkpi + .cm-dkpi { border-left: 1px solid #EEF1F5; }
+.cm-dkpi b { font-family: 'DM Serif Display', serif; font-size: 22px; line-height: 1; color: #1C1B3A; display: block; }
+.cm-dkpi.warn b { color: #C65A1A; }
+.cm-dkpi span { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #94A3B8; margin-top: 8px; display: block; }
+
+/* Section header — tracked caps + hairline + optional link. */
+.cm-dsec { display: flex; align-items: center; gap: 12px; margin: 28px 0 4px; }
+.cm-dsec > span:first-child { font-size: 9px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: #6B7280; white-space: nowrap; }
+.cm-dsec-rule { flex: 1; height: 1px; background: #EEF1F5; }
+.cm-dsec-link { font: inherit; font-size: 11px; font-weight: 600; color: #C65A1A; background: none; border: 0; cursor: pointer; white-space: nowrap; }
+.cm-dsec-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+.cm-dgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 44px; }
+.cm-drow { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #EEF1F5; }
+.cm-drow .k { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #94A3B8; white-space: nowrap; align-self: center; }
 .cm-drow .v { font-size: 13.5px; font-weight: 500; color: #1C1B3A; text-align: right; }
 .cm-drow .v.warn { color: #C65A1A; }
-.cm-ddocs { margin-top: 22px; }
-.cm-ddocs h3 { font-family: 'DM Serif Display', serif; font-size: 17px; margin: 0 0 8px; color: #1C1B3A; }
-.cm-doc { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #EEF1F5; font-size: 13px; color: #1C1B3A; }
+.cm-dlink { color: #1C1B3A; text-decoration: none; border-bottom: 1px solid #E6E8EF; }
+.cm-dlink:hover { color: #C65A1A; border-color: #C65A1A; }
+.cm-ddocs { margin-top: 6px; }
+.cm-doc { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #EEF1F5; font-size: 13px; color: #1C1B3A; }
 .cm-doc .db { margin-left: auto; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .cm-doc .db.green { background: #EFF6F1; color: #2E7D55; }
 .cm-doc .db.amber { background: #FBF1E2; color: #B07A1B; }
