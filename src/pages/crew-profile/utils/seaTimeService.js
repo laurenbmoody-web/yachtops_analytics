@@ -157,6 +157,37 @@ export const fetchEntriesAcrossVessels = async (userId, pathId, configTenantId) 
   return (data || []).map(r => rowToEntry(r, pathId, config));
 };
 
+/**
+ * Derive a crew member's "guest-on days" (Yacht Purser CoC evidence): the
+ * distinct dates they were aboard (sea_service_entries) that fall inside a trip
+ * carrying at least one active guest (trips + trip_guests). Tenant-scoped.
+ * Returns { days, trips } (trips = guest-carrying trips found), or null on error.
+ */
+export const fetchGuestOnDays = async (tenantId, userId) => {
+  if (!supabase || !tenantId || !userId) return null;
+  try {
+    const { data: trips } = await supabase
+      .from('trips').select('id, start_date, end_date')
+      .eq('tenant_id', tenantId).eq('is_deleted', false)
+      .not('start_date', 'is', null).not('end_date', 'is', null);
+    if (!trips?.length) return { days: 0, trips: 0 };
+    const { data: tg } = await supabase
+      .from('trip_guests').select('trip_id')
+      .in('trip_id', trips.map(t => t.id)).eq('is_active_on_trip', true);
+    const guestTripIds = new Set((tg || []).map(r => r.trip_id));
+    const guestTrips = trips.filter(t => guestTripIds.has(t.id));
+    if (!guestTrips.length) return { days: 0, trips: 0 };
+    const { data: svc } = await supabase
+      .from(TABLE).select('entry_date').eq('tenant_id', tenantId).eq('user_id', userId);
+    const aboard = new Set((svc || []).map(r => String(r.entry_date)));
+    const guestOn = new Set();
+    for (const d of aboard) {
+      if (guestTrips.some(t => d >= String(t.start_date) && d <= String(t.end_date))) guestOn.add(d);
+    }
+    return { days: guestOn.size, trips: guestTrips.length };
+  } catch (e) { console.error('[seatime] guest-on days', e); return null; }
+};
+
 /** Calendar map { 'yyyy-mm-dd': entry } for a given month. */
 export const getMonthCalendarData = async (tenantId, userId, pathId, year, month) => {
   const config = await getConfig(tenantId);

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabase';
-import { fetchEntriesForUser, fetchEntriesAcrossVessels, addManualEntries, submitEntries, signEntries, syncFromVessel, fetchLeaveDaysInRange } from '../utils/seaTimeService';
+import { fetchEntriesForUser, fetchEntriesAcrossVessels, addManualEntries, submitEntries, signEntries, syncFromVessel, fetchLeaveDaysInRange, fetchGuestOnDays } from '../utils/seaTimeService';
 import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import SeaServiceCalendar from './SeaServiceCalendar';
 import { SHOW_SIGNOFF } from '../../../seatime/signoffFlag';
@@ -209,7 +209,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [company, setCompany] = useState({}); // vessel's company/shipowner contact (Nautilus Part 1)
   const [prior, setPrior] = useState(SEED_PRIOR);
   const [priorBaseline, setPriorBaseline] = useState(null); // raw {seagoing,watchkeeping,standby,yard,note}
-  const [guestOnDays, setGuestOnDays] = useState(null);     // Yacht Purser evidence — days with guests aboard
+  const [guestOnDays, setGuestOnDays] = useState(null);     // Yacht Purser evidence — manual override (days with guests aboard)
+  const [derivedGuest, setDerivedGuest] = useState(null);   // { days, trips } auto-derived from trips carrying guests
   const [priorOpen, setPriorOpen] = useState(false);
   const [priorDraft, setPriorDraft] = useState({ seagoing: '', watchkeeping: '', standby: '', yard: '', note: '' });
   // Certification journey: NoE -> oral exam -> CoC, with the MCA validity timers.
@@ -304,6 +305,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
       if (mapped) { setDeptId(mapped); setGoalId(goalForDept(mapped)); }
       if (isDualCapacityRole(data.role?.name || '')) setDualMode(true);
     })();
+    return () => { cancel = true; };
+  }, [userId, tenantId]);
+
+  // Derive guest-on days from trips that carry guests (Yacht Purser evidence).
+  useEffect(() => {
+    if (!userId || !tenantId) return;
+    let cancel = false;
+    fetchGuestOnDays(tenantId, userId).then(r => { if (!cancel && r) setDerivedGuest(r); }).catch(() => {});
     return () => { cancel = true; };
   }, [userId, tenantId]);
 
@@ -1165,19 +1174,31 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   ) : (
                     <div className="stp-sub" style={{ marginTop: 12 }}>No additional qualifying service required — may be applied for alongside the certificate above.</div>
                   )}
-                  {cert?.family === 'INTERIOR' && (
-                    <div className="stp-guest">
-                      <div className="stp-guest-main">
-                        <span className="mlabel rustlabel">Guest-on days</span>
-                        <span className="stp-guest-sub">Days with guests aboard (charters, shows, owner trips). Evidenced for your purser application by captain/company or charter records — not a fixed minimum.</span>
+                  {cert?.family === 'INTERIOR' && (() => {
+                    const derived = derivedGuest?.days ?? 0;
+                    const derivedTrips = derivedGuest?.trips ?? 0;
+                    const overridden = guestOnDays != null && guestOnDays !== derived;
+                    const shown = guestOnDays != null ? guestOnDays : derived;
+                    return (
+                      <div className="stp-guest">
+                        <div className="stp-guest-main">
+                          <span className="mlabel rustlabel">Guest-on days</span>
+                          <span className="stp-guest-sub">
+                            Days with guests aboard (charters, shows, owner trips).{' '}
+                            {derivedTrips > 0
+                              ? <>Auto-counted from <b>{derivedTrips} trip{derivedTrips === 1 ? '' : 's'}</b> carrying guests on your record{overridden ? <> — overridden (auto-count {derived})</> : ' — edit to override'}.</>
+                              : <>No guest-carrying trips on record yet — enter a verified total (captain/company or charter records).</>}
+                            {overridden && <> <button type="button" className="stp-guest-reset" onClick={() => saveGuestOnDays('')}>Use auto-count</button></>}
+                          </span>
+                        </div>
+                        <div className="stp-guest-field">
+                          <input type="number" min="0" className="stp-guest-input" key={`${guestOnDays ?? 'a'}-${derived}`} defaultValue={shown || ''} placeholder="0"
+                            onBlur={(e) => { const v = e.target.value; const n = v === '' ? 0 : Math.max(0, Math.round(+v) || 0); if (n === derived) { if (guestOnDays != null) saveGuestOnDays(''); } else if (n !== guestOnDays) saveGuestOnDays(String(n)); }} />
+                          <span className="stp-guest-unit">days</span>
+                        </div>
                       </div>
-                      <div className="stp-guest-field">
-                        <input type="number" min="0" className="stp-guest-input" defaultValue={guestOnDays ?? ''} key={guestOnDays ?? 'e'}
-                          placeholder="0" onBlur={(e) => { const v = e.target.value; if (String(v) !== String(guestOnDays ?? '')) saveGuestOnDays(v); }} />
-                        <span className="stp-guest-unit">days</span>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                   {r.asOfficer && (
                     <div className="stp-whilst">
                       <Icon name="Info" size={13} />

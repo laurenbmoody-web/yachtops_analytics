@@ -528,6 +528,7 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-guest-input{width:84px;font-family:inherit;font-size:18px;font-weight:600;color:var(--ink);text-align:right;border:1px solid #E8E6DF;border-radius:9px;padding:7px 10px;background:#fff;}
 .stp-guest-input:focus{outline:none;border-color:#C65A1A;box-shadow:0 0 0 3px #FAECE7;}
 .stp-guest-unit{font-size:12px;color:var(--muted);}
+.stp-guest-reset{font-family:inherit;font-size:11px;font-weight:600;color:var(--rust);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;}
 /* provisional / advisory — never present an unverified threshold as fact */
 .stp-provisional{margin-top:8px;font-size:11.5px;line-height:1.5;color:#A6712C;background:#FBF3E8;border:1px solid #EFD9B8;border-radius:8px;padding:8px 10px;}
 .stp-req.advisory{opacity:.78;}
