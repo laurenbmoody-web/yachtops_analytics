@@ -35,6 +35,7 @@ export const SEED_SEAFARER = {
   rankLine: 'Captain · Bridge · Command',
   dob: '1992-10-03',
   nationality: 'British',
+  passportNo: '561204827',
   dischargeBookNo: 'GBR-DB-208841',
   cocHeld: 'Master (Yachts) <500GT',
   periodFrom: '2026-01-04',

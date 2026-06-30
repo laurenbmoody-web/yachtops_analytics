@@ -30,12 +30,15 @@ const fit = (font, text, size, maxW) => {
 
 /**
  * @param {Object} p
- * @param {Object} p.seafarer { fullName, idNo? }
- * @param {Object} p.vessel   { name, type, flag, officialNo?, loaM?, maxPax? }
- * @param {Array}  p.rows     [{ from, to, capacity }]
+ * @param {Object} p.seafarer  { fullName, idNo? }  idNo = passport / ID number
+ * @param {Object} p.vessel    { name, type, flag, officialNo?, loaM?, maxPax? }
+ * @param {Array}  p.rows      [{ from, to, capacity }]
+ * @param {Object} [p.signatory] { name, position }  the master who endorses (name
+ *   in full + "Master"); blank when the company signs (own service as master)
+ * @param {Object} [p.company]   { name }  named only when there's no master signatory
  * @returns {Uint8Array}
  */
-export const buildTransportMaltaSST = async ({ seafarer = {}, vessel = {}, rows = [] }) => {
+export const buildTransportMaltaSST = async ({ seafarer = {}, vessel = {}, rows = [], signatory = {}, company = {} }) => {
   const res = await fetch(TEMPLATE_URL);
   if (!res.ok) throw new Error(`Transport Malta template not found (${res.status})`);
   const bytes = await res.arrayBuffer();
@@ -74,6 +77,15 @@ export const buildTransportMaltaSST = async ({ seafarer = {}, vessel = {}, rows 
     draw(pax, 450, y, 8.5, 72);
     y -= ROW;
   }
+
+  // Endorsement block — the master who signs. "Name in full" + "Master" (the
+  // signature/date stay blank for them). When the company signs instead (the
+  // crew's own master service), the position is left blank and the company is
+  // named underneath. Label baselines: Name in full y≈200.8, position y≈176.7,
+  // company y≈152.5; values sit just above each dotted line, after the labels.
+  draw(signatory.name, 288, 204, 9, 248);
+  draw(signatory.position, 288, 180, 9, 105);
+  draw(company.name, 288, 156, 9, 248);
 
   return new Uint8Array(await pdf.save());
 };
