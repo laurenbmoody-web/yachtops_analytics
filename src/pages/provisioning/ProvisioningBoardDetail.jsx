@@ -2302,7 +2302,23 @@ const ProvisioningBoardDetail = () => {
   // quote_received (re-submission after the supplier's quote landed).
   // Pending-approval boards show their review chip instead.
   const isQuoteReceived = list?.status === PROVISIONING_STATUS.QUOTE_RECEIVED;
-  const canSubmitForApproval = list?.status === PROVISIONING_STATUS.DRAFT || isQuoteReceived;
+  // A manually-uploaded quote (PDF attached) puts the board into the
+  // same "decide on the quote" stage as a Cargo-supplier quote_received —
+  // so Submit-for-approval / Confirm-quote should surface once a quote is
+  // attached, regardless of how it arrived. Excluded once the board has
+  // moved past the decision (pending approval, or any delivered state).
+  const DELIVERED_STATES = [
+    PROVISIONING_STATUS.PARTIALLY_DELIVERED,
+    PROVISIONING_STATUS.DELIVERED,
+    PROVISIONING_STATUS.DELIVERED_WITH_DISCREPANCIES,
+  ];
+  const hasManualQuote = !!list?.quote_file_url;
+  const manualQuoteStage = hasManualQuote
+    && list?.status !== PROVISIONING_STATUS.PENDING_APPROVAL
+    && !DELIVERED_STATES.includes(list?.status);
+  // The board is awaiting a quote decision (Cargo-supplier OR manual).
+  const quoteDecisionStage = isQuoteReceived || manualQuoteStage;
+  const canSubmitForApproval = list?.status === PROVISIONING_STATUS.DRAFT || quoteDecisionStage;
 
   // "Note from supplier" chip state. seenAt = ISO timestamp this
   // user last clicked the chip (or null = never). The chip pulses
@@ -2476,7 +2492,7 @@ const ProvisioningBoardDetail = () => {
   // button from everyone.
   const [confirmQuoteAllowed, setConfirmQuoteAllowed] = useState(false);
   useEffect(() => {
-    if (!isQuoteReceived || !activeTenantId || !user?.id) {
+    if (!quoteDecisionStage || !activeTenantId || !user?.id) {
       setConfirmQuoteAllowed(false);
       return undefined;
     }
@@ -2485,7 +2501,7 @@ const ProvisioningBoardDetail = () => {
       .then((requires) => { if (!cancelled) setConfirmQuoteAllowed(!requires); })
       .catch(() => { if (!cancelled) setConfirmQuoteAllowed(false); });
     return () => { cancelled = true; };
-  }, [isQuoteReceived, activeTenantId, user?.id]);
+  }, [quoteDecisionStage, activeTenantId, user?.id]);
 
   // Confirm-quote handler (no-approver path). Same flow as the
   // approver-approve branch above; we just skip the approval-request
@@ -2503,11 +2519,23 @@ const ProvisioningBoardDetail = () => {
     setConfirmingQuote(true);
     try {
       const result = await approveAllQuotes(id);
-      const nextStatus = result?.listFullyConfirmed
+      let nextStatus = result?.listFullyConfirmed
         ? 'confirmed'
         : (result?.affectedItems > 0
             ? 'partially_confirmed'
             : list?.status);
+      // Manual quote (uploaded PDF, no Cargo supplier_order to confirm):
+      // approveAllQuotes had nothing to act on, so set the board
+      // confirmed directly — otherwise "Confirm quote" wouldn't change
+      // the status at all.
+      if ((!result || !result.affectedItems) && hasManualQuote && nextStatus !== 'confirmed') {
+        try {
+          await updateProvisioningList(id, { status: 'confirmed' });
+          nextStatus = 'confirmed';
+        } catch (e) {
+          console.error('[ProvisioningBoardDetail] manual confirm status update failed:', e);
+        }
+      }
       setList(prev => ({ ...prev, status: nextStatus }));
       // Tell the kanban (and any other surface that lists this
       // board) to refresh — otherwise the chief navigates back to
@@ -2773,7 +2801,7 @@ const ProvisioningBoardDetail = () => {
                   // as their own approver via "Confirm quote" —
                   // fires the same approveAllQuotes flow without
                   // going through the request-decide cycle.
-                  isQuoteReceived && confirmQuoteAllowed ? (
+                  quoteDecisionStage && confirmQuoteAllowed ? (
                     <button
                       type="button"
                       onClick={handleConfirmQuoteWithoutApprover}
@@ -2789,12 +2817,12 @@ const ProvisioningBoardDetail = () => {
                       type="button"
                       onClick={handleSubmitForApproval}
                       className="cargo-ribbon-btn"
-                      title={isQuoteReceived
-                        ? 'Supplier quote in — re-submit for approval at the quoted prices'
+                      title={quoteDecisionStage
+                        ? 'Quote attached — submit for approval at the quoted prices'
                         : undefined}
                     >
                       <Icon name="Send" style={{ width: 13, height: 13 }} />
-                      {isQuoteReceived ? 'Re-submit for approval' : 'Submit for Approval'}
+                      {quoteDecisionStage ? 'Submit quote for approval' : 'Submit for Approval'}
                     </button>
                   )
                 )}
