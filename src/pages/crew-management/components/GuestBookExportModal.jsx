@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
-import { fetchGuestBookEntries, exportGuestBookPDF, exportGuestBookDOCX, adaptTemplateFromImage, fetchVesselBrand, loadLogoForPdf, loadAvatarForPdf, autoPerPage } from '../utils/guestBookExport';
+import { fetchGuestBookEntries, exportGuestBookPDF, buildGuestBookPDF, exportGuestBookDOCX, adaptTemplateFromImage, fetchVesselBrand, loadLogoForPdf, loadAvatarForPdf, autoPerPage } from '../utils/guestBookExport';
 import './guest-book-export.css';
 
 const TEMPLATES = [
@@ -26,7 +26,10 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
   const [docxBusy, setDocxBusy] = useState(false);
   const [includeMissing, setIncludeMissing] = useState(false);
   const [title, setTitle] = useState(vesselName);
+  const [showTitle, setShowTitle] = useState(true);
   const [subtitle, setSubtitle] = useState('Your crew');
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [previewPage, setPreviewPage] = useState(1);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiNote, setAiNote] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -60,6 +63,25 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
+  // Live preview IS the real PDF — build it (debounced) and show it in an
+  // iframe, so the preview can never drift from the export.
+  useEffect(() => {
+    if (!open || loading) return undefined;
+    const ordered = order.map((i) => entries[i]).filter(Boolean);
+    const vis = includeMissing ? ordered : ordered.filter((e) => e.hasStatement);
+    if (!vis.length) { setPdfUrl((old) => { if (old) URL.revokeObjectURL(old); return ''; }); return undefined; }
+    const t = setTimeout(() => {
+      try {
+        const { doc } = buildGuestBookPDF({ title, subtitle, entries: vis, template, orientation, perPage, minFont, includeMissing, logo, avatars, valign, showTitle });
+        if (doc) setPdfUrl((old) => { if (old) URL.revokeObjectURL(old); return String(doc.output('bloburl')); });
+      } catch { /* ignore transient build errors while typing */ }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [open, loading, entries, order, includeMissing, template, orientation, perPage, minFont, title, subtitle, logo, avatars, valign, showTitle]);
+
+  // Revoke the preview blob URL when the modal unmounts.
+  useEffect(() => () => { setPdfUrl((old) => { if (old) URL.revokeObjectURL(old); return ''; }); }, []);
+
   if (!open) return null;
 
   const pickTemplate = (t) => { setTemplate(t.key); setPerPage(t.per); };
@@ -80,18 +102,14 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
   const orderedEntries = order.map((i) => entries[i]).filter(Boolean);
   const visible = includeMissing ? orderedEntries : orderedEntries.filter((e) => e.hasStatement);
   const missingCount = orderedEntries.length - orderedEntries.filter((e) => e.hasStatement).length;
-  // Same auto logic the PDF uses, so the preview count matches the export.
+  // Same auto logic the PDF uses, so the page count matches the export.
   const perResolved = perPage === 'auto' ? autoPerPage(visible, orientation) : Number(perPage);
-  // One full-width strip per row — mirrors the generator.
-  const rowCount = Math.max(1, perResolved);
   const totalPages = Math.max(1, Math.ceil(visible.length / perResolved));
-  // Rough lines of statement that fit a strip at this density — keeps the
-  // preview's truncation honest with the export (which fits-then-truncates).
-  const bioLines = Math.max(3, Math.round((orientation === 'landscape' ? 16 : 30) / perResolved));
+  const safePage = Math.min(Math.max(1, previewPage), totalPages);
 
   const doExport = () => {
     const res = exportGuestBookPDF({
-      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing, logo, avatars, valign,
+      title, subtitle, entries: visible, template, orientation, perPage, minFont, includeMissing, logo, avatars, valign, showTitle,
     });
     if (!res.count) { showToast('No statements to export yet', 'error'); return; }
     showToast(`Guest book exported — ${res.count} crew across ${res.pages} page${res.pages === 1 ? '' : 's'}`, 'success');
@@ -101,7 +119,7 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
     if (!visible.length) return;
     setDocxBusy(true);
     try {
-      const res = await exportGuestBookDOCX({ title, subtitle, entries: visible, includeMissing, logo, avatars });
+      const res = await exportGuestBookDOCX({ title, subtitle, entries: visible, includeMissing, logo, avatars, showTitle });
       if (!res.count) { showToast('No statements to export yet', 'error'); return; }
       showToast(`Word document exported — ${res.count} crew`, 'success');
     } catch (e) {
@@ -133,11 +151,9 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
     } finally { setAiBusy(false); if (fileRef.current) fileRef.current.value = ''; }
   };
 
-  const dark = template === 'editorial';
-
   return createPortal(
     <div className="gbx-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="gbx-panel" role="dialog" aria-modal="true">
+      <div className={`gbx-panel${orientation === 'landscape' ? ' landscape' : ''}`} role="dialog" aria-modal="true">
         <header className="gbx-head">
           <div>
             <div className="gbx-eyebrow">Guest information book</div>
@@ -149,7 +165,7 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
         {loading ? (
           <div className="gbx-loading"><LogoSpinner size={30} /></div>
         ) : (
-          <div className="gbx-body">
+          <div className={`gbx-body${orientation === 'landscape' ? ' landscape' : ''}`}>
             {/* ------- controls ------- */}
             <div className="gbx-controls">
               <section>
@@ -232,46 +248,31 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
                   <input type="range" min="8" max="13" value={minFont} onChange={(e) => setMinFont(Number(e.target.value))} />
                 </div>
                 <div className="gbx-titles">
-                  <label><span>Document title</span><input value={title} onChange={(e) => setTitle(e.target.value)} /></label>
+                  <label>
+                    <span className="gbx-title-row">Document title
+                      <button type="button" className={`gbx-toggle${showTitle ? ' on' : ''}`} onClick={() => setShowTitle((v) => !v)}>{showTitle ? 'Shown' : 'Hidden'}</button>
+                    </span>
+                    <input value={title} onChange={(e) => setTitle(e.target.value)} disabled={!showTitle} placeholder={showTitle ? '' : 'Hidden — logo only'} />
+                  </label>
                   <label><span>Subtitle</span><input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} /></label>
                 </div>
               </section>
             </div>
 
-            {/* ------- live preview ------- */}
+            {/* ------- live preview — the actual exported PDF, so WYSIWYG ------- */}
             <div className="gbx-preview-wrap">
               <div className="gbx-preview-top">
                 <span className="gbx-lbl" style={{ margin: 0 }}>Live preview</span>
-                <span className="gbx-pg">Page 1 of {totalPages}</span>
+                <div className="gbx-pager">
+                  <button type="button" disabled={safePage <= 1} onClick={() => setPreviewPage(safePage - 1)} aria-label="Previous page"><Icon name="ChevronLeft" size={15} /></button>
+                  <span className="gbx-pg">Page {safePage} of {totalPages}</span>
+                  <button type="button" disabled={safePage >= totalPages} onClick={() => setPreviewPage(safePage + 1)} aria-label="Next page"><Icon name="ChevronRight" size={15} /></button>
+                </div>
               </div>
-              <div className={`gbx-page ${orientation}${dark ? ' dark' : ''}`}>
-                <div className="gbx-page-h">
-                  {logoUrl && <img className="gbx-logo" src={logoUrl} alt="" />}
-                  <div className="t">{title || 'Our crew'}</div>
-                  {subtitle && <div className="s">{subtitle}</div>}
-                </div>
-                <div className={`gbx-cards tpl-${template} va-${valign}`} style={{ '--cols': 1, '--rows': rowCount, '--bio-lines': bioLines }}>
-                  {visible.slice(0, perResolved).map((en, i) => {
-                    const fs = Math.max(minFont, Math.min(13, 13 - (en.words - 30) * (13 - minFont) / 70));
-                    const flip = template === 'classic' && i % 2 === 1;
-                    return (
-                      <div className={`gbx-card${flip ? ' flip' : ''}`} key={en.userId}>
-                        {en.photo
-                          ? <img className="gbx-pic gbx-pic-img" src={en.photo} alt="" />
-                          : <span className="gbx-pic">{initials(en.name)}</span>}
-                        <div className="gbx-card-body">
-                          <div className="nm">{en.name}</div>
-                          {en.role && <div className="rl">{en.role}</div>}
-                          <div className="bio" style={{ fontSize: `${(fs / 13 * 11).toFixed(1)}px` }}>
-                            {en.statement || (includeMissing ? '—' : '')}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {!visible.length && <div className="gbx-empty">No statements to show yet.</div>}
-                </div>
-                <div className="gbx-page-foot">{(title || 'Our crew')} · Guest information</div>
+              <div className={`gbx-pdfwrap ${orientation}`}>
+                {pdfUrl
+                  ? <iframe title="Guest book preview" className="gbx-pdf" src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&view=Fit&page=${safePage}`} />
+                  : <div className="gbx-empty">{visible.length ? 'Building preview…' : 'No statements to show yet.'}</div>}
               </div>
             </div>
           </div>

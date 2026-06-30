@@ -221,13 +221,13 @@ const drawCard = (doc, x, y, w, h, entry, template, minFont, idx = 0, avatar = n
  * Render the guest book to a PDF and trigger a download.
  * opts: { title, subtitle, entries (ordered), template, orientation, perPage, minFont, includeMissing }
  */
-export const exportGuestBookPDF = ({
+export const buildGuestBookPDF = ({
   title = 'Our crew', subtitle = '', entries = [],
   template = 'classic', orientation = 'portrait', perPage = 3, minFont = 9,
-  includeMissing = false, logo = null, avatars = {}, valign = 'center',
+  includeMissing = false, logo = null, avatars = {}, valign = 'center', showTitle = true,
 }) => {
   const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
-  if (!list.length) return { pages: 0, count: 0 };
+  if (!list.length) return { doc: null, pages: 0, count: 0 };
 
   const dark = template === 'editorial';
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: orientation === 'landscape' ? 'landscape' : 'portrait' });
@@ -259,10 +259,12 @@ export const exportGuestBookPDF = ({
       try { doc.addImage(logo.dataUrl, 'PNG', pageW / 2 - logoW / 2, hy, logoW, logoH); } catch { /* skip */ }
       hy += logoH + 3;
     }
-    doc.setTextColor(...(dark ? PAPER : NAVY));
-    doc.setFont('times', 'normal'); doc.setFontSize(20);
-    doc.text(title, pageW / 2, hy + 6, { align: 'center' });
-    hy += 8;
+    if (showTitle && title) {
+      doc.setTextColor(...(dark ? PAPER : NAVY));
+      doc.setFont('times', 'normal'); doc.setFontSize(20);
+      doc.text(title, pageW / 2, hy + 6, { align: 'center' });
+      hy += 8;
+    }
     if (subtitle) {
       doc.setTextColor(...(dark ? DARK_ACCENT : MUTED));
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
@@ -297,9 +299,16 @@ export const exportGuestBookPDF = ({
     doc.text(`${pIdx + 1} / ${pages.length}`, pageW - M, pageH - 7, { align: 'right' });
   });
 
-  const safe = String(title || 'crew').replace(/[^\w]+/g, '-');
+  return { doc, pages: pages.length, count: list.length };
+};
+
+/** Build + download the guest-book PDF. */
+export const exportGuestBookPDF = (opts) => {
+  const { doc, pages, count } = buildGuestBookPDF(opts);
+  if (!doc || !count) return { pages: 0, count: 0 };
+  const safe = String(opts.title || 'crew').replace(/[^\w]+/g, '-');
   doc.save(`Guest-book-${safe}.pdf`);
-  return { pages: pages.length, count: list.length };
+  return { pages, count };
 };
 
 // ---- Word (.docx) export --------------------------------------------------
@@ -316,7 +325,7 @@ const NO_BORDERS = ['top', 'bottom', 'left', 'right', 'insideHorizontal', 'insid
   .reduce((o, k) => { o[k] = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }; return o; }, {});
 
 export const exportGuestBookDOCX = async ({
-  title = 'Our crew', subtitle = '', entries = [], includeMissing = false, logo = null, avatars = {},
+  title = 'Our crew', subtitle = '', entries = [], includeMissing = false, logo = null, avatars = {}, showTitle = true,
 }) => {
   const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
   if (!list.length) return { count: 0 };
@@ -329,10 +338,12 @@ export const exportGuestBookDOCX = async ({
       children: [new ImageRun({ data: dataUrlToBytes(logo.dataUrl), transformation: { width: w, height: h } })],
     }));
   }
-  head.push(new Paragraph({
-    alignment: AlignmentType.CENTER, spacing: { after: subtitle ? 40 : 200 },
-    children: [new TextRun({ text: title, bold: true, size: 40, font: 'Georgia', color: '1C1B3A' })],
-  }));
+  if (showTitle && title) {
+    head.push(new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: { after: subtitle ? 40 : 200 },
+      children: [new TextRun({ text: title, bold: true, size: 40, font: 'Georgia', color: '1C1B3A' })],
+    }));
+  }
   if (subtitle) {
     head.push(new Paragraph({
       alignment: AlignmentType.CENTER, spacing: { after: 220 },
