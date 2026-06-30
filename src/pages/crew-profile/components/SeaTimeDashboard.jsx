@@ -7,7 +7,7 @@ import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import SeaServiceCalendar from './SeaServiceCalendar';
 import { SHOW_SIGNOFF } from '../../../seatime/signoffFlag';
 import {
-  DEFAULT_CONFIG, TYPE_META, SOURCE_META, VERIFIER_PROFILES, MCA_APPLICATION_DOCS,
+  DEFAULT_CONFIG, TYPE_META, SOURCE_META, VERIFIER_PROFILES,
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
@@ -172,6 +172,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
   const [dualMode, setDualMode] = useState(false);   // dual deck+engine: 50% credit
   const dualRate = dualMode ? DUAL_CAPACITY_RATE : 1;
   const [coursesOpen, setCoursesOpen] = useState(false);  // courses & tickets section
+  const [appTipsOpen, setAppTipsOpen] = useState(false);  // MCA-application tips checklist (dossier foot)
   const [goalId, setGoalId] = useState(DEFAULT_GOAL.DECK); // '' == logging-only
   const [heldCerts, setHeldCerts] = useState({});          // certId -> { issueDate, number, fileUrl, fileName, docId }
   const [docsOnFile, setDocsOnFile] = useState({});        // doc_type -> { fileUrl, fileName, docId } from the profile
@@ -465,6 +466,27 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
     return out;
   }, [docMet, verifier, docsOnFile]);
   const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet: docMetEffective, cert, buckets }), [entries, vessels, config, signatory, verifier, docMetEffective, cert, buckets]);
+  // Cert-specific MCA CoC-application checklist — the bundle the crew sends AFTER
+  // the testimonial is verified. Live state where we can detect it (testimonial
+  // ready, NoE/oral from the journey, ENG1 from Documents, course count from the
+  // ancillary list); 'todo' otherwise. Shown as a collapsible tip, not mixed
+  // into the verification docs.
+  const appChecklist = useMemo(() => {
+    if (!cert) return [];
+    const j = journey || JOURNEY_DEFAULT;
+    const noeIssued = !!j.noe?.issueDate || j.noe?.status === 'issued';
+    const oralPassed = !!j.oral?.passDate || j.oral?.status === 'passed';
+    const hasEng1 = !!docsOnFile?.eng1?.fileUrl;
+    const coursesState = !ancillary.length ? 'na' : (ancillaryDone === ancillary.length ? 'done' : ancillaryDone > 0 ? 'pending' : 'todo');
+    return [
+      { key: 'test', label: 'Verified Sea Service Testimonial (+ your SRB)', detail: canGenerate ? 'Ready to export above' : 'Clear steps 01–02 first', state: canGenerate ? 'done' : 'todo' },
+      { key: 'noe', label: 'Notice of Eligibility (NoE)', detail: noeIssued ? 'On record' : 'Apply via the Certification journey', state: noeIssued ? 'done' : 'todo' },
+      { key: 'oral', label: 'Oral exam pass (valid 3 years)', detail: oralPassed ? 'Passed' : 'Booked once your NoE is issued', state: oralPassed ? 'done' : 'todo' },
+      { key: 'eng1', label: 'Valid ENG1 medical', detail: hasEng1 ? 'On file' : 'Add to your Documents', state: hasEng1 ? 'done' : 'todo' },
+      { key: 'photos', label: 'Two passport-size photographs', detail: '', state: 'todo' },
+      { key: 'courses', label: `STCW & ancillary certificates for ${cert.short}`, detail: ancillary.length ? `${ancillaryDone} of ${ancillary.length} on file — see Courses & tickets` : 'None additional for this route', state: coursesState },
+    ];
+  }, [cert, journey, docsOnFile, ancillary, ancillaryDone, canGenerate]);
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
@@ -1589,13 +1611,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
                   })}
                 </div>
                 <div className="std-fee">{vp.fee}</div>
-                {/* The verifier only confirms identity + the testimonial; the full
-                    cert bundle goes to the MCA AFTER verification — name it so the
-                    crew isn't surprised, without re-collecting it here. */}
-                <div className="std-appnote">
-                  <span className="std-appnote-h">Then, for your MCA CoC application</span>
-                  <span>After {vp.short} verify your service, the MCA also needs: {MCA_APPLICATION_DOCS.join('; ')}. Your course certificates are tracked in <b>Courses &amp; tickets</b>, and your NoE &amp; oral in the <b>Certification journey</b>.</span>
-                </div>
               </div>
             </div>
 
@@ -1733,6 +1748,39 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, can
               </div>
             )}
           </div>
+
+          {/* Tip — the onward MCA CoC-application bundle, cert-specific. Kept out
+              of the verification flow above (the verifier only needs ID + the
+              testimonial); collapsed by default. */}
+          {!SHOW_SIGNOFF && cert && (
+            <div className="std-apptips">
+              <button type="button" className="std-apptips-head" aria-expanded={appTipsOpen} onClick={() => setAppTipsOpen(o => !o)}>
+                <span className="mlabel rustlabel">After verification · applying for the CoC</span>
+                <span className="std-apptips-right">
+                  <span className="t">{cert.short} — what the MCA needs next</span>
+                  <Icon name="ChevronDown" size={16} style={{ transform: appTipsOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+                </span>
+              </button>
+              {appTipsOpen && (
+                <div className="std-apptips-body">
+                  <div className="std-apptips-sub">Getting your testimonial verified is just the first step — it’s the evidence of sea service. To apply for the <b>{cert.short}</b> itself, the MCA also needs:</div>
+                  <div className="std-appchecks">
+                    {appChecklist.map(item => {
+                      const ic = item.state === 'done' ? 'Check' : item.state === 'pending' ? 'Clock' : item.state === 'na' ? 'Minus' : 'Circle';
+                      const col = item.state === 'done' ? '#5E8E6F' : item.state === 'pending' ? '#A6712C' : '#AEB4C2';
+                      return (
+                        <div className={`std-appcheck ${item.state}`} key={item.key}>
+                          <span className="mk" style={{ color: col }}><Icon name={ic} size={14} /></span>
+                          <div><div className="l">{item.label}</div>{item.detail && <div className="d">{item.detail}</div>}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="std-apptips-foot">Your course certificates are tracked in <b>Courses &amp; tickets</b>; your NoE, oral and CoC in the <b>Certification journey</b>. Confirm the exact list for your route with your training provider.</div>
+                </div>
+              )}
+            </div>
+          )}
 
           {SHOW_SIGNOFF && (
           <div className="std-issue">
