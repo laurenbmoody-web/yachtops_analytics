@@ -151,7 +151,7 @@ const GuestBookExportModal = ({ open, onClose, tenantId, crew = [], vesselName =
     if (!visible.length) return;
     setDocxBusy(true);
     try {
-      const res = await exportGuestBookDOCX({ title, subtitle, entries: visible, orientation, perPage: perResolved, includeMissing, logo, avatars, showTitle, headingColor, accentColor, titleSize, subtitleSize });
+      const res = await exportGuestBookDOCX({ title, subtitle, entries: visible, orientation, perPage: perResolved, minFont, includeMissing, logo, avatars, showTitle, headingColor, accentColor, titleSize, subtitleSize });
       if (!res.count) { showToast('No statements to export yet', 'error'); return; }
       showToast(`Word document exported — ${res.count} crew`, 'success');
     } catch (e) {

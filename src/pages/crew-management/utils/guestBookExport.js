@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import {
   Document, Packer, Paragraph, TextRun, ImageRun,
   Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, VerticalAlign,
-  PageOrientation, PageBreak,
+  PageOrientation, PageBreak, HeightRule,
 } from 'docx';
 import { supabase } from '../../../lib/supabaseClient';
 
@@ -333,7 +333,7 @@ const NO_BORDERS = ['top', 'bottom', 'left', 'right', 'insideHorizontal', 'insid
 export const exportGuestBookDOCX = async ({
   title = 'Our crew', subtitle = '', entries = [], includeMissing = false, logo = null, avatars = {}, showTitle = true,
   headingColor = '#1C1B3A', accentColor = '#C65A1A', titleSize = 20, subtitleSize = 8,
-  orientation = 'portrait', perPage = 3,
+  orientation = 'portrait', perPage = 3, minFont = 9,
 }) => {
   const list = includeMissing ? entries : entries.filter((e) => e.hasStatement);
   if (!list.length) return { count: 0 };
@@ -361,46 +361,63 @@ export const exportGuestBookDOCX = async ({
     }));
   }
 
-  // One borderless 2-column row per crew member: photo cell + text cell.
-  const personTable = (e) => {
+  const per = Math.max(1, Number(perPage) || 3);
+  const landscape = orientation === 'landscape';
+
+  // Usable page height in twips (A4 minus 720 top/bottom margins), and a rough
+  // header allowance so page 1's first row doesn't get squeezed.
+  const usableH = landscape ? 10470 : 15400;
+  const headerH = (logo?.dataUrl ? 1300 : 0) + (showTitle && title ? 760 : 0) + (subtitle ? 520 : 0);
+
+  // Density scale — fewer crew per page → larger photo & type and more breathing
+  // room; more per page → tighter. Keeps each block proportional to its share.
+  const fit = per <= 2 ? 1.22 : per === 3 ? 1.06 : per === 4 ? 0.94 : 0.84;
+  const photoPx = Math.round((landscape ? 66 : 78) * fit);
+  const nameSz = Math.round(26 * fit);              // half-points
+  const roleSz = Math.round(15 * Math.max(0.88, fit));
+  const bodySz = Math.max(16, Math.round((Number(minFont) || 9) * 2 * Math.max(0.9, Math.min(1.18, fit))));
+
+  // One row = one crew member; photo cell + text cell, vertically centred. Row
+  // height is the page's even share so the crew fill the page top-to-bottom.
+  const personRow = (e, rowH) => {
     const avatar = avatars[e.userId];
     const photoChildren = avatar
-      ? [new ImageRun({ data: dataUrlToBytes(avatar), transformation: { width: 76, height: 76 } })]
-      : [new TextRun({ text: initials(e.name), bold: true, size: 30, color: 'A08E7D' })];
+      ? [new ImageRun({ data: dataUrlToBytes(avatar), transformation: { width: photoPx, height: photoPx } })]
+      : [new TextRun({ text: initials(e.name), bold: true, size: Math.round(photoPx * 0.4), color: 'A08E7D' })];
     const textChildren = [
-      new Paragraph({ spacing: { after: 20 }, children: [new TextRun({ text: e.name, bold: true, size: 26, font: 'Georgia', color: headHex })] }),
+      new Paragraph({ spacing: { after: 20 }, children: [new TextRun({ text: e.name, bold: true, size: nameSz, font: 'Georgia', color: headHex })] }),
     ];
     if (e.role) {
-      textChildren.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: e.role.toUpperCase(), size: 15, color: accHex, characterSpacing: 20 })] }));
+      textChildren.push(new Paragraph({ spacing: { after: 90 }, children: [new TextRun({ text: e.role.toUpperCase(), size: roleSz, color: accHex, characterSpacing: 20 })] }));
     }
-    textChildren.push(new Paragraph({ children: [new TextRun({ text: e.statement || '—', size: 20, color: '4B4A5E' })] }));
-    return new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      borders: NO_BORDERS,
-      rows: [new TableRow({
-        children: [
-          new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: photoChildren })] }),
-          new TableCell({ width: { size: 84, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, verticalAlign: VerticalAlign.CENTER, children: textChildren }),
-        ],
-      })],
+    textChildren.push(new Paragraph({ children: [new TextRun({ text: e.statement || '—', size: bodySz, color: '4B4A5E' })] }));
+    return new TableRow({
+      height: { value: rowH, rule: HeightRule.ATLEAST },
+      children: [
+        new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, margins: { top: 80, bottom: 80, left: 60, right: 120 }, borders: NO_BORDERS, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: photoChildren })] }),
+        new TableCell({ width: { size: 84, type: WidthType.PERCENTAGE }, margins: { top: 80, bottom: 80 }, borders: NO_BORDERS, verticalAlign: VerticalAlign.CENTER, children: textChildren }),
+      ],
     });
   };
 
-  const per = Math.max(1, Number(perPage) || 3);
-  const body = [];
-  list.forEach((e, i) => {
-    if (i > 0) {
-      if (i % per === 0) {
-        // New page every `per` crew — mirrors the PDF pagination.
-        body.push(new Paragraph({ children: [new PageBreak()] }));
-      } else {
-        body.push(new Paragraph({ spacing: { before: 200, after: 200 }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: 'ECEAE3' } }, children: [] }));
-      }
-    }
-    body.push(personTable(e));
-  });
+  // Hairline rule between crew on a page; nothing on the outside edges.
+  const hair = { style: BorderStyle.SINGLE, size: 4, color: 'ECEAE3' };
+  const none = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+  const tableBorders = { top: none, bottom: none, left: none, right: none, insideVertical: none, insideHorizontal: hair };
 
-  const landscape = orientation === 'landscape';
+  const body = [];
+  for (let p = 0; p * per < list.length; p += 1) {
+    const group = list.slice(p * per, p * per + per);
+    if (p > 0) body.push(new Paragraph({ children: [new PageBreak()] }));
+    // Spread the page's usable height across `per` slots (page 1 loses the header).
+    const slotH = Math.max(900, Math.floor(((p === 0 ? usableH - headerH : usableH) ) / per));
+    body.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: tableBorders,
+      rows: group.map((e) => personRow(e, slotH)),
+    }));
+  }
+
   const doc = new Document({
     sections: [{
       properties: {
