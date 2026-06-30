@@ -1,25 +1,20 @@
-// Sea Time Tracker — MCA qualifying-service thresholds, departments, roles and
-// certificates. Figures extracted from the live notices:
-//   DECK   — MSN 1858 (M) Amendment 2  (Deck Officers on Large Yachts 24m+)  IN FORCE
-//   ENGINE — MSN 1859 (M+F)            (Yacht Engineer certification)        WITHDRAWN
+// Sea Time Tracker — qualifying-service thresholds, departments, roles and
+// certificates. Figures verified against the live notices (primary PDFs):
+//   DECK     — MSN 1858 (M) Amendment 2  (Deck Officers on Large Yachts 24m+)   IN FORCE
+//   ENGINE   — MSN 1904 (Engineer Officer Small Vessel CoC, "Limited to Yachts") IN FORCE
+//              (replaced the withdrawn MSN 1859 Y-grade ladder + MIN 524/594)
+//   ETO      — MSN 1860 (M) Amendment 1  (Electro-Technical Officer, STCW III/6) IN FORCE
+//   INTERIOR — IAMI GUEST Yacht Purser CoC (commercial scheme, PYA-verified)
+//   Y-grade conversions — MIN 642 §7.2 (legacy MSN 1859 CoCs → Small Vessel CoCs)
 //
-// ⚠️ ENGINE LADDER SUPERSEDED: MSN 1859 was withdrawn on 10 Jan 2023 and replaced
-// by MSN 1904 (Engineer Officer Small Vessel CoC). MSN 1904 does NOT use the
-// "Y1–Y4 / MEOL_Y" grade names — yacht engineers now obtain STCW Small Vessel
-// CoCs (EOOW III/1, Chief Eng III/3 / III/2, non-STCW MEOL SV) endorsed "Limited
-// to Yachts" via §5.9.2, with different (lower) service figures. The Y-grade
-// entries below are retained as legacy IDs but are marked verified:'SUPERSEDED'
-// so the UI never presents their withdrawn figures as fact. // TODO(MSN1904):
-// rebuild the engine ladder against MSN 1904 §5.9.2 once the SV-CoC mapping is agreed.
-//
-// Confidence: HIGH = stated verbatim in the IN-FORCE notice (section cited);
-// MEDIUM = inferred; SUPERSEDED = figures come from a withdrawn notice, confirm
-// against the replacement; PENDING = not in these notices, confirm before
-// production. Treat every numeric threshold as config.
+// Confidence: HIGH = stated verbatim in the in-force notice (section cited);
+// MEDIUM = inferred; SUPERSEDED = figures from a withdrawn notice, confirm against
+// the replacement; PENDING = not in these notices, confirm before production.
+// Treat every numeric threshold as config.
 
 /** @typedef {'seagoing'|'watchkeeping'|'standby'|'yard'} ServiceType */
 /** @typedef {'deck'|'engineering'|'interior'|'galley'|'other'} Department */
-/** @typedef {'DECK'|'ENGINE'|'ETO'} Family */
+/** @typedef {'DECK'|'ENGINE'|'ETO'|'INTERIOR'} Family */
 
 // ── Day-counting + service-definition rules (MSN 1858 §5 / MSN 1859 §5) ──────
 export const SERVICE_RULES = {
@@ -57,7 +52,8 @@ export const DEPARTMENTS = {
 };
 
 // ── Roles. accruesToward = certificate families this role's sea time counts
-// toward. Interior/galley log days (CV / visa / tax) but accrue nothing. ──────
+// toward. Galley + junior interior log days (CV / visa / tax) but accrue nothing;
+// senior interior (Chief Stew / Purser) accrue toward the INTERIOR purser CoC. ──
 export const ROLES = {
   // DECK
   deckhand:       { label: 'Deckhand',                 department: 'deck', accruesToward: ['DECK'], watchkeepingDomain: 'bridge' },
@@ -78,8 +74,11 @@ export const ROLES = {
   deck_engineer:  { label: 'Deck/Engineer',  department: 'deck', accruesToward: ['DECK', 'ENGINE'], watchkeepingDomain: 'bridge', dualCapacity: true, dbName: 'Deck/Engineer' },
   // INTERIOR / GALLEY — log days, no CoC credit
   stewardess:     { label: 'Stewardess',               department: 'interior', accruesToward: [], watchkeepingDomain: null },
-  chief_stew:     { label: 'Chief Stewardess',         department: 'interior', accruesToward: [], watchkeepingDomain: null },
-  purser:         { label: 'Purser',                   department: 'interior', accruesToward: [], watchkeepingDomain: null },
+  // Senior interior service (Chief Stew / Purser) counts toward the Yacht Purser
+  // CoC's "24 months in a senior onboard role" requirement; a junior Stewardess's
+  // time is logged for CV/visa but isn't senior service, so it accrues nothing.
+  chief_stew:     { label: 'Chief Stewardess',         department: 'interior', accruesToward: ['INTERIOR'], watchkeepingDomain: null },
+  purser:         { label: 'Purser',                   department: 'interior', accruesToward: ['INTERIOR'], watchkeepingDomain: null },
   cook:           { label: 'Cook',                     department: 'galley', accruesToward: [], watchkeepingDomain: null },
   chef:           { label: 'Yacht Chef / Head Chef',   department: 'galley', accruesToward: [], watchkeepingDomain: null },
   other:          { label: 'Other',                    department: 'other', accruesToward: [], watchkeepingDomain: null }
@@ -203,11 +202,10 @@ export const CERTIFICATES = {
   // Yacht seagoing = days actually UNDERWAY with main propulsion in full use; yard
   // time never counts as seagoing; up to 2 months at-anchor/fast-to-shore on own
   // power may count as watchkeeping (MSN 1904 §5.8 fn 28).
-  // NOTE/TODO(§5.8 multiplier): MSN 1904 §5.8 credits yacht seagoing at 1.5× the
-  // days actually underway (capped at total contract time). The tracker counts
-  // raw underway days and does NOT yet apply the 1.5× credit — engineers' sea
-  // service may therefore read low. Left unapplied pending confirmation of whether
-  // the yacht-restricted table figures are already net of the multiplier.
+  // §5.8 multiplier — RESOLVED: the 1.5× yacht-seagoing uplift is already baked
+  // into the yacht-restricted table figures the MCA publishes, so qualifying
+  // service only needs to meet those baseline numbers. The tracker therefore
+  // counts raw underway days against the baselines below — no separate multiplier.
   MEOL_Y: {
     family: 'ENGINE', label: 'MEOL — Small Vessel (Yacht)', short: 'MEOL (SV·Y)',
     legacyAlias: 'MEOL (Yachts)',
@@ -259,6 +257,24 @@ export const CERTIFICATES = {
       { label: 'Non-cadet — set case-by-case by the MCA (§4.2)', seagoingMonthsMin: 6, seagoingMonthsMax: 33, minPowerKW: 750, mcaAssessed: true },
       { label: 'Electro-technical Rating (§4.3)', combinedMonths: 36, minPowerKW: 750 }
     ]
+  },
+
+  // ============ INTERIOR — IAMI GUEST Yacht Purser CoC (HIGH) ==================
+  // Not an MCA STCW CoC: a commercial IAMI GUEST qualification, verified by the
+  // PYA (Nautilus do not verify interior/purser service). No NoE / oral — issued
+  // on the GUEST course units + verified senior yacht service. Service route:
+  // 24 months in a SENIOR onboard role (Chief Stew / Purser), OR 36 months in a
+  // maritime management/administration role (off-yacht — recorded as prior
+  // service). Applicants must also evidence "guest-on days" (operational days
+  // with guests aboard — charters, shows, owner trips); the tracker can't derive
+  // these per-day yet, so they're evidenced separately (captain/company or
+  // charter records). Source: IAMI GUEST Yacht Purser CoC — Application Requirements.
+  PURSER_COC: {
+    family: 'INTERIOR', label: 'Yacht Purser (IAMI GUEST CoC)', short: 'Yacht Purser',
+    msn: 'IAMI GUEST — Purser CoC', verified: 'HIGH',
+    requires: { onboardMonths: 24 },
+    oral: false,                    // no oral / NoE — GUEST courses + PYA-verified service
+    note: '24 months of verified yacht service in a SENIOR onboard role (Chief Stew / Purser) — OR 3 years in a maritime management/administration role (record that as prior service). Plus the IAMI GUEST course units and evidenced "guest-on days" (days with guests aboard). Verified by the PYA, not Nautilus.'
   }
 };
 
@@ -285,24 +301,27 @@ export const CERTIFICATE_ROUTES = {
   CHIEF_SV_500_Y: ['MEOL_Y', 'EOOW_SV_Y', 'CHIEF_SV_500_Y'],
   CHIEF_SV_3000_Y:['MEOL_Y', 'EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
   // ETO
-  ETO_COC: ['ETO_COC']
+  ETO_COC: ['ETO_COC'],
+  // INTERIOR — IAMI GUEST Yacht Purser
+  PURSER_COC: ['PURSER_COC']
 };
 
 /** Sensible career-ceiling goals offered per family (entry certs excluded). */
 export const GOAL_OPTIONS = {
   DECK: ['MASTER_CODE_200_COASTAL', 'MASTER_CODE_200_UNLIMITED', 'MASTER_YACHT_500', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
   ENGINE: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
-  ETO: ['ETO_COC']
+  ETO: ['ETO_COC'],
+  INTERIOR: ['PURSER_COC']
 };
 
-export const DEFAULT_GOAL = { DECK: 'MASTER_YACHT_3000', ENGINE: 'CHIEF_SV_3000_Y', ETO: 'ETO_COC' };
+export const DEFAULT_GOAL = { DECK: 'MASTER_YACHT_3000', ENGINE: 'CHIEF_SV_3000_Y', ETO: 'ETO_COC', INTERIOR: 'PURSER_COC' };
 
 /** Certificate families a department can work toward (drives the pathway).
  *  Engineering carries both the Small Vessel engine ladder and the ETO route. */
 export const DEPT_FAMILIES = {
   deck: ['DECK'],
   engineering: ['ENGINE', 'ETO'],
-  interior: [],
+  interior: ['INTERIOR'],
   galley: [],
   other: []
 };
@@ -428,6 +447,12 @@ export const ANCILLARY = {
     A('helm_o', 'HELM (Operational)', ['helm_management']),
     A('gmdss_rm', 'GMDSS Radio Maintenance', ['gmdss_radio_maint']),
     A('enem', 'Electronic Nav Equipment Maintenance (ENEM)', ['enem']),
+  ],
+  // INTERIOR — IAMI GUEST Yacht Purser CoC course units.
+  PURSER_COC: [
+    A('purser_prog', 'IAMI GUEST Yacht Purser Program (Units 18–21)', ['iami_purser_program', 'yacht_purser', 'guest_interior']),
+    A('leadership', 'IAMI GUEST Yacht Advanced Leadership (Unit 22)', ['iami_advanced_leadership']),
+    A('wellbeing', 'Mental Health & Wellbeing (Unit 44 or similar)', ['mental_health']),
   ],
 };
 

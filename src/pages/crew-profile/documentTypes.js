@@ -254,6 +254,10 @@ export const DOCUMENT_TYPES = [
     id: 'guest_interior', label: 'GUEST interior crew course', category: 'interior', expiry: false,
     fields: [{ key: 'level', label: 'Level', type: 'select', options: ['Introduction (Junior)', 'Advanced (Senior)', 'Management (Chief)', 'Purser'] }],
   },
+  // IAMI GUEST Yacht Purser CoC course units (interior purser pathway).
+  { id: 'iami_purser_program', label: 'IAMI GUEST Yacht Purser Program (Units 18–21)', category: 'interior', expiry: false },
+  { id: 'iami_advanced_leadership', label: 'IAMI GUEST Yacht Advanced Leadership (Unit 22)', category: 'interior', expiry: false },
+  { id: 'mental_health', label: 'Mental Health & Wellbeing (e.g. GUEST Unit 44)', category: 'interior', expiry: false },
   { id: 'ships_cook', label: "Ship's Cook Certificate", category: 'interior', expiry: false },
   { id: 'culinary', label: 'Culinary / chef qualification', category: 'interior', fields: [NAMED_CERT] },
   { id: 'interior_other', label: 'Other interior / service certificate', category: 'interior', fields: [NAMED_CERT] },
