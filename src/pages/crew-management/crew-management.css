@@ -279,20 +279,20 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-doc .db.none, .cm-doc .db.advisory { background: #EEF1F5; color: #6B7280; }
 .cm-dempty { font-size: 13px; color: #6B7280; padding: 14px 0; }
 
-/* ── Hierarchy — free-form org chart ───────────────────────────────────────── */
-.cm-org { margin-top: 28px; display: flex; flex-direction: column; align-items: center; overflow-x: auto; padding-bottom: 20px; }
-.cm-hier-hint { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #6B7280; margin: 0 0 22px; max-width: 680px; text-align: center; }
+/* ── Hierarchy — free-position org chart ──────────────────────────────────────
+   A full-width canvas. Rows are purely spatial "levels" (no parent linkage) —
+   dropping anywhere between/above/below existing rows opens a new one there;
+   dropping within a row inserts left/right at the cursor's position. */
+.cm-org { position: relative; width: 100%; margin-top: 28px; padding-bottom: 30px; }
+.cm-hier-hint { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #6B7280; margin: 0 0 26px; max-width: 760px; }
 .cm-hier-hint svg { color: #C65A1A; flex: 0 0 auto; }
 
-/* Rows lay siblings out left→right; each node stacks its children-row beneath. */
-.cm-orow { display: flex; align-items: flex-start; justify-content: center; }
-.cm-onode-wrap { display: flex; flex-direction: column; align-items: center; }
-.cm-ostem { width: 2px; height: 22px; background: #D7DCE5; }
+.cm-orows { display: flex; flex-direction: column; align-items: center; gap: 64px; width: 100%; }
+.cm-orow-band { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 26px; width: 100%; min-height: 96px; }
 
 /* Uniform node card. */
-.cm-onode { position: relative; background: #fff; border: 1px solid #E6E8EF; border-radius: 14px; padding: 14px 20px; text-align: center; min-width: 178px; box-shadow: 0 2px 6px rgba(28,27,58,0.05); cursor: pointer; transition: box-shadow 0.12s ease, transform 0.12s ease, border-color 0.12s ease; }
+.cm-onode { position: relative; background: #fff; border: 1px solid #E6E8EF; border-radius: 14px; padding: 14px 20px; text-align: center; min-width: 178px; box-shadow: 0 2px 6px rgba(28,27,58,0.05); cursor: pointer; transition: box-shadow 0.12s ease, transform 0.12s ease, border-color 0.12s ease; touch-action: none; }
 .cm-onode:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -12px rgba(28,27,58,0.26); }
-.cm-onode.is-root { border-color: #1C1B3A; }
 .cm-onode-av { width: 48px; height: 48px; border-radius: 999px; margin: 0 auto 8px; background: #EEF2F6; color: #C65A1A; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .cm-onode-av img { width: 100%; height: 100%; object-fit: cover; }
 .cm-onode-nm { font-size: 14px; font-weight: 600; color: #1C1B3A; }
@@ -300,13 +300,18 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-onode-dot { position: absolute; top: 12px; right: 12px; width: 9px; height: 9px; border-radius: 999px; }
 .cm-onode.is-draggable { cursor: grab; }
 .cm-onode.is-draggable:active { cursor: grabbing; }
-.cm-onode.is-dragging { opacity: 0.4; }
-.cm-onode.is-drop { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.cm-onode.is-dragging { opacity: 0.35; }
 
-/* Insertion slots between/around siblings (left↔right placement). */
-.cm-gap { align-self: stretch; width: 14px; min-height: 68px; margin: 0 3px; border-radius: 8px; transition: background 0.1s ease, width 0.1s ease; }
-.cm-gap.is-active { background: repeating-linear-gradient(45deg, #EDF1F6, #EDF1F6 4px, transparent 4px, transparent 8px); }
-.cm-gap.is-drop { width: 26px; background: #FAECE7; box-shadow: inset 0 0 0 2px #C65A1A; }
+/* Ghost card that follows the cursor while dragging. */
+.cm-org-ghost { position: fixed; transform: translate(-50%, -50%) rotate(-2deg); background: #fff; border: 1.5px solid #C65A1A; border-radius: 14px; padding: 10px 16px; text-align: center; box-shadow: 0 20px 45px -12px rgba(28,27,58,0.4); pointer-events: none; z-index: 1200; min-width: 150px; }
+.cm-org-ghost .cm-onode-av { width: 34px; height: 34px; font-size: 12px; margin-bottom: 6px; }
+.cm-org-ghost .cm-onode-nm { font-size: 12.5px; }
+
+/* Landing-spot indicator — vertical caret to insert left/right, or a horizontal
+   bar spanning the gap where a new row would open. */
+.cm-org-caret { position: fixed; pointer-events: none; z-index: 1100; background: #C65A1A; border-radius: 999px; }
+.cm-org-caret-v { box-shadow: 0 0 0 3px #FAECE7; }
+.cm-org-caret-h { background: repeating-linear-gradient(90deg, #C65A1A, #C65A1A 8px, transparent 8px, transparent 16px); border-radius: 2px; }
 
 /* Loading / error blocks — centred, box-free. */
 .cm-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 56px 0; text-align: center; }
