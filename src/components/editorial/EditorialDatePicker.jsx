@@ -383,7 +383,8 @@ const EditorialDatePicker = ({
             <button type="button" className="edp-foot-btn" onClick={handleToday}>Today</button>
             <button type="button" className="edp-foot-btn" onClick={handleClear}>Clear</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
