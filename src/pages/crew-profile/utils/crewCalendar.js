@@ -57,6 +57,46 @@ export const deleteCalendarEntry = async (id) => {
   if (error) throw error;
 };
 
+// ── multi-leg travel ──────────────────────────────────────────────────────────
+// A journey = the crew_calendar_entries row (leg 1) + crew_travel_legs (leg 2+),
+// so a flight and the taxi that follows it are one journey, not two entries.
+export const fetchTravelLegs = async (tenantId) => {
+  if (!tenantId) return [];
+  const { data } = await supabase.from('crew_travel_legs').select('*').eq('tenant_id', tenantId).order('seq', { ascending: true });
+  return data || [];
+};
+
+export const replaceTravelLegs = async (entryId, tenantId, legs) => {
+  await supabase.from('crew_travel_legs').delete().eq('entry_id', entryId);
+  const rows = (legs || []).filter((l) => l.transport || l.from || l.to || l.transportNo).map((l, i) => ({
+    entry_id: entryId, tenant_id: tenantId, seq: i + 2, leg_date: l.date || null,
+    transport: l.transport || null, transport_no: l.transportNo || null,
+    from_location: l.from || null, to_location: l.to || null,
+    depart_time: l.departTime || null, arrive_time: l.arriveTime || null,
+  }));
+  if (rows.length) {
+    const { error } = await supabase.from('crew_travel_legs').insert(rows);
+    if (error) throw error;
+  }
+};
+
+// Save a whole journey: leg 1 → the entry, leg 2+ → crew_travel_legs.
+export const saveJourney = async ({ id, userId, tenantId, kind, date, note, legs = [], actorId, actorName }) => {
+  const first = legs[0] || {};
+  const entry = await saveCalendarEntry({
+    id, userId, tenantId, kind: kind || 'travelling', startDate: date, endDate: date,
+    fromLocation: first.from, toLocation: first.to, transport: first.transport, transportNo: first.transportNo,
+    departTime: first.departTime, arriveTime: first.arriveTime, note, actorId, actorName,
+  });
+  await replaceTravelLegs(entry.id, tenantId, legs.slice(1));
+  return entry;
+};
+
+export const deleteJourney = async (entryId) => {
+  const { error } = await supabase.from('crew_calendar_entries').delete().eq('id', entryId);
+  if (error) throw error;
+};
+
 // The entry covering a given Date (inclusive range), or null. Latest start wins
 // if two overlap.
 export const entryForDay = (entries, date) => {
