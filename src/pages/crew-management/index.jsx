@@ -1456,15 +1456,40 @@ const CrewManagement = () => {
     for (const u of crew) { const k = effRow(u); if (!rowsMap.has(k)) rowsMap.set(k, []); rowsMap.get(k).push(u); }
     const sortedRowKeys = [...rowsMap.keys()].sort((a, b) => a - b);
 
-    // Default column: centred PER ROW (so a lone top-row member sits dead centre,
-    // matching the row below, rather than pinned to the left edge), spaced by
-    // COL_STEP so two adjacent defaults render one full slot apart.
+    // Default column: grouped by DEPARTMENT, not just centred per row — so a
+    // newly added crew member (never dragged) lands in their own
+    // department's column, under their own department's chief, instead of
+    // being centred among everyone at that seniority level regardless of
+    // which department they're actually in. Departments get a stable
+    // left-to-right order (by their most senior member's rank, then name)
+    // so the same department's column lines up row after row; within a
+    // department+row cluster, members are spread by COL_STEP so two
+    // adjacent defaults render one full slot apart.
     const COL_STEP = 10;
+    const DEPT_STEP = 60;
+    const deptOf = (u) => u.departmentId || u.department || '__none__';
+    const deptSeniority = new Map();
+    crew.forEach((u) => {
+      if (roleRank(u.roleTitle) === 0) return; // the captain sits outside any one department
+      const d = deptOf(u); const rr = roleRank(u.roleTitle);
+      const cur = deptSeniority.get(d);
+      if (!cur || rr < cur.rank) deptSeniority.set(d, { rank: rr, name: u.department || '' });
+    });
+    const deptOrder = [...deptSeniority.entries()]
+      .sort((a, b) => a[1].rank - b[1].rank || a[1].name.localeCompare(b[1].name))
+      .map(([d]) => d);
+    const deptColBase = new Map(deptOrder.map((d, i) => [d, (i - (deptOrder.length - 1) / 2) * DEPT_STEP]));
+
     const defaultOrderMap = new Map();
     rowsMap.forEach((members) => {
-      const ordered = [...members].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle) || String(a.fullName).localeCompare(String(b.fullName)));
-      const n = ordered.length;
-      ordered.forEach((u, i) => defaultOrderMap.set(u.id, (i - (n - 1) / 2) * COL_STEP));
+      const byDept = new Map();
+      members.forEach((u) => { const d = deptOf(u); if (!byDept.has(d)) byDept.set(d, []); byDept.get(d).push(u); });
+      byDept.forEach((group, d) => {
+        const base = deptColBase.get(d) ?? 0;
+        const ordered = [...group].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle) || String(a.fullName).localeCompare(String(b.fullName)));
+        const n = ordered.length;
+        ordered.forEach((u, i) => defaultOrderMap.set(u.id, base + (i - (n - 1) / 2) * COL_STEP));
+      });
     });
     const effOrder = (u) => (u.orgOrder != null ? u.orgOrder : defaultOrderMap.get(u.id));
 
