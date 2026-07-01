@@ -80,10 +80,9 @@ import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { showToast } from '../../utils/toast';
-import { getItemStatusConfig, deriveDisplayStatus, ITEM_STATUS_ORDER as PICKER_STATUS_ORDER, ITEM_STATUS_FILTER_ORDER, ITEM_STATUS_CONFIG } from './data/statusConfig';
+import { getItemStatusConfig, deriveDisplayStatus, ITEM_STATUS_FILTER_ORDER, ITEM_STATUS_CONFIG } from './data/statusConfig';
 import {
   DETAIL_GRID,
-  ITEM_STATUS_OPTIONS,
   getStatusCfg,
   EditCell,
   SelectCell,
@@ -543,6 +542,13 @@ const AlwaysEditCell = ({ value, placeholder, onSave, type = 'text', inputStyle 
     />
   );
 };
+
+// Crew-settable statuses offered by the bulk "Set status" control. Excludes
+// received / partial — those run through the dedicated "Mark received" flow so
+// a delivery record is always created. 'unavailable' (crew flag for lines that
+// won't be supplied) sits right after 'ordered', mirroring the filter order.
+const BULK_STATUS_OPTIONS = ['draft', 'ordered', 'unavailable', 'not_received', 'returned', 'invoiced', 'paid']
+  .map((value) => ({ value, label: getItemStatusConfig(value).label }));
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
@@ -1387,10 +1393,6 @@ const ProvisioningBoardDetail = () => {
     await handleCellSave(item, field, next);
   }, [handleCellSave]);
 
-  const handleStatusSave = useCallback(async (item, field, newStatus) => {
-    await handleCellSave(item, 'status', newStatus);
-  }, [handleCellSave]);
-
   // ── Bulk receive (selection-driven, supersedes per-row quick-receive) ──
   // Serialised loop over quickReceiveItem(). Serialised (not parallel) on
   // purpose: the storage helper does find-or-create on "today's Manual
@@ -1537,44 +1539,36 @@ const ProvisioningBoardDetail = () => {
     }
   };
 
-  // ── Bulk mark unavailable / available ───────────────────────────────────
-  // Crew flags board lines that won't be supplied (a manual supplier can't
-  // provide them, or the vessel drops them). Unavailable lines drop out of
-  // the cost totals, the Send flow, and the "waiting on a quote" count — so
-  // a manual board can still reach 'confirmed'. Portal-supplier lines are
-  // skipped: their status belongs to the supplier. Acts as a toggle — if
-  // every eligible selected line is already unavailable it flips them back
-  // to draft.
-  const handleBulkMarkUnavailable = async () => {
+  // ── Bulk set status ─────────────────────────────────────────────────────
+  // Single entry point for changing a line's status from the selection bar
+  // (replaces the per-row status dropdown — the row dot is now a read-only
+  // indicator). Covers draft / ordered / unavailable / not_received /
+  // returned / invoiced / paid; 'received' and 'partial' stay on the
+  // dedicated "Mark received" verb so a delivery record is always created.
+  // Portal-supplier lines are skipped — their status belongs to the
+  // supplier, not the crew. A light status write (no delivery cascade),
+  // mirroring the old inline picker.
+  const handleBulkSetStatus = async (newStatus) => {
+    if (!newStatus) return;
     const selected = items.filter(i => selectedItems.has(i.id));
-    // Eligible = not portal-locked and not already in a receipt/return
-    // state (an unavailable call is pre-supply; received/returned lines
-    // have moved past it).
-    const eligible = selected.filter(i =>
-      !isPortalLocked(i) && !['received', 'partial', 'returned'].includes(i.status));
+    const eligible = selected.filter(i => !isPortalLocked(i));
     if (eligible.length === 0) {
-      showToast('These lines are managed by their supplier — mark them from the supplier side.', 'error');
+      showToast('These lines are managed by their supplier — change status from the supplier side.', 'error');
       return;
     }
-    const allUnavailable = eligible.every(i => i.status === 'unavailable');
-    const nextStatus = allUnavailable ? 'draft' : 'unavailable';
     const ids = eligible.map(i => i.id);
     const originals = new Map(eligible.map(i => [i.id, i.status]));
+    const label = getItemStatusConfig(newStatus).label;
 
-    setBulkBusy({ kind: 'unavailable', done: 0, total: ids.length });
-    setItems(prev => prev.map(i => originals.has(i.id) ? { ...i, status: nextStatus } : i));
+    setBulkBusy({ kind: 'status', done: 0, total: ids.length });
+    setItems(prev => prev.map(i => originals.has(i.id) ? { ...i, status: newStatus } : i));
     try {
-      await bulkUpdateProvisioningItems(ids, { status: nextStatus });
-      showToast(
-        nextStatus === 'unavailable'
-          ? `Marked ${ids.length} item${ids.length === 1 ? '' : 's'} unavailable`
-          : `Restored ${ids.length} item${ids.length === 1 ? '' : 's'} to the board`,
-        'success',
-      );
+      await bulkUpdateProvisioningItems(ids, { status: newStatus });
+      showToast(`Set ${ids.length} item${ids.length === 1 ? '' : 's'} to ${label}`, 'success');
     } catch (err) {
-      console.error('[BulkMarkUnavailable] failed:', err);
+      console.error('[BulkSetStatus] failed:', err);
       setItems(prev => prev.map(i => originals.has(i.id) ? { ...i, status: originals.get(i.id) } : i));
-      showToast(`Couldn't update items — ${err.message || err}`, 'error');
+      showToast(`Couldn't update status — ${err.message || err}`, 'error');
     } finally {
       setBulkBusy({ kind: null, done: 0, total: 0 });
       setSelectedItems(new Set());
@@ -3846,13 +3840,6 @@ const ProvisioningBoardDetail = () => {
                         const derived = deriveDisplayStatus(item, itemOrder, itemOrder?.parentOrder);
                         const derivedCfg = getItemStatusConfig(derived);
                         const badge = { ...derivedCfg.badge, label: derivedCfg.label };
-                        // Read-only mode for the status column: either the supplier
-                        // order locks the row, or the derived status is not crew-
-                        // pickable (confirmed/unavailable/substituted/invoiced/paid/
-                        // partially_returned). In both cases the dropdown would be
-                        // misleading — the raw item.status would render with derived-
-                        // palette colours.
-                        const statusReadOnly = isLocked || !PICKER_STATUS_ORDER.includes(derived);
 
                         return (
                           <div
@@ -4130,32 +4117,19 @@ const ProvisioningBoardDetail = () => {
                                 the dot sits directly under the "STATUS"
                                 header above. */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '11px 8px' }}>
-                              {statusReadOnly
-                                ? <span
-                                    title={badge.label}
-                                    aria-label={badge.label}
-                                    style={{
-                                      display: 'inline-block',
-                                      width: 10, height: 10,
-                                      borderRadius: '50%',
-                                      background: badge.dot,
-                                    }}
-                                  />
-                                : <label
-                                    title={badge.label}
-                                    aria-label={badge.label}
-                                    style={{ position: 'relative', display: 'inline-block', width: 16, height: 16, cursor: 'pointer' }}
-                                  >
-                                    <span style={{ position: 'absolute', top: 3, left: 3, width: 10, height: 10, borderRadius: '50%', background: badge.dot, display: 'block', pointerEvents: 'none' }} />
-                                    <select
-                                      value={item.status || 'draft'}
-                                      onChange={e => handleStatusSave(item, 'status', e.target.value)}
-                                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', border: 0, padding: 0, margin: 0 }}
-                                    >
-                                      {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value} style={{ fontSize: 12, color: '#0F172A' }}>{s.label}</option>)}
-                                    </select>
-                                  </label>
-                              }
+                              {/* Read-only status indicator. Status is now
+                                  changed via the selection bar's "Set status"
+                                  control, not an inline picker. */}
+                              <span
+                                title={badge.label}
+                                aria-label={badge.label}
+                                style={{
+                                  display: 'inline-block',
+                                  width: 10, height: 10,
+                                  borderRadius: '50%',
+                                  background: badge.dot,
+                                }}
+                              />
                             </div>
                             {/* Actions */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '11px 0', gap: 2 }}>
@@ -5365,23 +5339,20 @@ const ProvisioningBoardDetail = () => {
         onEdit={() => setBulkEditOpen(true)}
         onChangeDept={() => setBulkChangeDeptOpen(true)}
         onDelete={() => setBulkDeleteOpen(true)}
-        // Mark unavailable / available — crew flags lines that won't be
-        // supplied. Disabled when every selected line is either portal-
-        // supplier-owned or already in a receipt state (nothing eligible).
-        // Label flips to "Mark available" when all eligible lines are
-        // already unavailable, so it reads as a toggle.
+        // Set status — the single status control (the per-row dropdown is
+        // gone; the row dot is now read-only). Applies to the non-portal
+        // lines in the selection; disabled when every selected line is
+        // portal-supplier-owned. 'Received'/'Partial' live on Mark received.
+        onSetStatus={handleBulkSetStatus}
+        statusOptions={BULK_STATUS_OPTIONS}
         {...(() => {
           const rows = items.filter(i => selectedItems.has(i.id));
-          const eligible = rows.filter(i =>
-            !isPortalLocked(i) && !['received', 'partial', 'returned'].includes(i.status));
+          const eligible = rows.filter(i => !isPortalLocked(i));
           const anyPortalLocked = rows.some(i => isPortalLocked(i));
-          const allOff = eligible.length > 0 && eligible.every(i => i.status === 'unavailable');
           return {
-            onMarkUnavailable: handleBulkMarkUnavailable,
-            unavailableLabel: allOff ? 'Mark available' : 'Mark unavailable',
-            unavailableDisabled: eligible.length === 0,
-            unavailableTitle: eligible.length === 0
-              ? 'Managed by the supplier — mark availability from the supplier side.'
+            statusDisabled: eligible.length === 0,
+            statusTitle: eligible.length === 0
+              ? 'Managed by the supplier — change status from the supplier side.'
               : (anyPortalLocked
                   ? 'Applies to the non-supplier lines only — supplier-owned lines are left as-is.'
                   : undefined),
