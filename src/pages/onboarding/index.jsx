@@ -519,7 +519,7 @@ const RegionsCombobox = ({ value, onChange }) => {
 // collapse to a CollapsedSection summary row. Clicking a collapsed row
 // reopens that section.
 
-const VesselSettingsStep = ({ tenant, onSaved }) => {
+const VesselSettingsStep = ({ tenant, onSaved, previewMode = false }) => {
   const [section, setSection] = useState('identity'); // 'identity' | 'specs' | 'profile' | 'company'
   const [data, setData] = useState({
     vessel_name:          tenant?.name              || '',
@@ -562,6 +562,7 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
   // (keyed by tenant_id), not public.tenants — mirrors how Vessel Settings
   // reads them. The row may not exist yet this early, hence maybeSingle().
   useEffect(() => {
+    if (previewMode) return;
     if (!tenant?.id) return;
     supabase
       .from('vessels')
@@ -604,6 +605,11 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
       setLogoUploadError('Image must be smaller than 5MB');
       return;
     }
+    // Preview mode: show the picked image locally, never touch Storage/DB.
+    if (previewMode) {
+      set('logo_url', URL.createObjectURL(file));
+      return;
+    }
     setUploadingLogo(true);
     setLogoUploadError('');
     try {
@@ -628,6 +634,7 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
 
   const handleRemoveLogo = async () => {
     set('logo_url', '');
+    if (previewMode) return;
     await supabase.from('vessels').upsert({ tenant_id: tenant.id, logo_url: null }, { onConflict: 'tenant_id' });
   };
 
@@ -635,6 +642,10 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
     setError('');
     setSaving(true);
     try {
+      if (previewMode) {
+        onSaved({ name: data.vessel_name || tenant?.name });
+        return;
+      }
       const payload = {
         name:               data.vessel_name      || tenant?.name || null,
         vessel_type_label:  data.vessel_type_label || null,
@@ -1002,17 +1013,18 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
 const AVATAR_BUCKET = 'avatars';
 const MAX_AVATAR_MB = 5;
 
-const PersonalProfileStep = ({ userId, onSaved }) => {
+const PersonalProfileStep = ({ userId, onSaved, previewMode = false }) => {
   const [fullName, setFullName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!previewMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    if (previewMode) return;
     if (!userId) return;
     supabase
       .from('profiles')
@@ -1050,6 +1062,10 @@ const PersonalProfileStep = ({ userId, onSaved }) => {
     setError('');
     setSaving(true);
     try {
+      if (previewMode) {
+        onSaved({ full_name: fullName.trim(), avatar_url: avatarPreview || avatarUrl });
+        return;
+      }
       let nextAvatarUrl = avatarUrl;
       if (avatarFile) {
         const filePath = `${userId}/${Date.now()}-${avatarFile.name}`;
@@ -1155,7 +1171,7 @@ const PersonalProfileStep = ({ userId, onSaved }) => {
 
 // ─── Step 3: Departments ────────────────────────────────────────────
 
-const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
+const DepartmentsStep = ({ tenant, userId, onBack, onComplete, previewMode = false }) => {
   const [depts, setDepts]               = useState([]);
   const [loadError, setLoadError]       = useState('');
   const [loading, setLoading]           = useState(true);
@@ -1170,6 +1186,12 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
   const loadDepts = async () => {
     setLoading(true);
     setLoadError('');
+    if (previewMode) {
+      setDepts(BASE_DEPARTMENTS);
+      setSelected((prev) => (prev.length ? prev : BASE_DEPARTMENTS.map((d) => d.id)));
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from('departments')
       .select('id, name')
@@ -1187,6 +1209,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
   };
 
   useEffect(() => {
+    if (previewMode) { loadDepts(); return; }
     if (!userId) return;
     // Restore prior selection from profile if user has been here before
     supabase
@@ -1212,6 +1235,12 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
     setSaving(true);
     setSaveError('');
     try {
+      const allDeptObjects = [...depts, ...customDeptList];
+      const selectedDepts = allDeptObjects.filter((d) => selected.includes(d.id));
+      if (previewMode) {
+        onComplete({ baseSelected: selected, customDepts: customDeptList, departments: selectedDepts });
+        return;
+      }
       // Persist selected dept IDs to profiles.custom_departments
       const { error: pErr } = await supabase
         .from('profiles')
@@ -1219,8 +1248,6 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
         .eq('id', userId);
       if (pErr) throw pErr;
 
-      const allDeptObjects = [...depts, ...customDeptList];
-      const selectedDepts = allDeptObjects.filter((d) => selected.includes(d.id));
       onComplete({ baseSelected: selected, customDepts: customDeptList, departments: selectedDepts });
     } catch (err) {
       console.error('[onboarding] departments save failed', err);
@@ -1266,7 +1293,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
                     type="button"
                     onClick={() => toggle(d.id)}
                     className="relative rounded-xl p-4 text-left transition-all cg-anim-enter cg-hover-lift"
-                    style={{ '--i': i, backgroundColor: isSelected ? ACCENT : 'white', border: `1px solid ${isSelected ? ACCENT : BORDER}`, color: isSelected ? 'white' : CHARCOAL }}
+                    style={{ '--i': i, backgroundColor: isSelected ? NAVY : 'white', border: `1px solid ${isSelected ? NAVY : BORDER}`, color: isSelected ? 'white' : CHARCOAL }}
                   >
                     <div
                       className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
@@ -1297,7 +1324,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
                     type="button"
                     onClick={() => toggle(d.id)}
                     className="relative rounded-xl p-4 text-left transition-all cg-hover-lift"
-                    style={{ backgroundColor: isSelected ? ACCENT : 'white', border: `1px dashed ${isSelected ? ACCENT : '#AEB4C2'}`, color: isSelected ? 'white' : CHARCOAL }}
+                    style={{ backgroundColor: isSelected ? NAVY : 'white', border: `1px dashed ${isSelected ? NAVY : '#AEB4C2'}`, color: isSelected ? 'white' : CHARCOAL }}
                   >
                     <div
                       className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
@@ -1416,7 +1443,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
 
 // ─── Step 4: Invite crew ───────────────────────────────────────────
 
-const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, onFinish }) => {
+const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, onFinish, previewMode = false }) => {
   const { user } = useAuth();
 
   // Fetch departments from DB to get real UUID IDs — mirrors InviteCrewModal.
@@ -1429,6 +1456,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
     (deptObjs || []).filter((d) => !String(d.id).startsWith('custom-'))
   );
   useEffect(() => {
+    if (previewMode) return; // deptObjs already seeded dbDepts above
     const dbIds = departments.filter((id) => !String(id).startsWith('custom-'));
     if (!dbIds.length) return;
     supabase
@@ -1454,6 +1482,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
   const [deptRoles, setDeptRoles] = useState({});
 
   useEffect(() => {
+    if (previewMode) return;
     const dbDeptIds = allDepts.map((d) => d.id).filter((id) => !String(id).startsWith('custom-'));
     if (!dbDeptIds.length) return;
     (async () => {
@@ -1532,6 +1561,10 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
     setSaving(true);
     setError('');
     try {
+      if (previewMode) {
+        onFinish();
+        return;
+      }
       if (sendInvites) {
         const toInvite = rows.filter((r) => r.email && r.department_id && r.role);
         if (toInvite.length > 0) {
@@ -1879,30 +1912,41 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
 // public.vessel_locations helpers as that page — getAllDecks/createDeck —
 // so this isn't a parallel implementation of the same table.
 
-const SUGGESTED_DECKS = ['Bridge', 'Sun Deck', 'Upper Deck', 'Main Deck', 'Lower Deck', "Crew Mess", 'Engine Room'];
+// Deck-level only — zones/spaces within a deck are a Vessel Settings job.
+const SUGGESTED_DECKS = ['Bridge', 'Sun Deck', 'Upper Deck', 'Main Deck', 'Lower Deck', 'Crew Deck', "Owner's Deck"];
 
-const LocationsStep = ({ onBack, onFinish }) => {
+const LocationsStep = ({ onBack, onFinish, previewMode = false }) => {
   const [existingDecks, setExistingDecks] = useState([]);
+  const [customDecks, setCustomDecks] = useState([]); // extra chips beyond SUGGESTED_DECKS
   const [selected, setSelected] = useState([]);
   const [customInput, setCustomInput] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!previewMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (previewMode) return;
     getAllDecks().then((decks) => {
       setExistingDecks(decks);
       setSelected(decks.map((d) => d.name));
+      // Any previously-saved deck that isn't one of the built-in suggestions
+      // still needs its own chip, not just a silent "selected" flag.
+      setCustomDecks(decks.map((d) => d.name).filter((n) => !SUGGESTED_DECKS.includes(n)));
       setLoading(false);
     });
   }, []);
 
+  const allDeckChips = [...SUGGESTED_DECKS, ...customDecks];
+
   const toggle = (name) =>
     setSelected((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]);
 
+  // Adding a custom deck drops it straight into the same chip grid as the
+  // suggestions, pre-selected — not a separate "tag" list underneath.
   const addCustom = () => {
     const name = customInput.trim();
-    if (!name || selected.includes(name)) return;
+    if (!name || allDeckChips.includes(name)) return;
+    setCustomDecks((prev) => [...prev, name]);
     setSelected((prev) => [...prev, name]);
     setCustomInput('');
   };
@@ -1911,6 +1955,10 @@ const LocationsStep = ({ onBack, onFinish }) => {
     setSaving(true);
     setError('');
     try {
+      if (previewMode) {
+        onFinish();
+        return;
+      }
       const existingNames = new Set(existingDecks.map((d) => d.name));
       const toCreate = selected.filter((name) => !existingNames.has(name));
       const results = await Promise.allSettled(toCreate.map((name) => createDeck(name)));
@@ -1946,9 +1994,9 @@ const LocationsStep = ({ onBack, onFinish }) => {
           </div>
         ) : (
           <>
-            <SectionHeading>Suggested decks</SectionHeading>
+            <SectionHeading>Decks</SectionHeading>
             <div className="flex flex-wrap gap-2 mb-5">
-              {SUGGESTED_DECKS.map((name) => {
+              {allDeckChips.map((name) => {
                 const isSelected = selected.includes(name);
                 return (
                   <button
@@ -1958,8 +2006,8 @@ const LocationsStep = ({ onBack, onFinish }) => {
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm transition-colors"
                     style={{
                       fontFamily: BODY_FONT, fontWeight: 600,
-                      backgroundColor: isSelected ? ACCENT : 'white',
-                      border: `1px solid ${isSelected ? ACCENT : BORDER}`,
+                      backgroundColor: isSelected ? NAVY : 'white',
+                      border: `1px solid ${isSelected ? NAVY : BORDER}`,
                       color: isSelected ? 'white' : CHARCOAL,
                     }}
                   >
@@ -1971,30 +2019,15 @@ const LocationsStep = ({ onBack, onFinish }) => {
             </div>
 
             <SectionHeading>Add another</SectionHeading>
-            <div className="flex items-center gap-2 mb-5">
+            <div className="flex items-center gap-2 mb-2">
               <TextInput
                 value={customInput}
-                placeholder="e.g., Beach Club"
+                placeholder="e.g., Beach Club Deck"
                 onChange={(e) => setCustomInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
               />
               <PillSecondary onClick={addCustom} disabled={!customInput.trim()}>Add</PillSecondary>
             </div>
-
-            {selected.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2">
-                {selected.filter((name) => !SUGGESTED_DECKS.includes(name)).map((name) => (
-                  <span
-                    key={name}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs"
-                    style={{ backgroundColor: ACCENT_SOFT, color: ACCENT, fontFamily: BODY_FONT, fontWeight: 600 }}
-                  >
-                    {name}
-                    <button type="button" onClick={() => toggle(name)} style={{ color: ACCENT, lineHeight: 1 }}>×</button>
-                  </span>
-                ))}
-              </div>
-            )}
 
             <p className="text-xs mt-3" style={{ color: '#94A3B8', fontFamily: BODY_FONT }}>
               {selected.length} deck{selected.length !== 1 ? 's' : ''} selected. Skip for now if you&rsquo;d rather set this up later.
@@ -2033,16 +2066,20 @@ const STEP_KEYS = ['vessel', 'profile', 'departments', 'crew', 'locations'];
 
 // Colour choreography follows the CargoOnboarding.jsx reference's rhythm
 // (cream → cream → dark → peach → pale → dark → peach), but the "dark"
-// screens use the real Cargo brand navy ink (#1C1B3A per CLAUDE.md) —
-// the reference's #1E3A5F is the old marketing-site navy, not this one.
+// screens use the real Cargo brand navy ink (#1C1B3A per CLAUDE.md) — the
+// reference's #1E3A5F is the old marketing-site navy, not this one. The
+// reference's peach step background (#EFC8A6) isn't in the brand palette
+// at all — CLAUDE.md defines no "peach"; swapped for the same cream used
+// on welcome/vessel so the only warm full-bleed colour is the deliberate
+// terracotta accent, not an invented tan.
 const THEMES = {
   welcome:     { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
   vessel:      { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
   profile:     { bg: '#1C1B3A', fg: '#F4F1EC', ac: '#E8915A' },
-  departments: { bg: '#EFC8A6', fg: '#1C1B3A', ac: '#C65A1A' },
+  departments: { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
   crew:        { bg: '#DCE3EA', fg: '#1C1B3A', ac: '#C65A1A' },
   locations:   { bg: '#1C1B3A', fg: '#F4F1EC', ac: '#E8915A' },
-  done:        { bg: '#EFC8A6', fg: '#1C1B3A', ac: '#C65A1A' },
+  done:        { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
 };
 
 // Dark (navy) step screens — these need the inverted logo (see logoSrc below).
@@ -2067,10 +2104,13 @@ const DONE_CHIPS = [
 // runs client-side at render time, not inside a deterministic workflow).
 const Confetti = () => {
   const bits = useRef(
-    Array.from({ length: 22 }, (_, i) => ({
-      left: Math.random() * 100, delay: Math.random() * 0.45, dur: 1.5 + Math.random() * 1.1,
-      rot: Math.random() * 360, color: ['var(--wac)', '#1E3A5F', '#E0823F', '#3E6491'][i % 4],
-      w: 5 + Math.random() * 5, round: Math.random() > 0.5,
+    Array.from({ length: 46 }, (_, i) => ({
+      // Spread only over the left ~48% (roughly the giant-numeral column) —
+      // full-width was raining confetti straight over the "Congrats" heading
+      // text on the right, obscuring it.
+      left: Math.random() * 48, delay: Math.random() * 1.2, dur: 2.2 + Math.random() * 1.6,
+      rot: Math.random() * 360, color: ['var(--wac)', '#1C1B3A', '#E0823F', '#3E6491'][i % 4],
+      w: 5 + Math.random() * 6, round: Math.random() > 0.5,
     }))
   ).current;
   return (
@@ -2090,14 +2130,31 @@ const Confetti = () => {
   );
 };
 
-const OnboardingPage = () => {
-  const navigate = useNavigate();
-  const { user, activeTenantId, bootstrapComplete, retryBootstrap } = useAuth();
+// Unauthenticated design-review route (/onboarding-preview) — lets anyone
+// click through all 5 steps without a real signup/session. Every step
+// component's save handler no-ops instead of calling Supabase; nothing
+// here is ever written to a real tenant.
+const PREVIEW_TENANT = {
+  id: 'preview-tenant',
+  name: 'M/Y Preview',
+  vessel_type_label: 'Motor Yacht',
+  flag: 'Cayman Islands',
+  port_of_registry: 'George Town',
+  onboarding_completed_at: null,
+};
 
-  const [tenant, setTenant] = useState(null);
+const OnboardingPage = ({ previewMode = false }) => {
+  const navigate = useNavigate();
+  const auth = useAuth();
+  const user = previewMode ? { id: 'preview-user' } : auth.user;
+  const activeTenantId = previewMode ? PREVIEW_TENANT.id : auth.activeTenantId;
+  const bootstrapComplete = previewMode ? true : auth.bootstrapComplete;
+  const retryBootstrap = auth.retryBootstrap;
+
+  const [tenant, setTenant] = useState(previewMode ? PREVIEW_TENANT : null);
   const [screen, setScreen] = useState('welcome'); // welcome | vessel | departments | crew | done
   const [deptChoice, setDeptChoice] = useState({ baseSelected: [], customDepts: [] });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!previewMode);
   const [loadError, setLoadError] = useState('');
   const [membershipRetries, setMembershipRetries] = useState(0);
   const retriedRef = useRef(false); // guard: only call retryBootstrap once
@@ -2173,6 +2230,7 @@ const OnboardingPage = () => {
   // writes to activeTenantId; currentTenantId is a separate legacy field
   // that is only updated by setCurrentTenant() explicit calls.
   useEffect(() => {
+    if (previewMode) return;
     if (!bootstrapComplete) return;
     if (activeTenantId) return;
     if (!user?.id) return;
@@ -2199,6 +2257,7 @@ const OnboardingPage = () => {
 
   // Load the tenant row for pre-fill
   useEffect(() => {
+    if (previewMode) return;
     if (!bootstrapComplete) return;
     if (!activeTenantId) {
       // Still give the membership-poll effect a chance before surfacing
@@ -2290,6 +2349,13 @@ const OnboardingPage = () => {
     : screen === 'done'  ? 'Bon voyage'
     : meta?.label || ''
   ).toUpperCase();
+  const marqueeUnit = marqueeText + ' · ';
+  // Repeat count is inversely proportional to word length so every screen's
+  // ticker has roughly the same total content width — a flat repeat count
+  // made short words ("CREW") scroll at a different speed than long ones
+  // ("WELCOME ABOARD") for the same fixed animation-duration, which is what
+  // read as a stutter/gap on some screens but not others.
+  const marqueeReps = Math.max(24, Math.ceil(950 / marqueeUnit.length));
 
   return (
     <div className="onb-shell" style={{ '--wbg': theme.bg, '--wfg': theme.fg, '--wac': theme.ac }}>
@@ -2335,12 +2401,9 @@ const OnboardingPage = () => {
 
       {/* No remount key here — remounting on every step change restarted the
           scroll from 0 each time, reading as a stutter/stop at each
-          transition. The repeat count is high (not just enough to fill one
-          screen) so short words like "CREW" still tile to at least 2x any
-          realistic viewport width — anything less leaves a blank gap
-          halfway through the loop, which is what a "stop" actually was. */}
+          transition. */}
       <div className="onb-marquee">
-        <span>{(marqueeText + ' · ').repeat(60)}</span>
+        <span>{marqueeUnit.repeat(marqueeReps)}</span>
       </div>
 
       <main className="onb-main" key={screen}>
@@ -2362,12 +2425,13 @@ const OnboardingPage = () => {
             </div>
             <div className="onb-right">
               <span className="onb-glyph">
-                <meta.icon size={36} color="var(--wac)" strokeWidth={1.6} />
+                <meta.icon size={30} color="white" strokeWidth={2} />
               </span>
               <div className={`onb-panel${screen === 'profile' ? ' onb-panel--narrow' : ''}`}>
                 {screen === 'vessel' && (
                   <VesselSettingsStep
                     tenant={tenant}
+                    previewMode={previewMode}
                     onSaved={(updated) => {
                       setTenant((t) => ({ ...t, ...updated }));
                       setScreen('profile');
@@ -2377,6 +2441,7 @@ const OnboardingPage = () => {
                 {screen === 'profile' && (
                   <PersonalProfileStep
                     userId={user?.id}
+                    previewMode={previewMode}
                     onSaved={() => setScreen('departments')}
                   />
                 )}
@@ -2384,6 +2449,7 @@ const OnboardingPage = () => {
                   <DepartmentsStep
                     tenant={tenant}
                     userId={user?.id}
+                    previewMode={previewMode}
                     onBack={goBack}
                     onComplete={(choice) => {
                       setDeptChoice(choice);
@@ -2397,12 +2463,14 @@ const OnboardingPage = () => {
                     departments={deptChoice.baseSelected}
                     customDepts={deptChoice.customDepts}
                     deptObjs={deptChoice.departments}
+                    previewMode={previewMode}
                     onBack={goBack}
                     onFinish={() => setScreen('locations')}
                   />
                 )}
                 {screen === 'locations' && (
                   <LocationsStep
+                    previewMode={previewMode}
                     onBack={goBack}
                     onFinish={() => setScreen('done')}
                   />
@@ -2419,7 +2487,7 @@ const OnboardingPage = () => {
             </div>
             <div className="onb-right">
               <span className="onb-glyph done">
-                <Check size={36} color="var(--wfg)" strokeWidth={2.2} />
+                <Check size={30} color="white" strokeWidth={2.4} />
               </span>
               <h1 className="onb-head">Congrats, you&rsquo;re all set</h1>
               <p className="onb-sub">Your vessel is configured and ready for the crew.</p>
@@ -2431,8 +2499,11 @@ const OnboardingPage = () => {
                 ))}
               </div>
               <div className="onb-ctarow">
-                <button className="onb-cta" onClick={() => navigate('/dashboard', { replace: true })}>
-                  Enter Cargo
+                <button
+                  className="onb-cta"
+                  onClick={() => previewMode ? setScreen('welcome') : navigate('/dashboard', { replace: true })}
+                >
+                  {previewMode ? 'Restart preview' : 'Enter Cargo'}
                 </button>
               </div>
             </div>

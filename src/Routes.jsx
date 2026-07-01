@@ -1070,6 +1070,11 @@ const Routes = () => {
             they arrive here; the page itself polls until the webhook creates membership. */}
         <Route path="/onboarding" element={<ProtectedRoute requiresTenant={false}><OnboardingPage /></ProtectedRoute>} />
 
+        {/* Design-review preview — unauthenticated, mock data, no Supabase
+            reads/writes. Lets anyone click through all 5 onboarding steps
+            without a real signup. Not linked from anywhere in the app. */}
+        <Route path="/onboarding-preview" element={<OnboardingPage previewMode />} />
+
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/safe-dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
