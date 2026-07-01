@@ -1528,13 +1528,18 @@ const CrewManagement = () => {
       } else {
         prevRowKey = row.prevKey ?? null;
       }
+      // Row-detection above already consumed the cursor's Y to place it in the
+      // row BELOW the ancestor (that's the whole point — reporting to someone
+      // means sitting underneath them), so this only tests X-alignment with
+      // the ancestor's own card width — hovering literally on top of them
+      // would instead register as THEIR row, triggering the pairing gesture.
       const prevRowMembers = prevRowKey != null ? (rowsMap.get(prevRowKey) || []).filter((m) => m.id !== hierDragId) : [];
       let reportsToId = null;
       for (const m of prevRowMembers) {
         const el = orgCardRefs.current[m.id];
         if (!el) continue;
         const r = el.getBoundingClientRect();
-        if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) { reportsToId = m.id; break; }
+        if (clientX >= r.left && clientX <= r.right) { reportsToId = m.id; break; }
       }
 
       // Deterministic pairing: if the cursor is literally hovering OVER another
@@ -1660,7 +1665,7 @@ const CrewManagement = () => {
           <div className="cm-hier-hint">
             <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Drag anyone, anywhere to rebuild the team structure.</p>
             <ul className="cm-hier-hint-legend">
-              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Hover over one person above</strong> — report to them alone</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up directly under one person above</strong> — report to them alone</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-pair" /><strong>Drop right beside someone</strong> — pair under one shared line</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-row" /><strong>Drop above, below or between rows</strong> — open a new level</li>
             </ul>
