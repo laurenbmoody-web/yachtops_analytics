@@ -99,6 +99,15 @@
   padding: 14px;
   animation: edp-pop-in 110ms ease-out;
 }
+/* Portaled to <body>: fixed to the viewport (JS supplies top/left) and
+   layered above modal overlays (--z-overlay is 1000) so a modal's
+   overflow:hidden panel can't clip the calendar. */
+.edp-popover--fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1100;
+}
 @keyframes edp-pop-in {
   from { opacity: 0; transform: translateY(-2px); }
   to   { opacity: 1; transform: translateY(0); }

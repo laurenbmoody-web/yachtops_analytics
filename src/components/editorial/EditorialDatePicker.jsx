@@ -30,7 +30,8 @@
 // a prop and it overrides the DISPLAY_FORMAT constant. One-line
 // wiring when the settings surface lands.
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   format, parse, isValid,
   startOfMonth, endOfMonth, addMonths, subMonths,
@@ -96,8 +97,13 @@ const EditorialDatePicker = ({
   const [focusedDate, setFocusedDate]   = useState(() => valueDate || new Date());
 
   const wrapperRef = useRef(null);
+  const popoverRef = useRef(null);
   const inputRef   = useRef(null);
   const focusedBtnRef = useRef(null);
+  // Popover is portaled to <body> and positioned fixed so it escapes any
+  // overflow:hidden / scroll container (e.g. a modal panel) that would
+  // otherwise clip it. null until first measured.
+  const [coords, setCoords] = useState(null);
   // After a selection we refocus the input for keyboard users; that focus must
   // NOT reopen the popover (onFocus opens it). One-shot guard.
   const skipReopenRef = useRef(false);
@@ -118,14 +124,45 @@ const EditorialDatePicker = ({
 
   const closePopover = useCallback(() => setOpen(false), []);
 
+  // Fixed-position the portaled popover under (or above, if short on space)
+  // the field. Recomputed on open, and on scroll/resize while open.
+  const computePosition = useCallback(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const gap = 6;
+    const popH = popoverRef.current?.offsetHeight || 360;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const placeAbove = spaceBelow < popH + gap && rect.top > popH + gap;
+    setCoords({
+      top: placeAbove ? Math.max(8, rect.top - gap - popH) : rect.bottom + gap,
+      left: rect.left,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) { setCoords(null); return undefined; }
+    computePosition();
+    const onReflow = () => computePosition();
+    window.addEventListener('scroll', onReflow, true);  // capture: catch ancestor scroll
+    window.addEventListener('resize', onReflow);
+    return () => {
+      window.removeEventListener('scroll', onReflow, true);
+      window.removeEventListener('resize', onReflow);
+    };
+  }, [open, computePosition]);
+
   // Esc-to-close (via the shared hook).
   useDismissable({ onClose: closePopover, enabled: open });
 
   // Outside-click close. mousedown so the field's own click doesn't race.
+  // The popover is portaled outside wrapperRef, so check it explicitly too.
   useEffect(() => {
     if (!open) return undefined;
     const onMouseDown = (e) => {
-      if (!wrapperRef.current?.contains(e.target)) closePopover();
+      if (wrapperRef.current?.contains(e.target)) return;
+      if (popoverRef.current?.contains(e.target)) return;
+      closePopover();
     };
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
@@ -158,6 +195,7 @@ const EditorialDatePicker = ({
     // owns the next interaction. Defer parsing until the field truly
     // loses focus.
     if (wrapperRef.current?.contains(e.relatedTarget)) return;
+    if (popoverRef.current?.contains(e.relatedTarget)) return;
     const raw = text.trim();
     if (raw === '') {
       emit('');
@@ -268,12 +306,16 @@ const EditorialDatePicker = ({
         </button>
       </div>
 
-      {open && (
+      {open && createPortal(
         <div
-          className="edp-popover"
+          className="edp-popover edp-popover--fixed"
+          ref={popoverRef}
           role="dialog"
           aria-modal="false"
           aria-label={ariaLabel ? `${ariaLabel} calendar` : 'Calendar'}
+          style={coords
+            ? { top: coords.top, left: coords.left }
+            : { visibility: 'hidden' }}
         >
           <div className="edp-pop-head">
             <button
