@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship, User, Users, Building2, Utensils, Briefcase, ClipboardList, MapPin, Camera } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
@@ -365,15 +366,41 @@ const CollapsedSection = ({ title, summary, onEdit }) => (
 const RegionsCombobox = ({ value, onChange }) => {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState(null);
   const containerRef = useRef(null);
+  const panelRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+      const insideTrigger = containerRef.current?.contains(e.target);
+      const insidePanel = panelRef.current?.contains(e.target);
+      if (!insideTrigger && !insidePanel) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // The dropdown is portaled to <body> — it lives inside .onb-panel, which
+  // scrolls (overflow-y: auto) for the taller vessel-particulars sections,
+  // and an absolutely-positioned child there was getting clipped by that
+  // scroll container instead of floating above it. Portaling means we have
+  // to compute its screen position ourselves, and close it if the panel
+  // scrolls underneath (rather than trying to track it in real time).
+  useEffect(() => {
+    if (!open) return;
+    const updatePosition = () => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) setCoords({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    };
+    updatePosition();
+    const closeOnScroll = () => setOpen(false);
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', closeOnScroll, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', closeOnScroll, true);
+    };
+  }, [open]);
 
   const toggle = (code) =>
     onChange(value.includes(code) ? value.filter((c) => c !== code) : [...value, code]);
@@ -401,10 +428,15 @@ const RegionsCombobox = ({ value, onChange }) => {
         <ChevronRight size={14} color={MUTED_SOFT} style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 150ms ease', flexShrink: 0 }} />
       </button>
 
-      {open && (
+      {open && coords && createPortal(
         <div
-          className="absolute z-30 w-full mt-1 rounded-xl"
-          style={{ backgroundColor: CARD, border: `1px solid ${BORDER}`, boxShadow: '0 10px 30px rgba(28,27,58,0.15)', maxHeight: 300, overflowY: 'auto' }}
+          ref={panelRef}
+          className="rounded-xl"
+          style={{
+            position: 'fixed', top: coords.top, left: coords.left, width: coords.width,
+            zIndex: 1000, backgroundColor: CARD, border: `1px solid ${BORDER}`,
+            boxShadow: '0 10px 30px rgba(28,27,58,0.15)', maxHeight: 300, overflowY: 'auto',
+          }}
         >
           <div className="sticky top-0 p-2" style={{ backgroundColor: CARD, borderBottom: `1px solid ${BORDER}` }}>
             <input
@@ -447,7 +479,8 @@ const RegionsCombobox = ({ value, onChange }) => {
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {selectedCountries.length > 0 && (
@@ -640,37 +673,41 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
           <div className="mt-6 cg-anim-enter">
             <Card>
               <SectionHeading>How does she operate?</SectionHeading>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Commercial Status + Certified Commercial stacked in one column */}
-                <div>
-                  <Field label="Commercial Status" tooltip="How the vessel is operated — affects which compliance workflows are active.">
+
+              {/* Vessel use — dropdown + the certification tick as its own
+                  clearly-separated row, not crammed into the same column. */}
+              <div className="mb-5 pb-5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Field label="Vessel Use" tooltip="Private, charter, or both — affects which compliance workflows are active.">
                     <select
                       value={data.commercial_status}
                       onChange={(e) => set('commercial_status', e.target.value)}
-                      style={{ ...inputStyle, appearance: 'auto' }}
+                      className="ob-field"
+                      style={{ appearance: 'auto', fontFamily: BODY_FONT, color: CHARCOAL, fontSize: 14 }}
                     >
                       <option value="">Select…</option>
                       <option value="Private">Private</option>
                       <option value="Charter">Charter</option>
-                      <option value="Dual-use">Dual-use</option>
+                      <option value="Dual-use">Both</option>
                     </select>
                   </Field>
-                  <div className="mt-3">
-                    <Checkbox
-                      checked={!!data.certified_commercial}
-                      onChange={(e) => set('certified_commercial', e.target.checked)}
-                      label="Certified Commercial"
-                    />
-                    <p className="text-xs mt-1 ml-6" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-                      Vessel holds MCA or flag-state commercial certification.
-                    </p>
-                  </div>
+                  <Field label="Area of Operation" tooltip="Coastal / Near Coastal / Unlimited — matches what's on your Safe Manning document.">
+                    <SelectInput value={data.area_of_operation} onChange={(e) => set('area_of_operation', e.target.value)} options={AREAS_OF_OPERATION} />
+                  </Field>
                 </div>
+                <div className="mt-4">
+                  <Checkbox
+                    checked={!!data.certified_commercial}
+                    onChange={(e) => set('certified_commercial', e.target.checked)}
+                    label="Certified Commercial"
+                  />
+                  <p className="text-xs mt-1 ml-6" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+                    Vessel holds MCA or flag-state commercial certification.
+                  </p>
+                </div>
+              </div>
 
-                <Field label="Area of Operation" tooltip="Coastal / Near Coastal / Unlimited — matches what's on your Safe Manning document.">
-                  <SelectInput value={data.area_of_operation} onChange={(e) => set('area_of_operation', e.target.value)} options={AREAS_OF_OPERATION} />
-                </Field>
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="md:col-span-2">
                   <Field label="Operating Regions" tooltip="Select countries or use regional shortcuts. Stored as ISO-3166-1 alpha-2 codes.">
                     <RegionsCombobox
@@ -699,7 +736,7 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
                   />
                 </Field>
               </div>
-              <p className="text-xs mt-4" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+              <p className="text-xs mt-5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
                 Compliance fields (ISM, ISPS, MLC) and vessel hero image can be filled in later from Vessel Settings.
               </p>
               {error && (
@@ -816,8 +853,8 @@ const PersonalProfileStep = ({ userId, onSaved }) => {
 
   return (
     <div className="cg-step-enter">
-      <div className="mb-6">
-        <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+      <div className="mb-4">
+        <h1 style={{ fontFamily: HEADING_FONT, fontSize: 24, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
           First, make it yours
         </h1>
         <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
@@ -831,26 +868,26 @@ const PersonalProfileStep = ({ userId, onSaved }) => {
             <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: ACCENT }} />
           </div>
         ) : (
-          <div className="flex items-center gap-6 mb-6">
+          <div className="flex items-center gap-4 mb-4">
             <div className="relative flex-shrink-0">
               <div
-                className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden"
+                className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden"
                 style={{ backgroundColor: ACCENT_SOFT, border: `2px solid ${BORDER}` }}
               >
                 {avatarPreview || avatarUrl ? (
                   <img src={avatarPreview || avatarUrl} alt="Your avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span style={{ fontFamily: HEADING_FONT, fontSize: 24, color: ACCENT }}>{initials}</span>
+                  <span style={{ fontFamily: HEADING_FONT, fontSize: 20, color: ACCENT }}>{initials}</span>
                 )}
               </div>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center"
+                className="absolute bottom-0 right-0 w-6 h-6 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: NAVY, border: '2px solid white' }}
                 aria-label="Upload photo"
               >
-                <Camera size={13} color="white" />
+                <Camera size={11} color="white" />
               </button>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
             </div>
@@ -1760,15 +1797,17 @@ const LocationsStep = ({ onBack, onFinish }) => {
 const SCREEN_ORDER = ['welcome', 'vessel', 'profile', 'departments', 'crew', 'locations', 'done'];
 const STEP_KEYS = ['vessel', 'profile', 'departments', 'crew', 'locations'];
 
-// Colour choreography matches the CargoOnboarding.jsx reference exactly —
-// it was built for a 5-step flow, and this is now a 5-step flow.
+// Colour choreography follows the CargoOnboarding.jsx reference's rhythm
+// (cream → cream → dark → peach → pale → dark → peach), but the "dark"
+// screens use the real Cargo brand navy ink (#1C1B3A per CLAUDE.md) —
+// the reference's #1E3A5F is the old marketing-site navy, not this one.
 const THEMES = {
   welcome:     { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
   vessel:      { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
-  profile:     { bg: '#1E3A5F', fg: '#F4F1EC', ac: '#E8915A' },
+  profile:     { bg: '#1C1B3A', fg: '#F4F1EC', ac: '#E8915A' },
   departments: { bg: '#EFC8A6', fg: '#1C1B3A', ac: '#C65A1A' },
   crew:        { bg: '#DCE3EA', fg: '#1C1B3A', ac: '#C65A1A' },
-  locations:   { bg: '#1E3A5F', fg: '#F4F1EC', ac: '#E8915A' },
+  locations:   { bg: '#1C1B3A', fg: '#F4F1EC', ac: '#E8915A' },
   done:        { bg: '#EFC8A6', fg: '#1C1B3A', ac: '#C65A1A' },
 };
 
@@ -2060,14 +2099,20 @@ const OnboardingPage = () => {
         )}
       </header>
 
-      <div className="onb-marquee" key={'m' + screen}>
-        <span>{(marqueeText + ' · ').repeat(14)}</span>
+      {/* No remount key here — remounting on every step change restarted the
+          scroll from 0 each time, reading as a stutter/stop at each
+          transition. The repeat count is high (not just enough to fill one
+          screen) so short words like "CREW" still tile to at least 2x any
+          realistic viewport width — anything less leaves a blank gap
+          halfway through the loop, which is what a "stop" actually was. */}
+      <div className="onb-marquee">
+        <span>{(marqueeText + ' · ').repeat(60)}</span>
       </div>
 
       <main className="onb-main" key={screen}>
         {screen === 'welcome' && (
           <div className="onb-welcome">
-            <h1 className="onb-head-serif">WELCOME ABOARD, <em className="onb-bel">Belongers</em></h1>
+            <h1 className="onb-head-serif">WELCOME ABOARD, <em className="onb-bel">{tenant?.name || 'Captain'}</em></h1>
             <p className="onb-sub center">Let&rsquo;s get your vessel ready to sail. Five quick steps to set the course.</p>
             <div className="onb-ctarow center">
               <button className="onb-cta welcome" onClick={() => setScreen('vessel')}>Get started</button>
@@ -2085,7 +2130,7 @@ const OnboardingPage = () => {
               <span className="onb-glyph">
                 <meta.icon size={36} color="var(--wac)" strokeWidth={1.6} />
               </span>
-              <div className="onb-panel">
+              <div className={`onb-panel${screen === 'profile' ? ' onb-panel--narrow' : ''}`}>
                 {screen === 'vessel' && (
                   <VesselSettingsStep
                     tenant={tenant}
