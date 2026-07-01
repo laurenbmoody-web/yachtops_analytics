@@ -56,6 +56,7 @@ import {
   bulkDeleteProvisioningItems,
   bulkUpdateItemDepartment,
   bulkUpdateProvisioningItems,
+  fetchPortalEnabledSuppliers,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -855,6 +856,33 @@ const ProvisioningBoardDetail = () => {
     return map;
   }, [supplierOrders]);
 
+  // Portal-supplier lock: lines attached to a supplier who has a Cargo
+  // portal account are the supplier's to manage — the crew must not
+  // override their status (e.g. mark unavailable). We resolve the set of
+  // portal-enabled supplier_profile_ids present on the board via the
+  // SECURITY DEFINER RPC (crew RLS can't read supplier_contacts directly),
+  // keyed on the distinct ids so it refetches only when the mix changes.
+  const [portalSupplierIds, setPortalSupplierIds] = useState(() => new Set());
+  const boardSupplierIdsKey = useMemo(() => {
+    const ids = [...new Set(items.map(i => i.supplier_profile_id).filter(Boolean))];
+    return ids.sort().join(',');
+  }, [items]);
+  useEffect(() => {
+    const ids = boardSupplierIdsKey ? boardSupplierIdsKey.split(',') : [];
+    if (ids.length === 0) { setPortalSupplierIds(new Set()); return; }
+    let cancelled = false;
+    fetchPortalEnabledSuppliers(ids)
+      .then((map) => { if (!cancelled) setPortalSupplierIds(new Set(map.keys())); })
+      .catch(() => { if (!cancelled) setPortalSupplierIds(new Set()); });
+    return () => { cancelled = true; };
+  }, [boardSupplierIdsKey]);
+  // A board line is portal-locked when it's assigned to a portal supplier
+  // — its status belongs to the supplier, not the crew.
+  const isPortalLocked = useCallback(
+    (item) => !!item?.supplier_profile_id && portalSupplierIds.has(item.supplier_profile_id),
+    [portalSupplierIds],
+  );
+
   // Supplier-response counts — banner above the items toolbar tells the
   // chief how many of the order's lines the supplier has acted on
   // (confirmed / substituted / unavailable) so they can spot pending
@@ -874,7 +902,7 @@ const ProvisioningBoardDetail = () => {
 
   // itemStatusMap must be declared before hasSendableItems and canDeleteItem
   const hasSendableItems = items
-    .filter(i => i.status !== 'received' && i.name?.trim())
+    .filter(i => i.status !== 'received' && i.status !== 'unavailable' && i.name?.trim())
     .some(i => {
       const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
       return !oi;
@@ -1509,6 +1537,50 @@ const ProvisioningBoardDetail = () => {
     }
   };
 
+  // ── Bulk mark unavailable / available ───────────────────────────────────
+  // Crew flags board lines that won't be supplied (a manual supplier can't
+  // provide them, or the vessel drops them). Unavailable lines drop out of
+  // the cost totals, the Send flow, and the "waiting on a quote" count — so
+  // a manual board can still reach 'confirmed'. Portal-supplier lines are
+  // skipped: their status belongs to the supplier. Acts as a toggle — if
+  // every eligible selected line is already unavailable it flips them back
+  // to draft.
+  const handleBulkMarkUnavailable = async () => {
+    const selected = items.filter(i => selectedItems.has(i.id));
+    // Eligible = not portal-locked and not already in a receipt/return
+    // state (an unavailable call is pre-supply; received/returned lines
+    // have moved past it).
+    const eligible = selected.filter(i =>
+      !isPortalLocked(i) && !['received', 'partial', 'returned'].includes(i.status));
+    if (eligible.length === 0) {
+      showToast('These lines are managed by their supplier — mark them from the supplier side.', 'error');
+      return;
+    }
+    const allUnavailable = eligible.every(i => i.status === 'unavailable');
+    const nextStatus = allUnavailable ? 'draft' : 'unavailable';
+    const ids = eligible.map(i => i.id);
+    const originals = new Map(eligible.map(i => [i.id, i.status]));
+
+    setBulkBusy({ kind: 'unavailable', done: 0, total: ids.length });
+    setItems(prev => prev.map(i => originals.has(i.id) ? { ...i, status: nextStatus } : i));
+    try {
+      await bulkUpdateProvisioningItems(ids, { status: nextStatus });
+      showToast(
+        nextStatus === 'unavailable'
+          ? `Marked ${ids.length} item${ids.length === 1 ? '' : 's'} unavailable`
+          : `Restored ${ids.length} item${ids.length === 1 ? '' : 's'} to the board`,
+        'success',
+      );
+    } catch (err) {
+      console.error('[BulkMarkUnavailable] failed:', err);
+      setItems(prev => prev.map(i => originals.has(i.id) ? { ...i, status: originals.get(i.id) } : i));
+      showToast(`Couldn't update items — ${err.message || err}`, 'error');
+    } finally {
+      setBulkBusy({ kind: null, done: 0, total: 0 });
+      setSelectedItems(new Set());
+    }
+  };
+
   // ── Bulk multi-edit ─────────────────────────────────────────────────────
   // The modal passes back { diff, touched } — diff is the touched fields
   // resolved to values (with supplier_name added when supplier_profile_id
@@ -1948,7 +2020,7 @@ const ProvisioningBoardDetail = () => {
   };
 
   const handleSendToSupplier = () => {
-    const sendableItems = items.filter(i => i.status !== 'received' && i.name?.trim());
+    const sendableItems = items.filter(i => i.status !== 'received' && i.status !== 'unavailable' && i.name?.trim());
     if (sendableItems.length === 0) {
       showToast('Add items to the board before sending to a supplier.', 'warning');
       return;
@@ -2205,7 +2277,10 @@ const ProvisioningBoardDetail = () => {
     return m;
   }, [items, effectiveCost]);
 
+  // Unavailable lines are excluded from every cost roll-up — they won't be
+  // supplied, so they carry no committed spend.
   const grandTotals = useMemo(() => items.reduce((acc, i) => {
+    if (i.status === 'unavailable') return acc;
     const qty = effectiveOrderedQty(i);
     const qtyRec = parseFloat(i.quantity_received) || 0;
     const cost = effectiveCost(i);
@@ -2215,6 +2290,7 @@ const ProvisioningBoardDetail = () => {
   const convertedTotals = useMemo(() => {
     const disp = displayCurrency || 'GBP';
     return items.reduce((acc, i) => {
+      if (i.status === 'unavailable') return acc;
       const qty = effectiveOrderedQty(i);
       const qtyRec = parseFloat(i.quantity_received) || 0;
       const cost = effectiveCost(i);
@@ -2234,15 +2310,19 @@ const ProvisioningBoardDetail = () => {
       return qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[disp] || 1));
     };
     const effectivePS = (i) => paymentStatusMap[i.id] ?? i.payment_status ?? 'awaiting_invoice';
-    const receivedCount = items.filter(i => ['received', 'partial'].includes(i.status)).length;
-    const paidItems   = items.filter(i => ['paid', 'paid_upfront'].includes(effectivePS(i)));
-    const unpaidItems = items.filter(i => !['paid', 'paid_upfront'].includes(effectivePS(i)));
+    // Unavailable lines don't count toward receive / pay progress — they
+    // won't be supplied, so they're neither outstanding nor payable.
+    const liveItems = items.filter(i => i.status !== 'unavailable');
+    const unavailableCount = items.length - liveItems.length;
+    const receivedCount = liveItems.filter(i => ['received', 'partial'].includes(i.status)).length;
+    const paidItems   = liveItems.filter(i => ['paid', 'paid_upfront'].includes(effectivePS(i)));
+    const unpaidItems = liveItems.filter(i => !['paid', 'paid_upfront'].includes(effectivePS(i)));
     return {
-      leftToReceive:  items.length - receivedCount,
-      totalCount:     items.length,
+      leftToReceive:  liveItems.length - receivedCount,
+      totalCount:     liveItems.length,
       receivedCount,
       totalValue:     convertedTotals.estimated,
-      costSubtext:    `${items.length} item${items.length !== 1 ? 's' : ''} on board`,
+      costSubtext:    `${liveItems.length} item${liveItems.length !== 1 ? 's' : ''} on board${unavailableCount > 0 ? ` · ${unavailableCount} unavailable` : ''}`,
       paidValue:      paidItems.reduce((s, i) => s + convItem(i), 0),
       leftToPayValue: unpaidItems.reduce((s, i) => s + convItem(i), 0),
     };
@@ -2544,12 +2624,19 @@ const ProvisioningBoardDetail = () => {
       //   some priced → partially_confirmed
       //   none priced → leave as-is (nothing to confirm yet)
       const isPriced = (i) => i.quoted_unit_cost != null && Number(i.quoted_unit_cost) > 0;
+      // An item is "settled" for the rollup once it either carries an
+      // applied quote OR the crew has marked it unavailable (it will never
+      // be quoted). Counting unavailable as settled lets a board complete
+      // to 'confirmed' instead of sticking at partially_confirmed forever.
+      const isSettled = (i) => isPriced(i) || i.status === 'unavailable';
       const pricedItems = items.filter(isPriced);
-      let manualOutcome = null;   // { priced, total } when the manual branch ran
+      let manualOutcome = null;   // { priced, unavailable, total } when the manual branch ran
       if ((!result || !result.affectedItems) && hasManualQuote) {
         const total = items.length;
-        manualOutcome = { priced: pricedItems.length, total };
-        const manualStatus = total > 0 && pricedItems.length >= total
+        const settledCount = items.filter(isSettled).length;
+        const unavailableCount = items.filter(i => i.status === 'unavailable').length;
+        manualOutcome = { priced: pricedItems.length, unavailable: unavailableCount, total };
+        const manualStatus = total > 0 && settledCount >= total
           ? 'confirmed'
           : (pricedItems.length > 0 ? 'partially_confirmed' : nextStatus);
         if (manualStatus !== list?.status) {
@@ -2578,10 +2665,11 @@ const ProvisioningBoardDetail = () => {
         );
       } else if (manualOutcome) {
         // Manual board: phrase the rollup in items, not Cargo orders.
-        const { priced, total } = manualOutcome;
-        const msg = priced >= total
-          ? `Quote confirmed — all ${total} item${total === 1 ? '' : 's'} confirmed`
-          : `Quote confirmed — ${priced} of ${total} items confirmed, others still awaiting a quote`;
+        const { priced, unavailable, total } = manualOutcome;
+        const unavailNote = unavailable > 0 ? ` (${unavailable} unavailable)` : '';
+        const msg = (priced + unavailable) >= total
+          ? `Quote confirmed — all ${total} item${total === 1 ? '' : 's'} settled${unavailNote}`
+          : `Quote confirmed — ${priced} of ${total} items confirmed${unavailNote}, others still awaiting a quote`;
         showToast(msg, 'success');
       } else {
         const msg = result?.listFullyConfirmed
@@ -3776,7 +3864,7 @@ const ProvisioningBoardDetail = () => {
                               background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white',
                               borderBottom: rowIdx < totalRows - 1 ? '1px solid #F8FAFC' : 'none',
                               transition: 'background 0.1s',
-                              opacity: isLocked && itemOrder.status === 'unavailable' ? 0.7 : 1,
+                              opacity: (isLocked && itemOrder.status === 'unavailable') || item.status === 'unavailable' ? 0.7 : 1,
                             }}
                           >
                             {/* Selection checkbox (pure select — no
@@ -3814,9 +3902,9 @@ const ProvisioningBoardDetail = () => {
                                       onDoubleClick={() => !isReceived && !isLocked && setEditingCell({ itemId: item.id, field: 'name' })}
                                       style={{
                                         fontSize: 13,
-                                        color: itemOrder?.status === 'unavailable' ? '#94A3B8' : dim || '#0F172A',
+                                        color: (itemOrder?.status === 'unavailable' || item.status === 'unavailable') ? '#94A3B8' : dim || '#0F172A',
                                         fontWeight: 500, cursor: 'default', lineHeight: 1.3,
-                                        textDecoration: itemOrder?.status === 'unavailable' ? 'line-through' : 'none',
+                                        textDecoration: (itemOrder?.status === 'unavailable' || item.status === 'unavailable') ? 'line-through' : 'none',
                                       }}
                                     >
                                       {item.name}
@@ -5177,7 +5265,7 @@ const ProvisioningBoardDetail = () => {
           tenantId={activeTenantId}
           listId={id}
           items={items
-            .filter(i => i.status !== 'received' && i.name?.trim())
+            .filter(i => i.status !== 'received' && i.status !== 'unavailable' && i.name?.trim())
             .filter(i => {
               const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
               return !oi;
@@ -5277,6 +5365,28 @@ const ProvisioningBoardDetail = () => {
         onEdit={() => setBulkEditOpen(true)}
         onChangeDept={() => setBulkChangeDeptOpen(true)}
         onDelete={() => setBulkDeleteOpen(true)}
+        // Mark unavailable / available — crew flags lines that won't be
+        // supplied. Disabled when every selected line is either portal-
+        // supplier-owned or already in a receipt state (nothing eligible).
+        // Label flips to "Mark available" when all eligible lines are
+        // already unavailable, so it reads as a toggle.
+        {...(() => {
+          const rows = items.filter(i => selectedItems.has(i.id));
+          const eligible = rows.filter(i =>
+            !isPortalLocked(i) && !['received', 'partial', 'returned'].includes(i.status));
+          const anyPortalLocked = rows.some(i => isPortalLocked(i));
+          const allOff = eligible.length > 0 && eligible.every(i => i.status === 'unavailable');
+          return {
+            onMarkUnavailable: handleBulkMarkUnavailable,
+            unavailableLabel: allOff ? 'Mark available' : 'Mark unavailable',
+            unavailableDisabled: eligible.length === 0,
+            unavailableTitle: eligible.length === 0
+              ? 'Managed by the supplier — mark availability from the supplier side.'
+              : (anyPortalLocked
+                  ? 'Applies to the non-supplier lines only — supplier-owned lines are left as-is.'
+                  : undefined),
+          };
+        })()}
         onClear={clearSelection}
       />
 

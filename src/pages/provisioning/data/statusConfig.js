@@ -351,8 +351,12 @@ export const getItemStatusConfig = (status) => {
 export const deriveDisplayStatus = (item, supplierOrderItem, supplierOrder) => {
   if (!item) return 'draft';
 
-  // 1. Manual stew choice for terminal/financial states.
-  if (['paid', 'invoiced', 'returned', 'not_received'].includes(item.status)) {
+  // 1. Manual stew choice for terminal/financial states. 'unavailable'
+  //    here is a CREW-set board decision (this item won't be supplied on
+  //    a manual / unassigned line) — distinct from the supplier-set
+  //    'unavailable' handled in step 5. It wins outright: portal-supplier
+  //    lines can't be crew-set unavailable, so there's no conflict.
+  if (['paid', 'invoiced', 'returned', 'not_received', 'unavailable'].includes(item.status)) {
     return item.status;
   }
 
