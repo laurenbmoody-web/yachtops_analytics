@@ -1488,6 +1488,8 @@ const CrewManagement = () => {
         .filter((r) => r.el)
         .map((r) => ({ ...r, rect: r.el.getBoundingClientRect() }));
       if (!rowRects.length) return null;
+      const containerRect = orgContainerRef.current?.getBoundingClientRect();
+      const toLocalTop = (viewportY) => viewportY - (containerRect?.top || 0);
 
       let row = null;
       for (const r of rowRects) {
@@ -1495,14 +1497,15 @@ const CrewManagement = () => {
       }
       if (!row) {
         const first = rowRects[0]; const last = rowRects[rowRects.length - 1];
-        if (clientY < first.rect.top - GAP_PAD) row = { type: 'newrow', prevKey: null, nextKey: first.key, rect: first.rect };
-        else if (clientY > last.rect.bottom + GAP_PAD) row = { type: 'newrow', prevKey: last.key, nextKey: null, rect: last.rect };
+        if (clientY < first.rect.top - GAP_PAD) row = { type: 'newrow', prevKey: null, nextKey: first.key, rect: first.rect, previewTop: toLocalTop(first.rect.top - GAP_PAD - 30) };
+        else if (clientY > last.rect.bottom + GAP_PAD) row = { type: 'newrow', prevKey: last.key, nextKey: null, rect: last.rect, previewTop: toLocalTop(last.rect.bottom + GAP_PAD + 30) };
         else {
           for (let i = 0; i < rowRects.length - 1; i++) {
             const a = rowRects[i]; const b = rowRects[i + 1];
             if (clientY > a.rect.bottom + GAP_PAD && clientY < b.rect.top - GAP_PAD) {
               const left = Math.min(a.rect.left, b.rect.left); const right = Math.max(a.rect.right, b.rect.right);
-              row = { type: 'newrow', prevKey: a.key, nextKey: b.key, rect: { left, width: right - left } };
+              const midY = (a.rect.bottom + b.rect.top) / 2;
+              row = { type: 'newrow', prevKey: a.key, nextKey: b.key, rect: { left, width: right - left }, previewTop: toLocalTop(midY) };
               break;
             }
           }
@@ -1649,16 +1652,6 @@ const CrewManagement = () => {
     const dragged = hierDragId ? crewById.get(hierDragId) : null;
     const cardStyle = (key) => ({ left: `calc(50% + ${colOffsetPx(key) - 89}px)` }); // 89 = half card width (178/2)
 
-    // Row sequence including a placeholder-only row spliced in wherever a new
-    // level would open (before the row whose key matches `nextKey`, or right at
-    // the end when nextKey is null — i.e. below the last row).
-    const rowSequence = [];
-    for (const rowKey of sortedRowKeys) {
-      if (hierPlan?.row.type === 'newrow' && hierPlan.row.nextKey === rowKey) rowSequence.push({ key: `ph-${rowKey}`, isPlaceholderRow: true });
-      rowSequence.push({ key: rowKey });
-    }
-    if (hierPlan?.row.type === 'newrow' && hierPlan.row.nextKey == null && sortedRowKeys.length) rowSequence.push({ key: 'ph-end', isPlaceholderRow: true });
-
     return (
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
         {canEdit && (
@@ -1674,16 +1667,20 @@ const CrewManagement = () => {
         <svg className="cm-org-lines">
           {orgLines.map((l, i) => <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} />)}
         </svg>
+        {/* New-row preview — an absolute overlay, NOT a real flow row, so it
+            never pushes other row bands around (that reflow was fighting the
+            drag itself: shifting rows under the cursor mid-drag kept
+            re-triggering a different hover result, an endless loop). */}
+        {hierPlan?.row.type === 'newrow' && (
+          <div
+            className={`cm-onode cm-onode-placeholder cm-onode-placeholder-float${hierPlan.pairWithId ? ' is-pairing' : ''}`}
+            style={{ top: hierPlan.row.previewTop, left: `calc(50% + ${hierPlan.previewOffsetPx - 89}px)` }}
+          >
+            {hierPlan.pairWithId && <Icon name="Link2" size={14} />}
+          </div>
+        )}
         <div className="cm-orows">
-          {rowSequence.map((row) => {
-            if (row.isPlaceholderRow) {
-              return (
-                <div key={row.key} className="cm-orow-band">
-                  <div className="cm-onode cm-onode-placeholder" style={{ left: `calc(50% + ${(hierPlan?.previewOffsetPx || 0) - 89}px)` }} />
-                </div>
-              );
-            }
-            const rowKey = row.key;
+          {sortedRowKeys.map((rowKey) => {
             const members = rowsMap.get(rowKey) || [];
             const showJoinHere = hierPlan?.row.type === 'join' && hierPlan.row.rowKey === rowKey;
             return (
