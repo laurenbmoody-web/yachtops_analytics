@@ -1657,9 +1657,14 @@ const CrewManagement = () => {
     return (
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
         {canEdit && (
-          <p className="cm-hier-hint">
-            <Icon name="Move" size={12} /> Drag anyone, anywhere — drop them directly under whoever they should sit beneath. Hover over one specific person on the row above (they'll highlight) to report to just them, even if others sit nearby. Place two people close together to pair them under one shared line; space them apart to keep separate lines. A new row opens above, below, or between existing ones.
-          </p>
+          <div className="cm-hier-hint">
+            <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Drag anyone, anywhere to rebuild the team structure.</p>
+            <ul className="cm-hier-hint-legend">
+              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Hover over one person above</strong> — report to them alone</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-pair" /><strong>Drop right beside someone</strong> — pair under one shared line</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-row" /><strong>Drop above, below or between rows</strong> — open a new level</li>
+            </ul>
+          </div>
         )}
         <svg className="cm-org-lines">
           {orgLines.map((l, i) => <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} />)}

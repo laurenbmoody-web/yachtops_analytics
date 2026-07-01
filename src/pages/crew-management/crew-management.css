@@ -284,8 +284,16 @@ a.cm-cal-name:hover { color: #C65A1A; }
    dropping anywhere between/above/below existing rows opens a new one there;
    dropping within a row inserts left/right at the cursor's position. */
 .cm-org { position: relative; width: 100%; margin-top: 28px; padding-bottom: 30px; overflow-x: auto; }
-.cm-hier-hint { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #6B7280; margin: 0 0 26px; max-width: 760px; }
-.cm-hier-hint svg { color: #C65A1A; flex: 0 0 auto; }
+.cm-hier-hint { margin: 0 0 24px; }
+.cm-hier-hint-lead { display: flex; align-items: center; gap: 6px; font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 16px; color: #1C1B3A; margin: 0 0 10px; }
+.cm-hier-hint-lead svg { color: #C65A1A; flex: 0 0 auto; }
+.cm-hier-hint-legend { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 0; padding: 0; list-style: none; }
+.cm-hier-hint-legend li { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #6B7280; }
+.cm-hier-hint-legend strong { color: #1C1B3A; font-weight: 600; }
+.cm-hier-swatch { flex: 0 0 auto; width: 14px; height: 14px; border-radius: 4px; }
+.cm-hier-swatch-report { border: 1.5px dashed #C65A1A; }
+.cm-hier-swatch-pair { border: 1.5px solid #C65A1A; background: #FBEFE9; }
+.cm-hier-swatch-row { border: 1.5px dashed #CBD5E1; background: #F1F5F9; }
 
 .cm-orows { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 56px; width: 100%; }
 /* Each row is a fixed-height lane; cards inside are positioned absolutely by
