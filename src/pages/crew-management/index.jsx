@@ -1313,7 +1313,12 @@ const CrewManagement = () => {
         .filter(Boolean)
         .map(({ u, el }) => {
           const r = el.getBoundingClientRect();
-          return { row: u.orgRow != null ? u.orgRow : defaultOrgRow(u), cx: r.left + r.width / 2 - crect.left, top: r.top - crect.top, bottom: r.bottom - crect.top };
+          return {
+            row: u.orgRow != null ? u.orgRow : defaultOrgRow(u),
+            cx: r.left + r.width / 2 - crect.left,
+            left: r.left - crect.left, right: r.right - crect.left,
+            top: r.top - crect.top, bottom: r.bottom - crect.top,
+          };
         });
       const rowKeys = [...new Set(withMeta.map((m) => m.row))].sort((a, b) => a - b);
 
@@ -1334,22 +1339,31 @@ const CrewManagement = () => {
         }));
       };
 
+      // Family-tree style: every segment is strictly horizontal or vertical
+      // (never diagonal) — a short "marriage bar" links a paired group at their
+      // shared mid-height; a vertical trunk drops from the group/person down to
+      // a horizontal bar spanning all their children, with vertical stems to each.
       const lines = [];
       let prevGroups = null;
       rowKeys.forEach((key) => {
         const rowNodes = withMeta.filter((m) => m.row === key);
-        // Tight-clustered groups (a deliberate pair) — this becomes the anchor
-        // set the NEXT row measures against, and (below) the point THIS row's
-        // own trunk lands on when it has its own parent above.
         const groups = clusterRow(rowNodes);
 
+        // Pair link — a straight horizontal bar between consecutive members of a
+        // group, at their shared vertical mid-height, from one card's edge to
+        // the next's (never through the boxes themselves).
+        groups.forEach((g) => {
+          if (g.nodes.length < 2) return;
+          const midY = (g.nodes[0].top + g.nodes[0].bottom) / 2;
+          const sorted = [...g.nodes].sort((a, b) => a.cx - b.cx);
+          for (let i = 0; i < sorted.length - 1; i++) {
+            lines.push({ x1: sorted[i].right, y1: midY, x2: sorted[i + 1].left, y2: midY });
+          }
+        });
+
         if (prevGroups && prevGroups.length) {
-          // Group this row's cards by shared nearest parent-anchor — draws ONE
-          // trunk straight down to the mid-point BETWEEN those children (not the
-          // parent's own x), then short branches out to each, so a set of
-          // children reporting to the same lead(s) always looks like a centred
-          // "T", never a lopsided diagonal to whichever child happens to be
-          // nearest the parent's exact anchor.
+          // Group this row's cards by shared nearest parent-group, so several
+          // children of the same lead(s) share one trunk + sibling bar.
           const byParent = new Map();
           rowNodes.forEach((n) => {
             let nearest = prevGroups[0]; let best = Infinity;
@@ -1358,10 +1372,13 @@ const CrewManagement = () => {
             byParent.get(nearest).push(n);
           });
           byParent.forEach((children, parent) => {
-            const midX = (Math.min(...children.map((c) => c.cx)) + Math.max(...children.map((c) => c.cx))) / 2;
-            const topY = Math.min(...children.map((c) => c.top));
-            lines.push({ x1: parent.anchorX, y1: parent.bottom, x2: midX, y2: topY });
-            if (children.length > 1) children.forEach((c) => lines.push({ x1: midX, y1: topY, x2: c.cx, y2: c.top }));
+            const childXs = children.map((c) => c.cx);
+            const barY = (parent.bottom + Math.min(...children.map((c) => c.top))) / 2;
+            const leftX = Math.min(parent.anchorX, ...childXs);
+            const rightX = Math.max(parent.anchorX, ...childXs);
+            lines.push({ x1: parent.anchorX, y1: parent.bottom, x2: parent.anchorX, y2: barY }); // trunk down from parent
+            lines.push({ x1: leftX, y1: barY, x2: rightX, y2: barY }); // sibling bar
+            children.forEach((c) => lines.push({ x1: c.cx, y1: barY, x2: c.cx, y2: c.top })); // stem to each child
           });
         }
         prevGroups = groups;
