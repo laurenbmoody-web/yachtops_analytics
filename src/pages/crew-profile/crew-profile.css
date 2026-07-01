@@ -286,6 +286,20 @@ body.crew-profile-editorial {
   cursor: pointer;
 }
 .crew-profile-page .cp-field-card input.cp-inline-box:disabled { background: transparent !important; opacity: 1 !important; }
+/* Inline "add a role" on the §07 Role field: text input + Add / Cancel. */
+.crew-profile-page .cp-addrole { display: flex; align-items: center; gap: 8px; }
+.crew-profile-page .cp-addrole input.cp-inline-box { flex: 1 1 auto; min-width: 0; }
+.crew-profile-page .cp-addrole-add {
+  flex: none; border: 0; border-radius: 8px; padding: 5px 12px; cursor: pointer;
+  background: #C65A1A; color: #fff; font-size: 12px; font-weight: 600; letter-spacing: .02em;
+}
+.crew-profile-page .cp-addrole-add:hover:not(:disabled) { background: #B14E16; }
+.crew-profile-page .cp-addrole-add:disabled { opacity: .5; cursor: not-allowed; }
+.crew-profile-page .cp-addrole-x {
+  flex: none; border: 0; background: none; color: #6B7280; cursor: pointer;
+  font-size: 12px; font-weight: 600; padding: 5px 4px;
+}
+.crew-profile-page .cp-addrole-x:hover { color: #1C1B3A; }
 /* Split-payment row: type select + amount + unit, inline. */
 .crew-profile-page .cp-split-row { display: flex; align-items: center; gap: 8px; }
 .crew-profile-page .cp-split-row select.cp-inline-select { flex: 1 1 auto; min-width: 0; }

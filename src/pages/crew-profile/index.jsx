@@ -290,6 +290,10 @@ const CrewProfile = () => {
   const [compForm, setCompForm] = useState(null);       // crew_compensation (null = no access/none)
   const [empEditing, setEmpEditing] = useState(false);
   const [empSaving, setEmpSaving] = useState(false);
+  // Inline "add a role" on the §07 Role dropdown (upserts a tenant custom role).
+  const [empAddingRole, setEmpAddingRole] = useState(false);
+  const [empNewRoleName, setEmpNewRoleName] = useState('');
+  const [empRoleSaving, setEmpRoleSaving] = useState(false);
   const [vesselCompliance, setVesselCompliance] = useState(null);   // { name, flag, port_of_registry, imo_number, official_number, commercial_status, certified_commercial }
   const [templates, setTemplates] = useState([]);                   // contract templates for the tenant
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -1076,6 +1080,12 @@ const canEdit = (() => {
       // current role/department render by name.
       const { data: roleRows } = await supabase
         .from('roles').select('id, name, department_id, default_permission_tier').order('name', { ascending: true });
+      // Tenant custom roles join the same picker so a member can hold one (and
+      // COMMAND can add more inline). Tagged is_custom so save routes them to
+      // tenant_members.custom_role_id rather than role_id.
+      const { data: customRoleRows } = await supabase
+        .from('tenant_custom_roles').select('id, name, department_id, default_permission_tier')
+        .eq('tenant_id', activeTenantId).order('name', { ascending: true });
       const { data: deptRows } = await supabase
         .from('departments').select('id, name').order('name', { ascending: true });
       const { data: comp } = await supabase
@@ -1101,7 +1111,10 @@ const canEdit = (() => {
         .eq('user_id', crewId).in('doc_type', ['generated_contract', 'employment_contract', 'Employment Contract'])
         .order('updated_at', { ascending: false }).limit(1).maybeSingle();
       if (cancelled) return;
-      setEmpRoles(Array.from(new Map((roleRows || []).map(r => [r.id, r])).values()));
+      setEmpRoles([
+        ...Array.from(new Map((roleRows || []).map(r => [r.id, { ...r, is_custom: false }])).values()),
+        ...Array.from(new Map((customRoleRows || []).map(r => [r.id, { ...r, is_custom: true }])).values()),
+      ]);
       setEmpDepts(deptRows || []);
       // Seed the authoritative role/department/permission from tenant_members so
       // §07 edits them directly (single source of truth).
@@ -1128,7 +1141,7 @@ const canEdit = (() => {
     setEmpSaving(true);
     // Authoritative role/department/permission live on tenant_members; mirror the
     // chosen names onto crew_employment so generated-contract tokens still fill.
-    const roleName = empRoles.find((r) => r.id === empForm.role_id)?.name || crewMember?.roleTitle || null;
+    const roleName = empRoles.find((r) => r.id === (empForm.custom_role_id || empForm.role_id))?.name || crewMember?.roleTitle || null;
     const deptName = empDepts.find((d) => d.id === empForm.department_id)?.name || null;
     const empPatch = {
       tenant_id: activeTenantId, user_id: crewId,
@@ -3650,14 +3663,60 @@ const canEdit = (() => {
     const setE = (k, v) => setEmpForm((p) => ({ ...p, [k]: v }));
     // Authoritative role / department / permission (tenant_members) — current
     // display names + the option lists that drive the selectors.
-    const curRoleName = empRoles.find((r) => r.id === empForm.role_id)?.name || crewMember?.roleTitle || '';
+    // Selected role can be a global role (role_id) or a tenant custom role
+    // (custom_role_id) — resolve both against the merged empRoles list.
+    const curRoleSel = empForm.custom_role_id || empForm.role_id || '';
+    const curRoleName = empRoles.find((r) => r.id === curRoleSel)?.name || crewMember?.roleTitle || '';
     const curDeptName = empDepts.find((d) => d.id === empForm.department_id)?.name || crewMember?.department || '';
     const rolesForDept = empForm.department_id ? empRoles.filter((r) => r.department_id === empForm.department_id) : empRoles;
     const curTierLabel = (EMP_TIERS.find((t) => t.value === (empForm.permission_tier_override || ''))?.label) || 'Use role default';
-    const onDeptChange = (val) => setEmpForm((p) => {
-      const keepRole = empRoles.find((r) => r.id === p.role_id)?.department_id === val ? p.role_id : null;
-      return { ...p, department_id: val || null, role_id: keepRole };
-    });
+    const onDeptChange = (val) => {
+      setEmpAddingRole(false); setEmpNewRoleName('');
+      setEmpForm((p) => {
+        // Keep the role only if it belongs to the newly-picked department.
+        const sel = empRoles.find((r) => r.id === (p.custom_role_id || p.role_id));
+        const keep = sel && sel.department_id === val;
+        return {
+          ...p,
+          department_id: val || null,
+          role_id: keep && !sel.is_custom ? p.role_id : null,
+          custom_role_id: keep && sel.is_custom ? p.custom_role_id : null,
+        };
+      });
+    };
+    // Pick a role from the dropdown: "__add__" opens the inline add field,
+    // otherwise route the id to role_id or custom_role_id by its source.
+    const onRoleChange = (val) => {
+      if (val === '__add__') { setEmpAddingRole(true); setEmpNewRoleName(''); return; }
+      setEmpAddingRole(false);
+      const sel = empRoles.find((r) => r.id === val);
+      setEmpForm((p) => ({
+        ...p,
+        role_id: sel && !sel.is_custom ? sel.id : null,
+        custom_role_id: sel && sel.is_custom ? sel.id : null,
+      }));
+    };
+    // Create a tenant custom role inline, then select it.
+    const addRoleInline = async () => {
+      const name = empNewRoleName.trim();
+      if (!name || !empForm.department_id || empRoleSaving) return;
+      setEmpRoleSaving(true);
+      const { data: upserted, error } = await supabase
+        .from('tenant_custom_roles')
+        .upsert(
+          { tenant_id: activeTenantId, department_id: empForm.department_id, name, default_permission_tier: 'CREW', created_by: session?.user?.id },
+          { onConflict: 'tenant_id,department_id,name' },
+        )
+        .select('id, name, department_id, default_permission_tier').single();
+      setEmpRoleSaving(false);
+      if (error || !upserted) { showToast(error?.message || 'Couldn’t add role', 'error'); return; }
+      setEmpRoles((prev) => {
+        const next = prev.filter((r) => r.id !== upserted.id);
+        return [...next, { ...upserted, is_custom: true }];
+      });
+      setEmpForm((p) => ({ ...p, role_id: null, custom_role_id: upserted.id }));
+      setEmpAddingRole(false); setEmpNewRoleName('');
+    };
     const setC = (k, v) => setCompForm((p) => ({ ...(p || {}), [k]: v }));
     const ben = empForm.benefits || {};
     const setB = (k, v) => setEmpForm((p) => ({ ...p, benefits: { ...(p.benefits || {}), [k]: v } }));
@@ -3778,10 +3837,31 @@ const canEdit = (() => {
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Role &amp; access</span><span className="line" /></div>
                 <div className="cp-grid">
                   {fld('Role', curRoleName,
-                    <select className="cp-inline-select" value={empForm.role_id || ''} onChange={(e) => setEmpForm((p) => ({ ...p, role_id: e.target.value || null, custom_role_id: null }))}>
-                      <option value="">—</option>
-                      {rolesForDept.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>)}
+                    empAddingRole ? (
+                      <div className="cp-addrole">
+                        <input
+                          className="cp-inline-box"
+                          autoFocus
+                          value={empNewRoleName}
+                          placeholder="New role name"
+                          onChange={(e) => setEmpNewRoleName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); addRoleInline(); }
+                            else if (e.key === 'Escape') { setEmpAddingRole(false); setEmpNewRoleName(''); }
+                          }}
+                        />
+                        <button type="button" className="cp-addrole-add" disabled={!empNewRoleName.trim() || empRoleSaving} onClick={addRoleInline}>
+                          {empRoleSaving ? 'Adding…' : 'Add'}
+                        </button>
+                        <button type="button" className="cp-addrole-x" onClick={() => { setEmpAddingRole(false); setEmpNewRoleName(''); }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <select className="cp-inline-select" value={curRoleSel} onChange={(e) => onRoleChange(e.target.value)} disabled={!empForm.department_id}>
+                        <option value="">{empForm.department_id ? '—' : 'Pick a department first'}</option>
+                        {rolesForDept.map((r) => <option key={r.id} value={r.id}>{r.name}{r.is_custom ? ' ·' : ''}</option>)}
+                        {empForm.department_id && <option value="__add__">+ Add a role…</option>}
+                      </select>
+                    ))}
                   {fld('Department', curDeptName,
                     <select className="cp-inline-select" value={empForm.department_id || ''} onChange={(e) => onDeptChange(e.target.value)}>
                       <option value="">—</option>
