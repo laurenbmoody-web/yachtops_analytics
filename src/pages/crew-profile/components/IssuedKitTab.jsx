@@ -11,7 +11,7 @@ import {
   recordKitReturn, markKitLost, reinstateKitItem,
   fetchUniformSizes, saveUniformSizes, UNIFORM_SIZE_KEYS,
   fetchCabinAllocation, saveCabinAllocation,
-  logKitEvent, fetchKitEvents,
+  logKitEvent, fetchKitEvents, fetchVesselIdentity,
 } from '../utils/crewKit';
 import { exportKitReceipt } from '../utils/kitReceiptExport';
 import { formatShoeTrio } from '../utils/shoeSizes';
@@ -119,6 +119,16 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   const [sigUrls, setSigUrls] = useState({});
   const [events, setEvents] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Vessel identity for the receipt header. Prefer the prop, but the parent only
+  // loads it on the Contract tab, so fetch it here when absent.
+  const [vesselInfo, setVesselInfo] = useState(vessel || null);
+  useEffect(() => {
+    if (vessel?.name) { setVesselInfo(vessel); return undefined; }
+    if (!tenantId) return undefined;
+    let cancelled = false;
+    fetchVesselIdentity(tenantId).then((v) => { if (!cancelled && v) setVesselInfo(v); });
+    return () => { cancelled = true; };
+  }, [tenantId, vessel]);
 
   // Uniform sizes (moved from the Preferences tab).
   const [sizes, setSizes] = useState({});
@@ -315,7 +325,9 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         retPath ? kitSignatureDataUrl(retPath) : null,
       ]);
       await exportKitReceipt({
-        crewName: crewName || 'Crew member', vesselName, vessel,
+        crewName: crewName || 'Crew member',
+        vesselName: vesselName || vesselInfo?.name,
+        vessel: vesselInfo,
         generatedAt: fmtKitDate(today()), items, ackSig: ackImg, returnSig: retImg,
       });
     } catch (e) { showToast(e.message || 'Could not generate receipt', 'error'); }
