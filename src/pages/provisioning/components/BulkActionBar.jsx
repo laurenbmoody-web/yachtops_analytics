@@ -33,6 +33,15 @@ const BulkActionBar = ({
   onEdit,
   onChangeDept,
   onDelete,
+  // Mark unavailable / available — crew flags board lines that won't be
+  // supplied. Renders only when onMarkUnavailable is provided. The label
+  // is parent-computed (toggles to "Mark available") and the button
+  // disables when nothing selected is eligible (all supplier-owned or
+  // already received).
+  onMarkUnavailable,
+  unavailableLabel = 'Mark unavailable',
+  unavailableDisabled = false,
+  unavailableTitle,
   onClear,
 }) => {
   // Parent unmount is the simplest path — we don't try to animate-out
@@ -87,6 +96,17 @@ const BulkActionBar = ({
               className="pv-bulk-bar-btn pv-bulk-bar-btn-ghost"
             >
               Change dept
+            </button>
+          )}
+          {onMarkUnavailable && (
+            <button
+              type="button"
+              onClick={onMarkUnavailable}
+              disabled={unavailableDisabled}
+              title={unavailableTitle}
+              className="pv-bulk-bar-btn pv-bulk-bar-btn-ghost"
+            >
+              {unavailableLabel}
             </button>
           )}
           {onDelete && (

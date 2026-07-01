@@ -1126,10 +1126,15 @@ export const duplicateList = async (sourceListId, vesselId, userId) => {
 export const computeListStatusAfterDelivery = (items) => {
   if (!items?.length) return null;
   const PROCESSED = new Set(['received', 'partial', 'not_received', 'returned', 'invoiced', 'paid']);
-  const processed = items.filter(i => PROCESSED.has(i.status)).length;
+  // Unavailable lines won't be supplied — drop them from the delivery
+  // denominator so a board still completes to 'delivered' once every
+  // supplyable line is processed, instead of sticking at partially.
+  const supplyable = items.filter(i => i.status !== 'unavailable');
+  if (supplyable.length === 0) return null;
+  const processed = supplyable.filter(i => PROCESSED.has(i.status)).length;
   if (processed === 0) return null;
-  if (processed < items.length) return PROVISIONING_STATUS.PARTIALLY_DELIVERED;
-  const hasDiscrepancy = items.some(i => i.status === 'partial' || i.status === 'not_received');
+  if (processed < supplyable.length) return PROVISIONING_STATUS.PARTIALLY_DELIVERED;
+  const hasDiscrepancy = supplyable.some(i => i.status === 'partial' || i.status === 'not_received');
   return hasDiscrepancy
     ? PROVISIONING_STATUS.DELIVERED_WITH_DISCREPANCIES
     : PROVISIONING_STATUS.DELIVERED;
