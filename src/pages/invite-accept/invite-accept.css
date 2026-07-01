@@ -20,10 +20,8 @@
 
 /* steps share one footprint; nav pinned to the bottom so the card never jumps */
 .ia-step { display: flex; flex-direction: column; min-height: 300px; }
-.ia-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 30px; line-height: 1.05; letter-spacing: -.5px; margin: 11px 0 0; }
-.ia-title em { font-style: italic; }
-.ia-lead { font-size: 12.5px; color: #6B7280; margin: 8px 0 0; }
-.ia-lead b { color: #1C1B3A; }
+.ia-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 30px; line-height: 1.05; letter-spacing: -.5px; margin: 11px 0 0; text-transform: uppercase; }
+.ia-title em { font-style: italic; color: #C65A1A; text-transform: none; }
 
 .ia-grouphead { display: flex; align-items: center; gap: 8px; margin: 22px 0 14px; }
 .ia-grouphead .dia { color: #C65A1A; font-size: 9px; }

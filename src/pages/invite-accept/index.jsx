@@ -372,6 +372,15 @@ const InviteAcceptPage = () => {
       // Construct full_name as "{first_name} {surname}" with proper trimming
       const fullName = `${firstName?.trim() || ''} ${surname?.trim() || ''}`?.trim();
 
+      // Never create a new account on top of a *different* active session — sign
+      // it out first so signUp / signInWithPassword operate on a clean slate and
+      // can never mutate whoever was previously logged in.
+      const { data: { session: existingSession } } = await supabase.auth.getSession();
+      if (existingSession?.user && existingSession.user.email?.toLowerCase() !== inviteEmail?.toLowerCase()) {
+        console.log('INVITE_ACCEPT: signing out mismatched session before signUp', existingSession.user.email);
+        await supabase.auth.signOut();
+      }
+
       console.log('INVITE_ACCEPT: signUp start', { email: inviteEmail, fullName });
 
       // STEP 1: Create account with supabase.auth.signUp
@@ -817,7 +826,6 @@ const InviteAcceptPage = () => {
           {isLogin && (
             <form onSubmit={handleLogin} className="ia-step on">
               <h1 className="ia-title">Welcome <em>back</em>.</h1>
-              <p className="ia-lead">Log in to join <b>{vesselName}</b> as {inviteRoleName}.</p>
               <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Log in</span><span className="line" /></div>
               <div className="ia-field ro"><span className="ia-label">Email</span><div className="ia-static">{inviteEmail}</div></div>
               <label className="ia-field">
@@ -838,7 +846,6 @@ const InviteAcceptPage = () => {
           {!isLogin && wizStep === 1 && (
             <div className="ia-step on">
               <h1 className="ia-title">You're <em>invited</em>.</h1>
-              <p className="ia-lead">to join <b>{vesselName}</b> — review the details, then set up your account.</p>
               <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Your invitation</span><span className="line" /></div>
               <div className="ia-summary">
                 <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
@@ -857,7 +864,6 @@ const InviteAcceptPage = () => {
           {!isLogin && wizStep === 2 && (
             <form className="ia-step on" autoComplete="off" onSubmit={(e) => { e.preventDefault(); if (step2Valid) goStep(3); }}>
               <h1 className="ia-title">Join <em>{vesselName}</em>.</h1>
-              <p className="ia-lead">First, how you'll appear to the crew.</p>
               <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Your details</span><span className="line" /></div>
               <div className="ia-row">
                 <label className="ia-field"><span className="ia-label">First name <span className="req">*</span></span>
@@ -876,7 +882,6 @@ const InviteAcceptPage = () => {
           {!isLogin && wizStep === 3 && (
             <form className="ia-step on" autoComplete="off" onSubmit={handleCreateAccount}>
               <h1 className="ia-title">Almost <em>aboard</em>.</h1>
-              <p className="ia-lead">Set a password to secure your account.</p>
               <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Secure your login</span><span className="line" /></div>
               <label className="ia-field"><span className="ia-label">Password <span className="req">*</span></span>
                 <div className="ia-pw">
