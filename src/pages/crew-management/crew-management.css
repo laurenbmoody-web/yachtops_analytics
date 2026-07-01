@@ -312,6 +312,11 @@ a.cm-cal-name:hover { color: #C65A1A; }
 /* The card that a drop would pair with — live feedback while dragging close by. */
 .cm-onode.is-pair-target { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 
+/* The specific person a drop would report to — hovering directly over their
+   card names them (not whoever happens to sit nearest) as the sole manager. */
+.cm-onode.is-report-target { border: 1.5px dashed #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.cm-onode-reportbadge { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); width: 20px; height: 20px; border-radius: 999px; background: #C65A1A; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(28,27,58,0.25); }
+
 /* Landing-spot placeholder — same footprint as a card, at the exact column the
    drag would land in, so it visibly marks (and reserves) that spot. Solid
    terracotta with a link glyph when it's about to pair with a neighbour. */
