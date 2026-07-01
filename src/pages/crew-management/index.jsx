@@ -1337,13 +1337,31 @@ const CrewManagement = () => {
       const lines = [];
       let prevGroups = null;
       rowKeys.forEach((key) => {
-        const groups = clusterRow(withMeta.filter((m) => m.row === key));
+        const rowNodes = withMeta.filter((m) => m.row === key);
+        // Tight-clustered groups (a deliberate pair) — this becomes the anchor
+        // set the NEXT row measures against, and (below) the point THIS row's
+        // own trunk lands on when it has its own parent above.
+        const groups = clusterRow(rowNodes);
+
         if (prevGroups && prevGroups.length) {
-          groups.forEach((g) => {
+          // Group this row's cards by shared nearest parent-anchor — draws ONE
+          // trunk straight down to the mid-point BETWEEN those children (not the
+          // parent's own x), then short branches out to each, so a set of
+          // children reporting to the same lead(s) always looks like a centred
+          // "T", never a lopsided diagonal to whichever child happens to be
+          // nearest the parent's exact anchor.
+          const byParent = new Map();
+          rowNodes.forEach((n) => {
             let nearest = prevGroups[0]; let best = Infinity;
-            prevGroups.forEach((p) => { const d = Math.abs(p.anchorX - g.anchorX); if (d < best) { best = d; nearest = p; } });
-            lines.push({ x1: nearest.anchorX, y1: nearest.bottom, x2: g.anchorX, y2: g.top });
-            if (g.nodes.length > 1) g.nodes.forEach((n) => lines.push({ x1: g.anchorX, y1: g.top, x2: n.cx, y2: n.top }));
+            prevGroups.forEach((p) => { const d = Math.abs(p.anchorX - n.cx); if (d < best) { best = d; nearest = p; } });
+            if (!byParent.has(nearest)) byParent.set(nearest, []);
+            byParent.get(nearest).push(n);
+          });
+          byParent.forEach((children, parent) => {
+            const midX = (Math.min(...children.map((c) => c.cx)) + Math.max(...children.map((c) => c.cx))) / 2;
+            const topY = Math.min(...children.map((c) => c.top));
+            lines.push({ x1: parent.anchorX, y1: parent.bottom, x2: midX, y2: topY });
+            if (children.length > 1) children.forEach((c) => lines.push({ x1: midX, y1: topY, x2: c.cx, y2: c.top }));
           });
         }
         prevGroups = groups;
