@@ -12,6 +12,7 @@ const InviteAcceptPage = () => {
   const [searchParams] = useSearchParams();
   const [token, setToken] = useState('');
   const [activeTab, setActiveTab] = useState('signup'); // 'signup' or 'login'
+  const [wizStep, setWizStep] = useState(1); // create-account wizard: 1 invite · 2 details · 3 password
   
   // PAGE STATE MACHINE: 'create' or 'join'
   // - 'create': Show Create Account form (even if session appears mid-flow)
@@ -771,117 +772,130 @@ const InviteAcceptPage = () => {
     );
   }
 
-  // STEP === 'create': Show signup/login forms (ALWAYS render this when step is 'create', even if session appears)
+  // STEP === 'create': invite acceptance wizard (create account) + login path.
+  const isLogin = activeTab === 'login';
+  const barPct = isLogin ? 100 : wizStep === 1 ? 33 : wizStep === 2 ? 66 : 100;
+  const step2Valid = !!(firstName?.trim() && surname?.trim());
+  const goStep = (n) => { setError(''); setWizStep(n); };
+
+  const alerts = (
+    <>
+      {error && <div className="ia-alert err"><Icon name="AlertCircle" size={16} /> <span>{error}</span></div>}
+      {sessionEmailMismatch && (
+        <div className="ia-alert warn">
+          <Icon name="AlertTriangle" size={16} />
+          <div>
+            <b>Different account logged in</b>
+            You're signed in as <strong>{loggedInEmail}</strong>, but this invite is for <strong>{inviteEmail}</strong>. Sign out, then create an account or log in with the invited address.
+            <button type="button" className="ia-link" onClick={async () => { await supabase?.auth?.signOut(); setSessionEmailMismatch(false); setLoggedInEmail(''); }}>Sign out of {loggedInEmail}</button>
+          </div>
+        </div>
+      )}
+      {infoBanner && <div className="ia-alert info"><Icon name="Info" size={16} /> <span>{infoBanner}</span></div>}
+      {emailConfirmationRequired && (
+        <div className="ia-alert warn">
+          <Icon name="Mail" size={16} />
+          <div><b>Confirm your email</b>Check your inbox and click the confirmation link to activate your account.</div>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="ia-page">
       <div className="ia-card">
-        <div className="ia-head">
-          <span className="ia-badge"><Icon name="Ship" size={26} /></span>
-          <h1 className="ia-title">Join your vessel</h1>
-          <p className="ia-sub">You've been invited to join <b>{vesselName}</b></p>
-        </div>
+        <div className="ia-barwrap"><div className="ia-bar" style={{ width: `${barPct}%` }} /></div>
+        <div className="ia-inner">
+          <div className="ia-eyebrow2">
+            <span className="dot" /> Crew onboarding
+            {!isLogin && <><span className="sep" /> Step {wizStep} of 3</>}
+          </div>
 
-        {/* Invite summary — read-only */}
-        <div className="ia-summary">
-          <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
-          <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
-          <div className="ia-ro"><span className="k">Department</span><span className="v">{departmentName}</span></div>
-          <div className="ia-ro"><span className="k">Role</span><span className="v">{inviteRoleName}</span></div>
-        </div>
+          {alerts}
 
-        {/* Tabs */}
-        <div className="ia-tabs">
-          <button type="button" className={`ia-tab${activeTab === 'signup' ? ' on' : ''}`} onClick={() => setActiveTab('signup')}>Create account</button>
-          <button type="button" className={`ia-tab${activeTab === 'login' ? ' on' : ''}`} onClick={() => setActiveTab('login')}>Log in</button>
-        </div>
+          {/* ---------- LOGIN PATH ---------- */}
+          {isLogin && (
+            <form onSubmit={handleLogin} className="ia-step on">
+              <h1 className="ia-title">Welcome <em>back</em>.</h1>
+              <p className="ia-lead">Log in to join <b>{vesselName}</b> as {inviteRoleName}.</p>
+              <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Log in</span><span className="line" /></div>
+              <div className="ia-field ro"><span className="ia-label">Email</span><div className="ia-static">{inviteEmail}</div></div>
+              <label className="ia-field">
+                <span className="ia-label">Password <span className="req">*</span></span>
+                <div className="ia-pw">
+                  <input className="ia-input" type={showLoginPassword ? 'text' : 'password'} name="password" autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e?.target?.value)} placeholder="Enter your password" disabled={isSubmitting} />
+                  <button type="button" className="ia-eye" onClick={() => setShowLoginPassword(!showLoginPassword)} disabled={isSubmitting} aria-label={showLoginPassword ? 'Hide password' : 'Show password'}><Icon name={showLoginPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
+                </div>
+              </label>
+              <div className="ia-nav">
+                <button type="button" className="ia-back" onClick={() => { setActiveTab('signup'); setError(''); }}>Back</button>
+                <button type="submit" className="ia-cta" disabled={isButtonDisabled}>{isSubmitting ? 'Logging in…' : 'Log in & join'}</button>
+              </div>
+            </form>
+          )}
 
-        {error && (
-          <div className="ia-alert err"><Icon name="AlertCircle" size={16} /> <span>{error}</span></div>
-        )}
-
-        {sessionEmailMismatch && (
-          <div className="ia-alert warn">
-            <Icon name="AlertTriangle" size={16} />
-            <div>
-              <b>Different account logged in</b>
-              You're signed in as <strong>{loggedInEmail}</strong>, but this invite is for <strong>{inviteEmail}</strong>. Sign out, then create an account or log in with the invited address.
-              <button
-                type="button" className="ia-link"
-                onClick={async () => { await supabase?.auth?.signOut(); setSessionEmailMismatch(false); setLoggedInEmail(''); }}
-              >Sign out of {loggedInEmail}</button>
+          {/* ---------- STEP 1 · INVITE ---------- */}
+          {!isLogin && wizStep === 1 && (
+            <div className="ia-step on">
+              <h1 className="ia-title">You're <em>invited</em>.</h1>
+              <p className="ia-lead">to join <b>{vesselName}</b> — review the details, then set up your account.</p>
+              <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Your invitation</span><span className="line" /></div>
+              <div className="ia-summary">
+                <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
+                <div className="ia-ro"><span className="k">Role</span><span className="v">{inviteRoleName}</span></div>
+                <div className="ia-ro"><span className="k">Department</span><span className="v">{departmentName}</span></div>
+                <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
+              </div>
+              <div className="ia-nav">
+                <button type="button" className="ia-cta" onClick={() => goStep(2)} disabled={inviteDetailsLoading}>Get started</button>
+              </div>
+              <button type="button" className="ia-loginlink" onClick={() => { setActiveTab('login'); setError(''); }}>Already have an account? <span>Log in</span></button>
             </div>
-          </div>
-        )}
+          )}
 
-        {infoBanner && (
-          <div className="ia-alert info"><Icon name="Info" size={16} /> <span>{infoBanner}</span></div>
-        )}
-
-        {emailConfirmationRequired && (
-          <div className="ia-alert warn">
-            <Icon name="Mail" size={16} />
-            <div><b>Confirm your email</b>Check your inbox and click the confirmation link to activate your account.</div>
-          </div>
-        )}
-
-        {/* Signup Form */}
-        {activeTab === 'signup' && (
-          <form onSubmit={handleCreateAccount} className="ia-form" autoComplete="off">
-            <label className="ia-field">
-              <span className="ia-label">First name <span className="req">*</span></span>
-              <input className="ia-input" type="text" name="ia-first-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e?.target?.value)} placeholder="e.g. Julia" disabled={isSubmitting} />
-            </label>
-            <label className="ia-field">
-              <span className="ia-label">Surname <span className="req">*</span></span>
-              <input className="ia-input" type="text" name="ia-surname" autoComplete="family-name" value={surname} onChange={(e) => setSurname(e?.target?.value)} placeholder="e.g. McKay" disabled={isSubmitting} />
-            </label>
-            <label className="ia-field">
-              <span className="ia-label">Password <span className="req">*</span></span>
-              <div className="ia-pw">
-                <input className="ia-input" type={showPassword ? 'text' : 'password'} name="ia-new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e?.target?.value)} placeholder="At least 6 characters" disabled={isSubmitting} />
-                <button type="button" className="ia-eye" onClick={() => setShowPassword(!showPassword)} disabled={isSubmitting} aria-label={showPassword ? 'Hide password' : 'Show password'}>
-                  <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={18} />
-                </button>
+          {/* ---------- STEP 2 · DETAILS ---------- */}
+          {!isLogin && wizStep === 2 && (
+            <form className="ia-step on" autoComplete="off" onSubmit={(e) => { e.preventDefault(); if (step2Valid) goStep(3); }}>
+              <h1 className="ia-title">Join <em>{vesselName}</em>.</h1>
+              <p className="ia-lead">First, how you'll appear to the crew.</p>
+              <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Your details</span><span className="line" /></div>
+              <div className="ia-row">
+                <label className="ia-field"><span className="ia-label">First name <span className="req">*</span></span>
+                  <input className="ia-input" type="text" name="ia-first-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e?.target?.value)} placeholder="Julia" /></label>
+                <label className="ia-field"><span className="ia-label">Surname <span className="req">*</span></span>
+                  <input className="ia-input" type="text" name="ia-surname" autoComplete="family-name" value={surname} onChange={(e) => setSurname(e?.target?.value)} placeholder="Smith" /></label>
               </div>
-            </label>
-            <label className="ia-field">
-              <span className="ia-label">Confirm password <span className="req">*</span></span>
-              <div className="ia-pw">
-                <input className="ia-input" type={showConfirmPassword ? 'text' : 'password'} name="ia-confirm-password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e?.target?.value)} placeholder="Re-enter password" disabled={isSubmitting} />
-                <button type="button" className="ia-eye" onClick={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isSubmitting} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>
-                  <Icon name={showConfirmPassword ? 'EyeOff' : 'Eye'} size={18} />
-                </button>
+              <div className="ia-nav">
+                <button type="button" className="ia-back" onClick={() => goStep(1)}>Back</button>
+                <button type="submit" className="ia-cta" disabled={!step2Valid}>Continue</button>
               </div>
-            </label>
+            </form>
+          )}
 
-            {disabledReason && <p className="ia-hint">{disabledReason}</p>}
-
-            <button type="submit" className="ia-btn primary" disabled={isButtonDisabled}>
-              {isSubmitting ? <><Icon name="Loader2" size={17} className="animate-spin" /> Creating account…</> : 'Create account & join vessel'}
-            </button>
-          </form>
-        )}
-
-        {/* Login Form */}
-        {activeTab === 'login' && (
-          <form onSubmit={handleLogin} className="ia-form">
-            <label className="ia-field">
-              <span className="ia-label">Password <span className="req">*</span></span>
-              <div className="ia-pw">
-                <input className="ia-input" type={showLoginPassword ? 'text' : 'password'} name="password" autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e?.target?.value)} placeholder="Enter your password" disabled={isSubmitting} />
-                <button type="button" className="ia-eye" onClick={() => setShowLoginPassword(!showLoginPassword)} disabled={isSubmitting} aria-label={showLoginPassword ? 'Hide password' : 'Show password'}>
-                  <Icon name={showLoginPassword ? 'EyeOff' : 'Eye'} size={18} />
-                </button>
+          {/* ---------- STEP 3 · PASSWORD ---------- */}
+          {!isLogin && wizStep === 3 && (
+            <form className="ia-step on" autoComplete="off" onSubmit={handleCreateAccount}>
+              <h1 className="ia-title">Almost <em>aboard</em>.</h1>
+              <p className="ia-lead">Set a password to secure your account.</p>
+              <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Secure your login</span><span className="line" /></div>
+              <label className="ia-field"><span className="ia-label">Password <span className="req">*</span></span>
+                <div className="ia-pw">
+                  <input className="ia-input" type={showPassword ? 'text' : 'password'} name="ia-new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e?.target?.value)} placeholder="At least 6 characters" disabled={isSubmitting} />
+                  <button type="button" className="ia-eye" onClick={() => setShowPassword(!showPassword)} disabled={isSubmitting} aria-label={showPassword ? 'Hide password' : 'Show password'}><Icon name={showPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
+                </div></label>
+              <label className="ia-field"><span className="ia-label">Confirm password <span className="req">*</span></span>
+                <div className="ia-pw">
+                  <input className="ia-input" type={showConfirmPassword ? 'text' : 'password'} name="ia-confirm-password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e?.target?.value)} placeholder="Re-enter password" disabled={isSubmitting} />
+                  <button type="button" className="ia-eye" onClick={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isSubmitting} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}><Icon name={showConfirmPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
+                </div></label>
+              {disabledReason && <p className="ia-hint">{disabledReason}</p>}
+              <div className="ia-nav">
+                <button type="button" className="ia-back" onClick={() => goStep(2)}>Back</button>
+                <button type="submit" className="ia-cta" disabled={isButtonDisabled}>{isSubmitting ? 'Creating account…' : 'Create account & join'}</button>
               </div>
-            </label>
-
-            {disabledReason && <p className="ia-hint">{disabledReason}</p>}
-
-            <button type="submit" className="ia-btn primary" disabled={isButtonDisabled}>
-              {isSubmitting ? <><Icon name="Loader2" size={17} className="animate-spin" /> Logging in…</> : 'Log in & join vessel'}
-            </button>
-          </form>
-        )}
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );
