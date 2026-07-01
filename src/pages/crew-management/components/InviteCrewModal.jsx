@@ -7,6 +7,7 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { showToast } from '../../../utils/toast';
 import { createCrewInvite, sendCrewInvite } from '../../../utils/crewInvites';
 import ModalShell from '../../../components/ui/ModalShell';
+import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
 import './invite-crew-modal.css';
 
 const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
@@ -253,11 +254,11 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
         )}
 
-        <label className="ic-field">
+        <div className="ic-field">
           <span className="ic-label">Start date <span className="opt">optional</span></span>
-          <input className="ic-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <EditorialDatePicker value={startDate} onChange={setStartDate} placeholder="dd/mm/yyyy" />
           <span className="ic-hint">Set a future date and they’ll show as “Invited” until then.</span>
-        </label>
+        </div>
 
         <div className="ic-foot">
           <button type="button" className="ic-btn ghost" onClick={reset}>Cancel</button>
