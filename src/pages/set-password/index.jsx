@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
-import Image from '../../components/AppImage';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
 import { supabase } from '../../lib/supabaseClient';
-import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { showToast } from '../../utils/toast';
+import './set-password.css';
 
 // Capture the URL hash at module-load time, BEFORE the Supabase client's
 // `detectSessionInUrl` handler strips it. Invite redirects from Supabase
@@ -29,10 +25,10 @@ const INVITE_HASH_DETECTED = /(^|[#&])type=invite(&|$)/.test(INITIAL_HASH);
 // users (email clients that add delay, link-prefetch lag) a buffer.
 const FRESH_INVITE_WINDOW_MS = 10 * 60 * 1000;
 
+const LOGO_SRC = '/assets/images/cargo_merged_originalmark_syne800_true.png';
+
 const SetPassword = () => {
   const navigate = useNavigate();
-  const { theme } = useTheme();
-  const { retryBootstrap } = useAuth();
 
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
@@ -292,19 +288,12 @@ const SetPassword = () => {
     }
   };
 
-  const logoSrc =
-    theme === 'dark'
-      ? '/assets/images/Cargo_20logo_20solid_20beige-1767558154320.svg'
-      : '/assets/images/Cargo_20logo_20solid_20navy-1767558047979.svg';
-
   // ─── Loading state ────────────────────────────────────────────────
   if (sessionState === 'checking') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background transition-colors duration-300">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Verifying invite link...</p>
-        </div>
+      <div className="spw-loading">
+        <Icon name="Loader2" size={26} className="animate-spin" />
+        <span>Verifying invite link…</span>
       </div>
     );
   }
@@ -312,42 +301,25 @@ const SetPassword = () => {
   // ─── Invalid / expired link ───────────────────────────────────────
   if (sessionState === 'invalid') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background transition-colors duration-300 p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-              <Image src={logoSrc} alt="Cargo Logo" className="w-10 h-10" />
-            </div>
-            <h1 className="text-2xl font-semibold text-foreground mb-2">Set Password</h1>
+      <div className="spw-page">
+        <div className="spw-wrap">
+          <div className="spw-icon-circle error">
+            <Icon name="AlertCircle" size={28} color="#A32D2D" />
           </div>
+          <h1 className="spw-heading">Invite link invalid or expired</h1>
+          <p className="spw-sub">
+            This invite link is invalid, has already been used, or has expired.
+            If you still need to set up your account, ask your vessel administrator
+            to re-send the invite, or contact support.
+          </p>
 
-          <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="AlertCircle" size={32} className="text-error" />
-              </div>
-              <h2 className="text-xl font-semibold text-foreground mb-2">
-                Invite link invalid or expired
-              </h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                This invite link is invalid, has already been used, or has expired.
-                If you still need to set up your account, ask your vessel administrator
-                to re-send the invite, or contact support.
-              </p>
-
-              <Button
-                onClick={() => navigate('/login-authentication')}
-                className="w-full mb-3 bg-gray-900 hover:bg-gray-800 text-white"
-              >
-                Go to login
-              </Button>
-              <button
-                onClick={() => navigate('/contact')}
-                className="text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200"
-              >
-                Contact support
-              </button>
-            </div>
+          <div className="spw-panel" style={{ textAlign: 'center' }}>
+            <button className="spw-btn-primary" onClick={() => navigate('/login-authentication')}>
+              Go to login
+            </button>
+            <button className="spw-link" onClick={() => navigate('/contact')}>
+              Contact support
+            </button>
           </div>
         </div>
       </div>
@@ -357,38 +329,24 @@ const SetPassword = () => {
   // ─── Already signed in — not allowed to reset here ────────────────
   if (sessionState === 'already-signed-in') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background transition-colors duration-300 p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-              <Image src={logoSrc} alt="Cargo Logo" className="w-10 h-10" />
-            </div>
-            <h1 className="text-2xl font-semibold text-foreground mb-2">You're already signed in</h1>
+      <div className="spw-page">
+        <div className="spw-wrap">
+          <div className="spw-icon-circle info">
+            <Icon name="Info" size={28} color="#C65A1A" />
           </div>
+          <h1 className="spw-heading">You're already signed in</h1>
+          <p className="spw-sub">
+            This page is only for new users accepting an invite. If you want to
+            change your password, use the password-reset flow instead.
+          </p>
 
-          <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="Info" size={32} className="text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground mb-6">
-                This page is only for new users accepting an invite. If you want to
-                change your password, use the password-reset flow instead.
-              </p>
-
-              <Button
-                onClick={() => navigate('/dashboard')}
-                className="w-full mb-3 bg-gray-900 hover:bg-gray-800 text-white"
-              >
-                Go to dashboard
-              </Button>
-              <button
-                onClick={() => navigate('/forgot-password')}
-                className="text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200"
-              >
-                Reset my password
-              </button>
-            </div>
+          <div className="spw-panel" style={{ textAlign: 'center' }}>
+            <button className="spw-btn-primary" onClick={() => navigate('/dashboard')}>
+              Go to dashboard
+            </button>
+            <button className="spw-link" onClick={() => navigate('/forgot-password')}>
+              Reset my password
+            </button>
           </div>
         </div>
       </div>
@@ -398,26 +356,15 @@ const SetPassword = () => {
   // ─── Success ──────────────────────────────────────────────────────
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background transition-colors duration-300 p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-              <Image src={logoSrc} alt="Cargo Logo" className="w-10 h-10" />
-            </div>
-            <h1 className="text-2xl font-semibold text-foreground mb-2">Welcome aboard</h1>
+      <div className="spw-page">
+        <div className="spw-wrap">
+          <div className="spw-icon-circle success">
+            <Icon name="CheckCircle" size={28} color="#047857" />
           </div>
-
-          <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="CheckCircle" size={32} className="text-success" />
-              </div>
-              <h2 className="text-xl font-semibold text-foreground mb-2">Password set</h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                Redirecting you to your vessel...
-              </p>
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            </div>
+          <h1 className="spw-heading">Password set</h1>
+          <p className="spw-sub">Redirecting you to your vessel…</p>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <Icon name="Loader2" size={22} className="animate-spin" color="#C65A1A" />
           </div>
         </div>
       </div>
@@ -426,80 +373,68 @@ const SetPassword = () => {
 
   // ─── Form ─────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background transition-colors duration-300 p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Image src={logoSrc} alt="Cargo Logo" className="w-10 h-10" />
-          </div>
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Set your password</h1>
-          <p className="text-sm text-muted-foreground">
-            Welcome to Cargo. Choose a password to finish setting up your account.
-          </p>
+    <div className="spw-page">
+      <div className="spw-wrap">
+        <div className="spw-logo-badge">
+          <img src={LOGO_SRC} alt="Cargo" />
         </div>
+        <h1 className="spw-heading">Set your password</h1>
+        <p className="spw-sub">Welcome to Cargo. Choose a password to finish setting up your account.</p>
 
-        <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-foreground mb-2">
-                First name
-              </label>
-              <Input
+        <div className="spw-panel">
+          <form onSubmit={handleSubmit}>
+            <div className="spw-field">
+              <label htmlFor="firstName">First name</label>
+              <input
                 id="firstName"
+                className="spw-input"
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e?.target?.value)}
                 placeholder="Enter your first name"
-                className="w-full"
                 disabled={loading}
                 required
               />
             </div>
 
-            <div>
-              <label htmlFor="surname" className="block text-sm font-medium text-foreground mb-2">
-                Surname
-              </label>
-              <Input
+            <div className="spw-field">
+              <label htmlFor="surname">Surname</label>
+              <input
                 id="surname"
+                className="spw-input"
                 type="text"
                 value={surname}
                 onChange={(e) => setSurname(e?.target?.value)}
                 placeholder="Enter your surname"
-                className="w-full"
                 disabled={loading}
                 required
               />
             </div>
 
-            <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-foreground mb-2">
-                New password
-              </label>
-              <Input
+            <div className="spw-field">
+              <label htmlFor="newPassword">New password</label>
+              <input
                 id="newPassword"
+                className="spw-input"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e?.target?.value)}
                 placeholder="At least 8 characters"
-                className="w-full"
                 disabled={loading}
                 required
                 autoComplete="new-password"
               />
             </div>
 
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-2">
-                Confirm password
-              </label>
-              <Input
+            <div className="spw-field">
+              <label htmlFor="confirmPassword">Confirm password</label>
+              <input
                 id="confirmPassword"
+                className="spw-input"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e?.target?.value)}
                 placeholder="Re-enter your password"
-                className="w-full"
                 disabled={loading}
                 required
                 autoComplete="new-password"
@@ -507,34 +442,26 @@ const SetPassword = () => {
             </div>
 
             {error && (
-              <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
-                <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-error">{error}</p>
+              <div className="spw-error">
+                <Icon name="AlertCircle" size={16} />
+                <span>{error}</span>
               </div>
             )}
 
-            <Button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium"
-              disabled={loading}
-            >
+            <button type="submit" className="spw-btn-primary" disabled={loading}>
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Icon name="Loader2" size={18} className="animate-spin" />
-                  Setting password...
-                </span>
+                <>
+                  <Icon name="Loader2" size={16} className="animate-spin" />
+                  Setting password…
+                </>
               ) : (
                 'Set password & continue'
               )}
-            </Button>
+            </button>
           </form>
         </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            Secure yacht operations management • Role-based access control
-          </p>
-        </div>
+        <p className="spw-footer">Secure yacht operations management · Role-based access control</p>
       </div>
     </div>
   );

@@ -1,19 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Image from '../../components/AppImage';
 import Icon from '../../components/AppIcon';
-import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabaseClient';
 import { setCurrentUser } from '../../utils/authStorage';
 import { ensureProfileExists } from '../../utils/profileHelpers';
 import { useAuth } from '../../contexts/AuthContext';
+import './vessel-signup.css';
 
 
 const VesselSignupFlowStep1 = () => {
   const navigate = useNavigate();
-  const { theme } = useTheme();
   const { setCurrentTenant } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -186,155 +182,140 @@ const VesselSignupFlowStep1 = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-300 flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <Image
-              src={theme === 'day' ? '/assets/images/Cargo_20logo_20solid_20navy-1767558047979.svg' : '/assets/images/Cargo_20logo_20solid_20beige-1767558154320.svg'}
-              alt="Cargo Logo"
-              className="h-12 w-auto"
-            />
-          </div>
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Create Vessel Account</h1>
-          <p className="text-sm text-muted-foreground">Step {step} of 2</p>
+    <div className="vs-page">
+      <div className="vs-wrap">
+        <img
+          className="vs-logo"
+          src="/assets/images/cargo_merged_originalmark_syne800_true.png"
+          alt="Cargo"
+        />
+        <h1 className="vs-heading">Create your vessel account</h1>
+        <p className="vs-step-label">Step {step} of 2</p>
+
+        <div className="vs-progress">
+          <span className={`bar ${step >= 1 ? 'done' : ''}`} />
+          <span className={`bar ${step >= 2 ? 'done' : ''}`} />
         </div>
 
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-medium ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-              Account
-            </span>
-            <span className={`text-xs font-medium ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-              Vessel Details
-            </span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${(step / 2) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Form Card */}
-        <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
+        <div className="vs-panel">
           {step === 1 && (
-            <form onSubmit={handleStep1Submit} className="space-y-5">
-              <h2 className="text-xl font-semibold text-foreground mb-6">Create Account</h2>
+            <form onSubmit={handleStep1Submit}>
+              <h2>Your account</h2>
 
-              {/* Full Name */}
-              <Input
-                label="Full Name"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e?.target?.value)}
-                placeholder="John Smith"
-                required
-                disabled={loading}
-              />
+              <div className="vs-field">
+                <label htmlFor="fullName">Full name</label>
+                <input
+                  id="fullName"
+                  className="vs-input"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e?.target?.value)}
+                  placeholder="John Smith"
+                  required
+                  disabled={loading}
+                />
+              </div>
 
-              {/* Email */}
-              <Input
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e?.target?.value)}
-                placeholder="captain@vessel.com"
-                required
-                disabled={loading}
-              />
+              <div className="vs-field">
+                <label htmlFor="email">Email</label>
+                <input
+                  id="email"
+                  className="vs-input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e?.target?.value)}
+                  placeholder="captain@vessel.com"
+                  required
+                  disabled={loading}
+                />
+              </div>
 
-              {/* Password */}
-              <Input
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e?.target?.value)}
-                placeholder="Minimum 6 characters"
-                required
-                disabled={loading}
-              />
+              <div className="vs-field">
+                <label htmlFor="password">Password</label>
+                <input
+                  id="password"
+                  className="vs-input"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e?.target?.value)}
+                  placeholder="Minimum 6 characters"
+                  required
+                  disabled={loading}
+                />
+              </div>
 
-              {/* Confirm Password */}
-              <Input
-                label="Confirm Password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e?.target?.value)}
-                placeholder="Re-enter password"
-                required
-                disabled={loading}
-              />
+              <div className="vs-field">
+                <label htmlFor="confirmPassword">Confirm password</label>
+                <input
+                  id="confirmPassword"
+                  className="vs-input"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e?.target?.value)}
+                  placeholder="Re-enter password"
+                  required
+                  disabled={loading}
+                />
+              </div>
 
-              {/* Error Message */}
               {error && (
-                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
-                  <Icon name="AlertCircle" size={18} className="text-destructive flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-destructive">{error}</p>
+                <div className="vs-error">
+                  <Icon name="AlertCircle" size={16} />
+                  <span>{error}</span>
                 </div>
               )}
 
-              {/* Submit Button */}
-              <Button type="submit" className="w-full" disabled={loading}>
-                Continue to Vessel Details
-                <Icon name="ArrowRight" size={18} />
-              </Button>
+              <button type="submit" className="vs-btn-primary" disabled={loading}>
+                Continue to vessel details
+                <Icon name="ArrowRight" size={16} />
+              </button>
             </form>
           )}
 
           {step === 2 && (
-            <form onSubmit={handleStep2Submit} className="space-y-5">
-              <h2 className="text-xl font-semibold text-foreground mb-6">Vessel Details</h2>
+            <form onSubmit={handleStep2Submit}>
+              <h2>Vessel details</h2>
 
-              {/* Vessel Name */}
-              <Input
-                label="Vessel/Organisation Name"
-                type="text"
-                value={vesselName}
-                onChange={(e) => setVesselName(e?.target?.value)}
-                placeholder="M/Y Serenity"
-                required
-                disabled={loading}
-              />
+              <div className="vs-field">
+                <label htmlFor="vesselName">Vessel / organisation name</label>
+                <input
+                  id="vesselName"
+                  className="vs-input"
+                  type="text"
+                  value={vesselName}
+                  onChange={(e) => setVesselName(e?.target?.value)}
+                  placeholder="M/Y Serenity"
+                  required
+                  disabled={loading}
+                />
+              </div>
 
-              {/* Vessel Admin Y/N (locked design 2026-04-14) */}
-              <div>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Will you be Cargo's vessel administrator?
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onMouseEnter={() => setShowAdminTip(true)}
-                      onMouseLeave={() => setShowAdminTip(false)}
-                      onFocus={() => setShowAdminTip(true)}
-                      onBlur={() => setShowAdminTip(false)}
-                      className="w-4 h-4 rounded-full border border-muted-foreground/50 text-muted-foreground text-[10px] flex items-center justify-center hover:bg-muted"
-                      aria-label="What is the vessel admin?"
-                    >
-                      ?
-                    </button>
-                    {showAdminTip && (
-                      <div className="absolute z-10 left-6 top-0 w-60 p-2 text-xs bg-popover text-popover-foreground border border-border rounded shadow-md">
-                        The vessel admin handles invites, billing, and vessel-level settings.
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-2">
+              <div className="vs-field">
+                <label style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                  Will you be Cargo's vessel administrator?
+                  <button
+                    type="button"
+                    className="vs-tip-btn"
+                    onMouseEnter={() => setShowAdminTip(true)}
+                    onMouseLeave={() => setShowAdminTip(false)}
+                    onFocus={() => setShowAdminTip(true)}
+                    onBlur={() => setShowAdminTip(false)}
+                    aria-label="What is the vessel admin?"
+                  >
+                    ?
+                  </button>
+                  {showAdminTip && (
+                    <span className="vs-tip-pop">
+                      The vessel admin handles invites, billing, and vessel-level settings.
+                    </span>
+                  )}
+                </label>
+                <div className="vs-toggle-row">
                   <button
                     type="button"
                     onClick={() => setWillBeAdmin(true)}
                     disabled={loading}
-                    className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors ${
-                      willBeAdmin
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card text-foreground border-border hover:bg-muted'
-                    }`}
+                    className={`vs-toggle ${willBeAdmin ? 'active' : ''}`}
                   >
                     Yes
                   </button>
@@ -342,62 +323,49 @@ const VesselSignupFlowStep1 = () => {
                     type="button"
                     onClick={() => setWillBeAdmin(false)}
                     disabled={loading}
-                    className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors ${
-                      !willBeAdmin
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card text-foreground border-border hover:bg-muted'
-                    }`}
+                    className={`vs-toggle ${!willBeAdmin ? 'active' : ''}`}
                   >
                     No
                   </button>
                 </div>
                 {!willBeAdmin && (
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="vs-hint">
                     No problem — you'll be set as admin to get started, and we'll remind you to transfer it to the right person.
                   </p>
                 )}
               </div>
 
-              {/* Error Message */}
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
-                  <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-error">{error}</p>
+                <div className="vs-error">
+                  <Icon name="AlertCircle" size={16} />
+                  <span>{error}</span>
                 </div>
               )}
 
-              {/* Submit Button */}
-              <Button type="submit" className="w-full" disabled={loading}>
+              <button type="submit" className="vs-btn-primary" disabled={loading}>
                 {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Icon name="Loader2" size={18} className="animate-spin" />
-                    Creating account...
-                  </span>
+                  <>
+                    <Icon name="Loader2" size={16} className="animate-spin" />
+                    Creating account…
+                  </>
                 ) : (
-                  'Create Vessel Account'
+                  'Create vessel account'
                 )}
-              </Button>
+              </button>
 
-              {/* Back Button */}
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                className="w-full"
+                className="vs-btn-ghost"
                 onClick={handleBack}
                 disabled={loading}
               >
                 Back
-              </Button>
+              </button>
             </form>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            By creating an account, you agree to Cargo's terms of service
-          </p>
-        </div>
+        <p className="vs-footer">By creating an account, you agree to Cargo's terms of service</p>
       </div>
     </div>
   );

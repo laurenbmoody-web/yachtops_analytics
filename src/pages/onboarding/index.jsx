@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship, Users, Building2, Utensils, Briefcase, ClipboardList } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
-import Image from '../../components/AppImage';
-import { useTheme } from '../../contexts/ThemeContext';
 import { showToast } from '../../utils/toast';
 import { createCrewInvite, sendCrewInvite } from '../../utils/crewInvites';
+import './onboarding.css';
 
 /*
   Post-signup onboarding flow.
@@ -27,25 +26,30 @@ import { createCrewInvite, sendCrewInvite } from '../../utils/crewInvites';
   1px navy top/sides, 3px navy bottom.
 */
 
-// ── Brand tokens ─────────────────────────────────────────────────
-const NAVY      = '#1E3A5F';
-const NAVY_DARK = '#141D2E';
-const ACCENT    = '#00A8CC';
-const CHARCOAL  = '#1A202C';
+// ── Brand tokens — Cargo editorial (see CLAUDE.md) ────────────────
+const NAVY      = '#1C1B3A'; // navy ink — headings, structural fills
+const NAVY_DARK = '#141330'; // deeper ink for hover states
+const ACCENT    = '#C65A1A'; // terracotta — primary actions, selected, emphasis
+const ACCENT_HOVER = '#B14E16';
+const ACCENT_SOFT  = '#FBEFE9'; // tinted terracotta pill/selection background
+const CHARCOAL  = '#1C1B3A'; // body/label text — unified with navy ink
+const MUTED     = '#8B8478';
+const MUTED_SOFT = '#6B7280';
+const BORDER    = '#ECEAE3'; // soft hairline
 const CARD      = '#FFFFFF';
 
-const HEADING_FONT = "'Outfit', system-ui, sans-serif";
-const BODY_FONT    = "'Plus Jakarta Sans', system-ui, sans-serif";
-const PILL_FONT    = "'Archivo', system-ui, sans-serif";
+const HEADING_FONT = "'DM Serif Display', 'DM Serif Text', Georgia, serif";
+const BODY_FONT    = "'Inter', system-ui, sans-serif";
+const PILL_FONT    = "'Inter', system-ui, sans-serif";
 
-// Legacy card style — used by DepartmentsStep + InviteCrewStep (do not remove)
+// Editorial panel — soft hairline border, 14px radius, gentle shadow.
+// Replaces the old "raised Cargo border" (1px navy sides / 3px navy
+// bottom) — see CLAUDE.md: "No heavy boxed cards."
 const CARD_STYLE = {
   backgroundColor: CARD,
-  borderTop: `1px solid ${NAVY}`,
-  borderLeft: `1px solid ${NAVY}`,
-  borderRight: `1px solid ${NAVY}`,
-  borderBottom: `3px solid ${NAVY}`,
+  border: `1px solid ${BORDER}`,
   borderRadius: 14,
+  boxShadow: '0 8px 24px -14px rgba(28,27,58,0.18)',
 };
 
 // ── Department data (Departments + InviteCrewStep) ────────────────
@@ -183,33 +187,24 @@ const Tooltip = ({ text }) => (
   </span>
 );
 
-// Raised "Cargo border" card (1px navy sides, 3px navy bottom)
+// Editorial panel — soft hairline border, gentle shadow (see CARD_STYLE)
 const Card = ({ children, className = '' }) => (
-  <div
-    className={`rounded-2xl p-6 ${className}`}
-    style={{
-      backgroundColor: CARD,
-      borderTop: `1px solid ${NAVY}`,
-      borderLeft: `1px solid ${NAVY}`,
-      borderRight: `1px solid ${NAVY}`,
-      borderBottom: `3px solid ${NAVY}`,
-    }}
-  >
+  <div className={`p-6 ${className}`} style={CARD_STYLE}>
     {children}
   </div>
 );
 
-// Uppercase Archivo section label
+// Tracked-caps editorial section label
 const SectionHeading = ({ children }) => (
   <h2
     className="mb-4"
     style={{
       fontFamily: PILL_FONT,
-      fontSize: 11,
-      fontWeight: 900,
-      letterSpacing: '0.14em',
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: '0.12em',
       textTransform: 'uppercase',
-      color: NAVY,
+      color: MUTED,
     }}
   >
     {children}
@@ -233,24 +228,22 @@ const Field = ({ label, required, tooltip, children }) => (
   </div>
 );
 
+// Base inline fallback (kept for the `...(props.style || {})` merge below);
+// border/background/focus now live in onboarding.css under .ob-field so a
+// real CSS :focus halo can apply (inline border-color can't be beaten by a
+// stylesheet rule of the same property).
 const inputStyle = {
   fontFamily: BODY_FONT,
   color: CHARCOAL,
-  backgroundColor: 'white',
-  border: '1px solid #CBD5E1',
-  borderRadius: 10,
-  padding: '9px 12px',
   fontSize: 14,
-  width: '100%',
-  outline: 'none',
 };
 
 const TextInput = (props) => (
-  <input {...props} style={{ ...inputStyle, ...(props.style || {}) }} />
+  <input {...props} className={`ob-field ${props.className || ''}`} style={{ ...inputStyle, ...(props.style || {}) }} />
 );
 
 const SelectInput = ({ options, ...props }) => (
-  <select {...props} style={{ ...inputStyle, appearance: 'auto', ...(props.style || {}) }}>
+  <select {...props} className={`ob-field ${props.className || ''}`} style={{ ...inputStyle, appearance: 'auto', ...(props.style || {}) }}>
     <option value="">Select…</option>
     {options.map((o) => (
       <option key={o} value={o}>{o}</option>
@@ -265,7 +258,7 @@ const Checkbox = ({ checked, onChange, label }) => (
       checked={checked}
       onChange={onChange}
       className="w-4 h-4 rounded"
-      style={{ accentColor: NAVY }}
+      style={{ accentColor: ACCENT }}
     />
     <span className="text-sm" style={{ color: CHARCOAL }}>{label}</span>
   </label>
@@ -278,11 +271,11 @@ const PillPrimary = ({ children, onClick, disabled, type = 'button' }) => (
     disabled={disabled}
     className={`inline-flex items-center justify-center gap-2 transition-colors ${disabled ? '' : 'cg-breath'}`}
     style={{
-      backgroundColor: NAVY,
+      backgroundColor: ACCENT,
       color: 'white',
       borderRadius: 50,
       fontFamily: PILL_FONT,
-      fontWeight: 900,
+      fontWeight: 700,
       fontSize: 11,
       letterSpacing: '0.08em',
       textTransform: 'uppercase',
@@ -290,8 +283,8 @@ const PillPrimary = ({ children, onClick, disabled, type = 'button' }) => (
       opacity: disabled ? 0.4 : 1,
       cursor: disabled ? 'not-allowed' : 'pointer',
     }}
-    onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = NAVY_DARK; }}
-    onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = NAVY; }}
+    onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = ACCENT_HOVER; }}
+    onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = ACCENT; }}
   >
     {children}
   </button>
@@ -304,9 +297,9 @@ const PillSecondary = ({ children, onClick, disabled, type = 'button' }) => (
     disabled={disabled}
     className="inline-flex items-center justify-center gap-2 transition-colors"
     style={{
-      backgroundColor: 'transparent',
+      backgroundColor: '#fff',
       color: NAVY,
-      border: `2px solid ${NAVY}`,
+      border: `1px solid ${BORDER}`,
       borderRadius: 50,
       fontFamily: PILL_FONT,
       fontWeight: 700,
@@ -317,8 +310,8 @@ const PillSecondary = ({ children, onClick, disabled, type = 'button' }) => (
       opacity: disabled ? 0.4 : 1,
       cursor: disabled ? 'not-allowed' : 'pointer',
     }}
-    onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.backgroundColor = NAVY; e.currentTarget.style.color = 'white'; } }}
-    onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = NAVY; } }}
+    onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.backgroundColor = ACCENT_SOFT; e.currentTarget.style.borderColor = ACCENT; e.currentTarget.style.color = ACCENT; } }}
+    onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = NAVY; } }}
   >
     {children}
   </button>
@@ -336,21 +329,14 @@ const LinkButton = ({ children, onClick }) => (
 );
 
 // ─── Collapsed section summary row ────────────────────────────────
-// Raised Cargo border + animated ACCENT tick + EDIT affordance.
+// Editorial hairline card + animated terracotta tick + EDIT affordance.
 const CollapsedSection = ({ title, summary, onEdit }) => (
   <div className="mt-6 cg-anim-enter">
     <button
       type="button"
       onClick={onEdit}
       className="w-full flex items-center justify-between rounded-xl px-5 py-4 text-left cg-hover-lift"
-      style={{
-        backgroundColor: CARD,
-        borderTop: `1px solid ${NAVY}`,
-        borderLeft: `1px solid ${NAVY}`,
-        borderRight: `1px solid ${NAVY}`,
-        borderBottom: `3px solid ${NAVY}`,
-        fontFamily: BODY_FONT,
-      }}
+      style={{ ...CARD_STYLE, fontFamily: BODY_FONT }}
     >
       <div className="flex items-center gap-3">
         <div
@@ -360,13 +346,13 @@ const CollapsedSection = ({ title, summary, onEdit }) => (
           <Check size={15} color="white" strokeWidth={3} />
         </div>
         <div>
-          <div style={{ fontFamily: HEADING_FONT, fontWeight: 700, fontSize: 15, color: CHARCOAL }}>{title}</div>
-          <div className="text-xs" style={{ color: '#64748B' }}>{summary}</div>
+          <div style={{ fontFamily: HEADING_FONT, fontWeight: 500, fontSize: 17, color: CHARCOAL }}>{title}</div>
+          <div className="text-xs" style={{ color: MUTED_SOFT }}>{summary}</div>
         </div>
       </div>
       <span
         className="text-xs uppercase"
-        style={{ fontFamily: PILL_FONT, color: NAVY, letterSpacing: '0.08em', fontWeight: 900 }}
+        style={{ fontFamily: PILL_FONT, color: ACCENT, letterSpacing: '0.08em', fontWeight: 700 }}
       >
         Edit
       </span>
@@ -405,56 +391,58 @@ const RegionsCombobox = ({ value, onChange }) => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        className="ob-field"
         style={{ ...inputStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left' }}
       >
-        <span style={{ color: value.length ? CHARCOAL : '#94A3B8' }}>
+        <span style={{ color: value.length ? CHARCOAL : '#AEB4C2' }}>
           {value.length ? `${value.length} region${value.length !== 1 ? 's' : ''} selected` : 'Select regions…'}
         </span>
-        <ChevronRight size={14} color="#94A3B8" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 150ms ease', flexShrink: 0 }} />
+        <ChevronRight size={14} color={MUTED_SOFT} style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 150ms ease', flexShrink: 0 }} />
       </button>
 
       {open && (
         <div
           className="absolute z-30 w-full mt-1 rounded-xl"
-          style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', boxShadow: '0 10px 30px rgba(30,58,95,0.15)', maxHeight: 300, overflowY: 'auto' }}
+          style={{ backgroundColor: CARD, border: `1px solid ${BORDER}`, boxShadow: '0 10px 30px rgba(28,27,58,0.15)', maxHeight: 300, overflowY: 'auto' }}
         >
-          <div className="sticky top-0 p-2" style={{ backgroundColor: CARD, borderBottom: '1px solid #E2E8F0' }}>
+          <div className="sticky top-0 p-2" style={{ backgroundColor: CARD, borderBottom: `1px solid ${BORDER}` }}>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search regions or countries…"
               autoFocus
+              className="ob-field"
               style={{ ...inputStyle, padding: '6px 10px', fontSize: 13 }}
             />
           </div>
           {filteredGroups.length > 0 && (
-            <div className="p-2" style={{ borderBottom: '1px solid #F1F5F9' }}>
-              <div className="px-2 pb-1 text-[10px] uppercase" style={{ fontFamily: PILL_FONT, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>Regions</div>
+            <div className="p-2" style={{ borderBottom: '1px solid #F0F1F5' }}>
+              <div className="px-2 pb-1 text-[10px] uppercase" style={{ fontFamily: PILL_FONT, fontWeight: 700, letterSpacing: '0.10em', color: MUTED }}>Regions</div>
               {filteredGroups.map((group) => {
                 const allIn = group.codes.every((c) => value.includes(c));
                 const someIn = !allIn && group.codes.some((c) => value.includes(c));
                 return (
                   <button key={group.id} type="button" onClick={() => toggleGroup(group)}
                     className="w-full text-left px-2 py-1.5 rounded-lg text-sm flex items-center justify-between"
-                    style={{ fontFamily: BODY_FONT, backgroundColor: allIn ? '#EFF6FF' : 'transparent', color: CHARCOAL }}
+                    style={{ fontFamily: BODY_FONT, backgroundColor: allIn ? ACCENT_SOFT : 'transparent', color: CHARCOAL }}
                   >
                     <span>{group.label}</span>
-                    {allIn && <Check size={13} color={NAVY} />}
-                    {someIn && <span className="text-xs" style={{ color: '#94A3B8' }}>{group.codes.filter((c) => value.includes(c)).length}/{group.codes.length}</span>}
+                    {allIn && <Check size={13} color={ACCENT} />}
+                    {someIn && <span className="text-xs" style={{ color: MUTED_SOFT }}>{group.codes.filter((c) => value.includes(c)).length}/{group.codes.length}</span>}
                   </button>
                 );
               })}
             </div>
           )}
           <div className="p-2">
-            <div className="px-2 pb-1 text-[10px] uppercase" style={{ fontFamily: PILL_FONT, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>Countries</div>
+            <div className="px-2 pb-1 text-[10px] uppercase" style={{ fontFamily: PILL_FONT, fontWeight: 700, letterSpacing: '0.10em', color: MUTED }}>Countries</div>
             {filteredCountries.map((country) => (
               <button key={country.code} type="button" onClick={() => toggle(country.code)}
                 className="w-full text-left px-2 py-1 rounded-lg text-sm flex items-center justify-between"
-                style={{ fontFamily: BODY_FONT, backgroundColor: value.includes(country.code) ? '#EFF6FF' : 'transparent', color: CHARCOAL }}
+                style={{ fontFamily: BODY_FONT, backgroundColor: value.includes(country.code) ? ACCENT_SOFT : 'transparent', color: CHARCOAL }}
               >
                 <span>{country.name}</span>
-                {value.includes(country.code) && <Check size={12} color={NAVY} />}
+                {value.includes(country.code) && <Check size={12} color={ACCENT} />}
               </button>
             ))}
           </div>
@@ -465,14 +453,14 @@ const RegionsCombobox = ({ value, onChange }) => {
         <div className="flex flex-wrap gap-1.5 mt-2">
           {selectedCountries.slice(0, 5).map((c) => (
             <span key={c.code} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
-              style={{ backgroundColor: '#E0F2FE', color: NAVY, fontFamily: BODY_FONT, fontWeight: 600 }}
+              style={{ backgroundColor: ACCENT_SOFT, color: ACCENT, fontFamily: BODY_FONT, fontWeight: 600 }}
             >
               {c.name}
-              <button type="button" onClick={() => toggle(c.code)} style={{ color: NAVY, lineHeight: 1, marginLeft: 2 }}>×</button>
+              <button type="button" onClick={() => toggle(c.code)} style={{ color: ACCENT, lineHeight: 1, marginLeft: 2 }}>×</button>
             </span>
           ))}
           {selectedCountries.length > 5 && (
-            <span className="text-xs" style={{ color: '#64748B', fontFamily: BODY_FONT, alignSelf: 'center' }}>
+            <span className="text-xs" style={{ color: MUTED_SOFT, fontFamily: BODY_FONT, alignSelf: 'center' }}>
               +{selectedCountries.length - 5} more
             </span>
           )}
@@ -567,7 +555,7 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
           <Ship size={20} color="white" />
         </div>
         <div>
-          <h1 style={{ fontFamily: HEADING_FONT, fontSize: 28, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontFamily: HEADING_FONT, fontSize: 28, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
             {heroTitle}
           </h1>
           <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
@@ -722,7 +710,7 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
                 Compliance fields (ISM, ISPS, MLC) and vessel hero image can be filled in later from Vessel Settings.
               </p>
               {error && (
-                <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+                <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FCEBEB', color: '#A32D2D' }}>
                   {error}
                 </div>
               )}
@@ -827,7 +815,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
           <Building2 size={20} color="white" />
         </div>
         <div>
-          <h1 style={{ fontFamily: HEADING_FONT, fontSize: 28, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontFamily: HEADING_FONT, fontSize: 28, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
             {tenant?.name ? `Which departments run on ${tenant.name}?` : 'Which departments are onboard?'}
           </h1>
           <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
@@ -839,11 +827,11 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
       <Card className="mt-8">
         {loading ? (
           <div className="flex items-center justify-center py-10">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: NAVY }} />
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: ACCENT }} />
           </div>
         ) : loadError ? (
           <div className="text-center py-6">
-            <p className="text-sm px-3 py-2 rounded mb-4" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+            <p className="text-sm px-3 py-2 rounded mb-4" style={{ backgroundColor: '#FCEBEB', color: '#A32D2D' }}>
               {loadError}
             </p>
             <PillSecondary onClick={loadDepts}>Retry</PillSecondary>
@@ -860,11 +848,11 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
                     type="button"
                     onClick={() => toggle(d.id)}
                     className="relative rounded-xl p-4 text-left transition-all cg-anim-enter cg-hover-lift"
-                    style={{ '--i': i, backgroundColor: isSelected ? NAVY : 'white', border: `1px solid ${isSelected ? NAVY : '#E2E8F0'}`, color: isSelected ? 'white' : CHARCOAL }}
+                    style={{ '--i': i, backgroundColor: isSelected ? ACCENT : 'white', border: `1px solid ${isSelected ? ACCENT : BORDER}`, color: isSelected ? 'white' : CHARCOAL }}
                   >
                     <div
                       className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
-                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.12)' : '#F1F5F9', color: isSelected ? 'white' : NAVY }}
+                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.18)' : '#F6F5F2', color: isSelected ? 'white' : ACCENT }}
                     >
                       <DIcon size={18} />
                     </div>
@@ -891,11 +879,11 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
                     type="button"
                     onClick={() => toggle(d.id)}
                     className="relative rounded-xl p-4 text-left transition-all cg-hover-lift"
-                    style={{ backgroundColor: isSelected ? NAVY : 'white', border: `1px dashed ${isSelected ? NAVY : '#94A3B8'}`, color: isSelected ? 'white' : CHARCOAL }}
+                    style={{ backgroundColor: isSelected ? ACCENT : 'white', border: `1px dashed ${isSelected ? ACCENT : '#AEB4C2'}`, color: isSelected ? 'white' : CHARCOAL }}
                   >
                     <div
                       className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
-                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.12)' : '#F1F5F9', color: isSelected ? 'white' : NAVY }}
+                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.18)' : '#F6F5F2', color: isSelected ? 'white' : ACCENT }}
                     >
                       <Briefcase size={18} />
                     </div>
@@ -913,7 +901,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
               {showCustomInput ? (
                 <div
                   className="rounded-xl p-4"
-                  style={{ border: `1px dashed ${ACCENT}`, backgroundColor: '#F0FBFF' }}
+                  style={{ border: `1px dashed ${ACCENT}`, backgroundColor: ACCENT_SOFT }}
                 >
                   <input
                     ref={customInputRef}
@@ -953,7 +941,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
                         setShowCustomInput(false);
                       }}
                       className="text-xs px-2 py-1 rounded"
-                      style={{ backgroundColor: NAVY, color: 'white', fontFamily: PILL_FONT, fontWeight: 700 }}
+                      style={{ backgroundColor: ACCENT, color: 'white', fontFamily: PILL_FONT, fontWeight: 700 }}
                     >
                       Add
                     </button>
@@ -961,7 +949,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
                       type="button"
                       onClick={() => { setCustomInput(''); setShowCustomInput(false); }}
                       className="text-xs px-2 py-1 rounded"
-                      style={{ backgroundColor: '#E2E8F0', color: CHARCOAL, fontFamily: PILL_FONT, fontWeight: 700 }}
+                      style={{ backgroundColor: '#F0F1F5', color: CHARCOAL, fontFamily: PILL_FONT, fontWeight: 700 }}
                     >
                       Cancel
                     </button>
@@ -975,9 +963,9 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
                     setTimeout(() => customInputRef.current?.focus(), 0);
                   }}
                   className="rounded-xl p-4 text-left cg-hover-lift"
-                  style={{ border: `1px dashed #CBD5E1`, backgroundColor: 'white', color: '#64748B' }}
+                  style={{ border: `1px dashed ${BORDER}`, backgroundColor: 'white', color: MUTED_SOFT }}
                 >
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: '#F1F5F9', color: '#94A3B8' }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: '#F6F5F2', color: '#AEB4C2' }}>
                     <Plus size={18} />
                   </div>
                   <div className="text-sm" style={{ fontFamily: BODY_FONT, fontWeight: 600 }}>+ Other</div>
@@ -990,7 +978,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
             </p>
 
             {saveError && (
-              <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+              <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FCEBEB', color: '#A32D2D' }}>
                 {saveError}
               </div>
             )}
@@ -1290,7 +1278,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
             style={{
               fontFamily: HEADING_FONT,
               fontSize: 24,
-              fontWeight: 700,
+              fontWeight: 500,
               color: CHARCOAL,
               letterSpacing: '-0.01em',
             }}
@@ -1309,14 +1297,14 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
           type="button"
           onClick={() => setShowPaste((v) => !v)}
           className="inline-flex items-center gap-2 text-xs uppercase"
-          style={{ color: NAVY, fontFamily: PILL_FONT, fontWeight: 900, letterSpacing: '0.08em' }}
+          style={{ color: ACCENT, fontFamily: PILL_FONT, fontWeight: 700, letterSpacing: '0.08em' }}
         >
           <ClipboardList size={14} />
           {showPaste ? '− Hide paste from spreadsheet' : '+ Paste from spreadsheet'}
         </button>
         {showPaste && (
           <Card className="mt-3">
-            <p className="text-xs mb-2" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+            <p className="text-xs mb-2" style={{ color: MUTED_SOFT, fontFamily: BODY_FONT }}>
               One row per line — <span style={{ fontFamily: 'monospace' }}>email, department, role</span>
             </p>
             <textarea
@@ -1324,10 +1312,8 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
               onChange={(e) => setPasteText(e.target.value)}
               placeholder="janet@vessel.com, Bridge, First Officer"
               rows={4}
-              className="w-full px-3 py-2 text-sm outline-none resize-none"
+              className="ob-field w-full px-3 py-2 text-sm resize-none"
               style={{
-                backgroundColor: '#F8FAFC',
-                border: '1px solid #CBD5E1',
                 borderRadius: 8,
                 color: CHARCOAL,
                 fontFamily: 'monospace',
@@ -1339,7 +1325,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
                 Add rows
               </PillSecondary>
               {pasteResult && (
-                <span className="text-xs" style={{ color: '#64748B', fontFamily: BODY_FONT }}>{pasteResult}</span>
+                <span className="text-xs" style={{ color: MUTED_SOFT, fontFamily: BODY_FONT }}>{pasteResult}</span>
               )}
             </div>
           </Card>
@@ -1377,8 +1363,8 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
                       idx === i ? { ...row, department_id: e.target.value, role: '', roleIsOther: false } : row
                     ));
                   }}
-                  className="w-full px-2 py-2 text-sm outline-none"
-                  style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', borderRadius: 6, color: CHARCOAL, fontFamily: BODY_FONT }}
+                  className="ob-field w-full px-2 py-2 text-sm"
+                  style={{ borderRadius: 6, fontFamily: BODY_FONT }}
                 >
                   <option value="">Department</option>
                   {allDepts.map((d) => (
@@ -1406,8 +1392,8 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
                         updateRow(i, 'role', val);
                       }
                     }}
-                    className="w-full px-2 py-2 text-sm outline-none"
-                    style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', borderRadius: 6, color: CHARCOAL, fontFamily: BODY_FONT }}
+                    className="ob-field w-full px-2 py-2 text-sm"
+                    style={{ borderRadius: 6, fontFamily: BODY_FONT }}
                   >
                     <option value="">Role</option>
                     {dbRoles.map((role) => (
@@ -1420,7 +1406,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
               <div className="col-span-1 flex justify-end">
                 {rows.length > 1 && (
                   <button type="button" onClick={() => removeRow(i)} className="p-2">
-                    <Trash2 size={16} color="#94A3B8" />
+                    <Trash2 size={16} color="#AEB4C2" />
                   </button>
                 )}
               </div>
@@ -1447,7 +1433,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
       </Card>
 
       {error && (
-        <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+        <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FCEBEB', color: '#A32D2D' }}>
           {error}
         </div>
       )}
@@ -1484,10 +1470,10 @@ const StepPill = ({ label, index, current, done }) => (
     <div
       className="w-7 h-7 rounded-full flex items-center justify-center text-xs"
       style={{
-        backgroundColor: done ? ACCENT : current ? NAVY : '#E2E8F0',
-        color: done || current ? 'white' : '#64748B',
-        fontFamily: 'Archivo, sans-serif',
-        fontWeight: 900,
+        backgroundColor: done ? ACCENT : current ? NAVY : '#F0F1F5',
+        color: done || current ? 'white' : MUTED_SOFT,
+        fontFamily: PILL_FONT,
+        fontWeight: 700,
       }}
     >
       {done ? <Check size={13} strokeWidth={3} /> : index}
@@ -1495,10 +1481,10 @@ const StepPill = ({ label, index, current, done }) => (
     <span
       className="uppercase text-xs"
       style={{
-        fontFamily: 'Archivo, sans-serif',
-        fontWeight: 900,
+        fontFamily: PILL_FONT,
+        fontWeight: 700,
         letterSpacing: '0.10em',
-        color: current ? NAVY : done ? ACCENT : '#94A3B8',
+        color: current ? NAVY : done ? ACCENT : '#AEB4C2',
       }}
     >
       {label}
@@ -1508,7 +1494,6 @@ const StepPill = ({ label, index, current, done }) => (
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
-  const { theme } = useTheme();
   const { user, activeTenantId, bootstrapComplete, retryBootstrap } = useAuth();
 
   const [tenant, setTenant] = useState(null);
@@ -1564,13 +1549,13 @@ const OnboardingPage = () => {
         @keyframes cgFadeSlideUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes cgTickPop { 0% { transform: scale(0); opacity: 0; } 55% { transform: scale(1.35); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes cgStepIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes cgBreath { 0%,100% { box-shadow: 0 0 0 0 rgba(0,168,204,0.35); } 50% { box-shadow: 0 0 0 10px rgba(0,168,204,0); } }
+        @keyframes cgBreath { 0%,100% { box-shadow: 0 0 0 0 rgba(198,90,26,0.35); } 50% { box-shadow: 0 0 0 10px rgba(198,90,26,0); } }
         .cg-anim-enter { animation: cgFadeSlideUp 520ms cubic-bezier(.2,.7,.2,1) both; }
         .cg-step-enter { animation: cgStepIn 420ms cubic-bezier(.2,.7,.2,1) both; }
         .cg-tick-pop   { animation: cgTickPop 420ms cubic-bezier(.34,1.56,.64,1) both; }
         .cg-breath     { animation: cgBreath 2400ms ease-in-out infinite; }
         .cg-hover-lift { transition: transform 200ms ease, box-shadow 200ms ease; }
-        .cg-hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(30,58,95,0.12); }
+        .cg-hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(28,27,58,0.12); }
         .cg-stagger > * { animation-delay: calc(var(--i, 0) * 40ms); }
       `;
       document.head.appendChild(style);
@@ -1650,17 +1635,14 @@ const OnboardingPage = () => {
     })();
   }, [bootstrapComplete, activeTenantId, navigate, membershipRetries]);
 
-  const logoSrc =
-    theme === 'dark'
-      ? '/assets/images/Cargo_20logo_20solid_20beige-1767558154320.svg'
-      : '/assets/images/Cargo_20logo_20solid_20navy-1767558047979.svg';
+  const logoSrc = '/assets/images/cargo_merged_originalmark_syne800_true.png';
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8FAFC' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FAFAF8' }}>
         <div className="text-center">
-          <Anchor size={36} color={NAVY} className="mx-auto mb-3" />
-          <p className="text-sm" style={{ color: '#64748B' }}>Loading your vessel…</p>
+          <Anchor size={36} color={ACCENT} className="mx-auto mb-3" />
+          <p className="text-sm" style={{ color: MUTED_SOFT, fontFamily: BODY_FONT }}>Loading your vessel…</p>
         </div>
       </div>
     );
@@ -1669,23 +1651,24 @@ const OnboardingPage = () => {
   if (loadError) {
     const isMembershipError = loadError.includes('vessel membership');
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8FAFC' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FAFAF8' }}>
         <div style={{ maxWidth: 480, textAlign: 'center', padding: '0 24px' }}>
-          <p className="text-sm" style={{ color: '#991B1B', marginBottom: 16 }}>{loadError}</p>
+          <p className="text-sm" style={{ color: '#A32D2D', marginBottom: 16, fontFamily: BODY_FONT }}>{loadError}</p>
           {isMembershipError && (
             <>
               <button
                 onClick={handleRecovery}
                 disabled={recovering}
                 style={{
-                  padding: '8px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: recovering ? 'not-allowed' : 'pointer',
-                  background: recovering ? '#94A3B8' : '#1E3A5F', color: '#fff', border: 'none',
+                  padding: '8px 20px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: recovering ? 'not-allowed' : 'pointer',
+                  fontFamily: BODY_FONT,
+                  background: recovering ? '#AEB4C2' : ACCENT, color: '#fff', border: 'none',
                 }}
               >
                 {recovering ? 'Fixing your account…' : 'Retry Setup'}
               </button>
               {recoveryError && (
-                <p style={{ color: '#991B1B', fontSize: 13, marginTop: 10 }}>{recoveryError}</p>
+                <p style={{ color: '#A32D2D', fontSize: 13, marginTop: 10, fontFamily: BODY_FONT }}>{recoveryError}</p>
               )}
             </>
           )}
@@ -1695,17 +1678,17 @@ const OnboardingPage = () => {
   }
 
   return (
-    <div className="min-h-screen py-10 px-4" style={{ backgroundColor: '#F8FAFC' }}>
+    <div className="min-h-screen py-10 px-4" style={{ backgroundColor: '#FAFAF8' }}>
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-center mb-6">
-          <Image src={logoSrc} alt="Cargo" className="h-10" />
+          <img src={logoSrc} alt="Cargo" className="h-10" />
         </div>
 
         <div className="flex items-center justify-center gap-5 mb-8">
           <StepPill label="Vessel" index={1} current={step === 'vessel'} done={step !== 'vessel'} />
-          <div className="w-10 h-px" style={{ backgroundColor: '#CBD5E1' }} />
+          <div className="w-10 h-px" style={{ backgroundColor: '#E8E6DF' }} />
           <StepPill label="Departments" index={2} current={step === 'departments'} done={step === 'crew'} />
-          <div className="w-10 h-px" style={{ backgroundColor: '#CBD5E1' }} />
+          <div className="w-10 h-px" style={{ backgroundColor: '#E8E6DF' }} />
           <StepPill label="Crew" index={3} current={step === 'crew'} done={false} />
         </div>
 

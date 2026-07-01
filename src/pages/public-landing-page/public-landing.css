@@ -1,0 +1,127 @@
+/* Public landing page — editorial welcome screen. Scoped under .pl- since
+   this route renders standalone (no authenticated Header). */
+.pl-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  background: #FAFAF8;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.pl-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  opacity: 0.55;
+}
+.pl-blob.one { width: 520px; height: 520px; left: -140px; top: -160px; background: rgba(198, 90, 26, 0.16); }
+.pl-blob.two { width: 460px; height: 460px; right: -120px; bottom: -160px; background: rgba(28, 27, 58, 0.08); }
+
+.pl-card {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+}
+
+.pl-logo { height: 40px; width: auto; margin: 0 auto 32px; display: block; }
+
+.pl-eyebrow {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin: 0 0 14px;
+}
+
+.pl-heading {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 500;
+  font-size: 42px;
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+  color: #1C1B3A;
+  margin: 0 0 14px;
+}
+.pl-heading em { font-style: italic; font-weight: 400; color: #C65A1A; }
+
+.pl-sub {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #6B7280;
+  max-width: 38ch;
+  margin: 0 auto 36px;
+}
+
+.pl-actions { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
+
+.pl-btn-primary {
+  height: 52px;
+  border: none;
+  border-radius: 10px;
+  background: #C65A1A;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.pl-btn-primary:hover { background: #B14E16; transform: translateY(-1px); }
+.pl-btn-primary:active { transform: translateY(0); }
+
+.pl-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0;
+}
+.pl-divider .line { flex: 1; height: 1px; background: #E8E6DF; }
+.pl-divider span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #AEB4C2;
+  white-space: nowrap;
+}
+
+.pl-btn-ghost {
+  height: 50px;
+  border: 1px solid #E8E6DF;
+  border-radius: 10px;
+  background: #fff;
+  color: #1C1B3A;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.pl-btn-ghost:hover { border-color: #C65A1A; background: #FBEFE9; }
+
+.pl-footer {
+  font-size: 12px;
+  color: #AEB4C2;
+  letter-spacing: 0.2px;
+}
+
+.pl-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FAFAF8;
+  color: #6B7280;
+  font-family: 'Inter', system-ui, sans-serif;
+  gap: 12px;
+}

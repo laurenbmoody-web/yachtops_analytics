@@ -1,0 +1,24 @@
+/* Post-payment vessel onboarding (vessel settings → departments → invite
+   crew) — editorial terracotta/navy reskin. Scoped under .ob- for the
+   handful of raw <input>/<select>/<textarea> elements that need a shared
+   focus halo (inline React styles can't win a CSS :focus fight against
+   a same-property inline rule, so borders/focus live here instead). */
+
+.ob-field {
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+  background: #FAFAF8;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ob-field::placeholder { color: #AEB4C2; }
+.ob-field:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.ob-field:disabled { opacity: 0.6; }
+
+.ob-card-hover { transition: transform 200ms ease, box-shadow 200ms ease; }
+.ob-card-hover:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rgba(28,27,58,0.22); }
