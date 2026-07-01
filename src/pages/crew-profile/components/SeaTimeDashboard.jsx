@@ -16,7 +16,7 @@ import {
 import { fetchCrewDocuments, uploadDocumentFile } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
-import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
+import { buildAssurance, makeQrDataUrl, renderPackPdf, buildSpellTestimonialPdf, downloadBytes } from '../../../seatime/packExport';
 import { buildNautilusSST } from '../../../seatime/nautilusExport';
 import { buildTransportMaltaSST, buildTransportMaltaEngineSST } from '../../../seatime/transportMaltaExport';
 import CaptainSignoff from '../../../seatime/CaptainSignoff';
@@ -942,6 +942,41 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       downloadBytes(pdfBytes, `transport-malta-sst${engineForm ? '-engine' : ''}-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
       flash('Transport Malta form ready');
     } catch (e) { console.error('[seatime] transport malta export', e); flash('Could not build the Transport Malta form'); }
+  };
+
+  // PYA & MCA (Discharge Book) routes have no official third-party form to fill —
+  // Cargo generates its OWN Testimonial of Sea Service (MSN 1858) per command
+  // spell, with the service table + totals filled and the signature/stamp/date
+  // left blank for the endorsing officer. For the MCA direct route that IS the
+  // signable testimonial that backs the Discharge Book; for PYA it's the
+  // captain-attested record used to complete the PYA portal and as evidence.
+  const onDownloadSpellRecord = async (spell) => {
+    if (!canGenerate) { flash('Resolve the outstanding validation checks first'); return; }
+    try {
+      const v = vessels[spell.vesselId] || {};
+      const periods = spell.entries
+        .slice()
+        .sort((a, b) => String(a.from).localeCompare(String(b.from)))
+        .map(e => ({ from: e.from, to: e.to, days: e.days, type: e.type, capacity: e.capacity }));
+      // The crew's OWN top-rank service can't be self-attested — leave the
+      // endorser name blank so the company/owner completes it by hand.
+      const isOwnTopRank = spell.captainId === userId;
+      let signatoryName = '';
+      if (!isOwnTopRank) {
+        const endorser = await resolveEndorserFor(spell.captainId, spell.captainName);
+        signatoryName = endorser?.name || spell.captainName || '';
+      }
+      flash(`Building ${vp.short} testimonial…`);
+      const bytes = await buildSpellTestimonialPdf({
+        seafarer: { fullName: seafarer.fullName, dob: seafarer.dob, nationality: seafarer.nationality, dischargeBookNo: seafarer.dischargeBookNo, cocHeld: seafarer.cocHeld },
+        vessel: { name: v.name, flag: v.flag, imo: v.imo, gt: v.gt, lengthM: v.lengthM },
+        periods,
+        signatory: { name: signatoryName, rank: topRankWord, unsigned: true },
+        verifier: vp,
+      });
+      downloadBytes(bytes, `${verifier === 'mca' ? 'mca-testimonial' : 'pya-record'}-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
+      flash(`${vp.short} testimonial ready`);
+    } catch (e) { console.error('[seatime] testimonial export', e); flash('Could not build the testimonial'); }
   };
 
   // Prior service before Cargo — a crew-entered lump sum that counts toward the
@@ -1957,7 +1992,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                             ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
                             : (verifier === 'transport_malta' && (family === 'DECK' || family === 'ENGINE' || family === 'ETO'))
                               ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
-                              : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
+                              : ((verifier === 'mca' || verifier === 'pya') && !interiorPathway)
+                                ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellRecord(s)}><Icon name="FileText" size={15} /> {verifier === 'mca' ? 'Testimonial · MSN 1858 (PDF)' : 'Sea service record (PDF)'}</button>
+                                : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
                         </div>
                       ))}
                     </div>

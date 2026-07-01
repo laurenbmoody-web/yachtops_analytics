@@ -108,18 +108,35 @@ export const renderPackPdf = async ({ dataset, verifier, assurance, qrDataUrl, s
 
   // ── Signatory (left) + verification (right), as one clean band ─────────────
   rule(false); y += 8;
+  // `unsigned` = a blank testimonial the endorsing officer still has to sign by
+  // hand (the MCA Discharge-Book / PYA routes). We draw a signature line + stamp
+  // and date blanks and print the name as a LABEL — never a cursive pseudo-
+  // signature, which would misrepresent an unsigned document as signed.
+  const unsigned = signatoryMeta?.unsigned && !signatoryMeta?.signatureImage;
+  const rankWord = signatoryMeta?.rank || 'Master';
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
-  doc.text('SIGNED BY THE MASTER', M, y);
-  // The drawn signature itself, when present, then the printed name beneath it.
+  doc.text(unsigned ? `TO BE SIGNED BY THE ${String(rankWord).toUpperCase()}` : 'SIGNED BY THE MASTER', M, y);
   let ny = y + 5;
-  if (signatoryMeta?.signatureImage) {
-    try { doc.addImage(signatoryMeta.signatureImage, 'PNG', M, ny, 48, 15); } catch { /* bad image */ }
-    ny += 18;
+  if (unsigned) {
+    doc.setDrawColor(150, 150, 150); doc.line(M, ny + 9, M + 80, ny + 9);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(138, 127, 99);
+    doc.text('Signature & ship’s official stamp', M, ny + 13);
+    doc.setFontSize(9.5); doc.setTextColor(26, 34, 51);
+    doc.text(`Name: ${signatoryMeta?.name || '—'}`, M, ny + 22);
+    doc.text(`Capacity: ${rankWord}`, M, ny + 27);
+    doc.setFontSize(9); doc.setTextColor(120, 120, 120);
+    doc.text('CoC no.: __________________     Date: ______________', M, ny + 32);
+  } else {
+    // The drawn signature itself, when present, then the printed name beneath it.
+    if (signatoryMeta?.signatureImage) {
+      try { doc.addImage(signatoryMeta.signatureImage, 'PNG', M, ny, 48, 15); } catch { /* bad image */ }
+      ny += 18;
+    }
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(15); doc.setTextColor(26, 34, 51);
+    doc.text(signatoryMeta?.name || '—', M, ny + 4);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 120);
+    doc.text(`${rankWord}${signatoryMeta?.cocNumber ? ' · CoC ' + signatoryMeta.cocNumber : ''}${signatoryMeta?.signedAt ? ' · ' + fmtDate(signatoryMeta.signedAt) : ''}`, M, ny + 10);
   }
-  doc.setFont('helvetica', 'italic'); doc.setFontSize(15); doc.setTextColor(26, 34, 51);
-  doc.text(signatoryMeta?.name || '—', M, ny + 4);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 120);
-  doc.text(`${signatoryMeta?.rank || 'Master'}${signatoryMeta?.cocNumber ? ' · CoC ' + signatoryMeta.cocNumber : ''}${signatoryMeta?.signedAt ? ' · ' + fmtDate(signatoryMeta.signedAt) : ''}`, M, ny + 10);
 
   // QR (right) with the verification text clearly BELOW it — never overlapping.
   const qx = 152, qy = y + 2;
