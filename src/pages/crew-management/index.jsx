@@ -13,7 +13,7 @@ import ViewProfileModal from './components/ViewProfileModal';
 import EditAssignmentModal from './components/EditAssignmentModal';
 import EditEmploymentModal from './components/EditEmploymentModal';
 import StatusChangeModal from './components/StatusChangeModal';
-import CrewCalendar from './components/CrewCalendar';
+import CrewMovements from './components/CrewMovements';
 import GuestBookExportModal from './components/GuestBookExportModal';
 import { supabase } from '../../lib/supabaseClient';
 import { getMyContext } from '../../utils/authHelpers';
@@ -1932,7 +1932,7 @@ const CrewManagement = () => {
                   <Icon name="Network" size={14} /> Hierarchy
                 </button>
                 <button className={`cm-view${rosterView === 'calendar' ? ' is-on' : ''}`} onClick={() => { setShowArchived(false); setRosterView('calendar'); }}>
-                  <Icon name="CalendarDays" size={14} /> Calendar
+                  <Icon name="CalendarDays" size={14} /> Movements
                 </button>
               </div>
 
@@ -2003,16 +2003,15 @@ const CrewManagement = () => {
               {/* Hierarchy (D) */}
               {rosterView === 'hierarchy' && renderHierarchy()}
 
-              {/* Calendar */}
+              {/* Movements — presence + cabins booking chart + configure */}
               {rosterView === 'calendar' && (
-                <div style={{ marginTop: '18px' }}>
-                  <CrewCalendar
-                    members={users}
-                    tenantId={activeTenantId}
-                    refreshToken={calendarRefresh}
-                    canNavigate={isVesselAdmin || currentUserRole === 'COMMAND'}
-                  />
-                </div>
+                <CrewMovements
+                  members={users}
+                  tenantId={activeTenantId}
+                  currentUserId={session?.user?.id}
+                  canManage={isVesselAdmin || ['COMMAND', 'CHIEF', 'HOD'].includes(currentUserRole)}
+                  canNavigate={isVesselAdmin || currentUserRole === 'COMMAND'}
+                />
               )}
             </div>
           </>
