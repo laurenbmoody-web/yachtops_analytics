@@ -316,6 +316,7 @@ const CrewManagement = () => {
           joined_at,
           org_order,
           org_row,
+          reports_to,
           department_id,
           role:roles!role_id(name, default_permission_tier),
           custom_role:tenant_custom_roles!custom_role_id(name, default_permission_tier),
@@ -369,6 +370,7 @@ const CrewManagement = () => {
           joined_at: tm?.joined_at,
           orgOrder: tm?.org_order ?? null,
           orgRow: tm?.org_row ?? null,
+          reportsTo: tm?.reports_to ?? null,
           email: tm?.profiles?.email || null,
           fullName: tm?.profiles?.full_name || null,
           full_name: tm?.profiles?.full_name || null,
@@ -1264,11 +1266,14 @@ const CrewManagement = () => {
     );
   };
 
-  // Apply a batch of { org_row, org_order } patches (optimistic + best-effort save).
+  // Apply a batch of { org_row, org_order, reports_to } patches (optimistic + best-effort save).
   const applyHierarchyPatch = async (patchMap) => {
     setUsers((prev) => prev.map((u) => {
       const p = patchMap.get(u.id);
-      return p ? { ...u, orgRow: p.org_row, orgOrder: p.org_order } : u;
+      if (!p) return u;
+      const next = { ...u, orgRow: p.org_row, orgOrder: p.org_order };
+      if ('reports_to' in p) next.reportsTo = p.reports_to;
+      return next;
     }));
     try {
       await Promise.all([...patchMap.entries()].map(([id, p]) =>
@@ -1314,6 +1319,8 @@ const CrewManagement = () => {
         .map(({ u, el }) => {
           const r = el.getBoundingClientRect();
           return {
+            id: u.id,
+            reportsTo: u.reportsTo || null,
             row: u.orgRow != null ? u.orgRow : defaultOrgRow(u),
             cx: r.left + r.width / 2 - crect.left,
             left: r.left - crect.left, right: r.right - crect.left,
@@ -1345,9 +1352,12 @@ const CrewManagement = () => {
       // a horizontal bar spanning all their children, with vertical stems to each.
       const lines = [];
       let prevGroups = null;
+      let prevIdToGroup = null;
       rowKeys.forEach((key) => {
         const rowNodes = withMeta.filter((m) => m.row === key);
         const groups = clusterRow(rowNodes);
+        const idToGroup = new Map();
+        groups.forEach((g) => g.nodes.forEach((n) => idToGroup.set(n.id, g)));
 
         // Pair link — a straight horizontal bar between consecutive members of a
         // group, at their shared vertical mid-height, from one card's edge to
@@ -1362,16 +1372,28 @@ const CrewManagement = () => {
         });
 
         if (prevGroups && prevGroups.length) {
-          // Group by shared nearest parent-group — using this row's own
-          // TIGHT-CLUSTERED groups (not raw individual cards) as the unit, so a
-          // paired group (already linked by its own marriage bar) contributes
-          // exactly ONE shared stem down, not one per person in the pair.
+          // Group by shared parent-group — using this row's own TIGHT-CLUSTERED
+          // groups (not raw individual cards) as the unit, so a paired group
+          // (already linked by its own marriage bar) contributes exactly ONE
+          // shared stem down, not one per person in the pair.
+          // An explicit `reports_to` (set by dropping directly onto a specific
+          // person above) always wins — someone can report to just ONE of
+          // several people on the row above, regardless of raw x position.
+          // Only falls back to nearest-by-position for members who haven't
+          // been explicitly assigned yet.
           const byParent = new Map();
           groups.forEach((g) => {
-            let nearest = prevGroups[0]; let best = Infinity;
-            prevGroups.forEach((p) => { const d = Math.abs(p.anchorX - g.anchorX); if (d < best) { best = d; nearest = p; } });
-            if (!byParent.has(nearest)) byParent.set(nearest, []);
-            byParent.get(nearest).push(g);
+            let parent = null;
+            for (const n of g.nodes) {
+              if (n.reportsTo && prevIdToGroup.has(n.reportsTo)) { parent = prevIdToGroup.get(n.reportsTo); break; }
+            }
+            if (!parent) {
+              let nearest = prevGroups[0]; let best = Infinity;
+              prevGroups.forEach((p) => { const d = Math.abs(p.anchorX - g.anchorX); if (d < best) { best = d; nearest = p; } });
+              parent = nearest;
+            }
+            if (!byParent.has(parent)) byParent.set(parent, []);
+            byParent.get(parent).push(g);
           });
           byParent.forEach((childGroups, parent) => {
             const childXs = childGroups.map((g) => g.anchorX);
@@ -1384,6 +1406,7 @@ const CrewManagement = () => {
           });
         }
         prevGroups = groups;
+        prevIdToGroup = idToGroup;
       });
       if (!cancelled) setOrgLines(lines);
     };
@@ -1493,6 +1516,27 @@ const CrewManagement = () => {
 
       const targetRowOthers = row.type === 'join' ? (rowsMap.get(row.rowKey) || []).filter((m) => m.id !== hierDragId) : [];
 
+      // Deterministic "report to" gesture: hovering directly over a specific
+      // card in the row ABOVE the drop target names that person, specifically,
+      // as the manager — e.g. Sophie can report to Marco alone even though
+      // Emma sits right beside him. This overrides positional inference so the
+      // line never has to guess between two candidates on the row above.
+      let prevRowKey = null;
+      if (row.type === 'join') {
+        const idx = sortedRowKeys.indexOf(row.rowKey);
+        prevRowKey = idx > 0 ? sortedRowKeys[idx - 1] : null;
+      } else {
+        prevRowKey = row.prevKey ?? null;
+      }
+      const prevRowMembers = prevRowKey != null ? (rowsMap.get(prevRowKey) || []).filter((m) => m.id !== hierDragId) : [];
+      let reportsToId = null;
+      for (const m of prevRowMembers) {
+        const el = orgCardRefs.current[m.id];
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) { reportsToId = m.id; break; }
+      }
+
       // Deterministic pairing: if the cursor is literally hovering OVER another
       // card's own rendered box (not just "near" it), that's an explicit "sit
       // beside this person" gesture — not a proximity guess. The result is
@@ -1547,7 +1591,7 @@ const CrewManagement = () => {
       }
 
       const finalValue = col.type === 'join' ? col.colKey : col.value;
-      return { row, col, pairWithId, previewOffsetPx: (finalValue - colMid) * SCALE };
+      return { row, col, pairWithId, reportsToId, previewOffsetPx: (finalValue - colMid) * SCALE };
     };
 
     const finalize = (plan) => {
@@ -1569,7 +1613,10 @@ const CrewManagement = () => {
 
       const finalCol = plan.col.type === 'join' ? plan.col.colKey : plan.col.value;
 
-      patch.set(hierDragId, { org_row: finalRow, org_order: finalCol });
+      // Persist the explicit "reports to" gesture when used; otherwise clear
+      // any earlier explicit assignment so this drop's position drives the
+      // (positional-fallback) line instead of a now-stale manager.
+      patch.set(hierDragId, { org_row: finalRow, org_order: finalCol, reports_to: plan.reportsToId || null });
       applyHierarchyPatch(patch);
     };
 
@@ -1611,7 +1658,7 @@ const CrewManagement = () => {
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
         {canEdit && (
           <p className="cm-hier-hint">
-            <Icon name="Move" size={12} /> Drag anyone, anywhere — drop them directly under whoever they should sit beneath. Place two people close together to pair them under one shared line; space them apart to keep separate lines. A new row opens above, below, or between existing ones.
+            <Icon name="Move" size={12} /> Drag anyone, anywhere — drop them directly under whoever they should sit beneath. Hover over one specific person on the row above (they'll highlight) to report to just them, even if others sit nearby. Place two people close together to pair them under one shared line; space them apart to keep separate lines. A new row opens above, below, or between existing ones.
           </p>
         )}
         <svg className="cm-org-lines">
@@ -1638,11 +1685,12 @@ const CrewManagement = () => {
                 {members.map((u) => {
                   const isDragged = u.id === hierDragId;
                   const isPairTarget = showJoinHere && hierPlan.pairWithId === u.id;
+                  const isReportTarget = hierPlan?.reportsToId === u.id;
                   return (
                     <div
                       key={u.id}
                       data-crew-id={u.id}
-                      className={`cm-onode${canEdit ? ' is-draggable' : ''}${isDragged ? ' is-dragging' : ''}${isPairTarget ? ' is-pair-target' : ''}`}
+                      className={`cm-onode${canEdit ? ' is-draggable' : ''}${isDragged ? ' is-dragging' : ''}${isPairTarget ? ' is-pair-target' : ''}${isReportTarget ? ' is-report-target' : ''}`}
                       style={cardStyle(effOrder(u))}
                       ref={(el) => { if (el) orgCardRefs.current[u.id] = el; else delete orgCardRefs.current[u.id]; }}
                       {...cardProps(u)}
@@ -1651,6 +1699,9 @@ const CrewManagement = () => {
                       <Avatar user={u} className="cm-onode-av" />
                       <div className="cm-onode-nm">{u.fullName}</div>
                       <div className="cm-onode-rl">{u.roleTitle}</div>
+                      {isReportTarget && (
+                        <span className="cm-onode-reportbadge"><Icon name="ArrowDown" size={11} /></span>
+                      )}
                     </div>
                   );
                 })}
