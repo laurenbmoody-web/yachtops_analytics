@@ -87,6 +87,21 @@
 
 /* ── Popover ──────────────────────────────────────────────── */
 .edp-popover {
+  /* Self-declare tokens: when portaled to <body> the popover is no longer a
+     descendant of .edp, so it can't inherit that scope's custom properties. */
+  --edp-cream:    #F4EEE4;
+  --edp-card:     #FFFFFF;
+  --edp-band:     #FCFAF5;
+  --edp-sand:     #DFD7C8;
+  --edp-sand-soft:#F1ECDF;
+  --edp-navy:     #262A53;
+  --edp-rust:     #C65A1A;
+  --edp-rust-dark:#A84A14;
+  --edp-muted:    #695880;
+  --edp-faint:    #94A3B8;
+  --edp-hairline: #D4CCBB;
+  --edp-shadow:   0 12px 32px rgba(38, 42, 83, 0.12), 0 1px 2px rgba(38, 42, 83, 0.04);
+
   position: absolute;
   z-index: 50;
   top: calc(100% + 6px);
@@ -97,6 +112,8 @@
   border-radius: 14px;
   box-shadow: var(--edp-shadow);
   padding: 14px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: var(--edp-navy);
   animation: edp-pop-in 110ms ease-out;
 }
 /* Portaled to <body>: fixed to the viewport (JS supplies top/left) and
