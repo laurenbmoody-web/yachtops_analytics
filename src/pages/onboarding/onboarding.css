@@ -56,7 +56,7 @@
 /* confetti — done screen only */
 .onb-confetti { position: absolute; left: 0; right: 0; top: 60px; height: 0; pointer-events: none; z-index: 6; }
 .onb-confetti .bit { position: absolute; top: 0; opacity: 0; animation-name: onbFall; animation-timing-function: cubic-bezier(.3,.4,.5,1); animation-fill-mode: forwards; }
-@keyframes onbFall { 0% { opacity: 0; transform: translateY(-12px) rotate(0); } 12% { opacity: 1; } 100% { opacity: 0; transform: translateY(620px) rotate(330deg); } }
+@keyframes onbFall { 0% { opacity: 0; transform: translateY(-12px) rotate(0); } 10% { opacity: 1; } 92% { opacity: 1; } 100% { opacity: 0; transform: translateY(85vh) rotate(330deg); } }
 
 /* top bar */
 .onb-bar { position: relative; z-index: 3; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 22px 36px 0; min-height: 60px; }
@@ -78,7 +78,7 @@
 
 /* marquee ticker */
 .onb-marquee { position: relative; z-index: 1; flex-shrink: 0; overflow: hidden; pointer-events: none; white-space: nowrap; margin-top: 18px; padding: 9px 0; border-top: 1.5px solid color-mix(in srgb, var(--wfg) 20%, transparent); border-bottom: 1.5px solid color-mix(in srgb, var(--wfg) 20%, transparent); }
-.onb-marquee span { display: inline-block; font: 800 14px var(--sans); letter-spacing: 4px; color: color-mix(in srgb, var(--wac) 80%, transparent); animation: onbMarq 22s linear infinite; }
+.onb-marquee span { display: inline-block; font: 800 14px var(--sans); letter-spacing: 4px; color: color-mix(in srgb, var(--wac) 80%, transparent); animation: onbMarq 40s linear infinite; }
 @keyframes onbMarq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 /* main */
@@ -93,13 +93,26 @@
 .onb-foot { margin-top: 16px; font: 400 13.5px var(--sans); color: color-mix(in srgb, var(--wfg) 45%, transparent); }
 
 /* split step layout — giant numeral left, form panel right */
-.onb-split { flex: 1; display: grid; grid-template-columns: .85fr 1.3fr; align-items: center; gap: 40px; padding: 10px 64px 40px; }
+/* max-width keeps the numeral + panel a well-proportioned, centred
+   composition on wide monitors instead of spreading sparse content
+   (a numeral, a small glyph, one card) across the full viewport width. */
+.onb-split { flex: 1; display: grid; grid-template-columns: .85fr 1.3fr; align-items: center; gap: 40px; padding: 10px 64px 40px; max-width: 1240px; margin: 0 auto; width: 100%; }
 .onb-left { position: relative; display: flex; align-items: center; justify-content: center; }
 .onb-giant { font: 900 300px/0.85 var(--sans); letter-spacing: -12px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--wfg) 15%, transparent); user-select: none; animation: onbGiant .55s cubic-bezier(.2,.9,.3,1.1) both; }
 .onb-giant.word { font-size: 120px; letter-spacing: -3px; }
 .onb-right { display: flex; flex-direction: column; align-items: flex-start; width: 100%; min-width: 0; animation: onbIn .5s cubic-bezier(.2,.9,.3,1.1) both .06s; }
-.onb-glyph { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2.5px solid color-mix(in srgb, var(--wfg) 75%, transparent); background: color-mix(in srgb, var(--wbg) 70%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: onbGlyph .6s cubic-bezier(.2,.9,.3,1.1) both .08s; }
-.onb-glyph.done { background: color-mix(in srgb, var(--wfg) 16%, transparent); }
+/* Solid, grounded badge that overlaps the top of .onb-panel (negative
+   margin-bottom pulls it down into the card) instead of the previous
+   translucent-outline circle floating in open canvas above it. */
+.onb-glyph {
+  width: 68px; height: 68px; border-radius: 50%;
+  margin-bottom: -30px; z-index: 1;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  background: var(--wac);
+  box-shadow: 0 10px 22px -8px rgba(0,0,0,0.35), 0 0 0 4px var(--wbg);
+  animation: onbGlyph .6s cubic-bezier(.2,.9,.3,1.1) both .08s;
+}
+.onb-glyph.done { background: var(--wfg); }
 .onb-head { margin: 0 0 6px; font: 800 40px/1.1 var(--sans); letter-spacing: -1.5px; text-transform: uppercase; color: var(--wfg); }
 .onb-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 .onb-chip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: 1.5px solid color-mix(in srgb, var(--wfg) 25%, transparent); font: 600 14px var(--sans); color: var(--wfg); }
