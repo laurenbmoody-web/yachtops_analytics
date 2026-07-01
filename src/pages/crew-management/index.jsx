@@ -1285,11 +1285,16 @@ const CrewManagement = () => {
     return 3;
   };
 
-  // Connector lines for the hierarchy chart — each card draws a line to its
-  // nearest neighbour in the row directly above (by horizontal proximity),
-  // measured from real rendered positions so it always matches the layout.
-  // Recomputed after layout settles, on any reorder, and on resize. The card
-  // mid-drag is left out (its line reappears once the move settles).
+  // Connector lines for the hierarchy chart. Siblings placed CLOSE together
+  // (much closer than the normal column spacing) read as a deliberate pair/team
+  // — they share ONE trunk line down from whichever card is nearest above, with
+  // short branches fanning out to each of them, rather than every card drawing
+  // its own separate line. This groups cascade downward: a merged pair itself
+  // becomes a single anchor point for the row below, so a team can sit under a
+  // paired set of leads without attaching to just one of them. Measured from
+  // real rendered positions so it always matches the current layout; recomputed
+  // after layout settles, on any reorder, and on resize.
+  const TIGHT_PX = 70; // closer than this (vs. the ~204px default spacing) = a group
   useEffect(() => {
     if (rosterView !== 'hierarchy') return;
     let cancelled = false;
@@ -1306,18 +1311,39 @@ const CrewManagement = () => {
           const r = el.getBoundingClientRect();
           return { row: u.orgRow != null ? u.orgRow : defaultOrgRow(u), cx: r.left + r.width / 2 - crect.left, top: r.top - crect.top, bottom: r.bottom - crect.top };
         });
-      const rows = [...new Set(withMeta.map((m) => m.row))].sort((a, b) => a - b);
-      const lines = [];
-      for (let i = 1; i < rows.length; i++) {
-        const parents = withMeta.filter((m) => m.row === rows[i - 1]);
-        const children = withMeta.filter((m) => m.row === rows[i]);
-        if (!parents.length) continue;
-        children.forEach((c) => {
-          let nearest = parents[0]; let best = Infinity;
-          parents.forEach((p) => { const d = Math.abs(p.cx - c.cx); if (d < best) { best = d; nearest = p; } });
-          lines.push({ x1: nearest.cx, y1: nearest.bottom, x2: c.cx, y2: c.top });
+      const rowKeys = [...new Set(withMeta.map((m) => m.row))].sort((a, b) => a - b);
+
+      // Cluster a row's cards into groups wherever consecutive gaps are tight.
+      const clusterRow = (nodes) => {
+        const sorted = [...nodes].sort((a, b) => a.cx - b.cx);
+        const groups = [];
+        sorted.forEach((n) => {
+          const last = groups[groups.length - 1];
+          if (last && n.cx - last.nodes[last.nodes.length - 1].cx < TIGHT_PX) last.nodes.push(n);
+          else groups.push({ nodes: [n] });
         });
-      }
+        return groups.map((g) => ({
+          nodes: g.nodes,
+          anchorX: (g.nodes[0].cx + g.nodes[g.nodes.length - 1].cx) / 2,
+          top: Math.min(...g.nodes.map((n) => n.top)),
+          bottom: Math.max(...g.nodes.map((n) => n.bottom)),
+        }));
+      };
+
+      const lines = [];
+      let prevGroups = null;
+      rowKeys.forEach((key) => {
+        const groups = clusterRow(withMeta.filter((m) => m.row === key));
+        if (prevGroups && prevGroups.length) {
+          groups.forEach((g) => {
+            let nearest = prevGroups[0]; let best = Infinity;
+            prevGroups.forEach((p) => { const d = Math.abs(p.anchorX - g.anchorX); if (d < best) { best = d; nearest = p; } });
+            lines.push({ x1: nearest.anchorX, y1: nearest.bottom, x2: g.anchorX, y2: g.top });
+            if (g.nodes.length > 1) g.nodes.forEach((n) => lines.push({ x1: g.anchorX, y1: g.top, x2: n.cx, y2: n.top }));
+          });
+        }
+        prevGroups = groups;
+      });
       if (!cancelled) setOrgLines(lines);
     };
     recompute();
@@ -1338,26 +1364,33 @@ const CrewManagement = () => {
     const crewById = new Map(crew.map((u) => [u.id, u]));
     const effRow = (u) => (u.orgRow != null ? u.orgRow : defaultOrgRow(u));
 
-    // Default column: a stable, globally-unique rank (role/row grouped, then
-    // name) so two people never collide on the same column before anyone's
-    // dragged anything.
-    const defaultOrdered = [...crew].sort((a, b) =>
-      effRow(a) - effRow(b) || roleRank(a.roleTitle) - roleRank(b.roleTitle) || String(a.fullName).localeCompare(String(b.fullName)));
-    const defaultOrderMap = new Map(defaultOrdered.map((u, i) => [u.id, i * 10]));
-    const effOrder = (u) => (u.orgOrder != null ? u.orgOrder : defaultOrderMap.get(u.id));
-
     const rowsMap = new Map();
     for (const u of crew) { const k = effRow(u); if (!rowsMap.has(k)) rowsMap.set(k, []); rowsMap.get(k).push(u); }
     const sortedRowKeys = [...rowsMap.keys()].sort((a, b) => a - b);
 
-    // Global column key space — every distinct column value in use, anywhere.
+    // Default column: centred PER ROW (so a lone top-row member sits dead centre,
+    // matching the row below, rather than pinned to the left edge), spaced by
+    // COL_STEP so two adjacent defaults render one full slot apart.
+    const COL_STEP = 10;
+    const defaultOrderMap = new Map();
+    rowsMap.forEach((members) => {
+      const ordered = [...members].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle) || String(a.fullName).localeCompare(String(b.fullName)));
+      const n = ordered.length;
+      ordered.forEach((u, i) => defaultOrderMap.set(u.id, (i - (n - 1) / 2) * COL_STEP));
+    });
+    const effOrder = (u) => (u.orgOrder != null ? u.orgOrder : defaultOrderMap.get(u.id));
+
+    // Columns are CONTINUOUS values, not discrete ranks — how close two people's
+    // values are directly controls how close they render. Two dragged right next
+    // to each other (a small value gap) read as a deliberate pair sharing one
+    // line from above; the default spacing (COL_STEP apart) reads as separate.
+    const SCALE = COL_W / COL_STEP; // px per raw column-value unit
     const allCols = [...new Set(crew.map(effOrder))].sort((a, b) => a - b);
-    const colMid = (allCols.length - 1) / 2 || 0;
-    const colIndexOf = (key) => allCols.indexOf(key);
-    const colOffsetPx = (key) => (colIndexOf(key) - colMid) * COL_W;
+    const colMid = allCols.length ? (allCols[0] + allCols[allCols.length - 1]) / 2 : 0;
+    const colOffsetPx = (value) => (value - colMid) * SCALE;
 
     const GAP_PAD = 22;
-    const JOIN_THRESHOLD = 0.32; // within ~1/3 of a column's width of an existing card → join it
+    const JOIN_SNAP_PX = 16; // drop almost exactly on a card → take/reorder that exact slot
 
     // Pure hit-test: given the raw cursor position, decide the target ROW
     // (existing row, or a brand-new level above/below/between) and the target
@@ -1397,21 +1430,20 @@ const CrewManagement = () => {
       }
 
       const rowCenterX = row.rect.left + row.rect.width / 2;
-      const rawIndex = (clientX - rowCenterX) / COL_W + colMid;
-      const nearestIdx = Math.round(rawIndex);
-      const nearestKey = allCols[nearestIdx];
-      const distToNearest = Math.abs(rawIndex - nearestIdx);
-      const targetRowOthers = row.type === 'join' ? (rowsMap.get(row.rowKey) || []).filter((m) => m.id !== hierDragId) : [];
-      const occupiedByOther = nearestKey !== undefined && targetRowOthers.some((m) => effOrder(m) === nearestKey);
+      const rawValue = (clientX - rowCenterX) / SCALE + colMid;
 
-      let col;
-      if (nearestKey !== undefined && distToNearest < JOIN_THRESHOLD && !occupiedByOther) {
-        col = { type: 'join', colKey: nearestKey };
-      } else {
-        const flooredIdx = Math.floor(rawIndex);
-        col = { type: 'newcol', prevKey: allCols[flooredIdx] ?? null, nextKey: allCols[flooredIdx + 1] ?? null };
-      }
-      return { row, col, previewOffsetPx: (rawIndex - colMid) * COL_W };
+      // Nearest existing column, in pixels — snap only if the drop is almost
+      // exactly on it (reordering/replacing that exact slot).
+      let nearestKey = null; let bestPx = Infinity;
+      allCols.forEach((v) => { const d = Math.abs(v - rawValue) * SCALE; if (d < bestPx) { bestPx = d; nearestKey = v; } });
+      const targetRowOthers = row.type === 'join' ? (rowsMap.get(row.rowKey) || []).filter((m) => m.id !== hierDragId) : [];
+      const occupiedByOther = nearestKey !== null && targetRowOthers.some((m) => effOrder(m) === nearestKey);
+
+      const col = (nearestKey !== null && bestPx < JOIN_SNAP_PX && !occupiedByOther)
+        ? { type: 'join', colKey: nearestKey }
+        : { type: 'value', value: rawValue }; // a brand-new position at exactly the cursor's spot — however close or far that is from its neighbours
+
+      return { row, col, previewOffsetPx: (rawValue - colMid) * SCALE };
     };
 
     const finalize = (plan) => {
@@ -1431,22 +1463,7 @@ const CrewManagement = () => {
         }
       }
 
-      let finalCol;
-      if (plan.col.type === 'join') finalCol = plan.col.colKey;
-      else {
-        const { prevKey, nextKey } = plan.col;
-        if (prevKey == null) finalCol = nextKey - 1;
-        else if (nextKey == null) finalCol = prevKey + 1;
-        else if (nextKey - prevKey > 1) finalCol = prevKey + 1;
-        else {
-          finalCol = nextKey;
-          crew.forEach((u) => {
-            if (u.id === hierDragId || effOrder(u) < nextKey) return;
-            const existing = patch.get(u.id) || { org_row: effRow(u), org_order: effOrder(u) };
-            patch.set(u.id, { ...existing, org_order: effOrder(u) + 1 });
-          });
-        }
-      }
+      const finalCol = plan.col.type === 'join' ? plan.col.colKey : plan.col.value;
 
       patch.set(hierDragId, { org_row: finalRow, org_order: finalCol });
       applyHierarchyPatch(patch);
@@ -1490,7 +1507,7 @@ const CrewManagement = () => {
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
         {canEdit && (
           <p className="cm-hier-hint">
-            <Icon name="Move" size={12} /> Drag anyone, anywhere — release to drop them in that spot, directly under whoever they should sit beneath. A new row opens above, below, or between existing ones.
+            <Icon name="Move" size={12} /> Drag anyone, anywhere — drop them directly under whoever they should sit beneath. Place two people close together to pair them under one shared line; space them apart to keep separate lines. A new row opens above, below, or between existing ones.
           </p>
         )}
         <svg className="cm-org-lines">
