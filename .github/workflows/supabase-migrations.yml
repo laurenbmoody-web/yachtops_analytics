@@ -73,11 +73,18 @@ jobs:
             echo "::warning::Empty migration list — skipping drift heal."
             exit 0
           fi
+          # NB the CLI renders the table in markdown — each cell value is
+          # wrapped in backticks, e.g. "` ` | `20260630193641` | `…`". So
+          # strip backticks as well as whitespace before matching, or an
+          # orphan row's LOCAL cell reads as "``" (not empty) and its
+          # REMOTE cell as "`20260630193641`" (fails the 14-digit test) and
+          # every orphan slips through as "clean". (This is exactly what
+          # jammed the pipeline 2026-06-30 → 07-01.)
           orphans=$(printf '%s\n' "$listing" \
             | awk -F'|' '{
                 local = $1; remote = $2;
-                gsub(/[ \t]+/, "", local);
-                gsub(/[ \t]+/, "", remote);
+                gsub(/[ \t`]+/, "", local);
+                gsub(/[ \t`]+/, "", remote);
                 if (local == "" && remote ~ /^[0-9]{14}$/) print remote;
               }')
           if [ -z "$orphans" ]; then
@@ -104,7 +111,21 @@ jobs:
         run: |
           set -e
           for i in 1 2 3; do
-            if supabase db push --include-all; then exit 0; fi
+            out=$(supabase db push --include-all 2>&1) && { printf '%s\n' "$out"; exit 0; }
+            printf '%s\n' "$out"
+            # Belt-and-suspenders: if the push failed because the remote
+            # history is ahead with orphan versions, the CLI prints the
+            # exact `migration repair --status reverted …` command to fix
+            # it. Run its own advice and retry immediately (don't burn the
+            # attempt) — this catches any orphan the drift-heal parse above
+            # might miss if the CLI's list format changes again.
+            repair=$(printf '%s\n' "$out" \
+              | grep -oE 'migration repair --status reverted( [0-9]{14})+' | head -1)
+            if [ -n "$repair" ]; then
+              echo "::notice::Reconciling orphan history via: supabase $repair"
+              supabase $repair || true
+              continue
+            fi
             echo "::warning::db push attempt $i failed; retrying in 10s…"
             sleep 10
           done
