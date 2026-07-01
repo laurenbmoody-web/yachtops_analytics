@@ -1294,10 +1294,11 @@ const CrewManagement = () => {
   // paired set of leads without attaching to just one of them. Measured from
   // real rendered positions so it always matches the current layout; recomputed
   // after layout settles, on any reorder, and on resize.
-  // Card is 178px wide, so anything closer than ~180px between centres
-  // literally overlaps. Normal (unpaired) spacing needs real headroom above
-  // that so a "closer/paired" zone can exist without ever overlapping.
-  const TIGHT_PX = 260; // closer than this (vs. the 340px default spacing) = a group
+  // An explicit pair (dropped directly onto another card) always lands at
+  // EXACTLY PAIR_GAP_PX (200) from it — a fixed, deterministic offset, not a
+  // mouse-precision guess. This threshold just needs to comfortably include
+  // that exact distance while excluding normal (220px) sibling spacing.
+  const TIGHT_PX = 210;
   useEffect(() => {
     if (rosterView !== 'hierarchy') return;
     let cancelled = false;
@@ -1355,7 +1356,9 @@ const CrewManagement = () => {
     return () => { cancelled = true; cancelAnimationFrame(raf); window.removeEventListener('resize', recompute); };
   }, [rosterView, users, hierDragId]);
 
-  const COL_W = 340; // default (unpaired) spacing per slot — wide enough to leave real room for a "paired" zone below TIGHT_PX without cards overlapping (card is 178px wide)
+  const COL_W = 220; // default (unpaired) spacing per slot
+  const CARD_W = 178;
+  const PAIR_GAP_PX = 200; // fixed, guaranteed-safe centre-to-centre distance for an explicit pair (just past the card's own width — never overlaps, by construction, not by mouse precision)
 
   // Safety net: if the browser ever fails to deliver pointerup/pointercancel to
   // the dragged card itself (lost pointer capture, tab-switch mid-drag, etc.),
@@ -1412,8 +1415,7 @@ const CrewManagement = () => {
     const colOffsetPx = (value) => (value - colMid) * SCALE;
 
     const GAP_PAD = 22;
-    const JOIN_SNAP_PX = 16; // drop almost exactly on a card → take/reorder that exact slot
-    const MIN_GAP_PX = 200; // otherwise, never render closer than this to a neighbour — just past the card's own width (178px), so paired cards sit snugly side by side without overlapping
+    const JOIN_SNAP_PX = 16; // drop almost exactly on a card's own centre → take/reorder that exact slot
 
     // Pure hit-test: given the raw cursor position, decide the target ROW
     // (existing row, or a brand-new level above/below/between) and the target
@@ -1452,45 +1454,62 @@ const CrewManagement = () => {
         }
       }
 
-      const rowCenterX = row.rect.left + row.rect.width / 2;
-      const rawValue = (clientX - rowCenterX) / SCALE + colMid;
-
-      // Nearest existing column, in pixels — snap only if the drop is almost
-      // exactly on it (reordering/replacing that exact slot).
-      let nearestKey = null; let bestPx = Infinity;
-      allCols.forEach((v) => { const d = Math.abs(v - rawValue) * SCALE; if (d < bestPx) { bestPx = d; nearestKey = v; } });
       const targetRowOthers = row.type === 'join' ? (rowsMap.get(row.rowKey) || []).filter((m) => m.id !== hierDragId) : [];
-      const occupiedByOther = nearestKey !== null && targetRowOthers.some((m) => effOrder(m) === nearestKey);
 
-      let col;
-      if (nearestKey !== null && bestPx < JOIN_SNAP_PX && !occupiedByOther) {
-        col = { type: 'join', colKey: nearestKey };
-      } else {
-        // A brand-new position at the cursor — but never so close to an existing
-        // card that they'd render fully overlapping. Clamp to a minimum visible
-        // gap (still tight enough to read as a pair) rather than the raw spot.
-        let value = rawValue;
-        if (nearestKey !== null && bestPx < MIN_GAP_PX) {
-          const dir = rawValue >= nearestKey ? 1 : -1;
-          value = nearestKey + dir * (MIN_GAP_PX / SCALE);
+      // Deterministic pairing: if the cursor is literally hovering OVER another
+      // card's own rendered box (not just "near" it), that's an explicit "sit
+      // beside this person" gesture — not a proximity guess. The result is
+      // always EXACTLY PAIR_GAP_PX from that card (left or right, whichever
+      // half of the card the cursor is over), so it can never overlap, no
+      // matter how imprecise the mouse. Falls back to nearest-card by distance
+      // if the row is mid-drag-reflow and no card's rect exactly contains the
+      // cursor (rare, but keeps the gesture forgiving).
+      let hoveredCard = null;
+      if (row.type === 'join') {
+        for (const m of targetRowOthers) {
+          const el = orgCardRefs.current[m.id];
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) { hoveredCard = { m, rect: r }; break; }
+        }
+      }
+
+      let col; let pairWithId = null;
+      if (hoveredCard) {
+        const { m, rect } = hoveredCard;
+        const side = clientX < rect.left + rect.width / 2 ? -1 : 1;
+        let value = effOrder(m) + side * (PAIR_GAP_PX / SCALE);
+        // Guaranteed clear of any THIRD card too — nudge outward in fixed steps
+        // until the spot is actually free (bounded; cannot loop forever).
+        for (let guard = 0; guard < 20; guard++) {
+          const clash = targetRowOthers.some((o) => o.id !== m.id && Math.abs(effOrder(o) - value) * SCALE < PAIR_GAP_PX - 1);
+          if (!clash) break;
+          value += side * (PAIR_GAP_PX / SCALE);
         }
         col = { type: 'value', value };
+        pairWithId = m.id;
+      } else {
+        const rowCenterX = row.rect.left + row.rect.width / 2;
+        const rawValue = (clientX - rowCenterX) / SCALE + colMid;
+        let nearestKey = null; let bestPx = Infinity;
+        allCols.forEach((v) => { const d = Math.abs(v - rawValue) * SCALE; if (d < bestPx) { bestPx = d; nearestKey = v; } });
+        const occupiedByOther = nearestKey !== null && targetRowOthers.some((m) => effOrder(m) === nearestKey);
+        if (nearestKey !== null && bestPx < JOIN_SNAP_PX && !occupiedByOther) {
+          col = { type: 'join', colKey: nearestKey };
+        } else {
+          // Free placement in genuinely empty space — but never so close to an
+          // existing card that they'd render overlapping (that's what the
+          // explicit hover-to-pair gesture above is for).
+          let value = rawValue;
+          if (nearestKey !== null && bestPx < PAIR_GAP_PX) {
+            const dir = rawValue >= nearestKey ? 1 : -1;
+            value = nearestKey + dir * (PAIR_GAP_PX / SCALE);
+          }
+          col = { type: 'value', value };
+        }
       }
 
       const finalValue = col.type === 'join' ? col.colKey : col.value;
-
-      // Live "will this pair?" feedback — same TIGHT_PX threshold the connector
-      // lines use, so what you see while dragging is exactly what you'll get.
-      let pairWithId = null;
-      if (col.type !== 'join') {
-        let nearestOther = null; let bestPairPx = Infinity;
-        targetRowOthers.forEach((m) => {
-          const d = Math.abs(effOrder(m) - finalValue) * SCALE;
-          if (d < bestPairPx) { bestPairPx = d; nearestOther = m; }
-        });
-        if (nearestOther && bestPairPx < TIGHT_PX) pairWithId = nearestOther.id;
-      }
-
       return { row, col, pairWithId, previewOffsetPx: (finalValue - colMid) * SCALE };
     };
 

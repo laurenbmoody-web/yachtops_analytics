@@ -283,7 +283,7 @@ a.cm-cal-name:hover { color: #C65A1A; }
    A full-width canvas. Rows are purely spatial "levels" (no parent linkage) —
    dropping anywhere between/above/below existing rows opens a new one there;
    dropping within a row inserts left/right at the cursor's position. */
-.cm-org { position: relative; width: 100%; margin-top: 28px; padding-bottom: 30px; }
+.cm-org { position: relative; width: 100%; margin-top: 28px; padding-bottom: 30px; overflow-x: auto; }
 .cm-hier-hint { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #6B7280; margin: 0 0 26px; max-width: 760px; }
 .cm-hier-hint svg { color: #C65A1A; flex: 0 0 auto; }
 
