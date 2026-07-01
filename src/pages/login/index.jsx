@@ -11,7 +11,7 @@ const CREW_CONTENT = {
   emailPlaceholder: 'you@vessel.com',
   footerLead: 'New to Cargo?',
   footerLink: 'Request access',
-  footerHref: '/public-landing-page',
+  footerHref: '/pricing',
   crossText: 'Supplier, not crew?',
   crossLinkText: 'Supplier login →',
 };
