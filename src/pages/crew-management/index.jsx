@@ -1352,12 +1352,11 @@ const CrewManagement = () => {
       // a horizontal bar spanning all their children, with vertical stems to each.
       const lines = [];
       let prevGroups = null;
-      let prevIdToGroup = null;
+      let prevNodeById = null;
       rowKeys.forEach((key) => {
         const rowNodes = withMeta.filter((m) => m.row === key);
         const groups = clusterRow(rowNodes);
-        const idToGroup = new Map();
-        groups.forEach((g) => g.nodes.forEach((n) => idToGroup.set(n.id, g)));
+        const nodeById = new Map(rowNodes.map((n) => [n.id, n]));
 
         // Pair link — a straight horizontal bar between consecutive members of a
         // group, at their shared vertical mid-height, from one card's edge to
@@ -1372,41 +1371,45 @@ const CrewManagement = () => {
         });
 
         if (prevGroups && prevGroups.length) {
-          // Group by shared parent-group — using this row's own TIGHT-CLUSTERED
-          // groups (not raw individual cards) as the unit, so a paired group
-          // (already linked by its own marriage bar) contributes exactly ONE
-          // shared stem down, not one per person in the pair.
-          // An explicit `reports_to` (set by dropping directly onto a specific
-          // person above) always wins — someone can report to just ONE of
-          // several people on the row above, regardless of raw x position.
-          // Only falls back to nearest-by-position for members who haven't
-          // been explicitly assigned yet.
+          // Group by shared parent ANCHOR — using this row's own
+          // TIGHT-CLUSTERED groups (not raw individual cards) as the CHILD
+          // unit, so a paired group (already linked by its own marriage bar)
+          // contributes exactly one shared stem down, not one per person.
+          // The PARENT side is different: an explicit `reports_to` names one
+          // specific person, so it anchors to THAT person's own card — even
+          // when they're themselves paired with someone else — rather than
+          // the pair's shared midpoint. Reporting to Sophie specifically (not
+          // "the Sophie+Emma pair") has to visibly land on Sophie, not
+          // between the two of them. Only falls back to the nearest whole
+          // group, by position, for members who haven't been explicitly
+          // assigned yet.
           const byParent = new Map();
           groups.forEach((g) => {
-            let parent = null;
+            let anchorKey = null; let anchor = null;
             for (const n of g.nodes) {
-              if (n.reportsTo && prevIdToGroup.has(n.reportsTo)) { parent = prevIdToGroup.get(n.reportsTo); break; }
+              const ancestor = n.reportsTo && prevNodeById.get(n.reportsTo);
+              if (ancestor) { anchorKey = `p:${ancestor.id}`; anchor = { anchorX: ancestor.cx, bottom: ancestor.bottom, top: ancestor.top }; break; }
             }
-            if (!parent) {
+            if (!anchor) {
               let nearest = prevGroups[0]; let best = Infinity;
               prevGroups.forEach((p) => { const d = Math.abs(p.anchorX - g.anchorX); if (d < best) { best = d; nearest = p; } });
-              parent = nearest;
+              anchorKey = `g:${prevGroups.indexOf(nearest)}`; anchor = nearest;
             }
-            if (!byParent.has(parent)) byParent.set(parent, []);
-            byParent.get(parent).push(g);
+            if (!byParent.has(anchorKey)) byParent.set(anchorKey, { anchor, childGroups: [] });
+            byParent.get(anchorKey).childGroups.push(g);
           });
-          byParent.forEach((childGroups, parent) => {
+          byParent.forEach(({ anchor, childGroups }) => {
             const childXs = childGroups.map((g) => g.anchorX);
-            const barY = (parent.bottom + Math.min(...childGroups.map((g) => g.top))) / 2;
-            const leftX = Math.min(parent.anchorX, ...childXs);
-            const rightX = Math.max(parent.anchorX, ...childXs);
-            lines.push({ x1: parent.anchorX, y1: parent.bottom, x2: parent.anchorX, y2: barY }); // trunk down from parent
+            const barY = (anchor.bottom + Math.min(...childGroups.map((g) => g.top))) / 2;
+            const leftX = Math.min(anchor.anchorX, ...childXs);
+            const rightX = Math.max(anchor.anchorX, ...childXs);
+            lines.push({ x1: anchor.anchorX, y1: anchor.bottom, x2: anchor.anchorX, y2: barY }); // trunk down from parent
             lines.push({ x1: leftX, y1: barY, x2: rightX, y2: barY }); // sibling bar
             childGroups.forEach((g) => lines.push({ x1: g.anchorX, y1: barY, x2: g.anchorX, y2: g.top })); // one stem per group (pair or single)
           });
         }
         prevGroups = groups;
-        prevIdToGroup = idToGroup;
+        prevNodeById = nodeById;
       });
       if (!cancelled) setOrgLines(lines);
     };
