@@ -1540,12 +1540,28 @@ const CrewManagement = () => {
       // the ancestor's own card width — hovering literally on top of them
       // would instead register as THEIR row, triggering the pairing gesture.
       const prevRowMembers = prevRowKey != null ? (rowsMap.get(prevRowKey) || []).filter((m) => m.id !== hierDragId) : [];
+      const prevRowRects = prevRowMembers
+        .map((m) => { const el = orgCardRefs.current[m.id]; return el ? { m, r: el.getBoundingClientRect() } : null; })
+        .filter(Boolean)
+        .sort((a, b) => a.r.left - b.r.left);
       let reportsToId = null;
-      for (const m of prevRowMembers) {
-        const el = orgCardRefs.current[m.id];
-        if (!el) continue;
-        const r = el.getBoundingClientRect();
+      for (const { m, r } of prevRowRects) {
         if (clientX >= r.left && clientX <= r.right) { reportsToId = m.id; break; }
+      }
+      // Lining up in the GAP between two tightly-linked ancestors (rather
+      // than over either one's own card) is a distinct, deliberate gesture:
+      // "report to the pair, together" — e.g. all three interior crew sharing
+      // one line from a linked pair of Chief Stews, instead of splitting
+      // across whichever specific one they happen to sit closest to.
+      let reportsToPairIds = null;
+      if (!reportsToId) {
+        for (let i = 0; i < prevRowRects.length - 1; i++) {
+          const a = prevRowRects[i]; const b = prevRowRects[i + 1];
+          if (b.r.left - a.r.right < TIGHT_PX && clientX > a.r.right && clientX < b.r.left) {
+            reportsToPairIds = [a.m.id, b.m.id];
+            break;
+          }
+        }
       }
 
       // Deterministic pairing: if the cursor is literally hovering OVER another
@@ -1602,7 +1618,7 @@ const CrewManagement = () => {
       }
 
       const finalValue = col.type === 'join' ? col.colKey : col.value;
-      return { row, col, pairWithId, reportsToId, previewOffsetPx: (finalValue - colMid) * SCALE };
+      return { row, col, pairWithId, reportsToId, reportsToPairIds, previewOffsetPx: (finalValue - colMid) * SCALE };
     };
 
     const finalize = (plan) => {
@@ -1622,7 +1638,29 @@ const CrewManagement = () => {
         }
       }
 
-      const finalCol = plan.col.type === 'join' ? plan.col.colKey : plan.col.value;
+      const rawFinalCol = plan.col.type === 'join' ? plan.col.colKey : plan.col.value;
+
+      // Hard backstop: never let the actual landing spot end up within
+      // card-width distance of anyone else already in the destination row,
+      // no matter how it was computed. (Column values are compared globally
+      // across every row for "nearest" purposes, so two different rows can
+      // legitimately hold nearly-identical values — that previously let a
+      // drop snap essentially on top of someone in the SAME row when their
+      // value happened to be a hair off from another row's occupant.)
+      // Accounts for the row-shift above: a member being pushed out of
+      // `finalRow` by this same drop no longer counts as an occupant of it.
+      const destRowMembers = crew.filter((m) => {
+        if (m.id === hierDragId) return false;
+        const rowAfter = patch.has(m.id) ? patch.get(m.id).org_row : effRow(m);
+        return rowAfter === finalRow;
+      });
+      let finalCol = rawFinalCol;
+      for (let guard = 0; guard < 40; guard++) {
+        const clash = destRowMembers.find((m) => Math.abs(effOrder(m) - finalCol) * SCALE < PAIR_GAP_PX - 1);
+        if (!clash) break;
+        const dir = finalCol >= effOrder(clash) ? 1 : -1;
+        finalCol = effOrder(clash) + dir * (PAIR_GAP_PX / SCALE);
+      }
 
       // Persist the explicit "reports to" gesture when used; otherwise clear
       // any earlier explicit assignment so this drop's position drives the
@@ -1661,7 +1699,7 @@ const CrewManagement = () => {
           <div className="cm-hier-hint">
             <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Drag anyone, anywhere to rebuild the team structure.</p>
             <ul className="cm-hier-hint-legend">
-              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up directly under one person above</strong> — report to them alone</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up under one person above</strong> — report to them alone; in the gap between a linked pair — report to both</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-pair" /><strong>Drop right beside someone</strong> — pair under one shared line</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-row" /><strong>Drop above, below or between rows</strong> — open a new level</li>
             </ul>
@@ -1695,7 +1733,7 @@ const CrewManagement = () => {
                 {members.map((u) => {
                   const isDragged = u.id === hierDragId;
                   const isPairTarget = showJoinHere && hierPlan.pairWithId === u.id;
-                  const isReportTarget = hierPlan?.reportsToId === u.id;
+                  const isReportTarget = hierPlan?.reportsToId === u.id || hierPlan?.reportsToPairIds?.includes(u.id);
                   return (
                     <div
                       key={u.id}
