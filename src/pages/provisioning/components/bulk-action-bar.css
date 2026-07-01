@@ -136,6 +136,20 @@
   color: white;
 }
 
+/* Set-status — native select styled as a ghost button with a caret.
+   Shares the ghost palette; appearance:none + a chevron background so it
+   reads as one of the action buttons, not a raw form control. */
+.pv-bulk-bar-status { display: inline-flex; }
+.pv-bulk-bar-status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23C65A1A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+.pv-bulk-bar-status-select:disabled { background-image: none; }
+
 .pv-bulk-bar-btn-quiet {
   background: none;
   color: var(--d-muted);

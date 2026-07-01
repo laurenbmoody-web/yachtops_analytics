@@ -33,15 +33,16 @@ const BulkActionBar = ({
   onEdit,
   onChangeDept,
   onDelete,
-  // Mark unavailable / available — crew flags board lines that won't be
-  // supplied. Renders only when onMarkUnavailable is provided. The label
-  // is parent-computed (toggles to "Mark available") and the button
-  // disables when nothing selected is eligible (all supplier-owned or
-  // already received).
-  onMarkUnavailable,
-  unavailableLabel = 'Mark unavailable',
-  unavailableDisabled = false,
-  unavailableTitle,
+  // Set status — the single status control for the selection (the per-row
+  // dropdown is gone; the row dot is a read-only indicator). Renders only
+  // when onSetStatus + statusOptions are provided. Disabled when nothing
+  // selected is eligible (all supplier-owned). 'Received'/'Partial' are not
+  // offered here — they run through Mark received so a delivery record is
+  // created.
+  onSetStatus,
+  statusOptions = [],
+  statusDisabled = false,
+  statusTitle,
   onClear,
 }) => {
   // Parent unmount is the simplest path — we don't try to animate-out
@@ -98,16 +99,23 @@ const BulkActionBar = ({
               Change dept
             </button>
           )}
-          {onMarkUnavailable && (
-            <button
-              type="button"
-              onClick={onMarkUnavailable}
-              disabled={unavailableDisabled}
-              title={unavailableTitle}
-              className="pv-bulk-bar-btn pv-bulk-bar-btn-ghost"
+          {onSetStatus && statusOptions.length > 0 && (
+            <label
+              className={`pv-bulk-bar-status${statusDisabled ? ' is-disabled' : ''}`}
+              title={statusTitle}
             >
-              {unavailableLabel}
-            </button>
+              <select
+                value=""
+                disabled={statusDisabled}
+                onChange={(e) => { if (e.target.value) { onSetStatus(e.target.value); e.target.value = ''; } }}
+                className="pv-bulk-bar-btn pv-bulk-bar-btn-ghost pv-bulk-bar-status-select"
+              >
+                <option value="" disabled>Set status…</option>
+                {statusOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
           )}
           {onDelete && (
             <button
