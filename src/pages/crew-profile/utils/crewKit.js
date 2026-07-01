@@ -39,6 +39,20 @@ export const fetchCabinAllocation = async (userId) => {
   return data || {};
 };
 
+// Vessel identity for the kit receipt header (name + registry particulars).
+// The crew-profile page only loads the vessel record on the Contract tab, so
+// the kit tab fetches it directly to stamp the receipt with the ship.
+export const fetchVesselIdentity = async (tenantId) => {
+  if (!tenantId) return null;
+  const { data, error } = await supabase
+    ?.from('vessels')
+    ?.select('name, flag, port_of_registry, imo_number')
+    ?.eq('tenant_id', tenantId)
+    ?.maybeSingle();
+  if (error) { console.error('[kit] vessel fetch failed', error); return null; }
+  return data || null;
+};
+
 export const saveCabinAllocation = async (userId, tenantId, { cabin, laundryNumber, laundryColour }) => {
   const { error } = await supabase
     ?.from('crew_employment')
