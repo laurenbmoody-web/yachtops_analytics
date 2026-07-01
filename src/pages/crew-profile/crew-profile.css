@@ -202,21 +202,17 @@ body.crew-profile-editorial {
   .crew-profile-page .cp-name-row { grid-template-columns: 1fr; }
 }
 
-/* Editorial fields — no boxed widgets: a hairline rule under each field and
-   whitespace do the separating, per the Cargo design system. The label sits in
-   tracked caps above the value; focus turns the hairline terracotta. */
 .crew-profile-page .cp-field-card {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid #ECEAE3;
-  border-radius: 0;
-  padding: 7px 2px 12px;
-  transition: border-color 0.15s ease;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 9px;
+  padding: 8px 12px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.crew-profile-page .cp-field-card.cp-accent { border-top: 0; }
+.crew-profile-page .cp-field-card.cp-accent { border-top: 2px solid #C65A1A; }
 .crew-profile-page .cp-field-card:focus-within {
-  border-bottom-color: #C65A1A;
-  box-shadow: none;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 2px #FAECE7;
 }
 
 .crew-profile-page .cp-field-label {
