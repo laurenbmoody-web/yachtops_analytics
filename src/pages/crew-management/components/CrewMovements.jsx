@@ -4,7 +4,9 @@ import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { buildStatusPeriods, getStatusForDay, getStatusLabel, CREW_STATUSES } from '../../../utils/crewStatus';
 import { fetchCabins, fetchAssignments, createAssignment, updateAssignment, deleteAssignment } from '../utils/vesselCabins';
+import { fetchTravelLegs } from '../../crew-profile/utils/crewCalendar';
 import ConfigureCabinsModal from './ConfigureCabinsModal';
+import TravelModal from './TravelModal';
 import './crew-movements.css';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -24,6 +26,8 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const [cabins, setCabins] = useState([]);
   const [assigns, setAssigns] = useState([]);
   const [travel, setTravel] = useState([]);
+  const [travelLegs, setTravelLegs] = useState([]);
+  const [travelModal, setTravelModal] = useState(null); // { entry } | { entry: null } | null
   const [deptColors, setDeptColors] = useState({});
   const [sexMap, setSexMap] = useState({});
   const [loading, setLoading] = useState(false);
@@ -49,6 +53,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       .filter((e) => (e.transport || e.from_location || e.to_location) && (e.start_date || '').slice(0, 10) >= mStart && (e.start_date || '').slice(0, 10) <= mEnd)
       .sort((a, b) => (a.start_date < b.start_date ? -1 : 1));
   }, [travel, calYear, calMonth, totalDays]);
+  const legsByEntry = useMemo(() => { const m = {}; travelLegs.forEach((l) => { (m[l.entry_id] = m[l.entry_id] || []).push(l); }); return m; }, [travelLegs]);
 
   // presence history
   useEffect(() => {
@@ -69,16 +74,18 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const loadCabins = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [cabs, asg, dep, trv, sx] = await Promise.all([
+    const [cabs, asg, dep, trv, sx, legs] = await Promise.all([
       fetchCabins(tenantId), fetchAssignments(tenantId),
       supabase.from('departments').select('name, color'),
       supabase.from('crew_calendar_entries').select('*').eq('tenant_id', tenantId),
       memberIds.length ? supabase.from('crew_personal_details').select('user_id, sex').in('user_id', memberIds) : Promise.resolve({ data: [] }),
+      fetchTravelLegs(tenantId),
     ]);
     setCabins(cabs);
     setAssigns(asg);
     setDeptColors(Object.fromEntries((dep.data || []).map((d) => [d.name, d.color])));
     setTravel(trv.data || []);
+    setTravelLegs(legs);
     setSexMap(Object.fromEntries((sx.data || []).map((r) => [r.user_id, r.sex === 'Male' ? 'M' : r.sex === 'Female' ? 'F' : ''])));
     setLoading(false);
   }, [tenantId, memberIds]);
@@ -366,22 +373,25 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
         {canManage && <button type="button" className="mv-btn ghost mv-config" onClick={() => setConfigOpen(true)}><Icon name="Settings" size={14} /> Configure cabins</button>}
       </div>
 
-      {monthTravel.length > 0 && (
+      {(canManage || monthTravel.length > 0) && (
         <div className="mv-flights">
-          <div className="mv-fhead"><span className="t">Flights &amp; travel</span><span className="ln" /></div>
-          {monthTravel.map((e) => {
+          <div className="mv-fhead"><span className="t">Flights &amp; travel</span><span className="ln" />{canManage && <button type="button" className="mv-addtravel" onClick={() => setTravelModal({ entry: null })}><Icon name="Plus" size={13} /> Add travel</button>}</div>
+          {monthTravel.length === 0 ? <div className="mv-noflt">No travel logged this month.</div> : monthTravel.map((e) => {
             const m = memberById[e.user_id]; const dir = dirOf(e);
             const day = new Date(`${e.start_date}T00:00:00`).getDate();
-            const route = [e.from_location, e.to_location].filter(Boolean).join(' → ');
-            const time = e.arrive_time || e.depart_time || '';
+            const extra = (legsByEntry[e.id] || []).slice().sort((a, b) => a.seq - b.seq);
             return (
               <div key={e.id} id={`flt-${e.id}`} className={`mv-flt${selCrew === e.user_id ? ' sel' : ''}`} onClick={() => selectFromFlight(e.user_id)}>
                 <div className="date"><span className="d">{day}</span><span className="m">{MONTHS[calMonth].slice(0, 3)}</span></div>
                 <span className={`dirpill ${dir}`}>{dir === 'dep' ? '↑ Departing' : dir === 'arr' ? '↓ Arriving' : '✈ Travelling'}</span>
                 <span className="who">{m?.fullName || '—'}</span>
-                <span className="route"><Icon name={TRANS_ICON[e.transport] || 'Plane'} size={13} /> {route || (e.note || '—')}</span>
-                {e.transport_no && <span className="fno">{e.transport_no}</span>}
-                {time && <span className="time">{time}</span>}
+                <div className="legs">
+                  <div className="leg"><Icon name={TRANS_ICON[e.transport] || 'Plane'} size={12} /> <span className="rt">{[e.from_location, e.to_location].filter(Boolean).join(' → ') || (e.note || '—')}</span>{e.transport_no && <span className="no">{e.transport_no}</span>}{(e.arrive_time || e.depart_time) && <span className="tm">{e.arrive_time || e.depart_time}</span>}</div>
+                  {extra.map((l) => (
+                    <div className="leg sub" key={l.id}><Icon name={TRANS_ICON[l.transport] || 'Car'} size={12} /> <span className="rt">{[l.from_location, l.to_location].filter(Boolean).join(' → ') || '—'}</span>{l.transport_no && <span className="no">{l.transport_no}</span>}{(l.arrive_time || l.depart_time) && <span className="tm">{l.arrive_time || l.depart_time}</span>}</div>
+                  ))}
+                </div>
+                {canManage && <button type="button" className="mv-editflt" title="Edit travel / add a leg" onClick={(ev) => { ev.stopPropagation(); setTravelModal({ entry: e }); }}><Icon name="Pencil" size={13} /></button>}
               </div>
             );
           })}
@@ -463,6 +473,13 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       )}
 
       <ConfigureCabinsModal isOpen={configOpen} onClose={() => setConfigOpen(false)} tenantId={tenantId} userId={currentUserId} crewAboard={crewAboard} onSaved={() => setRefresh((r) => r + 1)} />
+
+      {travelModal && (
+        <TravelModal isOpen onClose={() => setTravelModal(null)} tenantId={tenantId} members={members}
+          currentUserId={currentUserId} currentUserName={memberById[currentUserId]?.fullName || ''}
+          entry={travelModal.entry} legsForEntry={travelModal.entry ? (legsByEntry[travelModal.entry.id] || []) : []}
+          onSaved={() => setRefresh((r) => r + 1)} />
+      )}
     </div>
   );
 };

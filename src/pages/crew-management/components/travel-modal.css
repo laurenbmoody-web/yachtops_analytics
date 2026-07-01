@@ -1,0 +1,31 @@
+/* Add/edit travel journey (multi-leg). */
+.tv-panel { width: 560px; max-width: 100%; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 30px 70px -20px rgba(28,27,58,0.5); }
+.tv { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+.tv-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px 14px; border-bottom: 1px solid #F0F1F5; }
+.tv-ey { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #C65A1A; }
+.tv-head h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 24px; margin: 4px 0 0; }
+.tv-x { border: 0; background: none; color: #AEB4C2; cursor: pointer; padding: 4px; }
+.tv-x:hover { color: #1C1B3A; }
+.tv-body { padding: 18px 24px; max-height: 62vh; overflow-y: auto; }
+.tv-row2 { display: grid; grid-template-columns: 1fr 160px; gap: 12px; }
+.tv-field { display: block; margin-bottom: 12px; }
+.tv-field .k { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 5px; }
+.tv select, .tv input { width: 100%; font-family: 'Inter', sans-serif; font-size: 13px; color: #1C1B3A; border: 1px solid #E6E8EF; border-radius: 9px; padding: 8px 10px; background: #FAFAF8; }
+.tv select:focus, .tv input:focus { outline: 0; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.tv-legs-head { display: flex; align-items: baseline; gap: 10px; margin: 8px 0 8px; }
+.tv-legs-head .k { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.tv-legs-head .hint { font-size: 11px; color: #AEB4C2; }
+.tv-leg { display: flex; align-items: flex-start; gap: 8px; background: #FBFAF7; border: 1px solid #ECEAE3; border-radius: 12px; padding: 10px; margin-bottom: 8px; }
+.tv-legnum { flex: 0 0 22px; height: 22px; border-radius: 999px; background: #1C1B3A; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.tv-leggrid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tv-legx { flex: 0 0 auto; border: 0; background: none; color: #AEB4C2; cursor: pointer; font-size: 16px; padding: 0 4px; }
+.tv-legx:hover { color: #E4574C; }
+.tv-addleg { border: 1px dashed #D6D2C7; background: #fff; color: #C65A1A; border-radius: 10px; padding: 9px; width: 100%; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-bottom: 14px; }
+.tv-addleg:hover { background: #FBF3EE; }
+.tv-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px; border-top: 1px solid #F0F1F5; background: #FCFCFB; }
+.tv-del { background: #fff; border: 1px solid #E8E6DF; border-radius: 10px; padding: 9px 14px; font-size: 12.5px; font-weight: 600; color: #E4574C; cursor: pointer; }
+.tv-btns { display: flex; gap: 9px; margin-left: auto; }
+.tv-ghost { background: #fff; border: 1px solid #E8E6DF; border-radius: 10px; padding: 9px 16px; font-size: 12.5px; font-weight: 600; color: #1C1B3A; cursor: pointer; }
+.tv-primary { background: #C65A1A; color: #fff; border: 0; border-radius: 10px; padding: 9px 18px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.tv-primary:hover { background: #B14E16; }
+.tv-primary:disabled, .tv-ghost:disabled { opacity: 0.6; }
