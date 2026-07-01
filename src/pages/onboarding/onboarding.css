@@ -22,3 +22,130 @@
 
 .ob-card-hover { transition: transform 200ms ease, box-shadow 200ms ease; }
 .ob-card-hover:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rgba(28,27,58,0.22); }
+
+/* ============================================================
+   "Wrapped" tour shell — matches the CargoOnboarding.jsx/.css
+   reference design (giant numerals, per-step colour themes,
+   scrolling marquee, circular glyph, hard-shadow CTAs, confetti
+   finale). The actual data-collection fields (VesselSettingsStep /
+   DepartmentsStep / InviteCrewStep — unchanged) render inside
+   .onb-panel, a white card in the right-hand column, so they stay
+   legible against the navy/peach step backgrounds.
+   ============================================================ */
+.onb-shell {
+  --sans: 'Inter', system-ui, sans-serif;
+  --serif: 'Newsreader', Georgia, serif;
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--wbg);
+  color: var(--wfg);
+  transition: background .55s cubic-bezier(.4,0,.2,1);
+  font-family: var(--sans);
+}
+
+/* aurora blobs — welcome screen only */
+.onb-blob { position: absolute; border-radius: 50%; filter: blur(70px); pointer-events: none; animation: onbBlobIn 1.2s cubic-bezier(.4,0,.2,1) both; }
+.onb-blob.one { width: 560px; height: 560px; left: -120px; top: -140px; background: rgba(198,90,26,.22); }
+.onb-blob.two { width: 480px; height: 480px; right: -100px; top: 60px; background: rgba(30,58,95,.14); }
+.onb-blob.three { width: 460px; height: 460px; left: 30%; bottom: -180px; background: rgba(198,90,26,.14); }
+@keyframes onbBlobIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* confetti — done screen only */
+.onb-confetti { position: absolute; left: 0; right: 0; top: 60px; height: 0; pointer-events: none; z-index: 6; }
+.onb-confetti .bit { position: absolute; top: 0; opacity: 0; animation-name: onbFall; animation-timing-function: cubic-bezier(.3,.4,.5,1); animation-fill-mode: forwards; }
+@keyframes onbFall { 0% { opacity: 0; transform: translateY(-12px) rotate(0); } 12% { opacity: 1; } 100% { opacity: 0; transform: translateY(620px) rotate(330deg); } }
+
+/* top bar */
+.onb-bar { position: relative; z-index: 3; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 22px 36px 0; min-height: 60px; }
+.onb-bar-left { display: flex; align-items: center; gap: 16px; }
+.onb-back { width: 40px; height: 40px; border-radius: 12px; cursor: pointer; color: var(--wfg); border: 1.5px solid color-mix(in srgb, var(--wfg) 30%, transparent); background: none; display: flex; align-items: center; justify-content: center; transition: border-color .2s, background .2s; }
+.onb-back:hover { background: color-mix(in srgb, var(--wfg) 8%, transparent); }
+.onb-logo { height: 36px; width: auto; max-width: 160px; object-fit: contain; display: block; }
+/* Dark (navy) step screens — invert the navy wordmark to white instead of
+   swapping to a separately-exported reverse asset, whose own background
+   navy doesn't quite match the theme navy and would show a visible box. */
+.onb-logo.invert { filter: brightness(0) invert(1); }
+.onb-bar-right { display: flex; align-items: center; gap: 18px; }
+.onb-ticks { display: flex; gap: 6px; }
+.onb-ticks i { width: 26px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--wfg) 20%, transparent); transition: background .3s; display: block; }
+.onb-ticks i.on { background: var(--wac); }
+.onb-ticks i.cur { background: var(--wfg); }
+.onb-count { font: 700 13.5px var(--sans); color: var(--wfg); white-space: nowrap; }
+.onb-count em { font-style: normal; color: color-mix(in srgb, var(--wfg) 45%, transparent); }
+
+/* marquee ticker */
+.onb-marquee { position: relative; z-index: 1; flex-shrink: 0; overflow: hidden; pointer-events: none; white-space: nowrap; margin-top: 18px; padding: 9px 0; border-top: 1.5px solid color-mix(in srgb, var(--wfg) 20%, transparent); border-bottom: 1.5px solid color-mix(in srgb, var(--wfg) 20%, transparent); }
+.onb-marquee span { display: inline-block; font: 800 14px var(--sans); letter-spacing: 4px; color: color-mix(in srgb, var(--wac) 80%, transparent); animation: onbMarq 22s linear infinite; }
+@keyframes onbMarq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* main */
+.onb-main { position: relative; z-index: 2; flex: 1; display: flex; min-height: 0; }
+
+/* welcome screen */
+.onb-welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px 60px 40px; animation: onbIn .55s cubic-bezier(.4,0,.2,1) both; }
+.onb-head-serif { margin: 0; font-family: var(--serif); font-weight: 700; font-size: 50px; line-height: 1.14; letter-spacing: .3px; color: var(--wfg); }
+.onb-bel { font-style: italic; font-weight: 600; color: var(--wac); letter-spacing: -.3px; }
+.onb-sub { margin: 20px 0 0; font: 500 17px/1.6 var(--sans); color: color-mix(in srgb, var(--wfg) 70%, transparent); max-width: 46ch; }
+.onb-sub.center { text-align: center; }
+.onb-foot { margin-top: 16px; font: 400 13.5px var(--sans); color: color-mix(in srgb, var(--wfg) 45%, transparent); }
+
+/* split step layout — giant numeral left, form panel right */
+.onb-split { flex: 1; display: grid; grid-template-columns: .85fr 1.3fr; align-items: center; gap: 40px; padding: 10px 64px 40px; }
+.onb-left { position: relative; display: flex; align-items: center; justify-content: center; }
+.onb-giant { font: 900 300px/0.85 var(--sans); letter-spacing: -12px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--wfg) 15%, transparent); user-select: none; animation: onbGiant .55s cubic-bezier(.2,.9,.3,1.1) both; }
+.onb-giant.word { font-size: 120px; letter-spacing: -3px; }
+.onb-right { display: flex; flex-direction: column; align-items: flex-start; width: 100%; min-width: 0; animation: onbIn .5s cubic-bezier(.2,.9,.3,1.1) both .06s; }
+.onb-glyph { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2.5px solid color-mix(in srgb, var(--wfg) 75%, transparent); background: color-mix(in srgb, var(--wbg) 70%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: onbGlyph .6s cubic-bezier(.2,.9,.3,1.1) both .08s; }
+.onb-glyph.done { background: color-mix(in srgb, var(--wfg) 16%, transparent); }
+.onb-head { margin: 0 0 6px; font: 800 40px/1.1 var(--sans); letter-spacing: -1.5px; text-transform: uppercase; color: var(--wfg); }
+.onb-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.onb-chip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: 1.5px solid color-mix(in srgb, var(--wfg) 25%, transparent); font: 600 14px var(--sans); color: var(--wfg); }
+
+/* form panel — white card holding the real fields (heading, inputs, CTAs).
+   Always opaque white regardless of the step's theme colour — the fields
+   inside still use dark navy-ink text, which would vanish on the navy
+   step background without this. */
+.onb-panel {
+  width: 100%;
+  max-width: 640px;
+  margin-top: 22px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 30px 32px 32px;
+  box-shadow: 0 28px 64px -30px rgba(0,0,0,0.4);
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+/* CTA row */
+.onb-ctarow { display: flex; align-items: center; gap: 22px; margin-top: 34px; }
+.onb-ctarow.center { justify-content: center; }
+.onb-cta { height: 56px; padding: 0 32px; border: none; cursor: pointer; border-radius: 14px; white-space: nowrap; background: var(--wfg); color: var(--wbg); font: 800 15px var(--sans); letter-spacing: .6px; text-transform: uppercase; box-shadow: 6px 6px 0 color-mix(in srgb, var(--wfg) 28%, transparent); transition: transform .15s cubic-bezier(.2,.9,.3,1.1), box-shadow .15s, background .55s cubic-bezier(.4,0,.2,1), color .55s cubic-bezier(.4,0,.2,1); }
+.onb-cta:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 color-mix(in srgb, var(--wfg) 28%, transparent); }
+.onb-cta:active { transform: translate(0, 0); box-shadow: 3px 3px 0 color-mix(in srgb, var(--wfg) 28%, transparent); }
+.onb-cta:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.onb-cta.welcome { background: #C65A1A; color: #fff; box-shadow: 6px 6px 0 rgba(198,90,26,.28); }
+.onb-skip { background: none; border: none; cursor: pointer; font: 600 14px var(--sans); color: color-mix(in srgb, var(--wfg) 55%, transparent); padding: 4px 8px; transition: color .2s; }
+.onb-skip:hover { color: var(--wfg); }
+.onb-donetag { display: inline-flex; align-items: center; gap: 7px; font: 700 15px var(--sans); color: var(--wac); text-transform: uppercase; letter-spacing: .5px; }
+
+.onb-kbd { position: absolute; right: 26px; bottom: 18px; z-index: 3; font: 500 12px var(--sans); color: color-mix(in srgb, var(--wfg) 38%, transparent); }
+
+@keyframes onbIn { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes onbGiant { from { transform: translateX(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes onbGlyph { from { transform: rotate(-12deg) scale(.7); } to { transform: none; } }
+
+@media (max-width: 980px) {
+  .onb-split { grid-template-columns: 1fr; gap: 12px; padding: 10px 24px 30px; text-align: left; }
+  .onb-left { display: none; }
+  .onb-head { font-size: 30px; }
+  .onb-head-serif { font-size: 32px; }
+  .onb-bar { padding: 18px 20px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-shell *, .onb-shell *::before, .onb-shell *::after { animation-duration: .001ms !important; }
+}
