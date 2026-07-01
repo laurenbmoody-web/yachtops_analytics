@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
+import './invite-accept.css';
 
 const InviteAcceptPage = () => {
   const navigate = useNavigate();
@@ -772,244 +773,113 @@ const InviteAcceptPage = () => {
 
   // STEP === 'create': Show signup/login forms (ALWAYS render this when step is 'create', even if session appears)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0A1628] via-[#132337] to-[#1E3A5F] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <Icon name="Ship" size={48} className="text-[#1E3A5F] mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Join Your Vessel</h1>
-          <p className="text-gray-600">You've been invited to join {vesselName}</p>
+    <div className="ia-page">
+      <div className="ia-card">
+        <div className="ia-head">
+          <span className="ia-badge"><Icon name="Ship" size={26} /></span>
+          <h1 className="ia-title">Join your vessel</h1>
+          <p className="ia-sub">You've been invited to join <b>{vesselName}</b></p>
         </div>
 
-        {/* Invite Details - Read-only, normal height */}
-        <div className="space-y-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Vessel</label>
-            <Input value={vesselName} disabled className="bg-gray-50" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <Input value={inviteEmail} disabled className="bg-gray-50" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-            <Input value={departmentName} disabled className="bg-gray-50" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-            <Input value={inviteRoleName} disabled className="bg-gray-50" />
-          </div>
+        {/* Invite summary — read-only */}
+        <div className="ia-summary">
+          <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
+          <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
+          <div className="ia-ro"><span className="k">Department</span><span className="v">{departmentName}</span></div>
+          <div className="ia-ro"><span className="k">Role</span><span className="v">{inviteRoleName}</span></div>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-6">
-          <button
-            onClick={() => setActiveTab('signup')}
-            className={`flex-1 py-2 text-sm font-medium transition-smooth ${
-              activeTab === 'signup' ?'border-b-2 border-[#1E3A5F] text-[#1E3A5F]' :'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Create Account
-          </button>
-          <button
-            onClick={() => setActiveTab('login')}
-            className={`flex-1 py-2 text-sm font-medium transition-smooth ${
-              activeTab === 'login' ?'border-b-2 border-[#1E3A5F] text-[#1E3A5F]' :'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Login
-          </button>
+        <div className="ia-tabs">
+          <button type="button" className={`ia-tab${activeTab === 'signup' ? ' on' : ''}`} onClick={() => setActiveTab('signup')}>Create account</button>
+          <button type="button" className={`ia-tab${activeTab === 'login' ? ' on' : ''}`} onClick={() => setActiveTab('login')}>Log in</button>
         </div>
 
-        {/* Error Display */}
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-            <Icon name="AlertCircle" size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
+          <div className="ia-alert err"><Icon name="AlertCircle" size={16} /> <span>{error}</span></div>
         )}
 
-        {/* Session Email Mismatch Warning */}
         {sessionEmailMismatch && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-start gap-2 mb-2">
-              <Icon name="AlertTriangle" size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-amber-800">Different account logged in</p>
-                <p className="text-sm text-amber-700 mt-1">
-                  You're currently logged in as <strong>{loggedInEmail}</strong>, but this invite is for <strong>{inviteEmail}</strong>.
-                </p>
-                <p className="text-sm text-amber-700 mt-1">
-                  Please create a new account or log in with the invited email address below.
-                </p>
-              </div>
+          <div className="ia-alert warn">
+            <Icon name="AlertTriangle" size={16} />
+            <div>
+              <b>Different account logged in</b>
+              You're signed in as <strong>{loggedInEmail}</strong>, but this invite is for <strong>{inviteEmail}</strong>. Sign out, then create an account or log in with the invited address.
+              <button
+                type="button" className="ia-link"
+                onClick={async () => { await supabase?.auth?.signOut(); setSessionEmailMismatch(false); setLoggedInEmail(''); }}
+              >Sign out of {loggedInEmail}</button>
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                await supabase?.auth?.signOut();
-                setSessionEmailMismatch(false);
-                setLoggedInEmail('');
-              }}
-              className="text-xs text-amber-700 underline hover:text-amber-900 mt-1"
-            >
-              Sign out of {loggedInEmail}
-            </button>
           </div>
         )}
 
-        {/* Info Banner */}
         {infoBanner && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2">
-            <Icon name="Info" size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-700">{infoBanner}</p>
-          </div>
+          <div className="ia-alert info"><Icon name="Info" size={16} /> <span>{infoBanner}</span></div>
         )}
 
-        {/* Email Confirmation Required */}
         {emailConfirmationRequired && (
-          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-start gap-2 mb-2">
-              <Icon name="Mail" size={20} className="text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">Email Confirmation Required</p>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Please check your email and click the confirmation link to activate your account.
-                </p>
-              </div>
-            </div>
+          <div className="ia-alert warn">
+            <Icon name="Mail" size={16} />
+            <div><b>Confirm your email</b>Check your inbox and click the confirmation link to activate your account.</div>
           </div>
         )}
 
         {/* Signup Form */}
         {activeTab === 'signup' && (
-          <form onSubmit={handleCreateAccount} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
-              <Input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e?.target?.value)}
-                placeholder="Enter your first name"
-                disabled={isSubmitting}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Surname *</label>
-              <Input
-                type="text"
-                value={surname}
-                onChange={(e) => setSurname(e?.target?.value)}
-                placeholder="Enter your surname"
-                disabled={isSubmitting}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e?.target?.value)}
-                  placeholder="At least 6 characters"
-                  disabled={isSubmitting}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  disabled={isSubmitting}
-                >
-                  <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={20} />
+          <form onSubmit={handleCreateAccount} className="ia-form" autoComplete="off">
+            <label className="ia-field">
+              <span className="ia-label">First name <span className="req">*</span></span>
+              <input className="ia-input" type="text" name="ia-first-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e?.target?.value)} placeholder="e.g. Julia" disabled={isSubmitting} />
+            </label>
+            <label className="ia-field">
+              <span className="ia-label">Surname <span className="req">*</span></span>
+              <input className="ia-input" type="text" name="ia-surname" autoComplete="family-name" value={surname} onChange={(e) => setSurname(e?.target?.value)} placeholder="e.g. McKay" disabled={isSubmitting} />
+            </label>
+            <label className="ia-field">
+              <span className="ia-label">Password <span className="req">*</span></span>
+              <div className="ia-pw">
+                <input className="ia-input" type={showPassword ? 'text' : 'password'} name="ia-new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e?.target?.value)} placeholder="At least 6 characters" disabled={isSubmitting} />
+                <button type="button" className="ia-eye" onClick={() => setShowPassword(!showPassword)} disabled={isSubmitting} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                  <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={18} />
                 </button>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
-              <div className="relative">
-                <Input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e?.target?.value)}
-                  placeholder="Re-enter password"
-                  disabled={isSubmitting}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  disabled={isSubmitting}
-                >
-                  <Icon name={showConfirmPassword ? 'EyeOff' : 'Eye'} size={20} />
+            </label>
+            <label className="ia-field">
+              <span className="ia-label">Confirm password <span className="req">*</span></span>
+              <div className="ia-pw">
+                <input className="ia-input" type={showConfirmPassword ? 'text' : 'password'} name="ia-confirm-password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e?.target?.value)} placeholder="Re-enter password" disabled={isSubmitting} />
+                <button type="button" className="ia-eye" onClick={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isSubmitting} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>
+                  <Icon name={showConfirmPassword ? 'EyeOff' : 'Eye'} size={18} />
                 </button>
               </div>
-            </div>
+            </label>
 
-            {/* Disabled reason hint */}
-            {disabledReason && (
-              <p className="text-xs text-gray-500 italic">{disabledReason}</p>
-            )}
+            {disabledReason && <p className="ia-hint">{disabledReason}</p>}
 
-            <Button
-              type="submit"
-              disabled={isButtonDisabled}
-              className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white font-semibold py-3 rounded-lg transition-smooth disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <>
-                  <Icon name="Loader2" size={20} className="animate-spin mr-2" />
-                  Creating Account...
-                </>
-              ) : (
-                'Create Account & Join Vessel'
-              )}
-            </Button>
+            <button type="submit" className="ia-btn primary" disabled={isButtonDisabled}>
+              {isSubmitting ? <><Icon name="Loader2" size={17} className="animate-spin" /> Creating account…</> : 'Create account & join vessel'}
+            </button>
           </form>
         )}
 
         {/* Login Form */}
         {activeTab === 'login' && (
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-              <div className="relative">
-                <Input
-                  type={showLoginPassword ? 'text' : 'password'}
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e?.target?.value)}
-                  placeholder="Enter your password"
-                  disabled={isSubmitting}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  disabled={isSubmitting}
-                >
-                  <Icon name={showLoginPassword ? 'EyeOff' : 'Eye'} size={20} />
+          <form onSubmit={handleLogin} className="ia-form">
+            <label className="ia-field">
+              <span className="ia-label">Password <span className="req">*</span></span>
+              <div className="ia-pw">
+                <input className="ia-input" type={showLoginPassword ? 'text' : 'password'} name="password" autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e?.target?.value)} placeholder="Enter your password" disabled={isSubmitting} />
+                <button type="button" className="ia-eye" onClick={() => setShowLoginPassword(!showLoginPassword)} disabled={isSubmitting} aria-label={showLoginPassword ? 'Hide password' : 'Show password'}>
+                  <Icon name={showLoginPassword ? 'EyeOff' : 'Eye'} size={18} />
                 </button>
               </div>
-            </div>
+            </label>
 
-            {/* Disabled reason hint */}
-            {disabledReason && (
-              <p className="text-xs text-gray-500 italic">{disabledReason}</p>
-            )}
+            {disabledReason && <p className="ia-hint">{disabledReason}</p>}
 
-            <Button
-              type="submit"
-              disabled={isButtonDisabled}
-              className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white font-semibold py-3 rounded-lg transition-smooth disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <>
-                  <Icon name="Loader2" size={20} className="animate-spin mr-2" />
-                  Logging In...
-                </>
-              ) : (
-                'Login & Join Vessel'
-              )}
-            </Button>
+            <button type="submit" className="ia-btn primary" disabled={isButtonDisabled}>
+              {isSubmitting ? <><Icon name="Loader2" size={17} className="animate-spin" /> Logging in…</> : 'Log in & join vessel'}
+            </button>
           </form>
         )}
       </div>
