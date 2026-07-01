@@ -302,24 +302,30 @@ const SetPassword = () => {
   if (sessionState === 'invalid') {
     return (
       <div className="spw-page">
-        <div className="spw-wrap">
-          <div className="spw-icon-circle error">
-            <Icon name="AlertCircle" size={28} color="#A32D2D" />
-          </div>
-          <h1 className="spw-heading">Invite link invalid or expired</h1>
-          <p className="spw-sub">
-            This invite link is invalid, has already been used, or has expired.
-            If you still need to set up your account, ask your vessel administrator
-            to re-send the invite, or contact support.
-          </p>
+        <span className="spw-blob one" />
+        <span className="spw-blob two" />
+        <header className="spw-bar"><img src={LOGO_SRC} alt="Cargo" /></header>
+        <div className="spw-marquee"><span>{'WELCOME ABOARD · '.repeat(60)}</span></div>
+        <div className="spw-center">
+          <div className="spw-wrap">
+            <div className="spw-icon-circle error">
+              <Icon name="AlertCircle" size={28} color="#A32D2D" />
+            </div>
+            <h1 className="spw-heading">Invite link invalid or expired</h1>
+            <p className="spw-sub">
+              This invite link is invalid, has already been used, or has expired.
+              If you still need to set up your account, ask your vessel administrator
+              to re-send the invite, or contact support.
+            </p>
 
-          <div className="spw-panel" style={{ textAlign: 'center' }}>
-            <button className="spw-btn-primary" onClick={() => navigate('/login-authentication')}>
-              Go to login
-            </button>
-            <button className="spw-link" onClick={() => navigate('/contact')}>
-              Contact support
-            </button>
+            <div className="spw-panel" style={{ textAlign: 'center' }}>
+              <button className="spw-btn-primary" onClick={() => navigate('/login-authentication')}>
+                Go to login
+              </button>
+              <button className="spw-link" onClick={() => navigate('/contact')}>
+                Contact support
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -330,23 +336,29 @@ const SetPassword = () => {
   if (sessionState === 'already-signed-in') {
     return (
       <div className="spw-page">
-        <div className="spw-wrap">
-          <div className="spw-icon-circle info">
-            <Icon name="Info" size={28} color="#C65A1A" />
-          </div>
-          <h1 className="spw-heading">You're already signed in</h1>
-          <p className="spw-sub">
-            This page is only for new users accepting an invite. If you want to
-            change your password, use the password-reset flow instead.
-          </p>
+        <span className="spw-blob one" />
+        <span className="spw-blob two" />
+        <header className="spw-bar"><img src={LOGO_SRC} alt="Cargo" /></header>
+        <div className="spw-marquee"><span>{'WELCOME ABOARD · '.repeat(60)}</span></div>
+        <div className="spw-center">
+          <div className="spw-wrap">
+            <div className="spw-icon-circle info">
+              <Icon name="Info" size={28} color="#C65A1A" />
+            </div>
+            <h1 className="spw-heading">You're already signed in</h1>
+            <p className="spw-sub">
+              This page is only for new users accepting an invite. If you want to
+              change your password, use the password-reset flow instead.
+            </p>
 
-          <div className="spw-panel" style={{ textAlign: 'center' }}>
-            <button className="spw-btn-primary" onClick={() => navigate('/dashboard')}>
-              Go to dashboard
-            </button>
-            <button className="spw-link" onClick={() => navigate('/forgot-password')}>
-              Reset my password
-            </button>
+            <div className="spw-panel" style={{ textAlign: 'center' }}>
+              <button className="spw-btn-primary" onClick={() => navigate('/dashboard')}>
+                Go to dashboard
+              </button>
+              <button className="spw-link" onClick={() => navigate('/forgot-password')}>
+                Reset my password
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -357,14 +369,20 @@ const SetPassword = () => {
   if (success) {
     return (
       <div className="spw-page">
-        <div className="spw-wrap">
-          <div className="spw-icon-circle success">
-            <Icon name="CheckCircle" size={28} color="#047857" />
-          </div>
-          <h1 className="spw-heading">Password set</h1>
-          <p className="spw-sub">Redirecting you to your vessel…</p>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <Icon name="Loader2" size={22} className="animate-spin" color="#C65A1A" />
+        <span className="spw-blob one" />
+        <span className="spw-blob two" />
+        <header className="spw-bar"><img src={LOGO_SRC} alt="Cargo" /></header>
+        <div className="spw-marquee"><span>{'WELCOME ABOARD · '.repeat(60)}</span></div>
+        <div className="spw-center">
+          <div className="spw-wrap">
+            <div className="spw-icon-circle success">
+              <Icon name="CheckCircle" size={28} color="#047857" />
+            </div>
+            <h1 className="spw-heading">Password set</h1>
+            <p className="spw-sub">Redirecting you to your vessel…</p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <Icon name="Loader2" size={22} className="animate-spin" color="#C65A1A" />
+            </div>
           </div>
         </div>
       </div>
@@ -374,6 +392,11 @@ const SetPassword = () => {
   // ─── Form ─────────────────────────────────────────────────────────
   return (
     <div className="spw-page">
+      <span className="spw-blob one" />
+      <span className="spw-blob two" />
+      <header className="spw-bar"><img src={LOGO_SRC} alt="Cargo" /></header>
+      <div className="spw-marquee"><span>{'WELCOME ABOARD · '.repeat(60)}</span></div>
+      <div className="spw-center">
       <div className="spw-wrap">
         <div className="spw-logo-badge">
           <img src={LOGO_SRC} alt="Cargo" />
@@ -462,6 +485,7 @@ const SetPassword = () => {
         </div>
 
         <p className="spw-footer">Secure yacht operations management · Role-based access control</p>
+      </div>
       </div>
     </div>
   );

@@ -119,6 +119,9 @@
   max-height: calc(100vh - 260px);
   overflow-y: auto;
 }
+/* Personal-profile step is just a name + photo — the full 640px form
+   width left a lot of dead space around it. */
+.onb-panel--narrow { max-width: 460px; padding: 26px 28px 28px; }
 
 /* CTA row */
 .onb-ctarow { display: flex; align-items: center; gap: 22px; margin-top: 34px; }
