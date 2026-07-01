@@ -1429,7 +1429,6 @@ const CrewManagement = () => {
                     data-crew-id={u.id}
                     className={`cm-onode${canEdit ? ' is-draggable' : ''}${dragging ? ' is-dragging' : ''}`}
                     {...cardProps(u)}
-                    onClick={() => { if (!hierDragId) navigate(`/profile/${u.id}`); }}
                   >
                     <span className="cm-onode-dot" style={{ background: statusColor(u.status) }} />
                     <Avatar user={u} className="cm-onode-av" />
