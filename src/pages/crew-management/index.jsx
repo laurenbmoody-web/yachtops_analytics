@@ -173,8 +173,10 @@ const CrewManagement = () => {
   const [consoleEntries, setConsoleEntries] = useState([]); // crew_calendar_entries (leave / travel)
   const [docsExpanded, setDocsExpanded] = useState(false);
   const [flightPopover, setFlightPopover] = useState(null); // calendar entry shown in the popover
-  const [hierDrag, setHierDrag] = useState(null); // { id, dept } being dragged
-  const [hierDrop, setHierDrop] = useState(null); // { dept, index } drop placeholder
+  const [hierDragId, setHierDragId] = useState(null); // crew id currently being dragged
+  const [hierPos, setHierPos] = useState(null); // { x, y } viewport coords, for the drag ghost
+  const [hierPlan, setHierPlan] = useState(null); // computed landing spot (row/col + a caret to render)
+  const rowElRefs = useRef({}); // rowKey -> row band DOM element, for hit-testing during drag
   const [statusChangeTarget, setStatusChangeTarget] = useState(null); // { userId, currentStatus, name }
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
   const [calendarRefresh, setCalendarRefresh] = useState(0);
@@ -310,8 +312,7 @@ const CrewManagement = () => {
           start_date,
           joined_at,
           org_order,
-          org_is_lead,
-          reports_to,
+          org_row,
           department_id,
           role:roles!role_id(name, default_permission_tier),
           custom_role:tenant_custom_roles!custom_role_id(name, default_permission_tier),
@@ -364,8 +365,7 @@ const CrewManagement = () => {
           start_date: tm?.start_date || null,
           joined_at: tm?.joined_at,
           orgOrder: tm?.org_order ?? null,
-          isLead: tm?.org_is_lead ?? false,
-          reportsTo: tm?.reports_to ?? null,
+          orgRow: tm?.org_row ?? null,
           email: tm?.profiles?.email || null,
           fullName: tm?.profiles?.full_name || null,
           full_name: tm?.profiles?.full_name || null,
@@ -1261,130 +1261,202 @@ const CrewManagement = () => {
     );
   };
 
-  // Place a member under `parentId` (null = top / captain row) at position
-  // `index` among `sibs`, renumbering that sibling row's org_order. Optimistic.
-  const placeMember = async (draggedId, parentId, index, sibs) => {
-    const without = (sibs || []).filter((s) => s.id !== draggedId);
-    const clamp = Math.max(0, Math.min(index, without.length));
-    const order = [...without.slice(0, clamp), { id: draggedId }, ...without.slice(clamp)];
-    const idxMap = new Map(order.map((s, i) => [s.id, i]));
+  // Apply a batch of { org_row, org_order } patches (optimistic + best-effort save).
+  const applyHierarchyPatch = async (patchMap) => {
     setUsers((prev) => prev.map((u) => {
-      let nu = u;
-      if (u.id === draggedId) nu = { ...nu, reportsTo: parentId, isLead: parentId == null };
-      if (idxMap.has(u.id)) nu = { ...nu, orgOrder: idxMap.get(u.id) };
-      return nu;
+      const p = patchMap.get(u.id);
+      return p ? { ...u, orgRow: p.org_row, orgOrder: p.org_order } : u;
     }));
     try {
-      await Promise.all(order.map((s, i) => supabase.from('tenant_members').update(
-        s.id === draggedId ? { reports_to: parentId, org_is_lead: parentId == null, org_order: i } : { org_order: i },
-      ).eq('tenant_id', activeTenantId).eq('user_id', s.id)));
+      await Promise.all([...patchMap.entries()].map(([id, p]) =>
+        supabase.from('tenant_members').update(p).eq('tenant_id', activeTenantId).eq('user_id', id)));
     } catch (e) { console.warn('[CREW] hierarchy save failed', e); }
   };
 
-  // ── Concept D — Free-form org chart (drag-editable for COMMAND) ────────────
+  // Default vertical level from role seniority (only used until someone drags).
+  const defaultOrgRow = (u) => {
+    const rr = roleRank(u.roleTitle);
+    if (rr === 0) return 0;
+    if (rr <= 2) return 1;
+    if (rr <= 4) return 2;
+    return 3;
+  };
+
+  // ── Concept D — Free-position org chart (drag anywhere, COMMAND-editable) ──
   const renderHierarchy = () => {
     const canEdit = hasEditPermission;
     const crew = (users || []).filter((u) => u?.status !== 'invited' && u?.fullName);
-    const idSet = new Set(crew.map((u) => u.id));
-    const ord = (u) => (u.orgOrder != null ? u.orgOrder : 1000 + roleRank(u.roleTitle));
-    const captain = [...crew].sort((a, b) => roleRank(a.roleTitle) - roleRank(b.roleTitle))[0];
-    const isCaptain = captain && roleRank(captain.roleTitle) === 0 ? captain : null;
-    // Per-department senior (default parent for un-arranged crew).
-    const deptSenior = {};
-    for (const u of crew) {
-      const k = u.department || '—';
-      if (!deptSenior[k] || roleRank(u.roleTitle) < roleRank(deptSenior[k].roleTitle)) deptSenior[k] = u;
-    }
-    // Effective parent: explicit reports_to → explicit root (isLead) → derived
-    // default (captain at top, dept seniors under captain, others under senior).
-    const effParent = (m) => {
-      if (m.reportsTo && idSet.has(m.reportsTo) && m.reportsTo !== m.id) return m.reportsTo;
-      if (m.isLead) return null;
-      if (isCaptain && m.id === isCaptain.id) return null;
-      const ds = deptSenior[m.department || '—'];
-      if (ds && m.id === ds.id) return isCaptain ? isCaptain.id : null;
-      return ds ? ds.id : (isCaptain ? isCaptain.id : null);
-    };
-    const childrenOf = {};
-    const roots = [];
-    for (const m of crew) { const p = effParent(m); if (p) (childrenOf[p] ||= []).push(m); else roots.push(m); }
-    const byOrder = (a, b) => ord(a) - ord(b) || String(a.fullName).localeCompare(String(b.fullName));
-    roots.sort(byOrder);
-    Object.values(childrenOf).forEach((arr) => arr.sort(byOrder));
-    const descendants = (rootId) => { const out = new Set(); const stack = [...(childrenOf[rootId] || [])]; while (stack.length) { const n = stack.pop(); if (out.has(n.id)) continue; out.add(n.id); (childrenOf[n.id] || []).forEach((c) => stack.push(c)); } return out; };
-    const canPlace = (draggedId, parentId) => parentId == null || (parentId !== draggedId && !descendants(draggedId).has(parentId));
+    const crewById = new Map(crew.map((u) => [u.id, u]));
+    const effRow = (u) => (u.orgRow != null ? u.orgRow : defaultOrgRow(u));
+    const effOrder = (u) => (u.orgOrder != null ? u.orgOrder : roleRank(u.roleTitle));
+    const byOrder = (a, b) => effOrder(a) - effOrder(b) || String(a.fullName).localeCompare(String(b.fullName));
 
-    const dragProps = (u) => (canEdit ? {
-      draggable: true,
-      onDragStart: (e) => { setHierDrag({ id: u.id }); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', u.id); } catch { /* */ } },
-      onDragEnd: () => { setHierDrag(null); setHierDrop(null); },
+    const rowsMap = new Map();
+    for (const u of crew) { const k = effRow(u); if (!rowsMap.has(k)) rowsMap.set(k, []); rowsMap.get(k).push(u); }
+    const sortedRowKeys = [...rowsMap.keys()].sort((a, b) => a - b);
+    rowsMap.forEach((arr) => arr.sort(byOrder));
+
+    const GAP_PAD = 22;
+
+    // Find the horizontal insertion index within a row's DOM element, excluding
+    // the dragged card, purely from the cursor's x position vs card centres.
+    const colIndexAt = (rowEl, clientX, excludeId) => {
+      const items = [...rowEl.querySelectorAll('[data-crew-id]')]
+        .map((el) => ({ id: el.getAttribute('data-crew-id'), rect: el.getBoundingClientRect() }))
+        .filter((it) => it.id !== excludeId);
+      for (let i = 0; i < items.length; i++) {
+        if (clientX < items[i].rect.left + items[i].rect.width / 2) return i;
+      }
+      return items.length;
+    };
+
+    // Pure hit-test: given the raw cursor position, decide whether it's over an
+    // existing row (join it, inserting left/right) or in the space between/above/
+    // below rows (a brand-new level is created there). No target element needed.
+    const computeHover = (clientX, clientY) => {
+      const rects = sortedRowKeys
+        .map((k) => ({ key: k, el: rowElRefs.current[k] }))
+        .filter((r) => r.el)
+        .map((r) => ({ ...r, rect: r.el.getBoundingClientRect() }));
+      if (!rects.length) return null;
+      for (const r of rects) {
+        if (clientY >= r.rect.top - GAP_PAD && clientY <= r.rect.bottom + GAP_PAD) {
+          const index = colIndexAt(r.el, clientX, hierDragId);
+          const items = [...r.el.querySelectorAll('[data-crew-id]')].filter((el) => el.getAttribute('data-crew-id') !== hierDragId);
+          const caretLeft = items.length === 0
+            ? r.rect.left + r.rect.width / 2 - 2
+            : index >= items.length
+              ? items[items.length - 1].getBoundingClientRect().right + 9
+              : items[index].getBoundingClientRect().left - 9;
+          return { type: 'join', rowKey: r.key, index, caret: { axis: 'v', left: caretLeft, top: r.rect.top, width: 4, height: r.rect.height } };
+        }
+      }
+      const first = rects[0]; const last = rects[rects.length - 1];
+      if (clientY < first.rect.top - GAP_PAD) {
+        return { type: 'newrow', prevKey: null, nextKey: first.key, caret: { axis: 'h', left: first.rect.left - 24, top: first.rect.top - 20, width: Math.max(first.rect.width + 48, 220), height: 4 } };
+      }
+      if (clientY > last.rect.bottom + GAP_PAD) {
+        return { type: 'newrow', prevKey: last.key, nextKey: null, caret: { axis: 'h', left: last.rect.left - 24, top: last.rect.bottom + 20, width: Math.max(last.rect.width + 48, 220), height: 4 } };
+      }
+      for (let i = 0; i < rects.length - 1; i++) {
+        const a = rects[i]; const b = rects[i + 1];
+        if (clientY > a.rect.bottom + GAP_PAD && clientY < b.rect.top - GAP_PAD) {
+          const left = Math.min(a.rect.left, b.rect.left) - 24;
+          const width = Math.max(a.rect.right, b.rect.right) - left + 24;
+          return { type: 'newrow', prevKey: a.key, nextKey: b.key, caret: { axis: 'h', left, top: (a.rect.bottom + b.rect.top) / 2, width, height: 4 } };
+        }
+      }
+      // Ambiguous (rows packed too tight) — fall back to the nearest row.
+      let nearest = rects[0]; let best = Infinity;
+      rects.forEach((r) => { const d = Math.min(Math.abs(clientY - r.rect.top), Math.abs(clientY - r.rect.bottom)); if (d < best) { best = d; nearest = r; } });
+      const index = colIndexAt(nearest.el, clientX, hierDragId);
+      return { type: 'join', rowKey: nearest.key, index, caret: { axis: 'v', left: nearest.rect.left, top: nearest.rect.top, width: 4, height: nearest.rect.height } };
+    };
+
+    const finalize = (plan) => {
+      if (!plan || !hierDragId) return;
+      const patch = new Map();
+      const dragged = crewById.get(hierDragId);
+      const oldRow = effRow(dragged);
+
+      if (plan.type === 'join') {
+        const target = (rowsMap.get(plan.rowKey) || []).filter((m) => m.id !== hierDragId);
+        const idx = Math.max(0, Math.min(plan.index, target.length));
+        const ordered = [...target.slice(0, idx), dragged, ...target.slice(idx)];
+        ordered.forEach((m, i) => patch.set(m.id, { org_row: plan.rowKey, org_order: i }));
+        if (oldRow !== plan.rowKey) {
+          const remaining = (rowsMap.get(oldRow) || []).filter((m) => m.id !== hierDragId);
+          remaining.forEach((m, i) => { if (!patch.has(m.id)) patch.set(m.id, { org_row: oldRow, org_order: i }); });
+        }
+      } else {
+        let newRow;
+        if (plan.prevKey == null) newRow = plan.nextKey - 1;
+        else if (plan.nextKey == null) newRow = plan.prevKey + 1;
+        else if (plan.nextKey - plan.prevKey > 1) newRow = plan.prevKey + 1;
+        else {
+          newRow = plan.nextKey;
+          crew.forEach((u) => { if (u.id !== hierDragId && effRow(u) >= plan.nextKey) patch.set(u.id, { org_row: effRow(u) + 1, org_order: effOrder(u) }); });
+        }
+        patch.set(hierDragId, { org_row: newRow, org_order: 0 });
+        const remaining = (rowsMap.get(oldRow) || []).filter((m) => m.id !== hierDragId);
+        remaining.forEach((m, i) => { if (!patch.has(m.id)) patch.set(m.id, { org_row: oldRow, org_order: i }); });
+      }
+      applyHierarchyPatch(patch);
+    };
+
+    const resetDrag = () => { setHierDragId(null); setHierPos(null); setHierPlan(null); };
+
+    const cardProps = (u) => (canEdit ? {
+      draggable: false, // pointer-based drag, not HTML5 DnD — works without hovering a specific drop target
+      onPointerDown: (e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        setHierDragId(u.id); setHierPos({ x: e.clientX, y: e.clientY }); setHierPlan(null);
+      },
+      onPointerMove: (e) => {
+        if (hierDragId !== u.id) return;
+        setHierPos({ x: e.clientX, y: e.clientY });
+        setHierPlan(computeHover(e.clientX, e.clientY));
+      },
+      onPointerUp: (e) => {
+        if (hierDragId !== u.id) return;
+        finalize(computeHover(e.clientX, e.clientY));
+        resetDrag();
+      },
+      onPointerCancel: resetDrag,
     } : {});
 
-    // A slot between/around siblings — drop to insert left/right at `index`.
-    const gap = (parentId, index, sibs) => {
-      const key = parentId == null ? '__root' : parentId;
-      const isDrop = hierDrop?.type === 'gap' && hierDrop.key === key && hierDrop.index === index;
-      const active = canEdit && hierDrag && canPlace(hierDrag.id, parentId);
-      return (
-        <div
-          className={`cm-gap${active ? ' is-active' : ''}${isDrop ? ' is-drop' : ''}`}
-          onDragOver={(e) => { if (!active) return; e.preventDefault(); e.stopPropagation(); setHierDrop((p) => (p?.type === 'gap' && p.key === key && p.index === index) ? p : { type: 'gap', key, index }); }}
-          onDrop={(e) => { if (!active) return; e.preventDefault(); e.stopPropagation(); placeMember(hierDrag.id, parentId, index, sibs); setHierDrag(null); setHierDrop(null); }}
-        />
-      );
-    };
-
-    const nodeDrop = (u) => (canEdit ? {
-      onDragOver: (e) => {
-        if (!hierDrag || hierDrag.id === u.id || !canPlace(hierDrag.id, u.id)) return;
-        e.preventDefault(); e.stopPropagation();
-        setHierDrop((p) => (p?.type === 'node' && p.id === u.id) ? p : { type: 'node', id: u.id });
-      },
-      onDrop: (e) => {
-        if (!hierDrag || hierDrag.id === u.id || !canPlace(hierDrag.id, u.id)) return;
-        e.preventDefault(); e.stopPropagation();
-        const kids = childrenOf[u.id] || [];
-        placeMember(hierDrag.id, u.id, kids.length, kids);
-        setHierDrag(null); setHierDrop(null);
-      },
-    } : {});
-
-    const renderRow = (parentId, sibs, depth, visited) => (
-      <div className="cm-orow">
-        {gap(parentId, 0, sibs)}
-        {sibs.map((c, i) => (
-          <React.Fragment key={c.id}>
-            {renderSubtree(c, depth, visited)}
-            {gap(parentId, i + 1, sibs)}
-          </React.Fragment>
-        ))}
-      </div>
-    );
-
-    const renderSubtree = (u, depth, visited) => {
-      if (visited.has(u.id)) return null;
-      visited.add(u.id);
-      const kids = childrenOf[u.id] || [];
-      const dragging = hierDrag?.id === u.id;
-      const isDrop = hierDrop?.type === 'node' && hierDrop.id === u.id;
-      const cls = `cm-onode${depth === 0 ? ' is-root' : ''}${canEdit ? ' is-draggable' : ''}${dragging ? ' is-dragging' : ''}${isDrop ? ' is-drop' : ''}`;
-      return (
-        <div className="cm-onode-wrap">
-          <div className={cls} {...dragProps(u)} {...nodeDrop(u)} onClick={() => { if (!hierDrag) navigate(`/profile/${u.id}`); }}>
-            <span className="cm-onode-dot" style={{ background: statusColor(u.status) }} />
-            <Avatar user={u} className="cm-onode-av" />
-            <div className="cm-onode-nm">{u.fullName}</div>
-            <div className="cm-onode-rl">{u.roleTitle}</div>
-          </div>
-          {kids.length > 0 && (<><div className="cm-ostem" />{renderRow(u.id, kids, depth + 1, visited)}</>)}
-        </div>
-      );
-    };
+    const dragged = hierDragId ? crewById.get(hierDragId) : null;
 
     return (
-      <div className={`cm-org${hierDrag ? ' is-dragging-any' : ''}`}>
-        {canEdit && <p className="cm-hier-hint"><Icon name="Move" size={12} /> Drag anyone anywhere — drop onto a person to make them report to them, or into a gap to place them left/right (top row included)</p>}
-        {renderRow(null, roots, 0, new Set())}
+      <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`}>
+        {canEdit && (
+          <p className="cm-hier-hint">
+            <Icon name="Move" size={12} /> Drag anyone, anywhere — release to drop them in that spot. A new row opens above, below, or between existing ones; left/right places them within a row.
+          </p>
+        )}
+        <div className="cm-orows">
+          {sortedRowKeys.map((rowKey) => (
+            <div
+              key={rowKey}
+              className="cm-orow-band"
+              ref={(el) => { if (el) rowElRefs.current[rowKey] = el; else delete rowElRefs.current[rowKey]; }}
+            >
+              {rowsMap.get(rowKey).map((u) => {
+                const dragging = hierDragId === u.id;
+                return (
+                  <div
+                    key={u.id}
+                    data-crew-id={u.id}
+                    className={`cm-onode${canEdit ? ' is-draggable' : ''}${dragging ? ' is-dragging' : ''}`}
+                    {...cardProps(u)}
+                    onClick={() => { if (!hierDragId) navigate(`/profile/${u.id}`); }}
+                  >
+                    <span className="cm-onode-dot" style={{ background: statusColor(u.status) }} />
+                    <Avatar user={u} className="cm-onode-av" />
+                    <div className="cm-onode-nm">{u.fullName}</div>
+                    <div className="cm-onode-rl">{u.roleTitle}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Drag ghost — follows the cursor; the source card stays in place (dimmed). */}
+        {dragged && hierPos && (
+          <div className="cm-org-ghost" style={{ left: hierPos.x, top: hierPos.y }}>
+            <Avatar user={dragged} className="cm-onode-av" />
+            <div className="cm-onode-nm">{dragged.fullName}</div>
+          </div>
+        )}
+
+        {/* Landing-spot indicator — a vertical caret (insert here) or a horizontal bar (new row here). */}
+        {hierPlan?.caret && (
+          <div
+            className={`cm-org-caret cm-org-caret-${hierPlan.caret.axis}`}
+            style={{ left: hierPlan.caret.left, top: hierPlan.caret.top, width: hierPlan.caret.width, height: hierPlan.caret.height }}
+          />
+        )}
       </div>
     );
   };
