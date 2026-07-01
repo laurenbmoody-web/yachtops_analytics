@@ -84,6 +84,15 @@ const VESSEL_TYPES        = ['Motor Yacht', 'Sailing Yacht', 'Catamaran', 'Explo
 const COMMERCIAL_STATUSES = ['Private', 'Charter', 'Dual-use'];
 const AREAS_OF_OPERATION  = ['Coastal', 'Near Coastal', 'Unlimited'];
 
+// Stored as free text on vessels.seasonal_pattern (same column Vessel
+// Settings edits as a plain input) — these are just friendly presets so
+// most captains never have to type it out. "Other" reveals a text field.
+const SEASONAL_PATTERNS = [
+  'Single season (stays in one region year-round)',
+  'Dual season (e.g., Summer Med, Winter Caribbean)',
+  'Multi-season (relocates several times a year)',
+];
+
 // ── Operating regions — ISO 3166-1 alpha-2 ────────────────────────
 const REGION_GROUPS = [
   { id: 'caribbean',       label: 'Caribbean',       codes: ['AG','AI','AW','BB','BL','BS','CU','CW','DM','DO','GD','GP','HT','JM','KN','KY','LC','MF','MQ','MS','PR','SX','TC','TT','VC','VG','VI'] },
@@ -511,7 +520,7 @@ const RegionsCombobox = ({ value, onChange }) => {
 // reopens that section.
 
 const VesselSettingsStep = ({ tenant, onSaved }) => {
-  const [section, setSection] = useState('identity'); // 'identity' | 'specs' | 'profile'
+  const [section, setSection] = useState('identity'); // 'identity' | 'specs' | 'profile' | 'company'
   const [data, setData] = useState({
     vessel_name:          tenant?.name              || '',
     vessel_type_label:    tenant?.vessel_type_label  || '',
@@ -523,22 +532,104 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
     gt:                   tenant?.gt        ?? '',
     year_built:           tenant?.year_built ?? '',
     year_refit:           tenant?.year_refit ?? '',
+    propulsion_kw:        '',
     commercial_status:    tenant?.commercial_status    || '',
     certified_commercial: tenant?.certified_commercial ?? false,
     area_of_operation:    tenant?.area_of_operation    || '',
     operating_regions:    Array.isArray(tenant?.operating_regions) ? tenant.operating_regions : [],
+    seasonal_pattern:     '',
     typical_guest_count:  tenant?.typical_guest_count  ?? '',
     typical_crew_count:   tenant?.typical_crew_count   ?? '',
+    company_name:         '',
+    company_address:      '',
+    company_email:        '',
+    company_phone:        '',
+    company_postcode:     '',
+    company_country:      '',
+    logo_url:             '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [seasonalOtherMode, setSeasonalOtherMode] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState('');
+  const logoFileInputRef = useRef(null);
 
   const set   = (k, v) => setData((prev) => ({ ...prev, [k]: v }));
   const field = (k)    => (e)  => set(k, e.target.value);
 
+  // Propulsion/seasonal-pattern/company-details/logo live on public.vessels
+  // (keyed by tenant_id), not public.tenants — mirrors how Vessel Settings
+  // reads them. The row may not exist yet this early, hence maybeSingle().
+  useEffect(() => {
+    if (!tenant?.id) return;
+    supabase
+      .from('vessels')
+      .select('propulsion_kw, seasonal_pattern, company_name, company_address, company_email, company_phone, company_postcode, company_country, logo_url')
+      .eq('tenant_id', tenant.id)
+      .maybeSingle()
+      .then(({ data: v }) => {
+        if (!v) return;
+        setData((prev) => ({
+          ...prev,
+          propulsion_kw:    v.propulsion_kw ?? '',
+          seasonal_pattern: v.seasonal_pattern || '',
+          company_name:     v.company_name || '',
+          company_address:  v.company_address || '',
+          company_email:    v.company_email || '',
+          company_phone:    v.company_phone || '',
+          company_postcode: v.company_postcode || '',
+          company_country:  v.company_country || '',
+          logo_url:         v.logo_url || '',
+        }));
+        if (v.seasonal_pattern && !SEASONAL_PATTERNS.includes(v.seasonal_pattern)) {
+          setSeasonalOtherMode(true);
+        }
+      });
+  }, [tenant?.id]);
+
   const identityDone = section !== 'identity';
-  const specsDone    = section === 'profile';
+  const specsDone    = section === 'profile' || section === 'company';
+  const profileDone  = section === 'company';
   const heroTitle    = data.vessel_name ? `Welcome aboard ${data.vessel_name}` : 'Welcome aboard';
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      setLogoUploadError('Logo must be a PNG or JPEG.');
+      return;
+    }
+    if (file.size > 5242880) {
+      setLogoUploadError('Image must be smaller than 5MB');
+      return;
+    }
+    setUploadingLogo(true);
+    setLogoUploadError('');
+    try {
+      const fileExt = file.type === 'image/png' ? 'png' : 'jpg';
+      const filePath = `${tenant.id}/logo.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('vessel-assets')
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('vessel-assets').getPublicUrl(filePath);
+      const publicUrl = urlData?.publicUrl ? `${urlData.publicUrl}?v=${Date.now()}` : null;
+      if (!publicUrl) throw new Error('Failed to get public URL');
+      set('logo_url', publicUrl);
+      await supabase.from('vessels').upsert({ tenant_id: tenant.id, logo_url: publicUrl }, { onConflict: 'tenant_id' });
+    } catch (err) {
+      console.error('[onboarding] logo upload failed', err);
+      setLogoUploadError(err?.message || 'Upload failed. Try again.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    set('logo_url', '');
+    await supabase.from('vessels').upsert({ tenant_id: tenant.id, logo_url: null }, { onConflict: 'tenant_id' });
+  };
 
   const handleSave = async () => {
     setError('');
@@ -569,6 +660,32 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
         .update(payload)
         .eq('id', tenant.id);
       if (updateError) throw updateError;
+
+      // Secondary — propulsion/seasonal pattern/company details live on
+      // public.vessels. Best-effort: don't block onboarding if this fails,
+      // since none of it is required to run the vessel day to day.
+      const { error: vesselError } = await supabase
+        .from('vessels')
+        .upsert(
+          {
+            tenant_id:         tenant.id,
+            propulsion_kw:     data.propulsion_kw === '' ? null : parseFloat(data.propulsion_kw),
+            seasonal_pattern:  data.seasonal_pattern || null,
+            company_name:      data.company_name?.trim() || null,
+            company_address:   data.company_address?.trim() || null,
+            company_email:     data.company_email?.trim() || null,
+            company_phone:     data.company_phone?.trim() || null,
+            company_postcode:  data.company_postcode?.trim() || null,
+            company_country:   data.company_country?.trim() || null,
+            logo_url:          data.logo_url || null,
+          },
+          { onConflict: 'tenant_id' }
+        );
+      if (vesselError) {
+        console.error('[onboarding] vessel details save failed (non-fatal)', vesselError);
+        showToast('Vessel saved — a few extra details (propulsion, company info) could not be saved. You can add them later in Vessel Settings.', 'warning');
+      }
+
       onSaved(payload);
     } catch (err) {
       console.error('[onboarding] vessel save failed', err);
@@ -586,7 +703,7 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
           {heroTitle}
         </h1>
         <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-          Three quick sections. Everything here is editable later in Vessel Settings.
+          Four quick sections. Everything here is editable later in Vessel Settings.
         </p>
       </div>
 
@@ -645,6 +762,9 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
               </Field>
               <Field label="Year Refit">
                 <TextInput type="number" value={data.year_refit} placeholder="e.g., 2020" onChange={field('year_refit')} />
+              </Field>
+              <Field label="Propulsion (kW)" tooltip="Engine power. Used for engineer sea-service testimonials.">
+                <TextInput type="number" value={data.propulsion_kw} placeholder="e.g., 1200" onChange={field('propulsion_kw')} />
               </Field>
             </div>
             <div className="flex items-center justify-between mt-6">
@@ -717,6 +837,32 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
                   </Field>
                 </div>
 
+                <div className="md:col-span-2">
+                  <Field label="Seasonal Pattern" tooltip="How the vessel moves through the year — informational, not a compliance field.">
+                    <select
+                      value={seasonalOtherMode ? '__other__' : data.seasonal_pattern}
+                      onChange={(e) => {
+                        if (e.target.value === '__other__') { setSeasonalOtherMode(true); set('seasonal_pattern', ''); }
+                        else { setSeasonalOtherMode(false); set('seasonal_pattern', e.target.value); }
+                      }}
+                      className="ob-field"
+                      style={{ appearance: 'auto', fontFamily: BODY_FONT, color: CHARCOAL, fontSize: 14 }}
+                    >
+                      <option value="">Select…</option>
+                      {SEASONAL_PATTERNS.map((p) => <option key={p} value={p}>{p}</option>)}
+                      <option value="__other__">Other…</option>
+                    </select>
+                    {seasonalOtherMode && (
+                      <TextInput
+                        className="mt-2"
+                        value={data.seasonal_pattern}
+                        placeholder="e.g., Summer Med, Winter Caribbean"
+                        onChange={field('seasonal_pattern')}
+                      />
+                    )}
+                  </Field>
+                </div>
+
                 <Field label="Typical Guest Count" required tooltip="Minimum 1. Used for crew-to-guest ratio calculations.">
                   <TextInput
                     type="number"
@@ -736,26 +882,114 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
                   />
                 </Field>
               </div>
-              <p className="text-xs mt-5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-                Compliance fields (ISM, ISPS, MLC) and vessel hero image can be filled in later from Vessel Settings.
-              </p>
-              {error && (
-                <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FCEBEB', color: '#A32D2D' }}>
-                  {error}
-                </div>
-              )}
               <div className="flex items-center justify-between mt-6">
                 <LinkButton onClick={() => setSection('specs')}>
                   <ChevronLeft size={14} /> Back
                 </LinkButton>
-                <PillPrimary onClick={handleSave} disabled={saving || !profileValid}>
-                  {saving ? 'Saving…' : 'Continue'}
+                <PillPrimary onClick={() => setSection('company')} disabled={!profileValid}>
+                  Continue
                 </PillPrimary>
               </div>
             </Card>
           </div>
         );
       })()}
+      {profileDone && (
+        <CollapsedSection
+          title="How does she operate?"
+          summary={`${data.commercial_status === 'Dual-use' ? 'Both' : (data.commercial_status || '—')} · ${data.typical_crew_count || '—'} crew · ${data.typical_guest_count || '—'} guests`}
+          onEdit={() => setSection('profile')}
+        />
+      )}
+
+      {/* ── Section 4: Company details ── */}
+      {section === 'company' && (
+        <div className="mt-6 cg-anim-enter">
+          <Card>
+            <SectionHeading>Who operates her?</SectionHeading>
+            <p className="text-xs mb-4" style={{ color: '#64748B', fontFamily: BODY_FONT, marginTop: -8 }}>
+              The owning / employing entity as it appears on crew contracts and sea-service testimonials.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Field label="Company / Owner Name">
+                <TextInput value={data.company_name} placeholder="Registered owning / employing entity" onChange={field('company_name')} />
+              </Field>
+              <Field label="Company Email">
+                <TextInput type="email" value={data.company_email} placeholder="Official company / yacht email" onChange={field('company_email')} />
+              </Field>
+              <Field label="Company Phone">
+                <TextInput value={data.company_phone} placeholder="e.g., +44 …" onChange={field('company_phone')} />
+              </Field>
+              <Field label="Country">
+                <TextInput value={data.company_country} placeholder="Country of the company / owner" onChange={field('company_country')} />
+              </Field>
+              <Field label="Post Code">
+                <TextInput value={data.company_postcode} placeholder="ZIP / post code" onChange={field('company_postcode')} />
+              </Field>
+              <div className="md:col-span-2">
+                <Field label="Company Address">
+                  <textarea
+                    value={data.company_address}
+                    onChange={field('company_address')}
+                    rows={3}
+                    className="ob-field"
+                    style={{ fontFamily: BODY_FONT, color: CHARCOAL, fontSize: 14, resize: 'vertical' }}
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <div className="mt-5 pt-5" style={{ borderTop: `1px solid ${BORDER}` }}>
+              <Field label="Logo" tooltip="PNG or JPEG. Added to the page header of generated crew contracts.">
+                <div className="flex items-center gap-3 mt-1">
+                  {data.logo_url ? (
+                    <img src={data.logo_url} alt="Company logo" className="h-12 object-contain rounded" style={{ maxWidth: 160, border: `1px solid ${BORDER}`, background: 'white', padding: 4 }} />
+                  ) : (
+                    <div className="h-12 flex items-center justify-center text-xs rounded" style={{ width: 160, border: `1px dashed ${BORDER}`, color: MUTED_SOFT, fontFamily: BODY_FONT }}>
+                      No logo
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1">
+                    <input
+                      ref={logoFileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={handleLogoUpload}
+                    />
+                    <PillSecondary onClick={() => logoFileInputRef.current?.click()} disabled={uploadingLogo}>
+                      {uploadingLogo ? 'Uploading…' : data.logo_url ? 'Replace' : 'Upload'}
+                    </PillSecondary>
+                    {data.logo_url && (
+                      <button type="button" onClick={handleRemoveLogo} className="text-xs" style={{ color: MUTED_SOFT, fontFamily: BODY_FONT }}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {logoUploadError && <p className="text-xs mt-1" style={{ color: '#A32D2D', fontFamily: BODY_FONT }}>{logoUploadError}</p>}
+              </Field>
+            </div>
+
+            <p className="text-xs mt-5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+              Compliance fields (ISM, ISPS, MLC) and the dashboard hero image can be filled in later from Vessel Settings.
+            </p>
+            {error && (
+              <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FCEBEB', color: '#A32D2D' }}>
+                {error}
+              </div>
+            )}
+            <div className="flex items-center justify-between mt-6">
+              <LinkButton onClick={() => setSection('profile')}>
+                <ChevronLeft size={14} /> Back
+              </LinkButton>
+              <PillPrimary onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Continue'}
+              </PillPrimary>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
