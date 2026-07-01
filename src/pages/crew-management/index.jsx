@@ -1410,6 +1410,7 @@ const CrewManagement = () => {
 
     const GAP_PAD = 22;
     const JOIN_SNAP_PX = 16; // drop almost exactly on a card → take/reorder that exact slot
+    const MIN_GAP_PX = 56; // otherwise, never render closer than this to a neighbour (still "tight"/paired, but not overlapping)
 
     // Pure hit-test: given the raw cursor position, decide the target ROW
     // (existing row, or a brand-new level above/below/between) and the target
@@ -1458,9 +1459,22 @@ const CrewManagement = () => {
       const targetRowOthers = row.type === 'join' ? (rowsMap.get(row.rowKey) || []).filter((m) => m.id !== hierDragId) : [];
       const occupiedByOther = nearestKey !== null && targetRowOthers.some((m) => effOrder(m) === nearestKey);
 
-      const col = (nearestKey !== null && bestPx < JOIN_SNAP_PX && !occupiedByOther)
-        ? { type: 'join', colKey: nearestKey }
-        : { type: 'value', value: rawValue }; // a brand-new position at exactly the cursor's spot — however close or far that is from its neighbours
+      let col;
+      if (nearestKey !== null && bestPx < JOIN_SNAP_PX && !occupiedByOther) {
+        col = { type: 'join', colKey: nearestKey };
+      } else {
+        // A brand-new position at the cursor — but never so close to an existing
+        // card that they'd render fully overlapping. Clamp to a minimum visible
+        // gap (still tight enough to read as a pair) rather than the raw spot.
+        let value = rawValue;
+        if (nearestKey !== null && bestPx < MIN_GAP_PX) {
+          const dir = rawValue >= nearestKey ? 1 : -1;
+          value = nearestKey + dir * (MIN_GAP_PX / SCALE);
+        }
+        col = { type: 'value', value };
+      }
+
+      const finalValue = col.type === 'join' ? col.colKey : col.value;
 
       // Live "will this pair?" feedback — same TIGHT_PX threshold the connector
       // lines use, so what you see while dragging is exactly what you'll get.
@@ -1468,13 +1482,13 @@ const CrewManagement = () => {
       if (col.type !== 'join') {
         let nearestOther = null; let bestPairPx = Infinity;
         targetRowOthers.forEach((m) => {
-          const d = Math.abs(effOrder(m) - rawValue) * SCALE;
+          const d = Math.abs(effOrder(m) - finalValue) * SCALE;
           if (d < bestPairPx) { bestPairPx = d; nearestOther = m; }
         });
         if (nearestOther && bestPairPx < TIGHT_PX) pairWithId = nearestOther.id;
       }
 
-      return { row, col, pairWithId, previewOffsetPx: (rawValue - colMid) * SCALE };
+      return { row, col, pairWithId, previewOffsetPx: (finalValue - colMid) * SCALE };
     };
 
     const finalize = (plan) => {
