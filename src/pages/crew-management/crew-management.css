@@ -279,42 +279,34 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-doc .db.none, .cm-doc .db.advisory { background: #EEF1F5; color: #6B7280; }
 .cm-dempty { font-size: 13px; color: #6B7280; padding: 14px 0; }
 
-/* ── Hierarchy (Concept D) ─────────────────────────────────────────────────── */
-.cm-tree { margin-top: 30px; display: flex; flex-direction: column; align-items: center; overflow-x: auto; padding-bottom: 14px; }
-.cm-node { position: relative; background: #fff; border: 1px solid #E6E8EF; border-radius: 15px; padding: 15px 22px; text-align: center; min-width: 196px; box-shadow: 0 2px 6px rgba(28,27,58,0.05); cursor: pointer; transition: box-shadow 0.12s ease, transform 0.12s ease; }
-.cm-node:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -12px rgba(28,27,58,0.26); }
-.cm-node-av { width: 52px; height: 52px; border-radius: 999px; margin: 0 auto 9px; background: #EEF2F6; color: #C65A1A; font-weight: 700; font-size: 16px; display: flex; align-items: center; justify-content: center; }
-.cm-node-nm { font-size: 15px; font-weight: 600; color: #1C1B3A; }
-.cm-node-rl { font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #C65A1A; margin-top: 4px; }
-.cm-node-dot { position: absolute; top: 13px; right: 13px; width: 9px; height: 9px; border-radius: 999px; }
-.cm-node.captain { border-color: #1C1B3A; border-width: 1.5px; min-width: 232px; }
-.cm-node.captain .cm-node-av { width: 62px; height: 62px; font-size: 19px; background: #1C1B3A; color: #fff; }
-.cm-node.captain .cm-node-nm { font-size: 18px; }
-.cm-stem { width: 2px; height: 32px; background: #D7DCE5; }
-.cm-heads { display: flex; gap: 48px; align-items: flex-start; }
-.cm-branch { display: flex; flex-direction: column; align-items: center; }
-.cm-branch-top { width: 2px; height: 26px; background: #D7DCE5; }
-.cm-deptlabel { font-family: 'DM Serif Display', serif; font-size: 17px; margin: 16px 0 14px; color: #1C1B3A; }
-.cm-hier-hint { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #6B7280; margin: 0 0 18px; max-width: 640px; text-align: center; }
+/* ── Hierarchy — free-form org chart ───────────────────────────────────────── */
+.cm-org { margin-top: 28px; display: flex; flex-direction: column; align-items: center; overflow-x: auto; padding-bottom: 20px; }
+.cm-hier-hint { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #6B7280; margin: 0 0 22px; max-width: 680px; text-align: center; }
 .cm-hier-hint svg { color: #C65A1A; flex: 0 0 auto; }
-.cm-node.is-draggable, .cm-mini.is-draggable { cursor: grab; }
-.cm-node.is-draggable:active, .cm-mini.is-draggable:active { cursor: grabbing; }
-.cm-node.is-dragging, .cm-mini.is-dragging { opacity: 0.4; }
-.cm-node.is-drop, .cm-mini.is-drop { border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7; }
-.cm-deptlabel.is-droptarget { padding: 2px 12px; border-radius: 999px; transition: background 0.12s ease, box-shadow 0.12s ease; }
-.cm-deptlabel.is-drop { background: #F1F5F9; box-shadow: 0 0 0 2px #FAECE7; color: #C65A1A; }
 
-/* Free-form tree: leads side by side, each a sub-tree of reports beneath. */
-.cm-leads { display: flex; gap: 30px; align-items: flex-start; justify-content: center; }
-.cm-subtree { display: flex; flex-direction: column; align-items: center; }
-.cm-substem { width: 2px; height: 16px; background: #D7DCE5; margin: 11px 0; }
-.cm-subreports { display: flex; flex-direction: column; align-items: center; gap: 11px; }
-.cm-mini { display: flex; align-items: center; gap: 11px; background: #fff; border: 1px solid #E6E8EF; border-radius: 11px; padding: 9px 13px; min-width: 214px; cursor: pointer; transition: border-color 0.12s ease; }
-.cm-mini:hover { border-color: #CBD5E1; }
-.cm-mini-a { width: 30px; height: 30px; border-radius: 999px; background: #EEF2F6; color: #C65A1A; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
-.cm-mini-n { font-size: 13px; font-weight: 600; color: #1C1B3A; }
-.cm-mini-r { font-size: 10.5px; color: #6B7280; }
-.cm-mini-d { margin-left: auto; width: 8px; height: 8px; border-radius: 999px; flex: 0 0 auto; }
+/* Rows lay siblings out left→right; each node stacks its children-row beneath. */
+.cm-orow { display: flex; align-items: flex-start; justify-content: center; }
+.cm-onode-wrap { display: flex; flex-direction: column; align-items: center; }
+.cm-ostem { width: 2px; height: 22px; background: #D7DCE5; }
+
+/* Uniform node card. */
+.cm-onode { position: relative; background: #fff; border: 1px solid #E6E8EF; border-radius: 14px; padding: 14px 20px; text-align: center; min-width: 178px; box-shadow: 0 2px 6px rgba(28,27,58,0.05); cursor: pointer; transition: box-shadow 0.12s ease, transform 0.12s ease, border-color 0.12s ease; }
+.cm-onode:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -12px rgba(28,27,58,0.26); }
+.cm-onode.is-root { border-color: #1C1B3A; }
+.cm-onode-av { width: 48px; height: 48px; border-radius: 999px; margin: 0 auto 8px; background: #EEF2F6; color: #C65A1A; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.cm-onode-av img { width: 100%; height: 100%; object-fit: cover; }
+.cm-onode-nm { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.cm-onode-rl { font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #C65A1A; margin-top: 4px; }
+.cm-onode-dot { position: absolute; top: 12px; right: 12px; width: 9px; height: 9px; border-radius: 999px; }
+.cm-onode.is-draggable { cursor: grab; }
+.cm-onode.is-draggable:active { cursor: grabbing; }
+.cm-onode.is-dragging { opacity: 0.4; }
+.cm-onode.is-drop { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+
+/* Insertion slots between/around siblings (left↔right placement). */
+.cm-gap { align-self: stretch; width: 14px; min-height: 68px; margin: 0 3px; border-radius: 8px; transition: background 0.1s ease, width 0.1s ease; }
+.cm-gap.is-active { background: repeating-linear-gradient(45deg, #EDF1F6, #EDF1F6 4px, transparent 4px, transparent 8px); }
+.cm-gap.is-drop { width: 26px; background: #FAECE7; box-shadow: inset 0 0 0 2px #C65A1A; }
 
 /* Loading / error blocks — centred, box-free. */
 .cm-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 56px 0; text-align: center; }
