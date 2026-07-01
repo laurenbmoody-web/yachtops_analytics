@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship, Users, Building2, Utensils, Briefcase, ClipboardList } from 'lucide-react';
+import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship, User, Users, Building2, Utensils, Briefcase, ClipboardList, MapPin, Camera } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { showToast } from '../../utils/toast';
 import { createCrewInvite, sendCrewInvite } from '../../utils/crewInvites';
+import { getAllDecks, createDeck } from '../locations-management-settings/utils/locationsHierarchyStorage';
 import './onboarding.css';
 
 /*
@@ -722,7 +723,166 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
   );
 };
 
-// ─── Step 2: Departments ───────────────────────────────────────────
+// ─── Step 2: Personal profile ──────────────────────────────────────
+// Who's actually running this vessel — name + photo, so crew know who's
+// aboard. Writes to profiles.full_name / profiles.avatar_url only; the
+// tenant_members row (role COMMAND) is already set from signup.
+
+const AVATAR_BUCKET = 'avatars';
+const MAX_AVATAR_MB = 5;
+
+const PersonalProfileStep = ({ userId, onSaved }) => {
+  const [fullName, setFullName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from('profiles')
+      .select('full_name, avatar_url')
+      .eq('id', userId)
+      .single()
+      .then(({ data }) => {
+        setFullName(data?.full_name || '');
+        setAvatarUrl(data?.avatar_url || '');
+        setLoading(false);
+      });
+  }, [userId]);
+
+  const handleFilePick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type?.startsWith('image/')) {
+      setError('Please choose an image file.');
+      return;
+    }
+    if (file.size > MAX_AVATAR_MB * 1024 * 1024) {
+      setError(`Image must be under ${MAX_AVATAR_MB}MB.`);
+      return;
+    }
+    setError('');
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const handleSave = async () => {
+    if (!fullName.trim()) {
+      setError('Please enter your name.');
+      return;
+    }
+    setError('');
+    setSaving(true);
+    try {
+      let nextAvatarUrl = avatarUrl;
+      if (avatarFile) {
+        const filePath = `${userId}/${Date.now()}-${avatarFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from(AVATAR_BUCKET)
+          .upload(filePath, avatarFile, { cacheControl: '3600', upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = await supabase.storage
+          .from(AVATAR_BUCKET)
+          .createSignedUrl(filePath, 60 * 60 * 24 * 365);
+        nextAvatarUrl = urlData?.signedUrl || nextAvatarUrl;
+      }
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName.trim(), avatar_url: nextAvatarUrl || null })
+        .eq('id', userId);
+      if (updateError) throw updateError;
+
+      onSaved({ full_name: fullName.trim(), avatar_url: nextAvatarUrl });
+    } catch (err) {
+      console.error('[onboarding] profile save failed', err);
+      setError(err?.message || 'Could not save your profile. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const initials = (fullName || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('');
+
+  return (
+    <div className="cg-step-enter">
+      <div className="mb-6">
+        <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+          First, make it yours
+        </h1>
+        <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+          Add your name and a photo so your crew knows exactly who&rsquo;s aboard.
+        </p>
+      </div>
+
+      <Card>
+        {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: ACCENT }} />
+          </div>
+        ) : (
+          <div className="flex items-center gap-6 mb-6">
+            <div className="relative flex-shrink-0">
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden"
+                style={{ backgroundColor: ACCENT_SOFT, border: `2px solid ${BORDER}` }}
+              >
+                {avatarPreview || avatarUrl ? (
+                  <img src={avatarPreview || avatarUrl} alt="Your avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span style={{ fontFamily: HEADING_FONT, fontSize: 24, color: ACCENT }}>{initials}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: NAVY, border: '2px solid white' }}
+                aria-label="Upload photo"
+              >
+                <Camera size={13} color="white" />
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
+            </div>
+            <div className="flex-1">
+              <Field label="Your name" required>
+                <TextInput
+                  value={fullName}
+                  placeholder="Jane Smith"
+                  onChange={(e) => setFullName(e.target.value)}
+                />
+              </Field>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FCEBEB', color: '#A32D2D' }}>
+            {error}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end">
+          <PillPrimary onClick={handleSave} disabled={saving || loading}>
+            {saving ? 'Saving…' : 'Continue'}
+          </PillPrimary>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ─── Step 3: Departments ────────────────────────────────────────────
 
 const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
   const [depts, setDepts]               = useState([]);
@@ -983,7 +1143,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
   );
 };
 
-// ─── Step 3: Invite crew ───────────────────────────────────────────
+// ─── Step 4: Invite crew ───────────────────────────────────────────
 
 const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, onFinish }) => {
   const { user } = useAuth();
@@ -1442,6 +1602,154 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
   );
 };
 
+// ─── Step 5: Set locations ──────────────────────────────────────────
+// Top-level decks only (the full Deck → Zone → Space builder lives in
+// Vessel Settings > Locations for later). Reuses the same
+// public.vessel_locations helpers as that page — getAllDecks/createDeck —
+// so this isn't a parallel implementation of the same table.
+
+const SUGGESTED_DECKS = ['Bridge', 'Sun Deck', 'Upper Deck', 'Main Deck', 'Lower Deck', "Crew Mess", 'Engine Room'];
+
+const LocationsStep = ({ onBack, onFinish }) => {
+  const [existingDecks, setExistingDecks] = useState([]);
+  const [selected, setSelected] = useState([]);
+  const [customInput, setCustomInput] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getAllDecks().then((decks) => {
+      setExistingDecks(decks);
+      setSelected(decks.map((d) => d.name));
+      setLoading(false);
+    });
+  }, []);
+
+  const toggle = (name) =>
+    setSelected((prev) => prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]);
+
+  const addCustom = () => {
+    const name = customInput.trim();
+    if (!name || selected.includes(name)) return;
+    setSelected((prev) => [...prev, name]);
+    setCustomInput('');
+  };
+
+  const handleContinue = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const existingNames = new Set(existingDecks.map((d) => d.name));
+      const toCreate = selected.filter((name) => !existingNames.has(name));
+      const results = await Promise.allSettled(toCreate.map((name) => createDeck(name)));
+      const failed = results.find((r) => r.status === 'rejected');
+      if (failed) {
+        console.error('[onboarding] some decks failed to save', failed.reason);
+        showToast('Some locations could not be saved — you can add them later in Vessel Settings.', 'warning');
+      }
+      onFinish();
+    } catch (err) {
+      console.error('[onboarding] locations save failed', err);
+      setError(err?.message || 'Could not save locations. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="cg-step-enter">
+      <div className="mb-6">
+        <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+          Map your vessel
+        </h1>
+        <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+          Add the decks on board — you can break each one into zones and spaces later in Vessel Settings.
+        </p>
+      </div>
+
+      <Card>
+        {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: ACCENT }} />
+          </div>
+        ) : (
+          <>
+            <SectionHeading>Suggested decks</SectionHeading>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {SUGGESTED_DECKS.map((name) => {
+                const isSelected = selected.includes(name);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => toggle(name)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm transition-colors"
+                    style={{
+                      fontFamily: BODY_FONT, fontWeight: 600,
+                      backgroundColor: isSelected ? ACCENT : 'white',
+                      border: `1px solid ${isSelected ? ACCENT : BORDER}`,
+                      color: isSelected ? 'white' : CHARCOAL,
+                    }}
+                  >
+                    {isSelected && <Check size={13} strokeWidth={3} />}
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+
+            <SectionHeading>Add another</SectionHeading>
+            <div className="flex items-center gap-2 mb-5">
+              <TextInput
+                value={customInput}
+                placeholder="e.g., Beach Club"
+                onChange={(e) => setCustomInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+              />
+              <PillSecondary onClick={addCustom} disabled={!customInput.trim()}>Add</PillSecondary>
+            </div>
+
+            {selected.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {selected.filter((name) => !SUGGESTED_DECKS.includes(name)).map((name) => (
+                  <span
+                    key={name}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs"
+                    style={{ backgroundColor: ACCENT_SOFT, color: ACCENT, fontFamily: BODY_FONT, fontWeight: 600 }}
+                  >
+                    {name}
+                    <button type="button" onClick={() => toggle(name)} style={{ color: ACCENT, lineHeight: 1 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs mt-3" style={{ color: '#94A3B8', fontFamily: BODY_FONT }}>
+              {selected.length} deck{selected.length !== 1 ? 's' : ''} selected. Skip for now if you&rsquo;d rather set this up later.
+            </p>
+          </>
+        )}
+
+        {error && (
+          <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FCEBEB', color: '#A32D2D' }}>
+            {error}
+          </div>
+        )}
+      </Card>
+
+      <div className="flex items-center justify-between mt-8">
+        <LinkButton onClick={onBack}><ChevronLeft size={14} /> Back</LinkButton>
+        <PillPrimary onClick={handleContinue} disabled={saving || loading}>
+          {saving ? 'Saving…' : (
+            <span className="inline-flex items-center gap-2">Continue <ChevronRight size={14} /></span>
+          )}
+        </PillPrimary>
+      </div>
+    </div>
+  );
+};
+
 // ─── "Wrapped" tour shell ──────────────────────────────────────────
 // Matches the CargoOnboarding.jsx reference design: per-screen colour
 // theme, giant numeral, scrolling marquee, circular glyph, hard-shadow
@@ -1449,20 +1757,30 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
 // unchanged inside .onb-panel (a white card) so their fields stay
 // legible regardless of the step's background colour.
 
-const SCREEN_ORDER = ['welcome', 'vessel', 'departments', 'crew', 'done'];
+const SCREEN_ORDER = ['welcome', 'vessel', 'profile', 'departments', 'crew', 'locations', 'done'];
+const STEP_KEYS = ['vessel', 'profile', 'departments', 'crew', 'locations'];
 
+// Colour choreography matches the CargoOnboarding.jsx reference exactly —
+// it was built for a 5-step flow, and this is now a 5-step flow.
 const THEMES = {
   welcome:     { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
   vessel:      { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
-  departments: { bg: '#1E3A5F', fg: '#F4F1EC', ac: '#E8915A' },
-  crew:        { bg: '#EFC8A6', fg: '#1C1B3A', ac: '#C65A1A' },
+  profile:     { bg: '#1E3A5F', fg: '#F4F1EC', ac: '#E8915A' },
+  departments: { bg: '#EFC8A6', fg: '#1C1B3A', ac: '#C65A1A' },
+  crew:        { bg: '#DCE3EA', fg: '#1C1B3A', ac: '#C65A1A' },
+  locations:   { bg: '#1E3A5F', fg: '#F4F1EC', ac: '#E8915A' },
   done:        { bg: '#EFC8A6', fg: '#1C1B3A', ac: '#C65A1A' },
 };
 
+// Dark (navy) step screens — these need the inverted logo (see logoSrc below).
+const DARK_SCREENS = ['profile', 'locations'];
+
 const STEP_META = {
   vessel:      { numeral: '01', label: 'Vessel',      icon: Ship },
-  departments: { numeral: '02', label: 'Departments', icon: Building2 },
-  crew:        { numeral: '03', label: 'Crew',         icon: Users },
+  profile:     { numeral: '02', label: 'Profile',     icon: User },
+  departments: { numeral: '03', label: 'Departments', icon: Building2 },
+  crew:        { numeral: '04', label: 'Crew',         icon: Users },
+  locations:   { numeral: '05', label: 'Locations',   icon: MapPin },
 };
 
 const DONE_CHIPS = [
@@ -1685,13 +2003,13 @@ const OnboardingPage = () => {
   }
 
   const theme = THEMES[screen] || THEMES.welcome;
-  const isStepScreen = screen === 'vessel' || screen === 'departments' || screen === 'crew';
+  const isStepScreen = STEP_KEYS.includes(screen);
   const meta = STEP_META[screen];
 
   const goBack = () => {
-    if (screen === 'vessel') setScreen('welcome');
-    else if (screen === 'departments') setScreen('vessel');
-    else if (screen === 'crew') setScreen('departments');
+    const i = STEP_KEYS.indexOf(screen);
+    if (i > 0) setScreen(STEP_KEYS[i - 1]);
+    else if (i === 0) setScreen('welcome');
   };
 
   const marqueeText = (
@@ -1719,7 +2037,7 @@ const OnboardingPage = () => {
             </button>
           )}
           <img
-            className={`onb-logo${screen === 'departments' ? ' invert' : ''}`}
+            className={`onb-logo${DARK_SCREENS.includes(screen) ? ' invert' : ''}`}
             src={logoSrc}
             alt="Cargo"
           />
@@ -1727,7 +2045,7 @@ const OnboardingPage = () => {
         {isStepScreen && (
           <div className="onb-bar-right">
             <span className="onb-ticks">
-              {['vessel', 'departments', 'crew'].map((k) => (
+              {STEP_KEYS.map((k) => (
                 <i
                   key={k}
                   className={
@@ -1737,7 +2055,7 @@ const OnboardingPage = () => {
                 />
               ))}
             </span>
-            <span className="onb-count">{meta.numeral} <em>/ 03</em></span>
+            <span className="onb-count">{meta.numeral} <em>/ 0{STEP_KEYS.length}</em></span>
           </div>
         )}
       </header>
@@ -1750,7 +2068,7 @@ const OnboardingPage = () => {
         {screen === 'welcome' && (
           <div className="onb-welcome">
             <h1 className="onb-head-serif">WELCOME ABOARD, <em className="onb-bel">Belongers</em></h1>
-            <p className="onb-sub center">Let&rsquo;s get your vessel ready to sail. Three quick steps to set the course.</p>
+            <p className="onb-sub center">Let&rsquo;s get your vessel ready to sail. Five quick steps to set the course.</p>
             <div className="onb-ctarow center">
               <button className="onb-cta welcome" onClick={() => setScreen('vessel')}>Get started</button>
             </div>
@@ -1773,8 +2091,14 @@ const OnboardingPage = () => {
                     tenant={tenant}
                     onSaved={(updated) => {
                       setTenant((t) => ({ ...t, ...updated }));
-                      setScreen('departments');
+                      setScreen('profile');
                     }}
+                  />
+                )}
+                {screen === 'profile' && (
+                  <PersonalProfileStep
+                    userId={user?.id}
+                    onSaved={() => setScreen('departments')}
                   />
                 )}
                 {screen === 'departments' && (
@@ -1795,6 +2119,12 @@ const OnboardingPage = () => {
                     customDepts={deptChoice.customDepts}
                     deptObjs={deptChoice.departments}
                     onBack={goBack}
+                    onFinish={() => setScreen('locations')}
+                  />
+                )}
+                {screen === 'locations' && (
+                  <LocationsStep
+                    onBack={goBack}
                     onFinish={() => setScreen('done')}
                   />
                 )}
@@ -1812,7 +2142,7 @@ const OnboardingPage = () => {
               <span className="onb-glyph done">
                 <Check size={36} color="var(--wfg)" strokeWidth={2.2} />
               </span>
-              <h1 className="onb-head">You&rsquo;re all set</h1>
+              <h1 className="onb-head">Congrats, you&rsquo;re all set</h1>
               <p className="onb-sub">Your vessel is configured and ready for the crew.</p>
               <div className="onb-chips">
                 {DONE_CHIPS.map(({ icon: ChipIcon, title }) => (
