@@ -1362,23 +1362,25 @@ const CrewManagement = () => {
         });
 
         if (prevGroups && prevGroups.length) {
-          // Group this row's cards by shared nearest parent-group, so several
-          // children of the same lead(s) share one trunk + sibling bar.
+          // Group by shared nearest parent-group — using this row's own
+          // TIGHT-CLUSTERED groups (not raw individual cards) as the unit, so a
+          // paired group (already linked by its own marriage bar) contributes
+          // exactly ONE shared stem down, not one per person in the pair.
           const byParent = new Map();
-          rowNodes.forEach((n) => {
+          groups.forEach((g) => {
             let nearest = prevGroups[0]; let best = Infinity;
-            prevGroups.forEach((p) => { const d = Math.abs(p.anchorX - n.cx); if (d < best) { best = d; nearest = p; } });
+            prevGroups.forEach((p) => { const d = Math.abs(p.anchorX - g.anchorX); if (d < best) { best = d; nearest = p; } });
             if (!byParent.has(nearest)) byParent.set(nearest, []);
-            byParent.get(nearest).push(n);
+            byParent.get(nearest).push(g);
           });
-          byParent.forEach((children, parent) => {
-            const childXs = children.map((c) => c.cx);
-            const barY = (parent.bottom + Math.min(...children.map((c) => c.top))) / 2;
+          byParent.forEach((childGroups, parent) => {
+            const childXs = childGroups.map((g) => g.anchorX);
+            const barY = (parent.bottom + Math.min(...childGroups.map((g) => g.top))) / 2;
             const leftX = Math.min(parent.anchorX, ...childXs);
             const rightX = Math.max(parent.anchorX, ...childXs);
             lines.push({ x1: parent.anchorX, y1: parent.bottom, x2: parent.anchorX, y2: barY }); // trunk down from parent
             lines.push({ x1: leftX, y1: barY, x2: rightX, y2: barY }); // sibling bar
-            children.forEach((c) => lines.push({ x1: c.cx, y1: barY, x2: c.cx, y2: c.top })); // stem to each child
+            childGroups.forEach((g) => lines.push({ x1: g.anchorX, y1: barY, x2: g.anchorX, y2: g.top })); // one stem per group (pair or single)
           });
         }
         prevGroups = groups;
