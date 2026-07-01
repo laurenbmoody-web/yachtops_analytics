@@ -23,6 +23,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const [historyByUser, setHistoryByUser] = useState({});
   const [cabins, setCabins] = useState([]);
   const [assigns, setAssigns] = useState([]);
+  const [travel, setTravel] = useState([]);
   const [deptColors, setDeptColors] = useState({});
   const [loading, setLoading] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -37,6 +38,16 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const memberIds = useMemo(() => members.map((m) => m.user_id).filter(Boolean), [members]);
   const crewAboard = useMemo(() => members.filter((m) => ABOARD.has(m.status)).length, [members]);
   const deptOf = (uid) => deptColors[memberById[uid]?.department] || '#7A6F8C';
+
+  const AWAY = new Set(['on_leave', 'rotational_leave', 'medical_leave', 'training_leave']);
+  const TRANS_ICON = { Flight: 'Plane', Train: 'TrainFront', Ferry: 'Ship', Car: 'Car', Other: 'MapPin' };
+  const dirOf = (e) => (e.kind === 'active' ? 'arr' : AWAY.has(e.kind) ? 'dep' : 'transit');
+  const monthTravel = useMemo(() => {
+    const mStart = ymd(calYear, calMonth, 1), mEnd = ymd(calYear, calMonth, totalDays);
+    return travel
+      .filter((e) => (e.transport || e.from_location || e.to_location) && (e.start_date || '').slice(0, 10) >= mStart && (e.start_date || '').slice(0, 10) <= mEnd)
+      .sort((a, b) => (a.start_date < b.start_date ? -1 : 1));
+  }, [travel, calYear, calMonth, totalDays]);
 
   // presence history
   useEffect(() => {
@@ -57,13 +68,15 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const loadCabins = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [cabs, asg, dep] = await Promise.all([
+    const [cabs, asg, dep, trv] = await Promise.all([
       fetchCabins(tenantId), fetchAssignments(tenantId),
       supabase.from('departments').select('name, color'),
+      supabase.from('crew_calendar_entries').select('*').eq('tenant_id', tenantId),
     ]);
     setCabins(cabs);
     setAssigns(asg);
     setDeptColors(Object.fromEntries((dep.data || []).map((d) => [d.name, d.color])));
+    setTravel(trv.data || []);
     setLoading(false);
   }, [tenantId]);
   useEffect(() => { loadCabins(); }, [loadCabins, refresh]);
@@ -263,8 +276,10 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   // move popover
   const openMove = (a, ev) => {
     const rect = ev.currentTarget.getBoundingClientRect();
-    const host = ev.currentTarget.closest('.mv-chart').getBoundingClientRect();
-    setPop({ a, x: rect.left - host.left, y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '' });
+    const hostEl = ev.currentTarget.closest('.mv');
+    const host = hostEl.getBoundingClientRect();
+    const x = Math.min(rect.left - host.left, hostEl.clientWidth - 260);
+    setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '' });
   };
 
   // draw connectors for selected crew after each render
@@ -309,6 +324,28 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
         </div>
         {canManage && <button type="button" className="mv-btn ghost mv-config" onClick={() => setConfigOpen(true)}><Icon name="Settings" size={14} /> Configure cabins</button>}
       </div>
+
+      {monthTravel.length > 0 && (
+        <div className="mv-flights">
+          <div className="mv-fhead"><span className="t">Flights &amp; travel</span><span className="ln" /></div>
+          {monthTravel.map((e) => {
+            const m = memberById[e.user_id]; const dir = dirOf(e);
+            const day = new Date(`${e.start_date}T00:00:00`).getDate();
+            const route = [e.from_location, e.to_location].filter(Boolean).join(' → ');
+            const time = e.arrive_time || e.depart_time || '';
+            return (
+              <div key={e.id} className="mv-flt" onClick={() => setSelCrew(e.user_id)}>
+                <div className="date"><span className="d">{day}</span><span className="m">{MONTHS[calMonth].slice(0, 3)}</span></div>
+                <span className={`dirpill ${dir}`}>{dir === 'dep' ? '↑ Departing' : dir === 'arr' ? '↓ Arriving' : '✈ Travelling'}</span>
+                <span className="who">{m?.fullName || '—'}</span>
+                <span className="route"><Icon name={TRANS_ICON[e.transport] || 'Plane'} size={13} /> {route || (e.note || '—')}</span>
+                {e.transport_no && <span className="fno">{e.transport_no}</span>}
+                {time && <span className="time">{time}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mv-navrow">
         <div className="mv-monthnav"><button onClick={prevM} aria-label="Previous month">‹</button><span>{MONTHS[calMonth]} {calYear}</span><button onClick={nextM} aria-label="Next month">›</button></div>

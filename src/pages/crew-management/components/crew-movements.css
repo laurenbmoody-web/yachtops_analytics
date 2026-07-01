@@ -12,6 +12,26 @@
 .mv-btn.ghost:hover { background: #FAFAF8; }
 .mv-btn.primary { background: #C65A1A; border: 0; color: #fff; }
 
+/* flights & travel board */
+.mv-flights { margin-top: 18px; }
+.mv-fhead { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
+.mv-fhead .t { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: #1C1B3A; }
+.mv-fhead .ln { flex: 1; height: 1px; background: #ECEAE3; }
+.mv-flt { display: flex; align-items: center; gap: 14px; padding: 11px 8px; border-bottom: 1px solid #F0F1F5; cursor: pointer; border-radius: 8px; }
+.mv-flt:hover { background: #FBFAF7; }
+.mv-flt .date { flex: 0 0 52px; }
+.mv-flt .date .d { font-family: 'DM Serif Display', serif; font-size: 18px; }
+.mv-flt .date .m { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #AEB4C2; margin-left: 4px; }
+.mv-flt .dirpill { flex: 0 0 auto; font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; border-radius: 999px; padding: 4px 10px; }
+.mv-flt .dirpill.dep { background: #FBEFE9; color: #C65A1A; }
+.mv-flt .dirpill.arr { background: #E9F5EF; color: #2F855A; }
+.mv-flt .dirpill.transit { background: #EEF2F6; color: #6B7280; }
+.mv-flt .who { flex: 0 0 150px; font-weight: 600; font-size: 13.5px; }
+.mv-flt .route { flex: 1; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; color: #1C1B3A; }
+.mv-flt .route svg { color: #8B8478; flex: 0 0 auto; }
+.mv-flt .fno { flex: 0 0 auto; font-size: 11px; font-weight: 600; color: #6B7280; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 999px; padding: 4px 10px; }
+.mv-flt .time { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; }
+
 .mv-navrow { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
 .mv-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 8px; font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #1C1B3A; }
 .mv-monthnav button { border: 0; background: #F1F5F9; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #6B7280; }
