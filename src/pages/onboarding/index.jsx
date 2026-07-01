@@ -54,6 +54,83 @@ const CARD_STYLE = {
   boxShadow: '0 8px 24px -14px rgba(28,27,58,0.18)',
 };
 
+// Best-effort auto-transparent background remover for logo uploads — most
+// vessel/company logos are exported on a solid white or brand-colour
+// canvas. Flood-fills inward from the image's edges, clearing any pixel
+// connected to the border that's close to the estimated background
+// colour, and leaves anything enclosed (the logo mark/text itself)
+// untouched. Returns null (caller keeps the original file) if the border
+// doesn't look like a uniform background — e.g. a photographic image —
+// since it's safer to leave those alone than risk mangling them.
+async function autoTransparentizeLogo(file) {
+  const img = await new Promise((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = reject;
+    el.src = URL.createObjectURL(file);
+  });
+
+  const MAX_DIM = 1600;
+  const scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  URL.revokeObjectURL(img.src);
+
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const { data } = imageData;
+  const colorAt = (x, y) => {
+    const i = (y * w + x) * 4;
+    return [data[i], data[i + 1], data[i + 2]];
+  };
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+  // Estimate the background colour from a sample of border pixels, and
+  // bail if the border itself isn't roughly uniform.
+  const borderSamples = [];
+  const stepX = Math.max(1, Math.floor(w / 40));
+  const stepY = Math.max(1, Math.floor(h / 40));
+  for (let x = 0; x < w; x += stepX) borderSamples.push(colorAt(x, 0), colorAt(x, h - 1));
+  for (let y = 0; y < h; y += stepY) borderSamples.push(colorAt(0, y), colorAt(w - 1, y));
+  const avg = borderSamples
+    .reduce((acc, c) => [acc[0] + c[0], acc[1] + c[1], acc[2] + c[2]], [0, 0, 0])
+    .map((v) => v / borderSamples.length);
+  const variance = borderSamples.reduce((acc, c) => acc + dist(c, avg), 0) / borderSamples.length;
+  if (variance > 18) return null;
+
+  const TOLERANCE = 26;
+  const visited = new Uint8Array(w * h);
+  const queue = [];
+  const seed = (x, y) => {
+    const idx = y * w + x;
+    if (visited[idx]) return;
+    if (dist(colorAt(x, y), avg) > TOLERANCE) return;
+    visited[idx] = 1;
+    queue.push(idx);
+  };
+  for (let x = 0; x < w; x++) { seed(x, 0); seed(x, h - 1); }
+  for (let y = 0; y < h; y++) { seed(0, y); seed(w - 1, y); }
+
+  while (queue.length) {
+    const idx = queue.pop();
+    const x = idx % w;
+    const y = (idx - x) / w;
+    data[idx * 4 + 3] = 0;
+    if (x > 0) seed(x - 1, y);
+    if (x < w - 1) seed(x + 1, y);
+    if (y > 0) seed(x, y - 1);
+    if (y < h - 1) seed(x, y + 1);
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
 // ── Department data (Departments + InviteCrewStep) ────────────────
 const DEPARTMENT_ICONS = {
   BRIDGE:      Anchor,
@@ -187,30 +264,50 @@ function iconForDept(name) {
 // ── Shared UI atoms ───────────────────────────────────────────────
 
 // ? pill tooltip — NAVY background, white text, keyboard-accessible via :focus-within.
-// Fields in the right-hand column of a 2-col grid sit close to the panel's
-// (and sometimes the viewport's) right edge, so a fixed-side popover can run
-// off-screen. Measure available space on open and flip to the left side
-// instead of hardcoding per-field alignment.
+// .onb-panel scrolls (overflow-y: auto), and per the CSS overflow-x/y
+// coupling rule that also makes it clip horizontally — so an absolutely
+// positioned popover anywhere near the panel's edges was getting cut off
+// by the panel itself regardless of how much room the viewport actually
+// had (a left/right side-flip alone couldn't fix that). Portal to <body>
+// with fixed coordinates instead, same fix already used for
+// RegionsCombobox below, and clamp within the viewport so it can never
+// run off either edge.
 const Tooltip = ({ text }) => {
-  const [side, setSide] = useState('right');
-  const wrapRef = useRef(null);
+  const [coords, setCoords] = useState(null);
+  const triggerRef = useRef(null);
   const POPOVER_WIDTH = 220;
 
-  const checkSide = () => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const spaceRight = window.innerWidth - rect.right;
-    setSide(spaceRight < POPOVER_WIDTH + 24 ? 'left' : 'right');
+  const openTooltip = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const left = Math.min(
+      Math.max(8, rect.left + rect.width / 2 - POPOVER_WIDTH / 2),
+      window.innerWidth - POPOVER_WIDTH - 8
+    );
+    setCoords({ top: rect.bottom + 8, left });
   };
+  const closeTooltip = () => setCoords(null);
+
+  useEffect(() => {
+    if (!coords) return undefined;
+    const onScroll = () => setCoords(null);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', closeTooltip);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', closeTooltip);
+    };
+  }, [coords]);
 
   return (
     <span
-      ref={wrapRef}
-      className="relative inline-flex items-center group"
+      ref={triggerRef}
+      className="relative inline-flex items-center"
       tabIndex={0}
-      onMouseEnter={checkSide}
-      onFocus={checkSide}
+      onMouseEnter={openTooltip}
+      onMouseLeave={closeTooltip}
+      onFocus={openTooltip}
+      onBlur={closeTooltip}
     >
       <span
         className="ml-1.5 w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] cursor-help"
@@ -218,23 +315,29 @@ const Tooltip = ({ text }) => {
       >
         ?
       </span>
-      <span
-        className="pointer-events-none absolute top-0 z-20 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150"
-        style={{
-          ...(side === 'right' ? { left: 24 } : { right: 24 }),
-          backgroundColor: NAVY,
-          color: 'white',
-          fontFamily: BODY_FONT,
-          fontSize: 11,
-          lineHeight: 1.4,
-          padding: '6px 10px',
-          borderRadius: 6,
-          width: POPOVER_WIDTH,
-          boxShadow: '0 6px 20px rgba(30,58,95,0.25)',
-        }}
-      >
-        {text}
-      </span>
+      {coords && createPortal(
+        <span
+          className="pointer-events-none"
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            zIndex: 1000,
+            backgroundColor: NAVY,
+            color: 'white',
+            fontFamily: BODY_FONT,
+            fontSize: 11,
+            lineHeight: 1.4,
+            padding: '6px 10px',
+            borderRadius: 6,
+            width: POPOVER_WIDTH,
+            boxShadow: '0 6px 20px rgba(30,58,95,0.25)',
+          }}
+        >
+          {text}
+        </span>,
+        document.body
+      )}
     </span>
   );
 };
@@ -646,19 +749,31 @@ const VesselSettingsStep = ({ tenant, onSaved, previewMode = false }) => {
       setLogoUploadError('Image must be smaller than 5MB');
       return;
     }
+
+    // Best-effort: if the logo sits on a plain solid background, clear it
+    // to transparent automatically. Falls back to the original file
+    // untouched for photos/gradients where that isn't safe to assume.
+    let uploadFile = file;
+    try {
+      const transparentBlob = await autoTransparentizeLogo(file);
+      if (transparentBlob) uploadFile = new File([transparentBlob], 'logo.png', { type: 'image/png' });
+    } catch {
+      // Canvas processing failed — proceed with the original file.
+    }
+
     // Preview mode: show the picked image locally, never touch Storage/DB.
     if (previewMode) {
-      set('logo_url', URL.createObjectURL(file));
+      set('logo_url', URL.createObjectURL(uploadFile));
       return;
     }
     setUploadingLogo(true);
     setLogoUploadError('');
     try {
-      const fileExt = file.type === 'image/png' ? 'png' : 'jpg';
+      const fileExt = uploadFile.type === 'image/png' ? 'png' : 'jpg';
       const filePath = `${tenant.id}/logo.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from('vessel-assets')
-        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+        .upload(filePath, uploadFile, { cacheControl: '3600', upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('vessel-assets').getPublicUrl(filePath);
       const publicUrl = urlData?.publicUrl ? `${urlData.publicUrl}?v=${Date.now()}` : null;
@@ -992,10 +1107,22 @@ const VesselSettingsStep = ({ tenant, onSaved, previewMode = false }) => {
             </div>
 
             <div className="mt-5 pt-5" style={{ borderTop: `1px solid ${BORDER}` }}>
-              <Field label="Logo" tooltip="PNG or JPEG. Added to the page header of generated crew contracts.">
+              <Field label="Vessel Logo" tooltip="PNG or JPEG. Added to the page header of generated crew contracts. If it's on a plain background, we'll automatically make that background transparent.">
                 <div className="flex items-center gap-3 mt-1">
                   {data.logo_url ? (
-                    <img src={data.logo_url} alt="Company logo" className="h-12 object-contain rounded" style={{ maxWidth: 160, border: `1px solid ${BORDER}`, background: 'white', padding: 4 }} />
+                    <img
+                      src={data.logo_url}
+                      alt="Vessel logo"
+                      className="h-12 object-contain rounded"
+                      style={{
+                        maxWidth: 160,
+                        border: `1px solid ${BORDER}`,
+                        padding: 4,
+                        backgroundImage:
+                          'repeating-conic-gradient(#F0F1F5 0% 25%, white 0% 50%)',
+                        backgroundSize: '12px 12px',
+                      }}
+                    />
                   ) : (
                     <div className="h-12 flex items-center justify-center text-xs rounded" style={{ width: 160, border: `1px dashed ${BORDER}`, color: MUTED_SOFT, fontFamily: BODY_FONT }}>
                       No logo

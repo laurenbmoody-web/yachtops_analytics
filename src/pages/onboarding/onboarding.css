@@ -53,13 +53,10 @@
 .onb-blob.three { width: 460px; height: 460px; left: 30%; bottom: -180px; background: rgba(198,90,26,.14); }
 @keyframes onbBlobIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* confetti — done screen only. Scoped to the same centred 1240px content
-   box as .onb-split (not the raw viewport) so a bit's `left: 0-100%`
-   lands somewhere across the actual numeral + panel composition — on
-   wide monitors the viewport is far wider than that content box, so
-   full-bleed positioning left most of the visible confetti stuck in the
-   empty side gutters and reads as "only on half the page". */
-.onb-confetti { position: absolute; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1240px; padding: 0 64px; box-sizing: border-box; top: 60px; height: 0; pointer-events: none; z-index: 6; }
+/* confetti — done screen only. Full viewport width (not scoped to the
+   1240px centred content box) so it reads as a full celebratory spread
+   on wide monitors instead of stopping short at the content column. */
+.onb-confetti { position: absolute; left: 0; right: 0; top: 60px; height: 0; pointer-events: none; z-index: 6; }
 .onb-confetti .bit { position: absolute; top: 0; opacity: 0; animation-name: onbFall; animation-timing-function: cubic-bezier(.3,.4,.5,1); animation-fill-mode: forwards; }
 @keyframes onbFall { 0% { opacity: 0; transform: translateY(-12px) rotate(0); } 10% { opacity: 1; } 92% { opacity: 1; } 100% { opacity: 0; transform: translateY(85vh) rotate(330deg); } }
 
