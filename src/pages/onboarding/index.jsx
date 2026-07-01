@@ -2262,10 +2262,10 @@ const STEP_META = {
 };
 
 const DONE_CHIPS = [
-  { icon: Users,         title: 'Crew' },
-  { icon: ClipboardList, title: 'Provisioning' },
-  { icon: Briefcase,     title: 'Team Jobs' },
-  { icon: Anchor,        title: 'Defects' },
+  { icon: Users,         title: 'Crew',         path: '/crew-management'      },
+  { icon: ClipboardList, title: 'Provisioning', path: '/provisioning'         },
+  { icon: Briefcase,     title: 'Team Jobs',    path: '/team-jobs-management' },
+  { icon: Anchor,        title: 'Defects',      path: '/defects'              },
 ];
 
 // Confetti burst — done screen only. Random spread is fine here (this
@@ -2662,10 +2662,17 @@ const OnboardingPage = ({ previewMode = false }) => {
               <h1 className="onb-head">Congrats, you&rsquo;re all set</h1>
               <p className="onb-sub">Your vessel is configured and ready for the crew.</p>
               <div className="onb-chips">
-                {DONE_CHIPS.map(({ icon: ChipIcon, title }) => (
-                  <span className="onb-chip" key={title}>
+                {DONE_CHIPS.map(({ icon: ChipIcon, title, path }) => (
+                  <button
+                    key={title}
+                    type="button"
+                    className="onb-chip"
+                    disabled={previewMode}
+                    title={previewMode ? 'Not available in preview' : undefined}
+                    onClick={() => navigate(path)}
+                  >
                     <ChipIcon size={15} color="var(--wac)" strokeWidth={1.9} /> {title}
-                  </span>
+                  </button>
                 ))}
               </div>
               <div className="onb-ctarow">
