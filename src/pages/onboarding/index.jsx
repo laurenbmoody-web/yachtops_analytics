@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship, User, Users, Building2, Utensils, Briefcase, ClipboardList, MapPin, Camera } from 'lucide-react';
+import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship, User, Users, Building2, Utensils, Briefcase, ClipboardList, MapPin, Camera, Plane, Stethoscope, Shield, FlaskConical, Flower2 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { showToast } from '../../utils/toast';
@@ -63,12 +63,24 @@ const DEPARTMENT_ICONS = {
   GALLEY:      Utensils,
 };
 
+// Mirrors the full set of rows in public.departments (id, name — same
+// shape the real `.from('departments').select('id, name')` query
+// returns) — preview mode has no DB to read from, so this mock stands in
+// for what a real signup actually sees (all 11 departments, not a
+// shortened sample). Tile icons come from iconForDept() below, keyed off
+// the name, same as the real fetched rows.
 const BASE_DEPARTMENTS = [
-  { id: 'BRIDGE',      name: 'Bridge',      icon: Anchor    },
-  { id: 'INTERIOR',    name: 'Interior',    icon: Users     },
-  { id: 'DECK',        name: 'Deck',        icon: Ship      },
-  { id: 'ENGINEERING', name: 'Engineering', icon: Building2 },
-  { id: 'GALLEY',      name: 'Galley',      icon: Utensils  },
+  { id: 'BRIDGE',      name: 'Bridge'      },
+  { id: 'INTERIOR',    name: 'Interior'    },
+  { id: 'DECK',        name: 'Deck'        },
+  { id: 'ENGINEERING', name: 'Engineering' },
+  { id: 'GALLEY',      name: 'Galley'      },
+  { id: 'ADMIN',       name: 'Admin'       },
+  { id: 'AVIATION',    name: 'Aviation'    },
+  { id: 'MEDICAL',     name: 'Medical'     },
+  { id: 'SECURITY',    name: 'Security'    },
+  { id: 'SCIENCE',     name: 'Science'     },
+  { id: 'SPA',         name: 'Spa'         },
 ];
 
 const ROLES_BY_DEPT = {
@@ -156,7 +168,11 @@ const DEPT_ICON_MAP = {
   galley: Utensils, culinary: Utensils, chef: Utensils, kitchen: Utensils,
   purser: Briefcase, admin: Briefcase, management: Briefcase, office: Briefcase,
   operations: ClipboardList, ops: ClipboardList, logistics: ClipboardList,
-  security: Building2, spa: Building2, wellness: Building2,
+  aviation: Plane, pilot: Plane, helicopter: Plane,
+  medical: Stethoscope, medic: Stethoscope, nurse: Stethoscope, doctor: Stethoscope,
+  security: Shield, safety: Shield,
+  science: FlaskConical, scientist: FlaskConical, research: FlaskConical,
+  spa: Flower2, wellness: Flower2,
 };
 
 function iconForDept(name) {
@@ -170,33 +186,58 @@ function iconForDept(name) {
 
 // ── Shared UI atoms ───────────────────────────────────────────────
 
-// ? pill tooltip — NAVY background, white text, keyboard-accessible via :focus-within
-const Tooltip = ({ text }) => (
-  <span className="relative inline-flex items-center group" tabIndex={0}>
+// ? pill tooltip — NAVY background, white text, keyboard-accessible via :focus-within.
+// Fields in the right-hand column of a 2-col grid sit close to the panel's
+// (and sometimes the viewport's) right edge, so a fixed-side popover can run
+// off-screen. Measure available space on open and flip to the left side
+// instead of hardcoding per-field alignment.
+const Tooltip = ({ text }) => {
+  const [side, setSide] = useState('right');
+  const wrapRef = useRef(null);
+  const POPOVER_WIDTH = 220;
+
+  const checkSide = () => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const spaceRight = window.innerWidth - rect.right;
+    setSide(spaceRight < POPOVER_WIDTH + 24 ? 'left' : 'right');
+  };
+
+  return (
     <span
-      className="ml-1.5 w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] cursor-help"
-      style={{ backgroundColor: '#E2E8F0', color: '#475569', fontFamily: BODY_FONT, fontWeight: 700 }}
+      ref={wrapRef}
+      className="relative inline-flex items-center group"
+      tabIndex={0}
+      onMouseEnter={checkSide}
+      onFocus={checkSide}
     >
-      ?
+      <span
+        className="ml-1.5 w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] cursor-help"
+        style={{ backgroundColor: '#E2E8F0', color: '#475569', fontFamily: BODY_FONT, fontWeight: 700 }}
+      >
+        ?
+      </span>
+      <span
+        className="pointer-events-none absolute top-0 z-20 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150"
+        style={{
+          ...(side === 'right' ? { left: 24 } : { right: 24 }),
+          backgroundColor: NAVY,
+          color: 'white',
+          fontFamily: BODY_FONT,
+          fontSize: 11,
+          lineHeight: 1.4,
+          padding: '6px 10px',
+          borderRadius: 6,
+          width: POPOVER_WIDTH,
+          boxShadow: '0 6px 20px rgba(30,58,95,0.25)',
+        }}
+      >
+        {text}
+      </span>
     </span>
-    <span
-      className="pointer-events-none absolute left-6 top-0 z-20 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150"
-      style={{
-        backgroundColor: NAVY,
-        color: 'white',
-        fontFamily: BODY_FONT,
-        fontSize: 11,
-        lineHeight: 1.4,
-        padding: '6px 10px',
-        borderRadius: 6,
-        width: 220,
-        boxShadow: '0 6px 20px rgba(30,58,95,0.25)',
-      }}
-    >
-      {text}
-    </span>
-  </span>
-);
+  );
+};
 
 // Editorial panel — soft hairline border, gentle shadow (see CARD_STYLE)
 const Card = ({ children, className = '' }) => (
@@ -2105,10 +2146,12 @@ const DONE_CHIPS = [
 const Confetti = () => {
   const bits = useRef(
     Array.from({ length: 46 }, (_, i) => ({
-      // Spread only over the left ~48% (roughly the giant-numeral column) —
-      // full-width was raining confetti straight over the "Congrats" heading
-      // text on the right, obscuring it.
-      left: Math.random() * 48, delay: Math.random() * 1.2, dur: 2.2 + Math.random() * 1.6,
+      // .onb-confetti is scoped to the same centred content box as
+      // .onb-split (see onboarding.css), so 0-100% here maps to the
+      // numeral + panel composition rather than the full (much wider on
+      // desktop) viewport — full spread now reads as "across the page",
+      // not "stuck in the empty side gutters".
+      left: Math.random() * 100, delay: Math.random() * 1.2, dur: 2.2 + Math.random() * 1.6,
       rot: Math.random() * 360, color: ['var(--wac)', '#1C1B3A', '#E0823F', '#3E6491'][i % 4],
       w: 5 + Math.random() * 6, round: Math.random() > 0.5,
     }))
