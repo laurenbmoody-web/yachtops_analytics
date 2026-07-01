@@ -309,10 +309,14 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-onode.is-draggable { cursor: grab; }
 .cm-onode.is-draggable:active { cursor: grabbing; }
 .cm-onode.is-dragging { opacity: 0.06; box-shadow: none; }
+/* The card that a drop would pair with — live feedback while dragging close by. */
+.cm-onode.is-pair-target { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 
 /* Landing-spot placeholder — same footprint as a card, at the exact column the
-   drag would land in, so it visibly marks (and reserves) that spot. */
-.cm-onode-placeholder { height: 100px; background: #F1F5F9; border: 2px dashed #CBD5E1; box-shadow: none; transition: left 0.06s ease; }
+   drag would land in, so it visibly marks (and reserves) that spot. Solid
+   terracotta with a link glyph when it's about to pair with a neighbour. */
+.cm-onode-placeholder { height: 100px; background: #F1F5F9; border: 2px dashed #CBD5E1; box-shadow: none; transition: left 0.06s ease, border-color 0.12s ease, background 0.12s ease; display: flex; align-items: center; justify-content: center; color: #C65A1A; }
+.cm-onode-placeholder.is-pairing { background: #FBEFE9; border: 2px solid #C65A1A; }
 
 /* Ghost card that follows the cursor while dragging. */
 .cm-org-ghost { position: fixed; transform: translate(-50%, -50%) rotate(-2deg); background: #fff; border: 1.5px solid #C65A1A; border-radius: 14px; padding: 10px 16px; text-align: center; box-shadow: 0 20px 45px -12px rgba(28,27,58,0.4); pointer-events: none; z-index: 1200; min-width: 150px; }

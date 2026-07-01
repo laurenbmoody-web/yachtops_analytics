@@ -1354,6 +1354,25 @@ const CrewManagement = () => {
 
   const COL_W = 204; // card width (178) + gap (26) — one grid column
 
+  // Safety net: if the browser ever fails to deliver pointerup/pointercancel to
+  // the dragged card itself (lost pointer capture, tab-switch mid-drag, etc.),
+  // this guarantees the drag state still clears on the next release anywhere —
+  // otherwise a stuck hierDragId blocks every further drag until something else
+  // happens to reset it. Applies no placement (a plain cancel), just unblocks.
+  useEffect(() => {
+    if (!hierDragId) return;
+    const clear = () => { setHierDragId(null); setHierPos(null); setHierPlan(null); };
+    const onKey = (e) => { if (e.key === 'Escape') clear(); };
+    window.addEventListener('pointerup', clear);
+    window.addEventListener('pointercancel', clear);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerup', clear);
+      window.removeEventListener('pointercancel', clear);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [hierDragId]);
+
   // ── Concept D — Free-position org chart (drag anywhere, COMMAND-editable) ──
   // Columns are GLOBAL: a card's horizontal slot is shared across every row, so
   // a person dropped near a specific card above lands in that SAME column and
@@ -1443,7 +1462,19 @@ const CrewManagement = () => {
         ? { type: 'join', colKey: nearestKey }
         : { type: 'value', value: rawValue }; // a brand-new position at exactly the cursor's spot — however close or far that is from its neighbours
 
-      return { row, col, previewOffsetPx: (rawValue - colMid) * SCALE };
+      // Live "will this pair?" feedback — same TIGHT_PX threshold the connector
+      // lines use, so what you see while dragging is exactly what you'll get.
+      let pairWithId = null;
+      if (col.type !== 'join') {
+        let nearestOther = null; let bestPairPx = Infinity;
+        targetRowOthers.forEach((m) => {
+          const d = Math.abs(effOrder(m) - rawValue) * SCALE;
+          if (d < bestPairPx) { bestPairPx = d; nearestOther = m; }
+        });
+        if (nearestOther && bestPairPx < TIGHT_PX) pairWithId = nearestOther.id;
+      }
+
+      return { row, col, pairWithId, previewOffsetPx: (rawValue - colMid) * SCALE };
     };
 
     const finalize = (plan) => {
@@ -1533,11 +1564,12 @@ const CrewManagement = () => {
               >
                 {members.map((u) => {
                   const isDragged = u.id === hierDragId;
+                  const isPairTarget = showJoinHere && hierPlan.pairWithId === u.id;
                   return (
                     <div
                       key={u.id}
                       data-crew-id={u.id}
-                      className={`cm-onode${canEdit ? ' is-draggable' : ''}${isDragged ? ' is-dragging' : ''}`}
+                      className={`cm-onode${canEdit ? ' is-draggable' : ''}${isDragged ? ' is-dragging' : ''}${isPairTarget ? ' is-pair-target' : ''}`}
                       style={cardStyle(effOrder(u))}
                       ref={(el) => { if (el) orgCardRefs.current[u.id] = el; else delete orgCardRefs.current[u.id]; }}
                       {...cardProps(u)}
@@ -1550,7 +1582,12 @@ const CrewManagement = () => {
                   );
                 })}
                 {showJoinHere && (
-                  <div className="cm-onode cm-onode-placeholder" style={{ left: `calc(50% + ${hierPlan.previewOffsetPx - 89}px)` }} />
+                  <div
+                    className={`cm-onode cm-onode-placeholder${hierPlan.pairWithId ? ' is-pairing' : ''}`}
+                    style={{ left: `calc(50% + ${hierPlan.previewOffsetPx - 89}px)` }}
+                  >
+                    {hierPlan.pairWithId && <Icon name="Link2" size={14} />}
+                  </div>
                 )}
               </div>
             );
