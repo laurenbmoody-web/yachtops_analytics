@@ -1294,7 +1294,10 @@ const CrewManagement = () => {
   // paired set of leads without attaching to just one of them. Measured from
   // real rendered positions so it always matches the current layout; recomputed
   // after layout settles, on any reorder, and on resize.
-  const TIGHT_PX = 70; // closer than this (vs. the ~204px default spacing) = a group
+  // Card is 178px wide, so anything closer than ~180px between centres
+  // literally overlaps. Normal (unpaired) spacing needs real headroom above
+  // that so a "closer/paired" zone can exist without ever overlapping.
+  const TIGHT_PX = 260; // closer than this (vs. the 340px default spacing) = a group
   useEffect(() => {
     if (rosterView !== 'hierarchy') return;
     let cancelled = false;
@@ -1352,7 +1355,7 @@ const CrewManagement = () => {
     return () => { cancelled = true; cancelAnimationFrame(raf); window.removeEventListener('resize', recompute); };
   }, [rosterView, users, hierDragId]);
 
-  const COL_W = 204; // card width (178) + gap (26) — one grid column
+  const COL_W = 340; // default (unpaired) spacing per slot — wide enough to leave real room for a "paired" zone below TIGHT_PX without cards overlapping (card is 178px wide)
 
   // Safety net: if the browser ever fails to deliver pointerup/pointercancel to
   // the dragged card itself (lost pointer capture, tab-switch mid-drag, etc.),
@@ -1410,7 +1413,7 @@ const CrewManagement = () => {
 
     const GAP_PAD = 22;
     const JOIN_SNAP_PX = 16; // drop almost exactly on a card → take/reorder that exact slot
-    const MIN_GAP_PX = 56; // otherwise, never render closer than this to a neighbour (still "tight"/paired, but not overlapping)
+    const MIN_GAP_PX = 200; // otherwise, never render closer than this to a neighbour — just past the card's own width (178px), so paired cards sit snugly side by side without overlapping
 
     // Pure hit-test: given the raw cursor position, decide the target ROW
     // (existing row, or a brand-new level above/below/between) and the target
