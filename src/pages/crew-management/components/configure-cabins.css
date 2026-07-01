@@ -1,0 +1,79 @@
+/* Configure cabins modal — navy-rail two-tone panel (Crew Movements setup).
+   Scoped under .cc since it's portaled outside the page tree by ModalShell. */
+.cc-panel { width: 880px; max-width: 100%; border-radius: 18px; overflow: hidden; box-shadow: 0 36px 84px -24px rgba(28,27,58,0.6); }
+.cc { display: flex; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+
+/* rail */
+.cc-rail { flex: 0 0 262px; background: linear-gradient(180deg, #232048 0%, #1A1934 100%); color: #fff; padding: 26px 24px; display: flex; flex-direction: column; }
+.cc-ey { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #E8956A; }
+.cc-rail h2 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 32px; line-height: 1.02; margin: 8px 0 8px; }
+.cc-vessel { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: #B7B5C8; }
+.cc-rule { height: 1px; background: rgba(255,255,255,0.1); margin: 20px 0; }
+.cc-dh { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #8E8BA6; margin-bottom: 11px; }
+.cc-cap .cc-big { display: flex; align-items: baseline; gap: 8px; }
+.cc-cap .cc-big .n { font-family: 'DM Serif Display', serif; font-size: 44px; line-height: 1; }
+.cc-cap .cc-big .u { font-size: 13px; color: #B7B5C8; }
+.cc-cap .cc-sub { font-size: 12px; color: #8E8BA6; margin-top: 2px; }
+.cc-capbar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.12); margin: 14px 0 10px; overflow: hidden; display: flex; }
+.cc-capbar i { height: 100%; display: block; }
+.cc-fit { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 6px 12px; }
+.cc-fit .d { width: 8px; height: 8px; border-radius: 999px; }
+.cc-fit.ok { background: rgba(94,142,111,0.18); color: #A9D8BA; } .cc-fit.ok .d { background: #7FCBA6; }
+.cc-fit.spare { background: rgba(255,255,255,0.08); color: #C9C7D6; } .cc-fit.spare .d { background: #B7B5C8; }
+.cc-fit.short { background: rgba(198,90,26,0.2); color: #F0B18A; } .cc-fit.short .d { background: #E8956A; }
+.cc-quick { margin-top: auto; padding-top: 24px; }
+.cc-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cc-preset { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 9px 11px; cursor: pointer; color: #fff; text-align: left; }
+.cc-preset:hover { background: rgba(232,149,106,0.16); border-color: rgba(232,149,106,0.4); }
+.cc-preset .t { font-size: 12.5px; font-weight: 600; }
+.cc-preset .s { font-size: 10px; color: #8E8BA6; }
+
+/* content */
+.cc-main { flex: 1; background: #FBFAF7; display: flex; flex-direction: column; min-width: 0; }
+.cc-body { padding: 22px 26px; flex: 1; max-height: 66vh; overflow-y: auto; }
+.cc-empty { font-size: 13px; color: #6B7280; padding: 30px 0; text-align: center; }
+.cc-group { display: flex; align-items: center; gap: 9px; margin: 20px 0 9px; }
+.cc-group:first-child { margin-top: 2px; }
+.cc-group .sq { width: 8px; height: 8px; border-radius: 2px; background: #C65A1A; }
+.cc-group .gt { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1C1B3A; }
+.cc-group .gl { flex: 1; height: 1px; background: #EAE7DE; }
+.cc-group .gc { font-size: 10px; font-weight: 600; color: #AEB4C2; }
+.cc-cab { background: #fff; border: 1px solid #ECEAE3; border-radius: 13px; padding: 14px 15px 15px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(28,27,58,0.05); }
+.cc-r1 { display: flex; align-items: center; gap: 10px; }
+.cc-drag { color: #CFCDC7; cursor: grab; font-size: 14px; }
+.cc-nm { flex: 1; min-width: 0; }
+.cc-nm input { font-family: 'DM Serif Display', serif; font-size: 18px; color: #1C1B3A; border: 1px solid transparent; border-radius: 8px; padding: 4px 8px; background: transparent; width: 100%; }
+.cc-nm input:hover { background: #FAFAF8; }
+.cc-nm input:focus { outline: 0; background: #fff; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.cc-bedcount { font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #8B8478; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+.cc-trash { border: 0; background: none; color: #AEB4C2; cursor: pointer; font-size: 13px; padding: 6px; border-radius: 8px; }
+.cc-trash:hover { color: #E4574C; background: #FDECEA; }
+.cc-meta { display: flex; gap: 18px; align-items: center; margin: 10px 0 0; padding-left: 24px; flex-wrap: wrap; }
+.cc-field { display: flex; align-items: center; gap: 8px; }
+.cc-field .fk { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.cc select { font-family: 'Inter', sans-serif; font-size: 12.5px; color: #1C1B3A; border: 1px solid #E6E8EF; border-radius: 8px; padding: 6px 10px; background: #FAFAF8; cursor: pointer; }
+.cc select:focus { outline: 0; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.cc-beds { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 12px 0 0; padding-left: 24px; }
+.cc-beds .bk { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-right: 2px; }
+.cc-bed { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 4px 5px 4px 8px; }
+.cc-bed .ic { color: #AEB4C2; font-size: 11px; }
+.cc-bed input { border: 0; background: none; padding: 2px 0; width: 62px; font-size: 12px; font-weight: 600; color: #1C1B3A; }
+.cc-bed input:focus { outline: 0; }
+.cc-bed .bx { border: 0; background: none; color: #AEB4C2; cursor: pointer; font-size: 13px; padding: 0 2px; }
+.cc-bed .bx:hover { color: #E4574C; }
+.cc-addbed { border: 1px dashed #D6D2C7; background: #fff; color: #C65A1A; border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.cc-addcab { width: 100%; border: 1px dashed #D6D2C7; background: transparent; color: #C65A1A; border-radius: 13px; padding: 13px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 6px; }
+.cc-addcab:hover { background: #FBF3EE; }
+.cc-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 15px 26px; border-top: 1px solid #EAE7DE; background: #F6F3ED; }
+.cc-hint { font-size: 11px; color: #AEB4C2; max-width: 56%; line-height: 1.5; }
+.cc-btns { display: flex; gap: 9px; }
+.cc-ghost { background: #fff; border: 1px solid #E8E6DF; border-radius: 10px; padding: 10px 17px; font-size: 12.5px; font-weight: 600; color: #1C1B3A; cursor: pointer; }
+.cc-primary { background: #C65A1A; color: #fff; border: 0; border-radius: 10px; padding: 10px 20px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.cc-primary:hover { background: #B14E16; }
+.cc-primary:disabled, .cc-ghost:disabled { opacity: 0.6; cursor: default; }
+
+@media (max-width: 720px) {
+  .cc { flex-direction: column; }
+  .cc-rail { flex-basis: auto; }
+  .cc-quick { margin-top: 20px; }
+}
