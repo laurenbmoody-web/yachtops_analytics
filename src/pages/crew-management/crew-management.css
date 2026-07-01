@@ -287,8 +287,13 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-hier-hint { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #6B7280; margin: 0 0 26px; max-width: 760px; }
 .cm-hier-hint svg { color: #C65A1A; flex: 0 0 auto; }
 
-.cm-orows { display: flex; flex-direction: column; align-items: center; gap: 64px; width: 100%; }
+.cm-orows { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 64px; width: 100%; }
 .cm-orow-band { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 26px; width: 100%; min-height: 96px; }
+
+/* Connector lines — one per card, to its nearest neighbour in the row above.
+   A plain SVG overlay sized to the chart, painted behind the cards. */
+.cm-org-lines { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.cm-org-lines line { stroke: #D7DCE5; stroke-width: 1.5px; }
 
 /* Uniform node card. */
 .cm-onode { position: relative; background: #fff; border: 1px solid #E6E8EF; border-radius: 14px; padding: 14px 20px; text-align: center; min-width: 178px; box-shadow: 0 2px 6px rgba(28,27,58,0.05); cursor: default; transition: box-shadow 0.12s ease, transform 0.12s ease, border-color 0.12s ease; touch-action: none; }
@@ -299,18 +304,16 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-onode-dot { position: absolute; top: 12px; right: 12px; width: 9px; height: 9px; border-radius: 999px; }
 .cm-onode.is-draggable { cursor: grab; }
 .cm-onode.is-draggable:active { cursor: grabbing; }
-.cm-onode.is-dragging { opacity: 0.35; }
+.cm-onode.is-dragging { opacity: 0.06; box-shadow: none; }
+
+/* Landing-spot placeholder — a real flex item (same footprint as a card), so it
+   visibly pushes the surrounding cards apart at the exact spot it will land. */
+.cm-onode-placeholder { background: #F1F5F9; border: 2px dashed #CBD5E1; box-shadow: none; min-height: 84px; }
 
 /* Ghost card that follows the cursor while dragging. */
 .cm-org-ghost { position: fixed; transform: translate(-50%, -50%) rotate(-2deg); background: #fff; border: 1.5px solid #C65A1A; border-radius: 14px; padding: 10px 16px; text-align: center; box-shadow: 0 20px 45px -12px rgba(28,27,58,0.4); pointer-events: none; z-index: 1200; min-width: 150px; }
 .cm-org-ghost .cm-onode-av { width: 34px; height: 34px; font-size: 12px; margin-bottom: 6px; }
 .cm-org-ghost .cm-onode-nm { font-size: 12.5px; }
-
-/* Landing-spot indicator — vertical caret to insert left/right, or a horizontal
-   bar spanning the gap where a new row would open. */
-.cm-org-caret { position: fixed; pointer-events: none; z-index: 1100; background: #C65A1A; border-radius: 999px; }
-.cm-org-caret-v { box-shadow: 0 0 0 3px #FAECE7; }
-.cm-org-caret-h { background: repeating-linear-gradient(90deg, #C65A1A, #C65A1A 8px, transparent 8px, transparent 16px); border-radius: 2px; }
 
 /* Loading / error blocks — centred, box-free. */
 .cm-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 56px 0; text-align: center; }
