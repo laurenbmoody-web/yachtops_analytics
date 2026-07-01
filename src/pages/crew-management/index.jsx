@@ -1699,7 +1699,8 @@ const CrewManagement = () => {
           <div className="cm-hier-hint">
             <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Drag anyone, anywhere to rebuild the team structure.</p>
             <ul className="cm-hier-hint-legend">
-              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up under one person above</strong> — report to them alone; in the gap between a linked pair — report to both</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up under one person above</strong> — report to them alone</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up in the gap between a linked pair</strong> — report to both</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-pair" /><strong>Drop right beside someone</strong> — pair under one shared line</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-row" /><strong>Drop above, below or between rows</strong> — open a new level</li>
             </ul>
