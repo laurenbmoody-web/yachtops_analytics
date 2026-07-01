@@ -112,6 +112,17 @@
   text-transform: none;
   white-space: nowrap;
 }
+/* Colour swatch for legend-style hints (e.g. the status-colour key).
+   Sits inline at the start of the label cell so the 2-column grid
+   (label | example) stays intact. */
+.help-hint-bucket-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 7px;
+  vertical-align: middle;
+}
 .help-hint-bucket-example {
   font-size: 11.5px;
   font-style: italic;

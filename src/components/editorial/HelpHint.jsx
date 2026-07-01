@@ -74,12 +74,23 @@ const HelpHint = ({ title, children, side = 'bottom', align = 'start', width = 2
 };
 
 // Bucket list — common pattern for "what goes in this field?". Each
-// bucket is a labelled prefix with an italic example value.
+// bucket is a labelled prefix with an italic example value. Pass a `dot`
+// colour on a bucket to render a colour swatch before its label — used
+// for legends (e.g. the status-colour key).
 export const HelpHintBuckets = ({ buckets }) => (
   <ul className="help-hint-buckets">
     {buckets.map((b, i) => (
       <li key={i}>
-        <span className="help-hint-bucket-label">{b.label}</span>
+        <span className="help-hint-bucket-label">
+          {b.dot && (
+            <span
+              className="help-hint-bucket-dot"
+              style={{ background: b.dot }}
+              aria-hidden="true"
+            />
+          )}
+          {b.label}
+        </span>
         <span className="help-hint-bucket-example">{b.example}</span>
       </li>
     ))}
