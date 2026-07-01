@@ -19,6 +19,8 @@
 .mv-fhead .ln { flex: 1; height: 1px; background: #ECEAE3; }
 .mv-flt { display: flex; align-items: center; gap: 14px; padding: 11px 8px; border-bottom: 1px solid #F0F1F5; cursor: pointer; border-radius: 8px; }
 .mv-flt:hover { background: #FBFAF7; }
+.mv-flt.sel { background: #FBEFE9; box-shadow: inset 0 0 0 1.5px #E8B6A6; }
+.mv-bar .edge { cursor: pointer; }
 .mv-flt .date { flex: 0 0 52px; }
 .mv-flt .date .d { font-family: 'DM Serif Display', serif; font-size: 18px; }
 .mv-flt .date .m { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #AEB4C2; margin-left: 4px; }
@@ -86,6 +88,9 @@
 .mv-card-top .cn { font-family: 'DM Serif Display', serif; font-size: 17px; }
 .mv-card-top .cd { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-top: 2px; }
 .mv-card-top .ln { font-size: 11px; font-weight: 600; color: #6B7280; }
+.mv-card-meta { display: flex; align-items: center; gap: 8px; }
+.mv-sex { display: inline-block; margin-left: 6px; font-size: 9px; font-weight: 700; letter-spacing: 0.3px; color: #6B7280; background: #EEF1F5; border-radius: 4px; padding: 1px 5px; vertical-align: middle; }
+.mv-mixed { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C0851F; background: #FBF1DC; border-radius: 999px; padding: 3px 8px; white-space: nowrap; }
 .mv-occ { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-top: 1px solid #F4F5F8; }
 .mv-occ:first-of-type { border-top: 0; }
 .mv-occ .on { font-size: 13px; font-weight: 600; }

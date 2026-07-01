@@ -25,6 +25,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const [assigns, setAssigns] = useState([]);
   const [travel, setTravel] = useState([]);
   const [deptColors, setDeptColors] = useState({});
+  const [sexMap, setSexMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [configOpen, setConfigOpen] = useState(false);
@@ -68,17 +69,20 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const loadCabins = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [cabs, asg, dep, trv] = await Promise.all([
+    const [cabs, asg, dep, trv, sx] = await Promise.all([
       fetchCabins(tenantId), fetchAssignments(tenantId),
       supabase.from('departments').select('name, color'),
       supabase.from('crew_calendar_entries').select('*').eq('tenant_id', tenantId),
+      memberIds.length ? supabase.from('crew_personal_details').select('user_id, sex').in('user_id', memberIds) : Promise.resolve({ data: [] }),
     ]);
     setCabins(cabs);
     setAssigns(asg);
     setDeptColors(Object.fromEntries((dep.data || []).map((d) => [d.name, d.color])));
     setTravel(trv.data || []);
+    setSexMap(Object.fromEntries((sx.data || []).map((r) => [r.user_id, r.sex === 'Male' ? 'M' : r.sex === 'Female' ? 'F' : ''])));
     setLoading(false);
-  }, [tenantId]);
+  }, [tenantId, memberIds]);
+  const sexOf = (uid) => sexMap[uid] || '';
   useEffect(() => { loadCabins(); }, [loadCabins, refresh]);
 
   const prevM = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
@@ -87,7 +91,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   // ── flat bed rows (grouped by cabin) ─────────────────────────────────────────
   const bedRows = useMemo(() => {
     const rows = [];
-    cabins.forEach((c) => (c.beds || []).forEach((b) => rows.push({ bedId: b.id, cabin: c.name, deck: c.deck, label: b.label })));
+    cabins.forEach((c) => (c.beds || []).forEach((b) => rows.push({ bedId: b.id, cabinId: c.id, cabin: c.name, deck: c.deck, label: b.label })));
     return rows;
   }, [cabins]);
 
@@ -109,6 +113,27 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   }, [calYear, calMonth, totalDays]);
 
   const L = (x) => ((x - 1) / totalDays) * 100;
+
+  // Cabins where M and F crew overlap on any night this month → flag for review
+  // (couples aside, you usually don't want mixed-sex sharing).
+  const cabinMixed = useMemo(() => {
+    const map = {};
+    cabins.forEach((c) => {
+      const bedIds = new Set((c.beds || []).map((b) => b.id));
+      const list = assigns.filter((a) => bedIds.has(a.bed_id) && span(a));
+      let mixed = false;
+      for (let i = 0; i < list.length && !mixed; i += 1) {
+        for (let j = i + 1; j < list.length; j += 1) {
+          const s1 = sexOf(list[i].user_id), s2 = sexOf(list[j].user_id);
+          if (s1 && s2 && s1 !== s2
+            && list[i].start_date < (list[j].end_date || '9999-12-31')
+            && list[j].start_date < (list[i].end_date || '9999-12-31')) { mixed = true; break; }
+        }
+      }
+      map[c.id] = mixed;
+    });
+    return map;
+  }, [cabins, assigns, sexMap, span]); // eslint-disable-line
 
   // ── who's aboard but not berthed (unberthed tray) ────────────────────────────
   const unberthed = useMemo(() => {
@@ -193,6 +218,22 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const endStay = async (assignId, dateStr) => { await updateAssignment(assignId, { end_date: dateStr }); setPop(null); await reload(); };
   const removeStay = async (assignId) => { await deleteAssignment(assignId); setPop(null); await reload(); };
 
+  // Flight → cabins: switch to the Cabins view, select the person, scroll to
+  // their bed. (The reverse — bar → flight — highlights the flight rows via the
+  // shared selCrew, since the board sits above the chart.)
+  const selectFromFlight = (uid) => {
+    setSelCrew(uid); setView('cabins'); setPop(null);
+    setTimeout(() => {
+      const a = assigns.find((x) => x.user_id === uid && span(x));
+      if (a) document.getElementById(`bar-${a.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  };
+  // Bar → flight: scroll the matching flight row into view (highlight is via selCrew).
+  const scrollToFlight = (uid) => {
+    const e = monthTravel.find((x) => x.user_id === uid);
+    if (e) document.getElementById(`flt-${e.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   // ── presence rendering ────────────────────────────────────────────────────────
   const renderPresence = () => (
     <div className="mv-grid">
@@ -229,7 +270,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           <div className="mv-htrack">{Array.from({ length: totalDays }, (_, i) => <span key={i} className={`mv-dtick${(i + 1) % 5 === 0 ? ' d5' : ''}`} style={{ left: `${L(i + 1)}%`, transform: i === 0 ? 'none' : 'translateX(-50%)' }}>{i + 1}</span>)}</div>
         </div>
         {bedRows.map((bd) => {
-          const head = bd.cabin !== lastCabin ? (lastCabin = bd.cabin, <div key={`g-${bd.bedId}`} className="mv-cbngroup">{bd.cabin}{bd.deck ? ` · ${bd.deck.replace(' deck', '')}` : ''}<span className="gl" /></div>) : null;
+          const head = bd.cabin !== lastCabin ? (lastCabin = bd.cabin, <div key={`g-${bd.bedId}`} className="mv-cbngroup">{bd.cabin}{bd.deck ? ` · ${bd.deck.replace(' deck', '')}` : ''}<span className="gl" />{cabinMixed[bd.cabinId] && <span className="mv-mixed" title="Male and female crew share this cabin this month">⚠ Mixed sex</span>}</div>) : null;
           const rowAssigns = assigns.filter((a) => a.bed_id === bd.bedId).map((a) => ({ a, sp: span(a) })).filter((x) => x.sp);
           // gaps
           const covered = new Array(totalDays + 2).fill(false);
@@ -254,9 +295,9 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                         draggable={canManage} onDragStart={() => canManage && setDragKind({ type: 'bar', assignId: a.id })}
                         onClick={(e) => { e.stopPropagation(); setSelCrew(a.user_id); if (canManage) openMove(a, e); }}
                         style={{ left: `${L(sp.aDay)}%`, width: `${w}%`, background: bg, opacity: dim ? 0.4 : 1 }} title={`${nm} — ${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`}>
-                        {!sp.contBefore && <span className="edge s">{sp.aDay}</span>}
+                        {!sp.contBefore && <span className="edge s" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{sp.aDay}</span>}
                         <span className="lbl">{lbl}</span>
-                        {!sp.contAfter && <span className="edge e">{sp.lvDay}</span>}
+                        {!sp.contAfter && <span className="edge e" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{sp.lvDay}</span>}
                       </div>
                     );
                   })}
@@ -334,7 +375,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
             const route = [e.from_location, e.to_location].filter(Boolean).join(' → ');
             const time = e.arrive_time || e.depart_time || '';
             return (
-              <div key={e.id} className="mv-flt" onClick={() => setSelCrew(e.user_id)}>
+              <div key={e.id} id={`flt-${e.id}`} className={`mv-flt${selCrew === e.user_id ? ' sel' : ''}`} onClick={() => selectFromFlight(e.user_id)}>
                 <div className="date"><span className="d">{day}</span><span className="m">{MONTHS[calMonth].slice(0, 3)}</span></div>
                 <span className={`dirpill ${dir}`}>{dir === 'dep' ? '↑ Departing' : dir === 'arr' ? '↓ Arriving' : '✈ Travelling'}</span>
                 <span className="who">{m?.fullName || '—'}</span>
@@ -361,7 +402,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           {unberthed.length === 0 ? <span className="mv-trayok">Everyone aboard has a bed ✓</span>
             : unberthed.map((m) => (
               <span key={m.user_id} className="mv-chip" draggable={canManage} onDragStart={() => setDragKind({ type: 'assign', userId: m.user_id })} title={canManage ? 'Drag onto a bed' : ''}>
-                <span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span>{m.fullName}
+                <span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span>{m.fullName}{sexOf(m.user_id) && <span className="mv-sex">{sexOf(m.user_id)}</span>}
               </span>
             ))}
         </div>
@@ -370,15 +411,22 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       {/* Cabin cards */}
       {view === 'cabins' && cabins.length > 0 && (
         <div className="mv-cards">
-          {cards.map((c) => (
-            <div key={c.id} className="mv-card">
-              <div className="mv-card-top"><div><div className="cn">{c.name}</div>{c.deck && <div className="cd">{c.deck}</div>}</div>{c.linen_day && <span className="ln">Linen · {c.linen_day}</span>}</div>
-              {c.beds.map((b, i) => {
-                const m = c.occ[i];
-                return <div key={b.id} className={`mv-occ${m ? '' : ' free'}`}>{m ? <><span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span><div><div className="on">{m.fullName}</div><div className="or">{b.label}</div></div></> : <span className="fr">{b.label} · free</span>}</div>;
-              })}
-            </div>
-          ))}
+          {cards.map((c) => {
+            const sexes = new Set(c.occ.filter(Boolean).map((o) => sexOf(o.user_id)).filter(Boolean));
+            const mixed = sexes.has('M') && sexes.has('F');
+            return (
+              <div key={c.id} className="mv-card">
+                <div className="mv-card-top">
+                  <div><div className="cn">{c.name}</div>{c.deck && <div className="cd">{c.deck}</div>}</div>
+                  <div className="mv-card-meta">{mixed && <span className="mv-mixed" title="This cabin has both male and female crew">⚠ Mixed sex</span>}{c.linen_day && <span className="ln">Linen · {c.linen_day}</span>}</div>
+                </div>
+                {c.beds.map((b, i) => {
+                  const m = c.occ[i];
+                  return <div key={b.id} className={`mv-occ${m ? '' : ' free'}`}>{m ? <><span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span><div><div className="on">{m.fullName}{sexOf(m.user_id) && <span className="mv-sex">{sexOf(m.user_id)}</span>}</div><div className="or">{b.label}</div></div></> : <span className="fr">{b.label} · free</span>}</div>;
+                })}
+              </div>
+            );
+          })}
         </div>
       )}
 
