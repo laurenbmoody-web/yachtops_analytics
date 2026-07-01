@@ -58,7 +58,10 @@
    on wide monitors instead of stopping short at the content column. */
 .onb-confetti { position: absolute; left: 0; right: 0; top: 60px; height: 0; pointer-events: none; z-index: 6; }
 .onb-confetti .bit { position: absolute; top: 0; opacity: 0; animation-name: onbFall; animation-timing-function: cubic-bezier(.3,.4,.5,1); animation-fill-mode: forwards; }
-@keyframes onbFall { 0% { opacity: 0; transform: translateY(-12px) rotate(0); } 10% { opacity: 1; } 92% { opacity: 1; } 100% { opacity: 0; transform: translateY(85vh) rotate(330deg); } }
+/* Bits fall from a container already offset 60px down the page, so
+   translateY needs the full viewport height (not a flat vh fraction) to
+   actually reach the bottom edge instead of stopping short of it. */
+@keyframes onbFall { 0% { opacity: 0; transform: translateY(-12px) rotate(0); } 10% { opacity: 1; } 92% { opacity: 1; } 100% { opacity: 0; transform: translateY(100vh) rotate(330deg); } }
 
 /* top bar */
 .onb-bar { position: relative; z-index: 3; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 22px 36px 0; min-height: 60px; }
@@ -122,7 +125,13 @@
 .onb-glyph.done { background: var(--wfg); margin-bottom: 18px; }
 .onb-head { margin: 0 0 6px; font: 800 40px/1.1 var(--sans); letter-spacing: -1.5px; text-transform: uppercase; color: var(--wfg); }
 .onb-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
-.onb-chip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: 1.5px solid color-mix(in srgb, var(--wfg) 25%, transparent); font: 600 14px var(--sans); color: var(--wfg); }
+/* These are real nav shortcuts (Crew/Provisioning/Team Jobs/Defects), not
+   decorative labels — styled and behaving like every other pill button in
+   the app so the affordance matches the action instead of looking like an
+   inert tag. */
+.onb-chip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: 1.5px solid color-mix(in srgb, var(--wfg) 25%, transparent); font: 600 14px var(--sans); color: var(--wfg); background: none; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.onb-chip:hover:not(:disabled) { background: color-mix(in srgb, var(--wfg) 8%, transparent); border-color: color-mix(in srgb, var(--wfg) 45%, transparent); }
+.onb-chip:disabled { cursor: not-allowed; opacity: .55; }
 
 /* form panel — white card holding the real fields (heading, inputs, CTAs).
    Always opaque white regardless of the step's theme colour — the fields
