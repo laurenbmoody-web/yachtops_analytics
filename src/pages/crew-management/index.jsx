@@ -1326,93 +1326,129 @@ const CrewManagement = () => {
     return () => { cancelled = true; cancelAnimationFrame(raf); window.removeEventListener('resize', recompute); };
   }, [rosterView, users, hierDragId]);
 
+  const COL_W = 204; // card width (178) + gap (26) — one grid column
+
   // ── Concept D — Free-position org chart (drag anywhere, COMMAND-editable) ──
+  // Columns are GLOBAL: a card's horizontal slot is shared across every row, so
+  // a person dropped near a specific card above lands in that SAME column and
+  // renders directly under them — not centred independently per row.
   const renderHierarchy = () => {
     const canEdit = hasEditPermission;
     const crew = (users || []).filter((u) => u?.status !== 'invited' && u?.fullName);
     const crewById = new Map(crew.map((u) => [u.id, u]));
     const effRow = (u) => (u.orgRow != null ? u.orgRow : defaultOrgRow(u));
-    const effOrder = (u) => (u.orgOrder != null ? u.orgOrder : roleRank(u.roleTitle));
-    const byOrder = (a, b) => effOrder(a) - effOrder(b) || String(a.fullName).localeCompare(String(b.fullName));
+
+    // Default column: a stable, globally-unique rank (role/row grouped, then
+    // name) so two people never collide on the same column before anyone's
+    // dragged anything.
+    const defaultOrdered = [...crew].sort((a, b) =>
+      effRow(a) - effRow(b) || roleRank(a.roleTitle) - roleRank(b.roleTitle) || String(a.fullName).localeCompare(String(b.fullName)));
+    const defaultOrderMap = new Map(defaultOrdered.map((u, i) => [u.id, i * 10]));
+    const effOrder = (u) => (u.orgOrder != null ? u.orgOrder : defaultOrderMap.get(u.id));
 
     const rowsMap = new Map();
     for (const u of crew) { const k = effRow(u); if (!rowsMap.has(k)) rowsMap.set(k, []); rowsMap.get(k).push(u); }
     const sortedRowKeys = [...rowsMap.keys()].sort((a, b) => a - b);
-    rowsMap.forEach((arr) => arr.sort(byOrder));
+
+    // Global column key space — every distinct column value in use, anywhere.
+    const allCols = [...new Set(crew.map(effOrder))].sort((a, b) => a - b);
+    const colMid = (allCols.length - 1) / 2 || 0;
+    const colIndexOf = (key) => allCols.indexOf(key);
+    const colOffsetPx = (key) => (colIndexOf(key) - colMid) * COL_W;
 
     const GAP_PAD = 22;
+    const JOIN_THRESHOLD = 0.32; // within ~1/3 of a column's width of an existing card → join it
 
-    // Find the horizontal insertion index within a row's DOM element, excluding
-    // the dragged card, purely from the cursor's x position vs card centres.
-    const colIndexAt = (rowEl, clientX, excludeId) => {
-      const items = [...rowEl.querySelectorAll('[data-crew-id]')]
-        .map((el) => ({ id: el.getAttribute('data-crew-id'), rect: el.getBoundingClientRect() }))
-        .filter((it) => it.id !== excludeId);
-      for (let i = 0; i < items.length; i++) {
-        if (clientX < items[i].rect.left + items[i].rect.width / 2) return i;
-      }
-      return items.length;
-    };
-
-    // Pure hit-test: given the raw cursor position, decide whether it's over an
-    // existing row (join it, inserting left/right) or in the space between/above/
-    // below rows (a brand-new level is created there). No target element needed —
-    // the result drives an inline placeholder box (rendered as a real flex item,
-    // so it visibly pushes the surrounding cards apart) rather than a fixed line.
+    // Pure hit-test: given the raw cursor position, decide the target ROW
+    // (existing row, or a brand-new level above/below/between) and the target
+    // COLUMN (join an existing global column, or open a new one alongside it).
+    // No hovering over a specific element required — this is arithmetic once
+    // the target row's rect is known.
     const computeHover = (clientX, clientY) => {
-      const rects = sortedRowKeys
+      const rowRects = sortedRowKeys
         .map((k) => ({ key: k, el: rowElRefs.current[k] }))
         .filter((r) => r.el)
         .map((r) => ({ ...r, rect: r.el.getBoundingClientRect() }));
-      if (!rects.length) return null;
-      for (const r of rects) {
-        if (clientY >= r.rect.top - GAP_PAD && clientY <= r.rect.bottom + GAP_PAD) {
-          return { type: 'join', rowKey: r.key, index: colIndexAt(r.el, clientX, hierDragId) };
+      if (!rowRects.length) return null;
+
+      let row = null;
+      for (const r of rowRects) {
+        if (clientY >= r.rect.top - GAP_PAD && clientY <= r.rect.bottom + GAP_PAD) { row = { type: 'join', rowKey: r.key, rect: r.rect }; break; }
+      }
+      if (!row) {
+        const first = rowRects[0]; const last = rowRects[rowRects.length - 1];
+        if (clientY < first.rect.top - GAP_PAD) row = { type: 'newrow', prevKey: null, nextKey: first.key, rect: first.rect };
+        else if (clientY > last.rect.bottom + GAP_PAD) row = { type: 'newrow', prevKey: last.key, nextKey: null, rect: last.rect };
+        else {
+          for (let i = 0; i < rowRects.length - 1; i++) {
+            const a = rowRects[i]; const b = rowRects[i + 1];
+            if (clientY > a.rect.bottom + GAP_PAD && clientY < b.rect.top - GAP_PAD) {
+              const left = Math.min(a.rect.left, b.rect.left); const right = Math.max(a.rect.right, b.rect.right);
+              row = { type: 'newrow', prevKey: a.key, nextKey: b.key, rect: { left, width: right - left } };
+              break;
+            }
+          }
+        }
+        if (!row) {
+          let nearest = rowRects[0]; let best = Infinity;
+          rowRects.forEach((r) => { const d = Math.min(Math.abs(clientY - r.rect.top), Math.abs(clientY - r.rect.bottom)); if (d < best) { best = d; nearest = r; } });
+          row = { type: 'join', rowKey: nearest.key, rect: nearest.rect };
         }
       }
-      const first = rects[0]; const last = rects[rects.length - 1];
-      if (clientY < first.rect.top - GAP_PAD) return { type: 'newrow', prevKey: null, nextKey: first.key };
-      if (clientY > last.rect.bottom + GAP_PAD) return { type: 'newrow', prevKey: last.key, nextKey: null };
-      for (let i = 0; i < rects.length - 1; i++) {
-        const a = rects[i]; const b = rects[i + 1];
-        if (clientY > a.rect.bottom + GAP_PAD && clientY < b.rect.top - GAP_PAD) {
-          return { type: 'newrow', prevKey: a.key, nextKey: b.key };
-        }
+
+      const rowCenterX = row.rect.left + row.rect.width / 2;
+      const rawIndex = (clientX - rowCenterX) / COL_W + colMid;
+      const nearestIdx = Math.round(rawIndex);
+      const nearestKey = allCols[nearestIdx];
+      const distToNearest = Math.abs(rawIndex - nearestIdx);
+      const targetRowOthers = row.type === 'join' ? (rowsMap.get(row.rowKey) || []).filter((m) => m.id !== hierDragId) : [];
+      const occupiedByOther = nearestKey !== undefined && targetRowOthers.some((m) => effOrder(m) === nearestKey);
+
+      let col;
+      if (nearestKey !== undefined && distToNearest < JOIN_THRESHOLD && !occupiedByOther) {
+        col = { type: 'join', colKey: nearestKey };
+      } else {
+        const flooredIdx = Math.floor(rawIndex);
+        col = { type: 'newcol', prevKey: allCols[flooredIdx] ?? null, nextKey: allCols[flooredIdx + 1] ?? null };
       }
-      // Ambiguous (rows packed too tight) — fall back to the nearest row.
-      let nearest = rects[0]; let best = Infinity;
-      rects.forEach((r) => { const d = Math.min(Math.abs(clientY - r.rect.top), Math.abs(clientY - r.rect.bottom)); if (d < best) { best = d; nearest = r; } });
-      return { type: 'join', rowKey: nearest.key, index: colIndexAt(nearest.el, clientX, hierDragId) };
+      return { row, col, previewOffsetPx: (rawIndex - colMid) * COL_W };
     };
 
     const finalize = (plan) => {
       if (!plan || !hierDragId) return;
       const patch = new Map();
-      const dragged = crewById.get(hierDragId);
-      const oldRow = effRow(dragged);
 
-      if (plan.type === 'join') {
-        const target = (rowsMap.get(plan.rowKey) || []).filter((m) => m.id !== hierDragId);
-        const idx = Math.max(0, Math.min(plan.index, target.length));
-        const ordered = [...target.slice(0, idx), dragged, ...target.slice(idx)];
-        ordered.forEach((m, i) => patch.set(m.id, { org_row: plan.rowKey, org_order: i }));
-        if (oldRow !== plan.rowKey) {
-          const remaining = (rowsMap.get(oldRow) || []).filter((m) => m.id !== hierDragId);
-          remaining.forEach((m, i) => { if (!patch.has(m.id)) patch.set(m.id, { org_row: oldRow, org_order: i }); });
-        }
-      } else {
-        let newRow;
-        if (plan.prevKey == null) newRow = plan.nextKey - 1;
-        else if (plan.nextKey == null) newRow = plan.prevKey + 1;
-        else if (plan.nextKey - plan.prevKey > 1) newRow = plan.prevKey + 1;
+      let finalRow;
+      if (plan.row.type === 'join') finalRow = plan.row.rowKey;
+      else {
+        const { prevKey, nextKey } = plan.row;
+        if (prevKey == null) finalRow = nextKey - 1;
+        else if (nextKey == null) finalRow = prevKey + 1;
+        else if (nextKey - prevKey > 1) finalRow = prevKey + 1;
         else {
-          newRow = plan.nextKey;
-          crew.forEach((u) => { if (u.id !== hierDragId && effRow(u) >= plan.nextKey) patch.set(u.id, { org_row: effRow(u) + 1, org_order: effOrder(u) }); });
+          finalRow = nextKey;
+          crew.forEach((u) => { if (u.id !== hierDragId && effRow(u) >= nextKey) patch.set(u.id, { org_row: effRow(u) + 1, org_order: effOrder(u) }); });
         }
-        patch.set(hierDragId, { org_row: newRow, org_order: 0 });
-        const remaining = (rowsMap.get(oldRow) || []).filter((m) => m.id !== hierDragId);
-        remaining.forEach((m, i) => { if (!patch.has(m.id)) patch.set(m.id, { org_row: oldRow, org_order: i }); });
       }
+
+      let finalCol;
+      if (plan.col.type === 'join') finalCol = plan.col.colKey;
+      else {
+        const { prevKey, nextKey } = plan.col;
+        if (prevKey == null) finalCol = nextKey - 1;
+        else if (nextKey == null) finalCol = prevKey + 1;
+        else if (nextKey - prevKey > 1) finalCol = prevKey + 1;
+        else {
+          finalCol = nextKey;
+          crew.forEach((u) => {
+            if (u.id === hierDragId || effOrder(u) < nextKey) return;
+            const existing = patch.get(u.id) || { org_row: effRow(u), org_order: effOrder(u) };
+            patch.set(u.id, { ...existing, org_order: effOrder(u) + 1 });
+          });
+        }
+      }
+
+      patch.set(hierDragId, { org_row: finalRow, org_order: finalCol });
       applyHierarchyPatch(patch);
     };
 
@@ -1438,23 +1474,23 @@ const CrewManagement = () => {
     } : {});
 
     const dragged = hierDragId ? crewById.get(hierDragId) : null;
-    const placeholder = <div className="cm-onode cm-onode-placeholder" />;
+    const cardStyle = (key) => ({ left: `calc(50% + ${colOffsetPx(key) - 89}px)` }); // 89 = half card width (178/2)
 
     // Row sequence including a placeholder-only row spliced in wherever a new
     // level would open (before the row whose key matches `nextKey`, or right at
     // the end when nextKey is null — i.e. below the last row).
     const rowSequence = [];
     for (const rowKey of sortedRowKeys) {
-      if (hierPlan?.type === 'newrow' && hierPlan.nextKey === rowKey) rowSequence.push({ key: `ph-${rowKey}`, isPlaceholderRow: true });
+      if (hierPlan?.row.type === 'newrow' && hierPlan.row.nextKey === rowKey) rowSequence.push({ key: `ph-${rowKey}`, isPlaceholderRow: true });
       rowSequence.push({ key: rowKey });
     }
-    if (hierPlan?.type === 'newrow' && hierPlan.nextKey == null && sortedRowKeys.length) rowSequence.push({ key: 'ph-end', isPlaceholderRow: true });
+    if (hierPlan?.row.type === 'newrow' && hierPlan.row.nextKey == null && sortedRowKeys.length) rowSequence.push({ key: 'ph-end', isPlaceholderRow: true });
 
     return (
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
         {canEdit && (
           <p className="cm-hier-hint">
-            <Icon name="Move" size={12} /> Drag anyone, anywhere — release to drop them in that spot. A new row opens above, below, or between existing ones; left/right places them within a row.
+            <Icon name="Move" size={12} /> Drag anyone, anywhere — release to drop them in that spot, directly under whoever they should sit beneath. A new row opens above, below, or between existing ones.
           </p>
         )}
         <svg className="cm-org-lines">
@@ -1462,39 +1498,43 @@ const CrewManagement = () => {
         </svg>
         <div className="cm-orows">
           {rowSequence.map((row) => {
-            if (row.isPlaceholderRow) return <div key={row.key} className="cm-orow-band">{placeholder}</div>;
+            if (row.isPlaceholderRow) {
+              return (
+                <div key={row.key} className="cm-orow-band">
+                  <div className="cm-onode cm-onode-placeholder" style={{ left: `calc(50% + ${(hierPlan?.previewOffsetPx || 0) - 89}px)` }} />
+                </div>
+              );
+            }
             const rowKey = row.key;
             const members = rowsMap.get(rowKey) || [];
-            const showJoinHere = hierPlan?.type === 'join' && hierPlan.rowKey === rowKey;
-            let othersSeen = 0;
-            const cards = [];
-            members.forEach((u) => {
-              const isDragged = u.id === hierDragId;
-              if (showJoinHere && !isDragged && othersSeen === hierPlan.index) cards.push(<React.Fragment key="ph">{placeholder}</React.Fragment>);
-              cards.push(
-                <div
-                  key={u.id}
-                  data-crew-id={u.id}
-                  className={`cm-onode${canEdit ? ' is-draggable' : ''}${isDragged ? ' is-dragging' : ''}`}
-                  ref={(el) => { if (el) orgCardRefs.current[u.id] = el; else delete orgCardRefs.current[u.id]; }}
-                  {...cardProps(u)}
-                >
-                  <span className="cm-onode-dot" style={{ background: statusColor(u.status) }} />
-                  <Avatar user={u} className="cm-onode-av" />
-                  <div className="cm-onode-nm">{u.fullName}</div>
-                  <div className="cm-onode-rl">{u.roleTitle}</div>
-                </div>,
-              );
-              if (!isDragged) othersSeen += 1;
-            });
-            if (showJoinHere && hierPlan.index >= othersSeen) cards.push(<React.Fragment key="ph-end">{placeholder}</React.Fragment>);
+            const showJoinHere = hierPlan?.row.type === 'join' && hierPlan.row.rowKey === rowKey;
             return (
               <div
                 key={rowKey}
                 className="cm-orow-band"
                 ref={(el) => { if (el) rowElRefs.current[rowKey] = el; else delete rowElRefs.current[rowKey]; }}
               >
-                {cards}
+                {members.map((u) => {
+                  const isDragged = u.id === hierDragId;
+                  return (
+                    <div
+                      key={u.id}
+                      data-crew-id={u.id}
+                      className={`cm-onode${canEdit ? ' is-draggable' : ''}${isDragged ? ' is-dragging' : ''}`}
+                      style={cardStyle(effOrder(u))}
+                      ref={(el) => { if (el) orgCardRefs.current[u.id] = el; else delete orgCardRefs.current[u.id]; }}
+                      {...cardProps(u)}
+                    >
+                      <span className="cm-onode-dot" style={{ background: statusColor(u.status) }} />
+                      <Avatar user={u} className="cm-onode-av" />
+                      <div className="cm-onode-nm">{u.fullName}</div>
+                      <div className="cm-onode-rl">{u.roleTitle}</div>
+                    </div>
+                  );
+                })}
+                {showJoinHere && (
+                  <div className="cm-onode cm-onode-placeholder" style={{ left: `calc(50% + ${hierPlan.previewOffsetPx - 89}px)` }} />
+                )}
               </div>
             );
           })}
