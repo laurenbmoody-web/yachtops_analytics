@@ -181,13 +181,22 @@ const COLUMN_HELP_HINTS = {
   },
   status: {
     title: 'Status colours',
-    width: 280,
+    width: 300,
     align: 'end',
+    // Swatch colours are read straight from the status config so the
+    // legend can never drift from the dots actually rendered on the rows.
     buckets: [
-      { label: 'Pending',     example: 'supplier hasn\'t acted yet' },
-      { label: 'Confirmed',   example: 'supplier agreed at the quoted price' },
-      { label: 'Substituted', example: 'supplier offered an alternative' },
-      { label: 'Unavailable', example: 'supplier can\'t fulfil this line' },
+      { dot: getItemStatusConfig('draft').badge.dot,        label: 'Draft',        example: 'on the board, not ordered yet' },
+      { dot: getItemStatusConfig('ordered').badge.dot,      label: 'Ordered',      example: 'sent to the supplier, awaiting reply' },
+      { dot: getItemStatusConfig('confirmed').badge.dot,    label: 'Confirmed',    example: 'supplier agreed at the quoted price' },
+      { dot: getItemStatusConfig('substituted').badge.dot,  label: 'Substituted',  example: 'supplier offered an alternative' },
+      { dot: getItemStatusConfig('unavailable').badge.dot,  label: 'Unavailable',  example: 'won’t be supplied on this line' },
+      { dot: getItemStatusConfig('received').badge.dot,     label: 'Received',     example: 'arrived aboard' },
+      { dot: getItemStatusConfig('partial').badge.dot,      label: 'Partial',      example: 'part-delivered' },
+      { dot: getItemStatusConfig('not_received').badge.dot, label: 'Not received', example: 'ordered but didn’t arrive' },
+      { dot: getItemStatusConfig('returned').badge.dot,     label: 'Returned',     example: 'sent back to the supplier' },
+      { dot: getItemStatusConfig('invoiced').badge.dot,     label: 'Invoiced',     example: 'invoice received' },
+      { dot: getItemStatusConfig('paid').badge.dot,         label: 'Paid',         example: 'payment settled' },
     ],
   },
 };
