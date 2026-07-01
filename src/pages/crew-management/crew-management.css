@@ -284,6 +284,10 @@ a.cm-cal-name:hover { color: #C65A1A; }
    dropping anywhere between/above/below existing rows opens a new one there;
    dropping within a row inserts left/right at the cursor's position. */
 .cm-org { position: relative; width: 100%; margin-top: 28px; padding-bottom: 30px; overflow-x: auto; }
+/* Reserve headroom above/below the rows only while actively dragging, so the
+   new-row preview (which can float above the first row or below the last)
+   always has room to render without needing to grow the real row layout. */
+.cm-org.is-dragging-any { padding-top: 120px; padding-bottom: 120px; }
 .cm-hier-hint { margin: 0 0 24px; }
 .cm-hier-hint-lead { display: flex; align-items: center; gap: 6px; font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 16px; color: #1C1B3A; margin: 0 0 10px; }
 .cm-hier-hint-lead svg { color: #C65A1A; flex: 0 0 auto; }
@@ -330,6 +334,11 @@ a.cm-cal-name:hover { color: #C65A1A; }
    terracotta with a link glyph when it's about to pair with a neighbour. */
 .cm-onode-placeholder { height: 100px; background: #F1F5F9; border: 2px dashed #CBD5E1; box-shadow: none; transition: left 0.06s ease, border-color 0.12s ease, background 0.12s ease; display: flex; align-items: center; justify-content: center; color: #C65A1A; }
 .cm-onode-placeholder.is-pairing { background: #FBEFE9; border: 2px solid #C65A1A; }
+
+/* A new-row preview floats OVER the existing rows (an overlay, not a real
+   flow row) so it never reserves space or pushes other rows around while
+   dragging — that reflow was what made the whole page appear to shift. */
+.cm-onode-placeholder-float { z-index: 2; transition: left 0.06s ease, top 0.06s ease, border-color 0.12s ease, background 0.12s ease; }
 
 /* Ghost card that follows the cursor while dragging. */
 .cm-org-ghost { position: fixed; transform: translate(-50%, -50%) rotate(-2deg); background: #fff; border: 1.5px solid #C65A1A; border-radius: 14px; padding: 10px 16px; text-align: center; box-shadow: 0 20px 45px -12px rgba(28,27,58,0.4); pointer-events: none; z-index: 1200; min-width: 150px; }
