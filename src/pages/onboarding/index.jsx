@@ -547,21 +547,13 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
   return (
     <div className="cg-step-enter">
       {/* Hero */}
-      <div className="flex items-start gap-4 mb-2">
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: NAVY }}
-        >
-          <Ship size={20} color="white" />
-        </div>
-        <div>
-          <h1 style={{ fontFamily: HEADING_FONT, fontSize: 28, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
-            {heroTitle}
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-            Three quick sections. Everything here is editable later in Vessel Settings.
-          </p>
-        </div>
+      <div className="mb-2">
+        <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+          {heroTitle}
+        </h1>
+        <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+          Three quick sections. Everything here is editable later in Vessel Settings.
+        </p>
       </div>
 
       {/* ── Section 1: Identity ── */}
@@ -810,18 +802,13 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
   return (
     <div className="cg-step-enter">
       {/* Hero */}
-      <div className="flex items-start gap-4 mb-2">
-        <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: NAVY }}>
-          <Building2 size={20} color="white" />
-        </div>
-        <div>
-          <h1 style={{ fontFamily: HEADING_FONT, fontSize: 28, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
-            {tenant?.name ? `Which departments run on ${tenant.name}?` : 'Which departments are onboard?'}
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-            Pick the ones your vessel runs — Cargo tailors visibility and boards to match.
-          </p>
-        </div>
+      <div className="mb-2">
+        <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 500, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+          {tenant?.name ? `Which departments run on ${tenant.name}?` : 'Which departments are onboard?'}
+        </h1>
+        <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+          Pick the ones your vessel runs — Cargo tailors visibility and boards to match.
+        </p>
       </div>
 
       <Card className="mt-8">
@@ -1265,30 +1252,22 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
 
   return (
     <div className="cg-step-enter">
-      {/* Hero tile */}
-      <div className="flex items-start gap-5 mb-8">
-        <div
-          className="flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: NAVY }}
+      {/* Hero */}
+      <div className="mb-6">
+        <h2
+          style={{
+            fontFamily: HEADING_FONT,
+            fontSize: 24,
+            fontWeight: 500,
+            color: CHARCOAL,
+            letterSpacing: '-0.01em',
+          }}
         >
-          <Users size={26} color="white" />
-        </div>
-        <div>
-          <h2
-            style={{
-              fontFamily: HEADING_FONT,
-              fontSize: 24,
-              fontWeight: 500,
-              color: CHARCOAL,
-              letterSpacing: '-0.01em',
-            }}
-          >
-            {tenant?.name ? `Bring your crew aboard ${tenant.name}` : 'Invite your crew'}
-          </h2>
-          <p className="text-sm mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-            Add teammates by email — assign a department and role. Most captains do this after exploring the dashboard.
-          </p>
-        </div>
+          {tenant?.name ? `Bring your crew aboard ${tenant.name}` : 'Invite your crew'}
+        </h2>
+        <p className="text-sm mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+          Add teammates by email — assign a department and role. Most captains do this after exploring the dashboard.
+        </p>
       </div>
 
       {/* Paste-from-spreadsheet block — above the rows */}
@@ -1463,41 +1442,69 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
   );
 };
 
-// ─── Page shell ────────────────────────────────────────────────────
+// ─── "Wrapped" tour shell ──────────────────────────────────────────
+// Matches the CargoOnboarding.jsx reference design: per-screen colour
+// theme, giant numeral, scrolling marquee, circular glyph, hard-shadow
+// CTAs, confetti finale. The real data-collection steps above render
+// unchanged inside .onb-panel (a white card) so their fields stay
+// legible regardless of the step's background colour.
 
-const StepPill = ({ label, index, current, done }) => (
-  <div className="flex items-center gap-2">
-    <div
-      className="w-7 h-7 rounded-full flex items-center justify-center text-xs"
-      style={{
-        backgroundColor: done ? ACCENT : current ? NAVY : '#F0F1F5',
-        color: done || current ? 'white' : MUTED_SOFT,
-        fontFamily: PILL_FONT,
-        fontWeight: 700,
-      }}
-    >
-      {done ? <Check size={13} strokeWidth={3} /> : index}
+const SCREEN_ORDER = ['welcome', 'vessel', 'departments', 'crew', 'done'];
+
+const THEMES = {
+  welcome:     { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
+  vessel:      { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
+  departments: { bg: '#1E3A5F', fg: '#F4F1EC', ac: '#E8915A' },
+  crew:        { bg: '#EFC8A6', fg: '#1C1B3A', ac: '#C65A1A' },
+  done:        { bg: '#EFC8A6', fg: '#1C1B3A', ac: '#C65A1A' },
+};
+
+const STEP_META = {
+  vessel:      { numeral: '01', label: 'Vessel',      icon: Ship },
+  departments: { numeral: '02', label: 'Departments', icon: Building2 },
+  crew:        { numeral: '03', label: 'Crew',         icon: Users },
+};
+
+const DONE_CHIPS = [
+  { icon: Users,         title: 'Crew' },
+  { icon: ClipboardList, title: 'Provisioning' },
+  { icon: Briefcase,     title: 'Team Jobs' },
+  { icon: Anchor,        title: 'Defects' },
+];
+
+// Confetti burst — done screen only. Random spread is fine here (this
+// runs client-side at render time, not inside a deterministic workflow).
+const Confetti = () => {
+  const bits = useRef(
+    Array.from({ length: 22 }, (_, i) => ({
+      left: Math.random() * 100, delay: Math.random() * 0.45, dur: 1.5 + Math.random() * 1.1,
+      rot: Math.random() * 360, color: ['var(--wac)', '#1E3A5F', '#E0823F', '#3E6491'][i % 4],
+      w: 5 + Math.random() * 5, round: Math.random() > 0.5,
+    }))
+  ).current;
+  return (
+    <div className="onb-confetti" aria-hidden="true">
+      {bits.map((b, i) => (
+        <span
+          key={i}
+          className="bit"
+          style={{
+            left: b.left + '%', animationDelay: b.delay + 's', animationDuration: b.dur + 's',
+            background: b.color, width: b.w, height: b.w, borderRadius: b.round ? '50%' : 2,
+            transform: `rotate(${b.rot}deg)`,
+          }}
+        />
+      ))}
     </div>
-    <span
-      className="uppercase text-xs"
-      style={{
-        fontFamily: PILL_FONT,
-        fontWeight: 700,
-        letterSpacing: '0.10em',
-        color: current ? NAVY : done ? ACCENT : '#AEB4C2',
-      }}
-    >
-      {label}
-    </span>
-  </div>
-);
+  );
+};
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
   const { user, activeTenantId, bootstrapComplete, retryBootstrap } = useAuth();
 
   const [tenant, setTenant] = useState(null);
-  const [step, setStep] = useState('vessel'); // vessel | departments | crew
+  const [screen, setScreen] = useState('welcome'); // welcome | vessel | departments | crew | done
   const [deptChoice, setDeptChoice] = useState({ baseSelected: [], customDepts: [] });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -1677,52 +1684,152 @@ const OnboardingPage = () => {
     );
   }
 
+  const theme = THEMES[screen] || THEMES.welcome;
+  const isStepScreen = screen === 'vessel' || screen === 'departments' || screen === 'crew';
+  const meta = STEP_META[screen];
+
+  const goBack = () => {
+    if (screen === 'vessel') setScreen('welcome');
+    else if (screen === 'departments') setScreen('vessel');
+    else if (screen === 'crew') setScreen('departments');
+  };
+
+  const marqueeText = (
+    screen === 'welcome' ? 'Welcome aboard'
+    : screen === 'done'  ? 'Bon voyage'
+    : meta?.label || ''
+  ).toUpperCase();
+
   return (
-    <div className="min-h-screen py-10 px-4" style={{ backgroundColor: '#FAFAF8' }}>
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-center mb-6">
-          <img src={logoSrc} alt="Cargo" className="h-10" />
-        </div>
+    <div className="onb-shell" style={{ '--wbg': theme.bg, '--wfg': theme.fg, '--wac': theme.ac }}>
+      {screen === 'welcome' && (
+        <>
+          <span className="onb-blob one" />
+          <span className="onb-blob two" />
+          <span className="onb-blob three" />
+        </>
+      )}
+      {screen === 'done' && <Confetti />}
 
-        <div className="flex items-center justify-center gap-5 mb-8">
-          <StepPill label="Vessel" index={1} current={step === 'vessel'} done={step !== 'vessel'} />
-          <div className="w-10 h-px" style={{ backgroundColor: '#E8E6DF' }} />
-          <StepPill label="Departments" index={2} current={step === 'departments'} done={step === 'crew'} />
-          <div className="w-10 h-px" style={{ backgroundColor: '#E8E6DF' }} />
-          <StepPill label="Crew" index={3} current={step === 'crew'} done={false} />
+      <header className="onb-bar">
+        <div className="onb-bar-left">
+          {isStepScreen && (
+            <button className="onb-back" onClick={goBack} aria-label="Back">
+              <ChevronLeft size={18} />
+            </button>
+          )}
+          <img
+            className={`onb-logo${screen === 'departments' ? ' invert' : ''}`}
+            src={logoSrc}
+            alt="Cargo"
+          />
         </div>
+        {isStepScreen && (
+          <div className="onb-bar-right">
+            <span className="onb-ticks">
+              {['vessel', 'departments', 'crew'].map((k) => (
+                <i
+                  key={k}
+                  className={
+                    SCREEN_ORDER.indexOf(k) < SCREEN_ORDER.indexOf(screen) ? 'on'
+                    : k === screen ? 'cur' : ''
+                  }
+                />
+              ))}
+            </span>
+            <span className="onb-count">{meta.numeral} <em>/ 03</em></span>
+          </div>
+        )}
+      </header>
 
-        {step === 'vessel' && (
-          <VesselSettingsStep
-            tenant={tenant}
-            onSaved={(updated) => {
-              setTenant((t) => ({ ...t, ...updated }));
-              setStep('departments');
-            }}
-          />
-        )}
-        {step === 'departments' && (
-          <DepartmentsStep
-            tenant={tenant}
-            userId={user?.id}
-            onBack={() => setStep('vessel')}
-            onComplete={(choice) => {
-              setDeptChoice(choice);
-              setStep('crew');
-            }}
-          />
-        )}
-        {step === 'crew' && (
-          <InviteCrewStep
-            tenant={tenant}
-            departments={deptChoice.baseSelected}
-            customDepts={deptChoice.customDepts}
-            deptObjs={deptChoice.departments}
-            onBack={() => setStep('departments')}
-            onFinish={() => navigate('/dashboard', { replace: true })}
-          />
-        )}
+      <div className="onb-marquee" key={'m' + screen}>
+        <span>{(marqueeText + ' · ').repeat(14)}</span>
       </div>
+
+      <main className="onb-main" key={screen}>
+        {screen === 'welcome' && (
+          <div className="onb-welcome">
+            <h1 className="onb-head-serif">WELCOME ABOARD, <em className="onb-bel">Belongers</em></h1>
+            <p className="onb-sub center">Let&rsquo;s get your vessel ready to sail. Three quick steps to set the course.</p>
+            <div className="onb-ctarow center">
+              <button className="onb-cta welcome" onClick={() => setScreen('vessel')}>Get started</button>
+            </div>
+            <span className="onb-foot">Takes about 3 minutes</span>
+          </div>
+        )}
+
+        {isStepScreen && (
+          <div className="onb-split">
+            <div className="onb-left">
+              <div className="onb-giant">{meta.numeral}</div>
+            </div>
+            <div className="onb-right">
+              <span className="onb-glyph">
+                <meta.icon size={36} color="var(--wac)" strokeWidth={1.6} />
+              </span>
+              <div className="onb-panel">
+                {screen === 'vessel' && (
+                  <VesselSettingsStep
+                    tenant={tenant}
+                    onSaved={(updated) => {
+                      setTenant((t) => ({ ...t, ...updated }));
+                      setScreen('departments');
+                    }}
+                  />
+                )}
+                {screen === 'departments' && (
+                  <DepartmentsStep
+                    tenant={tenant}
+                    userId={user?.id}
+                    onBack={goBack}
+                    onComplete={(choice) => {
+                      setDeptChoice(choice);
+                      setScreen('crew');
+                    }}
+                  />
+                )}
+                {screen === 'crew' && (
+                  <InviteCrewStep
+                    tenant={tenant}
+                    departments={deptChoice.baseSelected}
+                    customDepts={deptChoice.customDepts}
+                    deptObjs={deptChoice.departments}
+                    onBack={goBack}
+                    onFinish={() => setScreen('done')}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {screen === 'done' && (
+          <div className="onb-split">
+            <div className="onb-left">
+              <div className="onb-giant word">BRAVO</div>
+            </div>
+            <div className="onb-right">
+              <span className="onb-glyph done">
+                <Check size={36} color="var(--wfg)" strokeWidth={2.2} />
+              </span>
+              <h1 className="onb-head">You&rsquo;re all set</h1>
+              <p className="onb-sub">Your vessel is configured and ready for the crew.</p>
+              <div className="onb-chips">
+                {DONE_CHIPS.map(({ icon: ChipIcon, title }) => (
+                  <span className="onb-chip" key={title}>
+                    <ChipIcon size={15} color="var(--wac)" strokeWidth={1.9} /> {title}
+                  </span>
+                ))}
+              </div>
+              <div className="onb-ctarow">
+                <button className="onb-cta" onClick={() => navigate('/dashboard', { replace: true })}>
+                  Enter Cargo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 };
