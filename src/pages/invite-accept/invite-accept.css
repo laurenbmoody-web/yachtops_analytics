@@ -4,10 +4,16 @@
    editorial heading accent, summary rows, hairline form fields, and the
    loading/error solo-card layout that doesn't use the split. */
 
-/* editorial heading accent — navy caps sentence, one italic terracotta
-   word left in its natural case (carried over from the pre-Wrapped
-   invite wizard's heading style). */
-.onb-head em { font-style: italic; color: #C65A1A; text-transform: none; }
+/* editorial heading — onboarding.css's .onb-head is bold Inter
+   (font: 800 .. var(--sans)), matching the vessel-onboarding Wrapped
+   flow. This page instead uses Cargo's canonical editorial serif — same
+   family/weight as .editorial-greeting in src/styles/editorial.css,
+   used on Crew Management, Crew Profile, Provisioning, etc: DM Serif
+   Display navy caps, one italic terracotta word left in its natural
+   case. Longhand overrides so the shorthand-set size/line-height from
+   the base rule are left alone. */
+.onb-head { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 500; }
+.onb-head em { font-style: italic; font-weight: 400; color: #C65A1A; text-transform: none; }
 
 /* onboarding.css's .onb-head uses color: var(--wfg) — correct for the
    done screen, where it sits directly on the themed background, but
