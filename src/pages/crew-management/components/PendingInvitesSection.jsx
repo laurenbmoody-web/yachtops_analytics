@@ -191,7 +191,7 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
       <div className="cm-pi">
         <span className="cm-pi-env"><Icon name="Mail" size={14} /></span>
         <span className="cm-pi-cnt">{count}</span>
-        <span className="cm-pi-lead">invite{count === 1 ? '' : 's'} awaiting</span>
+        <span className="cm-pi-lead">Invite{count === 1 ? '' : 's'} issued</span>
         <span className="cm-pi-avs">
           {invites.slice(0, 4).map((v, i) => <span key={v.id} className="cm-pi-av" style={{ background: AVPAL[i % AVPAL.length] }}>{initialsOf(v.email)}</span>)}
           {count > 4 && <span className="cm-pi-av cm-pi-avmore">+{count - 4}</span>}
