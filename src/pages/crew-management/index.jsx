@@ -1912,14 +1912,8 @@ const CrewManagement = () => {
             {/* Pending Invites Section */}
             <PendingInvitesSection refreshTrigger={inviteRefreshTrigger} />
 
-            {/* Roster section */}
+            {/* Roster section — no header; the view tabs are self-explanatory. */}
             <div className="cm-section">
-              <div className="cm-sec-head">
-                <span className="cm-sec-name">Roster</span>
-                <span className="cm-sec-rule" />
-                <span className="cm-sec-meta">{filteredAndSortedUsers?.length || 0} {showArchived ? 'archived' : 'crew'}</span>
-              </div>
-
               {/* View switcher — Gallery (default) · Console · Hierarchy · Calendar */}
               <div className="cm-views">
                 <button className={`cm-view${rosterView === 'gallery' ? ' is-on' : ''}`} onClick={() => setRosterView('gallery')}>
