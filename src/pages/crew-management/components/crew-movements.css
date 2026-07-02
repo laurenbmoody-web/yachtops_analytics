@@ -1,16 +1,24 @@
-/* Crew Movements — full-width presence + cabin booking chart. */
+/* Crew Movements — full-width presence + cabin booking chart.
+   ── Type scale (keep to these) ────────────────────────────────────────────────
+   Serif (DM Serif Display): section head 18 · card/popover name 16 · serif
+     numerals (date, month) 18/14.
+   Inter: name/entry 13·600 · body 13 · muted 12·#6B7280 · micro-label
+     9·700 upper #8B8478 · group header 10·700 upper · tabular number 12·700 ·
+     dirpill 10·700 upper · day numerals 9 · bar 10.5.                          */
 .mv { position: relative; margin-top: 18px; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
 .mv-head { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
-.mv-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; display: flex; align-items: center; gap: 8px; }
-.mv-title .mv-eyebrow { color: #C65A1A; font-size: 12px; }
-.mv-toggle { display: inline-flex; gap: 4px; background: #EEF2F6; border-radius: 999px; padding: 3px; }
-.mv-toggle button { font-size: 12px; font-weight: 600; color: #6B7280; border: 0; background: none; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
-.mv-toggle button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 2px rgba(28,27,58,0.12); }
+.mv-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: #1C1B3A; display: flex; align-items: center; gap: 8px; }
+.mv-title .mv-eyebrow { color: #C65A1A; font-size: 11px; }
 .mv-config { margin-left: auto; }
-.mv-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; font-size: 12.5px; font-weight: 600; padding: 8px 14px; cursor: pointer; }
+.mv-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; font-size: 13px; font-weight: 600; padding: 8px 14px; cursor: pointer; }
 .mv-btn.ghost { background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A; }
 .mv-btn.ghost:hover { background: #FAFAF8; }
 .mv-btn.primary { background: #C65A1A; border: 0; color: #fff; }
+
+/* view toggle (sits beside the month picker) */
+.mv-toggle { display: inline-flex; gap: 4px; background: #EEF2F6; border-radius: 999px; padding: 3px; }
+.mv-toggle button { font-size: 13px; font-weight: 600; color: #6B7280; border: 0; background: none; border-radius: 999px; padding: 6px 15px; cursor: pointer; }
+.mv-toggle button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 2px rgba(28,27,58,0.12); }
 
 /* flights & travel board */
 .mv-flights { margin-top: 18px; }
@@ -20,23 +28,18 @@
 .mv-flt { display: flex; align-items: center; gap: 14px; padding: 11px 8px; border-bottom: 1px solid #F0F1F5; cursor: pointer; border-radius: 8px; }
 .mv-flt:hover { background: #FBFAF7; }
 .mv-flt.sel { background: #FBEFE9; box-shadow: inset 0 0 0 1.5px #E8B6A6; }
-.mv-bar .edge { cursor: pointer; }
 .mv-flt .date { flex: 0 0 52px; }
 .mv-flt .date .d { font-family: 'DM Serif Display', serif; font-size: 18px; }
-.mv-flt .date .m { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #AEB4C2; margin-left: 4px; }
+.mv-flt .date .m { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-left: 4px; }
 .mv-flt .mv-dir { flex: 0 0 118px; display: flex; }
-.mv-flt .dirpill { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; border-radius: 999px; padding: 4px 10px; }
+.mv-flt .dirpill { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; border-radius: 999px; padding: 4px 10px; }
 .mv-flt .dirpill.dep { background: #FBEFE9; color: #C65A1A; }
 .mv-flt .dirpill.arr { background: #E9F5EF; color: #2F855A; }
 .mv-flt .dirpill.transit { background: #EEF2F6; color: #6B7280; }
-.mv-flt .who { flex: 0 0 150px; font-weight: 600; font-size: 13.5px; }
-.mv-flt .route { flex: 1; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; color: #1C1B3A; }
-.mv-flt .route svg { color: #8B8478; flex: 0 0 auto; }
-.mv-flt .fno { flex: 0 0 auto; font-size: 11px; font-weight: 600; color: #6B7280; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 999px; padding: 4px 10px; }
-.mv-flt .time { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; }
+.mv-flt .who { flex: 0 0 150px; font-weight: 600; font-size: 13px; }
 .mv-addtravel { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #C65A1A; background: #fff; border: 1px solid #E8B6A6; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
 .mv-addtravel:hover { background: #FBEFE9; }
-.mv-noflt { font-size: 12.5px; color: #AEB4C2; padding: 14px 8px; }
+.mv-noflt { font-size: 12px; color: #AEB4C2; padding: 14px 8px; }
 .mv-flt .legs { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .mv-flt .leg { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1C1B3A; }
 .mv-flt .leg.sub { font-size: 12px; color: #6B7280; }
@@ -44,35 +47,35 @@
 .mv-flt .leg.sub svg { color: #AEB4C2; }
 .mv-flt .leg .rt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mv-flt .leg .no { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #1C1B3A; background: #F3F1EC; border: 1px solid #E6E2D8; border-radius: 999px; padding: 2px 9px; min-width: 62px; text-align: center; }
-.mv-flt .leg .tm { flex: 0 0 52px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 600; }
+.mv-flt .leg .tm { flex: 0 0 52px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; }
 .mv-flt .leg.sub .tm { font-weight: 500; }
 .mv-editflt { flex: 0 0 auto; border: 0; background: none; color: #AEB4C2; cursor: pointer; padding: 6px; border-radius: 8px; }
 .mv-editflt:hover { color: #C65A1A; background: #FBEFE9; }
 
-.mv-navrow { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
+.mv-navrow { display: flex; align-items: center; gap: 12px; margin: 16px 0 14px; }
 .mv-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 8px; font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #1C1B3A; }
 .mv-monthnav button { border: 0; background: #F1F5F9; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #6B7280; }
 .mv-monthnav span { padding: 0 6px; min-width: 120px; text-align: center; }
 
-/* presence grid */
+/* row labels (crew names / bed names) share one size */
 .mv-grid, .mv-chart { position: relative; }
 .mv-row { display: flex; align-items: center; gap: 2px; margin-bottom: 3px; }
-.mv-name { flex: 0 0 160px; width: 160px; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
+.mv-name { flex: 0 0 160px; width: 160px; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
 .mv-dnum { flex: 1 1 0; min-width: 14px; text-align: center; font-size: 9px; font-weight: 600; color: #AEB4C2; }
 .mv-dnum.d5 { color: #8B8478; font-weight: 700; }
 .mv-cell { flex: 1 1 0; min-width: 14px; height: 24px; border-radius: 4px; background: #F0F1F5; }
 .mv-empty { font-size: 13px; color: #6B7280; padding: 18px 0; text-align: center; }
 .mv-legend, .mv-legrow { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #E6E8EF; }
-.mv-leg { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: #6B7280; }
+.mv-leg { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #6B7280; }
 .mv-leg i { width: 11px; height: 11px; border-radius: 3px; }
 
 /* cabins chart */
 .mv-htrack { position: relative; flex: 1 1 0; height: 20px; }
 .mv-dtick { position: absolute; top: 0; font-size: 9px; font-weight: 600; color: #AEB4C2; }
 .mv-dtick.d5 { color: #8B8478; font-weight: 700; }
-.mv-cbngroup { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #1C1B3A; margin: 14px 0 6px; }
+.mv-cbngroup { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8B8478; margin: 14px 0 6px; }
 .mv-cbngroup .gl { flex: 1; height: 1px; background: #F0F1F5; }
-.mv-bedname { flex: 0 0 160px; width: 160px; font-size: 11.5px; font-weight: 600; color: #6B7280; padding-left: 16px; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mv-bedname { flex: 0 0 160px; width: 160px; font-size: 13px; font-weight: 600; color: #6B7280; padding-left: 16px; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mv-track { position: relative; flex: 1 1 0; height: 26px; background: #FAFAF8; border-radius: 6px; }
 .mv-track.drop { outline: 2px dashed #C65A1A; outline-offset: 1px; background: #FBF3EE; }
 .mv-gridlines { position: absolute; inset: 0; display: flex; pointer-events: none; border-radius: 6px; overflow: hidden; }
@@ -85,7 +88,7 @@
 .mv-bar.l { border-right: 2.5px solid #C65A1A; }
 .mv-bar.sel { box-shadow: 0 0 0 2px #1C1B3A; }
 .mv-bar .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-.mv-bar .edge { flex: 0 0 auto; background: rgba(255,255,255,0.94); color: #C65A1A; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 5px; line-height: 1.4; box-shadow: 0 1px 1px rgba(28,27,58,0.14); }
+.mv-bar .edge { flex: 0 0 auto; background: rgba(255,255,255,0.94); color: #C65A1A; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 5px; line-height: 1.4; box-shadow: 0 1px 1px rgba(28,27,58,0.14); cursor: pointer; }
 .mv-bar .edge.e { margin-left: auto; }
 .mv-conn { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 
@@ -93,23 +96,23 @@
 .mv-tray { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 18px; padding: 12px 14px; border: 1px dashed #D8D6CF; border-radius: 12px; background: #FCFCFB; }
 .mv-traylbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .mv-trayok { font-size: 12px; color: #5E8E6F; font-weight: 600; }
-.mv-chip { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 4px 12px 4px 5px; font-size: 12.5px; font-weight: 600; cursor: grab; }
+.mv-chip { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 4px 12px 4px 5px; font-size: 13px; font-weight: 600; cursor: grab; }
 .mv-chip .av, .mv-occ .av { width: 24px; height: 24px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1C1B3A; flex: 0 0 auto; }
 
 /* cabin cards */
 .mv-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 18px; }
 .mv-card { background: #fff; border: 1px solid #ECEAE3; border-radius: 14px; padding: 15px 16px; }
 .mv-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.mv-card-top .cn { font-family: 'DM Serif Display', serif; font-size: 17px; }
+.mv-card-top .cn { font-family: 'DM Serif Display', serif; font-size: 16px; }
 .mv-card-top .cd { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-top: 2px; }
 .mv-card-top .ln { font-size: 11px; font-weight: 600; color: #6B7280; }
 .mv-card-meta { display: flex; align-items: center; gap: 8px; }
 .mv-sex { display: inline-block; margin-left: 6px; font-size: 9px; font-weight: 700; letter-spacing: 0.3px; color: #6B7280; background: #EEF1F5; border-radius: 4px; padding: 1px 5px; vertical-align: middle; }
-.mv-mixed { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C0851F; background: #FBF1DC; border-radius: 999px; padding: 3px 8px; white-space: nowrap; }
+.mv-mixed { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #C0851F; background: #FBF1DC; border-radius: 999px; padding: 3px 8px; white-space: nowrap; }
 .mv-occ { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-top: 1px solid #F4F5F8; }
 .mv-occ:first-of-type { border-top: 0; }
 .mv-occ .on { font-size: 13px; font-weight: 600; }
-.mv-occ .or { font-size: 10px; color: #AEB4C2; }
+.mv-occ .or { font-size: 11px; color: #AEB4C2; }
 .mv-occ.free .fr { font-size: 12px; color: #AEB4C2; font-style: italic; padding: 3px 0; }
 
 .mv-setup { text-align: center; padding: 40px 0; }
@@ -120,16 +123,16 @@
 .mv-pop h4 { margin: 0 0 2px; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 16px; }
 .mv-pop .sub { font-size: 11px; color: #6B7280; margin-bottom: 10px; }
 .mv-pop label { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 10px 0 4px; }
-.mv-pop select { width: 100%; font-size: 12.5px; border: 1px solid #E6E8EF; border-radius: 8px; padding: 7px 9px; background: #FAFAF8; }
+.mv-pop select { width: 100%; font-size: 12px; border: 1px solid #E6E8EF; border-radius: 8px; padding: 7px 9px; background: #FAFAF8; }
 .mv-pop .act { display: flex; gap: 8px; margin-top: 14px; }
-.mv-pop .apply { flex: 1; background: #C65A1A; color: #fff; border: 0; border-radius: 9px; padding: 9px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.mv-pop .apply { flex: 1; background: #C65A1A; color: #fff; border: 0; border-radius: 9px; padding: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .mv-pop .apply:disabled { opacity: 0.5; }
-.mv-pop .rm { background: #fff; border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 12px; font-size: 12.5px; font-weight: 600; color: #E4574C; cursor: pointer; }
+.mv-pop .rm { background: #fff; border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 12px; font-size: 12px; font-weight: 600; color: #E4574C; cursor: pointer; }
 
 /* handover dialog */
 .mv-ovl { position: fixed; inset: 0; background: rgba(28,27,58,0.28); z-index: 1000; display: flex; align-items: center; justify-content: center; }
 .mv-dlg { background: #fff; border-radius: 14px; padding: 22px; width: 360px; box-shadow: 0 30px 70px -20px rgba(28,27,58,0.5); }
-.mv-dlg h3 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 20px; margin: 0 0 8px; }
+.mv-dlg h3 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 18px; margin: 0 0 8px; }
 .mv-dlg p { font-size: 13px; color: #6B7280; line-height: 1.5; margin: 0 0 16px; }
 .mv-dlg .act { display: flex; gap: 9px; }
 .mv-dlg .yes { flex: 1; background: #C65A1A; color: #fff; border: 0; border-radius: 10px; padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; }
