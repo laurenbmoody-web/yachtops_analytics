@@ -1,31 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
 import './invite-accept.css';
 
-const InviteAcceptPage = () => {
+// Design-review preview — lets anyone click through the invite wizard with
+// mock data and no Supabase reads/writes/session checks. Mirrors the
+// /onboarding-preview pattern (see src/pages/onboarding/index.jsx).
+const PREVIEW_INVITE = {
+  email: 'jamie.taylor@example.com',
+  vessel_name: 'M/Y Preview',
+  job_title_label: 'Second Officer',
+  department: 'Bridge',
+};
+
+const InviteAcceptPage = ({ previewMode = false }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [token, setToken] = useState('');
   const [activeTab, setActiveTab] = useState('signup'); // 'signup' or 'login'
   const [wizStep, setWizStep] = useState(1); // create-account wizard: 1 invite · 2 details · 3 password
-  
+
   // PAGE STATE MACHINE: 'create' or 'join'
   // - 'create': Show Create Account form (even if session appears mid-flow)
   // - 'join': Show Join Vessel button (only for users who were already logged in)
   const [step, setStep] = useState('create'); // Initialize as 'create'
-  const [status, setStatus] = useState('loading'); // loading, ready, error
+  const [status, setStatus] = useState(previewMode ? 'ready' : 'loading'); // loading, ready, error
+  const [previewDone, setPreviewDone] = useState(false);
   
   // Invite data from RPC
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRoleName, setInviteRoleName] = useState('');
-  const [vesselName, setVesselName] = useState('');
-  const [departmentName, setDepartmentName] = useState('');
-  const [inviteDetailsLoading, setInviteDetailsLoading] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState(previewMode ? PREVIEW_INVITE.email : '');
+  const [inviteRoleName, setInviteRoleName] = useState(previewMode ? PREVIEW_INVITE.job_title_label : '');
+  const [vesselName, setVesselName] = useState(previewMode ? PREVIEW_INVITE.vessel_name : '');
+  const [departmentName, setDepartmentName] = useState(previewMode ? PREVIEW_INVITE.department : '');
+  const [inviteDetailsLoading, setInviteDetailsLoading] = useState(!previewMode);
   
   // Form fields
   const [firstName, setFirstName] = useState('');
@@ -74,10 +83,11 @@ const InviteAcceptPage = () => {
 
   // Load invite data on mount
   useEffect(() => {
+    if (previewMode) return;
     const inviteToken = searchParams?.get('token') || searchParams?.get('invite') || searchParams?.get('t');
-    
+
     console.log('INVITE_ACCEPT: token=', inviteToken);
-    
+
     if (!inviteToken) {
       setStatus('error');
       setError('Invite link is missing or invalid');
@@ -91,6 +101,7 @@ const InviteAcceptPage = () => {
   // Check if user is already authenticated on mount ONLY ONCE
   // DO NOT auto-run accept or change step on auth changes
   useEffect(() => {
+    if (previewMode) return;
     if (hasCheckedInitialSession?.current) return;
     if (status !== 'ready') return;
     
@@ -236,15 +247,20 @@ const InviteAcceptPage = () => {
 
   // Handle Join Vessel for logged-in users (step === 'join')
   const handleJoinVessel = async () => {
+    if (previewMode) {
+      setIsSubmitting(true);
+      setTimeout(() => { setIsSubmitting(false); setPreviewDone(true); }, 500);
+      return;
+    }
     try {
       setIsSubmitting(true);
       setError('');
-      
+
       console.log('INVITE_ACCEPT: Join Vessel clicked for existing session');
 
       // Get current user
       const { data: { user } } = await supabase?.auth?.getUser();
-      
+
       if (!user) {
         throw new Error('No authenticated user found');
       }
@@ -367,6 +383,13 @@ const InviteAcceptPage = () => {
       }
       if (password !== confirmPassword) {
         throw new Error('Passwords do not match');
+      }
+
+      // Preview mode: client-side validation above still runs (so error
+      // states are demoable), but nothing after this touches Supabase.
+      if (previewMode) {
+        setTimeout(() => { setIsSubmitting(false); setPreviewDone(true); }, 500);
+        return;
       }
 
       // Construct full_name as "{first_name} {surname}" with proper trimming
@@ -572,6 +595,11 @@ const InviteAcceptPage = () => {
         throw new Error('Please enter your password');
       }
 
+      if (previewMode) {
+        setTimeout(() => { setIsSubmitting(false); setPreviewDone(true); }, 500);
+        return;
+      }
+
       console.log('INVITE_ACCEPT: signIn start', { email: inviteEmail });
 
       // STEP 1: Sign in with password
@@ -697,10 +725,13 @@ const InviteAcceptPage = () => {
   // Loading state
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0A1628] via-[#132337] to-[#1E3A5F] flex items-center justify-center">
-        <div className="text-center">
-          <Icon name="Loader2" size={48} className="text-white animate-spin mx-auto mb-4" />
-          <p className="text-lg text-white">Loading invite details...</p>
+      <div className="ia-page">
+        <div className="ia-card">
+          <div className="ia-barwrap"><div className="ia-bar" style={{ width: '20%' }} /></div>
+          <div className="ia-inner ia-loading">
+            <Icon name="Loader2" size={28} className="ia-spin" color="#C65A1A" />
+            <p>Loading your invite…</p>
+          </div>
         </div>
       </div>
     );
@@ -709,14 +740,46 @@ const InviteAcceptPage = () => {
   // Error state
   if (status === 'error') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0A1628] via-[#132337] to-[#1E3A5F] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8 text-center">
-          <Icon name="AlertCircle" size={48} className="text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Invalid Invite</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <Button onClick={() => navigate('/login-authentication')} className="w-full">
-            Go to Login
-          </Button>
+      <div className="ia-page">
+        <div className="ia-card">
+          <div className="ia-inner ia-center">
+            <span className="ia-erricon"><Icon name="AlertCircle" size={26} color="#B14E16" /></span>
+            <h1 className="ia-title">Invalid <em>invite</em>.</h1>
+            <p className="ia-errbody">{error}</p>
+            <div className="ia-nav">
+              <button type="button" className="ia-cta" onClick={() => navigate('/login-authentication')}>Go to login</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Preview mode: fake "you're aboard" success screen after a simulated
+  // submit — the real flow just navigates straight to /dashboard, which
+  // isn't reachable from an unauthenticated preview session.
+  if (previewDone) {
+    return (
+      <div className="ia-page">
+        <div className="ia-card">
+          <div className="ia-barwrap"><div className="ia-bar" style={{ width: '100%' }} /></div>
+          <div className="ia-inner ia-center">
+            <span className="ia-donetick"><Icon name="Check" size={22} color="#fff" strokeWidth={2.4} /></span>
+            <h1 className="ia-title">Welcome aboard, <em>{firstName || 'Captain'}</em>.</h1>
+            <p className="ia-errbody">You're in — {vesselName} is ready for you.</p>
+            <div className="ia-nav">
+              <button
+                type="button"
+                className="ia-cta"
+                onClick={() => {
+                  setPreviewDone(false); setStep('create'); setActiveTab('signup'); setWizStep(1);
+                  setFirstName(''); setSurname(''); setPassword(''); setConfirmPassword(''); setLoginPassword(''); setError('');
+                }}
+              >
+                Restart preview
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -725,57 +788,29 @@ const InviteAcceptPage = () => {
   // STEP === 'join': Show Join Vessel button only (for users who were already logged in)
   if (step === 'join') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0A1628] via-[#132337] to-[#1E3A5F] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
-          <div className="text-center mb-6">
-            <Icon name="Ship" size={48} className="text-[#1E3A5F] mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Join Vessel</h1>
-            <p className="text-gray-600">You're already logged in. Click below to join the vessel.</p>
-          </div>
+      <div className="ia-page">
+        <div className="ia-card">
+          <div className="ia-inner">
+            <div className="ia-eyebrow2"><span className="dot" /> Crew onboarding</div>
+            <h1 className="ia-title">Welcome <em>back</em>.</h1>
+            <p className="ia-joinsub">You're already signed in — join the vessel below.</p>
 
-          {/* Invite Details */}
-          <div className="space-y-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vessel</label>
-              <Input value={vesselName} disabled className="bg-gray-50" />
+            <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Your invitation</span><span className="line" /></div>
+            <div className="ia-summary">
+              <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
+              <div className="ia-ro"><span className="k">Role</span><span className="v">{inviteRoleName}</span></div>
+              <div className="ia-ro"><span className="k">Department</span><span className="v">{departmentName}</span></div>
+              <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <Input value={inviteEmail} disabled className="bg-gray-50" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-              <Input value={departmentName} disabled className="bg-gray-50" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-              <Input value={inviteRoleName} disabled className="bg-gray-50" />
+
+            {error && <div className="ia-alert err"><Icon name="AlertCircle" size={16} /> <span>{error}</span></div>}
+
+            <div className="ia-nav">
+              <button type="button" className="ia-cta" onClick={handleJoinVessel} disabled={isSubmitting}>
+                {isSubmitting ? 'Joining…' : 'Join vessel'}
+              </button>
             </div>
           </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-              <Icon name="AlertCircle" size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          )}
-
-          {/* Join Vessel Button */}
-          <Button
-            onClick={handleJoinVessel}
-            disabled={isSubmitting}
-            className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white font-semibold py-3 rounded-lg transition-smooth"
-          >
-            {isSubmitting ? (
-              <>
-                <Icon name="Loader2" size={20} className="animate-spin mr-2" />
-                Joining...
-              </>
-            ) : (
-              'Join Vessel'
-            )}
-          </Button>
         </div>
       </div>
     );

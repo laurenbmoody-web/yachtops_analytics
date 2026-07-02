@@ -1075,6 +1075,11 @@ const Routes = () => {
             without a real signup. Not linked from anywhere in the app. */}
         <Route path="/onboarding-preview" element={<OnboardingPage previewMode />} />
 
+        {/* Design-review preview — the crew side of onboarding: what a
+            newly-invited crew member sees when they open their invite link.
+            Mock invite data, no token/Supabase reads/writes. */}
+        <Route path="/invite-accept-preview" element={<InviteAcceptPage previewMode />} />
+
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/safe-dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
