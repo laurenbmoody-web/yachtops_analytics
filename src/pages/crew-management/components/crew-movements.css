@@ -42,9 +42,9 @@
 .mv-flt .leg.sub { font-size: 12px; color: #6B7280; }
 .mv-flt .leg svg { color: #8B8478; flex: 0 0 auto; }
 .mv-flt .leg.sub svg { color: #AEB4C2; }
-.mv-flt .leg .rt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mv-flt .leg .no { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #1C1B3A; background: #F3F1EC; border: 1px solid #E6E2D8; border-radius: 999px; padding: 2px 9px; }
-.mv-flt .leg .tm { font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 600; margin-left: auto; }
+.mv-flt .leg .rt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-flt .leg .no { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #1C1B3A; background: #F3F1EC; border: 1px solid #E6E2D8; border-radius: 999px; padding: 2px 9px; min-width: 62px; text-align: center; }
+.mv-flt .leg .tm { flex: 0 0 52px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 600; }
 .mv-flt .leg.sub .tm { font-weight: 500; }
 .mv-editflt { flex: 0 0 auto; border: 0; background: none; color: #AEB4C2; cursor: pointer; padding: 6px; border-radius: 8px; }
 .mv-editflt:hover { color: #C65A1A; background: #FBEFE9; }
