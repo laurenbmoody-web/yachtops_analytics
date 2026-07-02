@@ -34,7 +34,11 @@
    ============================================================ */
 .onb-shell {
   --sans: 'Inter', system-ui, sans-serif;
-  --serif: 'Newsreader', Georgia, serif;
+  /* Cargo's canonical editorial serif — same family used for
+     .editorial-greeting (src/styles/editorial.css) on Crew Management,
+     Crew Profile, Provisioning, etc. Was Newsreader, an unrelated one-off
+     pick that didn't match the rest of the app. */
+  --serif: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
   position: relative;
   min-height: 100vh;
   display: flex;
@@ -91,7 +95,7 @@
 
 /* welcome screen */
 .onb-welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px 60px 40px; animation: onbIn .55s cubic-bezier(.4,0,.2,1) both; }
-.onb-head-serif { margin: 0; font-family: var(--serif); font-weight: 700; font-size: 50px; line-height: 1.14; letter-spacing: .3px; color: var(--wfg); }
+.onb-head-serif { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 50px; line-height: 1.14; letter-spacing: .3px; color: var(--wfg); }
 .onb-bel { font-style: italic; font-weight: 600; color: var(--wac); letter-spacing: -.3px; }
 .onb-sub { margin: 20px 0 0; font: 500 17px/1.6 var(--sans); color: color-mix(in srgb, var(--wfg) 70%, transparent); max-width: 46ch; }
 .onb-sub.center { text-align: center; }
@@ -123,7 +127,7 @@
    same negative margin instead pulled the badge down into the heading
    text. Give it breathing room there instead of an overlap. */
 .onb-glyph.done { background: var(--wfg); margin-bottom: 18px; }
-.onb-head { margin: 0 0 6px; font: 800 40px/1.1 var(--sans); letter-spacing: -1.5px; text-transform: uppercase; color: var(--wfg); }
+.onb-head { margin: 0 0 6px; font-family: var(--serif); font-weight: 500; font-size: 40px; line-height: 1.1; letter-spacing: -1.5px; text-transform: uppercase; color: var(--wfg); }
 .onb-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 /* These are real nav shortcuts (Crew/Provisioning/Team Jobs/Defects), not
    decorative labels — styled and behaving like every other pill button in
