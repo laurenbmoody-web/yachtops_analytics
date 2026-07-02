@@ -18,6 +18,7 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
   // Per-row sending state — tracks which invite is currently being emailed
   const [sendingInviteId, setSendingInviteId] = useState(null);
   const [nudgingInviteId, setNudgingInviteId] = useState(null);
+  const [expanded, setExpanded] = useState(false);
 
   // Fetch current user's role
   useEffect(() => {
@@ -173,43 +174,32 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
 
   const isCommandUser = currentUserRole === 'COMMAND';
 
-  if (loading) {
-    return (
-      <div className="cm-section">
-        <div className="cm-sec-head">
-          <span className="cm-sec-name">Pending invites</span>
-          <span className="cm-sec-rule" />
-        </div>
-        <p className="cm-sec-sub">Loading…</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="cm-section">
-        <div className="cm-sec-head">
-          <span className="cm-sec-name">Pending invites</span>
-          <span className="cm-sec-rule" />
-        </div>
-        <div className="cm-empty"><Icon name="AlertCircle" size={26} /><p>{error}</p></div>
-      </div>
-    );
-  }
-
   const count = invites?.length || 0;
+  // Disappears entirely when there's nothing pending (or while loading / on error).
+  if (loading || error || count === 0) return null;
+
+  const AVPAL = ['#6B8A5E', '#7A6F8C', '#4A5A6E', '#A86F5E', '#2D5B6E', '#9C8BA8'];
+  const initialsOf = (email) => {
+    const lp = String(email || '?').split('@')[0];
+    const parts = lp.split(/[.\-_]+/).filter(Boolean);
+    const s = parts.length > 1 ? parts[0][0] + parts[1][0] : lp.slice(0, 2);
+    return (s || '?').toUpperCase();
+  };
 
   return (
-    <div className="cm-section">
-      <div className="cm-sec-head">
-        <span className="cm-sec-name">Pending invites</span>
-        <span className="cm-sec-rule" />
-        <span className="cm-sec-meta">{count} awaiting</span>
+    <div className="cm-pi-wrap">
+      <div className="cm-pi">
+        <span className="cm-pi-env"><Icon name="Mail" size={14} /></span>
+        <span className="cm-pi-cnt">{count}</span>
+        <span className="cm-pi-lead">invite{count === 1 ? '' : 's'} awaiting</span>
+        <span className="cm-pi-avs">
+          {invites.slice(0, 4).map((v, i) => <span key={v.id} className="cm-pi-av" style={{ background: AVPAL[i % AVPAL.length] }}>{initialsOf(v.email)}</span>)}
+          {count > 4 && <span className="cm-pi-av cm-pi-avmore">+{count - 4}</span>}
+        </span>
+        <button type="button" className="cm-pi-more" onClick={() => setExpanded((x) => !x)}>{expanded ? 'Hide ▴' : 'Manage →'}</button>
       </div>
-      {count > 0 && (
-        <>
-          <p className="cm-sec-sub">Crew invitations that haven't been accepted yet.</p>
-          <div className="cm-table-wrap">
+      {expanded && (
+        <div className="cm-pi-detail cm-table-wrap">
           <table className="cm-table">
             <thead>
               <tr>
@@ -292,8 +282,7 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
               ))}
             </tbody>
           </table>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

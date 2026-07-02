@@ -41,6 +41,21 @@
 .cm-empty h3 { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: #1C1B3A; margin-bottom: 4px; }
 .cm-empty p { font-size: 13px; }
 
+/* Pending invites — a compact, content-width ghost pill that disappears when
+   there's nothing pending; expands to the full manage table on click. */
+.cm-pi-wrap { margin-top: 2px; }
+.cm-pi { display: inline-flex; align-items: center; gap: 11px; max-width: 100%; flex-wrap: wrap; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 14px 7px 13px; }
+.cm-pi-env { color: #AEB4C2; display: inline-flex; }
+.cm-pi-cnt { background: #1C1B3A; color: #fff; border-radius: 999px; min-width: 18px; height: 18px; padding: 0 5px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.cm-pi-lead { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
+.cm-pi-avs { display: inline-flex; align-items: center; }
+.cm-pi-av { width: 20px; height: 20px; border-radius: 999px; color: #fff; font-size: 8.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #fff; margin-left: -6px; }
+.cm-pi-av:first-child { margin-left: 0; }
+.cm-pi-avmore { background: #EEF1F5 !important; color: #6B7280; }
+.cm-pi-more { border: 0; background: none; color: #C65A1A; font-size: 12px; font-weight: 600; cursor: pointer; padding: 0 2px; }
+.cm-pi-more:hover { color: #B14E16; }
+.cm-pi-detail { margin-top: 12px; }
+
 /* Segmented view toggle — editorial pills, selected = filled terracotta. */
 .cm-tabs { display: inline-flex; align-items: center; gap: 6px; margin-top: 22px; }
 .cm-tab { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 15px; cursor: pointer; transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease; }
