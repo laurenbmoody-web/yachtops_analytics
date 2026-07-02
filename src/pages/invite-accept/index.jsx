@@ -3,6 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
+// This IS the vessel-onboarding "Wrapped" shell (full-bleed per-screen
+// theme, giant numeral, marquee ticker, circular glyph badge, confetti
+// finale) — see src/pages/onboarding/index.jsx / onboarding.css, the
+// canonical source. Reused directly rather than re-implemented so the
+// crew-invite flow is visually the same system, not a lookalike.
+import '../onboarding/onboarding.css';
 import './invite-accept.css';
 
 // Design-review preview — lets anyone click through the invite wizard with
@@ -13,6 +19,58 @@ const PREVIEW_INVITE = {
   vessel_name: 'M/Y Preview',
   job_title_label: 'Second Officer',
   department: 'Bridge',
+};
+
+// Per-screen full-bleed theme — same palette/roles as onboarding's THEMES.
+const THEMES = {
+  invite:   { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
+  details:  { bg: '#1C1B3A', fg: '#F4F1EC', ac: '#E8915A' },
+  password: { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
+  login:    { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
+  join:     { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
+  loading:  { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
+  error:    { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
+  done:     { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
+};
+const DARK_SCREENS = ['details']; // needs the inverted (white) logo
+
+const STEP_META = {
+  invite:   { numeral: '01', label: 'Invite',   icon: 'Ship' },
+  details:  { numeral: '02', label: 'Details',  icon: 'User' },
+  password: { numeral: '03', label: 'Password', icon: 'Lock' },
+};
+const STEP_KEYS = ['invite', 'details', 'password'];
+const MARQUEE_LABELS = {
+  invite: 'You’re Invited', details: 'Your Details', password: 'Set Password',
+  login: 'Log In', join: 'Join Vessel', loading: 'Loading', error: 'Invalid Invite', done: 'Welcome Aboard',
+};
+
+// Confetti burst — success screen only. Duplicated (not imported) from
+// onboarding/index.jsx's Confetti since that component isn't exported;
+// same mechanics (46 bits, randomised delay/duration/colour/size).
+const Confetti = () => {
+  const bits = useRef(
+    Array.from({ length: 46 }, (_, i) => ({
+      left: Math.random() * 100, delay: Math.random() * 1.2, dur: 2.2 + Math.random() * 1.6,
+      rot: Math.random() * 360, color: ['var(--wac)', '#1C1B3A', '#E0823F', '#3E6491'][i % 4],
+      w: 5 + Math.random() * 6, round: Math.random() > 0.5,
+    }))
+  ).current;
+  return (
+    <div className="onb-confetti" aria-hidden="true">
+      {bits.map((b, i) => (
+        <span
+          key={i}
+          className="bit"
+          style={{
+            left: b.left + '%', animationDelay: b.delay + 's', animationDuration: b.dur + 's',
+            background: b.color, width: b.w, height: b.w, borderRadius: b.round ? '50%' : 2,
+            transform: `rotate(${b.rot}deg)`,
+          }}
+        />
+      ))}
+    </div>
+  );
 };
 
 const InviteAcceptPage = ({ previewMode = false }) => {
@@ -722,103 +780,34 @@ const InviteAcceptPage = ({ previewMode = false }) => {
     }
   };
 
-  // Loading state
-  if (status === 'loading') {
-    return (
-      <div className="ia-page">
-        <div className="ia-card">
-          <div className="ia-barwrap"><div className="ia-bar" style={{ width: '20%' }} /></div>
-          <div className="ia-inner ia-loading">
-            <Icon name="Loader2" size={28} className="ia-spin" color="#C65A1A" />
-            <p>Loading your invite…</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (status === 'error') {
-    return (
-      <div className="ia-page">
-        <div className="ia-card">
-          <div className="ia-inner ia-center">
-            <span className="ia-erricon"><Icon name="AlertCircle" size={26} color="#B14E16" /></span>
-            <h1 className="ia-title">Invalid <em>invite</em>.</h1>
-            <p className="ia-errbody">{error}</p>
-            <div className="ia-nav">
-              <button type="button" className="ia-cta" onClick={() => navigate('/login-authentication')}>Go to login</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Preview mode: fake "you're aboard" success screen after a simulated
-  // submit — the real flow just navigates straight to /dashboard, which
-  // isn't reachable from an unauthenticated preview session.
-  if (previewDone) {
-    return (
-      <div className="ia-page">
-        <div className="ia-card">
-          <div className="ia-barwrap"><div className="ia-bar" style={{ width: '100%' }} /></div>
-          <div className="ia-inner ia-center">
-            <span className="ia-donetick"><Icon name="Check" size={22} color="#fff" strokeWidth={2.4} /></span>
-            <h1 className="ia-title">Welcome aboard, <em>{firstName || 'Captain'}</em>.</h1>
-            <p className="ia-errbody">You're in — {vesselName} is ready for you.</p>
-            <div className="ia-nav">
-              <button
-                type="button"
-                className="ia-cta"
-                onClick={() => {
-                  setPreviewDone(false); setStep('create'); setActiveTab('signup'); setWizStep(1);
-                  setFirstName(''); setSurname(''); setPassword(''); setConfirmPassword(''); setLoginPassword(''); setError('');
-                }}
-              >
-                Restart preview
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // STEP === 'join': Show Join Vessel button only (for users who were already logged in)
-  if (step === 'join') {
-    return (
-      <div className="ia-page">
-        <div className="ia-card">
-          <div className="ia-inner">
-            <div className="ia-eyebrow2"><span className="dot" /> Crew onboarding</div>
-            <h1 className="ia-title">Welcome <em>back</em>.</h1>
-            <p className="ia-joinsub">You're already signed in — join the vessel below.</p>
-
-            <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Your invitation</span><span className="line" /></div>
-            <div className="ia-summary">
-              <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
-              <div className="ia-ro"><span className="k">Role</span><span className="v">{inviteRoleName}</span></div>
-              <div className="ia-ro"><span className="k">Department</span><span className="v">{departmentName}</span></div>
-              <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
-            </div>
-
-            {error && <div className="ia-alert err"><Icon name="AlertCircle" size={16} /> <span>{error}</span></div>}
-
-            <div className="ia-nav">
-              <button type="button" className="ia-cta" onClick={handleJoinVessel} disabled={isSubmitting}>
-                {isSubmitting ? 'Joining…' : 'Join vessel'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // STEP === 'create': invite acceptance wizard (create account) + login path.
+  // ── Screen key drives theme/marquee/numeral — the same shell as
+  // onboarding, just with a crew-invite screen sequence instead of a
+  // vessel-setup one.
   const isLogin = activeTab === 'login';
-  const barPct = isLogin ? 100 : wizStep === 1 ? 33 : wizStep === 2 ? 66 : 100;
+  const screenKey = status === 'loading' ? 'loading'
+    : status === 'error' ? 'error'
+    : previewDone ? 'done'
+    : step === 'join' ? 'join'
+    : isLogin ? 'login'
+    : wizStep === 1 ? 'invite' : wizStep === 2 ? 'details' : 'password';
+
+  const theme = THEMES[screenKey] || THEMES.invite;
+  const isStepScreen = STEP_KEYS.includes(screenKey);
+  const meta = STEP_META[screenKey] || STEP_META.invite;
+  const logoSrc = '/assets/images/cargo_merged_originalmark_syne800_true.png';
+
+  const marqueeText = (MARQUEE_LABELS[screenKey] || 'Crew').toUpperCase();
+  const marqueeUnit = marqueeText + ' · ';
+  const marqueeReps = Math.max(24, Math.ceil(950 / marqueeUnit.length));
+
+  const goBack = () => {
+    setError('');
+    if (screenKey === 'login') { setActiveTab('signup'); return; }
+    if (screenKey === 'details') { setWizStep(1); return; }
+    if (screenKey === 'password') { setWizStep(2); return; }
+  };
+  const showBack = ['login', 'details', 'password'].includes(screenKey);
+
   const step2Valid = !!(firstName?.trim() && surname?.trim());
   const goStep = (n) => { setError(''); setWizStep(n); };
 
@@ -846,97 +835,223 @@ const InviteAcceptPage = ({ previewMode = false }) => {
   );
 
   return (
-    <div className="ia-page">
-      <div className="ia-card">
-        <div className="ia-barwrap"><div className="ia-bar" style={{ width: `${barPct}%` }} /></div>
-        <div className="ia-inner">
-          <div className="ia-eyebrow2">
-            <span className="dot" /> Crew onboarding
-            {!isLogin && <><span className="sep" /> Step {wizStep} of 3</>}
-          </div>
+    <div className="onb-shell" style={{ '--wbg': theme.bg, '--wfg': theme.fg, '--wac': theme.ac }}>
+      {screenKey === 'invite' && (
+        <>
+          <span className="onb-blob one" />
+          <span className="onb-blob two" />
+          <span className="onb-blob three" />
+        </>
+      )}
+      {screenKey === 'done' && <Confetti />}
 
-          {alerts}
-
-          {/* ---------- LOGIN PATH ---------- */}
-          {isLogin && (
-            <form onSubmit={handleLogin} className="ia-step on">
-              <h1 className="ia-title">Welcome <em>back</em>.</h1>
-              <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Log in</span><span className="line" /></div>
-              <div className="ia-field ro"><span className="ia-label">Email</span><div className="ia-static">{inviteEmail}</div></div>
-              <label className="ia-field">
-                <span className="ia-label">Password <span className="req">*</span></span>
-                <div className="ia-pw">
-                  <input className="ia-input" type={showLoginPassword ? 'text' : 'password'} name="password" autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e?.target?.value)} placeholder="Enter your password" disabled={isSubmitting} />
-                  <button type="button" className="ia-eye" onClick={() => setShowLoginPassword(!showLoginPassword)} disabled={isSubmitting} aria-label={showLoginPassword ? 'Hide password' : 'Show password'}><Icon name={showLoginPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
-                </div>
-              </label>
-              <div className="ia-nav">
-                <button type="button" className="ia-back" onClick={() => { setActiveTab('signup'); setError(''); }}>Back</button>
-                <button type="submit" className="ia-cta" disabled={isButtonDisabled}>{isSubmitting ? 'Logging in…' : 'Log in & join'}</button>
-              </div>
-            </form>
+      <header className="onb-bar">
+        <div className="onb-bar-left">
+          {showBack && (
+            <button className="onb-back" onClick={goBack} aria-label="Back">
+              <Icon name="ChevronLeft" size={18} />
+            </button>
           )}
-
-          {/* ---------- STEP 1 · INVITE ---------- */}
-          {!isLogin && wizStep === 1 && (
-            <div className="ia-step on">
-              <h1 className="ia-title">You're <em>invited</em>.</h1>
-              <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Your invitation</span><span className="line" /></div>
-              <div className="ia-summary">
-                <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
-                <div className="ia-ro"><span className="k">Role</span><span className="v">{inviteRoleName}</span></div>
-                <div className="ia-ro"><span className="k">Department</span><span className="v">{departmentName}</span></div>
-                <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
-              </div>
-              <div className="ia-nav">
-                <button type="button" className="ia-cta" onClick={() => goStep(2)} disabled={inviteDetailsLoading}>Get started</button>
-              </div>
-              <button type="button" className="ia-loginlink" onClick={() => { setActiveTab('login'); setError(''); }}>Already have an account? <span>Log in</span></button>
-            </div>
-          )}
-
-          {/* ---------- STEP 2 · DETAILS ---------- */}
-          {!isLogin && wizStep === 2 && (
-            <form className="ia-step on" autoComplete="off" onSubmit={(e) => { e.preventDefault(); if (step2Valid) goStep(3); }}>
-              <h1 className="ia-title">Join <em>{vesselName}</em>.</h1>
-              <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Your details</span><span className="line" /></div>
-              <div className="ia-row">
-                <label className="ia-field"><span className="ia-label">First name <span className="req">*</span></span>
-                  <input className="ia-input" type="text" name="ia-first-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e?.target?.value)} placeholder="Julia" /></label>
-                <label className="ia-field"><span className="ia-label">Surname <span className="req">*</span></span>
-                  <input className="ia-input" type="text" name="ia-surname" autoComplete="family-name" value={surname} onChange={(e) => setSurname(e?.target?.value)} placeholder="Smith" /></label>
-              </div>
-              <div className="ia-nav">
-                <button type="button" className="ia-back" onClick={() => goStep(1)}>Back</button>
-                <button type="submit" className="ia-cta" disabled={!step2Valid}>Continue</button>
-              </div>
-            </form>
-          )}
-
-          {/* ---------- STEP 3 · PASSWORD ---------- */}
-          {!isLogin && wizStep === 3 && (
-            <form className="ia-step on" autoComplete="off" onSubmit={handleCreateAccount}>
-              <h1 className="ia-title">Almost <em>aboard</em>.</h1>
-              <div className="ia-grouphead"><span className="dia">◆</span><span className="t">Secure your login</span><span className="line" /></div>
-              <label className="ia-field"><span className="ia-label">Password <span className="req">*</span></span>
-                <div className="ia-pw">
-                  <input className="ia-input" type={showPassword ? 'text' : 'password'} name="ia-new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e?.target?.value)} placeholder="At least 6 characters" disabled={isSubmitting} />
-                  <button type="button" className="ia-eye" onClick={() => setShowPassword(!showPassword)} disabled={isSubmitting} aria-label={showPassword ? 'Hide password' : 'Show password'}><Icon name={showPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
-                </div></label>
-              <label className="ia-field"><span className="ia-label">Confirm password <span className="req">*</span></span>
-                <div className="ia-pw">
-                  <input className="ia-input" type={showConfirmPassword ? 'text' : 'password'} name="ia-confirm-password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e?.target?.value)} placeholder="Re-enter password" disabled={isSubmitting} />
-                  <button type="button" className="ia-eye" onClick={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isSubmitting} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}><Icon name={showConfirmPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
-                </div></label>
-              {disabledReason && <p className="ia-hint">{disabledReason}</p>}
-              <div className="ia-nav">
-                <button type="button" className="ia-back" onClick={() => goStep(2)}>Back</button>
-                <button type="submit" className="ia-cta" disabled={isButtonDisabled}>{isSubmitting ? 'Creating account…' : 'Create account & join'}</button>
-              </div>
-            </form>
-          )}
+          <img className={`onb-logo${DARK_SCREENS.includes(screenKey) ? ' invert' : ''}`} src={logoSrc} alt="Cargo" />
         </div>
+        {isStepScreen && (
+          <div className="onb-bar-right">
+            <span className="onb-ticks">
+              {STEP_KEYS.map((k) => (
+                <i key={k} className={STEP_KEYS.indexOf(k) < STEP_KEYS.indexOf(screenKey) ? 'on' : k === screenKey ? 'cur' : ''} />
+              ))}
+            </span>
+            <span className="onb-count">{meta.numeral} <em>/ 03</em></span>
+          </div>
+        )}
+      </header>
+
+      <div className="onb-marquee">
+        <span>{marqueeUnit.repeat(marqueeReps)}</span>
       </div>
+
+      <main className="onb-main" key={screenKey}>
+        {/* ---------- LOADING ---------- */}
+        {screenKey === 'loading' && (
+          <div className="ia-solo">
+            <div className="onb-panel onb-panel--narrow ia-loading">
+              <Icon name="Loader2" size={28} className="ia-spin" color="#C65A1A" />
+              <p>Loading your invite…</p>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- ERROR ---------- */}
+        {screenKey === 'error' && (
+          <div className="ia-solo">
+            <div className="onb-panel onb-panel--narrow ia-center">
+              <span className="ia-erricon"><Icon name="AlertCircle" size={26} color="#B14E16" /></span>
+              <h1 className="onb-head">Invalid <em>invite</em>.</h1>
+              <p className="ia-errbody">{error}</p>
+              <div className="onb-ctarow center">
+                <button type="button" className="onb-cta" onClick={() => navigate('/login-authentication')}>Go to login</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- DONE (real success or preview) ---------- */}
+        {screenKey === 'done' && (
+          <div className="onb-split">
+            <div className="onb-left"><div className="onb-giant word">ABOARD</div></div>
+            <div className="onb-right ia-center-mobile">
+              <span className="onb-glyph done"><Icon name="Check" size={30} color="white" strokeWidth={2.4} /></span>
+              <h1 className="onb-head">Welcome aboard, <em>{firstName || 'Captain'}</em>.</h1>
+              <div className="onb-chips">
+                <span className="onb-chip" style={{ pointerEvents: 'none' }}><Icon name="Users" size={15} color="var(--wac)" strokeWidth={1.9} /> Crew rota</span>
+                <span className="onb-chip" style={{ pointerEvents: 'none' }}><Icon name="FileText" size={15} color="var(--wac)" strokeWidth={1.9} /> Documents</span>
+                <span className="onb-chip" style={{ pointerEvents: 'none' }}><Icon name="ClipboardList" size={15} color="var(--wac)" strokeWidth={1.9} /> Handover notes</span>
+              </div>
+              <div className="onb-ctarow">
+                <button
+                  type="button"
+                  className="onb-cta welcome"
+                  onClick={() => {
+                    if (previewMode) {
+                      setPreviewDone(false); setStep('create'); setActiveTab('signup'); setWizStep(1);
+                      setFirstName(''); setSurname(''); setPassword(''); setConfirmPassword(''); setLoginPassword(''); setError('');
+                    } else {
+                      navigate('/dashboard', { replace: true });
+                    }
+                  }}
+                >
+                  {previewMode ? 'Restart preview' : 'Enter Cargo'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- JOIN (already logged in, matching email) ---------- */}
+        {screenKey === 'join' && (
+          <div className="onb-split">
+            <div className="onb-left"><div className="onb-giant">01</div></div>
+            <div className="onb-right ia-center-mobile">
+              <span className="onb-glyph"><Icon name="Ship" size={30} color="white" strokeWidth={2} /></span>
+              <div className="onb-panel onb-panel--narrow">
+                <h1 className="onb-head">Welcome <em>back</em>.</h1>
+                {alerts}
+                <div className="ia-summary">
+                  <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
+                  <div className="ia-ro"><span className="k">Role</span><span className="v">{inviteRoleName}</span></div>
+                  <div className="ia-ro"><span className="k">Department</span><span className="v">{departmentName}</span></div>
+                  <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
+                </div>
+                <div className="onb-ctarow">
+                  <button type="button" className="onb-cta" onClick={handleJoinVessel} disabled={isSubmitting}>
+                    {isSubmitting ? 'Joining…' : 'Join vessel'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- LOGIN ---------- */}
+        {screenKey === 'login' && (
+          <div className="onb-split">
+            <div className="onb-left"><div className="onb-giant">01</div></div>
+            <div className="onb-right ia-center-mobile">
+              <span className="onb-glyph"><Icon name="LogIn" size={30} color="white" strokeWidth={2} /></span>
+              <form onSubmit={handleLogin} className="onb-panel onb-panel--narrow">
+                <h1 className="onb-head">Welcome <em>back</em>.</h1>
+                {alerts}
+                <div className="ia-field ro"><span className="ia-label">Email</span><div className="ia-static">{inviteEmail}</div></div>
+                <label className="ia-field">
+                  <span className="ia-label">Password <span className="req">*</span></span>
+                  <div className="ia-pw">
+                    <input className="ia-input" type={showLoginPassword ? 'text' : 'password'} name="password" autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e?.target?.value)} placeholder="Enter your password" disabled={isSubmitting} />
+                    <button type="button" className="ia-eye" onClick={() => setShowLoginPassword(!showLoginPassword)} disabled={isSubmitting} aria-label={showLoginPassword ? 'Hide password' : 'Show password'}><Icon name={showLoginPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
+                  </div>
+                </label>
+                <div className="onb-ctarow">
+                  <button type="submit" className="onb-cta" disabled={isButtonDisabled}>{isSubmitting ? 'Logging in…' : 'Log in & join'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- STEP 1 · INVITE ---------- */}
+        {screenKey === 'invite' && (
+          <div className="onb-split">
+            <div className="onb-left"><div className="onb-giant">01</div></div>
+            <div className="onb-right ia-center-mobile">
+              <span className="onb-glyph"><Icon name="Ship" size={30} color="white" strokeWidth={2} /></span>
+              <div className="onb-panel onb-panel--narrow">
+                <h1 className="onb-head">You're <em>invited</em>.</h1>
+                {alerts}
+                <div className="ia-summary">
+                  <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
+                  <div className="ia-ro"><span className="k">Role</span><span className="v">{inviteRoleName}</span></div>
+                  <div className="ia-ro"><span className="k">Department</span><span className="v">{departmentName}</span></div>
+                  <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
+                </div>
+                <div className="onb-ctarow">
+                  <button type="button" className="onb-cta" onClick={() => goStep(2)} disabled={inviteDetailsLoading}>Get started</button>
+                </div>
+                <button type="button" className="ia-loginlink" onClick={() => { setActiveTab('login'); setError(''); }}>Already have an account? <span>Log in</span></button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- STEP 2 · DETAILS ---------- */}
+        {screenKey === 'details' && (
+          <div className="onb-split">
+            <div className="onb-left"><div className="onb-giant">02</div></div>
+            <div className="onb-right ia-center-mobile">
+              <span className="onb-glyph"><Icon name="User" size={30} color="white" strokeWidth={2} /></span>
+              <form className="onb-panel onb-panel--narrow" autoComplete="off" onSubmit={(e) => { e.preventDefault(); if (step2Valid) goStep(3); }}>
+                <h1 className="onb-head">Join <em>{vesselName}</em>.</h1>
+                {alerts}
+                <div className="ia-row">
+                  <label className="ia-field"><span className="ia-label">First name <span className="req">*</span></span>
+                    <input className="ia-input" type="text" name="ia-first-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e?.target?.value)} placeholder="Julia" /></label>
+                  <label className="ia-field"><span className="ia-label">Surname <span className="req">*</span></span>
+                    <input className="ia-input" type="text" name="ia-surname" autoComplete="family-name" value={surname} onChange={(e) => setSurname(e?.target?.value)} placeholder="Smith" /></label>
+                </div>
+                <div className="onb-ctarow">
+                  <button type="submit" className="onb-cta" disabled={!step2Valid}>Continue</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- STEP 3 · PASSWORD ---------- */}
+        {screenKey === 'password' && (
+          <div className="onb-split">
+            <div className="onb-left"><div className="onb-giant">03</div></div>
+            <div className="onb-right ia-center-mobile">
+              <span className="onb-glyph"><Icon name="Lock" size={28} color="white" strokeWidth={2} /></span>
+              <form className="onb-panel onb-panel--narrow" autoComplete="off" onSubmit={handleCreateAccount}>
+                <h1 className="onb-head">Set <em>password</em>.</h1>
+                {alerts}
+                <label className="ia-field"><span className="ia-label">Password <span className="req">*</span></span>
+                  <div className="ia-pw">
+                    <input className="ia-input" type={showPassword ? 'text' : 'password'} name="ia-new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e?.target?.value)} placeholder="At least 6 characters" disabled={isSubmitting} />
+                    <button type="button" className="ia-eye" onClick={() => setShowPassword(!showPassword)} disabled={isSubmitting} aria-label={showPassword ? 'Hide password' : 'Show password'}><Icon name={showPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
+                  </div></label>
+                <label className="ia-field"><span className="ia-label">Confirm password <span className="req">*</span></span>
+                  <div className="ia-pw">
+                    <input className="ia-input" type={showConfirmPassword ? 'text' : 'password'} name="ia-confirm-password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e?.target?.value)} placeholder="Re-enter password" disabled={isSubmitting} />
+                    <button type="button" className="ia-eye" onClick={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isSubmitting} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}><Icon name={showConfirmPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
+                  </div></label>
+                {disabledReason && <p className="ia-hint">{disabledReason}</p>}
+                <div className="onb-ctarow">
+                  <button type="submit" className="onb-cta" disabled={isButtonDisabled}>{isSubmitting ? 'Creating account…' : 'Create account & join'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 };
