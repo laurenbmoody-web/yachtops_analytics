@@ -383,7 +383,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
             return (
               <div key={e.id} id={`flt-${e.id}`} className={`mv-flt${selCrew === e.user_id ? ' sel' : ''}`} onClick={() => selectFromFlight(e.user_id)}>
                 <div className="date"><span className="d">{day}</span><span className="m">{MONTHS[calMonth].slice(0, 3)}</span></div>
-                <span className={`dirpill ${dir}`}>{dir === 'dep' ? '↑ Departing' : dir === 'arr' ? '↓ Arriving' : '✈ Travelling'}</span>
+                <span className="mv-dir"><span className={`dirpill ${dir}`}>{dir === 'dep' ? '↑ Departing' : dir === 'arr' ? '↓ Arriving' : '✈ Travelling'}</span></span>
                 <span className="who">{m?.fullName || '—'}</span>
                 <div className="legs">
                   <div className="leg"><Icon name={TRANS_ICON[e.transport] || 'Plane'} size={12} /> <span className="rt">{[e.from_location, e.to_location].filter(Boolean).join(' → ') || (e.note || '—')}</span>{e.transport_no && <span className="no">{e.transport_no}</span>}{(e.arrive_time || e.depart_time) && <span className="tm">{e.arrive_time || e.depart_time}</span>}</div>
