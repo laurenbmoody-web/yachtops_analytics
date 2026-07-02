@@ -366,7 +366,6 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     <div className="mv">
       <div className="mv-head">
         <div className="mv-title"><span className="mv-eyebrow">◆</span> Movements</div>
-        {canManage && <button type="button" className="mv-btn ghost mv-config" onClick={() => setConfigOpen(true)}><Icon name="Settings" size={14} /> Configure cabins</button>}
       </div>
 
       {(canManage || monthTravel.length > 0) && (
@@ -391,6 +390,12 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
               </div>
             );
           })}
+        </div>
+      )}
+
+      {canManage && (
+        <div className="mv-configrow">
+          <button type="button" className="mv-btn ghost" onClick={() => setConfigOpen(true)}><Icon name="Settings" size={14} /> Configure cabins</button>
         </div>
       )}
 
