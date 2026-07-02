@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
+import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
+import { NATIONALITIES } from '../../data/nationalities';
 // This IS the vessel-onboarding "Wrapped" shell (full-bleed per-screen
 // theme, giant numeral, marquee ticker, circular glyph badge, confetti
 // finale) — see src/pages/onboarding/index.jsx / onboarding.css, the
@@ -16,10 +18,36 @@ import './invite-accept.css';
 // /onboarding-preview pattern (see src/pages/onboarding/index.jsx).
 const PREVIEW_INVITE = {
   email: 'jamie.taylor@example.com',
-  vessel_name: 'M/Y Preview',
+  vessel_name: 'Preview',
+  vessel_type_label: 'Motor Yacht',
+  loa_m: 67,
+  crew_count: 11,
+  department_count: 5,
   job_title_label: 'Second Officer',
   department: 'Bridge',
 };
+
+// Same abbreviation the vessel-onboarding welcome screen implies with its
+// "M/Y {name}" placeholder — only for the two types with an unambiguous
+// nautical abbreviation; anything else (Catamaran, Explorer, …) shows the
+// bare vessel name rather than guess.
+const VESSEL_PREFIX = { 'Motor Yacht': 'M/Y', 'Sailing Yacht': 'S/Y' };
+
+// Same options as the crew-profile Personal Details section (Prefix/Sex),
+// so an invite-created record and a page-edited one speak the same
+// vocabulary. See src/pages/crew-profile/index.jsx.
+const PREFIX_OPTIONS = ['Mr', 'Mrs', 'Ms', 'Miss', 'Mx', 'Dr', 'Capt', 'Chief', 'Sir', 'Dame'];
+const SEX_OPTIONS = ['Female', 'Male', 'Prefer not to say'];
+
+// Compulsory strong-password rule set — every check must pass, not just a
+// "good enough" score.
+const PASSWORD_CHECKS = [
+  { key: 'length', label: '8+ characters', test: (v) => v.length >= 8 },
+  { key: 'case', label: 'Upper & lowercase', test: (v) => /[a-z]/.test(v) && /[A-Z]/.test(v) },
+  { key: 'number', label: 'A number', test: (v) => /[0-9]/.test(v) },
+  { key: 'symbol', label: 'A symbol', test: (v) => /[^A-Za-z0-9]/.test(v) },
+];
+const isStrongPassword = (v) => PASSWORD_CHECKS.every((c) => c.test(v || ''));
 
 // Per-screen full-bleed theme — same palette/roles as onboarding's THEMES.
 const THEMES = {
@@ -36,12 +64,12 @@ const DARK_SCREENS = ['details']; // needs the inverted (white) logo
 
 const STEP_META = {
   invite:   { numeral: '01', label: 'Invite',   icon: 'Ship' },
-  details:  { numeral: '02', label: 'Details',  icon: 'User' },
+  details:  { numeral: '02', label: 'About You', icon: 'User' },
   password: { numeral: '03', label: 'Password', icon: 'Lock' },
 };
 const STEP_KEYS = ['invite', 'details', 'password'];
 const MARQUEE_LABELS = {
-  invite: 'You’re Invited', details: 'Your Details', password: 'Set Password',
+  invite: 'You’re Invited', details: 'About You', password: 'Set Password',
   login: 'Log In', join: 'Join Vessel', loading: 'Loading', error: 'Invalid Invite', done: 'Welcome Aboard',
 };
 
@@ -91,12 +119,20 @@ const InviteAcceptPage = ({ previewMode = false }) => {
   const [inviteEmail, setInviteEmail] = useState(previewMode ? PREVIEW_INVITE.email : '');
   const [inviteRoleName, setInviteRoleName] = useState(previewMode ? PREVIEW_INVITE.job_title_label : '');
   const [vesselName, setVesselName] = useState(previewMode ? PREVIEW_INVITE.vessel_name : '');
+  const [vesselTypeLabel, setVesselTypeLabel] = useState(previewMode ? PREVIEW_INVITE.vessel_type_label : '');
+  const [loaM, setLoaM] = useState(previewMode ? PREVIEW_INVITE.loa_m : null);
+  const [crewCount, setCrewCount] = useState(previewMode ? PREVIEW_INVITE.crew_count : null);
+  const [departmentCount, setDepartmentCount] = useState(previewMode ? PREVIEW_INVITE.department_count : null);
   const [departmentName, setDepartmentName] = useState(previewMode ? PREVIEW_INVITE.department : '');
   const [inviteDetailsLoading, setInviteDetailsLoading] = useState(!previewMode);
-  
+
   // Form fields
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
+  const [prefix, setPrefix] = useState('');
+  const [sex, setSex] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [nationality, setNationality] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -123,7 +159,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
     if (activeTab === 'signup') {
       if (!firstName?.trim()) return 'First name is required';
       if (!surname?.trim()) return 'Surname is required';
-      if (!password || password?.length < 6) return 'Password must be at least 6 characters';
+      if (!password || !isStrongPassword(password)) return 'Password does not meet the requirements below';
       if (password !== confirmPassword) return 'Passwords do not match';
     }
     if (activeTab === 'login') {
@@ -133,8 +169,8 @@ const InviteAcceptPage = ({ previewMode = false }) => {
   };
 
   // Button disabled ONLY based on required inputs (first name, surname, password) - NOT department/role
-  const isButtonDisabled = isSubmitting || inviteDetailsLoading || 
-    (activeTab === 'signup' && (!firstName?.trim() || !surname?.trim() || !password || password?.length < 6 || password !== confirmPassword)) ||
+  const isButtonDisabled = isSubmitting || inviteDetailsLoading ||
+    (activeTab === 'signup' && (!firstName?.trim() || !surname?.trim() || !password || !isStrongPassword(password) || password !== confirmPassword)) ||
     (activeTab === 'login' && !loginPassword?.trim());
 
   const disabledReason = getDisabledReason();
@@ -251,9 +287,13 @@ const InviteAcceptPage = ({ previewMode = false }) => {
       // Store invite data with proper fallback chain
       setInviteEmail(inviteData?.email || '');
       setVesselName(inviteData?.vessel_name || '');
+      setVesselTypeLabel(inviteData?.vessel_type_label || '');
+      setLoaM(inviteData?.loa_m ?? null);
+      setCrewCount(inviteData?.crew_count ?? null);
+      setDepartmentCount(inviteData?.department_count ?? null);
       setInviteRoleName(inviteData?.job_title_label || 'Not set');
       setDepartmentName(inviteData?.department || 'Not set');
-      
+
       setInviteDetailsLoading(false);
       setStatus('ready');
     } catch (err) {
@@ -433,11 +473,14 @@ const InviteAcceptPage = ({ previewMode = false }) => {
       if (!surname?.trim()) {
         throw new Error('Please enter your surname');
       }
+      if (!prefix || !sex || !dateOfBirth || !nationality) {
+        throw new Error('Please complete your details on the previous step');
+      }
       if (!password) {
         throw new Error('Please enter a password');
       }
-      if (password?.length < 6) {
-        throw new Error('Password must be at least 6 characters');
+      if (!isStrongPassword(password)) {
+        throw new Error('Password does not meet the requirements below');
       }
       if (password !== confirmPassword) {
         throw new Error('Passwords do not match');
@@ -558,6 +601,29 @@ const InviteAcceptPage = ({ previewMode = false }) => {
       }
 
       console.log('INVITE_ACCEPT: Profile updated successfully');
+
+      // STEP 3b: UPSERT crew_personal_details with prefix, sex, date_of_birth, nationality
+      console.log('INVITE_ACCEPT: Upserting crew_personal_details');
+
+      const { error: personalDetailsError } = await supabase
+        ?.from('crew_personal_details')
+        ?.upsert({
+          user_id: userId,
+          prefix,
+          sex,
+          date_of_birth: dateOfBirth,
+          nationality,
+          updated_at: new Date()?.toISOString()
+        }, { onConflict: 'user_id' });
+
+      if (personalDetailsError) {
+        console.error('INVITE_ACCEPT: crew_personal_details upsert ERROR:', personalDetailsError);
+        setError(personalDetailsError?.message || 'Failed to save your details');
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log('INVITE_ACCEPT: crew_personal_details upserted successfully');
 
       // STEP 4: Call accept_crew_invite_v3 with p_token and p_full_name
       console.log('INVITE_ACCEPT: Calling accept_crew_invite_v3', { token, fullName });
@@ -808,7 +874,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
   };
   const showBack = ['login', 'details', 'password'].includes(screenKey);
 
-  const step2Valid = !!(firstName?.trim() && surname?.trim());
+  const step2Valid = !!(firstName?.trim() && surname?.trim() && prefix && sex && dateOfBirth && nationality);
   const goStep = (n) => { setError(''); setWizStep(n); };
 
   const alerts = (
@@ -985,12 +1051,18 @@ const InviteAcceptPage = ({ previewMode = false }) => {
               <span className="onb-glyph"><Icon name="Ship" size={30} color="white" strokeWidth={2} /></span>
               <div className="onb-panel onb-panel--narrow">
                 <h1 className="onb-head">You're <em>invited</em>.</h1>
+                <p className="ia-sub">to join {VESSEL_PREFIX[vesselTypeLabel] ? `${VESSEL_PREFIX[vesselTypeLabel]} ` : ''}{vesselName}.</p>
                 {alerts}
+                <div className="ia-stats">
+                  {loaM != null && (
+                    <div className="ia-stat"><span className="v">{loaM}m</span><span className="k">LOA</span></div>
+                  )}
+                  <div className="ia-stat"><span className="v">{crewCount ?? '—'}</span><span className="k">Crew</span></div>
+                  <div className="ia-stat"><span className="v">{departmentCount ?? '—'}</span><span className="k">Departments</span></div>
+                </div>
                 <div className="ia-summary">
-                  <div className="ia-ro"><span className="k">Vessel</span><span className="v">{vesselName}</span></div>
                   <div className="ia-ro"><span className="k">Role</span><span className="v">{inviteRoleName}</span></div>
                   <div className="ia-ro"><span className="k">Department</span><span className="v">{departmentName}</span></div>
-                  <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
                 </div>
                 <div className="onb-ctarow">
                   <button type="button" className="onb-cta" onClick={() => goStep(2)} disabled={inviteDetailsLoading}>Get started</button>
@@ -1007,14 +1079,35 @@ const InviteAcceptPage = ({ previewMode = false }) => {
             <div className="onb-left"><div className="onb-giant">02</div></div>
             <div className="onb-right ia-center-mobile">
               <span className="onb-glyph"><Icon name="User" size={30} color="white" strokeWidth={2} /></span>
-              <form className="onb-panel onb-panel--narrow" autoComplete="off" onSubmit={(e) => { e.preventDefault(); if (step2Valid) goStep(3); }}>
-                <h1 className="onb-head">Join <em>{vesselName}</em>.</h1>
+              <form className="onb-panel onb-panel--narrow ia-panel-wide" autoComplete="off" onSubmit={(e) => { e.preventDefault(); if (step2Valid) goStep(3); }}>
+                <h1 className="onb-head">About, <em>you</em>.</h1>
                 {alerts}
                 <div className="ia-row">
+                  <label className="ia-field ia-field--sm"><span className="ia-label">Prefix <span className="req">*</span></span>
+                    <select className="ia-input" name="ia-prefix" value={prefix} onChange={(e) => setPrefix(e?.target?.value)}>
+                      <option value="">Select…</option>
+                      {PREFIX_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select></label>
                   <label className="ia-field"><span className="ia-label">First name <span className="req">*</span></span>
                     <input className="ia-input" type="text" name="ia-first-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e?.target?.value)} placeholder="Julia" /></label>
+                </div>
+                <div className="ia-row">
                   <label className="ia-field"><span className="ia-label">Surname <span className="req">*</span></span>
                     <input className="ia-input" type="text" name="ia-surname" autoComplete="family-name" value={surname} onChange={(e) => setSurname(e?.target?.value)} placeholder="Smith" /></label>
+                  <label className="ia-field"><span className="ia-label">Sex <span className="req">*</span></span>
+                    <select className="ia-input" name="ia-sex" value={sex} onChange={(e) => setSex(e?.target?.value)}>
+                      <option value="">Select…</option>
+                      {SEX_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select></label>
+                </div>
+                <div className="ia-row">
+                  <label className="ia-field"><span className="ia-label">Date of birth <span className="req">*</span></span>
+                    <EditorialDatePicker value={dateOfBirth} onChange={setDateOfBirth} placeholder="dd/mm/yyyy" /></label>
+                  <label className="ia-field"><span className="ia-label">Nationality <span className="req">*</span></span>
+                    <select className="ia-input" name="ia-nationality" value={nationality} onChange={(e) => setNationality(e?.target?.value)}>
+                      <option value="">Select…</option>
+                      {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select></label>
                 </div>
                 <div className="onb-ctarow">
                   <button type="submit" className="onb-cta" disabled={!step2Valid}>Continue</button>
@@ -1032,12 +1125,24 @@ const InviteAcceptPage = ({ previewMode = false }) => {
               <span className="onb-glyph"><Icon name="Lock" size={28} color="white" strokeWidth={2} /></span>
               <form className="onb-panel onb-panel--narrow" autoComplete="off" onSubmit={handleCreateAccount}>
                 <h1 className="onb-head">Set <em>password</em>.</h1>
+                <p className="ia-sub">You'll use this to log in to Cargo from now on.</p>
                 {alerts}
+                <div className="ia-summary">
+                  <div className="ia-ro"><span className="k">Email</span><span className="v">{inviteEmail}</span></div>
+                </div>
                 <label className="ia-field"><span className="ia-label">Password <span className="req">*</span></span>
                   <div className="ia-pw">
-                    <input className="ia-input" type={showPassword ? 'text' : 'password'} name="ia-new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e?.target?.value)} placeholder="At least 6 characters" disabled={isSubmitting} />
+                    <input className="ia-input" type={showPassword ? 'text' : 'password'} name="ia-new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e?.target?.value)} placeholder="Create a password" disabled={isSubmitting} />
                     <button type="button" className="ia-eye" onClick={() => setShowPassword(!showPassword)} disabled={isSubmitting} aria-label={showPassword ? 'Hide password' : 'Show password'}><Icon name={showPassword ? 'EyeOff' : 'Eye'} size={17} /></button>
                   </div></label>
+                <div className="pwmeter">
+                  <div className="pwmeter-bar"><div className={`pwmeter-fill s${PASSWORD_CHECKS.filter((c) => c.test(password || '')).length}`} /></div>
+                  <ul className="pwreqs">
+                    {PASSWORD_CHECKS.map((c) => (
+                      <li key={c.key} className={c.test(password || '') ? 'ok' : ''}>{c.label}</li>
+                    ))}
+                  </ul>
+                </div>
                 <label className="ia-field"><span className="ia-label">Confirm password <span className="req">*</span></span>
                   <div className="ia-pw">
                     <input className="ia-input" type={showConfirmPassword ? 'text' : 'password'} name="ia-confirm-password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e?.target?.value)} placeholder="Re-enter password" disabled={isSubmitting} />
