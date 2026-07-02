@@ -71,3 +71,18 @@
 .ia-alert.info { background: #FBFCFD; border: 1px solid #EAECEF; color: #6B7280; }
 .ia-alert b { display: block; font-weight: 700; margin-bottom: 2px; }
 .ia-link { color: inherit; text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; font: inherit; margin-top: 6px; display: inline-block; }
+
+/* loading / error / preview-success — same card, no content jump vs. the wizard */
+.ia-loading { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 46px 0; }
+.ia-loading p { font-size: 13.5px; color: #6B7280; font-weight: 500; }
+.ia-spin { animation: iaSpin 0.9s linear infinite; }
+@keyframes iaSpin { to { transform: rotate(360deg); } }
+
+.ia-center { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.ia-center .ia-title { margin-top: 14px; }
+.ia-center .ia-nav { width: 100%; }
+.ia-erricon, .ia-donetick { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; }
+.ia-erricon { background: #FBEFE9; }
+.ia-donetick { background: #1C1B3A; }
+.ia-errbody { font-size: 14px; line-height: 1.55; color: #6B7280; margin: 10px 0 4px; max-width: 34ch; }
+.ia-joinsub { font-size: 14px; color: #6B7280; margin: 8px 0 0; }
