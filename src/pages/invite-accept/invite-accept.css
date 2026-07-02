@@ -4,10 +4,9 @@
    editorial heading accent, summary rows, hairline form fields, and the
    loading/error solo-card layout that doesn't use the split. */
 
-/* editorial heading accent — navy caps sentence, one italic terracotta
-   word left in its natural case (carried over from the pre-Wrapped
-   invite wizard's heading style). */
-.onb-head em { font-style: italic; color: #C65A1A; text-transform: none; }
+/* .onb-head is already the DM Serif Display editorial serif (see
+   onboarding.css) — just add the italic terracotta accent-word style. */
+.onb-head em { font-style: italic; font-weight: 400; color: #C65A1A; text-transform: none; }
 
 /* onboarding.css's .onb-head uses color: var(--wfg) — correct for the
    done screen, where it sits directly on the themed background, but
