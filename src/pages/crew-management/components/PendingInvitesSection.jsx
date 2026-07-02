@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
-import LogoSpinner from '../../../components/LogoSpinner';
 import { supabase } from '../../../lib/supabaseClient';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -179,12 +178,13 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
   if (loading || error || count === 0) return null;
 
   const AVPAL = ['#6B8A5E', '#7A6F8C', '#4A5A6E', '#A86F5E', '#2D5B6E', '#9C8BA8'];
-  const initialsOf = (email) => {
-    const lp = String(email || '?').split('@')[0];
-    const parts = lp.split(/[.\-_]+/).filter(Boolean);
-    const s = parts.length > 1 ? parts[0][0] + parts[1][0] : lp.slice(0, 2);
+  const initialsOf = (name) => {
+    const src = String(name || '?').includes('@') ? String(name).split('@')[0] : String(name || '?');
+    const parts = src.split(/[.\-_\s]+/).filter(Boolean);
+    const s = parts.length > 1 ? parts[0][0] + parts[1][0] : src.slice(0, 2);
     return (s || '?').toUpperCase();
   };
+  const now = new Date();
 
   return (
     <div className="cm-pi-wrap">
@@ -199,89 +199,62 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
         <button type="button" className="cm-pi-more" onClick={() => setExpanded((x) => !x)}>{expanded ? 'Hide ▴' : 'Manage →'}</button>
       </div>
       {expanded && (
-        <div className="cm-pi-detail cm-table-wrap">
-          <table className="cm-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Created</th>
-                <th>Status</th>
-                <th className="cm-th-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invites?.map((invite) => (
-                <tr key={invite?.id}>
-                  <td className="cm-cell-ink">{invite?.email}</td>
-                  <td className="cm-cell-ink">
-                    {(() => {
-                      const roleName = invite?.role?.name || invite?.custom_role?.name || invite?.role_label;
-                      const deptName = invite?.department?.name || invite?.department_label;
-                      if (roleName || deptName) {
-                        return `${roleName || '—'} (${deptName || '—'})`;
-                      }
-                      return invite?.job_title_label || invite?.invited_role || '—';
-                    })()}
-                  </td>
-                  <td className="cm-cell-mut">{formatDate(invite?.created_at)}</td>
-                  <td>
-                    <span className="cm-pill cm-pill-status">
-                      <span className="cm-dot s-invited" />
-                      {invite?.status || 'Pending'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="cm-acts">
-                      {/* Send invite email */}
-                      {isCommandUser ? (
-                        <button className="cm-iconbtn" onClick={() => handleSendEmail(invite)} title="Send invite email" disabled={sendingInviteId === invite?.id}>
-                          {sendingInviteId === invite?.id ? <LogoSpinner size={16} /> : <Icon name="Mail" size={16} />}
-                        </button>
-                      ) : (
-                        <button className="cm-iconbtn" disabled title="Only COMMAND users can send emails" style={{ opacity: 0.4 }}>
-                          <Icon name="Mail" size={16} />
-                        </button>
-                      )}
-
-                      {/* Copy link */}
-                      <button className="cm-iconbtn" onClick={() => handleCopyLink(invite?.token)} title="Copy invite link">
-                        <Icon name="Copy" size={16} />
-                      </button>
-
-                      {/* Nudge (reminder email) */}
-                      {isCommandUser ? (
-                        <button
-                          className="cm-iconbtn"
-                          onClick={() => handleNudge(invite)}
-                          title="Send reminder email"
-                          disabled={nudgingInviteId === invite?.id}
-                          style={{ width: 'auto', padding: '0 10px', fontWeight: 600, fontSize: '12px' }}
-                        >
-                          {nudgingInviteId === invite?.id ? 'Sending…' : 'Nudge'}
-                        </button>
-                      ) : (
-                        <button className="cm-iconbtn" disabled title="Only COMMAND users can nudge invites" style={{ width: 'auto', padding: '0 10px', fontWeight: 600, fontSize: '12px', opacity: 0.4 }}>
-                          Nudge
-                        </button>
-                      )}
-
-                      {/* Revoke */}
-                      {isCommandUser ? (
-                        <button className="cm-iconbtn" onClick={() => handleRevoke(invite?.id)} title="Revoke invite">
-                          <Icon name="Trash2" size={16} />
-                        </button>
-                      ) : (
-                        <button className="cm-iconbtn" disabled title="Only COMMAND users can revoke invites" style={{ opacity: 0.4 }}>
-                          <Icon name="Trash2" size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="cm-pi-detail">
+          <div className="cm-pi-list">
+            {invites.map((invite, idx) => {
+              const nm = invite?.invitee_name || null;
+              const roleName = invite?.role?.name || invite?.custom_role?.name || invite?.role_label || invite?.job_title_label;
+              const deptName = invite?.department?.name || invite?.department_label;
+              const sent = !!invite?.email_sent_at;
+              const failed = !!invite?.email_send_error;
+              const exp = invite?.expires_at ? new Date(invite.expires_at) : null;
+              const days = exp ? Math.ceil((exp - now) / 86400000) : null;
+              const expired = days != null && days < 0;
+              // one-word status
+              let st, stLabel;
+              if (failed) { st = 'fail'; stLabel = 'Send failed'; }
+              else if (expired) { st = 'exp'; stLabel = 'Expired'; }
+              else if (!sent) { st = 'notsent'; stLabel = 'Not sent'; }
+              else if (days != null && days <= 3) { st = 'soon'; stLabel = 'Expiring soon'; }
+              else { st = 'await'; stLabel = 'Awaiting'; }
+              // one-fact meta (expiry / failure)
+              let meta = ''; let metaWarn = false;
+              if (failed) { meta = 'Couldn’t send'; metaWarn = true; }
+              else if (expired) { meta = 'Expired'; metaWarn = true; }
+              else if (days != null) { meta = `Expires in ${days}d`; metaWarn = days <= 3; }
+              // detail on hover
+              const reminders = (invite?.nudge_count || 0) + (invite?.resent_count || 0);
+              const tip = [
+                sent ? `Sent ${formatDate(invite.email_sent_at)}` : 'Not emailed yet',
+                reminders ? `reminded ${reminders}×` : null,
+                invite?.start_date ? `joins ${formatDate(invite.start_date)}` : null,
+              ].filter(Boolean).join(' · ');
+              // adaptive primary action
+              const busy = sendingInviteId === invite?.id || nudgingInviteId === invite?.id;
+              const doSend = !sent || failed;
+              const primaryLabel = busy ? 'Sending…' : failed ? 'Retry send' : !sent ? 'Send' : 'Remind';
+              return (
+                <div className="cm-pi-inv" key={invite?.id}>
+                  <span className="cm-pi-av2" style={{ background: AVPAL[idx % AVPAL.length] }}>{initialsOf(nm || invite?.email)}</span>
+                  <div className="cm-pi-who">
+                    <div className="cm-pi-nm">{nm || invite?.email}</div>
+                    {nm && <div className="cm-pi-em">{invite?.email}</div>}
+                  </div>
+                  <div className="cm-pi-role">
+                    <div className="cm-pi-rl">{roleName || '—'}</div>
+                    {deptName && <div className="cm-pi-dp">{deptName}</div>}
+                  </div>
+                  <div className="cm-pi-status"><span className={`cm-pi-st st-${st}`} title={tip}><span className="d" />{stLabel}</span></div>
+                  <div className={`cm-pi-exp${metaWarn ? ' warn' : ''}`}>{meta}</div>
+                  <div className="cm-pi-acts">
+                    <button type="button" className={`cm-pi-btn${doSend ? ' primary' : ''}`} onClick={() => (doSend ? handleSendEmail(invite) : handleNudge(invite))} disabled={!isCommandUser || busy} title={isCommandUser ? '' : 'COMMAND only'}>{primaryLabel}</button>
+                    <button type="button" className="cm-pi-iact" title="Copy invite link" onClick={() => handleCopyLink(invite?.token)}><Icon name="Copy" size={15} /></button>
+                    <button type="button" className="cm-pi-iact danger" title="Revoke invite" onClick={() => handleRevoke(invite?.id)} disabled={!isCommandUser}><Icon name="Trash2" size={15} /></button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

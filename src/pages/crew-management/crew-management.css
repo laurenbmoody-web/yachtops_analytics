@@ -55,6 +55,34 @@
 .cm-pi-more { border: 0; background: none; color: #C65A1A; font-size: 12px; font-weight: 600; cursor: pointer; padding: 0 2px; }
 .cm-pi-more:hover { color: #B14E16; }
 .cm-pi-detail { margin-top: 12px; }
+.cm-pi-list { width: fit-content; max-width: 100%; background: #fff; border: 1px solid #E6E8EF; border-radius: 14px; overflow: hidden; }
+.cm-pi-inv { display: flex; align-items: center; gap: 30px; padding: 14px 20px; border-bottom: 1px solid #F1F2F6; }
+.cm-pi-inv:last-child { border-bottom: 0; }
+.cm-pi-av2 { width: 34px; height: 34px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.cm-pi-who { flex: 0 0 220px; min-width: 0; }
+.cm-pi-nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cm-pi-em { font-size: 11.5px; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cm-pi-role { flex: 0 0 140px; }
+.cm-pi-rl { font-size: 12.5px; font-weight: 600; }
+.cm-pi-dp { font-size: 11px; color: #AEB4C2; }
+.cm-pi-status { flex: 0 0 120px; }
+.cm-pi-st { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 3px 10px; }
+.cm-pi-st .d { width: 7px; height: 7px; border-radius: 999px; }
+.cm-pi-st.st-await { background: #EAF1F7; color: #3A6EA5; } .cm-pi-st.st-await .d { background: #5B8FCB; }
+.cm-pi-st.st-notsent { background: #F1F2F6; color: #6B7280; } .cm-pi-st.st-notsent .d { background: #AEB4C2; }
+.cm-pi-st.st-soon { background: #FBF1DC; color: #C0851F; } .cm-pi-st.st-soon .d { background: #D8A63B; }
+.cm-pi-st.st-fail, .cm-pi-st.st-exp { background: #FBEAE6; color: #C0392B; } .cm-pi-st.st-fail .d, .cm-pi-st.st-exp .d { background: #D9534F; }
+.cm-pi-exp { flex: 0 0 104px; font-size: 12px; color: #6B7280; }
+.cm-pi-exp.warn { color: #C0851F; font-weight: 600; }
+.cm-pi-acts { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
+.cm-pi-btn { flex: 0 0 auto; min-width: 88px; justify-content: center; border: 1px solid #E6E8EF; background: #fff; border-radius: 8px; font-size: 12px; font-weight: 600; color: #1C1B3A; padding: 6px 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.cm-pi-btn.primary { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.cm-pi-btn.primary:hover { background: #B14E16; }
+.cm-pi-btn:disabled { opacity: 0.5; cursor: default; }
+.cm-pi-iact { border: 0; background: none; color: #AEB4C2; cursor: pointer; padding: 6px; border-radius: 7px; display: inline-flex; }
+.cm-pi-iact:hover { color: #C65A1A; background: #F5EEE9; }
+.cm-pi-iact.danger:hover { color: #D9534F; background: #FBEAE6; }
+.cm-pi-iact:disabled { opacity: 0.4; cursor: default; }
 
 /* Segmented view toggle — editorial pills, selected = filled terracotta. */
 .cm-tabs { display: inline-flex; align-items: center; gap: 6px; margin-top: 22px; }
