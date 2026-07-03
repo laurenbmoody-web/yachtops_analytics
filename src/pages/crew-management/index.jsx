@@ -1760,9 +1760,10 @@ const CrewManagement = () => {
           <div className="cm-hier-hint">
             <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Drag anyone, anywhere to rebuild the team structure.</p>
             <ul className="cm-hier-hint-legend">
-              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up under one person above</strong> — report to them alone</li>
-              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up in the gap between a linked pair</strong> — report to both</li>
-              <li><span className="cm-hier-swatch cm-hier-swatch-pair"><Icon name="Link2" size={11} /></span><strong>Tap the ⚭ handle between two peers</strong> — pair them under one shared line (tap again to unlink)</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-peer" /><strong>Drop a peer beside another</strong> — they stay independent, each keeps its own line up</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-pair"><Icon name="Link2" size={11} /></span><strong>Hover a row, tap the ⚭ between two peers</strong> — link them under one shared line (tap again to unlink)</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up under someone above</strong> — report to them alone</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up in the gap of a linked pair</strong> — report to both</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-row" /><strong>Drop above, below or between rows</strong> — open a new level</li>
             </ul>
           </div>
