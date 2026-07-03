@@ -1813,8 +1813,10 @@ const CrewManagement = () => {
                 {/* Link handles — one between each pair of adjacent members. Tap
                     to pair them under a shared line (terracotta = linked), tap
                     again to break the pair. Hidden mid-drag to avoid clutter. */}
-                {canEdit && !hierDragId && [...members].sort((a, b) => effOrder(a) - effOrder(b)).slice(0, -1).map((u, i, arr) => {
-                  const next = arr[i + 1];
+                {canEdit && !hierDragId && (() => {
+                  const sorted = [...members].sort((a, b) => effOrder(a) - effOrder(b));
+                  return sorted.slice(0, -1).map((u, i) => {
+                  const next = sorted[i + 1];
                   const gapPx = Math.abs(effOrder(next) - effOrder(u)) * SCALE;
                   if (gapPx > LINKH_MAX_PX) return null;
                   const midVal = (effOrder(u) + effOrder(next)) / 2;
@@ -1832,7 +1834,8 @@ const CrewManagement = () => {
                       <Icon name="Link2" size={13} />
                     </button>
                   );
-                })}
+                  });
+                })()}
               </div>
             );
           })}
