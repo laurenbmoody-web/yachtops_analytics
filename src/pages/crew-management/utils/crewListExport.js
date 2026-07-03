@@ -131,13 +131,14 @@ export const exportCrewListPDF = async (o) => {
   y += 7;
 
   // ── Vessel identity grid ─────────────────────────────────────────────────
+  // Identity first (the IDs an officer keys on), then particulars. 6 per row.
   const vPairs = [
     ['Flag', vessel.flag],
-    ['Port of Registry', vessel.port_of_registry],
-    ['Official No.', vessel.official_number],
     ['IMO No.', vessel.imo_number],
     ['Call Sign', callSign],
+    ['Official No.', vessel.official_number],
     ['MMSI', vessel.mmsi],
+    ['Port of Registry', vessel.port_of_registry],
     ['GT', vessel.gt],
     ['LOA (m)', vessel.loa_m],
     ['Class', classNotation],
@@ -151,12 +152,13 @@ export const exportCrewListPDF = async (o) => {
   y += 6;
 
   // ── Voyage box ───────────────────────────────────────────────────────────
+  // Left-to-right voyage timeline: where from → where now → in → out → where to.
   const voyPairs = [
-    ['Port of Arrival', voyage.portOfArrival],
     ['Last Port', voyage.lastPort],
-    ['Next Port', voyage.nextPort],
+    ['Port of Arrival', voyage.portOfArrival],
     ['Arrival', [dd(voyage.arrivalDate), voyage.arrivalTime].filter(Boolean).join(' ')],
     ['Departure', [dd(voyage.departureDate), voyage.departureTime].filter(Boolean).join(' ')],
+    ['Next Port', voyage.nextPort],
   ];
   y = drawKeyGrid(doc, voyPairs, M, y, (pageW - 2 * M) / 5, 5, labelColor) + 4;
 
