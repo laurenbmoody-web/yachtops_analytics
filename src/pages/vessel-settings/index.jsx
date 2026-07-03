@@ -62,6 +62,8 @@ const VesselSettings = () => {
     port_of_registry: '',
     imo_number: '',
     official_number: '',
+    call_sign: '',
+    class_notation: '',
     company_name: '',
     company_address: '',
     company_email: '',
@@ -196,6 +198,8 @@ const VesselSettings = () => {
         port_of_registry: vesselData?.port_of_registry || '',
         imo_number: vesselData?.imo_number || '',
         official_number: vesselData?.official_number || '',
+        call_sign: vesselData?.call_sign || '',
+        class_notation: vesselData?.class_notation || '',
         company_name: vesselData?.company_name || '',
         company_address: vesselData?.company_address || '',
         company_email: vesselData?.company_email || '',
@@ -385,6 +389,8 @@ const VesselSettings = () => {
         port_of_registry: formState?.port_of_registry || null,
         imo_number: formState?.imo_number || null,
         official_number: formState?.official_number || null,
+        call_sign: formState?.call_sign?.trim() || null,
+        class_notation: formState?.class_notation?.trim() || null,
         company_name: formState?.company_name || null,
         company_address: formState?.company_address || null,
         company_email: formState?.company_email?.trim() || null,
@@ -929,6 +935,24 @@ const VesselSettings = () => {
                       value={formState?.official_number}
                       onChange={(e) => handleInputChange('official_number', e?.target?.value)}
                       placeholder="e.g., 123456"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Call Sign</label>
+                    <Input
+                      value={formState?.call_sign}
+                      onChange={(e) => handleInputChange('call_sign', e?.target?.value)}
+                      placeholder="e.g., ZGCY2 — shown on the crew list"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Class / Notation</label>
+                    <Input
+                      value={formState?.class_notation}
+                      onChange={(e) => handleInputChange('class_notation', e?.target?.value)}
+                      placeholder="e.g., 100A1 SSC Yacht Mono"
                       disabled={viewMode || !canEdit}
                     />
                   </div>

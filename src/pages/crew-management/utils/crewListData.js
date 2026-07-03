@@ -35,7 +35,7 @@ export const fetchVesselForCrewList = async (tenantId) => {
   if (!tenantId) return null;
   const { data } = await supabase
     .from('vessels')
-    .select('name, flag, port_of_registry, official_number, imo_number, mmsi, gt, loa_m, year_built, commercial_status, certified_commercial, logo_url')
+    .select('name, flag, port_of_registry, official_number, imo_number, mmsi, gt, loa_m, year_built, commercial_status, certified_commercial, logo_url, call_sign, class_notation')
     .eq('tenant_id', tenantId)
     .maybeSingle();
   return data || null;
