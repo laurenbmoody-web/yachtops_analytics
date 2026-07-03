@@ -52,8 +52,15 @@
 .ccl-warn { display: flex; gap: 8px; align-items: flex-start; background: #FBF3E4; border: 1px solid #EFDFC0; color: #8A621D; border-radius: 10px; padding: 9px 12px; font-size: 12px; line-height: 1.45; margin-bottom: 12px; }
 .ccl-warn svg { flex: none; margin-top: 1px; }
 
+.ccl-draghint { font-size: 11px; color: #8B8478; margin: 0 0 10px; }
 .ccl-list { display: flex; flex-direction: column; border: 1px solid #ECEAE3; border-radius: 12px; overflow: hidden; }
-.ccl-row { display: flex; align-items: center; gap: 11px; padding: 9px 12px; border: none; border-bottom: 1px solid #F0F1F5; background: #fff; cursor: pointer; text-align: left; width: 100%; }
+.ccl-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: none; border-bottom: 1px solid #F0F1F5; background: #fff; cursor: pointer; text-align: left; width: 100%; }
+.ccl-row[draggable="true"] { user-select: none; }
+.ccl-grip { flex: none; color: #C7C3B8; cursor: grab; display: flex; }
+.ccl-grip:active { cursor: grabbing; }
+.ccl-row:hover .ccl-grip { color: #8B8478; }
+.ccl-num { flex: none; width: 22px; text-align: center; font-size: 12.5px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
+.ccl-num.off { color: #C7C3B8; font-weight: 500; }
 .ccl-row:last-child { border-bottom: none; }
 .ccl-row:hover { background: #FAFAF8; }
 .ccl-row.on { background: #FDF7F3; }
