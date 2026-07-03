@@ -67,10 +67,10 @@ const drawKeyGrid = (doc, pairs, x, y, colW, perRow, accent) => {
   pairs.forEach((p, i) => {
     const cx = x + (i % perRow) * colW;
     const cy = y + Math.floor(i / perRow) * rowH;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(...accent);
-    doc.text(String(p[0]).toUpperCase(), cx, cy, { charSpace: 0.3 });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8); doc.setTextColor(...accent);
+    doc.text(String(p[0]).toUpperCase(), cx, cy, { charSpace: 0.6 });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...INK);
-    doc.text(String(p[1] || '—'), cx, cy + 4.4);
+    doc.text(String(p[1] || '—'), cx, cy + 4.6);
   });
   return y + Math.ceil(pairs.length / perRow) * rowH;
 };
@@ -109,8 +109,8 @@ export const exportCrewListPDF = async (o) => {
   const logo = vessel?.logo_url ? await loadLogoForPdf(vessel.logo_url) : null;
 
   // ── Title ────────────────────────────────────────────────────────────────
-  doc.setTextColor(...eyebrowColor); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-  doc.text('CREW LIST', M, 14, { charSpace: editorial ? 0.6 : 1.2 });
+  doc.setTextColor(...eyebrowColor); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+  doc.text('OFFICIAL CREW LIST', M, 14, { charSpace: editorial ? 0.8 : 1.2 });
   doc.setTextColor(...NAVY); doc.setFont(titleFont, editorial ? 'normal' : 'bold');
   doc.setFontSize(editorial ? 24 : 18);
   doc.text(vessel.name || 'Vessel', M, editorial ? 24 : 23);
@@ -179,8 +179,8 @@ export const exportCrewListPDF = async (o) => {
       textColor: INK, lineColor: HAIR, lineWidth: editorial ? 0.1 : 0.15, overflow: 'linebreak',
     },
     headStyles: editorial
-      ? { fillColor: [244, 243, 239], textColor: NAVY, fontStyle: 'bold', fontSize: 6.9, lineColor: HAIR, lineWidth: 0.1 }
-      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, lineColor: NAVY, lineWidth: 0.15 },
+      ? { fillColor: [237, 235, 229], textColor: NAVY, fontStyle: 'bold', fontSize: 7.4, lineColor: HAIR, lineWidth: 0.1 }
+      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.4, lineColor: NAVY, lineWidth: 0.15 },
     alternateRowStyles: editorial ? { fillColor: [252, 251, 248] } : { fillColor: [245, 246, 249] },
     columnStyles,
     didParseCell: (data) => {
@@ -233,5 +233,5 @@ export const exportCrewListPDF = async (o) => {
   }
 
   const safe = String(vessel.name || 'vessel').replace(/[^\w]+/g, '-');
-  doc.save(`Crew-list-${safe}-${(generatedAt || '').replace(/[^\w]+/g, '-')}.pdf`);
+  doc.save(`Official-crew-list-${safe}-${(generatedAt || '').replace(/[^\w]+/g, '-')}.pdf`);
 };
