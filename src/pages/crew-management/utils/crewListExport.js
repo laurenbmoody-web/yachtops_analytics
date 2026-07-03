@@ -31,19 +31,18 @@ const commercialLabel = (v) => {
 // Column layout shared by both templates. Widths (mm) tuned for A4 landscape
 // with 12mm margins (usable ≈ 273mm).
 const COLUMNS = [
-  { header: '#', key: 'idx', w: 7, halign: 'center' },
-  { header: 'Rank', key: 'rank', w: 24 },
-  { header: 'Surname', key: 'surname', w: 24 },
-  { header: 'Fore name', key: 'foreName', w: 24 },
-  { header: 'Sex', key: 'sex', w: 9, halign: 'center' },
-  { header: 'Date of birth', key: 'dob', w: 20, halign: 'center' },
-  { header: 'Place of birth', key: 'placeOfBirth', w: 24 },
-  { header: 'Nationality', key: 'nationality', w: 20 },
-  { header: 'Passport no.', key: 'passportNo', w: 24 },
-  { header: 'Expiry', key: 'passportExpiry', w: 18, halign: 'center' },
-  { header: 'Issuing state', key: 'issuingState', w: 20 },
-  { header: 'Place of issue', key: 'placeOfIssue', w: 22 },
-  { header: 'Address', key: 'address', w: 0 }, // 0 = take the remainder (~36mm)
+  { header: '#', key: 'idx', w: 8, halign: 'center' },
+  { header: 'Rank', key: 'rank', w: 26 },
+  { header: 'Surname', key: 'surname', w: 26 },
+  { header: 'Fore name', key: 'foreName', w: 26 },
+  { header: 'Sex', key: 'sex', w: 11, halign: 'center' },
+  { header: 'Date of birth', key: 'dob', w: 22, halign: 'center' },
+  { header: 'Place of birth', key: 'placeOfBirth', w: 28 },
+  { header: 'Nationality', key: 'nationality', w: 24 },
+  { header: 'Passport no.', key: 'passportNo', w: 26 },
+  { header: 'Expiry', key: 'passportExpiry', w: 20, halign: 'center' },
+  { header: 'Issuing state', key: 'issuingState', w: 24 },
+  { header: 'Place of issue', key: 'placeOfIssue', w: 0 }, // 0 = take the remainder
 ];
 
 const rowToCells = (row, i) => ({
@@ -60,7 +59,6 @@ const rowToCells = (row, i) => ({
   passportExpiry: dd(row.passportExpiry),
   issuingState: row.passportState || '',
   placeOfIssue: row.placeOfIssue || '',
-  address: row.address || '',
 });
 
 // A row of label/value pairs for the vessel + voyage header blocks.
@@ -175,12 +173,12 @@ export const exportCrewListPDF = async (o) => {
       return COLUMNS.map((c) => cells[c.key]);
     }),
     styles: {
-      font: 'helvetica', fontSize: 7.1, cellPadding: editorial ? 1.8 : 1.6,
+      font: 'helvetica', fontSize: 7.8, cellPadding: editorial ? 2.1 : 1.9,
       textColor: INK, lineColor: HAIR, lineWidth: editorial ? 0.1 : 0.15, overflow: 'linebreak',
     },
     headStyles: editorial
-      ? { fillColor: [244, 243, 239], textColor: NAVY, fontStyle: 'bold', fontSize: 6.3, lineColor: HAIR, lineWidth: 0.1 }
-      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, lineColor: NAVY, lineWidth: 0.15 },
+      ? { fillColor: [244, 243, 239], textColor: NAVY, fontStyle: 'bold', fontSize: 6.9, lineColor: HAIR, lineWidth: 0.1 }
+      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, lineColor: NAVY, lineWidth: 0.15 },
     alternateRowStyles: editorial ? { fillColor: [252, 251, 248] } : { fillColor: [245, 246, 249] },
     columnStyles,
     didParseCell: (data) => {
