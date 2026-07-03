@@ -178,6 +178,7 @@ const CrewManagement = () => {
   const [hierDragId, setHierDragId] = useState(null); // crew id currently being dragged
   const [hierPos, setHierPos] = useState(null); // { x, y } viewport coords, for the drag ghost
   const [hierPlan, setHierPlan] = useState(null); // computed landing spot (row/col placeholder to render)
+  const [hierResetArm, setHierResetArm] = useState(false); // two-step confirm for "Reset layout"
   const rowElRefs = useRef({}); // rowKey -> row band DOM element, for hit-testing during drag
   const orgContainerRef = useRef(null); // .cm-org scroll element (viewport for the chart)
   const orgCanvasRef = useRef(null); // .cm-orows — the fixed-width, centred canvas the tree is laid out on
@@ -1654,9 +1655,34 @@ const CrewManagement = () => {
       return { row, col, pairWithId, reportsToId, reportsToPairIds, previewOffsetPx: (finalValue - colMid) * SCALE };
     };
 
+    // Everyone chained to `u` by link gaps in its own row — u plus its linked
+    // partner(s). A linked pair is one unit, so dragging any member moves the
+    // whole group together (the ⚭ handle stays the only way to split them).
+    const linkedGroupOf = (u) => {
+      if (!u) return [];
+      const row = effRow(u);
+      const rowMembers = crew.filter((m) => effRow(m) === row).sort((a, b) => effOrder(a) - effOrder(b));
+      const idx = rowMembers.findIndex((m) => m.id === u.id);
+      if (idx < 0) return [u];
+      const group = [rowMembers[idx]];
+      for (let i = idx - 1; i >= 0; i--) {
+        if (isLinkedGapPx((effOrder(rowMembers[i + 1]) - effOrder(rowMembers[i])) * SCALE)) group.unshift(rowMembers[i]);
+        else break;
+      }
+      for (let i = idx + 1; i < rowMembers.length; i++) {
+        if (isLinkedGapPx((effOrder(rowMembers[i]) - effOrder(rowMembers[i - 1])) * SCALE)) group.push(rowMembers[i]);
+        else break;
+      }
+      return group;
+    };
+
     const finalize = (plan) => {
       if (!plan || !hierDragId) return;
       const patch = new Map();
+      const draggedUser = crewById.get(hierDragId);
+      const groupMembers = linkedGroupOf(draggedUser).filter((m) => m.id !== hierDragId);
+      const draggedOrder0 = effOrder(draggedUser);
+      const groupIds = new Set([hierDragId, ...groupMembers.map((m) => m.id)]);
 
       let finalRow;
       if (plan.row.type === 'join') finalRow = plan.row.rowKey;
@@ -1667,7 +1693,7 @@ const CrewManagement = () => {
         else if (nextKey - prevKey > 1) finalRow = prevKey + 1;
         else {
           finalRow = nextKey;
-          crew.forEach((u) => { if (u.id !== hierDragId && effRow(u) >= nextKey) patch.set(u.id, { org_row: effRow(u) + 1, org_order: effOrder(u) }); });
+          crew.forEach((u) => { if (!groupIds.has(u.id) && effRow(u) >= nextKey) patch.set(u.id, { org_row: effRow(u) + 1, org_order: effOrder(u) }); });
         }
       }
 
@@ -1683,7 +1709,7 @@ const CrewManagement = () => {
       // Accounts for the row-shift above: a member being pushed out of
       // `finalRow` by this same drop no longer counts as an occupant of it.
       const destRowMembers = crew.filter((m) => {
-        if (m.id === hierDragId) return false;
+        if (groupIds.has(m.id)) return false; // the moving unit doesn't clash with itself
         const rowAfter = patch.has(m.id) ? patch.get(m.id).org_row : effRow(m);
         return rowAfter === finalRow;
       });
@@ -1702,6 +1728,11 @@ const CrewManagement = () => {
       // any earlier explicit assignment so this drop's position drives the
       // (positional-fallback) line instead of a now-stale manager.
       patch.set(hierDragId, { org_row: finalRow, org_order: finalCol, reports_to: plan.reportsToId || null });
+      // Carry the linked partner(s) along, preserving their offset from the
+      // dragged member so the pair keeps its tight gap and lands as a unit.
+      groupMembers.forEach((m) => {
+        patch.set(m.id, { org_row: finalRow, org_order: finalCol + (effOrder(m) - draggedOrder0), reports_to: plan.reportsToId || null });
+      });
       applyHierarchyPatch(patch);
     };
 
@@ -1739,7 +1770,18 @@ const CrewManagement = () => {
     } : {});
 
     const dragged = hierDragId ? crewById.get(hierDragId) : null;
+    // Whole linked unit dims while dragging any of its members (they all move).
+    const draggingGroupIds = dragged ? new Set(linkedGroupOf(dragged).map((m) => m.id)) : null;
     const cardStyle = (key) => ({ left: `calc(50% + ${colOffsetPx(key) - 48}px)` }); // 89 = half card width (178/2)
+
+    // Reset layout — clear every override so the tree falls back to the default
+    // role/department-derived arrangement. Two-step confirm (it wipes drags).
+    const resetHierarchy = () => {
+      const patch = new Map();
+      crew.forEach((u) => patch.set(u.id, { org_row: null, org_order: null, reports_to: null }));
+      applyHierarchyPatch(patch);
+      setHierResetArm(false);
+    };
 
     // The tree is laid out on a fixed-width canvas (not the viewport), sized to
     // span every card + padding, and centred inside the scroll container. That
@@ -1775,13 +1817,28 @@ const CrewManagement = () => {
     return (
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
         {canEdit && (
-          <div className="cm-hier-hint">
-            <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Drag anyone, anywhere to rebuild the team structure.</p>
-            <ul className="cm-hier-hint-legend">
-              <li><strong>Drop under someone</strong> — they report to that person</li>
-              <li><strong>Drop beside someone</strong> — same manager; tap the ⚭ to link them as a pair</li>
-              <li><strong>Drop outside the rows</strong> — start a new level</li>
-            </ul>
+          <div className="cm-hier-top">
+            <div className="cm-hier-hint">
+              <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Drag anyone, anywhere to rebuild the team structure.</p>
+              <ul className="cm-hier-hint-legend">
+                <li><strong>Drop under someone</strong> — they report to that person</li>
+                <li><strong>Drop beside someone</strong> — same manager; tap the ⚭ to link them as a pair</li>
+                <li><strong>Drop outside the rows</strong> — start a new level</li>
+              </ul>
+            </div>
+            <div className="cm-hier-reset">
+              {hierResetArm ? (
+                <>
+                  <span className="cm-hier-reset-q">Reset everyone to the default layout?</span>
+                  <button type="button" className="cm-hier-reset-yes" onClick={resetHierarchy}>Reset</button>
+                  <button type="button" className="cm-hier-reset-no" onClick={() => setHierResetArm(false)}>Cancel</button>
+                </>
+              ) : (
+                <button type="button" className="cm-hier-reset-btn" onClick={() => setHierResetArm(true)}>
+                  <Icon name="RotateCcw" size={14} /> Reset layout
+                </button>
+              )}
+            </div>
           </div>
         )}
         <div className="cm-orows" ref={orgCanvasRef} style={{ width: `${canvasWidth}px`, margin: '0 auto' }}>
@@ -1810,7 +1867,7 @@ const CrewManagement = () => {
                 ref={(el) => { if (el) rowElRefs.current[rowKey] = el; else delete rowElRefs.current[rowKey]; }}
               >
                 {members.map((u) => {
-                  const isDragged = u.id === hierDragId;
+                  const isDragged = draggingGroupIds ? draggingGroupIds.has(u.id) : false;
                   const isPairTarget = showJoinHere && hierPlan.pairWithId === u.id;
                   const isReportTarget = hierPlan?.reportsToId === u.id || hierPlan?.reportsToPairIds?.includes(u.id);
                   return (
@@ -1822,6 +1879,7 @@ const CrewManagement = () => {
                       ref={(el) => { if (el) orgCardRefs.current[u.id] = el; else delete orgCardRefs.current[u.id]; }}
                       {...cardProps(u)}
                     >
+                      <div className="cm-onode-status"><span className="d" style={{ background: statusColor(u.status) }} />{getStatusLabel(u.status)}</div>
                       <span className="cm-onode-dot" style={{ background: statusColor(u.status) }} />
                       <Avatar user={u} className="cm-onode-av" />
                       <div className="cm-onode-nm">{u.fullName}</div>

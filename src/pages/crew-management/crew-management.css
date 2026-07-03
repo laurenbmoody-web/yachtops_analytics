@@ -341,7 +341,18 @@ a.cm-cal-name:hover { color: #C65A1A; }
    new-row preview (which can float above the first row or below the last)
    always has room to render without needing to grow the real row layout. */
 .cm-org.is-dragging-any { padding-top: 120px; padding-bottom: 120px; }
-.cm-hier-hint { margin: 0 0 24px; }
+.cm-hier-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin: 0 0 24px; }
+.cm-hier-hint { margin: 0; }
+/* Reset layout — a quiet ghost action; two-step inline confirm before it wipes. */
+.cm-hier-reset { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.cm-hier-reset-btn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280; background: #fff; border: 1px solid #E6E8EF; border-radius: 10px; padding: 8px 13px; cursor: pointer; white-space: nowrap; transition: color 0.12s ease, border-color 0.12s ease; }
+.cm-hier-reset-btn:hover { color: #C65A1A; border-color: #E8B6A6; }
+.cm-hier-reset-btn svg { flex: 0 0 auto; }
+.cm-hier-reset-q { font-size: 12px; color: #6B7280; }
+.cm-hier-reset-yes { font: inherit; font-size: 12.5px; font-weight: 600; color: #fff; background: #C65A1A; border: 1px solid #C65A1A; border-radius: 8px; padding: 7px 13px; cursor: pointer; }
+.cm-hier-reset-yes:hover { background: #B14E16; border-color: #B14E16; }
+.cm-hier-reset-no { font: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280; background: #fff; border: 1px solid #E6E8EF; border-radius: 8px; padding: 7px 13px; cursor: pointer; }
+.cm-hier-reset-no:hover { color: #1C1B3A; border-color: #CBD5E1; }
 .cm-hier-hint-lead { display: flex; align-items: center; gap: 6px; font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 16px; color: #1C1B3A; margin: 0 0 10px; }
 .cm-hier-hint-lead svg { color: #C65A1A; flex: 0 0 auto; }
 .cm-hier-hint-legend { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 0; padding: 0; list-style: none; }
@@ -374,6 +385,12 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-onode-nm { font-size: 12px; font-weight: 600; color: #1C1B3A; line-height: 1.2; }
 .cm-onode-rl { font-size: 8.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C65A1A; margin-top: 2px; }
 .cm-onode-dot { position: absolute; top: -2px; right: 20px; width: 10px; height: 10px; border-radius: 999px; border: 2px solid #fff; }
+/* Status clarification — a small pill that appears on hover (the persistent dot
+   says "there's a status"; this spells it out). Hidden while dragging. */
+.cm-onode-status { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 7px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; background: #1C1B3A; color: #fff; font-size: 10px; font-weight: 600; padding: 4px 9px; border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity 0.12s ease; box-shadow: 0 6px 16px -4px rgba(28,27,58,0.35); z-index: 6; }
+.cm-onode-status .d { width: 6px; height: 6px; border-radius: 999px; }
+.cm-onode:hover .cm-onode-status { opacity: 1; }
+.cm-org.is-dragging-any .cm-onode-status { opacity: 0 !important; }
 .cm-onode.is-draggable { cursor: grab; }
 .cm-onode.is-draggable:active { cursor: grabbing; }
 .cm-onode.is-draggable:hover .cm-onode-av { transform: translateY(-1px); box-shadow: 0 0 0 1px #E6E8EF, 0 6px 14px rgba(28,27,58,0.18); }
