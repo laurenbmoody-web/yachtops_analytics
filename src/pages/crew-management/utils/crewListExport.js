@@ -31,18 +31,19 @@ const commercialLabel = (v) => {
 // Column layout shared by both templates. Widths (mm) tuned for A4 landscape
 // with 12mm margins (usable ≈ 273mm).
 const COLUMNS = [
-  { header: '#', key: 'idx', w: 8, halign: 'center' },
-  { header: 'Rank', key: 'rank', w: 30 },
-  { header: 'Surname', key: 'surname', w: 26 },
-  { header: 'Fore name', key: 'foreName', w: 26 },
-  { header: 'Sex', key: 'sex', w: 12, halign: 'center' },
-  { header: 'Date of birth', key: 'dob', w: 22, halign: 'center' },
-  { header: 'Place of birth', key: 'placeOfBirth', w: 28 },
-  { header: 'Nationality', key: 'nationality', w: 24 },
-  { header: 'Passport no.', key: 'passportNo', w: 26 },
-  { header: 'Passport exp.', key: 'passportExpiry', w: 22, halign: 'center' },
-  { header: 'Issuing state', key: 'issuingState', w: 22 },
-  { header: 'Address', key: 'address', w: 0 }, // 0 = take the remainder
+  { header: '#', key: 'idx', w: 7, halign: 'center' },
+  { header: 'Rank', key: 'rank', w: 24 },
+  { header: 'Surname', key: 'surname', w: 24 },
+  { header: 'Fore name', key: 'foreName', w: 24 },
+  { header: 'Sex', key: 'sex', w: 9, halign: 'center' },
+  { header: 'Date of birth', key: 'dob', w: 20, halign: 'center' },
+  { header: 'Place of birth', key: 'placeOfBirth', w: 24 },
+  { header: 'Nationality', key: 'nationality', w: 20 },
+  { header: 'Passport no.', key: 'passportNo', w: 24 },
+  { header: 'Expiry', key: 'passportExpiry', w: 18, halign: 'center' },
+  { header: 'Issuing state', key: 'issuingState', w: 20 },
+  { header: 'Place of issue', key: 'placeOfIssue', w: 22 },
+  { header: 'Address', key: 'address', w: 0 }, // 0 = take the remainder (~36mm)
 ];
 
 const rowToCells = (row, i) => ({
@@ -55,8 +56,10 @@ const rowToCells = (row, i) => ({
   placeOfBirth: row.placeOfBirth || '',
   nationality: row.nationality || '',
   passportNo: row.passportNo || '',
+  passportIssue: dd(row.passportIssue),
   passportExpiry: dd(row.passportExpiry),
   issuingState: row.passportState || '',
+  placeOfIssue: row.placeOfIssue || '',
   address: row.address || '',
 });
 
@@ -89,9 +92,14 @@ export const exportCrewListPDF = async (o) => {
   const {
     template = 'fal', vessel = {}, callSign = '', classNotation = '',
     voyage = {}, master = '', rows = [], generatedAt = '',
+    declaration = '', signature = null, stamp = null,
   } = o;
   const editorial = template === 'editorial';
-  const accent = editorial ? TERRA : NAVY;
+  // Headers/labels stay dark (navy) so they survive a black-&-white print at the
+  // port office — terracotta washes out to a pale grey. The only colour accent
+  // is the small "CREW LIST" eyebrow.
+  const labelColor = NAVY;
+  const eyebrowColor = editorial ? NAVY : TERRA;
   const titleFont = editorial ? 'times' : 'helvetica';
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
@@ -99,16 +107,26 @@ export const exportCrewListPDF = async (o) => {
   const pageH = doc.internal.pageSize.getHeight();
   const M = 12;
 
+  // Vessel logo as a letterhead mark (top-right). Loaded from the vessel record.
+  const logo = vessel?.logo_url ? await loadLogoForPdf(vessel.logo_url) : null;
+
   // ── Title ────────────────────────────────────────────────────────────────
-  doc.setTextColor(...TERRA); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+  doc.setTextColor(...eyebrowColor); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
   doc.text('CREW LIST', M, 14, { charSpace: editorial ? 0.6 : 1.2 });
   doc.setTextColor(...NAVY); doc.setFont(titleFont, editorial ? 'normal' : 'bold');
   doc.setFontSize(editorial ? 24 : 18);
   doc.text(vessel.name || 'Vessel', M, editorial ? 24 : 23);
 
-  // Cargo mark / generated date, top-right
+  // Vessel logo top-right; generated date beneath it (or top-right if no logo).
+  let dateY = 12;
+  if (logo?.dataUrl) {
+    const logoH = 13;
+    const logoW = Math.min(60, logoH * (logo.aspect || 3));
+    try { doc.addImage(logo.dataUrl, 'PNG', pageW - M - logoW, 6, logoW, logoH); } catch { /* skip */ }
+    dateY = 6 + logoH + 4;
+  }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-  if (generatedAt) doc.text(`Generated ${generatedAt}`, pageW - M, 12, { align: 'right' });
+  if (generatedAt) doc.text(`Generated ${generatedAt}`, pageW - M, dateY, { align: 'right' });
 
   let y = editorial ? 32 : 30;
   doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(M, y, pageW - M, y);
@@ -129,7 +147,7 @@ export const exportCrewListPDF = async (o) => {
     ['Registry type', commercialLabel(vessel)],
   ];
   const gridColW = (pageW - 2 * M) / 6;
-  y = drawKeyGrid(doc, vPairs, M, y, gridColW, 6, accent) + 3;
+  y = drawKeyGrid(doc, vPairs, M, y, gridColW, 6, labelColor) + 3;
 
   doc.setDrawColor(...HAIR); doc.setLineWidth(0.2); doc.line(M, y, pageW - M, y);
   y += 6;
@@ -142,7 +160,7 @@ export const exportCrewListPDF = async (o) => {
     ['Arrival', [dd(voyage.arrivalDate), voyage.arrivalTime].filter(Boolean).join(' ')],
     ['Departure', [dd(voyage.departureDate), voyage.departureTime].filter(Boolean).join(' ')],
   ];
-  y = drawKeyGrid(doc, voyPairs, M, y, (pageW - 2 * M) / 5, 5, accent) + 4;
+  y = drawKeyGrid(doc, voyPairs, M, y, (pageW - 2 * M) / 5, 5, labelColor) + 4;
 
   // ── Crew table ───────────────────────────────────────────────────────────
   const columnStyles = {};
@@ -157,12 +175,12 @@ export const exportCrewListPDF = async (o) => {
       return COLUMNS.map((c) => cells[c.key]);
     }),
     styles: {
-      font: 'helvetica', fontSize: 7.6, cellPadding: editorial ? 2 : 1.8,
+      font: 'helvetica', fontSize: 7.1, cellPadding: editorial ? 1.8 : 1.6,
       textColor: INK, lineColor: HAIR, lineWidth: editorial ? 0.1 : 0.15, overflow: 'linebreak',
     },
     headStyles: editorial
-      ? { fillColor: [250, 250, 248], textColor: MUTED, fontStyle: 'bold', fontSize: 6.6, lineColor: HAIR, lineWidth: 0.1 }
-      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.8, lineColor: NAVY, lineWidth: 0.15 },
+      ? { fillColor: [244, 243, 239], textColor: NAVY, fontStyle: 'bold', fontSize: 6.3, lineColor: HAIR, lineWidth: 0.1 }
+      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, lineColor: NAVY, lineWidth: 0.15 },
     alternateRowStyles: editorial ? { fillColor: [252, 251, 248] } : { fillColor: [245, 246, 249] },
     columnStyles,
     didParseCell: (data) => {
@@ -174,29 +192,43 @@ export const exportCrewListPDF = async (o) => {
     },
   });
 
-  let fy = (doc.lastAutoTable?.finalY || y) + 8;
-  if (fy > pageH - 26) { doc.addPage(); fy = 20; }
+  let fy = (doc.lastAutoTable?.finalY || y) + 9;
+  if (fy > pageH - 40) { doc.addPage(); fy = 20; }
 
-  // ── Footer: total + master signature ─────────────────────────────────────
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...accent);
+  // ── Master's declaration (statement above the signature) ─────────────────
+  doc.setFont(editorial ? 'times' : 'helvetica', editorial ? 'italic' : 'normal');
+  doc.setFontSize(9); doc.setTextColor(...INK);
+  const declText = declaration
+    || 'I certify that the particulars given above are a true and complete list of the persons comprising the crew of the above-named vessel.';
+  const declLines = doc.splitTextToSize(declText, pageW - 2 * M);
+  doc.text(declLines, M, fy);
+  fy += declLines.length * 4.4 + 8;
+  if (fy > pageH - 30) { doc.addPage(); fy = 20; }
+
+  // ── Total (left) + master name / signature / stamp (right) ────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...labelColor);
   doc.text('TOTAL CREW MEMBERS', M, fy, { charSpace: 0.4 });
   doc.setFont(titleFont, editorial ? 'normal' : 'bold'); doc.setFontSize(editorial ? 15 : 13); doc.setTextColor(...NAVY);
   doc.text(String(rows.length), M, fy + 6.5);
 
-  const sigX = pageW - M - 90;
+  const sigW = 90;
+  const sigX = pageW - M - sigW;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...MUTED);
-  doc.text('MASTER — NAME & SIGNATURE', sigX, fy, { charSpace: 0.3 });
-  doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(sigX, fy + 12, sigX + 90, fy + 12);
-  if (master) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(master, sigX, fy + 10); }
+  doc.text('MASTER — NAME, SIGNATURE & STAMP', sigX, fy, { charSpace: 0.3 });
+  // Signature image sits just above the rule; stamp overlaps to its right.
+  if (signature) { try { doc.addImage(signature, 'PNG', sigX, fy + 1.5, 46, 15); } catch { /* bad image */ } }
+  if (stamp) { try { doc.addImage(stamp, 'PNG', sigX + sigW - 26, fy - 2, 24, 24); } catch { /* bad image */ } }
+  doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(sigX, fy + 18, sigX + sigW, fy + 18);
+  if (master) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(master, sigX, fy + 23); }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-  doc.text(generatedAt || '', sigX, fy + 16);
+  doc.text(generatedAt || '', sigX, fy + 27.5);
 
   // Cargo mark bottom-left (editorial only; FAL stays plain/official).
   if (editorial) {
-    const logo = await loadLogoForPdf(CARGO_LOGO);
-    if (logo?.dataUrl) {
-      const h = 4.2; const w = h * (logo.aspect || 6.7);
-      try { doc.addImage(logo.dataUrl, 'PNG', M, pageH - 10, w, h); } catch { /* skip */ }
+    const cargoLogo = await loadLogoForPdf(CARGO_LOGO);
+    if (cargoLogo?.dataUrl) {
+      const h = 4.2; const w = h * (cargoLogo.aspect || 6.7);
+      try { doc.addImage(cargoLogo.dataUrl, 'PNG', M, pageH - 10, w, h); } catch { /* skip */ }
     }
   }
 
