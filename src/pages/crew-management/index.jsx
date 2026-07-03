@@ -179,7 +179,8 @@ const CrewManagement = () => {
   const [hierPos, setHierPos] = useState(null); // { x, y } viewport coords, for the drag ghost
   const [hierPlan, setHierPlan] = useState(null); // computed landing spot (row/col placeholder to render)
   const rowElRefs = useRef({}); // rowKey -> row band DOM element, for hit-testing during drag
-  const orgContainerRef = useRef(null); // .cm-org element, for line-overlay coordinates
+  const orgContainerRef = useRef(null); // .cm-org scroll element (viewport for the chart)
+  const orgCanvasRef = useRef(null); // .cm-orows — the fixed-width, centred canvas the tree is laid out on
   const orgCardRefs = useRef({}); // crew id -> rendered card element, for line-overlay coordinates
   const hierPendRef = useRef(null); // { id, x, y, started } — pending pointer press, promoted to a drag only past a move threshold
   const [orgLines, setOrgLines] = useState([]); // connector lines between a card and its nearest-above neighbour
@@ -1312,7 +1313,7 @@ const CrewManagement = () => {
     let cancelled = false;
     const recompute = () => {
       if (cancelled) return;
-      const container = orgContainerRef.current;
+      const container = orgCanvasRef.current || orgContainerRef.current; // coords relative to the canvas
       if (!container) return;
       const crect = container.getBoundingClientRect();
       const crew = (users || []).filter((u) => u?.status !== 'invited' && u?.fullName && u.id !== hierDragId);
@@ -1519,7 +1520,7 @@ const CrewManagement = () => {
         .filter((r) => r.el)
         .map((r) => ({ ...r, rect: r.el.getBoundingClientRect() }));
       if (!rowRects.length) return null;
-      const containerRect = orgContainerRef.current?.getBoundingClientRect();
+      const containerRect = (orgCanvasRef.current || orgContainerRef.current)?.getBoundingClientRect();
       const toLocalTop = (viewportY) => viewportY - (containerRect?.top || 0);
 
       let row = null;
@@ -1733,6 +1734,16 @@ const CrewManagement = () => {
     const dragged = hierDragId ? crewById.get(hierDragId) : null;
     const cardStyle = (key) => ({ left: `calc(50% + ${colOffsetPx(key) - 89}px)` }); // 89 = half card width (178/2)
 
+    // The tree is laid out on a fixed-width canvas (not the viewport), sized to
+    // span every card + padding, and centred inside the scroll container. That
+    // way cards never fall to negative (unreachable) left positions when the
+    // tree is wider than the screen — the container just scrolls.
+    const _off = crew.map((u) => colOffsetPx(effOrder(u))).filter((v) => Number.isFinite(v));
+    const _minOff = _off.length ? Math.min(..._off) : 0;
+    const _maxOff = _off.length ? Math.max(..._off) : 0;
+    const CANVAS_PAD = 60;
+    const canvasWidth = Math.round((_maxOff - _minOff) + 178 + CANVAS_PAD * 2);
+
     return (
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
         {canEdit && (
@@ -1746,6 +1757,7 @@ const CrewManagement = () => {
             </ul>
           </div>
         )}
+        <div className="cm-orows" ref={orgCanvasRef} style={{ width: `${canvasWidth}px`, margin: '0 auto' }}>
         <svg className="cm-org-lines">
           {orgLines.map((l, i) => <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} />)}
         </svg>
@@ -1761,7 +1773,6 @@ const CrewManagement = () => {
             {hierPlan.pairWithId && <Icon name="Link2" size={14} />}
           </div>
         )}
-        <div className="cm-orows">
           {sortedRowKeys.map((rowKey) => {
             const members = rowsMap.get(rowKey) || [];
             const showJoinHere = hierPlan?.row.type === 'join' && hierPlan.row.rowKey === rowKey;
