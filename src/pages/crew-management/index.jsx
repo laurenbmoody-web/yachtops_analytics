@@ -1307,7 +1307,7 @@ const CrewManagement = () => {
   // EXACTLY PAIR_GAP_PX (200) from it — a fixed, deterministic offset, not a
   // mouse-precision guess. This threshold just needs to comfortably include
   // that exact distance while excluding normal (220px) sibling spacing.
-  const TIGHT_PX = 210;
+  const TIGHT_PX = 128;
   useEffect(() => {
     if (rosterView !== 'hierarchy') return;
     let cancelled = false;
@@ -1423,9 +1423,9 @@ const CrewManagement = () => {
     return () => { cancelled = true; cancelAnimationFrame(raf); window.removeEventListener('resize', recompute); };
   }, [rosterView, users, hierDragId]);
 
-  const COL_W = 220; // default (unpaired) spacing per slot
-  const CARD_W = 178;
-  const PAIR_GAP_PX = 200; // fixed, guaranteed-safe centre-to-centre distance for an explicit pair (just past the card's own width — never overlaps, by construction, not by mouse precision)
+  const COL_W = 140; // default (unpaired) spacing per slot — compact avatar nodes pack tighter
+  const CARD_W = 96;
+  const PAIR_GAP_PX = 116; // fixed, guaranteed-safe centre-to-centre distance for an explicit pair (just past the node's own width — never overlaps, by construction, not by mouse precision)
 
   // Safety net: if the browser ever fails to deliver pointerup/pointercancel to
   // the dragged card itself (lost pointer capture, tab-switch mid-drag, etc.),
@@ -1732,7 +1732,7 @@ const CrewManagement = () => {
     } : {});
 
     const dragged = hierDragId ? crewById.get(hierDragId) : null;
-    const cardStyle = (key) => ({ left: `calc(50% + ${colOffsetPx(key) - 89}px)` }); // 89 = half card width (178/2)
+    const cardStyle = (key) => ({ left: `calc(50% + ${colOffsetPx(key) - 48}px)` }); // 89 = half card width (178/2)
 
     // The tree is laid out on a fixed-width canvas (not the viewport), sized to
     // span every card + padding, and centred inside the scroll container. That
@@ -1742,7 +1742,7 @@ const CrewManagement = () => {
     const _minOff = _off.length ? Math.min(..._off) : 0;
     const _maxOff = _off.length ? Math.max(..._off) : 0;
     const CANVAS_PAD = 60;
-    const canvasWidth = Math.round((_maxOff - _minOff) + 178 + CANVAS_PAD * 2);
+    const canvasWidth = Math.round((_maxOff - _minOff) + 96 + CANVAS_PAD * 2);
 
     return (
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
@@ -1768,7 +1768,7 @@ const CrewManagement = () => {
         {hierPlan?.row.type === 'newrow' && (
           <div
             className={`cm-onode cm-onode-placeholder cm-onode-placeholder-float${hierPlan.pairWithId ? ' is-pairing' : ''}`}
-            style={{ top: hierPlan.row.previewTop, left: `calc(50% + ${hierPlan.previewOffsetPx - 89}px)` }}
+            style={{ top: hierPlan.row.previewTop, left: `calc(50% + ${hierPlan.previewOffsetPx - 48}px)` }}
           >
             {hierPlan.pairWithId && <Icon name="Link2" size={14} />}
           </div>
@@ -1808,7 +1808,7 @@ const CrewManagement = () => {
                 {showJoinHere && (
                   <div
                     className={`cm-onode cm-onode-placeholder${hierPlan.pairWithId ? ' is-pairing' : ''}`}
-                    style={{ left: `calc(50% + ${hierPlan.previewOffsetPx - 89}px)` }}
+                    style={{ left: `calc(50% + ${hierPlan.previewOffsetPx - 48}px)` }}
                   >
                     {hierPlan.pairWithId && <Icon name="Link2" size={14} />}
                   </div>

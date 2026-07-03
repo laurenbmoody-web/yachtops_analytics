@@ -342,51 +342,54 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-hier-swatch-pair { border: 1.5px solid #C65A1A; background: #FBEFE9; }
 .cm-hier-swatch-row { border: 1.5px dashed #CBD5E1; background: #F1F5F9; }
 
-.cm-orows { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 56px; width: 100%; }
+.cm-orows { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 50px; width: 100%; }
 /* Each row is a fixed-height lane; cards inside are positioned absolutely by
    GLOBAL column (shared across every row), so a card dropped near a specific
    card above lands in that same column and renders directly beneath it. */
-.cm-orow-band { position: relative; width: 100%; height: 128px; }
+.cm-orow-band { position: relative; width: 100%; height: 98px; }
 
 /* Connector lines — one per card, to its nearest neighbour in the row above.
    A plain SVG overlay sized to the chart, painted behind the cards. */
 .cm-org-lines { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 .cm-org-lines line { stroke: #D7DCE5; stroke-width: 1.5px; }
 
-/* Uniform node card — absolutely positioned within its row band; `left` is set
-   inline per-card from its global column. */
-.cm-onode { position: absolute; top: 50%; transform: translateY(-50%); background: #fff; border: 1px solid #E6E8EF; border-radius: 14px; padding: 14px 20px; text-align: center; width: 178px; box-shadow: 0 2px 6px rgba(28,27,58,0.05); cursor: default; transition: box-shadow 0.12s ease, border-color 0.12s ease; touch-action: none; }
-.cm-onode-av { width: 48px; height: 48px; border-radius: 999px; margin: 0 auto 8px; background: #EEF2F6; color: #C65A1A; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+/* Compact avatar node — a circular avatar with name + role beneath, no box.
+   Fits far more crew per row than a boxed card, so the tree rarely scrolls.
+   Absolutely positioned within its row band; `left` is set inline per-card. */
+.cm-onode { position: absolute; top: 50%; transform: translateY(-50%); width: 96px; text-align: center; background: none; border: 0; padding: 0; box-shadow: none; cursor: default; touch-action: none; }
+.cm-onode-av { width: 52px; height: 52px; border-radius: 999px; margin: 0 auto 8px; background: #EEF2F6; color: #C65A1A; font-weight: 700; font-size: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid #fff; box-shadow: 0 0 0 1px #E6E8EF, 0 3px 8px rgba(28,27,58,0.12); transition: box-shadow 0.12s ease, transform 0.12s ease; }
 .cm-onode-av img { width: 100%; height: 100%; object-fit: cover; }
-.cm-onode-nm { font-size: 14px; font-weight: 600; color: #1C1B3A; }
-.cm-onode-rl { font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #C65A1A; margin-top: 4px; }
-.cm-onode-dot { position: absolute; top: 12px; right: 12px; width: 9px; height: 9px; border-radius: 999px; }
+.cm-onode-nm { font-size: 12px; font-weight: 600; color: #1C1B3A; line-height: 1.2; }
+.cm-onode-rl { font-size: 8.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C65A1A; margin-top: 2px; }
+.cm-onode-dot { position: absolute; top: -2px; right: 20px; width: 10px; height: 10px; border-radius: 999px; border: 2px solid #fff; }
 .cm-onode.is-draggable { cursor: grab; }
 .cm-onode.is-draggable:active { cursor: grabbing; }
-.cm-onode.is-dragging { opacity: 0.06; box-shadow: none; }
-/* The card that a drop would pair with — live feedback while dragging close by. */
-.cm-onode.is-pair-target { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.cm-onode.is-draggable:hover .cm-onode-av { transform: translateY(-1px); box-shadow: 0 0 0 1px #E6E8EF, 0 6px 14px rgba(28,27,58,0.18); }
+.cm-onode.is-dragging { opacity: 0.12; }
+/* Pair / report targets highlight the avatar ring (there's no box to outline). */
+.cm-onode.is-pair-target .cm-onode-av,
+.cm-onode.is-report-target .cm-onode-av { box-shadow: 0 0 0 2px #C65A1A, 0 3px 10px rgba(198,90,26,0.22); }
+.cm-onode.is-report-target .cm-onode-av { box-shadow: 0 0 0 2px #C65A1A, 0 3px 10px rgba(198,90,26,0.22); border-style: dashed; }
+.cm-onode-reportbadge { position: absolute; left: 50%; top: 42px; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 999px; background: #C65A1A; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(28,27,58,0.25); }
 
-/* The specific person a drop would report to — hovering directly over their
-   card names them (not whoever happens to sit nearest) as the sole manager. */
-.cm-onode.is-report-target { border: 1.5px dashed #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
-.cm-onode-reportbadge { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); width: 20px; height: 20px; border-radius: 999px; background: #C65A1A; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(28,27,58,0.25); }
+/* Landing-spot placeholder — a dashed avatar-sized circle at the target column. */
+.cm-onode-placeholder { width: 96px; height: 78px; background: none; border: 0; box-shadow: none; display: flex; align-items: flex-start; justify-content: center; color: #C65A1A; transition: left 0.06s ease, top 0.06s ease; }
+.cm-onode-placeholder::before { content: ''; width: 52px; height: 52px; border-radius: 999px; border: 2px dashed #CBD5E1; box-sizing: border-box; }
+.cm-onode-placeholder.is-pairing::before { border: 2px solid #C65A1A; background: #FBEFE9; }
+.cm-onode-placeholder svg { position: absolute; top: 16px; }
+.cm-onode-placeholder-float { z-index: 2; }
 
-/* Landing-spot placeholder — same footprint as a card, at the exact column the
-   drag would land in, so it visibly marks (and reserves) that spot. Solid
-   terracotta with a link glyph when it's about to pair with a neighbour. */
-.cm-onode-placeholder { height: 100px; background: #F1F5F9; border: 2px dashed #CBD5E1; box-shadow: none; transition: left 0.06s ease, border-color 0.12s ease, background 0.12s ease; display: flex; align-items: center; justify-content: center; color: #C65A1A; }
-.cm-onode-placeholder.is-pairing { background: #FBEFE9; border: 2px solid #C65A1A; }
+/* Ghost that follows the cursor/finger while dragging. */
+.cm-org-ghost { position: fixed; transform: translate(-50%, -50%) rotate(-2deg); background: #fff; border: 1.5px solid #C65A1A; border-radius: 999px; padding: 9px; text-align: center; box-shadow: 0 20px 45px -12px rgba(28,27,58,0.4); pointer-events: none; z-index: 1200; }
+.cm-org-ghost .cm-onode-av { width: 44px; height: 44px; font-size: 14px; margin: 0 auto 4px; box-shadow: none; border: 0; }
+.cm-org-ghost .cm-onode-nm { font-size: 11.5px; }
+.cm-org-ghost .cm-onode-rl { display: none; }
 
-/* A new-row preview floats OVER the existing rows (an overlay, not a real
-   flow row) so it never reserves space or pushes other rows around while
-   dragging — that reflow was what made the whole page appear to shift. */
-.cm-onode-placeholder-float { z-index: 2; transition: left 0.06s ease, top 0.06s ease, border-color 0.12s ease, background 0.12s ease; }
-
-/* Ghost card that follows the cursor while dragging. */
-.cm-org-ghost { position: fixed; transform: translate(-50%, -50%) rotate(-2deg); background: #fff; border: 1.5px solid #C65A1A; border-radius: 14px; padding: 10px 16px; text-align: center; box-shadow: 0 20px 45px -12px rgba(28,27,58,0.4); pointer-events: none; z-index: 1200; min-width: 150px; }
-.cm-org-ghost .cm-onode-av { width: 34px; height: 34px; font-size: 12px; margin-bottom: 6px; }
-.cm-org-ghost .cm-onode-nm { font-size: 12.5px; }
+/* Tablet / phone: tighten the page and let the chart scroll horizontally. */
+@media (max-width: 900px) {
+  .cm-org { margin-top: 18px; }
+  .cm-hier-hint-legend { gap: 6px 16px; }
+}
 
 /* Loading / error blocks — centred, box-free. */
 .cm-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 56px 0; text-align: center; }
