@@ -6,7 +6,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
 import { sendCrewInvite } from '../../../utils/crewInvites';
 
-const PendingInvitesSection = ({ refreshTrigger }) => {
+const PendingInvitesSection = ({ refreshTrigger, canInvite, onInviteClick }) => {
   const { activeTenantId } = useTenant();
   const { session } = useAuth();
   const [invites, setInvites] = useState([]);
@@ -174,8 +174,11 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
   const isCommandUser = currentUserRole === 'COMMAND';
 
   const count = invites?.length || 0;
-  // Disappears entirely when there's nothing pending (or while loading / on error).
-  if (loading || error || count === 0) return null;
+  // While there's nothing pending, the pill disappears entirely UNLESS this
+  // user can invite — then a minimal "+ Invite crew" trigger stays put, so
+  // there's always a way in without a dedicated header button.
+  if (loading || error) return null;
+  if (count === 0 && !canInvite) return null;
 
   const AVPAL = ['#6B8A5E', '#7A6F8C', '#4A5A6E', '#A86F5E', '#2D5B6E', '#9C8BA8'];
   const initialsOf = (name) => {
@@ -186,9 +189,23 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
   };
   const now = new Date();
 
+  if (count === 0) {
+    return (
+      <div className="cm-pi-wrap">
+        <div className="cm-pi cm-pi-empty">
+          <button type="button" className="cm-pi-add" onClick={onInviteClick} title="Invite crew" aria-label="Invite crew"><Icon name="Plus" size={14} /></button>
+          <span className="cm-pi-lead">Invite crew</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="cm-pi-wrap">
       <div className="cm-pi">
+        {canInvite && (
+          <button type="button" className="cm-pi-add" onClick={onInviteClick} title="Invite crew" aria-label="Invite crew"><Icon name="Plus" size={14} /></button>
+        )}
         <span className="cm-pi-env"><Icon name="Mail" size={14} /></span>
         <span className="cm-pi-cnt">{count}</span>
         <span className="cm-pi-lead">Invite{count === 1 ? '' : 's'} issued</span>

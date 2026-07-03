@@ -1890,23 +1890,15 @@ const CrewManagement = () => {
             <h1 className="editorial-greeting">
               Crew<span className="period">,</span> <em>management</em><span className="period">.</span>
             </h1>
-            {shouldShowInviteButton && (
+            {shouldShowInviteButton && canInvite && (
               <div className="cm-actions">
-                {canInvite && (
-                  <button type="button" onClick={() => setShowCrewList(true)} className="cm-btn cm-btn-ghost" aria-label="Create crew list">
-                    <Icon name="ClipboardList" size={16} />
-                    Create crew list
-                  </button>
-                )}
-                {canInvite && (
-                  <button type="button" onClick={() => setShowGuestBook(true)} className="cm-btn cm-btn-ghost" aria-label="Export guest book">
-                    <Icon name="BookOpen" size={16} />
-                    Export guest book
-                  </button>
-                )}
-                <button type="button" onClick={handleInviteClick} className="cm-btn cm-btn-primary" aria-label="Invite Crew">
-                  <Icon name="Mail" size={16} />
-                  Invite crew
+                <button type="button" onClick={() => setShowCrewList(true)} className="cm-btn cm-btn-ghost" aria-label="Create crew list">
+                  <Icon name="ClipboardList" size={16} />
+                  Create crew list
+                </button>
+                <button type="button" onClick={() => setShowGuestBook(true)} className="cm-btn cm-btn-ghost" aria-label="Export guest book">
+                  <Icon name="BookOpen" size={16} />
+                  Export guest book
                 </button>
               </div>
             )}
@@ -1942,7 +1934,7 @@ const CrewManagement = () => {
         {!loading && !error && (
           <>
             {/* Pending Invites Section */}
-            <PendingInvitesSection refreshTrigger={inviteRefreshTrigger} />
+            <PendingInvitesSection refreshTrigger={inviteRefreshTrigger} canInvite={canInvite} onInviteClick={handleInviteClick} />
 
             {/* Roster section — no header; the view tabs are self-explanatory. */}
             <div className="cm-section">

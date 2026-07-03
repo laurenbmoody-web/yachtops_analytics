@@ -15,7 +15,7 @@
    folded in) + big uppercase .editorial-greeting headline; primary actions sit
    on the right of the headline row. Hairline beneath the whole header. */
 .cm-head { padding-bottom: 0; }
-.cm-titlerow { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.cm-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .cm-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding-top: 6px; }
 
 /* Buttons — terracotta primary, white ghost with a soft border. */
@@ -42,9 +42,19 @@
 .cm-empty p { font-size: 13px; }
 
 /* Pending invites — a compact, content-width ghost pill that disappears when
-   there's nothing pending; expands to the full manage table on click. */
+   there's nothing pending (unless this user can invite, in which case a
+   minimal "+ Invite crew" trigger stays put — see .cm-pi-empty); expands to
+   the full manage table on click. */
 .cm-pi-wrap { margin-top: 2px; }
 .cm-pi { display: inline-flex; align-items: center; gap: 11px; max-width: 100%; flex-wrap: wrap; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 14px 7px 13px; }
+.cm-pi-empty { padding: 7px 16px 7px 7px; }
+.cm-pi-add {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 999px; flex: 0 0 auto;
+  background: #C65A1A; color: #fff; border: 0; cursor: pointer;
+  transition: background 0.12s ease;
+}
+.cm-pi-add:hover { background: #B14E16; }
 .cm-pi-env { color: #AEB4C2; display: inline-flex; }
 .cm-pi-cnt { background: #1C1B3A; color: #fff; border-radius: 999px; min-width: 18px; height: 18px; padding: 0 5px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .cm-pi-lead { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
