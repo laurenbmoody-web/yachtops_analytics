@@ -537,26 +537,32 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
 
   return (
     <div className="mv">
-      <div className="mv-head">
-        <div className="mv-title"><span className="mv-eyebrow">◆</span> Movements</div>
-      </div>
-
       {(canManage || upcomingTravel.length > 0) && (
         <div className="mv-flights">
           <div className="mv-fhead"><span className="t">Flights &amp; travel</span><span className="ln" />{canManage && <button type="button" className="mv-addtravel" onClick={() => setTravelModal({ entry: null })}><Icon name="Plus" size={13} /> Add travel</button>}</div>
           {upcomingTravel.length === 0 ? <div className="mv-noflt">No upcoming travel logged.</div> : upcomingTravel.map((e) => {
             const m = memberById[e.user_id]; const dir = dirOf(e);
             const eDate = new Date(`${e.start_date}T00:00:00`);
-            const extra = (legsByEntry[e.id] || []).slice().sort((a, b) => a.seq - b.seq);
+            const legs = [
+              { id: `${e.id}-main`, sub: false, transport: e.transport, transportNo: e.transport_no, from: e.from_location, to: e.to_location, departTime: e.depart_time, arriveTime: e.arrive_time, note: e.note },
+              ...(legsByEntry[e.id] || []).slice().sort((a, b) => a.seq - b.seq).map((l) => ({ id: l.id, sub: true, transport: l.transport, transportNo: l.transport_no, from: l.from_location, to: l.to_location, departTime: l.depart_time, arriveTime: l.arrive_time, note: null })),
+            ];
             return (
               <div key={e.id} id={`flt-${e.id}`} className={`mv-flt${selCrew === e.user_id ? ' sel' : ''}`} onClick={() => selectFromFlight(e.user_id)}>
                 <div className="date"><span className="d">{eDate.getDate()}</span><span className="m">{MONTHS[eDate.getMonth()].slice(0, 3)}</span></div>
                 <span className="mv-dir"><span className={`dirpill ${dir}`}>{dir === 'dep' ? '↑ Departing' : dir === 'arr' ? '↓ Arriving' : '✈ Travelling'}</span></span>
                 <span className="who">{m?.fullName || '—'}</span>
                 <div className="legs">
-                  <div className="leg"><Icon name={TRANS_ICON[e.transport] || 'Plane'} size={12} /> <span className="rt">{[e.from_location, e.to_location].filter(Boolean).join(' → ') || (e.note || '—')}</span>{e.transport_no && <span className="no">{e.transport_no}</span>}{(e.arrive_time || e.depart_time) && <span className="tm">{e.arrive_time || e.depart_time}</span>}</div>
-                  {extra.map((l) => (
-                    <div className="leg sub" key={l.id}><Icon name={TRANS_ICON[l.transport] || 'Car'} size={12} /> <span className="rt">{[l.from_location, l.to_location].filter(Boolean).join(' → ') || '—'}</span>{l.transport_no && <span className="no">{l.transport_no}</span>}{(l.arrive_time || l.depart_time) && <span className="tm">{l.arrive_time || l.depart_time}</span>}</div>
+                  {legs.map((l) => (
+                    <div className={`leg${l.sub ? ' sub' : ''}`} key={l.id}>
+                      <Icon name={TRANS_ICON[l.transport] || (l.sub ? 'Car' : 'Plane')} size={12} />
+                      <span className="rt">{[l.from, l.to].filter(Boolean).join(' → ') || (l.note || '—')}</span>
+                      {l.transportNo && <span className="no">{l.transportNo}</span>}
+                      <span className="tms">
+                        {l.departTime && <span className="tm dep"><i>Dep</i>{l.departTime}</span>}
+                        {l.arriveTime && <span className="tm arr"><i>Arr</i>{l.arriveTime}</span>}
+                      </span>
+                    </div>
                   ))}
                 </div>
                 {canManage && <button type="button" className="mv-editflt" title="Edit travel / add a leg" onClick={(ev) => { ev.stopPropagation(); setTravelModal({ entry: e }); }}><Icon name="Pencil" size={13} /></button>}
