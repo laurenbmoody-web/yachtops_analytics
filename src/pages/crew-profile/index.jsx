@@ -52,7 +52,6 @@ import SeaTimeDashboard from './components/SeaTimeDashboard';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { getMasterSignatureRow, signedUrl as signedUrlMS, uploadMasterImage } from '../crew-management/utils/masterSignature';
 import '../../styles/editorial.css';
 import './crew-profile.css';
 
@@ -852,39 +851,6 @@ const canEdit = (() => {
 
   return isOwnProfile || isCommandRole;
 })();
-
-  // Master signature & stamp — this profile owner's, saved to master_signatures
-  // and applied automatically on official crew lists where they're the master.
-  const [msigUrls, setMsigUrls] = useState({ signature: null, stamp: null });
-  const [msigBusy, setMsigBusy] = useState('');
-  useEffect(() => {
-    if (activeSection !== 'personal' || !isOwnProfile || !session?.user?.id) return undefined;
-    let cancelled = false;
-    (async () => {
-      const row = await getMasterSignatureRow(session.user.id);
-      if (cancelled || !row) return;
-      const [s, t] = await Promise.all([signedUrlMS(row.signature_path), signedUrlMS(row.stamp_path)]);
-      if (!cancelled) setMsigUrls({ signature: s, stamp: t });
-    })();
-    return () => { cancelled = true; };
-  }, [activeSection, isOwnProfile, session?.user?.id]);
-
-  const handleMsigUpload = async (kind, file) => {
-    if (!file) return;
-    setMsigBusy(kind);
-    try {
-      await uploadMasterImage(file, kind, activeTenantId);
-      const row = await getMasterSignatureRow(session.user.id);
-      const url = await signedUrlMS(kind === 'stamp' ? row?.stamp_path : row?.signature_path);
-      setMsigUrls((p) => ({ ...p, [kind]: url }));
-      showToast(`${kind === 'stamp' ? 'Stamp' : 'Signature'} saved`, 'success');
-    } catch (e) {
-      console.error('master signature upload failed:', e);
-      showToast('Couldn’t upload — try a PNG or JPEG', 'error');
-    } finally {
-      setMsigBusy('');
-    }
-  };
 
   // Handle avatar click - trigger file input
   const handleAvatarClick = () => {
@@ -1864,28 +1830,6 @@ const canEdit = (() => {
           </Field>
           </div>
         </div>
-
-        {isOwnProfile && (
-          <div className="cp-msig">
-            <div className="cp-msig-head"><span className="dia">◆</span><span className="t">Signature &amp; stamp</span><span className="line" /></div>
-            <p className="cp-msig-sub">Saved to your profile and applied automatically when a crew list is generated with you as master. A transparent PNG works best for signatures.</p>
-            <div className="cp-msig-row">
-              {['signature', 'stamp'].map((kind) => (
-                <div className="cp-msig-card" key={kind}>
-                  <span className="cp-msig-label">{kind === 'signature' ? 'Signature' : 'Stamp'}</span>
-                  <div className={`cp-msig-box${msigUrls[kind] ? ' has' : ''}`}>
-                    {msigUrls[kind] ? <img src={msigUrls[kind]} alt={kind} /> : <span className="cp-msig-empty">None saved</span>}
-                  </div>
-                  <label className="cp-msig-btn">
-                    {msigBusy === kind ? 'Uploading…' : (msigUrls[kind] ? 'Replace' : 'Upload')}
-                    <input type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={!!msigBusy}
-                      onChange={(e) => { handleMsigUpload(kind, e.target.files?.[0]); e.target.value = ''; }} />
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {isEditing && (
           <div className="flex justify-end gap-3 mt-6">
