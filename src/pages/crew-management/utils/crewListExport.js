@@ -193,10 +193,26 @@ export const exportCrewListPDF = async (o) => {
   }
   const headFs = Math.max(6, bodyFs);
 
+  // Continuation pages (crew > 20) get a compact vessel-identifier strip at the
+  // top instead of the full particulars grid; the column headers repeat via
+  // showHead: 'everyPage'. margin.top reserves room for the strip on page 2+.
+  const drawContinuationHeader = () => {
+    doc.setTextColor(...eyebrowColor); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+    doc.text('OFFICIAL CREW LIST — CONTINUED', M, 12, { charSpace: 0.8 });
+    doc.setTextColor(...NAVY); doc.setFont(titleFont, editorial ? 'normal' : 'bold'); doc.setFontSize(14);
+    doc.text(vessel.name || 'Vessel', M, 18.5);
+    const idLine = [vessel.flag, vessel.imo_number && `IMO ${vessel.imo_number}`, callSign && `Call sign ${callSign}`]
+      .filter(Boolean).join('    ·    ');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text(idLine, pageW - M, 15, { align: 'right' });
+    doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(M, 22, pageW - M, 22);
+  };
+
   autoTable(doc, {
     startY: y,
-    margin: { left: M, right: M },
+    margin: { top: 26, left: M, right: M },
     rowPageBreak: 'avoid',
+    showHead: 'everyPage',
     head: [COLUMNS.map((c) => c.header)],
     body: rows.map((r, i) => {
       const cells = rowToCells(r, i);
@@ -211,6 +227,7 @@ export const exportCrewListPDF = async (o) => {
       : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: headFs, lineColor: NAVY, lineWidth: 0.15 },
     alternateRowStyles: editorial ? { fillColor: [252, 251, 248] } : { fillColor: [245, 246, 249] },
     columnStyles,
+    didDrawPage: (data) => { if (data.pageNumber > 1) drawContinuationHeader(); },
     didParseCell: (data) => {
       // Grey out em-dash placeholders for missing values.
       if (data.section === 'body' && (data.cell.raw === '' || data.cell.raw === '—')) {
@@ -254,6 +271,16 @@ export const exportCrewListPDF = async (o) => {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...FAINT);
   if (generatedAt) doc.text(`Generated ${generatedAt}`, M, pageH - 9);
   doc.text('Format: IMO FAL Form 5 — Crew List', pageW - M, pageH - 9, { align: 'right' });
+
+  // Page numbers — only on multi-page (crew > 20), centred at the foot.
+  const totalPages = doc.internal.getNumberOfPages();
+  if (totalPages > 1) {
+    for (let p = 1; p <= totalPages; p += 1) {
+      doc.setPage(p);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...FAINT);
+      doc.text(`Page ${p} of ${totalPages}`, pageW / 2, pageH - 9, { align: 'center' });
+    }
+  }
 
   const safe = String(vessel.name || 'vessel').replace(/[^\w]+/g, '-');
   doc.save(`Official-crew-list-${safe}-${(generatedAt || '').replace(/[^\w]+/g, '-')}.pdf`);
