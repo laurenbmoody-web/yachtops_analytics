@@ -6,12 +6,16 @@
 // fellow tenant members may read them (to apply the master's stamp).
 
 import { supabase } from '../../../lib/supabaseClient';
-import { loadLogoForPdf } from './guestBookExport';
 
 const BUCKET = 'master-signatures';
 const SIGNED_URL_TTL = 60 * 60; // 1h
 
-/** Fetch the saved signature/stamp paths for a user (null if none). */
+/**
+ * Fetch a user's saved signature/stamp paths (null if none). Checks this
+ * feature's master_signatures store first, then falls back to the parallel
+ * captain_credentials store — so a signature saved by either uploader pulls
+ * through. The returned `bucket` tells the loader which storage bucket to read.
+ */
 export async function getMasterSignatureRow(userId) {
   if (!userId) return null;
   const { data } = await supabase
@@ -19,23 +23,48 @@ export async function getMasterSignatureRow(userId) {
     .select('user_id, signature_path, stamp_path, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
-  return data || null;
+  if (data && (data.signature_path || data.stamp_path)) return { ...data, bucket: BUCKET };
+
+  const { data: cc } = await supabase
+    .from('captain_credentials')
+    .select('user_id, signature_path, stamp_path, updated_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (cc && (cc.signature_path || cc.stamp_path)) return { ...cc, bucket: 'captain-credentials' };
+
+  return data ? { ...data, bucket: BUCKET } : null;
 }
 
-/** A signed, viewable URL for a stored path (null on failure). */
-export async function signedUrl(path) {
+/** A signed, viewable URL for a stored path in the given bucket (null on failure). */
+export async function signedUrl(path, bucket = BUCKET) {
   if (!path) return null;
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL);
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, SIGNED_URL_TTL);
   if (error) { console.error('[master-sig] signedUrl failed', path, error); return null; }
   return data?.signedUrl || null;
 }
 
-/** Load a stored path into a PNG data-URL for jsPDF.addImage (null on failure). */
-export async function loadImageForPdf(path) {
-  const url = await signedUrl(path);
+/**
+ * Load a stored path into a base64 data-URL for jsPDF.addImage. Fetched as a
+ * blob and read with FileReader (NOT drawn to a canvas) so a private signed URL
+ * can't taint a canvas and blank the signature. Preserves the original format.
+ */
+export async function loadImageForPdf(path, bucket = BUCKET) {
+  const url = await signedUrl(path, bucket);
   if (!url) return null;
-  const img = await loadLogoForPdf(url);
-  return img?.dataUrl || null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(typeof r.result === 'string' ? r.result : null);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error('[master-sig] loadImageForPdf failed', path, e);
+    return null;
+  }
 }
 
 const extFor = (file) => {

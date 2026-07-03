@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
@@ -44,6 +44,8 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
   const [vessel, setVessel] = useState(null);
   const [detailsByUser, setDetailsByUser] = useState({});
   const [selected, setSelected] = useState(() => new Set());
+  const [order, setOrder] = useState([]); // user_ids in document order (drag to reorder)
+  const dragFrom = useRef(null);
   const [busy, setBusy] = useState(false);
   // Captain's saved signature/stamp (pulled from their profile), applied to the list.
   const [sigData, setSigData] = useState({ signature: null, stamp: null });
@@ -67,6 +69,7 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
     setLoading(true);
     setSigData({ signature: null, stamp: null });
     setSelected(new Set(ordered.map((m) => m.user_id || m.id)));
+    setOrder(ordered.map((m) => m.user_id || m.id)); // start in rank order
     (async () => {
       const ids = ordered.map((m) => m.user_id || m.id).filter(Boolean);
       const [v, det] = await Promise.all([
@@ -83,7 +86,7 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
         const row = await getMasterSignatureRow(capId);
         if (!cancelled && (row?.signature_path || row?.stamp_path)) {
           const [sData, tData] = await Promise.all([
-            loadImageForPdf(row.signature_path), loadImageForPdf(row.stamp_path),
+            loadImageForPdf(row.signature_path, row.bucket), loadImageForPdf(row.stamp_path, row.bucket),
           ]);
           if (!cancelled) setSigData({ signature: sData, stamp: tData });
         }
@@ -93,14 +96,23 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
     return () => { cancelled = true; };
   }, [open, tenantId, ordered, captain]);
 
-  const rows = useMemo(
-    () => ordered.map((m) => ({ member: m, row: buildCrewRow(m, detailsByUser[m.user_id || m.id]) })),
-    [ordered, detailsByUser],
-  );
+  const rowById = useMemo(() => {
+    const map = {};
+    ordered.forEach((m) => { const id = m.user_id || m.id; map[id] = { member: m, row: buildCrewRow(m, detailsByUser[id]) }; });
+    return map;
+  }, [ordered, detailsByUser]);
+  // The list as displayed/exported — in drag order.
+  const orderedList = useMemo(() => order.map((id) => rowById[id]).filter(Boolean), [order, rowById]);
   const selectedRows = useMemo(
-    () => rows.filter((r) => selected.has(r.member.user_id || r.member.id)).map((r) => r.row),
-    [rows, selected],
+    () => order.filter((id) => selected.has(id)).map((id) => rowById[id]?.row).filter(Boolean),
+    [order, selected, rowById],
   );
+  // Document row number (1..N) for each selected member, in drag order.
+  const docNumById = useMemo(() => {
+    const map = {}; let n = 0;
+    order.forEach((id) => { if (selected.has(id)) { n += 1; map[id] = n; } });
+    return map;
+  }, [order, selected]);
 
   const toggle = (id) => setSelected((prev) => {
     const next = new Set(prev);
@@ -109,6 +121,18 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
   });
   const allOn = selected.size === ordered.length && ordered.length > 0;
   const toggleAll = () => setSelected(allOn ? new Set() : new Set(ordered.map((m) => m.user_id || m.id)));
+
+  const onDrop = (toPos) => {
+    const from = dragFrom.current;
+    dragFrom.current = null;
+    if (from == null || from === toPos) return;
+    setOrder((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(toPos, 0, moved);
+      return next;
+    });
+  };
 
   const totalMissing = useMemo(
     () => selectedRows.reduce((n, r) => n + (missingMandatory(r).length ? 1 : 0), 0),
@@ -186,22 +210,33 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
               <div className="ccl-grouphead"><span className="dia">◆</span><span className="t">Crew on this list</span><span className="line" />
                 <button type="button" className="ccl-allbtn" onClick={toggleAll}>{allOn ? 'Clear all' : 'Select all'}</button>
               </div>
+              <p className="ccl-draghint">Drag to set the order they appear on the document. The number is their row.</p>
               {totalMissing > 0 && (
                 <div className="ccl-warn"><Icon name="AlertTriangle" size={14} />
                   <span><b>{totalMissing}</b> selected {totalMissing === 1 ? 'member is' : 'members are'} missing mandatory details (passport, DOB…). They’ll show “—” on the list.</span></div>
               )}
               <div className="ccl-list">
-                {rows.map(({ member, row }) => {
+                {orderedList.map(({ member, row }, pos) => {
                   const id = member.user_id || member.id;
                   const on = selected.has(id);
                   const miss = missingMandatory(row);
                   return (
-                    <button type="button" key={id} className={`ccl-row${on ? ' on' : ''}`} onClick={() => toggle(id)}>
+                    <div
+                      key={id}
+                      className={`ccl-row${on ? ' on' : ''}`}
+                      draggable
+                      onDragStart={() => { dragFrom.current = pos; }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => onDrop(pos)}
+                      onClick={() => toggle(id)}
+                    >
+                      <span className="ccl-grip" title="Drag to reorder"><Icon name="GripVertical" size={15} /></span>
+                      <span className={`ccl-num${on ? '' : ' off'}`}>{on ? docNumById[id] : '—'}</span>
                       <span className={`ccl-check${on ? ' on' : ''}`}>{on && <Icon name="Check" size={12} />}</span>
                       <span className="ccl-av">{member.photo ? <img src={member.photo} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} /> : initials(member.fullName)}</span>
                       <span className="ccl-who"><span className="ccl-name">{member.fullName}</span><span className="ccl-role">{row.rank || 'No role'}{member.status ? ` · ${member.status}` : ''}</span></span>
                       {miss.length > 0 && <span className="ccl-missing" title={`Missing: ${miss.join(', ')}`}>{miss.length} missing</span>}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -212,8 +247,10 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
         {!loading && (
           <div className="ccl-foot">
             <p className="ccl-foothint">
-              <Icon name="Info" size={13} />
-              Vessel identity &amp; call sign come from Vessel Settings; the master and signature/stamp from the captain’s profile.
+              <Icon name={(sigData.signature || sigData.stamp) ? 'CheckCircle2' : 'Info'} size={13} />
+              {(sigData.signature || sigData.stamp)
+                ? `${masterName || 'Master'}’s signature/stamp will be applied. Vessel identity & call sign come from Vessel Settings.`
+                : `No signature/stamp saved on ${masterName || 'the captain'}’s profile yet — add one on their profile (Personal Details). Vessel identity & call sign come from Vessel Settings.`}
             </p>
             <div className="ccl-foot-actions">
               <span className="ccl-count">{selectedRows.length} of {ordered.length} crew</span>

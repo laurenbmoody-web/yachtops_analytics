@@ -262,8 +262,9 @@ export const exportCrewListPDF = async (o) => {
   const sigX = pageW - M - sigW;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...MUTED);
   doc.text('MASTER — NAME, SIGNATURE & STAMP', sigX, fy, { charSpace: 0.3 });
-  if (signature) { try { doc.addImage(signature, 'PNG', sigX, fy + 1.5, 44, 12.5); } catch { /* bad image */ } }
-  if (stamp) { try { doc.addImage(stamp, 'PNG', sigX + sigW - 22, fy - 1, 21, 21); } catch { /* bad image */ } }
+  const imgFmt = (d) => (/image\/jpe?g/i.test(String(d)) ? 'JPEG' : 'PNG');
+  if (signature) { try { doc.addImage(signature, imgFmt(signature), sigX, fy + 1.5, 44, 12.5); } catch { /* bad image */ } }
+  if (stamp) { try { doc.addImage(stamp, imgFmt(stamp), sigX + sigW - 22, fy - 1, 21, 21); } catch { /* bad image */ } }
   doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(sigX, fy + 14, sigX + sigW, fy + 14);
   if (master) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(master, sigX, fy + 18.5); }
 
