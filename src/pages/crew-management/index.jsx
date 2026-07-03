@@ -179,6 +179,7 @@ const CrewManagement = () => {
   const rowElRefs = useRef({}); // rowKey -> row band DOM element, for hit-testing during drag
   const orgContainerRef = useRef(null); // .cm-org element, for line-overlay coordinates
   const orgCardRefs = useRef({}); // crew id -> rendered card element, for line-overlay coordinates
+  const hierPendRef = useRef(null); // { id, x, y, started } — pending pointer press, promoted to a drag only past a move threshold
   const [orgLines, setOrgLines] = useState([]); // connector lines between a card and its nearest-above neighbour
   const [statusChangeTarget, setStatusChangeTarget] = useState(null); // { userId, currentStatus, name }
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
@@ -1696,23 +1697,35 @@ const CrewManagement = () => {
 
     const resetDrag = () => { setHierDragId(null); setHierPos(null); setHierPlan(null); };
 
+    const DRAG_THRESHOLD = 5; // px — below this a press is a click, not a drag (so a plain click never shifts the chart)
     const cardProps = (u) => (canEdit ? {
       draggable: false, // pointer-based drag, not HTML5 DnD — works without hovering a specific drop target
       onPointerDown: (e) => {
-        e.currentTarget.setPointerCapture(e.pointerId);
-        setHierDragId(u.id); setHierPos({ x: e.clientX, y: e.clientY }); setHierPlan(null);
+        if (e.button != null && e.button !== 0) return; // primary button only
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+        // Record the press but DON'T start dragging yet — dragging (and the
+        // 120px drop-zone padding) only kicks in once the pointer actually moves.
+        hierPendRef.current = { id: u.id, x: e.clientX, y: e.clientY, started: false };
       },
       onPointerMove: (e) => {
-        if (hierDragId !== u.id) return;
+        const p = hierPendRef.current;
+        if (!p || p.id !== u.id) return;
+        if (!p.started) {
+          if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < DRAG_THRESHOLD) return;
+          p.started = true;
+          setHierDragId(u.id); // promote to a real drag now
+        }
         setHierPos({ x: e.clientX, y: e.clientY });
         setHierPlan(computeHover(e.clientX, e.clientY));
       },
       onPointerUp: (e) => {
-        if (hierDragId !== u.id) return;
+        const p = hierPendRef.current; hierPendRef.current = null;
+        try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+        if (!p || !p.started) return; // was a click, not a drag → leave the view untouched
         finalize(computeHover(e.clientX, e.clientY));
         resetDrag();
       },
-      onPointerCancel: resetDrag,
+      onPointerCancel: () => { hierPendRef.current = null; resetDrag(); },
     } : {});
 
     const dragged = hierDragId ? crewById.get(hierDragId) : null;
