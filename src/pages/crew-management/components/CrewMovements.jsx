@@ -256,18 +256,27 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     return true;
   };
 
-  // Flash the just-placed bar for a moment and open its move popover — used
-  // by "Move anyway", which deliberately leaves the overlap in place rather
-  // than resolving it automatically. The write already happened, but the
-  // chart's own state hasn't been refreshed yet (every other path either
-  // reloads on accept or reverts on undo) — reload here too, or the
-  // overlapping bar won't actually be visible to flash.
+  // Flash the just-placed bar and open its move popover — used by "Move
+  // anyway", which deliberately leaves the overlap in place rather than
+  // resolving it automatically. The write already happened, but the chart's
+  // own state hasn't been refreshed yet (every other path either reloads on
+  // accept or reverts on undo) — reload here too, or the overlapping bar
+  // won't actually be visible to flash. The flash itself keeps pulsing (see
+  // the effect below) until the overlap is actually cleared, not for a fixed
+  // amount of time.
   const flashThenMove = async (a) => {
     setFlashId(a.id);
     await reload();
     openMoveManual(a);
-    setTimeout(() => setFlashId((id) => (id === a.id ? null : id)), 1400);
   };
+  // Keeps "Move anyway"'s flash going for as long as the conflict is real —
+  // stops the moment this bed no longer has anyone overlapping the flashed
+  // stay (moved elsewhere, dates changed, or removed entirely).
+  useEffect(() => {
+    if (!flashId) return;
+    const cand = assigns.find((x) => x.id === flashId);
+    if (!cand || !overlapsOnBed(assigns, cand)) setFlashId(null);
+  }, [flashId, assigns]);
 
   // ── actions ──────────────────────────────────────────────────────────────────
   const assignToBed = async (bedId, userId) => {
