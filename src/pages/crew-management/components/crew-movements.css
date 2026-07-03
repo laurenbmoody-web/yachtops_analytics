@@ -70,16 +70,22 @@
 /* row labels (crew names / bed names) share one size */
 .mv-grid, .mv-chart { position: relative; }
 .mv-row { display: flex; align-items: center; gap: 2px; margin-bottom: 3px; }
-/* The continuous, horizontally-scrollable timeline — everything (month
-   labels, day ticks, every row) lives in here so it all scrolls in lockstep;
-   the name/bed column stays put via position:sticky. Rendered once, wide
-   enough to browse a year-plus ahead/behind without needing to change the
-   viewed month at all. */
+.mv-name { flex: 0 0 160px; width: 160px; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
+/* Presence — plain single-month grid, one column per day of the month
+   (no scrolling; unchanged from before the Cabins rework below). */
+.mv-dnum { flex: 1 1 0; min-width: 14px; text-align: center; font-size: 9px; font-weight: 600; color: #AEB4C2; }
+.mv-dnum.d5 { color: #8B8478; font-weight: 700; }
+.mv-cell { flex: 1 1 0; min-width: 14px; height: 24px; border-radius: 4px; background: #F0F1F5; }
+.mv-empty { font-size: 13px; color: #6B7280; padding: 18px 0; text-align: center; }
+
+/* Cabins — the continuous, horizontally-scrollable timeline. Everything
+   (month labels, day ticks, every bed row) lives inside .mv-scrollx so it
+   all scrolls in lockstep; .mv-bedname stays put via position:sticky.
+   Rendered once, wide enough to browse a year-plus ahead/behind without
+   ever needing to change a "viewed month". */
 .mv-scrollx { overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
-.mv-name {
-  position: sticky; left: 0; z-index: 2; background: #F8FAFC;
-  flex: 0 0 160px; width: 160px; font-size: 13px; font-weight: 600;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;
+.mv-scrollx .mv-name {
+  position: sticky; left: 0; z-index: 6; background: #F8FAFC;
 }
 .mv-monthrow { margin-bottom: 6px; }
 .mv-monthtrack { position: relative; height: 16px; }
@@ -88,17 +94,6 @@
   padding-left: 6px; border-left: 1px solid #E6E8EF; font-size: 10px; font-weight: 700;
   letter-spacing: 0.5px; text-transform: uppercase; color: #8B8478; white-space: nowrap; overflow: hidden;
 }
-.mv-daytrack { position: relative; height: 16px; }
-.mv-dnum { position: absolute; top: 0; text-align: center; font-size: 9px; font-weight: 600; color: #AEB4C2; }
-.mv-dnum.d5 { color: #8B8478; font-weight: 700; }
-.mv-dnum.today { color: #C65A1A; font-weight: 700; }
-/* Per-crew-member row of status cells — its OWN height, distinct from the
-   16px .mv-daytrack header (day numbers only) that sits above it; sharing
-   one class between the two previously squashed every cell row to 16px. */
-.mv-celltrack { position: relative; height: 24px; }
-.mv-cell { position: absolute; top: 0; height: 24px; border-radius: 4px; background: #F0F1F5; }
-.mv-cell.today { box-shadow: inset 0 0 0 1.5px #C65A1A; }
-.mv-empty { font-size: 13px; color: #6B7280; padding: 18px 0; text-align: center; }
 .mv-legend, .mv-legrow { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #E6E8EF; }
 .mv-leg { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #6B7280; }
 .mv-leg i { width: 11px; height: 11px; border-radius: 3px; }
@@ -111,7 +106,10 @@
 .mv-cbngroup { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8B8478; margin: 14px 0 6px; }
 .mv-cbngroup .gl { flex: 1; height: 1px; background: #F0F1F5; }
 .mv-bedname {
-  position: sticky; left: 0; z-index: 2; background: #F8FAFC;
+  /* z-index above .mv-bar/.mv-gap (2/1) and .mv-conn (5) — equal z-index
+     siblings paint in DOM order, and this sits before the track in markup,
+     so without a clear lead here a scrolled-under bar would paint over it. */
+  position: sticky; left: 0; z-index: 6; background: #F8FAFC;
   flex: 0 0 160px; width: 160px; font-size: 13px; font-weight: 600; color: #6B7280;
   padding-left: 16px; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }

@@ -16,6 +16,7 @@ const ymd = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).pad
 const dstr = (d) => ymd(d.getFullYear(), d.getMonth(), d.getDate());
 const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
 const daysBetween = (a, b) => Math.round((b.getTime() - a.getTime()) / 86400000);
+const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
 const tint = (hex, a) => { const n = parseInt((hex || '#7A6F8C').slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
 const initials = (name) => (name || '?').split(' ').map((x) => x[0]).slice(0, 2).join('');
 
@@ -30,6 +31,13 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const todayRef = useRef(new Date());
   const today = todayRef.current; // frozen for the component's lifetime — a stable reference for the scroll window and memoized date math below
   const [view, setView] = useState('presence');
+  // Presence stays a plain single-month grid (unchanged from before) — only
+  // Cabins is the continuous scrollable timeline below.
+  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const totalDays = daysIn(calYear, calMonth);
+  const prevPresenceMonth = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
+  const nextPresenceMonth = () => { if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); } else setCalMonth((m) => m + 1); };
   const [historyByUser, setHistoryByUser] = useState({});
   const [cabins, setCabins] = useState([]);
   const [assigns, setAssigns] = useState([]);
@@ -300,41 +308,25 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   };
   const scrollToToday = () => { const el = scrollRef.current; if (el) el.scrollTo({ left: Math.max(0, (todayIndex - 7) * DAY_W), behavior: 'smooth' }); };
 
-  // ── presence rendering ────────────────────────────────────────────────────────
+  // ── presence rendering (plain single-month grid, unchanged) ─────────────────
   const renderPresence = () => (
     <div className="mv-grid">
-      <div className="mv-scrollx" ref={scrollRef} style={{ '--day-w': `${DAY_W}px` }}>
-        <div className="mv-row mv-monthrow">
-          <div className="mv-name" />
-          <div className="mv-monthtrack" style={{ width: viewDays * DAY_W }}>
-            {monthBands.map((b) => <span key={b.label} className="mv-monthband" style={{ left: b.left, width: b.width }}>{b.label}</span>)}
-          </div>
-        </div>
-        <div className="mv-row">
-          <div className="mv-name" />
-          <div className="mv-daytrack" style={{ width: viewDays * DAY_W }}>
-            {Array.from({ length: viewDays }, (_, i) => {
-              const d = addDays(rangeStart, i);
-              return <div key={i} className={`mv-dnum${i === todayIndex ? ' today' : ''}${d.getDate() % 5 === 0 ? ' d5' : ''}`} style={{ left: leftPx(i), width: DAY_W }}>{d.getDate()}</div>;
+      <div className="mv-row">
+        <div className="mv-name" />
+        {Array.from({ length: totalDays }, (_, i) => <div key={i} className={`mv-dnum${(i + 1) % 5 === 0 ? ' d5' : ''}`}>{i + 1}</div>)}
+      </div>
+      {members.length === 0 ? <p className="mv-empty">No crew to display.</p> : members.map((m) => {
+        const periods = buildStatusPeriods(historyByUser[m.user_id] || []);
+        return (
+          <div key={m.user_id} className="mv-row">
+            <div className="mv-name" title={m.fullName}>{m.fullName || '—'}</div>
+            {Array.from({ length: totalDays }, (_, i) => {
+              const st = getStatusForDay(periods, new Date(calYear, calMonth, i + 1));
+              return <div key={i} className="mv-cell" title={st ? `${m.fullName}: ${getStatusLabel(st)}` : ''} style={st ? { background: STATUS_COLORS[st] } : undefined} />;
             })}
           </div>
-        </div>
-        {members.length === 0 ? <p className="mv-empty">No crew to display.</p> : members.map((m) => {
-          const periods = buildStatusPeriods(historyByUser[m.user_id] || []);
-          return (
-            <div key={m.user_id} className="mv-row">
-              <div className="mv-name" title={m.fullName}>{m.fullName || '—'}</div>
-              <div className="mv-celltrack" style={{ width: viewDays * DAY_W }}>
-                {Array.from({ length: viewDays }, (_, i) => {
-                  const d = addDays(rangeStart, i);
-                  const st = getStatusForDay(periods, d);
-                  return <div key={i} className={`mv-cell${i === todayIndex ? ' today' : ''}`} title={st ? `${m.fullName}: ${getStatusLabel(st)}` : ''} style={{ left: leftPx(i), width: DAY_W, ...(st ? { background: STATUS_COLORS[st] } : {}) }} />;
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        );
+      })}
       <div className="mv-legend">{CREW_STATUSES.map(({ value, label }) => <span key={value} className="mv-leg"><i style={{ background: STATUS_COLORS[value] }} />{label}</span>)}</div>
     </div>
   );
@@ -481,12 +473,22 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       )}
 
       <div className="mv-navrow">
-        <div className="mv-monthnav">
-          <button onClick={() => scrollByMonth(-1)} aria-label="Scroll back a month">‹</button>
-          <span>{focusLabel || '—'}</span>
-          <button onClick={() => scrollByMonth(1)} aria-label="Scroll forward a month">›</button>
-        </div>
-        <button type="button" className="mv-today" onClick={scrollToToday}>Today</button>
+        {view === 'presence' ? (
+          <div className="mv-monthnav">
+            <button onClick={prevPresenceMonth} aria-label="Previous month">‹</button>
+            <span>{MONTHS[calMonth]} {calYear}</span>
+            <button onClick={nextPresenceMonth} aria-label="Next month">›</button>
+          </div>
+        ) : (
+          <>
+            <div className="mv-monthnav">
+              <button onClick={() => scrollByMonth(-1)} aria-label="Scroll back a month">‹</button>
+              <span>{focusLabel || '—'}</span>
+              <button onClick={() => scrollByMonth(1)} aria-label="Scroll forward a month">›</button>
+            </div>
+            <button type="button" className="mv-today" onClick={scrollToToday}>Today</button>
+          </>
+        )}
         <div className="mv-toggle">
           <button type="button" className={view === 'presence' ? 'on' : ''} onClick={() => setView('presence')}>Presence</button>
           <button type="button" className={view === 'cabins' ? 'on' : ''} onClick={() => setView('cabins')}>Cabins</button>
