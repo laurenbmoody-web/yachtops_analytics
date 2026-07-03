@@ -381,7 +381,10 @@ a.cm-cal-name:hover { color: #C65A1A; }
    Absolutely positioned within its row band; `left` is set inline per-card. */
 .cm-onode { position: absolute; top: 50%; transform: translateY(-50%); width: 96px; text-align: center; background: none; border: 0; padding: 0; box-shadow: none; cursor: default; touch-action: none; }
 .cm-onode-av { width: 52px; height: 52px; border-radius: 999px; margin: 0 auto 8px; background: #EEF2F6; color: #C65A1A; font-weight: 700; font-size: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid #fff; box-shadow: 0 0 0 1px #E6E8EF, 0 3px 8px rgba(28,27,58,0.12); transition: box-shadow 0.12s ease, transform 0.12s ease; }
-.cm-onode-av img { width: 100%; height: 100%; object-fit: cover; }
+/* pointer-events:none + user-drag:none so a profile PHOTO (an <img>, unlike
+   initials) can't hijack the drag with a native browser image-drag — that was
+   why the captain, the only one with a photo, couldn't be dragged. */
+.cm-onode-av img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; user-select: none; }
 .cm-onode-nm { font-size: 12px; font-weight: 600; color: #1C1B3A; line-height: 1.2; }
 .cm-onode-rl { font-size: 8.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C65A1A; margin-top: 2px; }
 .cm-onode-dot { position: absolute; top: -2px; right: 20px; width: 10px; height: 10px; border-radius: 999px; border: 2px solid #fff; }
