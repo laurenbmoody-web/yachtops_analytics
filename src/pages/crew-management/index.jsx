@@ -1593,39 +1593,13 @@ const CrewManagement = () => {
         }
       }
 
-      // Deterministic pairing: if the cursor is literally hovering OVER another
-      // card's own rendered box (not just "near" it), that's an explicit "sit
-      // beside this person" gesture — not a proximity guess. The result is
-      // always EXACTLY PAIR_GAP_PX from that card (left or right, whichever
-      // half of the card the cursor is over), so it can never overlap, no
-      // matter how imprecise the mouse. Falls back to nearest-card by distance
-      // if the row is mid-drag-reflow and no card's rect exactly contains the
-      // cursor (rare, but keeps the gesture forgiving).
-      let hoveredCard = null;
-      if (row.type === 'join') {
-        for (const m of targetRowOthers) {
-          const el = orgCardRefs.current[m.id];
-          if (!el) continue;
-          const r = el.getBoundingClientRect();
-          if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) { hoveredCard = { m, rect: r }; break; }
-        }
-      }
-
-      let col; let pairWithId = null;
-      if (hoveredCard) {
-        const { m, rect } = hoveredCard;
-        const side = clientX < rect.left + rect.width / 2 ? -1 : 1;
-        let value = effOrder(m) + side * (PAIR_GAP_PX / SCALE);
-        // Guaranteed clear of any THIRD card too — nudge outward in fixed steps
-        // until the spot is actually free (bounded; cannot loop forever).
-        for (let guard = 0; guard < 20; guard++) {
-          const clash = targetRowOthers.some((o) => o.id !== m.id && Math.abs(effOrder(o) - value) * SCALE < PAIR_GAP_PX - 1);
-          if (!clash) break;
-          value += side * (PAIR_GAP_PX / SCALE);
-        }
-        col = { type: 'value', value };
-        pairWithId = m.id;
-      } else {
+      // Placement only — a drop NEVER auto-pairs. Two people become a linked
+      // pair solely via the explicit ⚭ link handle (which snaps them tight); so
+      // a drop always lands at least a normal slot (≥ COL_W, which is wider than
+      // the pair threshold) from any neighbour, and is never read as a pair.
+      const pairWithId = null;
+      let col;
+      {
         const rowCenterX = row.rect.left + row.rect.width / 2;
         const rawValue = (clientX - rowCenterX) / SCALE + colMid;
         let nearestKey = null; let bestPx = Infinity;
@@ -1634,13 +1608,12 @@ const CrewManagement = () => {
         if (nearestKey !== null && bestPx < JOIN_SNAP_PX && !occupiedByOther) {
           col = { type: 'join', colKey: nearestKey };
         } else {
-          // Free placement in genuinely empty space — but never so close to an
-          // existing card that they'd render overlapping (that's what the
-          // explicit hover-to-pair gesture above is for).
           let value = rawValue;
-          if (nearestKey !== null && bestPx < PAIR_GAP_PX) {
+          // Keep clear of a neighbour by a NORMAL slot (never pair distance), so
+          // a drop next to someone reads as an independent peer, not a pair.
+          if (nearestKey !== null && bestPx < TIGHT_PX) {
             const dir = rawValue >= nearestKey ? 1 : -1;
-            value = nearestKey + dir * (PAIR_GAP_PX / SCALE);
+            value = nearestKey + dir * COL_STEP;
           }
           col = { type: 'value', value };
         }
@@ -1683,12 +1656,15 @@ const CrewManagement = () => {
         const rowAfter = patch.has(m.id) ? patch.get(m.id).org_row : effRow(m);
         return rowAfter === finalRow;
       });
+      // A drop never pairs — keep the landing spot at least a NORMAL slot from
+      // any occupant (wider than the tight pair threshold), so it always reads
+      // as an independent peer. Pairing happens only via the ⚭ link handle.
       let finalCol = rawFinalCol;
       for (let guard = 0; guard < 40; guard++) {
-        const clash = destRowMembers.find((m) => Math.abs(effOrder(m) - finalCol) * SCALE < PAIR_GAP_PX - 1);
+        const clash = destRowMembers.find((m) => Math.abs(effOrder(m) - finalCol) * SCALE < TIGHT_PX - 1);
         if (!clash) break;
         const dir = finalCol >= effOrder(clash) ? 1 : -1;
-        finalCol = effOrder(clash) + dir * (PAIR_GAP_PX / SCALE);
+        finalCol = effOrder(clash) + dir * COL_STEP;
       }
 
       // Persist the explicit "reports to" gesture when used; otherwise clear
@@ -1744,6 +1720,27 @@ const CrewManagement = () => {
     const CANVAS_PAD = 60;
     const canvasWidth = Math.round((_maxOff - _minOff) + 96 + CANVAS_PAD * 2);
 
+    // ── Explicit link handles ──────────────────────────────────────────────
+    // Placement and linking are decoupled: dropping a card beside a peer never
+    // pairs them (they each keep their own line up). To pair two neighbours
+    // under ONE shared trunk — or to break an existing pair — you tap the ⚭
+    // handle that sits between them. Linking snaps them to the tight pair gap
+    // (which the connector engine already renders as a shared line); unlinking
+    // spreads them back to a normal slot apart.
+    const PAIR_UNITS = PAIR_GAP_PX / SCALE; // pair gap expressed in raw column-value units
+    const isLinkedPair = (a, b) => Math.abs(effOrder(a) - effOrder(b)) * SCALE < TIGHT_PX;
+    const toggleLink = (a, b) => {
+      const mid = (effOrder(a) + effOrder(b)) / 2;
+      const half = (isLinkedPair(a, b) ? COL_STEP : PAIR_UNITS) / 2; // linked → spread; unlinked → snap tight
+      const lo = effOrder(a) <= effOrder(b) ? a : b;
+      const hi = lo === a ? b : a;
+      const patch = new Map();
+      patch.set(lo.id, { org_row: effRow(lo), org_order: mid - half });
+      patch.set(hi.id, { org_row: effRow(hi), org_order: mid + half });
+      applyHierarchyPatch(patch);
+    };
+    const LINKH_MAX_PX = 260; // don't offer a handle across a wide gap (they're clearly not neighbours)
+
     return (
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
         {canEdit && (
@@ -1752,7 +1749,7 @@ const CrewManagement = () => {
             <ul className="cm-hier-hint-legend">
               <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up under one person above</strong> — report to them alone</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up in the gap between a linked pair</strong> — report to both</li>
-              <li><span className="cm-hier-swatch cm-hier-swatch-pair" /><strong>Drop right beside someone</strong> — pair under one shared line</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-pair"><Icon name="Link2" size={11} /></span><strong>Tap the ⚭ handle between two peers</strong> — pair them under one shared line (tap again to unlink)</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-row" /><strong>Drop above, below or between rows</strong> — open a new level</li>
             </ul>
           </div>
@@ -1813,6 +1810,29 @@ const CrewManagement = () => {
                     {hierPlan.pairWithId && <Icon name="Link2" size={14} />}
                   </div>
                 )}
+                {/* Link handles — one between each pair of adjacent members. Tap
+                    to pair them under a shared line (terracotta = linked), tap
+                    again to break the pair. Hidden mid-drag to avoid clutter. */}
+                {canEdit && !hierDragId && [...members].sort((a, b) => effOrder(a) - effOrder(b)).slice(0, -1).map((u, i, arr) => {
+                  const next = arr[i + 1];
+                  const gapPx = Math.abs(effOrder(next) - effOrder(u)) * SCALE;
+                  if (gapPx > LINKH_MAX_PX) return null;
+                  const midVal = (effOrder(u) + effOrder(next)) / 2;
+                  const linked = isLinkedPair(u, next);
+                  return (
+                    <button
+                      key={`lh-${u.id}-${next.id}`}
+                      type="button"
+                      className={`cm-linkh${linked ? ' is-on' : ''}`}
+                      style={{ left: `calc(50% + ${colOffsetPx(midVal)}px)` }}
+                      title={linked ? `Unlink ${u.fullName} & ${next.fullName}` : `Link ${u.fullName} & ${next.fullName} as a pair`}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); toggleLink(u, next); }}
+                    >
+                      <Icon name="Link2" size={13} />
+                    </button>
+                  );
+                })}
               </div>
             );
           })}
