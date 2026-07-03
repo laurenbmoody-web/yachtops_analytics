@@ -15,6 +15,7 @@ import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '..
 import { getInitials } from '../../utils/profileHelpers';
 import DocumentsTab from './components/DocumentsTab';
 import IssuedKitTab from './components/IssuedKitTab';
+import CaptainCredentialsTab from './components/CaptainCredentialsTab';
 import ProfileStatementTab from './components/ProfileStatementTab';
 import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData, logBankingView } from './utils/crewProfileData';
 import { ibanWarning, swiftWarning } from './utils/bankingValidation';
@@ -825,6 +826,12 @@ const CrewProfile = () => {
 // canEdit IIFE below (where it was trapped, causing the render ReferenceError).
 const isOwnProfile = session?.user?.id === crewId;
 
+// Signature & Stamp is captain-only, self-service — RLS backs this up (only
+// the owning user can ever read/write their own row), so hiding the nav item
+// from everyone else is purely a UX nicety, not the actual access control.
+const isCaptainRole = /capt|master/i.test(crewMember?.roleTitle || '');
+const showCaptainCredentials = isOwnProfile && isCaptainRole;
+
 const canEdit = (() => {
   const currentUserId = session?.user?.id;
 
@@ -964,7 +971,8 @@ const canEdit = (() => {
     { key: 'kit', label: 'Issued Kit', icon: 'Shirt' },
     { key: 'permissions', label: 'Permissions', icon: 'ShieldCheck' },
     { key: 'notifications', label: 'Notifications', icon: 'Bell' },
-  ];
+    showCaptainCredentials && { key: 'captain-credentials', label: 'Signature & Stamp', icon: 'Stamp' },
+  ].filter(Boolean);
 
   // Grouped left rail (Option C): items live under quiet section labels.
   const navGroups = [
@@ -972,7 +980,7 @@ const canEdit = (() => {
     { label: 'Employment', keys: ['contract', 'kit'] },
     { label: 'Compliance', keys: ['hor', 'seatime'] },
     { label: 'Activity', keys: ['history'] },
-    { label: 'Settings', keys: ['permissions', 'notifications'] },
+    { label: 'Settings', keys: ['permissions', 'notifications', 'captain-credentials'] },
   ];
 
   const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
@@ -4082,6 +4090,8 @@ const canEdit = (() => {
         return renderPermissions();
       case 'notifications':
         return renderNotifications();
+      case 'captain-credentials':
+        return <CaptainCredentialsTab userId={crewId} tenantId={activeTenantId} isOwnProfile={isOwnProfile} />;
       case 'personal':
         return renderPersonalDetails();
       case 'statement':
