@@ -1322,6 +1322,11 @@ const CrewManagement = () => {
         .filter(Boolean)
         .map(({ u, el }) => {
           const r = el.getBoundingClientRect();
+          // Anchor connectors to the AVATAR circle, not the whole node box (which
+          // includes the name/role text below). Keeps every line centred on the
+          // faces rather than floating out at the label edges.
+          const avEl = el.querySelector('.cm-onode-av');
+          const ar = avEl ? avEl.getBoundingClientRect() : r;
           return {
             id: u.id,
             reportsTo: u.reportsTo || null,
@@ -1329,6 +1334,9 @@ const CrewManagement = () => {
             cx: r.left + r.width / 2 - crect.left,
             left: r.left - crect.left, right: r.right - crect.left,
             top: r.top - crect.top, bottom: r.bottom - crect.top,
+            avTop: ar.top - crect.top, avBottom: ar.bottom - crect.top,
+            avLeft: ar.left - crect.left, avRight: ar.right - crect.left,
+            avCy: ar.top + ar.height / 2 - crect.top,
           };
         });
       const rowKeys = [...new Set(withMeta.map((m) => m.row))].sort((a, b) => a - b);
@@ -1347,6 +1355,8 @@ const CrewManagement = () => {
           anchorX: (g.nodes[0].cx + g.nodes[g.nodes.length - 1].cx) / 2,
           top: Math.min(...g.nodes.map((n) => n.top)),
           bottom: Math.max(...g.nodes.map((n) => n.bottom)),
+          avTop: Math.min(...g.nodes.map((n) => n.avTop)),
+          avCy: g.nodes.reduce((s, n) => s + n.avCy, 0) / g.nodes.length,
         }));
       };
 
@@ -1367,10 +1377,10 @@ const CrewManagement = () => {
         // the next's (never through the boxes themselves).
         groups.forEach((g) => {
           if (g.nodes.length < 2) return;
-          const midY = (g.nodes[0].top + g.nodes[0].bottom) / 2;
           const sorted = [...g.nodes].sort((a, b) => a.cx - b.cx);
+          const midY = sorted.reduce((s, n) => s + n.avCy, 0) / sorted.length; // avatar-centre height
           for (let i = 0; i < sorted.length - 1; i++) {
-            lines.push({ x1: sorted[i].right, y1: midY, x2: sorted[i + 1].left, y2: midY });
+            lines.push({ x1: sorted[i].avRight, y1: midY, x2: sorted[i + 1].avLeft, y2: midY }); // circle-edge to circle-edge
           }
         });
 
@@ -1404,12 +1414,15 @@ const CrewManagement = () => {
           });
           byParent.forEach(({ anchor, childGroups }) => {
             const childXs = childGroups.map((g) => g.anchorX);
-            const barY = (anchor.bottom + Math.min(...childGroups.map((g) => g.top))) / 2;
+            const barY = (anchor.bottom + Math.min(...childGroups.map((g) => g.avTop))) / 2;
             const leftX = Math.min(anchor.anchorX, ...childXs);
             const rightX = Math.max(anchor.anchorX, ...childXs);
             lines.push({ x1: anchor.anchorX, y1: anchor.bottom, x2: anchor.anchorX, y2: barY }); // trunk down from parent
             lines.push({ x1: leftX, y1: barY, x2: rightX, y2: barY }); // sibling bar
-            childGroups.forEach((g) => lines.push({ x1: g.anchorX, y1: barY, x2: g.anchorX, y2: g.top })); // one stem per group (pair or single)
+            // One stem per child group: a single drops to the avatar top; a pair
+            // drops to its shared avatar-centre height so it lands on the marriage
+            // bar joining the two circles (a clean T), never in the gap above them.
+            childGroups.forEach((g) => lines.push({ x1: g.anchorX, y1: barY, x2: g.anchorX, y2: g.nodes.length >= 2 ? g.avCy : g.avTop }));
           });
         }
         prevGroups = groups;
@@ -1831,7 +1844,7 @@ const CrewManagement = () => {
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); toggleLink(u, next); }}
                     >
-                      <Icon name="Link2" size={13} />
+                      <Icon name="Link2" size={15} />
                     </button>
                   );
                   });
