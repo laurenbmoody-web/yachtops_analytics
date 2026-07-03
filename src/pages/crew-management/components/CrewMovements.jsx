@@ -393,12 +393,6 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
         </div>
       )}
 
-      {canManage && (
-        <div className="mv-configrow">
-          <button type="button" className="mv-btn ghost" onClick={() => setConfigOpen(true)}><Icon name="Settings" size={14} /> Configure cabins</button>
-        </div>
-      )}
-
       <div className="mv-navrow">
         <div className="mv-monthnav"><button onClick={prevM} aria-label="Previous month">‹</button><span>{MONTHS[calMonth]} {calYear}</span><button onClick={nextM} aria-label="Next month">›</button></div>
         <div className="mv-toggle">
@@ -406,6 +400,9 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           <button type="button" className={view === 'cabins' ? 'on' : ''} onClick={() => setView('cabins')}>Cabins</button>
         </div>
         {loading && <LogoSpinner size={16} />}
+        {canManage && (
+          <button type="button" className="mv-btn ghost cfg" onClick={() => setConfigOpen(true)}><Icon name="Settings" size={14} /> Configure cabins</button>
+        )}
       </div>
 
       {view === 'presence' ? renderPresence() : renderCabins()}

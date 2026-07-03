@@ -9,11 +9,16 @@
 .mv-head { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
 .mv-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: #1C1B3A; display: flex; align-items: center; gap: 8px; }
 .mv-title .mv-eyebrow { color: #C65A1A; font-size: 11px; }
-.mv-configrow { display: flex; justify-content: flex-end; margin-top: 10px; }
 .mv-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; font-size: 13px; font-weight: 600; padding: 8px 14px; cursor: pointer; }
 .mv-btn.ghost { background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A; }
 .mv-btn.ghost:hover { background: #FAFAF8; }
 .mv-btn.primary { background: #C65A1A; border: 0; color: #fff; }
+/* Sits at the end of the month-nav row — a terracotta icon/label (not a
+   filled button, that's reserved for primary actions) is enough to read as
+   the "setup" control without competing with the Presence/Cabins toggle. */
+.mv-btn.cfg { margin-left: auto; color: #C65A1A; }
+.mv-btn.cfg svg { color: #C65A1A; }
+.mv-btn.cfg:hover { background: #FBEFE9; border-color: #F0D8C8; }
 
 /* view toggle (sits beside the month picker) */
 .mv-toggle { display: inline-flex; gap: 4px; background: #EEF2F6; border-radius: 999px; padding: 3px; }
