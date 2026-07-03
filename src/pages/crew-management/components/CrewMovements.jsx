@@ -337,35 +337,52 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       return <div className="mv-setup"><p>No cabins set up yet.</p>{canManage && <button type="button" className="mv-btn primary" onClick={() => setConfigOpen(true)}>Configure cabins</button>}</div>;
     }
     let lastCabin = null;
+    const rows = bedRows.map((bd) => {
+      const isNewGroup = bd.cabin !== lastCabin;
+      lastCabin = bd.cabin;
+      return { ...bd, isNewGroup };
+    });
     return (
       <div className="mv-chart" onClick={() => { setSelCrew(null); setPop(null); }}>
-        <div className="mv-scrollx" ref={scrollRef} style={{ '--day-w': `${DAY_W}px` }}>
-          <div className="mv-row mv-monthrow">
-            <div className="mv-name" />
+        {/* Genuinely split layout — the name column is NOT inside the
+            scrolling element at all, so it can't be affected by anything
+            that happens to the scroll position (unlike position:sticky,
+            which turned out unreliable here). Row heights are matched
+            pixel-for-pixel between the two columns so they stay aligned. */}
+        <div className="mv-chartbody">
+          <div className="mv-namescol">
+            <div className="mv-namerow-month" />
+            <div className="mv-namerow-day" />
+            {rows.map((bd) => (
+              <React.Fragment key={bd.bedId}>
+                {bd.isNewGroup && (
+                  <div className="mv-namegroup">
+                    {bd.cabin}{bd.deck ? ` · ${bd.deck.replace(' deck', '')}` : ''}
+                    {cabinMixed[bd.cabinId] && <span className="mv-mixed sm" title="Male and female crew share this cabin">⚠</span>}
+                  </div>
+                )}
+                <div className="mv-namerow">{bd.label}</div>
+              </React.Fragment>
+            ))}
+          </div>
+          <div className="mv-scrollx" ref={scrollRef} style={{ '--day-w': `${DAY_W}px` }}>
             <div className="mv-monthtrack" style={{ width: viewDays * DAY_W }}>
               {monthBands.map((b) => <span key={b.label} className="mv-monthband" style={{ left: b.left, width: b.width }}>{b.label}</span>)}
             </div>
-          </div>
-          <div className="mv-row">
-            <div className="mv-name" />
             <div className="mv-htrack" style={{ width: viewDays * DAY_W }}>
               <div className="mv-todayline" style={{ left: leftPx(todayIndex) }} />
               {Array.from({ length: viewDays }, (_, i) => { const d = addDays(rangeStart, i); return d.getDate() % 5 === 0 ? <span key={i} className="mv-dtick d5" style={{ left: leftPx(i) }}>{d.getDate()}</span> : null; })}
             </div>
-          </div>
-          {bedRows.map((bd) => {
-            const head = bd.cabin !== lastCabin ? (lastCabin = bd.cabin, <div key={`g-${bd.bedId}`} className="mv-cbngroup">{bd.cabin}{bd.deck ? ` · ${bd.deck.replace(' deck', '')}` : ''}<span className="gl" />{cabinMixed[bd.cabinId] && <span className="mv-mixed" title="Male and female crew share this cabin">⚠ Mixed sex</span>}</div>) : null;
-            const rowAssigns = assigns.filter((a) => a.bed_id === bd.bedId).map((a) => ({ a, sp: span(a) })).filter((x) => x.sp);
-            // gaps
-            const covered = new Array(viewDays).fill(false);
-            rowAssigns.forEach(({ sp }) => { for (let d = sp.aDay; d < sp.lvDay; d += 1) covered[d] = true; });
-            const gaps = [];
-            let g = 0; while (g < viewDays) { if (!covered[g]) { let e = g; while (e + 1 < viewDays && !covered[e + 1]) e += 1; gaps.push([g, e]); g = e + 1; } else g += 1; }
-            return (
-              <React.Fragment key={bd.bedId}>
-                {head}
-                <div className="mv-row">
-                  <div className="mv-bedname">{bd.label}</div>
+            {rows.map((bd) => {
+              const rowAssigns = assigns.filter((a) => a.bed_id === bd.bedId).map((a) => ({ a, sp: span(a) })).filter((x) => x.sp);
+              // gaps
+              const covered = new Array(viewDays).fill(false);
+              rowAssigns.forEach(({ sp }) => { for (let d = sp.aDay; d < sp.lvDay; d += 1) covered[d] = true; });
+              const gaps = [];
+              let g = 0; while (g < viewDays) { if (!covered[g]) { let e = g; while (e + 1 < viewDays && !covered[e + 1]) e += 1; gaps.push([g, e]); g = e + 1; } else g += 1; }
+              return (
+                <React.Fragment key={bd.bedId}>
+                  {bd.isNewGroup && <div className="mv-groupline" />}
                   <div className="mv-track" style={{ width: viewDays * DAY_W }} onDragOver={(e) => { if (!canManage) return; e.preventDefault(); e.currentTarget.classList.add('drop'); }} onDragLeave={(e) => e.currentTarget.classList.remove('drop')}
                     onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drop'); if (!canManage) return; const dk = dragKind; setDragKind(null); if (!dk) return; if (dk.type === 'assign') assignToBed(bd.bedId, dk.userId); else moveWholeBar(dk.assignId, bd.bedId); }}>
                     {gaps.map(([a, b]) => { const nights = b - a + 1, w = nights * DAY_W; return <div key={`gap-${a}`} className={`mv-gap${nights === 1 ? ' one' : ''}`} style={{ left: leftPx(a), width: w }} title={`Free — ${nights} night${nights > 1 ? 's' : ''}`}>{w > 90 ? `${nights} night${nights > 1 ? 's' : ''} free` : w > 40 ? `${nights}n` : ''}</div>; })}
@@ -385,10 +402,10 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                       );
                     })}
                   </div>
-                </div>
-              </React.Fragment>
-            );
-          })}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
         <svg className="mv-conn" id="mv-conn" />
         <div className="mv-legrow">
