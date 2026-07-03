@@ -110,27 +110,24 @@ export const exportCrewListPDF = async (o) => {
   // Vessel logo as a letterhead mark (top-right). Loaded from the vessel record.
   const logo = vessel?.logo_url ? await loadLogoForPdf(vessel.logo_url) : null;
 
-  // ── Title ────────────────────────────────────────────────────────────────
+  // ── Title (tightened up top to give the table more room) ──────────────────
   doc.setTextColor(...eyebrowColor); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
-  doc.text('OFFICIAL CREW LIST', M, 14, { charSpace: editorial ? 0.8 : 1.2 });
+  doc.text('OFFICIAL CREW LIST', M, 11, { charSpace: editorial ? 0.8 : 1.2 });
   doc.setTextColor(...NAVY); doc.setFont(titleFont, editorial ? 'normal' : 'bold');
-  doc.setFontSize(editorial ? 24 : 18);
-  doc.text(vessel.name || 'Vessel', M, editorial ? 24 : 23);
+  doc.setFontSize(editorial ? 23 : 18);
+  doc.text(vessel.name || 'Vessel', M, editorial ? 21 : 20);
 
-  // Vessel logo top-right; generated date beneath it (or top-right if no logo).
-  let dateY = 12;
+  // Vessel logo as a letterhead mark, top-right. The generated date now lives
+  // in the bottom-left footer, so nothing else sits up here.
   if (logo?.dataUrl) {
-    const logoH = 13;
-    const logoW = Math.min(60, logoH * (logo.aspect || 3));
-    try { doc.addImage(logo.dataUrl, 'PNG', pageW - M - logoW, 6, logoW, logoH); } catch { /* skip */ }
-    dateY = 6 + logoH + 4;
+    const logoH = 12;
+    const logoW = Math.min(58, logoH * (logo.aspect || 3));
+    try { doc.addImage(logo.dataUrl, 'PNG', pageW - M - logoW, 5, logoW, logoH); } catch { /* skip */ }
   }
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-  if (generatedAt) doc.text(`Generated ${generatedAt}`, pageW - M, dateY, { align: 'right' });
 
-  let y = editorial ? 32 : 30;
+  let y = editorial ? 26 : 25;
   doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(M, y, pageW - M, y);
-  y += 7;
+  y += 6;
 
   // ── Vessel identity grid ─────────────────────────────────────────────────
   // Identity first (the IDs an officer keys on), then particulars. 6 per row.
@@ -241,14 +238,12 @@ export const exportCrewListPDF = async (o) => {
   if (stamp) { try { doc.addImage(stamp, 'PNG', sigX + sigW - 26, fy - 2, 24, 24); } catch { /* bad image */ } }
   doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(sigX, fy + 18, sigX + sigW, fy + 18);
   if (master) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(master, sigX, fy + 23); }
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-  doc.text(generatedAt || '', sigX, fy + 27.5);
 
-  // Discreet standard-format reference, bottom-right — signals to the officer
-  // the layout follows the international crew-list form. No app branding: this
-  // is an official vessel document, so only the vessel's own logo (letterhead)
-  // appears — the app's "Cargo" mark is deliberately omitted.
+  // Footer: generated date bottom-left, standard-format reference bottom-right.
+  // No app branding — an official vessel document carries only the vessel's own
+  // logo (letterhead); the app's "Cargo" mark is deliberately omitted.
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...FAINT);
+  if (generatedAt) doc.text(`Generated ${generatedAt}`, M, pageH - 9);
   doc.text('Format: IMO FAL Form 5 — Crew List', pageW - M, pageH - 9, { align: 'right' });
 
   const safe = String(vessel.name || 'vessel').replace(/[^\w]+/g, '-');
