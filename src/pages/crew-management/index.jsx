@@ -178,7 +178,10 @@ const CrewManagement = () => {
   const [hierDragId, setHierDragId] = useState(null); // crew id currently being dragged
   const [hierPos, setHierPos] = useState(null); // { x, y } viewport coords, for the drag ghost
   const [hierPlan, setHierPlan] = useState(null); // computed landing spot (row/col placeholder to render)
-  const [hierResetArm, setHierResetArm] = useState(false); // two-step confirm for "Reset layout"
+  const [hierEdit, setHierEdit] = useState(false); // hierarchy edit mode — drags/links only apply while true
+  const [hierBaseline, setHierBaseline] = useState(null); // snapshot of org fields on entering edit, for Cancel
+  const [hierSaving, setHierSaving] = useState(false);
+  const [hierSaveErr, setHierSaveErr] = useState(null);
   const rowElRefs = useRef({}); // rowKey -> row band DOM element, for hit-testing during drag
   const orgContainerRef = useRef(null); // .cm-org scroll element (viewport for the chart)
   const orgCanvasRef = useRef(null); // .cm-orows — the fixed-width, centred canvas the tree is laid out on
@@ -1271,8 +1274,10 @@ const CrewManagement = () => {
     );
   };
 
-  // Apply a batch of { org_row, org_order, reports_to } patches (optimistic + best-effort save).
-  const applyHierarchyPatch = async (patchMap) => {
+  // Apply a batch of { org_row, org_order, reports_to } patches to LOCAL state
+  // only. Nothing is written to the database until the user explicitly Saves —
+  // drags, links and resets are all in-memory edits that Cancel can discard.
+  const applyHierarchyPatch = (patchMap) => {
     setUsers((prev) => prev.map((u) => {
       const p = patchMap.get(u.id);
       if (!p) return u;
@@ -1280,10 +1285,45 @@ const CrewManagement = () => {
       if ('reports_to' in p) next.reportsTo = p.reports_to;
       return next;
     }));
+  };
+
+  // Enter edit mode — snapshot every member's current org fields so Cancel can
+  // restore them exactly.
+  const enterHierEdit = () => {
+    setHierBaseline((users || []).map((u) => ({ id: u.id, orgRow: u.orgRow ?? null, orgOrder: u.orgOrder ?? null, reportsTo: u.reportsTo ?? null })));
+    setHierSaveErr(null);
+    setHierEdit(true);
+  };
+
+  // Cancel — roll local state back to the snapshot and leave edit mode.
+  const cancelHierEdit = () => {
+    if (hierBaseline) {
+      const base = new Map(hierBaseline.map((b) => [b.id, b]));
+      setUsers((prev) => prev.map((u) => (base.has(u.id)
+        ? { ...u, orgRow: base.get(u.id).orgRow, orgOrder: base.get(u.id).orgOrder, reportsTo: base.get(u.id).reportsTo }
+        : u)));
+    }
+    setHierBaseline(null); setHierSaveErr(null); setHierEdit(false);
+  };
+
+  // Save — one batched write of every crew member's current position. Surfaces
+  // any failure instead of swallowing it, and only leaves edit mode on success.
+  const saveHierarchy = async () => {
+    setHierSaving(true); setHierSaveErr(null);
     try {
-      await Promise.all([...patchMap.entries()].map(([id, p]) =>
-        supabase.from('tenant_members').update(p).eq('tenant_id', activeTenantId).eq('user_id', id)));
-    } catch (e) { console.warn('[CREW] hierarchy save failed', e); }
+      const rows = (users || []).filter((u) => u?.id && u?.status !== 'invited');
+      await Promise.all(rows.map((u) =>
+        supabase.from('tenant_members')
+          .update({ org_row: u.orgRow ?? null, org_order: u.orgOrder ?? null, reports_to: u.reportsTo ?? null })
+          .eq('tenant_id', activeTenantId).eq('user_id', u.id)
+          .then(({ error }) => { if (error) throw error; })));
+      setHierBaseline(null); setHierEdit(false);
+    } catch (e) {
+      console.error('[CREW] hierarchy save failed', e);
+      setHierSaveErr(e?.message || 'Could not save — please try again.');
+    } finally {
+      setHierSaving(false);
+    }
   };
 
   // Default vertical level from role seniority (only used until someone drags).
@@ -1480,7 +1520,8 @@ const CrewManagement = () => {
   // a person dropped near a specific card above lands in that SAME column and
   // renders directly under them — not centred independently per row.
   const renderHierarchy = () => {
-    const canEdit = hasEditPermission;
+    const canEdit = hasEditPermission;      // may enter edit mode
+    const editing = canEdit && hierEdit;    // actively rearranging — drags/links/reset live only here
     const crew = (users || []).filter((u) => u?.status !== 'invited' && u?.fullName);
     const crewById = new Map(crew.map((u) => [u.id, u]));
     const effRow = (u) => (u.orgRow != null ? u.orgRow : defaultOrgRow(u));
@@ -1739,7 +1780,7 @@ const CrewManagement = () => {
     const resetDrag = () => { setHierDragId(null); setHierPos(null); setHierPlan(null); };
 
     const DRAG_THRESHOLD = 5; // px — below this a press is a click, not a drag (so a plain click never shifts the chart)
-    const cardProps = (u) => (canEdit ? {
+    const cardProps = (u) => (editing ? {
       draggable: false, // pointer-based drag, not HTML5 DnD — works without hovering a specific drop target
       onPointerDown: (e) => {
         if (e.button != null && e.button !== 0) return; // primary button only
@@ -1775,12 +1816,12 @@ const CrewManagement = () => {
     const cardStyle = (key) => ({ left: `calc(50% + ${colOffsetPx(key) - 48}px)` }); // 89 = half card width (178/2)
 
     // Reset layout — clear every override so the tree falls back to the default
-    // role/department-derived arrangement. Two-step confirm (it wipes drags).
+    // role/department-derived arrangement. Local only (Save commits, Cancel
+    // discards), so no separate confirm is needed.
     const resetHierarchy = () => {
       const patch = new Map();
       crew.forEach((u) => patch.set(u.id, { org_row: null, org_order: null, reports_to: null }));
       applyHierarchyPatch(patch);
-      setHierResetArm(false);
     };
 
     // The tree is laid out on a fixed-width canvas (not the viewport), sized to
@@ -1817,28 +1858,36 @@ const CrewManagement = () => {
     return (
       <div className={`cm-org${hierDragId ? ' is-dragging-any' : ''}`} ref={orgContainerRef}>
         {canEdit && (
-          <div className="cm-hier-top">
-            <div className="cm-hier-hint">
-              <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Drag anyone, anywhere to rebuild the team structure.</p>
-              <ul className="cm-hier-hint-legend">
-                <li><strong>Drop under someone</strong> — they report to that person</li>
-                <li><strong>Drop beside someone</strong> — same manager; tap the ⚭ to link them as a pair</li>
-                <li><strong>Drop outside the rows</strong> — start a new level</li>
-              </ul>
-            </div>
-            <div className="cm-hier-reset">
-              {hierResetArm ? (
-                <>
-                  <span className="cm-hier-reset-q">Reset everyone to the default layout?</span>
-                  <button type="button" className="cm-hier-reset-yes" onClick={resetHierarchy}>Reset</button>
-                  <button type="button" className="cm-hier-reset-no" onClick={() => setHierResetArm(false)}>Cancel</button>
-                </>
-              ) : (
-                <button type="button" className="cm-hier-reset-btn" onClick={() => setHierResetArm(true)}>
-                  <Icon name="RotateCcw" size={14} /> Reset layout
+          <div className={`cm-hier-top${editing ? ' is-editing' : ''}`}>
+            {editing ? (
+              <>
+                <div className="cm-hier-hint">
+                  <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Rearrange the team — nothing saves until you press Save.</p>
+                  <ul className="cm-hier-hint-legend">
+                    <li><strong>Drop under someone</strong> — they report to that person</li>
+                    <li><strong>Drop beside someone</strong> — same manager; tap the ⚭ to link them as a pair</li>
+                    <li><strong>Drop outside the rows</strong> — start a new level</li>
+                  </ul>
+                </div>
+                <div className="cm-hier-editbar">
+                  {hierSaveErr && <span className="cm-hier-saveerr"><Icon name="AlertCircle" size={13} /> {hierSaveErr}</span>}
+                  <button type="button" className="cm-hier-reset-btn" onClick={resetHierarchy} disabled={hierSaving}>
+                    <Icon name="RotateCcw" size={14} /> Reset
+                  </button>
+                  <button type="button" className="cm-hier-reset-no" onClick={cancelHierEdit} disabled={hierSaving}>Cancel</button>
+                  <button type="button" className="cm-hier-reset-yes" onClick={saveHierarchy} disabled={hierSaving}>
+                    {hierSaving ? 'Saving…' : 'Save layout'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="cm-hier-viewnote">Reporting lines &amp; who's aboard — hover anyone for their status.</p>
+                <button type="button" className="cm-hier-editbtn" onClick={enterHierEdit}>
+                  <Icon name="Pencil" size={14} /> Edit layout
                 </button>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )}
         <div className="cm-orows" ref={orgCanvasRef} style={{ width: `${canvasWidth}px`, margin: '0 auto' }}>
@@ -1874,7 +1923,7 @@ const CrewManagement = () => {
                     <div
                       key={u.id}
                       data-crew-id={u.id}
-                      className={`cm-onode${canEdit ? ' is-draggable' : ''}${isDragged ? ' is-dragging' : ''}${isPairTarget ? ' is-pair-target' : ''}${isReportTarget ? ' is-report-target' : ''}`}
+                      className={`cm-onode${editing ? ' is-draggable' : ''}${isDragged ? ' is-dragging' : ''}${isPairTarget ? ' is-pair-target' : ''}${isReportTarget ? ' is-report-target' : ''}`}
                       style={cardStyle(effOrder(u))}
                       ref={(el) => { if (el) orgCardRefs.current[u.id] = el; else delete orgCardRefs.current[u.id]; }}
                       {...cardProps(u)}
@@ -1901,7 +1950,7 @@ const CrewManagement = () => {
                 {/* Link handles — one between each pair of adjacent members. Tap
                     to pair them under a shared line (terracotta = linked), tap
                     again to break the pair. Hidden mid-drag to avoid clutter. */}
-                {canEdit && !hierDragId && (() => {
+                {editing && !hierDragId && (() => {
                   const sorted = [...members].sort((a, b) => effOrder(a) - effOrder(b));
                   return sorted.slice(0, -1).map((u, i) => {
                   const next = sorted[i + 1];
