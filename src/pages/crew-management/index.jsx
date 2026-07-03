@@ -1932,9 +1932,9 @@ const CrewManagement = () => {
                   <Icon name="ClipboardList" size={16} />
                   Create crew list
                 </button>
-                <button type="button" onClick={() => setShowGuestBook(true)} className="cm-btn cm-btn-ghost" aria-label="Export guest book">
+                <button type="button" onClick={() => setShowGuestBook(true)} className="cm-btn cm-btn-ghost" aria-label="Create crew profiles">
                   <Icon name="BookOpen" size={16} />
-                  Export guest book
+                  Create crew profiles
                 </button>
               </div>
             )}
