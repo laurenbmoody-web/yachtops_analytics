@@ -4,14 +4,11 @@ import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
 import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
-import { useAuth } from '../../../contexts/AuthContext';
 import {
   fetchVesselForCrewList, fetchCrewListDetails, buildCrewRow, missingMandatory,
 } from '../utils/crewListData';
 import { exportCrewListPDF } from '../utils/crewListExport';
-import {
-  getMasterSignatureRow, signedUrl, loadImageForPdf, uploadMasterImage,
-} from '../utils/masterSignature';
+import { getMasterSignatureRow, loadImageForPdf } from '../utils/masterSignature';
 import './create-crew-list-modal.css';
 
 const initials = (n) => String(n || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
@@ -32,54 +29,42 @@ const crewRank = (m) => {
   return 9;
 };
 
-const TEMPLATES = [
-  { key: 'fal', name: 'Port authority', blurb: 'Official IMO FAL 5 layout' },
-  { key: 'editorial', name: 'Editorial', blurb: 'Cargo-styled version' },
-];
-
 const todayDisplay = () => {
   const d = new Date();
   const p = (n) => String(n).padStart(2, '0');
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
 };
 
+// Only the things that change per port call live in this modal — everything
+// static (call sign, class, vessel identity) comes from Vessel Settings, the
+// master is the on-duty captain, and their signature/stamp from their profile.
 const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
-  const { session } = useAuth();
-  const currentUserId = session?.user?.id;
   const [loading, setLoading] = useState(true);
   const [vessel, setVessel] = useState(null);
   const [detailsByUser, setDetailsByUser] = useState({});
   const [selected, setSelected] = useState(() => new Set());
-  const [template, setTemplate] = useState('editorial');
   const [busy, setBusy] = useState(false);
-
-  // Saved signature + stamp for the person generating the list (their account).
-  const [sigPreview, setSigPreview] = useState({ signature: null, stamp: null }); // signed urls
-  const [sigData, setSigData] = useState({ signature: null, stamp: null });       // pdf data-urls
-  const [applySig, setApplySig] = useState(true);
-  const [sigBusy, setSigBusy] = useState('');
-
-  // Header fields not stored on the vessel record — entered per export.
-  const [callSign, setCallSign] = useState('');
-  const [classNotation, setClassNotation] = useState('');
-  const [master, setMaster] = useState('');
+  // Captain's saved signature/stamp (pulled from their profile), applied to the list.
+  const [sigData, setSigData] = useState({ signature: null, stamp: null });
   const [voyage, setVoyage] = useState({
     portOfArrival: '', lastPort: '', nextPort: '',
     arrivalDate: '', arrivalTime: '', departureDate: '', departureTime: '',
   });
   const setV = (k, val) => setVoyage((p) => ({ ...p, [k]: val }));
 
-  // Crew ordered by rank; captain's name pre-fills the master signature.
   const ordered = useMemo(
     () => [...crew].sort((a, b) => crewRank(a) - crewRank(b) || String(a.fullName).localeCompare(String(b.fullName))),
     [crew],
   );
+  // The on-duty master: the captain in the roster.
+  const captain = useMemo(() => ordered.find((m) => crewRank(m) === 0) || null, [ordered]);
+  const masterName = captain?.fullName || '';
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     let cancelled = false;
     setLoading(true);
-    // Pre-select everyone by default; the user unticks whoever isn't sailing.
+    setSigData({ signature: null, stamp: null });
     setSelected(new Set(ordered.map((m) => m.user_id || m.id)));
     (async () => {
       const ids = ordered.map((m) => m.user_id || m.id).filter(Boolean);
@@ -90,45 +75,22 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
       if (cancelled) return;
       setVessel(v || {});
       setDetailsByUser(det || {});
-      const captain = ordered.find((m) => crewRank(m) === 0);
-      if (captain) setMaster(captain.fullName || '');
 
-      // Load the generator's saved signature/stamp so they can one-tap apply it.
-      const row = await getMasterSignatureRow(currentUserId);
-      if (!cancelled && (row?.signature_path || row?.stamp_path)) {
-        const [sUrl, tUrl, sData, tData] = await Promise.all([
-          signedUrl(row.signature_path), signedUrl(row.stamp_path),
-          loadImageForPdf(row.signature_path), loadImageForPdf(row.stamp_path),
-        ]);
-        if (!cancelled) {
-          setSigPreview({ signature: sUrl, stamp: tUrl });
-          setSigData({ signature: sData, stamp: tData });
+      // Pull the captain's signature + stamp from their profile (master_signatures).
+      const capId = captain?.user_id || captain?.id;
+      if (capId) {
+        const row = await getMasterSignatureRow(capId);
+        if (!cancelled && (row?.signature_path || row?.stamp_path)) {
+          const [sData, tData] = await Promise.all([
+            loadImageForPdf(row.signature_path), loadImageForPdf(row.stamp_path),
+          ]);
+          if (!cancelled) setSigData({ signature: sData, stamp: tData });
         }
       }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [open, tenantId, ordered, currentUserId]);
-
-  const handleUploadSig = async (kind, file) => {
-    if (!file) return;
-    setSigBusy(kind);
-    try {
-      await uploadMasterImage(file, kind, tenantId);
-      const row = await getMasterSignatureRow(currentUserId);
-      const path = kind === 'stamp' ? row?.stamp_path : row?.signature_path;
-      const [url, data] = await Promise.all([signedUrl(path), loadImageForPdf(path)]);
-      setSigPreview((p) => ({ ...p, [kind]: url }));
-      setSigData((p) => ({ ...p, [kind]: data }));
-      setApplySig(true);
-      showToast(`${kind === 'stamp' ? 'Stamp' : 'Signature'} saved to your account`, 'success');
-    } catch (e) {
-      console.error('signature upload failed:', e);
-      showToast('Couldn’t upload — please try a PNG/JPEG', 'error');
-    } finally {
-      setSigBusy('');
-    }
-  };
+  }, [open, tenantId, ordered, captain]);
 
   const rows = useMemo(
     () => ordered.map((m) => ({ member: m, row: buildCrewRow(m, detailsByUser[m.user_id || m.id]) })),
@@ -157,10 +119,16 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
     setBusy(true);
     try {
       await exportCrewListPDF({
-        template, vessel: vessel || {}, callSign, classNotation, voyage, master,
-        rows: selectedRows, generatedAt: todayDisplay(),
-        signature: applySig ? sigData.signature : null,
-        stamp: applySig ? sigData.stamp : null,
+        template: 'editorial',
+        vessel: vessel || {},
+        callSign: vessel?.call_sign || '',
+        classNotation: vessel?.class_notation || '',
+        voyage,
+        master: masterName,
+        rows: selectedRows,
+        generatedAt: todayDisplay(),
+        signature: sigData.signature,
+        stamp: sigData.stamp,
       });
       showToast('Crew list generated', 'success');
     } catch (err) {
@@ -169,7 +137,7 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
     } finally {
       setBusy(false);
     }
-  }, [selectedRows, busy, template, vessel, callSign, classNotation, voyage, master]);
+  }, [selectedRows, busy, vessel, voyage, masterName, sigData]);
 
   if (!open) return null;
 
@@ -180,7 +148,7 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
           <div>
             <div className="ccl-eyebrow">Crew</div>
             <h2>Create crew list</h2>
-            <p className="ccl-sub">For port authority &amp; immigration — IMO FAL 5</p>
+            <p className="ccl-sub">{vessel?.name || 'Vessel'} · master {masterName || '—'} · IMO FAL 5</p>
           </div>
           <button type="button" className="ccl-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
@@ -189,14 +157,14 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
           <div className="ccl-loading"><LogoSpinner size={40} /><span>Gathering crew details…</span></div>
         ) : (
           <div className="ccl-body">
-            {/* Voyage + vessel-gap fields */}
+            {/* Voyage — the only per-call detail entered here */}
             <div className="ccl-section">
               <div className="ccl-grouphead"><span className="dia">◆</span><span className="t">Voyage</span><span className="line" /></div>
               <div className="ccl-grid3">
-                <label className="ccl-field"><span className="ccl-label">Port of arrival</span>
-                  <input className="ccl-input" value={voyage.portOfArrival} onChange={(e) => setV('portOfArrival', e.target.value)} placeholder="e.g. Athens" /></label>
                 <label className="ccl-field"><span className="ccl-label">Last port</span>
                   <input className="ccl-input" value={voyage.lastPort} onChange={(e) => setV('lastPort', e.target.value)} placeholder="Previous port" /></label>
+                <label className="ccl-field"><span className="ccl-label">Port of arrival</span>
+                  <input className="ccl-input" value={voyage.portOfArrival} onChange={(e) => setV('portOfArrival', e.target.value)} placeholder="e.g. Athens" /></label>
                 <label className="ccl-field"><span className="ccl-label">Next port</span>
                   <input className="ccl-input" value={voyage.nextPort} onChange={(e) => setV('nextPort', e.target.value)} placeholder="Onward port" /></label>
                 <div className="ccl-field"><span className="ccl-label">Arrival date</span>
@@ -210,50 +178,6 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
                   <input className="ccl-input" value={voyage.departureTime} onChange={(e) => setV('departureTime', e.target.value)} placeholder="HH:MM" /></label>
                 <div className="ccl-field" />
               </div>
-            </div>
-
-            <div className="ccl-section">
-              <div className="ccl-grouphead"><span className="dia">◆</span><span className="t">Vessel &amp; master</span><span className="line" /></div>
-              <div className="ccl-grid3">
-                <label className="ccl-field"><span className="ccl-label">Call sign</span>
-                  <input className="ccl-input" value={callSign} onChange={(e) => setCallSign(e.target.value)} placeholder="Not on file — enter" /></label>
-                <label className="ccl-field"><span className="ccl-label">Class / notation</span>
-                  <input className="ccl-input" value={classNotation} onChange={(e) => setClassNotation(e.target.value)} placeholder="e.g. 100A1 SSC Yacht" /></label>
-                <label className="ccl-field"><span className="ccl-label">Master (signature name)</span>
-                  <input className="ccl-input" value={master} onChange={(e) => setMaster(e.target.value)} placeholder="Captain's name" /></label>
-              </div>
-              <p className="ccl-hint">{vessel?.name || 'Vessel'} · {vessel?.flag || 'flag —'} · IMO {vessel?.imo_number || '—'}. Call sign &amp; class aren’t stored on the vessel record, so add them here.</p>
-            </div>
-
-            {/* Master signature & stamp — saved to your account, reused each time */}
-            <div className="ccl-section">
-              <div className="ccl-grouphead"><span className="dia">◆</span><span className="t">Signature &amp; stamp</span><span className="line" />
-                {(sigPreview.signature || sigPreview.stamp) && (
-                  <label className="ccl-applytoggle">
-                    <input type="checkbox" checked={applySig} onChange={(e) => setApplySig(e.target.checked)} />
-                    Apply to list
-                  </label>
-                )}
-              </div>
-              <div className="ccl-sigrow">
-                {['signature', 'stamp'].map((kind) => (
-                  <div className="ccl-sigcard" key={kind}>
-                    <span className="ccl-label">{kind === 'signature' ? 'Signature' : 'Stamp'}</span>
-                    <div className={`ccl-sigbox${sigPreview[kind] ? ' has' : ''}`}>
-                      {sigPreview[kind]
-                        ? <img src={sigPreview[kind]} alt={kind} />
-                        : <span className="ccl-sigempty">None saved</span>}
-                    </div>
-                    <label className="ccl-sigbtn">
-                      {sigBusy === kind ? 'Uploading…' : (sigPreview[kind] ? 'Replace' : 'Upload')}
-                      <input type="file" accept="image/png,image/jpeg,image/webp" hidden
-                        disabled={!!sigBusy}
-                        onChange={(e) => { handleUploadSig(kind, e.target.files?.[0]); e.target.value = ''; }} />
-                    </label>
-                  </div>
-                ))}
-              </div>
-              <p className="ccl-hint">Saved to your account — upload once, then it’s applied to every crew list you generate. A transparent PNG works best for signatures.</p>
             </div>
 
             {/* Crew picker */}
@@ -286,13 +210,10 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
 
         {!loading && (
           <div className="ccl-foot">
-            <div className="ccl-templates">
-              {TEMPLATES.map((t) => (
-                <button type="button" key={t.key} className={`ccl-tpl${template === t.key ? ' on' : ''}`} onClick={() => setTemplate(t.key)}>
-                  <span className="ccl-tpl-name">{t.name}</span><span className="ccl-tpl-blurb">{t.blurb}</span>
-                </button>
-              ))}
-            </div>
+            <p className="ccl-foothint">
+              <Icon name="Info" size={13} />
+              Vessel identity &amp; call sign come from Vessel Settings; the master and signature/stamp from the captain’s profile.
+            </p>
             <div className="ccl-foot-actions">
               <span className="ccl-count">{selectedRows.length} of {ordered.length} crew</span>
               <button type="button" className="ccl-export" disabled={!selectedRows.length || busy} onClick={handleExport}>
