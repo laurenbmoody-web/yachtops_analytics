@@ -113,7 +113,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
   // - 'join': Show Join Vessel button (only for users who were already logged in)
   const [step, setStep] = useState('create'); // Initialize as 'create'
   const [status, setStatus] = useState(previewMode ? 'ready' : 'loading'); // loading, ready, error
-  const [previewDone, setPreviewDone] = useState(false);
+  const [flowComplete, setFlowComplete] = useState(false);
   
   // Invite data from RPC
   const [inviteEmail, setInviteEmail] = useState(previewMode ? PREVIEW_INVITE.email : '');
@@ -347,7 +347,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
   const handleJoinVessel = async () => {
     if (previewMode) {
       setIsSubmitting(true);
-      setTimeout(() => { setIsSubmitting(false); setPreviewDone(true); }, 500);
+      setTimeout(() => { setIsSubmitting(false); setFlowComplete(true); }, 500);
       return;
     }
     try {
@@ -436,20 +436,18 @@ const InviteAcceptPage = ({ previewMode = false }) => {
           ?.eq('id', user?.id);
         
         showToast(`Welcome to ${vesselName}!`, 'success');
-        
-        // ONLY NOW allow step to become 'join' on future visits
-        // (but we're navigating away, so this doesn't matter)
-        
-        // Stop loader and navigate
+
+        // Stop loader and show the done/confetti screen — the "Enter Cargo"
+        // button there is what actually navigates to /dashboard.
         setIsSubmitting(false);
-        navigate('/dashboard');
+        setFlowComplete(true);
       } else {
         // Timeout - show error message and stop loader
         console.error('INVITE_ACCEPT: Membership polling timeout');
         setError('Account created but access not ready—refresh or contact admin');
         setIsSubmitting(false);
       }
-      
+
     } catch (err) {
       console.error('INVITE_ACCEPT: handleJoinVessel EXCEPTION:', err);
       const errorMsg = err?.message || err?.error_message || JSON.stringify(err);
@@ -489,7 +487,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
       // Preview mode: client-side validation above still runs (so error
       // states are demoable), but nothing after this touches Supabase.
       if (previewMode) {
-        setTimeout(() => { setIsSubmitting(false); setPreviewDone(true); }, 500);
+        setTimeout(() => { setIsSubmitting(false); setFlowComplete(true); }, 500);
         return;
       }
 
@@ -685,20 +683,18 @@ const InviteAcceptPage = ({ previewMode = false }) => {
           ?.eq('id', userId);
         
         showToast(`Welcome to ${vesselName}!`, 'success');
-        
-        // ONLY NOW allow step to become 'join' on future visits
-        // (but we're navigating away, so this doesn't matter)
-        
-        // Stop loader and navigate
+
+        // Stop loader and show the done/confetti screen — the "Enter Cargo"
+        // button there is what actually navigates to /dashboard.
         setIsSubmitting(false);
-        navigate('/dashboard');
+        setFlowComplete(true);
       } else {
         // Timeout - show error message and stop loader
         console.error('INVITE_ACCEPT: Membership polling timeout');
         setError('Account created but access not ready—refresh or contact admin');
         setIsSubmitting(false);
       }
-      
+
     } catch (err) {
       console.error('INVITE_ACCEPT: handleCreateAccount EXCEPTION:', err);
       const errorMsg = err?.message || err?.error_message || JSON.stringify(err);
@@ -720,7 +716,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
       }
 
       if (previewMode) {
-        setTimeout(() => { setIsSubmitting(false); setPreviewDone(true); }, 500);
+        setTimeout(() => { setIsSubmitting(false); setFlowComplete(true); }, 500);
         return;
       }
 
@@ -828,10 +824,11 @@ const InviteAcceptPage = ({ previewMode = false }) => {
           ?.eq('id', loginData?.user?.id);
         
         showToast(`Welcome to ${vesselName}!`, 'success');
-        
-        // Stop loader and navigate
+
+        // Stop loader and show the done/confetti screen — the "Enter Cargo"
+        // button there is what actually navigates to /dashboard.
         setIsSubmitting(false);
-        navigate('/dashboard');
+        setFlowComplete(true);
       } else {
         // Timeout - show error message and stop loader
         console.error('INVITE_ACCEPT: Membership polling timeout');
@@ -852,7 +849,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
   const isLogin = activeTab === 'login';
   const screenKey = status === 'loading' ? 'loading'
     : status === 'error' ? 'error'
-    : previewDone ? 'done'
+    : flowComplete ? 'done'
     : step === 'join' ? 'join'
     : isLogin ? 'login'
     : wizStep === 1 ? 'invite' : wizStep === 2 ? 'details' : 'password';
@@ -979,7 +976,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
                   className="onb-cta welcome"
                   onClick={() => {
                     if (previewMode) {
-                      setPreviewDone(false); setStep('create'); setActiveTab('signup'); setWizStep(1);
+                      setFlowComplete(false); setStep('create'); setActiveTab('signup'); setWizStep(1);
                       setFirstName(''); setSurname(''); setPassword(''); setConfirmPassword(''); setLoginPassword(''); setError('');
                     } else {
                       navigate('/dashboard', { replace: true });
@@ -1054,9 +1051,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
                 <p className="ia-sub">to join {VESSEL_PREFIX[vesselTypeLabel] ? `${VESSEL_PREFIX[vesselTypeLabel]} ` : ''}{vesselName}.</p>
                 {alerts}
                 <div className="ia-stats">
-                  {loaM != null && (
-                    <div className="ia-stat"><span className="v">{loaM}m</span><span className="k">LOA</span></div>
-                  )}
+                  <div className="ia-stat"><span className="v">{loaM != null ? `${loaM}m` : '—'}</span><span className="k">LOA</span></div>
                   <div className="ia-stat"><span className="v">{crewCount ?? '—'}</span><span className="k">Crew</span></div>
                   <div className="ia-stat"><span className="v">{departmentCount ?? '—'}</span><span className="k">Departments</span></div>
                 </div>

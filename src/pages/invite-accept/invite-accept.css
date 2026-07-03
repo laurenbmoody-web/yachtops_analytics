@@ -16,6 +16,14 @@
    wherever the heading is actually inside a panel. */
 .onb-panel .onb-head { color: #1C1B3A; }
 
+/* onboarding.css's .onb-cta sizes to its own padding and left-aligns inside
+   .onb-ctarow's flex row — fine for the done screen's CTA sitting directly
+   on the open background, but every panel-wrapped step here (invite,
+   details, password, login, join, error) was designed with a full-width
+   button per the approved wizard mock. Scoped to .onb-panel so the done
+   screen's CTA (not inside a panel) is unaffected. */
+.onb-panel .onb-cta { width: 100%; }
+
 /* loading / error — no giant numeral, just a centred solo card */
 .ia-solo { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px 24px 40px; }
 
