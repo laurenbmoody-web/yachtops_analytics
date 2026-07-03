@@ -9,8 +9,42 @@ import {
   fetchVesselForCrewList, fetchCrewListDetails, buildCrewRow, missingMandatory,
 } from '../utils/crewListData';
 import { exportCrewListPDF } from '../utils/crewListExport';
-import { getMasterSignatureRow, loadImageForPdf } from '../utils/masterSignature';
+import { fetchCaptainCredentials } from '../../crew-profile/utils/captainCredentials';
+import { supabase } from '../../../lib/supabaseClient';
 import './create-crew-list-modal.css';
+
+// Load a private signature/stamp image into a base64 data-URL for jsPDF.
+// Fetched as a blob (not via a canvas) so the private signed URL can't taint a
+// canvas and blank it. `bucket` picks the storage bucket to sign against.
+const loadSigImage = async (path, bucket) => {
+  if (!path) return null;
+  const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
+  const url = data?.signedUrl;
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const fr = new FileReader();
+      fr.onloadend = () => resolve(typeof fr.result === 'string' ? fr.result : null);
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(blob);
+    });
+  } catch { return null; }
+};
+
+// The captain's signature/stamp: his private captain_credentials store is the
+// single source (managed on his profile's Signature & Stamp tab). Legacy
+// fallback to master_signatures keeps a previously-saved signature working.
+const fetchCaptainSig = async (userId) => {
+  const cred = await fetchCaptainCredentials(userId);
+  if (cred?.signature_path || cred?.stamp_path) return { ...cred, bucket: 'captain-credentials' };
+  const { data } = await supabase
+    .from('master_signatures').select('signature_path, stamp_path').eq('user_id', userId).maybeSingle();
+  if (data?.signature_path || data?.stamp_path) return { ...data, bucket: 'master-signatures' };
+  return {};
+};
 
 const initials = (n) => String(n || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
 
@@ -80,13 +114,14 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
       setVessel(v || {});
       setDetailsByUser(det || {});
 
-      // Pull the captain's signature + stamp from their profile (master_signatures).
+      // Pull the captain's signature + stamp from his profile (captain_credentials
+      // — his private store; only he can read it, so it applies when he generates).
       const capId = captain?.user_id || captain?.id;
       if (capId) {
-        const row = await getMasterSignatureRow(capId);
-        if (!cancelled && (row?.signature_path || row?.stamp_path)) {
+        const cred = await fetchCaptainSig(capId);
+        if (!cancelled && (cred.signature_path || cred.stamp_path)) {
           const [sData, tData] = await Promise.all([
-            loadImageForPdf(row.signature_path, row.bucket), loadImageForPdf(row.stamp_path, row.bucket),
+            loadSigImage(cred.signature_path, cred.bucket), loadSigImage(cred.stamp_path, cred.bucket),
           ]);
           if (!cancelled) setSigData({ signature: sData, stamp: tData });
         }
