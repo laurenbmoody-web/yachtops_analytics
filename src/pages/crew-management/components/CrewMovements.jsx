@@ -53,6 +53,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const [dragKind, setDragKind] = useState(null); // {type:'assign'|'bar', ...}
   const [pop, setPop] = useState(null);           // move popover
   const [handover, setHandover] = useState(null); // conflict dialog
+  const [flashId, setFlashId] = useState(null);   // bar to pulse after "Move anyway"
   const [focusLabel, setFocusLabel] = useState('');
 
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.user_id, m])), [members]);
@@ -236,11 +237,11 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   // `undo` reverts the DB write the calling action already made — "No" has to
   // actually put things back, not just close the dialog and reload (which
   // left the new, overlapping placement sitting in the database).
-  // `onMoveInstead` is the third option: rather than the automatic "earlier
-  // stay ends when the later one starts" split, open the same move popover
-  // used elsewhere so the conflict can be resolved by hand — a different bed
-  // entirely, or a specific date instead of the default one.
-  const promptHandover = (moved, fresh, { undo, onMoveInstead }) => {
+  // `onMoveAnyway` is the third option: leave the overlap in place for now
+  // (the write already happened — this just doesn't undo it) and pulse the
+  // bar that landed there, then open the same move popover used elsewhere so
+  // it's easy to drag it onto a different bed right away.
+  const promptHandover = (moved, fresh, { undo, onMoveAnyway }) => {
     const other = overlapsOnBed(fresh, moved);
     if (!other) return false;
     const early = other.start_date <= moved.start_date ? other : moved;
@@ -250,9 +251,22 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       onDate: late.start_date, earlyId: early.id,
       accept: async () => { setHandover(null); await updateAssignment(early.id, { end_date: late.start_date }); await reload(); },
       reject: async () => { setHandover(null); await undo(); },
-      moveInstead: () => { setHandover(null); onMoveInstead(); },
+      moveAnyway: () => { setHandover(null); onMoveAnyway(); },
     });
     return true;
+  };
+
+  // Flash the just-placed bar for a moment and open its move popover — used
+  // by "Move anyway", which deliberately leaves the overlap in place rather
+  // than resolving it automatically. The write already happened, but the
+  // chart's own state hasn't been refreshed yet (every other path either
+  // reloads on accept or reverts on undo) — reload here too, or the
+  // overlapping bar won't actually be visible to flash.
+  const flashThenMove = async (a) => {
+    setFlashId(a.id);
+    await reload();
+    openMoveManual(a);
+    setTimeout(() => setFlashId((id) => (id === a.id ? null : id)), 1400);
   };
 
   // ── actions ──────────────────────────────────────────────────────────────────
@@ -264,7 +278,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     const fresh = await fetchAssignments(tenantId);
     const handled = promptHandover({ ...row }, fresh, {
       undo: async () => { await deleteAssignment(row.id); await reload(); },
-      onMoveInstead: () => openMoveManual({ ...row }),
+      onMoveAnyway: () => flashThenMove({ ...row }),
     });
     if (!handled) await reload();
   };
@@ -277,7 +291,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     const moved = fresh.find((x) => x.id === assignId);
     const handled = promptHandover(moved, fresh, {
       undo: async () => { await updateAssignment(assignId, { bed_id: originalBedId }); await reload(); },
-      onMoveInstead: () => openMoveManual(moved),
+      onMoveAnyway: () => flashThenMove(moved),
     });
     if (!handled) await reload();
   };
@@ -290,7 +304,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     const fresh = await fetchAssignments(tenantId);
     const handled = promptHandover({ ...row }, fresh, {
       undo: async () => { await deleteAssignment(row.id); await updateAssignment(assignId, { end_date: origEnd }); await reload(); },
-      onMoveInstead: () => openMoveManual({ ...row }),
+      onMoveAnyway: () => flashThenMove({ ...row }),
     });
     if (!handled) await reload();
   };
@@ -429,7 +443,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                       const bg = tint(deptOf(a.user_id), 0.34); const nm = m?.fullName || '—';
                       const lbl = w > 90 ? nm : initials(nm); const dim = selCrew && selCrew !== a.user_id;
                       return (
-                        <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}`} id={`bar-${a.id}`}
+                        <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}${flashId === a.id ? ' flash' : ''}`} id={`bar-${a.id}`}
                           draggable={canManage} onDragStart={() => canManage && setDragKind({ type: 'bar', assignId: a.id })}
                           onClick={(e) => { e.stopPropagation(); setSelCrew(a.user_id); if (canManage) openMove(a, e); }}
                           style={{ left: leftPx(sp.aDay), width: w, background: bg, opacity: dim ? 0.4 : 1 }} title={`${nm} — ${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`}>
@@ -461,7 +475,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     const x = Math.min(rect.left - host.left, hostEl.clientWidth - 260);
     setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '' });
   };
-  // Same popover, triggered from the handover dialog's "Move instead" rather
+  // Same popover, triggered from the handover dialog's "Move anyway" rather
   // than a direct click on a bar — anchor to the bar's own element if it's
   // currently on screen, otherwise fall back to a fixed spot near the top of
   // the chart (still fully usable, just not pinned to a specific bar).
@@ -645,7 +659,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
             <p><b>{handover.inName}</b> overlaps <b>{handover.outName}</b> in this bed. If it's a handover, {handover.outName} leaves the bed on the {new Date(`${handover.onDate}T00:00:00`).getDate()}th and {handover.inName} takes over.</p>
             <div className="act">
               <button type="button" className="no" onClick={handover.reject}>No — undo</button>
-              <button type="button" className="move" onClick={handover.moveInstead}>Move instead</button>
+              <button type="button" className="move" onClick={handover.moveAnyway}>Move anyway</button>
               <button type="button" className="yes" onClick={handover.accept}>Yes, handover</button>
             </div>
           </div>
