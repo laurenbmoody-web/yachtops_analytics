@@ -233,7 +233,14 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const overlapsOnBed = (list, cand) => list.find((a) => a.id !== cand.id && a.bed_id === cand.bed_id && a.user_id !== cand.user_id
     && a.start_date < (cand.end_date || '9999-12-31') && cand.start_date < (a.end_date || '9999-12-31'));
 
-  const promptHandover = (moved, fresh) => {
+  // `undo` reverts the DB write the calling action already made — "No" has to
+  // actually put things back, not just close the dialog and reload (which
+  // left the new, overlapping placement sitting in the database).
+  // `onMoveInstead` is the third option: rather than the automatic "earlier
+  // stay ends when the later one starts" split, open the same move popover
+  // used elsewhere so the conflict can be resolved by hand — a different bed
+  // entirely, or a specific date instead of the default one.
+  const promptHandover = (moved, fresh, { undo, onMoveInstead }) => {
     const other = overlapsOnBed(fresh, moved);
     if (!other) return false;
     const early = other.start_date <= moved.start_date ? other : moved;
@@ -242,7 +249,8 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       inName: memberById[moved.user_id]?.fullName, outName: memberById[other.user_id]?.fullName,
       onDate: late.start_date, earlyId: early.id,
       accept: async () => { setHandover(null); await updateAssignment(early.id, { end_date: late.start_date }); await reload(); },
-      reject: async () => { setHandover(null); await reload(); },
+      reject: async () => { setHandover(null); await undo(); },
+      moveInstead: () => { setHandover(null); onMoveInstead(); },
     });
     return true;
   };
@@ -254,15 +262,24 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     const row = await createAssignment({ tenantId, bedId, userId, startDate: startD, endDate: null, createdBy: currentUserId });
     setSelCrew(userId);
     const fresh = await fetchAssignments(tenantId);
-    if (!promptHandover({ ...row }, fresh)) await reload();
+    const handled = promptHandover({ ...row }, fresh, {
+      undo: async () => { await deleteAssignment(row.id); await reload(); },
+      onMoveInstead: () => openMoveManual({ ...row }),
+    });
+    if (!handled) await reload();
   };
   const moveWholeBar = async (assignId, bedId) => {
     const a = assigns.find((x) => x.id === assignId); if (!a || a.bed_id === bedId) return;
+    const originalBedId = a.bed_id;
     await updateAssignment(assignId, { bed_id: bedId });
     setSelCrew(a.user_id);
     const fresh = await fetchAssignments(tenantId);
     const moved = fresh.find((x) => x.id === assignId);
-    if (!promptHandover(moved, fresh)) await reload();
+    const handled = promptHandover(moved, fresh, {
+      undo: async () => { await updateAssignment(assignId, { bed_id: originalBedId }); await reload(); },
+      onMoveInstead: () => openMoveManual(moved),
+    });
+    if (!handled) await reload();
   };
   const splitMove = async (assignId, bedId, dateStr) => {
     const a = assigns.find((x) => x.id === assignId); if (!a) return;
@@ -271,7 +288,11 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     const row = await createAssignment({ tenantId, bedId, userId: a.user_id, startDate: dateStr, endDate: origEnd, createdBy: currentUserId });
     setPop(null); setSelCrew(a.user_id);
     const fresh = await fetchAssignments(tenantId);
-    if (!promptHandover({ ...row }, fresh)) await reload();
+    const handled = promptHandover({ ...row }, fresh, {
+      undo: async () => { await deleteAssignment(row.id); await updateAssignment(assignId, { end_date: origEnd }); await reload(); },
+      onMoveInstead: () => openMoveManual({ ...row }),
+    });
+    if (!handled) await reload();
   };
   const endStay = async (assignId, dateStr) => { await updateAssignment(assignId, { end_date: dateStr }); setPop(null); await reload(); };
   const removeStay = async (assignId) => { await deleteAssignment(assignId); setPop(null); await reload(); };
@@ -440,6 +461,22 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     const x = Math.min(rect.left - host.left, hostEl.clientWidth - 260);
     setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '' });
   };
+  // Same popover, triggered from the handover dialog's "Move instead" rather
+  // than a direct click on a bar — anchor to the bar's own element if it's
+  // currently on screen, otherwise fall back to a fixed spot near the top of
+  // the chart (still fully usable, just not pinned to a specific bar).
+  const openMoveManual = (a) => {
+    const hostEl = document.querySelector('.mv');
+    const barEl = document.getElementById(`bar-${a.id}`);
+    if (hostEl && barEl) {
+      const rect = barEl.getBoundingClientRect();
+      const host = hostEl.getBoundingClientRect();
+      const x = Math.min(rect.left - host.left, hostEl.clientWidth - 260);
+      setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '' });
+    } else {
+      setPop({ a, x: 24, y: 24, bedId: a.bed_id, date: '' });
+    }
+  };
 
   // draw connectors for selected crew after each render — positions are always
   // viewport-relative (getBoundingClientRect), so this is unaffected by the
@@ -606,7 +643,11 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           <div className="mv-dlg" onMouseDown={(e) => e.stopPropagation()}>
             <h3>Is this a handover?</h3>
             <p><b>{handover.inName}</b> overlaps <b>{handover.outName}</b> in this bed. If it's a handover, {handover.outName} leaves the bed on the {new Date(`${handover.onDate}T00:00:00`).getDate()}th and {handover.inName} takes over.</p>
-            <div className="act"><button type="button" className="no" onClick={handover.reject}>No — undo</button><button type="button" className="yes" onClick={handover.accept}>Yes, handover</button></div>
+            <div className="act">
+              <button type="button" className="no" onClick={handover.reject}>No — undo</button>
+              <button type="button" className="move" onClick={handover.moveInstead}>Move instead</button>
+              <button type="button" className="yes" onClick={handover.accept}>Yes, handover</button>
+            </div>
           </div>
         </div>
       )}
