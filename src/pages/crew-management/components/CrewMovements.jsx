@@ -535,16 +535,28 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
 
       {view === 'presence' ? renderPresence() : renderCabins()}
 
-      {/* Unberthed tray (cabins view) */}
+      {/* Unberthed (cabins view) — a quiet section, not a warning box; still
+          draggable straight up into the chart to assign a bed. */}
       {view === 'cabins' && cabins.length > 0 && (
-        <div className="mv-tray">
-          <span className="mv-traylbl">Unberthed{unberthed.length ? ` · ${unberthed.length}` : ''}</span>
-          {unberthed.length === 0 ? <span className="mv-trayok">Everyone aboard has a bed ✓</span>
-            : unberthed.map((m) => (
-              <span key={m.user_id} className="mv-chip" draggable={canManage} onDragStart={() => setDragKind({ type: 'assign', userId: m.user_id })} title={canManage ? 'Drag onto a bed' : ''}>
-                <span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span>{m.fullName}{sexOf(m.user_id) && <span className="mv-sex">{sexOf(m.user_id)}</span>}
-              </span>
-            ))}
+        <div className="mv-unberthed">
+          <div className="mv-unb-head">
+            <span className="mv-unb-eyebrow">Unberthed{unberthed.length ? ` · ${unberthed.length}` : ''}</span>
+            <span className="mv-unb-rule" />
+            {unberthed.length === 0 && <span className="mv-unb-ok">Everyone aboard has a bed ✓</span>}
+          </div>
+          {unberthed.length > 0 && (
+            <div className="mv-unb-list">
+              {unberthed.map((m) => (
+                <span key={m.user_id} className="mv-unb-chip" draggable={canManage} onDragStart={() => setDragKind({ type: 'assign', userId: m.user_id })} title={canManage ? 'Drag up into the chart onto a bed' : ''}>
+                  <span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span>
+                  <span className="mv-unb-who">
+                    <span className="mv-unb-nm">{m.fullName}{sexOf(m.user_id) && <span className="mv-sex">{sexOf(m.user_id)}</span>}</span>
+                    <span className="mv-unb-rl">{[m.roleTitle, m.department].filter(Boolean).join(' · ') || '—'}</span>
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
