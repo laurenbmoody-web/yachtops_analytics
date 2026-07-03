@@ -146,11 +146,13 @@
 .mv-bar.l { border-right: 2.5px solid #C65A1A; }
 .mv-bar.sel { box-shadow: 0 0 0 2px #1C1B3A; }
 /* "Move anyway" leaves the overlap in place on purpose — this pulses the
-   bar that landed there so it's obvious which one still needs moving. */
-.mv-bar.flash { animation: mv-bar-flash 1.4s ease; }
+   bar that landed there so it's obvious which one still needs moving. Keeps
+   looping (JS only removes the class once the overlap is actually gone),
+   not a one-off flash on a timer. */
+.mv-bar.flash { animation: mv-bar-flash 1.4s ease infinite; }
 @keyframes mv-bar-flash {
   0%, 100% { box-shadow: 0 0 0 0 rgba(198,90,26,0); }
-  15%, 55% { box-shadow: 0 0 0 3px rgba(198,90,26,0.55); }
+  50% { box-shadow: 0 0 0 3px rgba(198,90,26,0.55); }
 }
 /* Sticky within its own bar (not the whole row) — a stay that started before
    the scrolled-into-view window renders as one very wide bar with its name
