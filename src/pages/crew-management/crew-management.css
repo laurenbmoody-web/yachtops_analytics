@@ -394,10 +394,14 @@ a.cm-cal-name:hover { color: #C65A1A; }
    pair them under one shared trunk line (filled terracotta = linked), tap
    again to break the pair. Aligned to the avatars' vertical centre, above the
    connector lines. Placement (dragging) never links — this is the only way. */
-.cm-linkh { position: absolute; top: calc(50% - 13px); transform: translate(-50%, -50%); z-index: 3; width: 24px; height: 24px; border-radius: 999px; border: 1px solid #E6E8EF; background: #fff; color: #AEB4C2; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; box-shadow: 0 2px 5px rgba(28,27,58,0.12); transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease; opacity: 0.55; }
-.cm-orow-band:hover .cm-linkh { opacity: 1; }
-.cm-linkh:hover { color: #C65A1A; border-color: #E8B6A6; opacity: 1; }
-.cm-linkh.is-on { background: #C65A1A; border-color: #C65A1A; color: #fff; opacity: 1; box-shadow: 0 3px 8px rgba(198,90,26,0.35); }
+/* Hidden by default — only the connector lines show until you hover the row
+   (and can't be clicked while hidden). Revealing on hover keeps the chart
+   clean when you're just reading it, and puts the handles in reach when you
+   move to edit. A linked pair reads as its shared trunk line until hovered. */
+.cm-linkh { position: absolute; top: calc(50% - 13px); transform: translate(-50%, -50%); z-index: 3; width: 24px; height: 24px; border-radius: 999px; border: 1px solid #E6E8EF; background: #fff; color: #AEB4C2; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; box-shadow: 0 2px 5px rgba(28,27,58,0.12); transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease; opacity: 0; pointer-events: none; }
+.cm-orow-band:hover .cm-linkh { opacity: 1; pointer-events: auto; }
+.cm-linkh:hover { color: #C65A1A; border-color: #E8B6A6; }
+.cm-linkh.is-on { background: #C65A1A; border-color: #C65A1A; color: #fff; box-shadow: 0 3px 8px rgba(198,90,26,0.35); }
 
 /* Ghost that follows the cursor/finger while dragging. */
 .cm-org-ghost { position: fixed; transform: translate(-50%, -50%) rotate(-2deg); background: #fff; border: 1.5px solid #C65A1A; border-radius: 999px; padding: 9px; text-align: center; box-shadow: 0 20px 45px -12px rgba(28,27,58,0.4); pointer-events: none; z-index: 1200; }
