@@ -4,10 +4,14 @@ import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
 import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
+import { useAuth } from '../../../contexts/AuthContext';
 import {
   fetchVesselForCrewList, fetchCrewListDetails, buildCrewRow, missingMandatory,
 } from '../utils/crewListData';
 import { exportCrewListPDF } from '../utils/crewListExport';
+import {
+  getMasterSignatureRow, signedUrl, loadImageForPdf, uploadMasterImage,
+} from '../utils/masterSignature';
 import './create-crew-list-modal.css';
 
 const initials = (n) => String(n || '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '—';
@@ -40,12 +44,20 @@ const todayDisplay = () => {
 };
 
 const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
+  const { session } = useAuth();
+  const currentUserId = session?.user?.id;
   const [loading, setLoading] = useState(true);
   const [vessel, setVessel] = useState(null);
   const [detailsByUser, setDetailsByUser] = useState({});
   const [selected, setSelected] = useState(() => new Set());
-  const [template, setTemplate] = useState('fal');
+  const [template, setTemplate] = useState('editorial');
   const [busy, setBusy] = useState(false);
+
+  // Saved signature + stamp for the person generating the list (their account).
+  const [sigPreview, setSigPreview] = useState({ signature: null, stamp: null }); // signed urls
+  const [sigData, setSigData] = useState({ signature: null, stamp: null });       // pdf data-urls
+  const [applySig, setApplySig] = useState(true);
+  const [sigBusy, setSigBusy] = useState('');
 
   // Header fields not stored on the vessel record — entered per export.
   const [callSign, setCallSign] = useState('');
@@ -80,10 +92,43 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
       setDetailsByUser(det || {});
       const captain = ordered.find((m) => crewRank(m) === 0);
       if (captain) setMaster(captain.fullName || '');
-      setLoading(false);
+
+      // Load the generator's saved signature/stamp so they can one-tap apply it.
+      const row = await getMasterSignatureRow(currentUserId);
+      if (!cancelled && (row?.signature_path || row?.stamp_path)) {
+        const [sUrl, tUrl, sData, tData] = await Promise.all([
+          signedUrl(row.signature_path), signedUrl(row.stamp_path),
+          loadImageForPdf(row.signature_path), loadImageForPdf(row.stamp_path),
+        ]);
+        if (!cancelled) {
+          setSigPreview({ signature: sUrl, stamp: tUrl });
+          setSigData({ signature: sData, stamp: tData });
+        }
+      }
+      if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [open, tenantId, ordered]);
+  }, [open, tenantId, ordered, currentUserId]);
+
+  const handleUploadSig = async (kind, file) => {
+    if (!file) return;
+    setSigBusy(kind);
+    try {
+      await uploadMasterImage(file, kind, tenantId);
+      const row = await getMasterSignatureRow(currentUserId);
+      const path = kind === 'stamp' ? row?.stamp_path : row?.signature_path;
+      const [url, data] = await Promise.all([signedUrl(path), loadImageForPdf(path)]);
+      setSigPreview((p) => ({ ...p, [kind]: url }));
+      setSigData((p) => ({ ...p, [kind]: data }));
+      setApplySig(true);
+      showToast(`${kind === 'stamp' ? 'Stamp' : 'Signature'} saved to your account`, 'success');
+    } catch (e) {
+      console.error('signature upload failed:', e);
+      showToast('Couldn’t upload — please try a PNG/JPEG', 'error');
+    } finally {
+      setSigBusy('');
+    }
+  };
 
   const rows = useMemo(
     () => ordered.map((m) => ({ member: m, row: buildCrewRow(m, detailsByUser[m.user_id || m.id]) })),
@@ -114,6 +159,8 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
       await exportCrewListPDF({
         template, vessel: vessel || {}, callSign, classNotation, voyage, master,
         rows: selectedRows, generatedAt: todayDisplay(),
+        signature: applySig ? sigData.signature : null,
+        stamp: applySig ? sigData.stamp : null,
       });
       showToast('Crew list generated', 'success');
     } catch (err) {
@@ -176,6 +223,37 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
                   <input className="ccl-input" value={master} onChange={(e) => setMaster(e.target.value)} placeholder="Captain's name" /></label>
               </div>
               <p className="ccl-hint">{vessel?.name || 'Vessel'} · {vessel?.flag || 'flag —'} · IMO {vessel?.imo_number || '—'}. Call sign &amp; class aren’t stored on the vessel record, so add them here.</p>
+            </div>
+
+            {/* Master signature & stamp — saved to your account, reused each time */}
+            <div className="ccl-section">
+              <div className="ccl-grouphead"><span className="dia">◆</span><span className="t">Signature &amp; stamp</span><span className="line" />
+                {(sigPreview.signature || sigPreview.stamp) && (
+                  <label className="ccl-applytoggle">
+                    <input type="checkbox" checked={applySig} onChange={(e) => setApplySig(e.target.checked)} />
+                    Apply to list
+                  </label>
+                )}
+              </div>
+              <div className="ccl-sigrow">
+                {['signature', 'stamp'].map((kind) => (
+                  <div className="ccl-sigcard" key={kind}>
+                    <span className="ccl-label">{kind === 'signature' ? 'Signature' : 'Stamp'}</span>
+                    <div className={`ccl-sigbox${sigPreview[kind] ? ' has' : ''}`}>
+                      {sigPreview[kind]
+                        ? <img src={sigPreview[kind]} alt={kind} />
+                        : <span className="ccl-sigempty">None saved</span>}
+                    </div>
+                    <label className="ccl-sigbtn">
+                      {sigBusy === kind ? 'Uploading…' : (sigPreview[kind] ? 'Replace' : 'Upload')}
+                      <input type="file" accept="image/png,image/jpeg,image/webp" hidden
+                        disabled={!!sigBusy}
+                        onChange={(e) => { handleUploadSig(kind, e.target.files?.[0]); e.target.value = ''; }} />
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <p className="ccl-hint">Saved to your account — upload once, then it’s applied to every crew list you generate. A transparent PNG works best for signatures.</p>
             </div>
 
             {/* Crew picker */}
