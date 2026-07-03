@@ -32,16 +32,17 @@ const commercialLabel = (v) => {
 // with 12mm margins (usable ≈ 273mm).
 const COLUMNS = [
   { header: '#', key: 'idx', w: 8, halign: 'center' },
-  { header: 'Rank', key: 'rank', w: 26 },
-  { header: 'Surname', key: 'surname', w: 26 },
-  { header: 'Fore name', key: 'foreName', w: 26 },
-  { header: 'Sex', key: 'sex', w: 11, halign: 'center' },
-  { header: 'Date of birth', key: 'dob', w: 22, halign: 'center' },
-  { header: 'Place of birth', key: 'placeOfBirth', w: 28 },
-  { header: 'Nationality', key: 'nationality', w: 24 },
-  { header: 'Passport no.', key: 'passportNo', w: 26 },
-  { header: 'Expiry', key: 'passportExpiry', w: 20, halign: 'center' },
-  { header: 'Issuing state', key: 'issuingState', w: 24 },
+  { header: 'Rank', key: 'rank', w: 24 },
+  { header: 'Surname', key: 'surname', w: 22 },
+  { header: 'Fore name', key: 'foreName', w: 22 },
+  { header: 'Sex', key: 'sex', w: 10, halign: 'center' },
+  { header: 'Date of birth', key: 'dob', w: 20, halign: 'center' },
+  { header: 'Place of birth', key: 'placeOfBirth', w: 24 },
+  { header: 'Nationality', key: 'nationality', w: 20 },
+  { header: 'Document', key: 'docType', w: 20 },
+  { header: 'Doc. number', key: 'passportNo', w: 22 },
+  { header: 'Expiry', key: 'passportExpiry', w: 18, halign: 'center' },
+  { header: 'Issuing state', key: 'issuingState', w: 20 },
   { header: 'Place of issue', key: 'placeOfIssue', w: 0 }, // 0 = take the remainder
 ];
 
@@ -54,6 +55,7 @@ const rowToCells = (row, i) => ({
   dob: dd(row.dob),
   placeOfBirth: row.placeOfBirth || '',
   nationality: row.nationality || '',
+  docType: row.docType || '',
   passportNo: row.passportNo || '',
   passportIssue: dd(row.passportIssue),
   passportExpiry: dd(row.passportExpiry),
@@ -136,6 +138,7 @@ export const exportCrewListPDF = async (o) => {
     ['Flag', vessel.flag],
     ['IMO No.', vessel.imo_number],
     ['Call Sign', callSign],
+    ['Master', master],
     ['Official No.', vessel.official_number],
     ['MMSI', vessel.mmsi],
     ['Port of Registry', vessel.port_of_registry],
@@ -175,12 +178,12 @@ export const exportCrewListPDF = async (o) => {
       return COLUMNS.map((c) => cells[c.key]);
     }),
     styles: {
-      font: 'helvetica', fontSize: 7.8, cellPadding: editorial ? 2.1 : 1.9,
+      font: 'helvetica', fontSize: 7.3, cellPadding: editorial ? 1.9 : 1.7,
       textColor: INK, lineColor: HAIR, lineWidth: editorial ? 0.1 : 0.15, overflow: 'linebreak',
     },
     headStyles: editorial
-      ? { fillColor: [237, 235, 229], textColor: NAVY, fontStyle: 'bold', fontSize: 7.4, lineColor: HAIR, lineWidth: 0.1 }
-      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.4, lineColor: NAVY, lineWidth: 0.15 },
+      ? { fillColor: [237, 235, 229], textColor: NAVY, fontStyle: 'bold', fontSize: 7, lineColor: HAIR, lineWidth: 0.1 }
+      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, lineColor: NAVY, lineWidth: 0.15 },
     alternateRowStyles: editorial ? { fillColor: [252, 251, 248] } : { fillColor: [245, 246, 249] },
     columnStyles,
     didParseCell: (data) => {

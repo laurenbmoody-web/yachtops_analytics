@@ -21,9 +21,17 @@ export const splitName = (fullName) => {
 
 // Pick the most relevant passport when a member uploaded more than one: prefer
 // the latest expiry, then the most recently updated.
-const pickPassport = (docs) => {
+// The identity document types a port authority accepts, in preference order.
+const DOC_PRIORITY = { passport: 0, seamans_book: 1, national_id: 2 };
+export const DOC_LABEL = { passport: 'Passport', seamans_book: "Seaman's Book", national_id: 'National ID' };
+
+// Pick the crew member's best travel-identity document: prefer a passport, then
+// seaman's book, then national ID; within a type, the latest expiry.
+const pickIdentityDoc = (docs) => {
   if (!docs || !docs.length) return null;
   return [...docs].sort((a, b) => {
+    const pa = DOC_PRIORITY[a.doc_type] ?? 9, pb = DOC_PRIORITY[b.doc_type] ?? 9;
+    if (pa !== pb) return pa - pb;
     const ea = a.expiry_date || '', eb = b.expiry_date || '';
     if (ea !== eb) return eb.localeCompare(ea);
     return String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
@@ -56,9 +64,9 @@ export const fetchCrewListDetails = async (tenantId, userIds = []) => {
       .in('user_id', ids),
     supabase
       .from('personal_documents')
-      .select('user_id, document_number, expiry_date, issue_date, flag_state, issuing_authority, details, updated_at')
+      .select('user_id, doc_type, document_number, expiry_date, issue_date, flag_state, issuing_authority, details, updated_at')
       .eq('tenant_id', tenantId)
-      .eq('doc_type', 'passport')
+      .in('doc_type', ['passport', 'seamans_book', 'national_id'])
       .in('user_id', ids),
   ]);
 
@@ -70,7 +78,7 @@ export const fetchCrewListDetails = async (tenantId, userIds = []) => {
   const out = {};
   ids.forEach((uid) => {
     const d = detailsByUser[uid] || {};
-    const p = pickPassport(docsByUser[uid]) || {};
+    const p = pickIdentityDoc(docsByUser[uid]) || {};
     const pDetails = p.details || {};
     out[uid] = {
       dob: d.date_of_birth || pDetails.date_of_birth || '',
@@ -78,6 +86,7 @@ export const fetchCrewListDetails = async (tenantId, userIds = []) => {
       nationality: d.nationality || pDetails.nationality || '',
       sex: d.sex || '',
       address: d.home_address || '',
+      docType: p.doc_type ? (DOC_LABEL[p.doc_type] || 'Passport') : '',
       passportNo: p.document_number || '',
       passportIssue: p.issue_date || '',
       passportExpiry: p.expiry_date || '',
@@ -98,8 +107,8 @@ export const MANDATORY_FIELDS = [
   { key: 'rank', label: 'Rank' },
   { key: 'nationality', label: 'Nationality' },
   { key: 'dob', label: 'Date of birth' },
-  { key: 'passportNo', label: 'Passport no.' },
-  { key: 'passportExpiry', label: 'Passport expiry' },
+  { key: 'passportNo', label: 'Document no.' },
+  { key: 'passportExpiry', label: 'Document expiry' },
 ];
 
 /** Build one crew-list row from a roster member + its fetched details. */
@@ -116,6 +125,7 @@ export const buildCrewRow = (member, det = {}) => {
     dob: det.dob || '',
     placeOfBirth: det.placeOfBirth || '',
     nationality: det.nationality || '',
+    docType: det.docType || '',
     passportNo: det.passportNo || '',
     passportIssue: det.passportIssue || '',
     passportExpiry: det.passportExpiry || '',
