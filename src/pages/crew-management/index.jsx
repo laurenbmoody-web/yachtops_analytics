@@ -1372,6 +1372,7 @@ const CrewManagement = () => {
       const lines = [];
       let prevGroups = null;
       let prevNodeById = null;
+      let prevGroupByNodeId = null; // id → the clustered group it belongs to, in the row above
       rowKeys.forEach((key) => {
         const rowNodes = withMeta.filter((m) => m.row === key);
         const groups = clusterRow(rowNodes);
@@ -1394,20 +1395,28 @@ const CrewManagement = () => {
           // TIGHT-CLUSTERED groups (not raw individual cards) as the CHILD
           // unit, so a paired group (already linked by its own marriage bar)
           // contributes exactly one shared stem down, not one per person.
-          // The PARENT side is different: an explicit `reports_to` names one
-          // specific person, so it anchors to THAT person's own card — even
-          // when they're themselves paired with someone else — rather than
-          // the pair's shared midpoint. Reporting to Sophie specifically (not
-          // "the Sophie+Emma pair") has to visibly land on Sophie, not
-          // between the two of them. Only falls back to the nearest whole
-          // group, by position, for members who haven't been explicitly
-          // assigned yet.
+          // The PARENT side: an explicit `reports_to` names one specific person,
+          // so it anchors to THAT person's own card, rather than the pair's
+          // shared midpoint — reporting to one solo lead lands on that lead.
+          // EXCEPTION: if the named person is themselves half of a LINKED pair,
+          // the report routes to the PAIR (they share one line by definition),
+          // so it merges onto the pair's single sibling bar instead of drawing a
+          // second bar that overlaps it. Everyone else falls back to the nearest
+          // whole group by position.
           const byParent = new Map();
           groups.forEach((g) => {
             let anchorKey = null; let anchor = null;
             for (const n of g.nodes) {
               const ancestor = n.reportsTo && prevNodeById.get(n.reportsTo);
-              if (ancestor) { anchorKey = `p:${ancestor.id}`; anchor = { anchorX: ancestor.cx, bottom: ancestor.bottom, top: ancestor.top }; break; }
+              if (ancestor) {
+                const ancGroup = prevGroupByNodeId && prevGroupByNodeId.get(ancestor.id);
+                if (ancGroup && ancGroup.nodes.length > 1) {
+                  anchorKey = `g:${prevGroups.indexOf(ancGroup)}`; anchor = ancGroup; // report to the linked pair, not one half
+                } else {
+                  anchorKey = `p:${ancestor.id}`; anchor = { anchorX: ancestor.cx, bottom: ancestor.bottom, top: ancestor.top };
+                }
+                break;
+              }
             }
             if (!anchor) {
               let nearest = prevGroups[0]; let best = Infinity;
@@ -1432,6 +1441,7 @@ const CrewManagement = () => {
         }
         prevGroups = groups;
         prevNodeById = nodeById;
+        prevGroupByNodeId = new Map(groups.flatMap((gr) => gr.nodes.map((n) => [n.id, gr])));
       });
       if (!cancelled) setOrgLines(lines);
     };
