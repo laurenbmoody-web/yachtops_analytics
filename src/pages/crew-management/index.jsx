@@ -15,6 +15,7 @@ import EditEmploymentModal from './components/EditEmploymentModal';
 import StatusChangeModal from './components/StatusChangeModal';
 import CrewMovements from './components/CrewMovements';
 import GuestBookExportModal from './components/GuestBookExportModal';
+import CreateCrewListModal from './components/CreateCrewListModal';
 import { supabase } from '../../lib/supabaseClient';
 import { getMyContext } from '../../utils/authHelpers';
 import { useAuth } from '../../contexts/AuthContext';
@@ -145,6 +146,7 @@ const CrewManagement = () => {
   const [users, setUsers] = useState([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showGuestBook, setShowGuestBook] = useState(false);
+  const [showCrewList, setShowCrewList] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [showViewProfileModal, setShowViewProfileModal] = useState(false);
@@ -1880,6 +1882,12 @@ const CrewManagement = () => {
             {shouldShowInviteButton && (
               <div className="cm-actions">
                 {canInvite && (
+                  <button type="button" onClick={() => setShowCrewList(true)} className="cm-btn cm-btn-ghost" aria-label="Create crew list">
+                    <Icon name="ClipboardList" size={16} />
+                    Create crew list
+                  </button>
+                )}
+                {canInvite && (
                   <button type="button" onClick={() => setShowGuestBook(true)} className="cm-btn cm-btn-ghost" aria-label="Export guest book">
                     <Icon name="BookOpen" size={16} />
                     Export guest book
@@ -2061,6 +2069,14 @@ const CrewManagement = () => {
         <GuestBookExportModal
           open={showGuestBook}
           onClose={() => setShowGuestBook(false)}
+          tenantId={activeTenantId}
+          crew={users.filter((u) => u.status !== 'invited' && u.fullName)}
+        />
+      )}
+      {showCrewList && (
+        <CreateCrewListModal
+          open={showCrewList}
+          onClose={() => setShowCrewList(false)}
           tenantId={activeTenantId}
           crew={users.filter((u) => u.status !== 'invited' && u.fullName)}
         />
