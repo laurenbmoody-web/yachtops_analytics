@@ -8,8 +8,6 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { loadLogoForPdf } from './guestBookExport';
 
-const CARGO_LOGO = '/assets/images/cargo_merged_originalmark_syne800_true.png';
-
 const NAVY = [28, 27, 58];
 const TERRA = [198, 90, 26];
 const MUTED = [139, 132, 120];
@@ -226,14 +224,12 @@ export const exportCrewListPDF = async (o) => {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
   doc.text(generatedAt || '', sigX, fy + 27.5);
 
-  // Cargo mark bottom-left (editorial only; FAL stays plain/official).
-  if (editorial) {
-    const cargoLogo = await loadLogoForPdf(CARGO_LOGO);
-    if (cargoLogo?.dataUrl) {
-      const h = 4.2; const w = h * (cargoLogo.aspect || 6.7);
-      try { doc.addImage(cargoLogo.dataUrl, 'PNG', M, pageH - 10, w, h); } catch { /* skip */ }
-    }
-  }
+  // Discreet standard-format reference, bottom-right — signals to the officer
+  // the layout follows the international crew-list form. No app branding: this
+  // is an official vessel document, so only the vessel's own logo (letterhead)
+  // appears — the app's "Cargo" mark is deliberately omitted.
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...FAINT);
+  doc.text('Format: IMO FAL Form 5 — Crew List', pageW - M, pageH - 9, { align: 'right' });
 
   const safe = String(vessel.name || 'vessel').replace(/[^\w]+/g, '-');
   doc.save(`Official-crew-list-${safe}-${(generatedAt || '').replace(/[^\w]+/g, '-')}.pdf`);
