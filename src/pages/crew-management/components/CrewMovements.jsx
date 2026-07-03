@@ -86,6 +86,16 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     return bands;
   }, [rangeStart, rangeEnd]);
   const leftPx = (dayIdx) => dayIdx * DAY_W;
+  // Labelled (5th/10th/15th/…-of-month) day indices — shared by the header
+  // ticks and a matching guide line drawn into every bed row, so a date can
+  // be traced straight down the chart instead of counted by eye. Months
+  // aren't evenly divisible by 5, so this can't be a repeating CSS pattern —
+  // computed once from the real calendar dates in the window.
+  const fiveDayMarks = useMemo(() => {
+    const marks = [];
+    for (let i = 0; i < viewDays; i += 1) { if (addDays(rangeStart, i).getDate() % 5 === 0) marks.push(i); }
+    return marks;
+  }, [rangeStart, viewDays]);
 
   const AWAY = new Set(['on_leave', 'rotational_leave', 'medical_leave', 'training_leave']);
   const TRANS_ICON = { Flight: 'Plane', Train: 'TrainFront', Ferry: 'Ship', Car: 'Car', Other: 'MapPin' };
@@ -371,7 +381,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
             </div>
             <div className="mv-htrack" style={{ width: viewDays * DAY_W }}>
               <div className="mv-todayline" style={{ left: leftPx(todayIndex) }} />
-              {Array.from({ length: viewDays }, (_, i) => { const d = addDays(rangeStart, i); return d.getDate() % 5 === 0 ? <span key={i} className="mv-dtick d5" style={{ left: leftPx(i) }}>{d.getDate()}</span> : null; })}
+              {fiveDayMarks.map((i) => <span key={i} className="mv-dtick" style={{ left: leftPx(i) }}>{addDays(rangeStart, i).getDate()}</span>)}
             </div>
             {rows.map((bd) => {
               const rowAssigns = assigns.filter((a) => a.bed_id === bd.bedId).map((a) => ({ a, sp: span(a) })).filter((x) => x.sp);
@@ -385,6 +395,13 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                   {bd.isNewGroup && <div className="mv-groupline" />}
                   <div className="mv-track" style={{ width: viewDays * DAY_W }} onDragOver={(e) => { if (!canManage) return; e.preventDefault(); e.currentTarget.classList.add('drop'); }} onDragLeave={(e) => e.currentTarget.classList.remove('drop')}
                     onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drop'); if (!canManage) return; const dk = dragKind; setDragKind(null); if (!dk) return; if (dk.type === 'assign') assignToBed(bd.bedId, dk.userId); else moveWholeBar(dk.assignId, bd.bedId); }}>
+                    {/* Guide lines rendered INSIDE the track (not a full-height
+                        overlay behind it) — the track has its own opaque
+                        background, so an overlay lower in the stack would be
+                        invisible; a real child always paints over the box's
+                        own background regardless of z-index. */}
+                    {fiveDayMarks.map((i) => <span key={`vg-${i}`} className="mv-vguide" style={{ left: leftPx(i) }} />)}
+                    <span className="mv-vguide today" style={{ left: leftPx(todayIndex) }} />
                     {gaps.map(([a, b]) => { const nights = b - a + 1, w = nights * DAY_W; return <div key={`gap-${a}`} className={`mv-gap${nights === 1 ? ' one' : ''}`} style={{ left: leftPx(a), width: w }} title={`Free — ${nights} night${nights > 1 ? 's' : ''}`}>{w > 90 ? `${nights} night${nights > 1 ? 's' : ''} free` : w > 40 ? `${nights}n` : ''}</div>; })}
                     {rowAssigns.map(({ a, sp }) => {
                       const m = memberById[a.user_id]; const w = (sp.lvDay - sp.aDay) * DAY_W;
@@ -497,14 +514,14 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
             <button onClick={nextPresenceMonth} aria-label="Next month">›</button>
           </div>
         ) : (
-          <>
-            <div className="mv-monthnav">
-              <button onClick={() => scrollByMonth(-1)} aria-label="Scroll back a month">‹</button>
-              <span>{focusLabel || '—'}</span>
-              <button onClick={() => scrollByMonth(1)} aria-label="Scroll forward a month">›</button>
-            </div>
+          // The month name already appears inline in the scrolling timeline
+          // itself (the "JULY 2026" bands), so no separate label here — just
+          // the quick-jump controls.
+          <div className="mv-scrollnav">
+            <button type="button" className="mv-navbtn" onClick={() => scrollByMonth(-1)} aria-label="Scroll back a month"><Icon name="ChevronLeft" size={16} /></button>
             <button type="button" className="mv-today" onClick={scrollToToday}>Today</button>
-          </>
+            <button type="button" className="mv-navbtn" onClick={() => scrollByMonth(1)} aria-label="Scroll forward a month"><Icon name="ChevronRight" size={16} /></button>
+          </div>
         )}
         <div className="mv-toggle">
           <button type="button" className={view === 'presence' ? 'on' : ''} onClick={() => setView('presence')}>Presence</button>

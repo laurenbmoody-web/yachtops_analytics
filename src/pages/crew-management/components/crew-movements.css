@@ -64,8 +64,13 @@
 .mv-monthnav { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 160px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 6px 8px; font-family: 'DM Serif Display', Georgia, serif; font-size: 13px; color: #1C1B3A; }
 .mv-monthnav button { border: 0; background: #F1F5F9; width: 22px; height: 22px; flex: 0 0 auto; border-radius: 999px; cursor: pointer; color: #6B7280; }
 .mv-monthnav span { flex: 1; min-width: 0; padding: 0 2px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mv-today { border: 1px solid #E6E8EF; background: #fff; color: #6B7280; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
-.mv-today:hover { color: #C65A1A; border-color: #E8B6A6; background: #FBEFE9; }
+/* Cabins only — no month-name text (the scrolling timeline already shows
+   "JULY 2026" etc. inline), just the quick-jump controls. */
+.mv-scrollnav { display: inline-flex; align-items: center; gap: 2px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 4px; }
+.mv-navbtn { display: flex; align-items: center; justify-content: center; border: 0; background: #F1F5F9; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #6B7280; }
+.mv-navbtn:hover { background: #E6E8EF; color: #1C1B3A; }
+.mv-today { border: 0; background: none; color: #6B7280; font-size: 12.5px; font-weight: 600; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.mv-today:hover { color: #C65A1A; background: #FBEFE9; }
 
 /* row labels (crew names / bed names) share one size */
 .mv-grid, .mv-chart { position: relative; }
@@ -104,7 +109,7 @@
    boundary — just a plain hairline instead of a repeated cabin label. */
 .mv-groupline { height: 20px; margin: 10px 0 4px; border-bottom: 1px solid #F0F1F5; }
 
-.mv-scrollx { overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; flex: 1 1 auto; min-width: 0; }
+.mv-scrollx { position: relative; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; flex: 1 1 auto; min-width: 0; }
 .mv-monthtrack { position: relative; height: 16px; margin-bottom: 6px; }
 .mv-monthband {
   position: absolute; top: 0; height: 16px; display: flex; align-items: center;
@@ -117,14 +122,20 @@
 
 /* cabins chart */
 .mv-htrack { position: relative; height: 20px; margin-bottom: 3px; }
-.mv-dtick { position: absolute; top: 0; font-size: 9px; font-weight: 600; color: #AEB4C2; }
-.mv-dtick.d5 { color: #8B8478; font-weight: 700; }
-.mv-todayline { position: absolute; top: 0; bottom: -6px; width: 1.5px; background: #C65A1A; opacity: 0.5; z-index: 1; }
+.mv-dtick { position: absolute; top: 0; font-size: 10px; font-weight: 700; color: #6B7280; }
+.mv-todayline { position: absolute; top: 0; bottom: -6px; width: 1.5px; background: #C65A1A; opacity: 0.6; z-index: 1; }
 .mv-track {
   position: relative; height: 26px; margin-bottom: 3px; background: #FAFAF8; border-radius: 6px;
   background-image: repeating-linear-gradient(to right, #F0F1F4 0, #F0F1F4 1px, transparent 1px, transparent var(--day-w));
 }
 .mv-track.drop { outline: 2px dashed #C65A1A; outline-offset: 1px; background-color: #FBF3EE; }
+/* Real children of the track (not an overlay behind it) — a box's own
+   background always paints over anything positioned lower in the stack, so
+   these have to live inside each track to actually be visible, matching the
+   header's date marks exactly (months aren't evenly divisible by 5, so this
+   can't be a repeating CSS pattern). */
+.mv-vguide { position: absolute; top: 0; bottom: 0; width: 1px; background: #D6D9E0; z-index: 0; }
+.mv-vguide.today { background: #C65A1A; opacity: 0.6; width: 1.5px; }
 .mv-gap { position: absolute; top: 6px; bottom: 6px; border-radius: 4px; background: repeating-linear-gradient(45deg, #EDEEF1 0 6px, #F6F7F9 6px 12px); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: #AEB4C2; z-index: 1; }
 .mv-gap.one { background: repeating-linear-gradient(45deg, #F3E1D6 0 5px, #FBF3EE 5px 10px); color: #C65A1A; }
 .mv-bar { position: absolute; top: 3px; bottom: 3px; border-radius: 5px; display: flex; align-items: center; gap: 6px; padding: 0 5px; font-size: 10.5px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; z-index: 2; cursor: pointer; transition: opacity 0.12s ease; }
