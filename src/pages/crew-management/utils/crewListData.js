@@ -38,15 +38,26 @@ const pickIdentityDoc = (docs) => {
   })[0];
 };
 
-/** Vessel header fields for the crew list (call sign / class aren't stored). */
+/** Vessel header fields for the crew list. */
 export const fetchVesselForCrewList = async (tenantId) => {
   if (!tenantId) return null;
-  const { data } = await supabase
+  // call_sign / class_notation are newer columns; if the migration that adds
+  // them hasn't landed yet, selecting them 400s the WHOLE query and every
+  // particular comes back blank. So attempt the full select, and fall back to
+  // the base columns on error — the particulars still pull through.
+  const BASE = 'name, flag, port_of_registry, official_number, imo_number, mmsi, gt, loa_m, year_built, commercial_status, certified_commercial, logo_url';
+  const { data, error } = await supabase
     .from('vessels')
-    .select('name, flag, port_of_registry, official_number, imo_number, mmsi, gt, loa_m, year_built, commercial_status, certified_commercial, logo_url, call_sign, class_notation')
+    .select(`${BASE}, call_sign, class_notation`)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  return data || null;
+  if (!error) return data || null;
+  const { data: base } = await supabase
+    .from('vessels')
+    .select(BASE)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  return base || null;
 };
 
 /**
