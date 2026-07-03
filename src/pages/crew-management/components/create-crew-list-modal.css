@@ -37,6 +37,18 @@
 .ccl-input::placeholder { color: #AEB4C2; }
 .ccl-hint { font-size: 11px; color: #8B8478; margin: 10px 0 0; line-height: 1.5; }
 
+/* Signature & stamp */
+.ccl-applytoggle { display: flex; align-items: center; gap: 6px; flex: none; font-size: 11px; font-weight: 600; color: #6B7280; cursor: pointer; }
+.ccl-applytoggle input { accent-color: #C65A1A; }
+.ccl-sigrow { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ccl-sigcard { display: flex; flex-direction: column; gap: 6px; }
+.ccl-sigbox { height: 74px; border: 1px dashed #D6D3CA; border-radius: 10px; background: #FAFAF8; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.ccl-sigbox.has { border-style: solid; background: #fff; }
+.ccl-sigbox img { max-width: 92%; max-height: 62px; object-fit: contain; }
+.ccl-sigempty { font-size: 11px; color: #AEB4C2; }
+.ccl-sigbtn { align-self: flex-start; font-size: 11.5px; font-weight: 600; color: #C65A1A; border: 1px solid #F0D9CC; background: #FBEFE9; border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+.ccl-sigbtn:hover { background: #F7E2D6; }
+
 .ccl-warn { display: flex; gap: 8px; align-items: flex-start; background: #FBF3E4; border: 1px solid #EFDFC0; color: #8A621D; border-radius: 10px; padding: 9px 12px; font-size: 12px; line-height: 1.45; margin-bottom: 12px; }
 .ccl-warn svg { flex: none; margin-top: 1px; }
 
