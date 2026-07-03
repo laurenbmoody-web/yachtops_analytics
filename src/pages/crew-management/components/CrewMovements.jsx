@@ -324,7 +324,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           return (
             <div key={m.user_id} className="mv-row">
               <div className="mv-name" title={m.fullName}>{m.fullName || '—'}</div>
-              <div className="mv-daytrack" style={{ width: viewDays * DAY_W }}>
+              <div className="mv-celltrack" style={{ width: viewDays * DAY_W }}>
                 {Array.from({ length: viewDays }, (_, i) => {
                   const d = addDays(rangeStart, i);
                   const st = getStatusForDay(periods, d);
