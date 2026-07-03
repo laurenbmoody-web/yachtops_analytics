@@ -53,9 +53,11 @@
 .mv-editflt:hover { color: #C65A1A; background: #FBEFE9; }
 
 .mv-navrow { display: flex; align-items: center; gap: 12px; margin: 16px 0 14px; }
-.mv-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 8px; font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #1C1B3A; }
-.mv-monthnav button { border: 0; background: #F1F5F9; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #6B7280; }
-.mv-monthnav span { padding: 0 6px; min-width: 120px; text-align: center; }
+/* Same width as the crew-name column below (.mv-name), so the chip reads as
+   that column's header rather than an arbitrarily-sized floating control. */
+.mv-monthnav { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 160px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 6px 8px; font-family: 'DM Serif Display', Georgia, serif; font-size: 13px; color: #1C1B3A; }
+.mv-monthnav button { border: 0; background: #F1F5F9; width: 22px; height: 22px; flex: 0 0 auto; border-radius: 999px; cursor: pointer; color: #6B7280; }
+.mv-monthnav span { flex: 1; min-width: 0; padding: 0 2px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* row labels (crew names / bed names) share one size */
 .mv-grid, .mv-chart { position: relative; }
