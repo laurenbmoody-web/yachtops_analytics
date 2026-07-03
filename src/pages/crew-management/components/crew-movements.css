@@ -99,11 +99,14 @@
   padding-left: 16px; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .mv-namegroup {
-  height: 20px; margin: 10px 0 4px; display: flex; align-items: center; gap: 6px;
+  position: relative; height: 20px; margin: 10px 0 4px; display: flex; align-items: center;
   font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8B8478;
-  padding-left: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding-left: 16px; padding-right: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.mv-namegroup .mv-mixed.sm { font-size: 8px; padding: 2px 5px; flex: 0 0 auto; }
+/* Pinned to the column's own corner rather than flowing inline after the
+   label — a long cabin name (e.g. "Cabin 3 · Lower · Aft") left it pushed
+   past the 160px column and clipped by the row's own overflow:hidden. */
+.mv-namegroup .mv-mixed.sm { position: absolute; top: 0; right: 0; font-size: 8px; padding: 2px 5px; }
 /* Same 34px total footprint (10+20+4 margin/height) as .mv-namegroup, so the
    track column doesn't drift out of line with the name column below a group
    boundary — just a plain hairline instead of a repeated cabin label. */
