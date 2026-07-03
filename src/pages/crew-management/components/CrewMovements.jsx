@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
@@ -11,16 +11,24 @@ import './crew-movements.css';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const STATUS_COLORS = { active: '#7FCBA6', on_leave: '#E6C079', rotational_leave: '#C3AEEA', medical_leave: '#E8A29A', training_leave: '#9DBCF0', travelling: '#7FD3CA', invited: '#D8D6CF' };
-const ABOARD = new Set(['active']); // crew that need a bed this month
-const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
+const ABOARD = new Set(['active']); // crew that need a bed
 const ymd = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const dstr = (d) => ymd(d.getFullYear(), d.getMonth(), d.getDate());
+const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+const daysBetween = (a, b) => Math.round((b.getTime() - a.getTime()) / 86400000);
 const tint = (hex, a) => { const n = parseInt((hex || '#7A6F8C').slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
 const initials = (name) => (name || '?').split(' ').map((x) => x[0]).slice(0, 2).join('');
 
+// The chart is a continuous, horizontally-scrollable timeline rather than one
+// calendar month at a time — this fixed (but generous) window is rendered up
+// front; scrolling within it is native/instant, no re-fetch or re-layout.
+const WINDOW_BACK_MONTHS = 3;
+const WINDOW_FWD_MONTHS = 12;
+const DAY_W = 32; // px per day, shared by Presence + Cabins for a consistent feel
+
 const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNavigate }) => {
-  const today = new Date();
-  const [calYear, setCalYear] = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const todayRef = useRef(new Date());
+  const today = todayRef.current; // frozen for the component's lifetime — a stable reference for the scroll window and memoized date math below
   const [view, setView] = useState('presence');
   const [historyByUser, setHistoryByUser] = useState({});
   const [cabins, setCabins] = useState([]);
@@ -37,22 +45,51 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const [dragKind, setDragKind] = useState(null); // {type:'assign'|'bar', ...}
   const [pop, setPop] = useState(null);           // move popover
   const [handover, setHandover] = useState(null); // conflict dialog
+  const [focusLabel, setFocusLabel] = useState('');
 
-  const totalDays = daysIn(calYear, calMonth);
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.user_id, m])), [members]);
   const memberIds = useMemo(() => members.map((m) => m.user_id).filter(Boolean), [members]);
   const crewAboard = useMemo(() => members.filter((m) => ABOARD.has(m.status)).length, [members]);
   const deptOf = (uid) => deptColors[memberById[uid]?.department] || '#7A6F8C';
 
+  // ── the continuous scroll window ─────────────────────────────────────────────
+  const rangeStart = useMemo(() => new Date(today.getFullYear(), today.getMonth() - WINDOW_BACK_MONTHS, 1), [today]);
+  const rangeEnd = useMemo(() => new Date(today.getFullYear(), today.getMonth() + WINDOW_FWD_MONTHS + 1, 1), [today]); // exclusive
+  const viewDays = useMemo(() => daysBetween(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
+  const todayIndex = useMemo(() => daysBetween(rangeStart, new Date(today.getFullYear(), today.getMonth(), today.getDate())), [rangeStart, today]);
+  // Month bands for the header label row — each spans its own slice of days
+  // within the window (clipped at either edge), so the label sits directly
+  // above the days it covers as you scroll past it.
+  const monthBands = useMemo(() => {
+    const bands = [];
+    let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+    while (cur < rangeEnd) {
+      const next = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+      const segStart = cur > rangeStart ? cur : rangeStart;
+      const segEnd = next < rangeEnd ? next : rangeEnd;
+      bands.push({
+        label: `${MONTHS[cur.getMonth()]} ${cur.getFullYear()}`,
+        left: daysBetween(rangeStart, segStart) * DAY_W,
+        width: daysBetween(segStart, segEnd) * DAY_W,
+        days: daysBetween(segStart, segEnd),
+      });
+      cur = next;
+    }
+    return bands;
+  }, [rangeStart, rangeEnd]);
+  const leftPx = (dayIdx) => dayIdx * DAY_W;
+
   const AWAY = new Set(['on_leave', 'rotational_leave', 'medical_leave', 'training_leave']);
   const TRANS_ICON = { Flight: 'Plane', Train: 'TrainFront', Ferry: 'Ship', Car: 'Car', Other: 'MapPin' };
   const dirOf = (e) => (e.kind === 'active' ? 'arr' : AWAY.has(e.kind) ? 'dep' : 'transit');
-  const monthTravel = useMemo(() => {
-    const mStart = ymd(calYear, calMonth, 1), mEnd = ymd(calYear, calMonth, totalDays);
+  // Upcoming only (today → end of the rendered window) — past travel is still
+  // visible as history in the chart itself, no need to repeat it in this list.
+  const upcomingTravel = useMemo(() => {
+    const from = dstr(today), to = dstr(addDays(rangeEnd, -1));
     return travel
-      .filter((e) => (e.transport || e.from_location || e.to_location) && (e.start_date || '').slice(0, 10) >= mStart && (e.start_date || '').slice(0, 10) <= mEnd)
+      .filter((e) => (e.transport || e.from_location || e.to_location) && (e.start_date || '').slice(0, 10) >= from && (e.start_date || '').slice(0, 10) <= to)
       .sort((a, b) => (a.start_date < b.start_date ? -1 : 1));
-  }, [travel, calYear, calMonth, totalDays]);
+  }, [travel, today, rangeEnd]);
   const legsByEntry = useMemo(() => { const m = {}; travelLegs.forEach((l) => { (m[l.entry_id] = m[l.entry_id] || []).push(l); }); return m; }, [travelLegs]);
 
   // presence history
@@ -92,9 +129,6 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const sexOf = (uid) => sexMap[uid] || '';
   useEffect(() => { loadCabins(); }, [loadCabins, refresh]);
 
-  const prevM = () => { if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); } else setCalMonth((m) => m - 1); };
-  const nextM = () => { if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); } else setCalMonth((m) => m + 1); };
-
   // ── flat bed rows (grouped by cabin) ─────────────────────────────────────────
   const bedRows = useMemo(() => {
     const rows = [];
@@ -102,27 +136,26 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     return rows;
   }, [cabins]);
 
-  // ── map an assignment onto the viewed month → {aDay, lvDay, contBefore, contAfter} ─
+  // ── map an assignment onto the scroll window → {aDay, lvDay, contBefore, contAfter}
+  // (day indices are 0-based offsets from rangeStart, so they convert straight
+  // to pixels via leftPx() — contBefore/contAfter mark a stay that's truncated
+  // by the edge of the rendered window, same idea as before, just wider now.)
   const span = useCallback((a) => {
     const s = new Date(`${a.start_date}T00:00:00`);
     const e = a.end_date ? new Date(`${a.end_date}T00:00:00`) : null;
-    const mStart = new Date(calYear, calMonth, 1), mEnd = new Date(calYear, calMonth, totalDays);
-    if (s > mEnd) return null;
-    if (e && e <= mStart) return null;
-    const contBefore = s < mStart;
-    const aDay = contBefore ? 1 : s.getDate();
+    if (s >= rangeEnd) return null;
+    if (e && e <= rangeStart) return null;
+    const contBefore = s < rangeStart;
+    const aDay = contBefore ? 0 : daysBetween(rangeStart, s);
     let lvDay, contAfter = false;
-    if (!e) { lvDay = totalDays + 1; contAfter = true; }
-    else if (e.getFullYear() === calYear && e.getMonth() === calMonth) lvDay = e.getDate();
-    else { lvDay = totalDays + 1; contAfter = true; }
+    if (!e || e > rangeEnd) { lvDay = viewDays; contAfter = true; }
+    else { lvDay = daysBetween(rangeStart, e); }
     if (lvDay <= aDay) return null;
     return { aDay, lvDay, contBefore, contAfter };
-  }, [calYear, calMonth, totalDays]);
+  }, [rangeStart, rangeEnd, viewDays]);
 
-  const L = (x) => ((x - 1) / totalDays) * 100;
-
-  // Cabins where M and F crew overlap on any night this month → flag for review
-  // (couples aside, you usually don't want mixed-sex sharing).
+  // Cabins where M and F crew overlap on any night → flag for review (couples
+  // aside, you usually don't want mixed-sex sharing).
   const cabinMixed = useMemo(() => {
     const map = {};
     cabins.forEach((c) => {
@@ -198,8 +231,8 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
 
   // ── actions ──────────────────────────────────────────────────────────────────
   const assignToBed = async (bedId, userId) => {
-    // default a new stay to the whole viewed month, open-ended forward
-    const startD = ymd(calYear, calMonth, 1);
+    // default a new stay to start today, open-ended forward
+    const startD = dstr(today);
     const row = await createAssignment({ tenantId, bedId, userId, startDate: startD, endDate: null, createdBy: currentUserId });
     setSelCrew(userId);
     const fresh = await fetchAssignments(tenantId);
@@ -232,34 +265,76 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     setSelCrew(uid); setView('cabins'); setPop(null);
     setTimeout(() => {
       const a = assigns.find((x) => x.user_id === uid && span(x));
-      if (a) document.getElementById(`bar-${a.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (a) document.getElementById(`bar-${a.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
     }, 80);
   };
   // Bar → flight: scroll the matching flight row into view (highlight is via selCrew).
   const scrollToFlight = (uid) => {
-    const e = monthTravel.find((x) => x.user_id === uid);
+    const e = upcomingTravel.find((x) => x.user_id === uid);
     if (e) document.getElementById(`flt-${e.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
+
+  // ── shared horizontal scroll: land on "today" (with a little run-up so it's
+  // not pinned to the very left edge), and keep the month chip in sync with
+  // whatever's actually in view as the user scrolls. ────────────────────────────
+  const scrollRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    el.scrollLeft = Math.max(0, (todayIndex - 7) * DAY_W); // set before paint — no visible jump from 0
+    const onScroll = () => {
+      const x = el.scrollLeft;
+      const band = monthBands.find((b) => x < b.left + b.width) || monthBands[monthBands.length - 1];
+      if (band) setFocusLabel(band.label);
+    };
+    onScroll();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [view, todayIndex, monthBands]);
+
+  const scrollByMonth = (dir) => {
+    const el = scrollRef.current; if (!el) return;
+    const band = monthBands.find((b) => b.label === focusLabel);
+    const days = band ? Math.max(band.days, 28) : 30;
+    el.scrollBy({ left: dir * days * DAY_W, behavior: 'smooth' });
+  };
+  const scrollToToday = () => { const el = scrollRef.current; if (el) el.scrollTo({ left: Math.max(0, (todayIndex - 7) * DAY_W), behavior: 'smooth' }); };
 
   // ── presence rendering ────────────────────────────────────────────────────────
   const renderPresence = () => (
     <div className="mv-grid">
-      <div className="mv-row">
-        <div className="mv-name" />
-        {Array.from({ length: totalDays }, (_, i) => <div key={i} className={`mv-dnum${(i + 1) % 5 === 0 ? ' d5' : ''}`}>{i + 1}</div>)}
-      </div>
-      {members.length === 0 ? <p className="mv-empty">No crew to display.</p> : members.map((m) => {
-        const periods = buildStatusPeriods(historyByUser[m.user_id] || []);
-        return (
-          <div key={m.user_id} className="mv-row">
-            <div className="mv-name" title={m.fullName}>{m.fullName || '—'}</div>
-            {Array.from({ length: totalDays }, (_, i) => {
-              const st = getStatusForDay(periods, new Date(calYear, calMonth, i + 1));
-              return <div key={i} className="mv-cell" title={st ? `${m.fullName}: ${getStatusLabel(st)}` : ''} style={st ? { background: STATUS_COLORS[st] } : undefined} />;
+      <div className="mv-scrollx" ref={scrollRef} style={{ '--day-w': `${DAY_W}px` }}>
+        <div className="mv-row mv-monthrow">
+          <div className="mv-name" />
+          <div className="mv-monthtrack" style={{ width: viewDays * DAY_W }}>
+            {monthBands.map((b) => <span key={b.label} className="mv-monthband" style={{ left: b.left, width: b.width }}>{b.label}</span>)}
+          </div>
+        </div>
+        <div className="mv-row">
+          <div className="mv-name" />
+          <div className="mv-daytrack" style={{ width: viewDays * DAY_W }}>
+            {Array.from({ length: viewDays }, (_, i) => {
+              const d = addDays(rangeStart, i);
+              return <div key={i} className={`mv-dnum${i === todayIndex ? ' today' : ''}${d.getDate() % 5 === 0 ? ' d5' : ''}`} style={{ left: leftPx(i), width: DAY_W }}>{d.getDate()}</div>;
             })}
           </div>
-        );
-      })}
+        </div>
+        {members.length === 0 ? <p className="mv-empty">No crew to display.</p> : members.map((m) => {
+          const periods = buildStatusPeriods(historyByUser[m.user_id] || []);
+          return (
+            <div key={m.user_id} className="mv-row">
+              <div className="mv-name" title={m.fullName}>{m.fullName || '—'}</div>
+              <div className="mv-daytrack" style={{ width: viewDays * DAY_W }}>
+                {Array.from({ length: viewDays }, (_, i) => {
+                  const d = addDays(rangeStart, i);
+                  const st = getStatusForDay(periods, d);
+                  return <div key={i} className={`mv-cell${i === todayIndex ? ' today' : ''}`} title={st ? `${m.fullName}: ${getStatusLabel(st)}` : ''} style={{ left: leftPx(i), width: DAY_W, ...(st ? { background: STATUS_COLORS[st] } : {}) }} />;
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
       <div className="mv-legend">{CREW_STATUSES.map(({ value, label }) => <span key={value} className="mv-leg"><i style={{ background: STATUS_COLORS[value] }} />{label}</span>)}</div>
     </div>
   );
@@ -272,47 +347,57 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     let lastCabin = null;
     return (
       <div className="mv-chart" onClick={() => { setSelCrew(null); setPop(null); }}>
-        <div className="mv-row">
-          <div className="mv-name" />
-          <div className="mv-htrack">{Array.from({ length: totalDays }, (_, i) => <span key={i} className={`mv-dtick${(i + 1) % 5 === 0 ? ' d5' : ''}`} style={{ left: `${L(i + 1)}%`, transform: i === 0 ? 'none' : 'translateX(-50%)' }}>{i + 1}</span>)}</div>
-        </div>
-        {bedRows.map((bd) => {
-          const head = bd.cabin !== lastCabin ? (lastCabin = bd.cabin, <div key={`g-${bd.bedId}`} className="mv-cbngroup">{bd.cabin}{bd.deck ? ` · ${bd.deck.replace(' deck', '')}` : ''}<span className="gl" />{cabinMixed[bd.cabinId] && <span className="mv-mixed" title="Male and female crew share this cabin this month">⚠ Mixed sex</span>}</div>) : null;
-          const rowAssigns = assigns.filter((a) => a.bed_id === bd.bedId).map((a) => ({ a, sp: span(a) })).filter((x) => x.sp);
-          // gaps
-          const covered = new Array(totalDays + 2).fill(false);
-          rowAssigns.forEach(({ sp }) => { for (let d = sp.aDay; d < sp.lvDay; d += 1) covered[d] = true; });
-          const gaps = [];
-          let g = 1; while (g <= totalDays) { if (!covered[g]) { let e = g; while (e + 1 <= totalDays && !covered[e + 1]) e += 1; gaps.push([g, e]); g = e + 1; } else g += 1; }
-          return (
-            <React.Fragment key={bd.bedId}>
-              {head}
-              <div className="mv-row">
-                <div className="mv-bedname">{bd.label}</div>
-                <div className="mv-track" onDragOver={(e) => { if (!canManage) return; e.preventDefault(); e.currentTarget.classList.add('drop'); }} onDragLeave={(e) => e.currentTarget.classList.remove('drop')}
-                  onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drop'); if (!canManage) return; const dk = dragKind; setDragKind(null); if (!dk) return; if (dk.type === 'assign') assignToBed(bd.bedId, dk.userId); else moveWholeBar(dk.assignId, bd.bedId); }}>
-                  <div className="mv-gridlines">{Array.from({ length: totalDays }, (_, i) => <i key={i} className={(i + 1) % 5 === 0 ? 'v5' : ''} />)}</div>
-                  {gaps.map(([a, b]) => { const nights = b - a + 1, w = nights / totalDays * 100; return <div key={`gap-${a}`} className={`mv-gap${nights === 1 ? ' one' : ''}`} style={{ left: `${L(a)}%`, width: `${w}%` }} title={`Free — ${nights} night${nights > 1 ? 's' : ''}`}>{w > 8 ? `${nights} night${nights > 1 ? 's' : ''} free` : w > 3 ? `${nights}n` : ''}</div>; })}
-                  {rowAssigns.map(({ a, sp }) => {
-                    const m = memberById[a.user_id]; const w = (sp.lvDay - sp.aDay) / totalDays * 100;
-                    const bg = tint(deptOf(a.user_id), 0.34); const nm = m?.fullName || '—';
-                    const lbl = w > 12 ? nm : initials(nm); const dim = selCrew && selCrew !== a.user_id;
-                    return (
-                      <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}`} id={`bar-${a.id}`}
-                        draggable={canManage} onDragStart={() => canManage && setDragKind({ type: 'bar', assignId: a.id })}
-                        onClick={(e) => { e.stopPropagation(); setSelCrew(a.user_id); if (canManage) openMove(a, e); }}
-                        style={{ left: `${L(sp.aDay)}%`, width: `${w}%`, background: bg, opacity: dim ? 0.4 : 1 }} title={`${nm} — ${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`}>
-                        {!sp.contBefore && <span className="edge s" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{sp.aDay}</span>}
-                        <span className="lbl">{lbl}</span>
-                        {!sp.contAfter && <span className="edge e" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{sp.lvDay}</span>}
-                      </div>
-                    );
-                  })}
+        <div className="mv-scrollx" ref={scrollRef} style={{ '--day-w': `${DAY_W}px` }}>
+          <div className="mv-row mv-monthrow">
+            <div className="mv-name" />
+            <div className="mv-monthtrack" style={{ width: viewDays * DAY_W }}>
+              {monthBands.map((b) => <span key={b.label} className="mv-monthband" style={{ left: b.left, width: b.width }}>{b.label}</span>)}
+            </div>
+          </div>
+          <div className="mv-row">
+            <div className="mv-name" />
+            <div className="mv-htrack" style={{ width: viewDays * DAY_W }}>
+              <div className="mv-todayline" style={{ left: leftPx(todayIndex) }} />
+              {Array.from({ length: viewDays }, (_, i) => { const d = addDays(rangeStart, i); return d.getDate() % 5 === 0 ? <span key={i} className="mv-dtick d5" style={{ left: leftPx(i) }}>{d.getDate()}</span> : null; })}
+            </div>
+          </div>
+          {bedRows.map((bd) => {
+            const head = bd.cabin !== lastCabin ? (lastCabin = bd.cabin, <div key={`g-${bd.bedId}`} className="mv-cbngroup">{bd.cabin}{bd.deck ? ` · ${bd.deck.replace(' deck', '')}` : ''}<span className="gl" />{cabinMixed[bd.cabinId] && <span className="mv-mixed" title="Male and female crew share this cabin">⚠ Mixed sex</span>}</div>) : null;
+            const rowAssigns = assigns.filter((a) => a.bed_id === bd.bedId).map((a) => ({ a, sp: span(a) })).filter((x) => x.sp);
+            // gaps
+            const covered = new Array(viewDays).fill(false);
+            rowAssigns.forEach(({ sp }) => { for (let d = sp.aDay; d < sp.lvDay; d += 1) covered[d] = true; });
+            const gaps = [];
+            let g = 0; while (g < viewDays) { if (!covered[g]) { let e = g; while (e + 1 < viewDays && !covered[e + 1]) e += 1; gaps.push([g, e]); g = e + 1; } else g += 1; }
+            return (
+              <React.Fragment key={bd.bedId}>
+                {head}
+                <div className="mv-row">
+                  <div className="mv-bedname">{bd.label}</div>
+                  <div className="mv-track" style={{ width: viewDays * DAY_W }} onDragOver={(e) => { if (!canManage) return; e.preventDefault(); e.currentTarget.classList.add('drop'); }} onDragLeave={(e) => e.currentTarget.classList.remove('drop')}
+                    onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drop'); if (!canManage) return; const dk = dragKind; setDragKind(null); if (!dk) return; if (dk.type === 'assign') assignToBed(bd.bedId, dk.userId); else moveWholeBar(dk.assignId, bd.bedId); }}>
+                    {gaps.map(([a, b]) => { const nights = b - a + 1, w = nights * DAY_W; return <div key={`gap-${a}`} className={`mv-gap${nights === 1 ? ' one' : ''}`} style={{ left: leftPx(a), width: w }} title={`Free — ${nights} night${nights > 1 ? 's' : ''}`}>{w > 90 ? `${nights} night${nights > 1 ? 's' : ''} free` : w > 40 ? `${nights}n` : ''}</div>; })}
+                    {rowAssigns.map(({ a, sp }) => {
+                      const m = memberById[a.user_id]; const w = (sp.lvDay - sp.aDay) * DAY_W;
+                      const bg = tint(deptOf(a.user_id), 0.34); const nm = m?.fullName || '—';
+                      const lbl = w > 90 ? nm : initials(nm); const dim = selCrew && selCrew !== a.user_id;
+                      return (
+                        <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}`} id={`bar-${a.id}`}
+                          draggable={canManage} onDragStart={() => canManage && setDragKind({ type: 'bar', assignId: a.id })}
+                          onClick={(e) => { e.stopPropagation(); setSelCrew(a.user_id); if (canManage) openMove(a, e); }}
+                          style={{ left: leftPx(sp.aDay), width: w, background: bg, opacity: dim ? 0.4 : 1 }} title={`${nm} — ${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`}>
+                          {!sp.contBefore && <span className="edge s" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{addDays(rangeStart, sp.aDay).getDate()}</span>}
+                          <span className="lbl">{lbl}</span>
+                          {!sp.contAfter && <span className="edge e" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{addDays(rangeStart, sp.lvDay).getDate()}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            </React.Fragment>
-          );
-        })}
+              </React.Fragment>
+            );
+          })}
+        </div>
         <svg className="mv-conn" id="mv-conn" />
         <div className="mv-legrow">
           <div className="mv-legdept">{Object.keys(deptColors).filter((d) => members.some((m) => m.department === d)).map((d) => <span key={d} className="mv-leg"><i style={{ background: tint(deptColors[d], 0.5) }} />{d}</span>)}</div>
@@ -330,7 +415,9 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '' });
   };
 
-  // draw connectors for selected crew after each render
+  // draw connectors for selected crew after each render — positions are always
+  // viewport-relative (getBoundingClientRect), so this is unaffected by the
+  // chart's internal horizontal scroll position.
   useEffect(() => {
     const svg = document.getElementById('mv-conn'); if (!svg) return;
     const chart = svg.closest('.mv-chart'); if (!chart) { svg.innerHTML = ''; return; }
@@ -348,11 +435,11 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       }
     }
     svg.innerHTML = paths;
-  }, [selCrew, assigns, cabins, view, calMonth, calYear]); // eslint-disable-line
+  }, [selCrew, assigns, cabins, view]); // eslint-disable-line
 
   // cabin cards (current snapshot for "today")
   const cards = useMemo(() => {
-    const todayStr = ymd(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayStr = dstr(today);
     return cabins.map((c) => ({
       ...c,
       occ: (c.beds || []).map((b) => {
@@ -368,16 +455,16 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
         <div className="mv-title"><span className="mv-eyebrow">◆</span> Movements</div>
       </div>
 
-      {(canManage || monthTravel.length > 0) && (
+      {(canManage || upcomingTravel.length > 0) && (
         <div className="mv-flights">
           <div className="mv-fhead"><span className="t">Flights &amp; travel</span><span className="ln" />{canManage && <button type="button" className="mv-addtravel" onClick={() => setTravelModal({ entry: null })}><Icon name="Plus" size={13} /> Add travel</button>}</div>
-          {monthTravel.length === 0 ? <div className="mv-noflt">No travel logged this month.</div> : monthTravel.map((e) => {
+          {upcomingTravel.length === 0 ? <div className="mv-noflt">No upcoming travel logged.</div> : upcomingTravel.map((e) => {
             const m = memberById[e.user_id]; const dir = dirOf(e);
-            const day = new Date(`${e.start_date}T00:00:00`).getDate();
+            const eDate = new Date(`${e.start_date}T00:00:00`);
             const extra = (legsByEntry[e.id] || []).slice().sort((a, b) => a.seq - b.seq);
             return (
               <div key={e.id} id={`flt-${e.id}`} className={`mv-flt${selCrew === e.user_id ? ' sel' : ''}`} onClick={() => selectFromFlight(e.user_id)}>
-                <div className="date"><span className="d">{day}</span><span className="m">{MONTHS[calMonth].slice(0, 3)}</span></div>
+                <div className="date"><span className="d">{eDate.getDate()}</span><span className="m">{MONTHS[eDate.getMonth()].slice(0, 3)}</span></div>
                 <span className="mv-dir"><span className={`dirpill ${dir}`}>{dir === 'dep' ? '↑ Departing' : dir === 'arr' ? '↓ Arriving' : '✈ Travelling'}</span></span>
                 <span className="who">{m?.fullName || '—'}</span>
                 <div className="legs">
@@ -394,7 +481,12 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       )}
 
       <div className="mv-navrow">
-        <div className="mv-monthnav"><button onClick={prevM} aria-label="Previous month">‹</button><span>{MONTHS[calMonth]} {calYear}</span><button onClick={nextM} aria-label="Next month">›</button></div>
+        <div className="mv-monthnav">
+          <button onClick={() => scrollByMonth(-1)} aria-label="Scroll back a month">‹</button>
+          <span>{focusLabel || '—'}</span>
+          <button onClick={() => scrollByMonth(1)} aria-label="Scroll forward a month">›</button>
+        </div>
+        <button type="button" className="mv-today" onClick={scrollToToday}>Today</button>
         <div className="mv-toggle">
           <button type="button" className={view === 'presence' ? 'on' : ''} onClick={() => setView('presence')}>Presence</button>
           <button type="button" className={view === 'cabins' ? 'on' : ''} onClick={() => setView('cabins')}>Cabins</button>
@@ -452,10 +544,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
             {bedRows.map((r) => <option key={r.bedId} value={r.bedId}>{r.cabin} · {r.label}</option>)}
           </select>
           <label>From date</label>
-          <select value={pop.date} onChange={(e) => setPop({ ...pop, date: e.target.value })}>
-            <option value="">choose…</option>
-            {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => <option key={d} value={ymd(calYear, calMonth, d)}>{d} {MONTHS[calMonth].slice(0, 3)}</option>)}
-          </select>
+          <input type="date" value={pop.date} min={dstr(rangeStart)} max={dstr(addDays(rangeEnd, -1))} onChange={(e) => setPop({ ...pop, date: e.target.value })} />
           <div className="act">
             <button type="button" className="rm" onClick={() => removeStay(pop.a.id)}>Remove</button>
             <button type="button" className="apply" disabled={!pop.date} onClick={() => splitMove(pop.a.id, pop.bedId, pop.date)}>Move</button>
