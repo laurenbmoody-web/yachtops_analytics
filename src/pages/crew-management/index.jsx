@@ -1303,11 +1303,16 @@ const CrewManagement = () => {
   // paired set of leads without attaching to just one of them. Measured from
   // real rendered positions so it always matches the current layout; recomputed
   // after layout settles, on any reorder, and on resize.
-  // An explicit pair (dropped directly onto another card) always lands at
-  // EXACTLY PAIR_GAP_PX (200) from it — a fixed, deterministic offset, not a
-  // mouse-precision guess. This threshold just needs to comfortably include
-  // that exact distance while excluding normal (220px) sibling spacing.
+  // A pair reads as "linked" (shares one trunk line) ONLY when the two sit at
+  // the exact ⚭ snap gap — PAIR_GAP_PX ± LINK_TOL_PX. Linking via the handle is
+  // deterministic (it sets that exact offset), so a tight tolerance is all we
+  // need, and crucially it means merely dragging someone NEAR a neighbour never
+  // draws a false marriage bar (that ambiguity is the whole reason placement and
+  // linking are decoupled). TIGHT_PX stays the wider "keep drops clear" distance
+  // used by the drop backstop so new drops always land well outside the link gap.
   const TIGHT_PX = 128;
+  const LINK_TOL_PX = 4;
+  const isLinkedGapPx = (gapPx) => Math.abs(gapPx - PAIR_GAP_PX) <= LINK_TOL_PX;
   useEffect(() => {
     if (rosterView !== 'hierarchy') return;
     let cancelled = false;
@@ -1347,7 +1352,7 @@ const CrewManagement = () => {
         const groups = [];
         sorted.forEach((n) => {
           const last = groups[groups.length - 1];
-          if (last && n.cx - last.nodes[last.nodes.length - 1].cx < TIGHT_PX) last.nodes.push(n);
+          if (last && isLinkedGapPx(n.cx - last.nodes[last.nodes.length - 1].cx)) last.nodes.push(n);
           else groups.push({ nodes: [n] });
         });
         return groups.map((g) => ({
@@ -1599,7 +1604,10 @@ const CrewManagement = () => {
       if (!reportsToId) {
         for (let i = 0; i < prevRowRects.length - 1; i++) {
           const a = prevRowRects[i]; const b = prevRowRects[i + 1];
-          if (b.r.left - a.r.right < TIGHT_PX && clientX > a.r.right && clientX < b.r.left) {
+          const centreGap = (b.r.left + b.r.right) / 2 - (a.r.left + a.r.right) / 2;
+          // Only a genuinely LINKED pair above (at the exact ⚭ gap) offers
+          // "report to both" — two merely-adjacent seniors don't.
+          if (isLinkedGapPx(centreGap) && clientX > a.r.right && clientX < b.r.left) {
             reportsToPairIds = [a.m.id, b.m.id];
             break;
           }
@@ -1741,7 +1749,7 @@ const CrewManagement = () => {
     // (which the connector engine already renders as a shared line); unlinking
     // spreads them back to a normal slot apart.
     const PAIR_UNITS = PAIR_GAP_PX / SCALE; // pair gap expressed in raw column-value units
-    const isLinkedPair = (a, b) => Math.abs(effOrder(a) - effOrder(b)) * SCALE < TIGHT_PX;
+    const isLinkedPair = (a, b) => isLinkedGapPx(Math.abs(effOrder(a) - effOrder(b)) * SCALE);
     const toggleLink = (a, b) => {
       const mid = (effOrder(a) + effOrder(b)) / 2;
       const half = (isLinkedPair(a, b) ? COL_STEP : PAIR_UNITS) / 2; // linked → spread; unlinked → snap tight
@@ -1760,9 +1768,10 @@ const CrewManagement = () => {
           <div className="cm-hier-hint">
             <p className="cm-hier-hint-lead"><Icon name="Move" size={12} /> Drag anyone, anywhere to rebuild the team structure.</p>
             <ul className="cm-hier-hint-legend">
-              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up under one person above</strong> — report to them alone</li>
-              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up in the gap between a linked pair</strong> — report to both</li>
-              <li><span className="cm-hier-swatch cm-hier-swatch-pair"><Icon name="Link2" size={11} /></span><strong>Tap the ⚭ handle between two peers</strong> — pair them under one shared line (tap again to unlink)</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-peer" /><strong>Drop a peer beside another</strong> — they stay independent, each keeps its own line up</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-pair"><Icon name="Link2" size={11} /></span><strong>Hover a row, tap the ⚭ between two peers</strong> — link them under one shared line (tap again to unlink)</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up under someone above</strong> — report to them alone</li>
+              <li><span className="cm-hier-swatch cm-hier-swatch-report" /><strong>Line up in the gap of a linked pair</strong> — report to both</li>
               <li><span className="cm-hier-swatch cm-hier-swatch-row" /><strong>Drop above, below or between rows</strong> — open a new level</li>
             </ul>
           </div>
