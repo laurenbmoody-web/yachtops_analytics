@@ -79,10 +79,13 @@ export const fetchCrewListDetails = async (tenantId, userIds = []) => {
       sex: d.sex || '',
       address: d.home_address || '',
       passportNo: p.document_number || '',
+      passportIssue: p.issue_date || '',
       passportExpiry: p.expiry_date || '',
       // Issuing state of the passport (FAL asks for it) — prefer the doc's
       // flag_state / country_of_issue, else fall back to nationality.
       passportState: p.flag_state || pDetails.country_of_issue || d.nationality || '',
+      // Place of issue (the office/city on the passport), if captured.
+      placeOfIssue: p.issuing_authority || pDetails.place_of_issue || pDetails.country_of_issue || '',
     };
   });
   return out;
@@ -114,8 +117,10 @@ export const buildCrewRow = (member, det = {}) => {
     placeOfBirth: det.placeOfBirth || '',
     nationality: det.nationality || '',
     passportNo: det.passportNo || '',
+    passportIssue: det.passportIssue || '',
     passportExpiry: det.passportExpiry || '',
     passportState: det.passportState || '',
+    placeOfIssue: det.placeOfIssue || '',
     address: det.address || '',
   };
 };
