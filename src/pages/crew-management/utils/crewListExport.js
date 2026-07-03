@@ -262,11 +262,12 @@ export const exportCrewListPDF = async (o) => {
   const sigX = pageW - M - sigW;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...MUTED);
   doc.text('MASTER — NAME, SIGNATURE & STAMP', sigX, fy, { charSpace: 0.3 });
+  // Signature + stamp sit ABOVE the rule with a gap — never overlapping the line.
   const imgFmt = (d) => (/image\/jpe?g/i.test(String(d)) ? 'JPEG' : 'PNG');
-  if (signature) { try { doc.addImage(signature, imgFmt(signature), sigX, fy + 1.5, 44, 12.5); } catch { /* bad image */ } }
-  if (stamp) { try { doc.addImage(stamp, imgFmt(stamp), sigX + sigW - 22, fy - 1, 21, 21); } catch { /* bad image */ } }
-  doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(sigX, fy + 14, sigX + sigW, fy + 14);
-  if (master) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(master, sigX, fy + 18.5); }
+  if (signature) { try { doc.addImage(signature, imgFmt(signature), sigX, fy + 1, 42, 11); } catch { /* bad image */ } }
+  if (stamp) { try { doc.addImage(stamp, imgFmt(stamp), sigX + sigW - 15, fy - 3, 15, 15); } catch { /* bad image */ } }
+  doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(sigX, fy + 15, sigX + sigW, fy + 15);
+  if (master) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(master, sigX, fy + 19.5); }
 
   // Bottom references — no app branding (only the vessel's own letterhead logo).
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...FAINT);

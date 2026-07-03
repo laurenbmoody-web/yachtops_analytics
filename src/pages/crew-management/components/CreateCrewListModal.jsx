@@ -171,9 +171,7 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
       <div className="ccl-panel" role="dialog" aria-modal="true" aria-label="Create crew list">
         <div className="ccl-head">
           <div>
-            <div className="ccl-eyebrow">Crew</div>
             <h2>Create crew list</h2>
-            <p className="ccl-sub">{vessel?.name || 'Vessel'} · master {masterName || '—'} · IMO FAL 5</p>
           </div>
           <button type="button" className="ccl-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
@@ -249,8 +247,8 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
             <p className="ccl-foothint">
               <Icon name={(sigData.signature || sigData.stamp) ? 'CheckCircle2' : 'Info'} size={13} />
               {(sigData.signature || sigData.stamp)
-                ? `${masterName || 'Master'}’s signature/stamp will be applied. Vessel identity & call sign come from Vessel Settings.`
-                : `No signature/stamp saved on ${masterName || 'the captain'}’s profile yet — add one on their profile (Personal Details). Vessel identity & call sign come from Vessel Settings.`}
+                ? `Captain ${masterName}’s signature and stamp will be applied.`
+                : `No signature or stamp saved on ${masterName || 'the captain'}’s profile yet — add one on their profile (Personal Details).`}
             </p>
             <div className="ccl-foot-actions">
               <span className="ccl-count">{selectedRows.length} of {ordered.length} crew</span>
