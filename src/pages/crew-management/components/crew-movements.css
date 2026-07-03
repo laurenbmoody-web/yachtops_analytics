@@ -156,12 +156,20 @@
 .mv-bar .edge.e { margin-left: auto; }
 .mv-conn { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 
-/* unberthed tray */
-.mv-tray { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 18px; padding: 12px 14px; border: 1px dashed #D8D6CF; border-radius: 12px; background: #FCFCFB; }
-.mv-traylbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
-.mv-trayok { font-size: 12px; color: #5E8E6F; font-weight: 600; }
-.mv-chip { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 4px 12px 4px 5px; font-size: 13px; font-weight: 600; cursor: grab; }
-.mv-chip .av, .mv-occ .av { width: 24px; height: 24px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1C1B3A; flex: 0 0 auto; }
+/* Unberthed — a quiet editorial section (tracked-caps label on a hairline
+   rule), same pattern as every other section head on this page, not a
+   dashed warning box for what's usually a routine, temporary state. */
+.mv-unberthed { margin-top: 22px; }
+.mv-unb-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.mv-unb-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; white-space: nowrap; }
+.mv-unb-rule { flex: 1; height: 1px; background: #ECEAE3; }
+.mv-unb-ok { font-size: 12px; color: #4E8C63; font-weight: 600; }
+.mv-unb-list { display: flex; flex-wrap: wrap; gap: 20px 24px; }
+.mv-unb-chip { display: flex; align-items: center; gap: 9px; cursor: grab; }
+.mv-unb-chip .av, .mv-occ .av { width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1C1B3A; flex: 0 0 auto; }
+.mv-unb-who { display: flex; flex-direction: column; line-height: 1.35; }
+.mv-unb-nm { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
+.mv-unb-rl { font-size: 10.5px; color: #8B8478; }
 
 /* cabin cards */
 .mv-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 18px; }
