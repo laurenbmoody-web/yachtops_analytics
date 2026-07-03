@@ -4,6 +4,7 @@ import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
 import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
+import EditorialTimePicker from '../../../components/editorial/EditorialTimePicker';
 import {
   fetchVesselForCrewList, fetchCrewListDetails, buildCrewRow, missingMandatory,
 } from '../utils/crewListData';
@@ -169,13 +170,13 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
                   <input className="ccl-input" value={voyage.nextPort} onChange={(e) => setV('nextPort', e.target.value)} placeholder="Onward port" /></label>
                 <div className="ccl-field"><span className="ccl-label">Arrival date</span>
                   <EditorialDatePicker value={voyage.arrivalDate} onChange={(iso) => setV('arrivalDate', iso || '')} placeholder="dd/mm/yyyy" /></div>
-                <label className="ccl-field"><span className="ccl-label">Arrival time</span>
-                  <input className="ccl-input" value={voyage.arrivalTime} onChange={(e) => setV('arrivalTime', e.target.value)} placeholder="HH:MM" /></label>
+                <div className="ccl-field"><span className="ccl-label">Arrival time</span>
+                  <EditorialTimePicker value={voyage.arrivalTime} onChange={(t) => setV('arrivalTime', t)} placeholder="HH:MM" /></div>
                 <div className="ccl-field" />
                 <div className="ccl-field"><span className="ccl-label">Departure date</span>
                   <EditorialDatePicker value={voyage.departureDate} onChange={(iso) => setV('departureDate', iso || '')} placeholder="dd/mm/yyyy" /></div>
-                <label className="ccl-field"><span className="ccl-label">Departure time</span>
-                  <input className="ccl-input" value={voyage.departureTime} onChange={(e) => setV('departureTime', e.target.value)} placeholder="HH:MM" /></label>
+                <div className="ccl-field"><span className="ccl-label">Departure time</span>
+                  <EditorialTimePicker value={voyage.departureTime} onChange={(t) => setV('departureTime', t)} placeholder="HH:MM" /></div>
                 <div className="ccl-field" />
               </div>
             </div>

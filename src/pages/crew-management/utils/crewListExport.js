@@ -28,20 +28,22 @@ const commercialLabel = (v) => {
 
 // Column layout shared by both templates. Widths (mm) tuned for A4 landscape
 // with 12mm margins (usable ≈ 273mm).
+// Widths (mm). Rank is wide so a role like "Chief Stewardess" stays on one
+// line; Place of issue is a tight box; Issuing state takes the remainder.
 const COLUMNS = [
   { header: '#', key: 'idx', w: 8, halign: 'center' },
-  { header: 'Rank', key: 'rank', w: 24 },
-  { header: 'Surname', key: 'surname', w: 22 },
-  { header: 'Fore name', key: 'foreName', w: 22 },
-  { header: 'Sex', key: 'sex', w: 10, halign: 'center' },
-  { header: 'Date of birth', key: 'dob', w: 20, halign: 'center' },
-  { header: 'Place of birth', key: 'placeOfBirth', w: 24 },
-  { header: 'Nationality', key: 'nationality', w: 20 },
-  { header: 'Document', key: 'docType', w: 20 },
-  { header: 'Doc. number', key: 'passportNo', w: 22 },
+  { header: 'Rank', key: 'rank', w: 34 },
+  { header: 'Surname', key: 'surname', w: 26 },
+  { header: 'Fore name', key: 'foreName', w: 26 },
+  { header: 'Sex', key: 'sex', w: 9, halign: 'center' },
+  { header: 'Date of birth', key: 'dob', w: 21, halign: 'center' },
+  { header: 'Place of birth', key: 'placeOfBirth', w: 26 },
+  { header: 'Nationality', key: 'nationality', w: 21 },
+  { header: 'Document', key: 'docType', w: 18 },
+  { header: 'Doc. number', key: 'passportNo', w: 25 },
   { header: 'Expiry', key: 'passportExpiry', w: 18, halign: 'center' },
-  { header: 'Issuing state', key: 'issuingState', w: 20 },
-  { header: 'Place of issue', key: 'placeOfIssue', w: 0 }, // 0 = take the remainder
+  { header: 'Issuing state', key: 'issuingState', w: 0 }, // remainder
+  { header: 'Place of issue', key: 'placeOfIssue', w: 13 },
 ];
 
 const rowToCells = (row, i) => ({
@@ -167,21 +169,38 @@ export const exportCrewListPDF = async (o) => {
   const columnStyles = {};
   COLUMNS.forEach((c, i) => { if (c.w) columnStyles[i] = { cellWidth: c.w, halign: c.halign || 'left' }; else columnStyles[i] = { halign: c.halign || 'left' }; });
 
+  // Fit everything on ONE page: shrink the row font/padding until the table
+  // plus the footer (declaration + signature block) fit under the table start.
+  // Reserve ~44mm at the bottom for that footer, then solve for the largest
+  // font that keeps (header + N rows) within the available height.
+  const FOOTER_RESERVE = 42;
+  const availH = pageH - y - FOOTER_RESERVE;
+  const nRows = rows.length + 1; // + header row
+  const rowHeight = (fs, pad) => fs * 0.3528 * 1.16 + 2 * pad + 0.3; // mm, ~1 line
+  let bodyFs = 7.6;
+  let pad = editorial ? 2 : 1.8;
+  while (bodyFs > 5 && nRows * rowHeight(bodyFs, pad) > availH) {
+    bodyFs -= 0.2;
+    if (pad > 0.9) pad -= 0.06;
+  }
+  const headFs = Math.max(6, bodyFs);
+
   autoTable(doc, {
     startY: y,
     margin: { left: M, right: M },
+    rowPageBreak: 'avoid',
     head: [COLUMNS.map((c) => c.header)],
     body: rows.map((r, i) => {
       const cells = rowToCells(r, i);
       return COLUMNS.map((c) => cells[c.key]);
     }),
     styles: {
-      font: 'helvetica', fontSize: 7.3, cellPadding: editorial ? 1.9 : 1.7,
+      font: 'helvetica', fontSize: bodyFs, cellPadding: pad,
       textColor: INK, lineColor: HAIR, lineWidth: editorial ? 0.1 : 0.15, overflow: 'linebreak',
     },
     headStyles: editorial
-      ? { fillColor: [237, 235, 229], textColor: NAVY, fontStyle: 'bold', fontSize: 7, lineColor: HAIR, lineWidth: 0.1 }
-      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, lineColor: NAVY, lineWidth: 0.15 },
+      ? { fillColor: [237, 235, 229], textColor: NAVY, fontStyle: 'bold', fontSize: headFs, lineColor: HAIR, lineWidth: 0.1 }
+      : { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: headFs, lineColor: NAVY, lineWidth: 0.15 },
     alternateRowStyles: editorial ? { fillColor: [252, 251, 248] } : { fillColor: [245, 246, 249] },
     columnStyles,
     didParseCell: (data) => {
@@ -193,18 +212,19 @@ export const exportCrewListPDF = async (o) => {
     },
   });
 
-  let fy = (doc.lastAutoTable?.finalY || y) + 9;
-  if (fy > pageH - 40) { doc.addPage(); fy = 20; }
+  // Footer sits right under the table on the same page (never force a page 2
+  // unless the crew genuinely can't fit even at the minimum font).
+  let fy = (doc.lastAutoTable?.finalY || y) + 7;
+  if (fy > pageH - 34) { doc.addPage(); fy = 20; }
 
   // ── Master's declaration (statement above the signature) ─────────────────
   doc.setFont(editorial ? 'times' : 'helvetica', editorial ? 'italic' : 'normal');
-  doc.setFontSize(9); doc.setTextColor(...INK);
+  doc.setFontSize(8.5); doc.setTextColor(...INK);
   const declText = declaration
     || 'I certify that the particulars given above are a true and complete list of the persons comprising the crew of the above-named vessel.';
   const declLines = doc.splitTextToSize(declText, pageW - 2 * M);
   doc.text(declLines, M, fy);
-  fy += declLines.length * 4.4 + 8;
-  if (fy > pageH - 30) { doc.addPage(); fy = 20; }
+  fy += declLines.length * 4 + 6;
 
   // ── Total (left) + master name / signature / stamp (right) ────────────────
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...labelColor);

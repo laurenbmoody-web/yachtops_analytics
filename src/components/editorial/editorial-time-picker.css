@@ -1,0 +1,41 @@
+/* EditorialTimePicker — scroll-clock time field + popover. Self-contained. */
+.etp { position: relative; display: inline-block; width: 100%; font-family: 'Inter', system-ui, sans-serif; }
+
+.etp-field {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 9px;
+  padding: 9px 11px; cursor: pointer; font: inherit; color: #1C1B3A; text-align: left;
+  transition: border-color .12s, box-shadow .12s;
+}
+.etp-field:hover:not(.is-disabled) { border-color: #8B8478; }
+.etp-field.is-open { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.etp-field.is-disabled { opacity: .55; cursor: not-allowed; }
+.etp-value { font-size: 13.5px; font-weight: 500; }
+.etp-value.is-placeholder { color: #AEB4C2; font-weight: 400; }
+.etp-icon { color: #8B8478; display: flex; flex: none; }
+
+.etp-pop {
+  position: fixed; z-index: 1100; width: 148px;
+  background: #fff; border: 1px solid #ECEAE3; border-radius: 12px;
+  box-shadow: 0 18px 44px -14px rgba(28, 27, 58, .3); padding: 8px;
+  animation: etp-in .11s ease-out;
+}
+@keyframes etp-in { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+
+.etp-cols { display: flex; align-items: stretch; gap: 4px; }
+.etp-col { flex: 1; height: 176px; overflow-y: auto; scroll-behavior: smooth; display: flex; flex-direction: column; gap: 2px; padding: 2px; }
+.etp-col::-webkit-scrollbar { width: 6px; }
+.etp-col::-webkit-scrollbar-thumb { background: #E2DFD8; border-radius: 999px; }
+.etp-colon { align-self: center; color: #AEB4C2; font-weight: 700; }
+.etp-opt {
+  flex: none; border: none; background: none; border-radius: 7px; padding: 7px 0;
+  font: inherit; font-size: 13.5px; font-weight: 500; color: #1C1B3A; cursor: pointer; text-align: center;
+}
+.etp-opt:hover { background: #F6F5F2; color: #C65A1A; }
+.etp-opt.is-sel { background: #C65A1A; color: #fff; font-weight: 600; }
+.etp-opt.is-sel:hover { background: #B14E16; color: #fff; }
+
+.etp-foot { display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px solid #F0F1F5; }
+.etp-foot-btn { border: none; background: none; font: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280; cursor: pointer; padding: 4px 8px; border-radius: 7px; }
+.etp-foot-btn:hover { background: #F6F5F2; color: #1C1B3A; }
+.etp-foot-btn.is-done { color: #C65A1A; }
