@@ -210,6 +210,23 @@ const DevModeBanner = () => {
   );
 };
 
+// A session can exist in storage while AuthContext is still propagating it —
+// deep-link page loads race the async restore, and there is one committed
+// render where authLoading is already false but session is still null.
+// Redirecting there bounces a genuinely signed-in user to /login (which then
+// forwards to /dashboard). If storage holds a session, the truth is "still
+// loading", not "logged out": render the spinner and let the restore finish.
+// If the stored token turns out to be invalid, supabase clears the key and
+// the next render redirects normally. Mirrors the SIGNED_OUT-vs-storage
+// defence in AuthContext.
+const hasStoredSession = () => {
+  try {
+    return !!window.localStorage?.getItem('supabase.auth.token');
+  } catch (err) {
+    return false; // storage unavailable (private mode) — fall through to redirect
+  }
+};
+
 // Redirect legacy /login-authentication to the unified /login (preserve query params)
 const LegacyCrewLoginRedirect = () => {
   const location = useLocation();
@@ -369,6 +386,13 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
   // If no session => redirect to /login-authentication (ONLY ALLOWED REDIRECT)
   const publicRoutes = ['/reset-password', '/forgot-password', '/set-password'];
   if (!session && !publicRoutes?.includes(currentPath)) {
+    if (hasStoredSession()) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <LogoSpinner size={48} />
+        </div>
+      );
+    }
     return <Navigate to="/login-authentication" replace />;
   }
   
@@ -602,6 +626,13 @@ const CommandRoute = ({ children }) => {
 
   // Check session
   if (!session) {
+    if (hasStoredSession()) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <LogoSpinner size={48} />
+        </div>
+      );
+    }
     return <Navigate to="/login-authentication" replace />;
   }
 
@@ -780,6 +811,13 @@ const CommandChiefRoute = ({ children }) => {
 
   // Check session
   if (!session) {
+    if (hasStoredSession()) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <LogoSpinner size={48} />
+        </div>
+      );
+    }
     return <Navigate to="/login-authentication" replace />;
   }
 
@@ -917,6 +955,13 @@ const VesselAdminRoute = ({ children, allowedTiers = ['COMMAND', 'CHIEF'] }) => 
   }
 
   if (!session) {
+    if (hasStoredSession()) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <LogoSpinner size={48} />
+        </div>
+      );
+    }
     return <Navigate to="/login-authentication" replace />;
   }
 
