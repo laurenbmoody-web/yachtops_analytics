@@ -3564,72 +3564,115 @@ const canEdit = (() => {
     };
 
     const editable = canEditPermissions && !permSaving;
-    const nm = crewMember?.fullName || firstName;
-    const roleLine = [crewMember?.roleTitle || 'Crew', crewMember?.department].filter(Boolean).join(' · ');
+    const whom = firstName === 'This person' ? 'this person' : firstName;
 
-    const capRow = (label, desc, checked, onClick, opts = {}) => (
-      <div className="cp-cred-cap">
-        <div className="cp-set-main">
-          <div className="cp-set-label">{label}</div>
-          {desc && <p className="cp-set-desc">{desc}</p>}
+    const capRow = (label, desc, checked, onClick, opts = {}) => {
+      const changed = opts.def != null && checked !== opts.def;
+      return (
+        <div className="cp-exc-row">
+          <div className="cp-set-main">
+            <div className="cp-set-label">{label}{changed && <span className="cp-exc-flag">Exception</span>}</div>
+            {desc && <p className="cp-set-desc">{desc}</p>}
+          </div>
+          {renderSwitch(checked, onClick, { disabled: !editable || opts.disabled, busy: !!permSaving, label })}
         </div>
-        {renderSwitch(checked, onClick, { disabled: !editable || opts.disabled, busy: !!permSaving, label })}
-      </div>
-    );
-
-    // Read-only summary of what the CLASS grants — the tier-derived capabilities
-    // that aren't per-member switches. Informational, so Command sees the
-    // baseline the class already includes before touching the exceptions.
-    const INCLUDED = {
-      COMMAND: ['Full vessel access', 'Set permissions', 'View & edit costs', 'Approve Hours of Rest', 'Sign sea-service', 'Manage cabins & crew', 'All exports'],
-      CHIEF: ['Approve dept rota & Hours of Rest', 'View & edit costs', 'Manage guests & trips', 'Exports'],
-      HOD: ['Runs a department', 'Submit rota for approval', 'View costs'],
-      CREW: ['Own work & profile', 'Log own hours', 'Accept assigned jobs'],
-      VIEW_ONLY: ['Read-only across the app'],
+      );
     };
-    const included = INCLUDED[memberTier] || [];
+
+    // Tier-default baselines for the four editable flags (to flag exceptions).
+    const defEdit = ['COMMAND', 'CHIEF', 'HOD'].includes(memberTier);
+    const defPublish = defEdit && memberTier !== 'HOD';
+    const defOrder = memberTier === 'COMMAND';
+    const defConfirm = memberTier === 'COMMAND';
+    const exceptions = [canEditRota !== defEdit, publishNoApproval !== defPublish, orderNoApproval !== defOrder, confirmQuotesNoApproval !== defConfirm].filter(Boolean).length;
+
+    // One-line class summary + the capability map it grants, grouped by area.
+    const CLASS_DESC = {
+      COMMAND: 'Full access across the vessel — approvals, costs, crew administration and exports.',
+      CHIEF: 'Leads a department: approvals, costs, and guest & trip management.',
+      HOD: 'Runs a department; rota goes for approval; can view costs.',
+      CREW: 'Own work and profile — logs hours and accepts assigned jobs.',
+      VIEW_ONLY: 'Read-only across the app — no edits.',
+    };
+    const INCLUDED = {
+      COMMAND: [
+        { area: 'Approvals', items: ['Approve rota submissions', 'Approve Hours of Rest', 'Approve provisioning boards'] },
+        { area: 'Money', items: ['View & edit costs and budgets'] },
+        { area: 'Compliance', items: ['Sign sea-service attestations'] },
+        { area: 'Crew', items: ['Manage cabins, movements & documents', 'Set permissions & roles'] },
+        { area: 'Reporting', items: ['Export guest book & defects'] },
+      ],
+      CHIEF: [
+        { area: 'Approvals', items: ['Approve department rota', 'Approve Hours of Rest'] },
+        { area: 'Money', items: ['View & edit costs'] },
+        { area: 'Guests', items: ['Manage guests & trips'] },
+        { area: 'Reporting', items: ['Guest book & defect exports'] },
+      ],
+      HOD: [
+        { area: 'Department', items: ['Runs their own department'] },
+        { area: 'Rota', items: ['Submit department rota for approval'] },
+        { area: 'Money', items: ['View costs'] },
+      ],
+      CREW: [
+        { area: 'Work', items: ['Accept assigned jobs', 'Log own hours'] },
+        { area: 'Profile', items: ['Manage own profile & documents'] },
+      ],
+      VIEW_ONLY: [
+        { area: 'Access', items: ['Read-only across the app'] },
+      ],
+    };
+    const groups = INCLUDED[memberTier] || [];
 
     return (
       <div>
         <div className="cp-section-head"><h3>Permissions</h3></div>
-        <div className="cp-cred">
-          <div className="cp-cred-top">
-            <div className="cp-cred-av">
-              {crewMember?.avatarUrl ? <img src={crewMember.avatarUrl} alt={nm} /> : (getInitials(crewMember?.fullName) || 'CR')}
-            </div>
-            <div className="cp-cred-who">
-              <div className="nm">{nm}</div>
-              <div className="rl">{roleLine}</div>
-            </div>
-            <div className="cp-cred-cls">
-              <div className="k">Access class</div>
-              <select
-                className="cp-cred-sel"
-                value={crewMember?.permissionTierOverride || ''}
-                disabled={!editable}
-                onChange={(e) => updateCaps({ permission_tier_override: e.target.value || null }, { permissionTierOverride: e.target.value || null }, 'tier')}
-              >
-                {EMP_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
+
+        {/* Access class — the editorial hero for this tab */}
+        <div className="cp-acc">
+          <div className="cp-acc-lead">
+            <span className="cp-acc-k">Access class</span>
+            <div className="cp-acc-name">{tierLabel}</div>
+            <p className="cp-acc-desc">{CLASS_DESC[memberTier] || 'Access level not set.'}</p>
           </div>
-          <div className="cp-cred-body">
-            {included.length > 0 && (
-              <div className="cp-cred-inc">
-                <div className="cp-cred-h">Included with {tierLabel}</div>
-                <div className="cp-cred-caps">{included.map((c) => <span className="cp-cred-chip" key={c}>{c}</span>)}</div>
-              </div>
-            )}
-            <div className="cp-cred-h cp-cred-h-ft">Cleared for — fine-tune the exceptions</div>
-            {capRow('Edit the rota', 'Off makes the rota view-only for this person.', canEditRota, toggleCanEditRota)}
-            {capRow('Publish rota without approval', canEditRota ? 'On publishes directly; off routes changes for review.' : 'Needs rota editing enabled first.', publishNoApproval, togglePublishNoApproval, { disabled: !canEditRota })}
-            {capRow('Send supplier orders without approval', 'On sends straight to suppliers; off routes for approval.', orderNoApproval, toggleOrderNoApproval)}
-            {capRow('Confirm supplier quotes without approval', orderNoApproval ? 'On confirms directly; off routes for approval.' : 'Needs sending-without-approval enabled first.', confirmQuotesNoApproval, toggleConfirmQuotes, { disabled: !orderNoApproval })}
+          <div className="cp-acc-pick">
+            <label className="cp-acc-plabel" htmlFor="cp-acc-sel">Set class</label>
+            <select
+              id="cp-acc-sel"
+              className="cp-acc-sel"
+              value={crewMember?.permissionTierOverride || ''}
+              disabled={!editable}
+              onChange={(e) => updateCaps({ permission_tier_override: e.target.value || null }, { permissionTierOverride: e.target.value || null }, 'tier')}
+            >
+              {EMP_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            <span className="cp-acc-ex">{exceptions === 0 ? 'No exceptions' : `${exceptions} exception${exceptions === 1 ? '' : 's'}`}</span>
           </div>
-          <div className="cp-cred-lock">
-            <span>🔒</span>
-            <span>{canEditPermissions ? 'You’re Command — changes save immediately.' : `Only Command can change ${firstName === 'This person' ? 'this person' : firstName}’s access.`}</span>
-          </div>
+        </div>
+
+        {/* Capability map */}
+        <div className="cp-group-head" style={{ marginTop: 26 }}><span className="t">What {tierLabel} grants</span><span className="line" /></div>
+        <div className="cp-inc">
+          {groups.map((g) => (
+            <div className="cp-inc-grp" key={g.area}>
+              <div className="cp-inc-gh">{g.area}</div>
+              {g.items.map((it) => (
+                <div className="cp-inc-item" key={it}><Icon name="Check" size={13} /> <span>{it}</span></div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Exceptions */}
+        <div className="cp-group-head" style={{ marginTop: 28 }}><span className="t">Exceptions for {whom}</span><span className="line" /></div>
+        <p className="cp-set-sub" style={{ margin: '6px 0 4px' }}>Overrides on top of the class. Leave as-is to inherit the class defaults.</p>
+        {capRow('Edit the rota', 'Off makes the rota view-only for this person.', canEditRota, toggleCanEditRota, { def: defEdit })}
+        {capRow('Publish rota without approval', canEditRota ? 'On publishes directly; off routes changes for review.' : 'Needs rota editing enabled first.', publishNoApproval, togglePublishNoApproval, { disabled: !canEditRota, def: defPublish })}
+        {capRow('Send supplier orders without approval', 'On sends straight to suppliers; off routes for approval.', orderNoApproval, toggleOrderNoApproval, { def: defOrder })}
+        {capRow('Confirm supplier quotes without approval', orderNoApproval ? 'On confirms directly; off routes for approval.' : 'Needs sending-without-approval enabled first.', confirmQuotesNoApproval, toggleConfirmQuotes, { disabled: !orderNoApproval, def: defConfirm })}
+
+        <div className="cp-acc-lock">
+          <span>🔒</span>
+          <span>{canEditPermissions ? 'You’re Command — changes save immediately.' : `Only Command can change ${whom}’s access.`}</span>
         </div>
       </div>
     );
