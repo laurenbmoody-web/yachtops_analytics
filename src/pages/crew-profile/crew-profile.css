@@ -372,6 +372,9 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-group-head .t {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 15px;
+  /* DM Serif is a display face — a touch of tracking keeps the small group
+     headers from feeling cramped (the big tab titles stay untouched). */
+  letter-spacing: 0.035em;
   color: #1C1B3A;
   white-space: nowrap;
 }
