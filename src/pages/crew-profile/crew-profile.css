@@ -1432,7 +1432,9 @@ body.crew-profile-editorial {
 /* ── Notifications: the signal desk ──────────────────────────────────────── */
 .crew-profile-page .cp-set-sub { font-size: 13px; color: #6B7280; margin: 0 0 18px; max-width: 620px; }
 /* Reach summary — which channels reach you at all. */
-.crew-profile-page .cp-reach { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 12px; padding: 11px 15px; }
+.crew-profile-page .cp-reach { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 12px; padding: 11px 15px; max-width: 780px; }
+.crew-profile-page .cp-quiet { max-width: 780px; }
+.crew-profile-page .cp-notif { max-width: 780px; }
 .crew-profile-page .cp-reach-cap { font-size: 9px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase; color: #8B8478; }
 .crew-profile-page .cp-lamp { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #AEB4C2; }
 .crew-profile-page .cp-lamp .b { width: 8px; height: 8px; border-radius: 999px; background: #AEB4C2; transition: background 0.2s ease, box-shadow 0.2s ease; }
@@ -1463,30 +1465,35 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-chan:disabled { opacity: 0.55; cursor: default; }
 .crew-profile-page .cp-chan-na { width: 62px; height: 34px; display: inline-flex; align-items: center; justify-content: center; color: #D8D6CE; font-weight: 700; }
 
-/* ── Permissions: the crew credential ────────────────────────────────────── */
-.crew-profile-page .cp-cred { border: 1px solid #ECEAE3; border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 2px 8px rgba(28,27,58,0.05); }
-.crew-profile-page .cp-cred-top { display: flex; align-items: center; gap: 15px; padding: 20px 22px; color: #fff;
-  background: linear-gradient(120deg, #211F3D, #34305A 62%, #5A3B2E); }
-.crew-profile-page .cp-cred-av { width: 52px; height: 52px; border-radius: 999px; flex: 0 0 auto; overflow: hidden;
-  background: rgba(255,255,255,0.14); border: 2px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 18px; letter-spacing: 0.5px; }
-.crew-profile-page .cp-cred-av img { width: 100%; height: 100%; object-fit: cover; }
-.crew-profile-page .cp-cred-who .nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; line-height: 1.1; }
-.crew-profile-page .cp-cred-who .rl { font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-top: 4px; }
-.crew-profile-page .cp-cred-cls { margin-left: auto; text-align: right; }
-.crew-profile-page .cp-cred-cls .k { font-size: 8.5px; letter-spacing: 1.3px; text-transform: uppercase; color: rgba(255,255,255,0.55); }
-.crew-profile-page .cp-cred-sel { margin-top: 5px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); color: #fff;
-  font: inherit; font-weight: 700; font-size: 14px; border-radius: 9px; padding: 6px 10px; cursor: pointer; }
-.crew-profile-page .cp-cred-sel:disabled { cursor: default; opacity: 0.85; }
-.crew-profile-page .cp-cred-sel option { color: #1C1B3A; }
-.crew-profile-page .cp-cred-body { padding: 20px 22px 8px; }
-.crew-profile-page .cp-cred-h { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #8B8478; margin-bottom: 10px; }
-.crew-profile-page .cp-cred-h-ft { margin-top: 22px; padding-top: 20px; border-top: 1px solid #F0F1F5; }
-.crew-profile-page .cp-cred-caps { display: flex; flex-wrap: wrap; gap: 7px; }
-.crew-profile-page .cp-cred-chip { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 5px 12px; background: #FAFAF8; border: 1px solid #ECEAE3; color: #3A3A57; }
-.crew-profile-page .cp-cred-cap { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid #F0F1F5; }
-.crew-profile-page .cp-cred-cap:last-child { border-bottom: 0; }
-.crew-profile-page .cp-cred-lock { display: flex; gap: 8px; align-items: center; padding: 13px 22px; border-top: 1px solid #ECEAE3; background: #FAFAF8; font-size: 12.5px; color: #6B7280; }
+/* ── Permissions: access class + capability map ──────────────────────────── */
+/* Access-class hero — flat, editorial, no gradient. */
+.crew-profile-page .cp-acc { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+  background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 14px; padding: 20px 22px; }
+.crew-profile-page .cp-acc-lead { min-width: 240px; }
+.crew-profile-page .cp-acc-k { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #8B8478; }
+.crew-profile-page .cp-acc-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 34px; line-height: 1.05; color: #1C1B3A; margin: 4px 0 8px; }
+.crew-profile-page .cp-acc-desc { font-size: 13.5px; color: #6B7280; margin: 0; max-width: 46ch; }
+.crew-profile-page .cp-acc-pick { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.crew-profile-page .cp-acc-plabel { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.crew-profile-page .cp-acc-sel { font: inherit; font-size: 14px; font-weight: 700; color: #1C1B3A; background: #fff; border: 1px solid #ECEAE3;
+  border-radius: 10px; padding: 9px 13px; cursor: pointer; min-width: 170px; }
+.crew-profile-page .cp-acc-sel:focus-visible { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; outline: none; }
+.crew-profile-page .cp-acc-sel:disabled { cursor: default; color: #6B7280; background: #F6F5F2; }
+.crew-profile-page .cp-acc-ex { font-size: 11.5px; font-weight: 600; color: #C65A1A; }
+/* Capability map — grouped columns of granted capabilities. Substance. */
+.crew-profile-page .cp-inc { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 18px 30px; margin-top: 14px; }
+.crew-profile-page .cp-inc-grp { }
+.crew-profile-page .cp-inc-gh { font-size: 9px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: #8B8478;
+  padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #F0F1F5; }
+.crew-profile-page .cp-inc-item { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: #1C1B3A; padding: 5px 0; }
+.crew-profile-page .cp-inc-item svg { color: #5E8E6F; flex: 0 0 auto; margin-top: 3px; }
+/* Exceptions — the editable overrides. */
+.crew-profile-page .cp-exc-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 15px 0; border-bottom: 1px solid #F0F1F5; }
+.crew-profile-page .cp-exc-row:last-of-type { border-bottom: 0; }
+.crew-profile-page .cp-exc-flag { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #C65A1A;
+  background: #FBEFE9; border-radius: 999px; padding: 3px 8px; }
+.crew-profile-page .cp-acc-lock { display: flex; gap: 8px; align-items: center; margin-top: 18px; padding: 12px 15px; border: 1px solid #ECEAE3;
+  border-radius: 11px; background: #FAFAF8; font-size: 12.5px; color: #6B7280; }
 
 /* ── Contract / Employment: spec sheet (field cards) + contract rail ───────── */
 .crew-profile-page .cp-contract-split {
