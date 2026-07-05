@@ -137,7 +137,20 @@ export default function SplatViewer({
     const spriteGroup = new THREE.Group();
     scene.add(spriteGroup);
     let pendingPin = null;
-    let pinSize = 0.08;
+
+    // Pins render at a CONSTANT on-screen size (like map markers): every
+    // frame each sprite is scaled by its distance to the camera, so a pin is
+    // the same ~3.5% of view height whether you're across the room or nose
+    // up to it. World-fixed sizing made pins balloon when zoomed close and
+    // vanish when far, on any scan whose units aren't metric.
+    const PIN_VIEW_FRACTION = 0.035;
+    const resizePins = () => {
+      const fovScale = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      for (const pin of spriteGroup.children) {
+        const d = pin.position.distanceTo(camera.position);
+        pin.scale.setScalar(d * fovScale * PIN_VIEW_FRACTION * (pin.userData.isPending ? 1.25 : 1));
+      }
+    };
 
     // Clamp boxes, derived from the loaded mesh — null until load completes.
     let targetBox = null;
@@ -156,13 +169,13 @@ export default function SplatViewer({
         child.material.dispose();
       }
       for (const h of hotspotsRef.current || []) {
-        const pin = makePin(h.color, pinSize);
+        const pin = makePin(h.color, 0.0001); // real scale set per-frame by resizePins
         pin.position.set(Number(h.position?.x) || 0, Number(h.position?.y) || 0, Number(h.position?.z) || 0);
         pin.userData.hotspot = h;
         spriteGroup.add(pin);
       }
       if (pendingRef.current) {
-        pendingPin = makePin('#C65A1A', pinSize * 1.25);
+        pendingPin = makePin('#C65A1A', 0.0001);
         pendingPin.material.opacity = 0.85;
         pendingPin.position.set(pendingRef.current.x, pendingRef.current.y, pendingRef.current.z);
         pendingPin.userData.isPending = true;
@@ -170,26 +183,50 @@ export default function SplatViewer({
       } else {
         pendingPin = null;
       }
+      resizePins();
     };
 
     glRef.current = { rebuildPins: () => rebuildPins() };
 
     mesh.initialized.then(() => {
       if (disposed) return;
-      // World-space bounds of the actual splat centers — excludes the fuzzy
-      // halo around the scan, which is exactly what we want to hide.
       mesh.updateMatrixWorld(true);
-      const bounds = mesh.getBoundingBox(true).applyMatrix4(mesh.matrixWorld);
+
+      // Room bounds from the 2nd–98th percentile of splat positions, not the
+      // raw min/max. Real captures always carry stray outlier splats (window
+      // bleed, reflections, sky holes) that inflate the raw box — and every
+      // derived number (opening distance, zoom limits, wall clamps) inherits
+      // the inflation, so the view opens too far out and the camera can
+      // wander into the fuzz. Sampled 1-in-8 for speed; falls back to the
+      // raw box if the mesh is tiny.
+      const xs = [], ys = [], zs = [];
+      const v = new THREE.Vector3();
+      let sampleIdx = 0;
+      mesh.forEachSplat((idx, center) => {
+        if ((sampleIdx++ & 7) !== 0) return;
+        v.copy(center).applyMatrix4(mesh.matrixWorld);
+        xs.push(v.x); ys.push(v.y); zs.push(v.z);
+      });
+      const q = (arr, p) => arr[Math.max(0, Math.min(arr.length - 1, Math.floor(p * (arr.length - 1))))];
+      let bounds;
+      if (xs.length > 500) {
+        xs.sort((a, b) => a - b); ys.sort((a, b) => a - b); zs.sort((a, b) => a - b);
+        bounds = new THREE.Box3(
+          new THREE.Vector3(q(xs, 0.02), q(ys, 0.02), q(zs, 0.02)),
+          new THREE.Vector3(q(xs, 0.98), q(ys, 0.98), q(zs, 0.98))
+        );
+      } else {
+        bounds = mesh.getBoundingBox(true).applyMatrix4(mesh.matrixWorld);
+      }
       const maxDim = Math.max(...bounds.getSize(new THREE.Vector3()).toArray(), 0.001);
 
       targetBox = shrunkBox(bounds, 0.7);   // orbit target stays well inside the room
       cameraBox = shrunkBox(bounds, 0.92);  // camera can go nearer the walls, never through
       controls.minDistance = maxDim * 0.03;
-      controls.maxDistance = maxDim * 0.75; // coarse zoom-out bound; cameraBox is the hard wall
+      controls.maxDistance = maxDim * 0.6;  // coarse zoom-out bound; cameraBox is the hard wall
       camera.near = maxDim * 0.002;
       camera.far = maxDim * 20;
       camera.updateProjectionMatrix();
-      pinSize = maxDim * 0.018;
 
       // The stored camera_position/camera_target default to metric,
       // origin-centred values — real scans are usually neither. If either
@@ -306,6 +343,7 @@ export default function SplatViewer({
 
     renderer.setAnimationLoop(() => {
       controls.update();
+      resizePins();
       renderer.render(scene, camera);
     });
 
