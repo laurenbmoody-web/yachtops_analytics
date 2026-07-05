@@ -1429,71 +1429,56 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-chanchip.on { background: #FBEFE9; border-color: #FBEFE9; color: #C65A1A; }
 
-/* ── Notifications: the signal desk ──────────────────────────────────────── */
-.crew-profile-page .cp-set-sub { font-size: 13px; color: #6B7280; margin: 0 0 18px; max-width: 620px; }
-/* Reach summary — which channels reach you at all. */
-.crew-profile-page .cp-reach { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 12px; padding: 11px 15px; max-width: 780px; }
-.crew-profile-page .cp-quiet { max-width: 780px; }
-.crew-profile-page .cp-notif { max-width: 780px; }
-.crew-profile-page .cp-reach-cap { font-size: 9px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase; color: #8B8478; }
-.crew-profile-page .cp-lamp { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #AEB4C2; }
-.crew-profile-page .cp-lamp .b { width: 8px; height: 8px; border-radius: 999px; background: #AEB4C2; transition: background 0.2s ease, box-shadow 0.2s ease; }
-.crew-profile-page .cp-lamp svg { color: currentColor; }
-.crew-profile-page .cp-lamp.lit { color: #1C1B3A; }
-.crew-profile-page .cp-lamp.lit .b { background: #C65A1A; box-shadow: 0 0 0 4px rgba(198,90,26,0.16); }
-/* Quiet hours */
-.crew-profile-page .cp-quiet { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 12px; padding: 13px 15px; border: 1px solid #ECEAE3; border-radius: 12px; }
-.crew-profile-page .cp-quiet-main { flex: 1; min-width: 200px; }
-.crew-profile-page .cp-quiet-lab { font-size: 14px; font-weight: 600; color: #1C1B3A; }
-.crew-profile-page .cp-quiet-desc { font-size: 12px; color: #8B8478; margin: 3px 0 0; }
-.crew-profile-page .cp-quiet-times { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: #6B7280; transition: opacity 0.2s ease; }
-.crew-profile-page .cp-quiet.off .cp-quiet-times { opacity: 0.4; }
-.crew-profile-page .cp-time { font: inherit; font-size: 13px; font-weight: 600; color: #1C1B3A; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 9px; padding: 6px 9px; font-variant-numeric: tabular-nums; }
-.crew-profile-page .cp-time:disabled { color: #AEB4C2; }
-/* Category grid */
-.crew-profile-page .cp-notif { margin-top: 22px; }
-.crew-profile-page .cp-notif-hcols { display: flex; justify-content: flex-end; gap: 8px; padding-right: 2px; margin-bottom: 2px; }
-.crew-profile-page .cp-notif-hc { width: 62px; text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #AEB4C2; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
-.crew-profile-page .cp-notif-grp { margin-top: 14px; }
-.crew-profile-page .cp-notif-grp .cp-group-head { margin-bottom: 2px; }
-.crew-profile-page .cp-notif-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid #F0F1F5; }
-.crew-profile-page .cp-notif-row:last-child { border-bottom: 0; }
-.crew-profile-page .cp-notif-cells { flex: 0 0 auto; display: flex; gap: 8px; }
-.crew-profile-page .cp-chan { width: 62px; height: 34px; border-radius: 10px; border: 1px solid #ECEAE3; background: #FAFAF8; color: #AEB4C2; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.14s ease; }
-.crew-profile-page .cp-chan:hover:not(:disabled) { border-color: #E8B6A6; color: #C65A1A; }
-.crew-profile-page .cp-chan.on { background: #C65A1A; border-color: #C65A1A; color: #fff; box-shadow: 0 3px 8px -3px rgba(198,90,26,0.5); }
-.crew-profile-page .cp-chan:disabled { opacity: 0.55; cursor: default; }
-.crew-profile-page .cp-chan-na { width: 62px; height: 34px; display: inline-flex; align-items: center; justify-content: center; color: #D8D6CE; font-weight: 700; }
-
-/* ── Permissions: access class + capability map ──────────────────────────── */
-/* Access-class hero — flat, editorial, no gradient. */
-.crew-profile-page .cp-acc { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap;
-  background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 14px; padding: 20px 22px; }
-.crew-profile-page .cp-acc-lead { min-width: 240px; }
-.crew-profile-page .cp-acc-k { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #8B8478; }
-.crew-profile-page .cp-acc-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 34px; line-height: 1.05; color: #1C1B3A; margin: 4px 0 8px; }
-.crew-profile-page .cp-acc-desc { font-size: 13.5px; color: #6B7280; margin: 0; max-width: 46ch; }
-.crew-profile-page .cp-acc-pick { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.crew-profile-page .cp-acc-plabel { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
-.crew-profile-page .cp-acc-sel { font: inherit; font-size: 14px; font-weight: 700; color: #1C1B3A; background: #fff; border: 1px solid #ECEAE3;
-  border-radius: 10px; padding: 9px 13px; cursor: pointer; min-width: 170px; }
-.crew-profile-page .cp-acc-sel:focus-visible { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; outline: none; }
-.crew-profile-page .cp-acc-sel:disabled { cursor: default; color: #6B7280; background: #F6F5F2; }
-.crew-profile-page .cp-acc-ex { font-size: 11.5px; font-weight: 600; color: #C65A1A; }
-/* Capability map — grouped columns of granted capabilities. Substance. */
-.crew-profile-page .cp-inc { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 18px 30px; margin-top: 14px; }
-.crew-profile-page .cp-inc-grp { }
-.crew-profile-page .cp-inc-gh { font-size: 9px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: #8B8478;
-  padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #F0F1F5; }
-.crew-profile-page .cp-inc-item { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: #1C1B3A; padding: 5px 0; }
-.crew-profile-page .cp-inc-item svg { color: #5E8E6F; flex: 0 0 auto; margin-top: 3px; }
-/* Exceptions — the editable overrides. */
-.crew-profile-page .cp-exc-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 15px 0; border-bottom: 1px solid #F0F1F5; }
-.crew-profile-page .cp-exc-row:last-of-type { border-bottom: 0; }
-.crew-profile-page .cp-exc-flag { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #C65A1A;
-  background: #FBEFE9; border-radius: 999px; padding: 3px 8px; }
-.crew-profile-page .cp-acc-lock { display: flex; gap: 8px; align-items: center; margin-top: 18px; padding: 12px 15px; border: 1px solid #ECEAE3;
-  border-radius: 11px; background: #FAFAF8; font-size: 12.5px; color: #6B7280; }
+/* ── Clean settings surface (Notifications + Permissions) ─────────────────────
+   All sans-serif, tight rows, no serif headers — modelled on Linear / GitHub /
+   Vercel. Scoped to .cp-settings2 so it doesn't touch the other profile tabs. */
+.crew-profile-page .cp-settings2 { max-width: 720px; }
+.crew-profile-page .cp-settings2 .cp-section-head h3 { font-family: 'Inter', system-ui, sans-serif; font-weight: 640; font-size: 19px; letter-spacing: -0.01em; }
+.crew-profile-page .cp-settings2 .cp-set-note-empty { font-size: 13.5px; color: #6E6E77; }
+.crew-profile-page .s2-sub { font-size: 13.5px; color: #6E6E77; margin: 6px 0 20px; }
+/* group label — small tracked-caps sans (never serif) */
+.crew-profile-page .s2-grp { font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: #A6A6AE; margin: 22px 0 2px; }
+/* rows */
+.crew-profile-page .s2-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 13px 0; border-bottom: 1px solid #EFEEEA; }
+.crew-profile-page .s2-row:last-child { border-bottom: 0; }
+.crew-profile-page .s2-main { min-width: 0; }
+.crew-profile-page .s2-label { font-size: 14px; font-weight: 560; color: #1B1B1F; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.crew-profile-page .s2-desc { font-size: 12.5px; color: #6E6E77; margin-top: 2px; }
+.crew-profile-page .s2-flag { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 3px 8px; }
+/* checkbox channels (GitHub style) */
+.crew-profile-page .s2-cbs { flex: 0 0 auto; display: flex; gap: 18px; }
+.crew-profile-page .s2-cb { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; color: #3C3C43; background: none; border: 0; cursor: pointer; padding: 0; }
+.crew-profile-page .s2-cb-box { width: 17px; height: 17px; border-radius: 5px; border: 1.5px solid #D6D4CD; display: inline-flex; align-items: center; justify-content: center; color: #fff; transition: all 0.14s ease; }
+.crew-profile-page .s2-cb.on .s2-cb-box { background: #C65A1A; border-color: #C65A1A; }
+.crew-profile-page .s2-cb:not(.na):hover .s2-cb-box { border-color: #C65A1A; }
+.crew-profile-page .s2-cb.na { color: #C7C5BE; cursor: default; }
+.crew-profile-page .s2-cb.na .s2-cb-box { border-color: #EAE8E3; border-style: dashed; }
+/* quiet hours */
+.crew-profile-page .s2-quiet { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 13px 15px; border: 1px solid #EAE8E3; border-radius: 12px; }
+.crew-profile-page .s2-quiet .s2-main { flex: 1; min-width: 200px; }
+.crew-profile-page .s2-quiet-times { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: #6E6E77; transition: opacity 0.2s ease; }
+.crew-profile-page .s2-quiet.off .s2-quiet-times { opacity: 0.4; }
+.crew-profile-page .s2-time { font: inherit; font-size: 13px; font-weight: 600; color: #1B1B1F; background: #F4F3F0; border: 1px solid #EAE8E3; border-radius: 8px; padding: 6px 9px; font-variant-numeric: tabular-nums; }
+.crew-profile-page .s2-time:disabled { color: #A6A6AE; }
+/* access row + select (permissions) */
+.crew-profile-page .s2-access { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 4px 0 16px; }
+.crew-profile-page .s2-sel { font: inherit; font-size: 14px; font-weight: 560; color: #1B1B1F; background: #fff; border: 1px solid #D6D4CD; border-radius: 9px; padding: 8px 12px; cursor: pointer; min-width: 168px; }
+.crew-profile-page .s2-sel:focus-visible { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FBEEE7; }
+.crew-profile-page .s2-sel:disabled { color: #6E6E77; background: #F4F3F0; cursor: default; }
+/* disclosure — "what X can do" */
+.crew-profile-page .s2-disc { border: 1px solid #EAE8E3; border-radius: 10px; overflow: hidden; }
+.crew-profile-page .s2-disc summary { list-style: none; cursor: pointer; padding: 11px 14px; font-size: 13px; font-weight: 560; color: #3C3C43; display: flex; align-items: center; justify-content: space-between; background: #F7F7F5; }
+.crew-profile-page .s2-disc summary::-webkit-details-marker { display: none; }
+.crew-profile-page .s2-disc summary svg { color: #A6A6AE; transition: transform 0.18s ease; }
+.crew-profile-page .s2-disc[open] summary svg { transform: rotate(90deg); }
+.crew-profile-page .s2-disc-body { padding: 4px 14px 10px; }
+.crew-profile-page .s2-caprow { display: flex; gap: 14px; padding: 8px 0; border-bottom: 1px solid #F1F0EC; font-size: 13px; }
+.crew-profile-page .s2-caprow:last-child { border-bottom: 0; }
+.crew-profile-page .s2-caparea { flex: 0 0 92px; font-weight: 600; color: #1B1B1F; }
+.crew-profile-page .s2-capitems { color: #6E6E77; }
+/* lock line */
+.crew-profile-page .s2-lock { display: flex; gap: 8px; align-items: center; margin-top: 20px; font-size: 12.5px; color: #6E6E77; }
+.crew-profile-page .s2-lock svg { color: #A6A6AE; flex: 0 0 auto; }
 
 /* ── Contract / Employment: spec sheet (field cards) + contract rail ───────── */
 .crew-profile-page .cp-contract-split {
