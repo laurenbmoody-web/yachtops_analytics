@@ -1442,7 +1442,7 @@ body.crew-profile-editorial {
 .crew-profile-page .s2-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 15px 0; border-bottom: 1px solid #F0F1F5; }
 .crew-profile-page .s2-row:last-child { border-bottom: 0; }
 .crew-profile-page .s2-main { min-width: 0; }
-.crew-profile-page .s2-label { font-size: 14px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.crew-profile-page .s2-label { font-family: 'Manrope', 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: -0.005em; color: #1C1B3A; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .crew-profile-page .s2-desc { font-size: 12.5px; color: #8B8478; margin-top: 4px; line-height: 1.5; }
 .crew-profile-page .s2-flag { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 3px 8px; }
 /* checkbox channels */
@@ -1468,14 +1468,14 @@ body.crew-profile-editorial {
 .crew-profile-page .s2-sel:disabled { color: #6B7280; background: #FAFAF8; cursor: default; }
 /* disclosure — "what X can do" */
 .crew-profile-page .s2-disc { border: 1px solid #ECEAE3; border-radius: 12px; overflow: hidden; }
-.crew-profile-page .s2-disc summary { list-style: none; cursor: pointer; padding: 13px 16px; font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; justify-content: space-between; background: #FAFAF8; }
+.crew-profile-page .s2-disc summary { list-style: none; cursor: pointer; padding: 13px 16px; font-family: 'Manrope', 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; justify-content: space-between; background: #FAFAF8; }
 .crew-profile-page .s2-disc summary::-webkit-details-marker { display: none; }
 .crew-profile-page .s2-disc summary svg { color: #AEB4C2; transition: transform 0.18s ease; }
 .crew-profile-page .s2-disc[open] summary svg { transform: rotate(90deg); }
 .crew-profile-page .s2-disc-body { padding: 6px 16px 12px; }
 .crew-profile-page .s2-caprow { display: flex; gap: 14px; padding: 9px 0; border-bottom: 1px solid #F0F1F5; font-size: 13px; }
 .crew-profile-page .s2-caprow:last-child { border-bottom: 0; }
-.crew-profile-page .s2-caparea { flex: 0 0 96px; font-weight: 600; color: #1C1B3A; }
+.crew-profile-page .s2-caparea { flex: 0 0 96px; font-family: 'Manrope', 'Inter', system-ui, sans-serif; font-weight: 600; color: #1C1B3A; }
 .crew-profile-page .s2-capitems { color: #6B7280; }
 /* lock line */
 .crew-profile-page .s2-lock { display: flex; gap: 8px; align-items: center; margin-top: 22px; font-size: 12.5px; color: #8B8478; }
