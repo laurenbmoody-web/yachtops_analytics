@@ -80,6 +80,7 @@ export default function SplatViewer({
   onPlacePending,         // (pos) => void — click/drag placed the pending pin
   onSelectHotspot,        // (hotspot | null) => void
   onLoadState,            // ({status, progress?, message?}) => void
+  stageColor = '#22253F', // WebGL clear colour — the dark stage the splat glows against
 }) {
   const containerRef = useRef(null);
   const glRef = useRef(null);        // everything the main effect builds
@@ -108,6 +109,7 @@ export default function SplatViewer({
     camera.position.copy(toVec3(cameraPosition, { x: 0, y: 1.6, z: 3 }));
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setClearColor(new THREE.Color(stageColor), 1);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.domElement.style.touchAction = 'none'; // OrbitControls owns touch

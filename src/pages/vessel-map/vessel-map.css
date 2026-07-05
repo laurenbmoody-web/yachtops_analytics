@@ -8,6 +8,14 @@
   background: #FAFAF8;
   font-family: 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
+
+  /* Stage + motion vocabulary. --vm-stage is set inline from JS (single
+     source of truth with the WebGL clear colour). One easing language:
+     UI moves at --vm-ease-ui, the camera at --vm-ease-camera. Nothing
+     bounces, nothing loops. */
+  --vm-stage: #22253F;
+  --vm-ease-ui: 220ms cubic-bezier(0.2, 0, 0, 1);
+  --vm-ease-camera: 400ms;
 }
 
 .vm-shell {
@@ -151,14 +159,86 @@
 }
 
 /* ── Stage: viewer + overlays ───────────────────────────────────────────── */
+/* A dark instrument display inset into the editorial cream page — the splat
+   glows against it. */
 .vm-stage {
   position: relative;
   height: min(68vh, 720px);
   border: 1px solid #ECEAE3;
   border-radius: 16px;
   overflow: hidden;
-  background: #1C1B3A; /* the room reads best out of near-dark */
+  background: var(--vm-stage);
 }
+
+/* ── ≥1024px: breadcrumb + chips float on the stage, light-on-dark ──────── */
+.vm-stage-overlay { display: none; }
+
+@media (min-width: 1024px) {
+  .vm-stage {
+    border-radius: 12px;
+    border-color: #1A1D3F;
+  }
+
+  /* The meta strip and chip row move onto the canvas; the serif headline
+     stays in the cream shell. */
+  .vm-headblock .editorial-meta { display: none; }
+  .vm-toolbar .vm-layer-chips { display: none; }
+
+  .vm-stage-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .vm-stage-overlay > * { pointer-events: auto; }
+
+  .vm-ov-breadcrumb {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #C9CBD9;
+  }
+  .vm-ov-breadcrumb .dot { color: #C65A1A; font-size: 8px; }
+  .vm-ov-breadcrumb .sep { color: #6B6F92; }
+  .vm-ov-breadcrumb em {
+    font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 16px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #E8946A; /* terracotta, lifted for contrast on the stage */
+  }
+
+  .vm-ov-chips { display: flex; flex-wrap: wrap; gap: 8px; max-width: 520px; }
+}
+
+/* Dark chip treatment — floating on the stage */
+.vm-chip-dark {
+  background: rgba(26, 29, 63, 0.55);
+  border-color: rgba(244, 243, 238, 0.16);
+  color: #C9CBD9;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background var(--vm-ease-ui), color var(--vm-ease-ui), border-color var(--vm-ease-ui);
+}
+.vm-chip-dark:hover { border-color: rgba(232, 148, 106, 0.6); }
+.vm-chip-dark.vm-chip-on {
+  background: rgba(198, 90, 26, 0.22);
+  border-color: rgba(224, 123, 60, 0.55);
+  color: #F4F3EE;
+}
+.vm-chip-dark .vm-chip-count { color: #E8946A; }
 
 .vm-canvas { position: absolute; inset: 0; }
 .vm-canvas canvas { display: block; width: 100%; height: 100%; }
@@ -174,10 +254,12 @@
   pointer-events: none;
 }
 .vm-loading-label {
-  color: #FAFAF8;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 10px;
+  color: #C9CBD9;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
 }
 .vm-loading-track {
   height: 4px;
