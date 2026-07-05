@@ -1021,7 +1021,7 @@ const canEdit = (() => {
         .eq('user_id', session.user.id)
         .maybeSingle();
       if (cancelled) return;
-      // Missing row = all categories on (the table default).
+      // Missing row = everything on, quiet hours off (the table defaults).
       setNotifPrefs(data || {
         notify_rota_submissions: true,
         notify_rota_decisions: true,
@@ -1029,37 +1029,58 @@ const canEdit = (() => {
         notify_provisioning_approvals: true,
         notify_document_expiry: true,
         notify_returns: true,
+        notify_seatime: true,
+        notify_vessel_docs: true,
+        email_rota_submissions: true,
+        email_rota_decisions: true,
+        email_hor_reminders: true,
+        email_seatime: true,
+        quiet_enabled: false,
+        quiet_from: '22:00',
+        quiet_to: '07:00',
       });
     })();
     return () => { cancelled = true; };
   }, [activeSection, isOwnProfile, notifPrefs, session?.user?.id]);
 
-  const handleToggleNotif = async (key) => {
+  // Persist a patch of notification-preference columns (optimistic + revert).
+  const saveNotifPrefs = async (patch, busyKey) => {
     if (!isOwnProfile || notifSavingKey) return;
-    const next = { ...notifPrefs, [key]: !notifPrefs?.[key] };
-    setNotifPrefs(next);   // optimistic
-    setNotifSavingKey(key);
+    const prev = notifPrefs;
+    setNotifPrefs({ ...notifPrefs, ...patch });   // optimistic
+    setNotifSavingKey(busyKey || Object.keys(patch)[0]);
     const { error } = await supabase
       .from('notification_preferences')
       .upsert(
-        { user_id: session.user.id, [key]: next[key], updated_at: new Date().toISOString() },
+        { user_id: session.user.id, ...patch, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' },
       );
     setNotifSavingKey(null);
     if (error) {
-      setNotifPrefs((prev) => ({ ...prev, [key]: !next[key] }));   // revert
+      setNotifPrefs(prev);   // revert
       showToast(error?.message || 'Couldn’t update notification preference', 'error');
     }
   };
+  const toggleNotif = (col) => saveNotifPrefs({ [col]: !notifPrefs?.[col] }, col);
 
-  // Notification categories surfaced in the settings section.
-  const NOTIF_CATEGORIES = [
-    { key: 'notify_rota_submissions', label: 'Rota sent for acceptance', desc: 'A rota submitted to you for approval.', email: true },
-    { key: 'notify_rota_decisions', label: 'Rota approved or sent back', desc: 'Decisions on a rota you submitted.', email: true },
-    { key: 'notify_hor_reminders', label: 'Hours of rest reminders', desc: 'Unlogged days, sign-off due, and overdue months.', email: true },
-    { key: 'notify_provisioning_approvals', label: 'Provisioning approvals', desc: 'Boards awaiting you, and decisions on yours.', email: false },
-    { key: 'notify_document_expiry', label: 'Document expiries', desc: 'Certificates expiring within 90 days.', email: false },
-    { key: 'notify_returns', label: 'Return confirmations', desc: 'When a return you’re involved in is confirmed.', email: false },
+  // Notification categories — grouped by domain. `bell` / `email` name the DB
+  // columns for each channel; `email: null` means that category never emails.
+  // `senior` categories only apply to Command/Chief (vessel-wide signals).
+  const NOTIF_GROUPS = [
+    { g: 'Rota & Hours of Rest', items: [
+      { bell: 'notify_rota_submissions', email: 'email_rota_submissions', label: 'Rota sent for your acceptance', desc: 'A department rota submitted to you for approval.' },
+      { bell: 'notify_rota_decisions', email: 'email_rota_decisions', label: 'Rota approved or sent back', desc: 'Decisions on a rota you submitted.' },
+      { bell: 'notify_hor_reminders', email: 'email_hor_reminders', label: 'Hours of Rest reminders', desc: 'Unlogged days, sign-off due, overdue months.' },
+    ] },
+    { g: 'Provisioning & suppliers', items: [
+      { bell: 'notify_provisioning_approvals', email: null, label: 'Provisioning approvals', desc: 'Boards awaiting you, and decisions on yours.' },
+      { bell: 'notify_returns', email: null, label: 'Return confirmations', desc: 'When a return you’re involved in is confirmed.' },
+    ] },
+    { g: 'Documents & sea-time', items: [
+      { bell: 'notify_document_expiry', email: null, label: 'Your document expiry', desc: 'Your certificates expiring within 90 days.' },
+      { bell: 'notify_vessel_docs', email: null, label: 'Vessel document expiry', desc: 'Ship’s papers & certificates.', senior: true },
+      { bell: 'notify_seatime', email: 'email_seatime', label: 'Sea-time & attestations', desc: 'Sign-off requests and decisions on your sea service.' },
+    ] },
   ];
 
   // ── Contract / Employment ───────────────────────────────────────────────────
@@ -3621,47 +3642,99 @@ const canEdit = (() => {
 
   const renderNotifications = () => {
     const firstName = crewMember?.firstName || 'This person';
+    const isSenior = isVesselAdmin || ['COMMAND', 'CHIEF'].includes(String(currentUserPermissionTier || '').toUpperCase());
+
+    if (!isOwnProfile) {
+      return (
+        <div>
+          <div className="cp-section-head"><h3>Notifications</h3></div>
+          <p className="cp-set-note-empty">Notification preferences are personal — only {firstName} can manage these from their own profile.</p>
+        </div>
+      );
+    }
+    if (notifPrefs === null) {
+      return (
+        <div>
+          <div className="cp-section-head"><h3>Notifications</h3></div>
+          <p className="cp-set-note-empty">Loading…</p>
+        </div>
+      );
+    }
+
+    // A channel cell: a compact pill toggle. `state` — 'on' | 'off' | 'na'.
+    const chan = (col, icon, title) => {
+      if (col == null) return <span className="cp-chan cp-chan-na" aria-hidden="true">–</span>;
+      const on = notifPrefs?.[col] !== false;
+      const busy = notifSavingKey === col;
+      return (
+        <button
+          type="button"
+          className={`cp-chan${on ? ' on' : ''}`}
+          onClick={() => toggleNotif(col)}
+          disabled={busy}
+          aria-pressed={on}
+          title={`${title} — ${on ? 'on' : 'off'}`}
+        >
+          <Icon name={icon} size={14} />
+        </button>
+      );
+    };
+
+    // Overall reach — which channels are used anywhere.
+    const bellCols = NOTIF_GROUPS.flatMap((g) => g.items.map((i) => i.bell));
+    const emailCols = NOTIF_GROUPS.flatMap((g) => g.items.map((i) => i.email).filter(Boolean));
+    const bellLit = bellCols.some((c) => notifPrefs?.[c] !== false);
+    const emailLit = emailCols.some((c) => notifPrefs?.[c] !== false);
+    const qOn = notifPrefs?.quiet_enabled === true;
+
     return (
       <div>
-        <div className="cp-section-head">
-          <span className="cp-section-num">★ /</span>
-          <h3>Notifications</h3>
+        <div className="cp-section-head"><h3>Notifications</h3></div>
+        <p className="cp-set-sub">Choose how you hear about things. Approval and safety emails are always sent for time-critical items.</p>
+
+        {/* Reach summary */}
+        <div className="cp-reach">
+          <span className="cp-reach-cap">Reaching you via</span>
+          <span className={`cp-lamp${bellLit ? ' lit' : ''}`}><span className="b" /><Icon name="Bell" size={13} /> In-app</span>
+          <span className={`cp-lamp${emailLit ? ' lit' : ''}`}><span className="b" /><Icon name="Mail" size={13} /> Email</span>
         </div>
-        <div className="cp-group">
-          <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">In-app &amp; email alerts</span><span className="line" />
+
+        {/* Quiet hours */}
+        <div className={`cp-quiet${qOn ? '' : ' off'}`}>
+          <div className="cp-quiet-main">
+            <div className="cp-quiet-lab">Quiet hours</div>
+            <p className="cp-quiet-desc">Hold the in-app bell overnight. Safety &amp; approval alerts still come through.</p>
           </div>
-          {!isOwnProfile ? (
-            <p className="cp-set-note-empty">Notification preferences are personal — only {firstName} can manage these from their own profile.</p>
-          ) : notifPrefs === null ? (
-            <p className="cp-set-note-empty">Loading…</p>
-          ) : (
-            <>
-              {NOTIF_CATEGORIES.map((c) => {
-                const on = notifPrefs?.[c.key] !== false;
-                return (
-                  <div className="cp-set-row" key={c.key}>
-                    <div className="cp-set-main">
-                      <div className="cp-set-label">
-                        {c.label}
-                        <span className={`cp-chanchip ${on ? 'on' : ''}`}>Bell</span>
-                        {c.email && <span className="cp-chanchip">Email</span>}
-                      </div>
-                      <p className="cp-set-desc">{c.desc}</p>
-                    </div>
-                    {renderSwitch(
-                      on,
-                      () => handleToggleNotif(c.key),
-                      { disabled: notifSavingKey === c.key, busy: notifSavingKey === c.key, label: c.label },
-                    )}
+          <div className="cp-quiet-times">
+            <input type="time" className="cp-time" value={notifPrefs?.quiet_from?.slice(0, 5) || '22:00'}
+              onChange={(e) => saveNotifPrefs({ quiet_from: e.target.value }, 'quiet_from')} aria-label="Quiet from" disabled={!qOn} />
+            <span>to</span>
+            <input type="time" className="cp-time" value={notifPrefs?.quiet_to?.slice(0, 5) || '07:00'}
+              onChange={(e) => saveNotifPrefs({ quiet_to: e.target.value }, 'quiet_to')} aria-label="Quiet to" disabled={!qOn} />
+          </div>
+          {renderSwitch(qOn, () => toggleNotif('quiet_enabled'), { disabled: notifSavingKey === 'quiet_enabled', busy: notifSavingKey === 'quiet_enabled', label: 'Quiet hours' })}
+        </div>
+
+        {/* Category × channel grid */}
+        <div className="cp-notif">
+          <div className="cp-notif-hcols"><span className="cp-notif-hc"><Icon name="Bell" size={12} /> In-app</span><span className="cp-notif-hc"><Icon name="Mail" size={12} /> Email</span></div>
+          {NOTIF_GROUPS.map((grp) => (
+            <div className="cp-notif-grp" key={grp.g}>
+              <div className="cp-group-head"><span className="t">{grp.g}</span><span className="line" /></div>
+              {grp.items.filter((it) => !it.senior || isSenior).map((it) => (
+                <div className="cp-notif-row" key={it.bell}>
+                  <div className="cp-set-main">
+                    <div className="cp-set-label">{it.label}</div>
+                    <p className="cp-set-desc">{it.desc}</p>
                   </div>
-                );
-              })}
-              <p className="cp-set-note">
-                Toggles control your in-app bell. Approval and reminder emails are still sent for time-critical items.
-              </p>
-            </>
-          )}
+                  <div className="cp-notif-cells">
+                    {chan(it.bell, 'Bell', 'In-app')}
+                    {chan(it.email, 'Mail', 'Email')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
     );
