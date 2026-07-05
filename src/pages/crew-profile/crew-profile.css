@@ -57,6 +57,14 @@ body.crew-profile-editorial {
    section pages, without restyling the global <Header> or portaled
    modal chrome. */
 
+/* Base UI sans for the whole profile surface — Manrope, with Inter as the
+   fallback. Matches the label typography introduced on the settings tabs so
+   every tab reads the same. The serif titles below keep their explicit
+   DM Serif family, so headings are unaffected. */
+.crew-profile-page {
+  font-family: 'Manrope', 'Inter', system-ui, sans-serif;
+}
+
 /* Display serif section titles in editorial ink, matching the canonical
    "DM Serif Display" headline used by the page header + other editorial
    surfaces. Falls back to Georgia where the webfont isn't available. */
