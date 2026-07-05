@@ -22,16 +22,20 @@ import { supabase } from './supabaseClient';
 // rows in the same shape NotificationsDrawer expects. Respects the viewer's
 // document-expiry notification preference (off → returns nothing).
 export async function fetchDerivedNotifications(userId = null) {
+  let allowVesselDocs = true;
   try {
+    let allowCrewDocs = true;
     if (userId) {
       const { data: pref } = await supabase
         .from('notification_preferences')
-        .select('notify_document_expiry')
+        .select('notify_document_expiry, notify_vessel_docs')
         .eq('user_id', userId)
         .maybeSingle();
-      if (pref && pref.notify_document_expiry === false) return [];
+      if (pref && pref.notify_document_expiry === false) allowCrewDocs = false;
+      if (pref && pref.notify_vessel_docs === false) allowVesselDocs = false;
     }
-    const docs = await fetchExpiringDocuments(90);
+    if (!allowCrewDocs && !allowVesselDocs) return [];
+    const docs = allowCrewDocs ? await fetchExpiringDocuments(90) : [];
     const out = (docs || []).map((d) => {
       const s = getExpiryStatus(d.expiry_date);
       const days = s?.days ?? null;
@@ -67,7 +71,7 @@ export async function fetchDerivedNotifications(userId = null) {
     // Vessel documents (ship's papers / certificates). RLS only returns these
     // to Command/Chief, so non-senior crew see nothing here.
     try {
-      const vdocs = await fetchExpiringVesselDocuments({ withinDays: 90 });
+      const vdocs = allowVesselDocs ? await fetchExpiringVesselDocuments({ withinDays: 90 }) : [];
       (vdocs || []).forEach((d) => {
         const s = getExpiryStatus(d.expiry_date);
         const days = s?.days ?? null;
