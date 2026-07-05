@@ -14,6 +14,8 @@ import { useTenant } from '../../contexts/TenantContext';
 import Header from '../../components/navigation/Header';
 import SplatViewer from './components/SplatViewer';
 import HotspotModal from './components/HotspotModal';
+import ToolRail from './components/ToolRail';
+import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel } from './layers';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
@@ -34,6 +36,21 @@ const fmtDate = (iso) => {
 
 const fmtMB = (bytes) => `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 
+// Matches the CSS breakpoint where the workspace layout (rail, floating
+// chrome) replaces the mobile variant.
+const useIsDesktop = () => {
+  const [desktop, setDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = (e) => setDesktop(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return desktop;
+};
+
 export default function VesselMapPage() {
   const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
@@ -49,9 +66,14 @@ export default function VesselMapPage() {
   const [activeLayers, setActiveLayers] = useState(() => new Set(LAYERS.map((l) => l.key)));
   const [viewer, setViewer] = useState({ status: 'idle' });
   const [selectedHotspot, setSelectedHotspot] = useState(null);
-  const [placementMode, setPlacementMode] = useState(false);
+  // Canvas mode — the rail's single active tool. 'pin' is the old
+  // placementMode; the mobile variant's Add-hotspot button drives the same
+  // state.
+  const [mode, setMode] = useState('navigate');
   const [pendingPosition, setPendingPosition] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const isDesktop = useIsDesktop();
+  const placementMode = mode === 'pin';
 
   const selectedScan = useMemo(
     () => scans.find((s) => s.id === selectedScanId) || null,
@@ -122,7 +144,7 @@ export default function VesselMapPage() {
 
   useEffect(() => {
     setSelectedHotspot(null);
-    setPlacementMode(false);
+    setMode('navigate');
     setPendingPosition(null);
     loadHotspots();
   }, [loadHotspots]);
@@ -150,13 +172,40 @@ export default function VesselMapPage() {
   const startPlacement = () => {
     setSelectedHotspot(null);
     setPendingPosition(null);
-    setPlacementMode(true);
+    setMode('pin');
   };
   const cancelPlacement = () => {
-    setPlacementMode(false);
+    setMode('navigate');
     setPendingPosition(null);
     setModalOpen(false);
   };
+
+  // Desktop is the one-gesture flow: click drops the pin AND opens the
+  // creation modal. The mobile variant keeps the shipped two-step
+  // (drop → drag to fine-tune → Save).
+  const placePending = (pos) => {
+    setPendingPosition(pos);
+    if (isDesktop && pos) setModalOpen(true);
+  };
+
+  const dismissModal = () => {
+    setModalOpen(false);
+    if (isDesktop) setPendingPosition(null); // stay in Pin mode, retry the click
+  };
+
+  // Keyboard vocabulary (desktop only): V navigate, P pin, Escape unwinds —
+  // modal first, then selection, then back to Navigate.
+  useCanvasShortcuts({
+    v: () => cancelPlacement(),
+    p: () => {
+      if (canPlaceHotspots && viewer.status === 'ready') startPlacement();
+    },
+    escape: () => {
+      if (modalOpen) dismissModal();
+      else if (selectedHotspot) setSelectedHotspot(null);
+      else cancelPlacement();
+    },
+  }, { enabled: isDesktop });
 
   // Returns an error message on failure (modal shows it), null on success.
   const saveHotspot = async ({ label, layer }) => {
@@ -181,6 +230,7 @@ export default function VesselMapPage() {
     setHotspots((prev) => [...prev, data]);
     setActiveLayers((prev) => new Set(prev).add(layer)); // never save into a hidden layer
     cancelPlacement();
+    setSelectedHotspot(data); // pin it, name it, then enrich it — selection opens the details
     return null;
   };
 
@@ -298,11 +348,25 @@ export default function VesselMapPage() {
                     hotspots={visibleHotspots}
                     placementMode={placementMode}
                     pendingPosition={pendingPosition}
-                    onPlacePending={setPendingPosition}
+                    onPlacePending={placePending}
                     onSelectHotspot={setSelectedHotspot}
                     onLoadState={setViewer}
                     stageColor={VM_STAGE}
                   />
+                )}
+
+                <ToolRail
+                  mode={mode}
+                  onMode={(m) => (m === 'pin' ? startPlacement() : cancelPlacement())}
+                  canPin={canPlaceHotspots}
+                  pinReady={viewer.status === 'ready'}
+                />
+
+                {placementMode && !modalOpen && (
+                  <div className="vm-pin-hint">
+                    Click to drop a pin
+                    <span className="vm-pin-hint-kbd">Esc cancels</span>
+                  </div>
                 )}
 
                 {/* ≥1024px: breadcrumb + layer chips float on the dark stage,
@@ -385,7 +449,7 @@ export default function VesselMapPage() {
       </div>
 
       {modalOpen && pendingPosition && (
-        <HotspotModal onSave={saveHotspot} onCancel={() => setModalOpen(false)} />
+        <HotspotModal onSave={saveHotspot} onCancel={dismissModal} />
       )}
     </>
   );
