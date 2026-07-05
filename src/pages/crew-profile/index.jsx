@@ -3514,10 +3514,11 @@ const canEdit = (() => {
   );
 
   const renderPermissions = () => {
-    const memberTier = String(crewMember?.effectiveTier || '').toUpperCase();
+    // Prefer the explicit class (permission_tier_override) so the credential
+    // reflects the selected class live; fall back to the resolved tier.
+    const memberTier = String(crewMember?.permissionTierOverride || crewMember?.effectiveTier || '').toUpperCase();
     const tierLabel = memberTier ? getTierDisplayName(memberTier) : '—';
     const firstName = crewMember?.firstName || 'This person';
-    const lockNote = !canEditPermissions ? <p className="cp-set-note">Only COMMAND can change this.</p> : null;
 
     // Effective capability values: explicit flag, else tier default.
     const canEditRota = crewMember?.canEditRota ?? ['COMMAND', 'CHIEF', 'HOD'].includes(memberTier);
@@ -3529,8 +3530,6 @@ const canEdit = (() => {
     const confirmQuotesNoApproval = orderNoApproval
       ? (crewMember?.canConfirmQuotesWithoutApproval ?? (memberTier === 'COMMAND'))
       : false;
-
-    const editDisabled = !canEditPermissions || !!permSaving;
 
     // Toggle handlers (with master→dependent cascades).
     const toggleCanEditRota = () => {
@@ -3564,77 +3563,73 @@ const canEdit = (() => {
       updateCaps({ can_confirm_quotes_without_approval: next }, { canConfirmQuotesWithoutApproval: next });
     };
 
-    const setRow = (label, desc, checked, onClick, { disabled, indent } = {}) => (
-      <div className="cp-set-row" style={indent ? { paddingLeft: 18 } : undefined}>
+    const editable = canEditPermissions && !permSaving;
+    const nm = crewMember?.fullName || firstName;
+    const roleLine = [crewMember?.roleTitle || 'Crew', crewMember?.department].filter(Boolean).join(' · ');
+
+    const capRow = (label, desc, checked, onClick, opts = {}) => (
+      <div className="cp-cred-cap">
         <div className="cp-set-main">
           <div className="cp-set-label">{label}</div>
           {desc && <p className="cp-set-desc">{desc}</p>}
         </div>
-        {renderSwitch(checked, onClick, { disabled: editDisabled || disabled, busy: !!permSaving, label })}
+        {renderSwitch(checked, onClick, { disabled: !editable || opts.disabled, busy: !!permSaving, label })}
       </div>
     );
 
+    // Read-only summary of what the CLASS grants — the tier-derived capabilities
+    // that aren't per-member switches. Informational, so Command sees the
+    // baseline the class already includes before touching the exceptions.
+    const INCLUDED = {
+      COMMAND: ['Full vessel access', 'Set permissions', 'View & edit costs', 'Approve Hours of Rest', 'Sign sea-service', 'Manage cabins & crew', 'All exports'],
+      CHIEF: ['Approve dept rota & Hours of Rest', 'View & edit costs', 'Manage guests & trips', 'Exports'],
+      HOD: ['Runs a department', 'Submit rota for approval', 'View costs'],
+      CREW: ['Own work & profile', 'Log own hours', 'Accept assigned jobs'],
+      VIEW_ONLY: ['Read-only across the app'],
+    };
+    const included = INCLUDED[memberTier] || [];
+
     return (
       <div>
-        <div className="cp-section-head">
-          <span className="cp-section-num">★ /</span>
-          <h3>Permissions</h3>
-        </div>
-
-        {/* Access — read-only context (department & role live in the meta bar) */}
-        <div className="cp-group">
-          <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Access</span><span className="line" />
-          </div>
-          <div className="cp-set-row">
-            <div className="cp-set-main">
-              <div className="cp-set-label">Access level</div>
-              <p className="cp-set-desc">Determines what {firstName === 'This person' ? 'this person' : firstName} can see and do across the vessel. Managed in Crew Management.</p>
+        <div className="cp-section-head"><h3>Permissions</h3></div>
+        <div className="cp-cred">
+          <div className="cp-cred-top">
+            <div className="cp-cred-av">
+              {crewMember?.avatarUrl ? <img src={crewMember.avatarUrl} alt={nm} /> : (getInitials(crewMember?.fullName) || 'CR')}
             </div>
-            <div className="cp-set-side"><span className="cp-set-pill accent">{tierLabel}</span></div>
+            <div className="cp-cred-who">
+              <div className="nm">{nm}</div>
+              <div className="rl">{roleLine}</div>
+            </div>
+            <div className="cp-cred-cls">
+              <div className="k">Access class</div>
+              <select
+                className="cp-cred-sel"
+                value={crewMember?.permissionTierOverride || ''}
+                disabled={!editable}
+                onChange={(e) => updateCaps({ permission_tier_override: e.target.value || null }, { permissionTierOverride: e.target.value || null }, 'tier')}
+              >
+                {EMP_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
           </div>
-        </div>
-
-        {/* Rota */}
-        <div className="cp-group">
-          <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Rota</span><span className="line" />
+          <div className="cp-cred-body">
+            {included.length > 0 && (
+              <div className="cp-cred-inc">
+                <div className="cp-cred-h">Included with {tierLabel}</div>
+                <div className="cp-cred-caps">{included.map((c) => <span className="cp-cred-chip" key={c}>{c}</span>)}</div>
+              </div>
+            )}
+            <div className="cp-cred-h cp-cred-h-ft">Cleared for — fine-tune the exceptions</div>
+            {capRow('Edit the rota', 'Off makes the rota view-only for this person.', canEditRota, toggleCanEditRota)}
+            {capRow('Publish rota without approval', canEditRota ? 'On publishes directly; off routes changes for review.' : 'Needs rota editing enabled first.', publishNoApproval, togglePublishNoApproval, { disabled: !canEditRota })}
+            {capRow('Send supplier orders without approval', 'On sends straight to suppliers; off routes for approval.', orderNoApproval, toggleOrderNoApproval)}
+            {capRow('Confirm supplier quotes without approval', orderNoApproval ? 'On confirms directly; off routes for approval.' : 'Needs sending-without-approval enabled first.', confirmQuotesNoApproval, toggleConfirmQuotes, { disabled: !orderNoApproval })}
           </div>
-          {setRow(
-            'Able to make rota edits',
-            'Allows editing crew shifts on the rota. Off means view-only.',
-            canEditRota, toggleCanEditRota,
-          )}
-          {setRow(
-            'Able to publish rota edits without approval',
-            canEditRota
-              ? 'On publishes directly; off routes changes for approval first.'
-              : 'Requires rota editing to be enabled first.',
-            publishNoApproval, togglePublishNoApproval,
-            { disabled: !canEditRota, indent: true },
-          )}
-          {lockNote}
-        </div>
-
-        {/* Supplier orders */}
-        <div className="cp-group">
-          <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Supplier orders</span><span className="line" />
+          <div className="cp-cred-lock">
+            <span>🔒</span>
+            <span>{canEditPermissions ? 'You’re Command — changes save immediately.' : `Only Command can change ${firstName === 'This person' ? 'this person' : firstName}’s access.`}</span>
           </div>
-          {setRow(
-            'Able to send supplier order requests without approval',
-            'On sends orders straight to suppliers; off routes them for approval first.',
-            orderNoApproval, toggleOrderNoApproval,
-          )}
-          {setRow(
-            'Able to confirm supplier quotes without approval',
-            orderNoApproval
-              ? 'On confirms quotes directly; off routes them for approval first.'
-              : 'Requires sending orders without approval to be enabled first.',
-            confirmQuotesNoApproval, toggleConfirmQuotes,
-            { disabled: !orderNoApproval, indent: true },
-          )}
-          {lockNote}
         </div>
       </div>
     );
