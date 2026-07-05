@@ -3569,10 +3569,10 @@ const canEdit = (() => {
     const capRow = (label, desc, checked, onClick, opts = {}) => {
       const changed = opts.def != null && checked !== opts.def;
       return (
-        <div className="cp-exc-row">
-          <div className="cp-set-main">
-            <div className="cp-set-label">{label}{changed && <span className="cp-exc-flag">Exception</span>}</div>
-            {desc && <p className="cp-set-desc">{desc}</p>}
+        <div className="s2-row">
+          <div className="s2-main">
+            <div className="s2-label">{label}{changed && <span className="s2-flag">Exception</span>}</div>
+            {desc && <div className="s2-desc">{desc}</div>}
           </div>
           {renderSwitch(checked, onClick, { disabled: !editable || opts.disabled, busy: !!permSaving, label })}
         </div>
@@ -3624,56 +3624,46 @@ const canEdit = (() => {
     const groups = INCLUDED[memberTier] || [];
 
     return (
-      <div>
+      <div className="cp-settings2">
         <div className="cp-section-head"><h3>Permissions</h3></div>
 
-        {/* Access class — the editorial hero for this tab */}
-        <div className="cp-acc">
-          <div className="cp-acc-lead">
-            <span className="cp-acc-k">Access class</span>
-            <div className="cp-acc-name">{tierLabel}</div>
-            <p className="cp-acc-desc">{CLASS_DESC[memberTier] || 'Access level not set.'}</p>
+        {/* Access class — a single dropdown (Vercel / Linear / Notion pattern) */}
+        <div className="s2-access">
+          <div className="s2-main">
+            <div className="s2-label">Access class</div>
+            <div className="s2-desc">{CLASS_DESC[memberTier] || 'The role that sets default access.'}</div>
           </div>
-          <div className="cp-acc-pick">
-            <label className="cp-acc-plabel" htmlFor="cp-acc-sel">Set class</label>
-            <select
-              id="cp-acc-sel"
-              className="cp-acc-sel"
-              value={crewMember?.permissionTierOverride || ''}
-              disabled={!editable}
-              onChange={(e) => updateCaps({ permission_tier_override: e.target.value || null }, { permissionTierOverride: e.target.value || null }, 'tier')}
-            >
-              {EMP_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-            <span className="cp-acc-ex">{exceptions === 0 ? 'No exceptions' : `${exceptions} exception${exceptions === 1 ? '' : 's'}`}</span>
-          </div>
+          <select
+            className="s2-sel"
+            value={crewMember?.permissionTierOverride || ''}
+            disabled={!editable}
+            onChange={(e) => updateCaps({ permission_tier_override: e.target.value || null }, { permissionTierOverride: e.target.value || null }, 'tier')}
+          >
+            {EMP_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
         </div>
 
-        {/* Capability map */}
-        <div className="cp-group-head" style={{ marginTop: 26 }}><span className="t">What {tierLabel} grants</span><span className="line" /></div>
-        <div className="cp-inc">
-          {groups.map((g) => (
-            <div className="cp-inc-grp" key={g.area}>
-              <div className="cp-inc-gh">{g.area}</div>
-              {g.items.map((it) => (
-                <div className="cp-inc-item" key={it}><Icon name="Check" size={13} /> <span>{it}</span></div>
-              ))}
-            </div>
-          ))}
-        </div>
+        {/* Capability detail — tucked behind a disclosure, not a wall */}
+        <details className="s2-disc">
+          <summary>What {tierLabel} can do<Icon name="ChevronRight" size={15} /></summary>
+          <div className="s2-disc-body">
+            {groups.map((g) => (
+              <div className="s2-caprow" key={g.area}>
+                <span className="s2-caparea">{g.area}</span>
+                <span className="s2-capitems">{g.items.join(' · ')}</span>
+              </div>
+            ))}
+          </div>
+        </details>
 
-        {/* Exceptions */}
-        <div className="cp-group-head" style={{ marginTop: 28 }}><span className="t">Exceptions for {whom}</span><span className="line" /></div>
-        <p className="cp-set-sub" style={{ margin: '6px 0 4px' }}>Overrides on top of the class. Leave as-is to inherit the class defaults.</p>
+        {/* Exceptions — the real per-person overrides */}
+        <div className="s2-grp" style={{ marginTop: 24 }}>Exceptions for {whom}{exceptions > 0 ? ` · ${exceptions}` : ''}</div>
         {capRow('Edit the rota', 'Off makes the rota view-only for this person.', canEditRota, toggleCanEditRota, { def: defEdit })}
         {capRow('Publish rota without approval', canEditRota ? 'On publishes directly; off routes changes for review.' : 'Needs rota editing enabled first.', publishNoApproval, togglePublishNoApproval, { disabled: !canEditRota, def: defPublish })}
         {capRow('Send supplier orders without approval', 'On sends straight to suppliers; off routes for approval.', orderNoApproval, toggleOrderNoApproval, { def: defOrder })}
         {capRow('Confirm supplier quotes without approval', orderNoApproval ? 'On confirms directly; off routes for approval.' : 'Needs sending-without-approval enabled first.', confirmQuotesNoApproval, toggleConfirmQuotes, { disabled: !orderNoApproval, def: defConfirm })}
 
-        <div className="cp-acc-lock">
-          <span>🔒</span>
-          <span>{canEditPermissions ? 'You’re Command — changes save immediately.' : `Only Command can change ${whom}’s access.`}</span>
-        </div>
+        <div className="s2-lock"><Icon name="Lock" size={13} /> {canEditPermissions ? 'Changes save immediately.' : `Only Command can change ${whom}’s access.`}</div>
       </div>
     );
   };
@@ -3684,7 +3674,7 @@ const canEdit = (() => {
 
     if (!isOwnProfile) {
       return (
-        <div>
+        <div className="cp-settings2">
           <div className="cp-section-head"><h3>Notifications</h3></div>
           <p className="cp-set-note-empty">Notification preferences are personal — only {firstName} can manage these from their own profile.</p>
         </div>
@@ -3692,88 +3682,71 @@ const canEdit = (() => {
     }
     if (notifPrefs === null) {
       return (
-        <div>
+        <div className="cp-settings2">
           <div className="cp-section-head"><h3>Notifications</h3></div>
           <p className="cp-set-note-empty">Loading…</p>
         </div>
       );
     }
 
-    // A channel cell: a compact pill toggle. `state` — 'on' | 'off' | 'na'.
-    const chan = (col, icon, title) => {
-      if (col == null) return <span className="cp-chan cp-chan-na" aria-hidden="true">–</span>;
-      const on = notifPrefs?.[col] !== false;
+    // A labelled checkbox for one channel column (GitHub style). Null column =
+    // channel not available for this category (rendered faint, non-interactive).
+    const cb = (col, label) => {
+      const na = col == null;
+      const on = !na && notifPrefs?.[col] !== false;
       const busy = notifSavingKey === col;
       return (
         <button
           type="button"
-          className={`cp-chan${on ? ' on' : ''}`}
-          onClick={() => toggleNotif(col)}
-          disabled={busy}
-          aria-pressed={on}
-          title={`${title} — ${on ? 'on' : 'off'}`}
+          className={`s2-cb${on ? ' on' : ''}${na ? ' na' : ''}`}
+          onClick={na ? undefined : () => toggleNotif(col)}
+          disabled={na || busy}
+          aria-pressed={na ? undefined : on}
         >
-          <Icon name={icon} size={14} />
+          <span className="s2-cb-box">{on && <Icon name="Check" size={11} />}</span>{label}
         </button>
       );
     };
-
-    // Overall reach — which channels are used anywhere.
-    const bellCols = NOTIF_GROUPS.flatMap((g) => g.items.map((i) => i.bell));
-    const emailCols = NOTIF_GROUPS.flatMap((g) => g.items.map((i) => i.email).filter(Boolean));
-    const bellLit = bellCols.some((c) => notifPrefs?.[c] !== false);
-    const emailLit = emailCols.some((c) => notifPrefs?.[c] !== false);
     const qOn = notifPrefs?.quiet_enabled === true;
 
     return (
-      <div>
+      <div className="cp-settings2">
         <div className="cp-section-head"><h3>Notifications</h3></div>
-        <p className="cp-set-sub">Choose how you hear about things. Approval and safety emails are always sent for time-critical items.</p>
-
-        {/* Reach summary */}
-        <div className="cp-reach">
-          <span className="cp-reach-cap">Reaching you via</span>
-          <span className={`cp-lamp${bellLit ? ' lit' : ''}`}><span className="b" /><Icon name="Bell" size={13} /> In-app</span>
-          <span className={`cp-lamp${emailLit ? ' lit' : ''}`}><span className="b" /><Icon name="Mail" size={13} /> Email</span>
-        </div>
+        <p className="s2-sub">Choose how you hear about things. Approval and safety emails are always sent for time-critical items.</p>
 
         {/* Quiet hours */}
-        <div className={`cp-quiet${qOn ? '' : ' off'}`}>
-          <div className="cp-quiet-main">
-            <div className="cp-quiet-lab">Quiet hours</div>
-            <p className="cp-quiet-desc">Hold the in-app bell overnight. Safety &amp; approval alerts still come through.</p>
+        <div className={`s2-quiet${qOn ? '' : ' off'}`}>
+          <div className="s2-main">
+            <div className="s2-label">Quiet hours</div>
+            <div className="s2-desc">Hold the in-app bell overnight. Safety &amp; approval alerts still come through.</div>
           </div>
-          <div className="cp-quiet-times">
-            <input type="time" className="cp-time" value={notifPrefs?.quiet_from?.slice(0, 5) || '22:00'}
+          <div className="s2-quiet-times">
+            <input type="time" className="s2-time" value={notifPrefs?.quiet_from?.slice(0, 5) || '22:00'}
               onChange={(e) => saveNotifPrefs({ quiet_from: e.target.value }, 'quiet_from')} aria-label="Quiet from" disabled={!qOn} />
             <span>to</span>
-            <input type="time" className="cp-time" value={notifPrefs?.quiet_to?.slice(0, 5) || '07:00'}
+            <input type="time" className="s2-time" value={notifPrefs?.quiet_to?.slice(0, 5) || '07:00'}
               onChange={(e) => saveNotifPrefs({ quiet_to: e.target.value }, 'quiet_to')} aria-label="Quiet to" disabled={!qOn} />
           </div>
           {renderSwitch(qOn, () => toggleNotif('quiet_enabled'), { disabled: notifSavingKey === 'quiet_enabled', busy: notifSavingKey === 'quiet_enabled', label: 'Quiet hours' })}
         </div>
 
-        {/* Category × channel grid */}
-        <div className="cp-notif">
-          <div className="cp-notif-hcols"><span className="cp-notif-hc"><Icon name="Bell" size={12} /> In-app</span><span className="cp-notif-hc"><Icon name="Mail" size={12} /> Email</span></div>
-          {NOTIF_GROUPS.map((grp) => (
-            <div className="cp-notif-grp" key={grp.g}>
-              <div className="cp-group-head"><span className="t">{grp.g}</span><span className="line" /></div>
-              {grp.items.filter((it) => !it.senior || isSenior).map((it) => (
-                <div className="cp-notif-row" key={it.bell}>
-                  <div className="cp-set-main">
-                    <div className="cp-set-label">{it.label}</div>
-                    <p className="cp-set-desc">{it.desc}</p>
-                  </div>
-                  <div className="cp-notif-cells">
-                    {chan(it.bell, 'Bell', 'In-app')}
-                    {chan(it.email, 'Mail', 'Email')}
-                  </div>
+        {NOTIF_GROUPS.map((grp) => (
+          <div className="s2-block" key={grp.g}>
+            <div className="s2-grp">{grp.g}</div>
+            {grp.items.filter((it) => !it.senior || isSenior).map((it) => (
+              <div className="s2-row" key={it.bell}>
+                <div className="s2-main">
+                  <div className="s2-label">{it.label}</div>
+                  <div className="s2-desc">{it.desc}</div>
                 </div>
-              ))}
-            </div>
-          ))}
-        </div>
+                <div className="s2-cbs">
+                  {cb(it.bell, 'In-app')}
+                  {cb(it.email, 'Email')}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     );
   };
