@@ -3722,25 +3722,23 @@ const canEdit = (() => {
 
     return (
       <div className="cp-settings2">
-        <div className="cp-section-head"><h3>Notifications</h3></div>
-        <p className="s2-sub">Choose how you hear about things. Approval and safety emails are always sent for time-critical items.</p>
-
-        {/* Quiet hours */}
-        <div className={`s2-quiet${qOn ? '' : ' off'}`}>
-          <span className="s2-moon"><Icon name="Moon" size={18} /></span>
-          <div className="s2-main">
-            <div className="s2-label">Quiet hours</div>
-            <div className="s2-desc">Hold the in-app bell overnight. Safety &amp; approval alerts still come through.</div>
+        <div className="cp-section-head s2-head">
+          <h3>Notifications</h3>
+          {/* Quiet hours — compact, on the header line */}
+          <div className={`s2-qmini${qOn ? '' : ' off'}`} title="Quiet hours — hold the in-app bell overnight">
+            <Icon name="Moon" size={14} />
+            <span className="s2-qmini-lbl">Quiet hours</span>
+            <span className="s2-qmini-times">
+              <input type="time" className="s2-qtime" value={notifPrefs?.quiet_from?.slice(0, 5) || '22:00'}
+                onChange={(e) => saveNotifPrefs({ quiet_from: e.target.value }, 'quiet_from')} aria-label="Quiet from" disabled={!qOn} />
+              <span className="s2-qmini-dash">–</span>
+              <input type="time" className="s2-qtime" value={notifPrefs?.quiet_to?.slice(0, 5) || '07:00'}
+                onChange={(e) => saveNotifPrefs({ quiet_to: e.target.value }, 'quiet_to')} aria-label="Quiet to" disabled={!qOn} />
+            </span>
+            {renderSwitch(qOn, () => toggleNotif('quiet_enabled'), { disabled: notifSavingKey === 'quiet_enabled', busy: notifSavingKey === 'quiet_enabled' })}
           </div>
-          <div className="s2-quiet-times">
-            <input type="time" className="s2-time" value={notifPrefs?.quiet_from?.slice(0, 5) || '22:00'}
-              onChange={(e) => saveNotifPrefs({ quiet_from: e.target.value }, 'quiet_from')} aria-label="Quiet from" disabled={!qOn} />
-            <span>to</span>
-            <input type="time" className="s2-time" value={notifPrefs?.quiet_to?.slice(0, 5) || '07:00'}
-              onChange={(e) => saveNotifPrefs({ quiet_to: e.target.value }, 'quiet_to')} aria-label="Quiet to" disabled={!qOn} />
-          </div>
-          {renderSwitch(qOn, () => toggleNotif('quiet_enabled'), { disabled: notifSavingKey === 'quiet_enabled', busy: notifSavingKey === 'quiet_enabled', label: 'Quiet hours' })}
         </div>
+        <p className="s2-sub">Choose how you hear about things. Approval and safety emails are always sent for time-critical items.</p>
 
         {NOTIF_GROUPS.map((grp) => (
           <div className="s2-block" key={grp.g}>
