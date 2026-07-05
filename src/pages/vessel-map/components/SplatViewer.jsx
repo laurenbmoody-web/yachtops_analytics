@@ -119,6 +119,7 @@ export default function SplatViewer({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.copy(toVec3(cameraTarget, { x: 0, y: 1, z: 0 }));
     controls.enableDamping = true;
+    controls.dampingFactor = 0.18; // default 0.05 coasts for seconds on big rooms
 
     const rot = toVec3(splatRotation, { x: 0, y: 0, z: 0 });
     const mesh = new SplatMesh({
@@ -188,9 +189,24 @@ export default function SplatViewer({
       camera.near = maxDim * 0.002;
       camera.far = maxDim * 20;
       camera.updateProjectionMatrix();
-      pinSize = maxDim * 0.03;
+      pinSize = maxDim * 0.018;
 
-      clampView(); // stored camera_position/target may sit outside this scan's bounds
+      // The stored camera_position/camera_target default to metric,
+      // origin-centred values — real scans are usually neither. If either
+      // lies outside this scan's bounds the stored framing is meaningless:
+      // reframe to the room (target at centre, camera pulled back along the
+      // stored direction) instead of just clamping to the box edge, which
+      // opens the view jammed against a wall at maximum distance.
+      if (!cameraBox.containsPoint(camera.position) || !targetBox.containsPoint(controls.target)) {
+        const center = bounds.getCenter(new THREE.Vector3());
+        const dir = camera.position.clone().sub(controls.target);
+        if (dir.lengthSq() < 1e-6) dir.set(0.4, 0.3, 1);
+        dir.normalize();
+        controls.target.copy(center);
+        camera.position.copy(center).addScaledVector(dir, maxDim * 0.35);
+      }
+
+      clampView();
       rebuildPins();
       emit({ status: 'ready' });
     }).catch((err) => {
@@ -201,10 +217,14 @@ export default function SplatViewer({
     // ── Pointer interaction: click-select, placement click, pending drag ────
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    const placePlane = new THREE.Plane(); // horizontal, at camera_target height
-    placePlane.setFromNormalAndCoplanarPoint(
-      new THREE.Vector3(0, 1, 0), toVec3(cameraTarget, { x: 0, y: 1, z: 0 })
-    );
+    // Horizontal placement plane. Built from the LIVE orbit target on every
+    // ray test — the target is always clamped inside the room, so pins drop
+    // at eye-focus height for any scan. (A plane fixed at the stored
+    // camera_target height sits arbitrarily close to the camera on scans
+    // whose coordinates aren't origin-centred — the pin then lands right in
+    // front of the lens and fills the screen.)
+    const placePlane = new THREE.Plane();
+    const PLANE_UP = new THREE.Vector3(0, 1, 0);
     let downAt = null;
     let draggingPending = false;
 
@@ -218,6 +238,7 @@ export default function SplatViewer({
     };
 
     const planeHit = () => {
+      placePlane.setFromNormalAndCoplanarPoint(PLANE_UP, controls.target);
       const hit = new THREE.Vector3();
       return raycaster.ray.intersectPlane(placePlane, hit) ? hit : null;
     };
@@ -239,8 +260,9 @@ export default function SplatViewer({
       if (!draggingPending || !pendingPin) return;
       setPointer(e);
       const hit = planeHit();
-      if (hit && targetBox) shrunkBox(cameraBox || targetBox, 1).clampPoint(hit, hit);
-      if (hit) pendingPin.position.copy(hit);
+      if (!hit) return;
+      if (cameraBox) cameraBox.clampPoint(hit, hit); // dragged pins stay inside the room
+      pendingPin.position.copy(hit);
     };
 
     const onPointerUp = (e) => {
