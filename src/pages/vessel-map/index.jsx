@@ -21,6 +21,11 @@ import './vessel-map.css';
 
 const SIGNED_URL_TTL = 60 * 60; // 1 hour — splat downloads are big but not that big
 
+// The dark stage the splat glows against — a deep neutral in the navy family
+// (between --d-navy-deep and --d-navy). Single source of truth: fed to the
+// WebGL clear colour and to CSS as --vm-stage.
+const VM_STAGE = '#22253F';
+
 const fmtDate = (iso) => {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -30,7 +35,7 @@ const fmtDate = (iso) => {
 const fmtMB = (bytes) => `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 
 export default function VesselMapPage() {
-  const { tenantRole } = useAuth();
+  const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
   const userTier = (tenantRole || '').toUpperCase();
   const canPlaceHotspots = userTier === 'COMMAND' || userTier === 'CHIEF';
@@ -165,6 +170,7 @@ export default function VesselMapPage() {
         color: layerColor(layer),
         position: pendingPosition,
         detail: {},
+        created_by: user?.id ?? null,
       })
       .select()
       .single();
@@ -182,10 +188,28 @@ export default function VesselMapPage() {
   const showViewer = signedUrl && !signError;
   const loadPct = viewer.status === 'loading' ? viewer.progress : null;
 
+  // One chip row, two treatments: '' (light, in the cream toolbar — the
+  // mobile variant) and 'vm-chip-dark' (floating on the dark stage, ≥1024px).
+  const layerChips = (variant) => LAYERS.map((l) => {
+    const on = activeLayers.has(l.key);
+    return (
+      <button
+        key={l.key}
+        className={`vm-chip ${variant}${on ? ' vm-chip-on' : ''}`}
+        onClick={() => toggleLayer(l.key)}
+        title={`${on ? 'Hide' : 'Show'} ${l.label} pins`}
+      >
+        <span className="vm-pill-dot" style={{ background: l.color, opacity: on ? 1 : 0.35 }} />
+        {l.label}
+        {layerCounts[l.key] ? <span className="vm-chip-count">{layerCounts[l.key]}</span> : null}
+      </button>
+    );
+  });
+
   return (
     <>
       <Header />
-      <div className="editorial-page pv-dashboard vm-page">
+      <div className="editorial-page pv-dashboard vm-page" style={{ '--vm-stage': VM_STAGE }}>
         <div className="vm-shell">
 
           <div className="vm-headblock">
@@ -237,23 +261,7 @@ export default function VesselMapPage() {
               )}
 
               <div className="vm-toolbar">
-                <div className="vm-layer-chips">
-                  {LAYERS.map((l) => {
-                    const on = activeLayers.has(l.key);
-                    return (
-                      <button
-                        key={l.key}
-                        className={`vm-chip${on ? ' vm-chip-on' : ''}`}
-                        onClick={() => toggleLayer(l.key)}
-                        title={`${on ? 'Hide' : 'Show'} ${l.label} pins`}
-                      >
-                        <span className="vm-pill-dot" style={{ background: l.color, opacity: on ? 1 : 0.35 }} />
-                        {l.label}
-                        {layerCounts[l.key] ? <span className="vm-chip-count">{layerCounts[l.key]}</span> : null}
-                      </button>
-                    );
-                  })}
-                </div>
+                <div className="vm-layer-chips">{layerChips('')}</div>
 
                 {canPlaceHotspots && (
                   placementMode ? (
@@ -293,8 +301,26 @@ export default function VesselMapPage() {
                     onPlacePending={setPendingPosition}
                     onSelectHotspot={setSelectedHotspot}
                     onLoadState={setViewer}
+                    stageColor={VM_STAGE}
                   />
                 )}
+
+                {/* ≥1024px: breadcrumb + layer chips float on the dark stage,
+                    light-on-dark. Below that the cream toolbar above carries
+                    them — the shipped layout, now the mobile variant. */}
+                <div className="vm-stage-overlay">
+                  <p className="vm-ov-breadcrumb">
+                    <span className="dot">●</span>
+                    <span>Vessel Map</span>
+                    {selectedScan && (
+                      <>
+                        <span className="sep">·</span>
+                        <em>{selectedScan.name}</em>
+                      </>
+                    )}
+                  </p>
+                  <div className="vm-ov-chips">{layerChips('vm-chip-dark')}</div>
+                </div>
 
                 {signError && (
                   <div className="vm-panel vm-missing">
