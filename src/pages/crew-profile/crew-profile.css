@@ -64,6 +64,15 @@ body.crew-profile-editorial {
 .crew-profile-page {
   font-family: 'Manrope', 'Inter', system-ui, sans-serif;
 }
+/* Form controls don't inherit font-family by default — force them to, so the
+   field VALUES (names, currencies, inputs, selects) render in Manrope too, not
+   the browser's system font. */
+.crew-profile-page input,
+.crew-profile-page select,
+.crew-profile-page textarea,
+.crew-profile-page button {
+  font-family: inherit;
+}
 
 /* Display serif section titles in editorial ink, matching the canonical
    "DM Serif Display" headline used by the page header + other editorial
