@@ -208,18 +208,34 @@ export default function SplatViewer({
         xs.push(v.x); ys.push(v.y); zs.push(v.z);
       });
       const q = (arr, p) => arr[Math.max(0, Math.min(arr.length - 1, Math.floor(p * (arr.length - 1))))];
+      // Per-axis room extent by interquartile fencing: the middle 50% of
+      // splat mass is always real room, whatever fraction of the capture is
+      // exterior fuzz — tail percentiles are not (20%+ sky/window bleed
+      // pushes even q95 metres above the ceiling). Extent = quartiles ±
+      // 0.75×IQR, intersected with the 2–98% band so clean scans keep their
+      // full span.
+      const axisRange = (arr) => {
+        const lo25 = q(arr, 0.25), hi75 = q(arr, 0.75);
+        const iqr = Math.max(hi75 - lo25, 1e-4);
+        return {
+          lo: Math.max(q(arr, 0.02), lo25 - 0.75 * iqr),
+          hi: Math.min(q(arr, 0.98), hi75 + 0.75 * iqr),
+          med: q(arr, 0.5),
+          iqr,
+        };
+      };
       let bounds;
       let median = null;
+      let eyeLift = 0.15;
       if (xs.length > 500) {
         xs.sort((a, b) => a - b); ys.sort((a, b) => a - b); zs.sort((a, b) => a - b);
-        // Vertical axis trimmed harder (5–95%) than horizontal (2–98%):
-        // capture noise skews strongly upward — sky and window bleed above
-        // the ceiling — and an inflated Y-top starts the camera in the fuzz.
+        const rx = axisRange(xs), ry = axisRange(ys), rz = axisRange(zs);
         bounds = new THREE.Box3(
-          new THREE.Vector3(q(xs, 0.02), q(ys, 0.05), q(zs, 0.02)),
-          new THREE.Vector3(q(xs, 0.98), q(ys, 0.95), q(zs, 0.98))
+          new THREE.Vector3(rx.lo, ry.lo, rz.lo),
+          new THREE.Vector3(rx.hi, ry.hi, rz.hi)
         );
-        median = new THREE.Vector3(q(xs, 0.5), q(ys, 0.5), q(zs, 0.5));
+        median = new THREE.Vector3(rx.med, ry.med, rz.med);
+        eyeLift = ry.iqr * 0.1;
       } else {
         bounds = mesh.getBoundingBox(true).applyMatrix4(mesh.matrixWorld);
         median = bounds.getCenter(new THREE.Vector3());
@@ -251,7 +267,7 @@ export default function SplatViewer({
         controls.target.copy(median);
         camera.position.copy(median)
           .addScaledVector(dir, horizontalSpan * 0.35)
-          .setY(median.y + size.y * 0.08);
+          .setY(median.y + eyeLift);
       }
 
       clampView();
