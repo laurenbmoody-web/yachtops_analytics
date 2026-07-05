@@ -217,7 +217,7 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
           <div className="ccl-body">
             {/* Voyage — the only per-call detail entered here */}
             <div className="ccl-section">
-              <div className="ccl-grouphead"><span className="dia">◆</span><span className="t">Voyage</span><span className="line" /></div>
+              <div className="ccl-grouphead"><span className="t">Voyage</span><span className="line" /></div>
               <div className="ccl-grid3">
                 <label className="ccl-field"><span className="ccl-label">Last port</span>
                   <input className="ccl-input" value={voyage.lastPort} onChange={(e) => setV('lastPort', e.target.value)} placeholder="Previous port" /></label>
@@ -240,7 +240,7 @@ const CreateCrewListModal = ({ open, onClose, tenantId, crew = [] }) => {
 
             {/* Crew picker */}
             <div className="ccl-section">
-              <div className="ccl-grouphead"><span className="dia">◆</span><span className="t">Crew on this list</span><span className="line" />
+              <div className="ccl-grouphead"><span className="t">Crew on this list</span><span className="line" />
                 <button type="button" className="ccl-allbtn" onClick={toggleAll}>{allOn ? 'Clear all' : 'Select all'}</button>
               </div>
               <p className="ccl-draghint">Drag to set the order they appear on the document. The number is their row.</p>

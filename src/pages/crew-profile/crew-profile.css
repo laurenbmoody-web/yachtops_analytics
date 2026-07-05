@@ -367,7 +367,8 @@ body.crew-profile-editorial {
   gap: 8px;
   margin-bottom: 9px;
 }
-.crew-profile-page .cp-group-head .dia { color: #C65A1A; font-size: 9px; }
+/* Diamond bullets retired — hidden everywhere on the profile. */
+.crew-profile-page .dia { display: none; }
 .crew-profile-page .cp-group-head .t {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 15px;
