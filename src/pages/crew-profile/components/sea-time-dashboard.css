@@ -248,7 +248,7 @@
 .std-opt.sel .rad:after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--sage);}
 .std-opt.bad.sel .rad{border-color:var(--clay);}
 .std-opt.bad.sel .rad:after{background:var(--clay);}
-.std-opt .on{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:500;font-size:15px;color:var(--ink);}
+.std-opt .on{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:500;font-size:15px;letter-spacing:.055em;color:var(--ink);}
 .std-opt .os{font-size:11px;color:var(--muted);margin-top:1px;}
 .std-opt.bad .os{color:var(--clay);}
 
