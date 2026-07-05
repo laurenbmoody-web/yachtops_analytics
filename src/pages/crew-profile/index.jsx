@@ -283,6 +283,7 @@ const CrewProfile = () => {
   const [permSaving, setPermSaving] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState(null);   // null until loaded
   const [notifSavingKey, setNotifSavingKey] = useState(null);
+  const [capPopOpen, setCapPopOpen] = useState(false);  // "what <class> can do" popover
   // Contract / employment section
   const [empLoaded, setEmpLoaded] = useState(false);
   const [empForm, setEmpForm] = useState({});           // crew_employment fields
@@ -3627,34 +3628,44 @@ const canEdit = (() => {
       <div className="cp-settings2">
         <div className="cp-section-head"><h3>Permissions</h3></div>
 
-        {/* Access class — a single dropdown (Vercel / Linear / Notion pattern) */}
+        {/* Access class — a single dropdown, with the capability detail one
+            click away in a popover (not an inline wall). */}
         <div className="s2-access">
           <div className="s2-main">
             <div className="s2-label">Access class</div>
             <div className="s2-desc">{CLASS_DESC[memberTier] || 'The role that sets default access.'}</div>
           </div>
-          <select
-            className="s2-sel"
-            value={crewMember?.permissionTierOverride || ''}
-            disabled={!editable}
-            onChange={(e) => updateCaps({ permission_tier_override: e.target.value || null }, { permissionTierOverride: e.target.value || null }, 'tier')}
-          >
-            {EMP_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-        </div>
-
-        {/* Capability detail — tucked behind a disclosure, not a wall */}
-        <details className="s2-disc">
-          <summary>What {tierLabel} can do<Icon name="ChevronRight" size={15} /></summary>
-          <div className="s2-disc-body">
-            {groups.map((g) => (
-              <div className="s2-caprow" key={g.area}>
-                <span className="s2-caparea">{g.area}</span>
-                <span className="s2-capitems">{g.items.join(' · ')}</span>
-              </div>
-            ))}
+          <div className="s2-actrl">
+            <button type="button" className="s2-trig" onClick={() => setCapPopOpen((o) => !o)} aria-expanded={capPopOpen}>
+              <Icon name="Info" size={15} /> What {tierLabel} can do
+            </button>
+            <select
+              className="s2-sel"
+              value={crewMember?.permissionTierOverride || ''}
+              disabled={!editable}
+              onChange={(e) => { setCapPopOpen(false); updateCaps({ permission_tier_override: e.target.value || null }, { permissionTierOverride: e.target.value || null }, 'tier'); }}
+            >
+              {EMP_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            {capPopOpen && (
+              <>
+                <div className="s2-pop-back" onClick={() => setCapPopOpen(false)} />
+                <div className="s2-pop" role="dialog" onClick={(e) => e.stopPropagation()}>
+                  <div className="s2-pop-h">{tierLabel}</div>
+                  <div className="s2-pop-s">{CLASS_DESC[memberTier]}</div>
+                  {groups.map((g) => (
+                    <div key={g.area}>
+                      <div className="s2-pop-grp">{g.area}</div>
+                      {g.items.map((it) => (
+                        <div className="s2-pop-i" key={it}><Icon name="Check" size={13} /> <span>{it}</span></div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-        </details>
+        </div>
 
         {/* Exceptions — the real per-person overrides */}
         <div className="s2-grp" style={{ marginTop: 24 }}>Exceptions for {whom}{exceptions > 0 ? ` · ${exceptions}` : ''}</div>
