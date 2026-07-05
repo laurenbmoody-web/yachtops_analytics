@@ -208,15 +208,37 @@ export default function SplatViewer({
         xs.push(v.x); ys.push(v.y); zs.push(v.z);
       });
       const q = (arr, p) => arr[Math.max(0, Math.min(arr.length - 1, Math.floor(p * (arr.length - 1))))];
+      // Per-axis room extent by interquartile fencing: the middle 50% of
+      // splat mass is always real room, whatever fraction of the capture is
+      // exterior fuzz — tail percentiles are not (20%+ sky/window bleed
+      // pushes even q95 metres above the ceiling). Extent = quartiles ±
+      // 0.75×IQR, intersected with the 2–98% band so clean scans keep their
+      // full span.
+      const axisRange = (arr) => {
+        const lo25 = q(arr, 0.25), hi75 = q(arr, 0.75);
+        const iqr = Math.max(hi75 - lo25, 1e-4);
+        return {
+          lo: Math.max(q(arr, 0.02), lo25 - 0.75 * iqr),
+          hi: Math.min(q(arr, 0.98), hi75 + 0.75 * iqr),
+          med: q(arr, 0.5),
+          iqr,
+        };
+      };
       let bounds;
+      let median = null;
+      let eyeLift = 0.15;
       if (xs.length > 500) {
         xs.sort((a, b) => a - b); ys.sort((a, b) => a - b); zs.sort((a, b) => a - b);
+        const rx = axisRange(xs), ry = axisRange(ys), rz = axisRange(zs);
         bounds = new THREE.Box3(
-          new THREE.Vector3(q(xs, 0.02), q(ys, 0.02), q(zs, 0.02)),
-          new THREE.Vector3(q(xs, 0.98), q(ys, 0.98), q(zs, 0.98))
+          new THREE.Vector3(rx.lo, ry.lo, rz.lo),
+          new THREE.Vector3(rx.hi, ry.hi, rz.hi)
         );
+        median = new THREE.Vector3(rx.med, ry.med, rz.med);
+        eyeLift = ry.iqr * 0.1;
       } else {
         bounds = mesh.getBoundingBox(true).applyMatrix4(mesh.matrixWorld);
+        median = bounds.getCenter(new THREE.Vector3());
       }
       const maxDim = Math.max(...bounds.getSize(new THREE.Vector3()).toArray(), 0.001);
 
@@ -231,19 +253,31 @@ export default function SplatViewer({
       // The stored camera_position/camera_target default to metric,
       // origin-centred values — real scans are usually neither. If either
       // lies outside this scan's bounds the stored framing is meaningless:
-      // reframe to the room (target at centre, camera pulled back along the
-      // stored direction) instead of just clamping to the box edge, which
-      // opens the view jammed against a wall at maximum distance.
+      // reframe to the room. Anchor on the MEDIAN splat position — unlike
+      // any bounding-box centre it sits mid-room-mass regardless of how much
+      // exterior fuzz the capture carries — and look horizontally from a
+      // touch above it (eye level), never from up in the noise.
       if (!cameraBox.containsPoint(camera.position) || !targetBox.containsPoint(controls.target)) {
-        const center = bounds.getCenter(new THREE.Vector3());
+        const size = bounds.getSize(new THREE.Vector3());
+        const horizontalSpan = Math.max(size.x, size.z, 0.001);
         const dir = camera.position.clone().sub(controls.target);
-        if (dir.lengthSq() < 1e-6) dir.set(0.4, 0.3, 1);
+        dir.y = 0; // horizontal look — a lifted direction opens above the ceiling
+        if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1);
         dir.normalize();
-        controls.target.copy(center);
-        camera.position.copy(center).addScaledVector(dir, maxDim * 0.35);
+        controls.target.copy(median);
+        camera.position.copy(median)
+          .addScaledVector(dir, horizontalSpan * 0.35)
+          .setY(median.y + eyeLift);
       }
 
       clampView();
+      console.log('[vessel-map] room bounds', {
+        min: bounds.min.toArray().map((n) => +n.toFixed(2)),
+        max: bounds.max.toArray().map((n) => +n.toFixed(2)),
+        median: median.toArray().map((n) => +n.toFixed(2)),
+        camera: camera.position.toArray().map((n) => +n.toFixed(2)),
+        target: controls.target.toArray().map((n) => +n.toFixed(2)),
+      });
       rebuildPins();
       emit({ status: 'ready' });
     }).catch((err) => {
