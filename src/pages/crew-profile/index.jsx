@@ -3738,8 +3738,6 @@ const canEdit = (() => {
             {renderSwitch(qOn, () => toggleNotif('quiet_enabled'), { disabled: notifSavingKey === 'quiet_enabled', busy: notifSavingKey === 'quiet_enabled' })}
           </div>
         </div>
-        <p className="s2-sub">Choose how you hear about things. Approval and safety emails are always sent for time-critical items.</p>
-
         {NOTIF_GROUPS.map((grp) => (
           <div className="s2-block" key={grp.g}>
             <div className="s2-grp">{grp.g}</div>
