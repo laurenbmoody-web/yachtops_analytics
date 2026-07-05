@@ -3727,6 +3727,7 @@ const canEdit = (() => {
 
         {/* Quiet hours */}
         <div className={`s2-quiet${qOn ? '' : ' off'}`}>
+          <span className="s2-moon"><Icon name="Moon" size={18} /></span>
           <div className="s2-main">
             <div className="s2-label">Quiet hours</div>
             <div className="s2-desc">Hold the in-app bell overnight. Safety &amp; approval alerts still come through.</div>
