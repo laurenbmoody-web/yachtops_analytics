@@ -15,7 +15,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import Header from '../../components/navigation/Header';
 import SplatViewer from './components/SplatViewer';
 import OrientPanel from './components/OrientPanel';
-import { SCAN_EXTENSIONS, validateScanFile, fileExtension, createScanUpload } from './utils/scanUpload';
+import { SCAN_EXTENSIONS, SCAN_MAX_BYTES, validateScanFile, fileExtension, createScanUpload } from './utils/scanUpload';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
 import './vessel-map.css';
@@ -57,6 +57,7 @@ export default function ManageScans() {
   const [orientError, setOrientError] = useState(null);
   const activeUploadRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   // Per-row: edits, replace/complete transfer state, delete modal.
   const [rowEdits, setRowEdits] = useState({});
@@ -389,10 +390,10 @@ export default function ManageScans() {
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); acceptFile(e.dataTransfer.files?.[0]); }}
             >
-              <p className="vmm-drop-title">Drop a scan here</p>
+              <p className="vmm-drop-title">Drop your 3D scan here</p>
               <p className="vmm-drop-body">
-                Scaniverse → Share → export <strong>SPZ</strong> → drop it here.
-                Also takes PLY, SPLAT and KSPLAT, up to 200MB.
+                Takes SPZ, PLY, SPLAT or KSPLAT, up to {Math.round(SCAN_MAX_BYTES / (1024 * 1024))}MB.
+                {' '}<strong>SPZ</strong> is smallest — best for upload.
               </p>
               <label className="vm-btn-primary vmm-drop-pick">
                 Choose a file
@@ -404,6 +405,42 @@ export default function ManageScans() {
                 />
               </label>
               {fileError && <p className="vmm-error">{fileError}</p>}
+
+              {/* Capture guide — part of the dropzone composition, not stray
+                  text. The minimum a first-time uploader needs without leaving
+                  the page; the full guide is a later document. */}
+              <div className="vmm-guide">
+                <button
+                  className="vmm-guide-toggle"
+                  onClick={() => setGuideOpen((v) => !v)}
+                  aria-expanded={guideOpen}
+                >
+                  How do I capture a scan?
+                  <span className={`vmm-guide-caret${guideOpen ? ' vmm-guide-caret-open' : ''}`} aria-hidden="true">›</span>
+                </button>
+                {guideOpen && (
+                  <div className="vmm-guide-body">
+                    <ol className="vmm-guide-steps">
+                      <li>
+                        <span className="vmm-guide-num">1</span>
+                        <p className="vmm-guide-step-title">Scan the room</p>
+                        <p className="vmm-guide-step-body">Slowly, with a free phone app — <strong>Scaniverse</strong> or <strong>Polycam</strong>. Lights on, blinds drawn.</p>
+                      </li>
+                      <li>
+                        <span className="vmm-guide-num">2</span>
+                        <p className="vmm-guide-step-title">Export the scan</p>
+                        <p className="vmm-guide-step-body">Scaniverse: Share → Export Model → <strong>SPZ</strong>. Polycam: Export → Gaussian Splat → <strong>PLY</strong>.</p>
+                      </li>
+                      <li>
+                        <span className="vmm-guide-num">3</span>
+                        <p className="vmm-guide-step-title">Drop it here</p>
+                        <p className="vmm-guide-step-body">Name it, stand it upright — it's on the map.</p>
+                      </li>
+                    </ol>
+                    <p className="vmm-guide-close">Big file? SPZ exports are much smaller than PLY.</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
