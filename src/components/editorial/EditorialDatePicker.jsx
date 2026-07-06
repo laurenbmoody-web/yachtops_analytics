@@ -46,6 +46,13 @@ const DISPLAY_FORMAT = 'dd/MM/yyyy';
 const ISO_FORMAT     = 'yyyy-MM-dd';
 const WEEK_STARTS_ON = 1;  // Monday — matches UK/SA convention
 
+// "Only one calendar open at a time" — each picker broadcasts on open and any
+// other open picker closes. A document-level event (not DOM bubbling) so it
+// still works inside a modal that stops mousedown propagation, which would
+// otherwise defeat the outside-click close between two sibling pickers.
+const EDP_OPEN_EVENT = 'edp:open-popover';
+let edpSeq = 0;
+
 // Defensive parse of an ISO 'YYYY-MM-DD' value back to a Date.
 // Returns null on empty/invalid so callers can treat absence uniformly.
 const parseIso = (iso) => {
@@ -117,6 +124,8 @@ const EditorialDatePicker = ({
   const popoverRef = useRef(null);
   const inputRef   = useRef(null);
   const focusedBtnRef = useRef(null);
+  const instanceIdRef = useRef(null);
+  if (instanceIdRef.current == null) instanceIdRef.current = ++edpSeq;
   // Popover is portaled to <body> and positioned fixed so it escapes any
   // overflow:hidden / scroll container (e.g. a modal panel) that would
   // otherwise clip it. null until first measured.
@@ -137,6 +146,8 @@ const EditorialDatePicker = ({
     setViewMonth(seed);
     setFocusedDate(seed);
     setOpen(true);
+    // Close any other open picker (e.g. the sibling From/To field).
+    document.dispatchEvent(new CustomEvent(EDP_OPEN_EVENT, { detail: instanceIdRef.current }));
   }, [disabled, valueDate]);
 
   const closePopover = useCallback(() => { setOpen(false); setHoverDate(null); }, []);
@@ -183,6 +194,13 @@ const EditorialDatePicker = ({
 
   // Esc-to-close (via the shared hook).
   useDismissable({ onClose: closePopover, enabled: open });
+
+  // Close when another picker opens — one calendar at a time.
+  useEffect(() => {
+    const onOtherOpen = (e) => { if (e.detail !== instanceIdRef.current) closePopover(); };
+    document.addEventListener(EDP_OPEN_EVENT, onOtherOpen);
+    return () => document.removeEventListener(EDP_OPEN_EVENT, onOtherOpen);
+  }, [closePopover]);
 
   // Outside-click close. mousedown so the field's own click doesn't race.
   // The popover is portaled outside wrapperRef, so check it explicitly too.
