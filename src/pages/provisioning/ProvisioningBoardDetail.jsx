@@ -3071,6 +3071,14 @@ const ProvisioningBoardDetail = () => {
                 >
                   <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
                 </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/provisioning/marketplace?board=${id}`)}
+                  className="cargo-ribbon-btn"
+                  title="Browse supplier catalogues and add priced lines to this board"
+                >
+                  <Icon name="Store" style={{ width: 13, height: 13 }} /> Browse marketplace
+                </button>
               </div>
             </div>
           }
