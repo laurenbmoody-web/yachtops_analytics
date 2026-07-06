@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { updateDetail, updateDetailKey } from '../utils/hotspotDetail';
 import { uploadHotspotPhoto } from '../utils/photoUpload';
-import { searchInventoryItems, getInventoryItem, getInventoryLocation, quantityAt } from '../utils/inventory';
+import { searchInventoryItems, getInventoryItem, getInventoryLocation, quantityAt, setQuantityHere } from '../utils/inventory';
 
 const relDate = (iso) => {
   if (!iso) return '';
@@ -229,6 +229,26 @@ export default function PinPayload({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openTagId]);
+
+  // Count edit (COMMAND/CHIEF): writes to inventory — splits or sets the
+  // stock at the pin's linked location — then re-reads the live number.
+  const [qtyEdit, setQtyEdit] = useState(null); // { itemId, value }
+  const [qtySaving, setQtySaving] = useState(false);
+  const [qtyError, setQtyError] = useState(null);
+  useEffect(() => { setQtyEdit(null); setQtyError(null); }, [openTagId, lightbox?.id]);
+  const saveQty = async (t) => {
+    const q = Number(qtyEdit?.value);
+    if (!Number.isFinite(q) || q < 0) { setQtyError('Enter a number.'); return; }
+    setQtySaving(true);
+    setQtyError(null);
+    const loc = hotspot?.storage_location_id ? (pinLocRef.current[hotspot.id] ?? null) : null;
+    const { error: qErr } = await setQuantityHere(t.item_id, loc, q);
+    if (qErr) { setQtySaving(false); setQtyError(qErr); return; }
+    const { item } = await getInventoryItem(t.item_id);
+    if (item) setTagQtys((prev) => ({ ...prev, [t.item_id]: { ...quantityAt(item, loc), unit: item.unit || null } }));
+    setQtySaving(false);
+    setQtyEdit(null);
+  };
   useEffect(() => {
     setTagMode(false); setTagPoint(null); setTagQuery(''); setTagResults([]); setOpenTagId(null);
   }, [lightbox?.id]);
@@ -523,17 +543,48 @@ export default function PinPayload({
               return (
                 <div className="vm-tag-chip">
                   <span className="vm-tag-chip-label">{t.label}</span>
-                  {tagQtys[t.item_id] && (
-                    <span className="vm-tag-chip-qty">
-                      {tagQtys[t.item_id].qty}{tagQtys[t.item_id].unit ? ` ${tagQtys[t.item_id].unit}` : ''} {tagQtys[t.item_id].where}
+                  {tagQtys[t.item_id] && (qtyEdit?.itemId === t.item_id ? (
+                    <span className="vm-tag-qty-edit">
+                      <input
+                        className="vm-tag-qty-input"
+                        type="number"
+                        min="0"
+                        value={qtyEdit.value}
+                        onChange={(e) => setQtyEdit({ itemId: t.item_id, value: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveQty(t); }}
+                        autoFocus
+                        disabled={qtySaving}
+                        aria-label={`How many ${t.label} here`}
+                      />
+                      <button className="vm-tag-qty-save" onClick={() => saveQty(t)} disabled={qtySaving}>
+                        {qtySaving ? '…' : 'Set'}
+                      </button>
+                      <button className="vm-tag-qty-cancel" onClick={() => { setQtyEdit(null); setQtyError(null); }} disabled={qtySaving}>
+                        Cancel
+                      </button>
                     </span>
-                  )}
+                  ) : (
+                    canManage ? (
+                      <button
+                        className="vm-tag-chip-qty vm-tag-chip-qty-btn"
+                        title="Set how many are here"
+                        onClick={() => setQtyEdit({ itemId: t.item_id, value: String(tagQtys[t.item_id].qty) })}
+                      >
+                        {tagQtys[t.item_id].qty}{tagQtys[t.item_id].unit ? ` ${tagQtys[t.item_id].unit}` : ''} {tagQtys[t.item_id].where}
+                      </button>
+                    ) : (
+                      <span className="vm-tag-chip-qty">
+                        {tagQtys[t.item_id].qty}{tagQtys[t.item_id].unit ? ` ${tagQtys[t.item_id].unit}` : ''} {tagQtys[t.item_id].where}
+                      </span>
+                    )
+                  ))}
                   <button className="vm-tag-chip-go" onClick={() => navigate(`/inventory/item/${t.item_id}`)}>
                     View in inventory →
                   </button>
                   {canManage && (
                     <button className="vm-tag-chip-del" onClick={() => removeTag(t.id)} aria-label={`Remove tag ${t.label}`}>×</button>
                   )}
+                  {qtyError && <span className="vm-tag-qty-error">{qtyError}</span>}
                 </div>
               );
             })()}
