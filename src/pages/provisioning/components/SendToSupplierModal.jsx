@@ -115,6 +115,18 @@ const SendToSupplierModal = ({
       .finally(() => setSuppliersLoading(false));
   }, [isOpen, tenantId]);
 
+  // Which suppliers run a live Cargo portal — those get the express
+  // "Send to portal" treatment (no WhatsApp, no contact wrangling; the
+  // order lands in their portal and the email is just the ping).
+  const [portalIds, setPortalIds] = useState(() => new Set());
+  useEffect(() => {
+    if (!isOpen || suppliers.length === 0) return;
+    supabase
+      .rpc('get_portal_supplier_ids', { p_ids: suppliers.map(s => s.id) })
+      .then(({ data }) => setPortalIds(new Set((data || []).map(r => (typeof r === 'string' ? r : r.get_portal_supplier_ids || r.supplier_id || r.id)))))
+      .catch(() => setPortalIds(new Set()));
+  }, [isOpen, suppliers]);
+
   const rawVesselType = (vesselTypeLabel || '').toLowerCase().trim();
   const vesselPfx = rawVesselType.includes('sail') ? 'S/Y' : 'M/Y';
   const prefixedVesselName = `${vesselPfx} ${vesselName || 'Vessel'}`;
@@ -539,12 +551,12 @@ const SendToSupplierModal = ({
   // ships with — borderless input that sits inside the editorial field card.
   const pickerInputCls = 'stsm-picker-input';
 
-  const ActionButtons = ({ supplier, groupKey, rows, busy, showWhatsApp = true }) => {
+  const ActionButtons = ({ supplier, groupKey, rows, busy, showWhatsApp = true, portal = false }) => {
     const hasContact = Boolean(supplier?.email) || Boolean(supplier?.phone);
     const disabled = busy || !!sendingKey || sendingAll || !hasContact || !requiredComplete;
     return (
       <div className="stsm-btnpair">
-        {showWhatsApp && (
+        {showWhatsApp && !portal && (
           <button
             type="button"
             disabled={disabled}
@@ -560,7 +572,7 @@ const SendToSupplierModal = ({
           onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'email' })}
           className={`stsm-btn stsm-btn-primary${disabled ? ' is-disabled' : ''}`}
         >
-          {busy ? <><span className="stsm-spinner" /> Sending…</> : 'Send'}
+          {busy ? <><span className="stsm-spinner" /> Sending…</> : (portal ? 'Send to portal' : 'Send')}
         </button>
       </div>
     );
@@ -584,6 +596,7 @@ const SendToSupplierModal = ({
   const GroupRow = ({ supplier, rows }) => {
     const fullySent = rows.filter(r => !isSent(r.key)).length === 0;
     const busy = sendingKey === supplier.id;
+    const portal = portalIds.has(supplier.id);
     const hasContact = Boolean(supplier.email) || Boolean(supplier.phone);
     const isOpen = expandedKeys.has(supplier.id);
     return (
@@ -602,7 +615,11 @@ const SendToSupplierModal = ({
               {supplier.name || 'Supplier'}
               <span className="stsm-row-meta"> · {plural(rows.length, 'item')}</span>
             </span>
-            {hasContact ? (
+            {portal ? (
+              <span className="stsm-portal">
+                <Icon name="Anchor" size={11} /> On Cargo — lands in their portal, priced lines confirm in one click
+              </span>
+            ) : hasContact ? (
               <span className="stsm-row-contact">
                 {[supplier.email, supplier.phone].filter(Boolean).join(' · ')}
               </span>
@@ -626,7 +643,7 @@ const SendToSupplierModal = ({
             </span>
           ) : (
             <>
-              <ActionButtons supplier={supplier} groupKey={supplier.id} rows={rows} busy={busy} />
+              <ActionButtons supplier={supplier} groupKey={supplier.id} rows={rows} busy={busy} portal={portal} />
               {hasContact && !requiredComplete && (
                 <span className="stsm-hint">Complete the order context above</span>
               )}

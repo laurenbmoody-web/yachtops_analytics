@@ -10,7 +10,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ShoppingBasket, Check } from 'lucide-react';
+import { ArrowLeft, ShoppingBasket } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -53,9 +53,11 @@ const money = (n, ccy = 'EUR') =>
 
 const minQtyOf = (product) => Math.max(1, Number(product.min_order_qty) || 1);
 
-const ProductCard = ({ product, supplier, mine, onAdd, justAdded }) => {
+// The card's control IS the basket line: − qty + wired straight through.
+// First + jumps to the product's minimum order; − below it removes the
+// line. No transient "Added" state, no layout shift.
+const ProductCard = ({ product, supplier, mine, basketQty, onSetQty }) => {
   const minQty = minQtyOf(product);
-  const [qty, setQty] = useState(minQty);
   const out = !product.in_stock || (product.stock_qty != null && Number(product.stock_qty) <= 0);
   const stock = product.stock_qty != null ? Number(product.stock_qty) : null;
   const scarce = !out && stock != null && stock <= (Number(product.reorder_point) || 10);
@@ -63,6 +65,10 @@ const ProductCard = ({ product, supplier, mine, onAdd, justAdded }) => {
     product.lead_time_days ? `${product.lead_time_days}d notice` : null,
     minQty > 1 ? `min ${minQty}` : null,
   ].filter(Boolean);
+
+  const inc = () => onSetQty(product, basketQty === 0 ? minQty : basketQty + 1);
+  const dec = () => onSetQty(product, basketQty - 1 < minQty ? 0 : basketQty - 1);
+
   return (
     <div className="mp-card">
       {product.image_url
@@ -91,23 +97,14 @@ const ProductCard = ({ product, supplier, mine, onAdd, justAdded }) => {
             ? <span className="mp-scarce">Only {stock} left</span>
             : (product.updated_at && <span className="mp-upd">upd {fmtDate(product.updated_at)}</span>)}
       </div>
-      <div className="mp-addrow">
-        <div className="mp-step">
-          <button type="button" onClick={() => setQty(q => Math.max(minQty, q - 1))}>−</button>
-          <input
-            type="number" min={minQty} value={qty}
-            onChange={(e) => setQty(Math.max(minQty, parseInt(e.target.value, 10) || minQty))}
-          />
-          <button type="button" onClick={() => setQty(q => q + 1)}>+</button>
-        </div>
-        <button
-          type="button"
-          className={`mp-add ${justAdded ? 'added' : ''}`}
-          disabled={out}
-          onClick={() => onAdd(product, qty)}
-        >
-          {justAdded ? <><Check size={12} style={{ verticalAlign: -2 }} /> Added</> : 'Add'}
-        </button>
+      <div className={`mp-qtybar ${basketQty > 0 ? 'in' : ''} ${out ? 'off' : ''}`}>
+        <button type="button" onClick={dec} disabled={out || basketQty === 0} aria-label="Fewer">−</button>
+        <span className="q">
+          {basketQty > 0
+            ? <>{basketQty}<small> in basket</small></>
+            : (out ? 'Unavailable' : 'Add to basket')}
+        </span>
+        <button type="button" onClick={inc} disabled={out} aria-label="More">+</button>
       </div>
     </div>
   );
@@ -135,7 +132,6 @@ const Marketplace = () => {
   const [targetBoard, setTargetBoard] = useState(searchParams.get('board') || '');
   const [newBoardName, setNewBoardName] = useState('');
   const [placing, setPlacing] = useState(false);
-  const [justAdded, setJustAdded] = useState(null);
 
   useEffect(() => {
     let live = true;
@@ -208,27 +204,25 @@ const Marketplace = () => {
   }, [searched, category, q]);
 
   // ── basket ──
-  const addToBasket = (product, qty) => {
-    setBasket(prev => {
-      const idx = prev.findIndex(l => l.product.id === product.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { ...next[idx], qty: next[idx].qty + qty };
-        return next;
-      }
-      return [...prev, { product, qty }];
-    });
-    setJustAdded(product.id);
-    setTimeout(() => setJustAdded(null), 1200);
-  };
-  // Decrementing below a product's minimum order removes the line —
-  // never leaves an unorderable quantity in the basket.
-  const setLineQty = (productId, qty) => setBasket(prev => {
-    const line = prev.find(l => l.product.id === productId);
-    if (!line) return prev;
-    if (qty <= 0 || qty < minQtyOf(line.product)) return prev.filter(l => l.product.id !== productId);
-    return prev.map(l => (l.product.id === productId ? { ...l, qty } : l));
+  // One writer for card steppers and basket rows alike: qty 0 (or below
+  // the product's minimum order) removes the line, otherwise upsert.
+  const setProductQty = (product, qty) => setBasket(prev => {
+    if (qty <= 0 || qty < minQtyOf(product)) return prev.filter(l => l.product.id !== product.id);
+    const idx = prev.findIndex(l => l.product.id === product.id);
+    if (idx === -1) return [...prev, { product, qty }];
+    const next = [...prev];
+    next[idx] = { ...next[idx], qty };
+    return next;
   });
+  const setLineQty = (productId, qty) => {
+    const line = basket.find(l => l.product.id === productId);
+    if (line) setProductQty(line.product, qty);
+  };
+  const basketQtyOf = useMemo(() => {
+    const m = new Map();
+    basket.forEach(l => m.set(l.product.id, l.qty));
+    return (id) => m.get(id) || 0;
+  }, [basket]);
   const removeLine = (productId) => setBasket(prev => prev.filter(l => l.product.id !== productId));
 
   const basketBySupplier = useMemo(() => {
@@ -379,8 +373,8 @@ const Marketplace = () => {
                           product={p}
                           supplier={supplierById.get(p.supplier_id)}
                           mine={mySupplierIds.has(p.supplier_id)}
-                          onAdd={addToBasket}
-                          justAdded={justAdded === p.id}
+                          basketQty={basketQtyOf(p.id)}
+                          onSetQty={setProductQty}
                         />
                       ))}
                     </div>
