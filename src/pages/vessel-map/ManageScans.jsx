@@ -16,7 +16,7 @@ import Header from '../../components/navigation/Header';
 import SplatViewer from './components/SplatViewer';
 import OrientPanel from './components/OrientPanel';
 import GuideCards from './components/GuideCards';
-import { SCAN_EXTENSIONS, SCAN_MAX_BYTES, validateScanFile, fileExtension, createScanUpload } from './utils/scanUpload';
+import { SCAN_EXTENSIONS, validateScanFile, fileExtension, createScanUpload } from './utils/scanUpload';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
 import './vessel-map.css';
@@ -426,9 +426,6 @@ export default function ManageScans() {
                 <>
                   <GuideCards onFile={acceptFile} />
                   <div className="vmm-under-cards">
-                    <p className="vmm-formats">
-                      Takes SPZ, PLY, SPLAT or KSPLAT, up to {Math.round(SCAN_MAX_BYTES / (1024 * 1024))}MB — or drop a file anywhere here.
-                    </p>
                     <button className="vmm-steps-toggle" onClick={() => setStepsHidden(true)}>Done this before? Hide the steps</button>
                   </div>
                 </>

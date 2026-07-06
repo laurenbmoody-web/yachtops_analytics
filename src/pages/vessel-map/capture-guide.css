@@ -43,6 +43,7 @@
 .cg-navy { background: #1C1B3A; }
 .cg-navy h2 { color: #fff; }
 .cg-navy p { color: #AEB4C2; }
+.cg-limit { margin-top: 6px !important; font-size: 11.5px; color: #8FA0C6 !important; }
 .cg-navy .vm-btn-primary { box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.45); }
 
 .cg-cta {

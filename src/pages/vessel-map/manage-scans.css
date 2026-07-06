@@ -36,13 +36,12 @@
 .vmm-uploader-over { box-shadow: 0 0 0 2px #C65A1A, 0 0 0 8px #FAECE7; }
 .vmm-under-cards {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: baseline;
   gap: 18px;
   margin-top: 14px;
   flex-wrap: wrap;
 }
-.vmm-formats { margin: 0; font-size: 12.5px; color: #8B8478; }
 .vmm-steps-toggle {
   background: none;
   border: 0;
