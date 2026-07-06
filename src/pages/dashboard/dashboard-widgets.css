@@ -1,3 +1,9 @@
+/* DM Serif Display (roman + italic) — imported locally like the other
+   editorial pages (crew-profile.css, pantry.css) so the dashboard widget
+   titles reliably get the true italic face for the terracotta accent,
+   instead of falling back to Georgia italic. Must lead the file. */
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&display=swap');
+
 /* ============================================================
    Overview-dashboard editorial widget surface.
 
@@ -52,7 +58,7 @@
    the base (navy) tone only; .accent is for the orange-italic
    qualifier where one exists (Pantry). */
 .cargo-editorial .ce-title {
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
   font-size: 22px;
   font-weight: 500;
   letter-spacing: -0.5px;
