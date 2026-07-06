@@ -1,19 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  useEffect, useLayoutEffect, useRef, useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import './time-wheel.css';
 
 // Single-time picker with an iPhone-alarm scroll wheel — the same wheel used
 // when logging Hours of Rest (HORHybridLog). The trigger renders inline (style
-// it via `className`); tapping it opens a centred, dimmed wheel sheet. Values
-// snap to the 30-minute grid.
+// it via `className`); tapping it drops a compact wheel popover anchored just
+// below the trigger. Values snap to the 30-minute grid and commit on Done (or
+// clicking outside). Portaled so it escapes any overflow clipping, positioned
+// against the trigger's rect.
 //
 // Props:
 //   value     — 'HH:MM' string ('22:00') or null
-//   onChange  — (next 'HH:MM') => void   (fired on Done)
+//   onChange  — (next 'HH:MM') => void
 //   disabled  — bool
 //   ariaLabel — string
 //   className — extra class(es) on the trigger button
-//   title     — heading shown above the wheels
 
 const WHEEL_ITEM_H = 32;
 const HOURS = Array.from({ length: 24 }, (_, h) => ({ value: h, label: String(h).padStart(2, '0') }));
@@ -62,15 +65,33 @@ const Wheel = ({ items, value, onChange }) => {
 };
 
 export default function TimeWheel({
-  value, onChange, disabled = false, ariaLabel, className, title = 'Set time',
+  value, onChange, disabled = false, ariaLabel, className,
 }) {
   const [open, setOpen] = useState(false);
   const [h, setH] = useState(0);
   const [m, setM] = useState(0);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef(null);
+  const popRef = useRef(null);
 
   const parse = () => {
     const [ph, pm] = (value || '00:00').split(':').map((n) => parseInt(n, 10));
     return [Number.isFinite(ph) ? ph : 0, pm === 30 ? 30 : 0];
+  };
+
+  const place = () => {
+    const t = triggerRef.current;
+    if (!t) return;
+    const r = t.getBoundingClientRect();
+    const popW = popRef.current?.offsetWidth || 188;
+    const popH = popRef.current?.offsetHeight || 268;
+    let left = r.left;
+    left = Math.min(left, window.innerWidth - popW - 8);
+    left = Math.max(8, left);
+    // Drop below the pill; flip above if it would run off the bottom.
+    let top = r.bottom + 6;
+    if (top + popH > window.innerHeight - 8) top = Math.max(8, r.top - popH - 6);
+    setPos({ top, left });
   };
 
   const openSheet = () => {
@@ -79,11 +100,31 @@ export default function TimeWheel({
     setH(ph); setM(pm); setOpen(true);
   };
 
+  useLayoutEffect(() => {
+    if (open) place();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    const onDown = (e) => {
+      if (!popRef.current?.contains(e.target) && !triggerRef.current?.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const onReflow = () => place();
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('resize', onReflow);
+    window.addEventListener('scroll', onReflow, true);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('resize', onReflow);
+      window.removeEventListener('scroll', onReflow, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const commit = () => { onChange?.(`${pad(h)}:${pad(m)}`); setOpen(false); };
@@ -91,34 +132,33 @@ export default function TimeWheel({
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         className={className}
         disabled={disabled}
         aria-haspopup="dialog"
+        aria-expanded={open}
         aria-label={ariaLabel}
-        onClick={openSheet}
+        onClick={() => (open ? setOpen(false) : openSheet())}
       >
         {value || '—'}
       </button>
       {open && createPortal(
         <div
-          className="tw-overlay"
+          ref={popRef}
+          className="tw-pop"
           role="dialog"
-          aria-modal="true"
-          aria-label={ariaLabel || title}
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+          aria-label={ariaLabel}
+          style={{ top: pos.top, left: pos.left }}
         >
-          <div className="tw-modal">
-            <h3 className="tw-title">{title}</h3>
-            <div className="tw-wheels">
-              <Wheel items={HOURS} value={h} onChange={setH} />
-              <span className="tw-colon">:</span>
-              <Wheel items={MINUTES} value={m} onChange={setM} />
-            </div>
-            <div className="tw-actions">
-              <button type="button" className="tw-cancel" onClick={() => setOpen(false)}>Cancel</button>
-              <button type="button" className="tw-done" onClick={commit}>Done</button>
-            </div>
+          <div className="tw-wheels">
+            <Wheel items={HOURS} value={h} onChange={setH} />
+            <span className="tw-colon">:</span>
+            <Wheel items={MINUTES} value={m} onChange={setM} />
+          </div>
+          <div className="tw-actions">
+            <button type="button" className="tw-cancel" onClick={() => setOpen(false)}>Cancel</button>
+            <button type="button" className="tw-done" onClick={commit}>Done</button>
           </div>
         </div>,
         document.body,
