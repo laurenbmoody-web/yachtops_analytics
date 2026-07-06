@@ -1,18 +1,12 @@
-// The capture guide — three illustration-forward cards on the manage shell.
-// Colour arc runs tint → paper → navy: warm start, ink finish, with the
-// terracotta CTA landing on the dark closing card (the map's own stage ink).
+// The manage page's upload surface: three illustration-forward cards,
+// colour arc tint → paper → navy. The navy card's CTA opens the device's
+// file picker directly; the whole grid is also a drop target (wired by the
+// parent). Collapsible for crews who've done it many times.
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import Header from '../../components/navigation/Header';
-import '../../styles/editorial.css';
-import '../../styles/editorial-tokens.css';
-import './vessel-map.css';
-import './manage-scans.css';
-import './capture-guide.css';
+import { SCAN_EXTENSIONS } from '../utils/scanUpload';
+import '../capture-guide.css';
 
-const VM_STAGE = '#22253F';
-
-/* Drawn artwork — 1.5px strokes, ink + terracotta. One drawing per step. */
+const ACCEPT = SCAN_EXTENSIONS.map((e) => `.${e}`).join(',');
 
 const ScanIllo = () => (
   <svg viewBox="0 0 220 150" className="cg-illo" aria-hidden="true">
@@ -54,46 +48,33 @@ const DropIllo = () => (
   </svg>
 );
 
-export default function CaptureGuide() {
-  const navigate = useNavigate();
-
+export default function GuideCards({ onFile }) {
   return (
-    <>
-      <Header />
-      <div className="editorial-page pv-dashboard vm-page vmm-page" style={{ '--vm-stage': VM_STAGE }}>
-        <div className="vm-shell">
-          <button className="vmm-back" onClick={() => navigate('/vessel/map/manage')}>← Manage scans</button>
-
-          <div className="vm-headblock">
-            <h1 className="editorial-greeting">
-              THE SCAN<span className="period">,</span> <em>captured in three steps</em><span className="period">.</span>
-            </h1>
-          </div>
-
-          <div className="cg-grid">
-            <div className="cg-card cg-tint">
-              <div className="cg-art"><ScanIllo /></div>
-              <h2>Scan the room</h2>
-              <p>Slowly, with a free phone app — Scaniverse or Polycam. Lights on, blinds drawn.</p>
-            </div>
-            <div className="cg-card cg-paper">
-              <div className="cg-art"><ExportIllo /></div>
-              <h2>Export the scan</h2>
-              <p>Scaniverse: Share → Export Model → <strong>SPZ</strong>.<br />Polycam: Export → Gaussian Splat → <strong>PLY</strong>.</p>
-            </div>
-            <div className="cg-card cg-navy">
-              <div className="cg-art"><DropIllo /></div>
-              <h2>Drop it in</h2>
-              <p>Name it, stand it upright — it's on the map.</p>
-              <button className="vm-btn-primary cg-cta" onClick={() => navigate('/vessel/map/manage')}>
-                Upload your scan
-              </button>
-            </div>
-          </div>
-
-          <p className="cg-footnote">Big file? SPZ exports are much smaller than PLY.</p>
-        </div>
+    <div className="cg-grid">
+      <div className="cg-card cg-tint">
+        <div className="cg-art"><ScanIllo /></div>
+        <h2>Scan the room</h2>
+        <p>Slowly, with a free phone app — Scaniverse or Polycam. Lights on, blinds drawn.</p>
       </div>
-    </>
+      <div className="cg-card cg-paper">
+        <div className="cg-art"><ExportIllo /></div>
+        <h2>Export the scan</h2>
+        <p>Scaniverse: Share → Export Model → <strong>SPZ</strong>.<br />Polycam: Export → Gaussian Splat → <strong>PLY</strong>.</p>
+      </div>
+      <div className="cg-card cg-navy">
+        <div className="cg-art"><DropIllo /></div>
+        <h2>Drop it in</h2>
+        <p>Name it, stand it upright — it's on the map.</p>
+        <label className="vm-btn-primary cg-cta">
+          Upload your scan
+          <input
+            type="file"
+            accept={ACCEPT}
+            style={{ display: 'none' }}
+            onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }}
+          />
+        </label>
+      </div>
+    </div>
   );
 }
