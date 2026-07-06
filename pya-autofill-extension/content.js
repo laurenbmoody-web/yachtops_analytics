@@ -15,7 +15,7 @@
   if (window.__cargoPyaLoaded) return;
   window.__cargoPyaLoaded = true;
 
-  const VERSION = 'ext-1';
+  const VERSION = 'ext-2';
   let ok = [], miss = [];
 
   const norm = (s) => (s || '').replace(/[ⓘ\*•]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -194,9 +194,15 @@
     document.body.appendChild(btn);
   }
 
+  // Toolbar-icon click (relayed by background.js) fills too — same as the button.
+  try {
+    chrome.runtime.onMessage.addListener((msg) => { if (msg && msg.type === 'CARGO_PYA_FILL') onFill(); });
+  } catch (e) { /* chrome.runtime not present outside the extension */ }
+
   // The form is a client-rendered SPA — inject once the body exists, and keep the
   // button alive across in-app navigations.
   injectButton();
   const mo = new MutationObserver(() => injectButton());
   mo.observe(document.documentElement, { childList: true, subtree: true });
+  console.log('%c[Cargo→PYA] extension active (' + VERSION + '). Click the ⚓ Fill from Cargo button (bottom-right) or the toolbar icon, after "Copy for PYA" in Cargo.', 'color:#5E8E6F;font-weight:bold');
 })();
