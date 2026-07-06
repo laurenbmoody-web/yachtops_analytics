@@ -46,6 +46,12 @@
   gap: 6px;
   padding: 28px 20px;
 }
+/* Metric-coded bottom edges — a quiet accent so the row reads as a set
+   (received = sage, total = navy hero, payments = orange) instead of
+   three near-identical neutral cards. */
+.sg-grid > .sg-card:nth-child(1) { border-bottom-color: var(--d-sage); }
+.sg-grid > .sg-card:nth-child(2) { border-bottom-color: var(--d-navy); }
+.sg-grid > .sg-card:nth-child(3) { border-bottom-color: var(--d-orange); }
 
 /* Breathing room between the SVG arc and the number/label
    below it — replaces the inline marginTop: -4 that pulled
@@ -72,9 +78,12 @@
   letter-spacing: -0.02em;
   color: var(--d-navy-deep);
 }
+/* Hero figure — the one number the dashboard leads with. Larger,
+   proportional figures (no tabular-nums at display size). */
 .sg-value.is-cost {
-  font-size: 36px;
-  margin: 8px 0 4px;
+  font-size: 46px;
+  margin: 6px 0 4px;
+  letter-spacing: -0.03em;
 }
 .sg-sub {
   margin: 4px 0 6px;
@@ -91,7 +100,11 @@
 .sg-note.is-sage { color: var(--d-sage-deep); }
 
 /* ── Gauge SVG stops + track ─────────────────────────────── */
+/* Base track (fallback). Per-kind overrides below make the unfilled
+   rail a light step of the fill hue so the meter reads hue-on-hue. */
 .sg-gauge-track  { stroke: var(--d-border); opacity: 0.7; }
+.sg-track-sage      { stroke: var(--d-sage);   opacity: 0.3; }
+.sg-track-attention { stroke: var(--d-orange); opacity: 0.2; }
 
 .sg-grad-sage-from      { stop-color: var(--d-sage-deep); }
 .sg-grad-sage-to        { stop-color: var(--d-sage); }
