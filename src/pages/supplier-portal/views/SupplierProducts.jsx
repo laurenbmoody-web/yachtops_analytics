@@ -374,7 +374,9 @@ const SupplierProducts = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [chip, setChip] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
   const [selected, setSelected] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [confirm, setConfirm] = useState(null); // { title, body, label, action }
@@ -489,28 +491,62 @@ const SupplierProducts = () => {
     return { byCat, low };
   }, [searched]);
 
-  const filtered = useMemo(() => searched.filter(i => {
-    if (chip === 'All') return true;
-    if (chip === 'Low') return isLowStock(i);
-    return (i.category || 'Other') === chip;
-  }), [searched, chip]);
+  const matchesStatus = (i) => {
+    switch (statusFilter) {
+      case 'in': return i.in_stock && !isLowStock(i);
+      case 'low': return i.in_stock && i.stock_qty != null && Number(i.stock_qty) <= lowStockAt(i);
+      case 'out': return !i.in_stock || (i.stock_qty != null && Number(i.stock_qty) <= 0);
+      case 'no_photo': return !i.image_url;
+      case 'no_cost': return costs[i.id] == null;
+      case 'no_barcode': return !i.barcode;
+      default: return true;
+    }
+  };
 
-  // ── KPI strip: valuation from the operational data ──
+  const filtered = useMemo(() => {
+    const rows = searched.filter(i =>
+      (categoryFilter === 'All' || (i.category || 'Other') === categoryFilter) && matchesStatus(i)
+    );
+    const cmp = {
+      name: (a, b) => a.name.localeCompare(b.name),
+      price_desc: (a, b) => (b.unit_price ?? -1) - (a.unit_price ?? -1),
+      price_asc: (a, b) => (a.unit_price ?? Infinity) - (b.unit_price ?? Infinity),
+      margin_desc: (a, b) => (marginPct(b.unit_price, costs[b.id]) ?? -999) - (marginPct(a.unit_price, costs[a.id]) ?? -999),
+      margin_asc: (a, b) => (marginPct(a.unit_price, costs[a.id]) ?? 999) - (marginPct(b.unit_price, costs[b.id]) ?? 999),
+      stock_asc: (a, b) => (a.stock_qty ?? Infinity) - (b.stock_qty ?? Infinity),
+      updated_desc: (a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0),
+    }[sortBy] || ((a, b) => a.name.localeCompare(b.name));
+    return [...rows].sort(cmp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searched, categoryFilter, statusFilter, sortBy, costs]);
+
+  // ── KPI band: valuation + health from the operational data ──
   const kpis = useMemo(() => {
-    let stockValue = 0, retailValue = 0, marginSum = 0, marginN = 0, priced = 0;
+    let stockValue = 0, retailValue = 0, marginSum = 0, marginN = 0, thin = 0;
+    let photos = 0, costed = 0, coded = 0, out = 0, lowOnly = 0;
     for (const i of items) {
       const cost = costs[i.id];
       const qty = i.stock_qty != null ? Number(i.stock_qty) : null;
       if (qty != null && cost != null) stockValue += qty * Number(cost);
       if (qty != null && i.unit_price != null) retailValue += qty * Number(i.unit_price);
       const m = marginPct(i.unit_price, cost);
-      if (m != null) { marginSum += m; marginN++; }
-      if (i.unit_price != null) priced++;
+      if (m != null) { marginSum += m; marginN++; if (m < 15) thin++; }
+      if (i.image_url) photos++;
+      if (cost != null) costed++;
+      if (i.barcode) coded++;
+      const isOut = !i.in_stock || (qty != null && qty <= 0);
+      if (isOut) out++;
+      else if (qty != null && qty <= lowStockAt(i)) lowOnly++;
     }
+    const n = items.length || 1;
     return {
       stockValue, retailValue,
+      uplift: stockValue > 0 ? (retailValue / stockValue - 1) * 100 : null,
       blendedMargin: marginN ? marginSum / marginN : null,
-      priced,
+      thin,
+      healthPct: Math.round(((photos / n) + (costed / n) + (coded / n)) / 3 * 100),
+      photos, costed, coded,
+      out, lowOnly,
     };
   }, [items, costs]);
 
@@ -558,11 +594,6 @@ const SupplierProducts = () => {
   });
 
   const dataCategories = orderCategories(Object.keys(counts.byCat));
-  const chipDefs = [
-    { key: 'All', label: 'All', count: searched.length },
-    ...dataCategories.map(c => ({ key: c, label: c, count: counts.byCat[c] })),
-    ...(counts.low ? [{ key: 'Low', label: 'Low / out', count: counts.low, warn: true }] : []),
-  ];
   const categorySuggestions = orderCategories(Array.from(new Set([
     ...STANDARD_CATEGORIES,
     ...items.map(i => i.category).filter(Boolean),
@@ -644,49 +675,104 @@ const SupplierProducts = () => {
       )}
 
       {items.length > 0 && (
-        <div className="spp-kpis">
-          <div className="spp-kpi">
-            <div className="spp-kpi-label">Stock value (cost)</div>
-            <div className="spp-kpi-value">{kpis.stockValue ? `${kpis.stockValue.toLocaleString('en-GB', { maximumFractionDigits: 0 })} ${homeCurrency}` : '—'}</div>
+        <div className="spp-kpiband">
+          <div className="spp-kpicell">
+            <div className="spp-kpi-label">Stock on hand · at cost</div>
+            <div className="spp-kpi-value">
+              {kpis.stockValue ? <>{kpis.stockValue.toLocaleString('en-GB', { maximumFractionDigits: 0 })} <small>{homeCurrency}</small></> : '—'}
+            </div>
+            <div className="spp-kpi-sub">
+              retail <b>{kpis.retailValue ? kpis.retailValue.toLocaleString('en-GB', { maximumFractionDigits: 0 }) : '—'}</b>
+              {kpis.uplift != null && <span className="up"> · +{kpis.uplift.toFixed(0)}% uplift</span>}
+            </div>
+            <div className="spp-kpi-meter">
+              <i className="orange" style={{ width: `${kpis.retailValue > 0 ? Math.min(100, (kpis.stockValue / kpis.retailValue) * 100) : 0}%` }} />
+            </div>
           </div>
-          <div className="spp-kpi">
-            <div className="spp-kpi-label">Stock value (retail)</div>
-            <div className="spp-kpi-value">{kpis.retailValue ? `${kpis.retailValue.toLocaleString('en-GB', { maximumFractionDigits: 0 })} ${homeCurrency}` : '—'}</div>
-          </div>
-          <div className="spp-kpi">
+
+          <div className="spp-kpicell">
             <div className="spp-kpi-label">Blended margin</div>
-            <div className="spp-kpi-value">{kpis.blendedMargin != null ? `${kpis.blendedMargin.toFixed(1)}%` : 'add costs'}</div>
+            <div className="spp-kpi-value">
+              {kpis.blendedMargin != null ? <>{kpis.blendedMargin.toFixed(1)}<small>%</small></> : '—'}
+            </div>
+            <div className="spp-kpi-sub">
+              {kpis.thin
+                ? <span className="warn">{kpis.thin} product{kpis.thin === 1 ? '' : 's'} under 15%</span>
+                : <span className="up">nothing under 15%</span>}
+            </div>
+            <div className="spp-kpi-meter">
+              <i className={kpis.blendedMargin != null && kpis.blendedMargin < 15 ? 'amber' : 'green'}
+                style={{ width: `${Math.min(100, Math.max(0, (kpis.blendedMargin ?? 0) / 60 * 100))}%` }} />
+            </div>
           </div>
-          <div className="spp-kpi">
+
+          <div className="spp-kpicell">
+            <div className="spp-kpi-label">Catalogue health</div>
+            <div className="spp-kpi-value">{kpis.healthPct}<small>%</small></div>
+            <div className="spp-kpi-sub">
+              <b>{kpis.photos}</b> photos · <b>{kpis.costed}</b> costs · <b>{kpis.coded}</b> barcodes
+            </div>
+            <div className="spp-kpi-meter">
+              <i className={kpis.healthPct >= 75 ? 'green' : 'amber'} style={{ width: `${kpis.healthPct}%` }} />
+            </div>
+          </div>
+
+          <div className="spp-kpicell">
             <div className="spp-kpi-label">Needs attention</div>
-            <div className="spp-kpi-value">{counts.low ? `${counts.low} low / out` : 'all stocked'}</div>
+            <div className="spp-kpi-value">{kpis.out + kpis.lowOnly || '0'}</div>
+            <div className="spp-kpi-sub">
+              {kpis.out + kpis.lowOnly
+                ? <><span className="bad">{kpis.out} out</span> · <span className="warn">{kpis.lowOnly} low</span></>
+                : <span className="up">everything stocked</span>}
+            </div>
+            <div className="spp-kpi-meter">
+              <i className={kpis.out ? 'red' : kpis.lowOnly ? 'amber' : 'green'}
+                style={{ width: `${Math.min(100, ((kpis.out + kpis.lowOnly) / (items.length || 1)) * 100)}%` }} />
+            </div>
           </div>
         </div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
+      <div className="spp-controls">
         <input
+          className="spp-search"
           placeholder="Search name, SKU or barcode…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--line)', fontSize: 13, width: 260 }}
         />
+        <label className="spp-filter">
+          <span className="k">Category</span>
+          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+            <option value="All">All ({searched.length})</option>
+            {dataCategories.map(c => <option key={c} value={c}>{c} ({counts.byCat[c]})</option>)}
+          </select>
+        </label>
+        <label className="spp-filter">
+          <span className="k">Show</span>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="all">Everything</option>
+            <option value="in">In stock</option>
+            <option value="low">Low stock</option>
+            <option value="out">Out of stock</option>
+            <option value="no_photo">Missing photo</option>
+            <option value="no_cost">Missing cost</option>
+            <option value="no_barcode">Missing barcode</option>
+          </select>
+        </label>
+        <label className="spp-filter">
+          <span className="k">Sort</span>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)}>
+            <option value="name">Name A–Z</option>
+            <option value="price_desc">Price · high first</option>
+            <option value="price_asc">Price · low first</option>
+            <option value="margin_desc">Margin · high first</option>
+            <option value="margin_asc">Margin · low first</option>
+            <option value="stock_asc">Stock · low first</option>
+            <option value="updated_desc">Recently updated</option>
+          </select>
+        </label>
+        <span className="spp-controls-count">{filtered.length} of {items.length}</span>
       </div>
-
-      {items.length > 0 && (
-        <div className="spp-chips">
-          {chipDefs.map(c => (
-            <button
-              key={c.key}
-              className={`spp-chip ${chip === c.key ? 'on' : ''} ${c.warn ? 'warn' : ''}`}
-              onClick={() => setChip(chip === c.key ? 'All' : c.key)}
-            >
-              {c.warn && <span className="dot" />}
-              {c.label} <span className="ct">{c.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
 
       {!loading && filtered.length === 0 && (
         <EmptyState
