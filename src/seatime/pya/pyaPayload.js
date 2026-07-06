@@ -101,11 +101,13 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
   if (guestDays != null && round(guestDays) > 0) service['Days with guests'] = round(guestDays);
 
   const areas = mapAreas(operatingRegions);
+  const flag = v.flag || '';
 
   // Fields we can't fill (no data, or a custom widget we don't drive).
-  const manual = ['Flag (country picker)', 'Type of Main Engine', 'Propulsion power (kW)', 'Night Watch Hours'];
+  const manual = ['Type of Main Engine', 'Propulsion power (kW)', 'Night Watch Hours'];
   if (!text['Official Number']) manual.push('Official Number');
   if (!areas.length) manual.push('Areas cruised');
+  if (!flag) manual.push('Flag (country picker)');
 
   return {
     format: 'New Digital SST',
@@ -115,6 +117,7 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
     text,
     service,
     areas,
+    flag,
     dates: { from: dataset?.service?.periodFrom || '', to: dataset?.service?.periodTo || '' },
     signatoryEmail: signatoryEmail || '',
     manual,
