@@ -8,7 +8,6 @@
 // straight into the orient step → view on map. Failures leave the row
 // marked incomplete with retry/discard affordances; nothing orphans.
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -58,8 +57,6 @@ export default function ManageScans() {
   const [orientError, setOrientError] = useState(null);
   const activeUploadRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
-  const [guideClosing, setGuideClosing] = useState(false);
 
   // Per-row: edits, replace/complete transfer state, delete modal.
   const [rowEdits, setRowEdits] = useState({});
@@ -101,18 +98,6 @@ export default function ManageScans() {
   // Abandoning mid-upload: stop the transfer. The row stays 'uploading' and
   // surfaces as incomplete with retry/discard next visit — never orphaned.
   useEffect(() => () => activeUploadRef.current?.abort?.(), []);
-
-  // Capture-guide sheet: animated exit, Esc to dismiss.
-  const closeGuide = useCallback(() => {
-    setGuideClosing(true);
-    setTimeout(() => { setGuideOpen(false); setGuideClosing(false); }, 240);
-  }, []);
-  useEffect(() => {
-    if (!guideOpen) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') closeGuide(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [guideOpen, closeGuide]);
 
   const nextSortOrder = useMemo(
     () => scans.reduce((m, s) => Math.max(m, s.sort_order ?? 0), 0) + 1,
@@ -419,7 +404,7 @@ export default function ManageScans() {
                     onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = ''; }}
                   />
                 </label>
-                <button className="vm-btn-ghost" onClick={() => setGuideOpen(true)}>
+                <button className="vm-btn-ghost" onClick={() => navigate('/vessel/map/manage/guide')}>
                   How do I capture a scan?
                 </button>
               </div>
@@ -601,94 +586,6 @@ export default function ManageScans() {
         </div>
       )}
 
-      {/* Capture guide — a portaled editorial sheet, same species as the map's
-          Inspector. The content leaves the page; nothing squeezes the layout. */}
-      {guideOpen && createPortal(
-        <div className={`vmm-gd-overlay${guideClosing ? ' vmm-gd-leaving' : ''}`} onClick={closeGuide}>
-          <aside className="vmm-gd-sheet" role="dialog" aria-label="Capture guide" onClick={(e) => e.stopPropagation()}>
-            <div className="vmm-gd-hero">
-              <button className="vmm-gd-x" onClick={closeGuide} aria-label="Close guide">×</button>
-              {/* Splat-cloud motif — the product's own material as ornament. */}
-              <svg className="vmm-gd-cloud" viewBox="0 0 220 150" aria-hidden="true">
-                <g fill="#C65A1A">
-                  <circle cx="176" cy="22" r="2.6" opacity="0.9" />
-                  <circle cx="188" cy="34" r="1.8" opacity="0.55" />
-                  <circle cx="163" cy="35" r="2.2" opacity="0.75" />
-                  <circle cx="197" cy="21" r="1.4" opacity="0.4" />
-                  <circle cx="150" cy="24" r="1.6" opacity="0.5" />
-                  <circle cx="171" cy="49" r="2.4" opacity="0.8" />
-                  <circle cx="186" cy="58" r="1.5" opacity="0.45" />
-                  <circle cx="157" cy="60" r="1.9" opacity="0.6" />
-                  <circle cx="199" cy="47" r="2.1" opacity="0.65" />
-                  <circle cx="143" cy="44" r="1.3" opacity="0.35" />
-                  <circle cx="178" cy="72" r="1.7" opacity="0.5" />
-                  <circle cx="162" cy="82" r="1.4" opacity="0.35" />
-                  <circle cx="193" cy="79" r="1.9" opacity="0.55" />
-                  <circle cx="148" cy="73" r="1.2" opacity="0.3" />
-                  <circle cx="205" cy="65" r="1.3" opacity="0.4" />
-                  <circle cx="170" cy="96" r="1.3" opacity="0.3" />
-                  <circle cx="188" cy="99" r="1.5" opacity="0.35" />
-                  <circle cx="203" cy="90" r="1.1" opacity="0.25" />
-                  <circle cx="155" cy="99" r="1" opacity="0.2" />
-                  <circle cx="180" cy="115" r="1.2" opacity="0.22" />
-                  <circle cx="198" cy="112" r="1" opacity="0.18" />
-                </g>
-                <g fill="#8FA0C6">
-                  <circle cx="168" cy="12" r="1.4" opacity="0.5" />
-                  <circle cx="184" cy="10" r="1.1" opacity="0.35" />
-                  <circle cx="152" cy="12" r="1" opacity="0.3" />
-                  <circle cx="205" cy="33" r="1.2" opacity="0.35" />
-                  <circle cx="137" cy="33" r="1.1" opacity="0.25" />
-                  <circle cx="210" cy="54" r="1" opacity="0.3" />
-                  <circle cx="140" cy="58" r="0.9" opacity="0.2" />
-                  <circle cx="165" cy="68" r="1.1" opacity="0.3" />
-                  <circle cx="152" cy="88" r="0.9" opacity="0.2" />
-                  <circle cx="211" cy="78" r="0.9" opacity="0.22" />
-                </g>
-              </svg>
-              <p className="vmm-gd-eyebrow">Capture guide</p>
-              <h2 className="vmm-gd-title">Get a room aboard.</h2>
-              <p className="vmm-gd-lede">Ten minutes with the phone in your pocket — no kit, no training.</p>
-            </div>
-            <ol className="vmm-gd-steps">
-              <li>
-                <span className="vmm-gd-num">1</span>
-                <div className="vmm-gd-step">
-                  <p className="vmm-gd-step-title">Scan the room</p>
-                  <p className="vmm-gd-step-body">Slowly, with a free phone app. Lights on, blinds drawn.</p>
-                  <div className="vmm-gd-apps">
-                    <span className="vmm-gd-pill">Scaniverse</span>
-                    <span className="vmm-gd-pill">Polycam</span>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <span className="vmm-gd-num">2</span>
-                <div className="vmm-gd-step">
-                  <p className="vmm-gd-step-title">Export the scan</p>
-                  <div className="vmm-gd-path">
-                    <span className="vmm-gd-pill">Scaniverse</span>
-                    <span className="vmm-gd-route">Share → Export Model → <strong>SPZ</strong></span>
-                  </div>
-                  <div className="vmm-gd-path">
-                    <span className="vmm-gd-pill">Polycam</span>
-                    <span className="vmm-gd-route">Export → Gaussian Splat → <strong>PLY</strong></span>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <span className="vmm-gd-num">3</span>
-                <div className="vmm-gd-step">
-                  <p className="vmm-gd-step-title">Drop it here</p>
-                  <p className="vmm-gd-step-body">Name it, stand it upright — it's on the map.</p>
-                </div>
-              </li>
-            </ol>
-            <p className="vmm-gd-footnote">Big file? SPZ exports are much smaller than PLY.</p>
-          </aside>
-        </div>,
-        document.body
-      )}
     </>
   );
 }

@@ -117,6 +117,7 @@ import GuestHistoryPage from './pages/pantry/stubs/GuestHistoryPage';
 import TodayDetailPage from './pages/today-detail/index';
 import VesselMapPage from './pages/vessel-map';
 import ManageScans from './pages/vessel-map/ManageScans';
+import CaptureGuide from './pages/vessel-map/CaptureGuide';
 import NotFound from './pages/NotFound';
 
 // DEV_MODE constant for debugging
@@ -1209,6 +1210,7 @@ const Routes = () => {
         <Route path="/vessel-documents" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><VesselDocuments /></ProtectedRoute>} />
         <Route path="/vessel/map" element={<ProtectedRoute><VesselMapPage /></ProtectedRoute>} />
         <Route path="/vessel/map/manage" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><ManageScans /></ProtectedRoute>} />
+        <Route path="/vessel/map/manage/guide" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><CaptureGuide /></ProtectedRoute>} />
         <Route path="/crew-management/roles" element={<CommandRoute><RoleManagement /></CommandRoute>} />
         <Route path="/profile/:crewId" element={<ProtectedRoute requiresTenant={false}><CrewProfile /></ProtectedRoute>} />
         <Route path="/my-profile" element={<MyProfileRedirect />} />
