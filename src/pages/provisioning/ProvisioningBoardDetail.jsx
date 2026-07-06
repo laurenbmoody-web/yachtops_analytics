@@ -3857,7 +3857,11 @@ const ProvisioningBoardDetail = () => {
                             onMouseLeave={() => setHoveredRow(null)}
                             style={{
                               display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px',
-                              background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white',
+                              // Locked (supplier-confirmed / substituted /
+                              // unavailable, or sent) lines get a soft field
+                              // tint so settled work recedes as a group and
+                              // the still-actionable rows read as white.
+                              background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : (isLocked ? '#FAFAF8' : 'white'),
                               borderBottom: rowIdx < totalRows - 1 ? '1px solid #F8FAFC' : 'none',
                               transition: 'background 0.1s',
                               opacity: (isLocked && itemOrder.status === 'unavailable') || item.status === 'unavailable' ? 0.7 : 1,
@@ -4125,7 +4129,21 @@ const ProvisioningBoardDetail = () => {
                                 without any visible chrome. Centered so
                                 the dot sits directly under the "STATUS"
                                 header above. */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '11px 8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '11px 8px' }}>
+                              {/* Lock glyph on committed lines — an explicit,
+                                  colour-independent "this is settled, don't
+                                  edit or re-send" cue that pairs with the row
+                                  tint. Shown whenever the row is edit-locked
+                                  (supplier confirmed / substituted /
+                                  unavailable, or the order's been sent). */}
+                              {isLocked && (
+                                <span
+                                  title="Locked — the supplier has committed to this line. Add a note to request a change."
+                                  style={{ display: 'inline-flex', color: '#AEB4C2' }}
+                                >
+                                  <Icon name="Lock" style={{ width: 11, height: 11 }} />
+                                </span>
+                              )}
                               {/* Read-only status indicator. Status is now
                                   changed via the selection bar's "Set status"
                                   control, not an inline picker. */}
