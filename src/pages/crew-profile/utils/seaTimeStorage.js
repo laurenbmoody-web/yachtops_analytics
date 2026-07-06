@@ -833,17 +833,19 @@ export const classifyServiceType = (entry, config = getRulesConfig()) => {
   const status = entry?.vesselStatus;
   const typeText = (entry?.seaServiceType || '').toLowerCase();
 
-  // 1) Shipyard / refit always takes precedence.
+  // The vessel's own status is the first source of truth, so it's read BEFORE a
+  // watch can elevate the day. Watchkeeping is qualifying SEA service — it only
+  // counts when the vessel is actually underway. A watch stood in the yard is
+  // yard service; a watch stood in port / at anchor is standby. The watch is
+  // still recorded (watch_hours), it just can't turn a non-seagoing day into
+  // seagoing watchkeeping.
+
+  // 1) Shipyard / refit always takes precedence — a watch in the yard is yard.
   if (status === VESSEL_STATUS?.IN_YARD || typeText?.includes('yard')) {
     return SEA_SERVICE_TYPE?.YARD;
   }
 
-  // 2) A recorded watch >= the configured minimum makes it a watchkeeping day.
-  if (Number(entry?.watchHours) >= minWatch) {
-    return SEA_SERVICE_TYPE?.WATCHKEEPING;
-  }
-
-  // 3) At anchor / in port / explicit standby → standby.
+  // 2) At anchor / in port / explicit standby → standby (even with a watch logged).
   if (
     status === VESSEL_STATUS?.ANCHOR ||
     status === VESSEL_STATUS?.IN_PORT ||
@@ -851,6 +853,11 @@ export const classifyServiceType = (entry, config = getRulesConfig()) => {
     typeText?.includes('port')
   ) {
     return SEA_SERVICE_TYPE?.STANDBY;
+  }
+
+  // 3) Underway with a recorded watch >= the configured minimum → watchkeeping.
+  if (Number(entry?.watchHours) >= minWatch) {
+    return SEA_SERVICE_TYPE?.WATCHKEEPING;
   }
 
   // 4) Otherwise underway at sea → seagoing.
