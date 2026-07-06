@@ -1,113 +1,122 @@
-/* Vessel status widget — thin single-row bar + a portaled editorial modal.
-   Explicit hex (not --d-* tokens) so the modal, which portals to <body> outside
-   .cargo-editorial, renders correctly. Monochrome: state = icon + word. */
+/* Vessel status widget — compact, editorial. The card is the .ce-card frame;
+   these styles add the centred chip + masthead line, the picker dropdown, and
+   the portaled modal. Explicit hex so the portaled modal (rendered at <body>,
+   outside .cargo-editorial) is unaffected by the token scope. */
 
-/* ── Thin bar ────────────────────────────────────────────────────────────── */
-.vsw-bar { padding: 12px 16px; }
-.vsw-bar-row { display: flex; align-items: center; gap: 14px; font-family: 'Inter', system-ui, sans-serif; }
+:root { --vsw-navy: #14132C; --vsw-terra: #C65A1A; }
 
-.vsw-eyebrow {
-  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  color: #8B8478; line-height: 1.25; flex: 0 0 auto;
+.vsw { position: relative; }
+.vsw-center {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 15px; padding: 24px 22px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
-.vsw-cur { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color: #1C1B3A; font-size: 14px; }
-.vsw-cur b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 17px; letter-spacing: -0.3px; }
-.vsw-cur-ico { width: 17px; height: 17px; color: #1C1B3A; flex: 0 0 auto; }
-.vsw-since { font-size: 12px; color: #8B8478; white-space: nowrap; }
-.vsw-cur-muted { font-size: 13px; color: #AEB4C2; }
-.vsw-cur-off { color: #C65A1A !important; }
-
-.vsw-switch { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: 0 0 auto; }
-.vsw-sw {
-  width: 34px; height: 32px; border: 0; background: transparent; border-radius: 9px;
-  display: flex; align-items: center; justify-content: center; cursor: pointer; color: #B7BAC7;
-  transition: background .12s ease, color .12s ease;
+/* ── Chip picker ─────────────────────────────────────────────────────────── */
+.vsw-chip {
+  position: relative; width: 54px; height: 54px; border-radius: 15px; border: 0;
+  background: var(--vsw-navy); color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 10px 22px -8px rgba(20, 19, 44, 0.6);
+  transition: box-shadow .15s ease, transform .12s ease;
 }
-.vsw-sw:hover:not(:disabled) { background: #FAFAF8; color: #4B5563; }
-.vsw-sw.on { background: #1C1B3A; color: #fff; cursor: default; }
-.vsw-sw-ico { width: 17px; height: 17px; }
-.vsw-sep { width: 1px; height: 20px; background: #ECEAE3; margin: 0 5px; }
-.vsw-more { color: #C0C3CE; }
-.vsw-spin { animation: vsw-spin .7s linear infinite; }
-@keyframes vsw-spin { to { transform: rotate(360deg); } }
-
-/* Tooltip on hover (dark bubble above the icon). */
-.vsw-tipwrap { position: relative; display: inline-flex; }
-.vsw-tip {
-  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(2px);
-  background: #1C1B3A; color: #fff; font-size: 11px; font-weight: 500; white-space: nowrap;
-  padding: 5px 9px; border-radius: 7px; box-shadow: 0 6px 18px rgba(28,27,58,.28);
-  opacity: 0; pointer-events: none; transition: opacity .12s ease, transform .12s ease; z-index: 20;
+.vsw-chip:hover { transform: translateY(-1px); }
+.vsw-chip.is-open { box-shadow: 0 0 0 4px #FAECE7, 0 10px 22px -8px rgba(20, 19, 44, 0.6); }
+.vsw-chip-static { cursor: default; box-shadow: 0 8px 18px -8px rgba(20, 19, 44, 0.5); }
+.vsw-chip-ic { width: 24px; height: 24px; }
+.vsw-chip-chev {
+  position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; border: 1px solid #ECEAE3; color: #1C1B3A;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(28, 27, 58, 0.12);
 }
-.vsw-tip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #1C1B3A; }
-.vsw-tip-r { left: auto; right: 0; transform: translateY(2px); }
-.vsw-tip-r::after { left: auto; right: 12px; transform: none; }
-.vsw-tipwrap:hover .vsw-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
-.vsw-tipwrap:hover .vsw-tip-r { transform: translateY(0); }
+.vsw-chev { width: 12px; height: 12px; }
+.vsw-chip.is-open .vsw-chev { transform: rotate(180deg); }
 
-.vsw-bar-err { margin-top: 10px; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; font-family: 'Inter', system-ui, sans-serif; }
+/* ── Masthead line ───────────────────────────────────────────────────────── */
+.vsw-line { font-family: 'DM Serif Display', Georgia, serif; font-style: italic; font-size: 24px; line-height: 1.15; }
+.vsw-st { text-transform: uppercase; letter-spacing: 0.5px; color: var(--vsw-navy); }
+.vsw-sep { color: var(--vsw-navy); }
+.vsw-dt { color: var(--vsw-terra); }
+.vsw-dt sup { font-size: 0.58em; }
+.vsw-muted { color: #AEB4C2; font-style: normal; text-transform: none; letter-spacing: 0; font-size: 18px; }
+.vsw-notset { color: var(--vsw-terra); }
+
+.vsw-hint { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11.5px; color: #B14E16; margin-top: -4px; }
+.vsw-hint-quiet { color: #A29C90; }
+.vsw-err { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; margin-top: 2px; }
+
+/* ── Picker dropdown (anchored under the chip) ───────────────────────────── */
+.vsw-picker {
+  position: absolute; top: 66px; left: 50%; transform: translateX(-50%);
+  width: 300px; max-width: calc(100% - 8px);
+  background: #fff; border: 1px solid #ECEAE3; border-radius: 14px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.34);
+  padding: 6px; z-index: 40; text-align: left;
+}
+.vsw-picker-hd { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #A29C90; padding: 9px 11px 7px; }
+.vsw-row {
+  position: relative; display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 9px 11px; border: 0; background: transparent; border-radius: 9px; cursor: pointer; text-align: left;
+}
+.vsw-row:hover:not(:disabled):not(.cur) { background: #FAFAF8; }
+.vsw-row:disabled { cursor: default; }
+.vsw-row.cur { background: #F4F4F8; cursor: default; }
+.vsw-row.cur::before { content: ''; position: absolute; left: 3px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--vsw-terra); }
+.vsw-row-ic { width: 34px; height: 34px; border-radius: 9px; background: #F2F1ED; color: #1C1B3A; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.vsw-row.cur .vsw-row-ic { background: var(--vsw-navy); color: #fff; }
+.vsw-row-text { display: flex; flex-direction: column; }
+.vsw-row-label { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+.vsw-row-note { font-size: 11px; color: #9A958B; }
+.vsw-row-check { margin-left: auto; color: var(--vsw-terra); display: flex; }
+.vsw-picker-ft { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #F0EEE8; margin-top: 5px; padding: 10px 11px 6px; }
+.vsw-ft-link { border: 0; background: transparent; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--vsw-terra); display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
+.vsw-ft-link:hover { text-decoration: underline; }
+
+.vsw-ic18 { width: 18px; height: 18px; } .vsw-ic17 { width: 17px; height: 17px; }
+.vsw-ic16 { width: 16px; height: 16px; } .vsw-ic14 { width: 14px; height: 14px; } .vsw-ic12 { width: 12px; height: 12px; }
 
 /* ── Modal (portaled to <body>) ──────────────────────────────────────────── */
 .vsw-scrim {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(28,27,58,0.42); backdrop-filter: blur(2px);
+  background: rgba(28, 27, 58, 0.42); backdrop-filter: blur(2px);
   display: flex; align-items: center; justify-content: center; padding: 20px;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .vsw-modal {
   width: 440px; max-width: 100%; max-height: 90vh; overflow: auto;
   background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
-  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
-  padding: 20px 22px 22px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); padding: 20px 22px 22px;
 }
 .vsw-modal-head { display: flex; align-items: flex-start; justify-content: space-between; }
 .vsw-modal-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #8B8478; margin: 0 0 4px; }
-.vsw-modal-eyebrow .dot { color: #C65A1A; }
-.vsw-modal-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; font-weight: 500; letter-spacing: -0.4px; color: #1C1B3A; margin: 0; }
+.vsw-modal-eyebrow .dot { color: var(--vsw-terra); }
+.vsw-modal-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; font-weight: 400; letter-spacing: -0.4px; color: #1C1B3A; margin: 0; }
 .vsw-modal-x { background: #F6F5F2; border: 0; border-radius: 8px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #6B7280; flex: 0 0 auto; }
 .vsw-modal-x:hover { background: #ECEAE3; color: #1C1B3A; }
-
 .vsw-modal-tabs { display: flex; gap: 4px; background: #F6F5F2; border-radius: 999px; padding: 3px; margin: 16px 0; }
 .vsw-modal-tabs button { flex: 1; border: 0; background: transparent; cursor: pointer; font-size: 12.5px; font-weight: 600; color: #6B7280; padding: 7px; border-radius: 999px; font-family: inherit; }
-.vsw-modal-tabs button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 2px rgba(28,27,58,0.08); }
-
+.vsw-modal-tabs button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 2px rgba(28, 27, 58, 0.08); }
 .vsw-help { font-size: 12.5px; color: #6B7280; line-height: 1.5; margin: 0 0 14px; }
 .vsw-flabel { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0 0 8px; }
-.vsw-flabel .req { color: #C65A1A; margin-left: 4px; letter-spacing: .5px; }
-
+.vsw-flabel .req { color: var(--vsw-terra); margin-left: 4px; letter-spacing: .5px; }
 .vsw-state-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-.vsw-state-opt {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  border: 1px solid #ECEAE3; border-radius: 10px; background: #FAFAF8;
-  padding: 10px; cursor: pointer; text-align: left; transition: border-color .12s ease, background .12s ease;
-}
+.vsw-state-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; border: 1px solid #ECEAE3; border-radius: 10px; background: #FAFAF8; padding: 10px; cursor: pointer; text-align: left; transition: border-color .12s ease, background .12s ease; }
 .vsw-state-opt:hover { border-color: #E8E6DF; background: #F6F5F2; }
-.vsw-state-opt.on { border-color: #C65A1A; background: #FBEFE9; }
+.vsw-state-opt.on { border-color: var(--vsw-terra); background: #FBEFE9; }
 .vsw-state-ico { display: inline-flex; margin-bottom: 2px; color: #1C1B3A; }
 .vsw-state-label { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .vsw-state-note { font-size: 11px; color: #8B8478; }
-
 .vsw-dates { display: flex; gap: 10px; margin-bottom: 16px; }
 .vsw-dates label { flex: 1; display: flex; flex-direction: column; gap: 5px; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
-.vsw-dates input, .vsw-input {
-  border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 11px;
-  font-size: 13.5px; color: #1C1B3A; background: #FAFAF8; font-family: inherit; width: 100%;
-}
+.vsw-dates input, .vsw-input { border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; color: #1C1B3A; background: #FAFAF8; font-family: inherit; width: 100%; }
 .vsw-input { text-transform: none; letter-spacing: normal; font-weight: 400; }
-.vsw-dates input:focus, .vsw-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
-
-.vsw-primary {
-  margin-top: 16px; width: 100%; background: #C65A1A; color: #fff; border: 0; border-radius: 10px;
-  padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
-}
+.vsw-dates input:focus, .vsw-input:focus { outline: none; border-color: var(--vsw-terra); box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.vsw-primary { margin-top: 16px; width: 100%; background: var(--vsw-terra); color: #fff; border: 0; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .vsw-primary:hover { background: #B14E16; }
 .vsw-primary:disabled { opacity: .6; cursor: default; }
-
-.vsw-err { margin-top: 12px; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; }
+.vsw-err-modal { margin-top: 12px; }
 .vsw-foot { margin-top: 12px; font-size: 11px; color: #AEB4C2; line-height: 1.5; }
-
-/* ── Timeline (history tab) ──────────────────────────────────────────────── */
 .vsw-tl { display: flex; flex-direction: column; }
 .vsw-tl-row { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-bottom: 1px solid #F0F1F5; }
 .vsw-tl-row:last-child { border-bottom: 0; }
