@@ -49,6 +49,7 @@ export default function ManageScans() {
   const [fileError, setFileError] = useState(null);
   const [progress, setProgress] = useState({ sent: 0, total: 0 });
   const [uploadError, setUploadError] = useState(null);
+  const [uploadPermanent, setUploadPermanent] = useState(false); // server refusal — retry can't succeed
   const [uploadedScan, setUploadedScan] = useState(null);
   const [orientUrl, setOrientUrl] = useState(null);
   const [orientDraft, setOrientDraft] = useState({ x: 0, y: 0, z: 0 });
@@ -132,6 +133,7 @@ export default function ManageScans() {
     const ext = fileExtension(file.name);
     const path = `${activeTenantId}/${id}.${ext}`;
     setUploadError(null);
+    setUploadPermanent(false);
     setStep('uploading');
 
     const { data: row, error: insertError } = await supabase
@@ -160,7 +162,8 @@ export default function ManageScans() {
       await runTransfer(path, file);
     } catch (err) {
       console.error('[manage-scans] upload failed:', err);
-      setUploadError('The upload didn’t finish — check the connection and retry. It resumes where it left off.');
+      setUploadError(err.friendly || 'The upload didn’t finish — check the connection and retry. It resumes where it left off.');
+      setUploadPermanent(Boolean(err.permanent));
       setUploadedScan(row);
       return; // row stays 'uploading'; Retry/Discard render below
     }
@@ -191,12 +194,14 @@ export default function ManageScans() {
   const retryUpload = async () => {
     if (!file || !uploadedScan) return;
     setUploadError(null);
+    setUploadPermanent(false);
     setStep('uploading');
     try {
       await runTransfer(uploadedScan.storage_path, file);
     } catch (err) {
       console.error('[manage-scans] retry failed:', err);
-      setUploadError('Still no luck — the next retry resumes from the same point.');
+      setUploadError(err.friendly || 'Still no luck — the next retry resumes from the same point.');
+      setUploadPermanent(Boolean(err.permanent));
       return;
     }
     const { error } = await supabase.from('vessel_scans')
@@ -234,6 +239,7 @@ export default function ManageScans() {
     setDeck('');
     setFileError(null);
     setUploadError(null);
+    setUploadPermanent(false);
     setUploadedScan(null);
     setOrientUrl(null);
   };
@@ -308,7 +314,7 @@ export default function ManageScans() {
       activeUploadRef.current = null;
     } catch (err) {
       console.error('[manage-scans] replace upload failed:', err);
-      setRowBusy((p) => ({ ...p, [s.id]: { error: 'The upload didn’t finish — retry with the same file to resume.' } }));
+      setRowBusy((p) => ({ ...p, [s.id]: { error: err.friendly || 'The upload didn’t finish — retry with the same file to resume.' } }));
       return;
     }
 
@@ -436,8 +442,10 @@ export default function ManageScans() {
                 <>
                   <p className="vmm-error">{uploadError}</p>
                   <div className="vmm-actions">
-                    <button className="vm-btn-primary" onClick={retryUpload}>Retry upload</button>
-                    <button className="vm-btn-ghost" onClick={discardUpload}>Discard</button>
+                    {!uploadPermanent && (
+                      <button className="vm-btn-primary" onClick={retryUpload}>Retry upload</button>
+                    )}
+                    <button className={uploadPermanent ? 'vm-btn-primary' : 'vm-btn-ghost'} onClick={discardUpload}>Discard</button>
                   </div>
                 </>
               )}
