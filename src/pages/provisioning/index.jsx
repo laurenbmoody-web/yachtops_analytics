@@ -128,7 +128,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
     }
   };
 
-  const triggerCreate = async (startFrom, extraItems = []) => {
+  const triggerCreate = async (startFrom, extraItems = [], openMarketplace = false) => {
     if (!tenantId) { setLocalError('No vessel selected — cannot create board.'); return; }
     setCreating(true);
     setLocalError('');
@@ -144,6 +144,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
         is_private: isPrivate,
         startFrom,
         preloadedItems: extraItems,
+        openMarketplace,
       });
     } catch (err) {
       setLocalError(err?.message || 'Failed to create board');
@@ -299,6 +300,18 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
               className="pv-wizard-btn pv-wizard-btn-primary"
             >
               Create board
+            </button>
+            <button
+              onClick={() => {
+                if (!title.trim()) return;
+                if (startMode === 'build') triggerCreate(stagedSource, stagedItems, true);
+                else triggerCreate('blank', [], true);
+              }}
+              disabled={!title.trim()}
+              className="pv-wizard-btn pv-wizard-btn-ghost"
+              title="Create the board and start filling it from supplier catalogues"
+            >
+              Create &amp; browse marketplace
             </button>
             <button onClick={onCancel} className="pv-wizard-btn pv-wizard-btn-ghost">
               Cancel
@@ -605,7 +618,7 @@ const ProvisioningWorkspace = () => {
 
   // ── Board actions ────────────────────────────────────────────────────────
 
-  const handleCreateBoard = async ({ title, board_type, trip_id, is_private = true, preloadedItems = [] }) => {
+  const handleCreateBoard = async ({ title, board_type, trip_id, is_private = true, preloadedItems = [], openMarketplace = false }) => {
     try {
       console.log('[Provisioning] createBoard — tenant_id:', activeTenantId, 'userId:', userId);
 
@@ -648,6 +661,10 @@ const ProvisioningWorkspace = () => {
       setLists(prev => [newList, ...prev]);
       setItemsByList(prev => ({ ...prev, [newList.id]: initialItems }));
       setShowNewBoard(false);
+      if (openMarketplace) {
+        navigate(`/provisioning/marketplace?board=${newList.id}`);
+        return;
+      }
       showToast(
         preloadedItems.length > 0
           ? `Board created with ${initialItems.length} items`
@@ -1035,6 +1052,13 @@ const ProvisioningWorkspace = () => {
             >
               <Icon name="PackageOpen" className="w-4 h-4" />
               {workspaceItemsLoading ? 'Loading…' : 'Receive items'}
+            </button>
+            <button
+              onClick={() => navigate('/provisioning/marketplace')}
+              className="pv-btn pv-btn-secondary"
+            >
+              <Icon name="Store" className="w-4 h-4" />
+              Marketplace
             </button>
           </div>
         </div>

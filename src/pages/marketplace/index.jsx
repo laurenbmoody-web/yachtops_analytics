@@ -30,8 +30,15 @@ import './marketplace.css';
 
 import { categoryHue, orderCategories } from '../../utils/catalogueConstants';
 
-// Boards that can still take new lines.
-const OPEN_BOARD_STATUSES = new Set(['draft', 'pending_approval', 'sent_to_supplier', 'quote_received']);
+// Boards that can still take new lines — everything not yet fully
+// delivered. New lines land as drafts with their own lifecycle, so a
+// board mid-quote or mid-delivery can still absorb a marketplace run.
+const CLOSED_BOARD_STATUSES = new Set(['delivered', 'delivered_with_discrepancies', 'completed']);
+const BOARD_STATUS_LABEL = {
+  draft: 'draft', pending_approval: 'pending approval', sent_to_supplier: 'sent',
+  quote_received: 'quote in', partially_confirmed: 'partially confirmed',
+  confirmed: 'confirmed', partially_delivered: 'partially delivered',
+};
 const NEW_BOARD = '__new__';
 
 const fmtDate = (iso) => {
@@ -127,6 +134,8 @@ const Marketplace = () => {
   const [category, setCategory] = useState('All');
   const [supplierFilter, setSupplierFilter] = useState('All');
   const [port, setPort] = useState('All');
+  const [showFilter, setShowFilter] = useState('all'); // all | in | mine
+  const [sortBy, setSortBy] = useState('name');
 
   const [basket, setBasket] = useState([]); // [{ product, qty }]
   const [targetBoard, setTargetBoard] = useState(searchParams.get('board') || '');
@@ -148,7 +157,7 @@ const Marketplace = () => {
         if (!live) return;
         setProducts(prods);
         setMySupplierIds(mine);
-        const open = (lists || []).filter(l => OPEN_BOARD_STATUSES.has(l.status));
+        const open = (lists || []).filter(l => !CLOSED_BOARD_STATUSES.has(l.status));
         setBoards(open);
         // Preselect: ?board= param if it's open, else first open board, else new.
         const param = searchParams.get('board');
@@ -197,11 +206,17 @@ const Marketplace = () => {
   }, [searched]);
 
   const filtered = useMemo(() => {
-    const rows = category === 'All' ? searched : searched.filter(p => (p.category || 'Other') === category);
-    // When searching across suppliers, cheapest first — the price-comparison view.
-    if (q) return [...rows].sort((a, b) => (a.unit_price ?? Infinity) - (b.unit_price ?? Infinity));
-    return rows;
-  }, [searched, category, q]);
+    let rows = category === 'All' ? searched : searched.filter(p => (p.category || 'Other') === category);
+    if (showFilter === 'in') rows = rows.filter(p => p.in_stock && !(p.stock_qty != null && Number(p.stock_qty) <= 0));
+    if (showFilter === 'mine') rows = rows.filter(p => mySupplierIds.has(p.supplier_id));
+    const cmp = {
+      name: (a, b) => a.name.localeCompare(b.name),
+      price_asc: (a, b) => (a.unit_price ?? Infinity) - (b.unit_price ?? Infinity),
+      price_desc: (a, b) => (b.unit_price ?? -1) - (a.unit_price ?? -1),
+      updated_desc: (a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0),
+    }[sortBy] || ((a, b) => a.name.localeCompare(b.name));
+    return [...rows].sort(cmp);
+  }, [searched, category, showFilter, sortBy, mySupplierIds]);
 
   // ── basket ──
   // One writer for card steppers and basket rows alike: qty 0 (or below
@@ -305,22 +320,49 @@ const Marketplace = () => {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
-                <select className="mp-select" value={port} onChange={(e) => setPort(e.target.value)}>
-                  <option value="All">All ports</option>
-                  {ports.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-
-              <div className="mp-chips">
-                {chipDefs.map(c => (
+                <label className="mp-filter">
+                  <span className="k">Port</span>
+                  <select value={port} onChange={(e) => setPort(e.target.value)}>
+                    <option value="All">All</option>
+                    {ports.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </label>
+                <label className="mp-filter">
+                  <span className="k">Category</span>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                    <option value="All">All ({searched.length})</option>
+                    {chipDefs.filter(c => c.key !== 'All').map(c => (
+                      <option key={c.key} value={c.key}>{c.label} ({c.count})</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="mp-filter">
+                  <span className="k">Show</span>
+                  <select value={showFilter} onChange={(e) => setShowFilter(e.target.value)}>
+                    <option value="all">Everything</option>
+                    <option value="in">In stock</option>
+                    <option value="mine">Your suppliers</option>
+                  </select>
+                </label>
+                <label className="mp-filter">
+                  <span className="k">Sort</span>
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                    <option value="name">Name A–Z</option>
+                    <option value="price_asc">Price · low first</option>
+                    <option value="price_desc">Price · high first</option>
+                    <option value="updated_desc">Recently updated</option>
+                  </select>
+                </label>
+                {(search || port !== 'All' || category !== 'All' || showFilter !== 'all' || sortBy !== 'name' || supplierFilter !== 'All') && (
                   <button
-                    key={c.key}
-                    className={`mp-chip ${category === c.key ? 'on' : ''}`}
-                    onClick={() => setCategory(category === c.key ? 'All' : c.key)}
+                    type="button"
+                    className="mp-clear"
+                    onClick={() => { setSearch(''); setPort('All'); setCategory('All'); setShowFilter('all'); setSortBy('name'); setSupplierFilter('All'); }}
                   >
-                    {c.label} <span className="ct">{c.count}</span>
+                    × Clear all
                   </button>
-                ))}
+                )}
+                <span className="mp-count">{filtered.length} of {products.length}</span>
               </div>
 
               <div className="mp-suppliers">
@@ -434,7 +476,13 @@ const Marketplace = () => {
                         value={targetBoard}
                         onChange={(e) => setTargetBoard(e.target.value)}
                       >
-                        {boards.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
+                        {[...boards]
+                          .sort((a, b) => (a.id === searchParams.get('board') ? -1 : b.id === searchParams.get('board') ? 1 : 0))
+                          .map(b => (
+                            <option key={b.id} value={b.id}>
+                              {b.title}{BOARD_STATUS_LABEL[b.status] ? ` — ${BOARD_STATUS_LABEL[b.status]}` : ''}{b.id === searchParams.get('board') ? ' (this board)' : ''}
+                            </option>
+                          ))}
                         <option value={NEW_BOARD}>+ New board…</option>
                       </select>
                       {targetBoard === NEW_BOARD && (
