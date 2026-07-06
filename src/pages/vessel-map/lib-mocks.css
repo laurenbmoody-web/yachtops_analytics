@@ -5,12 +5,25 @@
 .lm-poster { position: relative; overflow: hidden; }
 .lm-poster svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-/* ── V1 · Cinematic shelf ───────────────────────────────────────────────── */
+/* ── V1 · Cinematic shelf — colour variants ─────────────────────────────── */
 .lm1-band {
-  background: #1C1B3A;
   border-radius: 20px;
   padding: 26px 30px 30px;
 }
+/* d — dusk: still inky, but a lighter slate that lets the page breathe */
+.lm1-dusk { background: linear-gradient(175deg, #34395E 0%, #262A47 100%); }
+/* a — paper band: light surround, the posters carry all the dark */
+.lm1-paper { background: #FAFAF8; border: 1px solid #ECEAE3; }
+.lm1-paper .lm1-count { color: #8B8478; }
+.lm1-paper .lm1-deck { color: #AEB4C2; }
+/* b — no band at all: shelves sit straight on the page */
+.lm1-bare { padding: 0; }
+.lm1-bare .lm1-count { color: #8B8478; }
+.lm1-bare .lm1-deck { color: #AEB4C2; }
+/* c — blush band: the terracotta tint carries the warmth */
+.lm1-blush { background: #FBEFE9; }
+.lm1-blush .lm1-count { color: #B98A6E; }
+.lm1-blush .lm1-deck { color: #C99F86; }
 .lm1-count {
   margin: 0 0 6px;
   font-size: 9px;
@@ -35,17 +48,33 @@
 }
 .lm1-tile {
   position: relative;
-  aspect-ratio: 16 / 9;
   border: 0;
-  border-radius: 12px;
-  overflow: hidden;
   cursor: pointer;
   padding: 0;
   background: none;
-  transition: transform var(--vm-ease-ui), box-shadow var(--vm-ease-ui);
+  text-align: left;
+  font-family: inherit;
+  transition: transform var(--vm-ease-ui);
 }
-.lm1-tile .lm-poster { position: absolute; inset: 0; }
-.lm1-tile:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.7); }
+.lm1-tile:hover { transform: translateY(-3px); }
+.lm1-frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: box-shadow var(--vm-ease-ui);
+}
+.lm1-frame .lm-poster { position: absolute; inset: 0; }
+.lm1-tile:hover .lm1-frame { box-shadow: 0 18px 40px -18px rgba(28, 27, 58, 0.55); }
+.lm1-below { display: block; padding: 9px 2px 0; }
+.lm1-name-ink {
+  display: block;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 15.5px;
+  color: #1C1B3A;
+}
+.lm1-meta-ink { display: block; margin-top: 1px; font-size: 10.5px; color: #8B8478; }
 .lm1-scrim {
   position: absolute;
   inset: 0;

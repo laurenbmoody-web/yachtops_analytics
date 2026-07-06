@@ -39,9 +39,9 @@ const Poster = ({ room, className = '' }) => (
     className={`lm-poster ${className}`}
     style={{
       background: `linear-gradient(${room.warm ? 160 : 205}deg,
-        hsl(${room.hue} 30% 26%) 0%,
-        hsl(${room.hue} 32% 17%) 46%,
-        hsl(${room.warm ? 22 : room.hue} ${room.warm ? 38 : 30}% ${room.warm ? 24 : 12}%) 100%)`,
+        hsl(${room.hue} 26% 38%) 0%,
+        hsl(${room.hue} 28% 26%) 46%,
+        hsl(${room.warm ? 24 : room.hue} ${room.warm ? 42 : 26}% ${room.warm ? 32 : 19}%) 100%)`,
     }}
   >
     <svg viewBox="0 0 200 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -81,30 +81,47 @@ const Shell = ({ children, navigate }) => (
   </>
 );
 
-/* ── V1 · Cinematic shelf — the library on the map's own dark stage ──────── */
+/* ── V1 · Cinematic shelf — colour variants via ?c= :
+      a paper band · b no band (straight on the page) · c blush band ·
+      d dusk band (lighter slate, text stays on the posters) ─────────────── */
 
-const V1 = () => (
-  <section className="lm1-band">
-    <p className="lm1-count">Scans aboard · {ROOMS.length}</p>
-    {FLEET.map((d) => (
-      <div key={d.deck} className="lm1-shelf">
-        <p className="lm1-deck">{d.deck.toUpperCase()} · {d.rooms.length}</p>
-        <div className="lm1-row">
-          {d.rooms.map((r) => (
-            <button key={r.id} className="lm1-tile">
-              <Poster room={r} />
-              <span className="lm1-scrim" />
-              <span className="lm1-text">
-                <span className="lm1-name">{r.name}</span>
-                <span className="lm1-meta">{r.size} · {r.format} · {r.pins} pins</span>
-              </span>
-            </button>
-          ))}
+const V1_LIGHT = { a: 'lm1-paper', b: 'lm1-bare', c: 'lm1-blush' };
+
+const V1 = ({ scheme = 'd' }) => {
+  const light = scheme in V1_LIGHT;
+  return (
+    <section className={`lm1-band ${light ? V1_LIGHT[scheme] : 'lm1-dusk'}`}>
+      <p className="lm1-count">Scans aboard · {ROOMS.length}</p>
+      {FLEET.map((d) => (
+        <div key={d.deck} className="lm1-shelf">
+          <p className="lm1-deck">{d.deck.toUpperCase()} · {d.rooms.length}</p>
+          <div className="lm1-row">
+            {d.rooms.map((r) => (
+              <button key={r.id} className="lm1-tile">
+                <span className="lm1-frame">
+                  <Poster room={r} />
+                  {!light && <span className="lm1-scrim" />}
+                  {!light && (
+                    <span className="lm1-text">
+                      <span className="lm1-name">{r.name}</span>
+                      <span className="lm1-meta">{r.size} · {r.format} · {r.pins} pins</span>
+                    </span>
+                  )}
+                </span>
+                {light && (
+                  <span className="lm1-below">
+                    <span className="lm1-name-ink">{r.name}</span>
+                    <span className="lm1-meta-ink">{r.size} · {r.format} · {r.pins} pins</span>
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-    ))}
-  </section>
-);
+      ))}
+    </section>
+  );
+};
 
 /* ── V2 · The ledger — serif deck headings, aligned columns, hover actions ─ */
 
@@ -209,11 +226,12 @@ export default function LibMocks() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const v = params.get('v') || '1';
+  const scheme = params.get('c') || 'd';
   const V = { 1: V1, 2: V2, 3: V3, 4: V4 }[v] || V1;
   return (
     <Shell navigate={navigate}>
       <div className={`lm-root lm-v${v}`}>
-        <V />
+        <V scheme={scheme} />
       </div>
     </Shell>
   );
