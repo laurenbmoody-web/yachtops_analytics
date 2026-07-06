@@ -60,6 +60,38 @@ const makePin = (color, size) => {
   return sprite;
 };
 
+// Off-white ring texture for the selection treatment.
+let ringTextureCached = null;
+const ringTexture = () => {
+  if (ringTextureCached) return ringTextureCached;
+  const size = 96;
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 5, 0, Math.PI * 2);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(244,243,238,0.95)';
+  ctx.stroke();
+  ringTextureCached = new THREE.CanvasTexture(canvas);
+  ringTextureCached.colorSpace = THREE.SRGBColorSpace;
+  return ringTextureCached;
+};
+
+const makeRing = () => {
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: ringTexture(),
+    depthTest: false,
+    transparent: true,
+  }));
+  sprite.renderOrder = 11;
+  sprite.visible = false;
+  sprite.userData.isRing = true;
+  return sprite;
+};
+
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
 // Shrink a Box3 towards its centre by `factor` (0..1) per axis.
 const shrunkBox = (box, factor) => {
   const center = box.getCenter(new THREE.Vector3());
@@ -75,6 +107,7 @@ export default function SplatViewer({
   splatRotation,          // scan row jsonb {x,y,z} radians
   splatScale,             // scan row numeric
   hotspots,               // [{id, label, position:{x,y,z}, color}] — pre-filtered by layer
+  selectedId,             // id of the selected hotspot — drives the ring treatment
   placementMode,
   pendingPosition,        // {x,y,z} | null — the not-yet-saved pin
   onPlacePending,         // (pos) => void — click/drag placed the pending pin
@@ -87,6 +120,7 @@ export default function SplatViewer({
   const hotspotsRef = useRef(hotspots);
   const placementRef = useRef(placementMode);
   const pendingRef = useRef(pendingPosition);
+  const selectedRef = useRef(selectedId);
   const callbacksRef = useRef({ onPlacePending, onSelectHotspot, onLoadState });
 
   hotspotsRef.current = hotspots;
@@ -140,17 +174,47 @@ export default function SplatViewer({
     scene.add(spriteGroup);
     let pendingPin = null;
 
+    // Selection treatment: a steady off-white ring around the selected pin,
+    // plus a single expanding ghost ring on select (600ms, once — never a
+    // looping animation).
+    const steadyRing = makeRing();
+    const pulseRing = makeRing();
+    scene.add(steadyRing);
+    scene.add(pulseRing);
+    let pulseStart = 0;
+
     // Pins render at a CONSTANT on-screen size (like map markers): every
     // frame each sprite is scaled by its distance to the camera, so a pin is
     // the same ~3.5% of view height whether you're across the room or nose
     // up to it. World-fixed sizing made pins balloon when zoomed close and
     // vanish when far, on any scan whose units aren't metric.
     const PIN_VIEW_FRACTION = 0.035;
+    const PULSE_MS = 600;
     const resizePins = () => {
       const fovScale = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       for (const pin of spriteGroup.children) {
         const d = pin.position.distanceTo(camera.position);
         pin.scale.setScalar(d * fovScale * PIN_VIEW_FRACTION * (pin.userData.isPending ? 1.25 : 1));
+      }
+
+      const sel = (hotspotsRef.current || []).find((h) => h.id === selectedRef.current);
+      steadyRing.visible = !!sel;
+      if (!sel) { pulseRing.visible = false; return; }
+      steadyRing.position.set(Number(sel.position?.x) || 0, Number(sel.position?.y) || 0, Number(sel.position?.z) || 0);
+      const d = steadyRing.position.distanceTo(camera.position);
+      const base = d * fovScale * PIN_VIEW_FRACTION;
+      steadyRing.scale.setScalar(base * 1.6);
+      steadyRing.material.opacity = 0.95;
+
+      const t = (performance.now() - pulseStart) / PULSE_MS;
+      if (t < 1) {
+        const e = easeOutCubic(t);
+        pulseRing.visible = true;
+        pulseRing.position.copy(steadyRing.position);
+        pulseRing.scale.setScalar(base * (1.6 + 1.4 * e));
+        pulseRing.material.opacity = 0.6 * (1 - e);
+      } else {
+        pulseRing.visible = false;
       }
     };
 
@@ -188,7 +252,10 @@ export default function SplatViewer({
       resizePins();
     };
 
-    glRef.current = { rebuildPins: () => rebuildPins() };
+    glRef.current = {
+      rebuildPins: () => rebuildPins(),
+      pulse: () => { pulseStart = performance.now(); },
+    };
 
     mesh.initialized.then(() => {
       if (disposed) return;
@@ -394,6 +461,8 @@ export default function SplatViewer({
       controls.removeEventListener('change', clampView);
       controls.dispose();
       for (const child of [...spriteGroup.children]) child.material.dispose();
+      steadyRing.material.dispose();
+      pulseRing.material.dispose();
       try {
         mesh.dispose();
         spark.dispose();
@@ -415,6 +484,12 @@ export default function SplatViewer({
     pendingRef.current = pendingPosition;
     glRef.current?.rebuildPins();
   }, [hotspots, pendingPosition]);
+
+  // Selection ring: one pulse per selection, then steady (handled per-frame).
+  useEffect(() => {
+    selectedRef.current = selectedId;
+    if (selectedId) glRef.current?.pulse?.();
+  }, [selectedId]);
 
   return (
     <div
