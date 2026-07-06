@@ -47,72 +47,12 @@
 .vmm-drop-body { color: #6B7280; font-size: 13.5px; margin: 0 auto 18px; max-width: 420px; line-height: 1.6; }
 .vmm-drop-pick { display: inline-block; cursor: pointer; }
 
-/* ── Capture guide page (vmg-*) — a document on the manage shell: one
-      numeral column, one content column, hairline rules. ─────────────────── */
 .vmm-drop-actions {
   display: flex;
   gap: 10px;
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.vmg-steps { list-style: none; margin: 8px 0 0; padding: 0; }
-.vmg-step {
-  display: grid;
-  grid-template-columns: 88px 1fr;
-  align-items: baseline;
-  padding: 38px 0;
-  border-bottom: 1px solid #F0F1F5;
-}
-.vmg-num {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 40px;
-  line-height: 1;
-  color: #C65A1A;
-}
-.vmg-body { min-width: 0; max-width: 620px; }
-.vmg-title {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-weight: 400;
-  font-size: 21px;
-  color: #1C1B3A;
-  margin: 0 0 10px;
-}
-.vmg-copy {
-  margin: 0;
-  font-size: 14px;
-  color: #6B7280;
-  line-height: 1.7;
-}
-.vmg-copy strong { color: #1C1B3A; }
-.vmg-routes {
-  display: grid;
-  grid-template-columns: 118px 1fr;
-  row-gap: 10px;
-  align-items: baseline;
-}
-.vmg-app {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1C1B3A;
-}
-.vmg-route { font-size: 14px; color: #6B7280; line-height: 1.6; }
-.vmg-route strong { color: #1C1B3A; }
-.vmg-cta { margin-top: 18px; }
-.vmg-footnote {
-  margin: 26px 0 0;
-  padding-left: 88px;
-  font-size: 13px;
-  color: #8B8478;
-  font-style: italic;
-}
-@media (max-width: 760px) {
-  .vmg-step { grid-template-columns: 52px 1fr; padding: 30px 0; }
-  .vmg-num { font-size: 32px; }
-  .vmg-routes { grid-template-columns: 1fr; row-gap: 4px; }
-  .vmg-app { margin-top: 8px; }
-  .vmg-footnote { padding-left: 52px; }
 }
 
 /* ── Flow panels ────────────────────────────────────────────────────────── */
