@@ -134,11 +134,42 @@ function pyaFiller() {
       if (!done) miss.push('Dates on board');
     }
 
-    (data.manual || []).forEach(function (m) { if (miss.indexOf(m) === -1) miss.push(m); });
+    // Flag — a custom "Nationality" picker: open it, type the country, click the
+    // match. Async (the modal + filtered list render after a tick), so the final
+    // summary waits for it via finish().
+    function fillFlag(country, finish) {
+      if (!country) { finish(); return; }
+      var trigger = null, els = document.querySelectorAll('div,button,span,p,input');
+      for (var i = 0; i < els.length; i++) {
+        if (norm(els[i].textContent) === 'click to choose a country flag') { trigger = els[i]; break; }
+      }
+      if (!trigger) { miss.push('Flag: ' + country); finish(); return; }
+      trigger.click();
+      setTimeout(function () {
+        var search = null, ins = document.querySelectorAll('input');
+        for (var i = 0; i < ins.length; i++) {
+          var ph = (ins[i].placeholder || '').toLowerCase();
+          if (ph.indexOf('nationality') >= 0 || ph.indexOf('country') >= 0 || ph.indexOf('search') >= 0) { search = ins[i]; break; }
+        }
+        if (search) setNative(search, country);
+        setTimeout(function () {
+          var t = norm(country), rows = document.querySelectorAll('div,li,button,span,p');
+          for (var i = 0; i < rows.length; i++) {
+            if (norm(rows[i].textContent) === t) { rows[i].click(); ok.push('Flag: ' + country); finish(); return; }
+          }
+          miss.push('Flag: ' + country); finish();
+        }, 450);
+      }, 450);
+    }
 
-    alert('Cargo → PYA autofill\n\n✓ Filled (' + ok.length + '):\n' + (ok.join(', ') || '—') +
-      '\n\n→ Do these by hand (' + miss.length + '):\n' + (miss.join(', ') || '—') +
-      '\n\nAlways check every field against your own records before you submit.');
+    function finish() {
+      (data.manual || []).forEach(function (m) { if (miss.indexOf(m) === -1) miss.push(m); });
+      alert('Cargo → PYA autofill\n\n✓ Filled (' + ok.length + '):\n' + (ok.join(', ') || '—') +
+        '\n\n→ Do these by hand (' + miss.length + '):\n' + (miss.join(', ') || '—') +
+        '\n\nAlways check every field against your own records before you submit.');
+    }
+
+    fillFlag(data.flag, finish);
   }
 
   if (navigator.clipboard && navigator.clipboard.readText) {
