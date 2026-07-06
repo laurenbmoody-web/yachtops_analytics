@@ -1,5 +1,8 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 20260706120000_provisioning_items_quote_reopened.sql
+-- 20260706160000_provisioning_items_quote_reopened.sql
+-- (renumbered from 20260706120000 — that version collided with
+--  20260706120000_vessel_status_log.sql; schema_migrations' PK is the
+--  14-digit version, so two files can't share a prefix.)
 --
 -- Adds provisioning_items.quote_reopened — the manual-quote equivalent of
 -- reopening a supplier-confirmed line.
