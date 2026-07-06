@@ -26,7 +26,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -115,6 +115,12 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
                 <span className="vm-label">Storage location</span>
                 {shown.storage_location_id}
               </div>
+            )}
+
+            {canManage && (
+              <button className="vm-btn-ghost vm-insp-adjust" onClick={() => onAdjust?.(shown)}>
+                Adjust position
+              </button>
             )}
 
             {canManage && (

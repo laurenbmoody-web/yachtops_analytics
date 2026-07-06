@@ -111,6 +111,7 @@ export default function SplatViewer({
   hotspots,               // ALL pins [{id, label, layer, position, color}]
   visibleLayers,          // array of layer keys currently shown — pins fade in/out
   selectedId,             // id of the selected hotspot — ring + target glide
+  adjustingId,            // pin being repositioned — hidden while the pending pin stands in
   placementMode,
   pendingPosition,        // {x,y,z} | null — the not-yet-saved pin
   onPlacePending,         // (pos) => void — click/drag placed the pending pin
@@ -126,11 +127,13 @@ export default function SplatViewer({
   const placementRef = useRef(placementMode);
   const pendingRef = useRef(pendingPosition);
   const selectedRef = useRef(selectedId);
+  const adjustingRef = useRef(adjustingId);
   const callbacksRef = useRef({});
 
   hotspotsRef.current = hotspots;
   visibleRef.current = visibleLayers;
   placementRef.current = placementMode;
+  adjustingRef.current = adjustingId;
   callbacksRef.current = { onPlacePending, onSelectHotspot, onHoverHotspot, onLoadState };
 
   // ── Main GL lifecycle — rebuilt only when the file changes ────────────────
@@ -187,6 +190,15 @@ export default function SplatViewer({
     scene.add(pulseRing);
     let pulseStart = 0;
 
+    // Placement reticle — a small surface-snapped dot tracking the cursor in
+    // Pin mode, so placement is previewed before the click. Hidden on miss.
+    const reticle = makePin('#F4F3EE');
+    reticle.material.opacity = 0.9;
+    reticle.renderOrder = 12;
+    reticle.visible = false;
+    scene.add(reticle);
+    let reticleOn = false;
+
     // Target glide on selection — cancelled the moment the user grabs.
     let glide = null; // { from, to, start }
     controls.addEventListener('start', () => { glide = null; });
@@ -217,8 +229,10 @@ export default function SplatViewer({
         pin.scale.setScalar(d * fovScale * PIN_VIEW_FRACTION * (pin.userData.isPending ? 1.25 : 1));
 
         if (!pin.userData.isPending) {
-          // Chips toggle their pins with a 150ms fade, not a pop.
-          const shown = !visible || visible.includes(pin.userData.hotspot?.layer || 'general');
+          // Chips toggle their pins with a 150ms fade, not a pop. A pin
+          // being repositioned hides — the pending pin stands in for it.
+          const shown = (!visible || visible.includes(pin.userData.hotspot?.layer || 'general'))
+            && pin.userData.hotspot?.id !== adjustingRef.current;
           pin.userData.shown = shown;
           const target = shown ? 1 : 0;
           const o = pin.material.opacity;
@@ -259,6 +273,12 @@ export default function SplatViewer({
           controls.target.lerpVectors(glide.from, glide.to, easeInOutCubic(t));
         }
       }
+
+      reticle.visible = !!placementRef.current && reticleOn;
+      if (reticle.visible) {
+        const d = reticle.position.distanceTo(camera.position);
+        reticle.scale.setScalar(d * fovScale * PIN_VIEW_FRACTION * 0.5);
+      }
     };
 
     // Rebuild pin sprites from current props.
@@ -287,24 +307,34 @@ export default function SplatViewer({
     };
 
     // ── Room fit: bounds from opacity-filtered percentile splat centres ─────
-    // The 8th–92nd percentile per axis of ~60k sampled centres, skipping
-    // splats under 0.3 opacity (halo fuzz is translucent), beats
-    // getBoundingBox(centers_only): a raw box inherits every stray splat, and
-    // every derived number (zoom limits, wall clamps, opening frame) inherits
-    // the inflation. Re-run live by the Orient tool after rotation changes.
+    // One sampling pass feeds two consumers: the PICK-CLOUD (~150k world-
+    // space centres retained for surface-snapped placement) and the bounds
+    // percentiles (a further subsample of the same points). Splats under 0.3
+    // opacity are skipped — halo fuzz is translucent. Re-run live by the
+    // Orient tool, so the pick-cloud always matches the shown orientation.
+    let pickPoints = null; // Float32Array [x,y,z,...] — world space
+    let fitMaxDim = 1;
     const refit = (allowReframe) => {
       mesh.updateMatrixWorld(true);
       const total = mesh.packedSplats?.numSplats || 0;
-      const stride = total ? Math.max(1, Math.floor(total / 60000)) : 8;
-      const xs = [], ys = [], zs = [];
+      const stride = total ? Math.max(1, Math.floor(total / 150000)) : 4;
+      const pts = [];
       const v = new THREE.Vector3();
       let i = 0;
       mesh.forEachSplat((idx, center, scales, quat, opacity) => {
         if ((i++ % stride) !== 0) return;
         if (opacity < 0.3) return;
         v.copy(center).applyMatrix4(mesh.matrixWorld);
-        xs.push(v.x); ys.push(v.y); zs.push(v.z);
+        pts.push(v.x, v.y, v.z);
       });
+      pickPoints = new Float32Array(pts);
+      // Bounds percentiles from a ~60k subsample of the retained points.
+      const n = pts.length / 3;
+      const pStride = Math.max(1, Math.floor(n / 60000));
+      const xs = [], ys = [], zs = [];
+      for (let j = 0; j < n; j += pStride) {
+        xs.push(pts[j * 3]); ys.push(pts[j * 3 + 1]); zs.push(pts[j * 3 + 2]);
+      }
       const q = (arr, p) => arr[Math.max(0, Math.min(arr.length - 1, Math.floor(p * (arr.length - 1))))];
       let bounds, median, eyeLift = 0.15;
       if (xs.length > 500) {
@@ -320,6 +350,7 @@ export default function SplatViewer({
         median = bounds.getCenter(new THREE.Vector3());
       }
       const maxDim = Math.max(...bounds.getSize(new THREE.Vector3()).toArray(), 0.001);
+      fitMaxDim = maxDim;
 
       targetBox = shrunkBox(bounds, 0.7);   // orbit target stays well inside the room
       cameraBox = shrunkBox(bounds, 0.92);  // camera can go nearer the walls, never through
@@ -410,6 +441,57 @@ export default function SplatViewer({
       return raycaster.ray.intersectPlane(placePlane, hit) ? hit : null;
     };
 
+    // Surface pick: cone-cast the pick-cloud. Centres within an angular
+    // radius of the ray (radius grows with distance, so picking feels the
+    // same near and far) are clustered by ray-distance; the nearest cluster
+    // with real density wins and the snap point is its centroid — a position
+    // ON the splat surface. Returns null on a miss (sparse fuzz doesn't
+    // count); callers fall back to the focus-plane placement.
+    const PICK_TAN = Math.tan(THREE.MathUtils.degToRad(60 / 2)) * 2 * 0.012; // ~1.2% of view height
+    const MIN_CLUSTER = 4;
+    const surfacePick = () => {
+      if (!pickPoints || pickPoints.length < 12) return null;
+      const ro = raycaster.ray.origin, rd = raycaster.ray.direction;
+      const tMin = fitMaxDim * 0.01;
+      const hits = [];
+      for (let j = 0; j < pickPoints.length; j += 3) {
+        const vx = pickPoints[j] - ro.x, vy = pickPoints[j + 1] - ro.y, vz = pickPoints[j + 2] - ro.z;
+        const t = vx * rd.x + vy * rd.y + vz * rd.z;
+        if (t < tMin) continue;
+        const r = t * PICK_TAN;
+        const d2 = vx * vx + vy * vy + vz * vz - t * t;
+        if (d2 < r * r) hits.push({ t, j });
+      }
+      if (hits.length < MIN_CLUSTER) return null;
+      hits.sort((a, b) => a.t - b.t);
+      const gap = fitMaxDim * 0.03; // new cluster when the along-ray gap exceeds this
+      let start = 0;
+      for (let j = 1; j <= hits.length; j++) {
+        if (j === hits.length || hits[j].t - hits[j - 1].t > gap) {
+          const count = j - start;
+          if (count >= MIN_CLUSTER) {
+            // Snap to the cluster's FRONT SLICE, not its full centroid: a ray
+            // grazing a surface (or passing through counter-front + wall in
+            // one cluster) spans a long t-range, and a full centroid lands
+            // mid-air inside the swath. First contact is the surface.
+            const tFront = hits[start].t + fitMaxDim * 0.04;
+            let sx = 0, sy = 0, sz = 0, n = 0;
+            for (let k = start; k < j && hits[k].t <= tFront; k++) {
+              const p = hits[k].j;
+              sx += pickPoints[p]; sy += pickPoints[p + 1]; sz += pickPoints[p + 2];
+              n++;
+            }
+            return new THREE.Vector3(sx / n, sy / n, sz / n);
+          }
+          start = j;
+        }
+      }
+      return null;
+    };
+
+    // Surface first, focus plane as the fallback — placement's one rule.
+    const placeHit = () => surfacePick() ?? planeHit();
+
     const selectablePins = () =>
       spriteGroup.children.filter((c) => !c.userData.isPending && c.userData.shown);
 
@@ -428,11 +510,20 @@ export default function SplatViewer({
 
     const onPointerMove = (e) => {
       if (draggingPending && pendingPin) {
+        // Drag-to-fine-tune re-raycasts along surfaces, not the plane.
         setPointer(e);
-        const hit = planeHit();
+        const hit = placeHit();
         if (!hit) return;
         if (cameraBox) cameraBox.clampPoint(hit, hit); // dragged pins stay inside the room
         pendingPin.position.copy(hit);
+        return;
+      }
+      // Pin mode: the reticle previews where a click would land.
+      if (placementRef.current && !downAt) {
+        setPointer(e);
+        const hit = surfacePick();
+        reticleOn = !!hit;
+        if (hit) reticle.position.copy(hit);
         return;
       }
       // Hover: pointer cursor + label tag. Skipped while placing or dragging.
@@ -448,6 +539,7 @@ export default function SplatViewer({
     };
 
     const onPointerLeave = () => {
+      reticleOn = false;
       if (hoveredId !== null) {
         hoveredId = null;
         renderer.domElement.style.cursor = '';
@@ -471,7 +563,7 @@ export default function SplatViewer({
 
       setPointer(e);
       if (placementRef.current) {
-        const hit = planeHit();
+        const hit = placeHit();
         if (hit) {
           if (cameraBox) cameraBox.clampPoint(hit, hit); // pins stay inside the room too
           callbacksRef.current.onPlacePending?.({ x: hit.x, y: hit.y, z: hit.z });
@@ -515,6 +607,7 @@ export default function SplatViewer({
       for (const child of [...spriteGroup.children]) child.material.dispose();
       steadyRing.material.dispose();
       pulseRing.material.dispose();
+      reticle.material.dispose();
       try {
         mesh.dispose();
         spark.dispose();

@@ -75,6 +75,9 @@ export default function VesselMapPage() {
   const [pendingPosition, setPendingPosition] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [hovered, setHovered] = useState(null); // { label, x, y } — pin hover tag
+  const [adjusting, setAdjusting] = useState(null); // pin being repositioned
+  const [adjustError, setAdjustError] = useState(null);
+  const [adjustSaving, setAdjustSaving] = useState(false);
   const [orientDraft, setOrientDraft] = useState(null); // {x,y,z} radians while orienting
   const [orientError, setOrientError] = useState(null);
   const [orientSaving, setOrientSaving] = useState(false);
@@ -202,20 +205,25 @@ export default function VesselMapPage() {
   const startPlacement = () => {
     setSelectedHotspot(null);
     setPendingPosition(null);
+    setAdjusting(null);
+    setAdjustError(null);
     setMode('pin');
   };
   const cancelPlacement = () => {
     setMode('navigate');
     setPendingPosition(null);
     setModalOpen(false);
+    setAdjusting(null);
+    setAdjustError(null);
   };
 
   // Desktop is the one-gesture flow: click drops the pin AND opens the
   // creation modal. The mobile variant keeps the shipped two-step
-  // (drop → drag to fine-tune → Save).
+  // (drop → drag to fine-tune → Save). While adjusting an existing pin,
+  // clicks/drags only move the pending pin — Save commits.
   const placePending = (pos) => {
     setPendingPosition(pos);
-    if (isDesktop && pos) setModalOpen(true);
+    if (isDesktop && pos && !adjusting) setModalOpen(true);
   };
 
   const dismissModal = () => {
@@ -223,8 +231,41 @@ export default function VesselMapPage() {
     if (isDesktop) setPendingPosition(null); // stay in Pin mode, retry the click
   };
 
+  // ── Adjust position (COMMAND/CHIEF, from the inspector) ─────────────────
+  const startAdjust = (h) => {
+    setSelectedHotspot(null);
+    setAdjusting(h);
+    setAdjustError(null);
+    setPendingPosition(h.position);
+    setMode('pin');
+  };
+  const cancelAdjust = () => {
+    const original = adjusting;
+    cancelPlacement();
+    if (original) setSelectedHotspot(original); // back where the flow began
+  };
+  const saveAdjust = async () => {
+    if (!adjusting || !pendingPosition || adjustSaving) return;
+    setAdjustSaving(true);
+    setAdjustError(null);
+    const { error } = await supabase
+      .from('scan_hotspots')
+      .update({ position: pendingPosition })
+      .in('id', [adjusting.id]);
+    setAdjustSaving(false);
+    if (error) {
+      console.error('[vessel-map] position update error:', error);
+      setAdjustError(error.message || 'Could not move the pin.');
+      return;
+    }
+    const moved = { ...adjusting, position: pendingPosition };
+    setHotspots((prev) => prev.map((h) => (h.id === moved.id ? moved : h)));
+    cancelPlacement();
+    setSelectedHotspot(moved);
+  };
+
   // Keyboard vocabulary (desktop only): V navigate, P pin, Escape unwinds —
-  // modal first, then selection, then back to Navigate.
+  // modal first, then adjust, then selection, then back to Navigate.
   useCanvasShortcuts({
     v: () => cancelPlacement(),
     p: () => {
@@ -232,6 +273,7 @@ export default function VesselMapPage() {
     },
     escape: () => {
       if (modalOpen) dismissModal();
+      else if (adjusting) cancelAdjust();
       else if (selectedHotspot) setSelectedHotspot(null);
       else cancelPlacement();
     },
@@ -437,6 +479,7 @@ export default function VesselMapPage() {
                     hotspots={allHotspots}
                     visibleLayers={visibleLayerList}
                     selectedId={selectedHotspot?.id ?? null}
+                    adjustingId={adjusting?.id ?? null}
                     placementMode={placementMode}
                     pendingPosition={pendingPosition}
                     onPlacePending={placePending}
@@ -454,10 +497,23 @@ export default function VesselMapPage() {
                   pinReady={viewer.status === 'ready'}
                 />
 
-                {placementMode && !modalOpen && (
+                {placementMode && !modalOpen && !adjusting && (
                   <div className="vm-pin-hint">
                     Click to drop a pin
                     <span className="vm-pin-hint-kbd">Esc cancels</span>
+                  </div>
+                )}
+
+                {placementMode && adjusting && (
+                  <div className="vm-pin-hint vm-adjust-bar">
+                    <span className="vm-adjust-label">Repositioning “{adjusting.label}” — click or drag</span>
+                    {adjustError && <span className="vm-adjust-error">{adjustError}</span>}
+                    <button className="vm-btn-primary vm-adjust-btn" onClick={saveAdjust} disabled={adjustSaving}>
+                      {adjustSaving ? 'Saving…' : 'Save position'}
+                    </button>
+                    <button className="vm-btn-ghost vm-adjust-btn" onClick={cancelAdjust} disabled={adjustSaving}>
+                      Cancel
+                    </button>
                   </div>
                 )}
 
@@ -516,6 +572,7 @@ export default function VesselMapPage() {
                   canManage={canPlaceHotspots}
                   onClose={() => setSelectedHotspot(null)}
                   onDelete={deleteHotspot}
+                  onAdjust={startAdjust}
                 />
 
                 {/* ≥1024px: breadcrumb + layer chips float on the dark stage,
