@@ -183,6 +183,7 @@
   gap: 2px;
 }
 .edp-day {
+  position: relative;
   height: 32px;
   border: 0;
   border-radius: 999px;
@@ -235,6 +236,22 @@
   color: var(--edp-rust-dark);
   font-weight: 600;
 }
+/* Marked (already-logged) days — a quiet navy dot under the number. Turns white
+   on a selected/range day so it stays visible against the rust fill. */
+.edp-day-dot {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--edp-navy);
+  pointer-events: none;
+}
+.edp-day.is-selected .edp-day-dot { background: #fff; }
+.edp-day.is-in-range .edp-day-dot,
+.edp-day.is-range-anchor .edp-day-dot { background: var(--edp-rust-dark); }
 
 .edp-pop-foot {
   display: flex;

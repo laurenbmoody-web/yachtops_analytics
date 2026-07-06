@@ -175,6 +175,33 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
+  // Already-logged spans, dotted on the calendar. An open-ended (current) period
+  // is capped at today so it doesn't flood every future day with a marker.
+  const markedRanges = useMemo(
+    () => timeline.map(p => ({ from: p.effective_from, to: p.effective_to || todayIso() })),
+    [timeline],
+  );
+
+  // Does the chosen [from, to] land on any existing period? If so we warn and
+  // relabel the button — logging splices over the overlap (the untouched
+  // remainder of each period stays). `days` totals the overwritten days; `period`
+  // is the largest-overlap one, named in the notice.
+  const overlap = useMemo(() => {
+    if (!form.from || !form.to || form.to < form.from) return null;
+    let total = 0, best = null;
+    for (const p of timeline) {
+      const pf = p.effective_from, pt = p.effective_to || todayIso();
+      const lo = form.from > pf ? form.from : pf;
+      const hi = form.to < pt ? form.to : pt;
+      if (lo <= hi) {
+        const d = spanDays(lo, hi);
+        total += d;
+        if (!best || d > best.d) best = { p, d };
+      }
+    }
+    return total ? { days: total, period: best.p } : null;
+  }, [form.from, form.to, timeline]);
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
@@ -227,13 +254,26 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
               })}
             </div>
             <div className="vsw-dates">
-              <label>From<EditorialDatePicker value={form.from} onChange={(iso) => setForm(f => ({ ...f, from: iso }))} rangeStart={form.to} displayFormat="d MMM yyyy" ariaLabel="Period start date" placeholder="Start date" /></label>
-              <label>To<EditorialDatePicker value={form.to} onChange={(iso) => setForm(f => ({ ...f, to: iso }))} rangeStart={form.from} displayFormat="d MMM yyyy" ariaLabel="Period end date" placeholder="End date" /></label>
+              <label>From<EditorialDatePicker value={form.from} onChange={(iso) => setForm(f => ({ ...f, from: iso }))} rangeStart={form.to} markedRanges={markedRanges} displayFormat="d MMM yyyy" ariaLabel="Period start date" placeholder="Start date" /></label>
+              <label>To<EditorialDatePicker value={form.to} onChange={(iso) => setForm(f => ({ ...f, to: iso }))} rangeStart={form.from} markedRanges={markedRanges} displayFormat="d MMM yyyy" ariaLabel="Period end date" placeholder="End date" /></label>
             </div>
             <p className="vsw-flabel">Reason <span className="req">required</span></p>
             <input className="vsw-input" placeholder="e.g. Winter refit at MB92, Barcelona" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
+            {overlap && (
+              <div className="vsw-overlap">
+                <p className="vsw-overlap-hd">Overlaps an existing period</p>
+                <p className="vsw-overlap-main">
+                  {byKey[overlap.period.status]?.label || overlap.period.status}
+                  <span className="vsw-overlap-dates"> · {rangeLabel(overlap.period.effective_from, overlap.period.effective_to)}</span>
+                  {overlap.period.note && <span className="vsw-overlap-note"> “{overlap.period.note}”</span>}
+                </p>
+                <p className="vsw-overlap-sub">Logging overwrites {overlap.days} day{overlap.days === 1 ? '' : 's'} — the rest of the period stays.</p>
+              </div>
+            )}
             {err && <p className="vsw-err vsw-err-modal">{err}</p>}
-            <button className="vsw-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Log period'}</button>
+            <button className="vsw-primary" disabled={saving} onClick={save}>
+              {saving ? 'Saving…' : overlap ? `Overwrite ${overlap.days} day${overlap.days === 1 ? '' : 's'}` : 'Log period'}
+            </button>
           </div>
         ) : (
           <div className="vsw-modal-body">

@@ -108,6 +108,14 @@
 .vsw-dates .edp-input::placeholder { color: #AEB4C2; font-weight: 500; }
 .vsw-input { border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; color: #1C1B3A; background: #FAFAF8; font-family: inherit; width: 100%; text-transform: none; letter-spacing: normal; font-weight: 400; }
 .vsw-input:focus { outline: none; border-color: var(--vsw-terra); box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+/* Overlap notice — editorial, not an alert. Hairline rule + quiet type; the
+   period's own note carries the DM Serif italic accent. No box, no orange fill. */
+.vsw-overlap { border-top: 1px solid #ECEAE3; margin-top: 16px; padding-top: 14px; }
+.vsw-overlap-hd { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0 0 5px; }
+.vsw-overlap-main { font-size: 13.5px; font-weight: 600; color: #1C1B3A; margin: 0; }
+.vsw-overlap-dates { font-weight: 500; color: #6B7280; }
+.vsw-overlap-note { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-style: italic; font-weight: 400; color: #6B7280; }
+.vsw-overlap-sub { font-size: 12px; color: #8B8478; margin: 4px 0 0; line-height: 1.5; }
 .vsw-primary { margin-top: 16px; width: 100%; background: var(--vsw-terra); color: #fff; border: 0; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .vsw-primary:hover { background: #B14E16; }
 .vsw-primary:disabled { opacity: .6; cursor: default; }
