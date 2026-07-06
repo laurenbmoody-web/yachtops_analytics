@@ -16,6 +16,7 @@ import Header from '../../components/navigation/Header';
 import SplatViewer from './components/SplatViewer';
 import OrientPanel from './components/OrientPanel';
 import GuideCards from './components/GuideCards';
+import { refreshScanThumb } from './utils/scanThumb';
 import { SCAN_EXTENSIONS, validateScanFile, fileExtension, createScanUpload } from './utils/scanUpload';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
@@ -23,6 +24,37 @@ import './vessel-map.css';
 import './manage-scans.css';
 
 const VM_STAGE = '#22253F';
+
+// Deck ordering: top of the vessel downward where names match convention,
+// alphabetical otherwise, unassigned last. A rank helper, nothing cleverer.
+const DECK_KEYWORDS = ['sun', 'bridge', 'main', 'lower', 'tank'];
+const deckRank = (deck) => {
+  const d = (deck || '').toLowerCase();
+  const i = DECK_KEYWORDS.findIndex((k) => d.includes(k));
+  return i === -1 ? DECK_KEYWORDS.length : i;
+};
+
+// Groups only when they earn their place: more than one scan AND at least
+// one deck assigned. Otherwise a single flat group with no header.
+const groupByDeck = (scans) => {
+  const anyDeck = scans.some((s) => (s.deck || '').trim());
+  if (scans.length <= 1 || !anyDeck) return [{ deck: null, header: null, scans }];
+  const groups = new Map();
+  for (const s of scans) {
+    const key = (s.deck || '').trim().toLowerCase() || '__unassigned__';
+    if (!groups.has(key)) groups.set(key, { deck: (s.deck || '').trim() || null, scans: [] });
+    groups.get(key).scans.push(s); // fetched order (sort_order, created_at) is kept
+  }
+  return [...groups.values()]
+    .sort((a, b) => {
+      if (!a.deck !== !b.deck) return a.deck ? -1 : 1; // unassigned sinks
+      const r = deckRank(a.deck) - deckRank(b.deck);
+      return r !== 0 ? r : a.deck.localeCompare(b.deck);
+    })
+    .map((g) => ({ ...g, header: g.deck ? g.deck.toUpperCase() : 'UNASSIGNED' }));
+};
+
+const isZeroRotation = (r) => !r || ((Number(r.x) || 0) === 0 && (Number(r.y) || 0) === 0 && (Number(r.z) || 0) === 0);
 
 const fmtDate = (iso) => {
   if (!iso) return '—';
@@ -39,6 +71,7 @@ export default function ManageScans() {
   const [scans, setScans] = useState([]);
   const [pinCounts, setPinCounts] = useState({});
   const [storageSizes, setStorageSizes] = useState({}); // legacy rows without file_bytes
+  const [thumbUrls, setThumbUrls] = useState({});       // scan_id → signed poster URL
   const [loading, setLoading] = useState(true);
 
   // Upload flow: idle → form → uploading → orient → done (error is a state
@@ -57,6 +90,7 @@ export default function ManageScans() {
   const [orientSaving, setOrientSaving] = useState(false);
   const [orientError, setOrientError] = useState(null);
   const activeUploadRef = useRef(null);
+  const viewerApiRef = useRef(null); // orient-step SplatViewer — poster capture
   const [dragOver, setDragOver] = useState(false);
   // Crews who've done this many times can fold the three cards away.
   const [stepsHidden, setStepsHiddenState] = useState(() => {
@@ -87,7 +121,24 @@ export default function ManageScans() {
       supabase.storage.from('vessel-scans').list(activeTenantId, { limit: 200 }),
     ]);
     if (scansRes.error) console.error('[manage-scans] scans fetch error:', scansRes.error);
-    else setScans(scansRes.data || []);
+    else {
+      const rows = scansRes.data || [];
+      setScans(rows);
+      // Poster thumbs: one batch of signed URLs per load, cached by scan id.
+      const withThumbs = rows.filter((r) => r.thumb_path);
+      if (withThumbs.length > 0) {
+        const { data: signed, error: signError } = await supabase.storage
+          .from('vessel-scans')
+          .createSignedUrls(withThumbs.map((r) => r.thumb_path), 3600);
+        if (signError) console.error('[manage-scans] thumb sign error:', signError);
+        else {
+          const byPath = Object.fromEntries((signed || []).map((s) => [s.path, s.signedUrl]));
+          setThumbUrls(Object.fromEntries(withThumbs.map((r) => [r.id, byPath[r.thumb_path]]).filter(([, u]) => u)));
+        }
+      } else {
+        setThumbUrls({});
+      }
+    }
     if (pinsRes.error) console.error('[manage-scans] pins fetch error:', pinsRes.error);
     else {
       const counts = {};
@@ -254,9 +305,24 @@ export default function ManageScans() {
     setOrientUrl(null);
   };
 
+  // Any orient approval refreshes the poster frame — "Save orientation" and
+  // "Looks right as is" both count: the frame the user signs off is the thumb.
+  const captureAndStoreThumb = async (scan) => {
+    let blob = null;
+    try {
+      blob = await viewerApiRef.current?.captureFrame?.();
+    } catch (err) {
+      console.error('[manage-scans] thumb capture error:', err);
+    }
+    if (!blob) return;
+    await refreshScanThumb({ scan, tenantId: activeTenantId, blob });
+  };
+
   const saveOrientation = async () => {
     setOrientSaving(true);
     setOrientError(null);
+    // Capture while the viewer is still mounted and showing the approved frame.
+    const thumbPromise = captureAndStoreThumb(uploadedScan);
     const { error } = await supabase.from('vessel_scans')
       .update({ splat_rotation: orientDraft }).in('id', [uploadedScan.id]);
     setOrientSaving(false);
@@ -265,6 +331,13 @@ export default function ManageScans() {
       setOrientError(error.message || 'Could not save the orientation.');
       return;
     }
+    await thumbPromise;
+    setStep('done');
+    loadAll();
+  };
+
+  const approveAsIs = async () => {
+    await captureAndStoreThumb(uploadedScan);
     setStep('done');
     loadAll();
   };
@@ -334,17 +407,20 @@ export default function ManageScans() {
       return;
     }
 
+    // A new capture means the old poster is a different room — clear it; the
+    // post-replace orient regenerates it.
     const { error } = await supabase.from('vessel_scans')
-      .update({ storage_path: newPath, file_format: ext, file_bytes: f.size, status: 'ready' })
+      .update({ storage_path: newPath, file_format: ext, file_bytes: f.size, status: 'ready', thumb_path: null })
       .in('id', [s.id]);
     if (error) {
       console.error('[manage-scans] replace finalise error:', error);
       setRowBusy((p) => ({ ...p, [s.id]: { error: error.message || 'Uploaded, but could not switch the scan over.' } }));
       return;
     }
-    // Only now is the old file expendable.
-    if (oldPath && oldPath !== newPath) {
-      const { error: rmError } = await supabase.storage.from('vessel-scans').remove([oldPath]);
+    // Only now are the old objects expendable.
+    const stale = [oldPath, s.thumb_path].filter((p) => p && p !== newPath);
+    if (stale.length > 0) {
+      const { error: rmError } = await supabase.storage.from('vessel-scans').remove(stale);
       if (rmError) console.error('[manage-scans] old file cleanup failed (non-fatal):', rmError);
     }
     setRowBusy((p) => { const next = { ...p }; delete next[s.id]; return next; });
@@ -362,7 +438,8 @@ export default function ManageScans() {
       setDeleteBusy(false);
       return;
     }
-    const { error: rmError } = await supabase.storage.from('vessel-scans').remove([deleteTarget.storage_path]);
+    const { error: rmError } = await supabase.storage.from('vessel-scans')
+      .remove([deleteTarget.storage_path, deleteTarget.thumb_path].filter(Boolean));
     if (rmError) console.error('[manage-scans] file cleanup failed (non-fatal):', rmError);
     setDeleteBusy(false);
     setDeleteTarget(null);
@@ -501,6 +578,7 @@ export default function ManageScans() {
                     onSelectHotspot={() => {}}
                     onHoverHotspot={() => {}}
                     onLoadState={() => {}}
+                    apiRef={viewerApiRef}
                     stageColor={VM_STAGE}
                   />
                 )}
@@ -508,7 +586,7 @@ export default function ManageScans() {
                   value={orientDraft}
                   onChange={(next) => { setOrientError(null); setOrientDraft(next); }}
                   onSave={saveOrientation}
-                  onCancel={() => setStep('done')}
+                  onCancel={approveAsIs}
                   saving={orientSaving}
                   error={orientError}
                   eyebrow="Stand it upright"
@@ -529,17 +607,30 @@ export default function ManageScans() {
             </div>
           )}
 
-          {/* ── The library: clean rows; editing is an explicit mode ── */}
+          {/* ── The library: deck sections when they earn their place;
+                 clean rows; editing is an explicit mode ── */}
           {!loading && scans.length > 0 && (
             <div className="vml">
               <div className="vml-head">
                 <span className="vml-label">Scans aboard · {scans.length}</span>
               </div>
-              {scans.map((s) => {
+              {groupByDeck(scans).map((group) => (
+                <React.Fragment key={group.header || '__flat__'}>
+                  {group.header && (
+                    <div className="vml-deck-head">
+                      <span className="vml-label">{group.header} · {group.scans.length}</span>
+                    </div>
+                  )}
+                  {group.scans.map((s) => {
                 const busy = rowBusy[s.id];
                 const incomplete = s.status !== 'ready';
                 const editing = editingId === s.id;
                 const pins = pinCounts[s.id] || 0;
+                const grouped = Boolean(group.header);
+                const hints = [
+                  !(s.deck || '').trim() && 'No deck',
+                  !s.thumb_path && isZeroRotation(s.splat_rotation) && 'Not oriented yet',
+                ].filter(Boolean);
                 return (
                   <div key={s.id} className={`vml-row${incomplete ? ' vml-row-incomplete' : ''}${editing ? ' vml-row-editing' : ''}`}>
                     {editing ? (
@@ -565,14 +656,28 @@ export default function ManageScans() {
                       </div>
                     ) : (
                       <>
+                        {thumbUrls[s.id] ? (
+                          <img className="vml-thumb" src={thumbUrls[s.id]} alt="" loading="lazy" />
+                        ) : (
+                          <div className="vml-thumb vml-thumb-empty" aria-hidden="true">
+                            <svg viewBox="0 0 40 30">
+                              <g fill="#C65A1A">
+                                <circle cx="14" cy="10" r="1.4" opacity="0.55" /><circle cx="22" cy="14" r="1.2" opacity="0.4" />
+                                <circle cx="18" cy="19" r="1.3" opacity="0.45" /><circle cx="27" cy="10" r="1" opacity="0.3" />
+                                <circle cx="25" cy="20" r="1.1" opacity="0.35" />
+                              </g>
+                            </svg>
+                          </div>
+                        )}
                         <div className="vml-main">
                           <p className="vml-name">
                             {s.name}
                             {incomplete && <span className="vmm-badge">Upload incomplete</span>}
                           </p>
                           <p className="vml-meta">
-                            {[s.deck, fmtSize(s.file_bytes ?? storageSizes[s.storage_path]), (s.file_format || '').toUpperCase(),
+                            {[!grouped && s.deck, fmtSize(s.file_bytes ?? storageSizes[s.storage_path]), (s.file_format || '').toUpperCase(),
                               `${pins} pin${pins === 1 ? '' : 's'}`, fmtDate(s.created_at)].filter(Boolean).join(' · ')}
+                            {hints.map((h) => <span key={h} className="vml-hint"> · {h}</span>)}
                           </p>
                         </div>
                         <div className="vml-actions">
@@ -596,7 +701,9 @@ export default function ManageScans() {
                     {busy?.error && <p className="vmm-error vml-row-wide">{busy.error}</p>}
                   </div>
                 );
-              })}
+                  })}
+                </React.Fragment>
+              ))}
             </div>
           )}
 

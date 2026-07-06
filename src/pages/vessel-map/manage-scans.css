@@ -157,6 +157,26 @@
 }
 .vml-row-incomplete { background: #FCFAF5; }
 .vml-row-editing { background: #FAFAF8; border-radius: 14px; padding: 18px 18px; border-bottom: 1px solid #F0F1F5; }
+.vml-deck-head {
+  padding: 22px 2px 8px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.vml-thumb {
+  width: 72px;
+  height: 46px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #22253F;
+  flex-shrink: 0;
+}
+.vml-thumb-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F6F5F2;
+}
+.vml-thumb-empty svg { width: 40px; height: 30px; }
+.vml-hint { color: #AEB4C2; font-style: italic; }
 .vml-main { flex: 1; min-width: 220px; }
 .vml-name {
   margin: 0;
