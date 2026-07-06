@@ -101,8 +101,8 @@ const ProductCard = ({ product, supplier, mine, basketQty, onSetQty }) => {
         <button type="button" onClick={dec} disabled={out || basketQty === 0} aria-label="Fewer">−</button>
         <span className="q">
           {basketQty > 0
-            ? <>{basketQty}<small> in basket</small></>
-            : (out ? 'Unavailable' : 'Add to basket')}
+            ? <>{basketQty}<small> added</small></>
+            : (out ? 'Unavailable' : 'Add to board')}
         </span>
         <button type="button" onClick={inc} disabled={out} aria-label="More">+</button>
       </div>
@@ -382,17 +382,17 @@ const Marketplace = () => {
                 </div>
 
                 <aside className="mp-basket">
-                  <h3 className="mp-basket-h">Basket</h3>
+                  <h3 className="mp-basket-h">For the board</h3>
                   <div className="mp-basket-sub">
                     {basket.length
                       ? `${basket.reduce((s, l) => s + l.qty, 0)} item${basket.length === 1 && basket[0].qty === 1 ? '' : 's'} · ${basketBySupplier.size} supplier${basketBySupplier.size === 1 ? '' : 's'}`
-                      : 'Lines land on a board as drafts — nothing is sent yet.'}
+                      : 'Items land as draft lines — nothing is sent yet.'}
                   </div>
 
                   {basket.length === 0 && (
                     <div className="mp-basket-empty">
                       <ShoppingBasket size={20} strokeWidth={1.5} style={{ marginBottom: 6 }} />
-                      <div>Your basket is empty</div>
+                      <div>Nothing added yet</div>
                     </div>
                   )}
 

@@ -572,7 +572,7 @@ const SendToSupplierModal = ({
           onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'email' })}
           className={`stsm-btn stsm-btn-primary${disabled ? ' is-disabled' : ''}`}
         >
-          {busy ? <><span className="stsm-spinner" /> Sending…</> : (portal ? 'Send to portal' : 'Send')}
+          {busy ? <><span className="stsm-spinner" /> Sending…</> : 'Send'}
         </button>
       </div>
     );
@@ -615,11 +615,7 @@ const SendToSupplierModal = ({
               {supplier.name || 'Supplier'}
               <span className="stsm-row-meta"> · {plural(rows.length, 'item')}</span>
             </span>
-            {portal ? (
-              <span className="stsm-portal">
-                <Icon name="Anchor" size={11} /> On Cargo — lands in their portal, priced lines confirm in one click
-              </span>
-            ) : hasContact ? (
+            {hasContact ? (
               <span className="stsm-row-contact">
                 {[supplier.email, supplier.phone].filter(Boolean).join(' · ')}
               </span>
