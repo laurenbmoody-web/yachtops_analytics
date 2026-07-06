@@ -258,6 +258,12 @@ export default function VesselMapPage() {
     }
     setHotspots((prev) => [...prev, data]);
     setActiveLayers((prev) => new Set(prev).add(layer)); // never save into a hidden layer
+    // The creator-name map fills from profiles on load — a pin saved this
+    // session is the signed-in user, so seed their name without a refetch.
+    if (data.created_by && !creatorNames[data.created_by]) {
+      const name = user?.user_metadata?.full_name || user?.email;
+      if (name) setCreatorNames((prev) => ({ ...prev, [data.created_by]: name }));
+    }
     cancelPlacement();
     setSelectedHotspot(data); // pin it, name it, then enrich it — selection opens the details
     return null;
