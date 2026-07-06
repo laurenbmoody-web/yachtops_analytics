@@ -5,7 +5,11 @@
   "description": "Fills the PYA Sea Service Testimonial (SST) form from a crew member's Cargo record.",
   "permissions": ["clipboardRead", "scripting"],
   "host_permissions": ["https://member.pya.org/*"],
-  "action": { "default_title": "Fill PYA form from Cargo" },
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "action": {
+    "default_title": "Fill PYA form from Cargo",
+    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {

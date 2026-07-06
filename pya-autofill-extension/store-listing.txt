@@ -1,0 +1,17 @@
+Cargo → PYA Autofill
+
+Fill your PYA Sea Service Testimonial (SST) in seconds.
+
+Prepare a crew member's sea-service record in Cargo, click "Copy for PYA", then
+open the PYA "Verify Sea Service Testimonial" page and click "Fill from Cargo".
+The extension fills the vessel details, dates, sea-service day totals, capacity,
+areas cruised, flag and signatory email straight into the form — no re-typing.
+
+• One click to fill — the values come from the record you already prepared in Cargo.
+• Fills the tricky bits too: the sail/motor and capacity radios, the areas-cruised
+  checkboxes, and the country-flag picker.
+• Nothing is submitted automatically — you always review before you submit.
+• Private by design: it reads only the record you copied, only when you click Fill,
+  and sends nothing anywhere. It runs only on member.pya.org.
+
+For yacht crew and command using Cargo to track and export sea time.
