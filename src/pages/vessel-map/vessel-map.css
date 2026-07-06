@@ -335,6 +335,18 @@
     text-transform: uppercase;
     color: #9BA0BC;
   }
+
+  /* Adjust-position bar — the hint pill with live verbs. */
+  .vm-adjust-bar { pointer-events: auto; }
+  .vm-adjust-label { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vm-adjust-error { color: #F0A8A8; font-size: 12px; }
+  .vm-adjust-btn { padding: 6px 12px; font-size: 12px; }
+}
+
+.vm-insp-adjust {
+  margin-top: 18px;
+  padding: 8px 14px;
+  font-size: 12.5px;
 }
 
 /* ── Pin hover tag — small floating label, 150ms dwell before fading in ─── */
