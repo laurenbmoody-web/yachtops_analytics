@@ -20,7 +20,7 @@ import { buildAssurance, makeQrDataUrl, renderPackPdf, buildSpellTestimonialPdf,
 import { buildNautilusSST } from '../../../seatime/nautilusExport';
 import { buildTransportMaltaSST, buildTransportMaltaEngineSST } from '../../../seatime/transportMaltaExport';
 import { buildPyaPayload } from '../../../seatime/pya/pyaPayload';
-import { PYA_BOOKMARKLET_HREF, buildPyaClipboard } from '../../../seatime/pya/pyaBookmarklet';
+import { buildPyaClipboard } from '../../../seatime/pya/pyaBookmarklet';
 import CaptainSignoff from '../../../seatime/CaptainSignoff';
 import './sea-time-dashboard.css';
 
@@ -843,14 +843,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       return { ...g, from: froms[0] || null, to: tos[tos.length - 1] || null, days: g.entries.reduce((s, e) => s + (e.days || 0), 0) };
     }).sort((a, b) => (vessels[a.vesselId]?.name || '').localeCompare(vessels[b.vesselId]?.name || '') || String(a.from).localeCompare(String(b.from)));
   }, [live, vessels]);
-
-  // PYA autofill bookmarklet. React sanitises `javascript:` hrefs out of JSX, so
-  // set it on the anchor via the DOM after render — it stays draggable to the
-  // bookmarks bar.
-  const pyaBmRef = useRef(null);
-  useEffect(() => {
-    if (pyaBmRef.current) pyaBmRef.current.setAttribute('href', PYA_BOOKMARKLET_HREF);
-  }, [verifier, canGenerate, nautilusSpells.length]);
 
   // Build + download ONE captain's Nautilus testimonial, scoped to that spell.
   const onDownloadSpell = async (spell) => {
@@ -2038,10 +2030,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   {interiorPathway ? (
                     <div className="std-export-instr">Export your record below, then submit it to the PYA with your guest-on days, GUEST certificates and ID for the IAMI GUEST Yacht Purser CoC.</div>
                   ) : verifier === 'pya' ? (
-                    <>
-                      <div className="std-export-instr">Fill your PYA member profile from each captain’s record, then send it to your signatory to e-sign.</div>
-                      <div style={{ fontSize: 11.5, color: 'var(--muted)', margin: '3px 0 0' }}>MCA MIN&nbsp;543 · one per captain · self-signed declined · verified in ~25 working days</div>
-                    </>
+                    <div className="std-export-instr">Copy for PYA, then let the Cargo → PYA extension fill your member profile — one testimonial per captain to e-sign.</div>
                   ) : (
                     <div className="std-export-instr">{vp.instructions}</div>
                   )}
@@ -2050,21 +2039,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   ) : (
                     <div className="std-spells">
                       {verifier === 'pya' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 14px', border: '1px solid #F1DBCE', borderRadius: 12, background: '#FBEFE9', margin: '0 0 4px' }}>
-                          {/* href set via the DOM (React blocks javascript: hrefs) — keep draggable */}
-                          <a
-                            ref={pyaBmRef}
-                            onClick={(e) => { e.preventDefault(); flash('Drag me to your bookmarks bar — don’t click here'); }}
-                            title="Drag to your bookmarks bar"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 13px', borderRadius: 9, background: '#14132C', color: '#fff', fontWeight: 600, fontSize: 12.5, textDecoration: 'none', cursor: 'grab', flex: '0 0 auto', whiteSpace: 'nowrap' }}
-                          >
-                            <Icon name="Anchor" size={13} /> Fill PYA form
-                          </a>
-                          <div style={{ lineHeight: 1.4 }}>
-                            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1C1B3A' }}>Autofill the PYA online form</div>
-                            <div style={{ fontSize: 11.5, color: '#A67456' }}>Drag to your bookmarks bar once, then <strong style={{ fontWeight: 600 }}>Copy for PYA</strong> on a record.</div>
-                          </div>
-                        </div>
+                        <div className="std-spells-lbl">Copy for PYA on a record, then click Fill from Cargo on the PYA form. Manual &amp; off-Cargo days are excluded.</div>
                       ) : (
                         <div className="std-spells-lbl">{interiorPathway
                           ? 'Your service under each captain, ready for the PYA to verify. Manual & off-Cargo days are excluded.'
