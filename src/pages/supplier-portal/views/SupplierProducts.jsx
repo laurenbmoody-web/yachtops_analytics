@@ -493,6 +493,7 @@ const SupplierProducts = () => {
 
   const matchesStatus = (i) => {
     switch (statusFilter) {
+      case 'attention': return isLowStock(i);
       case 'in': return i.in_stock && !isLowStock(i);
       case 'low': return i.in_stock && i.stock_qty != null && Number(i.stock_qty) <= lowStockAt(i);
       case 'out': return !i.in_stock || (i.stock_qty != null && Number(i.stock_qty) <= 0);
@@ -514,6 +515,8 @@ const SupplierProducts = () => {
       margin_desc: (a, b) => (marginPct(b.unit_price, costs[b.id]) ?? -999) - (marginPct(a.unit_price, costs[a.id]) ?? -999),
       margin_asc: (a, b) => (marginPct(a.unit_price, costs[a.id]) ?? 999) - (marginPct(b.unit_price, costs[b.id]) ?? 999),
       stock_asc: (a, b) => (a.stock_qty ?? Infinity) - (b.stock_qty ?? Infinity),
+      value_desc: (a, b) =>
+        ((b.stock_qty ?? 0) * (costs[b.id] ?? 0)) - ((a.stock_qty ?? 0) * (costs[a.id] ?? 0)),
       updated_desc: (a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0),
     }[sortBy] || ((a, b) => a.name.localeCompare(b.name));
     return [...rows].sort(cmp);
@@ -676,7 +679,13 @@ const SupplierProducts = () => {
 
       {items.length > 0 && (
         <div className="spp-kpiband">
-          <div className="spp-kpicell">
+          <div
+            className="spp-kpicell click"
+            role="button" tabIndex={0}
+            title="See where your stock value sits — sorts by value at cost"
+            onClick={() => { setStatusFilter('all'); setSortBy('value_desc'); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { setStatusFilter('all'); setSortBy('value_desc'); } }}
+          >
             <div className="spp-kpi-label">Stock on hand · at cost</div>
             <div className="spp-kpi-value">
               {kpis.stockValue ? <>{kpis.stockValue.toLocaleString('en-GB', { maximumFractionDigits: 0 })} <small>{homeCurrency}</small></> : '—'}
@@ -690,7 +699,13 @@ const SupplierProducts = () => {
             </div>
           </div>
 
-          <div className="spp-kpicell">
+          <div
+            className="spp-kpicell click"
+            role="button" tabIndex={0}
+            title="Review your thinnest margins first"
+            onClick={() => { setStatusFilter('all'); setSortBy('margin_asc'); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { setStatusFilter('all'); setSortBy('margin_asc'); } }}
+          >
             <div className="spp-kpi-label">Blended margin</div>
             <div className="spp-kpi-value">
               {kpis.blendedMargin != null ? <>{kpis.blendedMargin.toFixed(1)}<small>%</small></> : '—'}
@@ -706,7 +721,22 @@ const SupplierProducts = () => {
             </div>
           </div>
 
-          <div className="spp-kpicell">
+          <div
+            className="spp-kpicell click"
+            role="button" tabIndex={0}
+            title="Work through the biggest gap in your catalogue data"
+            onClick={() => {
+              const weakest = Math.min(kpis.photos, kpis.costed, kpis.coded);
+              setStatusFilter(weakest === kpis.photos ? 'no_photo' : weakest === kpis.costed ? 'no_cost' : 'no_barcode');
+              setSortBy('name');
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              const weakest = Math.min(kpis.photos, kpis.costed, kpis.coded);
+              setStatusFilter(weakest === kpis.photos ? 'no_photo' : weakest === kpis.costed ? 'no_cost' : 'no_barcode');
+              setSortBy('name');
+            }}
+          >
             <div className="spp-kpi-label">Catalogue health</div>
             <div className="spp-kpi-value">{kpis.healthPct}<small>%</small></div>
             <div className="spp-kpi-sub">
@@ -717,7 +747,13 @@ const SupplierProducts = () => {
             </div>
           </div>
 
-          <div className="spp-kpicell">
+          <div
+            className="spp-kpicell click"
+            role="button" tabIndex={0}
+            title="See everything low or out, emptiest first"
+            onClick={() => { setStatusFilter('attention'); setSortBy('stock_asc'); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { setStatusFilter('attention'); setSortBy('stock_asc'); } }}
+          >
             <div className="spp-kpi-label">Needs attention</div>
             <div className="spp-kpi-value">{kpis.out + kpis.lowOnly || '0'}</div>
             <div className="spp-kpi-sub">
@@ -751,6 +787,7 @@ const SupplierProducts = () => {
           <span className="k">Show</span>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="all">Everything</option>
+            <option value="attention">Needs attention</option>
             <option value="in">In stock</option>
             <option value="low">Low stock</option>
             <option value="out">Out of stock</option>
@@ -768,9 +805,19 @@ const SupplierProducts = () => {
             <option value="margin_desc">Margin · high first</option>
             <option value="margin_asc">Margin · low first</option>
             <option value="stock_asc">Stock · low first</option>
+            <option value="value_desc">Stock value · high first</option>
             <option value="updated_desc">Recently updated</option>
           </select>
         </label>
+        {(search || categoryFilter !== 'All' || statusFilter !== 'all' || sortBy !== 'name') && (
+          <button
+            type="button"
+            className="spp-clear"
+            onClick={() => { setSearch(''); setCategoryFilter('All'); setStatusFilter('all'); setSortBy('name'); }}
+          >
+            × Clear all
+          </button>
+        )}
         <span className="spp-controls-count">{filtered.length} of {items.length}</span>
       </div>
 
