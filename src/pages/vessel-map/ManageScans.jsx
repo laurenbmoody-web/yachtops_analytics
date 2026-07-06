@@ -607,8 +607,9 @@ export default function ManageScans() {
             </div>
           )}
 
-          {/* ── The library: deck sections when they earn their place;
-                 clean rows; editing is an explicit mode ── */}
+          {/* ── The library: room cards under deck sections. Posters are the
+                 hero — clicking one opens that room on the map. Editing
+                 expands the card full-width in place. ── */}
           {!loading && scans.length > 0 && (
             <div className="vml">
               <div className="vml-head">
@@ -621,87 +622,96 @@ export default function ManageScans() {
                       <span className="vml-label">{group.header} · {group.scans.length}</span>
                     </div>
                   )}
-                  {group.scans.map((s) => {
-                const busy = rowBusy[s.id];
-                const incomplete = s.status !== 'ready';
-                const editing = editingId === s.id;
-                const pins = pinCounts[s.id] || 0;
-                const grouped = Boolean(group.header);
-                const hints = [
-                  !(s.deck || '').trim() && 'No deck',
-                  !s.thumb_path && isZeroRotation(s.splat_rotation) && 'Not oriented yet',
-                ].filter(Boolean);
-                return (
-                  <div key={s.id} className={`vml-row${incomplete ? ' vml-row-incomplete' : ''}${editing ? ' vml-row-editing' : ''}`}>
-                    {editing ? (
-                      <div className="vml-editor">
-                        <div className="vmm-form-row">
-                          <div className="vmm-field">
-                            <p className="vm-label">Name</p>
-                            <input className="vm-input" value={editValue(s, 'name')} onChange={(e) => setEdit(s.id, 'name', e.target.value)} aria-label="Scan name" autoFocus />
-                          </div>
-                          <div className="vmm-field">
-                            <p className="vm-label">Deck <span className="vmm-label-optional">optional</span></p>
-                            <input className="vm-input" value={editValue(s, 'deck')} onChange={(e) => setEdit(s.id, 'deck', e.target.value)} placeholder="Main deck" aria-label="Deck" />
-                          </div>
-                          <div className="vmm-field vml-field-order">
-                            <p className="vm-label">Order</p>
-                            <input className="vm-input" type="number" value={editValue(s, 'sort_order')} onChange={(e) => setEdit(s.id, 'sort_order', e.target.value)} aria-label="Sort order" />
-                          </div>
+                  <div className="vml-grid">
+                    {group.scans.map((s) => {
+                      const busy = rowBusy[s.id];
+                      const incomplete = s.status !== 'ready';
+                      const editing = editingId === s.id;
+                      const pins = pinCounts[s.id] || 0;
+                      const grouped = Boolean(group.header);
+                      const hints = [
+                        !(s.deck || '').trim() && 'No deck',
+                        !s.thumb_path && isZeroRotation(s.splat_rotation) && 'Not oriented yet',
+                      ].filter(Boolean);
+                      return (
+                        <div key={s.id} className={`vmc${editing ? ' vmc-editing' : ''}`}>
+                          {editing ? (
+                            <div className="vmc-editor">
+                              <div className="vmm-form-row">
+                                <div className="vmm-field">
+                                  <p className="vm-label">Name</p>
+                                  <input className="vm-input" value={editValue(s, 'name')} onChange={(e) => setEdit(s.id, 'name', e.target.value)} aria-label="Scan name" autoFocus />
+                                </div>
+                                <div className="vmm-field">
+                                  <p className="vm-label">Deck <span className="vmm-label-optional">optional</span></p>
+                                  <input className="vm-input" value={editValue(s, 'deck')} onChange={(e) => setEdit(s.id, 'deck', e.target.value)} placeholder="Main deck" aria-label="Deck" />
+                                </div>
+                                <div className="vmm-field vml-field-order">
+                                  <p className="vm-label">Order</p>
+                                  <input className="vm-input" type="number" value={editValue(s, 'sort_order')} onChange={(e) => setEdit(s.id, 'sort_order', e.target.value)} aria-label="Sort order" />
+                                </div>
+                              </div>
+                              <div className="vmm-actions">
+                                <button className="vm-btn-primary vmm-btn-sm" onClick={() => saveRow(s)} disabled={!rowDirty(s)}>Save changes</button>
+                                <button className="vm-btn-ghost vmm-btn-sm" onClick={() => cancelEdit(s.id)}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                className="vmc-poster"
+                                onClick={() => navigate(`/vessel/map?scan=${s.id}`)}
+                                aria-label={`Open ${s.name} on the map`}
+                              >
+                                {thumbUrls[s.id] ? (
+                                  <img src={thumbUrls[s.id]} alt="" loading="lazy" />
+                                ) : (
+                                  <svg className="vmc-poster-motif" viewBox="0 0 80 50" aria-hidden="true">
+                                    <g fill="#C65A1A">
+                                      <circle cx="30" cy="16" r="2" opacity="0.7" /><circle cx="44" cy="23" r="1.7" opacity="0.5" />
+                                      <circle cx="36" cy="31" r="1.8" opacity="0.55" /><circle cx="53" cy="16" r="1.4" opacity="0.4" />
+                                      <circle cx="50" cy="33" r="1.5" opacity="0.45" /><circle cx="24" cy="26" r="1.3" opacity="0.35" />
+                                    </g>
+                                    <g fill="#8FA0C6">
+                                      <circle cx="40" cy="12" r="1.1" opacity="0.4" /><circle cx="58" cy="26" r="1" opacity="0.3" />
+                                      <circle cx="28" cy="37" r="1" opacity="0.28" />
+                                    </g>
+                                  </svg>
+                                )}
+                                {incomplete && <span className="vmm-badge vmc-badge">Upload incomplete</span>}
+                                <span className="vmc-open">View on map</span>
+                              </button>
+                              <div className="vmc-body">
+                                <p className="vmc-name">{s.name}</p>
+                                <p className="vmc-meta">
+                                  {[!grouped && s.deck, fmtSize(s.file_bytes ?? storageSizes[s.storage_path]), (s.file_format || '').toUpperCase(),
+                                    `${pins} pin${pins === 1 ? '' : 's'}`, fmtDate(s.created_at)].filter(Boolean).join(' · ')}
+                                  {hints.map((h) => <span key={h} className="vml-hint"> · {h}</span>)}
+                                </p>
+                                <div className="vmc-actions">
+                                  <button className="vmc-action" onClick={() => setEditingId(s.id)}>Edit</button>
+                                  <button className="vmc-action" onClick={() => pickReplacement(s)}>
+                                    {incomplete ? 'Upload file' : 'Replace file'}
+                                  </button>
+                                  <button className="vmc-action vmc-action-danger" onClick={() => { setDeleteError(null); setDeleteTarget(s); }}>Delete</button>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          {busy?.progress && (
+                            <div className="vmc-wide">
+                              <div className="vmm-progress-track">
+                                <div className="vmm-progress-fill" style={{ width: `${busy.progress.total ? Math.round((busy.progress.sent / busy.progress.total) * 100) : 0}%` }} />
+                              </div>
+                              <p className="vmm-progress-label">{busy.label} · {fmtSize(busy.progress.sent)} of {fmtSize(busy.progress.total)}</p>
+                              <p className="vmm-note">Pins keep their positions — if the new capture's orientation differs, re-orient after upload.</p>
+                            </div>
+                          )}
+                          {busy?.error && <p className="vmm-error vmc-wide">{busy.error}</p>}
                         </div>
-                        <div className="vmm-actions">
-                          <button className="vm-btn-primary vmm-btn-sm" onClick={() => saveRow(s)} disabled={!rowDirty(s)}>Save changes</button>
-                          <button className="vm-btn-ghost vmm-btn-sm" onClick={() => cancelEdit(s.id)}>Cancel</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {thumbUrls[s.id] ? (
-                          <img className="vml-thumb" src={thumbUrls[s.id]} alt="" loading="lazy" />
-                        ) : (
-                          <div className="vml-thumb vml-thumb-empty" aria-hidden="true">
-                            <svg viewBox="0 0 40 30">
-                              <g fill="#C65A1A">
-                                <circle cx="14" cy="10" r="1.4" opacity="0.55" /><circle cx="22" cy="14" r="1.2" opacity="0.4" />
-                                <circle cx="18" cy="19" r="1.3" opacity="0.45" /><circle cx="27" cy="10" r="1" opacity="0.3" />
-                                <circle cx="25" cy="20" r="1.1" opacity="0.35" />
-                              </g>
-                            </svg>
-                          </div>
-                        )}
-                        <div className="vml-main">
-                          <p className="vml-name">
-                            {s.name}
-                            {incomplete && <span className="vmm-badge">Upload incomplete</span>}
-                          </p>
-                          <p className="vml-meta">
-                            {[!grouped && s.deck, fmtSize(s.file_bytes ?? storageSizes[s.storage_path]), (s.file_format || '').toUpperCase(),
-                              `${pins} pin${pins === 1 ? '' : 's'}`, fmtDate(s.created_at)].filter(Boolean).join(' · ')}
-                            {hints.map((h) => <span key={h} className="vml-hint"> · {h}</span>)}
-                          </p>
-                        </div>
-                        <div className="vml-actions">
-                          <button className="vm-btn-ghost vmm-btn-sm" onClick={() => setEditingId(s.id)}>Edit</button>
-                          <button className="vm-btn-ghost vmm-btn-sm" onClick={() => pickReplacement(s)}>
-                            {incomplete ? 'Upload file' : 'Replace file'}
-                          </button>
-                          <button className="vmm-delete" onClick={() => { setDeleteError(null); setDeleteTarget(s); }}>Delete</button>
-                        </div>
-                      </>
-                    )}
-                    {busy?.progress && (
-                      <div className="vml-row-wide">
-                        <div className="vmm-progress-track">
-                          <div className="vmm-progress-fill" style={{ width: `${busy.progress.total ? Math.round((busy.progress.sent / busy.progress.total) * 100) : 0}%` }} />
-                        </div>
-                        <p className="vmm-progress-label">{busy.label} · {fmtSize(busy.progress.sent)} of {fmtSize(busy.progress.total)}</p>
-                        <p className="vmm-note">Pins keep their positions — if the new capture's orientation differs, re-orient after upload.</p>
-                      </div>
-                    )}
-                    {busy?.error && <p className="vmm-error vml-row-wide">{busy.error}</p>}
+                      );
+                    })}
                   </div>
-                );
-                  })}
                 </React.Fragment>
               ))}
             </div>

@@ -113,7 +113,13 @@ export default function VesselMapPage() {
         setScans([]);
       } else {
         setScans(data || []);
-        setSelectedScanId((prev) => prev && data?.some((s) => s.id === prev) ? prev : data?.[0]?.id || null);
+        // Deep links from the manage library: /vessel/map?scan={id} opens
+        // that room directly; otherwise keep/derive the default selection.
+        const wanted = new URLSearchParams(window.location.search).get('scan');
+        setSelectedScanId((prev) => {
+          if (wanted && data?.some((s) => s.id === wanted)) return wanted;
+          return prev && data?.some((s) => s.id === prev) ? prev : data?.[0]?.id || null;
+        });
       }
       setScansLoading(false);
     })();
