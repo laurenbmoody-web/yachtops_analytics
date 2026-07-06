@@ -290,6 +290,34 @@ export const syncFromVessel = async (tenantId, userId) => {
   return data || { inserted: 0, has_start_date: false };
 };
 
+// ── Vessel status log (command-set, vessel-wide) ─────────────────────────────
+
+/**
+ * The effective vessel-status timeline (active periods, newest first), each with
+ * a `locked` flag = it overlaps already signed-off service. Any active member
+ * can read it; only command can change it.
+ */
+export const fetchVesselStatusTimeline = async (tenantId) => {
+  if (!tenantId) return [];
+  const { data, error } = await supabase?.rpc('get_vessel_status_timeline', { p_tenant_id: tenantId });
+  if (error) throw error;
+  return data || [];
+};
+
+/**
+ * Command-only: set the vessel status for a period. `to` null = open-ended
+ * ("current, until further notice"). The RPC splices the period into the
+ * timeline, records an audit row, re-stamps affected auto-logged days, and
+ * refuses to touch dates that already carry signed-off service.
+ */
+export const setVesselStatus = async (tenantId, { status, from, to = null, note = null, reason = null }) => {
+  const { data, error } = await supabase?.rpc('set_vessel_status', {
+    p_tenant_id: tenantId, p_status: status, p_from: from, p_to: to, p_note: note, p_reason: reason
+  });
+  if (error) throw error;
+  return data;
+};
+
 /** Update a single entry (crew edits to own unlocked draft, or command). */
 export const updateEntry = async (id, updates) => {
   const patch = {};
@@ -390,5 +418,7 @@ export default {
   submitEntries,
   signEntries,
   rejectEntries,
-  fetchLeaveDaysInRange
+  fetchLeaveDaysInRange,
+  fetchVesselStatusTimeline,
+  setVesselStatus
 };
