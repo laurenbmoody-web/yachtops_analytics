@@ -262,12 +262,19 @@ const Marketplace = () => {
       let listId = targetBoard;
       if (targetBoard === NEW_BOARD) {
         const title = newBoardName.trim() || `Marketplace order — ${fmtDate(new Date().toISOString())}`;
+        // Same shape as the workspace's board creator — the RLS insert
+        // policy requires owner_id = auth.uid().
         const list = await createProvisioningList({
           tenant_id: activeTenantId,
           title,
           status: 'draft',
           department: ['Galley'],
           created_by: user?.id || null,
+          owner_id: user?.id || null,
+          visibility: 'private',
+          is_private: true,
+          notes: '',
+          is_template: false,
         });
         listId = list.id;
       }
