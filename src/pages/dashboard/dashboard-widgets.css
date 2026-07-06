@@ -1,9 +1,3 @@
-/* DM Serif Display (roman + italic) — imported locally like the other
-   editorial pages (crew-profile.css, pantry.css) so the dashboard widget
-   titles reliably get the true italic face for the terracotta accent,
-   instead of falling back to Georgia italic. Must lead the file. */
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&display=swap');
-
 /* ============================================================
    Overview-dashboard editorial widget surface.
 
@@ -67,6 +61,11 @@
   margin: 0;
 }
 .cargo-editorial .ce-title .accent {
+  /* Re-declare the serif on the span: the global `span { font-family: Plus
+     Jakarta }` rule (tailwind.css) targets this <span> directly and would
+     otherwise drop the accent to a sans. The navy text is a bare node in the
+     div, so it keeps .ce-title's serif — only the accent span needs this. */
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
   font-style: italic;
   font-weight: 400;
   color: var(--d-orange);
