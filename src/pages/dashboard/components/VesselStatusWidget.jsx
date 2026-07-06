@@ -28,6 +28,20 @@ const ordinal = (n) => { const v = n % 100; if (v >= 11 && v <= 13) return 'th';
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const editorial = (iso) => { if (!iso) return null; const [, m, d] = iso.split('-').map(Number); return { d, suf: ordinal(d), mon: MONTHS[m - 1] }; };
 const fmtShort = (iso) => { if (!iso) return ''; const [y, m, d] = iso.split('-').map(Number); return `${d} ${MON_SHORT[m - 1]} ${y}`; };
+const fmtDayMon = (iso) => { if (!iso) return ''; const [, m, d] = iso.split('-').map(Number); return `${d} ${MON_SHORT[m - 1]}`; };
+const fmtDMY = (iso) => { if (!iso) return ''; const [y, m, d] = iso.split('-').map(Number); return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`; };
+// Editorial date range: collapse the shared year ("3 Jan – 18 Jan 2026"); an
+// open-ended period reads "Since 3 Jan 2026".
+const rangeLabel = (fromIso, toIso) => {
+  if (!toIso) return `Since ${fmtShort(fromIso)}`;
+  const sameYear = fromIso.slice(0, 4) === toIso.slice(0, 4);
+  return `${sameYear ? fmtDayMon(fromIso) : fmtShort(fromIso)} – ${fmtShort(toIso)}`;
+};
+const spanDays = (fromIso, toIso) => {
+  const a = new Date(fromIso + 'T00:00:00');
+  const b = new Date((toIso || todayIso()) + 'T00:00:00');
+  return Math.max(1, Math.round((b - a) / 86400000) + 1);
+};
 
 const friendly = (e) => {
   const msg = e?.message || e?.error_description || '';
@@ -173,7 +187,10 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
     if (form.to < form.from) { setErr('The end date is before the start date.'); return; }
     if (!form.reason.trim()) { setErr('Add a short reason — it’s kept on the record.'); return; }
     setSaving(true);
-    try { await setVesselStatus(tenantId, { status: form.status, from: form.from, to: form.to, reason: form.reason.trim() }); onSaved(); }
+    // Store the free-text as the period's `note` (shown on the timeline) AND as
+    // the audit `reason` (the immutable why-it-changed trail). Same text, both
+    // homes — previously it only went to the audit, so the history looked bare.
+    try { await setVesselStatus(tenantId, { status: form.status, from: form.from, to: form.to, note: form.reason.trim(), reason: form.reason.trim() }); onSaved(); }
     catch (e) { setErr(friendly(e)); setSaving(false); }
   };
 
@@ -226,14 +243,29 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
               <div className="vsw-tl">
                 {timeline.map(p => {
                   const s = byKey[p.status] || {};
+                  const isCurrent = !p.effective_to;
+                  const days = spanDays(p.effective_from, p.effective_to);
                   return (
                     <div key={p.id} className="vsw-tl-row">
                       <span className="vsw-tl-ico"><Icon name={s.icon || 'Circle'} className="vsw-ic18" /></span>
-                      <span className="vsw-tl-main">
-                        <span className="vsw-tl-label">{s.label || p.status}</span>
-                        <span className="vsw-tl-dates">{fmtShort(p.effective_from)} – {p.effective_to ? fmtShort(p.effective_to) : 'now'}{p.set_by_name ? ` · ${p.set_by_name}` : ''}</span>
-                      </span>
-                      {p.locked && <span className="vsw-tl-lock"><Icon name="Lock" className="vsw-ic12" /> Signed</span>}
+                      <div className="vsw-tl-main">
+                        <div className="vsw-tl-top">
+                          <span className="vsw-tl-label">{s.label || p.status}</span>
+                          {isCurrent && <span className="vsw-tl-badge vsw-tl-badge-now">Current</span>}
+                          {p.locked && <span className="vsw-tl-badge vsw-tl-badge-lock"><Icon name="Lock" className="vsw-ic12" /> Signed</span>}
+                        </div>
+                        <div className="vsw-tl-dates">
+                          {rangeLabel(p.effective_from, p.effective_to)}
+                          <span className="vsw-tl-sep">·</span>
+                          {days} day{days === 1 ? '' : 's'}
+                        </div>
+                        {p.note && <div className="vsw-tl-note">“{p.note}”</div>}
+                        {(p.set_by_name || p.created_at) && (
+                          <div className="vsw-tl-meta">
+                            Set by {p.set_by_name || 'command'}{p.created_at ? ` · ${fmtDMY(String(p.created_at).slice(0, 10))}` : ''}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

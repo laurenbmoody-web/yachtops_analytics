@@ -114,10 +114,16 @@
 .vsw-err-modal { margin-top: 12px; }
 .vsw-foot { margin-top: 12px; font-size: 11px; color: #AEB4C2; line-height: 1.5; }
 .vsw-tl { display: flex; flex-direction: column; }
-.vsw-tl-row { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-bottom: 1px solid #F0F1F5; }
+.vsw-tl-row { display: flex; align-items: flex-start; gap: 12px; padding: 13px 0; border-bottom: 1px solid #F0F1F5; }
 .vsw-tl-row:last-child { border-bottom: 0; }
-.vsw-tl-ico { width: 30px; height: 30px; border-radius: 8px; background: #F6F5F2; color: #1C1B3A; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
-.vsw-tl-main { display: flex; flex-direction: column; flex: 1; line-height: 1.3; }
-.vsw-tl-label { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
-.vsw-tl-dates { font-size: 11.5px; color: #6B7280; }
-.vsw-tl-lock { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #8B8478; flex: 0 0 auto; }
+.vsw-tl-ico { width: 32px; height: 32px; border-radius: 9px; background: #F6F5F2; color: #1C1B3A; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-top: 1px; }
+.vsw-tl-main { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.35; gap: 2px; }
+.vsw-tl-top { display: flex; align-items: center; gap: 8px; }
+.vsw-tl-label { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.vsw-tl-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; padding: 2px 8px; border-radius: 999px; flex: 0 0 auto; }
+.vsw-tl-badge-now { color: var(--vsw-terra); background: #FBEFE9; }
+.vsw-tl-badge-lock { color: #6B7280; background: #F1F0EC; }
+.vsw-tl-dates { font-size: 12px; color: #6B7280; }
+.vsw-tl-sep { margin: 0 6px; color: #C9C4BA; }
+.vsw-tl-note { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 15px; font-style: italic; color: #4A4763; margin-top: 3px; }
+.vsw-tl-meta { font-size: 11px; color: #A29C90; margin-top: 3px; }
