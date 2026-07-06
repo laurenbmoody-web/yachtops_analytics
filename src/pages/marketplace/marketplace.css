@@ -101,23 +101,28 @@
 .mp-oos { font-size: 11px; font-weight: 700; color: #B0372B; }
 .mp-scarce { font-size: 11px; font-weight: 700; color: #B07C10; }
 .mp-ops { color: #8B8478; }
-.mp-addrow { display: flex; gap: 8px; align-items: center; }
-.mp-step {
-  display: flex; align-items: center; border: 1px solid #E8E6DF; border-radius: 999px; overflow: hidden;
+/* One fixed-height control: − qty + wired straight to the basket.
+   No transient states, no layout shift. */
+.mp-qtybar {
+  display: flex; align-items: stretch; height: 34px;
+  border: 1px solid #E8E6DF; border-radius: 999px; overflow: hidden; background: #fff;
+  transition: border-color .15s, background .15s;
 }
-.mp-step button { border: none; background: #FAFAF8; width: 26px; height: 28px; cursor: pointer; color: #1C1B3A; font-weight: 700; }
-.mp-step input {
-  width: 36px; border: none; text-align: center; font-size: 13px; font-family: inherit;
-  font-variant-numeric: tabular-nums; -moz-appearance: textfield;
+.mp-qtybar.in { border-color: #C65A1A; background: #FBEFE9; }
+.mp-qtybar.off { opacity: 0.55; }
+.mp-qtybar button {
+  width: 38px; border: none; background: transparent; cursor: pointer;
+  font-size: 16px; font-weight: 700; color: #C65A1A; font-family: inherit; line-height: 1;
 }
-.mp-step input::-webkit-outer-spin-button, .mp-step input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.mp-add {
-  flex: 1; background: #C65A1A; color: #fff; border: none; border-radius: 10px;
-  padding: 7px 0; font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+.mp-qtybar button:hover:not(:disabled) { background: #F6E3D8; }
+.mp-qtybar button:disabled { color: #D8D4CB; cursor: default; }
+.mp-qtybar .q {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;
+  font-size: 12.5px; font-weight: 700; color: #1C1B3A;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.mp-add:hover { background: #B14E16; }
-.mp-add.added { background: #1C1B3A; }
-.mp-add:disabled { opacity: 0.45; cursor: not-allowed; }
+.mp-qtybar .q small { font-weight: 500; color: #8B8478; }
+.mp-qtybar:not(.in) .q { color: #6B7280; font-weight: 600; }
 
 .mp-empty { padding: 60px 0; text-align: center; color: #8B8478; font-size: 13.5px; }
 
