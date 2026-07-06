@@ -6,6 +6,7 @@
 // furnished-next-update rooms; Details is live.
 import React, { useEffect, useRef, useState } from 'react';
 import { layerColor, layerLabel } from '../layers';
+import PinPayload from './PinPayload';
 
 const TABS = [
   { key: 'details', label: 'Details' },
@@ -14,19 +15,13 @@ const TABS = [
   { key: 'photos', label: 'Photos' },
 ];
 
-const EMPTY_LINES = {
-  notes: 'Notes attach here in the next update.',
-  list: 'Checklists attach here in the next update.',
-  photos: 'Photos attach here in the next update.',
-};
-
 const fmtDate = (iso) => {
   if (!iso) return '—';
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, user, tier, tenantId, names, onDetailSaved }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -146,7 +141,16 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
         )}
 
         {tab !== 'details' && (
-          <p className="vm-insp-empty">{EMPTY_LINES[tab]}</p>
+          <PinPayload
+            hotspot={shown}
+            tab={tab}
+            user={user}
+            tier={tier}
+            canManage={canManage}
+            tenantId={tenantId}
+            names={names}
+            onDetailSaved={onDetailSaved}
+          />
         )}
       </div>
     </aside>

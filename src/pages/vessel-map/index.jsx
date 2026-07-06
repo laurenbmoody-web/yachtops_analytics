@@ -18,6 +18,7 @@ import HotspotModal from './components/HotspotModal';
 import ToolRail from './components/ToolRail';
 import Inspector from './components/Inspector';
 import OrientPanel from './components/OrientPanel';
+import PinPayload from './components/PinPayload';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel } from './layers';
 import { refreshScanThumb } from './utils/scanThumb';
@@ -72,6 +73,7 @@ export default function VesselMapPage() {
   const [activeLayers, setActiveLayers] = useState(() => new Set(LAYERS.map((l) => l.key)));
   const [viewer, setViewer] = useState({ status: 'idle' });
   const [selectedHotspot, setSelectedHotspot] = useState(null);
+  const [mobileTab, setMobileTab] = useState('details'); // the floating card's rooms
   // Canvas mode — the rail's single active tool. 'pin' is the old
   // placementMode; the mobile variant's Add-hotspot button drives the same
   // state.
@@ -165,7 +167,13 @@ export default function VesselMapPage() {
 
     // Creator names for the inspector's Details tab — one lookup for all
     // pins; nulls (pre-tracking pins) simply don't render an "Added by" row.
-    const uids = [...new Set((data || []).map((h) => h.created_by).filter(Boolean))];
+    // Names for pin creators AND payload authors (notes / ticks / photos).
+    const uids = [...new Set((data || []).flatMap((h) => [
+      h.created_by,
+      ...((h.detail?.notes || []).map((n) => n.created_by)),
+      ...((h.detail?.checklist || []).map((c) => c.done_by)),
+      ...((h.detail?.photos || []).map((p) => p.created_by)),
+    ]).filter(Boolean))];
     if (uids.length > 0) {
       const { data: profiles, error: pErr } = await supabase
         .from('profiles')
@@ -205,6 +213,9 @@ export default function VesselMapPage() {
     next.has(key) ? next.delete(key) : next.add(key);
     return next;
   });
+
+  // Fresh pin, fresh rooms — the floating card resets to Details.
+  useEffect(() => { setMobileTab('details'); }, [selectedHotspot?.id]);
 
   // Hiding a layer deselects its pin — a ring around an invisible pin reads
   // as a ghost.
@@ -378,6 +389,18 @@ export default function VesselMapPage() {
   };
 
   // ── Render ──────────────────────────────────────────────────────────────
+  // Payload writes report fresh detail back — hotspots and the open
+  // selection both track it.
+  const onDetailSaved = useCallback((hotspotId, detail) => {
+    setHotspots((prev) => prev.map((h) => (h.id === hotspotId ? { ...h, detail } : h)));
+    setSelectedHotspot((prev) => (prev && prev.id === hotspotId ? { ...prev, detail } : prev));
+    // A note/tick/photo just authored by this user should name them at once.
+    if (user?.id && !creatorNames[user.id]) {
+      const name = user?.user_metadata?.full_name || user?.email;
+      if (name) setCreatorNames((prev) => ({ ...prev, [user.id]: name }));
+    }
+  }, [user, creatorNames]);
+
   const showViewer = signedUrl && !signError;
   const loadPct = viewer.status === 'loading' ? viewer.progress : null;
 
@@ -584,6 +607,11 @@ export default function VesselMapPage() {
                   hotspot={selectedHotspot}
                   creatorName={selectedHotspot?.created_by ? creatorNames[selectedHotspot.created_by] : null}
                   canManage={canPlaceHotspots}
+                  user={user}
+                  tier={userTier}
+                  tenantId={activeTenantId}
+                  names={creatorNames}
+                  onDetailSaved={onDetailSaved}
                   onClose={() => setSelectedHotspot(null)}
                   onDelete={deleteHotspot}
                   onAdjust={startAdjust}
@@ -649,16 +677,49 @@ export default function VesselMapPage() {
                       <span className="vm-pill-dot" style={{ background: selectedHotspot.color || layerColor(selectedHotspot.layer) }} />
                       {layerLabel(selectedHotspot.layer)}
                     </span>
-                    {selectedHotspot.storage_location_id && (
-                      <p className="vm-side-row">
-                        <span className="vm-label">Storage location</span>
-                        {selectedHotspot.storage_location_id}
-                      </p>
+
+                    {/* Same four rooms as the desktop inspector — functional,
+                        not redesigned. Photos-from-phone is the headline. */}
+                    <div className="vm-insp-tabs vm-side-tabs" role="tablist">
+                      {['details', 'notes', 'list', 'photos'].map((t) => (
+                        <button
+                          key={t}
+                          role="tab"
+                          aria-selected={mobileTab === t}
+                          className={`vm-insp-tab${mobileTab === t ? ' vm-insp-tab-on' : ''}`}
+                          onClick={() => setMobileTab(t)}
+                        >
+                          {t === 'details' ? 'Details' : t === 'notes' ? 'Notes' : t === 'list' ? 'List' : 'Photos'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {mobileTab === 'details' && (
+                      <>
+                        {selectedHotspot.storage_location_id && (
+                          <p className="vm-side-row">
+                            <span className="vm-label">Storage location</span>
+                            {selectedHotspot.storage_location_id}
+                          </p>
+                        )}
+                        <p className="vm-side-row">
+                          <span className="vm-label">Added</span>
+                          {fmtDate(selectedHotspot.created_at)}
+                        </p>
+                      </>
                     )}
-                    <p className="vm-side-row">
-                      <span className="vm-label">Added</span>
-                      {fmtDate(selectedHotspot.created_at)}
-                    </p>
+                    {mobileTab !== 'details' && (
+                      <PinPayload
+                        hotspot={selectedHotspot}
+                        tab={mobileTab}
+                        user={user}
+                        tier={userTier}
+                        canManage={canPlaceHotspots}
+                        tenantId={activeTenantId}
+                        names={creatorNames}
+                        onDetailSaved={onDetailSaved}
+                      />
+                    )}
                   </aside>
                 )}
               </div>
