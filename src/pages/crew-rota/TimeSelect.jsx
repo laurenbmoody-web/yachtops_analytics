@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import './time-select.css';
 
 // Cargo-styled time picker — reusable. 30-minute increments, 24-hour
 // display (matches the rota grid's 24-hour cell labelling). Opens a

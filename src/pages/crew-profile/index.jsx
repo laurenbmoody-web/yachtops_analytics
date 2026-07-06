@@ -22,7 +22,7 @@ import { ibanWarning, swiftWarning } from './utils/bankingValidation';
 import { fetchCrewDocuments } from './utils/crewDocuments';
 import DateInput from '../../components/ui/DateInput';
 import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
-import TimeSelect from '../crew-rota/TimeSelect';
+import TimeWheel from '../../components/editorial/TimeWheel';
 import { crewContractStandard } from '../../data/flagStates';
 import { nationalityOptions as NATIONALITY_OPTIONS } from '../../data/nationalities';
 import { saveAs } from 'file-saver';
@@ -3740,11 +3740,11 @@ const canEdit = (() => {
             <Icon name="Moon" size={14} />
             <span className="s2-qmini-lbl">Quiet hours</span>
             <span className="s2-qmini-times">
-              <TimeSelect className="s2-qtime" value={notifPrefs?.quiet_from?.slice(0, 5) || '22:00'}
-                onChange={(t) => saveQuiet({ quiet_from: t }, 'quiet_from')} ariaLabel="Quiet from" disabled={!qOn} />
+              <TimeWheel className="s2-qtime" value={notifPrefs?.quiet_from?.slice(0, 5) || '22:00'}
+                onChange={(t) => saveQuiet({ quiet_from: t }, 'quiet_from')} ariaLabel="Quiet from" title="Quiet from" disabled={!qOn} />
               <span className="s2-qmini-dash">–</span>
-              <TimeSelect className="s2-qtime" value={notifPrefs?.quiet_to?.slice(0, 5) || '07:00'}
-                onChange={(t) => saveQuiet({ quiet_to: t }, 'quiet_to')} ariaLabel="Quiet to" disabled={!qOn} />
+              <TimeWheel className="s2-qtime" value={notifPrefs?.quiet_to?.slice(0, 5) || '07:00'}
+                onChange={(t) => saveQuiet({ quiet_to: t }, 'quiet_to')} ariaLabel="Quiet to" title="Quiet to" disabled={!qOn} />
             </span>
             {renderSwitch(qOn, () => saveQuiet({ quiet_enabled: !qOn }, 'quiet_enabled'), { disabled: notifSavingKey === 'quiet_enabled', busy: notifSavingKey === 'quiet_enabled' })}
           </div>

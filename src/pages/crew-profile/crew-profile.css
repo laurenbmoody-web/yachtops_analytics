@@ -1483,10 +1483,10 @@ body.crew-profile-editorial {
 .crew-profile-page .s2-qmini-times { display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s ease; }
 .crew-profile-page .s2-qmini.off .s2-qmini-times { opacity: 0.4; }
 .crew-profile-page .s2-qmini-dash { color: #AEB4C2; }
-/* Quiet-hours time pickers use the shared scrollable TimeSelect; s2-qtime
-   just sizes the wrapper so the two sit compactly on the header line. */
-.crew-profile-page .s2-qtime { width: 78px; flex: 0 0 auto; }
-.crew-profile-page .s2-qtime .time-select-trigger { padding: 5px 8px; font-variant-numeric: tabular-nums; }
+/* Quiet-hours time pills — navy trigger that opens the iPhone-alarm wheel. */
+.crew-profile-page .s2-qtime { font-family: 'Manrope', 'Inter', system-ui, sans-serif; font-weight: 500; font-size: 12.5px; letter-spacing: 0.02em; color: #fff; background: #1C1B3A; border: 1px solid #1C1B3A; border-radius: 8px; padding: 4px 9px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.crew-profile-page .s2-qtime:hover:not(:disabled) { background: #262547; }
+.crew-profile-page .s2-qtime:disabled { opacity: 0.5; cursor: default; }
 .crew-profile-page .s2-qmini .cp-switch { width: 40px; height: 22px; }
 .crew-profile-page .s2-qmini .cp-switch .knob { width: 18px; height: 18px; }
 .crew-profile-page .s2-qmini .cp-switch[aria-checked="true"] .knob { left: 20px; }
