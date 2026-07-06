@@ -134,7 +134,7 @@
 }
 .vmm-done .vmm-actions { justify-content: center; }
 
-/* ── The library: room cards under deck sections (vmc-*) ────────────────── */
+/* ── The library: the coverflow reel (vmr-*) ────────────────────────────── */
 .vml { margin-top: 4px; }
 .vml-head {
   padding: 4px 2px 10px;
@@ -147,114 +147,144 @@
   text-transform: uppercase;
   color: #8B8478;
 }
-.vml-deck-head { padding: 26px 2px 0; }
 .vml-hint { color: #AEB4C2; font-style: italic; }
 .vml-field-order { flex: 0 0 90px; min-width: 90px; }
 
-.vml-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
-  gap: 20px;
-  padding-top: 16px;
-}
-.vmc {
-  border: 1px solid #ECEAE3;
-  border-radius: 14px;
-  background: #fff;
-  overflow: hidden;
-  transition: box-shadow var(--vm-ease-ui), transform var(--vm-ease-ui);
-}
-.vmc:hover {
-  box-shadow: 0 14px 34px -18px rgba(28, 27, 58, 0.35);
-  transform: translateY(-2px);
-}
-.vmc-editing { grid-column: 1 / -1; }
-.vmc-editor { padding: 18px 20px; }
-
-.vmc-poster {
+.vmr-stage {
   position: relative;
-  display: block;
-  width: 100%;
+  height: 340px;
+  margin-top: 12px;
+  perspective: 1250px;
+  user-select: none;
+  touch-action: pan-y;
+}
+.vmr-card {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  width: min(430px, 72vw);
   aspect-ratio: 16 / 10;
-  background: #22253F;
+  margin-left: calc(min(430px, 72vw) / -2);
   border: 0;
+  border-radius: 14px;
+  overflow: hidden;
   padding: 0;
   cursor: pointer;
-  overflow: hidden;
+  background: #22253F;
+  box-shadow: 0 24px 50px -22px rgba(28, 27, 58, 0.45);
+  transition: transform 420ms cubic-bezier(0.2, 0, 0, 1), opacity 420ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
 }
-.vmc-poster img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  transition: transform 400ms cubic-bezier(0.2, 0, 0, 1);
-}
-.vmc:hover .vmc-poster img { transform: scale(1.035); }
-.vmc-poster-motif {
+.vmr-card:focus-visible { outline: 3px solid #C65A1A; outline-offset: 3px; }
+.vmr-card img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;
 }
-.vmc-badge { position: absolute; top: 10px; left: 10px; }
-.vmc-open {
+.vmr-card:not(.vmr-centre)::after {
+  content: '';
   position: absolute;
-  right: 10px;
-  bottom: 10px;
+  inset: 0;
+  background: rgba(12, 12, 28, 0.38);
+}
+.vmr-motif { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vmr-deck-chip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
   border-radius: 999px;
-  background: rgba(28, 27, 58, 0.72);
-  color: #fff;
-  font-size: 10.5px;
+  background: rgba(10, 10, 26, 0.55);
+  color: #EDEFF8;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
   padding: 4px 11px;
-  opacity: 0;
-  transform: translateY(3px);
-  transition: opacity var(--vm-ease-ui), transform var(--vm-ease-ui);
   pointer-events: none;
 }
-.vmc:hover .vmc-open { opacity: 1; transform: translateY(0); }
+.vmr-badge { position: absolute; top: 12px; right: 12px; }
+.vmr-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 200;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid #ECEAE3;
+  background: #fff;
+  color: #1C1B3A;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 22px -12px rgba(28, 27, 58, 0.4);
+  transition: color var(--vm-ease-ui), border-color var(--vm-ease-ui), opacity var(--vm-ease-ui);
+}
+.vmr-arrow:hover:not(:disabled) { color: #C65A1A; border-color: #C65A1A; }
+.vmr-arrow:disabled { opacity: 0.3; cursor: default; }
+.vmr-prev { left: 2px; }
+.vmr-next { right: 2px; }
 
-.vmc-body { padding: 12px 16px 13px; }
-.vmc-name {
+.vmr-caption { text-align: center; margin-top: 24px; }
+.vmr-name {
   margin: 0;
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 16.5px;
+  font-weight: 400;
+  font-size: 26px;
   color: #1C1B3A;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.vmc-meta {
-  margin: 4px 0 0;
-  font-size: 11.5px;
-  color: #8B8478;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.55;
-}
-.vmc-actions {
+.vmr-meta { margin: 5px 0 0; font-size: 13px; color: #8B8478; font-variant-numeric: tabular-nums; }
+.vmr-actions {
   display: flex;
   gap: 14px;
-  margin-top: 10px;
-  padding-top: 9px;
-  border-top: 1px solid #F0F1F5;
+  justify-content: center;
+  align-items: center;
+  margin-top: 14px;
 }
 .vmc-action {
   background: none;
   border: 0;
   padding: 0;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #6B7280;
   cursor: pointer;
   transition: color var(--vm-ease-ui);
 }
 .vmc-action:hover { color: #C65A1A; }
-.vmc-action-danger { margin-left: auto; }
 .vmc-action-danger:hover { color: #A32D2D; }
-.vmc-wide { padding: 0 16px 14px; }
-.vmc-wide .vmm-note { margin-bottom: 0; }
+.vmr-editor {
+  max-width: 640px;
+  margin: 16px auto 0;
+  text-align: left;
+  border: 1px solid #ECEAE3;
+  border-radius: 14px;
+  background: #FAFAF8;
+  padding: 16px 18px;
+}
+.vmr-editor-actions { margin-top: 14px; }
+.vmr-busy { max-width: 640px; margin: 14px auto 0; text-align: left; }
+.vmr-busy .vmm-note { margin-bottom: 0; }
+
+.vmr-dots { display: flex; gap: 8px; justify-content: center; margin-top: 20px; }
+.vmr-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  border: 0;
+  padding: 0;
+  background: #E5E7EB;
+  cursor: pointer;
+  transition: background var(--vm-ease-ui), transform var(--vm-ease-ui);
+}
+.vmr-dot-on { background: #C65A1A; transform: scale(1.25); }
+
+@media (prefers-reduced-motion: reduce) {
+  .vmr-card { transition: none; }
+}
 
 .vmm-modal-body { font-size: 13.5px; color: #1C1B3A; line-height: 1.6; margin: 8px 0 4px; }
 .vmm-danger-btn { background: #A32D2D; }
@@ -263,8 +293,10 @@
 
 /* ── Phone ──────────────────────────────────────────────────────────────── */
 @media (max-width: 760px) {
-  .vml-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
-  .vmc-open { opacity: 1; transform: none; } /* no hover on touch — keep the affordance visible */
+  .vmr-stage { height: 250px; }
+  .vmr-card { top: 14px; }
+  .vmr-arrow { width: 36px; height: 36px; font-size: 19px; }
+  .vmr-name { font-size: 21px; }
   .vmm-form-row { flex-direction: column; }
   .vmm-compact .vmm-steps-toggle { margin-left: 0; }
 }

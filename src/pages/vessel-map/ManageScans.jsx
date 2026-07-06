@@ -34,25 +34,21 @@ const deckRank = (deck) => {
   return i === -1 ? DECK_KEYWORDS.length : i;
 };
 
-// Groups only when they earn their place: more than one scan AND at least
-// one deck assigned. Otherwise a single flat group with no header.
-const groupByDeck = (scans) => {
-  const anyDeck = scans.some((s) => (s.deck || '').trim());
-  if (scans.length <= 1 || !anyDeck) return [{ deck: null, header: null, scans }];
-  const groups = new Map();
-  for (const s of scans) {
-    const key = (s.deck || '').trim().toLowerCase() || '__unassigned__';
-    if (!groups.has(key)) groups.set(key, { deck: (s.deck || '').trim() || null, scans: [] });
-    groups.get(key).scans.push(s); // fetched order (sort_order, created_at) is kept
+// Reel order: the carousel travels down the vessel — decks in vessel order
+// (unassigned last), then the row order (sort_order, created_at) within.
+const reelOrder = (scans) => [...scans].sort((a, b) => {
+  const ad = (a.deck || '').trim(); const bd = (b.deck || '').trim();
+  if (!ad !== !bd) return ad ? -1 : 1;
+  if (ad && bd) {
+    const r = deckRank(ad) - deckRank(bd);
+    if (r !== 0) return r;
+    const alpha = ad.toLowerCase().localeCompare(bd.toLowerCase());
+    if (alpha !== 0) return alpha;
   }
-  return [...groups.values()]
-    .sort((a, b) => {
-      if (!a.deck !== !b.deck) return a.deck ? -1 : 1; // unassigned sinks
-      const r = deckRank(a.deck) - deckRank(b.deck);
-      return r !== 0 ? r : a.deck.localeCompare(b.deck);
-    })
-    .map((g) => ({ ...g, header: g.deck ? g.deck.toUpperCase() : 'UNASSIGNED' }));
-};
+  const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  if (so !== 0) return so;
+  return String(a.created_at).localeCompare(String(b.created_at));
+});
 
 const isZeroRotation = (r) => !r || ((Number(r.x) || 0) === 0 && (Number(r.y) || 0) === 0 && (Number(r.z) || 0) === 0);
 
@@ -100,6 +96,11 @@ export default function ManageScans() {
     setStepsHiddenState(hidden);
     try { localStorage.setItem('cargo-vmm-steps-hidden', hidden ? '1' : '0'); } catch { /* preference only */ }
   };
+
+  // The reel: active scan tracked by id so uploads/deletes/re-sorts follow it.
+  const [reelActiveId, setReelActiveId] = useState(null);
+  const reelDragRef = useRef({ start: null, dragged: false });
+  const reelWheelRef = useRef(0);
 
   // Per-row: edits, replace/complete transfer state, delete modal.
   const [editingId, setEditingId] = useState(null); // row in edit mode
@@ -159,6 +160,16 @@ export default function ManageScans() {
   // Abandoning mid-upload: stop the transfer. The row stays 'uploading' and
   // surfaces as incomplete with retry/discard next visit — never orphaned.
   useEffect(() => () => activeUploadRef.current?.abort?.(), []);
+
+  const reel = useMemo(() => reelOrder(scans), [scans]);
+  const reelIdx = useMemo(() => {
+    const i = reel.findIndex((s) => s.id === reelActiveId);
+    return i === -1 ? 0 : i;
+  }, [reel, reelActiveId]);
+  const reelGo = useCallback((n) => {
+    const clamped = Math.max(0, Math.min(reel.length - 1, n));
+    if (reel[clamped]) setReelActiveId(reel[clamped].id);
+  }, [reel]);
 
   const nextSortOrder = useMemo(
     () => scans.reduce((m, s) => Math.max(m, s.sort_order ?? 0), 0) + 1,
@@ -607,115 +618,165 @@ export default function ManageScans() {
             </div>
           )}
 
-          {/* ── The library: room cards under deck sections. Posters are the
-                 hero — clicking one opens that room on the map. Editing
-                 expands the card full-width in place. ── */}
-          {!loading && scans.length > 0 && (
-            <div className="vml">
-              <div className="vml-head">
-                <span className="vml-label">Scans aboard · {scans.length}</span>
-              </div>
-              {groupByDeck(scans).map((group) => (
-                <React.Fragment key={group.header || '__flat__'}>
-                  {group.header && (
-                    <div className="vml-deck-head">
-                      <span className="vml-label">{group.header} · {group.scans.length}</span>
+          {/* ── The library: the fleet as a coverflow reel — centre room
+                 prominent, neighbours collapsed behind. Travels down the
+                 vessel: decks in vessel order, unassigned last. ── */}
+          {!loading && reel.length > 0 && (() => {
+            const active = reel[reelIdx];
+            const busy = rowBusy[active.id];
+            const incomplete = active.status !== 'ready';
+            const editing = editingId === active.id;
+            const pins = pinCounts[active.id] || 0;
+            const hints = [
+              !(active.deck || '').trim() && 'No deck',
+              !active.thumb_path && isZeroRotation(active.splat_rotation) && 'Not oriented yet',
+            ].filter(Boolean);
+            const onReelWheel = (e) => {
+              // Horizontal gestures only — vertical wheel keeps scrolling the page.
+              if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+              e.preventDefault();
+              const now = performance.now();
+              if (now - reelWheelRef.current < 320) return;
+              if (Math.abs(e.deltaX) < 8) return;
+              reelWheelRef.current = now;
+              reelGo(reelIdx + (e.deltaX > 0 ? 1 : -1));
+            };
+            const onPointerDown = (e) => { reelDragRef.current = { start: e.clientX, dragged: false }; };
+            const onPointerMove = (e) => {
+              const d = reelDragRef.current;
+              if (d.start !== null && Math.abs(e.clientX - d.start) > 12) d.dragged = true;
+            };
+            const onPointerUp = (e) => {
+              const d = reelDragRef.current;
+              if (d.start === null) return;
+              const dx = e.clientX - d.start;
+              reelDragRef.current = { start: null, dragged: d.dragged };
+              if (Math.abs(dx) > 48) reelGo(reelIdx + (dx < 0 ? 1 : -1));
+              setTimeout(() => { reelDragRef.current.dragged = false; }, 0);
+            };
+            return (
+              <div className="vml">
+                <div className="vml-head">
+                  <span className="vml-label">Scans aboard · {reel.length}</span>
+                </div>
+                <div
+                  className="vmr-stage"
+                  role="listbox"
+                  aria-label="Scans aboard"
+                  onWheel={onReelWheel}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={onPointerUp}
+                >
+                  {reel.map((s, i) => {
+                    const o = i - reelIdx;
+                    if (Math.abs(o) > 3) return null;
+                    return (
+                      <button
+                        key={s.id}
+                        role="option"
+                        aria-selected={o === 0}
+                        aria-label={s.name}
+                        className={`vmr-card${o === 0 ? ' vmr-centre' : ''}`}
+                        style={{
+                          transform: `translateX(${o * 200}px) translateZ(${-Math.abs(o) * 175}px) rotateY(${o === 0 ? 0 : o > 0 ? -26 : 26}deg)`,
+                          zIndex: 100 - Math.abs(o),
+                          opacity: Math.abs(o) === 3 ? 0.2 : 1,
+                        }}
+                        tabIndex={o === 0 ? 0 : -1}
+                        onClick={() => { if (!reelDragRef.current.dragged) reelGo(i); }}
+                      >
+                        {thumbUrls[s.id] ? (
+                          <img src={thumbUrls[s.id]} alt="" loading="lazy" draggable="false" />
+                        ) : (
+                          <svg className="vmr-motif" viewBox="0 0 80 50" aria-hidden="true">
+                            <g fill="#C65A1A">
+                              <circle cx="30" cy="16" r="2" opacity="0.7" /><circle cx="44" cy="23" r="1.7" opacity="0.5" />
+                              <circle cx="36" cy="31" r="1.8" opacity="0.55" /><circle cx="53" cy="16" r="1.4" opacity="0.4" />
+                              <circle cx="50" cy="33" r="1.5" opacity="0.45" /><circle cx="24" cy="26" r="1.3" opacity="0.35" />
+                            </g>
+                            <g fill="#8FA0C6">
+                              <circle cx="40" cy="12" r="1.1" opacity="0.4" /><circle cx="58" cy="26" r="1" opacity="0.3" />
+                              <circle cx="28" cy="37" r="1" opacity="0.28" />
+                            </g>
+                          </svg>
+                        )}
+                        {(s.deck || '').trim() && <span className="vmr-deck-chip">{s.deck}</span>}
+                        {s.status !== 'ready' && <span className="vmm-badge vmr-badge">Upload incomplete</span>}
+                      </button>
+                    );
+                  })}
+                  {reel.length > 1 && (
+                    <>
+                      <button className="vmr-arrow vmr-prev" onClick={() => reelGo(reelIdx - 1)} disabled={reelIdx === 0} aria-label="Previous scan">‹</button>
+                      <button className="vmr-arrow vmr-next" onClick={() => reelGo(reelIdx + 1)} disabled={reelIdx === reel.length - 1} aria-label="Next scan">›</button>
+                    </>
+                  )}
+                </div>
+
+                <div className="vmr-caption">
+                  <h3 className="vmr-name">{active.name}</h3>
+                  <p className="vmr-meta">
+                    {[active.deck, fmtSize(active.file_bytes ?? storageSizes[active.storage_path]), (active.file_format || '').toUpperCase(),
+                      `${pins} pin${pins === 1 ? '' : 's'}`, fmtDate(active.created_at)].filter(Boolean).join(' · ')}
+                    {hints.map((h) => <span key={h} className="vml-hint"> · {h}</span>)}
+                  </p>
+                  {!editing && (
+                    <div className="vmr-actions">
+                      <button className="vm-btn-primary vmm-btn-sm" onClick={() => navigate(`/vessel/map?scan=${active.id}`)} disabled={incomplete}>
+                        View on map
+                      </button>
+                      <button className="vmc-action" onClick={() => setEditingId(active.id)}>Edit</button>
+                      <button className="vmc-action" onClick={() => pickReplacement(active)}>
+                        {incomplete ? 'Upload file' : 'Replace file'}
+                      </button>
+                      <button className="vmc-action vmc-action-danger" onClick={() => { setDeleteError(null); setDeleteTarget(active); }}>Delete</button>
                     </div>
                   )}
-                  <div className="vml-grid">
-                    {group.scans.map((s) => {
-                      const busy = rowBusy[s.id];
-                      const incomplete = s.status !== 'ready';
-                      const editing = editingId === s.id;
-                      const pins = pinCounts[s.id] || 0;
-                      const grouped = Boolean(group.header);
-                      const hints = [
-                        !(s.deck || '').trim() && 'No deck',
-                        !s.thumb_path && isZeroRotation(s.splat_rotation) && 'Not oriented yet',
-                      ].filter(Boolean);
-                      return (
-                        <div key={s.id} className={`vmc${editing ? ' vmc-editing' : ''}`}>
-                          {editing ? (
-                            <div className="vmc-editor">
-                              <div className="vmm-form-row">
-                                <div className="vmm-field">
-                                  <p className="vm-label">Name</p>
-                                  <input className="vm-input" value={editValue(s, 'name')} onChange={(e) => setEdit(s.id, 'name', e.target.value)} aria-label="Scan name" autoFocus />
-                                </div>
-                                <div className="vmm-field">
-                                  <p className="vm-label">Deck <span className="vmm-label-optional">optional</span></p>
-                                  <input className="vm-input" value={editValue(s, 'deck')} onChange={(e) => setEdit(s.id, 'deck', e.target.value)} placeholder="Main deck" aria-label="Deck" />
-                                </div>
-                                <div className="vmm-field vml-field-order">
-                                  <p className="vm-label">Order</p>
-                                  <input className="vm-input" type="number" value={editValue(s, 'sort_order')} onChange={(e) => setEdit(s.id, 'sort_order', e.target.value)} aria-label="Sort order" />
-                                </div>
-                              </div>
-                              <div className="vmm-actions">
-                                <button className="vm-btn-primary vmm-btn-sm" onClick={() => saveRow(s)} disabled={!rowDirty(s)}>Save changes</button>
-                                <button className="vm-btn-ghost vmm-btn-sm" onClick={() => cancelEdit(s.id)}>Cancel</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <button
-                                className="vmc-poster"
-                                onClick={() => navigate(`/vessel/map?scan=${s.id}`)}
-                                aria-label={`Open ${s.name} on the map`}
-                              >
-                                {thumbUrls[s.id] ? (
-                                  <img src={thumbUrls[s.id]} alt="" loading="lazy" />
-                                ) : (
-                                  <svg className="vmc-poster-motif" viewBox="0 0 80 50" aria-hidden="true">
-                                    <g fill="#C65A1A">
-                                      <circle cx="30" cy="16" r="2" opacity="0.7" /><circle cx="44" cy="23" r="1.7" opacity="0.5" />
-                                      <circle cx="36" cy="31" r="1.8" opacity="0.55" /><circle cx="53" cy="16" r="1.4" opacity="0.4" />
-                                      <circle cx="50" cy="33" r="1.5" opacity="0.45" /><circle cx="24" cy="26" r="1.3" opacity="0.35" />
-                                    </g>
-                                    <g fill="#8FA0C6">
-                                      <circle cx="40" cy="12" r="1.1" opacity="0.4" /><circle cx="58" cy="26" r="1" opacity="0.3" />
-                                      <circle cx="28" cy="37" r="1" opacity="0.28" />
-                                    </g>
-                                  </svg>
-                                )}
-                                {incomplete && <span className="vmm-badge vmc-badge">Upload incomplete</span>}
-                                <span className="vmc-open">View on map</span>
-                              </button>
-                              <div className="vmc-body">
-                                <p className="vmc-name">{s.name}</p>
-                                <p className="vmc-meta">
-                                  {[!grouped && s.deck, fmtSize(s.file_bytes ?? storageSizes[s.storage_path]), (s.file_format || '').toUpperCase(),
-                                    `${pins} pin${pins === 1 ? '' : 's'}`, fmtDate(s.created_at)].filter(Boolean).join(' · ')}
-                                  {hints.map((h) => <span key={h} className="vml-hint"> · {h}</span>)}
-                                </p>
-                                <div className="vmc-actions">
-                                  <button className="vmc-action" onClick={() => setEditingId(s.id)}>Edit</button>
-                                  <button className="vmc-action" onClick={() => pickReplacement(s)}>
-                                    {incomplete ? 'Upload file' : 'Replace file'}
-                                  </button>
-                                  <button className="vmc-action vmc-action-danger" onClick={() => { setDeleteError(null); setDeleteTarget(s); }}>Delete</button>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                          {busy?.progress && (
-                            <div className="vmc-wide">
-                              <div className="vmm-progress-track">
-                                <div className="vmm-progress-fill" style={{ width: `${busy.progress.total ? Math.round((busy.progress.sent / busy.progress.total) * 100) : 0}%` }} />
-                              </div>
-                              <p className="vmm-progress-label">{busy.label} · {fmtSize(busy.progress.sent)} of {fmtSize(busy.progress.total)}</p>
-                              <p className="vmm-note">Pins keep their positions — if the new capture's orientation differs, re-orient after upload.</p>
-                            </div>
-                          )}
-                          {busy?.error && <p className="vmm-error vmc-wide">{busy.error}</p>}
+                  {editing && (
+                    <div className="vmr-editor">
+                      <div className="vmm-form-row">
+                        <div className="vmm-field">
+                          <p className="vm-label">Name</p>
+                          <input className="vm-input" value={editValue(active, 'name')} onChange={(e) => setEdit(active.id, 'name', e.target.value)} aria-label="Scan name" autoFocus />
                         </div>
-                      );
-                    })}
+                        <div className="vmm-field">
+                          <p className="vm-label">Deck <span className="vmm-label-optional">optional</span></p>
+                          <input className="vm-input" value={editValue(active, 'deck')} onChange={(e) => setEdit(active.id, 'deck', e.target.value)} placeholder="Main deck" aria-label="Deck" />
+                        </div>
+                        <div className="vmm-field vml-field-order">
+                          <p className="vm-label">Order</p>
+                          <input className="vm-input" type="number" value={editValue(active, 'sort_order')} onChange={(e) => setEdit(active.id, 'sort_order', e.target.value)} aria-label="Sort order" />
+                        </div>
+                      </div>
+                      <div className="vmm-actions vmr-editor-actions">
+                        <button className="vm-btn-primary vmm-btn-sm" onClick={() => saveRow(active)} disabled={!rowDirty(active)}>Save changes</button>
+                        <button className="vm-btn-ghost vmm-btn-sm" onClick={() => cancelEdit(active.id)}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                  {busy?.progress && (
+                    <div className="vmr-busy">
+                      <div className="vmm-progress-track">
+                        <div className="vmm-progress-fill" style={{ width: `${busy.progress.total ? Math.round((busy.progress.sent / busy.progress.total) * 100) : 0}%` }} />
+                      </div>
+                      <p className="vmm-progress-label">{busy.label} · {fmtSize(busy.progress.sent)} of {fmtSize(busy.progress.total)}</p>
+                      <p className="vmm-note">Pins keep their positions — if the new capture's orientation differs, re-orient after upload.</p>
+                    </div>
+                  )}
+                  {busy?.error && <p className="vmm-error vmr-busy">{busy.error}</p>}
+                </div>
+
+                {reel.length > 1 && (
+                  <div className="vmr-dots" aria-hidden="true">
+                    {reel.map((s, i) => (
+                      <button key={s.id} className={`vmr-dot${i === reelIdx ? ' vmr-dot-on' : ''}`} onClick={() => reelGo(i)} tabIndex={-1} />
+                    ))}
                   </div>
-                </React.Fragment>
-              ))}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
 
           {!loading && scans.length === 0 && step === 'idle' && (
             <p className="vmm-empty">No scans yet — the first one lands on the map the moment it uploads.</p>
