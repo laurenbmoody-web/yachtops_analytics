@@ -88,25 +88,95 @@ export async function getInventoryItem(itemId) {
   return { item: data };
 }
 
+// Stock-location entries carry historical key variants — normalise to the
+// client shape inventoryStorage writes ({locationName, subLocation, qty}).
+const normSls = (raw) => (Array.isArray(raw) ? raw.filter(Boolean).map((l) => ({
+  ...l,
+  locationName: l.locationName || l.location_name || l.name || '',
+  subLocation: l.subLocation ?? l.sub_location ?? '',
+  qty: Number(l.qty ?? l.quantity) || 0,
+})) : []);
+const norm = (s) => (s || '').trim().toLowerCase();
+const matchesLoc = (name, sub, loc) => {
+  if (norm(name) !== norm(loc.location)) return false;
+  const S = norm(loc.sub_location);
+  const s = norm(sub);
+  return !S || s === S || s.startsWith(`${S} > `);
+};
+
 // How many of the item sit at the pin's linked location ("here") — falls
 // back to the vessel-wide count ("onboard") when the pin has no linked
 // location or the item lives elsewhere. Quantities stay in inventory; the
 // tag never stores its own count.
 export function quantityAt(item, loc) {
   if (!item) return null;
-  const norm = (s) => (s || '').trim().toLowerCase();
-  if (loc && norm(item.location) === norm(loc.location)) {
-    const sub = norm(loc.sub_location);
-    const isub = norm(item.sub_location);
-    if (!sub || isub === sub || isub.startsWith(`${sub} > `)) {
-      return { qty: Number(item.quantity) || 0, where: 'here' };
+  const sls = normSls(item.stock_locations);
+  if (loc) {
+    const hit = sls.find((l) => matchesLoc(l.locationName, l.subLocation, loc));
+    if (hit) return { qty: hit.qty, where: 'here' };
+    if (sls.length === 0 && matchesLoc(item.location, item.sub_location, loc)) {
+      return { qty: Number(item.quantity ?? item.total_qty) || 0, where: 'here' };
     }
   }
-  const sls = Array.isArray(item.stock_locations) ? item.stock_locations : [];
   const total = sls.length > 0
-    ? sls.reduce((sum, l) => sum + (Number(l?.qty ?? l?.quantity) || 0), 0)
+    ? sls.reduce((sum, l) => sum + l.qty, 0)
     : Number(item.total_qty ?? item.quantity) || 0;
   return { qty: total, where: 'onboard' };
+}
+
+// Set how many of the item sit at the pin's linked location, writing to
+// inventory (the single source of truth) — never to the tag. Assigning a
+// count to a new spot SPLITS the existing stock (primary keeps the rest)
+// rather than inflating the total.
+export async function setQuantityHere(itemId, loc, qty) {
+  const { data: row, error: readError } = await supabase
+    .from('inventory_items')
+    .select('id, quantity, total_qty, location, sub_location, stock_locations')
+    .eq('id', itemId)
+    .single();
+  if (readError) {
+    console.error('[inventory] qty read error:', readError);
+    return { error: readError.message || 'Could not load the item.' };
+  }
+  const sls = normSls(row.stock_locations);
+  let patch;
+  if (loc) {
+    const i = sls.findIndex((l) => matchesLoc(l.locationName, l.subLocation, loc));
+    if (i >= 0) {
+      sls[i] = { ...sls[i], qty };
+    } else if (sls.length === 0 && matchesLoc(row.location, row.sub_location, loc)) {
+      // Single-location item stored right here — just set the master count.
+      patch = { quantity: qty, total_qty: qty };
+    } else if (sls.length === 0) {
+      // Split: the primary location keeps the remainder.
+      const primary = Number(row.quantity ?? row.total_qty) || 0;
+      sls.push(
+        { locationName: row.location || '', subLocation: row.sub_location || '', qty: Math.max(0, primary - qty) },
+        { locationName: loc.location, subLocation: loc.sub_location || '', qty },
+      );
+    } else {
+      sls.push({ locationName: loc.location, subLocation: loc.sub_location || '', qty });
+    }
+    if (!patch) {
+      const total = sls.reduce((sum, l) => sum + (Number(l.qty) || 0), 0);
+      patch = { stock_locations: sls, quantity: total, total_qty: total };
+    }
+  } else {
+    // No linked location — the count edits the onboard total, which is only
+    // unambiguous while the stock isn't split.
+    if (sls.length > 1) return { error: 'Stored in several locations — edit it in inventory.' };
+    if (sls.length === 1) {
+      patch = { stock_locations: [{ ...sls[0], qty }], quantity: qty, total_qty: qty };
+    } else {
+      patch = { quantity: qty, total_qty: qty };
+    }
+  }
+  const { error: writeError } = await supabase.from('inventory_items').update(patch).eq('id', itemId);
+  if (writeError) {
+    console.error('[inventory] qty write error:', writeError);
+    return { error: writeError.message || 'Could not save the count.' };
+  }
+  return {};
 }
 
 // Reverse direction: every map pin whose photos carry a tag for this item.
