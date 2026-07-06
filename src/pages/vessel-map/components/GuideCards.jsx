@@ -3,7 +3,7 @@
 // file picker directly; the whole grid is also a drop target (wired by the
 // parent). Collapsible for crews who've done it many times.
 import React from 'react';
-import { SCAN_EXTENSIONS } from '../utils/scanUpload';
+import { SCAN_EXTENSIONS, SCAN_MAX_BYTES } from '../utils/scanUpload';
 import '../capture-guide.css';
 
 const ACCEPT = SCAN_EXTENSIONS.map((e) => `.${e}`).join(',');
@@ -65,6 +65,7 @@ export default function GuideCards({ onFile }) {
         <div className="cg-art"><DropIllo /></div>
         <h2>Drop it in</h2>
         <p>Name it, stand it upright — it's on the map.</p>
+        <p className="cg-limit">Files up to {Math.round(SCAN_MAX_BYTES / (1024 * 1024))}MB.</p>
         <label className="vm-btn-primary cg-cta">
           Upload your scan
           <input
