@@ -19,6 +19,7 @@ import ToolRail from './components/ToolRail';
 import Inspector from './components/Inspector';
 import OrientPanel from './components/OrientPanel';
 import PinPayload from './components/PinPayload';
+import PinLocation from './components/PinLocation';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel } from './layers';
 import { refreshScanThumb } from './utils/scanThumb';
@@ -74,6 +75,7 @@ export default function VesselMapPage() {
   const [viewer, setViewer] = useState({ status: 'idle' });
   const [selectedHotspot, setSelectedHotspot] = useState(null);
   const [mobileTab, setMobileTab] = useState('details'); // the floating card's rooms
+  const [immersive, setImmersive] = useState(false); // stage fills the viewport
   // Canvas mode — the rail's single active tool. 'pin' is the old
   // placementMode; the mobile variant's Add-hotspot button drives the same
   // state.
@@ -295,13 +297,23 @@ export default function VesselMapPage() {
     p: () => {
       if (canPlaceHotspots && viewer.status === 'ready') startPlacement();
     },
+    f: () => setImmersive((v) => !v),
     escape: () => {
       if (modalOpen) dismissModal();
       else if (adjusting) cancelAdjust();
       else if (selectedHotspot) setSelectedHotspot(null);
-      else cancelPlacement();
+      else if (mode === 'pin') cancelPlacement();
+      else if (immersive) setImmersive(false);
     },
   }, { enabled: isDesktop });
+
+  // Immersive stage: the page behind must not scroll.
+  useEffect(() => {
+    if (!immersive) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [immersive]);
 
   // ── Orient scan (COMMAND/CHIEF): rotate-90° per axis, live re-frame, save.
   // Tuning orientation by SQL stops today. Controls live in OrientPanel
@@ -400,6 +412,11 @@ export default function VesselMapPage() {
       if (name) setCreatorNames((prev) => ({ ...prev, [user.id]: name }));
     }
   }, [user, creatorNames]);
+
+  const onLocationChanged = useCallback((hotspotId, locationId) => {
+    setHotspots((prev) => prev.map((h) => (h.id === hotspotId ? { ...h, storage_location_id: locationId } : h)));
+    setSelectedHotspot((prev) => (prev && prev.id === hotspotId ? { ...prev, storage_location_id: locationId } : prev));
+  }, []);
 
   const showViewer = signedUrl && !signError;
   const loadPct = viewer.status === 'loading' ? viewer.progress : null;
@@ -508,7 +525,7 @@ export default function VesselMapPage() {
                 )}
               </div>
 
-              <div className="vm-stage">
+              <div className={`vm-stage${immersive ? ' vm-stage-full' : ''}`}>
                 {showViewer && (
                   <SplatViewer
                     signedUrl={signedUrl}
@@ -530,6 +547,17 @@ export default function VesselMapPage() {
                     apiRef={viewerApiRef}
                     stageColor={VM_STAGE}
                   />
+                )}
+
+                {/* Fullscreen: the room deserves the whole glass. f toggles. */}
+                {viewer.status === 'ready' && (
+                  <button
+                    className="vm-fullscreen-btn"
+                    onClick={() => setImmersive((v) => !v)}
+                    aria-label={immersive ? 'Exit fullscreen' : 'Fullscreen'}
+                  >
+                    {immersive ? '✕ Exit fullscreen' : '⛶ Fullscreen'}
+                  </button>
                 )}
 
                 <ToolRail
@@ -612,6 +640,7 @@ export default function VesselMapPage() {
                   tenantId={activeTenantId}
                   names={creatorNames}
                   onDetailSaved={onDetailSaved}
+                  onLocationChanged={onLocationChanged}
                   onClose={() => setSelectedHotspot(null)}
                   onDelete={deleteHotspot}
                   onAdjust={startAdjust}
@@ -696,16 +725,16 @@ export default function VesselMapPage() {
 
                     {mobileTab === 'details' && (
                       <>
-                        {selectedHotspot.storage_location_id && (
-                          <p className="vm-side-row">
-                            <span className="vm-label">Storage location</span>
-                            {selectedHotspot.storage_location_id}
-                          </p>
-                        )}
                         <p className="vm-side-row">
                           <span className="vm-label">Added</span>
                           {fmtDate(selectedHotspot.created_at)}
                         </p>
+                        <PinLocation
+                          hotspot={selectedHotspot}
+                          canManage={canPlaceHotspots}
+                          tenantId={activeTenantId}
+                          onLocationChanged={onLocationChanged}
+                        />
                       </>
                     )}
                     {mobileTab !== 'details' && (
