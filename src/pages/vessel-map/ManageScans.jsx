@@ -8,7 +8,6 @@
 // straight into the orient step → view on map. Failures leave the row
 // marked incomplete with retry/discard affordances; nothing orphans.
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -58,8 +57,6 @@ export default function ManageScans() {
   const [orientError, setOrientError] = useState(null);
   const activeUploadRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
-  const [guideClosing, setGuideClosing] = useState(false);
 
   // Per-row: edits, replace/complete transfer state, delete modal.
   const [rowEdits, setRowEdits] = useState({});
@@ -101,18 +98,6 @@ export default function ManageScans() {
   // Abandoning mid-upload: stop the transfer. The row stays 'uploading' and
   // surfaces as incomplete with retry/discard next visit — never orphaned.
   useEffect(() => () => activeUploadRef.current?.abort?.(), []);
-
-  // Capture-guide sheet: animated exit, Esc to dismiss.
-  const closeGuide = useCallback(() => {
-    setGuideClosing(true);
-    setTimeout(() => { setGuideOpen(false); setGuideClosing(false); }, 240);
-  }, []);
-  useEffect(() => {
-    if (!guideOpen) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') closeGuide(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [guideOpen, closeGuide]);
 
   const nextSortOrder = useMemo(
     () => scans.reduce((m, s) => Math.max(m, s.sort_order ?? 0), 0) + 1,
@@ -419,7 +404,7 @@ export default function ManageScans() {
                     onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = ''; }}
                   />
                 </label>
-                <button className="vm-btn-ghost" onClick={() => setGuideOpen(true)}>
+                <button className="vm-btn-ghost" onClick={() => navigate('/vessel/map/manage/guide')}>
                   How do I capture a scan?
                 </button>
               </div>
@@ -601,53 +586,6 @@ export default function ManageScans() {
         </div>
       )}
 
-      {/* Capture guide — a portaled editorial sheet, same species as the map's
-          Inspector. The content leaves the page; nothing squeezes the layout. */}
-      {guideOpen && createPortal(
-        <div className={`vmm-gd-overlay${guideClosing ? ' vmm-gd-leaving' : ''}`} onClick={closeGuide}>
-          <aside className="vmm-gd-sheet" role="dialog" aria-label="Capture guide" onClick={(e) => e.stopPropagation()}>
-            <button className="vmm-gd-x" onClick={closeGuide} aria-label="Close guide">×</button>
-            <p className="vmm-gd-eyebrow">Capture guide</p>
-            <h2 className="vmm-gd-title">Get a room aboard.</h2>
-            <ol className="vmm-gd-steps">
-              <li>
-                <span className="vmm-gd-num">1</span>
-                <div className="vmm-gd-step">
-                  <p className="vmm-gd-step-title">Scan the room</p>
-                  <p className="vmm-gd-step-body">Slowly, with a free phone app. Lights on, blinds drawn.</p>
-                  <div className="vmm-gd-apps">
-                    <span className="vmm-gd-pill">Scaniverse</span>
-                    <span className="vmm-gd-pill">Polycam</span>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <span className="vmm-gd-num">2</span>
-                <div className="vmm-gd-step">
-                  <p className="vmm-gd-step-title">Export the scan</p>
-                  <div className="vmm-gd-path">
-                    <span className="vmm-gd-pill">Scaniverse</span>
-                    <span className="vmm-gd-route">Share → Export Model → <strong>SPZ</strong></span>
-                  </div>
-                  <div className="vmm-gd-path">
-                    <span className="vmm-gd-pill">Polycam</span>
-                    <span className="vmm-gd-route">Export → Gaussian Splat → <strong>PLY</strong></span>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <span className="vmm-gd-num">3</span>
-                <div className="vmm-gd-step">
-                  <p className="vmm-gd-step-title">Drop it here</p>
-                  <p className="vmm-gd-step-body">Name it, stand it upright — it's on the map.</p>
-                </div>
-              </li>
-            </ol>
-            <p className="vmm-gd-footnote">Big file? SPZ exports are much smaller than PLY.</p>
-          </aside>
-        </div>,
-        document.body
-      )}
     </>
   );
 }
