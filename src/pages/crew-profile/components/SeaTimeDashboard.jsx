@@ -1019,7 +1019,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
           service: { capacity, periodFrom: from, periodTo: to, totals: { seagoing: b.seagoing, watchkeeping: b.watchkeeping, standby: b.standby, yard: b.yard } },
         },
         leaveDays,
-        guestDays: interiorPathway ? guestOnDays : null,
+        guestDays: (guestOnDays ?? derivedGuest?.days ?? null),
         signatoryEmail,
         sstType,
       });
@@ -2021,30 +2021,40 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       <Icon name="Lock" size={13} /> Locked until steps 01–02 clear — {checks.filter(c => !c.ok).length} check{checks.filter(c => !c.ok).length === 1 ? '' : 's'} still outstanding above.
                     </div>
                   )}
-                  <div className="std-export-instr">{interiorPathway
-                    ? 'The PYA verify your senior yacht service for the IAMI GUEST Yacht Purser CoC. Export your service record below, then submit it to the PYA with your guest-on days, GUEST course certificates and ID.'
-                    : vp.instructions}</div>
+                  {interiorPathway ? (
+                    <div className="std-export-instr">Export your record below, then submit it to the PYA with your guest-on days, GUEST certificates and ID for the IAMI GUEST Yacht Purser CoC.</div>
+                  ) : verifier === 'pya' ? (
+                    <>
+                      <div className="std-export-instr">Fill your PYA member profile from each captain’s record, then send it to your signatory to e-sign.</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--muted)', margin: '3px 0 0' }}>MCA MIN&nbsp;543 · one per captain · self-signed declined · verified in ~25 working days</div>
+                    </>
+                  ) : (
+                    <div className="std-export-instr">{vp.instructions}</div>
+                  )}
                   {nautilusSpells.length === 0 ? (
                     <div className="std-foot" style={{ padding: '10px 0 0' }}>No Cargo-tracked service to export yet — it auto-logs from your current vessel. You can still export your full record as CSV below.</div>
                   ) : (
                     <div className="std-spells">
-                      <div className="std-spells-lbl">{interiorPathway
-                        ? 'Your service under each captain, ready for the PYA to verify. Manual & off-Cargo days are excluded.'
-                        : `One testimonial per ${signerWord} — each endorses only the dates they covered. Manual & off-Cargo days are excluded.`}</div>
-                      {verifier === 'pya' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', fontSize: 12, color: 'var(--muted)', margin: '0 0 2px' }}>
-                          <span>Autofill the PYA online form:</span>
+                      {verifier === 'pya' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 14px', border: '1px solid #F1DBCE', borderRadius: 12, background: '#FBEFE9', margin: '0 0 4px' }}>
                           {/* href set via the DOM (React blocks javascript: hrefs) — keep draggable */}
                           <a
                             ref={pyaBmRef}
                             onClick={(e) => { e.preventDefault(); flash('Drag me to your bookmarks bar — don’t click here'); }}
                             title="Drag to your bookmarks bar"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 8, background: '#14132C', color: '#fff', fontWeight: 600, fontSize: 12, textDecoration: 'none', cursor: 'grab' }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 13px', borderRadius: 9, background: '#14132C', color: '#fff', fontWeight: 600, fontSize: 12.5, textDecoration: 'none', cursor: 'grab', flex: '0 0 auto', whiteSpace: 'nowrap' }}
                           >
-                            <Icon name="Anchor" size={12} /> Fill PYA form
+                            <Icon name="Anchor" size={13} /> Fill PYA form
                           </a>
-                          <span>— drag to your bookmarks bar once, then “Copy for PYA” below.</span>
+                          <div style={{ lineHeight: 1.4 }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1C1B3A' }}>Autofill the PYA online form</div>
+                            <div style={{ fontSize: 11.5, color: '#A67456' }}>Drag to your bookmarks bar once, then <strong style={{ fontWeight: 600 }}>Copy for PYA</strong> on a record.</div>
+                          </div>
                         </div>
+                      ) : (
+                        <div className="std-spells-lbl">{interiorPathway
+                          ? 'Your service under each captain, ready for the PYA to verify. Manual & off-Cargo days are excluded.'
+                          : `One testimonial per ${signerWord} — each endorses only the dates they covered. Manual & off-Cargo days are excluded.`}</div>
                       )}
                       {nautilusSpells.map((s, i) => (
                         <div key={i} className="std-spell">
