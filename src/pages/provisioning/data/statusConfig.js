@@ -235,7 +235,10 @@ export const ITEM_STATUS_CONFIG = {
   },
   not_received: {
     label: 'Not received',
-    badge: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#FCA5A5' },
+    // Deeper red than 'unavailable' (#FCA5A5) so the two problem-reds read
+    // as distinct phases at a glance — supplier-side refusal (lighter) vs
+    // delivery failure (this, stronger).
+    badge: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#EF4444' },
     cell:  { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
     dotClassName: 'bg-red-500',
   },
@@ -283,7 +286,10 @@ export const ITEM_STATUS_CONFIG = {
   // partial so the two reads as distinct phases.
   substituted: {
     label: 'Substituted',
-    badge: { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A', dot: '#FCD34D' },
+    // Deeper amber than 'partial' (#FCD34D) so a supplier substitution
+    // reads distinctly from a part-delivery — same warm family, different
+    // weight.
+    badge: { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A', dot: '#F59E0B' },
     cell:  { bg: 'rgba(252,211,77,0.20)', color: '#92400E' },
     dotClassName: 'bg-yellow-400',
   },
@@ -300,7 +306,9 @@ export const ITEM_STATUS_CONFIG = {
   // `confirmed` (same hue family, terminal close-out).
   paid: {
     label: 'Paid',
-    badge: { bg: '#ECFDF5', color: '#047857', border: '#A7F3D0', dot: '#34D399' },
+    // Deeper emerald than 'confirmed' (#34D399) so the terminal financial
+    // close-out reads as distinct from the supplier-confirmed green.
+    badge: { bg: '#ECFDF5', color: '#047857', border: '#A7F3D0', dot: '#059669' },
     cell:  { bg: 'rgba(52,211,153,0.18)', color: '#047857' },
     dotClassName: 'bg-emerald-600',
   },
