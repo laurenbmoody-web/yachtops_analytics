@@ -8,9 +8,10 @@
 
 :root { --vsw-navy: #14132C; --vsw-terra: #C65A1A; }
 
-.vsw { position: relative; padding: 6px 2px 2px; }
+.vsw { position: relative; padding: 8px 2px 4px; }
 
-.vsw-head { display: flex; align-items: center; gap: 16px; }
+/* Centred: chip on top, masthead underneath. */
+.vsw-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; }
 
 /* ── Chip picker (no chevron — the chip itself is the control) ────────────── */
 .vsw-chip {
@@ -26,18 +27,26 @@
 .vsw-chip-ic { width: 21px; height: 21px; }
 
 /* ── Masthead headline (two-tone serif via .ce-title / .accent) ──────────── */
+/* Force DM Serif onto BOTH the title and the .accent span. .accent only sets
+   italic + colour, so without this the global `span { font-family: Plus Jakarta }`
+   rule wins on the accent and it falls back to a sans. High specificity so it
+   beats that element rule. */
+.cargo-editorial .vsw .vsw-title,
+.cargo-editorial .vsw .vsw-title .accent {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+}
 .cargo-editorial .vsw .vsw-title { font-size: 27px; line-height: 1.05; letter-spacing: 0.2px; }
 .vsw-title sup { font-size: 0.55em; }
 .cargo-editorial .vsw .vsw-notset { color: var(--vsw-terra); }
 .vsw-loading { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 15px; color: #AEB4C2; }
 
-.vsw-hint { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11.5px; color: #B14E16; margin: 10px 0 0 62px; }
+.vsw-hint { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11.5px; color: #B14E16; margin: 12px 0 0; text-align: center; }
 .vsw-hint-quiet { color: #A29C90; }
 .vsw-err { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; margin: 10px 0 0; }
 
 /* ── Picker dropdown (anchored under the chip, left) ─────────────────────── */
 .vsw-picker {
-  position: absolute; top: 58px; left: 0;
+  position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
   width: 300px; max-width: 100%;
   background: #fff; border: 1px solid #ECEAE3; border-radius: 14px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.34);
