@@ -223,7 +223,11 @@ export const ITEM_STATUS_CONFIG = {
   },
   received: {
     label: 'Received',
-    badge: { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0', dot: '#4ADE80' },
+    // Strong, deep green — Received is the terminal physical event (goods
+    // aboard), so it reads as the boldest green, clearly apart from the
+    // lighter 'confirmed' (#34D399, supplier agreed) and the teal-emerald
+    // 'paid' (#059669, financial close-out).
+    badge: { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0', dot: '#16A34A' },
     cell:  { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
     dotClassName: 'bg-green-500',
   },
