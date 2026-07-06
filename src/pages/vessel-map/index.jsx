@@ -7,7 +7,7 @@
 // selected scan's private storage object → SplatViewer loads whatever
 // format the row declares (ply/spz/… — never assumes SPZ). scan_hotspots
 // render as layer-coloured pins; the layer chip row filters them.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,6 +20,7 @@ import Inspector from './components/Inspector';
 import OrientPanel from './components/OrientPanel';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel } from './layers';
+import { refreshScanThumb } from './utils/scanThumb';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
 import './vessel-map.css';
@@ -84,6 +85,7 @@ export default function VesselMapPage() {
   const [orientDraft, setOrientDraft] = useState(null); // {x,y,z} radians while orienting
   const [orientError, setOrientError] = useState(null);
   const [orientSaving, setOrientSaving] = useState(false);
+  const viewerApiRef = useRef(null); // SplatViewer API — poster capture on orient save
   const isDesktop = useIsDesktop();
   const placementMode = mode === 'pin';
 
@@ -111,7 +113,13 @@ export default function VesselMapPage() {
         setScans([]);
       } else {
         setScans(data || []);
-        setSelectedScanId((prev) => prev && data?.some((s) => s.id === prev) ? prev : data?.[0]?.id || null);
+        // Deep links from the manage library: /vessel/map?scan={id} opens
+        // that room directly; otherwise keep/derive the default selection.
+        const wanted = new URLSearchParams(window.location.search).get('scan');
+        setSelectedScanId((prev) => {
+          if (wanted && data?.some((s) => s.id === wanted)) return wanted;
+          return prev && data?.some((s) => s.id === prev) ? prev : data?.[0]?.id || null;
+        });
       }
       setScansLoading(false);
     })();
@@ -293,6 +301,14 @@ export default function VesselMapPage() {
     if (!orientDraft || orientSaving) return;
     setOrientSaving(true);
     setOrientError(null);
+    // Capture the approved frame first — any orient save refreshes the
+    // poster so manage-list thumbnails never drift from the canonical view.
+    let thumbBlob = null;
+    try {
+      thumbBlob = await viewerApiRef.current?.captureFrame?.();
+    } catch (err) {
+      console.error('[vessel-map] thumb capture error:', err);
+    }
     const { error } = await supabase
       .from('vessel_scans')
       .update({ splat_rotation: orientDraft })
@@ -303,7 +319,12 @@ export default function VesselMapPage() {
       setOrientError(error.message || 'Could not save the orientation.');
       return;
     }
-    setScans((prev) => prev.map((s) => (s.id === selectedScan.id ? { ...s, splat_rotation: orientDraft } : s)));
+    const newThumbPath = thumbBlob
+      ? await refreshScanThumb({ scan: selectedScan, tenantId: activeTenantId, blob: thumbBlob })
+      : null;
+    setScans((prev) => prev.map((s) => (s.id === selectedScan.id
+      ? { ...s, splat_rotation: orientDraft, ...(newThumbPath ? { thumb_path: newThumbPath } : {}) }
+      : s)));
     setOrientDraft(null);
   };
   const cancelOrientation = () => {
@@ -483,6 +504,7 @@ export default function VesselMapPage() {
                     onSelectHotspot={setSelectedHotspot}
                     onHoverHotspot={(h, at) => setHovered(h ? { id: h.id, label: h.label, x: at.x, y: at.y } : null)}
                     onLoadState={setViewer}
+                    apiRef={viewerApiRef}
                     stageColor={VM_STAGE}
                   />
                 )}

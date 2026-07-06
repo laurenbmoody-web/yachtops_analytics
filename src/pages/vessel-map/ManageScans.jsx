@@ -16,6 +16,7 @@ import Header from '../../components/navigation/Header';
 import SplatViewer from './components/SplatViewer';
 import OrientPanel from './components/OrientPanel';
 import GuideCards from './components/GuideCards';
+import { refreshScanThumb } from './utils/scanThumb';
 import { SCAN_EXTENSIONS, validateScanFile, fileExtension, createScanUpload } from './utils/scanUpload';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
@@ -23,6 +24,33 @@ import './vessel-map.css';
 import './manage-scans.css';
 
 const VM_STAGE = '#22253F';
+
+// Deck ordering: top of the vessel downward where names match convention,
+// alphabetical otherwise, unassigned last. A rank helper, nothing cleverer.
+const DECK_KEYWORDS = ['sun', 'bridge', 'main', 'lower', 'tank'];
+const deckRank = (deck) => {
+  const d = (deck || '').toLowerCase();
+  const i = DECK_KEYWORDS.findIndex((k) => d.includes(k));
+  return i === -1 ? DECK_KEYWORDS.length : i;
+};
+
+// Reel order: the carousel travels down the vessel — decks in vessel order
+// (unassigned last), then the row order (sort_order, created_at) within.
+const reelOrder = (scans) => [...scans].sort((a, b) => {
+  const ad = (a.deck || '').trim(); const bd = (b.deck || '').trim();
+  if (!ad !== !bd) return ad ? -1 : 1;
+  if (ad && bd) {
+    const r = deckRank(ad) - deckRank(bd);
+    if (r !== 0) return r;
+    const alpha = ad.toLowerCase().localeCompare(bd.toLowerCase());
+    if (alpha !== 0) return alpha;
+  }
+  const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  if (so !== 0) return so;
+  return String(a.created_at).localeCompare(String(b.created_at));
+});
+
+const isZeroRotation = (r) => !r || ((Number(r.x) || 0) === 0 && (Number(r.y) || 0) === 0 && (Number(r.z) || 0) === 0);
 
 const fmtDate = (iso) => {
   if (!iso) return '—';
@@ -39,6 +67,7 @@ export default function ManageScans() {
   const [scans, setScans] = useState([]);
   const [pinCounts, setPinCounts] = useState({});
   const [storageSizes, setStorageSizes] = useState({}); // legacy rows without file_bytes
+  const [thumbUrls, setThumbUrls] = useState({});       // scan_id → signed poster URL
   const [loading, setLoading] = useState(true);
 
   // Upload flow: idle → form → uploading → orient → done (error is a state
@@ -57,6 +86,7 @@ export default function ManageScans() {
   const [orientSaving, setOrientSaving] = useState(false);
   const [orientError, setOrientError] = useState(null);
   const activeUploadRef = useRef(null);
+  const viewerApiRef = useRef(null); // orient-step SplatViewer — poster capture
   const [dragOver, setDragOver] = useState(false);
   // Crews who've done this many times can fold the three cards away.
   const [stepsHidden, setStepsHiddenState] = useState(() => {
@@ -66,6 +96,11 @@ export default function ManageScans() {
     setStepsHiddenState(hidden);
     try { localStorage.setItem('cargo-vmm-steps-hidden', hidden ? '1' : '0'); } catch { /* preference only */ }
   };
+
+  // The reel: active scan tracked by id so uploads/deletes/re-sorts follow it.
+  const [reelActiveId, setReelActiveId] = useState(null);
+  const reelDragRef = useRef({ start: null, dragged: false });
+  const reelWheelRef = useRef(0);
 
   // Per-row: edits, replace/complete transfer state, delete modal.
   const [editingId, setEditingId] = useState(null); // row in edit mode
@@ -87,7 +122,24 @@ export default function ManageScans() {
       supabase.storage.from('vessel-scans').list(activeTenantId, { limit: 200 }),
     ]);
     if (scansRes.error) console.error('[manage-scans] scans fetch error:', scansRes.error);
-    else setScans(scansRes.data || []);
+    else {
+      const rows = scansRes.data || [];
+      setScans(rows);
+      // Poster thumbs: one batch of signed URLs per load, cached by scan id.
+      const withThumbs = rows.filter((r) => r.thumb_path);
+      if (withThumbs.length > 0) {
+        const { data: signed, error: signError } = await supabase.storage
+          .from('vessel-scans')
+          .createSignedUrls(withThumbs.map((r) => r.thumb_path), 3600);
+        if (signError) console.error('[manage-scans] thumb sign error:', signError);
+        else {
+          const byPath = Object.fromEntries((signed || []).map((s) => [s.path, s.signedUrl]));
+          setThumbUrls(Object.fromEntries(withThumbs.map((r) => [r.id, byPath[r.thumb_path]]).filter(([, u]) => u)));
+        }
+      } else {
+        setThumbUrls({});
+      }
+    }
     if (pinsRes.error) console.error('[manage-scans] pins fetch error:', pinsRes.error);
     else {
       const counts = {};
@@ -108,6 +160,16 @@ export default function ManageScans() {
   // Abandoning mid-upload: stop the transfer. The row stays 'uploading' and
   // surfaces as incomplete with retry/discard next visit — never orphaned.
   useEffect(() => () => activeUploadRef.current?.abort?.(), []);
+
+  const reel = useMemo(() => reelOrder(scans), [scans]);
+  const reelIdx = useMemo(() => {
+    const i = reel.findIndex((s) => s.id === reelActiveId);
+    return i === -1 ? 0 : i;
+  }, [reel, reelActiveId]);
+  const reelGo = useCallback((n) => {
+    const clamped = Math.max(0, Math.min(reel.length - 1, n));
+    if (reel[clamped]) setReelActiveId(reel[clamped].id);
+  }, [reel]);
 
   const nextSortOrder = useMemo(
     () => scans.reduce((m, s) => Math.max(m, s.sort_order ?? 0), 0) + 1,
@@ -254,9 +316,24 @@ export default function ManageScans() {
     setOrientUrl(null);
   };
 
+  // Any orient approval refreshes the poster frame — "Save orientation" and
+  // "Looks right as is" both count: the frame the user signs off is the thumb.
+  const captureAndStoreThumb = async (scan) => {
+    let blob = null;
+    try {
+      blob = await viewerApiRef.current?.captureFrame?.();
+    } catch (err) {
+      console.error('[manage-scans] thumb capture error:', err);
+    }
+    if (!blob) return;
+    await refreshScanThumb({ scan, tenantId: activeTenantId, blob });
+  };
+
   const saveOrientation = async () => {
     setOrientSaving(true);
     setOrientError(null);
+    // Capture while the viewer is still mounted and showing the approved frame.
+    const thumbPromise = captureAndStoreThumb(uploadedScan);
     const { error } = await supabase.from('vessel_scans')
       .update({ splat_rotation: orientDraft }).in('id', [uploadedScan.id]);
     setOrientSaving(false);
@@ -265,6 +342,13 @@ export default function ManageScans() {
       setOrientError(error.message || 'Could not save the orientation.');
       return;
     }
+    await thumbPromise;
+    setStep('done');
+    loadAll();
+  };
+
+  const approveAsIs = async () => {
+    await captureAndStoreThumb(uploadedScan);
     setStep('done');
     loadAll();
   };
@@ -334,17 +418,20 @@ export default function ManageScans() {
       return;
     }
 
+    // A new capture means the old poster is a different room — clear it; the
+    // post-replace orient regenerates it.
     const { error } = await supabase.from('vessel_scans')
-      .update({ storage_path: newPath, file_format: ext, file_bytes: f.size, status: 'ready' })
+      .update({ storage_path: newPath, file_format: ext, file_bytes: f.size, status: 'ready', thumb_path: null })
       .in('id', [s.id]);
     if (error) {
       console.error('[manage-scans] replace finalise error:', error);
       setRowBusy((p) => ({ ...p, [s.id]: { error: error.message || 'Uploaded, but could not switch the scan over.' } }));
       return;
     }
-    // Only now is the old file expendable.
-    if (oldPath && oldPath !== newPath) {
-      const { error: rmError } = await supabase.storage.from('vessel-scans').remove([oldPath]);
+    // Only now are the old objects expendable.
+    const stale = [oldPath, s.thumb_path].filter((p) => p && p !== newPath);
+    if (stale.length > 0) {
+      const { error: rmError } = await supabase.storage.from('vessel-scans').remove(stale);
       if (rmError) console.error('[manage-scans] old file cleanup failed (non-fatal):', rmError);
     }
     setRowBusy((p) => { const next = { ...p }; delete next[s.id]; return next; });
@@ -362,7 +449,8 @@ export default function ManageScans() {
       setDeleteBusy(false);
       return;
     }
-    const { error: rmError } = await supabase.storage.from('vessel-scans').remove([deleteTarget.storage_path]);
+    const { error: rmError } = await supabase.storage.from('vessel-scans')
+      .remove([deleteTarget.storage_path, deleteTarget.thumb_path].filter(Boolean));
     if (rmError) console.error('[manage-scans] file cleanup failed (non-fatal):', rmError);
     setDeleteBusy(false);
     setDeleteTarget(null);
@@ -501,6 +589,7 @@ export default function ManageScans() {
                     onSelectHotspot={() => {}}
                     onHoverHotspot={() => {}}
                     onLoadState={() => {}}
+                    apiRef={viewerApiRef}
                     stageColor={VM_STAGE}
                   />
                 )}
@@ -508,7 +597,7 @@ export default function ManageScans() {
                   value={orientDraft}
                   onChange={(next) => { setOrientError(null); setOrientDraft(next); }}
                   onSave={saveOrientation}
-                  onCancel={() => setStep('done')}
+                  onCancel={approveAsIs}
                   saving={orientSaving}
                   error={orientError}
                   eyebrow="Stand it upright"
@@ -529,76 +618,165 @@ export default function ManageScans() {
             </div>
           )}
 
-          {/* ── The library: clean rows; editing is an explicit mode ── */}
-          {!loading && scans.length > 0 && (
-            <div className="vml">
-              <div className="vml-head">
-                <span className="vml-label">Scans aboard · {scans.length}</span>
-              </div>
-              {scans.map((s) => {
-                const busy = rowBusy[s.id];
-                const incomplete = s.status !== 'ready';
-                const editing = editingId === s.id;
-                const pins = pinCounts[s.id] || 0;
-                return (
-                  <div key={s.id} className={`vml-row${incomplete ? ' vml-row-incomplete' : ''}${editing ? ' vml-row-editing' : ''}`}>
-                    {editing ? (
-                      <div className="vml-editor">
-                        <div className="vmm-form-row">
-                          <div className="vmm-field">
-                            <p className="vm-label">Name</p>
-                            <input className="vm-input" value={editValue(s, 'name')} onChange={(e) => setEdit(s.id, 'name', e.target.value)} aria-label="Scan name" autoFocus />
-                          </div>
-                          <div className="vmm-field">
-                            <p className="vm-label">Deck <span className="vmm-label-optional">optional</span></p>
-                            <input className="vm-input" value={editValue(s, 'deck')} onChange={(e) => setEdit(s.id, 'deck', e.target.value)} placeholder="Main deck" aria-label="Deck" />
-                          </div>
-                          <div className="vmm-field vml-field-order">
-                            <p className="vm-label">Order</p>
-                            <input className="vm-input" type="number" value={editValue(s, 'sort_order')} onChange={(e) => setEdit(s.id, 'sort_order', e.target.value)} aria-label="Sort order" />
-                          </div>
+          {/* ── The library: the fleet as a coverflow reel — centre room
+                 prominent, neighbours collapsed behind. Travels down the
+                 vessel: decks in vessel order, unassigned last. ── */}
+          {!loading && reel.length > 0 && (() => {
+            const active = reel[reelIdx];
+            const busy = rowBusy[active.id];
+            const incomplete = active.status !== 'ready';
+            const editing = editingId === active.id;
+            const pins = pinCounts[active.id] || 0;
+            const hints = [
+              !(active.deck || '').trim() && 'No deck',
+              !active.thumb_path && isZeroRotation(active.splat_rotation) && 'Not oriented yet',
+            ].filter(Boolean);
+            const onReelWheel = (e) => {
+              // Horizontal gestures only — vertical wheel keeps scrolling the page.
+              if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+              e.preventDefault();
+              const now = performance.now();
+              if (now - reelWheelRef.current < 320) return;
+              if (Math.abs(e.deltaX) < 8) return;
+              reelWheelRef.current = now;
+              reelGo(reelIdx + (e.deltaX > 0 ? 1 : -1));
+            };
+            const onPointerDown = (e) => { reelDragRef.current = { start: e.clientX, dragged: false }; };
+            const onPointerMove = (e) => {
+              const d = reelDragRef.current;
+              if (d.start !== null && Math.abs(e.clientX - d.start) > 12) d.dragged = true;
+            };
+            const onPointerUp = (e) => {
+              const d = reelDragRef.current;
+              if (d.start === null) return;
+              const dx = e.clientX - d.start;
+              reelDragRef.current = { start: null, dragged: d.dragged };
+              if (Math.abs(dx) > 48) reelGo(reelIdx + (dx < 0 ? 1 : -1));
+              setTimeout(() => { reelDragRef.current.dragged = false; }, 0);
+            };
+            return (
+              <div className="vml">
+                <div className="vml-head">
+                  <span className="vml-label">Scans aboard · {reel.length}</span>
+                </div>
+                <div
+                  className="vmr-stage"
+                  role="listbox"
+                  aria-label="Scans aboard"
+                  onWheel={onReelWheel}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={onPointerUp}
+                >
+                  {reel.map((s, i) => {
+                    const o = i - reelIdx;
+                    if (Math.abs(o) > 3) return null;
+                    return (
+                      <button
+                        key={s.id}
+                        role="option"
+                        aria-selected={o === 0}
+                        aria-label={s.name}
+                        className={`vmr-card${o === 0 ? ' vmr-centre' : ''}`}
+                        style={{
+                          transform: `translateX(${o * 200}px) translateZ(${-Math.abs(o) * 175}px) rotateY(${o === 0 ? 0 : o > 0 ? -26 : 26}deg)`,
+                          zIndex: 100 - Math.abs(o),
+                          opacity: Math.abs(o) === 3 ? 0.2 : 1,
+                        }}
+                        tabIndex={o === 0 ? 0 : -1}
+                        onClick={() => { if (!reelDragRef.current.dragged) reelGo(i); }}
+                      >
+                        {thumbUrls[s.id] ? (
+                          <img src={thumbUrls[s.id]} alt="" loading="lazy" draggable="false" />
+                        ) : (
+                          <svg className="vmr-motif" viewBox="0 0 80 50" aria-hidden="true">
+                            <g fill="#C65A1A">
+                              <circle cx="30" cy="16" r="2" opacity="0.7" /><circle cx="44" cy="23" r="1.7" opacity="0.5" />
+                              <circle cx="36" cy="31" r="1.8" opacity="0.55" /><circle cx="53" cy="16" r="1.4" opacity="0.4" />
+                              <circle cx="50" cy="33" r="1.5" opacity="0.45" /><circle cx="24" cy="26" r="1.3" opacity="0.35" />
+                            </g>
+                            <g fill="#8FA0C6">
+                              <circle cx="40" cy="12" r="1.1" opacity="0.4" /><circle cx="58" cy="26" r="1" opacity="0.3" />
+                              <circle cx="28" cy="37" r="1" opacity="0.28" />
+                            </g>
+                          </svg>
+                        )}
+                        {(s.deck || '').trim() && <span className="vmr-deck-chip">{s.deck}</span>}
+                        {s.status !== 'ready' && <span className="vmm-badge vmr-badge">Upload incomplete</span>}
+                      </button>
+                    );
+                  })}
+                  {reel.length > 1 && (
+                    <>
+                      <button className="vmr-arrow vmr-prev" onClick={() => reelGo(reelIdx - 1)} disabled={reelIdx === 0} aria-label="Previous scan">‹</button>
+                      <button className="vmr-arrow vmr-next" onClick={() => reelGo(reelIdx + 1)} disabled={reelIdx === reel.length - 1} aria-label="Next scan">›</button>
+                    </>
+                  )}
+                </div>
+
+                <div className="vmr-caption">
+                  <h3 className="vmr-name">{active.name}</h3>
+                  <p className="vmr-meta">
+                    {[active.deck, fmtSize(active.file_bytes ?? storageSizes[active.storage_path]), (active.file_format || '').toUpperCase(),
+                      `${pins} pin${pins === 1 ? '' : 's'}`, fmtDate(active.created_at)].filter(Boolean).join(' · ')}
+                    {hints.map((h) => <span key={h} className="vml-hint"> · {h}</span>)}
+                  </p>
+                  {!editing && (
+                    <div className="vmr-actions">
+                      <button className="vm-btn-primary vmm-btn-sm" onClick={() => navigate(`/vessel/map?scan=${active.id}`)} disabled={incomplete}>
+                        View on map
+                      </button>
+                      <button className="vmc-action" onClick={() => setEditingId(active.id)}>Edit</button>
+                      <button className="vmc-action" onClick={() => pickReplacement(active)}>
+                        {incomplete ? 'Upload file' : 'Replace file'}
+                      </button>
+                      <button className="vmc-action vmc-action-danger" onClick={() => { setDeleteError(null); setDeleteTarget(active); }}>Delete</button>
+                    </div>
+                  )}
+                  {editing && (
+                    <div className="vmr-editor">
+                      <div className="vmm-form-row">
+                        <div className="vmm-field">
+                          <p className="vm-label">Name</p>
+                          <input className="vm-input" value={editValue(active, 'name')} onChange={(e) => setEdit(active.id, 'name', e.target.value)} aria-label="Scan name" autoFocus />
                         </div>
-                        <div className="vmm-actions">
-                          <button className="vm-btn-primary vmm-btn-sm" onClick={() => saveRow(s)} disabled={!rowDirty(s)}>Save changes</button>
-                          <button className="vm-btn-ghost vmm-btn-sm" onClick={() => cancelEdit(s.id)}>Cancel</button>
+                        <div className="vmm-field">
+                          <p className="vm-label">Deck <span className="vmm-label-optional">optional</span></p>
+                          <input className="vm-input" value={editValue(active, 'deck')} onChange={(e) => setEdit(active.id, 'deck', e.target.value)} placeholder="Main deck" aria-label="Deck" />
+                        </div>
+                        <div className="vmm-field vml-field-order">
+                          <p className="vm-label">Order</p>
+                          <input className="vm-input" type="number" value={editValue(active, 'sort_order')} onChange={(e) => setEdit(active.id, 'sort_order', e.target.value)} aria-label="Sort order" />
                         </div>
                       </div>
-                    ) : (
-                      <>
-                        <div className="vml-main">
-                          <p className="vml-name">
-                            {s.name}
-                            {incomplete && <span className="vmm-badge">Upload incomplete</span>}
-                          </p>
-                          <p className="vml-meta">
-                            {[s.deck, fmtSize(s.file_bytes ?? storageSizes[s.storage_path]), (s.file_format || '').toUpperCase(),
-                              `${pins} pin${pins === 1 ? '' : 's'}`, fmtDate(s.created_at)].filter(Boolean).join(' · ')}
-                          </p>
-                        </div>
-                        <div className="vml-actions">
-                          <button className="vm-btn-ghost vmm-btn-sm" onClick={() => setEditingId(s.id)}>Edit</button>
-                          <button className="vm-btn-ghost vmm-btn-sm" onClick={() => pickReplacement(s)}>
-                            {incomplete ? 'Upload file' : 'Replace file'}
-                          </button>
-                          <button className="vmm-delete" onClick={() => { setDeleteError(null); setDeleteTarget(s); }}>Delete</button>
-                        </div>
-                      </>
-                    )}
-                    {busy?.progress && (
-                      <div className="vml-row-wide">
-                        <div className="vmm-progress-track">
-                          <div className="vmm-progress-fill" style={{ width: `${busy.progress.total ? Math.round((busy.progress.sent / busy.progress.total) * 100) : 0}%` }} />
-                        </div>
-                        <p className="vmm-progress-label">{busy.label} · {fmtSize(busy.progress.sent)} of {fmtSize(busy.progress.total)}</p>
-                        <p className="vmm-note">Pins keep their positions — if the new capture's orientation differs, re-orient after upload.</p>
+                      <div className="vmm-actions vmr-editor-actions">
+                        <button className="vm-btn-primary vmm-btn-sm" onClick={() => saveRow(active)} disabled={!rowDirty(active)}>Save changes</button>
+                        <button className="vm-btn-ghost vmm-btn-sm" onClick={() => cancelEdit(active.id)}>Cancel</button>
                       </div>
-                    )}
-                    {busy?.error && <p className="vmm-error vml-row-wide">{busy.error}</p>}
+                    </div>
+                  )}
+                  {busy?.progress && (
+                    <div className="vmr-busy">
+                      <div className="vmm-progress-track">
+                        <div className="vmm-progress-fill" style={{ width: `${busy.progress.total ? Math.round((busy.progress.sent / busy.progress.total) * 100) : 0}%` }} />
+                      </div>
+                      <p className="vmm-progress-label">{busy.label} · {fmtSize(busy.progress.sent)} of {fmtSize(busy.progress.total)}</p>
+                      <p className="vmm-note">Pins keep their positions — if the new capture's orientation differs, re-orient after upload.</p>
+                    </div>
+                  )}
+                  {busy?.error && <p className="vmm-error vmr-busy">{busy.error}</p>}
+                </div>
+
+                {reel.length > 1 && (
+                  <div className="vmr-dots" aria-hidden="true">
+                    {reel.map((s, i) => (
+                      <button key={s.id} className={`vmr-dot${i === reelIdx ? ' vmr-dot-on' : ''}`} onClick={() => reelGo(i)} tabIndex={-1} />
+                    ))}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
 
           {!loading && scans.length === 0 && step === 'idle' && (
             <p className="vmm-empty">No scans yet — the first one lands on the map the moment it uploads.</p>

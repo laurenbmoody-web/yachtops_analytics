@@ -118,6 +118,7 @@ export default function SplatViewer({
   onSelectHotspot,        // (hotspot | null) => void
   onHoverHotspot,         // (hotspot | null, {x, y}) => void — client coords
   onLoadState,            // ({status, progress?, message?}) => void
+  apiRef,                 // optional ref — receives { captureFrame } for poster thumbs
   stageColor = '#22253F', // WebGL clear colour — the dark stage the splat glows against
 }) {
   const containerRef = useRef(null);
@@ -402,7 +403,23 @@ export default function SplatViewer({
         mesh.rotation.set(nr.x, nr.y, nr.z);
         refit(true);
       },
+      // Poster frame: render synchronously then read the canvas in the same
+      // task — no preserveDrawingBuffer needed, no per-frame cost. Downscaled
+      // to a ~480px JPEG for the manage list.
+      captureFrame: ({ width = 480, quality = 0.75 } = {}) => {
+        renderer.render(scene, camera);
+        const src = renderer.domElement;
+        if (!src.width || !src.height) return Promise.resolve(null);
+        const w = Math.min(width, src.width);
+        const h = Math.max(1, Math.round(w * (src.height / src.width)));
+        const off = document.createElement('canvas');
+        off.width = w;
+        off.height = h;
+        off.getContext('2d').drawImage(src, 0, 0, w, h);
+        return new Promise((resolve) => off.toBlob(resolve, 'image/jpeg', quality));
+      },
     };
+    if (apiRef) apiRef.current = glRef.current;
 
     mesh.initialized.then(() => {
       if (disposed) return;
@@ -596,6 +613,7 @@ export default function SplatViewer({
     return () => {
       disposed = true;
       glRef.current = null;
+      if (apiRef) apiRef.current = null;
       renderer.setAnimationLoop(null);
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
