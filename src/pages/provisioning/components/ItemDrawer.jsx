@@ -386,6 +386,13 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     };
     // Include extended fields that have a non-null value
     Object.entries(ext).forEach(([k, v]) => { if (v !== null && v !== undefined) payload[k] = v; });
+    // Marketplace/catalogue lines: the supplier's product definition is
+    // authoritative — force those fields back to the original values so
+    // drawer edits can't drift them. Qty, notes etc. save normally.
+    if (item?.catalogue_item_id) {
+      ['name', 'brand', 'size', 'unit', 'category', 'sub_category', 'estimated_unit_cost', 'currency']
+        .forEach((k) => { if (item[k] !== undefined && item[k] !== null) payload[k] = item[k]; });
+    }
     return payload;
   };
 

@@ -1361,7 +1361,14 @@ const ProvisioningBoardDetail = () => {
   // estimated_unit_cost stays vessel-side (the supplier never sees it),
   // status / name / brand / category are vessel-side concepts that
   // don't have a meaningful supplier-side write target.
-  const SUPPLIER_MIRROR_FIELD = {
+  // Fields a marketplace/catalogue line inherits from the supplier's
+// product record — locked on the board (qty + notes stay editable).
+const CATALOGUE_LOCKED_FIELDS = new Set([
+  'name', 'brand', 'size', 'unit', 'category', 'sub_category',
+  'estimated_unit_cost', 'quoted_unit_cost',
+]);
+
+const SUPPLIER_MIRROR_FIELD = {
     quantity_ordered: 'quantity',
     unit:             'unit',
     size:             'size',
@@ -1370,6 +1377,13 @@ const ProvisioningBoardDetail = () => {
   };
 
   const handleCellSave = useCallback(async (item, field, rawValue) => {
+    // Marketplace lines are the supplier's product definition — name,
+    // pack, unit and price are theirs. Crew adjust quantity and notes,
+    // or remove the line and pick something else.
+    if (item.catalogue_item_id && CATALOGUE_LOCKED_FIELDS.has(field)) {
+      showToast('Catalogue item — the supplier sets this. Adjust the quantity or notes, or remove the line.', 'info');
+      return;
+    }
     let value = rawValue;
     if (['quantity_ordered', 'quantity_received', 'estimated_unit_cost', 'quoted_unit_cost'].includes(field)) {
       value = rawValue === '' || rawValue == null ? null : parseFloat(rawValue) || 0;
@@ -3989,6 +4003,13 @@ const ProvisioningBoardDetail = () => {
                                     >
                                       {item.name}
                                     </span>
+                                    {item.catalogue_item_id && (
+                                      <Icon
+                                        name="Lock"
+                                        title="Catalogue item — product and price set by the supplier. Adjust quantity or notes."
+                                        style={{ width: 10, height: 10, color: '#AEB4C2', flexShrink: 0 }}
+                                      />
+                                    )}
                                     {/* Inline SENT / Confirmed / Unavailable / Substituted
                                         tag removed in Phase 3 commit 4 — the unified status
                                         column carries this signal directly via the derived
