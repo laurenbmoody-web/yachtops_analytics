@@ -143,3 +143,15 @@
 /* ── Modal photo row ── */
 .spp-photo-row { display: flex; align-items: center; gap: 12px; }
 .spp-photo-preview { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid var(--line, #E2E8F0); background: #F1F5F9; }
+
+/* ── Clickable KPI cells + clear-all ── */
+.spp-kpicell.click { cursor: pointer; transition: background .15s; }
+.spp-kpicell.click:hover { background: rgba(255,255,255,0.045); }
+.spp-kpicell.click:hover .spp-kpi-label::after { content: ' →'; letter-spacing: 0; }
+.spp-kpicell.click:focus-visible { outline: 2px solid #E07A38; outline-offset: -2px; border-radius: 8px; }
+.spp-clear {
+  border: none; background: transparent; cursor: pointer; font-family: inherit;
+  font-size: 12.5px; font-weight: 600; color: var(--orange, #C65A1A);
+  padding: 8px 10px; border-radius: 8px; white-space: nowrap;
+}
+.spp-clear:hover { background: #FBEFE9; }

@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, ShoppingBag, Truck, FileText, BookOpen, Tag,
+  LayoutDashboard, ShoppingBag, Truck, FileText, BookOpen,
   Users, MessageSquare, RotateCcw, Bell, Search,
+  PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import SupplierAvatarMenu from './components/SupplierAvatarMenu';
 import { useTier, hasClientPermission } from '../../contexts/SupplierPermissionContext';
@@ -27,8 +28,10 @@ const NAV_GROUPS = [
   {
     label: 'Catalogue',
     items: [
-      { to: '/supplier/products',    icon: BookOpen, label: 'Products',    requires: 'catalogue:view' },
-      { to: '/supplier/price-lists', icon: Tag,      label: 'Price lists' },
+      // "Price lists" placeholder removed: the catalogue IS the price
+      // list today. The item returns when per-yacht price tiers ship,
+      // as the tier editor — not as a duplicate of Products.
+      { to: '/supplier/products', icon: BookOpen, label: 'Products', requires: 'catalogue:view' },
     ],
   },
   {
@@ -46,6 +49,14 @@ const SupplierLayout = () => {
   const { supplier } = useSupplier();
   const navigate = useNavigate();
   const bellRef = useRef(null);
+  // Sidebar collapse — persisted per device.
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('sp-sidebar-collapsed') === '1'; } catch { return false; }
+  });
+  const toggleCollapsed = () => setCollapsed((v) => {
+    try { localStorage.setItem('sp-sidebar-collapsed', v ? '0' : '1'); } catch { /* private mode */ }
+    return !v;
+  });
   const [bellOpen, setBellOpen] = useState(false);
   const [revisedLines, setRevisedLines] = useState([]);
   const [approvedOrders, setApprovedOrders] = useState([]);
@@ -142,7 +153,7 @@ const SupplierLayout = () => {
 
   return (
   <div id="sp-root">
-    <div className="sp-shell">
+    <div className={`sp-shell${collapsed ? ' collapsed' : ''}`}>
       {/* Sidebar */}
       <aside className="sp-sidebar">
         <div className="sp-sidebar-logo">
@@ -157,6 +168,7 @@ const SupplierLayout = () => {
                 <NavLink
                   key={to}
                   to={to}
+                  title={collapsed ? label : undefined}
                   className={({ isActive }) => `sp-nav-item${isActive ? ' active' : ''}`}
                 >
                   <Icon />
@@ -172,8 +184,19 @@ const SupplierLayout = () => {
           ))}
         </nav>
 
-        {/* Side-foot — avatar menu is in topbar, so just show a thin footer */}
-        <div style={{ marginTop: 'auto', padding: '14px 10px 4px', borderTop: '1px solid var(--line-soft)' }} />
+        {/* Side-foot — collapse toggle */}
+        <div className="sp-sidebar-foot">
+          <button
+            type="button"
+            className="sp-collapse-btn"
+            onClick={toggleCollapsed}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+            <span>Collapse</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main area */}
