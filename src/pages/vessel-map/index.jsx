@@ -15,6 +15,7 @@ import Header from '../../components/navigation/Header';
 import SplatViewer from './components/SplatViewer';
 import HotspotModal from './components/HotspotModal';
 import ToolRail from './components/ToolRail';
+import Inspector from './components/Inspector';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel } from './layers';
 import '../../styles/editorial.css';
@@ -63,6 +64,7 @@ export default function VesselMapPage() {
   const [signedUrl, setSignedUrl] = useState(null);
   const [signError, setSignError] = useState(null);
   const [hotspots, setHotspots] = useState([]);
+  const [creatorNames, setCreatorNames] = useState({}); // user_id → full_name for pin creators
   const [activeLayers, setActiveLayers] = useState(() => new Set(LAYERS.map((l) => l.key)));
   const [viewer, setViewer] = useState({ status: 'idle' });
   const [selectedHotspot, setSelectedHotspot] = useState(null);
@@ -140,6 +142,21 @@ export default function VesselMapPage() {
       return;
     }
     setHotspots(data || []);
+
+    // Creator names for the inspector's Details tab — one lookup for all
+    // pins; nulls (pre-tracking pins) simply don't render an "Added by" row.
+    const uids = [...new Set((data || []).map((h) => h.created_by).filter(Boolean))];
+    if (uids.length > 0) {
+      const { data: profiles, error: pErr } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', uids);
+      if (pErr) {
+        console.error('[vessel-map] creator names fetch error:', pErr);
+      } else {
+        setCreatorNames(Object.fromEntries((profiles || []).map((p) => [p.id, p.full_name])));
+      }
+    }
   }, [selectedScan?.id, activeTenantId]);
 
   useEffect(() => {
@@ -206,6 +223,18 @@ export default function VesselMapPage() {
       else cancelPlacement();
     },
   }, { enabled: isDesktop });
+
+  // Returns an error message on failure (inspector shows it), null on success.
+  const deleteHotspot = async (id) => {
+    const { error } = await supabase.from('scan_hotspots').delete().eq('id', id);
+    if (error) {
+      console.error('[vessel-map] hotspot delete error:', error);
+      return error.message || 'Could not remove the pin.';
+    }
+    setHotspots((prev) => prev.filter((h) => h.id !== id));
+    setSelectedHotspot(null);
+    return null;
+  };
 
   // Returns an error message on failure (modal shows it), null on success.
   const saveHotspot = async ({ label, layer }) => {
@@ -346,6 +375,7 @@ export default function VesselMapPage() {
                     splatRotation={selectedScan.splat_rotation}
                     splatScale={selectedScan.splat_scale}
                     hotspots={visibleHotspots}
+                    selectedId={selectedHotspot?.id ?? null}
                     placementMode={placementMode}
                     pendingPosition={pendingPosition}
                     onPlacePending={placePending}
@@ -368,6 +398,15 @@ export default function VesselMapPage() {
                     <span className="vm-pin-hint-kbd">Esc cancels</span>
                   </div>
                 )}
+
+                {/* ≥1024px: the inspector replaces the floating card. */}
+                <Inspector
+                  hotspot={selectedHotspot}
+                  creatorName={selectedHotspot?.created_by ? creatorNames[selectedHotspot.created_by] : null}
+                  canManage={canPlaceHotspots}
+                  onClose={() => setSelectedHotspot(null)}
+                  onDelete={deleteHotspot}
+                />
 
                 {/* ≥1024px: breadcrumb + layer chips float on the dark stage,
                     light-on-dark. Below that the cream toolbar above carries
