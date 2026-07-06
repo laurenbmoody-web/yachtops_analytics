@@ -1,0 +1,79 @@
+/* Supplier catalogue upgrades — scoped spp-* (portal tokens) */
+
+/* ── Category chips ── */
+.spp-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+.spp-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--line, #E2E8F0); background: var(--card, #fff);
+  border-radius: 999px; padding: 6px 14px; font-size: 12.5px; font-weight: 600;
+  color: var(--muted-strong, #64748B); cursor: pointer; white-space: nowrap;
+}
+.spp-chip:hover { border-color: var(--muted, #94A3B8); }
+.spp-chip.on { background: var(--navy, #262A53); border-color: var(--navy, #262A53); color: #fff; }
+.spp-chip .ct { font-weight: 500; opacity: 0.65; font-size: 11.5px; }
+.spp-chip.warn.on { background: #B0372B; border-color: #B0372B; }
+.spp-chip.warn { color: #B0372B; }
+.spp-chip.warn .dot { width: 7px; height: 7px; border-radius: 999px; background: #D97706; }
+
+/* ── Thumbnails ── */
+.spp-thumb {
+  width: 38px; height: 38px; border-radius: 8px; flex: none;
+  object-fit: cover; display: block; border: 1px solid var(--line-soft, #EDF1F6);
+  background: #F1F5F9;
+}
+.spp-thumb-ph {
+  width: 38px; height: 38px; border-radius: 8px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: #fff;
+}
+.spp-prodcell { display: flex; align-items: center; gap: 11px; }
+
+/* ── Inline editing ── */
+.spp-cell-view {
+  cursor: pointer; border-radius: 6px; padding: 3px 7px; margin: -3px -7px;
+  border: 1.5px solid transparent; display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+.spp-cell-view:hover { border-color: var(--line, #E2E8F0); background: var(--bg, #F8FAFC); }
+.spp-cell-view.ro { cursor: default; }
+.spp-cell-view.ro:hover { border-color: transparent; background: transparent; }
+.spp-cell-input {
+  width: 84px; border: 1.5px solid var(--orange, #C65A1A); border-radius: 6px;
+  padding: 3px 7px; font-size: 13px; text-align: right; background: var(--card, #fff);
+  box-shadow: 0 0 0 3px #FAECE7; outline: none; font-variant-numeric: tabular-nums;
+}
+.spp-cell-saving { opacity: 0.45; }
+.spp-updated { font-size: 10.5px; color: var(--muted, #94A3B8); margin-top: 2px; }
+
+/* ── Bulk bar ── */
+.spp-bulkbar {
+  position: sticky; bottom: 16px; z-index: 40;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--navy-deep, #141D2E); color: #fff;
+  border-radius: 12px; padding: 10px 16px; margin-top: 14px;
+  box-shadow: 0 18px 44px -12px rgba(12,14,20,0.5);
+}
+.spp-bulkbar .count { font-weight: 700; font-size: 13px; margin-right: 4px; }
+.spp-bulk-btn {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  color: #fff; border-radius: 8px; padding: 6px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.spp-bulk-btn:hover { background: rgba(255,255,255,0.18); }
+.spp-bulk-btn.danger { background: rgba(216,73,58,0.25); border-color: rgba(216,73,58,0.6); }
+.spp-bulk-btn.danger:hover { background: rgba(216,73,58,0.4); }
+.spp-bulk-select {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  color: #fff; border-radius: 8px; padding: 6px 10px; font-size: 12.5px;
+}
+.spp-bulk-select option { color: #141D2E; }
+.spp-bulk-clear { margin-left: auto; color: rgba(255,255,255,0.65); font-size: 12.5px; cursor: pointer; background: none; border: none; }
+.spp-bulk-clear:hover { color: #fff; }
+
+/* ── Table extras ── */
+.spp-table-wrap { overflow-x: auto; }
+.spp-table-wrap thead th { position: sticky; top: 0; background: var(--card, #fff); z-index: 2; }
+.spp-check { width: 15px; height: 15px; accent-color: #C65A1A; cursor: pointer; }
+
+/* ── Modal photo row ── */
+.spp-photo-row { display: flex; align-items: center; gap: 12px; }
+.spp-photo-preview { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid var(--line, #E2E8F0); background: #F1F5F9; }

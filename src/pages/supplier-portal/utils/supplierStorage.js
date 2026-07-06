@@ -371,6 +371,42 @@ export const bulkCreateCatalogueItems = async (supplierId, items) => {
   return created;
 };
 
+/** Apply the same patch to many catalogue rows (bulk category change, stock flag…). */
+export const bulkUpdateCatalogueItems = async (itemIds, updates) => {
+  const { data, error } = await supabase
+    .from('supplier_catalogue_items')
+    .update(updates)
+    .in('id', itemIds)
+    .select();
+  if (error) throw error;
+  return data ?? [];
+};
+
+export const bulkDeleteCatalogueItems = async (itemIds) => {
+  const { error } = await supabase
+    .from('supplier_catalogue_items')
+    .delete()
+    .in('id', itemIds);
+  if (error) throw error;
+};
+
+// Upload a product photo to the public `catalogue-images` bucket and write
+// the public URL onto the catalogue row. Same pattern as uploadSupplierLogo.
+export const uploadCatalogueImage = async (supplierId, itemId, file) => {
+  if (!file) throw new Error('No file provided');
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${supplierId}/${itemId}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from('catalogue-images')
+    .upload(path, file, { upsert: true, cacheControl: '3600' });
+  if (uploadError) throw uploadError;
+  const { data: { publicUrl } } = supabase.storage
+    .from('catalogue-images')
+    .getPublicUrl(path);
+  const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+  return updateCatalogueItem(itemId, { image_url: cacheBustedUrl });
+};
+
 // ─── Invoices ────────────────────────────────────────────────────────────────
 
 export const fetchInvoices = async (supplierId, { status } = {}) => {

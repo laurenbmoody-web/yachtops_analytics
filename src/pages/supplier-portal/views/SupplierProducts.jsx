@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, X, UploadCloud } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Pencil, Trash2, X, UploadCloud, ImagePlus } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import {
@@ -7,14 +7,25 @@ import {
   createCatalogueItem,
   updateCatalogueItem,
   deleteCatalogueItem,
+  bulkUpdateCatalogueItems,
+  bulkDeleteCatalogueItems,
+  uploadCatalogueImage,
 } from '../utils/supplierStorage';
 import EmptyState from '../components/EmptyState';
 import CatalogueImportModal from '../components/CatalogueImportModal';
+import './supplier-products.css';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
 const CATEGORIES = ['Produce', 'Meat & Fish', 'Dairy', 'Beverages', 'Dry Goods', 'Frozen', 'Cleaning', 'Other'];
 const UNITS = ['kg', 'g', 'L', 'ml', 'unit', 'case', 'box', 'bottle', 'each'];
+const LOW_STOCK_AT = 10;
+
+// Deterministic tile colour per category so an image-less list still scans.
+const CATEGORY_HUES = {
+  'Produce': '#4E8A3E', 'Meat & Fish': '#A5484F', 'Dairy': '#C99A2C', 'Beverages': '#3B6CB4',
+  'Dry Goods': '#8A6D4B', 'Frozen': '#4E93A6', 'Cleaning': '#6D57A5', 'Other': '#64748B',
+};
 
 const EMPTY_FORM = {
   name: '', sku: '', barcode: '', category: '', unit: 'kg',
@@ -28,20 +39,97 @@ const numOrNull = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const fmtPack = (item) => {
+  if (!item.pack_size && !item.unit_size) return '—';
+  const inner = [item.pack_size, item.pack_unit].filter(Boolean).join(' × ');
+  return [inner || null, item.unit_size].filter(Boolean).join(' · ');
+};
+
+const fmtDate = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+};
+
+const isLowStock = (item) =>
+  !item.in_stock || (item.stock_qty != null && Number(item.stock_qty) <= LOW_STOCK_AT);
+
+const Thumb = ({ item }) => {
+  if (item.image_url) return <img className="spp-thumb" src={item.image_url} alt="" loading="lazy" />;
+  const hue = CATEGORY_HUES[item.category] || CATEGORY_HUES.Other;
+  return (
+    <span className="spp-thumb-ph" style={{ background: hue }}>
+      {(item.name || '?').trim().charAt(0).toUpperCase()}
+    </span>
+  );
+};
+
+// Click-to-edit numeric cell (Katana pattern): click → input, Enter/blur saves, Esc cancels.
+const InlineNumber = ({ value, suffix, canEdit, onSave, placeholder = '—' }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  const commit = async () => {
+    const next = numOrNull(draft);
+    setEditing(false);
+    if (next === (value ?? null)) return;
+    setSaving(true);
+    try { await onSave(next); } finally { setSaving(false); }
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        className="spp-cell-input"
+        type="number" step="0.01" min="0"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+          if (e.key === 'Escape') setEditing(false);
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      className={`spp-cell-view ${canEdit ? '' : 'ro'} ${saving ? 'spp-cell-saving' : ''}`}
+      title={canEdit ? 'Click to edit' : undefined}
+      onClick={() => { if (canEdit && !saving) { setDraft(value ?? ''); setEditing(true); } }}
+    >
+      {value != null ? `${Number(value).toFixed(suffix ? 2 : 0)}${suffix ? ` ${suffix}` : ''}` : placeholder}
+    </span>
+  );
+};
+
 const fieldStyle = { width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13 };
 const labelStyle = { fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 };
 
 const ProductModal = ({ initial, onSave, onClose, saving }) => {
   const [form, setForm] = useState(() => {
     if (!initial) return EMPTY_FORM;
-    // Editing: normalise nulls to '' so inputs stay controlled
     const merged = { ...EMPTY_FORM };
     Object.keys(EMPTY_FORM).forEach(k => {
       if (initial[k] != null) merged[k] = initial[k];
     });
     return merged;
   });
+  const [photo, setPhoto] = useState(null); // File pending upload
+  const photoInput = useRef(null);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const previewUrl = useMemo(
+    () => (photo ? URL.createObjectURL(photo) : initial?.image_url || null),
+    [photo, initial?.image_url]
+  );
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -55,7 +143,7 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
       unit_price: numOrNull(form.unit_price),
       pack_size: numOrNull(form.pack_size),
       stock_qty: numOrNull(form.stock_qty),
-    });
+    }, photo);
   };
 
   return (
@@ -72,6 +160,20 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="spp-photo-row">
+            {previewUrl
+              ? <img className="spp-photo-preview" src={previewUrl} alt="" />
+              : <span className="spp-photo-preview" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}><ImagePlus size={20} /></span>}
+            <div>
+              <button type="button" className="sp-pill" onClick={() => photoInput.current?.click()}>
+                {previewUrl ? 'Change photo' : 'Add photo'}
+              </button>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>JPG, PNG or WebP · 5MB max</div>
+              <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
+                onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label style={labelStyle}>Name *</label>
@@ -154,12 +256,6 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
   );
 };
 
-const fmtPack = (item) => {
-  if (!item.pack_size && !item.unit_size) return '—';
-  const inner = [item.pack_size, item.pack_unit].filter(Boolean).join(' × ');
-  return [inner || null, item.unit_size].filter(Boolean).join(' · ');
-};
-
 const SupplierProducts = () => {
   const { supplier } = useSupplier();
   const { allowed: canEdit } = usePermission('catalogue:edit');
@@ -170,6 +266,9 @@ const SupplierProducts = () => {
   const [importOpen, setImportOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [chip, setChip] = useState('All'); // 'All' | category | 'Low'
+  const [selected, setSelected] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = () => {
     if (!supplier?.id) return;
@@ -182,15 +281,25 @@ const SupplierProducts = () => {
 
   useEffect(load, [supplier?.id]);
 
-  const handleSave = async (formData) => {
+  const patchLocal = (updated) => setItems(prev => prev.map(i => (i.id === updated.id ? updated : i)));
+
+  const handleSave = async (formData, photo) => {
     setSaving(true);
     try {
       if (modal === 'new') {
-        const created = await createCatalogueItem(supplier.id, formData);
+        let created = await createCatalogueItem(supplier.id, formData);
+        if (photo) {
+          try { created = await uploadCatalogueImage(supplier.id, created.id, photo); }
+          catch (e) { setError(`Product saved, but the photo upload failed: ${e.message}`); }
+        }
         setItems(prev => [created, ...prev]);
       } else {
-        const updated = await updateCatalogueItem(modal.id, formData);
-        setItems(prev => prev.map(i => i.id === modal.id ? updated : i));
+        let updated = await updateCatalogueItem(modal.id, formData);
+        if (photo) {
+          try { updated = await uploadCatalogueImage(supplier.id, modal.id, photo); }
+          catch (e) { setError(`Product saved, but the photo upload failed: ${e.message}`); }
+        }
+        patchLocal(updated);
       }
       setModal(null);
     } catch (e) {
@@ -205,6 +314,17 @@ const SupplierProducts = () => {
     try {
       await deleteCatalogueItem(id);
       setItems(prev => prev.filter(i => i.id !== id));
+      setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const handleInlineSave = (item, patch) => async (value) => {
+    try {
+      const updates = { ...patch(value) };
+      const updated = await updateCatalogueItem(item.id, updates);
+      patchLocal(updated);
     } catch (e) {
       setError(e.message);
     }
@@ -215,13 +335,77 @@ const SupplierProducts = () => {
     setImportOpen(false);
   };
 
+  // ── filtering ──
   const q = search.toLowerCase();
-  const filtered = items.filter(i =>
+  const searched = useMemo(() => items.filter(i =>
     !q
     || i.name.toLowerCase().includes(q)
     || (i.sku ?? '').toLowerCase().includes(q)
     || (i.barcode ?? '').includes(q)
-  );
+  ), [items, q]);
+
+  const counts = useMemo(() => {
+    const byCat = {};
+    let low = 0;
+    for (const i of searched) {
+      byCat[i.category || 'Other'] = (byCat[i.category || 'Other'] || 0) + 1;
+      if (isLowStock(i)) low++;
+    }
+    return { byCat, low };
+  }, [searched]);
+
+  const filtered = useMemo(() => searched.filter(i => {
+    if (chip === 'All') return true;
+    if (chip === 'Low') return isLowStock(i);
+    return (i.category || 'Other') === chip;
+  }), [searched, chip]);
+
+  // ── bulk selection ──
+  const allVisibleSelected = filtered.length > 0 && filtered.every(i => selected.has(i.id));
+  const toggleAll = () => setSelected(prev => {
+    const n = new Set(prev);
+    if (allVisibleSelected) filtered.forEach(i => n.delete(i.id));
+    else filtered.forEach(i => n.add(i.id));
+    return n;
+  });
+  const toggleOne = (id) => setSelected(prev => {
+    const n = new Set(prev);
+    n.has(id) ? n.delete(id) : n.add(id);
+    return n;
+  });
+
+  const runBulk = async (fn) => {
+    setBulkBusy(true);
+    setError(null);
+    try { await fn(Array.from(selected)); }
+    catch (e) { setError(e.message); }
+    finally { setBulkBusy(false); }
+  };
+
+  const bulkCategory = (cat) => runBulk(async (ids) => {
+    const updated = await bulkUpdateCatalogueItems(ids, { category: cat });
+    setItems(prev => prev.map(i => updated.find(u => u.id === i.id) ?? i));
+    setSelected(new Set());
+  });
+  const bulkStock = (inStock) => runBulk(async (ids) => {
+    const updated = await bulkUpdateCatalogueItems(ids, { in_stock: inStock, ...(inStock ? {} : { stock_qty: 0 }) });
+    setItems(prev => prev.map(i => updated.find(u => u.id === i.id) ?? i));
+    setSelected(new Set());
+  });
+  const bulkDelete = () => {
+    if (!window.confirm(`Delete ${selected.size} product${selected.size === 1 ? '' : 's'}? This can't be undone.`)) return;
+    runBulk(async (ids) => {
+      await bulkDeleteCatalogueItems(ids);
+      setItems(prev => prev.filter(i => !selected.has(i.id)));
+      setSelected(new Set());
+    });
+  };
+
+  const chipDefs = [
+    { key: 'All', label: 'All', count: searched.length },
+    ...CATEGORIES.filter(c => counts.byCat[c]).map(c => ({ key: c, label: c, count: counts.byCat[c] })),
+    ...(counts.low ? [{ key: 'Low', label: 'Low / out', count: counts.low, warn: true }] : []),
+  ];
 
   return (
     <div className="sp-page">
@@ -273,7 +457,7 @@ const SupplierProducts = () => {
         </div>
       )}
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 12 }}>
         <input
           placeholder="Search name, SKU or barcode…"
           value={search}
@@ -282,11 +466,26 @@ const SupplierProducts = () => {
         />
       </div>
 
+      {items.length > 0 && (
+        <div className="spp-chips">
+          {chipDefs.map(c => (
+            <button
+              key={c.key}
+              className={`spp-chip ${chip === c.key ? 'on' : ''} ${c.warn ? 'warn' : ''}`}
+              onClick={() => setChip(chip === c.key ? 'All' : c.key)}
+            >
+              {c.warn && <span className="dot" />}
+              {c.label} <span className="ct">{c.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {!loading && filtered.length === 0 && (
         <EmptyState
           icon="📦"
           title={items.length === 0 ? 'No products yet' : 'No results'}
-          body={items.length === 0 ? 'Add products one by one, or import the price list you already have.' : 'Try a different search term.'}
+          body={items.length === 0 ? 'Add products one by one, or import the price list you already have.' : 'Try a different search or filter.'}
           action={items.length === 0 && canEdit && (
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               <button className="sp-pill" onClick={() => setImportOpen(true)}><UploadCloud size={13} />Import price list</button>
@@ -297,48 +496,67 @@ const SupplierProducts = () => {
       )}
 
       {filtered.length > 0 && (
-        <div className="sp-table-wrap">
+        <div className="sp-table-wrap spp-table-wrap">
           <table className="sp-table">
             <thead>
               <tr>
+                {canEdit && (
+                  <th style={{ width: 34 }}>
+                    <input type="checkbox" className="spp-check" checked={allVisibleSelected} onChange={toggleAll} />
+                  </th>
+                )}
                 <th>Product</th>
                 <th>Category</th>
                 <th>Unit</th>
                 <th>Pack</th>
                 <th className="num">Price</th>
-                <th>Stock</th>
+                <th className="num">Stock</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               {filtered.map(item => (
                 <tr key={item.id}>
+                  {canEdit && (
+                    <td>
+                      <input type="checkbox" className="spp-check" checked={selected.has(item.id)} onChange={() => toggleOne(item.id)} />
+                    </td>
+                  )}
                   <td>
-                    <div className="sp-line-name">{item.name}</div>
-                    {(item.sku || item.barcode) && (
-                      <div className="sp-line-sku">
-                        {[item.sku, item.barcode ? `EAN ${item.barcode}` : null].filter(Boolean).join(' · ')}
+                    <div className="spp-prodcell">
+                      <Thumb item={item} />
+                      <div>
+                        <div className="sp-line-name">{item.name}</div>
+                        {(item.sku || item.barcode) && (
+                          <div className="sp-line-sku">
+                            {[item.sku, item.barcode ? `EAN ${item.barcode}` : null].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </td>
                   <td style={{ fontSize: 13, color: 'var(--muted-s)' }}>{item.category ?? '—'}</td>
                   <td style={{ fontSize: 13 }}>{item.unit ?? '—'}</td>
                   <td style={{ fontSize: 12.5, color: 'var(--muted-s)', whiteSpace: 'nowrap' }}>{fmtPack(item)}</td>
-                  <td className="sp-amount">
-                    {item.unit_price != null
-                      ? `${item.unit_price.toFixed(2)} ${item.currency}`
-                      : '—'}
+                  <td className="sp-amount" style={{ textAlign: 'right' }}>
+                    <InlineNumber
+                      value={item.unit_price}
+                      suffix={item.currency}
+                      canEdit={canEdit}
+                      onSave={handleInlineSave(item, (v) => ({ unit_price: v }))}
+                    />
+                    {item.updated_at && <div className="spp-updated">upd {fmtDate(item.updated_at)}</div>}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <InlineNumber
+                      value={item.stock_qty}
+                      canEdit={canEdit}
+                      placeholder={item.in_stock ? 'In stock' : 'Out'}
+                      onSave={handleInlineSave(item, (v) => ({ stock_qty: v, in_stock: v == null ? item.in_stock : v > 0 }))}
+                    />
                   </td>
                   <td>
-                    <span className={`sp-stock ${item.in_stock ? 'in' : 'out'}`}>
-                      <span className="d" />
-                      {item.stock_qty != null
-                        ? Number(item.stock_qty).toLocaleString()
-                        : (item.in_stock ? 'In stock' : 'Out')}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                       <button
                         className="sp-icon-btn"
                         style={{ width: 28, height: 28, opacity: canEdit ? 1 : 0.4 }}
@@ -363,6 +581,25 @@ const SupplierProducts = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {canEdit && selected.size > 0 && (
+        <div className="spp-bulkbar">
+          <span className="count">{selected.size} selected</span>
+          <select
+            className="spp-bulk-select"
+            value=""
+            disabled={bulkBusy}
+            onChange={(e) => { if (e.target.value) bulkCategory(e.target.value); }}
+          >
+            <option value="">Move to category…</option>
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <button className="spp-bulk-btn" disabled={bulkBusy} onClick={() => bulkStock(true)}>Mark in stock</button>
+          <button className="spp-bulk-btn" disabled={bulkBusy} onClick={() => bulkStock(false)}>Mark out of stock</button>
+          <button className="spp-bulk-btn danger" disabled={bulkBusy} onClick={bulkDelete}>Delete</button>
+          <button className="spp-bulk-clear" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}
 
