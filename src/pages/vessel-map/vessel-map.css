@@ -438,7 +438,8 @@
 .vm-orient-save, .vm-orient-cancel { padding: 7px 14px; font-size: 12.5px; }
 
 
-/* ── Orient scan — COMMAND/CHIEF affordance, canvas bottom-right, ≥1024px ── */
+/* ── Straighten scan — COMMAND/CHIEF affordance, top-right under the manage
+      link (admin corner); the bottom-right corner belongs to Fullscreen ──── */
 .vm-orient-open { display: none; }
 /* Desktop uses the on-stage manage link; the toolbar button is the mobile door. */
 .vm-manage-link { display: none; }
@@ -448,7 +449,7 @@
     display: block;
     position: absolute;
     right: 18px;
-    bottom: 18px;
+    top: 54px;
     z-index: 5;
     padding: 7px 13px;
     border-radius: 999px;
@@ -466,6 +467,10 @@
     transition: color var(--vm-ease-ui), border-color var(--vm-ease-ui);
   }
   .vm-orient-open:hover { color: #F4F3EE; border-color: rgba(232, 148, 106, 0.6); }
+
+  /* The open panel takes the button's place in the admin corner (map page
+     only — the manage surface positions it in its own context). */
+  .vm-stage .vm-orient-panel { top: 54px; bottom: auto; }
 
   /* Back-of-house door — quiet, top-right, same register as Orient scan. */
   .vm-manage-link {
@@ -1109,9 +1114,30 @@
 .vm-check-reset-confirm { margin-left: auto; display: flex; gap: 10px; }
 .vm-check-reset-confirm .vm-check-reset { margin-left: 0; }
 .vm-check-lastrun { margin: 0 0 10px; font-size: 11px; color: #AEB4C2; font-style: italic; }
+/* Reorder: drag on desktop (grip affordance); arrows only where drag
+   events don't exist (touch). Keyboard still reaches the arrows — they
+   reappear on focus. */
 .vm-check-move { display: flex; gap: 2px; opacity: 0; transition: opacity var(--vm-ease-ui); }
-.vm-check-item:hover .vm-check-move { opacity: 1; }
+.vm-check-move:focus-within { opacity: 1; }
 @media (hover: none) { .vm-check-move { opacity: 1; } }
+
+.vm-check-grip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  color: #D9D5CA;
+  opacity: 0;
+  cursor: grab;
+  transition: opacity var(--vm-ease-ui), color var(--vm-ease-ui);
+}
+.vm-check-item:hover .vm-check-grip { opacity: 1; }
+.vm-check-grip:hover { color: #8B8478; }
+@media (hover: none) { .vm-check-grip { display: none; } }
+.vm-check-item[draggable='true'] { user-select: none; }
+.vm-check-dragging { opacity: 0.35; }
+.vm-check-dragging .vm-check-grip { cursor: grabbing; }
+.vm-drop-before { box-shadow: inset 0 2px 0 #C65A1A; }
+.vm-drop-after { box-shadow: inset 0 -2px 0 #C65A1A; }
 .vm-check-arrow {
   background: none;
   border: 0;
@@ -1185,6 +1211,7 @@
   box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.5);
 }
 .vm-tag-chip-label { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
+.vm-tag-chip-qty { font-size: 11.5px; color: #8B8478; }
 .vm-tag-chip-go {
   background: none;
   border: 0;

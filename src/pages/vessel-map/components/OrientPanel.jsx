@@ -1,6 +1,6 @@
 // Orient panel — rotate-90° controls per axis. Controlled and persistence-
 // free: the parent owns the draft value and the row write. Used by the map
-// page (Orient scan affordance) and the manage surface's post-upload
+// page (Straighten scan affordance) and the manage surface's post-upload
 // "Stand it upright" step.
 import React from 'react';
 
@@ -20,7 +20,7 @@ export default function OrientPanel({
   onCancel,
   saving,
   error,
-  eyebrow = 'Orient scan',
+  eyebrow = 'Straighten scan',
   saveLabel = 'Save',
   cancelLabel = 'Cancel',
 }) {

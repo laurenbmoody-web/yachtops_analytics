@@ -90,6 +90,8 @@ export default function VesselMapPage() {
   const [orientError, setOrientError] = useState(null);
   const [orientSaving, setOrientSaving] = useState(false);
   const viewerApiRef = useRef(null); // SplatViewer API — poster capture on orient save
+  // ?pin= deep link (from inventory's "On the vessel map"), consumed once.
+  const pendingPinRef = useRef(new URLSearchParams(window.location.search).get('pin'));
   const isDesktop = useIsDesktop();
   const placementMode = mode === 'pin';
 
@@ -166,6 +168,16 @@ export default function VesselMapPage() {
       return;
     }
     setHotspots(data || []);
+
+    // Deep links from inventory: /vessel/map?scan={id}&pin={id} opens the
+    // room with that pin's inspector already up. Consumed once.
+    if (pendingPinRef.current) {
+      const wanted = (data || []).find((h) => h.id === pendingPinRef.current);
+      if (wanted) {
+        pendingPinRef.current = null;
+        setSelectedHotspot(wanted);
+      }
+    }
 
     // Creator names for the inspector's Details tab — one lookup for all
     // pins; nulls (pre-tracking pins) simply don't render an "Added by" row.
@@ -549,8 +561,9 @@ export default function VesselMapPage() {
                   />
                 )}
 
-                {/* Fullscreen: the room deserves the whole glass. f toggles. */}
-                {viewer.status === 'ready' && (
+                {/* Fullscreen: the room deserves the whole glass. f toggles.
+                    Yields the corner while the straighten panel is open. */}
+                {viewer.status === 'ready' && orientDraft === null && (
                   <button
                     className="vm-fullscreen-btn"
                     onClick={() => setImmersive((v) => !v)}
@@ -600,6 +613,7 @@ export default function VesselMapPage() {
                   orientDraft === null ? (
                     <button
                       className="vm-orient-open"
+                      title="Fix a scan that loads tilted or on its side"
                       onClick={() => {
                         setOrientError(null);
                         setOrientDraft({
@@ -609,7 +623,7 @@ export default function VesselMapPage() {
                         });
                       }}
                     >
-                      Orient scan
+                      Straighten scan
                     </button>
                   ) : (
                     <OrientPanel

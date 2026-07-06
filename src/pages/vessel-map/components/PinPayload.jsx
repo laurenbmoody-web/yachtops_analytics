@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { updateDetail, updateDetailKey } from '../utils/hotspotDetail';
 import { uploadHotspotPhoto } from '../utils/photoUpload';
-import { searchInventoryItems } from '../utils/inventory';
+import { searchInventoryItems, getInventoryItem, getInventoryLocation, quantityAt } from '../utils/inventory';
 
 const relDate = (iso) => {
   if (!iso) return '';
@@ -117,6 +117,28 @@ export default function PinPayload({
     return next;
   });
 
+  // Drag to reorder (desktop; touch keeps the arrows). Only the unticked
+  // band moves — the reordered band pours back into the unticked slots so
+  // ticked items keep their place in the underlying array.
+  const [dragCheck, setDragCheck] = useState(null); // item id in flight
+  const [dropMark, setDropMark] = useState(null);   // { id, after }
+  const reorderCheck = (fromId, toId, after) => {
+    if (!fromId || fromId === toId) return;
+    write('checklist', (arr) => {
+      const slots = arr.map((c, i) => (!c.done ? i : -1)).filter((i) => i !== -1);
+      const band = slots.map((i) => arr[i]);
+      const from = band.findIndex((c) => c.id === fromId);
+      if (from === -1) return arr;
+      const [moved] = band.splice(from, 1);
+      const to = band.findIndex((c) => c.id === toId);
+      if (to === -1) return arr;
+      band.splice(after ? to + 1 : to, 0, moved);
+      const next = [...arr];
+      slots.forEach((slot, k) => { next[slot] = band[k]; });
+      return next;
+    });
+  };
+
   // Recurring lists: Reset snapshots the finished run into history (who
   // ticked what, when, who reset), then unticks everything for next time.
   const [confirmingReset, setConfirmingReset] = useState(false);
@@ -185,6 +207,28 @@ export default function PinPayload({
   const [tagResults, setTagResults] = useState([]);
   const [openTagId, setOpenTagId] = useState(null);
   const tagDebounce = useRef(null);
+  // Live count for the open tag — "12 here" (pin's linked location) or
+  // "12 onboard". Read straight from inventory; the tag stores no number.
+  const [tagQtys, setTagQtys] = useState({}); // item_id → {qty, where}
+  const pinLocRef = useRef({}); // hotspot id → inventory location row (or null)
+  useEffect(() => {
+    const t = openTagId && (lightboxPhoto?.tags || []).find((x) => x.id === openTagId);
+    if (!t || tagQtys[t.item_id]) return undefined;
+    let cancelled = false;
+    (async () => {
+      const locId = hotspot?.storage_location_id || null;
+      if (locId && pinLocRef.current[hotspot.id] === undefined) {
+        const { location } = await getInventoryLocation(locId);
+        pinLocRef.current[hotspot.id] = location || null;
+      }
+      const { item } = await getInventoryItem(t.item_id);
+      if (cancelled || !item) return;
+      const q = quantityAt(item, locId ? pinLocRef.current[hotspot.id] : null);
+      setTagQtys((prev) => ({ ...prev, [t.item_id]: { ...q, unit: item.unit || null } }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openTagId]);
   useEffect(() => {
     setTagMode(false); setTagPoint(null); setTagQuery(''); setTagResults([]); setOpenTagId(null);
   }, [lightbox?.id]);
@@ -348,7 +392,49 @@ export default function PinPayload({
           {checklist.length === 0 && <p className="vm-payload-empty">Nothing on the list.</p>}
           <div className="vm-check-items">
             {viewChecklist.map((c) => (
-              <div key={c.id} className={`vm-check-item${c.done ? ' vm-check-done' : ''}`}>
+              <div
+                key={c.id}
+                className={[
+                  'vm-check-item',
+                  c.done ? 'vm-check-done' : '',
+                  dragCheck === c.id ? 'vm-check-dragging' : '',
+                  dropMark?.id === c.id ? (dropMark.after ? 'vm-drop-after' : 'vm-drop-before') : '',
+                ].filter(Boolean).join(' ')}
+                draggable={canManage && !c.done}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', c.id);
+                  setDragCheck(c.id);
+                }}
+                onDragOver={(e) => {
+                  if (!dragCheck || c.done) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const after = e.clientY > r.top + r.height / 2;
+                  setDropMark((m) => (m?.id === c.id && m.after === after ? m : { id: c.id, after }));
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragCheck && !c.done) {
+                    reorderCheck(dragCheck, c.id, dropMark?.id === c.id ? dropMark.after : false);
+                  }
+                  setDragCheck(null);
+                  setDropMark(null);
+                }}
+                onDragEnd={() => { setDragCheck(null); setDropMark(null); }}
+              >
+                {canManage && !c.done && (
+                  <span className="vm-check-grip" aria-hidden="true">
+                    <svg viewBox="0 0 6 14" width="6" height="14">
+                      <g fill="currentColor">
+                        <circle cx="1.5" cy="2" r="1.2" /><circle cx="4.5" cy="2" r="1.2" />
+                        <circle cx="1.5" cy="7" r="1.2" /><circle cx="4.5" cy="7" r="1.2" />
+                        <circle cx="1.5" cy="12" r="1.2" /><circle cx="4.5" cy="12" r="1.2" />
+                      </g>
+                    </svg>
+                  </span>
+                )}
                 <button
                   className="vm-check-box"
                   role="checkbox"
@@ -437,6 +523,11 @@ export default function PinPayload({
               return (
                 <div className="vm-tag-chip">
                   <span className="vm-tag-chip-label">{t.label}</span>
+                  {tagQtys[t.item_id] && (
+                    <span className="vm-tag-chip-qty">
+                      {tagQtys[t.item_id].qty}{tagQtys[t.item_id].unit ? ` ${tagQtys[t.item_id].unit}` : ''} {tagQtys[t.item_id].where}
+                    </span>
+                  )}
                   <button className="vm-tag-chip-go" onClick={() => navigate(`/inventory/item/${t.item_id}`)}>
                     View in inventory →
                   </button>
