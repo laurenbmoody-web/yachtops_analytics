@@ -1,9 +1,10 @@
-// Vessel status — a compact, editorial dashboard widget. The deep-navy chip is
-// the picker: tap it to change the current status, log a known past period, or
-// view the history. The status reads as a masthead line — "UNDERWAY, since 6th
-// July" (serif-italic caps navy + terracotta italic date). It's the master's
-// vessel-wide record of what the vessel is doing, the first source of truth for
-// how each crew member's sea-service day is classified. Crew see it read-only.
+// Vessel status — a boxless, editorial masthead. Reads as "UNDERWAY, since 6th
+// July" in the Cargo two-tone serif (upright navy word + italic terracotta
+// accent) using the shared .ce-title / .accent classes so it matches the other
+// editorial headlines AND renders in real DM Serif Display (those classes are
+// scoped under .cargo-editorial, which beats the global `span { … }` font rule
+// that would otherwise force Plus Jakarta). The deep-navy chip is the picker:
+// tap it to change the status, log a past period, or view history. Crew read-only.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -24,9 +25,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const MON_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const ordinal = (n) => { const v = n % 100; if (v >= 11 && v <= 13) return 'th'; return ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; };
 const todayIso = () => new Date().toISOString().slice(0, 10);
-// Editorial "6th July" (no year — it's the current season).
 const editorial = (iso) => { if (!iso) return null; const [, m, d] = iso.split('-').map(Number); return { d, suf: ordinal(d), mon: MONTHS[m - 1] }; };
-// Short "6 Jul 2026" for the history list.
 const fmtShort = (iso) => { if (!iso) return ''; const [y, m, d] = iso.split('-').map(Number); return `${d} ${MON_SHORT[m - 1]} ${y}`; };
 
 const friendly = (e) => {
@@ -82,78 +81,70 @@ const VesselStatusWidget = ({ tenantId }) => {
   };
 
   if (!tenantId) return null;
-
   const chipIcon = cur ? cur.icon : 'Ship';
 
   return (
-    <div className="ce-card vsw" ref={rootRef}>
-      <div className="vsw-center">
+    <div className="vsw" ref={rootRef}>
+      <div className="vsw-head">
         {isCommand ? (
           <button
             type="button"
             className={`vsw-chip${open ? ' is-open' : ''}`}
             onClick={() => { setOpen(o => !o); setErr(''); }}
-            aria-haspopup="menu"
-            aria-expanded={open}
-            aria-label="Change vessel status"
+            aria-haspopup="menu" aria-expanded={open} aria-label="Change vessel status"
           >
             <Icon name={chipIcon} className="vsw-chip-ic" />
-            <span className="vsw-chip-chev"><Icon name="ChevronDown" className="vsw-chev" /></span>
           </button>
         ) : (
           <span className="vsw-chip vsw-chip-static"><Icon name={chipIcon} className="vsw-chip-ic" /></span>
         )}
 
-        <div className="vsw-line">
+        <div className="vsw-title-wrap">
           {loading ? (
-            <span className="vsw-st vsw-muted">Loading…</span>
+            <span className="vsw-loading">Loading…</span>
           ) : cur ? (
-            <>
-              <span className="vsw-st">{cur.label}</span><span className="vsw-sep">,</span>{' '}
-              <span className="vsw-dt">since {ed.d}<sup>{ed.suf}</sup> {ed.mon}</span>
-            </>
+            <div className="ce-title vsw-title">
+              {cur.label.toUpperCase()},{' '}
+              <span className="accent">since {ed.d}<sup>{ed.suf}</sup> {ed.mon}</span>
+            </div>
           ) : (
-            <span className="vsw-st vsw-notset">Not set</span>
+            <div className="ce-title vsw-title vsw-notset">NOT SET</div>
           )}
         </div>
-
-        {!loading && !cur && isCommand && (
-          <div className="vsw-hint">Set the vessel’s status — days count as sea time until you do.</div>
-        )}
-        {!isCommand && cur && <div className="vsw-hint vsw-hint-quiet">Set by the captain</div>}
-        {err && <div className="vsw-err">{err}</div>}
-
-        {open && isCommand && (
-          <div className="vsw-picker" role="menu">
-            <div className="vsw-picker-hd">Set vessel status</div>
-            {STATES.map(s => {
-              const active = cur?.key === s.key;
-              return (
-                <button key={s.key} type="button" role="menuitem" className={`vsw-row${active ? ' cur' : ''}`} disabled={saving} onClick={() => setNow(s.key)}>
-                  <span className="vsw-row-ic"><Icon name={s.icon} className="vsw-ic18" /></span>
-                  <span className="vsw-row-text">
-                    <span className="vsw-row-label">{s.label}</span>
-                    <span className="vsw-row-note">{s.note}</span>
-                  </span>
-                  {active && <span className="vsw-row-check"><Icon name="Check" className="vsw-ic17" /></span>}
-                </button>
-              );
-            })}
-            <div className="vsw-picker-ft">
-              <button type="button" className="vsw-ft-link" onClick={() => { setOpen(false); setModal('log'); }}>Log a past period</button>
-              <button type="button" className="vsw-ft-link" onClick={() => { setOpen(false); setModal('history'); }}>
-                <Icon name="Clock" className="vsw-ic14" /> History
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {!loading && !cur && isCommand && <div className="vsw-hint">Set the vessel’s status — days count as sea time until you do.</div>}
+      {!isCommand && cur && <div className="vsw-hint vsw-hint-quiet">Set by the captain</div>}
+      {err && <div className="vsw-err">{err}</div>}
+
+      {open && isCommand && (
+        <div className="vsw-picker" role="menu">
+          <div className="vsw-picker-hd">Set vessel status</div>
+          {STATES.map(s => {
+            const active = cur?.key === s.key;
+            return (
+              <button key={s.key} type="button" role="menuitem" className={`vsw-row${active ? ' cur' : ''}`} disabled={saving} onClick={() => setNow(s.key)}>
+                <span className="vsw-row-ic"><Icon name={s.icon} className="vsw-ic18" /></span>
+                <span className="vsw-row-text">
+                  <span className="vsw-row-label">{s.label}</span>
+                  <span className="vsw-row-note">{s.note}</span>
+                </span>
+                {active && <span className="vsw-row-check"><Icon name="Check" className="vsw-ic17" /></span>}
+              </button>
+            );
+          })}
+          <div className="vsw-picker-ft">
+            <button type="button" className="vsw-ft-link" onClick={() => { setOpen(false); setModal('log'); }}>Log a past period</button>
+            <button type="button" className="vsw-ft-link" onClick={() => { setOpen(false); setModal('history'); }}>
+              <Icon name="Clock" className="vsw-ic14" /> History
+            </button>
+          </div>
+        </div>
+      )}
 
       {modal && createPortal(
         <VesselStatusModal
-          mode={modal}
-          tenantId={tenantId}
-          timeline={timeline}
+          mode={modal} tenantId={tenantId} timeline={timeline}
           onClose={() => setModal(null)}
           onSaved={async () => { setModal(null); await load(); }}
         />,

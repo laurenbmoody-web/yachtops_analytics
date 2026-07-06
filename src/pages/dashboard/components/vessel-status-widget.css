@@ -1,64 +1,51 @@
-/* Vessel status widget — compact, editorial. The card is the .ce-card frame;
-   these styles add the centred chip + masthead line, the picker dropdown, and
-   the portaled modal. Explicit hex so the portaled modal (rendered at <body>,
-   outside .cargo-editorial) is unaffected by the token scope. */
+/* Vessel status widget — boxless editorial masthead. The headline uses the
+   shared .ce-title / .accent classes (scoped under .cargo-editorial) so it
+   renders in real DM Serif Display and matches the other editorial headlines —
+   crucially this beats the global `span { font-family: Plus Jakarta }` rule that
+   was overriding an inherited font. These styles add the chip, the picker
+   dropdown and the portaled modal. Explicit hex on the modal (portaled to
+   <body>, outside .cargo-editorial). */
 
 :root { --vsw-navy: #14132C; --vsw-terra: #C65A1A; }
 
-.vsw { position: relative; }
-.vsw-center {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; text-align: center;
-  gap: 15px; padding: 24px 22px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-}
+.vsw { position: relative; padding: 6px 2px 2px; }
 
-/* ── Chip picker ─────────────────────────────────────────────────────────── */
+.vsw-head { display: flex; align-items: center; gap: 16px; }
+
+/* ── Chip picker (no chevron — the chip itself is the control) ────────────── */
 .vsw-chip {
-  position: relative; width: 54px; height: 54px; border-radius: 15px; border: 0;
+  position: relative; width: 46px; height: 46px; border-radius: 13px; border: 0; flex: 0 0 auto;
   background: var(--vsw-navy); color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 10px 22px -8px rgba(20, 19, 44, 0.6);
+  box-shadow: 0 8px 18px -8px rgba(20, 19, 44, 0.55);
   transition: box-shadow .15s ease, transform .12s ease;
 }
-.vsw-chip:hover { transform: translateY(-1px); }
-.vsw-chip.is-open { box-shadow: 0 0 0 4px #FAECE7, 0 10px 22px -8px rgba(20, 19, 44, 0.6); }
-.vsw-chip-static { cursor: default; box-shadow: 0 8px 18px -8px rgba(20, 19, 44, 0.5); }
-.vsw-chip-ic { width: 24px; height: 24px; }
-.vsw-chip-chev {
-  position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 50%;
-  background: #fff; border: 1px solid #ECEAE3; color: #1C1B3A;
-  display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(28, 27, 58, 0.12);
-}
-.vsw-chev { width: 12px; height: 12px; }
-.vsw-chip.is-open .vsw-chev { transform: rotate(180deg); }
+.vsw-chip:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -8px rgba(20, 19, 44, 0.6); }
+.vsw-chip.is-open { box-shadow: 0 0 0 4px #FAECE7, 0 8px 18px -8px rgba(20, 19, 44, 0.55); }
+.vsw-chip-static { cursor: default; }
+.vsw-chip-ic { width: 21px; height: 21px; }
 
-/* ── Masthead line ───────────────────────────────────────────────────────── */
-.vsw-line { font-family: 'DM Serif Display', Georgia, serif; font-style: italic; font-size: 24px; line-height: 1.15; }
-.vsw-st { text-transform: uppercase; letter-spacing: 0.5px; color: var(--vsw-navy); }
-.vsw-sep { color: var(--vsw-navy); }
-.vsw-dt { color: var(--vsw-terra); }
-.vsw-dt sup { font-size: 0.58em; }
-.vsw-muted { color: #AEB4C2; font-style: normal; text-transform: none; letter-spacing: 0; font-size: 18px; }
-.vsw-notset { color: var(--vsw-terra); }
+/* ── Masthead headline (two-tone serif via .ce-title / .accent) ──────────── */
+.cargo-editorial .vsw .vsw-title { font-size: 27px; line-height: 1.05; letter-spacing: 0.2px; }
+.vsw-title sup { font-size: 0.55em; }
+.cargo-editorial .vsw .vsw-notset { color: var(--vsw-terra); }
+.vsw-loading { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 15px; color: #AEB4C2; }
 
-.vsw-hint { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11.5px; color: #B14E16; margin-top: -4px; }
+.vsw-hint { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11.5px; color: #B14E16; margin: 10px 0 0 62px; }
 .vsw-hint-quiet { color: #A29C90; }
-.vsw-err { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; margin-top: 2px; }
+.vsw-err { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; margin: 10px 0 0; }
 
-/* ── Picker dropdown (anchored under the chip) ───────────────────────────── */
+/* ── Picker dropdown (anchored under the chip, left) ─────────────────────── */
 .vsw-picker {
-  position: absolute; top: 66px; left: 50%; transform: translateX(-50%);
-  width: 300px; max-width: calc(100% - 8px);
+  position: absolute; top: 58px; left: 0;
+  width: 300px; max-width: 100%;
   background: #fff; border: 1px solid #ECEAE3; border-radius: 14px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.34);
   padding: 6px; z-index: 40; text-align: left;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .vsw-picker-hd { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #A29C90; padding: 9px 11px 7px; }
-.vsw-row {
-  position: relative; display: flex; align-items: center; gap: 11px; width: 100%;
-  padding: 9px 11px; border: 0; background: transparent; border-radius: 9px; cursor: pointer; text-align: left;
-}
+.vsw-row { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 11px; border: 0; background: transparent; border-radius: 9px; cursor: pointer; text-align: left; }
 .vsw-row:hover:not(:disabled):not(.cur) { background: #FAFAF8; }
 .vsw-row:disabled { cursor: default; }
 .vsw-row.cur { background: #F4F4F8; cursor: default; }
@@ -77,17 +64,8 @@
 .vsw-ic16 { width: 16px; height: 16px; } .vsw-ic14 { width: 14px; height: 14px; } .vsw-ic12 { width: 12px; height: 12px; }
 
 /* ── Modal (portaled to <body>) ──────────────────────────────────────────── */
-.vsw-scrim {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(28, 27, 58, 0.42); backdrop-filter: blur(2px);
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-}
-.vsw-modal {
-  width: 440px; max-width: 100%; max-height: 90vh; overflow: auto;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
-  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); padding: 20px 22px 22px;
-}
+.vsw-scrim { position: fixed; inset: 0; z-index: 1000; background: rgba(28, 27, 58, 0.42); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 20px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+.vsw-modal { width: 440px; max-width: 100%; max-height: 90vh; overflow: auto; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); padding: 20px 22px 22px; }
 .vsw-modal-head { display: flex; align-items: flex-start; justify-content: space-between; }
 .vsw-modal-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #8B8478; margin: 0 0 4px; }
 .vsw-modal-eyebrow .dot { color: var(--vsw-terra); }
