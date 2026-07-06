@@ -822,6 +822,16 @@ const ProvisioningBoardDetail = () => {
   // ('confirmed' previously appeared here too — that's a supplier_orders value
   // leaked into a provisioning_lists check; always false. Removed in commit 3.)
   const isSent = list?.status === 'sent_to_supplier';
+  // Board has been through a quote confirmation (fully or partially). On
+  // such a board, any line carrying an applied quote price
+  // (quoted_unit_cost) is treated as confirmed — it locks the same way a
+  // supplier-confirmed line does (read-only, tinted, excluded from
+  // re-send), so the crew can't quietly re-edit or re-send it. This is the
+  // manual-quote equivalent of the supplier-portal 'confirmed' lock.
+  const boardConfirmedStage =
+    list?.status === 'partially_confirmed' || list?.status === 'confirmed';
+  const isQuoteConfirmed = (i) =>
+    boardConfirmedStage && i.quoted_unit_cost != null && Number(i.quoted_unit_cost) > 0;
   // Lookup keyed by lowered item name. Carries both the per-item
   // supplier-side state (status, substitution detail) AND a back-pointer
   // to the parent supplier_orders row — the parent's status (invoiced,
@@ -917,7 +927,7 @@ const ProvisioningBoardDetail = () => {
 
   // itemStatusMap must be declared before hasSendableItems and canDeleteItem
   const hasSendableItems = items
-    .filter(i => i.status !== 'received' && i.status !== 'unavailable' && i.name?.trim())
+    .filter(i => i.status !== 'received' && i.status !== 'unavailable' && !isQuoteConfirmed(i) && i.name?.trim())
     .some(i => {
       const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
       return !oi;
@@ -2023,7 +2033,7 @@ const ProvisioningBoardDetail = () => {
   };
 
   const handleSendToSupplier = () => {
-    const sendableItems = items.filter(i => i.status !== 'received' && i.status !== 'unavailable' && i.name?.trim());
+    const sendableItems = items.filter(i => i.status !== 'received' && i.status !== 'unavailable' && !isQuoteConfirmed(i) && i.name?.trim());
     if (sendableItems.length === 0) {
       showToast('Add items to the board before sending to a supplier.', 'warning');
       return;
@@ -2398,6 +2408,11 @@ const ProvisioningBoardDetail = () => {
   const hasManualQuote = !!list?.quote_file_url;
   const manualQuoteStage = hasManualQuote
     && list?.status !== PROVISIONING_STATUS.PENDING_APPROVAL
+    // Once the board is fully confirmed there's nothing left to confirm —
+    // hide the decision button. (A partially-confirmed board still shows
+    // it via isPartiallyConfirmed below, so the remaining lines can be
+    // finalised.)
+    && list?.status !== PROVISIONING_STATUS.CONFIRMED
     && !DELIVERED_STATES.includes(list?.status);
   // A part-confirmed board still has items waiting on a quote decision —
   // a multi-supplier split where one supplier's quote is already in /
@@ -3827,7 +3842,10 @@ const ProvisioningBoardDetail = () => {
                         // the note-pencil affordance on locked rows).
                         const supplierActed = itemOrder
                           && ['confirmed', 'substituted', 'unavailable'].includes(itemOrder.status);
-                        const isLocked = (isSent && !!itemOrder) || supplierActed;
+                        // Manual quote-confirmed line — locked like a
+                        // supplier-confirmed one (see isQuoteConfirmed).
+                        const quoteConfirmed = isQuoteConfirmed(item);
+                        const isLocked = (isSent && !!itemOrder) || supplierActed || quoteConfirmed;
                         // The crew lives at quote_in / quoting / confirming for
                         // most of the order's life — the board-level "sent"
                         // flag only flips after Receive Items. So we use the
@@ -3846,7 +3864,13 @@ const ProvisioningBoardDetail = () => {
                         // Unified pill: derive across (item, supplier_order_item,
                         // supplier_order). Single source of truth — no SUPPLIER_BADGE
                         // swap, no displayBadge fork.
-                        const derived = deriveDisplayStatus(item, itemOrder, itemOrder?.parentOrder);
+                        let derived = deriveDisplayStatus(item, itemOrder, itemOrder?.parentOrder);
+                        // A manual quote-confirmed line reads as 'confirmed'
+                        // (green) even without a supplier order — otherwise a
+                        // locked line would still show a grey 'draft' dot.
+                        if (quoteConfirmed && (derived === 'draft' || derived === 'ordered')) {
+                          derived = 'confirmed';
+                        }
                         const derivedCfg = getItemStatusConfig(derived);
                         const badge = { ...derivedCfg.badge, label: derivedCfg.label };
 
@@ -4138,7 +4162,9 @@ const ProvisioningBoardDetail = () => {
                                   unavailable, or the order's been sent). */}
                               {isLocked && (
                                 <span
-                                  title="Locked — the supplier has committed to this line. Add a note to request a change."
+                                  title={supplierActed
+                                    ? 'Locked — the supplier has committed to this line. Add a note to request a change.'
+                                    : 'Locked — this line is quote-confirmed. It can’t be edited or re-sent.'}
                                   style={{ display: 'inline-flex', color: '#AEB4C2' }}
                                 >
                                   <Icon name="Lock" style={{ width: 11, height: 11 }} />
@@ -5266,7 +5292,7 @@ const ProvisioningBoardDetail = () => {
           tenantId={activeTenantId}
           listId={id}
           items={items
-            .filter(i => i.status !== 'received' && i.status !== 'unavailable' && i.name?.trim())
+            .filter(i => i.status !== 'received' && i.status !== 'unavailable' && !isQuoteConfirmed(i) && i.name?.trim())
             .filter(i => {
               const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
               return !oi;
