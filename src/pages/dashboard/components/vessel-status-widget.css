@@ -95,10 +95,10 @@
 .vsw-state-label { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .vsw-state-note { font-size: 11px; color: #8B8478; }
 .vsw-dates { display: flex; gap: 10px; margin-bottom: 16px; }
-.vsw-dates label { flex: 1; display: flex; flex-direction: column; gap: 5px; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
-.vsw-dates input, .vsw-input { border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; color: #1C1B3A; background: #FAFAF8; font-family: inherit; width: 100%; }
-.vsw-input { text-transform: none; letter-spacing: normal; font-weight: 400; }
-.vsw-dates input:focus, .vsw-input:focus { outline: none; border-color: var(--vsw-terra); box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.vsw-dates label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.vsw-dates .edp { width: 100%; }
+.vsw-input { border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; color: #1C1B3A; background: #FAFAF8; font-family: inherit; width: 100%; text-transform: none; letter-spacing: normal; font-weight: 400; }
+.vsw-input:focus { outline: none; border-color: var(--vsw-terra); box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
 .vsw-primary { margin-top: 16px; width: 100%; background: var(--vsw-terra); color: #fff; border: 0; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .vsw-primary:hover { background: #B14E16; }
 .vsw-primary:disabled { opacity: .6; cursor: default; }
