@@ -449,6 +449,38 @@ export const fetchCommittedQuantities = async (supplierId) => {
   }
 };
 
+// ─── Picking (Phase 3) ───────────────────────────────────────────────────────
+
+/**
+ * Order lines for the pick list, with the linked catalogue row embedded
+ * (barcode for scan-to-pick, photo + pack semantics for the picker UI).
+ */
+export const fetchOrderItemsForPicking = async (orderId) => {
+  const { data, error } = await supabase
+    .from('supplier_order_items')
+    .select('*, catalogue:supplier_catalogue_items(id, barcode, image_url, pack_size, pack_unit, unit_size, category)')
+    .eq('order_id', orderId)
+    .order('item_name', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+};
+
+/** Record what actually came off the shelf. pickedQty null = un-pick. */
+export const setItemPicked = async (itemId, pickedQty, note = null) => {
+  const { data, error } = await supabase
+    .from('supplier_order_items')
+    .update({
+      picked_qty: pickedQty,
+      picked_at: pickedQty != null ? new Date().toISOString() : null,
+      pick_note: note,
+    })
+    .eq('id', itemId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
 // Upload a product photo to the public `catalogue-images` bucket and write
 // the public URL onto the catalogue row. Same pattern as uploadSupplierLogo.
 export const uploadCatalogueImage = async (supplierId, itemId, file) => {
