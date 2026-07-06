@@ -8,6 +8,7 @@
 // format the row declares (ply/spz/… — never assumes SPZ). scan_hotspots
 // render as layer-coloured pins; the layer chip row filters them.
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -16,6 +17,7 @@ import SplatViewer from './components/SplatViewer';
 import HotspotModal from './components/HotspotModal';
 import ToolRail from './components/ToolRail';
 import Inspector from './components/Inspector';
+import OrientPanel from './components/OrientPanel';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel } from './layers';
 import '../../styles/editorial.css';
@@ -53,6 +55,7 @@ const useIsDesktop = () => {
 };
 
 export default function VesselMapPage() {
+  const navigate = useNavigate();
   const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
   const userTier = (tenantRole || '').toUpperCase();
@@ -282,24 +285,10 @@ export default function VesselMapPage() {
   }, { enabled: isDesktop });
 
   // ── Orient scan (COMMAND/CHIEF): rotate-90° per axis, live re-frame, save.
-  // Tuning orientation by SQL stops today.
-  const HALF_PI = Math.PI / 2;
-  const norm = (rad) => {
-    const twoPi = Math.PI * 2;
-    let r = rad % twoPi;
-    if (r > Math.PI) r -= twoPi;
-    if (r < -Math.PI + 1e-9) r += twoPi;
-    return +r.toFixed(6);
-  };
+  // Tuning orientation by SQL stops today. Controls live in OrientPanel
+  // (shared with the manage surface's post-upload step).
   const baseRotation = selectedScan?.splat_rotation || { x: 0, y: 0, z: 0 };
   const liveRotation = orientDraft ?? baseRotation;
-  const rotateAxis = (axis, dir) => {
-    setOrientError(null);
-    setOrientDraft((prev) => {
-      const cur = prev ?? { x: Number(baseRotation.x) || 0, y: Number(baseRotation.y) || 0, z: Number(baseRotation.z) || 0 };
-      return { ...cur, [axis]: norm((cur[axis] || 0) + dir * HALF_PI) };
-    });
-  };
   const saveOrientation = async () => {
     if (!orientDraft || orientSaving) return;
     setOrientSaving(true);
@@ -447,6 +436,12 @@ export default function VesselMapPage() {
                 <div className="vm-layer-chips">{layerChips('')}</div>
 
                 {canPlaceHotspots && (
+                  <button className="vm-btn-ghost vm-toolbar-manage" onClick={() => navigate('/vessel/map/manage')}>
+                    Manage scans
+                  </button>
+                )}
+
+                {canPlaceHotspots && (
                   placementMode ? (
                     <div className="vm-place-controls">
                       <span className="vm-place-hint">
@@ -544,27 +539,22 @@ export default function VesselMapPage() {
                       Orient scan
                     </button>
                   ) : (
-                    <div className="vm-orient-panel">
-                      <p className="vm-orient-eyebrow">Orient scan</p>
-                      {['x', 'y', 'z'].map((axis) => (
-                        <div key={axis} className="vm-orient-row">
-                          <span className="vm-orient-axis">{axis.toUpperCase()}</span>
-                          <button className="vm-orient-step" onClick={() => rotateAxis(axis, -1)} aria-label={`Rotate ${axis} -90°`}>−90°</button>
-                          <span className="vm-orient-val">{Math.round((liveRotation[axis] || 0) * 180 / Math.PI)}°</span>
-                          <button className="vm-orient-step" onClick={() => rotateAxis(axis, 1)} aria-label={`Rotate ${axis} +90°`}>+90°</button>
-                        </div>
-                      ))}
-                      {orientError && <p className="vm-orient-error">{orientError}</p>}
-                      <div className="vm-orient-actions">
-                        <button className="vm-btn-primary vm-orient-save" onClick={saveOrientation} disabled={orientSaving}>
-                          {orientSaving ? 'Saving…' : 'Save'}
-                        </button>
-                        <button className="vm-btn-ghost vm-orient-cancel" onClick={cancelOrientation} disabled={orientSaving}>
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
+                    <OrientPanel
+                      value={liveRotation}
+                      onChange={(next) => { setOrientError(null); setOrientDraft(next); }}
+                      onSave={saveOrientation}
+                      onCancel={cancelOrientation}
+                      saving={orientSaving}
+                      error={orientError}
+                    />
                   )
+                )}
+
+                {/* Back-of-house — quiet, near the scan chrome. */}
+                {canPlaceHotspots && (
+                  <button className="vm-manage-link" onClick={() => navigate('/vessel/map/manage')}>
+                    Manage scans
+                  </button>
                 )}
 
                 {/* ≥1024px: the inspector replaces the floating card. */}
