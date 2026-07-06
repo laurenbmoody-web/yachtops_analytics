@@ -19,9 +19,15 @@ reliably because it can wait for and retry them.
 1. In Cargo, open the crew member's **Hand your record to PYA** step and click
    **Copy for PYA** on the captain's record.
 2. Go to the PYA `.../sst-request/create` page.
-3. Click the floating **⚓ Fill from Cargo** button (bottom-right).
+3. Trigger the fill either way:
+   - click the floating **⚓ Fill from Cargo** button (bottom-right of the page), **or**
+   - click the **Cargo → PYA** icon in the Chrome toolbar.
 4. It fills the form and shows a toast + a console summary of what filled and what
    to finish by hand. **Nothing is submitted** — always review before you submit.
+
+If nothing happens, open the Console (View ▸ Developer ▸ JavaScript Console) and
+look for a green `[Cargo→PYA] extension active` line — that confirms the script is
+running on the page.
 
 ## Updating
 
