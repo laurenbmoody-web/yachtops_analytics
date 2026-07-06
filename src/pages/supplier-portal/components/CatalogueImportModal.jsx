@@ -2,9 +2,9 @@ import React, { useRef, useState } from 'react';
 import { X, UploadCloud, FileSpreadsheet, FileText, Image as ImageIcon, Sparkles, AlertTriangle, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import { bulkCreateCatalogueItems } from '../utils/supplierStorage';
+import { STANDARD_CATEGORIES, orderCategories } from '../../../utils/catalogueConstants';
 import './catalogue-import.css';
 
-const CATEGORIES = ['Produce', 'Meat & Fish', 'Dairy', 'Beverages', 'Dry Goods', 'Frozen', 'Cleaning', 'Other'];
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF'];
 
 // Minimal CSV parser that survives quoted fields and embedded commas.
@@ -139,12 +139,16 @@ const CatalogueImportModal = ({ supplierId, existingItems, onImported, onClose }
   const allSelected = selectedCount === rows.length;
 
   const handleImport = async () => {
+    const num = (v) => (v != null && v !== '' ? parseFloat(v) : null);
     const toInsert = rows.filter(r => r.include).map(({ include, duplicate, ...item }) => ({
       ...item,
       name: item.name.trim(),
-      unit_price: item.unit_price != null && item.unit_price !== '' ? parseFloat(item.unit_price) : null,
-      stock_qty: item.stock_qty != null && item.stock_qty !== '' ? parseFloat(item.stock_qty) : null,
-      pack_size: item.pack_size != null && item.pack_size !== '' ? parseFloat(item.pack_size) : null,
+      category: (item.category || '').trim() || 'Other',
+      unit_price: num(item.unit_price),
+      stock_qty: num(item.stock_qty),
+      pack_size: num(item.pack_size),
+      lead_time_days: item.lead_time_days != null && item.lead_time_days !== '' ? parseInt(item.lead_time_days, 10) : null,
+      min_order_qty: num(item.min_order_qty),
       in_stock: true,
     }));
     if (!toInsert.length) return;
@@ -220,6 +224,13 @@ const CatalogueImportModal = ({ supplierId, existingItems, onImported, onClose }
 
         {step === 'review' && (
           <>
+            <datalist id="cim-category-suggestions">
+              {orderCategories(Array.from(new Set([
+                ...STANDARD_CATEGORIES,
+                ...(existingItems || []).map(i => i.category).filter(Boolean),
+                ...rows.map(r => r.category).filter(Boolean),
+              ]))).map(c => <option key={c} value={c} />)}
+            </datalist>
             <div className="cim-review-bar">
               <label className="cim-checkline">
                 <input
@@ -270,9 +281,12 @@ const CatalogueImportModal = ({ supplierId, existingItems, onImported, onClose }
                         </div>
                       </td>
                       <td>
-                        <select className="cim-cell-input" value={r.category} onChange={(e) => setRow(idx, { category: e.target.value })}>
-                          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                        <input
+                          className="cim-cell-input"
+                          list="cim-category-suggestions"
+                          value={r.category ?? ''}
+                          onChange={(e) => setRow(idx, { category: e.target.value })}
+                        />
                       </td>
                       <td>
                         <input className="cim-cell-input sm" value={r.unit ?? ''} onChange={(e) => setRow(idx, { unit: e.target.value })} />
