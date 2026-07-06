@@ -53,22 +53,45 @@ function pyaFiller() {
       for (var i = 0; i < ls.length; i++) { var inp = containerInput(ls[i]); if (inp) { setNative(inp, String(val)); ok.push(label); return; } }
       miss.push(label);
     }
-    function clickText(text, name) {
+    // Select a radio/checkbox by its visible option text. The option label often
+    // wraps the control (e.g. <label><span class=circle/>Chief Mate</label>), so
+    // matching only childless leaves misses it — match a whole <label>/role node
+    // and click the real input inside (or the node itself).
+    function clickOption(text, name) {
       var t = norm(text);
-      var els = Array.prototype.slice.call(document.querySelectorAll('label,button,span,div,li,p'));
-      for (var i = 0; i < els.length; i++) {
-        var el = els[i];
-        if (el.children.length <= 1 && norm(el.textContent) === t) {
-          ((el.querySelector && el.querySelector('input')) || el).click();
+      // 1) a <label> whose text matches → its wrapped input, or the input it's `for`
+      var labels = document.querySelectorAll('label');
+      for (var i = 0; i < labels.length; i++) {
+        if (norm(labels[i].textContent) === t) {
+          var inp = labels[i].querySelector('input[type=radio],input[type=checkbox]');
+          if (!inp && labels[i].htmlFor) inp = document.getElementById(labels[i].htmlFor);
+          (inp || labels[i]).click();
           ok.push(name || text); return true;
         }
+      }
+      // 2) an ARIA radio/checkbox/option with matching text
+      var roles = document.querySelectorAll('[role=radio],[role=checkbox],[role=option],[role=menuitemradio]');
+      for (var i = 0; i < roles.length; i++) {
+        if (norm(roles[i].textContent) === t) { roles[i].click(); ok.push(name || text); return true; }
+      }
+      // 3) any element whose text matches → walk up to a radio/checkbox input, else click it
+      var all = document.querySelectorAll('button,div,span,li,p,a');
+      for (var i = 0; i < all.length; i++) {
+        if (norm(all[i].textContent) !== t) continue;
+        var scope = all[i];
+        for (var up = 0; up < 4 && scope; up++) {
+          var input = scope.querySelector && scope.querySelector('input[type=radio],input[type=checkbox]');
+          if (input) { input.click(); ok.push(name || text); return true; }
+          scope = scope.parentElement;
+        }
+        all[i].click(); ok.push(name || text); return true;
       }
       miss.push(name || text); return false;
     }
 
-    (data.radios || []).forEach(function (r) { clickText(r.label, r.label); });
-    if (data.capacity) clickText(data.capacity, 'Capacity: ' + data.capacity);
-    if (data.vesselType) clickText(data.vesselType, 'Vessel type: ' + data.vesselType);
+    (data.radios || []).forEach(function (r) { clickOption(r.label, r.label); });
+    if (data.capacity) clickOption(data.capacity, 'Capacity: ' + data.capacity);
+    if (data.vesselType) clickOption(data.vesselType, 'Vessel type: ' + data.vesselType);
     Object.keys(data.text || {}).forEach(function (k) { fillText(k, data.text[k]); });
     Object.keys(data.service || {}).forEach(function (k) { fillText(k, data.service[k]); });
     if (data.signatoryEmail) fillText('Signatory Email', data.signatoryEmail);
