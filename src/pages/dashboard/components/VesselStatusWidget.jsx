@@ -1,10 +1,9 @@
-// Vessel status — a first-class dashboard widget (matches the editorial card
-// system: eyebrow + DM Serif noun title + hero icon + clean rows, no pills).
-// It's the master's vessel-wide record of what the vessel is doing, which is the
-// first source of truth for how each crew member's sea-service day is classified.
-// Command taps a row to set the current status; a portaled modal logs a known
-// past period (a refit, a long port stay) and shows the history. Crew see it
-// read-only.
+// Vessel status — a thin, single-row dashboard widget. It's the master's
+// vessel-wide record of what the vessel is doing, the first source of truth for
+// how each crew member's sea-service day is classified. Command taps a state
+// icon to set the current status (one tap, from today); a "…" opens a modal to
+// log a known past period or view the history. Crew see it read-only.
+// Monochrome — the state is carried by the icon + word, not colour.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,20 +12,17 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { fetchVesselStatusTimeline, setVesselStatus } from '../../crew-profile/utils/seaTimeService';
 import './vessel-status-widget.css';
 
-// Calm, low-saturation tints (shared with the sea-time service-type palette) so
-// the four states read as a family; terracotta stays reserved as the one accent.
 const STATES = [
-  { key: 'UNDERWAY', label: 'Underway',  icon: 'Waves',     note: 'Counts as sea time', ink: '#2F6080', bg: '#E8EFF4' },
-  { key: 'ANCHOR',   label: 'At anchor', icon: 'Anchor',    note: 'Counts as standby',  ink: '#A6712C', bg: '#F5ECDA' },
-  { key: 'IN_PORT',  label: 'In port',   icon: 'Building2', note: 'Counts as standby',  ink: '#4F5D8A', bg: '#ECEEF6' },
-  { key: 'IN_YARD',  label: 'In yard',   icon: 'Wrench',    note: 'Counts as yard time', ink: '#6E665C', bg: '#F1EFEA' },
+  { key: 'UNDERWAY', label: 'Underway',  icon: 'Compass',     note: 'counts as sea time' },
+  { key: 'ANCHOR',   label: 'At anchor', icon: 'Anchor',      note: 'counts as standby' },
+  { key: 'IN_PORT',  label: 'In port',   icon: 'WavesLadder', note: 'counts as standby' },
+  { key: 'IN_YARD',  label: 'In yard',   icon: 'Wrench',      note: 'counts as yard time' },
 ];
 const byKey = Object.fromEntries(STATES.map(s => [s.key, s]));
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const fmtUk = (iso) => { if (!iso) return ''; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : String(iso); };
 
-// Surface the RPC's lock/permission messages; generic fallback otherwise.
 const friendly = (e) => {
   const msg = e?.message || e?.error_description || '';
   if (/signed-off|locked/i.test(msg)) return msg.replace(/^.*?:\s*/, '');
@@ -69,61 +65,58 @@ const VesselStatusWidget = ({ tenantId }) => {
   if (!tenantId) return null;
 
   return (
-    <div className="ce-card rounded-xl p-5 vsw">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <p className="ce-eyebrow"><span className="dot">●</span> VESSEL · STATUS</p>
-          <h3 className="ce-title">{loading ? 'Loading…' : cur ? cur.label : 'Not set'}</h3>
-          {!loading && (
-            <p className={`ce-status${cur ? '' : ' is-attention'}`}>
-              {cur
-                ? (current.effective_to ? `Until ${fmtUk(current.effective_to)}` : `Since ${fmtUk(current.effective_from)}`)
-                : 'Days count as sea time until you set this'}
-            </p>
+    <div className="ce-card vsw-bar">
+      <div className="vsw-bar-row">
+        <span className="vsw-eyebrow">Vessel<br />status</span>
+        <span className="vsw-cur">
+          {loading ? (
+            <span className="vsw-cur-muted">Loading…</span>
+          ) : cur ? (
+            <>
+              <Icon name={cur.icon} className="vsw-cur-ico" />
+              <b>{cur.label}</b>
+              <span className="vsw-since">· since {fmtUk(current.effective_from)}</span>
+            </>
+          ) : (
+            <>
+              <Icon name="Ship" className="vsw-cur-ico vsw-cur-off" />
+              <b className="vsw-cur-off">Not set</b>
+              <span className="vsw-since vsw-cur-off">· days count as sea time</span>
+            </>
           )}
-        </div>
-        <div className="vsw-hero" style={{ background: cur?.bg || '#F1EFEA', color: cur?.ink || '#AEB4C2' }}>
-          <Icon name={cur ? cur.icon : 'HelpCircle'} className="w-6 h-6" />
-        </div>
-      </div>
+        </span>
 
-      {isCommand ? (
-        <>
-          <p className="vsw-label">Set the current status</p>
-          <div className="vsw-rows">
+        {isCommand && (
+          <div className="vsw-switch">
             {STATES.map(s => {
               const active = cur?.key === s.key;
               const saving = savingKey === s.key;
               return (
-                <button
-                  key={s.key}
-                  type="button"
-                  disabled={!!savingKey || active}
-                  className={`vsw-row${active ? ' is-active' : ''}`}
-                  onClick={() => setNow(s.key)}
-                >
-                  <span className="vsw-row-ico" style={{ background: s.bg, color: s.ink }}><Icon name={s.icon} className="w-4 h-4" /></span>
-                  <span className="vsw-row-text">
-                    <span className="vsw-row-label">{s.label}</span>
-                    <span className="vsw-row-note">{s.note}</span>
-                  </span>
-                  {saving ? <Icon name="Loader2" className="w-4 h-4 vsw-spin" />
-                    : active ? <span className="vsw-row-now">Now</span> : <Icon name="ChevronRight" className="w-4 h-4 vsw-row-go" />}
-                </button>
+                <span className="vsw-tipwrap" key={s.key}>
+                  <button
+                    type="button"
+                    className={`vsw-sw${active ? ' on' : ''}`}
+                    disabled={!!savingKey || active}
+                    onClick={() => setNow(s.key)}
+                    aria-label={s.label}
+                  >
+                    <Icon name={saving ? 'Loader2' : s.icon} className={`vsw-sw-ico${saving ? ' vsw-spin' : ''}`} />
+                  </button>
+                  <span className="vsw-tip">{s.label} · {s.note}</span>
+                </span>
               );
             })}
+            <span className="vsw-sep" />
+            <span className="vsw-tipwrap">
+              <button type="button" className="vsw-sw vsw-more" onClick={() => setModal('log')} aria-label="Log a past period or view history">
+                <Icon name="MoreHorizontal" className="vsw-sw-ico" />
+              </button>
+              <span className="vsw-tip vsw-tip-r">Log a past period · history</span>
+            </span>
           </div>
-          {err && <p className="vsw-err">{err}</p>}
-          <div className="vsw-links">
-            <button type="button" className="ce-link" onClick={() => setModal('log')}>Log a past period</button>
-            {timeline.length > 0 && <button type="button" className="ce-link" onClick={() => setModal('history')}>History</button>}
-          </div>
-        </>
-      ) : (
-        <p className="vsw-readonly">
-          {cur ? 'Set by the captain — this is what the vessel was doing on each service day.' : 'The captain hasn’t set the vessel status yet.'}
-        </p>
-      )}
+        )}
+      </div>
+      {err && <div className="vsw-bar-err">{err}</div>}
 
       {modal && createPortal(
         <VesselStatusModal
@@ -187,9 +180,8 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
                 const on = form.status === s.key;
                 return (
                   <button key={s.key} type="button" className={`vsw-state-opt${on ? ' on' : ''}`}
-                    style={on ? { borderColor: s.ink, background: s.bg } : undefined}
                     onClick={() => setForm(f => ({ ...f, status: s.key }))}>
-                    <span className="vsw-state-ico" style={{ color: s.ink }}><Icon name={s.icon} className="w-4 h-4" /></span>
+                    <span className="vsw-state-ico"><Icon name={s.icon} className="w-4 h-4" /></span>
                     <span className="vsw-state-label">{s.label}</span>
                     <span className="vsw-state-note">{s.note}</span>
                   </button>
@@ -219,7 +211,7 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
                   const s = byKey[p.status] || {};
                   return (
                     <div key={p.id} className="vsw-tl-row">
-                      <span className="vsw-tl-ico" style={{ background: s.bg || '#F1EFEA', color: s.ink || '#8B8478' }}><Icon name={s.icon || 'Circle'} className="w-4 h-4" /></span>
+                      <span className="vsw-tl-ico"><Icon name={s.icon || 'Circle'} className="w-4 h-4" /></span>
                       <span className="vsw-tl-main">
                         <span className="vsw-tl-label">{s.label || p.status}</span>
                         <span className="vsw-tl-dates">{fmtUk(p.effective_from)} – {p.effective_to ? fmtUk(p.effective_to) : 'now'}{p.set_by_name ? ` · ${p.set_by_name}` : ''}</span>
