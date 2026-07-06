@@ -37,6 +37,10 @@ export const mapCapacity = (cap) => {
 /** Sail vs motor for the PYA "Vessel Type" radio. */
 export const mapVesselType = (t) => (/sail/i.test(String(t || '')) ? 'Sail Yacht' : 'Motor Yacht');
 
+/** Drop a vessel-type prefix (M/Y, S/Y, MV, …) from the name — PYA captures
+ *  sail-vs-motor in its own Vessel Type selector, so the Name field is bare. */
+export const cleanVesselName = (name) => String(name || '').replace(/^\s*(m\/y|s\/y|m\/v|s\/v|my|sy|mv|sv)\.?\s+/i, '').trim();
+
 // Free-text cruising region(s) → PYA's exact "areas cruised" checkbox labels.
 // Coarse by design (a vessel's region is usually broad) — the user can tick/untick
 // after; better to seed the obvious ones than leave them all blank.
@@ -85,7 +89,7 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
   const atSea = round(t.seagoing) + round(t.watchkeeping);
 
   const text = {};
-  if (v.name) text['Name'] = v.name;
+  if (v.name) text['Name'] = cleanVesselName(v.name);
   if (v.imo) text['IMO'] = String(v.imo);
   if (v.officialNumber) text['Official Number'] = String(v.officialNumber);
   if (v.grossTonnage != null) text['Gross tonnage (GT)'] = String(round(v.grossTonnage));
