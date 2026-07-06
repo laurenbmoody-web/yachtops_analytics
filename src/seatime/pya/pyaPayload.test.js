@@ -20,15 +20,16 @@ test('Actual days at Sea = seagoing + watchkeeping; watchkeeping is the subset',
   assert.equal(p.service['Shipyard Service'], 16);
 });
 
-test('propulsion fills when supplied; type-of-engine is always manual', () => {
+test('propulsion + engine type fill when supplied, else manual', () => {
   const bare = buildPyaPayload({ dataset });
   assert.ok(!('Propulsion power (kW)' in bare.text));
   assert.ok(bare.manual.includes('Propulsion power (kW)'));
   assert.ok(bare.manual.includes('Type of Main Engine'));
-  const p = buildPyaPayload({ dataset, propulsionKw: 2400 });
+  const p = buildPyaPayload({ dataset, propulsionKw: 2400, engineType: '2 x MTU 16V 2000 M96' });
   assert.equal(p.text['Propulsion power (kW)'], '2400');
+  assert.equal(p.text['Type of Main Engine'], '2 x MTU 16V 2000 M96');
   assert.ok(!p.manual.includes('Propulsion power (kW)'));
-  assert.ok(p.manual.includes('Type of Main Engine'));   // no data source — still manual
+  assert.ok(!p.manual.includes('Type of Main Engine'));
 });
 
 test('optional boxes only appear when supplied', () => {
