@@ -606,9 +606,50 @@ export default function ManageScans() {
       {guideOpen && createPortal(
         <div className={`vmm-gd-overlay${guideClosing ? ' vmm-gd-leaving' : ''}`} onClick={closeGuide}>
           <aside className="vmm-gd-sheet" role="dialog" aria-label="Capture guide" onClick={(e) => e.stopPropagation()}>
-            <button className="vmm-gd-x" onClick={closeGuide} aria-label="Close guide">×</button>
-            <p className="vmm-gd-eyebrow">Capture guide</p>
-            <h2 className="vmm-gd-title">Get a room aboard.</h2>
+            <div className="vmm-gd-hero">
+              <button className="vmm-gd-x" onClick={closeGuide} aria-label="Close guide">×</button>
+              {/* Splat-cloud motif — the product's own material as ornament. */}
+              <svg className="vmm-gd-cloud" viewBox="0 0 220 150" aria-hidden="true">
+                <g fill="#C65A1A">
+                  <circle cx="176" cy="22" r="2.6" opacity="0.9" />
+                  <circle cx="188" cy="34" r="1.8" opacity="0.55" />
+                  <circle cx="163" cy="35" r="2.2" opacity="0.75" />
+                  <circle cx="197" cy="21" r="1.4" opacity="0.4" />
+                  <circle cx="150" cy="24" r="1.6" opacity="0.5" />
+                  <circle cx="171" cy="49" r="2.4" opacity="0.8" />
+                  <circle cx="186" cy="58" r="1.5" opacity="0.45" />
+                  <circle cx="157" cy="60" r="1.9" opacity="0.6" />
+                  <circle cx="199" cy="47" r="2.1" opacity="0.65" />
+                  <circle cx="143" cy="44" r="1.3" opacity="0.35" />
+                  <circle cx="178" cy="72" r="1.7" opacity="0.5" />
+                  <circle cx="162" cy="82" r="1.4" opacity="0.35" />
+                  <circle cx="193" cy="79" r="1.9" opacity="0.55" />
+                  <circle cx="148" cy="73" r="1.2" opacity="0.3" />
+                  <circle cx="205" cy="65" r="1.3" opacity="0.4" />
+                  <circle cx="170" cy="96" r="1.3" opacity="0.3" />
+                  <circle cx="188" cy="99" r="1.5" opacity="0.35" />
+                  <circle cx="203" cy="90" r="1.1" opacity="0.25" />
+                  <circle cx="155" cy="99" r="1" opacity="0.2" />
+                  <circle cx="180" cy="115" r="1.2" opacity="0.22" />
+                  <circle cx="198" cy="112" r="1" opacity="0.18" />
+                </g>
+                <g fill="#8FA0C6">
+                  <circle cx="168" cy="12" r="1.4" opacity="0.5" />
+                  <circle cx="184" cy="10" r="1.1" opacity="0.35" />
+                  <circle cx="152" cy="12" r="1" opacity="0.3" />
+                  <circle cx="205" cy="33" r="1.2" opacity="0.35" />
+                  <circle cx="137" cy="33" r="1.1" opacity="0.25" />
+                  <circle cx="210" cy="54" r="1" opacity="0.3" />
+                  <circle cx="140" cy="58" r="0.9" opacity="0.2" />
+                  <circle cx="165" cy="68" r="1.1" opacity="0.3" />
+                  <circle cx="152" cy="88" r="0.9" opacity="0.2" />
+                  <circle cx="211" cy="78" r="0.9" opacity="0.22" />
+                </g>
+              </svg>
+              <p className="vmm-gd-eyebrow">Capture guide</p>
+              <h2 className="vmm-gd-title">Get a room aboard.</h2>
+              <p className="vmm-gd-lede">Ten minutes with the phone in your pocket — no kit, no training.</p>
+            </div>
             <ol className="vmm-gd-steps">
               <li>
                 <span className="vmm-gd-num">1</span>
