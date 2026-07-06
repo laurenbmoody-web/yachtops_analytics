@@ -222,12 +222,76 @@ const V4 = () => {
   );
 };
 
+/* ── V5 · Coverflow — the fleet as a scrollable carousel: centre room
+      prominent, neighbours collapsed behind with perspective ─────────────── */
+
+const V5 = () => {
+  const [idx, setIdx] = useState(2);
+  const go = (next) => setIdx(Math.max(0, Math.min(ROOMS.length - 1, next)));
+  const active = ROOMS[idx];
+  const wheelLock = React.useRef(0);
+  const onWheel = (e) => {
+    const now = performance.now();
+    if (now - wheelLock.current < 320) return; // one step per gesture beat
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(d) < 8) return;
+    wheelLock.current = now;
+    go(idx + (d > 0 ? 1 : -1));
+  };
+  return (
+    <section className="lm5" onWheel={onWheel}>
+      <div className="lm5-stage" role="listbox" aria-label="Scans aboard">
+        {ROOMS.map((r, i) => {
+          const o = i - idx;
+          if (Math.abs(o) > 3) return null;
+          return (
+            <button
+              key={r.id}
+              role="option"
+              aria-selected={o === 0}
+              className={`lm5-card${o === 0 ? ' lm5-centre' : ''}`}
+              style={{
+                transform: `translateX(${o * 215}px) translateZ(${-Math.abs(o) * 170}px) rotateY(${o === 0 ? 0 : o > 0 ? -26 : 26}deg)`,
+                zIndex: 100 - Math.abs(o),
+                opacity: Math.abs(o) === 3 ? 0.25 : 1,
+              }}
+              onClick={() => go(i)}
+              tabIndex={o === 0 ? 0 : -1}
+            >
+              <Poster room={r} className="lm5-poster" />
+              <span className="lm5-deck-chip">{r.deck}</span>
+              {o === 0 && <span className="lm5-shine" />}
+            </button>
+          );
+        })}
+        <button className="lm5-arrow lm5-prev" onClick={() => go(idx - 1)} disabled={idx === 0} aria-label="Previous scan">‹</button>
+        <button className="lm5-arrow lm5-next" onClick={() => go(idx + 1)} disabled={idx === ROOMS.length - 1} aria-label="Next scan">›</button>
+      </div>
+      <div className="lm5-caption">
+        <h3 className="lm5-name">{active.name}</h3>
+        <p className="lm5-meta">{active.deck} · {active.size} · {active.format} · {active.pins} pins · added {active.added}</p>
+        <div className="lm5-actions">
+          <button className="vm-btn-primary vmm-btn-sm">View on map</button>
+          <button className="vmc-action">Edit</button>
+          <button className="vmc-action">Replace file</button>
+          <button className="vmc-action vmc-action-danger">Delete</button>
+        </div>
+      </div>
+      <div className="lm5-dots" aria-hidden="true">
+        {ROOMS.map((r, i) => (
+          <button key={r.id} className={`lm5-dot${i === idx ? ' lm5-dot-on' : ''}`} onClick={() => go(i)} />
+        ))}
+      </div>
+    </section>
+  );
+};
+
 export default function LibMocks() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const v = params.get('v') || '1';
   const scheme = params.get('c') || 'd';
-  const V = { 1: V1, 2: V2, 3: V3, 4: V4 }[v] || V1;
+  const V = { 1: V1, 2: V2, 3: V3, 4: V4, 5: V5 }[v] || V1;
   return (
     <Shell navigate={navigate}>
       <div className={`lm-root lm-v${v}`}>
