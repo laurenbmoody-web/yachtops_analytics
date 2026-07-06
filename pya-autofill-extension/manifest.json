@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Cargo → PYA Autofill",
+  "version": "1.0.0",
+  "description": "Fills the PYA Sea Service Testimonial (SST) form from a crew member's Cargo record.",
+  "permissions": ["clipboardRead"],
+  "host_permissions": ["https://member.pya.org/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://member.pya.org/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
