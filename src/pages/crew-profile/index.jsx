@@ -1039,16 +1039,24 @@ const canEdit = (() => {
         quiet_enabled: false,
         quiet_from: '22:00',
         quiet_to: '07:00',
+        quiet_tz: 'UTC',
       });
     })();
     return () => { cancelled = true; };
   }, [activeSection, isOwnProfile, notifPrefs, session?.user?.id]);
 
-  // Persist a patch of notification-preference columns (optimistic + revert).
+  // The crew member's timezone — stored with the quiet window so the server
+  // compares against their local wall-clock (falls back to UTC).
+  const browserTz = () => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
+  };
+
+  // Persist a patch of notification-preference columns. Optimistic + functional
+  // (so back-to-back changes — e.g. quiet from then to — aren't lost to a stale
+  // closure), and doesn't early-return while another save is in flight.
   const saveNotifPrefs = async (patch, busyKey) => {
-    if (!isOwnProfile || notifSavingKey) return;
-    const prev = notifPrefs;
-    setNotifPrefs({ ...notifPrefs, ...patch });   // optimistic
+    if (!isOwnProfile) return;
+    setNotifPrefs((prev) => ({ ...prev, ...patch }));   // optimistic
     setNotifSavingKey(busyKey || Object.keys(patch)[0]);
     const { error } = await supabase
       .from('notification_preferences')
@@ -1058,11 +1066,13 @@ const canEdit = (() => {
       );
     setNotifSavingKey(null);
     if (error) {
-      setNotifPrefs(prev);   // revert
       showToast(error?.message || 'Couldn’t update notification preference', 'error');
+      setNotifPrefs(null);   // reload to reconcile
     }
   };
   const toggleNotif = (col) => saveNotifPrefs({ [col]: !notifPrefs?.[col] }, col);
+  // Quiet-hours edits also stamp the timezone so enforcement uses local time.
+  const saveQuiet = (patch, busyKey) => saveNotifPrefs({ ...patch, quiet_tz: browserTz() }, busyKey);
 
   // Notification categories — grouped by domain. `bell` / `email` name the DB
   // columns for each channel; `email: null` means that category never emails.
@@ -3730,12 +3740,12 @@ const canEdit = (() => {
             <span className="s2-qmini-lbl">Quiet hours</span>
             <span className="s2-qmini-times">
               <input type="time" className="s2-qtime" value={notifPrefs?.quiet_from?.slice(0, 5) || '22:00'}
-                onChange={(e) => saveNotifPrefs({ quiet_from: e.target.value }, 'quiet_from')} aria-label="Quiet from" disabled={!qOn} />
+                onChange={(e) => saveQuiet({ quiet_from: e.target.value }, 'quiet_from')} aria-label="Quiet from" disabled={!qOn} />
               <span className="s2-qmini-dash">–</span>
               <input type="time" className="s2-qtime" value={notifPrefs?.quiet_to?.slice(0, 5) || '07:00'}
-                onChange={(e) => saveNotifPrefs({ quiet_to: e.target.value }, 'quiet_to')} aria-label="Quiet to" disabled={!qOn} />
+                onChange={(e) => saveQuiet({ quiet_to: e.target.value }, 'quiet_to')} aria-label="Quiet to" disabled={!qOn} />
             </span>
-            {renderSwitch(qOn, () => toggleNotif('quiet_enabled'), { disabled: notifSavingKey === 'quiet_enabled', busy: notifSavingKey === 'quiet_enabled' })}
+            {renderSwitch(qOn, () => saveQuiet({ quiet_enabled: !qOn }, 'quiet_enabled'), { disabled: notifSavingKey === 'quiet_enabled', busy: notifSavingKey === 'quiet_enabled' })}
           </div>
         </div>
         {NOTIF_GROUPS.map((grp) => (
