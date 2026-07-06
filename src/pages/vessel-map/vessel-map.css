@@ -337,6 +337,120 @@
   }
 }
 
+/* ── Pin hover tag — small floating label, 150ms dwell before fading in ─── */
+.vm-pin-tag {
+  position: fixed;
+  z-index: 40;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #1A1D3F;
+  color: #F4F3EE;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  animation: vm-tag-in 120ms ease-out 150ms forwards;
+}
+@keyframes vm-tag-in { to { opacity: 1; } }
+
+/* ── Orient scan — COMMAND/CHIEF affordance, canvas bottom-right, ≥1024px ── */
+.vm-orient-open, .vm-orient-panel { display: none; }
+
+@media (min-width: 1024px) {
+  .vm-orient-open {
+    display: block;
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+    z-index: 5;
+    padding: 7px 13px;
+    border-radius: 999px;
+    background: rgba(26, 29, 63, 0.72);
+    border: 1px solid rgba(244, 243, 238, 0.14);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #C9CBD9;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color var(--vm-ease-ui), border-color var(--vm-ease-ui);
+  }
+  .vm-orient-open:hover { color: #F4F3EE; border-color: rgba(232, 148, 106, 0.6); }
+
+  .vm-orient-panel {
+    display: block;
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
+    z-index: 8;
+    width: 216px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #ECEAE3;
+    box-shadow: 0 16px 40px -16px rgba(28, 27, 58, 0.45);
+  }
+  .vm-orient-eyebrow {
+    margin: 0 0 10px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #8B8478;
+  }
+  .vm-orient-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .vm-orient-axis {
+    width: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #1C1B3A;
+  }
+  .vm-orient-step {
+    flex: none;
+    padding: 4px 8px;
+    border-radius: 7px;
+    border: 1px solid #E8E6DF;
+    background: #FAFAF8;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1C1B3A;
+    cursor: pointer;
+    transition: border-color var(--vm-ease-ui);
+  }
+  .vm-orient-step:hover { border-color: #C65A1A; }
+  .vm-orient-val {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6B7280;
+    font-variant-numeric: tabular-nums;
+  }
+  .vm-orient-error {
+    margin: 6px 0;
+    font-size: 12px;
+    color: #A32D2D;
+    background: #FBEFEC;
+    border-radius: 8px;
+    padding: 6px 10px;
+  }
+  .vm-orient-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .vm-orient-save, .vm-orient-cancel { padding: 7px 14px; font-size: 12.5px; }
+}
+
 /* ── Inspector — right panel, ≥1024px (mobile keeps the floating card) ──── */
 .vm-inspector { display: none; }
 

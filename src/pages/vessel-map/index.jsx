@@ -74,6 +74,10 @@ export default function VesselMapPage() {
   const [mode, setMode] = useState('navigate');
   const [pendingPosition, setPendingPosition] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [hovered, setHovered] = useState(null); // { label, x, y } — pin hover tag
+  const [orientDraft, setOrientDraft] = useState(null); // {x,y,z} radians while orienting
+  const [orientError, setOrientError] = useState(null);
+  const [orientSaving, setOrientSaving] = useState(false);
   const isDesktop = useIsDesktop();
   const placementMode = mode === 'pin';
 
@@ -172,18 +176,27 @@ export default function VesselMapPage() {
     return counts;
   }, [hotspots]);
 
-  const visibleHotspots = useMemo(
-    () => hotspots
-      .filter((h) => activeLayers.has(h.layer || 'general'))
-      .map((h) => ({ ...h, color: h.color || layerColor(h.layer) })),
-    [hotspots, activeLayers]
+  // All pins go to the viewer; layer visibility is a fade, not a filter
+  // (chips toggle their pins with a 150ms fade, not a pop).
+  const allHotspots = useMemo(
+    () => hotspots.map((h) => ({ ...h, color: h.color || layerColor(h.layer) })),
+    [hotspots]
   );
+  const visibleLayerList = useMemo(() => [...activeLayers], [activeLayers]);
 
   const toggleLayer = (key) => setActiveLayers((prev) => {
     const next = new Set(prev);
     next.has(key) ? next.delete(key) : next.add(key);
     return next;
   });
+
+  // Hiding a layer deselects its pin — a ring around an invisible pin reads
+  // as a ghost.
+  useEffect(() => {
+    if (selectedHotspot && !activeLayers.has(selectedHotspot.layer || 'general')) {
+      setSelectedHotspot(null);
+    }
+  }, [activeLayers, selectedHotspot]);
 
   // ── Hotspot placement ───────────────────────────────────────────────────
   const startPlacement = () => {
@@ -223,6 +236,47 @@ export default function VesselMapPage() {
       else cancelPlacement();
     },
   }, { enabled: isDesktop });
+
+  // ── Orient scan (COMMAND/CHIEF): rotate-90° per axis, live re-frame, save.
+  // Tuning orientation by SQL stops today.
+  const HALF_PI = Math.PI / 2;
+  const norm = (rad) => {
+    const twoPi = Math.PI * 2;
+    let r = rad % twoPi;
+    if (r > Math.PI) r -= twoPi;
+    if (r < -Math.PI + 1e-9) r += twoPi;
+    return +r.toFixed(6);
+  };
+  const baseRotation = selectedScan?.splat_rotation || { x: 0, y: 0, z: 0 };
+  const liveRotation = orientDraft ?? baseRotation;
+  const rotateAxis = (axis, dir) => {
+    setOrientError(null);
+    setOrientDraft((prev) => {
+      const cur = prev ?? { x: Number(baseRotation.x) || 0, y: Number(baseRotation.y) || 0, z: Number(baseRotation.z) || 0 };
+      return { ...cur, [axis]: norm((cur[axis] || 0) + dir * HALF_PI) };
+    });
+  };
+  const saveOrientation = async () => {
+    if (!orientDraft || orientSaving) return;
+    setOrientSaving(true);
+    setOrientError(null);
+    const { error } = await supabase
+      .from('vessel_scans')
+      .update({ splat_rotation: orientDraft })
+      .in('id', [selectedScan.id]);
+    setOrientSaving(false);
+    if (error) {
+      console.error('[vessel-map] orientation save error:', error);
+      setOrientError(error.message || 'Could not save the orientation.');
+      return;
+    }
+    setScans((prev) => prev.map((s) => (s.id === selectedScan.id ? { ...s, splat_rotation: orientDraft } : s)));
+    setOrientDraft(null);
+  };
+  const cancelOrientation = () => {
+    setOrientDraft(null);
+    setOrientError(null);
+  };
 
   // Returns an error message on failure (inspector shows it), null on success.
   const deleteHotspot = async (id) => {
@@ -378,14 +432,16 @@ export default function VesselMapPage() {
                     fileName={selectedScan.storage_path.split('/').pop()}
                     cameraPosition={selectedScan.camera_position}
                     cameraTarget={selectedScan.camera_target}
-                    splatRotation={selectedScan.splat_rotation}
+                    splatRotation={liveRotation}
                     splatScale={selectedScan.splat_scale}
-                    hotspots={visibleHotspots}
+                    hotspots={allHotspots}
+                    visibleLayers={visibleLayerList}
                     selectedId={selectedHotspot?.id ?? null}
                     placementMode={placementMode}
                     pendingPosition={pendingPosition}
                     onPlacePending={placePending}
                     onSelectHotspot={setSelectedHotspot}
+                    onHoverHotspot={(h, at) => setHovered(h ? { id: h.id, label: h.label, x: at.x, y: at.y } : null)}
                     onLoadState={setViewer}
                     stageColor={VM_STAGE}
                   />
@@ -403,6 +459,54 @@ export default function VesselMapPage() {
                     Click to drop a pin
                     <span className="vm-pin-hint-kbd">Esc cancels</span>
                   </div>
+                )}
+
+                {/* Pin hover tag — fades in after a 150ms dwell. */}
+                {hovered && (
+                  <div key={hovered.id} className="vm-pin-tag" style={{ left: hovered.x + 14, top: hovered.y - 10 }}>
+                    {hovered.label}
+                  </div>
+                )}
+
+                {/* Orient scan (COMMAND/CHIEF, desktop): rotate-90° per axis,
+                    live re-frame, save writes the row. */}
+                {canPlaceHotspots && viewer.status === 'ready' && (
+                  orientDraft === null ? (
+                    <button
+                      className="vm-orient-open"
+                      onClick={() => {
+                        setOrientError(null);
+                        setOrientDraft({
+                          x: Number(baseRotation.x) || 0,
+                          y: Number(baseRotation.y) || 0,
+                          z: Number(baseRotation.z) || 0,
+                        });
+                      }}
+                    >
+                      Orient scan
+                    </button>
+                  ) : (
+                    <div className="vm-orient-panel">
+                      <p className="vm-orient-eyebrow">Orient scan</p>
+                      {['x', 'y', 'z'].map((axis) => (
+                        <div key={axis} className="vm-orient-row">
+                          <span className="vm-orient-axis">{axis.toUpperCase()}</span>
+                          <button className="vm-orient-step" onClick={() => rotateAxis(axis, -1)} aria-label={`Rotate ${axis} -90°`}>−90°</button>
+                          <span className="vm-orient-val">{Math.round((liveRotation[axis] || 0) * 180 / Math.PI)}°</span>
+                          <button className="vm-orient-step" onClick={() => rotateAxis(axis, 1)} aria-label={`Rotate ${axis} +90°`}>+90°</button>
+                        </div>
+                      ))}
+                      {orientError && <p className="vm-orient-error">{orientError}</p>}
+                      <div className="vm-orient-actions">
+                        <button className="vm-btn-primary vm-orient-save" onClick={saveOrientation} disabled={orientSaving}>
+                          {orientSaving ? 'Saving…' : 'Save'}
+                        </button>
+                        <button className="vm-btn-ghost vm-orient-cancel" onClick={cancelOrientation} disabled={orientSaving}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )
                 )}
 
                 {/* ≥1024px: the inspector replaces the floating card. */}
