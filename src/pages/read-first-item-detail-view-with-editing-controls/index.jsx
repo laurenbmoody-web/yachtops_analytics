@@ -7,6 +7,7 @@ import { getItemById } from '../inventory/utils/inventoryStorage';
 import { getCategoryL1ById, getCategoryL2ById, getCategoryL3ById, getCategoryL4ById } from '../inventory/utils/taxonomyStorage';
 
 import AddEditItemModal from '../inventory/components/AddEditItemModal';
+import MapPresence from './MapPresence';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
 import { canViewCost, formatCurrency } from '../../utils/costPermissions';
 
@@ -231,6 +232,9 @@ const ReadFirstItemDetailView = () => {
                 )}
               </div>
             </div>
+
+            {/* On the vessel map — pins whose photos tag this item */}
+            <MapPresence itemId={itemId} />
 
             {/* Restock Alert */}
             {canEdit && (

@@ -1,0 +1,39 @@
+/* On the vessel map — editorial register on an older page: tracked-caps
+   label, hairline rows, terracotta link. */
+.mpz { margin-top: 4px; }
+.mpz-label {
+  margin: 0 0 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+.mpz-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid #F0F1F5;
+}
+.mpz-row:last-child { border-bottom: 0; }
+.mpz-pin {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 15px;
+  color: #1C1B3A;
+}
+.mpz-scan { font-size: 12px; color: #6B7280; }
+.mpz-count { font-size: 11px; color: #AEB4C2; }
+.mpz-go {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #C65A1A;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mpz-go:hover { color: #B14E16; }
