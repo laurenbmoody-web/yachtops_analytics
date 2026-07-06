@@ -99,6 +99,8 @@ export default function VesselMapPage() {
         .from('vessel_scans')
         .select('*')
         .eq('tenant_id', activeTenantId)
+        .eq('status', 'ready') // in-flight/abandoned uploads live on the manage surface
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true });
       if (cancelled) return;
       if (error) {
