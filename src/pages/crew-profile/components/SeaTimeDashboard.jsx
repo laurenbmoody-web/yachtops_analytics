@@ -356,17 +356,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
     }
     try {
       const [cp, coc] = await Promise.all([
-        supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', captainId)?.maybeSingle(),
+        supabase?.from('profiles')?.select('full_name, first_name, surname, email')?.eq('id', captainId)?.maybeSingle(),
         supabase?.from('personal_documents')?.select('document_number, issuing_authority, flag_state')?.eq('user_id', captainId)?.eq('doc_type', 'coc')?.order('expiry_date', { ascending: false, nullsFirst: false })?.limit(1)?.maybeSingle(),
       ]);
       const cd = cp?.data || {};
       const name = (cd.first_name && cd.surname) ? `${cd.first_name} ${cd.surname}` : (cd.full_name || captainName || '');
       const cc = coc?.data || {};
       const issuingCountry = countryName(cc.flag_state) || cc.issuing_authority || '';
-      return { position: 'Master', name, cocNo: cc.document_number || '', issuingCountry };
+      return { position: 'Master', name, cocNo: cc.document_number || '', issuingCountry, email: cd.email || '' };
     } catch (e) {
       console.warn('[seatime] endorser resolve failed', e);
-      return { position: 'Master', name: captainName || '', cocNo: '', issuingCountry: '' };
+      return { position: 'Master', name: captainName || '', cocNo: '', issuingCountry: '', email: '' };
     }
   };
 
