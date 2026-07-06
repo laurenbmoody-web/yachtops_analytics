@@ -1,11 +1,11 @@
-// Vessel status — a thin, single-row dashboard widget. It's the master's
+// Vessel status — a compact, editorial dashboard widget. The deep-navy chip is
+// the picker: tap it to change the current status, log a known past period, or
+// view the history. The status reads as a masthead line — "UNDERWAY, since 6th
+// July" (serif-italic caps navy + terracotta italic date). It's the master's
 // vessel-wide record of what the vessel is doing, the first source of truth for
-// how each crew member's sea-service day is classified. Command taps a state
-// icon to set the current status (one tap, from today); a "…" opens a modal to
-// log a known past period or view the history. Crew see it read-only.
-// Monochrome — the state is carried by the icon + word, not colour.
+// how each crew member's sea-service day is classified. Crew see it read-only.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -13,15 +13,21 @@ import { fetchVesselStatusTimeline, setVesselStatus } from '../../crew-profile/u
 import './vessel-status-widget.css';
 
 const STATES = [
-  { key: 'UNDERWAY', label: 'Underway',  icon: 'Compass',     note: 'counts as sea time' },
-  { key: 'ANCHOR',   label: 'At anchor', icon: 'Anchor',      note: 'counts as standby' },
-  { key: 'IN_PORT',  label: 'In port',   icon: 'WavesLadder', note: 'counts as standby' },
-  { key: 'IN_YARD',  label: 'In yard',   icon: 'Wrench',      note: 'counts as yard time' },
+  { key: 'UNDERWAY', label: 'Underway',   icon: 'Compass',     note: 'Counts as sea time' },
+  { key: 'ANCHOR',   label: 'Anchored',   icon: 'Anchor',      note: 'Counts as standby' },
+  { key: 'IN_PORT',  label: 'In port',    icon: 'WavesLadder', note: 'Counts as standby' },
+  { key: 'IN_YARD',  label: 'In shipyard', icon: 'Wrench',     note: 'Counts as yard time' },
 ];
 const byKey = Object.fromEntries(STATES.map(s => [s.key, s]));
 
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MON_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const ordinal = (n) => { const v = n % 100; if (v >= 11 && v <= 13) return 'th'; return ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; };
 const todayIso = () => new Date().toISOString().slice(0, 10);
-const fmtUk = (iso) => { if (!iso) return ''; const [y, m, d] = String(iso).split('-'); return d ? `${d}/${m}/${y}` : String(iso); };
+// Editorial "6th July" (no year — it's the current season).
+const editorial = (iso) => { if (!iso) return null; const [, m, d] = iso.split('-').map(Number); return { d, suf: ordinal(d), mon: MONTHS[m - 1] }; };
+// Short "6 Jul 2026" for the history list.
+const fmtShort = (iso) => { if (!iso) return ''; const [y, m, d] = iso.split('-').map(Number); return `${d} ${MON_SHORT[m - 1]} ${y}`; };
 
 const friendly = (e) => {
   const msg = e?.message || e?.error_description || '';
@@ -37,9 +43,11 @@ const VesselStatusWidget = ({ tenantId }) => {
 
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [savingKey, setSavingKey] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [open, setOpen] = useState(false);
   const [modal, setModal] = useState(null); // 'log' | 'history' | null
+  const rootRef = useRef(null);
 
   const load = async () => {
     if (!tenantId) return;
@@ -49,74 +57,97 @@ const VesselStatusWidget = ({ tenantId }) => {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
   const current = useMemo(() => {
     const t = todayIso();
     return timeline.find(p => p.effective_from <= t && (p.effective_to == null || p.effective_to >= t)) || null;
   }, [timeline]);
   const cur = current ? byKey[current.status] : null;
+  const ed = current ? editorial(current.effective_from) : null;
 
   const setNow = async (key) => {
-    setErr(''); setSavingKey(key);
-    try { await setVesselStatus(tenantId, { status: key, from: todayIso(), to: null }); await load(); }
+    if (key === cur?.key) { setOpen(false); return; }
+    setErr(''); setSaving(true);
+    try { await setVesselStatus(tenantId, { status: key, from: todayIso(), to: null }); setOpen(false); await load(); }
     catch (e) { setErr(friendly(e)); }
-    finally { setSavingKey(null); }
+    finally { setSaving(false); }
   };
 
   if (!tenantId) return null;
 
+  const chipIcon = cur ? cur.icon : 'Ship';
+
   return (
-    <div className="ce-card vsw-bar">
-      <div className="vsw-bar-row">
-        <span className="vsw-eyebrow">Vessel<br />status</span>
-        <span className="vsw-cur">
+    <div className="ce-card vsw" ref={rootRef}>
+      <div className="vsw-center">
+        {isCommand ? (
+          <button
+            type="button"
+            className={`vsw-chip${open ? ' is-open' : ''}`}
+            onClick={() => { setOpen(o => !o); setErr(''); }}
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-label="Change vessel status"
+          >
+            <Icon name={chipIcon} className="vsw-chip-ic" />
+            <span className="vsw-chip-chev"><Icon name="ChevronDown" className="vsw-chev" /></span>
+          </button>
+        ) : (
+          <span className="vsw-chip vsw-chip-static"><Icon name={chipIcon} className="vsw-chip-ic" /></span>
+        )}
+
+        <div className="vsw-line">
           {loading ? (
-            <span className="vsw-cur-muted">Loading…</span>
+            <span className="vsw-st vsw-muted">Loading…</span>
           ) : cur ? (
             <>
-              <Icon name={cur.icon} className="vsw-cur-ico" />
-              <b>{cur.label}</b>
-              <span className="vsw-since">· since {fmtUk(current.effective_from)}</span>
+              <span className="vsw-st">{cur.label}</span><span className="vsw-sep">,</span>{' '}
+              <span className="vsw-dt">since {ed.d}<sup>{ed.suf}</sup> {ed.mon}</span>
             </>
           ) : (
-            <>
-              <Icon name="Ship" className="vsw-cur-ico vsw-cur-off" />
-              <b className="vsw-cur-off">Not set</b>
-              <span className="vsw-since vsw-cur-off">· days count as sea time</span>
-            </>
+            <span className="vsw-st vsw-notset">Not set</span>
           )}
-        </span>
+        </div>
 
-        {isCommand && (
-          <div className="vsw-switch">
+        {!loading && !cur && isCommand && (
+          <div className="vsw-hint">Set the vessel’s status — days count as sea time until you do.</div>
+        )}
+        {!isCommand && cur && <div className="vsw-hint vsw-hint-quiet">Set by the captain</div>}
+        {err && <div className="vsw-err">{err}</div>}
+
+        {open && isCommand && (
+          <div className="vsw-picker" role="menu">
+            <div className="vsw-picker-hd">Set vessel status</div>
             {STATES.map(s => {
               const active = cur?.key === s.key;
-              const saving = savingKey === s.key;
               return (
-                <span className="vsw-tipwrap" key={s.key}>
-                  <button
-                    type="button"
-                    className={`vsw-sw${active ? ' on' : ''}`}
-                    disabled={!!savingKey || active}
-                    onClick={() => setNow(s.key)}
-                    aria-label={s.label}
-                  >
-                    <Icon name={saving ? 'Loader2' : s.icon} className={`vsw-sw-ico${saving ? ' vsw-spin' : ''}`} />
-                  </button>
-                  <span className="vsw-tip">{s.label} · {s.note}</span>
-                </span>
+                <button key={s.key} type="button" role="menuitem" className={`vsw-row${active ? ' cur' : ''}`} disabled={saving} onClick={() => setNow(s.key)}>
+                  <span className="vsw-row-ic"><Icon name={s.icon} className="vsw-ic18" /></span>
+                  <span className="vsw-row-text">
+                    <span className="vsw-row-label">{s.label}</span>
+                    <span className="vsw-row-note">{s.note}</span>
+                  </span>
+                  {active && <span className="vsw-row-check"><Icon name="Check" className="vsw-ic17" /></span>}
+                </button>
               );
             })}
-            <span className="vsw-sep" />
-            <span className="vsw-tipwrap">
-              <button type="button" className="vsw-sw vsw-more" onClick={() => setModal('log')} aria-label="Log a past period or view history">
-                <Icon name="MoreHorizontal" className="vsw-sw-ico" />
+            <div className="vsw-picker-ft">
+              <button type="button" className="vsw-ft-link" onClick={() => { setOpen(false); setModal('log'); }}>Log a past period</button>
+              <button type="button" className="vsw-ft-link" onClick={() => { setOpen(false); setModal('history'); }}>
+                <Icon name="Clock" className="vsw-ic14" /> History
               </button>
-              <span className="vsw-tip vsw-tip-r">Log a past period · history</span>
-            </span>
+            </div>
           </div>
         )}
       </div>
-      {err && <div className="vsw-bar-err">{err}</div>}
 
       {modal && createPortal(
         <VesselStatusModal
@@ -162,7 +193,7 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
             <p className="vsw-modal-eyebrow"><span className="dot">●</span> VESSEL · STATUS</p>
             <h2 className="vsw-modal-title">{tab === 'log' ? 'Log a past period' : 'Status history'}</h2>
           </div>
-          <button className="vsw-modal-x" onClick={onClose} aria-label="Close"><Icon name="X" className="w-4 h-4" /></button>
+          <button className="vsw-modal-x" onClick={onClose} aria-label="Close"><Icon name="X" className="vsw-ic16" /></button>
         </div>
 
         <div className="vsw-modal-tabs">
@@ -173,31 +204,26 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
         {tab === 'log' ? (
           <div className="vsw-modal-body">
             <p className="vsw-help">Record a known period — a refit, a long stay in port — for the exact dates the vessel was in that state. Everyone aboard is classified from it.</p>
-
             <p className="vsw-flabel">What was the vessel doing?</p>
             <div className="vsw-state-grid">
               {STATES.map(s => {
                 const on = form.status === s.key;
                 return (
-                  <button key={s.key} type="button" className={`vsw-state-opt${on ? ' on' : ''}`}
-                    onClick={() => setForm(f => ({ ...f, status: s.key }))}>
-                    <span className="vsw-state-ico"><Icon name={s.icon} className="w-4 h-4" /></span>
+                  <button key={s.key} type="button" className={`vsw-state-opt${on ? ' on' : ''}`} onClick={() => setForm(f => ({ ...f, status: s.key }))}>
+                    <span className="vsw-state-ico"><Icon name={s.icon} className="vsw-ic18" /></span>
                     <span className="vsw-state-label">{s.label}</span>
                     <span className="vsw-state-note">{s.note}</span>
                   </button>
                 );
               })}
             </div>
-
             <div className="vsw-dates">
               <label>From<input type="date" max={form.to || todayIso()} value={form.from} onChange={e => setForm(f => ({ ...f, from: e.target.value }))} /></label>
               <label>To<input type="date" min={form.from} max={todayIso()} value={form.to} onChange={e => setForm(f => ({ ...f, to: e.target.value }))} /></label>
             </div>
-
             <p className="vsw-flabel">Reason <span className="req">required</span></p>
             <input className="vsw-input" placeholder="e.g. Winter refit at MB92, Barcelona" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
-
-            {err && <p className="vsw-err">{err}</p>}
+            {err && <p className="vsw-err vsw-err-modal">{err}</p>}
             <button className="vsw-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Log period'}</button>
             <p className="vsw-foot">Saved with your name. You can’t change a period that already covers signed-off service.</p>
           </div>
@@ -211,12 +237,12 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
                   const s = byKey[p.status] || {};
                   return (
                     <div key={p.id} className="vsw-tl-row">
-                      <span className="vsw-tl-ico"><Icon name={s.icon || 'Circle'} className="w-4 h-4" /></span>
+                      <span className="vsw-tl-ico"><Icon name={s.icon || 'Circle'} className="vsw-ic18" /></span>
                       <span className="vsw-tl-main">
                         <span className="vsw-tl-label">{s.label || p.status}</span>
-                        <span className="vsw-tl-dates">{fmtUk(p.effective_from)} – {p.effective_to ? fmtUk(p.effective_to) : 'now'}{p.set_by_name ? ` · ${p.set_by_name}` : ''}</span>
+                        <span className="vsw-tl-dates">{fmtShort(p.effective_from)} – {p.effective_to ? fmtShort(p.effective_to) : 'now'}{p.set_by_name ? ` · ${p.set_by_name}` : ''}</span>
                       </span>
-                      {p.locked && <span className="vsw-tl-lock"><Icon name="Lock" className="w-3 h-3" /> Signed</span>}
+                      {p.locked && <span className="vsw-tl-lock"><Icon name="Lock" className="vsw-ic12" /> Signed</span>}
                     </div>
                   );
                 })}
