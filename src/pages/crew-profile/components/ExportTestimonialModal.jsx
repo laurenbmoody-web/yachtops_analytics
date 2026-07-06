@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
@@ -7,11 +7,13 @@ import { Checkbox } from '../../../components/ui/Checkbox';
 import ModalShell from '../../../components/ui/ModalShell';
 import { showToast } from '../../../utils/toast';
 import { supabase } from '../../../lib/supabase';
-import { fetchEntriesForUser } from '../utils/seaTimeService';
+import { fetchEntriesForUser, fetchGuestOnDays, fetchLeaveDaysInRange } from '../utils/seaTimeService';
 import {
   getVerifierProfiles, assembleTestimonialDataset, validateTestimonial,
   renderTestimonialPack, SUPPORTING_DOC_LABELS, SERVICE_TYPES, SERVICE_TYPE_LABELS
 } from '../../../seatime/testimonial';
+import { buildPyaPayload } from '../../../seatime/pya/pyaPayload';
+import { PYA_BOOKMARKLET_HREF, buildPyaClipboard } from '../../../seatime/pya/pyaBookmarklet';
 
 // Sea Service Testimonial Pack generator. ONE dataset (built from the existing
 // Supabase sea-time store) -> verifier adapter -> validated PDF + checklist.
@@ -26,6 +28,9 @@ const ExportTestimonialModal = ({ isOpen, onClose, userId, tenantId, currentUser
   const [suppliedDocs, setSuppliedDocs] = useState({});
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  // Extra facts the PYA form wants that aren't in the core dataset.
+  const [extras, setExtras] = useState({ guestDays: null, leaveDays: null });
+  const bookmarkletRef = useRef(null);
 
   const verifier = verifiers.find(v => v.id === verifierId);
 
@@ -73,6 +78,48 @@ const ExportTestimonialModal = ({ isOpen, onClose, userId, tenantId, currentUser
     () => (dataset && verifier ? validateTestimonial(dataset, verifier) : null),
     [dataset, verifier]
   );
+
+  // PYA autofill — pull the extra facts (guest-on + leave days) once the period
+  // is known, then build the payload the bookmarklet reads from the clipboard.
+  useEffect(() => {
+    const from = dataset?.service?.periodFrom, to = dataset?.service?.periodTo;
+    if (verifierId !== 'pya' || !tenantId || !userId || !from || !to) return;
+    let cancelled = false;
+    (async () => {
+      const [guest, leave] = await Promise.all([
+        fetchGuestOnDays(tenantId, userId).catch(() => null),
+        fetchLeaveDaysInRange(userId, from, to).catch(() => null),
+      ]);
+      if (!cancelled) setExtras({ guestDays: guest?.days ?? null, leaveDays: leave });
+    })();
+    return () => { cancelled = true; };
+  }, [verifierId, tenantId, userId, dataset?.service?.periodFrom, dataset?.service?.periodTo]);
+
+  const pyaPayload = useMemo(() => {
+    if (!dataset) return null;
+    return buildPyaPayload({
+      dataset,
+      leaveDays: extras.leaveDays,
+      guestDays: extras.guestDays,
+      signatoryEmail: currentUser?.email || '',
+    });
+  }, [dataset, extras.leaveDays, extras.guestDays, currentUser?.email]);
+
+  // React refuses to render a `javascript:` href from JSX (sanitised to about:blank),
+  // so set it via the DOM after mount — the anchor stays draggable to the bookmarks bar.
+  useEffect(() => {
+    if (bookmarkletRef.current) bookmarkletRef.current.setAttribute('href', PYA_BOOKMARKLET_HREF);
+  }, [verifierId, loading]);
+
+  const copyForPya = async () => {
+    if (!pyaPayload) return;
+    try {
+      await navigator.clipboard.writeText(buildPyaClipboard(pyaPayload));
+      showToast('Details copied — now click the “Fill PYA form” bookmark on the PYA page', 'success');
+    } catch {
+      showToast('Could not copy — check clipboard permissions', 'error');
+    }
+  };
 
   const handleGenerate = async () => {
     if (!dataset || !verifier) return;
@@ -194,6 +241,60 @@ const ExportTestimonialModal = ({ isOpen, onClose, userId, tenantId, currentUser
               <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex items-center gap-2">
                 <Icon name="CheckCircle" size={16} className="text-green-600 dark:text-green-400" />
                 <span className="text-sm text-green-700 dark:text-green-400">Ready to generate — passes first-pass checks for {verifier.label}.</span>
+              </div>
+            )}
+
+            {/* PYA online form autofill — a saved bookmarklet types Cargo's data
+                into member.pya.org's SST form. PYA-only. */}
+            {verifierId === 'pya' && (
+              <div className="border border-border rounded-xl p-4 bg-muted/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon name="Wand2" size={16} className="text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Autofill the PYA online form</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-primary bg-primary/10 rounded-full px-2 py-0.5">Beta</span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Fills the vessel details, dates and the sea-service day boxes on PYA’s
+                  “Verify Sea Service Testimonial” page. Flag, areas cruised and engine fields stay for you.
+                </p>
+                <ol className="text-xs text-foreground space-y-2.5">
+                  <li className="flex gap-2">
+                    <span className="font-semibold text-muted-foreground">1.</span>
+                    <span className="flex-1">
+                      Once, drag this button to your bookmarks bar:{' '}
+                      {/* href set imperatively (see effect) — React blocks javascript: hrefs */}
+                      <a
+                        ref={bookmarkletRef}
+                        onClick={(e) => { e.preventDefault(); showToast('Drag me to your bookmarks bar — don’t click here', 'info'); }}
+                        className="inline-flex items-center gap-1 align-middle px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-xs font-semibold cursor-grab no-underline"
+                        title="Drag to your bookmarks bar"
+                      >
+                        <Icon name="Anchor" size={12} /> Fill PYA form
+                      </a>
+                    </span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-semibold text-muted-foreground">2.</span>
+                    <span className="flex-1">
+                      Copy this crew member’s details:{' '}
+                      <button
+                        type="button"
+                        onClick={copyForPya}
+                        disabled={!pyaPayload}
+                        className="inline-flex items-center gap-1 align-middle px-2.5 py-1 rounded-md border border-border bg-background text-xs font-semibold hover:bg-accent disabled:opacity-50"
+                      >
+                        <Icon name="Copy" size={12} /> Copy details for PYA
+                      </button>
+                    </span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-semibold text-muted-foreground">3.</span>
+                    <span className="flex-1">On the PYA <span className="font-mono">sst-request/create</span> page, click the <strong>Fill PYA form</strong> bookmark. It reports what filled and what to do by hand.</span>
+                  </li>
+                </ol>
+                <p className="text-[11px] text-muted-foreground mt-3">
+                  Always check every field against your own records before submitting — PYA queries service that doesn’t reconcile.
+                </p>
               </div>
             )}
 

@@ -1,0 +1,84 @@
+// PYA Sea Service Testimonial (SST) autofill payload.
+//
+// Maps the ONE shared testimonial dataset onto the exact fields of the PYA
+// online "Verify Sea Service Testimonial" form (member.pya.org/.../sst-request/
+// create). The bookmarklet in ./pyaBookmarklet.js consumes this payload and
+// types it into the live form by matching each field's visible label.
+//
+// Day-bucket mapping is per PYA's own field tooltips:
+//   • "Actual days at Sea"  = days underway with main propulsion ≥4h/24h
+//        → our seagoing + watchkeeping (watchkeeping days ARE at-sea days).
+//   • "Deck Watchkeeping"   = the subset of at-sea days stood as OOW in full
+//        charge of a nav watch  → our watchkeeping (a component, NOT additive;
+//        PYA: "can never be higher than days at sea").
+//   • "Stand-by Service"    = our standby.
+//   • "Shipyard Service"    = our yard.
+//   • "Leave of absence"    = leave days (fetched separately; entries exclude them).
+// Engine boxes, Night Watch Hours, rotation weeks, nautical miles and the flag /
+// areas-cruised pickers are intentionally left for manual entry (we either don't
+// hold the data, or the value is ambiguous — filling it wrong is worse than blank).
+
+const round = (n) => Math.max(0, Math.round(Number(n) || 0));
+
+/** Map our free-text capacity/rank onto one PYA capacity radio. Null = unknown
+ *  (the user picks it by hand). */
+export const mapCapacity = (cap) => {
+  const c = String(cap || '').toLowerCase();
+  if (!c) return null;
+  if (/\bmaster\b|captain/.test(c) && !/chase/.test(c)) return 'Master';
+  if (/chief\s*(mate|officer)|c\/o|1st officer|first officer/.test(c)) return 'Chief Mate';
+  if (/oow|officer of the watch|watch\s?keep|2nd officer|second officer|3rd officer|third officer|\bmate\b/.test(c)) return 'OOW';
+  if (/chase/.test(c)) return 'Chase Boat Captain';
+  if (/bosun|boatswain/.test(c)) return 'Bosun';
+  if (/deck/.test(c)) return 'Deckhand';
+  return null;
+};
+
+/** Sail vs motor for the PYA "Vessel Type" radio. */
+export const mapVesselType = (t) => (/sail/i.test(String(t || '')) ? 'Sail Yacht' : 'Motor Yacht');
+
+/**
+ * Build the PYA autofill payload from the assembled testimonial dataset.
+ *
+ * @param {Object} p
+ * @param {import('../testimonial/types.js').TestimonialDataset} p.dataset
+ * @param {number|null} [p.leaveDays]      leave/absence days in the period
+ * @param {number|null} [p.guestDays]      guest-on days in the period
+ * @param {string} [p.signatoryEmail]      attesting captain's email
+ * @param {string} [p.sstType]             'Deck Testimonial' (default) | 'Engineering Testimonial' | …
+ */
+export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, signatoryEmail = '', sstType = 'Deck Testimonial' }) => {
+  const v = (dataset?.vessels && dataset.vessels[0]) || {};
+  const t = dataset?.service?.totals || {};
+  const atSea = round(t.seagoing) + round(t.watchkeeping);
+
+  const text = {};
+  if (v.name) text['Name'] = v.name;
+  if (v.imo) text['IMO'] = String(v.imo);
+  if (v.grossTonnage != null) text['Gross tonnage (GT)'] = String(round(v.grossTonnage));
+  if (v.registeredLengthM != null) text['Load Line Length (m)'] = String(v.registeredLengthM);
+
+  const service = {
+    'Actual days at Sea': atSea,
+    'Deck Watchkeeping': round(t.watchkeeping),
+    'Stand-by Service': round(t.standby),
+    'Shipyard Service': round(t.yard),
+  };
+  if (leaveDays != null) service['Leave of absence'] = round(leaveDays);
+  if (guestDays != null && round(guestDays) > 0) service['Days with guests'] = round(guestDays);
+
+  // Fields we deliberately leave for the user (no data, or ambiguous).
+  const manual = ['Flag (country picker)', 'Areas cruised', 'Type of Main Engine', 'Propulsion power (kW)', 'Official Number', 'Night Watch Hours'];
+
+  return {
+    format: 'New Digital SST',
+    radios: [{ label: 'New Digital SST' }, { label: sstType }],
+    capacity: mapCapacity(dataset?.service?.capacity),
+    vesselType: mapVesselType(v.vesselType),
+    text,
+    service,
+    dates: { from: dataset?.service?.periodFrom || '', to: dataset?.service?.periodTo || '' },
+    signatoryEmail: signatoryEmail || '',
+    manual,
+  };
+};
