@@ -201,9 +201,20 @@ Deno.serve(async (req: Request) => {
       created_at: now,
     })));
 
-    // (2) Courtesy email to all recipients (best-effort).
+    // (2) Courtesy email to recipients who keep this category's Email channel on
+    //     (missing prefs row = on). The In-app bell above is unaffected — it's
+    //     gated separately in the DB trigger.
     if (RESEND_API_KEY) {
-      const emails = await resolveEmails(recipientIds);
+      const prefs = await supaGet(
+        `notification_preferences?user_id=in.(${recipientIds.join(',')})&select=user_id,email_seatime`,
+      ) || [];
+      const emailOff = new Set(
+        (prefs as { user_id: string; email_seatime: boolean }[])
+          .filter((p) => p.email_seatime === false)
+          .map((p) => p.user_id),
+      );
+      const emailIds = recipientIds.filter((id) => !emailOff.has(id));
+      const emails = await resolveEmails(emailIds);
       console.log(`[sendSeaTimeSubmission] recipients=${recipientIds.length} emails=${emails.length}`);
       if (emails.length) {
         const html = renderEmail({ seafarer, vessel, dayCount, ctaUrl: `${SITE_URL}/reviews/seatime` });
