@@ -15,7 +15,7 @@
   if (window.__cargoPyaLoaded) return;
   window.__cargoPyaLoaded = true;
 
-  const VERSION = 'ext-3';
+  const VERSION = 'ext-4';
   let ok = [], miss = [];
 
   const norm = (s) => (s || '').replace(/[ⓘ\*•]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -115,6 +115,20 @@
     return record('Area: ' + text, false);
   }
 
+  const findFlagSearch = () => Array.from(document.querySelectorAll('input')).find((i) => /nationality|country|search/i.test(i.placeholder || ''));
+
+  // Type into a search box AND fire key events, because list filters often react
+  // to keyup rather than the React onChange alone.
+  function typeSearch(el, text) {
+    el.focus();
+    setNativeValue(el, text);
+    const last = text.slice(-1) || 'a';
+    ['keydown', 'keypress', 'input', 'keyup'].forEach((type) => {
+      const ev = /key/.test(type) ? new KeyboardEvent(type, { key: last, bubbles: true }) : new Event(type, { bubbles: true });
+      el.dispatchEvent(ev);
+    });
+  }
+
   async function fillFlag(country) {
     if (!country) return;
     // The trigger may be plain text, an <input> placeholder, or the field next to a "Flag" label.
@@ -132,16 +146,20 @@
       }
     }
     if (!trigger) return record('Flag: ' + country, false);
+
+    // Open the picker (retry via the parent if a bare click didn't).
     trigger.click();
-    const search = await waitFor(() => Array.from(document.querySelectorAll('input')).find((i) => /nationality|country|search/i.test(i.placeholder || '')));
-    if (search) setNativeValue(search, country);
-    await sleep(250);
+    let search = await waitFor(findFlagSearch, 1200);
+    if (!search && trigger.parentElement) { trigger.parentElement.click(); search = await waitFor(findFlagSearch, 1200); }
+    if (search) { typeSearch(search, country); await sleep(400); }
+
+    const nc = norm(country);
     const row = await waitFor(() => {
-      const exact = Array.from(document.querySelectorAll('div,li,button,span,p,a')).find((e) => norm(e.textContent) === norm(country) && e.children.length < 5);
-      if (exact) return exact;
-      // fall back to a row that starts with the country (list item wrapping a flag image + name)
-      return Array.from(document.querySelectorAll('li,div,button')).find((e) => norm(e.textContent).indexOf(norm(country)) === 0 && norm(e.textContent).length < norm(country).length + 6);
-    });
+      const cand = Array.from(document.querySelectorAll('li,div,button,span,p,a'))
+        .filter((e) => e.children.length < 6 && (norm(e.textContent) === nc || norm(e.textContent).indexOf(nc) === 0) && norm(e.textContent).length < nc.length + 8);
+      // prefer the tightest match (the row itself, not an outer container)
+      return cand.sort((a, b) => a.textContent.length - b.textContent.length)[0] || null;
+    }, 2500);
     if (row) { row.click(); return record('Flag: ' + country, true); }
     return record('Flag: ' + country, false);
   }
