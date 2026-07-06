@@ -15,7 +15,7 @@
   if (window.__cargoPyaLoaded) return;
   window.__cargoPyaLoaded = true;
 
-  const VERSION = 'ext-5';
+  const VERSION = 'ext-6';
   let ok = [], miss = [];
 
   const norm = (s) => (s || '').replace(/[ⓘ\*•]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -129,35 +129,47 @@
     });
   }
 
+  // Full mouse sequence — some React pickers open on mousedown, not click.
+  function realClick(el) {
+    if (!el) return;
+    ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach((type) => {
+      try { el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window })); } catch (e) { /* older MouseEvent */ }
+    });
+  }
+
   async function fillFlag(country) {
     if (!country) return;
     // Entries sometimes store an abbreviated flag ("Cayman Is.") — expand the
     // common "… Is." → "… Islands" so it matches PYA's country list.
     country = String(country).replace(/\bis\.?$/i, 'Islands').trim();
-
-    // The flag field sits right after the "Flag" label (per PYA's markup); use
-    // that first, then fall back to placeholder / literal text.
-    let trigger = null;
-    const flagLabel = Array.from(document.querySelectorAll('label')).find((l) => norm(l.textContent) === 'flag');
-    if (flagLabel && flagLabel.nextElementSibling) trigger = flagLabel.nextElementSibling;
-    if (!trigger) trigger = Array.from(document.querySelectorAll('div,button,span,p,a,input')).find((e) => norm(e.textContent) === 'click to choose a country flag');
-    if (!trigger) trigger = Array.from(document.querySelectorAll('input')).find((i) => /choose a country|country flag|select.*flag/i.test(i.placeholder || ''));
-    if (!trigger) return record('Flag: ' + country, false);
-
-    // Open the picker (retry via the parent if a bare click didn't).
-    trigger.click();
-    let search = await waitFor(findFlagSearch, 1200);
-    if (!search && trigger.parentElement) { trigger.parentElement.click(); search = await waitFor(findFlagSearch, 1200); }
-    if (search) { typeSearch(search, country); await sleep(400); }
-
     const nc = norm(country);
+
+    // The visible "Click to Choose a Country Flag" field is the real trigger;
+    // fall back to the element right after the "Flag" label.
+    let trigger = Array.from(document.querySelectorAll('div,button,span,p,a,input')).find((e) => norm(e.textContent) === 'click to choose a country flag' || /choose a country|country flag/i.test(e.placeholder || ''));
+    if (!trigger) {
+      const flagLabel = Array.from(document.querySelectorAll('label')).find((l) => norm(l.textContent) === 'flag');
+      trigger = flagLabel && flagLabel.nextElementSibling;
+    }
+    if (!trigger) { console.log('%c[Cargo→PYA] flag: trigger NOT found', 'color:#C65A1A'); return record('Flag: ' + country, false); }
+
+    // Open the picker — try the field, then a child, then the parent (mousedown seq).
+    realClick(trigger);
+    let search = await waitFor(findFlagSearch, 1200);
+    if (!search && trigger.firstElementChild) { realClick(trigger.firstElementChild); search = await waitFor(findFlagSearch, 1000); }
+    if (!search && trigger.parentElement) { realClick(trigger.parentElement); search = await waitFor(findFlagSearch, 1000); }
+    console.log('%c[Cargo→PYA] flag: search box ' + (search ? 'opened' : 'did NOT open'), 'color:#5E8E6F');
+    if (!search) return record('Flag: ' + country, false);
+
+    typeSearch(search, country);
+    await sleep(550);
     const row = await waitFor(() => {
       const cand = Array.from(document.querySelectorAll('li,div,button,span,p,a'))
         .filter((e) => e.children.length < 6 && (norm(e.textContent) === nc || norm(e.textContent).indexOf(nc) === 0) && norm(e.textContent).length < nc.length + 8);
-      // prefer the tightest match (the row itself, not an outer container)
       return cand.sort((a, b) => a.textContent.length - b.textContent.length)[0] || null;
     }, 2500);
-    if (row) { row.click(); return record('Flag: ' + country, true); }
+    console.log('%c[Cargo→PYA] flag: matching row ' + (row ? 'found → ' + row.textContent.trim() : 'NOT found after typing "' + country + '"'), 'color:#5E8E6F');
+    if (row) { realClick(row); return record('Flag: ' + country, true); }
     return record('Flag: ' + country, false);
   }
 
