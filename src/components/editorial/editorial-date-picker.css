@@ -219,6 +219,22 @@
 .edp-day.is-selected:hover {
   background: var(--edp-rust-dark);
 }
+/* Range continuation: soft terracotta wash on the days between the two ends,
+   with a slightly stronger tint on the anchor (the fixed other end). Rounded
+   pills keep the editorial look — no hard connected bar. */
+.edp-day.is-in-range {
+  background: #FBEFE9;
+  color: var(--edp-rust);
+}
+.edp-day.is-in-range:hover {
+  background: #F7E2D6;
+  color: var(--edp-rust-dark);
+}
+.edp-day.is-range-anchor {
+  background: #F7E2D6;
+  color: var(--edp-rust-dark);
+  font-weight: 600;
+}
 
 .edp-pop-foot {
   display: flex;

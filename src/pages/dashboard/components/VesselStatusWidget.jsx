@@ -181,10 +181,11 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
     <div className="vsw-scrim" onMouseDown={onClose}>
       <div className="vsw-modal" onMouseDown={e => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="vsw-modal-head">
-          <div>
-            <p className="vsw-modal-eyebrow"><span className="dot">●</span> VESSEL · STATUS</p>
-            <h2 className="vsw-modal-title">{tab === 'log' ? 'Log a past period' : 'Status history'}</h2>
-          </div>
+          <h2 className="vsw-modal-title">
+            {tab === 'log'
+              ? <>Log a <span className="accent">past period</span></>
+              : <>Status <span className="accent">history</span></>}
+          </h2>
           <button className="vsw-modal-x" onClick={onClose} aria-label="Close"><Icon name="X" className="vsw-ic16" /></button>
         </div>
 
@@ -195,7 +196,6 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
 
         {tab === 'log' ? (
           <div className="vsw-modal-body">
-            <p className="vsw-help">Record a known period — a refit, a long stay in port — for the exact dates the vessel was in that state. Everyone aboard is classified from it.</p>
             <p className="vsw-flabel">What was the vessel doing?</p>
             <div className="vsw-state-grid">
               {STATES.map(s => {
@@ -210,8 +210,8 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
               })}
             </div>
             <div className="vsw-dates">
-              <label>From<EditorialDatePicker value={form.from} onChange={(iso) => setForm(f => ({ ...f, from: iso }))} ariaLabel="Period start date" placeholder="dd/mm/yyyy" /></label>
-              <label>To<EditorialDatePicker value={form.to} onChange={(iso) => setForm(f => ({ ...f, to: iso }))} ariaLabel="Period end date" placeholder="dd/mm/yyyy" /></label>
+              <label>From<EditorialDatePicker value={form.from} onChange={(iso) => setForm(f => ({ ...f, from: iso }))} rangeStart={form.to} displayFormat="d MMM yyyy" ariaLabel="Period start date" placeholder="Start date" /></label>
+              <label>To<EditorialDatePicker value={form.to} onChange={(iso) => setForm(f => ({ ...f, to: iso }))} rangeStart={form.from} displayFormat="d MMM yyyy" ariaLabel="Period end date" placeholder="End date" /></label>
             </div>
             <p className="vsw-flabel">Reason <span className="req">required</span></p>
             <input className="vsw-input" placeholder="e.g. Winter refit at MB92, Barcelona" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />

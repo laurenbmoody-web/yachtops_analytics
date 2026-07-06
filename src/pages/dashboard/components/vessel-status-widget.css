@@ -75,10 +75,15 @@
 /* ── Modal (portaled to <body>) ──────────────────────────────────────────── */
 .vsw-scrim { position: fixed; inset: 0; z-index: 1000; background: rgba(28, 27, 58, 0.42); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 20px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 .vsw-modal { width: 440px; max-width: 100%; max-height: 90vh; overflow: auto; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); padding: 20px 22px 22px; }
-.vsw-modal-head { display: flex; align-items: flex-start; justify-content: space-between; }
-.vsw-modal-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #8B8478; margin: 0 0 4px; }
-.vsw-modal-eyebrow .dot { color: var(--vsw-terra); }
-.vsw-modal-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; font-weight: 400; letter-spacing: -0.4px; color: #1C1B3A; margin: 0; }
+.vsw-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+/* Two-tone editorial headline. Portaled to <body> (outside .cargo-editorial), so
+   both the title and the .accent span carry an explicit DM Serif font-family —
+   otherwise the global `span { font-family: Plus Jakarta }` rule wins on the
+   accent and it falls back to a sans. */
+.vsw-modal-title,
+.vsw-modal-title .accent { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; }
+.vsw-modal-title { font-size: 30px; line-height: 1.05; font-weight: 400; letter-spacing: -0.4px; color: #1C1B3A; margin: 2px 0 0; }
+.vsw-modal-title .accent { font-style: italic; color: var(--vsw-terra); }
 .vsw-modal-x { background: #F6F5F2; border: 0; border-radius: 8px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #6B7280; flex: 0 0 auto; }
 .vsw-modal-x:hover { background: #ECEAE3; color: #1C1B3A; }
 .vsw-modal-tabs { display: flex; gap: 4px; background: #F6F5F2; border-radius: 999px; padding: 3px; margin: 16px 0; }
@@ -97,6 +102,10 @@
 .vsw-dates { display: flex; gap: 10px; margin-bottom: 16px; }
 .vsw-dates label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .vsw-dates .edp { width: 100%; }
+/* Match the field to the rest of the form: navy ink, medium weight, normal
+   casing (the <label> above sets tracked-caps, which the field must not inherit). */
+.vsw-dates .edp-input { font-size: 13.5px; font-weight: 500; color: #1C1B3A; letter-spacing: normal; text-transform: none; }
+.vsw-dates .edp-input::placeholder { color: #AEB4C2; font-weight: 500; }
 .vsw-input { border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; color: #1C1B3A; background: #FAFAF8; font-family: inherit; width: 100%; text-transform: none; letter-spacing: normal; font-weight: 400; }
 .vsw-input:focus { outline: none; border-color: var(--vsw-terra); box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
 .vsw-primary { margin-top: 16px; width: 100%; background: var(--vsw-terra); color: #fff; border: 0; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
