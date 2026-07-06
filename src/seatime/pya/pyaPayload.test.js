@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPyaPayload, mapCapacity, mapVesselType, mapAreas } from './pyaPayload.js';
+import { buildPyaPayload, mapCapacity, mapVesselType, mapAreas, cleanVesselName } from './pyaPayload.js';
 
 const dataset = {
   vessels: [{ name: 'M/Y Test', flag: 'Cayman Islands', imo: '9601234', grossTonnage: 499, registeredLengthM: 45, vesselType: 'Motor Yacht' }],
@@ -34,7 +34,7 @@ test('optional boxes only appear when supplied', () => {
 
 test('vessel + dates + radios map across', () => {
   const p = buildPyaPayload({ dataset, signatoryEmail: 'cap@x.com' });
-  assert.equal(p.text['Name'], 'M/Y Test');
+  assert.equal(p.text['Name'], 'Test');   // M/Y prefix stripped
   assert.equal(p.text['IMO'], '9601234');
   assert.equal(p.text['Gross tonnage (GT)'], '499');
   assert.equal(p.text['Load Line Length (m)'], '45');
@@ -53,6 +53,15 @@ test('capacity mapping covers the PYA options', () => {
   assert.equal(mapCapacity('Chase Boat Captain'), 'Chase Boat Captain');
   assert.equal(mapCapacity('Deckhand'), 'Deckhand');
   assert.equal(mapCapacity('Stewardess'), null);          // unknown → manual
+});
+
+test('vessel name drops the M/Y · S/Y prefix (type is its own field)', () => {
+  assert.equal(cleanVesselName('M/Y Belongers'), 'Belongers');
+  assert.equal(cleanVesselName('S/Y Tern'), 'Tern');
+  assert.equal(cleanVesselName('MY Serenity'), 'Serenity');
+  assert.equal(cleanVesselName('Belongers'), 'Belongers');      // no prefix, untouched
+  assert.equal(cleanVesselName('Mystic'), 'Mystic');            // not a prefix (no space)
+  assert.equal(buildPyaPayload({ dataset }).text['Name'], 'M/Y Test'.replace(/^M\/Y /, ''));
 });
 
 test('vessel type falls back to Motor', () => {
