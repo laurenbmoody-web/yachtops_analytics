@@ -9,6 +9,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
+import { EditorialDatePicker } from '../../../components/editorial';
 import { useTenant } from '../../../contexts/TenantContext';
 import { fetchVesselStatusTimeline, setVesselStatus } from '../../crew-profile/utils/seaTimeService';
 import './vessel-status-widget.css';
@@ -209,14 +210,13 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
               })}
             </div>
             <div className="vsw-dates">
-              <label>From<input type="date" max={form.to || todayIso()} value={form.from} onChange={e => setForm(f => ({ ...f, from: e.target.value }))} /></label>
-              <label>To<input type="date" min={form.from} max={todayIso()} value={form.to} onChange={e => setForm(f => ({ ...f, to: e.target.value }))} /></label>
+              <label>From<EditorialDatePicker value={form.from} onChange={(iso) => setForm(f => ({ ...f, from: iso }))} ariaLabel="Period start date" placeholder="dd/mm/yyyy" /></label>
+              <label>To<EditorialDatePicker value={form.to} onChange={(iso) => setForm(f => ({ ...f, to: iso }))} ariaLabel="Period end date" placeholder="dd/mm/yyyy" /></label>
             </div>
             <p className="vsw-flabel">Reason <span className="req">required</span></p>
             <input className="vsw-input" placeholder="e.g. Winter refit at MB92, Barcelona" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
             {err && <p className="vsw-err vsw-err-modal">{err}</p>}
             <button className="vsw-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Log period'}</button>
-            <p className="vsw-foot">Saved with your name. You can’t change a period that already covers signed-off service.</p>
           </div>
         ) : (
           <div className="vsw-modal-body">
@@ -239,7 +239,6 @@ const VesselStatusModal = ({ mode, tenantId, timeline, onClose, onSaved }) => {
                 })}
               </div>
             )}
-            <p className="vsw-foot">Every change is recorded with the setter’s name. Periods covering signed-off service are locked and can’t be altered.</p>
           </div>
         )}
       </div>
