@@ -109,6 +109,16 @@ async function resolveEmail(userId: string): Promise<string> {
   return email;
 }
 
+// Has the crew member kept HoR reminder emails on? Missing prefs row = on.
+async function horEmailOn(userId: string): Promise<boolean> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/notification_preferences?user_id=eq.${userId}&select=email_hor_reminders`,
+    { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } },
+  ).catch(() => null);
+  const j = res && res.ok ? await res.json().catch(() => []) : [];
+  return !(j && j[0] && j[0].email_hor_reminders === false);
+}
+
 function monthLabel(y: number, m: number): string {
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
@@ -185,6 +195,7 @@ Deno.serve(async (req: Request) => {
     // ---- LIVE: one email per overdue subject, then log the sends ----
     let sent = 0; const logged: PlanRow[] = []; const failures: string[] = [];
     for (const row of emailRows) {
+      if (!(await horEmailOn(row.subject_user_id))) continue; // opted out of HoR reminder emails
       const to = await resolveEmail(row.subject_user_id);
       if (!to) { failures.push(`${row.subject_name}: no address`); continue; }
       const built = buildEmail(row.subject_name, row.period_year, row.period_month, row.action_url, false);

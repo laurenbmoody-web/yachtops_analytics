@@ -186,6 +186,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Email recipients = those who keep this category's Email channel on (missing
+    // prefs row = on). The In-app bell goes to everyone (gated in the DB trigger).
+    const subPrefs = await supaGet(
+      `notification_preferences?user_id=in.(${recipientIds.join(',')})&select=user_id,email_rota_submissions`,
+    ) || [];
+    const emailOff = new Set(
+      (subPrefs as { user_id: string; email_rota_submissions: boolean }[])
+        .filter((p) => p.email_rota_submissions === false)
+        .map((p) => p.user_id),
+    );
+    const emailIds = recipientIds.filter((id) => !emailOff.has(id));
+
     const submitter = ctx.submitter_name || 'A department head';
     const dept = ctx.department_name || 'a department';
     const rotaName = ctx.rota_name || '';
@@ -205,9 +217,9 @@ Deno.serve(async (req: Request) => {
       created_at: now,
     })));
 
-    // (2) Courtesy email to all recipients (best-effort).
+    // (2) Courtesy email to recipients who keep the Email channel on (best-effort).
     if (RESEND_API_KEY) {
-      const emails = await resolveEmails(recipientIds);
+      const emails = await resolveEmails(emailIds);
       console.log(`[sendRotaSubmission] recipients=${recipientIds.length} emails=${emails.length}`);
       if (emails.length) {
         const html = renderEmail({

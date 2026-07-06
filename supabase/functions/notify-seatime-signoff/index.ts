@@ -150,8 +150,12 @@ Deno.serve(async (req: Request) => {
       title, message, action_url: seaTimePath, read: false, created_at: new Date().toISOString(),
     });
 
-    // (2) Courtesy email (best-effort).
-    if (RESEND_API_KEY) {
+    // (2) Courtesy email (best-effort) — unless the seafarer turned this
+    //     category's Email channel off (missing prefs row = on). The bell above
+    //     is unaffected; it's gated separately in the DB trigger.
+    const stPrefs = await supaGet(`notification_preferences?user_id=eq.${seafarerId}&select=email_seatime&limit=1`) as { email_seatime: boolean }[] | null;
+    const emailAllowed = !(stPrefs && stPrefs[0] && stPrefs[0].email_seatime === false);
+    if (RESEND_API_KEY && emailAllowed) {
       const email = await resolveEmail(seafarerId);
       if (email) {
         const html = renderEmail({ name: seafarerName, action, vessel, master, days, href: `${SITE_URL}${seaTimePath}` });
