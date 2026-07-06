@@ -831,7 +831,9 @@ const ProvisioningBoardDetail = () => {
   const boardConfirmedStage =
     list?.status === 'partially_confirmed' || list?.status === 'confirmed';
   const isQuoteConfirmed = (i) =>
-    boardConfirmedStage && i.quoted_unit_cost != null && Number(i.quoted_unit_cost) > 0;
+    boardConfirmedStage
+    && i.quoted_unit_cost != null && Number(i.quoted_unit_cost) > 0
+    && !i.quote_reopened;   // reopened lines unlock but keep their price
   // Lookup keyed by lowered item name. Carries both the per-item
   // supplier-side state (status, substitution detail) AND a back-pointer
   // to the parent supplier_orders row — the parent's status (invoiced,
@@ -1782,6 +1784,40 @@ const ProvisioningBoardDetail = () => {
     }
   };
 
+  // Manual-quote reopen — the non-supplier equivalent of handleReopenLine.
+  // A quote-confirmed manual line has no supplier order to notify; reopening
+  // just flips quote_reopened so the line unlocks (editable, re-sendable)
+  // while keeping its entered price. If the board was fully confirmed it
+  // drops back to partially_confirmed so "Confirm quote" reappears to
+  // re-lock the line once the crew's done.
+  const handleReopenManualLine = async (item) => {
+    const itemName = item?.name || 'this line';
+    const ok = window.confirm(
+      `Reopen "${itemName}" for changes?\n\n`
+      + 'It unlocks so you can edit or re-send it, and keeps its quoted price. '
+      + 'It stops counting as confirmed until you confirm the quote again.',
+    );
+    if (!ok) return;
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, quote_reopened: true } : i));
+    try {
+      await updateProvisioningItem(item.id, { quote_reopened: true });
+      if (list?.status === 'confirmed') {
+        try {
+          await updateProvisioningList(id, { status: 'partially_confirmed' });
+          setList(prev => ({ ...prev, status: 'partially_confirmed' }));
+          try { window.dispatchEvent(new Event('provisioning-list-status-changed')); } catch { /* noop */ }
+        } catch (e) {
+          console.error('[ReopenManualLine] board status update failed:', e);
+        }
+      }
+      showToast(`"${itemName}" reopened for changes`, 'success');
+    } catch (err) {
+      console.error('[ReopenManualLine] failed:', err);
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, quote_reopened: false } : i));
+      showToast(`Couldn't reopen — ${err.message || err}`, 'error');
+    }
+  };
+
   const handleAddItem = async (dept) => {
     if (!newItemName.trim()) return;
     const payload = { list_id: id, name: newItemName.trim(), department: (dept === 'Other' || dept === 'General') ? '' : dept, category: newItemCategory.trim() || null, quantity_ordered: 1, unit: 'each', status: 'draft', source: 'manual' };
@@ -2650,6 +2686,18 @@ const ProvisioningBoardDetail = () => {
       const pricedItems = items.filter(isPriced);
       let manualOutcome = null;   // { priced, unavailable, total } when the manual branch ran
       if ((!result || !result.affectedItems) && hasManualQuote) {
+        // Re-confirming re-locks any reopened priced lines — clear their
+        // quote_reopened flag so isQuoteConfirmed treats them as confirmed
+        // again (mirrors a supplier re-confirm closing a reopened line).
+        const reopenedIds = items.filter(i => i.quote_reopened && isPriced(i)).map(i => i.id);
+        if (reopenedIds.length) {
+          try {
+            await bulkUpdateProvisioningItems(reopenedIds, { quote_reopened: false });
+            setItems(prev => prev.map(i => reopenedIds.includes(i.id) ? { ...i, quote_reopened: false } : i));
+          } catch (e) {
+            console.error('[runConfirmQuote] clear quote_reopened failed:', e);
+          }
+        }
         const total = items.length;
         const settledCount = items.filter(isSettled).length;
         const unavailableCount = items.filter(i => i.status === 'unavailable').length;
@@ -4222,6 +4270,21 @@ const ProvisioningBoardDetail = () => {
                                 <button
                                   onClick={() => handleReopenLine(item, itemOrder)}
                                   title="Reopen for changes — supplier will be notified"
+                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = '#FBEFE9'; e.currentTarget.style.color = '#C65A1A'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94A3B8'; }}
+                                >
+                                  <Icon name="RotateCcw" style={{ width: 12, height: 12 }} />
+                                </button>
+                              )}
+                              {/* Manual quote-confirmed line — reopen with no
+                                  supplier to notify. Shown on hover for locked
+                                  manual lines (quote-confirmed, not on a
+                                  supplier order). */}
+                              {isHovered && quoteConfirmed && !supplierActed && (
+                                <button
+                                  onClick={() => handleReopenManualLine(item)}
+                                  title="Reopen for changes — unlocks the line, keeps its quoted price"
                                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
                                   onMouseEnter={e => { e.currentTarget.style.background = '#FBEFE9'; e.currentTarget.style.color = '#C65A1A'; }}
                                   onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94A3B8'; }}
