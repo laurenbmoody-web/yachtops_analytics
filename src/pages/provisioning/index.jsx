@@ -1129,10 +1129,6 @@ const ProvisioningWorkspace = () => {
             <Icon name="Users" className="w-4 h-4" />
             Suppliers
           </button>
-          <button onClick={() => navigate('/provisioning/marketplace')} className="pv-toolbar-link">
-            <Icon name="Store" className="w-4 h-4" />
-            Marketplace
-          </button>
         </div>
 
         {/* Error */}
