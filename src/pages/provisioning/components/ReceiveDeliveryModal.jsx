@@ -2031,7 +2031,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       // Path 1: auto-matched to inventory item
       if (match && typeof match === 'object') {
         const splits = locationSplits[item.id] || [{ locationName: match.location || '', currentQty: 0, addQty: qty }];
-        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: match.id, splits, tenantId });
+        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: match.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null });
         if (ok) {
           try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: match.id })?.eq('id', item.id); } catch { /* non-fatal */ }
           pushed++;
@@ -2044,7 +2044,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       // Path 2: user manually linked to inventory item
       if (choice === 'link' && inlineLink) {
         const splits = locationSplits[item.id] || [{ locationName: inlineLink.location || '', currentQty: 0, addQty: qty }];
-        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: inlineLink.id, splits, tenantId });
+        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: inlineLink.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null });
         if (ok) {
           try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: inlineLink.id })?.eq('id', item.id); } catch { /* non-fatal */ }
           pushed++;
