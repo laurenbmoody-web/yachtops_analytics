@@ -21,6 +21,7 @@ function pyaFiller() {
     try { data = JSON.parse(raw); }
     catch (e) { alert('Cargo → PYA\n\nCouldn’t read the copied data. In Cargo, click “Copy details for PYA” first, then run this bookmark again.'); return; }
 
+    var VERSION = 'v6';
     var ok = [], miss = [];
     function norm(s) { return (s || '').replace(/[ⓘ\*•]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
     function setNative(el, val) {
@@ -74,7 +75,9 @@ function pyaFiller() {
       for (var i = 0; i < roles.length; i++) {
         if (norm(roles[i].textContent) === t) { roles[i].click(); ok.push(name || text); return true; }
       }
-      // 3) any element whose text matches → walk up to a radio/checkbox input, else click it
+      // 3) any element whose text matches → click a radio/checkbox input if there
+      //    is one, else click the element AND its parent (the option may be a fully
+      //    custom control whose click handler sits on the row container).
       var all = document.querySelectorAll('button,div,span,li,p,a');
       for (var i = 0; i < all.length; i++) {
         if (norm(all[i].textContent) !== t) continue;
@@ -84,7 +87,9 @@ function pyaFiller() {
           if (input) { input.click(); ok.push(name || text); return true; }
           scope = scope.parentElement;
         }
-        all[i].click(); ok.push(name || text); return true;
+        all[i].click();
+        if (all[i].parentElement) all[i].parentElement.click();
+        ok.push(name || text); return true;
       }
       miss.push(name || text); return false;
     }
@@ -164,7 +169,7 @@ function pyaFiller() {
 
     function finish() {
       (data.manual || []).forEach(function (m) { if (miss.indexOf(m) === -1) miss.push(m); });
-      alert('Cargo → PYA autofill\n\n✓ Filled (' + ok.length + '):\n' + (ok.join(', ') || '—') +
+      alert('Cargo → PYA autofill (' + VERSION + ')\n\n✓ Filled (' + ok.length + '):\n' + (ok.join(', ') || '—') +
         '\n\n→ Do these by hand (' + miss.length + '):\n' + (miss.join(', ') || '—') +
         '\n\nAlways check every field against your own records before you submit.');
     }
