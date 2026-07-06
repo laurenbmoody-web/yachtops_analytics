@@ -3916,6 +3916,8 @@ const SUPPLIER_MIRROR_FIELD = {
                         // supplier-confirmed one (see isQuoteConfirmed).
                         const quoteConfirmed = isQuoteConfirmed(item);
                         const isLocked = (isSent && !!itemOrder) || supplierActed || quoteConfirmed;
+                        // Marketplace lines: supplier-defined fields render read-only.
+                        const catLocked = !!item.catalogue_item_id;
                         // The crew lives at quote_in / quoting / confirming for
                         // most of the order's life — the board-level "sent"
                         // flag only flips after Receive Items. So we use the
@@ -3993,7 +3995,7 @@ const SUPPLIER_MIRROR_FIELD = {
                                 ) : (
                                   <>
                                     <span
-                                      onDoubleClick={() => !isReceived && !isLocked && setEditingCell({ itemId: item.id, field: 'name' })}
+                                      onDoubleClick={() => !isReceived && !isLocked && !catLocked && setEditingCell({ itemId: item.id, field: 'name' })}
                                       style={{
                                         fontSize: 13,
                                         color: (itemOrder?.status === 'unavailable' || item.status === 'unavailable') ? '#94A3B8' : dim || '#0F172A',
@@ -4017,13 +4019,13 @@ const SUPPLIER_MIRROR_FIELD = {
                                   </>
                                 )}
                               </div>
-                              {!isReceived && !isLocked && <AlwaysEditCell
+                              {!isReceived && !isLocked && !catLocked && <AlwaysEditCell
                                 value={item.brand ?? ''}
                                 placeholder="Brand…"
                                 onSave={v => handleCellSave(item, 'brand', v)}
                                 inputStyle={{ fontSize: 11, color: '#0F172A', paddingLeft: allergen ? 18 : undefined }}
                               />}
-                              {(isReceived || isLocked) && item.brand && <span style={{ fontSize: 11, color: dim || '#94A3B8', padding: '2px 6px' }}>{item.brand}</span>}
+                              {(isReceived || isLocked || catLocked) && item.brand && <span style={{ fontSize: 11, color: dim || '#94A3B8', padding: '2px 6px' }}>{item.brand}</span>}
                               {hasSupplierMatch && itemOrder?.status === 'substituted' && itemOrder.substitution && (
                                 <span className={`pv-supplier-diff${pulseCls}`} style={{ fontSize: 11, color: '#C65A1A', fontWeight: 600, paddingLeft: 6, marginTop: 2, display: 'inline-block' }}>
                                   Sub: {itemOrder.substitution}{itemOrder.subPrice ? ` (${itemOrder.subPrice})` : ''}
@@ -4088,7 +4090,7 @@ const SUPPLIER_MIRROR_FIELD = {
                                 the crew's ask. Editable only when no
                                 supplier match exists yet. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {isReceived || supplierActed
+                              {isReceived || supplierActed || catLocked
                                 ? (
                                     itemOrder?.sizeChanged
                                       ? (
@@ -4104,7 +4106,7 @@ const SUPPLIER_MIRROR_FIELD = {
                             </div>
                             {/* Unit — same strikethrough treatment as Size. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {isReceived || supplierActed
+                              {isReceived || supplierActed || catLocked
                                 ? (
                                     itemOrder?.unitChanged
                                       ? (
@@ -4172,11 +4174,13 @@ const SUPPLIER_MIRROR_FIELD = {
                                       : 'Quoted price';
                                     return (
                                       <span title={priorTitle} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                                        <AlwaysEditCell value={item.quoted_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'quoted_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right', fontWeight: 700 }} />
+                                        {catLocked
+                                          ? <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 700 }}>{Number(item.quoted_unit_cost).toFixed(2)}</span>
+                                          : <AlwaysEditCell value={item.quoted_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'quoted_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right', fontWeight: 700 }} />}
                                       </span>
                                     );
                                   })()
-                                : isReceived || supplierActed
+                                : isReceived || supplierActed || catLocked
                                   ? (() => {
                                       const supplierPrice = itemOrder?.supplierPrice;
                                       if (supplierPrice != null && Number(supplierPrice) > 0) {

@@ -480,8 +480,11 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
   const isLinked = !!form.inventory_item_id;
   const isReceived = form.status === 'received';
+  // Marketplace lines: the supplier's product definition is authoritative
+  // — identity fields lock exactly like inventory-linked items do.
+  const isCatalogue = !!(form.catalogue_item_id || item?.catalogue_item_id);
   // When received, all fields are read-only (layered on top of isLinked)
-  const isReadOnly = isLinked || isReceived;
+  const isReadOnly = isLinked || isReceived || isCatalogue;
 
   // Dirty signal — any form field differs from the loaded item (same
   // fallbacks the hydrate effect uses). Field-level autosave keeps `item`
@@ -1053,7 +1056,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 <input
                   type="number"
                   value={form.estimated_unit_cost ?? ''}
-                  onChange={e => set('estimated_unit_cost', e.target.value)}
+                  onChange={e => !isCatalogue && set('estimated_unit_cost', e.target.value)}
+                  readOnly={isCatalogue}
                   onBlur={() => saveField()}
                   placeholder="0.00"
                   min="0"
@@ -1099,7 +1103,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                         );
                       })}
                     </div>
-                    <input type="number" value={form.estimated_unit_cost ?? ''} onChange={e => set('estimated_unit_cost', e.target.value)} onBlur={() => saveField()} placeholder="0.00" min="0" step="0.01" style={{ borderRadius: '0 8px 8px 0', borderLeft: 'none' }} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none transition-colors text-white bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] focus:border-[#4A90E2]" />
+                    <input type="number" value={form.estimated_unit_cost ?? ''} onChange={e => !isCatalogue && set('estimated_unit_cost', e.target.value)} readOnly={isCatalogue} onBlur={() => saveField()} placeholder="0.00" min="0" step="0.01" style={{ borderRadius: '0 8px 8px 0', borderLeft: 'none' }} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none transition-colors text-white bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] focus:border-[#4A90E2]" />
                   </div>
                 </div>
                 <div className="flex-1">
