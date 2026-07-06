@@ -42,6 +42,22 @@
 .gm1-tint { background: #FBEFE9; }
 .gm1-tint h2 { color: #1C1B3A; }
 .gm1-tint p { color: #8A6A57; }
+/* navy CTA card (scheme b): keep the terracotta button, lighten the copy */
+.gm1-navy .vm-btn-primary { box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.45); }
+/* white cards, colour confined to illustration insets (scheme d) */
+.gm1-plain { background: #fff; border: 1px solid #ECEAE3; }
+.gm1-plain h2 { color: #1C1B3A; }
+.gm1-plain p { color: #6B7280; }
+.gm1-plain strong { color: #1C1B3A; }
+.gm1-inset {
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin: 0 0 22px;
+}
+.gm1-inset .gm-illo { max-width: 190px; margin: 0 auto; }
+.gm1-inset-navy { background: #1C1B3A; }
+.gm1-inset-paper { background: #FAFAF8; border: 1px solid #F0F1F5; }
+.gm1-inset-tint { background: #FBEFE9; }
 .gm1-cta { margin-top: auto; align-self: flex-start; margin-top: 18px; }
 
 /* ── V2 · Cinematic ─────────────────────────────────────────────────────── */

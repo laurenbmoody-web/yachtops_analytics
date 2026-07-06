@@ -112,32 +112,73 @@ const H1 = () => (
   </div>
 );
 
-/* ── V1 · Triptych — three illustration-forward cards ───────────────────── */
+/* ── V1 · Triptych — three illustration-forward cards.
+      Colour schemes via ?c= : a navy/paper/tint · b tint/paper/navy ·
+      c paper/navy/tint · d white cards, colour only in illustration insets. */
 
-const V1 = ({ navigate }) => (
-  <>
-    <H1 />
-    <div className="gm1-grid">
-      <div className="gm1-card gm1-navy">
-        <ScanIllo ink="#EDEFF8" accent="#E8813F" soft="#5C6285" />
-        <h2>Scan the room</h2>
-        <p>Slowly, with a free phone app — Scaniverse or Polycam. Lights on, blinds drawn.</p>
+const DARK_ILLO = { ink: '#EDEFF8', accent: '#E8813F', soft: '#5C6285' };
+
+const V1_CARDS = [
+  {
+    Illo: ScanIllo,
+    title: 'Scan the room',
+    body: <>Slowly, with a free phone app — Scaniverse or Polycam. Lights on, blinds drawn.</>,
+  },
+  {
+    Illo: ExportIllo,
+    title: 'Export the scan',
+    body: <>Scaniverse: Share → Export Model → <strong>SPZ</strong>.<br />Polycam: Export → Gaussian Splat → <strong>PLY</strong>.</>,
+  },
+  {
+    Illo: DropIllo,
+    title: 'Drop it in',
+    body: <>Name it, stand it upright — it's on the map.</>,
+    cta: true,
+  },
+];
+
+const V1_SCHEMES = {
+  a: ['navy', 'paper', 'tint'],
+  b: ['tint', 'paper', 'navy'],
+  c: ['paper', 'navy', 'tint'],
+  d: ['inset-navy', 'inset-paper', 'inset-tint'],
+};
+
+const V1 = ({ navigate, scheme = 'a' }) => {
+  const styles = V1_SCHEMES[scheme] || V1_SCHEMES.a;
+  return (
+    <>
+      <H1 />
+      <div className="gm1-grid">
+        {V1_CARDS.map(({ Illo, title, body, cta }, i) => {
+          const style = styles[i];
+          const inset = style.startsWith('inset');
+          const dark = style === 'navy';
+          const insetDark = style === 'inset-navy';
+          return (
+            <div key={title} className={`gm1-card ${inset ? 'gm1-plain' : `gm1-${style}`}`}>
+              {inset ? (
+                <div className={`gm1-inset gm1-${style}`}>
+                  <Illo {...(insetDark ? DARK_ILLO : {})} />
+                </div>
+              ) : (
+                <Illo {...(dark ? DARK_ILLO : {})} />
+              )}
+              <h2>{title}</h2>
+              <p>{body}</p>
+              {cta && (
+                <button className="vm-btn-primary gm1-cta" onClick={() => navigate('/vessel/map/manage')}>
+                  Upload your scan
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
-      <div className="gm1-card gm1-paper">
-        <ExportIllo />
-        <h2>Export the scan</h2>
-        <p>Scaniverse: Share → Export Model → <strong>SPZ</strong>.<br />Polycam: Export → Gaussian Splat → <strong>PLY</strong>.</p>
-      </div>
-      <div className="gm1-card gm1-tint">
-        <DropIllo />
-        <h2>Drop it in</h2>
-        <p>Name it, stand it upright — it's on the map.</p>
-        <button className="vm-btn-primary gm1-cta" onClick={() => navigate('/vessel/map/manage')}>Upload your scan</button>
-      </div>
-    </div>
-    <p className="gm-footnote">Big file? SPZ exports are much smaller than PLY.</p>
-  </>
-);
+      <p className="gm-footnote">Big file? SPZ exports are much smaller than PLY.</p>
+    </>
+  );
+};
 
 /* ── V2 · Cinematic — dark hero from the product's own material ─────────── */
 
@@ -292,11 +333,12 @@ export default function GuideMocks() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const v = params.get('v') || '1';
+  const scheme = params.get('c') || 'a';
   const V = { 1: V1, 2: V2, 3: V3, 4: V4 }[v] || V1;
   return (
     <Shell navigate={navigate}>
       <div className={`gm-root gm-v${v}`}>
-        <V navigate={navigate} />
+        <V navigate={navigate} scheme={scheme} />
       </div>
     </Shell>
   );
