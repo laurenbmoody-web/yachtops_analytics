@@ -45,12 +45,16 @@ export const SemiGauge = ({ pct = 0, gradientId, gradientKind = 'sage', delay = 
           <stop offset="100%" className={toClass} />
         </linearGradient>
       </defs>
-      {/* Track */}
-      <path d="M 10,64 A 54,54 0 0,1 110,64" fill="none" className="sg-gauge-track" strokeWidth="8"
+      {/* Track — a light step of the SAME hue as the fill (hue-on-hue),
+          so the meter reads as a "received"/"payments" gauge across the
+          whole arc even at 0%, instead of a bare neutral rail. */}
+      <path d="M 10,64 A 54,54 0 0,1 110,64" fill="none"
+        className={`sg-gauge-track sg-track-${gradientKind}`} strokeWidth="9"
         strokeLinecap="round" pathLength="100" />
-      {/* Progress */}
+      {/* Progress — round data-end only once there's something to show, so
+          0% doesn't render a stray cap dot on the empty rail. */}
       <path d="M 10,64 A 54,54 0 0,1 110,64" fill="none" stroke={`url(#${gradientId})`}
-        strokeWidth="8" strokeLinecap="round" pathLength="100"
+        strokeWidth="9" strokeLinecap={animPct > 0.001 ? 'round' : 'butt'} pathLength="100"
         strokeDasharray="100" strokeDashoffset={dashoffset} />
     </svg>
   );
