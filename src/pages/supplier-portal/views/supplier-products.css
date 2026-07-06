@@ -1,5 +1,29 @@
 /* Supplier catalogue upgrades — scoped spp-* (portal tokens) */
 
+/* ── KPI strip ── */
+.spp-kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px; margin-bottom: 18px;
+}
+.spp-kpi {
+  background: var(--card, #fff); border: 1px solid var(--line-soft, #EDF1F6);
+  border-radius: 12px; padding: 12px 16px;
+}
+.spp-kpi-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--muted, #94A3B8); margin-bottom: 4px;
+}
+.spp-kpi-value {
+  font-size: 17px; font-weight: 700; color: var(--fg, #0C0E14);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Margin cell ── */
+.spp-margin { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted-s, #64748B); }
+.spp-margin.ok { color: #157A50; }
+.spp-margin.thin { color: #A3660A; }
+.spp-margin.neg { color: #B0372B; }
+
 /* ── Category chips ── */
 .spp-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
 .spp-chip {

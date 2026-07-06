@@ -390,6 +390,65 @@ export const bulkDeleteCatalogueItems = async (itemIds) => {
   if (error) throw error;
 };
 
+/**
+ * Private buy prices (catalogue_item_costs — supplier-only RLS, crew
+ * can never read it). Returns { [catalogue_item_id]: cost_price }.
+ */
+export const fetchCatalogueCosts = async (supplierId) => {
+  const { data, error } = await supabase
+    .from('catalogue_item_costs')
+    .select('catalogue_item_id, cost_price')
+    .eq('supplier_id', supplierId);
+  if (error) throw error;
+  const map = {};
+  (data ?? []).forEach(r => { map[r.catalogue_item_id] = r.cost_price; });
+  return map;
+};
+
+export const upsertCatalogueCost = async (supplierId, itemId, costPrice, currency = 'EUR') => {
+  const { error } = await supabase
+    .from('catalogue_item_costs')
+    .upsert(
+      { catalogue_item_id: itemId, supplier_id: supplierId, cost_price: costPrice, currency },
+      { onConflict: 'catalogue_item_id' }
+    );
+  if (error) throw error;
+};
+
+/**
+ * Committed stock per catalogue item: quantity on this supplier's live
+ * orders (sent / confirmed / partially confirmed) whose lines carry a
+ * catalogue link and haven't been resolved as unavailable/substituted.
+ * Available = stock_qty − committed. Free-text order lines (no
+ * catalogue_item_id) can't be counted — committed is complete for
+ * marketplace-originated orders and grows more complete as the shop
+ * becomes the main path.
+ */
+export const fetchCommittedQuantities = async (supplierId) => {
+  try {
+    const { data: orders, error: e1 } = await supabase
+      .from('supplier_orders')
+      .select('id')
+      .eq('supplier_profile_id', supplierId)
+      .in('status', ['sent', 'confirmed', 'partially_confirmed']);
+    if (e1 || !orders?.length) return {};
+    const { data: lines, error: e2 } = await supabase
+      .from('supplier_order_items')
+      .select('catalogue_item_id, quantity, status')
+      .in('order_id', orders.map(o => o.id))
+      .not('catalogue_item_id', 'is', null)
+      .in('status', ['pending', 'confirmed']);
+    if (e2) return {};
+    const map = {};
+    (lines ?? []).forEach(l => {
+      map[l.catalogue_item_id] = (map[l.catalogue_item_id] || 0) + Number(l.quantity || 0);
+    });
+    return map;
+  } catch {
+    return {};
+  }
+};
+
 // Upload a product photo to the public `catalogue-images` bucket and write
 // the public URL onto the catalogue row. Same pattern as uploadSupplierLogo.
 export const uploadCatalogueImage = async (supplierId, itemId, file) => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Pencil, Trash2, X, UploadCloud, ImagePlus } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, UploadCloud, ImagePlus, Download } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import {
@@ -10,32 +10,34 @@ import {
   bulkUpdateCatalogueItems,
   bulkDeleteCatalogueItems,
   uploadCatalogueImage,
+  fetchCatalogueCosts,
+  upsertCatalogueCost,
+  fetchCommittedQuantities,
 } from '../utils/supplierStorage';
+import { STANDARD_CATEGORIES, UNIT_SUGGESTIONS, categoryHue, orderCategories } from '../../../utils/catalogueConstants';
 import EmptyState from '../components/EmptyState';
 import CatalogueImportModal from '../components/CatalogueImportModal';
 import './supplier-products.css';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
-
-const CATEGORIES = ['Produce', 'Meat & Fish', 'Dairy', 'Beverages', 'Dry Goods', 'Frozen', 'Cleaning', 'Other'];
-const UNITS = ['kg', 'g', 'L', 'ml', 'unit', 'case', 'box', 'bottle', 'each'];
-const LOW_STOCK_AT = 10;
-
-// Deterministic tile colour per category so an image-less list still scans.
-const CATEGORY_HUES = {
-  'Produce': '#4E8A3E', 'Meat & Fish': '#A5484F', 'Dairy': '#C99A2C', 'Beverages': '#3B6CB4',
-  'Dry Goods': '#8A6D4B', 'Frozen': '#4E93A6', 'Cleaning': '#6D57A5', 'Other': '#64748B',
-};
+const DEFAULT_LOW_STOCK_AT = 10;
 
 const EMPTY_FORM = {
-  name: '', sku: '', barcode: '', category: '', unit: 'kg',
+  name: '', sku: '', barcode: '', category: '', unit: 'each',
   pack_size: '', pack_unit: '', unit_size: '',
   unit_price: '', currency: 'EUR', stock_qty: '', description: '', in_stock: true,
+  reorder_point: '', lead_time_days: '', min_order_qty: '',
 };
 
 const numOrNull = (v) => {
   if (v === '' || v == null) return null;
   const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const intOrNull = (v) => {
+  if (v === '' || v == null) return null;
+  const n = parseInt(v, 10);
   return Number.isFinite(n) ? n : null;
 };
 
@@ -53,21 +55,26 @@ const fmtDate = (iso) => {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
 };
 
+const marginPct = (price, cost) => {
+  if (price == null || cost == null || Number(price) <= 0) return null;
+  return ((Number(price) - Number(cost)) / Number(price)) * 100;
+};
+
+const lowStockAt = (item) => item.reorder_point ?? DEFAULT_LOW_STOCK_AT;
 const isLowStock = (item) =>
-  !item.in_stock || (item.stock_qty != null && Number(item.stock_qty) <= LOW_STOCK_AT);
+  !item.in_stock || (item.stock_qty != null && Number(item.stock_qty) <= lowStockAt(item));
 
 const Thumb = ({ item }) => {
   if (item.image_url) return <img className="spp-thumb" src={item.image_url} alt="" loading="lazy" />;
-  const hue = CATEGORY_HUES[item.category] || CATEGORY_HUES.Other;
   return (
-    <span className="spp-thumb-ph" style={{ background: hue }}>
+    <span className="spp-thumb-ph" style={{ background: categoryHue(item.category) }}>
       {(item.name || '?').trim().charAt(0).toUpperCase()}
     </span>
   );
 };
 
 // Click-to-edit numeric cell (Katana pattern): click → input, Enter/blur saves, Esc cancels.
-const InlineNumber = ({ value, suffix, canEdit, onSave, placeholder = '—' }) => {
+const InlineNumber = ({ value, suffix, canEdit, onSave, placeholder = '—', decimals = 2 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -105,7 +112,7 @@ const InlineNumber = ({ value, suffix, canEdit, onSave, placeholder = '—' }) =
       title={canEdit ? 'Click to edit' : undefined}
       onClick={() => { if (canEdit && !saving) { setDraft(value ?? ''); setEditing(true); } }}
     >
-      {value != null ? `${Number(value).toFixed(suffix ? 2 : 0)}${suffix ? ` ${suffix}` : ''}` : placeholder}
+      {value != null ? `${Number(value).toFixed(decimals)}${suffix ? ` ${suffix}` : ''}` : placeholder}
     </span>
   );
 };
@@ -113,7 +120,7 @@ const InlineNumber = ({ value, suffix, canEdit, onSave, placeholder = '—' }) =
 const fieldStyle = { width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13 };
 const labelStyle = { fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 };
 
-const ProductModal = ({ initial, onSave, onClose, saving }) => {
+const ProductModal = ({ initial, initialCost, categorySuggestions, onSave, onClose, saving }) => {
   const [form, setForm] = useState(() => {
     if (!initial) return EMPTY_FORM;
     const merged = { ...EMPTY_FORM };
@@ -122,7 +129,8 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
     });
     return merged;
   });
-  const [photo, setPhoto] = useState(null); // File pending upload
+  const [costPrice, setCostPrice] = useState(initialCost ?? '');
+  const [photo, setPhoto] = useState(null);
   const photoInput = useRef(null);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -131,19 +139,26 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
     [photo, initial?.image_url]
   );
 
+  const liveMargin = marginPct(numOrNull(form.unit_price), numOrNull(costPrice));
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave({
       ...form,
       sku: form.sku.trim() || null,
       barcode: form.barcode.trim() || null,
+      category: form.category.trim() || null,
+      unit: form.unit.trim() || 'each',
       pack_unit: form.pack_unit.trim() || null,
       unit_size: form.unit_size.trim() || null,
       description: form.description.trim() || null,
       unit_price: numOrNull(form.unit_price),
       pack_size: numOrNull(form.pack_size),
       stock_qty: numOrNull(form.stock_qty),
-    }, photo);
+      reorder_point: numOrNull(form.reorder_point),
+      lead_time_days: intOrNull(form.lead_time_days),
+      min_order_qty: numOrNull(form.min_order_qty),
+    }, photo, numOrNull(costPrice));
   };
 
   return (
@@ -151,7 +166,7 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
       position: 'fixed', inset: 0, zIndex: 200,
       background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div style={{ background: 'var(--card)', borderRadius: 14, padding: 28, width: 540, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+      <div style={{ background: 'var(--card)', borderRadius: 14, padding: 28, width: 560, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 16, margin: 0 }}>
             {initial ? 'Edit product' : 'New product'}
@@ -180,12 +195,17 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
               <input required value={form.name} onChange={e => set('name', e.target.value)} style={fieldStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Category</label>
-              <select value={form.category} onChange={e => set('category', e.target.value)}
-                style={{ ...fieldStyle, background: 'var(--card)' }}>
-                <option value="">— select —</option>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <label style={labelStyle}>Category <span style={{ color: 'var(--muted)' }}>(pick or type your own)</span></label>
+              <input
+                list="spp-category-suggestions"
+                value={form.category}
+                onChange={e => set('category', e.target.value)}
+                placeholder="e.g. Engineering & Spares"
+                style={fieldStyle}
+              />
+              <datalist id="spp-category-suggestions">
+                {categorySuggestions.map(c => <option key={c} value={c} />)}
+              </datalist>
             </div>
             <div>
               <label style={labelStyle}>SKU</label>
@@ -198,13 +218,18 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
             </div>
             <div>
               <label style={labelStyle}>Sell unit</label>
-              <select value={form.unit} onChange={e => set('unit', e.target.value)}
-                style={{ ...fieldStyle, background: 'var(--card)' }}>
-                {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
+              <input
+                list="spp-unit-suggestions"
+                value={form.unit}
+                onChange={e => set('unit', e.target.value)}
+                style={fieldStyle}
+              />
+              <datalist id="spp-unit-suggestions">
+                {UNIT_SUGGESTIONS.map(u => <option key={u} value={u} />)}
+              </datalist>
             </div>
             <div>
-              <label style={labelStyle}>Unit price</label>
+              <label style={labelStyle}>Unit price <span style={{ color: 'var(--muted)' }}>(what yachts pay)</span></label>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input type="number" step="0.01" min="0" value={form.unit_price} onChange={e => set('unit_price', e.target.value)}
                   style={{ ...fieldStyle, flex: 1 }} />
@@ -213,6 +238,18 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
                   {['EUR', 'USD', 'GBP', 'CHF'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, background: 'var(--bg)', border: '1px solid var(--line-soft)', borderRadius: 10, padding: '12px 14px' }}>
+            <div>
+              <label style={labelStyle}>Your cost price <span style={{ color: 'var(--muted)' }}>(private — never shown to yachts)</span></label>
+              <input type="number" step="0.01" min="0" value={costPrice} onChange={e => setCostPrice(e.target.value)} style={fieldStyle} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 8 }}>
+              <span style={{ fontSize: 13, color: liveMargin == null ? 'var(--muted)' : liveMargin < 15 ? 'var(--amber)' : 'var(--green)', fontWeight: 600 }}>
+                {liveMargin == null ? 'Margin —' : `Margin ${liveMargin.toFixed(1)}%`}
+              </span>
             </div>
           </div>
 
@@ -228,16 +265,33 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
             <div>
-              <label style={labelStyle}>Stock quantity <span style={{ color: 'var(--muted)' }}>(blank = untracked)</span></label>
-              <input type="number" step="1" min="0" value={form.stock_qty} onChange={e => set('stock_qty', e.target.value)} style={fieldStyle} />
+              <label style={labelStyle}>Stock qty</label>
+              <input type="number" step="1" min="0" value={form.stock_qty} onChange={e => set('stock_qty', e.target.value)}
+                placeholder="untracked" style={fieldStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Description</label>
-              <textarea rows={2} value={form.description} onChange={e => set('description', e.target.value)}
-                style={{ ...fieldStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+              <label style={labelStyle}>Reorder at</label>
+              <input type="number" step="1" min="0" value={form.reorder_point} onChange={e => set('reorder_point', e.target.value)}
+                placeholder={String(DEFAULT_LOW_STOCK_AT)} style={fieldStyle} />
             </div>
+            <div>
+              <label style={labelStyle}>Lead time (days)</label>
+              <input type="number" step="1" min="0" value={form.lead_time_days} onChange={e => set('lead_time_days', e.target.value)}
+                placeholder="0" style={fieldStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Min order qty</label>
+              <input type="number" step="1" min="0" value={form.min_order_qty} onChange={e => set('min_order_qty', e.target.value)}
+                placeholder="1" style={fieldStyle} />
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Description</label>
+            <textarea rows={2} value={form.description} onChange={e => set('description', e.target.value)}
+              style={{ ...fieldStyle, resize: 'vertical', fontFamily: 'inherit' }} />
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
@@ -256,25 +310,63 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
   );
 };
 
+// CSV export of the current (filtered) view — costs included: this file
+// is for the supplier's own records.
+const exportCsv = (rows, costs) => {
+  const cols = ['name', 'sku', 'barcode', 'category', 'unit', 'pack_size', 'pack_unit', 'unit_size',
+    'unit_price', 'currency', 'cost_price', 'margin_pct', 'stock_qty', 'reorder_point',
+    'lead_time_days', 'min_order_qty', 'in_stock', 'updated_at'];
+  const esc = (v) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [cols.join(',')];
+  rows.forEach(r => {
+    const cost = costs[r.id];
+    const m = marginPct(r.unit_price, cost);
+    lines.push(cols.map(c => {
+      if (c === 'cost_price') return esc(cost);
+      if (c === 'margin_pct') return esc(m != null ? m.toFixed(1) : '');
+      return esc(r[c]);
+    }).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `catalogue-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
 const SupplierProducts = () => {
   const { supplier } = useSupplier();
   const { allowed: canEdit } = usePermission('catalogue:edit');
   const [items, setItems] = useState([]);
+  const [costs, setCosts] = useState({});
+  const [committed, setCommitted] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [modal, setModal] = useState(null); // null | 'new' | {item}
+  const [modal, setModal] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [chip, setChip] = useState('All'); // 'All' | category | 'Low'
+  const [chip, setChip] = useState('All');
   const [selected, setSelected] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = () => {
     if (!supplier?.id) return;
     setLoading(true);
-    fetchCatalogueItems(supplier.id)
-      .then(setItems)
+    Promise.all([
+      fetchCatalogueItems(supplier.id),
+      fetchCatalogueCosts(supplier.id).catch(() => ({})),
+      fetchCommittedQuantities(supplier.id),
+    ])
+      .then(([rows, costMap, committedMap]) => {
+        setItems(rows);
+        setCosts(costMap);
+        setCommitted(committedMap);
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   };
@@ -283,23 +375,33 @@ const SupplierProducts = () => {
 
   const patchLocal = (updated) => setItems(prev => prev.map(i => (i.id === updated.id ? updated : i)));
 
-  const handleSave = async (formData, photo) => {
+  const handleSave = async (formData, photo, costPrice) => {
     setSaving(true);
     try {
+      let row;
       if (modal === 'new') {
-        let created = await createCatalogueItem(supplier.id, formData);
-        if (photo) {
-          try { created = await uploadCatalogueImage(supplier.id, created.id, photo); }
-          catch (e) { setError(`Product saved, but the photo upload failed: ${e.message}`); }
-        }
-        setItems(prev => [created, ...prev]);
+        row = await createCatalogueItem(supplier.id, formData);
+        setItems(prev => [row, ...prev]);
       } else {
-        let updated = await updateCatalogueItem(modal.id, formData);
-        if (photo) {
-          try { updated = await uploadCatalogueImage(supplier.id, modal.id, photo); }
-          catch (e) { setError(`Product saved, but the photo upload failed: ${e.message}`); }
+        row = await updateCatalogueItem(modal.id, formData);
+        patchLocal(row);
+      }
+      if (photo) {
+        try {
+          const withPhoto = await uploadCatalogueImage(supplier.id, row.id, photo);
+          patchLocal(withPhoto);
+        } catch (e) {
+          setError(`Product saved, but the photo upload failed: ${e.message}`);
         }
-        patchLocal(updated);
+      }
+      const prevCost = modal === 'new' ? null : (costs[modal.id] ?? null);
+      if (costPrice !== prevCost) {
+        try {
+          await upsertCatalogueCost(supplier.id, row.id, costPrice, formData.currency);
+          setCosts(prev => ({ ...prev, [row.id]: costPrice }));
+        } catch (e) {
+          setError(`Product saved, but the cost price didn't save: ${e.message}`);
+        }
       }
       setModal(null);
     } catch (e) {
@@ -322,9 +424,17 @@ const SupplierProducts = () => {
 
   const handleInlineSave = (item, patch) => async (value) => {
     try {
-      const updates = { ...patch(value) };
-      const updated = await updateCatalogueItem(item.id, updates);
+      const updated = await updateCatalogueItem(item.id, patch(value));
       patchLocal(updated);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const handleInlineCostSave = (item) => async (value) => {
+    try {
+      await upsertCatalogueCost(supplier.id, item.id, value, item.currency);
+      setCosts(prev => ({ ...prev, [item.id]: value }));
     } catch (e) {
       setError(e.message);
     }
@@ -359,6 +469,25 @@ const SupplierProducts = () => {
     if (chip === 'Low') return isLowStock(i);
     return (i.category || 'Other') === chip;
   }), [searched, chip]);
+
+  // ── KPI strip: valuation from the operational data ──
+  const kpis = useMemo(() => {
+    let stockValue = 0, retailValue = 0, marginSum = 0, marginN = 0, priced = 0;
+    for (const i of items) {
+      const cost = costs[i.id];
+      const qty = i.stock_qty != null ? Number(i.stock_qty) : null;
+      if (qty != null && cost != null) stockValue += qty * Number(cost);
+      if (qty != null && i.unit_price != null) retailValue += qty * Number(i.unit_price);
+      const m = marginPct(i.unit_price, cost);
+      if (m != null) { marginSum += m; marginN++; }
+      if (i.unit_price != null) priced++;
+    }
+    return {
+      stockValue, retailValue,
+      blendedMargin: marginN ? marginSum / marginN : null,
+      priced,
+    };
+  }, [items, costs]);
 
   // ── bulk selection ──
   const allVisibleSelected = filtered.length > 0 && filtered.every(i => selected.has(i.id));
@@ -401,17 +530,26 @@ const SupplierProducts = () => {
     });
   };
 
+  const dataCategories = orderCategories(Object.keys(counts.byCat));
   const chipDefs = [
     { key: 'All', label: 'All', count: searched.length },
-    ...CATEGORIES.filter(c => counts.byCat[c]).map(c => ({ key: c, label: c, count: counts.byCat[c] })),
+    ...dataCategories.map(c => ({ key: c, label: c, count: counts.byCat[c] })),
     ...(counts.low ? [{ key: 'Low', label: 'Low / out', count: counts.low, warn: true }] : []),
   ];
+  const categorySuggestions = orderCategories(Array.from(new Set([
+    ...STANDARD_CATEGORIES,
+    ...items.map(i => i.category).filter(Boolean),
+  ])));
+  const bulkCategoryOptions = categorySuggestions;
+  const homeCurrency = items[0]?.currency || 'EUR';
 
   return (
     <div className="sp-page">
       {modal && (
         <ProductModal
           initial={modal === 'new' ? null : modal}
+          initialCost={modal === 'new' ? null : (costs[modal.id] ?? null)}
+          categorySuggestions={categorySuggestions}
           onSave={handleSave}
           onClose={() => setModal(null)}
           saving={saving}
@@ -431,9 +569,15 @@ const SupplierProducts = () => {
         <div>
           <div className="sp-eyebrow">{items.length} products</div>
           <h1 className="sp-page-title">Your <em>catalogue</em></h1>
-          <p className="sp-page-sub">Manage what you offer. Prices and stock visible to yacht clients.</p>
+          <p className="sp-page-sub">Manage what you offer. Prices and stock visible to yacht clients — costs and margins are yours alone.</p>
         </div>
         <div className="sp-actions">
+          <button
+            className="sp-pill"
+            onClick={() => exportCsv(filtered, costs)}
+            disabled={!items.length}
+            title="Export the current view as CSV (includes your costs — for your records)"
+          ><Download size={13} />Export</button>
           <button
             className="sp-pill"
             onClick={() => setImportOpen(true)}
@@ -454,6 +598,27 @@ const SupplierProducts = () => {
       {error && (
         <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--red)' }}>
           {error}
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <div className="spp-kpis">
+          <div className="spp-kpi">
+            <div className="spp-kpi-label">Stock value (cost)</div>
+            <div className="spp-kpi-value">{kpis.stockValue ? `${kpis.stockValue.toLocaleString('en-GB', { maximumFractionDigits: 0 })} ${homeCurrency}` : '—'}</div>
+          </div>
+          <div className="spp-kpi">
+            <div className="spp-kpi-label">Stock value (retail)</div>
+            <div className="spp-kpi-value">{kpis.retailValue ? `${kpis.retailValue.toLocaleString('en-GB', { maximumFractionDigits: 0 })} ${homeCurrency}` : '—'}</div>
+          </div>
+          <div className="spp-kpi">
+            <div className="spp-kpi-label">Blended margin</div>
+            <div className="spp-kpi-value">{kpis.blendedMargin != null ? `${kpis.blendedMargin.toFixed(1)}%` : 'add costs'}</div>
+          </div>
+          <div className="spp-kpi">
+            <div className="spp-kpi-label">Needs attention</div>
+            <div className="spp-kpi-value">{counts.low ? `${counts.low} low / out` : 'all stocked'}</div>
+          </div>
         </div>
       )}
 
@@ -507,78 +672,103 @@ const SupplierProducts = () => {
                 )}
                 <th>Product</th>
                 <th>Category</th>
-                <th>Unit</th>
                 <th>Pack</th>
                 <th className="num">Price</th>
+                <th className="num">Margin</th>
                 <th className="num">Stock</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {filtered.map(item => (
-                <tr key={item.id}>
-                  {canEdit && (
+              {filtered.map(item => {
+                const cost = costs[item.id];
+                const m = marginPct(item.unit_price, cost);
+                const committedQty = committed[item.id] || 0;
+                const available = item.stock_qty != null ? Number(item.stock_qty) - committedQty : null;
+                const leadBits = [
+                  item.lead_time_days ? `${item.lead_time_days}d lead` : null,
+                  item.min_order_qty && Number(item.min_order_qty) > 1 ? `min ${Number(item.min_order_qty)}` : null,
+                ].filter(Boolean).join(' · ');
+                return (
+                  <tr key={item.id}>
+                    {canEdit && (
+                      <td>
+                        <input type="checkbox" className="spp-check" checked={selected.has(item.id)} onChange={() => toggleOne(item.id)} />
+                      </td>
+                    )}
                     <td>
-                      <input type="checkbox" className="spp-check" checked={selected.has(item.id)} onChange={() => toggleOne(item.id)} />
-                    </td>
-                  )}
-                  <td>
-                    <div className="spp-prodcell">
-                      <Thumb item={item} />
-                      <div>
-                        <div className="sp-line-name">{item.name}</div>
-                        {(item.sku || item.barcode) && (
+                      <div className="spp-prodcell">
+                        <Thumb item={item} />
+                        <div>
+                          <div className="sp-line-name">{item.name}</div>
                           <div className="sp-line-sku">
-                            {[item.sku, item.barcode ? `EAN ${item.barcode}` : null].filter(Boolean).join(' · ')}
+                            {[item.sku, item.barcode ? `EAN ${item.barcode}` : null, leadBits || null].filter(Boolean).join(' · ') || `${item.unit || 'each'}`}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td style={{ fontSize: 13, color: 'var(--muted-s)' }}>{item.category ?? '—'}</td>
-                  <td style={{ fontSize: 13 }}>{item.unit ?? '—'}</td>
-                  <td style={{ fontSize: 12.5, color: 'var(--muted-s)', whiteSpace: 'nowrap' }}>{fmtPack(item)}</td>
-                  <td className="sp-amount" style={{ textAlign: 'right' }}>
-                    <InlineNumber
-                      value={item.unit_price}
-                      suffix={item.currency}
-                      canEdit={canEdit}
-                      onSave={handleInlineSave(item, (v) => ({ unit_price: v }))}
-                    />
-                    {item.updated_at && <div className="spp-updated">upd {fmtDate(item.updated_at)}</div>}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <InlineNumber
-                      value={item.stock_qty}
-                      canEdit={canEdit}
-                      placeholder={item.in_stock ? 'In stock' : 'Out'}
-                      onSave={handleInlineSave(item, (v) => ({ stock_qty: v, in_stock: v == null ? item.in_stock : v > 0 }))}
-                    />
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                      <button
-                        className="sp-icon-btn"
-                        style={{ width: 28, height: 28, opacity: canEdit ? 1 : 0.4 }}
-                        disabled={!canEdit}
-                        title={canEdit ? undefined : NO_PERMISSION_TITLE}
-                        onClick={() => setModal(item)}
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        className="sp-icon-btn"
-                        style={{ width: 28, height: 28, color: 'var(--red)', opacity: canEdit ? 1 : 0.4 }}
-                        disabled={!canEdit}
-                        title={canEdit ? undefined : NO_PERMISSION_TITLE}
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td style={{ fontSize: 13, color: 'var(--muted-s)' }}>{item.category ?? '—'}</td>
+                    <td style={{ fontSize: 12.5, color: 'var(--muted-s)', whiteSpace: 'nowrap' }}>{fmtPack(item)}</td>
+                    <td className="sp-amount" style={{ textAlign: 'right' }}>
+                      <InlineNumber
+                        value={item.unit_price}
+                        suffix={item.currency}
+                        canEdit={canEdit}
+                        onSave={handleInlineSave(item, (v) => ({ unit_price: v }))}
+                      />
+                      {item.updated_at && <div className="spp-updated">upd {fmtDate(item.updated_at)}</div>}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span className={`spp-margin ${m == null ? '' : m < 0 ? 'neg' : m < 15 ? 'thin' : 'ok'}`}>
+                        {m != null ? `${m.toFixed(1)}%` : '—'}
+                      </span>
+                      <div className="spp-updated">
+                        cost{' '}
+                        <InlineNumber
+                          value={cost ?? null}
+                          canEdit={canEdit}
+                          onSave={handleInlineCostSave(item)}
+                          placeholder="set"
+                        />
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <InlineNumber
+                        value={item.stock_qty}
+                        canEdit={canEdit}
+                        decimals={0}
+                        placeholder={item.in_stock ? 'In stock' : 'Out'}
+                        onSave={handleInlineSave(item, (v) => ({ stock_qty: v, in_stock: v == null ? item.in_stock : v > 0 }))}
+                      />
+                      {committedQty > 0 && (
+                        <div className="spp-updated">{committedQty} committed · {available} avail</div>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button
+                          className="sp-icon-btn"
+                          style={{ width: 28, height: 28, opacity: canEdit ? 1 : 0.4 }}
+                          disabled={!canEdit}
+                          title={canEdit ? undefined : NO_PERMISSION_TITLE}
+                          onClick={() => setModal(item)}
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          className="sp-icon-btn"
+                          style={{ width: 28, height: 28, color: 'var(--red)', opacity: canEdit ? 1 : 0.4 }}
+                          disabled={!canEdit}
+                          title={canEdit ? undefined : NO_PERMISSION_TITLE}
+                          onClick={() => handleDelete(item.id)}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -594,7 +784,7 @@ const SupplierProducts = () => {
             onChange={(e) => { if (e.target.value) bulkCategory(e.target.value); }}
           >
             <option value="">Move to category…</option>
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {bulkCategoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <button className="spp-bulk-btn" disabled={bulkBusy} onClick={() => bulkStock(true)}>Mark in stock</button>
           <button className="spp-bulk-btn" disabled={bulkBusy} onClick={() => bulkStock(false)}>Mark out of stock</button>

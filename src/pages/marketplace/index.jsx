@@ -28,11 +28,8 @@ import {
 } from '../provisioning/utils/provisioningStorage';
 import './marketplace.css';
 
-const CATEGORIES = ['Produce', 'Meat & Fish', 'Dairy', 'Beverages', 'Dry Goods', 'Frozen', 'Cleaning', 'Other'];
-const CATEGORY_HUES = {
-  'Produce': '#4E8A3E', 'Meat & Fish': '#A5484F', 'Dairy': '#C99A2C', 'Beverages': '#3B6CB4',
-  'Dry Goods': '#8A6D4B', 'Frozen': '#4E93A6', 'Cleaning': '#6D57A5', 'Other': '#64748B',
-};
+import { categoryHue, orderCategories } from '../../utils/catalogueConstants';
+
 // Boards that can still take new lines.
 const OPEN_BOARD_STATUSES = new Set(['draft', 'pending_approval', 'sent_to_supplier', 'quote_received']);
 const NEW_BOARD = '__new__';
@@ -54,14 +51,23 @@ const fmtPack = (p) => {
 const money = (n, ccy = 'EUR') =>
   n != null ? `${Number(n).toFixed(2)} ${ccy}` : '—';
 
+const minQtyOf = (product) => Math.max(1, Number(product.min_order_qty) || 1);
+
 const ProductCard = ({ product, supplier, mine, onAdd, justAdded }) => {
-  const [qty, setQty] = useState(1);
+  const minQty = minQtyOf(product);
+  const [qty, setQty] = useState(minQty);
   const out = !product.in_stock || (product.stock_qty != null && Number(product.stock_qty) <= 0);
+  const stock = product.stock_qty != null ? Number(product.stock_qty) : null;
+  const scarce = !out && stock != null && stock <= (Number(product.reorder_point) || 10);
+  const opsBits = [
+    product.lead_time_days ? `${product.lead_time_days}d notice` : null,
+    minQty > 1 ? `min ${minQty}` : null,
+  ].filter(Boolean);
   return (
     <div className="mp-card">
       {product.image_url
         ? <img className="mp-img" src={product.image_url} alt="" loading="lazy" />
-        : <div className="mp-img-ph" style={{ background: CATEGORY_HUES[product.category] || CATEGORY_HUES.Other }}>
+        : <div className="mp-img-ph" style={{ background: categoryHue(product.category) }}>
             {(product.name || '?').charAt(0).toUpperCase()}
           </div>}
       <div className="mp-pname">{product.name}</div>
@@ -70,7 +76,10 @@ const ProductCard = ({ product, supplier, mine, onAdd, justAdded }) => {
         {supplier?.verified && <span className="tick"> ✓</span>}
         {mine && <span className="mp-suptag">Your supplier</span>}
       </div>
-      <div className="mp-ppack">{fmtPack(product)}</div>
+      <div className="mp-ppack">
+        {fmtPack(product)}
+        {opsBits.length > 0 && <span className="mp-ops"> · {opsBits.join(' · ')}</span>}
+      </div>
       <div className="mp-prow">
         <span className="mp-price">
           {money(product.unit_price, product.currency)}
@@ -78,14 +87,16 @@ const ProductCard = ({ product, supplier, mine, onAdd, justAdded }) => {
         </span>
         {out
           ? <span className="mp-oos">Out of stock</span>
-          : (product.updated_at && <span className="mp-upd">upd {fmtDate(product.updated_at)}</span>)}
+          : scarce
+            ? <span className="mp-scarce">Only {stock} left</span>
+            : (product.updated_at && <span className="mp-upd">upd {fmtDate(product.updated_at)}</span>)}
       </div>
       <div className="mp-addrow">
         <div className="mp-step">
-          <button type="button" onClick={() => setQty(q => Math.max(1, q - 1))}>−</button>
+          <button type="button" onClick={() => setQty(q => Math.max(minQty, q - 1))}>−</button>
           <input
-            type="number" min="1" value={qty}
-            onChange={(e) => setQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+            type="number" min={minQty} value={qty}
+            onChange={(e) => setQty(Math.max(minQty, parseInt(e.target.value, 10) || minQty))}
           />
           <button type="button" onClick={() => setQty(q => q + 1)}>+</button>
         </div>
@@ -210,9 +221,14 @@ const Marketplace = () => {
     setJustAdded(product.id);
     setTimeout(() => setJustAdded(null), 1200);
   };
-  const setLineQty = (productId, qty) => setBasket(prev =>
-    qty <= 0 ? prev.filter(l => l.product.id !== productId)
-      : prev.map(l => (l.product.id === productId ? { ...l, qty } : l)));
+  // Decrementing below a product's minimum order removes the line —
+  // never leaves an unorderable quantity in the basket.
+  const setLineQty = (productId, qty) => setBasket(prev => {
+    const line = prev.find(l => l.product.id === productId);
+    if (!line) return prev;
+    if (qty <= 0 || qty < minQtyOf(line.product)) return prev.filter(l => l.product.id !== productId);
+    return prev.map(l => (l.product.id === productId ? { ...l, qty } : l));
+  });
   const removeLine = (productId) => setBasket(prev => prev.filter(l => l.product.id !== productId));
 
   const basketBySupplier = useMemo(() => {
@@ -260,7 +276,7 @@ const Marketplace = () => {
 
   const chipDefs = [
     { key: 'All', label: 'All', count: searched.length },
-    ...CATEGORIES.filter(c => catCounts[c]).map(c => ({ key: c, label: c, count: catCounts[c] })),
+    ...orderCategories(Object.keys(catCounts)).map(c => ({ key: c, label: c, count: catCounts[c] })),
   ];
 
   return (

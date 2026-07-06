@@ -37,8 +37,18 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-// Fixed category vocabulary — mirrors CATEGORIES in SupplierProducts.jsx.
-const CATEGORIES = ['Produce', 'Meat & Fish', 'Dairy', 'Beverages', 'Dry Goods', 'Frozen', 'Cleaning', 'Other'];
+// Standard category vocabulary — mirrors STANDARD_CATEGORIES in
+// src/utils/catalogueConstants.js (kept in sync by hand; Deno can't
+// import from src/). Categories are OPEN: this list is preferred
+// spellings, not a constraint — see the prompt.
+const CATEGORIES = [
+  'Produce', 'Meat & Fish', 'Dairy', 'Bakery', 'Dry Goods', 'Frozen',
+  'Snacks & Confectionery', 'Beverages', 'Alcohol & Wine',
+  'Cleaning', 'Interior & Guest Supplies', 'Flowers & Decor',
+  'Deck & Exterior', 'Engineering & Spares', 'Safety & Medical',
+  'Water Sports & Toys', 'Uniform & Crew Wear', 'IT & Electronics',
+  'Other',
+];
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF'];
 
 // ── Azure OCR (document mode) — same pipeline as parseDeliveryNote ──────────
@@ -127,7 +137,7 @@ const ITEM_SCHEMA_PROMPT = `Return ONLY a JSON array (no markdown, no backticks)
   "name": string,              // clean product name WITHOUT size/pack info (e.g. "San Pellegrino Sparkling Water")
   "sku": string|null,          // supplier's own product code/ref if present
   "barcode": string|null,      // EAN/GTIN/UPC if present (8-14 digits)
-  "category": string,          // EXACTLY one of: ${CATEGORIES.join(', ')}
+  "category": string,          // PREFER one of: ${CATEGORIES.join(', ')} — but if the product genuinely fits none, use the document's own section heading (title case, max 3 words)
   "unit": string,              // the sell unit: "each", "case", "box", "kg", "L", "bottle", ...
   "pack_size": number|null,    // inner units per sell unit (e.g. 24 for a case of 24) — null if sold singly
   "pack_unit": string|null,    // what the inner unit is (e.g. "bottle", "can") — null if sold singly
@@ -135,7 +145,9 @@ const ITEM_SCHEMA_PROMPT = `Return ONLY a JSON array (no markdown, no backticks)
   "unit_price": number|null,   // price for ONE sell unit, decimal point, no currency symbol
   "currency": string,          // EXACTLY one of: ${CURRENCIES.join(', ')} — infer from symbols/context, default EUR
   "description": string|null,  // extra useful detail (origin, grade, brand notes), null if none
-  "stock_qty": number|null     // stock/availability quantity if the document lists one, else null
+  "stock_qty": number|null,    // stock/availability quantity if the document lists one, else null
+  "lead_time_days": number|null, // notice period as days if stated ("48h notice" -> 2, "3 days" -> 3), else null
+  "min_order_qty": number|null // minimum order quantity if stated ("min 2", "MOQ 6"), else null
 }]
 
 Rules:
@@ -194,11 +206,15 @@ function normaliseItem(raw: any): any | null {
   };
 
   const barcode = str(raw?.barcode);
+  // Categories are open — keep the model's custom heading, capped so a
+  // hallucinated sentence can't become a chip.
+  const rawCategory = str(raw?.category);
+  const category = rawCategory && rawCategory.length <= 40 ? rawCategory : 'Other';
   return {
     name,
     sku: str(raw?.sku),
     barcode: barcode && /^\d{8,14}$/.test(barcode.replace(/\s/g, '')) ? barcode.replace(/\s/g, '') : barcode,
-    category: CATEGORIES.includes(raw?.category) ? raw.category : 'Other',
+    category,
     unit: str(raw?.unit) || 'each',
     pack_size: num(raw?.pack_size),
     pack_unit: str(raw?.pack_unit),
@@ -207,6 +223,8 @@ function normaliseItem(raw: any): any | null {
     currency: CURRENCIES.includes(raw?.currency) ? raw.currency : 'EUR',
     description: str(raw?.description),
     stock_qty: num(raw?.stock_qty),
+    lead_time_days: num(raw?.lead_time_days) != null ? Math.round(num(raw?.lead_time_days)) : null,
+    min_order_qty: num(raw?.min_order_qty),
   };
 }
 

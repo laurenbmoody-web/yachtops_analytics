@@ -97,6 +97,8 @@
 .mp-price small { font-size: 11px; color: #8B8478; font-weight: 500; }
 .mp-upd { font-size: 10px; color: #AEB4C2; }
 .mp-oos { font-size: 11px; font-weight: 700; color: #B0372B; }
+.mp-scarce { font-size: 11px; font-weight: 700; color: #B07C10; }
+.mp-ops { color: #8B8478; }
 .mp-addrow { display: flex; gap: 8px; align-items: center; }
 .mp-step {
   display: flex; align-items: center; border: 1px solid #E8E6DF; border-radius: 999px; overflow: hidden;

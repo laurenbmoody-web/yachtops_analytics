@@ -25,7 +25,7 @@ export const fetchMarketplaceProducts = async (supplierIds) => {
   if (!supplierIds?.length) return [];
   const { data, error } = await supabase
     .from('supplier_catalogue_items')
-    .select('id, supplier_id, name, sku, barcode, category, unit, pack_size, pack_unit, unit_size, unit_price, currency, description, in_stock, stock_qty, image_url, updated_at')
+    .select('id, supplier_id, name, sku, barcode, category, unit, pack_size, pack_unit, unit_size, unit_price, currency, description, in_stock, stock_qty, image_url, updated_at, reorder_point, lead_time_days, min_order_qty')
     .in('supplier_id', supplierIds)
     .eq('active', true)
     .order('name', { ascending: true });
@@ -73,14 +73,31 @@ const ALCOHOL_RE = /\b(wine|ros[eé]|champagne|prosecco|beer|lager|ale|gin|vodka
 export const mapCatalogueCategory = (product) => {
   const name = `${product?.name || ''} ${product?.description || ''}`;
   switch (product?.category) {
+    // Food & beverage → Galley
     case 'Produce':     return { category: 'Fresh Produce', department: 'Galley' };
     case 'Meat & Fish': return { category: FISH_RE.test(name) ? 'Fish & Seafood' : 'Meat & Poultry', department: 'Galley' };
     case 'Dairy':       return { category: 'Dairy & Eggs', department: 'Galley' };
+    case 'Bakery':      return { category: 'Bakery', department: 'Galley' };
     case 'Beverages':   return { category: ALCOHOL_RE.test(name) ? 'Beverages — Alcoholic' : 'Beverages — Non-Alcoholic', department: 'Galley' };
+    case 'Alcohol & Wine': return { category: 'Beverages — Alcoholic', department: 'Galley' };
     case 'Dry Goods':   return { category: 'Pantry & Dry Goods', department: 'Galley' };
     case 'Frozen':      return { category: 'Frozen', department: 'Galley' };
+    case 'Snacks & Confectionery': return { category: 'BBQ & Snacks', department: 'Galley' };
     case 'Cleaning':    return { category: 'Cleaning', department: 'Galley' };
-    default:            return { category: 'Galley Consumables', department: 'Galley' };
+    // Wider verticals → their departments
+    case 'Interior & Guest Supplies': return { category: 'Guest Supplies', department: 'Interior' };
+    case 'Flowers & Decor':           return { category: 'Floral & Decor', department: 'Interior' };
+    case 'Deck & Exterior':           return { category: 'Deck Consumables & Hardware', department: 'Deck' };
+    case 'Engineering & Spares':      return { category: 'Spare Parts — Other', department: 'Engineering' };
+    case 'Safety & Medical':          return { category: 'Safety & Life-Saving Equipment', department: 'Deck' };
+    case 'Water Sports & Toys':       return { category: 'Water Sports & Toys', department: 'Deck' };
+    case 'Uniform & Crew Wear':       return { category: 'Uniforms & Crew Clothing', department: 'Interior' };
+    case 'IT & Electronics':          return { category: 'IT, AV & Communications', department: 'Bridge' };
+    // Custom supplier categories pass through untouched so the board
+    // shows the supplier's own heading; department defaults to Galley
+    // and crew can rehome the line.
+    default:
+      return { category: product?.category || 'Galley Consumables', department: 'Galley' };
   }
 };
 
