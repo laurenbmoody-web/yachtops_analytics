@@ -93,10 +93,20 @@ const EditorialDatePicker = ({
   // continuation from the start date is visible. Off by default — no rangeStart,
   // no change to behaviour.
   rangeStart = '',
+  // Optional: already-spoken-for date spans to flag with a quiet dot under the
+  // day (e.g. periods already logged elsewhere). Each item is { from, to } ISO;
+  // a null/'' `to` marks open-ended (from → onward). Empty by default.
+  markedRanges = [],
 }) => {
   const valueDate = useMemo(() => parseIso(value), [value]);
   const rangeAnchor = useMemo(() => parseIso(rangeStart), [rangeStart]);
   const [hoverDate, setHoverDate] = useState(null);
+  const marked = useMemo(
+    () => (markedRanges || [])
+      .map(r => ({ from: parseIso(r.from), to: parseIso(r.to) }))
+      .filter(r => r.from),
+    [JSON.stringify(markedRanges)], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const [open, setOpen]                 = useState(false);
   const [text, setText]                 = useState(formatDisplay(valueDate, displayFormat));
@@ -375,6 +385,7 @@ const EditorialDatePicker = ({
                   inRange = d > lo && d < hi;
                 }
               }
+              const isMarked = marked.some(r => d >= r.from && (!r.to || d <= r.to));
               const cls = [
                 'edp-day',
                 inMonth     ? '' : 'is-outside',
@@ -382,6 +393,7 @@ const EditorialDatePicker = ({
                 isAnchor && !isSelected ? 'is-range-anchor' : '',
                 isSelected  ? 'is-selected' : '',
                 isTodayCell ? 'is-today'    : '',
+                isMarked    ? 'is-marked'   : '',
               ].filter(Boolean).join(' ');
               return (
                 <button
@@ -397,6 +409,7 @@ const EditorialDatePicker = ({
                   onMouseEnter={() => { if (rangeAnchor) setHoverDate(d); }}
                 >
                   {format(d, 'd')}
+                  {isMarked && <span className="edp-day-dot" aria-hidden="true" />}
                 </button>
               );
             })}
