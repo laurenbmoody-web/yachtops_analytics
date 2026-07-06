@@ -15,7 +15,7 @@
   if (window.__cargoPyaLoaded) return;
   window.__cargoPyaLoaded = true;
 
-  const VERSION = 'ext-4';
+  const VERSION = 'ext-5';
   let ok = [], miss = [];
 
   const norm = (s) => (s || '').replace(/[ⓘ\*•]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -131,20 +131,17 @@
 
   async function fillFlag(country) {
     if (!country) return;
-    // The trigger may be plain text, an <input> placeholder, or the field next to a "Flag" label.
-    let trigger = Array.from(document.querySelectorAll('div,button,span,p,a,input')).find((e) => norm(e.textContent) === 'click to choose a country flag');
+    // Entries sometimes store an abbreviated flag ("Cayman Is.") — expand the
+    // common "… Is." → "… Islands" so it matches PYA's country list.
+    country = String(country).replace(/\bis\.?$/i, 'Islands').trim();
+
+    // The flag field sits right after the "Flag" label (per PYA's markup); use
+    // that first, then fall back to placeholder / literal text.
+    let trigger = null;
+    const flagLabel = Array.from(document.querySelectorAll('label')).find((l) => norm(l.textContent) === 'flag');
+    if (flagLabel && flagLabel.nextElementSibling) trigger = flagLabel.nextElementSibling;
+    if (!trigger) trigger = Array.from(document.querySelectorAll('div,button,span,p,a,input')).find((e) => norm(e.textContent) === 'click to choose a country flag');
     if (!trigger) trigger = Array.from(document.querySelectorAll('input')).find((i) => /choose a country|country flag|select.*flag/i.test(i.placeholder || ''));
-    if (!trigger) {
-      const flagLabel = leaves().find((e) => norm(e.textContent) === 'flag');
-      if (flagLabel) {
-        let el = flagLabel;
-        for (let up = 0; up < 4 && el; up++) {
-          const field = el.parentElement && el.parentElement.querySelector('input,[role=button],button,[class*=select],[class*=flag],[class*=Flag]');
-          if (field && field !== flagLabel) { trigger = field; break; }
-          el = el.parentElement;
-        }
-      }
-    }
     if (!trigger) return record('Flag: ' + country, false);
 
     // Open the picker (retry via the parent if a bare click didn't).
