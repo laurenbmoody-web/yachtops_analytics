@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPyaPayload, mapCapacity, mapVesselType } from './pyaPayload.js';
+import { buildPyaPayload, mapCapacity, mapVesselType, mapAreas } from './pyaPayload.js';
 
 const dataset = {
   vessels: [{ name: 'M/Y Test', flag: 'Cayman Islands', imo: '9601234', grossTonnage: 499, registeredLengthM: 45, vesselType: 'Motor Yacht' }],
@@ -59,4 +59,17 @@ test('vessel type falls back to Motor', () => {
   assert.equal(mapVesselType('Sailing Yacht'), 'Sail Yacht');
   assert.equal(mapVesselType('Motor Yacht'), 'Motor Yacht');
   assert.equal(mapVesselType(''), 'Motor Yacht');
+});
+
+test('areas map from region text; blank stays manual', () => {
+  assert.deepEqual(mapAreas('Med'), ['Mediterranean (East)', 'Mediterranean (West)']);
+  assert.deepEqual(mapAreas('Caribbean & Bahamas'), ['Caribbean', 'Bahamas/Cayman Islands']);
+  assert.deepEqual(mapAreas(''), []);
+  // blank region → 'Areas cruised' listed as manual, no areas on the payload
+  const p = buildPyaPayload({ dataset, operatingRegions: '' });
+  assert.deepEqual(p.areas, []);
+  assert.ok(p.manual.includes('Areas cruised'));
+  const p2 = buildPyaPayload({ dataset, operatingRegions: 'West Mediterranean' });
+  assert.ok(p2.areas.length > 0);
+  assert.ok(!p2.manual.includes('Areas cruised'));
 });

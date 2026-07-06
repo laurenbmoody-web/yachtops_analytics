@@ -37,6 +37,38 @@ export const mapCapacity = (cap) => {
 /** Sail vs motor for the PYA "Vessel Type" radio. */
 export const mapVesselType = (t) => (/sail/i.test(String(t || '')) ? 'Sail Yacht' : 'Motor Yacht');
 
+// Free-text cruising region(s) → PYA's exact "areas cruised" checkbox labels.
+// Coarse by design (a vessel's region is usually broad) — the user can tick/untick
+// after; better to seed the obvious ones than leave them all blank.
+const AREA_RULES = [
+  { re: /\bmed\b|mediterran/i,               a: ['Mediterranean (East)', 'Mediterranean (West)'] },
+  { re: /carib/i,                            a: ['Caribbean'] },
+  { re: /baham|cayman/i,                     a: ['Bahamas/Cayman Islands'] },
+  { re: /atlantic/i,                         a: ['Atlantic Ocean'] },
+  { re: /pacific/i,                          a: ['Pacific Ocean'] },
+  { re: /indian/i,                           a: ['Indian Ocean'] },
+  { re: /baltic|nth europe|northern europe|scandinav/i, a: ['Northern Europe/Baltic'] },
+  { re: /persian|middle east|\bgulf\b|\buae\b|arabian/i, a: ['Persian Gulf/Middle East'] },
+  { re: /usa? ?east|florida|new england|us east/i, a: ['USA East'] },
+  { re: /usa? ?west|california|us west/i,     a: ['USA West'] },
+  { re: /\basia\b|far east|thailand|indonesia/i, a: ['Asia'] },
+  { re: /australasia|australia|new zealand/i, a: ['Australasia'] },
+  { re: /africa/i,                           a: ['Africa'] },
+  { re: /arctic|alaska|\bcanada\b/i,          a: ['Arctic/Canada/Alaska'] },
+  { re: /antarctic/i,                        a: ['Antarctica'] },
+  { re: /central america/i,                  a: ['Central America'] },
+  { re: /south america/i,                    a: ['South America'] },
+];
+
+/** Map a free-text region string onto PYA area-checkbox labels (deduped). */
+export const mapAreas = (regionText) => {
+  const t = String(regionText || '');
+  if (!t.trim()) return [];
+  const out = new Set();
+  for (const r of AREA_RULES) if (r.re.test(t)) r.a.forEach(x => out.add(x));
+  return [...out];
+};
+
 /**
  * Build the PYA autofill payload from the assembled testimonial dataset.
  *
@@ -47,7 +79,7 @@ export const mapVesselType = (t) => (/sail/i.test(String(t || '')) ? 'Sail Yacht
  * @param {string} [p.signatoryEmail]      attesting captain's email
  * @param {string} [p.sstType]             'Deck Testimonial' (default) | 'Engineering Testimonial' | …
  */
-export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, signatoryEmail = '', sstType = 'Deck Testimonial' }) => {
+export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, signatoryEmail = '', sstType = 'Deck Testimonial', operatingRegions = '' }) => {
   const v = (dataset?.vessels && dataset.vessels[0]) || {};
   const t = dataset?.service?.totals || {};
   const atSea = round(t.seagoing) + round(t.watchkeeping);
@@ -68,9 +100,12 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
   if (leaveDays != null) service['Leave of absence'] = round(leaveDays);
   if (guestDays != null && round(guestDays) > 0) service['Days with guests'] = round(guestDays);
 
-  // Fields we deliberately leave for the user (no data, or ambiguous).
-  const manual = ['Flag (country picker)', 'Areas cruised', 'Type of Main Engine', 'Propulsion power (kW)', 'Night Watch Hours'];
+  const areas = mapAreas(operatingRegions);
+
+  // Fields we can't fill (no data, or a custom widget we don't drive).
+  const manual = ['Flag (country picker)', 'Type of Main Engine', 'Propulsion power (kW)', 'Night Watch Hours'];
   if (!text['Official Number']) manual.push('Official Number');
+  if (!areas.length) manual.push('Areas cruised');
 
   return {
     format: 'New Digital SST',
@@ -79,6 +114,7 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
     vesselType: mapVesselType(v.vesselType),
     text,
     service,
+    areas,
     dates: { from: dataset?.service?.periodFrom || '', to: dataset?.service?.periodTo || '' },
     signatoryEmail: signatoryEmail || '',
     manual,
