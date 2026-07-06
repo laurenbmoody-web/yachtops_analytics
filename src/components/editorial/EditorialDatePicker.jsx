@@ -88,8 +88,15 @@ const EditorialDatePicker = ({
   ariaLabel,
   disabled = false,
   displayFormat = DISPLAY_FORMAT,
+  // Optional: the OTHER end of a date range (ISO). When set, the calendar tints
+  // the days between it and the selected/hovered day (rust range fill), so the
+  // continuation from the start date is visible. Off by default — no rangeStart,
+  // no change to behaviour.
+  rangeStart = '',
 }) => {
   const valueDate = useMemo(() => parseIso(value), [value]);
+  const rangeAnchor = useMemo(() => parseIso(rangeStart), [rangeStart]);
+  const [hoverDate, setHoverDate] = useState(null);
 
   const [open, setOpen]                 = useState(false);
   const [text, setText]                 = useState(formatDisplay(valueDate, displayFormat));
@@ -122,7 +129,7 @@ const EditorialDatePicker = ({
     setOpen(true);
   }, [disabled, valueDate]);
 
-  const closePopover = useCallback(() => setOpen(false), []);
+  const closePopover = useCallback(() => { setOpen(false); setHoverDate(null); }, []);
 
   // Fixed-position the portaled popover under (or above, if short on space)
   // the field. Recomputed on open, and on scroll/resize while open.
@@ -349,15 +356,30 @@ const EditorialDatePicker = ({
             className="edp-grid"
             role="grid"
             onKeyDown={handleGridKeyDown}
+            onMouseLeave={() => { if (rangeAnchor) setHoverDate(null); }}
           >
             {gridDays.map((d) => {
               const inMonth     = isSameMonth(d, viewMonth);
               const isSelected  = valueDate && isSameDay(d, valueDate);
               const isFocused   = isSameDay(d, focusedDate);
               const isTodayCell = isToday(d);
+              // Range fill: days strictly between the anchor (the other end) and
+              // the moving end (hovered day while open, else the selected value).
+              let inRange = false, isAnchor = false;
+              if (rangeAnchor) {
+                isAnchor = isSameDay(d, rangeAnchor);
+                const other = hoverDate || valueDate;
+                if (other) {
+                  const lo = rangeAnchor <= other ? rangeAnchor : other;
+                  const hi = rangeAnchor <= other ? other : rangeAnchor;
+                  inRange = d > lo && d < hi;
+                }
+              }
               const cls = [
                 'edp-day',
                 inMonth     ? '' : 'is-outside',
+                inRange     ? 'is-in-range' : '',
+                isAnchor && !isSelected ? 'is-range-anchor' : '',
                 isSelected  ? 'is-selected' : '',
                 isTodayCell ? 'is-today'    : '',
               ].filter(Boolean).join(' ');
@@ -372,6 +394,7 @@ const EditorialDatePicker = ({
                   aria-current={isTodayCell ? 'date' : undefined}
                   tabIndex={isFocused ? 0 : -1}
                   onClick={() => selectDate(d)}
+                  onMouseEnter={() => { if (rangeAnchor) setHoverDate(d); }}
                 >
                   {format(d, 'd')}
                 </button>
