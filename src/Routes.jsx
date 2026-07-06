@@ -60,6 +60,8 @@ import { isDevMode } from './utils/devMode';
 
 import ProvisioningWorkspace from './pages/provisioning';
 import ProvisioningBoardDetail from './pages/provisioning/ProvisioningBoardDetail';
+// Phase 2 — vessel-side marketplace over supplier catalogues.
+import Marketplace from './pages/marketplace';
 import SupplierOrderPage from './pages/provisioning/SupplierOrderPage';
 import SupplierOrdersIndex from './pages/provisioning/SupplierOrdersIndex';
 import SupplierDetailPage from './pages/provisioning/SupplierDetailPage';
@@ -1309,6 +1311,9 @@ const Routes = () => {
 
         {/* Provisioning Routes */}
         <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
+        {/* Phase 2 — marketplace. Static segment declared before
+            /provisioning/:id so 'marketplace' is never read as a board id. */}
+        <Route path="/provisioning/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
         <Route path="/provisioning/suppliers" element={<ProtectedRoute><SuppliersDirectoryPage /></ProtectedRoute>} />
         {/* Sprint 9c.3 — archived (soft-deleted) vendors. Static segment is
             declared before the :supplierProfileId param route so "archive"
