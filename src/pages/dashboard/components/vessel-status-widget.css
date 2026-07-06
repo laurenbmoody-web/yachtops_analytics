@@ -1,41 +1,52 @@
-/* Vessel status widget — editorial (Cargo) system. The card leans on the shared
-   .ce-* classes; these add the hero icon, the quick-set rows and the portaled
-   modal. Explicit hex (not --d-* tokens) so the modal, which portals to <body>
-   outside .cargo-editorial, renders correctly. */
+/* Vessel status widget — thin single-row bar + a portaled editorial modal.
+   Explicit hex (not --d-* tokens) so the modal, which portals to <body> outside
+   .cargo-editorial, renders correctly. Monochrome: state = icon + word. */
 
-/* ── Card interior ───────────────────────────────────────────────────────── */
-.vsw-hero {
-  width: 46px; height: 46px; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
-}
+/* ── Thin bar ────────────────────────────────────────────────────────────── */
+.vsw-bar { padding: 12px 16px; }
+.vsw-bar-row { display: flex; align-items: center; gap: 14px; font-family: 'Inter', system-ui, sans-serif; }
 
-.vsw-label {
+.vsw-eyebrow {
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  color: #8B8478; margin: 0 0 8px;
+  color: #8B8478; line-height: 1.25; flex: 0 0 auto;
 }
 
-.vsw-rows { display: flex; flex-direction: column; gap: 4px; }
-.vsw-row {
-  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
-  background: #FAFAF8; border: 1px solid #F0F1F5; border-radius: 10px;
-  padding: 8px 10px; cursor: pointer; transition: background .12s ease, border-color .12s ease;
+.vsw-cur { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color: #1C1B3A; font-size: 14px; }
+.vsw-cur b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 17px; letter-spacing: -0.3px; }
+.vsw-cur-ico { width: 17px; height: 17px; color: #1C1B3A; flex: 0 0 auto; }
+.vsw-since { font-size: 12px; color: #8B8478; white-space: nowrap; }
+.vsw-cur-muted { font-size: 13px; color: #AEB4C2; }
+.vsw-cur-off { color: #C65A1A !important; }
+
+.vsw-switch { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: 0 0 auto; }
+.vsw-sw {
+  width: 34px; height: 32px; border: 0; background: transparent; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; color: #B7BAC7;
+  transition: background .12s ease, color .12s ease;
 }
-.vsw-row:hover:not(:disabled) { background: #F6F5F2; border-color: #E8E6DF; }
-.vsw-row.is-active { background: #FBEFE9; border-color: #F3D8C8; cursor: default; }
-.vsw-row:disabled { cursor: default; }
-.vsw-row-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
-.vsw-row-text { display: flex; flex-direction: column; line-height: 1.25; flex: 1; min-width: 0; }
-.vsw-row-label { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
-.vsw-row-note { font-size: 11px; color: #8B8478; }
-.vsw-row-go { color: #CBCEDA; flex: 0 0 auto; }
-.vsw-row:hover .vsw-row-go { color: #C65A1A; }
-.vsw-row-now { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #C65A1A; flex: 0 0 auto; }
-.vsw-spin { color: #C65A1A; flex: 0 0 auto; animation: vsw-spin 0.7s linear infinite; }
+.vsw-sw:hover:not(:disabled) { background: #FAFAF8; color: #4B5563; }
+.vsw-sw.on { background: #1C1B3A; color: #fff; cursor: default; }
+.vsw-sw-ico { width: 17px; height: 17px; }
+.vsw-sep { width: 1px; height: 20px; background: #ECEAE3; margin: 0 5px; }
+.vsw-more { color: #C0C3CE; }
+.vsw-spin { animation: vsw-spin .7s linear infinite; }
 @keyframes vsw-spin { to { transform: rotate(360deg); } }
 
-.vsw-links { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
-.vsw-err { margin-top: 10px; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; }
-.vsw-readonly { font-size: 12.5px; color: #6B7280; line-height: 1.5; margin: 2px 0 0; }
+/* Tooltip on hover (dark bubble above the icon). */
+.vsw-tipwrap { position: relative; display: inline-flex; }
+.vsw-tip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(2px);
+  background: #1C1B3A; color: #fff; font-size: 11px; font-weight: 500; white-space: nowrap;
+  padding: 5px 9px; border-radius: 7px; box-shadow: 0 6px 18px rgba(28,27,58,.28);
+  opacity: 0; pointer-events: none; transition: opacity .12s ease, transform .12s ease; z-index: 20;
+}
+.vsw-tip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #1C1B3A; }
+.vsw-tip-r { left: auto; right: 0; transform: translateY(2px); }
+.vsw-tip-r::after { left: auto; right: 12px; transform: none; }
+.vsw-tipwrap:hover .vsw-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.vsw-tipwrap:hover .vsw-tip-r { transform: translateY(0); }
+
+.vsw-bar-err { margin-top: 10px; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; font-family: 'Inter', system-ui, sans-serif; }
 
 /* ── Modal (portaled to <body>) ──────────────────────────────────────────── */
 .vsw-scrim {
@@ -72,7 +83,8 @@
   padding: 10px; cursor: pointer; text-align: left; transition: border-color .12s ease, background .12s ease;
 }
 .vsw-state-opt:hover { border-color: #E8E6DF; background: #F6F5F2; }
-.vsw-state-ico { display: inline-flex; margin-bottom: 2px; }
+.vsw-state-opt.on { border-color: #C65A1A; background: #FBEFE9; }
+.vsw-state-ico { display: inline-flex; margin-bottom: 2px; color: #1C1B3A; }
 .vsw-state-label { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .vsw-state-note { font-size: 11px; color: #8B8478; }
 
@@ -92,13 +104,14 @@
 .vsw-primary:hover { background: #B14E16; }
 .vsw-primary:disabled { opacity: .6; cursor: default; }
 
+.vsw-err { margin-top: 12px; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; }
 .vsw-foot { margin-top: 12px; font-size: 11px; color: #AEB4C2; line-height: 1.5; }
 
 /* ── Timeline (history tab) ──────────────────────────────────────────────── */
 .vsw-tl { display: flex; flex-direction: column; }
 .vsw-tl-row { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-bottom: 1px solid #F0F1F5; }
 .vsw-tl-row:last-child { border-bottom: 0; }
-.vsw-tl-ico { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.vsw-tl-ico { width: 30px; height: 30px; border-radius: 8px; background: #F6F5F2; color: #1C1B3A; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .vsw-tl-main { display: flex; flex-direction: column; flex: 1; line-height: 1.3; }
 .vsw-tl-label { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .vsw-tl-dates { font-size: 11.5px; color: #6B7280; }
