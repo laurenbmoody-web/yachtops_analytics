@@ -1,0 +1,141 @@
+/* Catalogue AI import modal — scoped cim-* (supplier portal tokens) */
+
+.cim-overlay {
+  position: fixed; inset: 0; z-index: 220;
+  background: rgba(12, 14, 20, 0.4);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+
+.cim-panel {
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #E2E8F0);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(12, 14, 20, 0.35);
+  width: min(860px, 100%);
+  max-height: min(86vh, 780px);
+  display: flex; flex-direction: column;
+  padding: 24px 26px;
+}
+
+.cim-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.cim-eyebrow {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--orange, #C65A1A);
+  margin-bottom: 6px;
+}
+
+.cim-title {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-weight: 700; font-size: 19px; margin: 0; color: var(--fg, #0C0E14);
+}
+.cim-title em { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-style: italic; }
+
+.cim-close {
+  width: 30px; height: 30px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line, #E2E8F0); background: var(--card, #fff);
+  color: var(--muted-strong, #64748B); flex-shrink: 0;
+}
+.cim-close:hover { background: var(--bg-2, #EEF2F7); }
+
+.cim-sub { font-size: 13px; color: var(--muted-strong, #64748B); line-height: 1.55; margin: 4px 0 18px; max-width: 560px; }
+
+.cim-error, .cim-warning {
+  display: flex; align-items: flex-start; gap: 7px;
+  font-size: 12.5px; border-radius: 10px; padding: 9px 12px; margin-bottom: 10px;
+}
+.cim-error { background: #FEF2F2; border: 1px solid #FECACA; color: var(--red, #DC2626); }
+.cim-warning { background: #FFF9F0; border: 1px solid #F5E3C8; color: var(--amber, #D97706); }
+.cim-error svg, .cim-warning svg { flex-shrink: 0; margin-top: 1px; }
+
+/* ── Dropzone ── */
+.cim-drop {
+  border: 1.5px dashed var(--line, #E2E8F0);
+  border-radius: 14px;
+  background: var(--bg, #F8FAFC);
+  padding: 44px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  color: var(--muted-strong, #64748B);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.cim-drop:hover, .cim-drop.over { border-color: var(--orange, #C65A1A); background: #FBEFE9; color: var(--orange, #C65A1A); }
+.cim-drop-main { font-size: 13.5px; color: var(--fg, #0C0E14); }
+.cim-drop-main span { color: var(--orange, #C65A1A); font-weight: 600; text-decoration: underline; }
+.cim-drop-types { display: flex; gap: 14px; font-size: 11.5px; }
+.cim-drop-types span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ── Busy states ── */
+.cim-busy { padding: 52px 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.cim-spinner {
+  width: 26px; height: 26px; border-radius: 999px;
+  border: 2.5px solid var(--line, #E2E8F0); border-top-color: var(--orange, #C65A1A);
+  animation: cim-spin .8s linear infinite; margin-bottom: 6px;
+}
+@keyframes cim-spin { to { transform: rotate(360deg); } }
+.cim-busy-title { font-size: 14px; font-weight: 600; color: var(--fg, #0C0E14); }
+.cim-busy-sub { font-size: 12.5px; color: var(--muted-strong, #64748B); max-width: 380px; }
+
+/* ── Review ── */
+.cim-review-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0 10px; border-bottom: 1px solid var(--line-soft, #EDF1F6);
+  margin-bottom: 10px;
+}
+.cim-checkline { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.cim-filename { font-size: 11.5px; color: var(--muted, #94A3B8); }
+
+.cim-table-wrap { overflow: auto; flex: 1; min-height: 0; border: 1px solid var(--line-soft, #EDF1F6); border-radius: 10px; }
+.cim-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cim-table th {
+  position: sticky; top: 0; background: var(--bg, #F8FAFC); z-index: 1;
+  text-align: left; padding: 8px 10px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted-strong, #64748B);
+  border-bottom: 1px solid var(--line, #E2E8F0);
+}
+.cim-table th.num, .cim-table td.num { text-align: right; }
+.cim-table td { padding: 7px 10px; border-bottom: 1px solid var(--line-soft, #EDF1F6); vertical-align: top; }
+.cim-table tr.off td { opacity: 0.45; }
+.cim-table tr:last-child td { border-bottom: none; }
+
+.cim-cell-input {
+  border: 1px solid transparent; border-radius: 7px; padding: 5px 7px;
+  font-size: 12.5px; width: 100%; background: transparent; min-width: 70px;
+}
+.cim-cell-input:hover { border-color: var(--line, #E2E8F0); background: var(--card, #fff); }
+.cim-cell-input:focus { outline: none; border-color: var(--orange, #C65A1A); background: var(--card, #fff); box-shadow: 0 0 0 3px #FAECE7; }
+.cim-cell-input.name { font-weight: 600; min-width: 180px; }
+.cim-cell-input.sm { min-width: 56px; width: 76px; }
+.cim-cell-input.num { text-align: right; }
+.cim-cell-input.ccy { width: 62px; min-width: 62px; }
+
+.cim-cell-meta { display: flex; gap: 8px; margin-top: 2px; padding-left: 8px; font-size: 10.5px; color: var(--muted, #94A3B8); flex-wrap: wrap; }
+.cim-dup {
+  background: #FBEFE9; color: var(--orange, #C65A1A);
+  border-radius: 999px; padding: 1px 8px; font-weight: 600;
+}
+.cim-pack { font-size: 12px; color: var(--muted-strong, #64748B); white-space: nowrap; padding-top: 12px; }
+.cim-price { display: flex; gap: 5px; justify-content: flex-end; }
+
+/* ── Footer ── */
+.cim-foot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding-top: 14px; margin-top: 4px;
+}
+.cim-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600;
+  border-radius: 10px; padding: 9px 16px;
+  border: 1px solid var(--line, #E2E8F0); background: var(--card, #fff); color: var(--fg, #0C0E14);
+}
+.cim-btn.ghost:hover { background: var(--bg-2, #EEF2F7); }
+.cim-btn.primary { background: var(--orange, #C65A1A); border-color: var(--orange, #C65A1A); color: #fff; }
+.cim-btn.primary:hover { background: #B14E16; border-color: #B14E16; }
+.cim-btn:disabled { opacity: 0.5; cursor: not-allowed; }

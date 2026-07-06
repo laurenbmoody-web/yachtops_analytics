@@ -351,6 +351,26 @@ export const deleteCatalogueItem = async (itemId) => {
   if (error) throw error;
 };
 
+/**
+ * Bulk insert for the AI price-list import. Inserts in batches so a big
+ * catalogue (hundreds of rows) doesn't hit a single-request payload limit.
+ * Returns the created rows.
+ */
+export const bulkCreateCatalogueItems = async (supplierId, items) => {
+  const BATCH = 100;
+  const created = [];
+  for (let i = 0; i < items.length; i += BATCH) {
+    const slice = items.slice(i, i + BATCH).map(item => ({ ...item, supplier_id: supplierId }));
+    const { data, error } = await supabase
+      .from('supplier_catalogue_items')
+      .insert(slice)
+      .select();
+    if (error) throw error;
+    created.push(...(data ?? []));
+  }
+  return created;
+};
+
 // ─── Invoices ────────────────────────────────────────────────────────────────
 
 export const fetchInvoices = async (supplierId, { status } = {}) => {

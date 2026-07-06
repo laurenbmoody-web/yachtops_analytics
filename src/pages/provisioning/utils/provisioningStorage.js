@@ -1496,7 +1496,34 @@ export const findMatchingInventoryItem = async (provItem, tenantId) => {
  * Creates a new location entry if no matching one exists.
  * Also updates total_qty and last_provisioning_date.
  */
-export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName, qtyToAdd, tenantId }) => {
+/**
+ * Append rows to the inventory_movements ledger. Best-effort by design:
+ * a ledger failure must never roll back or block the stock write itself,
+ * so errors are logged and swallowed. created_by defaults to auth.uid()
+ * in the DB. movements: [{ qtyDelta, locationName?, reason? }]
+ */
+export const logInventoryMovements = async ({ inventoryItemId, tenantId, movements, reason = 'received', provisioningItemId = null, listId = null }) => {
+  const rows = (movements || [])
+    .filter(m => (parseFloat(m.qtyDelta) || 0) !== 0)
+    .map(m => ({
+      tenant_id: tenantId,
+      inventory_item_id: inventoryItemId,
+      location_name: (m.locationName || '').trim() || null,
+      qty_delta: parseFloat(m.qtyDelta),
+      reason: m.reason || reason,
+      provisioning_item_id: provisioningItemId,
+      list_id: listId,
+    }));
+  if (!rows.length || !inventoryItemId || !tenantId) return;
+  try {
+    const { error } = await supabase?.from('inventory_movements')?.insert(rows);
+    if (error) throw error;
+  } catch (err) {
+    console.error('[provisioningStorage] logInventoryMovements error (non-blocking):', err.message);
+  }
+};
+
+export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName, qtyToAdd, tenantId, provisioningItemId = null, listId = null }) => {
   if (!inventoryItemId || !tenantId || !qtyToAdd) return false;
   try {
     // Fetch current stock_locations
@@ -1532,6 +1559,11 @@ export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName,
       ?.eq('id', inventoryItemId)
       ?.eq('tenant_id', tenantId);
     if (updateErr) throw updateErr;
+
+    await logInventoryMovements({
+      inventoryItemId, tenantId, provisioningItemId, listId,
+      movements: [{ qtyDelta: qtyToAdd, locationName: normName }],
+    });
     return true;
   } catch (err) {
     console.error('[provisioningStorage] pushReceivedQtyToLocation error:', err.message);
@@ -1586,6 +1618,19 @@ export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, 
         ?.update({ inventory_item_id: data.id })
         ?.eq('id', provItem.id);
     }
+
+    if (data?.id && totalQty > 0) {
+      await logInventoryMovements({
+        inventoryItemId: data.id,
+        tenantId,
+        reason: 'initial',
+        provisioningItemId: provItem?.id || null,
+        listId: provItem?.list_id || null,
+        movements: stockLocations.length
+          ? stockLocations.map(l => ({ qtyDelta: l.qty, locationName: l.locationName }))
+          : [{ qtyDelta: totalQty, locationName: locationName || '' }],
+      });
+    }
     return data;
   } catch (err) {
     console.error('[provisioningStorage] createInventoryItemFromProvItem error:', err.message);
@@ -1597,7 +1642,7 @@ export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, 
  * Push received qty to multiple locations in one atomic fetch+update.
  * splits: [{ locationName: string, addQty: number }]
  */
-export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, tenantId }) => {
+export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, tenantId, provisioningItemId = null, listId = null }) => {
   // Accept splits with a quantity — locationName is optional
   const activeSplits = (splits || []).filter(s => (parseFloat(s.addQty) || 0) > 0);
   if (!activeSplits.length || !inventoryItemId || !tenantId) return false;
@@ -1638,6 +1683,11 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
       ?.eq('id', inventoryItemId)
       ?.eq('tenant_id', tenantId);
     if (updateErr) throw updateErr;
+
+    await logInventoryMovements({
+      inventoryItemId, tenantId, provisioningItemId, listId,
+      movements: activeSplits.map(s => ({ qtyDelta: parseFloat(s.addQty) || 0, locationName: s.locationName })),
+    });
     return true;
   } catch (err) {
     console.error('[provisioningStorage] pushReceivedSplitsToInventory error:', err.message);

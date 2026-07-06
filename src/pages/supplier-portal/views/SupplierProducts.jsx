@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, UploadCloud } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import {
@@ -9,21 +9,53 @@ import {
   deleteCatalogueItem,
 } from '../utils/supplierStorage';
 import EmptyState from '../components/EmptyState';
+import CatalogueImportModal from '../components/CatalogueImportModal';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
 const CATEGORIES = ['Produce', 'Meat & Fish', 'Dairy', 'Beverages', 'Dry Goods', 'Frozen', 'Cleaning', 'Other'];
 const UNITS = ['kg', 'g', 'L', 'ml', 'unit', 'case', 'box', 'bottle', 'each'];
 
-const EMPTY_FORM = { name: '', sku: '', category: '', unit: 'kg', unit_price: '', currency: 'EUR', description: '', in_stock: true };
+const EMPTY_FORM = {
+  name: '', sku: '', barcode: '', category: '', unit: 'kg',
+  pack_size: '', pack_unit: '', unit_size: '',
+  unit_price: '', currency: 'EUR', stock_qty: '', description: '', in_stock: true,
+};
+
+const numOrNull = (v) => {
+  if (v === '' || v == null) return null;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const fieldStyle = { width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13 };
+const labelStyle = { fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 };
 
 const ProductModal = ({ initial, onSave, onClose, saving }) => {
-  const [form, setForm] = useState(initial ?? EMPTY_FORM);
+  const [form, setForm] = useState(() => {
+    if (!initial) return EMPTY_FORM;
+    // Editing: normalise nulls to '' so inputs stay controlled
+    const merged = { ...EMPTY_FORM };
+    Object.keys(EMPTY_FORM).forEach(k => {
+      if (initial[k] != null) merged[k] = initial[k];
+    });
+    return merged;
+  });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({ ...form, unit_price: parseFloat(form.unit_price) || null });
+    onSave({
+      ...form,
+      sku: form.sku.trim() || null,
+      barcode: form.barcode.trim() || null,
+      pack_unit: form.pack_unit.trim() || null,
+      unit_size: form.unit_size.trim() || null,
+      description: form.description.trim() || null,
+      unit_price: numOrNull(form.unit_price),
+      pack_size: numOrNull(form.pack_size),
+      stock_qty: numOrNull(form.stock_qty),
+    });
   };
 
   return (
@@ -31,7 +63,7 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
       position: 'fixed', inset: 0, zIndex: 200,
       background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div style={{ background: 'var(--card)', borderRadius: 14, padding: 28, width: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+      <div style={{ background: 'var(--card)', borderRadius: 14, padding: 28, width: 540, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 16, margin: 0 }}>
             {initial ? 'Edit product' : 'New product'}
@@ -42,48 +74,70 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>Name *</label>
-              <input required value={form.name} onChange={e => set('name', e.target.value)}
-                style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13 }} />
+              <label style={labelStyle}>Name *</label>
+              <input required value={form.name} onChange={e => set('name', e.target.value)} style={fieldStyle} />
             </div>
             <div>
-              <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>SKU</label>
-              <input value={form.sku} onChange={e => set('sku', e.target.value)}
-                style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13 }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>Category</label>
+              <label style={labelStyle}>Category</label>
               <select value={form.category} onChange={e => set('category', e.target.value)}
-                style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13, background: 'var(--card)' }}>
+                style={{ ...fieldStyle, background: 'var(--card)' }}>
                 <option value="">— select —</option>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>Unit</label>
+              <label style={labelStyle}>SKU</label>
+              <input value={form.sku} onChange={e => set('sku', e.target.value)} style={fieldStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Barcode (EAN/GTIN)</label>
+              <input value={form.barcode} onChange={e => set('barcode', e.target.value)}
+                placeholder="e.g. 8002270014901" inputMode="numeric" style={fieldStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Sell unit</label>
               <select value={form.unit} onChange={e => set('unit', e.target.value)}
-                style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13, background: 'var(--card)' }}>
+                style={{ ...fieldStyle, background: 'var(--card)' }}>
                 {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>Unit price</label>
-              <input type="number" step="0.01" min="0" value={form.unit_price} onChange={e => set('unit_price', e.target.value)}
-                style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13 }} />
+              <label style={labelStyle}>Unit price</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input type="number" step="0.01" min="0" value={form.unit_price} onChange={e => set('unit_price', e.target.value)}
+                  style={{ ...fieldStyle, flex: 1 }} />
+                <select value={form.currency} onChange={e => set('currency', e.target.value)}
+                  style={{ ...fieldStyle, width: 74, background: 'var(--card)' }}>
+                  {['EUR', 'USD', 'GBP', 'CHF'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Pack — what's inside one sell unit <span style={{ color: 'var(--muted)' }}>(optional)</span></label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <input type="number" step="1" min="0" placeholder="Qty (e.g. 24)" value={form.pack_size}
+                onChange={e => set('pack_size', e.target.value)} style={fieldStyle} />
+              <input placeholder="Inner unit (e.g. bottle)" value={form.pack_unit}
+                onChange={e => set('pack_unit', e.target.value)} style={fieldStyle} />
+              <input placeholder="Size (e.g. 330ml)" value={form.unit_size}
+                onChange={e => set('unit_size', e.target.value)} style={fieldStyle} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Stock quantity <span style={{ color: 'var(--muted)' }}>(blank = untracked)</span></label>
+              <input type="number" step="1" min="0" value={form.stock_qty} onChange={e => set('stock_qty', e.target.value)} style={fieldStyle} />
             </div>
             <div>
-              <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>Currency</label>
-              <select value={form.currency} onChange={e => set('currency', e.target.value)}
-                style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13, background: 'var(--card)' }}>
-                {['EUR','USD','GBP','CHF'].map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <label style={labelStyle}>Description</label>
+              <textarea rows={2} value={form.description} onChange={e => set('description', e.target.value)}
+                style={{ ...fieldStyle, resize: 'vertical', fontFamily: 'inherit' }} />
             </div>
           </div>
-          <div>
-            <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>Description</label>
-            <textarea rows={2} value={form.description} onChange={e => set('description', e.target.value)}
-              style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }} />
-          </div>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
             <input type="checkbox" checked={form.in_stock} onChange={e => set('in_stock', e.target.checked)} />
             In stock
@@ -100,6 +154,12 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
   );
 };
 
+const fmtPack = (item) => {
+  if (!item.pack_size && !item.unit_size) return '—';
+  const inner = [item.pack_size, item.pack_unit].filter(Boolean).join(' × ');
+  return [inner || null, item.unit_size].filter(Boolean).join(' · ');
+};
+
 const SupplierProducts = () => {
   const { supplier } = useSupplier();
   const { allowed: canEdit } = usePermission('catalogue:edit');
@@ -107,6 +167,7 @@ const SupplierProducts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null); // null | 'new' | {item}
+  const [importOpen, setImportOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -149,8 +210,17 @@ const SupplierProducts = () => {
     }
   };
 
+  const handleImported = (created) => {
+    setItems(prev => [...created, ...prev]);
+    setImportOpen(false);
+  };
+
+  const q = search.toLowerCase();
   const filtered = items.filter(i =>
-    !search || i.name.toLowerCase().includes(search.toLowerCase()) || (i.sku ?? '').toLowerCase().includes(search.toLowerCase())
+    !q
+    || i.name.toLowerCase().includes(q)
+    || (i.sku ?? '').toLowerCase().includes(q)
+    || (i.barcode ?? '').includes(q)
   );
 
   return (
@@ -164,6 +234,15 @@ const SupplierProducts = () => {
         />
       )}
 
+      {importOpen && (
+        <CatalogueImportModal
+          supplierId={supplier.id}
+          existingItems={items}
+          onImported={handleImported}
+          onClose={() => setImportOpen(false)}
+        />
+      )}
+
       <div className="sp-page-head">
         <div>
           <div className="sp-eyebrow">{items.length} products</div>
@@ -171,6 +250,13 @@ const SupplierProducts = () => {
           <p className="sp-page-sub">Manage what you offer. Prices and stock visible to yacht clients.</p>
         </div>
         <div className="sp-actions">
+          <button
+            className="sp-pill"
+            onClick={() => setImportOpen(true)}
+            disabled={!canEdit}
+            title={canEdit ? 'Import a price list (CSV, Excel, PDF or photo)' : NO_PERMISSION_TITLE}
+            style={{ opacity: canEdit ? 1 : 0.5 }}
+          ><UploadCloud size={13} />Import price list</button>
           <button
             className="sp-pill primary"
             onClick={() => setModal('new')}
@@ -189,7 +275,7 @@ const SupplierProducts = () => {
 
       <div style={{ marginBottom: 16 }}>
         <input
-          placeholder="Search products…"
+          placeholder="Search name, SKU or barcode…"
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--line)', fontSize: 13, width: 260 }}
@@ -200,9 +286,12 @@ const SupplierProducts = () => {
         <EmptyState
           icon="📦"
           title={items.length === 0 ? 'No products yet' : 'No results'}
-          body={items.length === 0 ? 'Add your first product to start receiving orders.' : 'Try a different search term.'}
+          body={items.length === 0 ? 'Add products one by one, or import the price list you already have.' : 'Try a different search term.'}
           action={items.length === 0 && canEdit && (
-            <button className="sp-pill primary" onClick={() => setModal('new')}><Plus size={13} />Add product</button>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button className="sp-pill" onClick={() => setImportOpen(true)}><UploadCloud size={13} />Import price list</button>
+              <button className="sp-pill primary" onClick={() => setModal('new')}><Plus size={13} />Add product</button>
+            </div>
           )}
         />
       )}
@@ -215,6 +304,7 @@ const SupplierProducts = () => {
                 <th>Product</th>
                 <th>Category</th>
                 <th>Unit</th>
+                <th>Pack</th>
                 <th className="num">Price</th>
                 <th>Stock</th>
                 <th />
@@ -225,10 +315,15 @@ const SupplierProducts = () => {
                 <tr key={item.id}>
                   <td>
                     <div className="sp-line-name">{item.name}</div>
-                    {item.sku && <div className="sp-line-sku">{item.sku}</div>}
+                    {(item.sku || item.barcode) && (
+                      <div className="sp-line-sku">
+                        {[item.sku, item.barcode ? `EAN ${item.barcode}` : null].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
                   </td>
                   <td style={{ fontSize: 13, color: 'var(--muted-s)' }}>{item.category ?? '—'}</td>
                   <td style={{ fontSize: 13 }}>{item.unit ?? '—'}</td>
+                  <td style={{ fontSize: 12.5, color: 'var(--muted-s)', whiteSpace: 'nowrap' }}>{fmtPack(item)}</td>
                   <td className="sp-amount">
                     {item.unit_price != null
                       ? `${item.unit_price.toFixed(2)} ${item.currency}`
@@ -236,7 +331,10 @@ const SupplierProducts = () => {
                   </td>
                   <td>
                     <span className={`sp-stock ${item.in_stock ? 'in' : 'out'}`}>
-                      <span className="d" />{item.in_stock ? 'In stock' : 'Out'}
+                      <span className="d" />
+                      {item.stock_qty != null
+                        ? Number(item.stock_qty).toLocaleString()
+                        : (item.in_stock ? 'In stock' : 'Out')}
                     </span>
                   </td>
                   <td>
