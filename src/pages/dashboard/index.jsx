@@ -19,7 +19,7 @@ import TeamJobListWidget from './components/TeamJobListWidget';
 import RotaWidget from './components/RotaWidget';
 import TodaySnapshotWidget from './components/TodaySnapshotWidget';
 import RecentActivityWidget from './components/RecentActivityWidget';
-import VesselStatusControl from './components/VesselStatusControl';
+import VesselStatusWidget from './components/VesselStatusWidget';
 import AccountsWidget from './components/AccountsWidget';
 import InventoryHealthWidget from './components/InventoryHealthWidget';
 import VesselDocRenewalsWidget from './components/VesselDocRenewalsWidget';
@@ -630,21 +630,18 @@ const Dashboard = () => {
         return <TodaySnapshotWidget />;
       case 'recentActivity':
         return <RecentActivityWidget />;
+      case 'vesselStatus':
+        return <VesselStatusWidget tenantId={activeTenantId} />;
       case 'vesselView':
         return (
-          <div>
-            <div className="flex items-center justify-between mb-2 px-1">
-              <VesselStatusControl tenantId={activeTenantId} />
-            </div>
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ boxShadow: '0 0 40px rgba(74,144,226,0.15), 0 4px 6px rgba(0,0,0,0.1)' }}
-            >
-              <BlueprintNavigator
-                heroImageUrl={vesselData?.hero_image_url}
-                useCustomHero={vesselData?.use_custom_hero}
-              />
-            </div>
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ boxShadow: '0 0 40px rgba(74,144,226,0.15), 0 4px 6px rgba(0,0,0,0.1)' }}
+          >
+            <BlueprintNavigator
+              heroImageUrl={vesselData?.hero_image_url}
+              useCustomHero={vesselData?.use_custom_hero}
+            />
           </div>
         );
       case 'laundry':
