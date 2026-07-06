@@ -19,6 +19,8 @@ import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../
 import { buildAssurance, makeQrDataUrl, renderPackPdf, buildSpellTestimonialPdf, downloadBytes } from '../../../seatime/packExport';
 import { buildNautilusSST } from '../../../seatime/nautilusExport';
 import { buildTransportMaltaSST, buildTransportMaltaEngineSST } from '../../../seatime/transportMaltaExport';
+import { buildPyaPayload } from '../../../seatime/pya/pyaPayload';
+import { PYA_BOOKMARKLET_HREF, buildPyaClipboard } from '../../../seatime/pya/pyaBookmarklet';
 import CaptainSignoff from '../../../seatime/CaptainSignoff';
 import './sea-time-dashboard.css';
 
@@ -842,6 +844,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
     }).sort((a, b) => (vessels[a.vesselId]?.name || '').localeCompare(vessels[b.vesselId]?.name || '') || String(a.from).localeCompare(String(b.from)));
   }, [live, vessels]);
 
+  // PYA autofill bookmarklet. React sanitises `javascript:` hrefs out of JSX, so
+  // set it on the anchor via the DOM after render — it stays draggable to the
+  // bookmarks bar.
+  const pyaBmRef = useRef(null);
+  useEffect(() => {
+    if (pyaBmRef.current) pyaBmRef.current.setAttribute('href', PYA_BOOKMARKLET_HREF);
+  }, [verifier, canGenerate, nautilusSpells.length]);
+
   // Build + download ONE captain's Nautilus testimonial, scoped to that spell.
   const onDownloadSpell = async (spell) => {
     if (!canGenerate) { flash('Resolve the outstanding validation checks first'); return; }
@@ -977,6 +987,45 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       downloadBytes(bytes, `${verifier === 'mca' ? 'mca-testimonial' : 'pya-record'}-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
       flash(`${vp.short} testimonial ready`);
     } catch (e) { console.error('[seatime] testimonial export', e); flash('Could not build the testimonial'); }
+  };
+
+  // Copy ONE captain spell to the clipboard for the PYA autofill bookmarklet.
+  // Same buckets/vessel/leave as the PDF above, mapped onto PYA's online SST
+  // fields (see seatime/pya/pyaPayload). The bookmarklet types them into
+  // member.pya.org; nothing is submitted.
+  const onCopySpellForPya = async (spell) => {
+    try {
+      const v = vessels[spell.vesselId] || {};
+      const mine = spell.entries;
+      const b = computeBuckets(mine, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId) });
+      const froms = mine.map(e => e.from).filter(Boolean).sort();
+      const tos = mine.map(e => e.to).filter(Boolean).sort();
+      const from = froms[0] || null, to = tos[tos.length - 1] || null;
+      const capCount = {};
+      for (const e of mine) if (e.capacity) capCount[e.capacity] = (capCount[e.capacity] || 0) + (e.days || 0);
+      const capacity = Object.keys(capCount).sort((a, b) => capCount[b] - capCount[a])[0] || '';
+      const leaveDays = (from && to) ? ((await fetchLeaveDaysInRange(userId, from, to)) ?? null) : null;
+      let signatoryEmail = '';
+      if (spell.captainId && spell.captainId !== userId) {
+        const endorser = await resolveEndorserFor(spell.captainId, spell.captainName);
+        signatoryEmail = endorser?.email || '';
+      }
+      const sstType = (family === 'ENGINE' || family === 'ETO')
+        ? 'Engineering Testimonial'
+        : interiorPathway ? 'Chef / Cook, Interior Crew, Interior/Deck Dual Role' : 'Deck Testimonial';
+      const payload = buildPyaPayload({
+        dataset: {
+          vessels: [{ name: v.name, flag: v.flag, imo: v.imo, grossTonnage: v.gt, registeredLengthM: v.lengthM, vesselType: v.type, officialNumber: v.officialNo }],
+          service: { capacity, periodFrom: from, periodTo: to, totals: { seagoing: b.seagoing, watchkeeping: b.watchkeeping, standby: b.standby, yard: b.yard } },
+        },
+        leaveDays,
+        guestDays: interiorPathway ? guestOnDays : null,
+        signatoryEmail,
+        sstType,
+      });
+      await navigator.clipboard.writeText(buildPyaClipboard(payload));
+      flash('Copied — now click the “Fill PYA form” bookmark on the PYA page');
+    } catch (e) { console.error('[seatime] pya copy', e); flash('Could not copy the PYA data'); }
   };
 
   // Prior service before Cargo — a crew-entered lump sum that counts toward the
@@ -1982,19 +2031,39 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       <div className="std-spells-lbl">{interiorPathway
                         ? 'Your service under each captain, ready for the PYA to verify. Manual & off-Cargo days are excluded.'
                         : `One testimonial per ${signerWord} — each endorses only the dates they covered. Manual & off-Cargo days are excluded.`}</div>
+                      {verifier === 'pya' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', fontSize: 12, color: 'var(--muted)', margin: '0 0 2px' }}>
+                          <span>Autofill the PYA online form:</span>
+                          {/* href set via the DOM (React blocks javascript: hrefs) — keep draggable */}
+                          <a
+                            ref={pyaBmRef}
+                            onClick={(e) => { e.preventDefault(); flash('Drag me to your bookmarks bar — don’t click here'); }}
+                            title="Drag to your bookmarks bar"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 8, background: '#14132C', color: '#fff', fontWeight: 600, fontSize: 12, textDecoration: 'none', cursor: 'grab' }}
+                          >
+                            <Icon name="Anchor" size={12} /> Fill PYA form
+                          </a>
+                          <span>— drag to your bookmarks bar once, then “Copy for PYA” below.</span>
+                        </div>
+                      )}
                       {nautilusSpells.map((s, i) => (
                         <div key={i} className="std-spell">
                           <div className="std-spell-main">
                             <div className="nm">{vessels[s.vesselId]?.name || 'Vessel'} · {s.captainId === userId ? `your service as ${topRankWord}` : (s.captainName || 'Captain')}</div>
                             <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}</div>
                           </div>
-                          {verifier === 'nautilus'
-                            ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
-                            : (verifier === 'transport_malta' && (family === 'DECK' || family === 'ENGINE' || family === 'ETO'))
-                              ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
-                              : ((verifier === 'mca' || verifier === 'pya') && !interiorPathway)
-                                ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellRecord(s)}><Icon name="FileText" size={15} /> {verifier === 'mca' ? 'Testimonial · MSN 1858 (PDF)' : 'Sea service record (PDF)'}</button>
-                                : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            {verifier === 'nautilus'
+                              ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
+                              : (verifier === 'transport_malta' && (family === 'DECK' || family === 'ENGINE' || family === 'ETO'))
+                                ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
+                                : ((verifier === 'mca' || verifier === 'pya') && !interiorPathway)
+                                  ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellRecord(s)}><Icon name="FileText" size={15} /> {verifier === 'mca' ? 'Testimonial · MSN 1858 (PDF)' : 'Sea service record (PDF)'}</button>
+                                  : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
+                            {verifier === 'pya' && (
+                              <button className="std-dl" disabled={!canGenerate} style={{ background: '#fff', color: canGenerate ? '#1C1B3A' : '#A6A199', border: '1px solid #E6E8EC', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => canGenerate && onCopySpellForPya(s)} title="Copy this record's details for the PYA autofill bookmarklet"><Icon name="Copy" size={15} /> Copy for PYA</button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

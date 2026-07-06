@@ -55,6 +55,7 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
   const text = {};
   if (v.name) text['Name'] = v.name;
   if (v.imo) text['IMO'] = String(v.imo);
+  if (v.officialNumber) text['Official Number'] = String(v.officialNumber);
   if (v.grossTonnage != null) text['Gross tonnage (GT)'] = String(round(v.grossTonnage));
   if (v.registeredLengthM != null) text['Load Line Length (m)'] = String(v.registeredLengthM);
 
@@ -68,7 +69,8 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
   if (guestDays != null && round(guestDays) > 0) service['Days with guests'] = round(guestDays);
 
   // Fields we deliberately leave for the user (no data, or ambiguous).
-  const manual = ['Flag (country picker)', 'Areas cruised', 'Type of Main Engine', 'Propulsion power (kW)', 'Official Number', 'Night Watch Hours'];
+  const manual = ['Flag (country picker)', 'Areas cruised', 'Type of Main Engine', 'Propulsion power (kW)', 'Night Watch Hours'];
+  if (!text['Official Number']) manual.push('Official Number');
 
   return {
     format: 'New Digital SST',
