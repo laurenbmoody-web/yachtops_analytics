@@ -165,7 +165,7 @@ const OrdersView = ({ onOpenOrder }) => {
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{o.value}</div>
+                <div style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{o.value}</div>
                 <span className={`sp-status ${o.status}`}><span className="d" />{o.statusLbl}</span>
               </div>
             </div>
@@ -191,7 +191,7 @@ const OrdersView = ({ onOpenOrder }) => {
                   </div>
                   <div style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'flex', justifyContent: 'space-between' }}>
                     <span>{o.items} items · {o.deliverBy}</span>
-                    <span style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, fontSize: 11 }}>{o.value}</span>
+                    <span style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontWeight: 700, fontSize: 11 }}>{o.value}</span>
                   </div>
                   {o.flagged > 0 && <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 6 }}>⚑ {o.flagged} item{o.flagged > 1 ? 's' : ''} flagged</div>}
                 </div>

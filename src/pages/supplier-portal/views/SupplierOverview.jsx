@@ -106,7 +106,7 @@ const SupplierOverview = () => {
             )}
           </div>
 
-          {/* Hero heading — Syne 400 uppercase + DM Serif Display italic */}
+          {/* Hero heading — Fraunces serif + italic accent (Direction B) */}
           <h1 className="sp-overview-title">
             {getGreeting()}{firstName && <>, <em>{firstName}.</em></>}
           </h1>

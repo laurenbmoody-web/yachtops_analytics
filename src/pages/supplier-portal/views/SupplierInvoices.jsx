@@ -96,7 +96,7 @@ const SupplierInvoices = () => {
               {invoices.map(inv => (
                 <tr key={inv.id}>
                   <td>
-                    <div className="sp-line-name" style={{ fontFamily: 'JetBrains Mono', fontSize: 12 }}>{inv.invoice_number}</div>
+                    <div className="sp-line-name" style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12 }}>{inv.invoice_number}</div>
                   </td>
                   <td style={{ fontSize: 13 }}>{inv.yacht_name ?? '—'}</td>
                   <td className="mono" style={{ fontSize: 12, color: 'var(--muted-s)' }}>{fmtDate(inv.issue_date)}</td>

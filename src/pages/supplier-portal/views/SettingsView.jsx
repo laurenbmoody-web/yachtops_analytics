@@ -39,7 +39,7 @@ const SettingsView = () => {
         <div className="sp-card" style={{ padding: '22px 24px' }}>
           {section === 'Company profile' && (
             <>
-              <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, color: 'var(--fg)', letterSpacing: '-0.01em', margin: '0 0 16px', textTransform: 'none' }}>Company profile</h4>
+              <h4 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 15, color: 'var(--fg)', letterSpacing: '-0.01em', margin: '0 0 16px', textTransform: 'none' }}>Company profile</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 {[
                   ['Trading name', 'Maison Provence'],
@@ -54,10 +54,10 @@ const SettingsView = () => {
                 ))}
               </div>
 
-              <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 14, color: 'var(--fg)', letterSpacing: '-0.01em', margin: '24px 0 12px', textTransform: 'none' }}>Integrations</h4>
+              <h4 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 14, color: 'var(--fg)', letterSpacing: '-0.01em', margin: '24px 0 12px', textTransform: 'none' }}>Integrations</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#13B5EA', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Outfit', fontWeight: 800, fontSize: 13 }}>X</div>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#13B5EA', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter', fontWeight: 800, fontSize: 13 }}>X</div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 13 }}>Xero</div>
                     <div style={{ fontSize: 11.5, color: 'var(--muted-s)' }}>Synced · 2 min ago</div>

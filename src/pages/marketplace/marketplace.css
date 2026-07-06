@@ -93,7 +93,9 @@
 .mp-psup .tick { color: #C65A1A; }
 .mp-ppack { font-size: 11.5px; color: #6B7280; }
 .mp-prow { display: flex; align-items: baseline; justify-content: space-between; margin-top: auto; }
-.mp-price { font-size: 15px; font-weight: 700; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+/* B4 hybrid: price tags are "on stage" — serif numerals (vessel side
+   uses the editorial system's DM Serif). Working numbers stay Inter. */
+.mp-price { font-family: 'DM Serif Display', Georgia, serif; font-size: 16.5px; font-weight: 400; color: #1C1B3A; font-variant-numeric: lining-nums tabular-nums; }
 .mp-price small { font-size: 11px; color: #8B8478; font-weight: 500; }
 .mp-upd { font-size: 10px; color: #AEB4C2; }
 .mp-oos { font-size: 11px; font-weight: 700; color: #B0372B; }

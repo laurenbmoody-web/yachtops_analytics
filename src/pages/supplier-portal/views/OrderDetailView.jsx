@@ -24,7 +24,7 @@ const OrderDetailView = ({ orderId, onBack, confirmed, onConfirm }) => {
       <div className="sp-dhead">
         <div className={`sp-ym ${order.yachtColor}`} style={{ width: 42, height: 42, borderRadius: 11, fontSize: 13 }}>{order.yachtShort}</div>
         <div style={{ flex: 1 }}>
-          <h1 className="sp-dhead" style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 20, textTransform: 'uppercase', color: 'var(--navy)', margin: 0 }}>
+          <h1 className="sp-dhead" style={{ fontFamily: 'Inter', fontWeight: 800, fontSize: 20, textTransform: 'uppercase', color: 'var(--navy)', margin: 0 }}>
             {order.yacht} · Charter provisioning
           </h1>
           <div className="sp-dhead sub" style={{ fontSize: 12.5, color: 'var(--muted-s)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
@@ -95,7 +95,7 @@ const OrderDetailView = ({ orderId, onBack, confirmed, onConfirm }) => {
                   return LINE_ITEMS.map((l, i) => {
                     const catRow = l.cat !== lastCat ? (
                       <tr key={`cat-${i}`}>
-                        <td colSpan={5} style={{ padding: '10px 14px 6px', background: 'var(--bg-3)', fontFamily: 'Outfit', fontWeight: 700, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted-s)' }}>
+                        <td colSpan={5} style={{ padding: '10px 14px 6px', background: 'var(--bg-3)', fontFamily: 'Inter', fontWeight: 700, fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted-s)' }}>
                           {l.cat}
                         </td>
                       </tr>
@@ -123,7 +123,7 @@ const OrderDetailView = ({ orderId, onBack, confirmed, onConfirm }) => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
                                 <button style={{ padding: '4px 8px', border: 'none', background: 'var(--bg-3)', cursor: 'pointer', fontSize: 13 }}>–</button>
-                                <input defaultValue={l.qty} style={{ width: 36, textAlign: 'center', border: 'none', outline: 'none', fontFamily: 'JetBrains Mono', fontSize: 12.5, padding: '4px 0' }} />
+                                <input defaultValue={l.qty} style={{ width: 36, textAlign: 'center', border: 'none', outline: 'none', fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12.5, padding: '4px 0' }} />
                                 <button style={{ padding: '4px 8px', border: 'none', background: 'var(--bg-3)', cursor: 'pointer', fontSize: 13 }}>+</button>
                               </div>
                               <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{l.unit}</span>
@@ -135,13 +135,13 @@ const OrderDetailView = ({ orderId, onBack, confirmed, onConfirm }) => {
                             {l.action === 'price' && <span className="sp-action-badge price"><ArrowUp size={10} />Price change</span>}
                           </td>
                           <td style={{ textAlign: 'right' }}>
-                            <div style={{ fontFamily: 'JetBrains Mono', fontSize: 12.5, fontWeight: l.oldPrice ? 700 : 400, color: l.oldPrice ? 'var(--blue)' : 'var(--fg-2)' }}>
+                            <div style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12.5, fontWeight: l.oldPrice ? 700 : 400, color: l.oldPrice ? 'var(--blue)' : 'var(--fg-2)' }}>
                               {l.price || '—'}
                             </div>
-                            {l.oldPrice && <div style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: 'var(--muted)', textDecoration: 'line-through' }}>{l.oldPrice}</div>}
+                            {l.oldPrice && <div style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 11, color: 'var(--muted)', textDecoration: 'line-through' }}>{l.oldPrice}</div>}
                           </td>
                           <td style={{ textAlign: 'right' }}>
-                            <div style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, fontSize: 12.5 }}>{l.total || '—'}</div>
+                            <div style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontWeight: 700, fontSize: 12.5 }}>{l.total || '—'}</div>
                           </td>
                         </tr>
                       </React.Fragment>
@@ -233,7 +233,7 @@ const OrderDetailView = ({ orderId, onBack, confirmed, onConfirm }) => {
                 <div style={{ width: 26, height: 26, borderRadius: '50%', background: a.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>{a.icon}</div>
                 <div>
                   <div style={{ fontSize: 12.5 }}>{a.text}</div>
-                  <div style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: 'JetBrains Mono' }}>{a.tm}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace" }}>{a.tm}</div>
                 </div>
               </div>
             ))}

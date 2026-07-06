@@ -98,7 +98,7 @@ const SupplierOrders = () => {
               {orders.map(o => (
                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/supplier/orders/${o.id}`)}>
                   <td>
-                    <div className="sp-line-name" style={{ fontFamily: 'JetBrains Mono', fontSize: 12 }}>#{o.id.slice(0, 8).toUpperCase()}</div>
+                    <div className="sp-line-name" style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12 }}>#{o.id.slice(0, 8).toUpperCase()}</div>
                     <div className="sp-line-sku">{fmtDate(o.created_at)}</div>
                   </td>
                   <td>

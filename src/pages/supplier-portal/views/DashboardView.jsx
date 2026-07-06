@@ -81,7 +81,7 @@ const DashboardView = ({ onOpenOrder, onNav }) => {
         {/* Attention feed */}
         <div className="sp-card" style={{ padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-3)' }}>
-            <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 14, margin: 0 }}>Needs your attention</h3>
+            <h3 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 14, margin: 0 }}>Needs your attention</h3>
             <span className="sp-cnt">6 items</span>
             <button onClick={() => onNav('orders')} style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--muted-s)', background: 'none', border: 'none', cursor: 'pointer' }}>See all →</button>
           </div>
@@ -93,7 +93,7 @@ const DashboardView = ({ onOpenOrder, onNav }) => {
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <div style={{ minWidth: 44, textAlign: 'center' }}>
-                <div style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, fontSize: 14, color: item.timeColor }}>{item.time}</div>
+                <div style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontWeight: 700, fontSize: 14, color: item.timeColor }}>{item.time}</div>
                 <div style={{ fontSize: 10, color: 'var(--muted)' }}>{item.sub}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>

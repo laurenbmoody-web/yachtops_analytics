@@ -30,9 +30,10 @@
   color: rgba(255,255,255,0.48);
 }
 .spp-kpi-value {
-  font-family: 'Outfit', system-ui, sans-serif;
-  font-size: 25px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1;
-  color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap;
+  /* B4 hybrid: serif numerals ON STAGE (KPIs); tables stay Inter tabular. */
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
+  font-size: 27px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.1;
+  color: #fff; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap;
 }
 .spp-kpi-value small { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0; }
 .spp-kpi-sub { font-size: 11.5px; color: rgba(255,255,255,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

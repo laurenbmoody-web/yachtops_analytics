@@ -53,7 +53,7 @@ const MessagesView = ({ onOpenOrder }) => {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 13.5 }}>{t.name}</span>
-                  <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono', fontSize: 10.5, color: 'var(--muted)', flexShrink: 0 }}>{t.time}</span>
+                  <span style={{ marginLeft: 'auto', fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 10.5, color: 'var(--muted)', flexShrink: 0 }}>{t.time}</span>
                 </div>
                 <div style={{ fontSize: 11.5, color: 'var(--muted-s)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   <b style={{ color: 'var(--fg-2)' }}>{t.lastSender}</b> {t.lastMsg}
@@ -139,18 +139,18 @@ const MessagesView = ({ onOpenOrder }) => {
 
         {/* Context panel */}
         <div style={{ padding: 16 }}>
-          <h4 style={{ fontFamily: 'Outfit', fontWeight: 600, fontSize: 10.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-s)', margin: '0 0 12px' }}>Order context</h4>
+          <h4 style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: 10.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-s)', margin: '0 0 12px' }}>Order context</h4>
           <div
             onClick={() => onOpenOrder('CGO-2026-0418')}
             style={{ background: 'var(--bg-3)', border: '1px solid var(--line)', borderRadius: 10, padding: 12, marginBottom: 14, cursor: 'pointer' }}
           >
-            <div style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: 'var(--muted)' }}>#CGO-2026-0418</div>
+            <div style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 11, color: 'var(--muted)' }}>#CGO-2026-0418</div>
             <div style={{ fontWeight: 700, fontSize: 14, marginTop: 2 }}>Charter provisioning</div>
             <div style={{ fontSize: 11.5, color: 'var(--muted-s)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
               38 items · €5,127.20 · <span className="sp-status new" style={{ fontSize: 10.5, padding: '2px 7px' }}><span className="d" />Awaiting</span>
             </div>
           </div>
-          <h4 style={{ fontFamily: 'Outfit', fontWeight: 600, fontSize: 10.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-s)', margin: '16px 0 10px' }}>Participants</h4>
+          <h4 style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: 10.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-s)', margin: '16px 0 10px' }}>Participants</h4>
           {[['AK', 'Amelia Koury', 'Chief stew'], ['MR', 'Marco Rinaldi', 'Purser'], ['KO', 'Kai Osterberg', 'Bosun']].map(([init, name, role]) => (
             <div key={init} className="sp-contact-row" style={{ padding: '6px 0' }}>
               <div className="sp-cav">{init}</div>

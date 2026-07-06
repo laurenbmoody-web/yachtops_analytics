@@ -96,7 +96,7 @@ const SupplierPortal = () => {
       <div id="sp-root">
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, textAlign: 'center' }}>
           <div style={{ fontSize: 28 }}>⚠️</div>
-          <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 18, color: 'var(--fg)' }}>
+          <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: 18, color: 'var(--fg)' }}>
             We couldn't load your supplier workspace
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted-s)', maxWidth: 420, lineHeight: 1.5 }}>
@@ -162,7 +162,7 @@ const SupplierPortal = () => {
           <div className="sp-search" style={{ marginLeft: 0 }}>
             <Search size={13} style={{ color: 'var(--muted)', flexShrink: 0 }} />
             <input placeholder="Search orders, yachts, products…" />
-            <span style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--muted)', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 4, padding: '1px 5px' }}>⌘K</span>
+            <span style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 10, color: 'var(--muted)', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 4, padding: '1px 5px' }}>⌘K</span>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <button className="sp-icon-btn"><HelpCircle size={14} /></button>
