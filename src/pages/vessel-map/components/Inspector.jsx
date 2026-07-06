@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { layerColor, layerLabel } from '../layers';
 import PinPayload from './PinPayload';
+import PinLocation from './PinLocation';
 
 const TABS = [
   { key: 'details', label: 'Details' },
@@ -21,7 +22,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, user, tier, tenantId, names, onDetailSaved }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -105,12 +106,12 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
                 {creatorName}
               </div>
             )}
-            {shown.storage_location_id && (
-              <div className="vm-insp-row">
-                <span className="vm-label">Storage location</span>
-                {shown.storage_location_id}
-              </div>
-            )}
+            <PinLocation
+              hotspot={shown}
+              canManage={canManage}
+              tenantId={tenantId}
+              onLocationChanged={onLocationChanged}
+            />
 
             {canManage && (
               <button className="vm-btn-ghost vm-insp-adjust" onClick={() => onAdjust?.(shown)}>

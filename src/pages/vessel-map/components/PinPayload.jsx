@@ -4,9 +4,11 @@
 // COMMAND/CHIEF write; crew read-only (matches the table's RLS).
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
-import { updateDetailKey } from '../utils/hotspotDetail';
+import { updateDetail, updateDetailKey } from '../utils/hotspotDetail';
 import { uploadHotspotPhoto } from '../utils/photoUpload';
+import { searchInventoryItems } from '../utils/inventory';
 
 const relDate = (iso) => {
   if (!iso) return '';
@@ -46,6 +48,17 @@ export default function PinPayload({
   // own operations can't interleave (Enter-Enter-Enter on the list would
   // otherwise read stale rows and drop items).
   const writeQueue = useRef(Promise.resolve());
+  const writeWhole = (mutateDetail) => {
+    const run = writeQueue.current.then(async () => {
+      setError(null);
+      const result = await updateDetail(hotspot.id, mutateDetail);
+      if (result.error) { setError(result.error); return false; }
+      onDetailSaved(hotspot.id, result.detail);
+      return true;
+    });
+    writeQueue.current = run.catch(() => {});
+    return run;
+  };
   const write = (key, mutate) => {
     const run = writeQueue.current.then(async () => {
       setError(null);
@@ -95,6 +108,39 @@ export default function PinPayload({
     if (!ok) setError((prev) => prev || 'Could not save the tick — try again.');
   };
   const deleteCheck = (id) => write('checklist', (arr) => arr.filter((c) => c.id !== id));
+  const moveCheck = (id, dir) => write('checklist', (arr) => {
+    const i = arr.findIndex((c) => c.id === id);
+    const j = i + dir;
+    if (i === -1 || j < 0 || j >= arr.length) return arr;
+    const next = [...arr];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
+
+  // Recurring lists: Reset snapshots the finished run into history (who
+  // ticked what, when, who reset), then unticks everything for next time.
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  useEffect(() => { setConfirmingReset(false); }, [hotspot?.id, tab]);
+  const resetList = () => {
+    setConfirmingReset(false);
+    return writeWhole((d) => {
+      const items = Array.isArray(d.checklist) ? d.checklist : [];
+      const run = {
+        id: crypto.randomUUID(),
+        reset_at: new Date().toISOString(),
+        reset_by: user?.id ?? null,
+        done_count: items.filter((c) => c.done).length,
+        total: items.length,
+        ticks: items.filter((c) => c.done).map((c) => ({ text: c.text, done_by: c.done_by, done_at: c.done_at })),
+      };
+      return {
+        ...d,
+        checklist_runs: [...(Array.isArray(d.checklist_runs) ? d.checklist_runs : []), run].slice(-20),
+        checklist: items.map((c) => ({ ...c, done: false, done_at: null, done_by: null })),
+      };
+    });
+  };
+  const lastRun = (detail.checklist_runs || [])[Math.max(0, (detail.checklist_runs || []).length - 1)];
   const viewChecklist = useMemo(() => {
     const items = checklist.map((c) => (optimistic?.id === c.id ? { ...c, done: optimistic.done } : c));
     // Ticked items sink below unticked; original order within each band.
@@ -130,6 +176,56 @@ export default function PinPayload({
   }, [photos]);
 
   useEffect(() => { setLightbox(null); setConfirmingRemove(false); }, [hotspot?.id, tab]);
+
+  // ── Photo tags: dots on the image, each deep-linking to inventory ──
+  const navigate = useNavigate();
+  const [tagMode, setTagMode] = useState(false);
+  const [tagPoint, setTagPoint] = useState(null); // {x, y} 0-1 while placing
+  const [tagQuery, setTagQuery] = useState('');
+  const [tagResults, setTagResults] = useState([]);
+  const [openTagId, setOpenTagId] = useState(null);
+  const tagDebounce = useRef(null);
+  useEffect(() => {
+    setTagMode(false); setTagPoint(null); setTagQuery(''); setTagResults([]); setOpenTagId(null);
+  }, [lightbox?.id]);
+  useEffect(() => {
+    if (!tagPoint) return undefined;
+    clearTimeout(tagDebounce.current);
+    tagDebounce.current = setTimeout(async () => {
+      const { items, error: searchError } = await searchInventoryItems(tenantId, tagQuery);
+      if (searchError) setError(searchError);
+      else setTagResults(items || []);
+    }, 250);
+    return () => clearTimeout(tagDebounce.current);
+  }, [tagPoint, tagQuery, tenantId]);
+
+  const placeTagAt = (e) => {
+    if (!tagMode) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTagPoint({
+      x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+      y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)),
+    });
+    setTagQuery('');
+    setTagResults([]);
+  };
+  const saveTag = async (item) => {
+    const point = tagPoint;
+    setTagMode(false); setTagPoint(null); setTagQuery(''); setTagResults([]);
+    const ok = await write('photos', (arr) => arr.map((p) => (p.id === lightbox.id
+      ? { ...p, tags: [...(p.tags || []), { id: crypto.randomUUID(), x: point.x, y: point.y, item_id: item.id, label: item.name }] }
+      : p)));
+    if (ok) setLightbox((prev) => (prev ? { ...prev, tags: [...(prev.tags || []), { x: point.x, y: point.y, item_id: item.id, label: item.name }] } : prev));
+  };
+  const removeTag = async (tagId) => {
+    setOpenTagId(null);
+    const ok = await write('photos', (arr) => arr.map((p) => (p.id === lightbox.id
+      ? { ...p, tags: (p.tags || []).filter((t) => t.id !== tagId) }
+      : p)));
+    if (ok) setLightbox((prev) => (prev ? { ...prev, tags: (prev.tags || []).filter((t) => t.id !== tagId) } : prev));
+  };
+  // The lightbox mirrors the saved photo — keep tags fresh from detail.
+  const lightboxPhoto = lightbox ? (photos.find((p) => p.id === lightbox.id) || lightbox) : null;
   useEffect(() => {
     if (!lightbox) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') setLightbox(null); };
@@ -221,7 +317,24 @@ export default function PinPayload({
       {tab === 'list' && (
         <>
           {checklist.length > 0 && (
-            <p className="vm-check-progress">{doneCount} of {checklist.length} done</p>
+            <div className="vm-check-head">
+              <p className="vm-check-progress">{doneCount} of {checklist.length} done</p>
+              {canManage && doneCount > 0 && (
+                confirmingReset ? (
+                  <span className="vm-check-reset-confirm">
+                    <button className="vm-check-reset vm-check-reset-armed" onClick={resetList}>Confirm reset</button>
+                    <button className="vm-check-reset" onClick={() => setConfirmingReset(false)}>Keep</button>
+                  </span>
+                ) : (
+                  <button className="vm-check-reset" onClick={() => setConfirmingReset(true)}>Reset list</button>
+                )
+              )}
+            </div>
+          )}
+          {lastRun && (
+            <p className="vm-check-lastrun">
+              Last reset {relDate(lastRun.reset_at)} by {nameOf(lastRun.reset_by).split(/\s+/)[0]} · {lastRun.done_count} of {lastRun.total} were done
+            </p>
           )}
           {canManage && (
             <input
@@ -252,6 +365,12 @@ export default function PinPayload({
                 </button>
                 <span className="vm-check-text">{c.text}</span>
                 {c.done && c.done_by && <span className="vm-check-by">{nameOf(c.done_by).split(/\s+/)[0]}</span>}
+                {canManage && !c.done && (
+                  <span className="vm-check-move">
+                    <button className="vm-check-arrow" onClick={() => moveCheck(c.id, -1)} aria-label={`Move ${c.text} up`}>↑</button>
+                    <button className="vm-check-arrow" onClick={() => moveCheck(c.id, 1)} aria-label={`Move ${c.text} down`}>↓</button>
+                  </span>
+                )}
                 {canManage && (
                   <button className="vm-check-del" onClick={() => deleteCheck(c.id)} aria-label={`Delete ${c.text}`}>×</button>
                 )}
@@ -296,7 +415,62 @@ export default function PinPayload({
         <div className="vm-lightbox" onClick={() => setLightbox(null)}>
           <div className="vm-lightbox-inner" onClick={(e) => e.stopPropagation()}>
             <button className="vm-lightbox-x" onClick={() => setLightbox(null)} aria-label="Close photo">×</button>
-            {photoUrls[lightbox.path] && <img src={photoUrls[lightbox.path]} alt={lightbox.caption || ''} />}
+            <div
+              className={`vm-lightbox-imgwrap${tagMode ? ' vm-tagging' : ''}`}
+              onClick={placeTagAt}
+            >
+              {photoUrls[lightbox.path] && <img src={photoUrls[lightbox.path]} alt={lightbox.caption || ''} draggable="false" />}
+              {(lightboxPhoto?.tags || []).map((t) => (
+                <button
+                  key={t.id}
+                  className={`vm-photo-tag${openTagId === t.id ? ' vm-photo-tag-open' : ''}`}
+                  style={{ left: `${t.x * 100}%`, top: `${t.y * 100}%` }}
+                  onClick={(e) => { e.stopPropagation(); setOpenTagId(openTagId === t.id ? null : t.id); }}
+                  aria-label={t.label}
+                />
+              ))}
+              {tagPoint && <span className="vm-photo-tag vm-photo-tag-pending" style={{ left: `${tagPoint.x * 100}%`, top: `${tagPoint.y * 100}%` }} />}
+            </div>
+            {openTagId && (() => {
+              const t = (lightboxPhoto?.tags || []).find((x) => x.id === openTagId);
+              if (!t) return null;
+              return (
+                <div className="vm-tag-chip">
+                  <span className="vm-tag-chip-label">{t.label}</span>
+                  <button className="vm-tag-chip-go" onClick={() => navigate(`/inventory/item/${t.item_id}`)}>
+                    View in inventory →
+                  </button>
+                  {canManage && (
+                    <button className="vm-tag-chip-del" onClick={() => removeTag(t.id)} aria-label={`Remove tag ${t.label}`}>×</button>
+                  )}
+                </div>
+              );
+            })()}
+            {canManage && !tagPoint && (
+              <button
+                className={`vm-tag-toggle${tagMode ? ' vm-tag-toggle-on' : ''}`}
+                onClick={() => { setTagMode((v) => !v); setOpenTagId(null); }}
+              >
+                {tagMode ? 'Tap the item in the photo…' : '◎ Tag an item'}
+              </button>
+            )}
+            {tagPoint && (
+              <div className="vm-tag-search">
+                <input
+                  className="vm-check-input"
+                  placeholder="Search inventory — “napkin rings”…"
+                  value={tagQuery}
+                  onChange={(e) => setTagQuery(e.target.value)}
+                  autoFocus
+                />
+                {tagResults.map((i) => (
+                  <button key={i.id} className="vm-cupboard-result" onClick={() => saveTag(i)}>
+                    {i.name}{i.quantity != null ? ` · ${i.quantity}${i.unit ? ` ${i.unit}` : ''}` : ''}
+                  </button>
+                ))}
+                <button className="vm-cupboard-cancel" onClick={() => { setTagPoint(null); setTagMode(false); }}>Cancel</button>
+              </div>
+            )}
             <div className="vm-lightbox-bar">
               {canManage ? (
                 <input
