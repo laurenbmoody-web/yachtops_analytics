@@ -30,6 +30,12 @@ export const WIDGET_META = {
     allowedTiers: WIDGET_PERMISSIONS.ALL,
     defaultColumn: 'left',
   },
+  vesselStatus: {
+    id: 'vesselStatus',
+    title: 'Vessel Status',
+    allowedTiers: WIDGET_PERMISSIONS.COMMAND_CHIEF,
+    defaultColumn: 'center',
+  },
   vesselView: {
     id: 'vesselView',
     title: 'Vessel View',
@@ -88,6 +94,6 @@ export const WIDGET_META = {
 
 export const DEFAULT_LAYOUT = {
   left:   ['teamJobs', 'rota', 'todaySnapshot', 'recentActivity'],
-  center: ['vesselView', 'laundry', 'quickActions', 'pantry'],
+  center: ['vesselStatus', 'vesselView', 'laundry', 'quickActions', 'pantry'],
   right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'vesselDocRenewals', 'provisioning'],
 };
