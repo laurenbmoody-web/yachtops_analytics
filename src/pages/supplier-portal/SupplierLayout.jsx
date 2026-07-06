@@ -194,7 +194,6 @@ const SupplierLayout = () => {
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-            <span>Collapse</span>
           </button>
         </div>
       </aside>
