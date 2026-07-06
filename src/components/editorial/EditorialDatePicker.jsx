@@ -141,20 +141,32 @@ const EditorialDatePicker = ({
 
   const closePopover = useCallback(() => { setOpen(false); setHoverDate(null); }, []);
 
-  // Fixed-position the portaled popover under (or above, if short on space)
-  // the field. Recomputed on open, and on scroll/resize while open.
+  // Fixed-position the portaled popover under the field. Recomputed on open, and
+  // on scroll/resize while open. The popover is portaled to <body> and floats
+  // above modal overlays, so it may spill past a modal's own edge — we lean on
+  // that instead of flipping fully above the field, which used to jump over a
+  // modal's title/tabs. Anchor below; if it would run off the bottom (or right)
+  // of the viewport, slide it back just enough to stay fully visible.
   const computePosition = useCallback(() => {
     const el = wrapperRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const gap = 6;
+    const margin = 8;
     const popH = popoverRef.current?.offsetHeight || 360;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const placeAbove = spaceBelow < popH + gap && rect.top > popH + gap;
-    setCoords({
-      top: placeAbove ? Math.max(8, rect.top - gap - popH) : rect.bottom + gap,
-      left: rect.left,
-    });
+    const popW = popoverRef.current?.offsetWidth || 280;
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+
+    let top = rect.bottom + gap;
+    const maxTop = vh - popH - margin;
+    if (top > maxTop) top = Math.max(margin, maxTop);
+
+    let left = rect.left;
+    const maxLeft = vw - popW - margin;
+    if (left > maxLeft) left = Math.max(margin, maxLeft);
+
+    setCoords({ top, left });
   }, []);
 
   useLayoutEffect(() => {
