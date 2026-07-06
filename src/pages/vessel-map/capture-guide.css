@@ -45,8 +45,12 @@
 .cg-navy p { color: #AEB4C2; }
 .cg-navy .vm-btn-primary { box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.45); }
 
-.cg-cta { margin-top: auto; align-self: flex-start; padding-top: 0; margin-top: 18px; }
-.cg-card:last-child .cg-cta { margin-top: 18px; }
+.cg-cta {
+  margin-top: 18px;
+  align-self: flex-start;
+  display: inline-block;
+  cursor: pointer;
+}
 
 .cg-footnote {
   margin: 26px 0 0;

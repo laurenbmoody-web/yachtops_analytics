@@ -15,6 +15,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import Header from '../../components/navigation/Header';
 import SplatViewer from './components/SplatViewer';
 import OrientPanel from './components/OrientPanel';
+import GuideCards from './components/GuideCards';
 import { SCAN_EXTENSIONS, SCAN_MAX_BYTES, validateScanFile, fileExtension, createScanUpload } from './utils/scanUpload';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
@@ -57,8 +58,17 @@ export default function ManageScans() {
   const [orientError, setOrientError] = useState(null);
   const activeUploadRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
+  // Crews who've done this many times can fold the three cards away.
+  const [stepsHidden, setStepsHiddenState] = useState(() => {
+    try { return localStorage.getItem('cargo-vmm-steps-hidden') === '1'; } catch { return false; }
+  });
+  const setStepsHidden = (hidden) => {
+    setStepsHiddenState(hidden);
+    try { localStorage.setItem('cargo-vmm-steps-hidden', hidden ? '1' : '0'); } catch { /* preference only */ }
+  };
 
   // Per-row: edits, replace/complete transfer state, delete modal.
+  const [editingId, setEditingId] = useState(null); // row in edit mode
   const [rowEdits, setRowEdits] = useState({});
   const [rowBusy, setRowBusy] = useState({});   // id → {progress?, error?, label}
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -282,7 +292,13 @@ export default function ManageScans() {
     }
     setRowEdits((prev) => { const next = { ...prev }; delete next[s.id]; return next; });
     setRowBusy((p) => { const next = { ...p }; delete next[s.id]; return next; });
+    setEditingId(null);
     loadAll();
+  };
+  const cancelEdit = (id) => {
+    setRowEdits((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setRowBusy((p) => { const next = { ...p }; delete next[id]; return next; });
+    setEditingId(null);
   };
 
   // Replace file / complete an incomplete upload — same transfer, one rule:
@@ -381,33 +397,42 @@ export default function ManageScans() {
             </h1>
           </div>
 
-          {/* ── Upload flow ── */}
+          {/* ── Upload surface: the three cards ARE the uploader. Whole area
+                 is a drop target; the navy CTA opens the device picker. ── */}
           {step === 'idle' && (
             <div
-              className={`vmm-drop${dragOver ? ' vmm-drop-over' : ''}`}
+              className={`vmm-uploader${dragOver ? ' vmm-uploader-over' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); acceptFile(e.dataTransfer.files?.[0]); }}
             >
-              <p className="vmm-drop-title">Drop your 3D scan here</p>
-              <p className="vmm-drop-body">
-                Takes SPZ, PLY, SPLAT or KSPLAT, up to {Math.round(SCAN_MAX_BYTES / (1024 * 1024))}MB.
-                {' '}<strong>SPZ</strong> is smallest — best for upload.
-              </p>
-              <div className="vmm-drop-actions">
-                <label className="vm-btn-primary vmm-drop-pick">
-                  Choose a file
-                  <input
-                    type="file"
-                    accept={SCAN_EXTENSIONS.map((e) => `.${e}`).join(',')}
-                    style={{ display: 'none' }}
-                    onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = ''; }}
-                  />
-                </label>
-                <button className="vm-btn-ghost" onClick={() => navigate('/vessel/map/manage/guide')}>
-                  How do I capture a scan?
-                </button>
-              </div>
+              {stepsHidden ? (
+                <div className="vmm-compact">
+                  <p className="vmm-compact-line">
+                    Scan with your phone, export <strong>SPZ</strong>, drop it here — or
+                  </p>
+                  <label className="vm-btn-primary">
+                    Upload your scan
+                    <input
+                      type="file"
+                      accept={SCAN_EXTENSIONS.map((e) => `.${e}`).join(',')}
+                      style={{ display: 'none' }}
+                      onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = ''; }}
+                    />
+                  </label>
+                  <button className="vmm-steps-toggle" onClick={() => setStepsHidden(false)}>Show the steps</button>
+                </div>
+              ) : (
+                <>
+                  <GuideCards onFile={acceptFile} />
+                  <div className="vmm-under-cards">
+                    <p className="vmm-formats">
+                      Takes SPZ, PLY, SPLAT or KSPLAT, up to {Math.round(SCAN_MAX_BYTES / (1024 * 1024))}MB — or drop a file anywhere here.
+                    </p>
+                    <button className="vmm-steps-toggle" onClick={() => setStepsHidden(true)}>Done this before? Hide the steps</button>
+                  </div>
+                </>
+              )}
               {fileError && <p className="vmm-error">{fileError}</p>}
             </div>
           )}
@@ -507,36 +532,63 @@ export default function ManageScans() {
             </div>
           )}
 
-          {/* ── The list ── */}
+          {/* ── The library: clean rows; editing is an explicit mode ── */}
           {!loading && scans.length > 0 && (
-            <div className="vmm-list">
-              <div className="vmm-list-head">
-                <span>Scan</span><span>Deck</span><span>Order</span><span>Size</span><span>Format</span><span>Pins</span><span>Added</span><span />
+            <div className="vml">
+              <div className="vml-head">
+                <span className="vml-label">Scans aboard · {scans.length}</span>
               </div>
               {scans.map((s) => {
                 const busy = rowBusy[s.id];
                 const incomplete = s.status !== 'ready';
+                const editing = editingId === s.id;
+                const pins = pinCounts[s.id] || 0;
                 return (
-                  <div key={s.id} className={`vmm-row${incomplete ? ' vmm-row-incomplete' : ''}`}>
-                    <div className="vmm-cell-name">
-                      <input className="vmm-inline-input" value={editValue(s, 'name')} onChange={(e) => setEdit(s.id, 'name', e.target.value)} aria-label="Scan name" />
-                      {incomplete && <span className="vmm-badge">Upload incomplete</span>}
-                    </div>
-                    <input className="vmm-inline-input" value={editValue(s, 'deck')} onChange={(e) => setEdit(s.id, 'deck', e.target.value)} placeholder="—" aria-label="Deck" />
-                    <input className="vmm-inline-input vmm-inline-num" type="number" value={editValue(s, 'sort_order')} onChange={(e) => setEdit(s.id, 'sort_order', e.target.value)} aria-label="Sort order" />
-                    <span className="vmm-cell-quiet">{fmtSize(s.file_bytes ?? storageSizes[s.storage_path])}</span>
-                    <span className="vmm-cell-quiet">{(s.file_format || '').toUpperCase()}</span>
-                    <span className="vmm-cell-quiet">{pinCounts[s.id] || 0}</span>
-                    <span className="vmm-cell-quiet">{fmtDate(s.created_at)}</span>
-                    <div className="vmm-row-actions">
-                      {rowDirty(s) && <button className="vm-btn-primary vmm-btn-sm" onClick={() => saveRow(s)}>Save</button>}
-                      <button className="vm-btn-ghost vmm-btn-sm" onClick={() => pickReplacement(s)}>
-                        {incomplete ? 'Upload file' : 'Replace file'}
-                      </button>
-                      <button className="vmm-delete" onClick={() => { setDeleteError(null); setDeleteTarget(s); }}>Delete</button>
-                    </div>
+                  <div key={s.id} className={`vml-row${incomplete ? ' vml-row-incomplete' : ''}${editing ? ' vml-row-editing' : ''}`}>
+                    {editing ? (
+                      <div className="vml-editor">
+                        <div className="vmm-form-row">
+                          <div className="vmm-field">
+                            <p className="vm-label">Name</p>
+                            <input className="vm-input" value={editValue(s, 'name')} onChange={(e) => setEdit(s.id, 'name', e.target.value)} aria-label="Scan name" autoFocus />
+                          </div>
+                          <div className="vmm-field">
+                            <p className="vm-label">Deck <span className="vmm-label-optional">optional</span></p>
+                            <input className="vm-input" value={editValue(s, 'deck')} onChange={(e) => setEdit(s.id, 'deck', e.target.value)} placeholder="Main deck" aria-label="Deck" />
+                          </div>
+                          <div className="vmm-field vml-field-order">
+                            <p className="vm-label">Order</p>
+                            <input className="vm-input" type="number" value={editValue(s, 'sort_order')} onChange={(e) => setEdit(s.id, 'sort_order', e.target.value)} aria-label="Sort order" />
+                          </div>
+                        </div>
+                        <div className="vmm-actions">
+                          <button className="vm-btn-primary vmm-btn-sm" onClick={() => saveRow(s)} disabled={!rowDirty(s)}>Save changes</button>
+                          <button className="vm-btn-ghost vmm-btn-sm" onClick={() => cancelEdit(s.id)}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="vml-main">
+                          <p className="vml-name">
+                            {s.name}
+                            {incomplete && <span className="vmm-badge">Upload incomplete</span>}
+                          </p>
+                          <p className="vml-meta">
+                            {[s.deck, fmtSize(s.file_bytes ?? storageSizes[s.storage_path]), (s.file_format || '').toUpperCase(),
+                              `${pins} pin${pins === 1 ? '' : 's'}`, fmtDate(s.created_at)].filter(Boolean).join(' · ')}
+                          </p>
+                        </div>
+                        <div className="vml-actions">
+                          <button className="vm-btn-ghost vmm-btn-sm" onClick={() => setEditingId(s.id)}>Edit</button>
+                          <button className="vm-btn-ghost vmm-btn-sm" onClick={() => pickReplacement(s)}>
+                            {incomplete ? 'Upload file' : 'Replace file'}
+                          </button>
+                          <button className="vmm-delete" onClick={() => { setDeleteError(null); setDeleteTarget(s); }}>Delete</button>
+                        </div>
+                      </>
+                    )}
                     {busy?.progress && (
-                      <div className="vmm-row-progress">
+                      <div className="vml-row-wide">
                         <div className="vmm-progress-track">
                           <div className="vmm-progress-fill" style={{ width: `${busy.progress.total ? Math.round((busy.progress.sent / busy.progress.total) * 100) : 0}%` }} />
                         </div>
@@ -544,7 +596,7 @@ export default function ManageScans() {
                         <p className="vmm-note">Pins keep their positions — if the new capture's orientation differs, re-orient after upload.</p>
                       </div>
                     )}
-                    {busy?.error && <p className="vmm-error vmm-row-error">{busy.error}</p>}
+                    {busy?.error && <p className="vmm-error vml-row-wide">{busy.error}</p>}
                   </div>
                 );
               })}

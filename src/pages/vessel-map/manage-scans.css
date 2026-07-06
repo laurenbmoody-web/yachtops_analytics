@@ -27,34 +27,49 @@
 }
 .vmm-note { margin: 4px 0 12px; font-size: 12.5px; color: #8B8478; }
 
-/* ── Dropzone ───────────────────────────────────────────────────────────── */
-.vmm-drop {
-  border: 1.5px dashed #D9D5CA;
-  border-radius: 16px;
-  background: #FCFCFA;
-  padding: 44px 24px;
-  text-align: center;
-  transition: border-color var(--vm-ease-ui), background var(--vm-ease-ui);
-  margin-bottom: 28px;
+/* ── Upload surface: the guide cards ARE the uploader ──────────────────── */
+.vmm-uploader {
+  border-radius: 20px;
+  transition: box-shadow var(--vm-ease-ui), background var(--vm-ease-ui);
+  margin-bottom: 30px;
 }
-.vmm-drop-over { border-color: #C65A1A; background: #FBEFE9; }
-.vmm-drop-title {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 24px;
-  color: #1C1B3A;
-  margin: 0 0 6px;
-}
-.vmm-drop-body { color: #6B7280; font-size: 13.5px; margin: 0 auto 18px; max-width: 420px; line-height: 1.6; }
-.vmm-drop-pick { display: inline-block; cursor: pointer; }
-
-.vmm-drop-actions {
+.vmm-uploader-over { box-shadow: 0 0 0 2px #C65A1A, 0 0 0 8px #FAECE7; }
+.vmm-under-cards {
   display: flex;
-  gap: 10px;
-  justify-content: center;
-  align-items: center;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 18px;
+  margin-top: 14px;
   flex-wrap: wrap;
 }
-
+.vmm-formats { margin: 0; font-size: 12.5px; color: #8B8478; }
+.vmm-steps-toggle {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #6B7280;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--vm-ease-ui);
+}
+.vmm-steps-toggle:hover { color: #C65A1A; }
+.vmm-compact {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  border: 1px solid #ECEAE3;
+  background: #FAFAF8;
+  border-radius: 16px;
+  padding: 18px 22px;
+}
+.vmm-compact-line { margin: 0; font-size: 13.5px; color: #6B7280; }
+.vmm-compact-line strong { color: #1C1B3A; }
+.vmm-compact .vm-btn-primary { cursor: pointer; }
+.vmm-compact .vmm-steps-toggle { margin-left: auto; }
 /* ── Flow panels ────────────────────────────────────────────────────────── */
 .vmm-panel {
   border: 1px solid #ECEAE3;
@@ -120,86 +135,59 @@
 }
 .vmm-done .vmm-actions { justify-content: center; }
 
-/* ── The list ───────────────────────────────────────────────────────────── */
-.vmm-list { margin-top: 4px; }
-.vmm-list-head, .vmm-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 2fr) minmax(110px, 1fr) 64px 80px 70px 50px 90px auto;
-  gap: 12px;
-  align-items: center;
-}
-.vmm-list-head {
-  padding: 0 4px 8px;
+/* ── The library: quiet rows, explicit edit mode ────────────────────────── */
+.vml { margin-top: 4px; }
+.vml-head {
+  padding: 4px 2px 10px;
   border-bottom: 1px solid #E8E6DF;
+}
+.vml-label {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: #8B8478;
 }
-.vmm-row {
-  padding: 12px 4px;
+.vml-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 16px 2px;
   border-bottom: 1px solid #F0F1F5;
 }
-.vmm-row-incomplete { background: #FCFAF5; }
-.vmm-cell-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.vmm-badge {
-  flex: none;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: #8B5A1F;
-  background: #F5E6C1;
-  border-radius: 999px;
-  padding: 3px 8px;
-}
-.vmm-inline-input {
-  width: 100%;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: none;
-  padding: 6px 8px;
-  font-family: inherit;
-  font-size: 13px;
-  color: #1C1B3A;
-  outline: none;
-  transition: border-color var(--vm-ease-ui), background var(--vm-ease-ui);
-}
-.vmm-inline-input:hover { border-color: #E8E6DF; }
-.vmm-inline-input:focus { border-color: #C65A1A; background: #fff; box-shadow: 0 0 0 3px #FAECE7; }
-.vmm-inline-num { text-align: center; font-variant-numeric: tabular-nums; }
-.vmm-cell-quiet { font-size: 12.5px; color: #6B7280; font-variant-numeric: tabular-nums; }
-.vmm-row-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
-.vmm-btn-sm { padding: 6px 12px; font-size: 12px; }
-.vmm-delete {
-  background: none;
-  border: 0;
-  padding: 6px 4px;
-  font-family: inherit;
-  font-size: 12px;
+.vml-row-incomplete { background: #FCFAF5; }
+.vml-row-editing { background: #FAFAF8; border-radius: 14px; padding: 18px 18px; border-bottom: 1px solid #F0F1F5; }
+.vml-main { flex: 1; min-width: 220px; }
+.vml-name {
+  margin: 0;
+  font-size: 14.5px;
   font-weight: 600;
-  color: #A32D2D;
-  cursor: pointer;
+  color: #1C1B3A;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.vmm-delete:hover { text-decoration: underline; }
-.vmm-row-progress, .vmm-row-error { grid-column: 1 / -1; }
-.vmm-row-progress .vmm-note { margin-bottom: 0; }
+.vml-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #8B8478;
+  font-variant-numeric: tabular-nums;
+}
+.vml-actions { display: flex; gap: 8px; align-items: center; }
+.vml-editor { flex: 1; min-width: 0; }
+.vml-field-order { flex: 0 0 90px; min-width: 90px; }
+.vml-row-wide { flex-basis: 100%; }
+.vml-row-wide .vmm-note { margin-bottom: 0; }
 
 .vmm-modal-body { font-size: 13.5px; color: #1C1B3A; line-height: 1.6; margin: 8px 0 4px; }
 .vmm-danger-btn { background: #A32D2D; }
 .vmm-danger-btn:hover { background: #8C2424; }
 .vmm-empty { color: #8B8478; font-size: 13.5px; }
 
-/* ── Phone: the grid folds to stacked cards — functional, not redesigned ── */
+/* ── Phone ──────────────────────────────────────────────────────────────── */
 @media (max-width: 760px) {
-  .vmm-list-head { display: none; }
-  .vmm-row {
-    grid-template-columns: 1fr 1fr;
-    row-gap: 8px;
-    padding: 14px 4px;
-  }
-  .vmm-cell-name { grid-column: 1 / -1; }
-  .vmm-row-actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .vml-actions { flex-basis: 100%; justify-content: flex-start; }
   .vmm-form-row { flex-direction: column; }
+  .vmm-compact .vmm-steps-toggle { margin-left: 0; }
 }
