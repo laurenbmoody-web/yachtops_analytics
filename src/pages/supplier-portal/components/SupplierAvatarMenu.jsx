@@ -25,7 +25,7 @@ const ROLE_BADGE = {
 const SectionLabel = ({ label }) => (
   <div style={{
     padding: '6px 16px 3px',
-    fontFamily: 'Outfit', fontWeight: 700,
+    fontFamily: 'Inter', fontWeight: 700,
     fontSize: 10, letterSpacing: '0.14em',
     textTransform: 'uppercase', color: 'var(--muted)',
   }}>{label}</div>
@@ -44,7 +44,7 @@ const MenuItem = ({ icon: Icon, label, onClick, danger, href }) => {
         width: '100%', padding: '9px 16px',
         background: 'transparent', border: 'none', textAlign: 'left',
         cursor: 'pointer', fontSize: 13,
-        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        fontFamily: "'Inter', system-ui, sans-serif",
         color: danger ? 'var(--red)' : 'var(--fg)',
         transition: 'background 100ms',
       }}
@@ -123,7 +123,7 @@ const SupplierAvatarMenu = () => {
           width: 28, height: 28, borderRadius: '50%',
           background: '#1C2340', color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'Outfit', fontWeight: 700, fontSize: 11, flexShrink: 0,
+          fontFamily: 'Inter', fontWeight: 700, fontSize: 11, flexShrink: 0,
         }}>{initials}</div>
         <ChevronDown size={14} style={{ color: 'var(--muted-strong)' }} />
       </button>
@@ -155,11 +155,11 @@ const SupplierAvatarMenu = () => {
                   width: 40, height: 40, borderRadius: '50%',
                   background: '#1C2340', color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, flexShrink: 0,
+                  fontFamily: 'Inter', fontWeight: 700, fontSize: 15, flexShrink: 0,
                 }}>{initials}</div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{
-                    fontFamily: 'Outfit', fontWeight: 700, fontSize: 14,
+                    fontFamily: 'Inter', fontWeight: 700, fontSize: 14,
                     color: 'var(--fg)', lineHeight: 1.2,
                   }}>{displayName}</div>
                   <div style={{
@@ -170,12 +170,12 @@ const SupplierAvatarMenu = () => {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
-                  fontFamily: 'Outfit', fontWeight: 700, fontSize: 10.5,
+                  fontFamily: 'Inter', fontWeight: 700, fontSize: 10.5,
                   letterSpacing: '0.1em', textTransform: 'uppercase',
                   color: 'var(--muted-strong)',
                 }}>{supplier?.name ?? '—'}</span>
                 <span style={{
-                  fontFamily: 'Outfit', fontWeight: 700,
+                  fontFamily: 'Inter', fontWeight: 700,
                   fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase',
                   padding: '2px 7px', borderRadius: 999,
                   background: badgeStyle.bg, color: badgeStyle.color,
@@ -224,7 +224,7 @@ const SupplierAvatarMenu = () => {
                     width: '100%', padding: '9px 16px',
                     background: workspaceHover ? 'var(--bg-2)' : 'transparent',
                     border: 'none', textAlign: 'left', cursor: 'pointer',
-                    fontSize: 13, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                    fontSize: 13, fontFamily: "'Inter', system-ui, sans-serif",
                     color: 'var(--fg)', transition: 'background 100ms',
                   }}
                 >
@@ -247,14 +247,14 @@ const SupplierAvatarMenu = () => {
                         width: '100%', padding: '8px 10px', borderRadius: 8,
                         background: 'var(--chip-bg)', border: '1px solid var(--line)',
                         cursor: 'pointer', textAlign: 'left',
-                        fontFamily: 'Outfit', fontSize: 12, fontWeight: 600, color: 'var(--fg)',
+                        fontFamily: 'Inter', fontSize: 12, fontWeight: 600, color: 'var(--fg)',
                       }}
                     >
                       <div style={{
                         width: 22, height: 22, borderRadius: 6,
                         background: '#1C2340', color: '#fff',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 9, fontWeight: 800, flexShrink: 0, fontFamily: 'Outfit',
+                        fontSize: 9, fontWeight: 800, flexShrink: 0, fontFamily: 'Inter',
                       }}>
                         {(supplier?.name ?? 'SU').slice(0, 2).toUpperCase()}
                       </div>

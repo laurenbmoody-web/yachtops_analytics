@@ -1,5 +1,5 @@
 /* Product editor + confirm dialog — scoped spm-* / spc-* (portal tokens).
-   Same visual language as the AI import sheet (cim-*): Outfit display,
+   Same visual language as the AI import sheet (cim-*): Fraunces display,
    tracked-caps section labels, terracotta focus halos and primary. */
 
 .spm-overlay {
@@ -29,10 +29,10 @@
   color: var(--orange, #C65A1A); margin-bottom: 5px;
 }
 .spm-title {
-  font-family: 'Outfit', system-ui, sans-serif;
-  font-weight: 700; font-size: 20px; margin: 0; color: var(--fg, #0C0E14); letter-spacing: -0.01em;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
+  font-weight: 500; font-size: 21px; margin: 0; color: var(--fg, #0C0E14); letter-spacing: -0.01em;
 }
-.spm-title em { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-style: italic; }
+.spm-title em { font-family: 'Fraunces', 'DM Serif Display', Georgia, serif; font-weight: 400; font-style: italic; }
 .spm-close {
   width: 30px; height: 30px; border-radius: 999px; flex: none;
   display: flex; align-items: center; justify-content: center;
@@ -149,7 +149,7 @@
   width: min(400px, 100%);
   padding: 22px 24px 18px;
 }
-.spc-title { font-family: 'Outfit', system-ui, sans-serif; font-weight: 700; font-size: 16px; margin: 0 0 6px; color: var(--fg, #0C0E14); }
+.spc-title { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 16px; margin: 0 0 6px; color: var(--fg, #0C0E14); }
 .spc-body { font-size: 13px; color: var(--muted-strong, #64748B); line-height: 1.55; margin: 0 0 16px; }
 .spc-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .spc-btn {

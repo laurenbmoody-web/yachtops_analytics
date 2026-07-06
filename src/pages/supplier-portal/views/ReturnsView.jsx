@@ -55,7 +55,7 @@ const ReturnsView = () => (
               <td className="sp-amount">{r.credit}</td>
               <td>
                 {r.resolve
-                  ? <button className="sp-rb primary" style={{ textTransform: 'uppercase', fontSize: 10.5, fontFamily: 'Outfit', letterSpacing: '0.06em' }}>Resolve</button>
+                  ? <button className="sp-rb primary" style={{ textTransform: 'uppercase', fontSize: 10.5, fontFamily: 'Inter', letterSpacing: '0.06em' }}>Resolve</button>
                   : <button className="sp-rb"><MoreHorizontal size={13} /></button>
                 }
               </td>

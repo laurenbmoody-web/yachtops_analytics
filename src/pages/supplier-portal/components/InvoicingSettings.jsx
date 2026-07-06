@@ -60,7 +60,7 @@ const validateForm = (form) => {
 const SectionCard = ({ title, subtitle, children }) => (
   <div style={{ marginBottom: 24 }}>
     <div style={{ marginBottom: 14 }}>
-      <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 14, color: 'var(--fg)', margin: '0 0 4px' }}>
+      <h4 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 14, color: 'var(--fg)', margin: '0 0 4px' }}>
         {title}
       </h4>
       {subtitle && (
@@ -345,7 +345,7 @@ const CategoryRow = ({
             {cat.note}
           </div>
         )}
-        <div style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: 'JetBrains Mono', marginTop: 2 }}>
+        <div style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", marginTop: 2 }}>
           key: {cat.key} · default {presetRate}%
         </div>
       </div>
@@ -407,7 +407,7 @@ const CustomCategoryRow = ({ cat, onChange, onRemove }) => (
       value={cat.key}
       onChange={(e) => onChange({ ...cat, key: e.target.value.replace(/[^a-z0-9_]/g, '_').toLowerCase() })}
       className="sp-field-input"
-      style={{ fontFamily: 'JetBrains Mono', fontSize: 12 }}
+      style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12 }}
     />
     <div style={{ position: 'relative' }}>
       <input
@@ -565,7 +565,7 @@ const TaxCategoriesSection = ({ form, set }) => {
 const CustomCategoriesBlock = ({ categories, onUpdate, onRemove, onAdd }) => (
   <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px dashed var(--line)' }}>
     <div style={{
-      fontFamily: 'Syne', fontWeight: 600, fontSize: 10,
+      fontFamily: 'Inter', fontWeight: 600, fontSize: 10,
       letterSpacing: '0.12em', textTransform: 'uppercase',
       color: 'var(--muted-strong)', marginBottom: 8,
     }}>Custom categories</div>
@@ -633,7 +633,7 @@ const BankDetailsSection = ({ form, set }) => {
             value={bank.iban || ''}
             onChange={(e) => setBank('iban', e.target.value)}
             placeholder="FR76 3000 1007 4712 3456 7890 185"
-            style={{ fontFamily: 'JetBrains Mono', fontSize: 12.5 }}
+            style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12.5 }}
           />
         </div>
         <div className="sp-field">
@@ -644,7 +644,7 @@ const BankDetailsSection = ({ form, set }) => {
             value={bank.bic_swift || ''}
             onChange={(e) => setBank('bic_swift', e.target.value)}
             placeholder="BNPAFRPPXXX"
-            style={{ fontFamily: 'JetBrains Mono', fontSize: 12.5 }}
+            style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12.5 }}
           />
         </div>
       </div>
@@ -670,7 +670,7 @@ const BankDetailsSection = ({ form, set }) => {
                 value={bank.sort_code || ''}
                 onChange={(e) => setBank('sort_code', e.target.value)}
                 placeholder="20-00-00"
-                style={{ fontFamily: 'JetBrains Mono', fontSize: 12.5 }}
+                style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12.5 }}
               />
             </div>
           )}
@@ -682,7 +682,7 @@ const BankDetailsSection = ({ form, set }) => {
                 className="sp-field-input"
                 value={bank.account_number || ''}
                 onChange={(e) => setBank('account_number', e.target.value)}
-                style={{ fontFamily: 'JetBrains Mono', fontSize: 12.5 }}
+                style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12.5 }}
               />
             </div>
           )}
@@ -746,7 +746,7 @@ const NumberingSection = ({ form, set }) => {
             disabled
             style={{
               background: 'var(--bg-2)', color: 'var(--muted-strong)',
-              fontFamily: 'JetBrains Mono', fontSize: 13,
+              fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 13,
             }}
           />
         </div>
@@ -760,7 +760,7 @@ const NumberingSection = ({ form, set }) => {
           value={form.invoice_number_format}
           onChange={(e) => set('invoice_number_format', e.target.value)}
           placeholder="{prefix}-{YYYY}-{####}"
-          style={{ fontFamily: 'JetBrains Mono', fontSize: 13 }}
+          style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 13 }}
         />
         <div style={{ fontSize: 11, color: 'var(--muted-strong)', marginTop: 5, lineHeight: 1.5 }}>
           Tokens:{' '}
@@ -779,12 +779,12 @@ const NumberingSection = ({ form, set }) => {
         background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8,
       }}>
         <div style={{
-          fontFamily: 'Syne', fontWeight: 600, fontSize: 10,
+          fontFamily: 'Inter', fontWeight: 600, fontSize: 10,
           letterSpacing: '0.12em', textTransform: 'uppercase',
           color: 'var(--muted-strong)', marginBottom: 4,
         }}>Next invoice will be</div>
         <div style={{
-          fontFamily: 'JetBrains Mono', fontSize: 16,
+          fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 16,
           color: 'var(--fg)', fontWeight: 500,
         }}>
           {preview || '—'}
@@ -910,7 +910,7 @@ const InvoicingSettings = ({ supplier, onSaved }) => {
 
   return (
     <>
-      <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, color: 'var(--fg)', margin: '0 0 4px' }}>
+      <h4 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 15, color: 'var(--fg)', margin: '0 0 4px' }}>
         Invoicing
       </h4>
       <p style={{ fontSize: 12.5, color: 'var(--muted-strong)', margin: '0 0 22px', lineHeight: 1.5 }}>

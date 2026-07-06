@@ -31,10 +31,10 @@
 }
 
 .cim-title {
-  font-family: 'Outfit', system-ui, sans-serif;
-  font-weight: 700; font-size: 19px; margin: 0; color: var(--fg, #0C0E14);
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
+  font-weight: 500; font-size: 20px; margin: 0; color: var(--fg, #0C0E14);
 }
-.cim-title em { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-style: italic; }
+.cim-title em { font-family: 'Fraunces', 'DM Serif Display', Georgia, serif; font-weight: 400; font-style: italic; }
 
 .cim-close {
   width: 30px; height: 30px; border-radius: 999px;

@@ -324,7 +324,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
       {/* Lines */}
       <div style={{ marginBottom: 18 }}>
         <div style={{
-          fontFamily: 'Syne', fontWeight: 600, fontSize: 10,
+          fontFamily: 'Inter', fontWeight: 600, fontSize: 10,
           letterSpacing: '0.12em', textTransform: 'uppercase',
           color: 'var(--muted-strong)', marginBottom: 8,
         }}>Line items</div>
@@ -417,7 +417,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
         background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8,
       }}>
         <div style={{
-          fontFamily: 'Syne', fontWeight: 600, fontSize: 10,
+          fontFamily: 'Inter', fontWeight: 600, fontSize: 10,
           letterSpacing: '0.12em', textTransform: 'uppercase',
           color: 'var(--muted-strong)', marginBottom: 8,
         }}>Totals preview</div>
@@ -447,7 +447,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
           <div style={{
             paddingTop: 8, marginTop: 4,
             borderTop: '1px solid var(--line)',
-            fontFamily: 'Syne', fontWeight: 700, fontSize: 11,
+            fontFamily: 'Inter', fontWeight: 700, fontSize: 11,
             letterSpacing: '0.1em', textTransform: 'uppercase',
             color: 'var(--muted-strong)',
             gridColumn: '1', alignSelf: 'center',
@@ -455,7 +455,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
           <div style={{
             paddingTop: 8, marginTop: 4,
             borderTop: '1px solid var(--line)',
-            fontFamily: 'Outfit', fontWeight: 800, fontSize: 18,
+            fontFamily: 'Inter', fontWeight: 800, fontSize: 18,
             letterSpacing: '-0.01em', color: 'var(--fg)',
             fontVariantNumeric: 'tabular-nums',
           }}>{fmtMoney(computed.total, currency)}</div>

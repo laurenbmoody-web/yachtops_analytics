@@ -287,7 +287,7 @@ const InviteModal = ({ supplierId, supplierName, onClose, onCreated }) => {
         }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 16, color: 'var(--fg)', margin: '0 0 4px' }}>
+            <h3 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 16, color: 'var(--fg)', margin: '0 0 4px' }}>
               Invite team member
             </h3>
             <div style={{ fontSize: 12.5, color: 'var(--muted-s)' }}>
@@ -424,7 +424,7 @@ const TransferOwnershipModal = ({ supplier, fromName, target, onClose, onDone })
           width: '100%', maxWidth: 480, padding: '24px 26px',
           boxShadow: '0 10px 32px rgba(12,14,20,0.18)',
         }}>
-        <h3 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 16, color: 'var(--fg)', margin: '0 0 8px' }}>
+        <h3 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 16, color: 'var(--fg)', margin: '0 0 8px' }}>
           Transfer ownership of {supplier.name} to {target.name || target.email}?
         </h3>
         <p style={{ fontSize: 13.5, color: 'var(--muted-strong)', lineHeight: 1.55, margin: '0 0 14px' }}>
@@ -518,7 +518,7 @@ const TeamSection = ({ supplier, currentContact }) => {
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, color: 'var(--fg)', margin: '0 0 4px' }}>
+        <h4 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 15, color: 'var(--fg)', margin: '0 0 4px' }}>
           Team
         </h4>
         <div style={{ fontSize: 12.5, color: 'var(--muted-s)', lineHeight: 1.5 }}>
@@ -574,7 +574,7 @@ const TeamSection = ({ supplier, currentContact }) => {
       {!loading && canInvite && invites && invites.length > 0 && (
         <div style={{ marginTop: 22 }}>
           <div style={{
-            fontFamily: 'Syne', fontWeight: 600, fontSize: 11,
+            fontFamily: 'Inter', fontWeight: 600, fontSize: 11,
             letterSpacing: '0.12em', textTransform: 'uppercase',
             color: 'var(--muted-strong)', marginBottom: 10,
           }}>Pending invites</div>
@@ -728,7 +728,7 @@ const EmailAliasesSection = ({ supplierId }) => {
   return (
     <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--line)' }}>
       <div style={{ marginBottom: 14 }}>
-        <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, color: 'var(--fg)', margin: '0 0 4px' }}>
+        <h4 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 15, color: 'var(--fg)', margin: '0 0 4px' }}>
           Email addresses
         </h4>
         <div style={{ fontSize: 12.5, color: 'var(--muted-s)', lineHeight: 1.5 }}>
@@ -1018,7 +1018,7 @@ const SupplierSettings = () => {
         <div className="sp-card" style={{ padding: '22px 24px' }}>
           {activeSlug === 'company' ? (
             <>
-              <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, color: 'var(--fg)', margin: '0 0 16px' }}>Company profile</h4>
+              <h4 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 15, color: 'var(--fg)', margin: '0 0 16px' }}>Company profile</h4>
 
               {error && (
                 <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 13, color: 'var(--red)' }}>
@@ -1071,7 +1071,7 @@ const SupplierSettings = () => {
           ) : activeSlug === 'documents' ? (
             <div style={{ textAlign: 'center', padding: '48px 0' }}>
               <div style={{ fontSize: 28, marginBottom: 12 }}>🛡</div>
-              <div style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, color: 'var(--fg)', marginBottom: 6 }}>Documents & legal</div>
+              <div style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 15, color: 'var(--fg)', marginBottom: 6 }}>Documents & legal</div>
               <div style={{ fontSize: 13, color: 'var(--muted-strong)', maxWidth: 360, margin: '0 auto', lineHeight: 1.5 }}>
                 Manage certifications, agreements, and compliance documents. Coming soon.
               </div>

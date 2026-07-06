@@ -1,10 +1,10 @@
 /* ============================================================
    CARGO SUPPLIER PORTAL — matches design mock exactly
-   Fonts: Plus Jakarta Sans (body) + Outfit (app display)
-          Syne (eyebrow/title) + DM Serif Display (italic accent)
+   Fonts: Inter (body/UI) + Fraunces (display, KPI numerals,
+          serif-italic accent) — Direction B, B4 hybrid numerals.
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ── Design tokens ─────────────────────────────────────────── */
 #sp-root {
@@ -37,7 +37,7 @@
   --r:             14px;              /* alias */
   --r-sm:          8px;
 
-  font-family: 'Plus Jakarta Sans', 'Outfit', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   background: var(--bg);
   color: var(--fg);
   height: 100vh;
@@ -113,12 +113,12 @@
   background: linear-gradient(135deg, #3B5B7F, #1E3A5F);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Outfit'; font-weight: 800; font-size: 13px;
+  font-family: 'Inter'; font-weight: 800; font-size: 13px;
   letter-spacing: 0.05em;
   flex-shrink: 0;
 }
 .sp-tenant-name {
-  font-family: 'Outfit'; font-weight: 700; font-size: 13.5px;
+  font-family: 'Inter'; font-weight: 700; font-size: 13.5px;
   line-height: 1.15; color: var(--fg);
 }
 .sp-tenant-sub {
@@ -132,7 +132,7 @@
 
 .sp-nav-group { margin: 2px 0 6px; }
 .sp-nav-group-label {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 10px; letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
@@ -167,7 +167,7 @@
   color: #fff;
   font-size: 11px;
   font-weight: 700;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   letter-spacing: 0.02em;
   border-radius: 10px;
   padding: 2px 8px;
@@ -178,7 +178,7 @@
 
 .sp-nav-count {
   margin-left: auto;
-  font-family: 'JetBrains Mono'; font-size: 11px; font-weight: 500;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 500;
   padding: 1px 7px; border-radius: 999px;
   background: var(--chip-bg); color: var(--muted-strong);
 }
@@ -194,11 +194,11 @@
   width: 30px; height: 30px; border-radius: 50%;
   background: var(--navy); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Outfit'; font-weight: 700; font-size: 12px;
+  font-family: 'Inter'; font-weight: 700; font-size: 12px;
   flex-shrink: 0;
 }
 .sp-sidebar-foot .sp-who-name {
-  font-family: 'Outfit'; font-weight: 700; font-size: 12.5px;
+  font-family: 'Inter'; font-weight: 700; font-size: 12.5px;
   color: var(--fg); line-height: 1.2;
 }
 .sp-sidebar-foot .sp-who-role {
@@ -253,7 +253,7 @@
 .sp-topbar-search input:focus { border-color: var(--line); background: var(--card); }
 .sp-topbar-search .sp-kbd {
   position: absolute; right: 8px;
-  font-family: 'JetBrains Mono';
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10.5px; color: var(--muted);
   border: 1px solid var(--line);
   padding: 1px 6px; border-radius: 5px;
@@ -276,7 +276,7 @@
 }
 
 .sp-env-badge {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 10px; letter-spacing: 0.16em;
   text-transform: uppercase;
   padding: 4px 9px; border-radius: 999px;
@@ -301,7 +301,7 @@
 
 .sp-eyebrow {
   display: inline-flex; align-items: center; gap: 10px;
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11px; letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted-strong);
@@ -322,15 +322,17 @@
 }
 
 .sp-page-title {
-  font-family: 'Syne'; font-weight: 700;
+  /* Direction B ("The House") — serif display, sentence case. */
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
+  font-weight: 500;
   font-size: 40px; line-height: 1.05;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
   color: var(--fg);
-  text-transform: uppercase;
+  text-transform: none;
   margin: 0 0 10px;
 }
 .sp-page-title em {
-  font-family: 'DM Serif Display';
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
   font-style: italic;
   font-weight: 400;
   text-transform: none;
@@ -339,7 +341,7 @@
 }
 
 .sp-page-sub {
-  font-family: 'DM Sans', 'Plus Jakarta Sans';
+  font-family: 'Inter';
   font-size: 15px; font-weight: 400;
   color: var(--muted-strong);
   line-height: 1.45;
@@ -356,7 +358,7 @@
   display: inline-flex; align-items: center; gap: 8px;
   padding: 9px 16px;
   border-radius: 999px;
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 13px;
   letter-spacing: 0.01em;
   background: var(--card);
@@ -408,7 +410,7 @@
 }
 
 .sp-kpi-l {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11px; letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted-strong);
@@ -423,7 +425,7 @@
 .sp-kpi-icon svg { width: 14px; height: 14px; }
 
 .sp-kpi-v {
-  font-family: 'Outfit'; font-weight: 800;
+  font-family: 'Inter'; font-weight: 800;
   font-size: 32px; line-height: 1;
   letter-spacing: -0.02em;
   color: var(--fg);
@@ -459,7 +461,7 @@
   margin-bottom: 16px;
 }
 .sp-card h4 {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 14px; letter-spacing: 0.01em;
   color: var(--fg);
   margin: 0;
@@ -472,7 +474,7 @@
 /* ── Back button ───────────────────────────────────────────── */
 .sp-back {
   display: inline-flex; align-items: center; gap: 6px;
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 12.5px;
   color: var(--muted-strong);
   background: transparent;
@@ -499,7 +501,7 @@
   font-size: 13px;
 }
 .sp-table thead th {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 10.5px; letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted-strong);
@@ -528,17 +530,17 @@
 
 /* ── Line items (name/sku/amount within cells) ─────────────── */
 .sp-line-name {
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 13.5px;
   color: var(--fg);
 }
 .sp-line-sku {
-  font-family: 'JetBrains Mono'; font-size: 11px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px;
   color: var(--muted);
   margin-top: 2px;
 }
 .sp-amount {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 13.5px;
   color: var(--fg);
   text-align: right;
@@ -554,7 +556,7 @@
   display: inline-flex; align-items: center; gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11.5px; letter-spacing: 0.02em;
   white-space: nowrap;
 }
@@ -577,7 +579,7 @@
   width: 34px; height: 34px;
   border-radius: 9px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-family: 'Outfit'; font-weight: 800;
+  font-family: 'Inter'; font-weight: 800;
   font-size: 12px;
   color: #fff;
   letter-spacing: 0.04em;
@@ -593,7 +595,7 @@
   display: flex; align-items: center; gap: 12px;
 }
 .sp-ym-name {
-  font-family: 'Outfit'; font-weight: 700; font-size: 13.5px;
+  font-family: 'Inter'; font-weight: 700; font-size: 13.5px;
   color: var(--fg); line-height: 1.2;
 }
 .sp-ym-sub {
@@ -611,7 +613,7 @@
   margin-bottom: 20px;
 }
 .sp-confirm-bar-text {
-  font-family: 'Outfit'; font-weight: 600; font-size: 13px;
+  font-family: 'Inter'; font-weight: 600; font-size: 13px;
   color: #fff;
 }
 .sp-confirm-bar-sub {
@@ -656,12 +658,12 @@
   box-shadow: 0 0 0 4px rgba(74,144,226,0.18);
 }
 .sp-tl-label {
-  font-family: 'Outfit'; font-weight: 600; font-size: 13px;
+  font-family: 'Inter'; font-weight: 600; font-size: 13px;
   color: var(--fg);
 }
 .sp-tl-time {
   font-size: 11.5px; color: var(--muted-strong);
-  font-family: 'JetBrains Mono';
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   margin-top: 2px;
 }
 
@@ -673,7 +675,7 @@
   font-size: 13px;
 }
 .sp-kv dt {
-  font-family: 'Outfit'; font-weight: 600; font-size: 11.5px;
+  font-family: 'Inter'; font-weight: 600; font-size: 11.5px;
   letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--muted-strong);
   padding-top: 1px;
@@ -694,14 +696,14 @@
   overflow: hidden;
 }
 .sp-delivery-card h4 {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 13px; letter-spacing: 0.02em;
   color: rgba(255,255,255,0.6);
   margin: 0 0 10px;
   text-transform: uppercase;
 }
 .sp-delivery-when {
-  font-family: 'Syne'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 26px; line-height: 1.1;
   color: #fff;
   margin-bottom: 4px;
@@ -738,7 +740,7 @@
   margin-bottom: 14px;
 }
 .sp-cc-name {
-  font-family: 'Outfit'; font-weight: 700; font-size: 14.5px;
+  font-family: 'Inter'; font-weight: 700; font-size: 14.5px;
   color: var(--fg); line-height: 1.2;
 }
 .sp-cc-sub {
@@ -753,13 +755,13 @@
   border-top: 1px solid var(--line-soft);
 }
 .sp-cc-stat-l {
-  font-family: 'Outfit'; font-weight: 600; font-size: 10.5px;
+  font-family: 'Inter'; font-weight: 600; font-size: 10.5px;
   letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--muted-strong);
   margin-bottom: 2px;
 }
 .sp-cc-stat-v {
-  font-family: 'Outfit'; font-weight: 700; font-size: 15px;
+  font-family: 'Inter'; font-weight: 700; font-size: 15px;
   color: var(--fg);
 }
 
@@ -767,7 +769,7 @@
 .sp-stock {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 8px; border-radius: 6px;
-  font-family: 'JetBrains Mono'; font-size: 11px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px;
   font-weight: 500;
 }
 .sp-stock.ok   { background: rgba(5,150,105,0.12); color: var(--green); }
@@ -796,7 +798,7 @@
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 12px;
   background: var(--chip-bg);
   color: var(--muted-strong);
@@ -810,7 +812,7 @@
   border-color: var(--line);
 }
 .sp-chip-count {
-  font-family: 'JetBrains Mono'; font-size: 10.5px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px;
   padding: 1px 6px; border-radius: 999px;
   background: var(--card); color: var(--muted-strong);
   border: 1px solid var(--line);
@@ -850,7 +852,7 @@
   opacity: 0.6;
 }
 .sp-empty-title {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 16px;
   color: var(--fg);
   margin-bottom: 6px;
@@ -865,7 +867,7 @@
 
 /* ── Overview hero heading ─────────────────────────────────── */
 .sp-overview-title {
-  font-family: 'Syne', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-weight: 800;
   font-size: 60px;
   line-height: 0.98;
@@ -875,7 +877,7 @@
   margin: 0 0 14px;
 }
 .sp-overview-title em {
-  font-family: 'DM Serif Display', 'DM Serif Text', serif;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
   font-style: italic;
   font-weight: 400;
   text-transform: none;
@@ -888,7 +890,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Syne';
+  font-family: 'Inter';
   font-weight: 600;
   font-size: 12px;
   letter-spacing: 0.1em;
@@ -935,7 +937,7 @@
 /* ── Crumb + page header ─────────────────────────────────── */
 #sp-root .sod-crumb {
   font-size: 12.5px; color: var(--muted-strong); margin-bottom: 14px;
-  font-family: 'Outfit'; font-weight: 500;
+  font-family: 'Inter'; font-weight: 500;
 }
 #sp-root .sod-crumb a { color: var(--muted-strong); text-decoration: none; cursor: pointer; }
 #sp-root .sod-crumb .sep { margin: 0 6px; color: var(--muted); }
@@ -946,12 +948,12 @@
   align-items: end; gap: 24px;
 }
 #sp-root .sod-order-title {
-  font-family: 'Syne'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 44px; line-height: 1.05; letter-spacing: -0.015em;
   color: var(--fg); text-transform: uppercase; margin: 0 0 8px;
 }
 #sp-root .sod-order-title button.sod-yacht-link {
-  font-family: 'DM Serif Display'; font-style: italic;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif; font-style: italic;
   font-weight: 400; text-transform: none; letter-spacing: -0.01em;
   color: var(--orange); background: transparent; border: none;
   padding: 0; cursor: pointer;
@@ -980,7 +982,7 @@
   width: 30px; height: 30px; border-radius: 50%;
   background: var(--orange); color: #fff;
   display: inline-flex; align-items: center; justify-content: center;
-  font-family: 'Outfit'; font-weight: 700; font-size: 12px;
+  font-family: 'Inter'; font-weight: 700; font-size: 12px;
 }
 #sp-root .sod-header-assignee.sod-unassigned .sod-av { background: var(--muted); color: #fff; }
 #sp-root .sod-header-assignee .sod-info {
@@ -990,12 +992,12 @@
   text-align: left;
 }
 #sp-root .sod-header-assignee .sod-label-tiny {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 9px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--muted);
 }
 #sp-root .sod-header-assignee .sod-name {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 13.5px; color: var(--fg);
 }
 
@@ -1016,12 +1018,12 @@
   display: flex; flex-direction: column; justify-content: center;
 }
 #sp-root .sod-hero-l {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 10px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--muted-strong); margin-bottom: 4px;
 }
 #sp-root .sod-hero-id-n {
-  font-family: 'JetBrains Mono'; font-weight: 500;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-weight: 500;
   font-size: 16px; color: var(--fg); letter-spacing: -0.01em;
 }
 #sp-root .sod-hero-countdown {
@@ -1030,33 +1032,33 @@
   display: flex; flex-direction: column; justify-content: center;
 }
 #sp-root .sod-hero-countdown-n {
-  font-family: 'Outfit'; font-weight: 800;
+  font-family: 'Inter'; font-weight: 800;
   font-size: 52px; line-height: 0.9;
   letter-spacing: -0.03em; color: var(--amber);
 }
 #sp-root .sod-hero-countdown-u {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--muted-strong); margin-top: 4px;
 }
 
 #sp-root .sod-hero-when-block { display: flex; flex-direction: column; justify-content: center; }
 #sp-root .sod-hero-when-eyebrow {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11px; letter-spacing: 0.18em;
   text-transform: uppercase; color: var(--muted-strong);
   margin-bottom: 4px;
 }
 #sp-root .sod-hero-when {
-  font-family: 'Syne'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 32px; line-height: 1; letter-spacing: -0.02em;
   color: var(--fg);
   margin-bottom: 8px;
   display: flex; align-items: baseline; gap: 8px;
 }
-#sp-root .sod-hero-when .sod-day { font-family: 'Outfit'; font-weight: 800; font-size: 36px; }
+#sp-root .sod-hero-when .sod-day { font-family: 'Inter'; font-weight: 800; font-size: 36px; }
 #sp-root .sod-hero-when .sod-month {
-  font-family: 'Syne'; font-weight: 700; font-size: 28px;
+  font-family: 'Inter'; font-weight: 700; font-size: 28px;
   text-transform: uppercase; letter-spacing: -0.01em; color: var(--navy-app);
 }
 #sp-root .sod-hero-where {
@@ -1067,7 +1069,7 @@
 #sp-root .sod-hero-where .sod-mtag {
   display: inline-block; background: var(--bg-2);
   padding: 2px 9px; border-radius: 5px;
-  font-family: 'Outfit'; font-weight: 600; font-size: 12px; margin-right: 4px;
+  font-family: 'Inter'; font-weight: 600; font-size: 12px; margin-right: 4px;
 }
 
 /* hero right column — actions stack */
@@ -1081,7 +1083,7 @@
 #sp-root .sod-hero-actions > button {
   background: transparent; border: 1px solid var(--line);
   border-radius: 6px; padding: 8px 14px;
-  font-family: 'Syne'; font-weight: 700; font-size: 11px;
+  font-family: 'Inter'; font-weight: 700; font-size: 11px;
   letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--fg-2); cursor: pointer;
   display: flex; align-items: center; gap: 6px;
@@ -1132,14 +1134,14 @@
 #sp-root .sod-action-dropdown .sod-dd-row .sod-dd-info { flex: 1; }
 #sp-root .sod-action-dropdown .sod-dd-row .sod-dd-name {
   display: block;
-  font-family: 'Outfit'; font-weight: 600; color: var(--fg); font-size: 13px;
+  font-family: 'Inter'; font-weight: 600; color: var(--fg); font-size: 13px;
 }
 #sp-root .sod-action-dropdown .sod-dd-row .sod-dd-sub {
   display: block;
   font-size: 11px; color: var(--muted-strong); margin-top: 1px;
 }
 #sp-root .sod-action-dropdown .sod-dd-row .sod-dd-link {
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11.5px; color: var(--navy);
 }
 #sp-root .sod-action-dropdown .sod-dd-row.sod-dd-empty .sod-dd-name { color: var(--muted-strong); font-weight: 500; }
@@ -1178,7 +1180,7 @@
 }
 #sp-root .sod-activity-viewall button {
   background: transparent; border: none; cursor: pointer;
-  font-family: 'Outfit'; font-weight: 600; font-size: 12px;
+  font-family: 'Inter'; font-weight: 600; font-size: 12px;
   color: var(--navy); padding: 0;
 }
 #sp-root .sod-activity-viewall button:hover { text-decoration: underline; }
@@ -1198,7 +1200,7 @@
 }
 #sp-root .sod-timeline-meta {
   text-align: center;
-  font-family: 'Outfit'; font-weight: 500;
+  font-family: 'Inter'; font-weight: 500;
   font-size: 11px; color: var(--muted);
   margin-top: 10px; letter-spacing: 0.04em;
 }
@@ -1228,7 +1230,7 @@
   background: var(--card); border: 2px solid var(--line);
   margin-bottom: 6px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 9px; font-family: 'Outfit'; font-weight: 800; color: var(--muted);
+  font-size: 9px; font-family: 'Inter'; font-weight: 800; color: var(--muted);
   transition: all 120ms ease;
 }
 #sp-root .sod-step.sod-done .sod-step-dot { background: var(--green); border-color: var(--green); color: #fff; }
@@ -1241,14 +1243,14 @@
   border-color: var(--navy); background: var(--bg-2);
 }
 #sp-root .sod-step .sod-step-name {
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11.5px; color: var(--muted-strong); margin-bottom: 1px;
 }
 #sp-root .sod-step.sod-done .sod-step-name { color: var(--green); }
 #sp-root .sod-step.sod-current .sod-step-name { color: var(--navy); font-weight: 700; }
 #sp-root .sod-step:not(.sod-done):not(.sod-current):hover .sod-step-name { color: var(--navy); }
 #sp-root .sod-step .sod-step-when {
-  font-family: 'JetBrains Mono'; font-weight: 500;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-weight: 500;
   font-size: 10px; color: var(--muted);
 }
 #sp-root .sod-step.sod-current .sod-step-when { color: var(--navy-app); font-weight: 600; }
@@ -1265,7 +1267,7 @@
   border-bottom: 1px solid var(--line-soft);
 }
 #sp-root .sod-card-head h4 {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 14px; letter-spacing: 0.01em;
   color: var(--fg); margin: 0;
 }
@@ -1273,7 +1275,7 @@
   font-size: 12px; color: var(--muted-strong); font-family: 'DM Sans';
 }
 #sp-root .sod-card-head a, #sp-root .sod-card-head .sod-card-link {
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11.5px; color: var(--muted-strong); text-decoration: none;
   cursor: pointer; background: transparent; border: none; padding: 0;
 }
@@ -1285,7 +1287,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
 }
 #sp-root .sod-items-summary {
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 12.5px; color: var(--muted-strong);
   display: flex; gap: 16px; align-items: center;
 }
@@ -1310,7 +1312,7 @@
 #sp-root .sod-pill {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 9px 18px; border-radius: 999px;
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 13px; letter-spacing: 0.01em;
   background: var(--card); color: var(--fg); border: 1px solid var(--line);
   cursor: pointer; transition: all 120ms ease;
@@ -1326,7 +1328,7 @@
   background: rgba(255,255,255,0.15);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 4px; padding: 1px 6px;
-  font-family: 'JetBrains Mono'; font-size: 10.5px; margin-left: 4px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px; margin-left: 4px;
 }
 
 /* ── Items table ────────────────────────────────────────── */
@@ -1344,7 +1346,7 @@
   font-size: 13.5px; vertical-align: top;
 }
 #sp-root table.sod-items-table th {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 10px; letter-spacing: 0.12em;
   color: var(--muted-strong); text-transform: uppercase; background: var(--bg);
 }
@@ -1369,7 +1371,7 @@
   font-size: 18px; flex-shrink: 0;
 }
 #sp-root .sod-item-thumb-letter {
-  font-family: 'Outfit'; font-weight: 700; font-size: 18px;
+  font-family: 'Inter'; font-weight: 700; font-size: 18px;
   color: var(--muted-strong);
   line-height: 1;
 }
@@ -1377,16 +1379,16 @@
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 #sp-root .sod-item-name {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 14.5px; color: var(--fg); line-height: 1.3;
 }
 #sp-root .sod-item-name .sod-brand {
-  font-family: 'DM Serif Display'; font-style: italic;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif; font-style: italic;
   font-weight: 400; font-size: 13px;
   color: var(--orange); margin-left: 4px;
 }
 #sp-root .sod-item-status {
-  font-family: 'Syne'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 9.5px; letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -1400,7 +1402,7 @@
   display: inline-flex; align-items: center; gap: 5px;
   background: transparent; border: 1px solid var(--line);
   border-radius: 999px; padding: 2px 8px 2px 6px;
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11px; color: var(--muted-strong);
   cursor: pointer; transition: all 120ms ease;
 }
@@ -1420,7 +1422,7 @@
 }
 
 #sp-root .sod-item-category {
-  font-family: 'JetBrains Mono'; font-weight: 400;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-weight: 400;
   font-size: 10.5px; color: var(--muted);
   margin-top: 4px; letter-spacing: 0.02em;
 }
@@ -1434,7 +1436,7 @@
   display: inline-block;
   background: var(--bg-2); border: 1px solid var(--line);
   border-radius: 999px; padding: 2px 9px;
-  font-family: 'Outfit'; font-weight: 500;
+  font-family: 'Inter'; font-weight: 500;
   font-size: 11px; color: var(--fg-2);
   letter-spacing: 0.01em;
 }
@@ -1458,18 +1460,18 @@
 #sp-root .sod-item-note-supplier::after  { content: '”'; margin-left: 1px; font-style: normal; }
 
 #sp-root table.sod-items-table td.sod-num {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-variant-numeric: tabular-nums;
   font-size: 14px; color: var(--fg);
 }
 #sp-root table.sod-items-table td.sod-pack {
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 12.5px; color: var(--fg-2);
 }
 #sp-root table.sod-items-table td.sod-pack.sod-empty { color: var(--muted); font-weight: 500; }
 
 #sp-root .sod-price {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-variant-numeric: tabular-nums; font-size: 14px; color: var(--fg);
 }
 #sp-root .sod-price .sod-last {
@@ -1487,7 +1489,7 @@
   background: var(--green); color: #fff;
   border: 1px solid var(--green);
   border-radius: 6px; padding: 5px 10px;
-  font-family: 'Outfit'; font-weight: 600; font-size: 12px;
+  font-family: 'Inter'; font-weight: 600; font-size: 12px;
   cursor: pointer;
   display: inline-flex; align-items: center; gap: 5px;
   transition: all 120ms ease;
@@ -1522,7 +1524,7 @@
   border: 1px solid var(--line); background: var(--card);
   border-radius: 6px; cursor: pointer;
   color: var(--muted-strong);
-  font-family: 'Outfit'; font-weight: 600; font-size: 11.5px;
+  font-family: 'Inter'; font-weight: 600; font-size: 11.5px;
   letter-spacing: 0.02em;
   transition: all 120ms ease;
 }
@@ -1548,18 +1550,18 @@
 #sp-root .sod-msg { display: flex; gap: 10px; padding: 8px 0; }
 #sp-root .sod-msg .sod-msg-av {
   width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-  font-family: 'Outfit'; font-weight: 700; font-size: 10.5px; color: #fff;
+  font-family: 'Inter'; font-weight: 700; font-size: 10.5px; color: #fff;
   display: flex; align-items: center; justify-content: center;
 }
 #sp-root .sod-msg .sod-msg-av.sod-msg-supplier { background: var(--orange); }
 #sp-root .sod-msg .sod-msg-av.sod-msg-vessel   { background: var(--navy); }
 #sp-root .sod-msg .sod-msg-body { flex: 1; font-size: 13px; line-height: 1.55; }
 #sp-root .sod-msg-body .sod-msg-who {
-  font-family: 'Outfit'; font-weight: 700; font-size: 12.5px; color: var(--fg);
+  font-family: 'Inter'; font-weight: 700; font-size: 12.5px; color: var(--fg);
 }
 #sp-root .sod-msg-body .sod-msg-when {
   font-size: 11px; color: var(--muted-strong); margin-left: 6px; font-weight: 500;
-  font-family: 'JetBrains Mono';
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
 }
 #sp-root .sod-msg-body .sod-msg-text {
   color: var(--fg-2); margin-top: 2px; font-family: 'DM Sans';
@@ -1578,7 +1580,7 @@
 #sp-root .sod-thread-input button {
   background: var(--navy); color: #fff; border: none;
   padding: 0 16px; border-radius: 8px;
-  font-family: 'Outfit'; font-weight: 600; font-size: 12.5px; cursor: pointer;
+  font-family: 'Inter'; font-weight: 600; font-size: 12.5px; cursor: pointer;
 }
 
 /* ── Totals footer ──────────────────────────────────────── */
@@ -1593,19 +1595,19 @@
   font-family: 'DM Sans'; font-size: 13px; color: var(--muted-strong);
 }
 #sp-root .sod-totals-row:last-child { border-bottom: none; padding: 16px 22px; }
-#sp-root .sod-totals-row .sod-totals-label { font-family: 'Outfit'; font-weight: 500; }
+#sp-root .sod-totals-row .sod-totals-label { font-family: 'Inter'; font-weight: 500; }
 #sp-root .sod-totals-row .sod-totals-value {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-variant-numeric: tabular-nums;
   font-size: 14px; color: var(--fg);
 }
 #sp-root .sod-totals-row.sod-totals-grand .sod-totals-label {
-  font-family: 'Syne'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 11px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--muted-strong);
 }
 #sp-root .sod-totals-row.sod-totals-grand .sod-totals-value {
-  font-family: 'Outfit'; font-weight: 800;
+  font-family: 'Inter'; font-weight: 800;
   font-size: 24px; letter-spacing: -0.015em; color: var(--fg);
 }
 
@@ -1628,11 +1630,11 @@
 }
 #sp-root .sod-yacht-card-body { justify-content: space-between; gap: 0; }
 #sp-root .sod-yacht-card-body .sod-yacht-name {
-  font-family: 'Outfit'; font-weight: 700; font-size: 17px;
+  font-family: 'Inter'; font-weight: 700; font-size: 17px;
   color: var(--fg); margin-bottom: 2px;
 }
 #sp-root .sod-yacht-card-body .sod-yacht-name em {
-  font-family: 'DM Serif Display'; font-style: italic;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif; font-style: italic;
   font-weight: 400; color: var(--orange);
 }
 #sp-root .sod-yacht-card-body .sod-yacht-spec {
@@ -1645,13 +1647,13 @@
   border-top: 1px solid var(--line-soft);
 }
 #sp-root .sod-yacht-stats .sod-yacht-l {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 10px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--muted);
   margin-bottom: 4px;
 }
 #sp-root .sod-yacht-stats .sod-yacht-v {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 14px; color: var(--fg);
 }
 #sp-root .sod-yacht-stats .sod-yacht-v small {
@@ -1668,7 +1670,7 @@
   color: var(--fg-2);
 }
 #sp-root .sod-standing-row .sod-standing-l {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 10px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--muted);
 }
@@ -1682,18 +1684,18 @@
   color: var(--fg-2); line-height: 1.6;
 }
 #sp-root .sod-ctx-body .sod-ctx-mark {
-  font-family: 'DM Serif Display'; font-style: italic;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif; font-style: italic;
   font-size: 24px; color: var(--orange); line-height: 1; flex-shrink: 0;
 }
 #sp-root .sod-ctx-body strong { color: var(--fg); font-weight: 600; }
 #sp-root .sod-ctx-body em {
-  font-family: 'DM Serif Display'; font-style: italic; color: var(--navy-app);
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif; font-style: italic; color: var(--navy-app);
 }
 #sp-root .sod-ctx-body .sod-ctx-tag {
   display: inline-block; background: var(--bg-2);
   border: 1px solid var(--line);
   padding: 2px 10px; border-radius: 999px;
-  font-family: 'Outfit'; font-weight: 500;
+  font-family: 'Inter'; font-weight: 500;
   font-size: 12px; margin: 0 4px 0 0;
 }
 #sp-root .sod-ctx-body .sod-ctx-tag.sod-ctx-allergen {
@@ -1727,14 +1729,14 @@
 #sp-root .sod-activity li:last-child::after { display: none; }
 #sp-root .sod-activity .sod-act-when {
   color: var(--muted-strong); font-size: 11px;
-  font-family: 'JetBrains Mono'; font-weight: 500; margin-bottom: 2px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-weight: 500; margin-bottom: 2px;
 }
 #sp-root .sod-activity .sod-act-what {
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 13.5px; color: var(--fg);
 }
 #sp-root .sod-activity .sod-act-what em {
-  font-family: 'DM Serif Display'; font-style: italic; font-weight: 400; color: var(--navy-app);
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif; font-style: italic; font-weight: 400; color: var(--navy-app);
 }
 #sp-root .sod-activity .sod-act-who {
   color: var(--muted-strong); font-size: 12px; margin-top: 2px; font-family: 'DM Sans';
@@ -1763,14 +1765,14 @@
   display: flex; justify-content: space-between; align-items: center;
 }
 #sp-root .sod-drawer .sod-drawer-head h3 {
-  font-family: 'Syne'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 22px; color: var(--fg); margin: 0;
   text-transform: uppercase; letter-spacing: -0.01em;
 }
 #sp-root .sod-drawer .sod-drawer-close {
   background: transparent; border: 1px solid var(--line);
   border-radius: 999px; padding: 6px 12px;
-  font-family: 'Outfit'; font-weight: 600; font-size: 12px;
+  font-family: 'Inter'; font-weight: 600; font-size: 12px;
   color: var(--muted-strong); cursor: pointer;
 }
 #sp-root .sod-drawer .sod-drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
@@ -1786,7 +1788,7 @@
 #sp-root .sod-drawer .sod-drawer-cta {
   background: var(--navy); color: #fff; border: none;
   padding: 10px 18px; border-radius: 999px;
-  font-family: 'Outfit'; font-weight: 600; font-size: 13px;
+  font-family: 'Inter'; font-weight: 600; font-size: 13px;
   cursor: pointer;
 }
 
@@ -1794,7 +1796,7 @@
 #sp-root .sod-drawer-body section { margin-bottom: 24px; }
 #sp-root .sod-drawer-body section:last-child { margin-bottom: 0; }
 #sp-root .sod-drawer-body h5 {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 10px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--muted);
   margin: 0 0 8px;
@@ -1808,7 +1810,7 @@
 /* ── Keyboard hint footer ───────────────────────────────── */
 #sp-root .sod-kb-hint {
   margin-top: 32px;
-  font-family: 'JetBrains Mono'; font-size: 11px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px;
   color: var(--muted); text-align: center; line-height: 1.8;
 }
 #sp-root .sod-kb-hint .sod-kb-key {
@@ -1851,7 +1853,7 @@
   border-bottom: 1px solid var(--line-soft);
 }
 #sp-root .sp-modal-head h3 {
-  font-family: 'Syne'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 18px; letter-spacing: -0.01em;
   color: var(--fg); margin: 0;
   text-transform: uppercase;
@@ -1877,7 +1879,7 @@
 #sp-root .sp-field:last-child { margin-bottom: 0; }
 #sp-root .sp-field-label {
   display: block;
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 10px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--muted-strong);
   margin-bottom: 6px;
@@ -1887,7 +1889,7 @@
 #sp-root .sp-field-textarea {
   width: 100%;
   padding: 9px 12px;
-  font-family: 'Plus Jakarta Sans'; font-size: 14px;
+  font-family: 'Inter'; font-size: 14px;
   color: var(--fg);
   background: var(--card);
   border: 1px solid var(--line);
@@ -1905,7 +1907,7 @@
 
 /* Modal action buttons */
 #sp-root .sp-btn {
-  font-family: 'Outfit'; font-weight: 600; font-size: 13px;
+  font-family: 'Inter'; font-weight: 600; font-size: 13px;
   padding: 9px 18px; border-radius: 8px;
   cursor: pointer; transition: all 120ms ease;
   border: 1px solid transparent;
@@ -1939,18 +1941,18 @@
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--orange); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Outfit'; font-weight: 700; font-size: 12px;
+  font-family: 'Inter'; font-weight: 700; font-size: 12px;
   flex-shrink: 0;
 }
 #sp-root .sp-team-info { flex: 1; line-height: 1.3; display: flex; flex-direction: column; }
-#sp-root .sp-team-name { font-family: 'Outfit'; font-weight: 600; font-size: 14px; color: var(--fg); }
+#sp-root .sp-team-name { font-family: 'Inter'; font-weight: 600; font-size: 14px; color: var(--fg); }
 #sp-root .sp-team-role {
   font-family: 'DM Sans'; font-size: 11.5px;
   color: var(--muted-strong); margin-top: 1px;
   text-transform: capitalize;
 }
 #sp-root .sp-team-current-badge {
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 9px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--green);
   background: var(--green-soft, #D1FAE5);
@@ -1969,7 +1971,7 @@
 #sp-root .sod-price-input {
   width: 92px; padding: 4px 6px;
   border: 1px solid var(--line); border-radius: 6px;
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 13px; color: var(--fg);
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -1987,13 +1989,13 @@
   display: inline-flex; align-items: center; gap: 6px;
 }
 #sp-root .sod-price-input-currency {
-  font-family: 'JetBrains Mono'; font-size: 11px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px;
   color: var(--muted-strong);
 }
 
 #sp-root .sod-price-delta {
   display: inline-block;
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 10.5px; padding: 1px 7px;
   border-radius: 999px;
   background: var(--bg-2); color: var(--muted-strong);
@@ -2004,13 +2006,13 @@
 
 #sp-root .sod-price-quoted-label {
   display: block;
-  font-family: 'Syne'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 9px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--muted);
 }
 
 #sp-root .sod-price-readonly {
-  font-family: 'Outfit'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 14px; color: var(--fg);
   font-variant-numeric: tabular-nums;
 }
@@ -2022,7 +2024,7 @@
 
 #sp-root .sod-price-discussion-badge {
   display: inline-block; align-self: flex-start;
-  font-family: 'Syne'; font-weight: 700;
+  font-family: 'Inter'; font-weight: 700;
   font-size: 9px; letter-spacing: 0.12em;
   text-transform: uppercase;
   background: #FEF3C7; color: #92400E;
@@ -2030,20 +2032,20 @@
 }
 
 #sp-root .sod-price-declined-tag {
-  font-family: 'Outfit'; font-weight: 600;
+  font-family: 'Inter'; font-weight: 600;
   font-size: 11px; color: var(--red);
 }
 
 #sp-root .sod-price-saving {
   font-size: 10.5px; color: var(--muted);
-  font-family: 'JetBrains Mono';
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
 /* ─── Supplier Returns page ──────────────────────────────────────
    Each task card is a signed-return artefact: vessel band → items
    table → vessel authorisation block (signature + signer) → footer
    actions. Editorial palette, navy/cream/rust, DM Serif for the
-   vessel name, Plus Jakarta Sans for body, sage for completed. */
+   vessel name, Inter for body, sage for completed. */
 
 #sp-root .sp-return-sections {
   display: flex;
@@ -2057,7 +2059,7 @@
 }
 #sp-root .sp-return-section-label {
   margin: 0 0 2px 0;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -2068,7 +2070,7 @@
   gap: 10px;
 }
 #sp-root .sp-return-section-count {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace, monospace;
   font-size: 11px;
   font-weight: 600;
   color: var(--muted-s);
@@ -2098,7 +2100,7 @@
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   text-align: left;
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;
@@ -2122,7 +2124,7 @@
   min-width: 0;
 }
 #sp-root .sp-return-row-vessel {
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
   font-size: 16px;
   line-height: 1.25;
   color: var(--fg);
@@ -2154,7 +2156,7 @@
 /* "From order #XXXX" badge — clickable, navigates to that order. */
 #sp-root .sp-return-from-order-badge {
   flex-shrink: 0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace, monospace;
   font-size: 11px;
   font-weight: 600;
   color: var(--navy);
@@ -2173,7 +2175,7 @@
 
 /* Status pills on the row */
 #sp-root .sp-return-pill {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -2217,20 +2219,20 @@
 }
 #sp-root .sp-return-vessel-text { min-width: 0; }
 #sp-root .sp-return-vessel-name {
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
   font-size: 22px;
   line-height: 1.2;
   color: var(--fg);
 }
 #sp-root .sp-return-vessel-sub {
   margin-top: 4px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 12px;
   color: var(--muted-s);
   letter-spacing: 0.02em;
 }
 #sp-root .sp-return-meta {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11.5px;
   color: var(--muted-s);
   letter-spacing: 0.02em;
@@ -2243,7 +2245,7 @@
 }
 #sp-root .sp-return-items .sp-table { margin: 0; }
 #sp-root .sp-return-ref {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace, monospace;
   font-size: 11px;
   color: var(--muted-s);
   margin-top: 2px;
@@ -2256,7 +2258,7 @@
   background: #FBFAF6;        /* cream wash, matches editorial slips */
 }
 #sp-root .sp-return-auth-label {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -2293,7 +2295,7 @@
 }
 #sp-root .sp-return-auth-meta {
   min-width: 0;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 #sp-root .sp-return-auth-name {
   font-size: 14px;
@@ -2345,7 +2347,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   color: var(--fg);
   background: var(--card);
@@ -2359,7 +2361,7 @@
   background: var(--bg-2);
   border-radius: 8px;
   padding: 10px 12px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 12.5px;
   color: var(--fg-2);
   line-height: 1.5;
@@ -2439,7 +2441,7 @@
   gap: 2px;
 }
 .sod-expand-title {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif, 'DM Serif Text', Georgia, serif;
   font-size: 16px;
   font-weight: 400;
   color: #1C1B3A;
@@ -2632,7 +2634,7 @@
   padding: 2px 6px; border-radius: 4px;
   background: rgba(255,255,255,0.18);
   font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace, ui-monospace, monospace;
 }
 
 /* ── grid (column header + rows) ─────────────────────────────────────── */
@@ -2670,7 +2672,7 @@
   padding: 14px 22px 4px;
 }
 #sp-root .sod-wq-sec-title {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif, 'DM Serif Text', Georgia, serif;
   font-weight: 400; font-size: 18px;
   letter-spacing: -0.005em;
 }
@@ -2936,7 +2938,7 @@
 }
 #sp-root .sod-wq-revised-banner-text strong {
   font-weight: 400;
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif, 'DM Serif Text', Georgia, serif;
   font-style: italic;
   font-size: 14.5px;
   letter-spacing: -0.005em;
@@ -3032,7 +3034,7 @@
   border-bottom: 1px solid #F0F1F5;
 }
 .sp-bell-panel-eyebrow {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif, 'DM Serif Text', Georgia, serif;
   font-weight: 400; font-size: 17px;
   letter-spacing: -0.005em; color: #1C1B3A;
 }
