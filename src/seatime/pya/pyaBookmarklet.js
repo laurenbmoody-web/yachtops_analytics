@@ -89,9 +89,35 @@ function pyaFiller() {
       miss.push(name || text); return false;
     }
 
+    // Tick an "areas cruised" checkbox by label — idempotent (skip if already on).
+    function checkArea(text) {
+      var t = norm(text);
+      var labels = document.querySelectorAll('label');
+      for (var i = 0; i < labels.length; i++) {
+        if (norm(labels[i].textContent) === t) {
+          var inp = labels[i].querySelector('input[type=checkbox]');
+          if (!inp && labels[i].htmlFor) inp = document.getElementById(labels[i].htmlFor);
+          if (inp) { if (!inp.checked) inp.click(); ok.push('Area: ' + text); return; }
+          labels[i].click(); ok.push('Area: ' + text); return;
+        }
+      }
+      var all = document.querySelectorAll('label,div,span,li,button');
+      for (var i = 0; i < all.length; i++) {
+        if (norm(all[i].textContent) !== t) continue;
+        var scope = all[i];
+        for (var up = 0; up < 4 && scope; up++) {
+          var cb = scope.querySelector && scope.querySelector('input[type=checkbox]');
+          if (cb) { if (!cb.checked) cb.click(); ok.push('Area: ' + text); return; }
+          scope = scope.parentElement;
+        }
+      }
+      miss.push('Area: ' + text);
+    }
+
     (data.radios || []).forEach(function (r) { clickOption(r.label, r.label); });
     if (data.capacity) clickOption(data.capacity, 'Capacity: ' + data.capacity);
     if (data.vesselType) clickOption(data.vesselType, 'Vessel type: ' + data.vesselType);
+    (data.areas || []).forEach(function (a) { checkArea(a); });
     Object.keys(data.text || {}).forEach(function (k) { fillText(k, data.text[k]); });
     Object.keys(data.service || {}).forEach(function (k) { fillText(k, data.service[k]); });
     if (data.signatoryEmail) fillText('Signatory Email', data.signatoryEmail);

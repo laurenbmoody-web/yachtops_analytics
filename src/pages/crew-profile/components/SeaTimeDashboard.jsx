@@ -1013,6 +1013,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       const sstType = (family === 'ENGINE' || family === 'ETO')
         ? 'Engineering Testimonial'
         : interiorPathway ? 'Chef / Cook, Interior Crew, Interior/Deck Dual Role' : 'Deck Testimonial';
+      // Vessel cruising region → PYA "areas cruised" checkboxes.
+      let operatingRegions = '';
+      try {
+        const { data: vrow } = await supabase.from('vessels').select('operating_regions, area_of_operation').eq('tenant_id', tenantId).maybeSingle();
+        operatingRegions = [vrow?.operating_regions, vrow?.area_of_operation].filter(Boolean).join(' ');
+      } catch { /* leave blank — areas stay manual */ }
       const payload = buildPyaPayload({
         dataset: {
           vessels: [{ name: v.name, flag: v.flag, imo: v.imo, grossTonnage: v.gt, registeredLengthM: v.lengthM, vesselType: v.type, officialNumber: v.officialNo }],
@@ -1022,6 +1028,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         guestDays: (guestOnDays ?? derivedGuest?.days ?? null),
         signatoryEmail,
         sstType,
+        operatingRegions,
       });
       await navigator.clipboard.writeText(buildPyaClipboard(payload));
       flash('Copied — now click the “Fill PYA form” bookmark on the PYA page');
