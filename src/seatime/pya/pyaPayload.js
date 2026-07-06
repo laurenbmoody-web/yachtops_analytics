@@ -83,7 +83,7 @@ export const mapAreas = (regionText) => {
  * @param {string} [p.signatoryEmail]      attesting captain's email
  * @param {string} [p.sstType]             'Deck Testimonial' (default) | 'Engineering Testimonial' | …
  */
-export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, signatoryEmail = '', sstType = 'Deck Testimonial', operatingRegions = '', propulsionKw = null }) => {
+export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, signatoryEmail = '', sstType = 'Deck Testimonial', operatingRegions = '', propulsionKw = null, engineType = '' }) => {
   const v = (dataset?.vessels && dataset.vessels[0]) || {};
   const t = dataset?.service?.totals || {};
   const atSea = round(t.seagoing) + round(t.watchkeeping);
@@ -95,6 +95,7 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
   if (v.grossTonnage != null) text['Gross tonnage (GT)'] = String(round(v.grossTonnage));
   if (v.registeredLengthM != null) text['Load Line Length (m)'] = String(v.registeredLengthM);
   if (propulsionKw != null && propulsionKw !== '') text['Propulsion power (kW)'] = String(round(propulsionKw));
+  if (engineType && String(engineType).trim()) text['Type of Main Engine'] = String(engineType).trim();
 
   const service = {
     'Actual days at Sea': atSea,
@@ -108,9 +109,9 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
   const areas = mapAreas(operatingRegions);
   const flag = v.flag || '';
 
-  // Fields we can't fill (no data, or a custom widget we don't drive). Cargo has
-  // no "type of main engine" field, so that one is always manual.
-  const manual = ['Type of Main Engine', 'Night Watch Hours'];
+  // Fields we can't fill (no data, or a custom widget we don't drive).
+  const manual = ['Night Watch Hours'];
+  if (!text['Type of Main Engine']) manual.push('Type of Main Engine');
   if (!text['Propulsion power (kW)']) manual.push('Propulsion power (kW)');
   if (!text['Official Number']) manual.push('Official Number');
   if (!areas.length) manual.push('Areas cruised');

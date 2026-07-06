@@ -73,6 +73,7 @@ const VesselSettings = () => {
     logo_url: '',
     loa_m: '',
     propulsion_kw: '',
+    main_engine_type: '',
     gt: '',
     year_built: '',
     year_refit: '',
@@ -209,6 +210,7 @@ const VesselSettings = () => {
         logo_url: vesselData?.logo_url || '',
         loa_m: vesselData?.loa_m || '',
         propulsion_kw: vesselData?.propulsion_kw ?? '',
+        main_engine_type: vesselData?.main_engine_type || '',
         gt: vesselData?.gt || '',
         year_built: vesselData?.year_built || '',
         year_refit: vesselData?.year_refit || '',
@@ -400,6 +402,7 @@ const VesselSettings = () => {
         logo_url: formState?.logo_url || null,
         loa_m: formState?.loa_m ? parseFloat(formState?.loa_m) : null,
         propulsion_kw: formState?.propulsion_kw ? parseFloat(formState?.propulsion_kw) : null,
+        main_engine_type: formState?.main_engine_type?.trim() || null,
         gt: formState?.gt ? parseInt(formState?.gt, 10) : null,
         year_built: formState?.year_built ? parseInt(formState?.year_built, 10) : null,
         year_refit: formState?.year_refit ? parseInt(formState?.year_refit, 10) : null,
@@ -983,6 +986,15 @@ const VesselSettings = () => {
                       value={formState?.propulsion_kw || ''}
                       onChange={(e) => handleInputChange('propulsion_kw', e?.target?.value)}
                       placeholder="e.g., 2400 — for engineer sea-service testimonials"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Type of Main Engine</label>
+                    <Input
+                      value={formState?.main_engine_type || ''}
+                      onChange={(e) => handleInputChange('main_engine_type', e?.target?.value)}
+                      placeholder="e.g., 2 x MTU 16V 2000 M96 — for sea-service testimonials"
                       disabled={viewMode || !canEdit}
                     />
                   </div>
