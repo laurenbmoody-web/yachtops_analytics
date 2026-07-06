@@ -23,6 +23,24 @@ export const validateScanFile = (file) => {
   return null;
 };
 
+// The server can refuse an upload outright — most notably 413 when the file
+// exceeds the Supabase *project's* upload cap, which sits below the bucket's
+// 200MB limit on some plans. Those failures are permanent: no amount of
+// retrying changes the answer, so the UI must not offer a dead-end retry.
+const PERMANENT_STATUSES = new Set([400, 401, 403, 404, 413, 415, 422]);
+
+const decorateUploadError = (err) => {
+  const status = err?.originalResponse?.getStatus?.() ?? null;
+  if (status === 413) {
+    err.permanent = true;
+    err.friendly = 'The server refused this file as too large — the Supabase project’s upload cap sits below this file’s size. Export as SPZ from Scaniverse for a much smaller file, then discard this and upload the SPZ.';
+  } else if (PERMANENT_STATUSES.has(status)) {
+    err.permanent = true;
+    err.friendly = `The server refused the upload (${status}) — retrying won’t change that. Discard and start again with a fresh export.`;
+  }
+  return err;
+};
+
 // Starts (or resumes) an upload. Returns { promise, abort } — the promise
 // settles on completion/error; abort() stops the transfer, leaving the TUS
 // fingerprint behind so re-selecting the same file resumes where it left off.
@@ -49,7 +67,7 @@ export async function createScanUpload({ path, file, onProgress }) {
         contentType: 'application/octet-stream',
         cacheControl: '3600',
       },
-      onError: (err) => reject(err),
+      onError: (err) => reject(decorateUploadError(err)),
       onProgress: (sent, total) => onProgress?.(sent, total),
       onSuccess: () => resolve(),
     });
