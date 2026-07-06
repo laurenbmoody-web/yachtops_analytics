@@ -15,7 +15,7 @@
   if (window.__cargoPyaLoaded) return;
   window.__cargoPyaLoaded = true;
 
-  const VERSION = 'ext-2';
+  const VERSION = 'ext-3';
   let ok = [], miss = [];
 
   const norm = (s) => (s || '').replace(/[ⓘ\*•]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -89,36 +89,59 @@
     return record(label, false);
   }
 
-  function checkArea(text) {
+  // Find the checkbox <input> tied to an option label, whether the label wraps
+  // it, references it via `for`, or just sits next to it in the same row.
+  function checkboxForLabel(text) {
     const t = norm(text);
-    for (const lb of document.querySelectorAll('label')) {
-      if (norm(lb.textContent) === t) {
-        let inp = lb.querySelector('input[type=checkbox]');
-        if (!inp && lb.htmlFor) inp = document.getElementById(lb.htmlFor);
-        if (inp) { if (!inp.checked) inp.click(); return record('Area: ' + text, true); }
-        lb.click(); return record('Area: ' + text, true);
-      }
+    const nodes = Array.from(document.querySelectorAll('label,span,div,li,p'))
+      .filter((e) => norm(e.textContent) === t)
+      .sort((a, b) => a.textContent.length - b.textContent.length); // tightest match first
+    for (const node of nodes) {
+      let inp = node.querySelector && node.querySelector('input[type=checkbox]');
+      if (!inp && node.htmlFor) inp = document.getElementById(node.htmlFor);
+      let el = node;
+      for (let up = 0; up < 4 && el && !inp; up++) { inp = el.querySelector && el.querySelector('input[type=checkbox]'); if (!inp) el = el.parentElement; }
+      if (inp) return { inp, node };
     }
-    const hit = Array.from(document.querySelectorAll('label,div,span,li,button')).find((e) => norm(e.textContent) === t);
-    if (hit) {
-      let el = hit;
-      for (let up = 0; up < 4 && el; up++) {
-        const cb = el.querySelector && el.querySelector('input[type=checkbox]');
-        if (cb) { if (!cb.checked) cb.click(); return record('Area: ' + text, true); }
-        el = el.parentElement;
-      }
+    return null;
+  }
+
+  function checkArea(text) {
+    const found = checkboxForLabel(text);
+    if (found) {
+      if (!found.inp.checked) { found.inp.click(); if (!found.inp.checked) found.node.click(); }
+      return record('Area: ' + text, found.inp.checked);
     }
     return record('Area: ' + text, false);
   }
 
   async function fillFlag(country) {
     if (!country) return;
-    const trigger = Array.from(document.querySelectorAll('div,button,span,p,input')).find((e) => norm(e.textContent) === 'click to choose a country flag');
+    // The trigger may be plain text, an <input> placeholder, or the field next to a "Flag" label.
+    let trigger = Array.from(document.querySelectorAll('div,button,span,p,a,input')).find((e) => norm(e.textContent) === 'click to choose a country flag');
+    if (!trigger) trigger = Array.from(document.querySelectorAll('input')).find((i) => /choose a country|country flag|select.*flag/i.test(i.placeholder || ''));
+    if (!trigger) {
+      const flagLabel = leaves().find((e) => norm(e.textContent) === 'flag');
+      if (flagLabel) {
+        let el = flagLabel;
+        for (let up = 0; up < 4 && el; up++) {
+          const field = el.parentElement && el.parentElement.querySelector('input,[role=button],button,[class*=select],[class*=flag],[class*=Flag]');
+          if (field && field !== flagLabel) { trigger = field; break; }
+          el = el.parentElement;
+        }
+      }
+    }
     if (!trigger) return record('Flag: ' + country, false);
     trigger.click();
     const search = await waitFor(() => Array.from(document.querySelectorAll('input')).find((i) => /nationality|country|search/i.test(i.placeholder || '')));
     if (search) setNativeValue(search, country);
-    const row = await waitFor(() => Array.from(document.querySelectorAll('div,li,button,span,p')).find((e) => norm(e.textContent) === norm(country) && e.children.length < 4));
+    await sleep(250);
+    const row = await waitFor(() => {
+      const exact = Array.from(document.querySelectorAll('div,li,button,span,p,a')).find((e) => norm(e.textContent) === norm(country) && e.children.length < 5);
+      if (exact) return exact;
+      // fall back to a row that starts with the country (list item wrapping a flag image + name)
+      return Array.from(document.querySelectorAll('li,div,button')).find((e) => norm(e.textContent).indexOf(norm(country)) === 0 && norm(e.textContent).length < norm(country).length + 6);
+    });
     if (row) { row.click(); return record('Flag: ' + country, true); }
     return record('Flag: ' + country, false);
   }
@@ -136,16 +159,27 @@
     return record('Dates on board', false);
   }
 
-  // When a custom radio can't be found, dump its markup so it can be wired exactly.
-  function diagnose() {
-    const capMissed = miss.some((m) => m.startsWith('Capacity')) || miss.some((m) => m.startsWith('Vessel type'));
-    if (!capMissed) return;
-    const opt = Array.from(document.querySelectorAll('*')).find((e) => ['master', 'chief mate', 'sail yacht', 'motor yacht'].includes(norm(e.textContent)) && e.children.length < 3);
-    if (opt) {
-      console.log('%c[Cargo→PYA] Radio option not found — send me this markup:', 'color:#C65A1A;font-weight:bold');
-      console.log('OPTION:', opt.outerHTML);
-      console.log('PARENT:', opt.parentElement ? opt.parentElement.outerHTML.slice(0, 800) : '(none)');
-      console.log('GRANDPARENT:', opt.closest('div') && opt.closest('div').parentElement ? opt.closest('div').parentElement.outerHTML.slice(0, 1200) : '(none)');
+  const box = (el, n) => (el ? el.outerHTML.slice(0, n || 800) : '(none)');
+  const findText = (txt) => Array.from(document.querySelectorAll('*')).find((e) => norm(e.textContent) === norm(txt) && e.children.length < 3);
+
+  // When a control can't be filled, dump its markup so it can be wired exactly.
+  function diagnose(data) {
+    if (miss.some((m) => m.startsWith('Capacity')) || miss.some((m) => m.startsWith('Vessel type'))) {
+      const opt = findText('Master') || findText('Chief Mate') || findText('Motor Yacht');
+      if (opt) {
+        console.log('%c[Cargo→PYA] RADIO not found — send me this:', 'color:#C65A1A;font-weight:bold');
+        console.log('OPTION:', box(opt), '\nPARENT:', box(opt.parentElement), '\nGRANDPARENT:', box(opt.parentElement && opt.parentElement.parentElement, 1200));
+      }
+    }
+    if (miss.some((m) => m.startsWith('Flag'))) {
+      const fl = findText('Flag') || Array.from(document.querySelectorAll('input')).find((i) => /flag|country/i.test(i.placeholder || ''));
+      console.log('%c[Cargo→PYA] FLAG not filled (payload flag = ' + JSON.stringify(data.flag) + ') — send me this:', 'color:#C65A1A;font-weight:bold');
+      console.log('FLAG LABEL/FIELD:', box(fl), '\nCONTAINER:', box(fl && fl.parentElement && fl.parentElement.parentElement, 1400));
+    }
+    if (miss.some((m) => m.startsWith('Area'))) {
+      const a = findText('Caribbean') || findText('Mediterranean (West)') || findText('Atlantic Ocean');
+      console.log('%c[Cargo→PYA] AREAS not ticked (payload areas = ' + JSON.stringify(data.areas) + ') — send me this:', 'color:#C65A1A;font-weight:bold');
+      console.log('AREA OPTION:', box(a), '\nPARENT:', box(a && a.parentElement), '\nGRANDPARENT:', box(a && a.parentElement && a.parentElement.parentElement, 1200));
     }
   }
 
@@ -169,7 +203,8 @@
     dates(data.dates);
     await fillFlag(data.flag);
     (data.manual || []).forEach((m) => { if (miss.indexOf(m) === -1) miss.push(m); });
-    diagnose();
+    console.log('%c[Cargo→PYA] payload areas:', 'color:#5E8E6F', data.areas, '| flag:', data.flag);
+    diagnose(data);
     toast('Cargo → PYA (' + VERSION + '): filled ' + ok.length + ', check ' + miss.length + ' by hand. See console for details.');
     console.log('%c[Cargo→PYA ' + VERSION + '] filled:', 'color:#5E8E6F;font-weight:bold', ok);
     console.log('%c[Cargo→PYA ' + VERSION + '] do by hand:', 'color:#C65A1A;font-weight:bold', miss);
