@@ -95,6 +95,7 @@ import { SupplierPermissionProvider } from './contexts/SupplierPermissionContext
 const SupplierOverview   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierOverview'));
 const SupplierOrders     = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierOrders'));
 const SupplierOrderDetail = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierOrderDetail'));
+const SupplierPickList   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierPickList'));
 const SupplierProducts   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierProducts'));
 const SupplierSettings   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierSettings'));
 const SupplierDeliveries = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierDeliveries'));
@@ -1270,6 +1271,7 @@ const Routes = () => {
           <Route path="overview"        element={<SupplierOverview />} />
           <Route path="orders"          element={<SupplierOrders />} />
           <Route path="orders/:orderId" element={<SupplierOrderDetail />} />
+          <Route path="orders/:orderId/pick" element={<SupplierPickList />} />
           <Route path="deliveries"      element={<SupplierDeliveries />} />
           <Route path="invoices"        element={<SupplierInvoices />} />
           <Route path="products"        element={<SupplierProducts />} />

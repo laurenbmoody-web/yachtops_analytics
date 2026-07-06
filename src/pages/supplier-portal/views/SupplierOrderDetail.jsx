@@ -2524,6 +2524,28 @@ const SupplierOrderDetail = () => {
         onAdvance={handleStatusAdvance}
       />
 
+      {/* ── Pick-list entry (Phase 3) — once lines are confirmed, the
+          warehouse flow moves to the dedicated picking screen. ── */}
+      {['confirmed', 'partially_confirmed', 'picking'].includes(order.status) && (
+        <div className="sod-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', padding: '14px 18px' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              {order.status === 'picking' ? 'Picking in progress' : 'Ready to pick'}
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted-strong)' }}>
+              Count lines off the shelf — tap or scan barcodes. Short picks carry a note to the yacht.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="sp-pill primary"
+            onClick={() => navigate(`/supplier/orders/${order.id}/pick`)}
+          >
+            {order.status === 'picking' ? 'Continue picking' : 'Start picking'}
+          </button>
+        </div>
+      )}
+
       {/* ── Items: progress header, To do / Done sections, totals footer ── */}
       <ItemsCard
         items={items}

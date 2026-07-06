@@ -17,6 +17,8 @@ import {
 import { STANDARD_CATEGORIES, UNIT_SUGGESTIONS, categoryHue, orderCategories } from '../../../utils/catalogueConstants';
 import EmptyState from '../components/EmptyState';
 import CatalogueImportModal from '../components/CatalogueImportModal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import '../components/product-modal.css';
 import './supplier-products.css';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
@@ -117,9 +119,6 @@ const InlineNumber = ({ value, suffix, canEdit, onSave, placeholder = '—', dec
   );
 };
 
-const fieldStyle = { width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '8px 10px', fontSize: 13 };
-const labelStyle = { fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 };
-
 const ProductModal = ({ initial, initialCost, categorySuggestions, onSave, onClose, saving }) => {
   const [form, setForm] = useState(() => {
     if (!initial) return EMPTY_FORM;
@@ -132,7 +131,15 @@ const ProductModal = ({ initial, initialCost, categorySuggestions, onSave, onClo
   const [costPrice, setCostPrice] = useState(initialCost ?? '');
   const [photo, setPhoto] = useState(null);
   const photoInput = useRef(null);
+  const nameRef = useRef(null);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    nameRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const previewUrl = useMemo(
     () => (photo ? URL.createObjectURL(photo) : initial?.image_url || null),
@@ -140,6 +147,7 @@ const ProductModal = ({ initial, initialCost, categorySuggestions, onSave, onClo
   );
 
   const liveMargin = marginPct(numOrNull(form.unit_price), numOrNull(costPrice));
+  const marginClass = liveMargin == null ? '' : liveMargin < 0 ? 'neg' : liveMargin < 15 ? 'thin' : 'ok';
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -162,145 +170,161 @@ const ProductModal = ({ initial, initialCost, categorySuggestions, onSave, onClo
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 200,
-      background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div style={{ background: 'var(--card)', borderRadius: 14, padding: 28, width: 560, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h4 style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 16, margin: 0 }}>
-            {initial ? 'Edit product' : 'New product'}
-          </h4>
-          <button className="sp-icon-btn" onClick={onClose}><X size={14} /></button>
+    <div className="spm-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="spm-panel" role="dialog" aria-label={initial ? 'Edit product' : 'New product'}>
+        <div className="spm-head">
+          <div>
+            <div className="spm-eyebrow">Catalogue</div>
+            <h4 className="spm-title">{initial ? <>Edit <em>{initial.name}</em></> : 'New product'}</h4>
+          </div>
+          <button type="button" className="spm-close" onClick={onClose} aria-label="Close"><X size={15} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="spp-photo-row">
-            {previewUrl
-              ? <img className="spp-photo-preview" src={previewUrl} alt="" />
-              : <span className="spp-photo-preview" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}><ImagePlus size={20} /></span>}
-            <div>
-              <button type="button" className="sp-pill" onClick={() => photoInput.current?.click()}>
-                {previewUrl ? 'Change photo' : 'Add photo'}
-              </button>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>JPG, PNG or WebP · 5MB max</div>
-              <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
-                onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Name *</label>
-              <input required value={form.name} onChange={e => set('name', e.target.value)} style={fieldStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Category <span style={{ color: 'var(--muted)' }}>(pick or type your own)</span></label>
-              <input
-                list="spp-category-suggestions"
-                value={form.category}
-                onChange={e => set('category', e.target.value)}
-                placeholder="e.g. Engineering & Spares"
-                style={fieldStyle}
-              />
-              <datalist id="spp-category-suggestions">
-                {categorySuggestions.map(c => <option key={c} value={c} />)}
-              </datalist>
-            </div>
-            <div>
-              <label style={labelStyle}>SKU</label>
-              <input value={form.sku} onChange={e => set('sku', e.target.value)} style={fieldStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Barcode (EAN/GTIN)</label>
-              <input value={form.barcode} onChange={e => set('barcode', e.target.value)}
-                placeholder="e.g. 8002270014901" inputMode="numeric" style={fieldStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Sell unit</label>
-              <input
-                list="spp-unit-suggestions"
-                value={form.unit}
-                onChange={e => set('unit', e.target.value)}
-                style={fieldStyle}
-              />
-              <datalist id="spp-unit-suggestions">
-                {UNIT_SUGGESTIONS.map(u => <option key={u} value={u} />)}
-              </datalist>
-            </div>
-            <div>
-              <label style={labelStyle}>Unit price <span style={{ color: 'var(--muted)' }}>(what yachts pay)</span></label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input type="number" step="0.01" min="0" value={form.unit_price} onChange={e => set('unit_price', e.target.value)}
-                  style={{ ...fieldStyle, flex: 1 }} />
-                <select value={form.currency} onChange={e => set('currency', e.target.value)}
-                  style={{ ...fieldStyle, width: 74, background: 'var(--card)' }}>
-                  {['EUR', 'USD', 'GBP', 'CHF'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+        <form onSubmit={handleSubmit} style={{ display: 'contents' }}>
+          <div className="spm-body">
+            <div className="spm-section">
+              <div className="spm-photo">
+                {previewUrl
+                  ? <img className="spm-photo-preview" src={previewUrl} alt="" />
+                  : <span className="spm-photo-preview"><ImagePlus size={22} /></span>}
+                <div>
+                  <button type="button" className="spm-photo-btn" onClick={() => photoInput.current?.click()}>
+                    {previewUrl ? 'Change photo' : 'Add photo'}
+                  </button>
+                  <div className="spm-photo-hint">JPG, PNG or WebP · 5MB max</div>
+                  <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
+                    onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+                </div>
               </div>
             </div>
+
+            <div className="spm-section">
+              <p className="spm-section-label">The product<span className="req">name required</span></p>
+              <div className="spm-grid c2">
+                <div className="spm-field">
+                  <label>Name</label>
+                  <input ref={nameRef} required className="spm-input" value={form.name} onChange={e => set('name', e.target.value)} />
+                </div>
+                <div className="spm-field">
+                  <label>Category <small>— pick or type your own</small></label>
+                  <input
+                    className="spm-input"
+                    list="spp-category-suggestions"
+                    value={form.category}
+                    onChange={e => set('category', e.target.value)}
+                    placeholder="e.g. Engineering & Spares"
+                  />
+                  <datalist id="spp-category-suggestions">
+                    {categorySuggestions.map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
+                <div className="spm-field">
+                  <label>SKU <small>— your own code</small></label>
+                  <input className="spm-input" value={form.sku} onChange={e => set('sku', e.target.value)} />
+                </div>
+                <div className="spm-field">
+                  <label>Barcode <small>(EAN/GTIN)</small></label>
+                  <input className="spm-input" value={form.barcode} onChange={e => set('barcode', e.target.value)}
+                    placeholder="e.g. 8002270014901" inputMode="numeric" />
+                </div>
+              </div>
+            </div>
+
+            <div className="spm-section">
+              <p className="spm-section-label">Pricing<span className="opt">cost is private — never shown to yachts</span></p>
+              <div className="spm-grid c3">
+                <div className="spm-field">
+                  <label>Sell unit</label>
+                  <input className="spm-input" list="spp-unit-suggestions" value={form.unit} onChange={e => set('unit', e.target.value)} />
+                  <datalist id="spp-unit-suggestions">
+                    {UNIT_SUGGESTIONS.map(u => <option key={u} value={u} />)}
+                  </datalist>
+                </div>
+                <div className="spm-field">
+                  <label>Unit price <small>— what yachts pay</small></label>
+                  <div className="spm-row">
+                    <input type="number" step="0.01" min="0" className="spm-input num" value={form.unit_price} onChange={e => set('unit_price', e.target.value)} />
+                    <select className="spm-select ccy" value={form.currency} onChange={e => set('currency', e.target.value)}>
+                      {['EUR', 'USD', 'GBP', 'CHF'].map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="spm-field">
+                  <label>Your cost</label>
+                  <div className="spm-row">
+                    <input type="number" step="0.01" min="0" className="spm-input num" value={costPrice} onChange={e => setCostPrice(e.target.value)} />
+                    <span className={`spm-margin-pill ${marginClass}`}>
+                      {liveMargin == null ? '— margin' : `${liveMargin.toFixed(1)}%`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="spm-section">
+              <p className="spm-section-label">Pack — inside one sell unit<span className="opt">optional</span></p>
+              <div className="spm-grid c3">
+                <div className="spm-field">
+                  <label>Quantity</label>
+                  <input type="number" step="1" min="0" className="spm-input num" placeholder="24" value={form.pack_size}
+                    onChange={e => set('pack_size', e.target.value)} />
+                </div>
+                <div className="spm-field">
+                  <label>Inner unit</label>
+                  <input className="spm-input" placeholder="bottle" value={form.pack_unit}
+                    onChange={e => set('pack_unit', e.target.value)} />
+                </div>
+                <div className="spm-field">
+                  <label>Size each</label>
+                  <input className="spm-input" placeholder="330ml" value={form.unit_size}
+                    onChange={e => set('unit_size', e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <div className="spm-section">
+              <p className="spm-section-label">Stock &amp; ordering</p>
+              <div className="spm-grid c4">
+                <div className="spm-field">
+                  <label>Stock qty</label>
+                  <input type="number" step="1" min="0" className="spm-input num" value={form.stock_qty} onChange={e => set('stock_qty', e.target.value)}
+                    placeholder="untracked" />
+                </div>
+                <div className="spm-field">
+                  <label>Reorder at</label>
+                  <input type="number" step="1" min="0" className="spm-input num" value={form.reorder_point} onChange={e => set('reorder_point', e.target.value)}
+                    placeholder={String(DEFAULT_LOW_STOCK_AT)} />
+                </div>
+                <div className="spm-field">
+                  <label>Lead time <small>(days)</small></label>
+                  <input type="number" step="1" min="0" className="spm-input num" value={form.lead_time_days} onChange={e => set('lead_time_days', e.target.value)}
+                    placeholder="0" />
+                </div>
+                <div className="spm-field">
+                  <label>Min order</label>
+                  <input type="number" step="1" min="0" className="spm-input num" value={form.min_order_qty} onChange={e => set('min_order_qty', e.target.value)}
+                    placeholder="1" />
+                </div>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <label className="spm-toggle">
+                  <input type="checkbox" checked={form.in_stock} onChange={e => set('in_stock', e.target.checked)} />
+                  <span className="track" />
+                  Available to order
+                </label>
+              </div>
+            </div>
+
+            <div className="spm-section">
+              <p className="spm-section-label">Notes<span className="opt">shown to yachts</span></p>
+              <textarea rows={2} className="spm-textarea" placeholder="Origin, grade, delivery notes…"
+                value={form.description} onChange={e => set('description', e.target.value)} />
+            </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, background: 'var(--bg)', border: '1px solid var(--line-soft)', borderRadius: 10, padding: '12px 14px' }}>
-            <div>
-              <label style={labelStyle}>Your cost price <span style={{ color: 'var(--muted)' }}>(private — never shown to yachts)</span></label>
-              <input type="number" step="0.01" min="0" value={costPrice} onChange={e => setCostPrice(e.target.value)} style={fieldStyle} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 8 }}>
-              <span style={{ fontSize: 13, color: liveMargin == null ? 'var(--muted)' : liveMargin < 15 ? 'var(--amber)' : 'var(--green)', fontWeight: 600 }}>
-                {liveMargin == null ? 'Margin —' : `Margin ${liveMargin.toFixed(1)}%`}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Pack — what's inside one sell unit <span style={{ color: 'var(--muted)' }}>(optional)</span></label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              <input type="number" step="1" min="0" placeholder="Qty (e.g. 24)" value={form.pack_size}
-                onChange={e => set('pack_size', e.target.value)} style={fieldStyle} />
-              <input placeholder="Inner unit (e.g. bottle)" value={form.pack_unit}
-                onChange={e => set('pack_unit', e.target.value)} style={fieldStyle} />
-              <input placeholder="Size (e.g. 330ml)" value={form.unit_size}
-                onChange={e => set('unit_size', e.target.value)} style={fieldStyle} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
-            <div>
-              <label style={labelStyle}>Stock qty</label>
-              <input type="number" step="1" min="0" value={form.stock_qty} onChange={e => set('stock_qty', e.target.value)}
-                placeholder="untracked" style={fieldStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Reorder at</label>
-              <input type="number" step="1" min="0" value={form.reorder_point} onChange={e => set('reorder_point', e.target.value)}
-                placeholder={String(DEFAULT_LOW_STOCK_AT)} style={fieldStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Lead time (days)</label>
-              <input type="number" step="1" min="0" value={form.lead_time_days} onChange={e => set('lead_time_days', e.target.value)}
-                placeholder="0" style={fieldStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Min order qty</label>
-              <input type="number" step="1" min="0" value={form.min_order_qty} onChange={e => set('min_order_qty', e.target.value)}
-                placeholder="1" style={fieldStyle} />
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Description</label>
-            <textarea rows={2} value={form.description} onChange={e => set('description', e.target.value)}
-              style={{ ...fieldStyle, resize: 'vertical', fontFamily: 'inherit' }} />
-          </div>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-            <input type="checkbox" checked={form.in_stock} onChange={e => set('in_stock', e.target.checked)} />
-            In stock
-          </label>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-            <button type="button" className="sp-pill" onClick={onClose}>Cancel</button>
-            <button type="submit" className="sp-pill primary" disabled={saving}>
+          <div className="spm-foot">
+            <button type="button" className="spm-btn ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="spm-btn primary" disabled={saving}>
               {saving ? 'Saving…' : 'Save product'}
             </button>
           </div>
@@ -353,6 +377,7 @@ const SupplierProducts = () => {
   const [chip, setChip] = useState('All');
   const [selected, setSelected] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [confirm, setConfirm] = useState(null); // { title, body, label, action }
 
   const load = () => {
     if (!supplier?.id) return;
@@ -411,16 +436,16 @@ const SupplierProducts = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this product?')) return;
-    try {
-      await deleteCatalogueItem(id);
-      setItems(prev => prev.filter(i => i.id !== id));
-      setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
-    } catch (e) {
-      setError(e.message);
-    }
-  };
+  const handleDelete = (item) => setConfirm({
+    title: 'Delete this product?',
+    body: `“${item.name}” will be removed from your catalogue and the marketplace. Past orders keep their history.`,
+    label: 'Delete product',
+    action: async () => {
+      await deleteCatalogueItem(item.id);
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      setSelected(prev => { const n = new Set(prev); n.delete(item.id); return n; });
+    },
+  });
 
   const handleInlineSave = (item, patch) => async (value) => {
     try {
@@ -521,14 +546,16 @@ const SupplierProducts = () => {
     setItems(prev => prev.map(i => updated.find(u => u.id === i.id) ?? i));
     setSelected(new Set());
   });
-  const bulkDelete = () => {
-    if (!window.confirm(`Delete ${selected.size} product${selected.size === 1 ? '' : 's'}? This can't be undone.`)) return;
-    runBulk(async (ids) => {
+  const bulkDelete = () => setConfirm({
+    title: `Delete ${selected.size} product${selected.size === 1 ? '' : 's'}?`,
+    body: 'They will be removed from your catalogue and the marketplace. This can’t be undone — past orders keep their history.',
+    label: `Delete ${selected.size}`,
+    action: () => runBulk(async (ids) => {
       await bulkDeleteCatalogueItems(ids);
       setItems(prev => prev.filter(i => !selected.has(i.id)));
       setSelected(new Set());
-    });
-  };
+    }),
+  });
 
   const dataCategories = orderCategories(Object.keys(counts.byCat));
   const chipDefs = [
@@ -562,6 +589,21 @@ const SupplierProducts = () => {
           existingItems={items}
           onImported={handleImported}
           onClose={() => setImportOpen(false)}
+        />
+      )}
+
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          body={confirm.body}
+          confirmLabel={confirm.label}
+          busy={bulkBusy}
+          onCancel={() => setConfirm(null)}
+          onConfirm={async () => {
+            try { await confirm.action(); }
+            catch (e) { setError(e.message); }
+            finally { setConfirm(null); }
+          }}
         />
       )}
 
@@ -760,7 +802,7 @@ const SupplierProducts = () => {
                           style={{ width: 28, height: 28, color: 'var(--red)', opacity: canEdit ? 1 : 0.4 }}
                           disabled={!canEdit}
                           title={canEdit ? undefined : NO_PERMISSION_TITLE}
-                          onClick={() => handleDelete(item.id)}
+                          onClick={() => handleDelete(item)}
                         >
                           <Trash2 size={12} />
                         </button>
