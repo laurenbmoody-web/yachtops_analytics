@@ -222,10 +222,10 @@ export default function LocationGallery() {
                 <div className="lg-empty" style={{ margin: '12px 30px' }}>No zones yet. <button className="lg-newdeck" onClick={() => startEdit('add-zone', deck.id)}>＋ Add a zone</button></div>
               )}
 
-              {deck.zones.map((zone) => (
+              {deck.zones.map((zone, zi) => (
                 <div className="lg-zone" key={zone.id}>
                   <div className="lg-zhdr">
-                    <span className="zdot" />
+                    <span className={`zdot z${zi % 4}`} />
                     {edit?.mode === 'rename-zone' && edit.id === zone.id
                       ? <InlineEditor placeholder="Zone name" />
                       : (<>
