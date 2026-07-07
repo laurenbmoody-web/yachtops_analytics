@@ -39,6 +39,7 @@ const VesselSettings = () => {
 
   // Hub navigation state
   const [activeSection, setActiveSection] = useState('vessel-profile');
+  const [locStats, setLocStats] = useState(null);
   const [navCollapsed, setNavCollapsed] = useState(() => {
     try { return localStorage.getItem('vh-nav-collapsed') === '1'; } catch { return false; }
   });
@@ -1381,7 +1382,7 @@ const VesselSettings = () => {
           {!canEdit && (
             <p className="vh-note">View-only — only Command can edit locations.</p>
           )}
-          <LocationsManagementSettings embedded={true} />
+          <LocationsManagementSettings embedded={true} hideStats={true} onStats={setLocStats} />
         </div>
       );
     } else if (activeSection === 'role-management') {
@@ -1430,6 +1431,18 @@ const VesselSettings = () => {
         {/* Editorial masthead — kicker + serif title with italic accent */}
         <div className="vh-mast">
           <span className="vh-kicker">Vessel Hub</span>
+          {activeSection === 'location-management' && locStats && (
+            <div className="vh-stats">
+              <div className="s cov">
+                <span className="sk">Scanned</span>
+                <span className="sv">{locStats.scanned} / {locStats.total}</span>
+                <span className="sbar"><i style={{ width: `${locStats.total ? Math.round((locStats.scanned / locStats.total) * 100) : 0}%` }} /></span>
+              </div>
+              <div className="s"><span className="sk">Decks</span><span className="sv">{locStats.decks}</span></div>
+              <div className="s"><span className="sk">Zones</span><span className="sv">{locStats.zones}</span></div>
+              <div className="s"><span className="sk">Spaces</span><span className="sv">{locStats.total}</span></div>
+            </div>
+          )}
           <h1 className="vh-h1">{titleLead ? <>{titleLead} </> : null}<em>{titleAccent}</em></h1>
         </div>
 
