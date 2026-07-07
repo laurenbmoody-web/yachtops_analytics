@@ -45,7 +45,7 @@ export const getVesselGallery = async () => {
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true }),
     supabase.from('vessel_scans')
-      .select('id, name, space_id, status, thumb_path')
+      .select('id, name, space_id, status, thumb_path, storage_path')
       .eq('tenant_id', tenantId)
       .not('space_id', 'is', null),
   ]);
@@ -76,7 +76,7 @@ export const getVesselGallery = async () => {
         return {
           id: space.id,
           name: space.name,
-          scan: scan ? { id: scan.id, status: scan.status, thumbPath: scan.thumb_path } : null,
+          scan: scan ? { id: scan.id, status: scan.status, thumbPath: scan.thumb_path, storagePath: scan.storage_path } : null,
         };
       });
       return { id: zone.id, name: zone.name, spaces, spaceCount: spaces.length };

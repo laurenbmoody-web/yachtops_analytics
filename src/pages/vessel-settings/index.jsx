@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
@@ -39,7 +39,8 @@ const VesselSettings = () => {
   const { session, loading: authLoading, hasCommandAccess } = useAuth();
 
   // Hub navigation state
-  const [activeSection, setActiveSection] = useState('vessel-profile');
+  const [searchParams] = useSearchParams();
+  const [activeSection, setActiveSection] = useState(() => searchParams.get('section') || 'vessel-profile');
   const [locStats, setLocStats] = useState(null);
   const [navCollapsed, setNavCollapsed] = useState(() => {
     try { return localStorage.getItem('vh-nav-collapsed') === '1'; } catch { return false; }
