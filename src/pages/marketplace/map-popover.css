@@ -2,25 +2,27 @@
    light + dark, scoped mpm-*. Leaflet tiles are warmed toward the Cargo
    paper palette with a filter so the standard OSM map reads editorial. */
 
+/* Above the fixed nav (z-index: 50) and anchored just below it, so the
+   tall panel is never clipped by the bar. */
 .mpm-backdrop {
-  position: fixed; inset: 0; z-index: 60;
+  position: fixed; inset: 0; z-index: 3000;
   background: rgba(20, 19, 32, 0.44); backdrop-filter: blur(2px);
 }
 .mpm-panel {
-  position: fixed; z-index: 61; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: min(760px, 94vw); max-height: 90vh; overflow: hidden;
+  position: fixed; z-index: 3001; left: 50%; top: 82px; transform: translateX(-50%);
+  width: min(760px, 94vw); max-height: calc(100vh - 104px); overflow: hidden;
   display: flex; flex-direction: column;
   background: #FFFDFA; color: #1C1B3A; border: 1px solid #ECEAE3; border-radius: 18px;
   box-shadow: 0 40px 90px -30px rgba(28, 27, 58, 0.5);
   font-family: 'Inter', system-ui, sans-serif;
   animation: mpm-in .2s cubic-bezier(.2, .7, .3, 1);
 }
-@keyframes mpm-in { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@keyframes mpm-in { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 .mpm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 20px 22px 14px; }
-.mpm-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 23px; margin: 0; color: #1C1B3A; }
+.mpm-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 24px; margin: 0; color: #1C1B3A; letter-spacing: -0.01em; }
 .mpm-title em { font-style: italic; color: #C65A1A; }
-.mpm-sub { font-size: 12.5px; color: #6B7280; margin: 4px 0 0; }
+.mpm-sub { font-size: 13px; font-weight: 400; color: #8B8478; margin: 5px 0 0; }
 .mpm-x { border: none; background: none; color: #AEB4C2; cursor: pointer; padding: 2px; }
 .mpm-x:hover { color: #1C1B3A; }
 
@@ -30,12 +32,13 @@
   border: 1px solid #E8E6DF; border-radius: 10px; background: #FAFAF8; padding: 0 13px; height: 42px;
 }
 .mpm-field .ic { color: #AEB4C2; flex: none; }
-.mpm-field input { border: none; background: none; outline: none; width: 100%; font-family: inherit; font-size: 13.5px; color: #1C1B3A; }
+.mpm-field input { border: none; background: none; outline: none; width: 100%; font-family: inherit; font-size: 14px; font-weight: 400; color: #1C1B3A; }
+.mpm-field input::placeholder { color: #AEB4C2; }
 .mpm-field:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
 .mpm-go {
-  display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 16px;
+  display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 17px;
   border: none; border-radius: 10px; background: #C65A1A; color: #fff;
-  font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .mpm-go:hover:not(:disabled) { background: #B14E16; }
 .mpm-go:disabled { opacity: 0.6; cursor: default; }
@@ -51,7 +54,7 @@
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 500;
   display: inline-flex; align-items: center; gap: 6px;
   background: #fff; color: #1C1B3A; border: 1px solid #ECEAE3; border-radius: 999px;
-  padding: 7px 15px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  padding: 7px 15px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
   box-shadow: 0 8px 22px -8px rgba(28, 27, 58, 0.45);
 }
 .mpm-searcharea:hover { border-color: #C65A1A; color: #C65A1A; }
@@ -72,8 +75,8 @@
 }
 
 .mpm-result { padding: 2px 22px 6px; overflow-y: auto; }
-.mpm-count { font-size: 12.5px; color: #6B7280; margin-bottom: 8px; }
-.mpm-count b { color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.mpm-count { font-size: 13px; font-weight: 400; color: #6B7280; margin-bottom: 8px; }
+.mpm-count b { color: #1C1B3A; font-weight: 600; font-variant-numeric: tabular-nums; }
 .mpm-list { display: flex; flex-direction: column; gap: 2px; max-height: 150px; overflow-y: auto; }
 .mpm-shop {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
@@ -82,14 +85,14 @@
 }
 .mpm-shop:hover { background: #FBEFE9; }
 .mpm-shop .dot { width: 8px; height: 8px; border-radius: 999px; background: #C65A1A; flex: none; }
-.mpm-shop .nm { flex: 1; font-size: 13.5px; font-weight: 600; }
-.mpm-shop .rd { font-size: 11.5px; color: #8B8478; font-variant-numeric: tabular-nums; }
-.mpm-none { padding: 14px 6px; font-size: 12.5px; color: #8B8478; }
+.mpm-shop .nm { flex: 1; font-size: 14px; font-weight: 500; }
+.mpm-shop .rd { font-size: 12px; font-weight: 400; color: #8B8478; font-variant-numeric: tabular-nums; }
+.mpm-none { padding: 14px 6px; font-size: 13px; font-weight: 400; color: #8B8478; }
 
 .mpm-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px 22px 18px; border-top: 1px solid #F0F1F5; }
 .mpm-clear { border: none; background: none; color: #8B8478; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-right: auto; }
 .mpm-clear:hover { color: #C65A1A; }
-.mpm-done { border: none; border-radius: 10px; background: #1C1B3A; color: #fff; font-family: inherit; font-size: 13px; font-weight: 700; padding: 10px 20px; cursor: pointer; }
+.mpm-done { border: none; border-radius: 10px; background: #1C1B3A; color: #fff; font-family: inherit; font-size: 13px; font-weight: 600; padding: 10px 20px; cursor: pointer; }
 .mpm-done:hover { background: #12112a; }
 
 /* ── Night market ── */
