@@ -232,6 +232,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const toastTimer = useRef(null);
   const ledgerRef = useRef(null);
   const journeyRef = useRef(null); // certification-journey card, for the status strip CTA
+  const coursesRef = useRef(null); // Courses & tickets section, for the journey's Courses step to scroll to
 
   const flash = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2600); };
 
@@ -1381,7 +1382,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       )}
 
       {cert && ancillary.length > 0 && (
-        <div className="stp-courses">
+        <div className="stp-courses" ref={coursesRef}>
           <button type="button" className="stp-courses-head" aria-expanded={coursesOpen} onClick={() => setCoursesOpen(o => !o)}>
             <span className="mlabel rustlabel">Courses &amp; tickets</span>
             <span className="stp-courses-right">
@@ -1760,7 +1761,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         const eligStep = {
           n: '01', label: 'Eligibility', key: 'elig', reachable: true,
           state: eligible ? 'done' : 'active',
-          line: !conf.authoritative ? 'Confirm figures' : eligible ? (noServiceGate ? 'No sea-service gate' : 'Requirements met') : `${unmet.length} to go`,
+          line: !conf.authoritative ? 'Confirm figures' : eligible ? 'Sea time met' : `${unmet.length} to go`,
         };
         let steps;
         if (hasOral) {
@@ -1800,15 +1801,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
           ];
         } else {
           // Endorsement route: Eligibility → Courses → Certificate (no NoE/oral).
-          const endorsePrompt = eligible && !cocApplied;
-          eligStep.pulse = endorsePrompt;
+          // No CTA under Eligibility — the next action lives in the Courses step,
+          // which unlocks once this is met, so it isn't duplicated here.
+          eligStep.pulse = false;
           eligStep.detail = !conf.authoritative
             ? <div className="cj-detail">{conf.notice || 'see notice'}</div>
-            : endorsePrompt
-              ? <div className="cj-detail cj-detail-cta">{coursesComplete ? 'Apply to add the endorsement →' : 'Add your management courses →'}</div>
-              : eligible
-                ? <div className="cj-detail">No oral — endorsed by courses</div>
-                : (unmet[0] ? <div className="cj-detail">{unmet[0].label} · {unmet[0].remaining} to go</div> : null);
+            : eligible
+              ? null
+              : (unmet[0] ? <div className="cj-detail">{unmet[0].label} · {unmet[0].remaining} to go</div> : null);
           steps = [
             eligStep,
             {
@@ -1829,7 +1829,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         // still signals where they actually are in the real-world process.
         const clickStep = (s) => {
           if (s.key === 'elig') { setEligOpen(o => !o); return; }
-          if (s.key === 'courses') { setCoursesOpen(true); journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+          if (s.key === 'courses') { setCoursesOpen(true); (coursesRef.current || journeyRef.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
           openJourney(s.key);
         };
         const doneCount = steps.filter(s => s.state === 'done').length;
@@ -1838,7 +1838,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             <div className="cj-head">
               <div>
                 <h3 className="cj-title">Certification journey</h3>
-                <div className="cj-ctx">Working toward {cert.short}{MSF_FORMS[deptId] ? ` · Apply with ${MSF_FORMS[deptId].form} (${MSF_FORMS[deptId].notice})` : ''}</div>
+                {MSF_FORMS[deptId] && <div className="cj-ctx">Apply with {MSF_FORMS[deptId].form} ({MSF_FORMS[deptId].notice})</div>}
               </div>
               <div className="cj-progress"><b>{doneCount}</b> of {steps.length} complete</div>
             </div>
@@ -1871,23 +1871,24 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       {noServiceGate ? (
                         <div className="cj-elig-row met">
                           <span className="ck"><Icon name="Check" size={11} color="#3F7A52" /></span>
-                          <span className="l">No extra sea time — concurrent with your current CoC</span>
+                          <span className="l">No extra sea time — this CoC is gained through the courses above.</span>
                           <span className="v" />
                         </div>
-                      ) : hardReqs.map(r => (
-                        <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
-                          <span className="ck">{r.met ? <Icon name="Check" size={11} color="#3F7A52" /> : <span className="dot" />}</span>
-                          <span className="l">{r.label}</span>
-                          <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
-                        </div>
-                      ))}
-                      {!conf.authoritative && <div className="cj-detail" style={{ marginTop: 6 }}>{conf.label}</div>}
-                      <div className="cj-elig-foot">{
-                        !conf.authoritative ? 'Confirm your figures to unlock this step.'
-                          : noServiceGate ? (hasOral ? 'Concurrent with your current CoC — apply for your NoE.' : 'Gained through the courses above — no extra sea time needed.')
+                      ) : (<>
+                        {hardReqs.map(r => (
+                          <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
+                            <span className="ck">{r.met ? <Icon name="Check" size={11} color="#3F7A52" /> : <span className="dot" />}</span>
+                            <span className="l">{r.label}</span>
+                            <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
+                          </div>
+                        ))}
+                        {!conf.authoritative && <div className="cj-detail" style={{ marginTop: 6 }}>{conf.label}</div>}
+                        <div className="cj-elig-foot">{
+                          !conf.authoritative ? 'Confirm your figures to unlock this step.'
                             : eligible ? (hasOral ? 'All met — apply for your NoE.' : 'All met — add the courses above.')
                               : `${unmet.length} service requirement${unmet.length === 1 ? '' : 's'} still to clear — see above.`
-                      }</div>
+                        }</div>
+                      </>)}
                     </div>
                   )}
                 </div>
