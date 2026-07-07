@@ -1861,7 +1861,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 ? 'Cargo compiles your senior yacht service and readies it for the PYA to verify for your IAMI GUEST Yacht Purser CoC — submitted alongside your guest-on days and GUEST course certificates.'
                 : SHOW_SIGNOFF
                   ? `Your sea service, confirmed by each ship’s ${signerWord} — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.`
-                  : `Cargo compiles your sea time and pre-fills your verifying organisation’s forms — so your ${signerWord} just reviews and signs. We only speed up the paperwork; the organisation verifies and holds the record.`}</div>
+                  : <>Cargo pre-fills the forms — your {signerWord} reviews and signs.
+                      <span className="std-fhelp" tabIndex={0} role="note" aria-label="How sign-off works">
+                        <Icon name="Info" size={14} />
+                        <span className="std-fhelp-pop">
+                          <b>How this works</b>
+                          <span>Cargo compiles your sea time and pre-fills your verifying organisation’s forms, so your {signerWord} just reviews and signs.</span>
+                          <span>We only speed up the paperwork — the organisation verifies and holds the record.</span>
+                        </span>
+                      </span>
+                    </>}</div>
             </div>
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
