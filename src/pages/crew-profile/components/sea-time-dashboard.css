@@ -398,6 +398,9 @@
 /* ── List view — Option A (voyage rail: month-grouped, left colour spine) ── */
 .std-agroup:first-child .std-amonth{padding-top:2px;}
 .std-amonth{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;background:none;border:0;border-bottom:1px solid var(--hair);font-family:inherit;text-align:left;cursor:pointer;padding:14px 0 11px;}
+/* last collapsed month sits right above the leave/prior notes — its border would
+   double up with .std-lnotes' top rule, so drop it and keep the single long rule. */
+.std-agroup:last-child .std-amonth{border-bottom:0;}
 .std-amonth-lbl{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink);}
 .std-amonth-meta{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:var(--faint);white-space:nowrap;}
 .std-amonth-chev{transition:transform .15s;}
