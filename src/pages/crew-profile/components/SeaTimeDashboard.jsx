@@ -1499,7 +1499,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             band to filter the log below (Concept B: one object, not five). */}
         <div className="std-compwrap">
           <div className="std-comphd">
-            <span className="big">{buckets.total}<em>qualifying days · {live.length} {live.length === 1 ? 'entry' : 'entries'}{offCargoDays > 0 ? ` · ${offCargoDays} off-Cargo` : ''}</em></span>
+            <span className="big">{buckets.total}<em>{buckets.total === 1 ? 'day' : 'days'}{offCargoDays > 0 ? ` · ${offCargoDays} off-Cargo` : ''}</em></span>
             {serviceFilter === 'all'
               ? <span className="hint">tap a band to filter</span>
               : <button type="button" className="std-comp-clear" onClick={() => setServiceFilter('all')}>Showing {TYPE_META[serviceFilter].label} · clear ×</button>}
@@ -1544,7 +1544,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 </button>
               </div>
               <div className="std-flex std-ac" style={{ gap: 10 }}>
-                <span className="std-vs">{yearDays} {yearDays === 1 ? 'day' : 'days'} in {activeYear}</span>
                 {activeYear && (accountedSet.has(activeYear)
                   ? <button type="button" onClick={() => toggleAccounted(activeYear)} className="std-vs" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C65A1A', fontWeight: 600 }}>Reopen</button>
                   : <button type="button" onClick={() => toggleAccounted(activeYear)} className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC', padding: '4px 10px' }}><Icon name="CheckCheck" size={13} /> Mark accounted for</button>)}
@@ -1642,7 +1641,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className="std-agroup" key={'g' + g.key}>
                   <button type="button" className={`std-amonth${open ? ' open' : ''}`} onClick={() => toggleMonth(g.key)} aria-expanded={open}>
                     <span className="std-amonth-lbl">{g.key}</span>
-                    <span className="std-amonth-meta">{g.count} {g.count === 1 ? 'entry' : 'entries'} · {g.days} {g.days === 1 ? 'day' : 'days'}<Icon name="ChevronDown" size={13} className="std-amonth-chev" /></span>
+                    <span className="std-amonth-meta"><Icon name="ChevronDown" size={14} className="std-amonth-chev" /></span>
                   </button>
                   {open && g.nodes}
                 </div>
