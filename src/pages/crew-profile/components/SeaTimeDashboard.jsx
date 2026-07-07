@@ -2031,16 +2031,22 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   ) : verifier === 'pya' ? (
                     <div className="std-export-instr">Download the Cargo → PYA extension and auto-fill your PYA Sea Service Testimonial — one per captain to e-sign.</div>
                   ) : (
-                    <div className="std-export-instr">{vp.instructions}</div>
+                    <div className="std-export-instr">Export the pre-filled form below, get it signed, then submit it to {vp.short} to verify.
+                      <span className="std-fhelp" tabIndex={0} role="note" aria-label={`How the ${vp.short} route works`}>
+                        <Icon name="Info" size={14} />
+                        <span className="std-fhelp-pop">
+                          <b>How this works</b>
+                          <span>{vp.instructions}</span>
+                        </span>
+                      </span>
+                    </div>
                   )}
                   {nautilusSpells.length === 0 ? (
                     <div className="std-foot" style={{ padding: '10px 0 0' }}>No Cargo-tracked service to export yet — it auto-logs from your current vessel. You can still export your full record as CSV below.</div>
                   ) : (
                     <div className="std-spells">
-                      {verifier !== 'pya' && (
-                        <div className="std-spells-lbl">{interiorPathway
-                          ? 'Your service under each captain, ready for the PYA to verify. Manual & off-Cargo days are excluded.'
-                          : `One testimonial per ${signerWord} — each endorses only the dates they covered. Manual & off-Cargo days are excluded.`}</div>
+                      {interiorPathway && (
+                        <div className="std-spells-lbl">Your service under each captain, ready for the PYA to verify. Manual &amp; off-Cargo days are excluded.</div>
                       )}
                       {nautilusSpells.map((s, i) => (
                         <div key={i} className="std-spell">
