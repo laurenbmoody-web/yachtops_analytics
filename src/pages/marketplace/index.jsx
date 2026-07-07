@@ -1,22 +1,32 @@
-// Cargo Marketplace — Phase 2.
+// Cargo Marketplace — Phase 2, the spine.
 //
-// Vessel-side storefront over every Cargo supplier's published
-// catalogue. Browsing never creates an order: the basket lands on a
-// provisioning board as ordinary draft lines (pre-priced, supplier
-// assigned, catalogue-linked), and the board stays the single point of
-// control — approval routing and "Send to supplier" behave exactly as
-// they do for hand-typed lines. Catalogue-priced lines then confirm in
-// one click on the supplier side (auto-accept trigger).
+// One page, three steps, one click apart:
+//   i · The Providers — the front door: a wall of shops. A toggle here
+//       flips to "all items" (every supplier's stock in one flat list).
+//   ii · The Aisles — you entered a shop: a dark storefront band, and
+//       every aisle below now belongs to that supplier.
+//   iii · The Counter — the drawer. "Add to board" fills it; lines are
+//       grouped by supplier, because each group becomes its own order
+//       when it lands on the board.
+//
+// Browsing never creates an order: the Counter lands on a provisioning
+// board as ordinary draft lines (pre-priced, supplier-assigned,
+// catalogue-linked), and the board stays the single point of control.
+// Night mode (The Dark Market) is a theme toggle, not a fourth view.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ShoppingBasket } from 'lucide-react';
+import {
+  ArrowLeft, ShoppingBasket, Store, Moon, Sun, Search,
+  CheckCircle2, Clock, Timer, PackageCheck, X, ChevronRight, Plus,
+} from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { showToast } from '../../utils/toast';
 import {
   fetchMarketplaceSuppliers,
+  fetchMarketplaceSupplierStats,
   fetchMarketplaceProducts,
   fetchTenantSupplierIds,
   ensureTenantSupplierLinks,
@@ -40,6 +50,7 @@ const BOARD_STATUS_LABEL = {
   confirmed: 'confirmed', partially_delivered: 'partially delivered',
 };
 const NEW_BOARD = '__new__';
+const THEME_KEY = 'mp-theme';
 
 const fmtDate = (iso) => {
   if (!iso) return null;
@@ -60,10 +71,92 @@ const money = (n, ccy = 'EUR') =>
 
 const minQtyOf = (product) => Math.max(1, Number(product.min_order_qty) || 1);
 
-// The card's control IS the basket line: − qty + wired straight through.
-// First + jumps to the product's minimum order; − below it removes the
-// line. No transient "Added" state, no layout shift.
-const ProductCard = ({ product, supplier, mine, basketQty, onSetQty }) => {
+// Response time in human units: <1h, ~6h, ~2d.
+const fmtResponse = (hours) => {
+  if (hours == null) return null;
+  if (hours < 1) return '<1h';
+  if (hours < 24) return `~${Math.round(hours)}h`;
+  return `~${Math.round(hours / 24)}d`;
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// i · The Providers — one storefront card.
+// A shop, not a product: logo, name, home port, the trust trio (orders
+// filled / on-time / response), and catalogue depth. Numbers come from
+// real order history; a shop with none reads "New to Cargo" rather than
+// a fake 0%.
+// ─────────────────────────────────────────────────────────────────────
+const ProviderCard = ({ supplier, stats, mine, onEnter }) => {
+  const ports = supplier.coverage_ports || [];
+  const cats = supplier.categories || [];
+  const isNew = !stats || stats.orders === 0;
+  const resp = fmtResponse(stats?.responseHours);
+
+  return (
+    <button className="mp-provcard" onClick={() => onEnter(supplier)}>
+      <div className="mp-prov-top">
+        {supplier.logo_url
+          ? <img className="mp-prov-logo" src={supplier.logo_url} alt="" loading="lazy" />
+          : <span className="mp-prov-logo ph">{(supplier.name || '?').charAt(0).toUpperCase()}</span>}
+        <div className="mp-prov-id">
+          <div className="mp-prov-name">
+            {supplier.name}
+            {supplier.verified && <span className="mp-prov-tick" title="Verified supplier">✓</span>}
+          </div>
+          <div className="mp-prov-where">
+            {[supplier.business_city, supplier.business_country].filter(Boolean).join(', ')
+              || (ports.length ? ports.slice(0, 2).join(' · ') : 'Coverage on request')}
+          </div>
+        </div>
+        {mine && <span className="mp-prov-yours">Yours</span>}
+      </div>
+
+      {cats.length > 0 && (
+        <div className="mp-prov-tags">
+          {cats.slice(0, 3).map((c) => <span key={c} className="mp-prov-tag">{c}</span>)}
+          {cats.length > 3 && <span className="mp-prov-tag more">+{cats.length - 3}</span>}
+        </div>
+      )}
+
+      <div className="mp-prov-kpis">
+        {isNew ? (
+          <div className="mp-prov-new">
+            <Store size={13} strokeWidth={1.75} />
+            New to Cargo — be their first order
+          </div>
+        ) : (
+          <>
+            <div className="mp-kpi">
+              <span className="v">{stats.fulfilled}</span>
+              <span className="l"><PackageCheck size={11} /> filled</span>
+            </div>
+            <div className="mp-kpi">
+              <span className="v">{stats.onTimePct != null ? `${stats.onTimePct}%` : '—'}</span>
+              <span className="l"><CheckCircle2 size={11} /> on time</span>
+            </div>
+            <div className="mp-kpi">
+              <span className="v">{resp || '—'}</span>
+              <span className="l"><Timer size={11} /> reply</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="mp-prov-foot">
+        <span className="mp-prov-count">{supplier.catalogue_count} products</span>
+        <span className="mp-prov-enter">Enter shop <ChevronRight size={14} /></span>
+      </div>
+    </button>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// ii · The Aisles / all-items — one product card.
+// The card's control IS the basket line: − qty + wired straight
+// through. First + jumps to the product's minimum order; − below it
+// removes the line. No transient "Added" state, no layout shift.
+// ─────────────────────────────────────────────────────────────────────
+const ProductCard = ({ product, supplier, mine, showSupplier, basketQty, onSetQty }) => {
   const minQty = minQtyOf(product);
   const out = !product.in_stock || (product.stock_qty != null && Number(product.stock_qty) <= 0);
   const stock = product.stock_qty != null ? Number(product.stock_qty) : null;
@@ -84,11 +177,13 @@ const ProductCard = ({ product, supplier, mine, basketQty, onSetQty }) => {
             {(product.name || '?').charAt(0).toUpperCase()}
           </div>}
       <div className="mp-pname">{product.name}</div>
-      <div className="mp-psup">
-        {supplier?.name || 'Supplier'}
-        {supplier?.verified && <span className="tick"> ✓</span>}
-        {mine && <span className="mp-suptag">Your supplier</span>}
-      </div>
+      {showSupplier && (
+        <div className="mp-psup">
+          {supplier?.name || 'Supplier'}
+          {supplier?.verified && <span className="tick"> ✓</span>}
+          {mine && <span className="mp-suptag">Yours</span>}
+        </div>
+      )}
       <div className="mp-ppack">
         {fmtPack(product)}
         {opsBits.length > 0 && <span className="mp-ops"> · {opsBits.join(' · ')}</span>}
@@ -124,20 +219,35 @@ const Marketplace = () => {
   const { activeTenantId } = useTenant();
 
   const [suppliers, setSuppliers] = useState([]);
+  const [stats, setStats] = useState(() => new Map());
   const [products, setProducts] = useState([]);
   const [mySupplierIds, setMySupplierIds] = useState(() => new Set());
   const [boards, setBoards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Navigation: which shop you're inside (null = the Providers wall),
+  // and whether the wall's "all items" toggle is on.
+  const [enteredId, setEnteredId] = useState(searchParams.get('supplier') || null);
+  const [browseAll, setBrowseAll] = useState(false);
+
+  // Theme — The Dark Market lives here as a switch, remembered per user.
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light'; }
+    catch { return 'light'; }
+  });
+  useEffect(() => { try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ } }, [theme]);
+
+  // Browse controls (shared by aisles + all-items).
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
-  const [supplierFilter, setSupplierFilter] = useState('All');
   const [port, setPort] = useState('All');
   const [showFilter, setShowFilter] = useState('all'); // all | in | mine
   const [sortBy, setSortBy] = useState('name');
+  const [provSearch, setProvSearch] = useState(''); // the wall's own search
 
   const [basket, setBasket] = useState([]); // [{ product, qty }]
+  const [counterOpen, setCounterOpen] = useState(false);
   const [targetBoard, setTargetBoard] = useState(searchParams.get('board') || '');
   const [newBoardName, setNewBoardName] = useState('');
   const [placing, setPlacing] = useState(false);
@@ -146,9 +256,13 @@ const Marketplace = () => {
     let live = true;
     (async () => {
       try {
-        const sups = await fetchMarketplaceSuppliers();
+        const [sups, st] = await Promise.all([
+          fetchMarketplaceSuppliers(),
+          fetchMarketplaceSupplierStats(),
+        ]);
         if (!live) return;
         setSuppliers(sups);
+        setStats(st);
         const [prods, mine, lists] = await Promise.all([
           fetchMarketplaceProducts(sups.map(s => s.id)),
           fetchTenantSupplierIds(activeTenantId),
@@ -159,7 +273,6 @@ const Marketplace = () => {
         setMySupplierIds(mine);
         const open = (lists || []).filter(l => !CLOSED_BOARD_STATUSES.has(l.status));
         setBoards(open);
-        // Preselect: ?board= param if it's open, else first open board, else new.
         const param = searchParams.get('board');
         if (param && open.some(l => l.id === param)) setTargetBoard(param);
         else if (open.length) setTargetBoard(prev => prev || open[0].id);
@@ -175,29 +288,60 @@ const Marketplace = () => {
   }, [activeTenantId]);
 
   const supplierById = useMemo(() => new Map(suppliers.map(s => [s.id, s])), [suppliers]);
+  const enteredSupplier = enteredId ? supplierById.get(enteredId) : null;
+  // Deep-link ?supplier= may resolve only after suppliers load.
+  useEffect(() => {
+    if (enteredId && suppliers.length && !supplierById.has(enteredId)) setEnteredId(null);
+  }, [enteredId, suppliers, supplierById]);
 
+  const stage = enteredSupplier ? 'aisles' : (browseAll ? 'items' : 'providers');
+
+  // Reset the browse controls whenever you change what you're browsing.
+  const resetBrowse = () => {
+    setSearch(''); setCategory('All'); setPort('All'); setShowFilter('all'); setSortBy('name');
+  };
+  const enterShop = (s) => { setEnteredId(s.id); resetBrowse(); window.scrollTo({ top: 0 }); };
+  const leaveShop = () => { setEnteredId(null); setBrowseAll(false); resetBrowse(); };
+  const openAllItems = () => { setBrowseAll(true); resetBrowse(); };
+
+  const productCount = useMemo(() => {
+    const c = new Map();
+    products.forEach(p => c.set(p.supplier_id, (c.get(p.supplier_id) || 0) + 1));
+    return c;
+  }, [products]);
+
+  // ── Providers wall ──
+  const wallSuppliers = useMemo(() => {
+    const q = provSearch.trim().toLowerCase();
+    if (!q) return suppliers;
+    return suppliers.filter(s =>
+      (s.name || '').toLowerCase().includes(q)
+      || (s.categories || []).some(c => c.toLowerCase().includes(q))
+      || (s.coverage_ports || []).some(p => p.toLowerCase().includes(q))
+      || (s.business_city || '').toLowerCase().includes(q));
+  }, [suppliers, provSearch]);
+
+  // ── Browse surface (aisles = one supplier; items = all) ──
   const ports = useMemo(() => {
     const set = new Set();
     suppliers.forEach(s => (s.coverage_ports || []).forEach(p => set.add(p)));
     return Array.from(set).sort();
   }, [suppliers]);
 
-  const visibleSupplierIds = useMemo(() => {
-    let list = suppliers;
-    if (port !== 'All') list = list.filter(s => (s.coverage_ports || []).includes(port));
-    if (supplierFilter !== 'All') list = list.filter(s => s.id === supplierFilter);
-    return new Set(list.map(s => s.id));
-  }, [suppliers, port, supplierFilter]);
+  const scopedProducts = useMemo(() => {
+    if (stage === 'aisles') return products.filter(p => p.supplier_id === enteredId);
+    return products; // all-items
+  }, [products, stage, enteredId]);
 
   const q = search.trim().toLowerCase();
-  const searched = useMemo(() => products.filter(p =>
-    visibleSupplierIds.has(p.supplier_id)
+  const searched = useMemo(() => scopedProducts.filter(p =>
+    (port === 'All' || (supplierById.get(p.supplier_id)?.coverage_ports || []).includes(port))
     && (!q
       || p.name.toLowerCase().includes(q)
       || (p.description ?? '').toLowerCase().includes(q)
       || (p.sku ?? '').toLowerCase().includes(q)
       || (p.barcode ?? '').includes(q))
-  ), [products, visibleSupplierIds, q]);
+  ), [scopedProducts, port, supplierById, q]);
 
   const catCounts = useMemo(() => {
     const c = {};
@@ -218,9 +362,13 @@ const Marketplace = () => {
     return [...rows].sort(cmp);
   }, [searched, category, showFilter, sortBy, mySupplierIds]);
 
-  // ── basket ──
-  // One writer for card steppers and basket rows alike: qty 0 (or below
-  // the product's minimum order) removes the line, otherwise upsert.
+  const chipDefs = [
+    { key: 'All', label: 'All', count: searched.length },
+    ...orderCategories(Object.keys(catCounts)).map(c => ({ key: c, label: c, count: catCounts[c] })),
+  ];
+  const filtersDirty = search || port !== 'All' || category !== 'All' || showFilter !== 'all' || sortBy !== 'name';
+
+  // ── Counter (basket) ──
   const setProductQty = (product, qty) => setBasket(prev => {
     if (qty <= 0 || qty < minQtyOf(product)) return prev.filter(l => l.product.id !== product.id);
     const idx = prev.findIndex(l => l.product.id === product.id);
@@ -250,6 +398,7 @@ const Marketplace = () => {
     return groups;
   }, [basket]);
 
+  const basketUnits = basket.reduce((s, l) => s + l.qty, 0);
   const basketTotal = basket.reduce((s, l) => s + (l.product.unit_price ?? 0) * l.qty, 0);
   const basketCurrency = basket[0]?.product.currency || 'EUR';
   const mixedCurrency = basket.some(l => (l.product.currency || 'EUR') !== basketCurrency);
@@ -262,8 +411,6 @@ const Marketplace = () => {
       let listId = targetBoard;
       if (targetBoard === NEW_BOARD) {
         const title = newBoardName.trim() || `Marketplace order — ${fmtDate(new Date().toISOString())}`;
-        // Same shape as the workspace's board creator — the RLS insert
-        // policy requires owner_id = auth.uid().
         const list = await createProvisioningList({
           tenant_id: activeTenantId,
           title,
@@ -290,50 +437,144 @@ const Marketplace = () => {
     }
   };
 
-  const chipDefs = [
-    { key: 'All', label: 'All', count: searched.length },
-    ...orderCategories(Object.keys(catCounts)).map(c => ({ key: c, label: c, count: catCounts[c] })),
-  ];
+  const enteredStats = enteredSupplier ? stats.get(enteredSupplier.id) : null;
 
   return (
     <>
       <Header />
-      <div className="mp-page">
+      <div className="mp-page" data-theme={theme}>
         <div className="mp-shell">
-          <button className="mp-back" onClick={() => navigate('/provisioning')}>
-            <ArrowLeft size={13} /> Back to provisioning
-          </button>
-
-          <div className="mp-headrow">
-            <div>
-              <div className="mp-eyebrow">Provisioning · Marketplace</div>
-              <h1 className="mp-title">The <em>marketplace</em></h1>
-              <p className="mp-sub">
-                Browse every Cargo supplier's live catalogue. Items land on your board as draft lines at the
-                supplier's own price — no quote round needed.
-              </p>
-            </div>
+          {/* Meta bar — the one place an eyebrow-like row is allowed. */}
+          <div className="mp-metabar">
+            <button className="mp-back" onClick={() => navigate('/provisioning')}>
+              <ArrowLeft size={13} /> Provisioning
+            </button>
+            <div className="mp-meta-spacer" />
+            <button
+              className="mp-theme"
+              onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+              title={theme === 'dark' ? 'Day market' : 'Night market'}
+            >
+              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
           </div>
 
           {error && <div className="mp-error">{error}</div>}
           {loading && <div className="mp-loading">Loading the marketplace…</div>}
 
-          {!loading && (
+          {/* ── i · The Providers ── */}
+          {!loading && stage === 'providers' && (
             <>
+              <div className="mp-hero">
+                <h1 className="mp-title">The <em>marketplace</em></h1>
+                <div className="mp-hero-tools">
+                  <label className="mp-searchwrap">
+                    <Search size={15} className="ic" />
+                    <input
+                      className="mp-search bare"
+                      placeholder="Search shops, ports, categories…"
+                      value={provSearch}
+                      onChange={(e) => setProvSearch(e.target.value)}
+                    />
+                  </label>
+                  <button className="mp-allitems" onClick={openAllItems}>
+                    Browse all items <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {wallSuppliers.length === 0 ? (
+                <div className="mp-empty">
+                  {suppliers.length === 0
+                    ? 'No suppliers have published catalogues yet.'
+                    : 'No shops match that search.'}
+                </div>
+              ) : (
+                <div className="mp-provwall">
+                  {wallSuppliers.map(s => (
+                    <ProviderCard
+                      key={s.id}
+                      supplier={s}
+                      stats={stats.get(s.id)}
+                      mine={mySupplierIds.has(s.id)}
+                      onEnter={enterShop}
+                    />
+                  ))}
+                  <div className="mp-ghostcard" onClick={() => showToast('Supplier invites are coming soon — we’ll let you nominate the shops you already use.', 'info')}>
+                    <Plus size={18} strokeWidth={1.75} />
+                    <div className="mp-ghost-h">Invite a supplier</div>
+                    <div className="mp-ghost-s">Bring a shop you already use onto Cargo</div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── ii · The Aisles / all-items ── */}
+          {!loading && stage !== 'providers' && (
+            <>
+              {stage === 'aisles' ? (
+                <div className="mp-shopband">
+                  <button className="mp-leaveshop" onClick={leaveShop}>
+                    <X size={14} /> Leave shop
+                  </button>
+                  <div className="mp-shop-id">
+                    {enteredSupplier.logo_url
+                      ? <img className="mp-shop-logo" src={enteredSupplier.logo_url} alt="" />
+                      : <span className="mp-shop-logo ph">{(enteredSupplier.name || '?').charAt(0).toUpperCase()}</span>}
+                    <div>
+                      <div className="mp-shop-name">
+                        {enteredSupplier.name}
+                        {enteredSupplier.verified && <span className="tick">✓</span>}
+                        {mySupplierIds.has(enteredSupplier.id) && <span className="mp-shop-yours">Your supplier</span>}
+                      </div>
+                      <div className="mp-shop-where">
+                        {[enteredSupplier.business_city, enteredSupplier.business_country].filter(Boolean).join(', ')
+                          || (enteredSupplier.coverage_ports || []).slice(0, 4).join(' · ') || 'Coverage on request'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mp-shop-stats">
+                    {enteredStats && enteredStats.orders > 0 ? (
+                      <>
+                        <div className="mp-shopstat"><span className="v">{enteredStats.fulfilled}</span><span className="l">orders filled</span></div>
+                        <div className="mp-shopstat"><span className="v">{enteredStats.onTimePct != null ? `${enteredStats.onTimePct}%` : '—'}</span><span className="l">on time</span></div>
+                        <div className="mp-shopstat"><span className="v">{fmtResponse(enteredStats.responseHours) || '—'}</span><span className="l">typical reply</span></div>
+                      </>
+                    ) : (
+                      <div className="mp-shopstat solo"><span className="v">New</span><span className="l">to Cargo</span></div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="mp-itemshead">
+                  <button className="mp-leaveshop light" onClick={leaveShop}>
+                    <ArrowLeft size={14} /> All shops
+                  </button>
+                  <h1 className="mp-title sm">All <em>items</em></h1>
+                  <p className="mp-sub">Every shop's live stock in one list — filter by port or category, add straight to the board.</p>
+                </div>
+              )}
+
               <div className="mp-controls">
-                <input
-                  className="mp-search"
-                  placeholder="Search products, brands, barcodes…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <label className="mp-filter">
-                  <span className="k">Port</span>
-                  <select value={port} onChange={(e) => setPort(e.target.value)}>
-                    <option value="All">All</option>
-                    {ports.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                <label className="mp-searchwrap grow">
+                  <Search size={15} className="ic" />
+                  <input
+                    className="mp-search bare"
+                    placeholder={stage === 'aisles' ? `Search ${enteredSupplier.name}…` : 'Search products, brands, barcodes…'}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
                 </label>
+                {stage === 'items' && (
+                  <label className="mp-filter">
+                    <span className="k">Port</span>
+                    <select value={port} onChange={(e) => setPort(e.target.value)}>
+                      <option value="All">All</option>
+                      {ports.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </label>
+                )}
                 <label className="mp-filter">
                   <span className="k">Category</span>
                   <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -348,7 +589,7 @@ const Marketplace = () => {
                   <select value={showFilter} onChange={(e) => setShowFilter(e.target.value)}>
                     <option value="all">Everything</option>
                     <option value="in">In stock</option>
-                    <option value="mine">Your suppliers</option>
+                    {stage === 'items' && <option value="mine">Your suppliers</option>}
                   </select>
                 </label>
                 <label className="mp-filter">
@@ -360,161 +601,137 @@ const Marketplace = () => {
                     <option value="updated_desc">Recently updated</option>
                   </select>
                 </label>
-                {(search || port !== 'All' || category !== 'All' || showFilter !== 'all' || sortBy !== 'name' || supplierFilter !== 'All') && (
-                  <button
-                    type="button"
-                    className="mp-clear"
-                    onClick={() => { setSearch(''); setPort('All'); setCategory('All'); setShowFilter('all'); setSortBy('name'); setSupplierFilter('All'); }}
-                  >
-                    × Clear all
-                  </button>
+                {filtersDirty && (
+                  <button type="button" className="mp-clear" onClick={resetBrowse}>× Clear all</button>
                 )}
-                <span className="mp-count">{filtered.length} of {products.length}</span>
+                <span className="mp-count">{filtered.length} of {scopedProducts.length}</span>
               </div>
 
-              <div className="mp-suppliers">
-                <button
-                  className={`mp-supcard ${supplierFilter === 'All' ? 'on' : ''}`}
-                  onClick={() => setSupplierFilter('All')}
-                >
-                  <span className="mp-suplogo">∗</span>
-                  <span>
-                    <span className="mp-supname">All suppliers</span>
-                    <div className="mp-supmeta">{suppliers.length} on Cargo</div>
-                  </span>
-                </button>
-                {suppliers.map(s => (
-                  <button
-                    key={s.id}
-                    className={`mp-supcard ${supplierFilter === s.id ? 'on' : ''}`}
-                    onClick={() => setSupplierFilter(supplierFilter === s.id ? 'All' : s.id)}
-                  >
-                    {s.logo_url
-                      ? <img className="mp-suplogo" src={s.logo_url} alt="" />
-                      : <span className="mp-suplogo">{(s.name || '?').charAt(0).toUpperCase()}</span>}
-                    <span>
-                      <span className="mp-supname">
-                        {s.name}
-                        {s.verified && <span className="tick">✓</span>}
-                        {mySupplierIds.has(s.id) && <span className="mp-suptag">Yours</span>}
-                      </span>
-                      <div className="mp-supmeta">
-                        {s.catalogue_count} products{(s.coverage_ports || []).length ? ` · ${s.coverage_ports.slice(0, 3).join(', ')}` : ''}
-                      </div>
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mp-cols">
-                <div>
-                  {filtered.length === 0 ? (
-                    <div className="mp-empty">
-                      {products.length === 0
-                        ? 'No suppliers have published catalogues yet.'
-                        : 'Nothing matches — try a different search or filter.'}
-                    </div>
-                  ) : (
-                    <div className="mp-grid">
-                      {filtered.map(p => (
-                        <ProductCard
-                          key={p.id}
-                          product={p}
-                          supplier={supplierById.get(p.supplier_id)}
-                          mine={mySupplierIds.has(p.supplier_id)}
-                          basketQty={basketQtyOf(p.id)}
-                          onSetQty={setProductQty}
-                        />
-                      ))}
-                    </div>
-                  )}
+              {filtered.length === 0 ? (
+                <div className="mp-empty">
+                  {scopedProducts.length === 0
+                    ? 'This shop has no published items yet.'
+                    : 'Nothing matches — try a different search or filter.'}
                 </div>
+              ) : (
+                <div className="mp-grid">
+                  {filtered.map(p => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      supplier={supplierById.get(p.supplier_id)}
+                      mine={mySupplierIds.has(p.supplier_id)}
+                      showSupplier={stage === 'items'}
+                      basketQty={basketQtyOf(p.id)}
+                      onSetQty={setProductQty}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
-                <aside className="mp-basket">
-                  <h3 className="mp-basket-h">For the board</h3>
-                  <div className="mp-basket-sub">
+        {/* ── iii · The Counter (drawer) ── */}
+        {!loading && (
+          <button
+            className={`mp-counter-fab ${basketUnits > 0 ? 'live' : ''}`}
+            onClick={() => setCounterOpen(true)}
+          >
+            <ShoppingBasket size={17} strokeWidth={1.9} />
+            <span className="lab">The Counter</span>
+            {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
+          </button>
+        )}
+
+        {counterOpen && (
+          <>
+            <div className="mp-counter-backdrop" onClick={() => setCounterOpen(false)} />
+            <aside className="mp-counter" role="dialog" aria-label="The Counter">
+              <div className="mp-counter-head">
+                <div>
+                  <h3 className="mp-counter-h">The <em>Counter</em></h3>
+                  <div className="mp-counter-sub">
                     {basket.length
-                      ? `${basket.reduce((s, l) => s + l.qty, 0)} item${basket.length === 1 && basket[0].qty === 1 ? '' : 's'} · ${basketBySupplier.size} supplier${basketBySupplier.size === 1 ? '' : 's'}`
+                      ? `${basketUnits} item${basketUnits === 1 ? '' : 's'} · ${basketBySupplier.size} shop${basketBySupplier.size === 1 ? '' : 's'}`
                       : 'Items land as draft lines — nothing is sent yet.'}
                   </div>
+                </div>
+                <button className="mp-counter-x" onClick={() => setCounterOpen(false)} aria-label="Close"><X size={18} /></button>
+              </div>
 
-                  {basket.length === 0 && (
-                    <div className="mp-basket-empty">
-                      <ShoppingBasket size={20} strokeWidth={1.5} style={{ marginBottom: 6 }} />
-                      <div>Nothing added yet</div>
-                    </div>
-                  )}
-
-                  {Array.from(basketBySupplier.entries()).map(([sid, lines]) => {
+              <div className="mp-counter-body">
+                {basket.length === 0 ? (
+                  <div className="mp-counter-empty">
+                    <ShoppingBasket size={22} strokeWidth={1.4} style={{ marginBottom: 8 }} />
+                    <div>Nothing added yet</div>
+                    <div className="hint">Add items from any shop — they gather here, grouped by supplier.</div>
+                  </div>
+                ) : (
+                  Array.from(basketBySupplier.entries()).map(([sid, lines]) => {
                     const sup = supplierById.get(sid);
                     const sub = lines.reduce((s, l) => s + (l.product.unit_price ?? 0) * l.qty, 0);
                     return (
-                      <div key={sid}>
-                        <div className="mp-bsup">
-                          <span>{sup?.name || 'Supplier'}</span>
+                      <div className="mp-cgroup" key={sid}>
+                        <div className="mp-cgroup-head">
+                          <span className="nm">{sup?.name || 'Supplier'}</span>
                           <span className="amt">{money(sub, lines[0].product.currency)}</span>
                         </div>
                         {lines.map(l => (
-                          <div className="mp-bline" key={l.product.id}>
-                            <span className="mp-bname">{l.product.name}</span>
-                            <span className="mp-bqty">
-                              <button onClick={() => setLineQty(l.product.id, l.qty - 1)}>−</button>
+                          <div className="mp-cline" key={l.product.id}>
+                            <span className="mp-cname">{l.product.name}</span>
+                            <span className="mp-cqty">
+                              <button onClick={() => setLineQty(l.product.id, l.qty - 1)} aria-label="Fewer">−</button>
                               <span>{l.qty}</span>
-                              <button onClick={() => setLineQty(l.product.id, l.qty + 1)}>+</button>
+                              <button onClick={() => setLineQty(l.product.id, l.qty + 1)} aria-label="More">+</button>
                             </span>
-                            <span className="mp-bprice">{money((l.product.unit_price ?? 0) * l.qty, l.product.currency)}</span>
-                            <button className="mp-bx" onClick={() => removeLine(l.product.id)} aria-label="Remove">×</button>
+                            <span className="mp-cprice">{money((l.product.unit_price ?? 0) * l.qty, l.product.currency)}</span>
+                            <button className="mp-cx" onClick={() => removeLine(l.product.id)} aria-label="Remove">×</button>
                           </div>
                         ))}
                       </div>
                     );
-                  })}
-
-                  {basket.length > 0 && (
-                    <>
-                      <div className="mp-btotal">
-                        <small>Estimated total</small>
-                        <span>{mixedCurrency ? 'Mixed currencies' : money(basketTotal, basketCurrency)}</span>
-                      </div>
-
-                      <div className="mp-board-label">Add to board</div>
-                      <select
-                        className="mp-board-select"
-                        value={targetBoard}
-                        onChange={(e) => setTargetBoard(e.target.value)}
-                      >
-                        {[...boards]
-                          .sort((a, b) => (a.id === searchParams.get('board') ? -1 : b.id === searchParams.get('board') ? 1 : 0))
-                          .map(b => (
-                            <option key={b.id} value={b.id}>
-                              {b.title}{BOARD_STATUS_LABEL[b.status] ? ` — ${BOARD_STATUS_LABEL[b.status]}` : ''}{b.id === searchParams.get('board') ? ' (this board)' : ''}
-                            </option>
-                          ))}
-                        <option value={NEW_BOARD}>+ New board…</option>
-                      </select>
-                      {targetBoard === NEW_BOARD && (
-                        <input
-                          className="mp-board-input"
-                          placeholder="Board name (e.g. Ibiza charter — week 29)"
-                          value={newBoardName}
-                          onChange={(e) => setNewBoardName(e.target.value)}
-                        />
-                      )}
-
-                      <button className="mp-checkout" disabled={placing || !targetBoard} onClick={placeBasket}>
-                        {placing ? 'Adding…' : `Add ${basket.reduce((s, l) => s + l.qty, 0)} to board`}
-                      </button>
-                      <div className="mp-basket-note">
-                        Lines arrive as drafts with the catalogue price as the estimate. Approval and
-                        “Send to supplier” stay on the board, exactly as today.
-                      </div>
-                    </>
-                  )}
-                </aside>
+                  })
+                )}
               </div>
-            </>
-          )}
-        </div>
+
+              {basket.length > 0 && (
+                <div className="mp-counter-foot">
+                  <div className="mp-ctotal">
+                    <small>Estimated total</small>
+                    <span>{mixedCurrency ? 'Mixed currencies' : money(basketTotal, basketCurrency)}</span>
+                  </div>
+                  <div className="mp-board-label">Add to board</div>
+                  <select className="mp-board-select" value={targetBoard} onChange={(e) => setTargetBoard(e.target.value)}>
+                    {[...boards]
+                      .sort((a, b) => (a.id === searchParams.get('board') ? -1 : b.id === searchParams.get('board') ? 1 : 0))
+                      .map(b => (
+                        <option key={b.id} value={b.id}>
+                          {b.title}{BOARD_STATUS_LABEL[b.status] ? ` — ${BOARD_STATUS_LABEL[b.status]}` : ''}{b.id === searchParams.get('board') ? ' (this board)' : ''}
+                        </option>
+                      ))}
+                    <option value={NEW_BOARD}>+ New board…</option>
+                  </select>
+                  {targetBoard === NEW_BOARD && (
+                    <input
+                      className="mp-board-input"
+                      placeholder="Board name (e.g. Ibiza charter — week 29)"
+                      value={newBoardName}
+                      onChange={(e) => setNewBoardName(e.target.value)}
+                    />
+                  )}
+                  <button className="mp-checkout" disabled={placing || !targetBoard} onClick={placeBasket}>
+                    {placing ? 'Adding…' : `Add ${basketUnits} to board`}
+                  </button>
+                  <div className="mp-counter-note">
+                    Each shop above becomes its own order. Lines arrive as drafts at the catalogue price —
+                    approval and “Send to supplier” stay on the board.
+                  </div>
+                </div>
+              )}
+            </aside>
+          </>
+        )}
       </div>
     </>
   );

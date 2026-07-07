@@ -17,6 +17,39 @@ export const fetchMarketplaceSuppliers = async () => {
 };
 
 /**
+ * Honest per-supplier trust KPIs for the Providers wall — orders
+ * filled, on-time %, and typical response time, all derived from real
+ * order history (get_marketplace_supplier_stats RPC). Returns a Map
+ * keyed by supplier id with a normalised shape; the caller renders a
+ * "New to Cargo" state where orders_count is 0. Best-effort: a stats
+ * failure must never stop the marketplace loading.
+ */
+export const fetchMarketplaceSupplierStats = async () => {
+  try {
+    const { data, error } = await supabase.rpc('get_marketplace_supplier_stats');
+    if (error) throw error;
+    const map = new Map();
+    (data ?? []).forEach((r) => {
+      const orders = Number(r.orders_count) || 0;
+      const otElig = Number(r.on_time_eligible) || 0;
+      const otCount = Number(r.on_time_count) || 0;
+      map.set(r.supplier_profile_id, {
+        orders,
+        fulfilled: Number(r.orders_fulfilled) || 0,
+        onTimePct: otElig > 0 ? Math.round((otCount / otElig) * 100) : null,
+        onTimeSample: otElig,
+        responseHours: r.avg_response_hours != null ? Number(r.avg_response_hours) : null,
+        lastOrderAt: r.last_order_at || null,
+      });
+    });
+    return map;
+  } catch (err) {
+    console.warn('[marketplaceStorage] fetchMarketplaceSupplierStats (non-blocking):', err?.message);
+    return new Map();
+  }
+};
+
+/**
  * All active catalogue items for the given marketplace suppliers.
  * No supplier_profiles embed — RLS would null it out for crew; the
  * caller joins names client-side from fetchMarketplaceSuppliers().
