@@ -14,7 +14,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, X, Crosshair, MapPin } from 'lucide-react';
-import { geocodeArea, supplierPortPoints, supplierReaches, centroidOf } from './geo';
+import { geocodeArea, supplierPortPoints, supplierReaches, centroidOf, isBroadArea } from './geo';
 import './map-popover.css';
 
 const pinIcon = (reaches) => L.divIcon({
@@ -101,9 +101,18 @@ const MapPopover = ({
       }
     });
     if (queryPoint) {
-      L.marker([queryPoint.lat, queryPoint.lng], { icon: youIcon() })
-        .addTo(lg).bindTooltip('Your area', { direction: 'top', offset: [0, -8] });
-      bounds.push([queryPoint.lat, queryPoint.lng]);
+      if (isBroadArea(queryPoint)) {
+        // A country/region: draw the searched area, not a lone centre pin.
+        const b = queryPoint.bbox;
+        L.rectangle([[b.south, b.west], [b.north, b.east]], {
+          color: '#1C1B3A', weight: 1.2, opacity: 0.45, fillColor: '#1C1B3A', fillOpacity: 0.05, dashArray: '4 4',
+        }).addTo(lg);
+        bounds.push([b.south, b.west], [b.north, b.east]);
+      } else {
+        L.marker([queryPoint.lat, queryPoint.lng], { icon: youIcon() })
+          .addTo(lg).bindTooltip('Your area', { direction: 'top', offset: [0, -8] });
+        bounds.push([queryPoint.lat, queryPoint.lng]);
+      }
     }
     if (bounds.length) {
       programmaticMove.current = true;

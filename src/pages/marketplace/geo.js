@@ -33,16 +33,32 @@ export const centroidOf = (points) => {
   return { lat, lng };
 };
 
+const inBbox = (p, b) => p.lat >= b.south && p.lat <= b.north && p.lng >= b.west && p.lng <= b.east;
+
 /**
- * Does the shop reach `point` ({lat,lng})? True when any covered port is
- * within the shop's service radius. Shops whose ports we can't place are
- * excluded once a real point is in play — we can't honestly claim reach.
+ * Does the shop reach `point`? Two ways, so a precise pin and a broad
+ * area both behave sensibly:
+ *   • a covered port sits within the shop's service radius of the point
+ *     (the right test for a berth, postcode or clicked spot), OR
+ *   • a covered port falls inside the point's bounding box (the right
+ *     test when the crew typed a whole country or region — "France"
+ *     should match a Riviera shop even though its centroid is 600km off).
+ * Shops whose ports we can't place are excluded — we can't claim reach.
  */
 export const supplierReaches = (supplier, portCoords, point) => {
   const pts = supplierPortPoints(supplier, portCoords);
   if (!pts.length) return false;
   const radius = Number(supplier?.service_radius_km) || 60;
-  return pts.some((p) => haversineKm(point.lat, point.lng, p.lat, p.lng) <= radius);
+  if (pts.some((p) => haversineKm(point.lat, point.lng, p.lat, p.lng) <= radius)) return true;
+  if (point.bbox) return pts.some((p) => inBbox(p, point.bbox));
+  return false;
+};
+
+/** Is a geocoded point a broad area (country/region) rather than a spot? */
+export const isBroadArea = (point) => {
+  const b = point?.bbox;
+  if (!b) return false;
+  return Math.abs(b.north - b.south) > 0.6 || Math.abs(b.east - b.west) > 0.6;
 };
 
 /**
@@ -61,9 +77,14 @@ export async function geocodeArea(query) {
   const rows = await res.json();
   if (!Array.isArray(rows) || !rows.length) return null;
   const r = rows[0];
+  // boundingbox is [south, north, west, east] as strings.
+  const bb = Array.isArray(r.boundingbox) && r.boundingbox.length === 4
+    ? { south: +r.boundingbox[0], north: +r.boundingbox[1], west: +r.boundingbox[2], east: +r.boundingbox[3] }
+    : null;
   return {
     lat: parseFloat(r.lat),
     lng: parseFloat(r.lon),
     label: r.display_name || q,
+    bbox: bb,
   };
 }
