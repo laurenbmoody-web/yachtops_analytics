@@ -17,8 +17,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, ShoppingBasket, Store, Moon, Sun, Search,
-  CheckCircle2, Clock, Timer, PackageCheck, X, ChevronRight, Plus,
+  ArrowLeft, ShoppingBasket, Moon, Sun, Search, X, ChevronRight,
 } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -77,77 +76,6 @@ const fmtResponse = (hours) => {
   if (hours < 1) return '<1h';
   if (hours < 24) return `~${Math.round(hours)}h`;
   return `~${Math.round(hours / 24)}d`;
-};
-
-// ─────────────────────────────────────────────────────────────────────
-// i · The Providers — one storefront card.
-// A shop, not a product: logo, name, home port, the trust trio (orders
-// filled / on-time / response), and catalogue depth. Numbers come from
-// real order history; a shop with none reads "New to Cargo" rather than
-// a fake 0%.
-// ─────────────────────────────────────────────────────────────────────
-const ProviderCard = ({ supplier, stats, mine, onEnter }) => {
-  const ports = supplier.coverage_ports || [];
-  const cats = supplier.categories || [];
-  const isNew = !stats || stats.orders === 0;
-  const resp = fmtResponse(stats?.responseHours);
-
-  return (
-    <button className="mp-provcard" onClick={() => onEnter(supplier)}>
-      <div className="mp-prov-top">
-        {supplier.logo_url
-          ? <img className="mp-prov-logo" src={supplier.logo_url} alt="" loading="lazy" />
-          : <span className="mp-prov-logo ph">{(supplier.name || '?').charAt(0).toUpperCase()}</span>}
-        <div className="mp-prov-id">
-          <div className="mp-prov-name">
-            {supplier.name}
-            {supplier.verified && <span className="mp-prov-tick" title="Verified supplier">✓</span>}
-          </div>
-          <div className="mp-prov-where">
-            {[supplier.business_city, supplier.business_country].filter(Boolean).join(', ')
-              || (ports.length ? ports.slice(0, 2).join(' · ') : 'Coverage on request')}
-          </div>
-        </div>
-        {mine && <span className="mp-prov-yours">Yours</span>}
-      </div>
-
-      {cats.length > 0 && (
-        <div className="mp-prov-tags">
-          {cats.slice(0, 3).map((c) => <span key={c} className="mp-prov-tag">{c}</span>)}
-          {cats.length > 3 && <span className="mp-prov-tag more">+{cats.length - 3}</span>}
-        </div>
-      )}
-
-      <div className="mp-prov-kpis">
-        {isNew ? (
-          <div className="mp-prov-new">
-            <Store size={13} strokeWidth={1.75} />
-            New to Cargo — be their first order
-          </div>
-        ) : (
-          <>
-            <div className="mp-kpi">
-              <span className="v">{stats.fulfilled}</span>
-              <span className="l"><PackageCheck size={11} /> filled</span>
-            </div>
-            <div className="mp-kpi">
-              <span className="v">{stats.onTimePct != null ? `${stats.onTimePct}%` : '—'}</span>
-              <span className="l"><CheckCircle2 size={11} /> on time</span>
-            </div>
-            <div className="mp-kpi">
-              <span className="v">{resp || '—'}</span>
-              <span className="l"><Timer size={11} /> reply</span>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="mp-prov-foot">
-        <span className="mp-prov-count">{supplier.catalogue_count} products</span>
-        <span className="mp-prov-enter">Enter shop <ChevronRight size={14} /></span>
-      </div>
-    </button>
-  );
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -230,6 +158,7 @@ const Marketplace = () => {
   // and whether the wall's "all items" toggle is on.
   const [enteredId, setEnteredId] = useState(searchParams.get('supplier') || null);
   const [browseAll, setBrowseAll] = useState(false);
+  const [deckIndex, setDeckIndex] = useState(0); // focused shop in the coverflow
 
   // Theme — The Dark Market lives here as a switch, remembered per user.
   const [theme, setTheme] = useState(() => {
@@ -310,7 +239,7 @@ const Marketplace = () => {
     return c;
   }, [products]);
 
-  // ── Providers wall ──
+  // ── Providers (coverflow) ──
   const wallSuppliers = useMemo(() => {
     const q = provSearch.trim().toLowerCase();
     if (!q) return suppliers;
@@ -320,6 +249,25 @@ const Marketplace = () => {
       || (s.coverage_ports || []).some(p => p.toLowerCase().includes(q))
       || (s.business_city || '').toLowerCase().includes(q));
   }, [suppliers, provSearch]);
+
+  // Per-shop storefront facts, drawn from the live catalogue: product
+  // count, the busiest aisles (with a real count), and when it last
+  // moved. These are always-true numbers — the confident thing to show
+  // on a shop with no order track record yet.
+  const supplierMeta = useMemo(() => {
+    const m = new Map();
+    suppliers.forEach(s => m.set(s.id, { count: 0, cats: {}, lastUpdated: null }));
+    products.forEach(p => {
+      const e = m.get(p.supplier_id);
+      if (!e) return;
+      e.count += 1;
+      const c = p.category || 'Other';
+      e.cats[c] = (e.cats[c] || 0) + 1;
+      if (p.updated_at && (!e.lastUpdated || p.updated_at > e.lastUpdated)) e.lastUpdated = p.updated_at;
+    });
+    m.forEach(e => { e.topCats = Object.entries(e.cats).sort((a, b) => b[1] - a[1]).map(([k]) => k); });
+    return m;
+  }, [suppliers, products]);
 
   // ── Browse surface (aisles = one supplier; items = all) ──
   const ports = useMemo(() => {
@@ -465,22 +413,19 @@ const Marketplace = () => {
           {/* ── i · The Providers ── */}
           {!loading && stage === 'providers' && (
             <>
-              <div className="mp-hero">
-                <h1 className="mp-title">The <em>marketplace</em></h1>
-                <div className="mp-hero-tools">
-                  <label className="mp-searchwrap">
-                    <Search size={15} className="ic" />
-                    <input
-                      className="mp-search bare"
-                      placeholder="Search shops, ports, categories…"
-                      value={provSearch}
-                      onChange={(e) => setProvSearch(e.target.value)}
-                    />
-                  </label>
-                  <button className="mp-allitems" onClick={openAllItems}>
-                    Browse all items <ChevronRight size={14} />
-                  </button>
-                </div>
+              <div className="mp-prov-utility">
+                <label className="mp-searchwrap">
+                  <Search size={15} className="ic" />
+                  <input
+                    className="mp-search bare"
+                    placeholder="Search shops, ports, categories…"
+                    value={provSearch}
+                    onChange={(e) => { setProvSearch(e.target.value); setDeckIndex(0); }}
+                  />
+                </label>
+                <button className="mp-allitems" onClick={openAllItems}>
+                  Browse all items <ChevronRight size={14} />
+                </button>
               </div>
 
               {wallSuppliers.length === 0 ? (
@@ -489,24 +434,90 @@ const Marketplace = () => {
                     ? 'No suppliers have published catalogues yet.'
                     : 'No shops match that search.'}
                 </div>
-              ) : (
-                <div className="mp-provwall">
-                  {wallSuppliers.map(s => (
-                    <ProviderCard
-                      key={s.id}
-                      supplier={s}
-                      stats={stats.get(s.id)}
-                      mine={mySupplierIds.has(s.id)}
-                      onEnter={enterShop}
-                    />
-                  ))}
-                  <div className="mp-ghostcard" onClick={() => showToast('Supplier invites are coming soon — we’ll let you nominate the shops you already use.', 'info')}>
-                    <Plus size={18} strokeWidth={1.75} />
-                    <div className="mp-ghost-h">Invite a supplier</div>
-                    <div className="mp-ghost-s">Bring a shop you already use onto Cargo</div>
+              ) : (() => {
+                const idx = Math.min(Math.max(deckIndex, 0), wallSuppliers.length - 1);
+                const focused = wallSuppliers[idx];
+                const fmeta = supplierMeta.get(focused.id) || {};
+                const fports = focused.coverage_ports || [];
+                const left = idx > 0 ? wallSuppliers[idx - 1] : null;
+                const right = idx < wallSuppliers.length - 1 ? wallSuppliers[idx + 1] : null;
+
+                // A flanking card: a real neighbour (dimmed, clickable to
+                // rotate) or a "joining soon" placeholder that sells the
+                // network before it exists.
+                const sideCard = (sup, side) => sup ? (
+                  <button
+                    key={side}
+                    className={`mp-supcard side ${side}`}
+                    onClick={() => setDeckIndex(side === 'l' ? idx - 1 : idx + 1)}
+                  >
+                    <span className="tag">{supplierMeta.get(sup.id)?.count || 0} products</span>
+                    <div className="name">{sup.name}</div>
+                  </button>
+                ) : (
+                  <div
+                    key={side}
+                    className={`mp-supcard side ${side} ghost`}
+                    onClick={() => showToast('Supplier invites are coming soon — you’ll nominate the shops you already use.', 'info')}
+                  >
+                    <span className="tag">Joining soon</span>
+                    <div className="name">—</div>
                   </div>
-                </div>
-              )}
+                );
+
+                const tagBits = [
+                  'Provisions',
+                  fports.slice(0, 2).join(' — '),
+                ].filter(Boolean).join(' · ');
+
+                return (
+                  <>
+                    <div className="mp-deckmeta">
+                      <span><b>Shops</b> · {wallSuppliers.length}</span>
+                      <span><b>Products</b> · {products.length}</span>
+                      {fports[0] && <span><b>Port</b> · {fports[0]}</span>}
+                      <span className="live">● Live prices</span>
+                    </div>
+
+                    <h1 className="mp-deckhero">THE MARKET, <em>at your berth</em>.</h1>
+
+                    <div className="mp-deck">
+                      {sideCard(left, 'l')}
+                      <button className="mp-supcard center" onClick={() => enterShop(focused)}>
+                        <span className="tag">{tagBits}</span>
+                        <div className="name">
+                          {focused.name}
+                          {focused.verified && <span className="v"> ✓</span>}
+                          {mySupplierIds.has(focused.id) && <span className="mp-supyours">Yours</span>}
+                        </div>
+                        <div className="meta">
+                          {fmeta.count || focused.catalogue_count} products
+                          {fmeta.lastUpdated ? ` · updated ${fmtDate(fmeta.lastUpdated)}` : ''}
+                        </div>
+                        <div className="cats">
+                          {(fmeta.topCats || []).slice(0, 3).map(c => <span key={c}>{c}</span>)}
+                          {(fmeta.topCats?.length || 0) > 3 && <span>+{fmeta.topCats.length - 3}</span>}
+                        </div>
+                        <span className="enter">Enter shop →</span>
+                      </button>
+                      {sideCard(right, 'r')}
+                    </div>
+
+                    {wallSuppliers.length > 1 && (
+                      <div className="mp-deckdots">
+                        {wallSuppliers.map((s, i) => (
+                          <button
+                            key={s.id}
+                            className={i === idx ? 'on' : ''}
+                            onClick={() => setDeckIndex(i)}
+                            aria-label={`View ${s.name}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </>
           )}
 
