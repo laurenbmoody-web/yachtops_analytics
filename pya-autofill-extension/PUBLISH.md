@@ -41,8 +41,12 @@ The zip must contain: `manifest.json`, `background.js`, `content.js`, `icons/`.
      - `scripting` — "Inject the form-filler into the PYA page on user action."
      - Host `member.pya.org` — "The only site the extension fills."
    - **Data usage**: tick that you do **not** collect or sell user data.
-   - **Privacy policy URL**: host `PRIVACY.md` somewhere public and paste the URL
-     (e.g. the GitHub raw link for this file, or a `/privacy` page on the Cargo site).
+   - **Privacy policy URL**: `https://cargotechnology.netlify.app/privacy`
+     (the in-depth hosted policy page — this is what the reviewer checks; a raw
+     markdown file or GitHub link gets rejected. Note: the URL goes in the
+     **account/item privacy fields in the dashboard**, so fixing a
+     privacy-policy rejection does not require uploading a new zip — just set
+     the URL and resubmit).
 4. **Distribution** tab → **Visibility: Unlisted**.
 5. **Submit for review** (usually approved in ~1–3 business days).
 

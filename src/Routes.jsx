@@ -48,6 +48,7 @@ import PricingPage from './marketing/pages/PricingPage';
 import CheckoutPage from './marketing/pages/CheckoutPage';
 import WelcomePage from './marketing/pages/WelcomePage';
 import ContactPage from './marketing/pages/ContactPage';
+import PrivacyPolicyPage from './marketing/pages/PrivacyPolicyPage';
 import VesselSignupFlowStep1 from './pages/vessel-signup-flow-step-1';
 import VesselSettings from './pages/vessel-settings';
 import FeedbackInbox from './pages/feedback-inbox';
@@ -1090,6 +1091,9 @@ const Routes = () => {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/contact" element={<ContactPage />} />
+        {/* Public privacy policy — the URL on the Chrome Web Store listing
+            for the PYA Autofill extension. Must never require auth. */}
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
 
         {/* Public Routes */}
         <Route path="/public-landing-page" element={<PublicLandingPage />} />
