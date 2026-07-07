@@ -1570,13 +1570,20 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             // tap (collapsed by default; the KPI bar up top carries the headline).
             const TYPE_ORDER = ['seagoing', 'watchkeeping', 'standby', 'yard'];
             const capKey = (e) => `${e.vesselId}::${e.masterUserId || e.masterName || ''}`;
+            const dayGap = (aTo, bFrom) => (aTo && bFrom) ? Math.round((new Date(bFrom + 'T00:00:00') - new Date(aTo + 'T00:00:00')) / 86400000) : 0;
             const sorted = [...shown].sort((a, b) => String(a.from || '').localeCompare(String(b.from || '')));
             const periods = [];
-            let cur = null;
+            let cur = null, lastTo = null;
             sorted.forEach(e => {
               const k = capKey(e);
-              if (!cur || cur.k !== k) { cur = { k, vesselId: e.vesselId, captainId: e.masterUserId || null, captainName: e.masterName || '', entries: [] }; periods.push(cur); }
+              // Each engagement must match the Discharge Book (SDB): a change of
+              // vessel/captain, OR any gap in the dates — going on leave, or
+              // leaving the vessel and rejoining — ends one engagement and starts
+              // a new block, even on the same vessel under the same captain.
+              const broke = !cur || cur.k !== k || (e.from && lastTo && dayGap(lastTo, e.from) > 1);
+              if (broke) { cur = { k, vesselId: e.vesselId, captainId: e.masterUserId || null, captainName: e.masterName || '', entries: [] }; periods.push(cur); }
               cur.entries.push(e);
+              if (e.to) lastTo = e.to; else if (e.from) lastTo = e.from;
             });
             periods.reverse(); // newest stint first
             const openSet = openMonths ?? new Set(); // default: all collapsed
