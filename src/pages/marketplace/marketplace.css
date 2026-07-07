@@ -125,7 +125,7 @@
   height: 300px; position: relative; margin-bottom: 24px;
 }
 .mp-supcard {
-  width: 400px; height: 260px; border-radius: 18px; flex: none; position: relative; z-index: 2;
+  width: 400px; height: 272px; border-radius: 18px; flex: none; position: relative; z-index: 2;
   background: linear-gradient(135deg, #141D2E, #1E2B45); color: #fff;
   padding: 26px 28px; display: flex; flex-direction: column; text-align: left; cursor: pointer;
   border: none; box-shadow: 0 30px 60px -28px rgba(20,29,46,0.6);
@@ -187,6 +187,48 @@
 .mp-mem-empty { font-family: 'Inter', system-ui, sans-serif; font-size: 13.5px; color: rgba(255,255,255,0.72); margin-top: auto; line-height: 1.5; max-width: 26ch; }
 .mp-flip-hint { font-family: 'Inter', system-ui, sans-serif; position: absolute; right: 24px; bottom: 22px; font-size: 11px; font-weight: 600; color: #F0A277; }
 @media (prefers-reduced-motion: reduce) { .mp-flip-inner { transition: none; } }
+
+/* Storefront front — logo, directory identity, stars, tags, contact */
+.mp-face.mp-sf { padding: 22px 24px; }
+.mp-sf-top { display: flex; gap: 14px; }
+.mp-sf-logo {
+  width: 60px; height: 60px; border-radius: 13px; flex: none; overflow: hidden;
+  background: linear-gradient(150deg, #12726A, #0B4A45); color: #EFE6D2;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 22px;
+}
+.mp-sf-logo img { width: 100%; height: 100%; object-fit: cover; }
+.mp-sf-id { min-width: 0; flex: 1; }
+.mp-sf-nm { font-family: 'Inter', system-ui, sans-serif; font-weight: 800; font-size: 18.5px; letter-spacing: -0.2px; text-transform: uppercase; line-height: 1.05; color: #F4F1EA; }
+.mp-sf-loc { font-family: 'Inter', system-ui, sans-serif; font-size: 11.5px; color: rgba(255,255,255,0.62); margin-top: 6px; }
+.mp-sf-trust { font-family: 'Inter', system-ui, sans-serif; display: flex; align-items: center; gap: 6px; margin-top: 7px; font-size: 11px; color: rgba(255,255,255,0.64); }
+.mp-sf-trust b { color: #F4F1EA; font-weight: 700; }
+.mp-sf-sep { color: rgba(255,255,255,0.38); }
+.mp-sf-unrated { color: rgba(255,255,255,0.48); }
+.mp-sf-tags { display: flex; gap: 5px; margin-top: 11px; flex-wrap: wrap; }
+.mp-sf-tags span { font-family: 'Inter', system-ui, sans-serif; font-size: 9.5px; padding: 2px 9px; border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; color: rgba(255,255,255,0.72); white-space: nowrap; }
+.mp-sf-div { height: 1px; background: rgba(255,255,255,0.13); margin: 14px 0; }
+.mp-sf-contact { display: flex; align-items: center; gap: 11px; margin-top: auto; }
+.mp-sf-av { width: 36px; height: 36px; border-radius: 50%; flex: none; background: #2C3A52; color: #CDD8E6; display: flex; align-items: center; justify-content: center; font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 700; }
+.mp-sf-who { display: flex; flex-direction: column; min-width: 0; }
+.mp-sf-who .n { font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 600; color: #F4F1EA; }
+.mp-sf-who .r { font-family: 'Inter', system-ui, sans-serif; font-size: 10.5px; color: rgba(255,255,255,0.5); text-transform: capitalize; }
+.mp-sf-lines { margin-left: auto; text-align: right; font-family: ui-monospace, monospace; font-size: 10px; color: rgba(255,255,255,0.58); line-height: 1.7; display: flex; flex-direction: column; max-width: 54%; }
+.mp-sf-lines span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Star row — read-only or a picker */
+.mp-stars { display: inline-flex; gap: 1px; line-height: 1; }
+.mp-stars span { color: rgba(255,255,255,0.22); }
+.mp-stars span.on { color: #E7B24C; }
+.mp-stars.pick button { background: none; border: none; padding: 0 1px; cursor: pointer; font-size: inherit; line-height: 1; color: rgba(255,255,255,0.26); }
+.mp-stars.pick button.on { color: #E7B24C; }
+.mp-stars.pick:hover button { color: #E7B24C; }
+.mp-stars.pick button:hover ~ button { color: rgba(255,255,255,0.26); }
+
+/* Rate control in the aisles band */
+.mp-shop-rate { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.mp-shop-rate .rt { font-family: 'Inter', system-ui, sans-serif; font-size: 11.5px; color: rgba(255,255,255,0.6); }
+.mp-shop-rate .mine { color: #F0A277; }
 
 .mp-deckdots { display: flex; justify-content: center; gap: 8px; margin-bottom: 4px; }
 .mp-deckdots button { width: 7px; height: 7px; border-radius: 999px; background: var(--border); border: none; padding: 0; cursor: pointer; }
