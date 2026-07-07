@@ -12,7 +12,7 @@
 // list below still filters by area.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, X, Crosshair, MapPin, ChevronRight } from 'lucide-react';
+import { Search, X, Crosshair, MapPin, ChevronRight, Plus } from 'lucide-react';
 import { supplierPortPoints, supplierReaches, centroidOf, isBroadArea } from './geo';
 import { loadGoogleMaps, hasGoogleKey, MAP_STYLE_LIGHT, MAP_STYLE_DARK } from './gmaps';
 import './map-popover.css';
@@ -20,6 +20,7 @@ import './map-popover.css';
 const MapPopover = ({
   open, onClose, suppliers, portCoords, theme,
   queryValue, onQueryChange, queryPoint, onSetPoint, onEnterShop,
+  inviteSuppliers = [], onInvite,
 }) => {
   const containerRef = useRef(null);
   const inputRef = useRef(null);
@@ -29,12 +30,17 @@ const MapPopover = ({
   const overlaysRef = useRef([]);
   const setPointRef = useRef(onSetPoint);
   const programmatic = useRef(false);
+  const inviteCacheRef = useRef(new Map()); // supplier id → {lat,lng} | null
   const [mapError, setMapError] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoErr, setGeoErr] = useState(null);
   const [canSearchArea, setCanSearchArea] = useState(false);
+  const [inviteCoords, setInviteCoords] = useState(() => new Map());
+  const [mapReady, setMapReady] = useState(false);
 
+  const onInviteRef = useRef(onInvite);
   useEffect(() => { setPointRef.current = onSetPoint; }, [onSetPoint]);
+  useEffect(() => { onInviteRef.current = onInvite; }, [onInvite]);
 
   const bboxOf = (vp) => (vp ? {
     south: vp.getSouthWest().lat(), north: vp.getNorthEast().lat(),
@@ -57,6 +63,7 @@ const MapPopover = ({
       });
       mapRef.current = map;
       geocoderRef.current = new g.Geocoder();
+      setMapReady(true);
 
       map.addListener('click', (e) => setPointRef.current({ lat: e.latLng.lat(), lng: e.latLng.lng(), label: 'Dropped pin' }));
       map.addListener('dragend', () => setCanSearchArea(true));
@@ -72,6 +79,7 @@ const MapPopover = ({
       if (g && mapRef.current) g.event.clearInstanceListeners(mapRef.current);
       mapRef.current = null;
       geocoderRef.current = null;
+      setMapReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -81,11 +89,46 @@ const MapPopover = ({
     if (mapRef.current) mapRef.current.setOptions({ styles: theme === 'dark' ? MAP_STYLE_DARK : MAP_STYLE_LIGHT });
   }, [theme]);
 
+  // Resolve a coordinate for each invite (directory) supplier: a covered
+  // port we know, else geocode its city. Cached so we never re-geocode.
+  useEffect(() => {
+    if (!open || !mapReady || !inviteSuppliers.length) return undefined;
+    let cancelled = false;
+    const cache = inviteCacheRef.current;
+    const geocodeCity = (q) => new Promise((resolve) => {
+      const gc = geocoderRef.current;
+      if (!gc) { resolve(null); return; }
+      gc.geocode({ address: q }, (res, status) => {
+        if (status === 'OK' && res && res[0]) {
+          const l = res[0].geometry.location;
+          resolve({ lat: l.lat(), lng: l.lng() });
+        } else resolve(null);
+      });
+    });
+    (async () => {
+      let changed = false;
+      for (const s of inviteSuppliers) {
+        if (cache.has(s.id)) continue;
+        const port = (s.coverage_ports || []).map((n) => portCoords.get(String(n).toLowerCase())).find(Boolean);
+        if (port) { cache.set(s.id, { lat: port.lat, lng: port.lng }); changed = true; continue; }
+        const city = (s.business_city || '').trim();
+        if (!city || !geocoderRef.current) { cache.set(s.id, null); changed = true; continue; }
+        // eslint-disable-next-line no-await-in-loop
+        const pt = await geocodeCity(`${city}${s.business_country ? `, ${s.business_country}` : ''}`);
+        if (cancelled) return;
+        cache.set(s.id, pt); changed = true;
+      }
+      if (changed && !cancelled) setInviteCoords(new Map(cache));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mapReady, inviteSuppliers, portCoords]);
+
   // Draw shops (one pin each) + reach rings + the "you" marker / area box.
   useEffect(() => {
     const g = gRef.current;
     const map = mapRef.current;
-    if (!open || !g || !map) return;
+    if (!open || !mapReady || !g || !map) return;
     overlaysRef.current.forEach((o) => o.setMap && o.setMap(null));
     const overlays = [];
     const bounds = new g.LatLngBounds();
@@ -132,10 +175,23 @@ const MapPopover = ({
       }
     }
 
+    // Invite (directory) suppliers not yet on Cargo — faint ghost pins.
+    inviteSuppliers.forEach((s) => {
+      const c = inviteCoords.get(s.id);
+      if (!c) return;
+      const m = new g.Marker({
+        map, position: { lat: c.lat, lng: c.lng }, title: `${s.name} — invite to Cargo`,
+        icon: { path: g.SymbolPath.CIRCLE, scale: 6, fillColor: '#B8B3A8', fillOpacity: 0.5, strokeColor: '#8B8478', strokeWeight: 1.5 },
+        zIndex: 1,
+      });
+      m.addListener('click', () => onInviteRef.current && onInviteRef.current(s));
+      overlays.push(m);
+    });
+
     overlaysRef.current = overlays;
     if (any) { programmatic.current = true; map.fitBounds(bounds, 48); }
     setCanSearchArea(false);
-  }, [open, suppliers, portCoords, queryPoint]);
+  }, [open, mapReady, suppliers, portCoords, queryPoint, inviteSuppliers, inviteCoords]);
 
   const runSearch = () => {
     const q = (queryValue || '').trim();
@@ -252,6 +308,23 @@ const MapPopover = ({
                 <div className="mpm-none">No suppliers reach there yet — invite the ones you use and they’ll appear here.</div>
               )}
             </div>
+
+            {inviteSuppliers.length > 0 && (
+              <div className="mpm-invite">
+                <div className="mpm-invite-h">Not on Cargo yet</div>
+                <div className="mpm-invite-list">
+                  {inviteSuppliers.map((s) => (
+                    <button key={s.id} className="mpm-inviterow" onClick={() => onInvite && onInvite(s)} title={`Invite ${s.name} to Cargo`}>
+                      <span className="mpm-inv-main">
+                        <span className="nm">{s.name}</span>
+                        {s.business_city && <span className="where">{s.business_city}</span>}
+                      </span>
+                      <span className="add"><Plus size={14} /></span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

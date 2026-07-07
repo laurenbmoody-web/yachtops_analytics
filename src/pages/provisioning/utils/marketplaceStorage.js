@@ -90,6 +90,28 @@ export const fetchPortLocations = async () => {
   }
 };
 
+/**
+ * This tenant's own directory suppliers — the vendors they've saved.
+ * The caller removes those already live on the marketplace to get the
+ * "not on Cargo yet" set, which the map shows as invite pins. Best
+ * effort: RLS or a missing directory just yields no invite layer.
+ */
+export const fetchDirectorySuppliers = async (tenantId) => {
+  if (!tenantId) return [];
+  try {
+    const { data, error } = await supabase
+      .from('supplier_profiles')
+      .select('id, name, business_city, business_country, coverage_ports')
+      .eq('tenant_id', tenantId)
+      .is('archived_at', null);
+    if (error) throw error;
+    return data ?? [];
+  } catch (err) {
+    console.warn('[marketplaceStorage] fetchDirectorySuppliers (non-blocking):', err?.message);
+    return [];
+  }
+};
+
 /** Which marketplace suppliers this tenant already works with. */
 export const fetchTenantSupplierIds = async (tenantId) => {
   if (!tenantId) return new Set();

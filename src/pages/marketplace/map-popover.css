@@ -77,10 +77,10 @@
 .mpm-mapfail { height: 388px; border-radius: 12px; border: 1px dashed #E8E6DF; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #8B8478; font-size: 13px; }
 
 /* Results rail */
-.mpm-side { display: flex; flex-direction: column; min-width: 0; }
-.mpm-count { font-size: 12.5px; font-weight: 400; color: #8B8478; margin: 2px 0 10px; }
+.mpm-side { display: flex; flex-direction: column; min-width: 0; max-height: 388px; }
+.mpm-count { font-size: 12.5px; font-weight: 400; color: #8B8478; margin: 2px 0 10px; flex: none; }
 .mpm-count b { color: #1C1B3A; font-weight: 600; font-variant-numeric: tabular-nums; }
-.mpm-list { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 388px; padding-right: 2px; }
+.mpm-list { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; flex: 1 1 auto; min-height: 40px; padding-right: 2px; }
 .mpm-shop {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
   text-align: left; cursor: pointer; padding: 10px 13px; border-radius: 11px;
@@ -97,6 +97,29 @@
 .mpm-shop .go { color: #C65A1A; flex: none; opacity: 0; transform: translateX(-3px); transition: opacity .15s, transform .15s; }
 .mpm-shop:hover .go { opacity: 1; transform: none; }
 .mpm-none { padding: 16px 4px; font-size: 12.5px; font-weight: 400; color: #8B8478; line-height: 1.5; }
+
+/* Invite (directory) suppliers — the growth loop, in the rail */
+.mpm-invite { flex: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #F0F1F5; display: flex; flex-direction: column; min-height: 0; }
+.mpm-invite-h { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-bottom: 7px; }
+.mpm-invite-list { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; max-height: 118px; }
+.mpm-inviterow {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+  text-align: left; cursor: pointer; padding: 7px 10px; border-radius: 9px;
+  border: 1px dashed #E3E0D8; background: transparent; font-family: inherit; transition: border-color .15s, background .15s;
+}
+.mpm-inviterow:hover { border-color: #C65A1A; background: #FBEFE9; }
+.mpm-inv-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mpm-inviterow .nm { font-size: 13px; font-weight: 600; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mpm-inviterow:hover .nm { color: #1C1B3A; }
+.mpm-inviterow .where { font-size: 10.5px; color: #AEB4C2; }
+.mpm-inviterow .add { color: #C65A1A; flex: none; display: inline-flex; }
+
+.mpm-panel.dark .mpm-invite { border-color: #272338; }
+.mpm-panel.dark .mpm-invite-h { color: #6C6680; }
+.mpm-panel.dark .mpm-inviterow { border-color: #302C42; }
+.mpm-panel.dark .mpm-inviterow:hover { border-color: #5A3A24; background: #3A2519; }
+.mpm-panel.dark .mpm-inviterow .nm { color: #A9A3B6; }
+.mpm-panel.dark .mpm-inviterow:hover .nm { color: #F2EFE9; }
 
 .mpm-panel.dark .mpm-count { color: #A9A3B6; }
 .mpm-panel.dark .mpm-count b { color: #F2EFE9; }
