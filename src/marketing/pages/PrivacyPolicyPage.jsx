@@ -103,7 +103,32 @@ const PrivacyPolicyPage = () => {
         </p>
       </Section>
 
-      <Section id="extension" label="02 — Browser extension" title="Cargo → PYA Autofill extension">
+      <Section id="web-app" label="02 — Web application" title="The Cargo web application">
+        <p className="mkt-dmsans" style={bodyStyle}>
+          The Cargo web application is the vessel-operations platform where crews manage
+          inventory, provisioning, crew records, guest preferences, trips, and sea time.
+          Using it requires an account, and it necessarily stores the data your vessel puts
+          into it. The PYA Autofill browser extension, covered in the next section, is a
+          separate product that stores nothing.
+        </p>
+        <h3 className="mkt-archivo" style={h3Style}>What we store</h3>
+        <ul style={listStyle}>
+          <li className="mkt-dmsans" style={listItemStyle}><strong>Account data</strong> — your name, email address, role, and authentication credentials (passwords are hashed; we never see them in plain text).</li>
+          <li className="mkt-dmsans" style={listItemStyle}><strong>Operational data</strong> — the records your vessel creates in Cargo: inventory, provisioning orders, crew and rota records, guest preference profiles, sea-service records, documents, and similar.</li>
+          <li className="mkt-dmsans" style={listItemStyle}><strong>Service records</strong> — technical logs needed to run and secure the service, such as sign-in events.</li>
+        </ul>
+        <h3 className="mkt-archivo" style={h3Style}>How it's used and kept</h3>
+        <ul style={listStyle}>
+          <li className="mkt-dmsans" style={listItemStyle}>Data is used only to provide the Cargo service to you and your vessel. We do not sell it, rent it, or use it for advertising.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Every vessel operates in isolation — your vessel's data is separated at the database level with row-level security, not just behind a login screen.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Data is hosted with trusted infrastructure providers (Supabase for the database and authentication, Netlify for the application), who process it on our behalf under their own security and data-processing commitments.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Emails we send (invites, order confirmations, notifications) are delivered through a transactional email provider using the minimum data required — typically your name and email address.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Payments are handled by Stripe; card details go directly to Stripe and never touch our servers.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Account and vessel data is kept while the account is active, and deleted or anonymised on verified request or account closure, except where we must keep it to meet legal obligations.</li>
+        </ul>
+      </Section>
+
+      <Section id="extension" label="03 — Browser extension" title="Cargo → PYA Autofill extension">
         <p className="mkt-dmsans" style={bodyStyle}>
           The extension has a single purpose: it fills the PYA Sea Service Testimonial form
           on <strong>member.pya.org</strong> with the sea-service record you copied from
@@ -181,30 +206,6 @@ const PrivacyPolicyPage = () => {
           None. The extension retains no data between fills. Uninstalling it removes the
           extension code; there is no stored data to remove.
         </p>
-      </Section>
-
-      <Section id="web-app" label="03 — Web application" title="The Cargo web application">
-        <p className="mkt-dmsans" style={bodyStyle}>
-          The Cargo web application is a separate product from the extension: it is the
-          vessel-operations platform where crews manage inventory, provisioning, crew
-          records, guest preferences, trips, and sea time. Using it requires an account, and
-          it necessarily stores the data your vessel puts into it.
-        </p>
-        <h3 className="mkt-archivo" style={h3Style}>What we store</h3>
-        <ul style={listStyle}>
-          <li className="mkt-dmsans" style={listItemStyle}><strong>Account data</strong> — your name, email address, role, and authentication credentials (passwords are hashed; we never see them in plain text).</li>
-          <li className="mkt-dmsans" style={listItemStyle}><strong>Operational data</strong> — the records your vessel creates in Cargo: inventory, provisioning orders, crew and rota records, guest preference profiles, sea-service records, documents, and similar.</li>
-          <li className="mkt-dmsans" style={listItemStyle}><strong>Service records</strong> — technical logs needed to run and secure the service, such as sign-in events.</li>
-        </ul>
-        <h3 className="mkt-archivo" style={h3Style}>How it's used and kept</h3>
-        <ul style={listStyle}>
-          <li className="mkt-dmsans" style={listItemStyle}>Data is used only to provide the Cargo service to you and your vessel. We do not sell it, rent it, or use it for advertising.</li>
-          <li className="mkt-dmsans" style={listItemStyle}>Every vessel operates in isolation — your vessel's data is separated at the database level with row-level security, not just behind a login screen.</li>
-          <li className="mkt-dmsans" style={listItemStyle}>Data is hosted with trusted infrastructure providers (Supabase for the database and authentication, Netlify for the application), who process it on our behalf under their own security and data-processing commitments.</li>
-          <li className="mkt-dmsans" style={listItemStyle}>Emails we send (invites, order confirmations, notifications) are delivered through a transactional email provider using the minimum data required — typically your name and email address.</li>
-          <li className="mkt-dmsans" style={listItemStyle}>Payments are handled by Stripe; card details go directly to Stripe and never touch our servers.</li>
-          <li className="mkt-dmsans" style={listItemStyle}>Account and vessel data is kept while the account is active, and deleted or anonymised on verified request or account closure, except where we must keep it to meet legal obligations.</li>
-        </ul>
       </Section>
 
       <Section id="your-rights" label="04" title="Your rights">
