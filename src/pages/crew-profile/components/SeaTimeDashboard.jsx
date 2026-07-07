@@ -1856,12 +1856,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         <div className="std-dossier">
           <div className="std-dossier-h">
             <div>
-              <h3>{interiorPathway ? 'Purser service record' : SHOW_SIGNOFF ? 'Sea Service Testimonial Pack' : 'Sea Service Record'}</h3>
+              <h3>{interiorPathway ? 'Get your service signed off' : SHOW_SIGNOFF ? 'Sea Service Testimonial Pack' : 'Get your sea time signed off'}</h3>
               <div className="sub">{interiorPathway
-                ? 'Your compiled senior yacht service, ready for the PYA to verify for your IAMI GUEST Yacht Purser CoC — submitted alongside your guest-on days and GUEST course certificates.'
+                ? 'Cargo compiles your senior yacht service and readies it for the PYA to verify for your IAMI GUEST Yacht Purser CoC — submitted alongside your guest-on days and GUEST course certificates.'
                 : SHOW_SIGNOFF
                   ? `Your sea service, confirmed by each ship’s ${signerWord} — use it to complete your verifying organisation’s submission, or attach it as supporting evidence.`
-                  : `Your compiled sea service, ready to export for PYA or Nautilus to verify. They issue the testimonial your ${signerWord} signs — Cargo just gets your record right first.`}</div>
+                  : `Cargo compiles your sea time and pre-fills your verifying organisation’s forms — so your ${signerWord} just reviews and signs. We only speed up the paperwork; the organisation verifies and holds the record.`}</div>
             </div>
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
@@ -1875,10 +1875,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             {/* 01 Validate */}
             <div className="std-fstep">
               <div className="std-fnum">01</div>
-              <div>
-                <div className="std-fhead">
-                  <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{passed} of {total} cleared</span>
-                </div>
+              <div className="std-fbody">
+                <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{passed} of {total} cleared</span>
                 <div className="std-ftitle">Every rule must clear{cert ? <span className="std-fagainst"> · checked against {cert.short}</span> : ''}</div>
                 <div className="std-fprog"><i className="std-grow" style={{ display: 'block', height: '100%', width: `${readinessPct}%`, background: canGenerate ? '#5E8E6F' : '#C65A1A', borderRadius: 999 }} /></div>
                 <div className="std-chks">
@@ -1922,11 +1920,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             {SHOW_SIGNOFF && (
             <div className="std-fstep" id="std-verify">
               <div className="std-fnum">03</div>
-              <div>
-                <div className="std-fhead">
-                  <span className="std-flabel">Get each ship verified</span>
-                  <span className="std-fchip" style={{ color: '#fff', background: allAttested ? '#5E8E6F' : '#C65A1A' }}>{attestedCount} of {recVessels.length} verified</span>
-                </div>
+              <div className="std-fbody">
+                <span className="std-fchip" style={{ color: '#fff', background: allAttested ? '#5E8E6F' : '#C65A1A' }}>{attestedCount} of {recVessels.length} verified</span>
                 <div className="std-ftitle">Your service is confirmed by each ship’s captain
                   <span className="std-fhelp" tabIndex={0} role="note" aria-label="How each period is confirmed">
                     <Icon name="Info" size={15} />
@@ -2014,10 +2009,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             {!SHOW_SIGNOFF && (
               <div className="std-fstep" id="std-verify">
                 <div className="std-fnum">03</div>
-                <div>
-                  <div className="std-fhead">
-                    <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{canGenerate ? 'Ready to export' : 'Locked'}</span>
-                  </div>
+                <div className="std-fbody">
+                  <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{canGenerate ? 'Ready to export' : 'Locked'}</span>
                   <div className="std-ftitle">Hand your record to {vp.short}</div>
                   {!canGenerate && (
                     <div className="std-fnote" style={{ color: '#A32D2D' }}>
