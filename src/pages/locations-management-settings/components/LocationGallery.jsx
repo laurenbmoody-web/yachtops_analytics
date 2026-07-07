@@ -79,12 +79,11 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
   const [view, setView] = useState(() => (typeof localStorage !== 'undefined' && localStorage.getItem('lg-view')) || 'static');
   const [edit, setEdit] = useState(null); // {mode, id, value, error, saving}
   const [menu, setMenu] = useState(null); // `deck:${id}` | `zone:${id}`
-  const [collapsed, setCollapsed] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('lg-collapsed') || '[]')); } catch { return new Set(); }
-  });
+  const [collapsed, setCollapsed] = useState(() => new Set());
   const [dragId, setDragId] = useState(null);
   const rootRef = useRef(null);
   const dataRef = useRef(null);
+  const initedRef = useRef(false);
   const dragRef = useRef(null);   // {level, id, parentId}
   const grabRef = useRef(false);  // true only while a grip is held
 
@@ -96,6 +95,15 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // collapse every deck by default when the section first opens
+  useEffect(() => {
+    if (!data || initedRef.current) return;
+    if (data.decks && data.decks.length) {
+      initedRef.current = true;
+      setCollapsed(new Set(data.decks.map((d) => d.id)));
+    }
+  }, [data]);
 
   // report stats up (e.g. to the Vessel Hub masthead dateline)
   useEffect(() => {
@@ -129,7 +137,6 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
   const toggleCollapse = (id) => setCollapsed((prev) => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
-    try { localStorage.setItem('lg-collapsed', JSON.stringify([...next])); } catch { /* ignore */ }
     return next;
   });
 

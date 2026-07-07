@@ -15,6 +15,7 @@ import LocationsManagementSettings from '../locations-management-settings';
 import RoleManagement from '../crew-management/components/RoleManagement';
 import { useAuth } from '../../contexts/AuthContext';
 import { logActivity } from '../../utils/activityStorage';
+import '../../styles/editorial.css';
 import './vessel-hub.css';
 
 // Field-label hover/focus tooltip. Pure CSS (not the native `title`, which is
@@ -1428,22 +1429,21 @@ const VesselSettings = () => {
     <div className="vh-page min-h-screen">
       <Header />
       <div className="w-full px-8 py-6" style={{ paddingTop: 28, maxWidth: 1560, margin: '0 auto' }}>
-        {/* Editorial masthead — kicker + serif title with italic accent */}
+        <button className="vh-back" onClick={() => navigate('/dashboard')}>
+          <Icon name="ChevronLeft" size={16} /> Back to Dashboard
+        </button>
+        {/* Editorial masthead — site-standard meta strip + uppercase serif greeting */}
         <div className="vh-mast">
-          <span className="vh-kicker">Vessel Hub</span>
           {activeSection === 'location-management' && locStats && (
-            <div className="vh-stats">
-              <div className="s cov">
-                <span className="sk">Scanned</span>
-                <span className="sv">{locStats.scanned} / {locStats.total}</span>
-                <span className="sbar"><i style={{ width: `${locStats.total ? Math.round((locStats.scanned / locStats.total) * 100) : 0}%` }} /></span>
-              </div>
-              <div className="s"><span className="sk">Decks</span><span className="sv">{locStats.decks}</span></div>
-              <div className="s"><span className="sk">Zones</span><span className="sv">{locStats.zones}</span></div>
-              <div className="s"><span className="sk">Spaces</span><span className="sv">{locStats.total}</span></div>
+            <div className="editorial-meta">
+              <span className="dot">•</span>
+              <span>Scanned {locStats.scanned}/{locStats.total}</span>
+              <span className="bar" /><span>{locStats.decks} Decks</span>
+              <span className="bar" /><span>{locStats.zones} Zones</span>
+              <span className="bar" /><span>{locStats.total} Spaces</span>
             </div>
           )}
-          <h1 className="vh-h1">{titleLead ? <>{titleLead} </> : null}<em>{titleAccent}</em></h1>
+          <h1 className="editorial-greeting vh-greeting">{titleLead ? <>{titleLead} </> : null}<em>{titleAccent}</em><span className="period">.</span></h1>
         </div>
 
         {/* Hub Layout — boxless editorial rail + content */}
