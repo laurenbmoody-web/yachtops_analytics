@@ -2018,7 +2018,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className="std-fnum">03</div>
                 <div>
                   <div className="std-fhead">
-                    <span className="std-flabel">Export &amp; submit · for {vp.name}</span>
+                    {verifier === 'pya' ? <span className="std-flabel">Auto-fill your PYA SST</span> : <span className="std-flabel">Export &amp; submit · for {vp.name}</span>}
                     <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{canGenerate ? 'Ready to export' : 'Locked'}</span>
                   </div>
                   <div className="std-ftitle">Hand your record to {vp.short}</div>
@@ -2030,7 +2030,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   {interiorPathway ? (
                     <div className="std-export-instr">Export your record below, then submit it to the PYA with your guest-on days, GUEST certificates and ID for the IAMI GUEST Yacht Purser CoC.</div>
                   ) : verifier === 'pya' ? (
-                    <div className="std-export-instr">Copy for PYA, then let the Cargo → PYA extension fill your member profile — one testimonial per captain to e-sign.</div>
+                    <div className="std-export-instr">Download the Cargo → PYA extension and auto-fill your PYA Sea Service Testimonial — one per captain to e-sign.</div>
                   ) : (
                     <div className="std-export-instr">{vp.instructions}</div>
                   )}
@@ -2038,9 +2038,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     <div className="std-foot" style={{ padding: '10px 0 0' }}>No Cargo-tracked service to export yet — it auto-logs from your current vessel. You can still export your full record as CSV below.</div>
                   ) : (
                     <div className="std-spells">
-                      {verifier === 'pya' ? (
-                        <div className="std-spells-lbl">Copy for PYA on a record, then click Fill from Cargo on the PYA form. Manual &amp; off-Cargo days are excluded.</div>
-                      ) : (
+                      {verifier !== 'pya' && (
                         <div className="std-spells-lbl">{interiorPathway
                           ? 'Your service under each captain, ready for the PYA to verify. Manual & off-Cargo days are excluded.'
                           : `One testimonial per ${signerWord} — each endorses only the dates they covered. Manual & off-Cargo days are excluded.`}</div>
@@ -2056,9 +2054,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                               ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
                               : (verifier === 'transport_malta' && (family === 'DECK' || family === 'ENGINE' || family === 'ETO'))
                                 ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
-                                : ((verifier === 'mca' || verifier === 'pya') && !interiorPathway)
-                                  ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellRecord(s)}><Icon name="FileText" size={15} /> {verifier === 'mca' ? 'Testimonial · MSN 1858 (PDF)' : 'Sea service record (PDF)'}</button>
-                                  : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
+                                : (verifier === 'mca' && !interiorPathway)
+                                  ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellRecord(s)}><Icon name="FileText" size={15} /> Testimonial · MSN 1858 (PDF)</button>
+                                  : verifier === 'pya' ? null
+                                    : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
                             {verifier === 'pya' && (
                               <button className="std-dl" disabled={!canGenerate} style={{ background: '#fff', color: canGenerate ? '#1C1B3A' : '#A6A199', border: '1px solid #E6E8EC', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => canGenerate && onCopySpellForPya(s)} title="Copy this record's details for the PYA autofill bookmarklet"><Icon name="Copy" size={15} /> Copy for PYA</button>
                             )}
@@ -2069,7 +2068,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   )}
                   <div className="std-export-actions">
                     <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Service data (CSV)</button>
-                    <span className="std-fee">{vp.fee}</span>
+                    {verifier !== 'pya' && <span className="std-fee">{vp.fee}</span>}
                   </div>
                 </div>
               </div>
