@@ -39,7 +39,7 @@
   background: #FBEFE9; color: #C65A1A; border: 1px solid #F0D6C6; border-radius: 999px;
   padding: 3px 5px 3px 11px; font-size: 12.5px; font-weight: 600; white-space: nowrap; max-width: 200px;
 }
-.mpm-chip button { border: none; background: none; color: #C65A1A; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 3px; border-radius: 999px; }
+.mpm-chip button { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: none; background: none; color: #C65A1A; cursor: pointer; font-size: 15px; line-height: 1; padding: 0; border-radius: 999px; }
 .mpm-chip button:hover { background: rgba(198, 90, 26, 0.16); }
 .mpm-panel.dark .mpm-chip { background: #3A2519; color: #F0A277; border-color: #5A3A24; }
 .mpm-panel.dark .mpm-chip button { color: #F0A277; }
@@ -78,9 +78,10 @@
 
 /* Results rail */
 .mpm-side { display: flex; flex-direction: column; min-width: 0; max-height: 388px; }
-.mpm-count { font-size: 12.5px; font-weight: 400; color: #8B8478; margin: 2px 0 10px; flex: none; }
-.mpm-count b { color: #1C1B3A; font-weight: 600; font-variant-numeric: tabular-nums; }
-.mpm-list { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; flex: 1 1 auto; min-height: 40px; padding-right: 2px; }
+.mpm-count { font-size: 12.5px; font-weight: 500; color: #6B7280; margin: 2px 0 10px; flex: none; font-variant-numeric: tabular-nums; }
+/* One scroll region for the whole rail — reaching list + invite — so nothing clips mid-row */
+.mpm-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding-right: 3px; }
+.mpm-list { display: flex; flex-direction: column; gap: 5px; }
 .mpm-shop {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
   text-align: left; cursor: pointer; padding: 10px 13px; border-radius: 11px;
@@ -99,9 +100,10 @@
 .mpm-none { padding: 16px 4px; font-size: 12.5px; font-weight: 400; color: #8B8478; line-height: 1.5; }
 
 /* Invite (directory) suppliers — the growth loop, in the rail */
-.mpm-invite { flex: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #F0F1F5; display: flex; flex-direction: column; min-height: 0; }
+.mpm-invite { flex: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #F0F1F5; display: flex; flex-direction: column; }
 .mpm-invite-h { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-bottom: 7px; }
-.mpm-invite-list { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; max-height: 118px; }
+.mpm-invite-list { display: flex; flex-direction: column; gap: 3px; }
+.mpm-invite-more { font-size: 11px; font-weight: 400; color: #AEB4C2; padding: 8px 4px 2px; }
 .mpm-inviterow {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
   text-align: left; cursor: pointer; padding: 7px 10px; border-radius: 9px;
