@@ -11,7 +11,7 @@ import {
 
 const SHOW_MAX = 12;
 
-export default function PinLocation({ hotspot, canManage, tenantId, onLocationChanged }) {
+export default function PinLocation({ hotspot, canManage, tenantId, onLocationChanged, pickSignal = 0 }) {
   const [location, setLocation] = useState(null);
   const [items, setItems] = useState(null); // null = loading
   const [picking, setPicking] = useState(false);
@@ -43,6 +43,12 @@ export default function PinLocation({ hotspot, canManage, tenantId, onLocationCh
     })();
     return () => { cancelled = true; };
   }, [hotspot?.id, hotspot?.storage_location_id, tenantId]);
+
+  // The header's "+ Link inventory location" affordance opens the picker.
+  useEffect(() => {
+    if (pickSignal > 0 && !hotspot?.storage_location_id) setPicking(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickSignal]);
 
   // Debounced location search while picking.
   useEffect(() => {
@@ -119,15 +125,43 @@ export default function PinLocation({ hotspot, canManage, tenantId, onLocationCh
           {items !== null && items.length === 0 && <p className="vm-payload-empty">Nothing recorded here in inventory.</p>}
           {items !== null && items.length > 0 && (
             <div className="vm-cupboard-items">
-              {(showAll ? items : items.slice(0, SHOW_MAX)).map((i) => (
-                <button key={i.id} className="vm-cupboard-item" onClick={() => navigate(`/inventory/item/${i.id}`)}>
-                  <span className="vm-cupboard-item-name">{i.name}</span>
-                  <span className="vm-cupboard-item-qty">
-                    {i.quantity != null ? `${i.quantity}${i.unit ? ` ${i.unit}` : ''}` : ''}
-                  </span>
-                  <span className="vm-cupboard-item-go" aria-hidden="true">›</span>
-                </button>
-              ))}
+              {(() => {
+                // Group by the level below the linked location — shelf,
+                // container, "Shelf 2 > Blue tub" — so the list reads the
+                // way the cupboard actually looks. Ungrouped items first.
+                const S = (location.sub_location || '').trim();
+                const groups = new Map();
+                for (const i of items) {
+                  const isub = (i.sub_location || '').trim();
+                  let rest = '';
+                  if (S && isub.startsWith(`${S} > `)) rest = isub.slice(S.length + 3);
+                  else if (!S) rest = isub;
+                  if (!groups.has(rest)) groups.set(rest, []);
+                  groups.get(rest).push(i);
+                }
+                const ordered = [...groups.entries()].sort(([a], [b]) =>
+                  (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b)));
+                let budget = showAll ? Infinity : SHOW_MAX;
+                const out = [];
+                for (const [rest, list] of ordered) {
+                  if (budget <= 0) break;
+                  if (rest) out.push(<p key={`shelf-${rest}`} className="vm-cupboard-shelf">{rest}</p>);
+                  for (const i of list) {
+                    if (budget <= 0) break;
+                    budget -= 1;
+                    out.push(
+                      <button key={i.id} className="vm-cupboard-item" onClick={() => navigate(`/inventory/item/${i.id}`)}>
+                        <span className="vm-cupboard-item-name">{i.name}</span>
+                        <span className="vm-cupboard-item-qty">
+                          {i.quantity != null ? `${i.quantity}${i.unit ? ` ${i.unit}` : ''}` : ''}
+                        </span>
+                        <span className="vm-cupboard-item-go" aria-hidden="true">›</span>
+                      </button>,
+                    );
+                  }
+                }
+                return out;
+              })()}
               {items.length > SHOW_MAX && !showAll && (
                 <button className="vm-cupboard-more" onClick={() => setShowAll(true)}>
                   and {items.length - SHOW_MAX} more…
