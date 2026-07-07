@@ -157,23 +157,31 @@ export default function LocationGallery() {
 
   const coverage = data?.coverage || { scanned: 0, total: 0 };
   const pct = coverage.total ? Math.round((coverage.scanned / coverage.total) * 100) : 0;
+  const decksTotal = data?.decks?.length || 0;
+  const zonesTotal = (data?.decks || []).reduce((n, d) => n + d.zoneCount, 0);
 
   return (
     <div className={`lg ${view}`} ref={rootRef}>
       <div className="lg-wrap">
         <div className="lg-pane">
-          <div className="lg-head">
-            <h1>Location Management</h1>
-            <div className="lg-right">
-              <div className="lg-cov">
-                <div className="bar"><i style={{ width: `${pct}%` }} /></div>
-                <span className="lab">{coverage.scanned} / {coverage.total} scanned</span>
+          {/* meta bar: stats left, controls right */}
+          <div className="lg-metabar">
+            <div className="lg-meta">
+              <div className="m cov">
+                <span className="k">Scanned</span>
+                <span className="v">{coverage.scanned} / {coverage.total}</span>
+                <span className="bar"><i style={{ width: `${pct}%` }} /></span>
               </div>
+              <div className="m"><span className="k">Decks</span><span className="v">{decksTotal}</span></div>
+              <div className="m"><span className="k">Zones</span><span className="v">{zonesTotal}</span></div>
+              <div className="m"><span className="k">Spaces</span><span className="v">{coverage.total}</span></div>
+            </div>
+            <div className="lg-actions">
               <div className="lg-seg" role="tablist" aria-label="View">
                 <button className={view === 'flow' ? 'on' : ''} aria-selected={view === 'flow'} onClick={() => setViewPersist('flow')}><FlowIcon />Flow</button>
                 <button className={view === 'static' ? 'on' : ''} aria-selected={view === 'static'} onClick={() => setViewPersist('static')}><GridIcon />Static</button>
               </div>
-              <button className="lg-newdeck" onClick={() => startEdit('new-deck')}>＋ New deck</button>
+              <button className="lg-btn-primary" onClick={() => startEdit('new-deck')}>＋ New deck</button>
             </div>
           </div>
 
@@ -200,9 +208,9 @@ export default function LocationGallery() {
                   : (<><span className="dn">{deck.name}</span>
                       <span className="dc">· {deck.zoneCount} {deck.zoneCount === 1 ? 'zone' : 'zones'} · {deck.spaceCount} {deck.spaceCount === 1 ? 'space' : 'spaces'}</span>
                       <span className="acts">
-                        <button onClick={() => startEdit('add-zone', deck.id)}>＋ Zone</button>
-                        <button onClick={() => startEdit('rename-deck', deck.id, deck.name)}>Rename</button>
-                        <button onClick={() => doArchive('deck', deck.id)}>Archive</button>
+                        <button className="lg-btn" onClick={() => startEdit('add-zone', deck.id)}>＋ Zone</button>
+                        <button className="lg-btn" onClick={() => startEdit('rename-deck', deck.id, deck.name)}>Rename</button>
+                        <button className="lg-btn ghost-danger" onClick={() => doArchive('deck', deck.id)}>Archive</button>
                       </span></>)}
               </div>
 
@@ -223,8 +231,10 @@ export default function LocationGallery() {
                       : (<>
                           <span className="zn">{zone.name}</span>
                           <span className="zct">{zone.spaceCount} {zone.spaceCount === 1 ? 'space' : 'spaces'}</span>
-                          <button className="zadd" onClick={() => startEdit('rename-zone', zone.id, zone.name)}>Rename</button>
-                          <button className="zadd" onClick={() => startEdit('add-space', zone.id)}>＋ Add space</button>
+                          <span className="zacts">
+                            <button className="lg-btn sm" onClick={() => startEdit('rename-zone', zone.id, zone.name)}>Rename</button>
+                            <button className="lg-btn sm" onClick={() => startEdit('add-space', zone.id)}>＋ Add space</button>
+                          </span>
                         </>)}
                   </div>
 

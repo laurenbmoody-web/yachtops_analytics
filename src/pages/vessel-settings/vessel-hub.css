@@ -2,17 +2,23 @@
    Cargo system (mirrors the crew-profile rail); content sits directly, no
    panel card. Scoped under .vh-page. */
 .vh-page{
-  --vh-ink:#1C1B3A; --vh-muted:#6B7280; --vh-faint:#AEB4C2;
+  --vh-ink:#1C1B3A; --vh-muted:#6B7280; --vh-faint:#9AA1B4;
   --vh-terra:#C65A1A; --vh-terra-tint:#FBEFE9;
-  --vh-hair:#ECEAE3; --vh-soft:#F6F7FA;
+  --vh-hair:#E4E8EF; --vh-soft:#EEF1F6;
+  background:#F8FAFC;min-height:100vh;
 }
 html[data-theme="night"] .vh-page{
   --vh-ink:#ECEEF8; --vh-muted:#9AA0B4; --vh-faint:#6A6F82;
   --vh-terra:#E8946A; --vh-terra-tint:#2E2136;
   --vh-hair:#2B2A47; --vh-soft:#232140;
+  background:#0F0E20;
 }
-.vh-title{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:400;font-size:32px;line-height:1.05;letter-spacing:-.01em;color:var(--vh-ink);margin:0;}
-.vh-sub{font-size:15px;color:var(--vh-muted);margin:6px 0 0;}
+
+/* editorial masthead — Inter tracked-caps kicker + DM Serif title w/ italic accent */
+.vh-mast{margin-bottom:24px;}
+.vh-kicker{display:block;font-family:'Inter',system-ui,sans-serif;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--vh-muted);margin-bottom:9px;}
+.vh-h1{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:400;font-size:clamp(34px,4.6vw,46px);line-height:1;letter-spacing:-.01em;color:var(--vh-ink);margin:0;}
+.vh-h1 em{font-style:italic;color:var(--vh-terra);}
 
 .vh-layout{display:flex;gap:34px;align-items:flex-start;}
 @media(max-width:820px){.vh-layout{gap:20px;}}

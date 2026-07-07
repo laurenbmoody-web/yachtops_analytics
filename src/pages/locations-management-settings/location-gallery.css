@@ -1,9 +1,9 @@
 /* Location Management — the Gallery. Each space shows its scan; flow ↔ static
    toggle; coverage at a glance. Editorial Cargo system, scoped under .lg-. */
 .lg{
-  --lg-ink:#1C1B3A; --lg-ink2:#403E60; --lg-muted:#6B7280; --lg-faint:#AEB4C2;
-  --lg-card:#FFFFFF; --lg-wash:#FAFAF8; --lg-wash2:#F3F1EB;
-  --lg-hair:#ECEAE3; --lg-line:#F0F1F5;
+  --lg-ink:#1C1B3A; --lg-ink2:#403E60; --lg-muted:#6B7280; --lg-faint:#9AA1B4;
+  --lg-card:#FFFFFF; --lg-wash:#F4F6F9; --lg-wash2:#EAEEF3;
+  --lg-hair:#E4E8EF; --lg-line:#EEF1F5;
   --lg-terra:#C65A1A; --lg-terra2:#E8894A; --lg-terra-soft:#FBEEE4;
   --lg-ok:#3F7A5E; --lg-ok-soft:#EAF2ED;
   --lg-serif:'DM Serif Display','DM Serif Text',Georgia,serif;
@@ -28,36 +28,50 @@ html[data-theme="night"] .lg .lg-cf.addcard .card{border-color:#3A3960;}
 /* Boxless — the gallery sits directly in the editorial content column. */
 .lg-pane{background:transparent;border:0;box-shadow:none;border-radius:0;overflow:visible;padding:0;}
 
-.lg-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0;flex-wrap:wrap;}
-.lg-head h1{font-family:var(--lg-serif);font-weight:400;font-size:26px;margin:0;letter-spacing:-.01em;}
-.lg-right{display:flex;align-items:center;gap:18px;}
-.lg-cov{display:flex;align-items:center;gap:11px;}
-.lg-cov .bar{width:108px;height:6px;border-radius:6px;background:var(--lg-line);overflow:hidden;}
-.lg-cov .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--lg-terra),var(--lg-terra2));border-radius:6px;transition:width .4s cubic-bezier(.2,.7,.2,1);}
-.lg-cov .lab{font-size:12.5px;color:var(--lg-muted);font-variant-numeric:tabular-nums;}
+/* ── meta bar: stats left, controls right ── */
+.lg-metabar{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  padding:14px 0 16px;border-bottom:1px solid var(--lg-hair);margin-bottom:6px;}
+.lg-meta{display:flex;align-items:center;gap:0;flex-wrap:wrap;}
+.lg-meta .m{display:flex;align-items:baseline;gap:8px;padding:0 20px;border-left:1px solid var(--lg-hair);}
+.lg-meta .m:first-child{padding-left:0;border-left:0;}
+.lg-meta .k{font-size:9.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--lg-faint);}
+.lg-meta .v{font-family:var(--lg-serif);font-size:20px;line-height:1;color:var(--lg-ink);font-variant-numeric:tabular-nums;}
+.lg-meta .m.cov .bar{width:64px;height:5px;border-radius:5px;background:var(--lg-line);overflow:hidden;align-self:center;}
+.lg-meta .m.cov .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--lg-terra),var(--lg-terra2));border-radius:5px;transition:width .4s cubic-bezier(.2,.7,.2,1);}
 
+.lg-actions{display:flex;align-items:center;gap:10px;}
 .lg-seg{display:flex;gap:3px;background:var(--lg-wash2);border-radius:11px;padding:3px;}
-.lg-seg button{border:0;background:transparent;border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--lg-muted);display:flex;align-items:center;gap:6px;font-family:var(--lg-sans);font-size:12.5px;font-weight:600;}
-.lg-seg button.on{background:var(--lg-card);color:var(--lg-ink);box-shadow:0 1px 2px rgba(28,27,58,.1);}
+.lg-seg button{border:0;background:transparent;border-radius:8px;padding:7px 11px;cursor:pointer;color:var(--lg-muted);display:flex;align-items:center;gap:6px;font-family:var(--lg-sans);font-size:12.5px;font-weight:600;}
+.lg-seg button.on{background:var(--lg-card);color:var(--lg-ink);box-shadow:0 1px 2px rgba(28,27,58,.12);}
 .lg-seg svg{width:15px;height:15px;}
 
-.lg-newdeck{font-size:13px;font-weight:600;color:var(--lg-terra);background:none;border:0;cursor:pointer;font-family:var(--lg-sans);}
+/* ── buttons that feel like buttons ── */
+.lg-btn{font-family:var(--lg-sans);font-size:12.5px;font-weight:600;color:var(--lg-ink);
+  background:var(--lg-card);border:1px solid var(--lg-hair);border-radius:9px;padding:7px 12px;cursor:pointer;
+  transition:border-color .14s ease,color .14s ease,background .14s ease;white-space:nowrap;}
+.lg-btn:hover{border-color:var(--lg-terra);color:var(--lg-terra);}
+.lg-btn.sm{padding:6px 10px;font-size:12px;}
+.lg-btn.ghost-danger:hover{border-color:#C64A3A;color:#C64A3A;}
+.lg-btn-primary{font-family:var(--lg-sans);font-size:13px;font-weight:600;color:#fff;
+  background:var(--lg-terra);border:1px solid var(--lg-terra);border-radius:10px;padding:8px 15px;cursor:pointer;
+  transition:background .14s ease,border-color .14s ease;}
+.lg-btn-primary:hover{background:#B14E16;border-color:#B14E16;}
 
 .lg-deck{margin-top:26px;}
 .lg-deckhdr{display:flex;align-items:baseline;gap:11px;margin:0 0 4px;padding-bottom:13px;border-bottom:1px solid var(--lg-hair);}
 .lg-deckhdr .dn{font-family:var(--lg-serif);font-size:22px;letter-spacing:-.01em;}
 .lg-deckhdr .dc{font-size:12.5px;color:var(--lg-faint);}
-.lg-deckhdr .acts{margin-left:auto;display:flex;gap:14px;}
-.lg-deckhdr .acts button{font-size:12.5px;color:var(--lg-muted);background:none;border:0;cursor:pointer;font-family:var(--lg-sans);}
-.lg-deckhdr .acts button:hover{color:var(--lg-terra);}
+.lg-deckhdr .acts{margin-left:auto;display:flex;gap:8px;}
+
+
 
 .lg-zone{margin-top:18px;}
 .lg-zhdr{display:flex;align-items:center;gap:9px;margin:0 0 6px;}
 .lg-zhdr .zdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--lg-terra);}
 .lg-zhdr .zn{font-size:13.5px;font-weight:650;color:var(--lg-ink);}
 .lg-zhdr .zct{font-size:12px;color:var(--lg-faint);}
-.lg-zhdr .zadd{margin-left:auto;font-size:12.5px;color:var(--lg-muted);font-weight:500;background:none;border:0;cursor:pointer;font-family:var(--lg-sans);}
-.lg-zhdr .zadd:hover{color:var(--lg-terra);}
+.lg-zhdr .zacts{margin-left:auto;display:flex;gap:8px;}
+
 
 /* card inner (shared) */
 .lg-cf .card{border-radius:16px;overflow:hidden;background:var(--lg-card);border:1px solid var(--lg-hair);}
@@ -96,7 +110,7 @@ html[data-theme="night"] .lg .lg-cf.addcard .card{border-color:#3A3960;}
 .lg.flow .lg-cf .plus,.lg.flow .lg-cf .noscan{height:150px;}
 
 /* ── STATIC mode ── */
-.lg.static .row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:14px 0 4px;}
+.lg.static .row{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;padding:14px 0 4px;}
 @media(max-width:760px){.lg.static .row{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:440px){.lg.static .row{grid-template-columns:1fr;}}
 .lg.static .lg-cf{width:auto;cursor:pointer;transition:transform .22s cubic-bezier(.2,.7,.2,1);}
