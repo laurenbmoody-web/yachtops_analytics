@@ -13,7 +13,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, X, Crosshair, MapPin, ChevronRight, Plus } from 'lucide-react';
-import { supplierPortPoints, supplierReaches, centroidOf, isBroadArea } from './geo';
+import { supplierPortPoints, supplierReaches, centroidOf, isBroadArea, haversineKm } from './geo';
 import { loadGoogleMaps, hasGoogleKey, MAP_STYLE_LIGHT, MAP_STYLE_DARK } from './gmaps';
 import './map-popover.css';
 
@@ -237,6 +237,20 @@ const MapPopover = ({
     ? (suppliers || []).filter((s) => supplierReaches(s, portCoords, queryPoint))
     : (suppliers || []);
 
+  // When an area is set, narrow the invite list to saved suppliers near
+  // it — "the supply for this area" — so a long directory doesn't dump
+  // everything. Located-elsewhere and location-less ones are summarised.
+  const inBox = (c, b) => c.lat >= b.south && c.lat <= b.north && c.lng >= b.west && c.lng <= b.east;
+  const nearInvites = queryPoint
+    ? inviteSuppliers.filter((s) => {
+        const c = inviteCoords.get(s.id);
+        if (!c) return false;
+        return isBroadArea(queryPoint) ? inBox(c, queryPoint.bbox)
+          : haversineKm(queryPoint.lat, queryPoint.lng, c.lat, c.lng) <= 250;
+      })
+    : inviteSuppliers;
+  const invitesElsewhere = inviteSuppliers.length - nearInvites.length;
+
   return (
     <>
       <div className="mpm-backdrop" onClick={onClose} />
@@ -291,40 +305,49 @@ const MapPopover = ({
           <div className="mpm-side">
             <div className="mpm-count">
               {queryPoint
-                ? <><b>{reaching.length}</b> supplier{reaching.length === 1 ? '' : 's'} reach {queryPoint.label?.split(',')[0] || 'your area'}</>
-                : <><b>{reaching.length}</b> supplier{reaching.length === 1 ? '' : 's'} on Cargo</>}
+                ? <>{reaching.length} supplier{reaching.length === 1 ? '' : 's'} reach {queryPoint.label?.split(',')[0] || 'your area'}</>
+                : <>{reaching.length} supplier{reaching.length === 1 ? '' : 's'} on Cargo</>}
             </div>
-            <div className="mpm-list">
-              {reaching.map((s) => (
-                <button key={s.id} className="mpm-shop" onClick={() => { onEnterShop(s); onClose(); }}>
-                  <span className="mpm-shop-main">
-                    <span className="nm">{s.name}</span>
-                    <span className="rd">{s.service_radius_km || 60} km reach</span>
-                  </span>
-                  <span className="go"><ChevronRight size={16} /></span>
-                </button>
-              ))}
-              {queryPoint && reaching.length === 0 && (
-                <div className="mpm-none">No suppliers reach there yet — invite the ones you use and they’ll appear here.</div>
+            <div className="mpm-scroll">
+              <div className="mpm-list">
+                {reaching.map((s) => (
+                  <button key={s.id} className="mpm-shop" onClick={() => { onEnterShop(s); onClose(); }}>
+                    <span className="mpm-shop-main">
+                      <span className="nm">{s.name}</span>
+                      <span className="rd">{s.service_radius_km || 60} km reach</span>
+                    </span>
+                    <span className="go"><ChevronRight size={16} /></span>
+                  </button>
+                ))}
+                {queryPoint && reaching.length === 0 && (
+                  <div className="mpm-none">No suppliers reach there yet — invite the ones you use and they’ll appear here.</div>
+                )}
+              </div>
+
+              {inviteSuppliers.length > 0 && (
+                <div className="mpm-invite">
+                  <div className="mpm-invite-h">Not on Cargo yet{queryPoint && nearInvites.length > 0 ? ` · near ${queryPoint.label?.split(',')[0]}` : ''}</div>
+                  <div className="mpm-invite-list">
+                    {nearInvites.map((s) => (
+                      <button key={s.id} className="mpm-inviterow" onClick={() => onInvite && onInvite(s)} title={`Invite ${s.name} to Cargo`}>
+                        <span className="mpm-inv-main">
+                          <span className="nm">{s.name}</span>
+                          {s.business_city && <span className="where">{s.business_city}</span>}
+                        </span>
+                        <span className="add"><Plus size={14} /></span>
+                      </button>
+                    ))}
+                  </div>
+                  {queryPoint && invitesElsewhere > 0 && (
+                    <div className="mpm-invite-more">
+                      {nearInvites.length === 0
+                        ? `None of your saved suppliers reach here — ${invitesElsewhere} elsewhere.`
+                        : `+${invitesElsewhere} more elsewhere.`}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-
-            {inviteSuppliers.length > 0 && (
-              <div className="mpm-invite">
-                <div className="mpm-invite-h">Not on Cargo yet</div>
-                <div className="mpm-invite-list">
-                  {inviteSuppliers.map((s) => (
-                    <button key={s.id} className="mpm-inviterow" onClick={() => onInvite && onInvite(s)} title={`Invite ${s.name} to Cargo`}>
-                      <span className="mpm-inv-main">
-                        <span className="nm">{s.name}</span>
-                        {s.business_city && <span className="where">{s.business_city}</span>}
-                      </span>
-                      <span className="add"><Plus size={14} /></span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
