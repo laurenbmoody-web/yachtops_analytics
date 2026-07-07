@@ -480,7 +480,7 @@ const Marketplace = () => {
               <div
                 key={side}
                 className={`mp-supcard side ${side} ghost`}
-                onClick={() => showToast('Supplier invites are coming soon — you’ll nominate the shops you already use.', 'info')}
+                onClick={() => showToast('Supplier invites are coming soon — you’ll nominate the suppliers you already use.', 'info')}
               >
                 <span className="tag">Joining soon</span>
                 <div className="name">—</div>
@@ -496,7 +496,7 @@ const Marketplace = () => {
                   <span className="dot">●</span>
                   <span>Marketplace</span>
                   <span className="bar" />
-                  <span className="muted">{suppliers.length} shop{suppliers.length === 1 ? '' : 's'}</span>
+                  <span className="muted">{suppliers.length} supplier{suppliers.length === 1 ? '' : 's'}</span>
                   <span className="bar" />
                   <span className="muted">{products.length} products</span>
                   {fports[0] && <><span className="bar" /><span className="muted">Port · {fports[0]}</span></>}
@@ -513,7 +513,7 @@ const Marketplace = () => {
                     <Search size={15} className="ic" />
                     <input
                       className="mp-search bare"
-                      placeholder="Search shops, ports, categories…"
+                      placeholder="Search suppliers, ports, categories…"
                       value={provSearch}
                       onChange={(e) => { setProvSearch(e.target.value); setDeckIndex(0); }}
                     />
@@ -522,7 +522,7 @@ const Marketplace = () => {
                     type="button"
                     className={`mp-locfield ${queryPoint ? 'set' : ''}`}
                     onClick={() => setMapOpen(true)}
-                    title="Open the map — see which shops reach your area"
+                    title="Open the map — see which suppliers reach your area"
                   >
                     <MapPin size={14} className="ic" />
                     <span className={`mp-loc-val ${queryPoint || provLoc ? '' : 'ph'}`}>
@@ -565,7 +565,7 @@ const Marketplace = () => {
                   <div className="mp-empty">
                     {suppliers.length === 0
                       ? 'No suppliers have published catalogues yet.'
-                      : 'No shops match those filters.'}
+                      : 'No suppliers match those filters.'}
                   </div>
                 ) : (
                   <>
@@ -586,7 +586,7 @@ const Marketplace = () => {
                           {(fmeta.topCats || []).slice(0, 3).map(c => <span key={c}>{c}</span>)}
                           {(fmeta.topCats?.length || 0) > 3 && <span>+{fmeta.topCats.length - 3}</span>}
                         </div>
-                        <span className="enter">Enter shop →</span>
+                        <span className="enter">Enter supplier →</span>
                       </button>
                       {sideCard(right, 'r')}
                     </div>
@@ -615,7 +615,7 @@ const Marketplace = () => {
               {stage === 'aisles' ? (
                 <div className="mp-shopband">
                   <button className="mp-leaveshop" onClick={leaveShop}>
-                    <X size={14} /> Leave shop
+                    <X size={14} /> Leave supplier
                   </button>
                   <div className="mp-shop-id">
                     {enteredSupplier.logo_url
@@ -648,7 +648,7 @@ const Marketplace = () => {
               ) : (
                 <div className="mp-itemshead">
                   <button className="mp-leaveshop light" onClick={leaveShop}>
-                    <ArrowLeft size={14} /> All shops
+                    <ArrowLeft size={14} /> All suppliers
                   </button>
                   <h1 className="mp-title sm">All <em>items</em></h1>
                   <p className="mp-sub">Every shop's live stock in one list — filter by port or category, add straight to the board.</p>
@@ -709,7 +709,7 @@ const Marketplace = () => {
               {filtered.length === 0 ? (
                 <div className="mp-empty">
                   {scopedProducts.length === 0
-                    ? 'This shop has no published items yet.'
+                    ? 'This supplier has no published items yet.'
                     : 'Nothing matches — try a different search or filter.'}
                 </div>
               ) : (
@@ -741,7 +741,7 @@ const Marketplace = () => {
           queryValue={provLoc}
           onQueryChange={setProvLoc}
           queryPoint={queryPoint}
-          onSetPoint={(pt) => { setQueryPoint(pt); setDeckIndex(0); }}
+          onSetPoint={(pt) => { setQueryPoint(pt); setProvLoc(''); setDeckIndex(0); }}
           onEnterShop={enterShop}
         />
 
@@ -766,7 +766,7 @@ const Marketplace = () => {
                   <h3 className="mp-counter-h">The <em>Counter</em></h3>
                   <div className="mp-counter-sub">
                     {basket.length
-                      ? `${basketUnits} item${basketUnits === 1 ? '' : 's'} · ${basketBySupplier.size} shop${basketBySupplier.size === 1 ? '' : 's'}`
+                      ? `${basketUnits} item${basketUnits === 1 ? '' : 's'} · ${basketBySupplier.size} supplier${basketBySupplier.size === 1 ? '' : 's'}`
                       : 'Items land as draft lines — nothing is sent yet.'}
                   </div>
                 </div>
@@ -837,7 +837,7 @@ const Marketplace = () => {
                     {placing ? 'Adding…' : `Add ${basketUnits} to board`}
                   </button>
                   <div className="mp-counter-note">
-                    Each shop above becomes its own order. Lines arrive as drafts at the catalogue price —
+                    Each supplier above becomes its own order. Lines arrive as drafts at the catalogue price —
                     approval and “Send to supplier” stay on the board.
                   </div>
                 </div>
