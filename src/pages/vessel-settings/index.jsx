@@ -1443,7 +1443,7 @@ const VesselSettings = () => {
               <span className="bar" /><span>{locStats.total} Spaces</span>
             </div>
           )}
-          <h1 className="editorial-greeting vh-greeting">{titleLead ? <>{titleLead} </> : null}<em>{titleAccent}</em><span className="period">.</span></h1>
+          <h1 className="editorial-greeting vh-greeting">{titleLead ? <>{titleLead}<span className="period">,</span> </> : null}<em>{titleAccent}</em><span className="period">.</span></h1>
         </div>
 
         {/* Hub Layout — boxless editorial rail + content */}
