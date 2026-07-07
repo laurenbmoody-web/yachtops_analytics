@@ -84,6 +84,36 @@ const PrivacyPolicyPage = () => {
         </div>
       </section>
 
+      {/* Reviewer notice — the Chrome Web Store reviewer reaches this page from
+          the extension listing. Make the separation unmissable at the top so the
+          web-app data-handling section below is never mistaken for the
+          extension's, which collects nothing. */}
+      <section style={{ padding: '28px 32px 0' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto' }}>
+          <div
+            role="note"
+            style={{
+              backgroundColor: '#EFF5FC', border: '2px solid #1E3A5F', borderRadius: 12,
+              padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 8,
+            }}
+          >
+            <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#1E3A5F', margin: 0 }}>
+              Note for the Chrome Web Store extension
+            </p>
+            <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#334155', lineHeight: 1.65, margin: 0 }}>
+              This page covers two separate products. The <strong>Cargo → PYA Autofill browser
+              extension</strong> collects, stores, and transmits <strong>nothing</strong> — it
+              only reads the record you copied, on your click, to fill the PYA form in your own
+              browser. The data handling described in the web-application section below applies
+              to the Cargo web app, <strong>not</strong> to the extension.{' '}
+              <a href="#extension" style={{ color: '#4A90E2', textDecoration: 'none', fontWeight: 500 }}>
+                Jump to the extension section →
+              </a>
+            </p>
+          </div>
+        </div>
+      </section>
+
       <Section id="who-we-are" label="01" title="Who we are">
         <p className="mkt-dmsans" style={bodyStyle}>
           Cargo ("Cargo", "we", "us") is an operational platform for professional yacht
