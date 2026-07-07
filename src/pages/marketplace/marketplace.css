@@ -22,7 +22,7 @@
   --shadow-strong: rgba(28,27,58,0.32);
 
   min-height: calc(100vh - 64px);
-  padding: 92px 28px 120px;
+  padding: 34px 32px 120px;
   background: var(--bg);
   color: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;
@@ -74,9 +74,6 @@
 .mp-title em { font-style: italic; color: var(--accent); }
 .mp-sub { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; max-width: 60ch; }
 
-/* Providers utility row (search + all-items) */
-.mp-prov-utility { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 24px; }
-
 /* ── Search field (shared) ── */
 .mp-searchwrap {
   display: inline-flex; align-items: center; gap: 8px;
@@ -101,18 +98,24 @@
    placeholders) flanking it. Reads full with a single shop; scales to
    many. The cards stay dark navy in both themes — entering a shop
    should always feel like stepping off the paper page into the market. */
-.mp-deckmeta {
-  display: flex; gap: 22px; flex-wrap: wrap; align-items: center; margin-bottom: 24px;
-  font-size: 10.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--faint);
+/* Shared editorial meta strip + greeting (from styles/editorial.css) —
+   used verbatim so the marketplace header matches Provisioning exactly.
+   These overrides only handle marketplace-local spacing + night mode. */
+.mp-editorial-meta { margin: 0 0 12px; flex-wrap: wrap; }
+.mp-editorial-meta .mp-live { color: var(--accent); }
+.mp-greeting { margin: 0 0 22px; }
+@media (max-width: 720px) {
+  .mp-greeting { white-space: normal; font-size: 38px; letter-spacing: -0.8px; }
 }
-.mp-deckmeta b { color: var(--soft); font-weight: 700; }
-.mp-deckmeta .live { color: var(--accent); }
-.mp-deckhero {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400;
-  font-size: 52px; line-height: 1.02; letter-spacing: -0.01em; margin: 0 0 34px;
-  color: var(--ink); text-wrap: balance;
-}
-.mp-deckhero em { font-style: italic; color: var(--accent); }
+.mp-page[data-theme="dark"] .editorial-greeting,
+.mp-page[data-theme="dark"] .editorial-greeting .period { color: var(--ink); }
+.mp-page[data-theme="dark"] .editorial-meta { color: var(--ink); }
+.mp-page[data-theme="dark"] .editorial-meta .muted { color: var(--muted); }
+.mp-page[data-theme="dark"] .editorial-meta .bar { background: var(--border); }
+.mp-page[data-theme="dark"] .editorial-meta .mp-live,
+.mp-page[data-theme="dark"] .editorial-meta .dot { color: var(--accent); }
+/* Browse-all-items sits at the far right of the toolbar, like the quiet nav links on Provisioning */
+.mp-allitems-end { margin-left: auto; }
 
 .mp-deck {
   display: flex; align-items: center; justify-content: center;
@@ -160,7 +163,6 @@
 .mp-deckdots button { width: 7px; height: 7px; border-radius: 999px; background: var(--border); border: none; padding: 0; cursor: pointer; }
 .mp-deckdots button.on { background: var(--accent); }
 @media (max-width: 900px) {
-  .mp-deckhero { font-size: 34px; }
   .mp-deck { height: 280px; }
   .mp-supcard { width: min(400px, 86vw); }
   .mp-supcard.side { display: none; }
