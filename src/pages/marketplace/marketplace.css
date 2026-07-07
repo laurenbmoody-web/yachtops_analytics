@@ -51,12 +51,15 @@
 /* ── Meta bar (the only eyebrow-ish row we allow) ── */
 .mp-metabar { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
 .mp-meta-spacer { flex: 1; }
+/* Matches the crew-profile "Back to Crew Management" link: sentence
+   case, text-sm, muted → foreground on hover, chevron icon. */
 .mp-back {
-  display: inline-flex; align-items: center; gap: 6px;
-  color: var(--soft); font-size: 12.5px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--muted); font-size: 14px; font-weight: 400; letter-spacing: 0;
   background: none; border: none; cursor: pointer; padding: 0;
+  transition: color .15s;
 }
-.mp-back:hover { color: var(--accent); }
+.mp-back:hover { color: var(--ink); }
 .mp-theme {
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; border-radius: 999px;
@@ -236,6 +239,20 @@
 }
 .mp-clear:hover { background: var(--tint); }
 .mp-count { margin-left: auto; font-size: 12px; color: var(--faint); white-space: nowrap; }
+
+/* Location searcher — "serves my area" (replaces the Port dropdown) */
+.mp-locfield {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  padding: 0 12px; height: 40px; min-width: 244px;
+}
+.mp-locfield .ic { color: var(--faint); flex: none; }
+.mp-locfield:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--halo); }
+.mp-loc-input {
+  border: none; background: transparent; outline: none; width: 100%;
+  font-family: inherit; font-size: 13px; font-weight: 500; color: var(--ink);
+}
+.mp-loc-input::placeholder { color: var(--faint); font-weight: 400; }
 
 /* ── Product grid ── */
 .mp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 14px; }

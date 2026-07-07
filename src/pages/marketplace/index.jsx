@@ -17,7 +17,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, ShoppingBasket, Moon, Sun, Search, X, ChevronRight,
+  ArrowLeft, ChevronLeft, ShoppingBasket, Moon, Sun, Search, X, ChevronRight, MapPin,
 } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -175,7 +175,7 @@ const Marketplace = () => {
   const [showFilter, setShowFilter] = useState('all'); // all | in | mine
   const [sortBy, setSortBy] = useState('name');
   const [provSearch, setProvSearch] = useState(''); // the deck's own search
-  const [provPort, setProvPort] = useState('All');
+  const [provLoc, setProvLoc] = useState('');       // "serves my area" location filter
   const [provCat, setProvCat] = useState('All');
   const [provSort, setProvSort] = useState('name');
 
@@ -263,22 +263,29 @@ const Marketplace = () => {
     return m;
   }, [suppliers, products]);
 
-  // Ports and categories the shops cover — feed the deck's own filters.
-  const provPorts = useMemo(() => {
-    const s = new Set();
-    suppliers.forEach(x => (x.coverage_ports || []).forEach(p => s.add(p)));
-    return Array.from(s).sort();
-  }, [suppliers]);
+  // Categories the shops cover — feeds the deck's category filter.
   const provCats = useMemo(() => {
     const s = new Set();
     suppliers.forEach(x => (x.categories || []).forEach(c => s.add(c)));
     return Array.from(s).sort();
   }, [suppliers]);
 
+  // "Serves my area": does this shop reach the typed port/city/country?
+  // Text match over coverage_ports + business city/country for now — the
+  // map layer (with geocoded postcodes + a service radius) upgrades this
+  // to true distance later.
+  const servesArea = (s, loc) => {
+    if (!loc) return true;
+    return (s.coverage_ports || []).some(p => p.toLowerCase().includes(loc))
+      || (s.business_city || '').toLowerCase().includes(loc)
+      || (s.business_country || '').toLowerCase().includes(loc);
+  };
+
   const wallSuppliers = useMemo(() => {
     const q = provSearch.trim().toLowerCase();
+    const loc = provLoc.trim().toLowerCase();
     const rows = suppliers.filter(s =>
-      (provPort === 'All' || (s.coverage_ports || []).includes(provPort))
+      servesArea(s, loc)
       && (provCat === 'All' || (s.categories || []).includes(provCat))
       && (!q
         || (s.name || '').toLowerCase().includes(q)
@@ -294,9 +301,10 @@ const Marketplace = () => {
       verified: (a, b) => (b.verified ? 1 : 0) - (a.verified ? 1 : 0),
     }[provSort] || ((a, b) => a.name.localeCompare(b.name));
     return [...rows].sort(cmp);
-  }, [suppliers, provSearch, provPort, provCat, provSort, supplierMeta]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suppliers, provSearch, provLoc, provCat, provSort, supplierMeta]);
 
-  const provFiltersDirty = provSearch || provPort !== 'All' || provCat !== 'All' || provSort !== 'name';
+  const provFiltersDirty = provSearch || provLoc || provCat !== 'All' || provSort !== 'name';
 
   // ── Browse surface (aisles = one supplier; items = all) ──
   const ports = useMemo(() => {
@@ -424,7 +432,7 @@ const Marketplace = () => {
           {/* Meta bar — the one place an eyebrow-like row is allowed. */}
           <div className="mp-metabar">
             <button className="mp-back" onClick={() => navigate('/provisioning')}>
-              <ArrowLeft size={13} /> Provisioning
+              <ChevronLeft size={16} /> Back to Provisioning
             </button>
             <div className="mp-meta-spacer" />
             <button
@@ -502,15 +510,15 @@ const Marketplace = () => {
                       onChange={(e) => { setProvSearch(e.target.value); setDeckIndex(0); }}
                     />
                   </label>
-                  {provPorts.length > 0 && (
-                    <label className="mp-filter">
-                      <span className="k">Port</span>
-                      <select value={provPort} onChange={(e) => { setProvPort(e.target.value); setDeckIndex(0); }}>
-                        <option value="All">All</option>
-                        {provPorts.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </label>
-                  )}
+                  <label className="mp-locfield" title="Show shops that can reach your area">
+                    <MapPin size={14} className="ic" />
+                    <input
+                      className="mp-loc-input"
+                      placeholder="Serves my area — port, city, country…"
+                      value={provLoc}
+                      onChange={(e) => { setProvLoc(e.target.value); setDeckIndex(0); }}
+                    />
+                  </label>
                   {provCats.length > 0 && (
                     <label className="mp-filter">
                       <span className="k">Category</span>
@@ -533,7 +541,7 @@ const Marketplace = () => {
                     <button
                       type="button"
                       className="mp-clear"
-                      onClick={() => { setProvSearch(''); setProvPort('All'); setProvCat('All'); setProvSort('name'); setDeckIndex(0); }}
+                      onClick={() => { setProvSearch(''); setProvLoc(''); setProvCat('All'); setProvSort('name'); setDeckIndex(0); }}
                     >
                       × Clear all
                     </button>
