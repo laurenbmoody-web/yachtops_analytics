@@ -184,7 +184,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const [logView, setLogView] = useState('list');
   const [ledgerScope, setLedgerScope] = useState('all'); // 'all' | 'cargo' (Cargo-tracked only)
   const [ledgerYear, setLedgerYear] = useState(null);    // selected year in the list view (null = latest)
-  const [openMonths, setOpenMonths] = useState(null);    // collapsible month groups (null = untouched → latest month open)
+  const [openMonths, setOpenMonths] = useState(null);    // expanded on-period stints (null/empty → all collapsed by default)
   const [verifier, setVerifier] = useState('nautilus');
   const signatory = 'master'; // self-attestation is never permitted (MSN 1858)
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1564,37 +1564,30 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               : <div className="std-foot">No sea service logged yet — it auto-logs from your current vessel, or use “Log sea time”.</div>
           )}
           {(() => {
-            const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-            // Group chronologically into months; each month is a collapsible
-            // section. A vessel band is emitted once per vessel run within a
-            // month, so its flag/GT/IMO shows once per spell, not on every row.
-            const groups = [];
-            let cur = null, lastVessel = null;
-            shown.forEach(e => {
-              const d = e.from ? new Date(e.from + 'T00:00:00') : null;
-              const monthKey = d ? `${MONTHS[d.getMonth()]} ${d.getFullYear()}` : 'Earlier service';
-              if (!cur || cur.key !== monthKey) { cur = { key: monthKey, days: 0, count: 0, nodes: [] }; groups.push(cur); lastVessel = null; }
-              cur.count += 1; if (!e.excluded) cur.days += (e.days || 0);
+            // Group consecutive entries (same vessel + captain, in date order)
+            // into "on-periods" — one stint aboard. Each stint is one calm block:
+            // vessel + captain + span + total, with the day-type split revealed on
+            // tap (collapsed by default; the KPI bar up top carries the headline).
+            const TYPE_ORDER = ['seagoing', 'watchkeeping', 'standby', 'yard'];
+            const capKey = (e) => `${e.vesselId}::${e.masterUserId || e.masterName || ''}`;
+            const sorted = [...shown].sort((a, b) => String(a.from || '').localeCompare(String(b.from || '')));
+            const periods = [];
+            let cur = null;
+            sorted.forEach(e => {
+              const k = capKey(e);
+              if (!cur || cur.k !== k) { cur = { k, vesselId: e.vesselId, captainId: e.masterUserId || null, captainName: e.masterName || '', entries: [] }; periods.push(cur); }
+              cur.entries.push(e);
+            });
+            periods.reverse(); // newest stint first
+            const openSet = openMonths ?? new Set(); // default: all collapsed
+            const toggle = (key) => setOpenMonths(prev => { const n = new Set(prev ?? new Set()); n.has(key) ? n.delete(key) : n.add(key); return n; });
+
+            const renderLeg = (e) => {
               const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
-              const isCargo = cargoVesselIds.has(e.vesselId);
-              if (e.vesselId !== lastVessel) {
-                const vm = [v.flag, v.gt != null ? `${v.gt} GT` : null, v.lengthM != null ? `${v.lengthM} m` : null, v.imo ? `IMO ${v.imo}` : null].filter(Boolean).join(' · ');
-                cur.nodes.push(
-                  <div className="std-vband" key={'v' + e.id}>
-                    <span className="std-vband-dot" style={{ background: tm.color }} />
-                    <div className="std-vband-id"><span className="vn">{v.name || 'Vessel'}</span>{vm && <span className="vm">{vm}</span>}</div>
-                    <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ marginLeft: 'auto', color: isCargo ? '#3F7A52' : '#5A6478', background: isCargo ? '#EFF6F1' : '#F4F5F7' }}
-                      title={isCargo ? 'Cargo-tracked — auto-logged on a Cargo vessel; verifiable and exportable' : 'Off-Cargo, self-recorded — counts toward your pathway, but supply your own testimonial as evidence'}>
-                      <span className="pm" style={isCargo ? { background: '#3F7A52' } : { borderColor: '#5A6478' }} />{isCargo ? 'Cargo-tracked' : 'Off-Cargo'}
-                    </span>
-                  </div>
-                );
-                lastVessel = e.vesselId;
-              }
               const isExcluded = !!e.excluded, isQual = !isExcluded && c.qual, isBad = !isExcluded && !c.qual;
               const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch` : (e.detailOverride || tm.hint);
               const rowAction = !isExcluded && e.testimonialPath ? () => viewTestimonial(e.testimonialPath) : null;
-              cur.nodes.push(
+              return (
                 <div className="std-leg" key={e.id}
                   role={rowAction ? 'button' : undefined} tabIndex={rowAction ? 0 : undefined}
                   onClick={rowAction || undefined}
@@ -1622,26 +1615,60 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   </div>
                 </div>
               );
-            });
-            // Default: only the most recent month open (so the page isn't a long
-            // scroll); once the crew toggles anything, respect their choice.
-            const latestKey = groups.length ? groups[groups.length - 1].key : null;
-            const effectiveOpen = openMonths ?? (latestKey ? new Set([latestKey]) : new Set());
-            const toggleMonth = (key) => setOpenMonths(prev => {
-              const base = prev ?? (latestKey ? new Set([latestKey]) : new Set());
-              const n = new Set(base);
-              n.has(key) ? n.delete(key) : n.add(key);
-              return n;
-            });
-            return groups.map(g => {
-              const open = effectiveOpen.has(g.key);
+            };
+
+            return periods.map((p, pi) => {
+              const v = vessels[p.vesselId] || {};
+              const isCargo = cargoVesselIds.has(p.vesselId);
+              const liveEntries = p.entries.filter(e => !e.excluded);
+              const froms = p.entries.map(e => e.from).filter(Boolean).sort();
+              const tos = p.entries.map(e => e.to).filter(Boolean).sort();
+              const from = froms[0] || null, to = tos[tos.length - 1] || null;
+              const total = liveEntries.reduce((s, e) => s + (e.days || 0), 0);
+              const byType = {};
+              liveEntries.forEach(e => { byType[e.type] = (byType[e.type] || 0) + (e.days || 0); });
+              const segs = TYPE_ORDER.filter(t => byType[t]).map(t => ({ t, days: byType[t], tm: TYPE_META[t] }));
+              const vm = [v.flag, v.gt != null ? `${v.gt} GT` : null, v.lengthM != null ? `${v.lengthM} m` : null, v.imo ? `IMO ${v.imo}` : null].filter(Boolean).join(' · ');
+              const who = p.captainId === userId ? `Your service as ${topRankWord}` : (p.captainName || null);
+              const span = (from && to) ? `${fmtDate(from)} – ${fmtDate(to)}` : (from ? fmtDate(from) : '');
+              const metaBits = [who, span, `${total} ${total === 1 ? 'day' : 'days'}`].filter(Boolean).join(' · ');
+              const key = `${p.k}::${from || pi}`;
+              const open = openSet.has(key);
               return (
-                <div className="std-agroup" key={'g' + g.key}>
-                  <button type="button" className={`std-amonth${open ? ' open' : ''}`} onClick={() => toggleMonth(g.key)} aria-expanded={open}>
-                    <span className="std-amonth-lbl">{g.key}</span>
-                    <span className="std-amonth-meta"><Icon name="ChevronDown" size={14} className="std-amonth-chev" /></span>
+                <div className={`std-op${open ? ' open' : ''}`} key={key}>
+                  <button type="button" className="std-op-hd" onClick={() => toggle(key)} aria-expanded={open}>
+                    <div className="std-op-id">
+                      <div className="std-op-top">
+                        <span className="std-op-name">{v.name || 'Vessel'}</span>
+                        <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: isCargo ? '#3F7A52' : '#5A6478', background: isCargo ? '#EFF6F1' : '#F4F5F7' }}
+                          title={isCargo ? 'Cargo-tracked — auto-logged on a Cargo vessel; verifiable and exportable' : 'Off-Cargo, self-recorded — counts toward your pathway, but supply your own testimonial as evidence'}>
+                          <span className="pm" style={isCargo ? { background: '#3F7A52' } : { borderColor: '#5A6478' }} />{isCargo ? 'Cargo-tracked' : 'Off-Cargo'}
+                        </span>
+                      </div>
+                      <div className="std-op-meta">{metaBits}</div>
+                    </div>
+                    <Icon name="ChevronDown" size={16} className="std-op-chev" />
                   </button>
-                  {open && g.nodes}
+                  {open && (
+                    <div className="std-op-body">
+                      {vm && <div className="std-op-vm">{vm}</div>}
+                      {segs.length > 0 && (<>
+                        <div className="std-op-bar">
+                          {segs.map(s => (
+                            <div key={s.t} className="std-op-seg" style={{ flexGrow: s.days, background: s.tm.color }} title={`${s.tm.label} · ${s.days} days`}>
+                              <span className="std-op-seg-t">{s.tm.label} {s.days}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="std-op-legend">
+                          {segs.map(s => (
+                            <span key={s.t} className="std-op-leg"><span className="dt" style={{ background: s.tm.color }} /><b>{s.days}</b> {s.tm.label}</span>
+                          ))}
+                        </div>
+                      </>)}
+                      <div className="std-op-rows">{p.entries.map(renderLeg)}</div>
+                    </div>
+                  )}
                 </div>
               );
             });
