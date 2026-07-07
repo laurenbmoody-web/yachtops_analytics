@@ -1733,7 +1733,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         // An un-verified route never declares "requirements met" off a figure we
         // haven't confirmed against the notice.
         const hardReqs = requirements.filter(r => !r.advisory);
-        const eligible = conf.authoritative && hardReqs.length > 0 && hardReqs.every(r => r.met);
+        // Some pathways have NO sea-service gate (e.g. Chief Mate <3000GT is
+        // concurrent with OOW <3000 — gained by the courses, not extra sea time).
+        // Then hardReqs is empty and service eligibility is met by definition —
+        // don't let a `length > 0` guard falsely mark it "not eligible".
+        const noServiceGate = hardReqs.length === 0;
+        const eligible = conf.authoritative && hardReqs.every(r => r.met);
         const noeExpiry = addYearsIso(j.noe?.issueDate, 5);
         const oralExpiry = addYearsIso(j.oral?.passDate, 3);
         const noeDte = daysUntil(noeExpiry), oralDte = daysUntil(oralExpiry);
@@ -1755,7 +1760,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         const eligStep = {
           n: '01', label: 'Eligibility', key: 'elig', reachable: true,
           state: eligible ? 'done' : 'active',
-          line: !conf.authoritative ? 'Confirm figures' : eligible ? 'Requirements met' : `${unmet.length} to go`,
+          line: !conf.authoritative ? 'Confirm figures' : eligible ? (noServiceGate ? 'No sea-service gate' : 'Requirements met') : `${unmet.length} to go`,
         };
         let steps;
         if (hasOral) {
@@ -1863,15 +1868,26 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     <div className="cj-elig-pop" role="dialog" aria-label="Service requirements">
                       <button className="cj-elig-x" onClick={() => setEligOpen(false)} aria-label="Close"><Icon name="X" size={13} /></button>
                       <div className="cj-elig-h">Service requirements</div>
-                      {hardReqs.map(r => (
+                      {noServiceGate ? (
+                        <div className="cj-elig-row met">
+                          <span className="ck"><Icon name="Check" size={11} color="#3F7A52" /></span>
+                          <span className="l">No extra sea time — concurrent with your current CoC</span>
+                          <span className="v" />
+                        </div>
+                      ) : hardReqs.map(r => (
                         <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
                           <span className="ck">{r.met ? <Icon name="Check" size={11} color="#3F7A52" /> : <span className="dot" />}</span>
                           <span className="l">{r.label}</span>
-                          <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining}</em>}</span>
+                          <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
                         </div>
                       ))}
                       {!conf.authoritative && <div className="cj-detail" style={{ marginTop: 6 }}>{conf.label}</div>}
-                      <div className="cj-elig-foot">{eligible ? 'All met — apply for your NoE.' : 'Clear the outstanding service first.'}</div>
+                      <div className="cj-elig-foot">{
+                        !conf.authoritative ? 'Confirm your figures to unlock this step.'
+                          : noServiceGate ? (hasOral ? 'Concurrent with your current CoC — apply for your NoE.' : 'Gained through the courses above — no extra sea time needed.')
+                            : eligible ? (hasOral ? 'All met — apply for your NoE.' : 'All met — add the courses above.')
+                              : `${unmet.length} service requirement${unmet.length === 1 ? '' : 's'} still to clear — see above.`
+                      }</div>
                     </div>
                   )}
                 </div>
