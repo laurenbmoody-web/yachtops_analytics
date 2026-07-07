@@ -140,7 +140,13 @@
 .mp-supcard.ghost { cursor: default; }
 .mp-supcard .tag {
   font-family: 'Inter', system-ui, sans-serif; font-size: 9px; letter-spacing: 1.6px;
-  text-transform: uppercase; color: rgba(255,255,255,0.5);
+  text-transform: uppercase; color: rgba(255,255,255,0.5); max-width: 70%;
+}
+/* Supplier's own logo (if uploaded to their portal), top-right of the card */
+.mp-sup-logo {
+  position: absolute; top: 24px; right: 26px; width: 46px; height: 46px;
+  border-radius: 11px; object-fit: cover; background: #fff;
+  box-shadow: 0 6px 16px -6px rgba(0,0,0,0.45);
 }
 .mp-supcard .name {
   font-size: 30px; margin-top: auto; line-height: 1.1;
