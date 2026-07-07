@@ -1,5 +1,6 @@
-// Location Management — the Gallery. Decks → zones → spaces, each space showing
-// its scan (or inviting one). Flow ↔ static toggle; coverage at a glance.
+// Location Management — the Gallery. Each deck is its own card; zones and their
+// space-scans nest inside. Flow ↔ static toggle, drag-to-reorder (grips),
+// collapse/expand (chevrons), and a ⋯ menu per deck/zone for actions.
 // Reads via getVesselGallery; writes via locationsHierarchyStorage. "Add scan"
 // hands off to the map's upload flow with the space pre-linked.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -9,6 +10,7 @@ import {
   createDeck, createZone, createSpace,
   updateDeck, updateZone, updateSpace,
   archiveDeck, archiveZone, archiveSpace,
+  reorderLocations,
 } from '../utils/locationsHierarchyStorage';
 import '../location-gallery.css';
 
@@ -23,6 +25,52 @@ const GridIcon = () => (
     <rect x="3.5" y="11" width="5.5" height="5.5" rx="1.3" /><rect x="11" y="11" width="5.5" height="5.5" rx="1.3" />
   </svg>
 );
+const GripIcon = () => (
+  <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <circle cx="7" cy="5" r="1.3" /><circle cx="13" cy="5" r="1.3" /><circle cx="7" cy="10" r="1.3" />
+    <circle cx="13" cy="10" r="1.3" /><circle cx="7" cy="15" r="1.3" /><circle cx="13" cy="15" r="1.3" />
+  </svg>
+);
+const ChevIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+    <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const DotsIcon = () => (
+  <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <circle cx="10" cy="4" r="1.7" /><circle cx="10" cy="10" r="1.7" /><circle cx="10" cy="16" r="1.7" />
+  </svg>
+);
+
+// ── local tree helpers for optimistic drag-reorder ──
+const moveInList = (list, fromId, toId) => {
+  const arr = [...list];
+  const from = arr.findIndex((x) => x.id === fromId);
+  const to = arr.findIndex((x) => x.id === toId);
+  if (from < 0 || to < 0 || from === to) return list;
+  const [m] = arr.splice(from, 1);
+  arr.splice(to, 0, m);
+  return arr;
+};
+const reorderTree = (data, level, parentId, fromId, toId) => {
+  if (level === 'deck') return { ...data, decks: moveInList(data.decks, fromId, toId) };
+  return {
+    ...data,
+    decks: data.decks.map((deck) => {
+      if (level === 'zone') return deck.id === parentId ? { ...deck, zones: moveInList(deck.zones, fromId, toId) } : deck;
+      return { ...deck, zones: deck.zones.map((z) => (z.id === parentId ? { ...z, spaces: moveInList(z.spaces, fromId, toId) } : z)) };
+    }),
+  };
+};
+const siblingIds = (data, level, parentId) => {
+  if (!data) return [];
+  if (level === 'deck') return data.decks.map((d) => d.id);
+  for (const deck of data.decks) {
+    if (level === 'zone' && deck.id === parentId) return deck.zones.map((z) => z.id);
+    if (level === 'space') { const z = deck.zones.find((zz) => zz.id === parentId); if (z) return z.spaces.map((s) => s.id); }
+  }
+  return [];
+};
 
 export default function LocationGallery() {
   const navigate = useNavigate();
@@ -30,7 +78,17 @@ export default function LocationGallery() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState(() => (typeof localStorage !== 'undefined' && localStorage.getItem('lg-view')) || 'static');
   const [edit, setEdit] = useState(null); // {mode, id, value, error, saving}
+  const [menu, setMenu] = useState(null); // `deck:${id}` | `zone:${id}`
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('lg-collapsed') || '[]')); } catch { return new Set(); }
+  });
+  const [dragId, setDragId] = useState(null);
   const rootRef = useRef(null);
+  const dataRef = useRef(null);
+  const dragRef = useRef(null);   // {level, id, parentId}
+  const grabRef = useRef(false);  // true only while a grip is held
+
+  useEffect(() => { dataRef.current = data; }, [data]);
 
   const load = useCallback(async () => {
     const g = await getVesselGallery();
@@ -40,6 +98,29 @@ export default function LocationGallery() {
   useEffect(() => { load(); }, [load]);
 
   const setViewPersist = (v) => { setView(v); try { localStorage.setItem('lg-view', v); } catch { /* ignore */ } };
+
+  // close kebab on any outside click
+  useEffect(() => {
+    if (!menu) return undefined;
+    const h = () => setMenu(null);
+    document.addEventListener('click', h);
+    return () => document.removeEventListener('click', h);
+  }, [menu]);
+
+  // a grip release anywhere clears the grab intent
+  useEffect(() => {
+    const up = () => { grabRef.current = false; };
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, []);
+
+  const isClosed = (id) => collapsed.has(id);
+  const toggleCollapse = (id) => setCollapsed((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    try { localStorage.setItem('lg-collapsed', JSON.stringify([...next])); } catch { /* ignore */ }
+    return next;
+  });
 
   // ── cover-flow shaping (flow mode only) ──
   useEffect(() => {
@@ -76,7 +157,7 @@ export default function LocationGallery() {
     const onResize = () => rows.forEach(shape);
     window.addEventListener('resize', onResize);
     return () => { cleanups.forEach((c) => c()); window.removeEventListener('resize', onResize); };
-  }, [view, data]);
+  }, [view, data, collapsed]);
 
   // ── mutations ──
   const startEdit = (mode, id = null, value = '') => setEdit({ mode, id, value, error: '', saving: false });
@@ -109,6 +190,35 @@ export default function LocationGallery() {
     } catch (err) { console.error('[loc-gallery] archive error:', err); }
   };
 
+  // ── drag-to-reorder (initiated from a grip; siblings only) ──
+  const grab = () => { grabRef.current = true; };
+  const startDrag = (level, id, parentId) => (e) => {
+    if (!grabRef.current) { e.preventDefault(); return; }
+    e.stopPropagation();
+    dragRef.current = { level, id, parentId };
+    setDragId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', id); } catch { /* ignore */ }
+  };
+  const allowDrop = (e) => { if (dragRef.current) e.preventDefault(); };
+  const enterItem = (level, id, parentId) => (e) => {
+    const d = dragRef.current;
+    if (!d || d.level !== level || d.parentId !== parentId || d.id === id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setData((prev) => reorderTree(prev, level, parentId, d.id, id));
+  };
+  const endDrag = async (e) => {
+    e.stopPropagation();
+    grabRef.current = false;
+    const d = dragRef.current;
+    dragRef.current = null;
+    setDragId(null);
+    if (!d) return;
+    const ids = siblingIds(dataRef.current, d.level, d.parentId);
+    try { await reorderLocations(ids); } catch (err) { console.error('[loc-gallery] reorder error:', err); await load(); }
+  };
+
   const addScan = (space) => navigate(`/vessel/map/manage?space=${space.id}&name=${encodeURIComponent(space.name)}`);
   const openSpace = (space) => {
     if (space.scan?.id && space.scan.status === 'ready') navigate(`/vessel/map?scan=${space.scan.id}`);
@@ -131,11 +241,34 @@ export default function LocationGallery() {
     </div>
   );
 
-  const SpaceCard = (space) => {
+  const Kebab = ({ id, items }) => (
+    <div className={`lg-kebab${menu === id ? ' open' : ''}`}>
+      <button aria-label="Actions" onClick={(e) => { e.stopPropagation(); setMenu(menu === id ? null : id); }}><DotsIcon /></button>
+      {menu === id && (
+        <div className="lg-menu" onClick={(e) => e.stopPropagation()}>
+          {items.map((it, i) => (it.sep
+            ? <div key={i} className="lg-sep" />
+            : <button key={i} className={it.danger ? 'danger' : ''} onClick={() => { setMenu(null); it.on(); }}>{it.label}</button>))}
+        </div>
+      )}
+    </div>
+  );
+
+  const SpaceCard = (space, zoneId) => {
     const scan = space.scan;
     const scanned = scan?.status === 'ready';
     return (
-      <div key={space.id} className={`lg-cf${scanned ? '' : ' dim'}`} onClick={() => openSpace(space)}>
+      <div
+        key={space.id}
+        className={`lg-cf${scanned ? '' : ' dim'}${dragId === space.id ? ' dragging' : ''}`}
+        draggable
+        onDragStart={startDrag('space', space.id, zoneId)}
+        onDragEnd={endDrag}
+        onDragEnter={enterItem('space', space.id, zoneId)}
+        onDragOver={allowDrop}
+        onClick={() => openSpace(space)}
+      >
+        <span className="cf-grip" onMouseDown={grab} title="Drag to reorder"><GripIcon /></span>
         <div className="card">
           {scanned && scan.thumbUrl ? (
             <div className="img" style={{ backgroundImage: `url("${scan.thumbUrl}")` }} />
@@ -200,58 +333,97 @@ export default function LocationGallery() {
             </div>
           )}
 
-          {!loading && data?.decks?.map((deck) => (
-            <div className="lg-deck" key={deck.id}>
-              <div className="lg-deckhdr">
-                {edit?.mode === 'rename-deck' && edit.id === deck.id
-                  ? <InlineEditor placeholder="Deck name" />
-                  : (<><span className="dn">{deck.name}</span>
-                      <span className="dc">· {deck.zoneCount} {deck.zoneCount === 1 ? 'zone' : 'zones'} · {deck.spaceCount} {deck.spaceCount === 1 ? 'space' : 'spaces'}</span>
-                      <span className="acts">
-                        <button className="lg-btn" onClick={() => startEdit('add-zone', deck.id)}>＋ Zone</button>
-                        <button className="lg-btn" onClick={() => startEdit('rename-deck', deck.id, deck.name)}>Rename</button>
-                        <button className="lg-btn ghost-danger" onClick={() => doArchive('deck', deck.id)}>Archive</button>
-                      </span></>)}
-              </div>
-
-              {edit?.mode === 'add-zone' && edit.id === deck.id && (
-                <div style={{ margin: '10px 0' }}><InlineEditor placeholder="Zone name — e.g. Interior · Guest" /></div>
-              )}
-
-              {deck.zones.length === 0 && edit?.id !== deck.id && (
-                <div className="lg-empty" style={{ margin: '12px 30px' }}>No zones yet. <button className="lg-newdeck" onClick={() => startEdit('add-zone', deck.id)}>＋ Add a zone</button></div>
-              )}
-
-              {deck.zones.map((zone, zi) => (
-                <div className="lg-zone" key={zone.id}>
-                  <div className="lg-zhdr">
-                    <span className={`zdot z${zi % 4}`} />
-                    {edit?.mode === 'rename-zone' && edit.id === zone.id
-                      ? <InlineEditor placeholder="Zone name" />
-                      : (<>
-                          <span className="zn">{zone.name}</span>
-                          <span className="zct">{zone.spaceCount} {zone.spaceCount === 1 ? 'space' : 'spaces'}</span>
-                          <span className="zacts">
-                            <button className="lg-btn sm" onClick={() => startEdit('rename-zone', zone.id, zone.name)}>Rename</button>
-                            <button className="lg-btn sm" onClick={() => startEdit('add-space', zone.id)}>＋ Add space</button>
-                          </span>
-                        </>)}
-                  </div>
-
-                  {edit?.mode === 'add-space' && edit.id === zone.id && (
-                    <div style={{ margin: '8px 30px' }}><InlineEditor placeholder="Space name — e.g. Bridge Salon" /></div>
-                  )}
-
-                  <div className="row">
-                    {zone.spaces.map(SpaceCard)}
-                    <div className="lg-cf addcard" onClick={() => startEdit('add-space', zone.id)}>
-                      <div className="card"><div className="plus">＋ Add space</div><div className="foot" /></div>
-                    </div>
-                  </div>
+          {!loading && data?.decks?.map((deck) => {
+            const deckClosed = isClosed(deck.id);
+            return (
+              <div
+                className={`lg-deck${dragId === deck.id ? ' dragging' : ''}`}
+                key={deck.id}
+                draggable
+                onDragStart={startDrag('deck', deck.id, null)}
+                onDragEnd={endDrag}
+                onDragEnter={enterItem('deck', deck.id, null)}
+                onDragOver={allowDrop}
+              >
+                <div className="lg-deckhdr">
+                  <span className="lg-grip" onMouseDown={grab} title="Drag to reorder"><GripIcon /></span>
+                  <button className={`lg-chev${deckClosed ? ' closed' : ''}`} onClick={() => toggleCollapse(deck.id)} aria-label={deckClosed ? 'Expand' : 'Collapse'}><ChevIcon /></button>
+                  {edit?.mode === 'rename-deck' && edit.id === deck.id
+                    ? <InlineEditor placeholder="Deck name" />
+                    : (<>
+                        <span className="dn">{deck.name}</span>
+                        <span className="dc">· {deck.zoneCount} {deck.zoneCount === 1 ? 'zone' : 'zones'} · {deck.spaceCount} {deck.spaceCount === 1 ? 'space' : 'spaces'}</span>
+                        <span className="lg-spring" />
+                        <Kebab id={`deck:${deck.id}`} items={[
+                          { label: 'Rename', on: () => startEdit('rename-deck', deck.id, deck.name) },
+                          { label: 'Add zone', on: () => startEdit('add-zone', deck.id) },
+                          { sep: true },
+                          { label: 'Archive', danger: true, on: () => doArchive('deck', deck.id) },
+                        ]} />
+                      </>)}
                 </div>
-              ))}
-            </div>
-          ))}
+
+                {!deckClosed && (
+                  <div className="lg-deckbody">
+                    {edit?.mode === 'add-zone' && edit.id === deck.id && (
+                      <div style={{ margin: '12px 0' }}><InlineEditor placeholder="Zone name — e.g. Interior · Guest" /></div>
+                    )}
+
+                    {deck.zones.length === 0 && edit?.id !== deck.id && (
+                      <div className="lg-empty">No zones yet. <button className="lg-link" onClick={() => startEdit('add-zone', deck.id)}>＋ Add a zone</button></div>
+                    )}
+
+                    {deck.zones.map((zone) => {
+                      const zoneClosed = isClosed(zone.id);
+                      return (
+                        <div
+                          className={`lg-zone${dragId === zone.id ? ' dragging' : ''}`}
+                          key={zone.id}
+                          draggable
+                          onDragStart={startDrag('zone', zone.id, deck.id)}
+                          onDragEnd={endDrag}
+                          onDragEnter={enterItem('zone', zone.id, deck.id)}
+                          onDragOver={allowDrop}
+                        >
+                          <div className="lg-zhdr">
+                            <span className="lg-grip" onMouseDown={grab} title="Drag to reorder"><GripIcon /></span>
+                            <button className={`lg-chev${zoneClosed ? ' closed' : ''}`} onClick={() => toggleCollapse(zone.id)} aria-label={zoneClosed ? 'Expand' : 'Collapse'}><ChevIcon /></button>
+                            {edit?.mode === 'rename-zone' && edit.id === zone.id
+                              ? <InlineEditor placeholder="Zone name" />
+                              : (<>
+                                  <span className="zn">{zone.name}</span>
+                                  <span className="zct">{zone.spaceCount} {zone.spaceCount === 1 ? 'space' : 'spaces'}</span>
+                                  <span className="lg-spring" />
+                                  <Kebab id={`zone:${zone.id}`} items={[
+                                    { label: 'Rename', on: () => startEdit('rename-zone', zone.id, zone.name) },
+                                    { label: 'Add space', on: () => startEdit('add-space', zone.id) },
+                                    { sep: true },
+                                    { label: 'Archive', danger: true, on: () => doArchive('zone', zone.id) },
+                                  ]} />
+                                </>)}
+                          </div>
+
+                          {!zoneClosed && (
+                            <>
+                              {edit?.mode === 'add-space' && edit.id === zone.id && (
+                                <div style={{ margin: '8px 0' }}><InlineEditor placeholder="Space name — e.g. Bridge Salon" /></div>
+                              )}
+                              <div className="row">
+                                {zone.spaces.map((space) => SpaceCard(space, zone.id))}
+                                <div className="lg-cf addcard" onClick={() => startEdit('add-space', zone.id)}>
+                                  <div className="card"><div className="plus">＋ Add space</div><div className="foot" /></div>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
