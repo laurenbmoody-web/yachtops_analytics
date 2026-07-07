@@ -9,7 +9,7 @@
   --lg-terra:#C65A1A; --lg-terra2:#E8894A; --lg-terra-soft:#FBEEE4;
   --lg-ok:#3F7A5E; --lg-ok-soft:#EAF2ED;
   --lg-serif:'DM Serif Display','DM Serif Text',Georgia,serif;
-  --lg-sans:'Inter',system-ui,-apple-system,sans-serif;
+  --lg-sans:'Manrope','Inter',system-ui,-apple-system,sans-serif;
   --lg-sh-card:0 1px 2px rgba(28,27,58,.05),0 24px 60px -32px rgba(28,27,58,.30);
   --lg-sh-tile:0 1px 2px rgba(28,27,58,.06),0 16px 32px -18px rgba(28,27,58,.34);
   --lg-sh-tile-h:0 6px 14px -6px rgba(28,27,58,.24),0 30px 50px -26px rgba(28,27,58,.42);
@@ -45,11 +45,11 @@ html[data-theme="night"] .lg .lg-cf.addcard .card{border-color:#3A3960;}
 
 .lg-actions{display:flex;align-items:center;gap:10px;}
 .lg-seg{display:flex;gap:3px;background:var(--lg-wash2);border-radius:11px;padding:3px;}
-.lg-seg button{border:0;background:transparent;border-radius:8px;padding:7px 11px;cursor:pointer;color:var(--lg-muted);display:flex;align-items:center;gap:6px;font-family:var(--lg-sans);font-size:12.5px;font-weight:600;}
+.lg-seg button{border:0;background:transparent;border-radius:8px;padding:7px 11px;cursor:pointer;color:var(--lg-muted);display:flex;align-items:center;gap:6px;font-family:var(--lg-sans);font-size:12.5px;font-weight:500;}
 .lg-seg button.on{background:var(--lg-card);color:var(--lg-ink);box-shadow:0 1px 2px rgba(28,27,58,.12);}
 .lg-seg svg{width:15px;height:15px;}
 
-.lg-btn-primary{font-family:var(--lg-sans);font-size:13px;font-weight:600;color:#fff;
+.lg-btn-primary{font-family:var(--lg-sans);font-size:13px;font-weight:500;color:#fff;
   background:var(--lg-terra);border:1px solid var(--lg-terra);border-radius:10px;padding:8px 15px;cursor:pointer;
   transition:background .14s ease,border-color .14s ease;}
 .lg-btn-primary:hover{background:#B14E16;border-color:#B14E16;}
@@ -101,7 +101,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .lg-zone{margin-top:16px;border-radius:12px;transition:opacity .18s;}
 .lg-zone.dragging{opacity:.4;}
 .lg-zhdr{display:flex;align-items:center;gap:7px;margin:0;padding:5px 0;}
-.lg-zhdr .zn{font-size:13.5px;font-weight:650;color:var(--lg-ink);}
+.lg-zhdr .zn{font-size:13.5px;font-weight:600;color:var(--lg-ink);}
 .lg-zhdr .lg-chev{width:20px;height:20px;}
 .lg-zhdr .lg-chev svg{width:14px;height:14px;}
 .lg-zhdr .lg-kebab>button{width:28px;height:28px;}
@@ -113,15 +113,15 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .lg-cf .img{height:132px;position:relative;background:var(--lg-wash2);background-size:cover;background-position:center;overflow:hidden;}
 .lg-cf .img::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 40px rgba(20,18,40,.18);pointer-events:none;}
 .lg-cf .foot{padding:12px 15px;display:flex;align-items:center;gap:9px;}
-.lg-cf .foot .nm{font-size:14.5px;font-weight:600;color:var(--lg-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.lg-cf .foot .st{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.02em;padding:3px 9px;border-radius:999px;flex:none;}
+.lg-cf .foot .nm{font-size:14.5px;font-weight:500;color:var(--lg-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lg-cf .foot .st{margin-left:auto;font-size:10px;font-weight:600;letter-spacing:.02em;padding:3px 9px;border-radius:999px;flex:none;}
 .lg-cf .foot .st.on{color:var(--lg-ok);background:var(--lg-ok-soft);}
 .lg-cf .foot .st.off{color:var(--lg-terra);background:var(--lg-terra-soft);}
 .lg-cf.dim .card{border-style:dashed;border-color:#D8DBE4;}
 .lg-cf .noscan{height:132px;background:repeating-linear-gradient(135deg,var(--lg-wash),var(--lg-wash) 9px,var(--lg-wash2) 9px,var(--lg-wash2) 18px);display:flex;align-items:center;justify-content:center;cursor:pointer;}
-.lg-cf .noscan .sc{font-size:12.5px;font-weight:600;color:var(--lg-terra);}
+.lg-cf .noscan .sc{font-size:12.5px;font-weight:500;color:var(--lg-terra);}
 .lg-cf.addcard .card{border-style:dashed;border-color:#D8DBE4;background:var(--lg-wash);cursor:pointer;}
-.lg-cf.addcard .plus{display:flex;align-items:center;justify-content:center;color:var(--lg-terra);font-weight:600;font-size:13px;}
+.lg-cf.addcard .plus{display:flex;align-items:center;justify-content:center;color:var(--lg-terra);font-weight:500;font-size:13px;}
 .lg-cf.addcard .foot{display:none;}
 .lg-cf.dragging{opacity:.4;}
 
