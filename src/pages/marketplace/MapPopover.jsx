@@ -62,18 +62,6 @@ const MapPopover = ({
       map.addListener('dragend', () => setCanSearchArea(true));
       map.addListener('zoom_changed', () => { if (programmatic.current) return; setCanSearchArea(true); });
       map.addListener('idle', () => { programmatic.current = false; });
-
-      if (inputRef.current && g.places) {
-        const ac = new g.places.Autocomplete(inputRef.current, { fields: ['geometry', 'name', 'formatted_address'] });
-        ac.addListener('place_changed', () => {
-          const p = ac.getPlace();
-          if (p && p.geometry) {
-            const loc = p.geometry.location;
-            onQueryChange(p.name || p.formatted_address || '');
-            setPointRef.current({ lat: loc.lat(), lng: loc.lng(), label: p.name || p.formatted_address, bbox: bboxOf(p.geometry.viewport) });
-          }
-        });
-      }
     }).catch(() => { if (!cancelled) setMapError(true); });
 
     return () => {

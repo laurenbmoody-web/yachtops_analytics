@@ -18,7 +18,7 @@ export function loadGoogleMaps() {
     const cb = '__cargoGmapsReady';
     window[cb] = () => resolve(window.google.maps);
     const s = document.createElement('script');
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&loading=async&callback=${cb}`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&loading=async&callback=${cb}`;
     s.async = true;
     s.defer = true;
     s.onerror = () => { promise = null; reject(new Error('Google Maps failed to load')); };
