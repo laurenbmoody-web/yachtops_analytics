@@ -15,6 +15,7 @@ import LocationsManagementSettings from '../locations-management-settings';
 import RoleManagement from '../crew-management/components/RoleManagement';
 import { useAuth } from '../../contexts/AuthContext';
 import { logActivity } from '../../utils/activityStorage';
+import './vessel-hub.css';
 
 // Field-label hover/focus tooltip. Pure CSS (not the native `title`, which is
 // slow and unreliable), so it works the same in view mode and edit mode.
@@ -38,6 +39,14 @@ const VesselSettings = () => {
 
   // Hub navigation state
   const [activeSection, setActiveSection] = useState('vessel-profile');
+  const [navCollapsed, setNavCollapsed] = useState(() => {
+    try { return localStorage.getItem('vh-nav-collapsed') === '1'; } catch { return false; }
+  });
+  const toggleNav = () => setNavCollapsed((c) => {
+    const next = !c;
+    try { localStorage.setItem('vh-nav-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
+    return next;
+  });
 
   // State
   const [loading, setLoading] = useState(true);
@@ -1370,20 +1379,8 @@ const VesselSettings = () => {
       return (
         <div>
           {!canEdit && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3 mb-6">
-              <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">View-only access</p>
-                <p className="text-xs text-yellow-700 mt-1">Only COMMAND can edit location settings</p>
-              </div>
-            </div>
+            <p className="vh-note">View-only — only Command can edit locations.</p>
           )}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-2xl font-semibold text-foreground">Location Management</h2>
-              <p className="text-sm text-muted-foreground mt-1">Manage vessel decks, zones, and spaces</p>
-            </div>
-          </div>
           <LocationsManagementSettings embedded={true} />
         </div>
       );
@@ -1422,41 +1419,46 @@ const VesselSettings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="vh-page min-h-screen bg-background">
       <Header />
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Vessel Hub</h1>
-          <p className="text-muted-foreground mt-1">Manage vessel settings, locations, inventory, and roles</p>
+      <div className="max-w-7xl mx-auto px-4 py-6" style={{ paddingTop: 28 }}>
+        {/* Page Header — editorial */}
+        <div className="mb-8">
+          <h1 className="vh-title">Vessel Hub</h1>
+          <p className="vh-sub">Manage vessel settings, locations, inventory, and roles</p>
         </div>
 
-        {/* Hub Layout: Left Sidebar + Right Content */}
-        <div className="flex gap-6">
-          {/* Left Sidebar Navigation */}
-          <div className="w-64 flex-shrink-0">
-            <div className="bg-card border border-border rounded-lg p-2 sticky top-24">
+        {/* Hub Layout — boxless editorial rail + content */}
+        <div className="vh-layout">
+          <nav className={`vh-nav${navCollapsed ? ' collapsed' : ''}`} aria-label="Vessel Hub sections">
+            <div className="vh-nav-top">
+              <span className="vh-nav-grp">Vessel</span>
+              <button
+                className="vh-collapse"
+                onClick={toggleNav}
+                aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+                title={navCollapsed ? 'Expand' : 'Collapse'}
+              >
+                <Icon name={navCollapsed ? 'ChevronRight' : 'ChevronLeft'} size={16} />
+              </button>
+            </div>
+            <div className="vh-nav-list">
               {sections?.map(section => (
                 <button
                   key={section?.id}
                   onClick={() => setActiveSection(section?.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-smooth ${
-                    activeSection === section?.id
-                      ? 'bg-primary text-white' :'text-foreground hover:bg-muted'
-                  }`}
+                  className={`vh-nav-it${activeSection === section?.id ? ' active' : ''}`}
+                  title={navCollapsed ? section?.label : undefined}
                 >
-                  <Icon name={section?.icon} size={18} />
-                  <span className="text-sm font-medium">{section?.label}</span>
+                  <span className="ico"><Icon name={section?.icon} size={18} /></span>
+                  <span className="lbl">{section?.label}</span>
                 </button>
               ))}
             </div>
-          </div>
+          </nav>
 
-          {/* Right Content Panel */}
-          <div className="flex-1">
-            <div className="bg-card border border-border rounded-lg p-6">
-              {renderContent()}
-            </div>
+          <div className="vh-content">
+            {renderContent()}
           </div>
         </div>
       </div>
