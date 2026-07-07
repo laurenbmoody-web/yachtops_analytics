@@ -655,8 +655,8 @@ const Marketplace = () => {
                                   {fstats?.onTimePct != null && <> <span className="mp-sf-sep">·</span> {fstats.onTimePct}% on-time</>}
                                 </div>
                                 <div className="mp-sf-tags">
-                                  {(fmeta.topCats || []).slice(0, 4).map(c => <span key={c}>{c}</span>)}
-                                  {(fmeta.topCats?.length || 0) > 4 && <span>+{fmeta.topCats.length - 4}</span>}
+                                  {(fmeta.topCats || []).slice(0, 3).map(c => <span key={c}>{c}</span>)}
+                                  {(fmeta.topCats?.length || 0) > 3 && <span className="more">+{fmeta.topCats.length - 3}</span>}
                                 </div>
                               </div>
                             </div>
@@ -673,23 +673,23 @@ const Marketplace = () => {
                               </span>
                             </div>
                           </div>
-                          <div className="mp-face mp-back">
-                            <span className="tag">Your history</span>
+                          <div className="mp-face mp-back mp-sfback">
+                            <span className="tag">Your history with</span>
+                            <div className="mp-sfb-head">
+                              <span className="mp-sfb-logo">
+                                {focused.logo_url ? <img src={focused.logo_url} alt="" /> : initialsOf(focused.name)}
+                              </span>
+                              <span className="mp-sfb-nm">{focused.name}</span>
+                            </div>
                             {fmem && fmem.orders > 0 ? (
-                              <>
-                                <div className="mp-mem">
-                                  <div className="mp-memstat"><span className="v">{fmem.orders}</span><span className="l">order{fmem.orders === 1 ? '' : 's'}</span></div>
-                                  <div className="mp-memstat"><span className="v">{fmtMoney(fmem.spend, fmem.currency)}</span><span className="l">spent</span></div>
-                                  <div className="mp-memstat"><span className="v">{fmem.lastOrderAt ? fmtDate(fmem.lastOrderAt) : '—'}</span><span className="l">last order</span></div>
-                                </div>
-                                {fmem.topCategories?.length > 0 && (
-                                  <div className="mp-mem-note">Most ordered · {fmem.topCategories.slice(0, 2).join(', ')}</div>
-                                )}
-                              </>
+                              <div className="mp-sfb-led">
+                                <div className="r"><span className="l">Orders placed</span><span className="v">{fmem.orders}</span></div>
+                                <div className="r"><span className="l">Total spent</span><span className="v">{fmtMoney(fmem.spend, fmem.currency)}</span></div>
+                                <div className="r"><span className="l">Last order</span><span className="v">{fmem.lastOrderAt ? fmtDate(fmem.lastOrderAt) : '—'}</span></div>
+                              </div>
                             ) : (
-                              <div className="mp-mem-empty">No orders with them yet — be their first.</div>
+                              <div className="mp-sfb-empty">No orders with them yet — be their first.</div>
                             )}
-                            <span className="mp-flip-hint">Click to enter →</span>
                           </div>
                         </div>
                       </button>
