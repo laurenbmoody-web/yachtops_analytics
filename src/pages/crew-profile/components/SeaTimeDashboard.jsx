@@ -1877,7 +1877,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               <div className="std-fnum">01</div>
               <div>
                 <div className="std-fhead">
-                  <span className="std-flabel">Validate</span>
                   <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{passed} of {total} cleared</span>
                 </div>
                 <div className="std-ftitle">Every rule must clear{cert ? <span className="std-fagainst"> · checked against {cert.short}</span> : ''}</div>
@@ -1897,7 +1896,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             <div className="std-fstep">
               <div className="std-fnum">02</div>
               <div>
-                <div className="std-fhead"><span className="std-flabel">Attach documents · for {vp.short} verification</span></div>
                 <div className="std-ftitle">What {vp.short} need to verify your service</div>
                 <div className="std-docs">
                   {vp.docs.map(d => {
@@ -1916,7 +1914,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     );
                   })}
                 </div>
-                <div className="std-fee">{vp.fee}</div>
+                {verifier !== 'pya' && <div className="std-fee">{vp.fee}</div>}
               </div>
             </div>
 
@@ -2018,7 +2016,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className="std-fnum">03</div>
                 <div>
                   <div className="std-fhead">
-                    {verifier === 'pya' ? <span className="std-flabel">Auto-fill your PYA SST</span> : <span className="std-flabel">Export &amp; submit · for {vp.name}</span>}
                     <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{canGenerate ? 'Ready to export' : 'Locked'}</span>
                   </div>
                   <div className="std-ftitle">Hand your record to {vp.short}</div>
