@@ -1418,14 +1418,19 @@ const VesselSettings = () => {
     );
   }
 
+  const activeMeta = sections?.find(s => s?.id === activeSection) || sections?.[0];
+  const titleWords = (activeMeta?.label || 'Vessel Hub').split(' ');
+  const titleAccent = titleWords.pop();
+  const titleLead = titleWords.join(' ');
+
   return (
-    <div className="vh-page min-h-screen bg-background">
+    <div className="vh-page min-h-screen">
       <Header />
-      <div className="max-w-7xl mx-auto px-4 py-6" style={{ paddingTop: 28 }}>
-        {/* Page Header — editorial */}
-        <div className="mb-8">
-          <h1 className="vh-title">Vessel Hub</h1>
-          <p className="vh-sub">Manage vessel settings, locations, inventory, and roles</p>
+      <div className="w-full px-8 py-6" style={{ paddingTop: 28, maxWidth: 1560, margin: '0 auto' }}>
+        {/* Editorial masthead — kicker + serif title with italic accent */}
+        <div className="vh-mast">
+          <span className="vh-kicker">Vessel Hub</span>
+          <h1 className="vh-h1">{titleLead ? <>{titleLead} </> : null}<em>{titleAccent}</em></h1>
         </div>
 
         {/* Hub Layout — boxless editorial rail + content */}
