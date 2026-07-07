@@ -20,6 +20,15 @@ html[data-theme="night"] .vh-page{
 .vh-h1{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:400;font-size:clamp(34px,4.6vw,46px);line-height:1;letter-spacing:-.01em;color:var(--vh-ink);margin:0;}
 .vh-h1 em{font-style:italic;color:var(--vh-terra);}
 
+/* stats dateline — sits above the headline like an editorial dateline */
+.vh-stats{display:flex;align-items:center;flex-wrap:wrap;gap:0;margin:2px 0 14px;}
+.vh-stats .s{display:flex;align-items:baseline;gap:7px;padding:0 16px;border-left:1px solid var(--vh-hair);}
+.vh-stats .s:first-child{padding-left:0;border-left:0;}
+.vh-stats .sk{font-family:'Inter',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--vh-faint);}
+.vh-stats .sv{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-size:17px;line-height:1;color:var(--vh-ink);font-variant-numeric:tabular-nums;}
+.vh-stats .s.cov .sbar{width:56px;height:4px;border-radius:4px;background:var(--vh-soft);overflow:hidden;align-self:center;}
+.vh-stats .s.cov .sbar i{display:block;height:100%;background:linear-gradient(90deg,var(--vh-terra),#E8894A);border-radius:4px;transition:width .4s cubic-bezier(.2,.7,.2,1);}
+
 .vh-layout{display:flex;gap:34px;align-items:flex-start;}
 @media(max-width:820px){.vh-layout{gap:20px;}}
 

@@ -72,7 +72,7 @@ const siblingIds = (data, level, parentId) => {
   return [];
 };
 
-export default function LocationGallery() {
+export default function LocationGallery({ onStats, hideStats = false } = {}) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,6 +96,17 @@ export default function LocationGallery() {
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // report stats up (e.g. to the Vessel Hub masthead dateline)
+  useEffect(() => {
+    if (!onStats || !data) return;
+    onStats({
+      scanned: data.coverage?.scanned || 0,
+      total: data.coverage?.total || 0,
+      decks: data.decks?.length || 0,
+      zones: (data.decks || []).reduce((n, d) => n + d.zoneCount, 0),
+    });
+  }, [data, onStats]);
 
   const setViewPersist = (v) => { setView(v); try { localStorage.setItem('lg-view', v); } catch { /* ignore */ } };
 
@@ -298,17 +309,19 @@ export default function LocationGallery() {
       <div className="lg-wrap">
         <div className="lg-pane">
           {/* meta bar: stats left, controls right */}
-          <div className="lg-metabar">
-            <div className="lg-meta">
-              <div className="m cov">
-                <span className="k">Scanned</span>
-                <span className="v">{coverage.scanned} / {coverage.total}</span>
-                <span className="bar"><i style={{ width: `${pct}%` }} /></span>
+          <div className={`lg-metabar${hideStats ? ' controls-only' : ''}`}>
+            {!hideStats && (
+              <div className="lg-meta">
+                <div className="m cov">
+                  <span className="k">Scanned</span>
+                  <span className="v">{coverage.scanned} / {coverage.total}</span>
+                  <span className="bar"><i style={{ width: `${pct}%` }} /></span>
+                </div>
+                <div className="m"><span className="k">Decks</span><span className="v">{decksTotal}</span></div>
+                <div className="m"><span className="k">Zones</span><span className="v">{zonesTotal}</span></div>
+                <div className="m"><span className="k">Spaces</span><span className="v">{coverage.total}</span></div>
               </div>
-              <div className="m"><span className="k">Decks</span><span className="v">{decksTotal}</span></div>
-              <div className="m"><span className="k">Zones</span><span className="v">{zonesTotal}</span></div>
-              <div className="m"><span className="k">Spaces</span><span className="v">{coverage.total}</span></div>
-            </div>
+            )}
             <div className="lg-actions">
               <div className="lg-seg" role="tablist" aria-label="View">
                 <button className={view === 'flow' ? 'on' : ''} aria-selected={view === 'flow'} onClick={() => setViewPersist('flow')}><FlowIcon />Flow</button>
@@ -337,7 +350,7 @@ export default function LocationGallery() {
             const deckClosed = isClosed(deck.id);
             return (
               <div
-                className={`lg-deck${dragId === deck.id ? ' dragging' : ''}`}
+                className={`lg-deck${dragId === deck.id ? ' dragging' : ''}${deckClosed ? ' collapsed' : ''}`}
                 key={deck.id}
                 draggable
                 onDragStart={startDrag('deck', deck.id, null)}
@@ -352,7 +365,6 @@ export default function LocationGallery() {
                     ? <InlineEditor placeholder="Deck name" />
                     : (<>
                         <span className="dn">{deck.name}</span>
-                        <span className="dc">· {deck.zoneCount} {deck.zoneCount === 1 ? 'zone' : 'zones'} · {deck.spaceCount} {deck.spaceCount === 1 ? 'space' : 'spaces'}</span>
                         <span className="lg-spring" />
                         <Kebab id={`deck:${deck.id}`} items={[
                           { label: 'Rename', on: () => startEdit('rename-deck', deck.id, deck.name) },
@@ -392,7 +404,6 @@ export default function LocationGallery() {
                               ? <InlineEditor placeholder="Zone name" />
                               : (<>
                                   <span className="zn">{zone.name}</span>
-                                  <span className="zct">{zone.spaceCount} {zone.spaceCount === 1 ? 'space' : 'spaces'}</span>
                                   <span className="lg-spring" />
                                   <Kebab id={`zone:${zone.id}`} items={[
                                     { label: 'Rename', on: () => startEdit('rename-zone', zone.id, zone.name) },

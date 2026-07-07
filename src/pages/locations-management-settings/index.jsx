@@ -10,7 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
 import LocationGallery from './components/LocationGallery';
 
-const LocationsManagementSettings = ({ embedded = false }) => {
+const LocationsManagementSettings = ({ embedded = false, onStats, hideStats = false }) => {
   const navigate = useNavigate();
   const { bootstrapComplete, tenantRole } = useAuth();
   const currentUser = getCurrentUser();
@@ -62,7 +62,7 @@ const LocationsManagementSettings = ({ embedded = false }) => {
             </div>
           </div>
         )}
-        <LocationGallery />
+        <LocationGallery onStats={onStats} hideStats={hideStats} />
       </div>
     </div>
   );
