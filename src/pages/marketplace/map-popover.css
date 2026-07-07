@@ -1,0 +1,104 @@
+/* The Chart — marketplace map popover. Self-contained (fixed overlay),
+   light + dark, scoped mpm-*. Leaflet tiles are warmed toward the Cargo
+   paper palette with a filter so the standard OSM map reads editorial. */
+
+.mpm-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(20, 19, 32, 0.44); backdrop-filter: blur(2px);
+}
+.mpm-panel {
+  position: fixed; z-index: 61; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(760px, 94vw); max-height: 90vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  background: #FFFDFA; color: #1C1B3A; border: 1px solid #ECEAE3; border-radius: 18px;
+  box-shadow: 0 40px 90px -30px rgba(28, 27, 58, 0.5);
+  font-family: 'Inter', system-ui, sans-serif;
+  animation: mpm-in .2s cubic-bezier(.2, .7, .3, 1);
+}
+@keyframes mpm-in { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+
+.mpm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 20px 22px 14px; }
+.mpm-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 23px; margin: 0; color: #1C1B3A; }
+.mpm-title em { font-style: italic; color: #C65A1A; }
+.mpm-sub { font-size: 12.5px; color: #6B7280; margin: 4px 0 0; }
+.mpm-x { border: none; background: none; color: #AEB4C2; cursor: pointer; padding: 2px; }
+.mpm-x:hover { color: #1C1B3A; }
+
+.mpm-searchrow { display: flex; gap: 8px; padding: 0 22px 8px; }
+.mpm-field {
+  flex: 1; display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid #E8E6DF; border-radius: 10px; background: #FAFAF8; padding: 0 13px; height: 42px;
+}
+.mpm-field .ic { color: #AEB4C2; flex: none; }
+.mpm-field input { border: none; background: none; outline: none; width: 100%; font-family: inherit; font-size: 13.5px; color: #1C1B3A; }
+.mpm-field:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.mpm-go {
+  display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 16px;
+  border: none; border-radius: 10px; background: #C65A1A; color: #fff;
+  font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.mpm-go:hover:not(:disabled) { background: #B14E16; }
+.mpm-go:disabled { opacity: 0.6; cursor: default; }
+.mpm-loc {
+  width: 42px; height: 42px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid #E8E6DF; border-radius: 10px; background: #fff; color: #1C1B3A; cursor: pointer;
+}
+.mpm-loc:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
+.mpm-err { padding: 2px 22px 8px; font-size: 12px; color: #B0372B; }
+
+.mpm-mapwrap { padding: 4px 22px 12px; }
+.mpm-map { height: 340px; border-radius: 12px; overflow: hidden; border: 1px solid #ECEAE3; background: #E7EEF0; }
+.mpm-map .leaflet-tile { filter: sepia(0.26) saturate(0.72) brightness(1.05) hue-rotate(-6deg); }
+.mpm-map .leaflet-container { font-family: 'Inter', system-ui, sans-serif; background: #DFEAEE; }
+.mpm-mapfail { height: 340px; border-radius: 12px; border: 1px dashed #E8E6DF; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #8B8478; font-size: 13px; }
+
+/* Custom markers (divIcon) */
+.mp-pin span { display: block; width: 14px; height: 14px; border-radius: 999px; box-shadow: 0 0 0 3px rgba(255,255,255,0.9); }
+.mp-pin span.live { background: #C65A1A; }
+.mp-pin span.dim { background: #9AA0AE; box-shadow: 0 0 0 2px rgba(255,255,255,0.75); }
+.mp-youpin span {
+  display: block; width: 18px; height: 18px; border-radius: 999px; background: #1C1B3A;
+  border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(28,27,58,0.18);
+}
+
+.mpm-result { padding: 2px 22px 6px; overflow-y: auto; }
+.mpm-count { font-size: 12.5px; color: #6B7280; margin-bottom: 8px; }
+.mpm-count b { color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.mpm-list { display: flex; flex-direction: column; gap: 2px; max-height: 150px; overflow-y: auto; }
+.mpm-shop {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  border: none; background: none; cursor: pointer; padding: 8px 6px; border-radius: 8px;
+  font-family: inherit; color: #1C1B3A;
+}
+.mpm-shop:hover { background: #FBEFE9; }
+.mpm-shop .dot { width: 8px; height: 8px; border-radius: 999px; background: #C65A1A; flex: none; }
+.mpm-shop .nm { flex: 1; font-size: 13.5px; font-weight: 600; }
+.mpm-shop .rd { font-size: 11.5px; color: #8B8478; font-variant-numeric: tabular-nums; }
+.mpm-none { padding: 14px 6px; font-size: 12.5px; color: #8B8478; }
+
+.mpm-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px 22px 18px; border-top: 1px solid #F0F1F5; }
+.mpm-clear { border: none; background: none; color: #8B8478; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-right: auto; }
+.mpm-clear:hover { color: #C65A1A; }
+.mpm-done { border: none; border-radius: 10px; background: #1C1B3A; color: #fff; font-family: inherit; font-size: 13px; font-weight: 700; padding: 10px 20px; cursor: pointer; }
+.mpm-done:hover { background: #12112a; }
+
+/* ── Night market ── */
+.mpm-panel.dark { background: #1E1B2C; color: #F2EFE9; border-color: #302C42; }
+.mpm-panel.dark .mpm-title { color: #F2EFE9; }
+.mpm-panel.dark .mpm-sub, .mpm-panel.dark .mpm-count { color: #A9A3B6; }
+.mpm-panel.dark .mpm-count b { color: #F2EFE9; }
+.mpm-panel.dark .mpm-field { background: #262238; border-color: #302C42; }
+.mpm-panel.dark .mpm-field input { color: #F2EFE9; }
+.mpm-panel.dark .mpm-loc { background: #262238; border-color: #302C42; color: #F2EFE9; }
+.mpm-panel.dark .mpm-map { border-color: #302C42; background: #10151a; }
+.mpm-panel.dark .mpm-map .leaflet-tile { filter: invert(0.92) hue-rotate(180deg) saturate(0.55) brightness(0.85) contrast(0.95); }
+.mpm-panel.dark .mpm-shop { color: #F2EFE9; }
+.mpm-panel.dark .mpm-shop:hover { background: #3A2519; }
+.mpm-panel.dark .mpm-foot { border-color: #272338; }
+.mpm-panel.dark .mpm-done { background: #C65A1A; }
+.mpm-panel.dark .mpm-done:hover { background: #EF8A54; }
+
+@media (max-width: 560px) {
+  .mpm-searchrow { flex-wrap: wrap; }
+  .mpm-map, .mpm-mapfail { height: 260px; }
+}

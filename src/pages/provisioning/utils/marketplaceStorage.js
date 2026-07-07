@@ -66,6 +66,30 @@ export const fetchMarketplaceProducts = async (supplierIds) => {
   return data ?? [];
 };
 
+/**
+ * Reference coordinates for known yacht ports, keyed by lower-case name.
+ * Powers the marketplace map's pins, radius circles, and distance filter.
+ * Best-effort: a failure just means the map falls back to name matching.
+ */
+export const fetchPortLocations = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('port_locations')
+      .select('name, lat, lng, country, region');
+    if (error) throw error;
+    const map = new Map();
+    (data ?? []).forEach((p) => {
+      map.set(String(p.name).toLowerCase(), {
+        name: p.name, lat: Number(p.lat), lng: Number(p.lng), country: p.country, region: p.region,
+      });
+    });
+    return map;
+  } catch (err) {
+    console.warn('[marketplaceStorage] fetchPortLocations (non-blocking):', err?.message);
+    return new Map();
+  }
+};
+
 /** Which marketplace suppliers this tenant already works with. */
 export const fetchTenantSupplierIds = async (tenantId) => {
   if (!tenantId) return new Set();

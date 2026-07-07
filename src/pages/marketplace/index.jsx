@@ -28,9 +28,12 @@ import {
   fetchMarketplaceSupplierStats,
   fetchMarketplaceProducts,
   fetchTenantSupplierIds,
+  fetchPortLocations,
   ensureTenantSupplierLinks,
   addBasketToBoard,
 } from '../provisioning/utils/marketplaceStorage';
+import MapPopover from './MapPopover';
+import { supplierReaches } from './geo';
 import {
   fetchProvisioningLists,
   createProvisioningList,
@@ -175,7 +178,10 @@ const Marketplace = () => {
   const [showFilter, setShowFilter] = useState('all'); // all | in | mine
   const [sortBy, setSortBy] = useState('name');
   const [provSearch, setProvSearch] = useState(''); // the deck's own search
-  const [provLoc, setProvLoc] = useState('');       // "serves my area" location filter
+  const [provLoc, setProvLoc] = useState('');       // "serves my area" typed text
+  const [queryPoint, setQueryPoint] = useState(null); // geocoded {lat,lng,label}
+  const [mapOpen, setMapOpen] = useState(false);
+  const [portCoords, setPortCoords] = useState(() => new Map());
   const [provCat, setProvCat] = useState('All');
   const [provSort, setProvSort] = useState('name');
 
@@ -189,13 +195,15 @@ const Marketplace = () => {
     let live = true;
     (async () => {
       try {
-        const [sups, st] = await Promise.all([
+        const [sups, st, ports] = await Promise.all([
           fetchMarketplaceSuppliers(),
           fetchMarketplaceSupplierStats(),
+          fetchPortLocations(),
         ]);
         if (!live) return;
         setSuppliers(sups);
         setStats(st);
+        setPortCoords(ports);
         const [prods, mine, lists] = await Promise.all([
           fetchMarketplaceProducts(sups.map(s => s.id)),
           fetchTenantSupplierIds(activeTenantId),
@@ -270,11 +278,11 @@ const Marketplace = () => {
     return Array.from(s).sort();
   }, [suppliers]);
 
-  // "Serves my area": does this shop reach the typed port/city/country?
-  // Text match over coverage_ports + business city/country for now — the
-  // map layer (with geocoded postcodes + a service radius) upgrades this
-  // to true distance later.
+  // "Serves my area": once the crew geocodes a point on the map we use
+  // true distance (any covered port within the shop's service radius);
+  // otherwise we fall back to a plain name match on the typed text.
   const servesArea = (s, loc) => {
+    if (queryPoint) return supplierReaches(s, portCoords, queryPoint);
     if (!loc) return true;
     return (s.coverage_ports || []).some(p => p.toLowerCase().includes(loc))
       || (s.business_city || '').toLowerCase().includes(loc)
@@ -302,9 +310,9 @@ const Marketplace = () => {
     }[provSort] || ((a, b) => a.name.localeCompare(b.name));
     return [...rows].sort(cmp);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suppliers, provSearch, provLoc, provCat, provSort, supplierMeta]);
+  }, [suppliers, provSearch, provLoc, queryPoint, portCoords, provCat, provSort, supplierMeta]);
 
-  const provFiltersDirty = provSearch || provLoc || provCat !== 'All' || provSort !== 'name';
+  const provFiltersDirty = provSearch || provLoc || queryPoint || provCat !== 'All' || provSort !== 'name';
 
   // ── Browse surface (aisles = one supplier; items = all) ──
   const ports = useMemo(() => {
@@ -510,15 +518,17 @@ const Marketplace = () => {
                       onChange={(e) => { setProvSearch(e.target.value); setDeckIndex(0); }}
                     />
                   </label>
-                  <label className="mp-locfield" title="Show shops that can reach your area">
+                  <button
+                    type="button"
+                    className={`mp-locfield ${queryPoint ? 'set' : ''}`}
+                    onClick={() => setMapOpen(true)}
+                    title="Open the map — see which shops reach your area"
+                  >
                     <MapPin size={14} className="ic" />
-                    <input
-                      className="mp-loc-input"
-                      placeholder="Serves my area — port, city, country…"
-                      value={provLoc}
-                      onChange={(e) => { setProvLoc(e.target.value); setDeckIndex(0); }}
-                    />
-                  </label>
+                    <span className={`mp-loc-val ${queryPoint || provLoc ? '' : 'ph'}`}>
+                      {queryPoint ? (queryPoint.label?.split(',')[0] || 'Your area') : (provLoc || 'Serves my area')}
+                    </span>
+                  </button>
                   {provCats.length > 0 && (
                     <label className="mp-filter">
                       <span className="k">Category</span>
@@ -541,7 +551,7 @@ const Marketplace = () => {
                     <button
                       type="button"
                       className="mp-clear"
-                      onClick={() => { setProvSearch(''); setProvLoc(''); setProvCat('All'); setProvSort('name'); setDeckIndex(0); }}
+                      onClick={() => { setProvSearch(''); setProvLoc(''); setQueryPoint(null); setProvCat('All'); setProvSort('name'); setDeckIndex(0); }}
                     >
                       × Clear all
                     </button>
@@ -720,6 +730,20 @@ const Marketplace = () => {
             </>
           )}
         </div>
+
+        {/* The Chart — map popover off the "serves my area" field */}
+        <MapPopover
+          open={mapOpen}
+          onClose={() => setMapOpen(false)}
+          suppliers={suppliers}
+          portCoords={portCoords}
+          theme={theme}
+          queryValue={provLoc}
+          onQueryChange={setProvLoc}
+          queryPoint={queryPoint}
+          onSetPoint={(pt) => { setQueryPoint(pt); setDeckIndex(0); }}
+          onEnterShop={enterShop}
+        />
 
         {/* ── iii · The Counter (drawer) ── */}
         {!loading && (

@@ -240,19 +240,22 @@
 .mp-clear:hover { background: var(--tint); }
 .mp-count { margin-left: auto; font-size: 12px; color: var(--faint); white-space: nowrap; }
 
-/* Location searcher — "serves my area" (replaces the Port dropdown) */
+/* Location searcher — opens the map popover ("serves my area") */
 .mp-locfield {
-  display: inline-flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer; text-align: left;
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
-  padding: 0 12px; height: 40px; min-width: 244px;
+  padding: 0 13px; height: 40px; min-width: 210px; font-family: inherit;
+  transition: border-color .15s, background .15s;
 }
+.mp-locfield:hover { border-color: var(--accent); }
 .mp-locfield .ic { color: var(--faint); flex: none; }
-.mp-locfield:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--halo); }
-.mp-loc-input {
-  border: none; background: transparent; outline: none; width: 100%;
-  font-family: inherit; font-size: 13px; font-weight: 500; color: var(--ink);
+.mp-locfield.set { border-color: var(--accent); background: var(--tint); }
+.mp-locfield.set .ic { color: var(--accent); }
+.mp-loc-val {
+  font-size: 13px; font-weight: 500; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;
 }
-.mp-loc-input::placeholder { color: var(--faint); font-weight: 400; }
+.mp-loc-val.ph { color: var(--faint); font-weight: 400; }
 
 /* ── Product grid ── */
 .mp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 14px; }
