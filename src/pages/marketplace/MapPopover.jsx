@@ -12,7 +12,7 @@
 // list below still filters by area.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, X, Crosshair, MapPin } from 'lucide-react';
+import { Search, X, Crosshair, MapPin, ChevronRight } from 'lucide-react';
 import { supplierPortPoints, supplierReaches, centroidOf, isBroadArea } from './geo';
 import { loadGoogleMaps, hasGoogleKey, MAP_STYLE_LIGHT, MAP_STYLE_DARK } from './gmaps';
 import './map-popover.css';
@@ -214,34 +214,38 @@ const MapPopover = ({
         </div>
         {geoErr && <div className="mpm-err">{geoErr}</div>}
 
-        <div className="mpm-mapwrap">
-          {mapError
-            ? <div className="mpm-mapfail">Map couldn’t load — the shop list below still filters by area.</div>
-            : <div ref={containerRef} className="mpm-map" />}
-          {!mapError && canSearchArea && (
-            <button className="mpm-searcharea" onClick={searchThisArea}>
-              <Search size={13} /> Search this area
-            </button>
-          )}
-        </div>
-
-        <div className="mpm-result">
-          <div className="mpm-count">
-            {queryPoint
-              ? <><b>{reaching.length}</b> shop{reaching.length === 1 ? '' : 's'} reach {queryPoint.label?.split(',')[0] || 'your area'}</>
-              : <>Showing <b>{reaching.length}</b> shop{reaching.length === 1 ? '' : 's'}</>}
-          </div>
-          <div className="mpm-list">
-            {reaching.map((s) => (
-              <button key={s.id} className="mpm-shop" onClick={() => { onEnterShop(s); onClose(); }}>
-                <span className="dot" />
-                <span className="nm">{s.name}</span>
-                <span className="rd">{s.service_radius_km || 60} km</span>
+        <div className="mpm-body">
+          <div className="mpm-mapwrap">
+            {mapError
+              ? <div className="mpm-mapfail">Map couldn’t load — the shop list still filters by area.</div>
+              : <div ref={containerRef} className="mpm-map" />}
+            {!mapError && canSearchArea && (
+              <button className="mpm-searcharea" onClick={searchThisArea}>
+                <Search size={13} /> Search this area
               </button>
-            ))}
-            {queryPoint && reaching.length === 0 && (
-              <div className="mpm-none">No shops reach there yet — invite the ones you use and they’ll appear here.</div>
             )}
+          </div>
+
+          <div className="mpm-side">
+            <div className="mpm-count">
+              {queryPoint
+                ? <><b>{reaching.length}</b> shop{reaching.length === 1 ? '' : 's'} reach {queryPoint.label?.split(',')[0] || 'your area'}</>
+                : <><b>{reaching.length}</b> shop{reaching.length === 1 ? '' : 's'} on Cargo</>}
+            </div>
+            <div className="mpm-list">
+              {reaching.map((s) => (
+                <button key={s.id} className="mpm-shop" onClick={() => { onEnterShop(s); onClose(); }}>
+                  <span className="mpm-shop-main">
+                    <span className="nm">{s.name}</span>
+                    <span className="rd">{s.service_radius_km || 60} km reach</span>
+                  </span>
+                  <span className="go"><ChevronRight size={16} /></span>
+                </button>
+              ))}
+              {queryPoint && reaching.length === 0 && (
+                <div className="mpm-none">No shops reach there yet — invite the ones you use and they’ll appear here.</div>
+              )}
+            </div>
           </div>
         </div>
 

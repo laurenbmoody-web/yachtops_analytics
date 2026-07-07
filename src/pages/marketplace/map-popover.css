@@ -10,7 +10,7 @@
 }
 .mpm-panel {
   position: fixed; z-index: 3001; left: 50%; top: 82px; transform: translateX(-50%);
-  width: min(760px, 94vw); max-height: calc(100vh - 104px); overflow: hidden;
+  width: min(940px, 95vw); max-height: calc(100vh - 104px); overflow: hidden;
   display: flex; flex-direction: column;
   background: #FFFDFA; color: #1C1B3A; border: 1px solid #ECEAE3; border-radius: 18px;
   box-shadow: 0 40px 90px -30px rgba(28, 27, 58, 0.5);
@@ -49,7 +49,10 @@
 .mpm-loc:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
 .mpm-err { padding: 2px 22px 8px; font-size: 12px; color: #B0372B; }
 
-.mpm-mapwrap { padding: 4px 22px 12px; position: relative; }
+/* Body: map + results rail side by side, so shops stay visible without
+   scrolling and the modal is shorter, not taller. */
+.mpm-body { display: grid; grid-template-columns: 1fr 290px; gap: 16px; padding: 6px 22px 12px; }
+.mpm-mapwrap { position: relative; min-width: 0; }
 .mpm-searcharea {
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 500;
   display: inline-flex; align-items: center; gap: 6px;
@@ -60,47 +63,42 @@
 .mpm-searcharea:hover { border-color: #C65A1A; color: #C65A1A; }
 .mpm-panel.dark .mpm-searcharea { background: #262238; color: #F2EFE9; border-color: #302C42; }
 .mpm-panel.dark .mpm-searcharea:hover { border-color: #E07A45; color: #E07A45; }
-.mpm-map { height: 340px; border-radius: 12px; overflow: hidden; border: 1px solid #ECEAE3; background: #E7EEF0; }
-.mpm-map .leaflet-tile { filter: sepia(0.26) saturate(0.72) brightness(1.05) hue-rotate(-6deg); }
-.mpm-map .leaflet-container { font-family: 'Inter', system-ui, sans-serif; background: #DFEAEE; }
-.mpm-mapfail { height: 340px; border-radius: 12px; border: 1px dashed #E8E6DF; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #8B8478; font-size: 13px; }
+.mpm-map { height: 388px; border-radius: 12px; overflow: hidden; border: 1px solid #ECEAE3; background: #E7EEF0; }
+.mpm-mapfail { height: 388px; border-radius: 12px; border: 1px dashed #E8E6DF; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #8B8478; font-size: 13px; }
 
-/* Google Places autocomplete dropdown renders on <body>, so it must be
-   lifted above the modal (z-index: 3001) and dressed to match. */
-.pac-container {
-  z-index: 4000 !important; margin-top: 5px; border: 1px solid #ECEAE3; border-radius: 10px;
-  box-shadow: 0 18px 44px -18px rgba(28, 27, 58, 0.42); font-family: 'Inter', system-ui, sans-serif; background: #fff;
-}
-.pac-item { padding: 7px 13px; font-size: 13px; color: #6B7280; cursor: pointer; border-top: 1px solid #F4F2EC; }
-.pac-item:hover, .pac-item-selected { background: #FBEFE9; }
-.pac-item-query { font-size: 13px; color: #1C1B3A; }
-.pac-matched { color: #C65A1A; font-weight: 600; }
-.pac-icon { display: none; }
-.pac-logo::after { opacity: 0.5; }
-
-/* Custom markers (divIcon) */
-.mp-pin span { display: block; width: 14px; height: 14px; border-radius: 999px; box-shadow: 0 0 0 3px rgba(255,255,255,0.9); }
-.mp-pin span.live { background: #C65A1A; }
-.mp-pin span.dim { background: #9AA0AE; box-shadow: 0 0 0 2px rgba(255,255,255,0.75); }
-.mp-youpin span {
-  display: block; width: 18px; height: 18px; border-radius: 999px; background: #1C1B3A;
-  border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(28,27,58,0.18);
-}
-
-.mpm-result { padding: 2px 22px 6px; overflow-y: auto; }
-.mpm-count { font-size: 13px; font-weight: 400; color: #6B7280; margin-bottom: 8px; }
+/* Results rail */
+.mpm-side { display: flex; flex-direction: column; min-width: 0; }
+.mpm-count { font-size: 12.5px; font-weight: 400; color: #8B8478; margin: 2px 0 10px; }
 .mpm-count b { color: #1C1B3A; font-weight: 600; font-variant-numeric: tabular-nums; }
-.mpm-list { display: flex; flex-direction: column; gap: 2px; max-height: 150px; overflow-y: auto; }
+.mpm-list { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 388px; padding-right: 2px; }
 .mpm-shop {
-  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-  border: none; background: none; cursor: pointer; padding: 8px 6px; border-radius: 8px;
-  font-family: inherit; color: #1C1B3A;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  text-align: left; cursor: pointer; padding: 10px 13px; border-radius: 11px;
+  border: 1px solid #F0EEE7; background: #FCFBF8; font-family: inherit;
+  transition: border-color .15s, background .15s;
 }
-.mpm-shop:hover { background: #FBEFE9; }
-.mpm-shop .dot { width: 8px; height: 8px; border-radius: 999px; background: #C65A1A; flex: none; }
-.mpm-shop .nm { flex: 1; font-size: 14px; font-weight: 500; }
-.mpm-shop .rd { font-size: 12px; font-weight: 400; color: #8B8478; font-variant-numeric: tabular-nums; }
-.mpm-none { padding: 14px 6px; font-size: 13px; font-weight: 400; color: #8B8478; }
+.mpm-shop:hover { border-color: #E6C6B2; background: #FBEFE9; }
+.mpm-shop-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mpm-shop .nm {
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; line-height: 1.05;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mpm-shop .rd { font-size: 11px; font-weight: 500; letter-spacing: 0.2px; color: #8B8478; }
+.mpm-shop .go { color: #C65A1A; flex: none; opacity: 0; transform: translateX(-3px); transition: opacity .15s, transform .15s; }
+.mpm-shop:hover .go { opacity: 1; transform: none; }
+.mpm-none { padding: 16px 4px; font-size: 12.5px; font-weight: 400; color: #8B8478; line-height: 1.5; }
+
+.mpm-panel.dark .mpm-count { color: #A9A3B6; }
+.mpm-panel.dark .mpm-count b { color: #F2EFE9; }
+.mpm-panel.dark .mpm-shop { background: #232135; border-color: #302C42; }
+.mpm-panel.dark .mpm-shop:hover { background: #3A2519; border-color: #5A3A24; }
+.mpm-panel.dark .mpm-shop .nm { color: #F2EFE9; }
+
+@media (max-width: 720px) {
+  .mpm-body { grid-template-columns: 1fr; }
+  .mpm-map, .mpm-mapfail { height: 260px; }
+  .mpm-list { max-height: 200px; }
+}
 
 .mpm-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px 22px 18px; border-top: 1px solid #F0F1F5; }
 .mpm-clear { border: none; background: none; color: #8B8478; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-right: auto; }
