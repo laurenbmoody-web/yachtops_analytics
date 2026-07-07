@@ -498,7 +498,19 @@ const Marketplace = () => {
               </div>
             );
 
-            const tagBits = ['Provisions', fports.slice(0, 2).join(' — ')].filter(Boolean).join(' · ');
+            // Coverage for the top bar — the areas they supply, condensed
+            // to a region when the ports get too many/wide to list.
+            const regionOf = (n) => portCoords.get(String(n).toLowerCase())?.region;
+            const coverageLabel = !fports.length
+              ? (focused?.business_country || 'Coverage on request')
+              : fports.length <= 2
+                ? fports.join(' · ')
+                : (() => {
+                    const regions = [...new Set(fports.map(regionOf).filter(Boolean))];
+                    if (regions.length === 1) return regions[0];
+                    const country = portCoords.get(String(fports[0]).toLowerCase())?.country;
+                    return country ? `${fports.length} ports · ${country}` : `${fports.length} ports`;
+                  })();
 
             return (
               <>
@@ -583,11 +595,11 @@ const Marketplace = () => {
                     <div className="mp-deck">
                       {sideCard(left, 'l')}
                       <button className="mp-supcard center" onClick={() => enterShop(focused)}>
-                        <span className="tag">{tagBits}</span>
+                        {focused.logo_url && <img className="mp-sup-logo" src={focused.logo_url} alt="" />}
+                        <span className="tag">{coverageLabel}</span>
                         <div className="name">
                           {focused.name}
                           {focused.verified && <span className="v"> ✓</span>}
-                          {mySupplierIds.has(focused.id) && <span className="mp-supyours">Yours</span>}
                         </div>
                         <div className="meta">
                           {fmeta.count || focused.catalogue_count} products
@@ -597,7 +609,6 @@ const Marketplace = () => {
                           {(fmeta.topCats || []).slice(0, 3).map(c => <span key={c}>{c}</span>)}
                           {(fmeta.topCats?.length || 0) > 3 && <span>+{fmeta.topCats.length - 3}</span>}
                         </div>
-                        <span className="enter">Enter supplier →</span>
                       </button>
                       {sideCard(right, 'r')}
                     </div>
