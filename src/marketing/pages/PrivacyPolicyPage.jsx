@@ -95,7 +95,7 @@ const PrivacyPolicyPage = () => {
           This policy explains what information each product handles, why, and the choices
           and rights you have. We are the data controller for the personal data described
           here. Questions or requests can be sent to{' '}
-          <a href="mailto:lauren.moody@hotmail.co.uk" style={{ color: '#4A90E2', textDecoration: 'none' }}>lauren.moody@hotmail.co.uk</a>.
+          <a href="mailto:privacy@cargotechnology.co.uk" style={{ color: '#4A90E2', textDecoration: 'none' }}>privacy@cargotechnology.co.uk</a>.
         </p>
         <p className="mkt-dmsans" style={bodyStyle}>
           In short: we do not sell personal data, we do not run advertising, and the
@@ -213,7 +213,7 @@ const PrivacyPolicyPage = () => {
           the personal data we hold about you, to have it corrected or deleted, to restrict
           or object to its processing, and to receive a portable copy. You can exercise any
           of these by emailing{' '}
-          <a href="mailto:lauren.moody@hotmail.co.uk" style={{ color: '#4A90E2', textDecoration: 'none' }}>lauren.moody@hotmail.co.uk</a>.
+          <a href="mailto:privacy@cargotechnology.co.uk" style={{ color: '#4A90E2', textDecoration: 'none' }}>privacy@cargotechnology.co.uk</a>.
           You also have the right to complain to your supervisory authority — in the UK,
           the Information Commissioner's Office (ico.org.uk).
         </p>
@@ -235,7 +235,7 @@ const PrivacyPolicyPage = () => {
         </p>
         <p className="mkt-dmsans" style={{ ...bodyStyle, marginBottom: 0 }}>
           Questions about any of this? <Link to="/contact" style={{ color: '#4A90E2', textDecoration: 'none' }}>Get in touch</Link> or
-          email <a href="mailto:lauren.moody@hotmail.co.uk" style={{ color: '#4A90E2', textDecoration: 'none' }}>lauren.moody@hotmail.co.uk</a>.
+          email <a href="mailto:privacy@cargotechnology.co.uk" style={{ color: '#4A90E2', textDecoration: 'none' }}>privacy@cargotechnology.co.uk</a>.
         </p>
       </Section>
     </MarketingLayout>
