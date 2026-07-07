@@ -31,6 +31,8 @@ import {
   fetchPortLocations,
   fetchDirectorySuppliers,
   fetchSupplierMemory,
+  fetchSupplierRatings,
+  rateSupplier,
   ensureTenantSupplierLinks,
   addBasketToBoard,
 } from '../provisioning/utils/marketplaceStorage';
@@ -80,6 +82,26 @@ const fmtMoney = (n, ccy = 'EUR') => {
   const v = Math.round(Number(n) || 0).toLocaleString('en-GB');
   const s = CUR_SYM[ccy];
   return s ? `${s}${v}` : `${v} ${ccy}`;
+};
+
+const initialsOf = (name) => {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '•';
+  return parts.slice(0, 2).map(w => w[0]).join('').toUpperCase();
+};
+
+// Five stars, filled to the (rounded) value. onClick(i) makes them a picker.
+const StarRow = ({ value = 0, size = 12, onPick }) => {
+  const full = Math.round(value);
+  return (
+    <span className={`mp-stars ${onPick ? 'pick' : ''}`} style={{ fontSize: size }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        onPick
+          ? <button key={i} type="button" className={i <= full ? 'on' : ''} onClick={(e) => { e.stopPropagation(); onPick(i); }} aria-label={`${i} star${i === 1 ? '' : 's'}`}>★</button>
+          : <span key={i} className={i <= full ? 'on' : ''}>★</span>
+      ))}
+    </span>
+  );
 };
 
 const minQtyOf = (product) => Math.max(1, Number(product.min_order_qty) || 1);
@@ -193,6 +215,7 @@ const Marketplace = () => {
   const [mapOpen, setMapOpen] = useState(false);
   const [portCoords, setPortCoords] = useState(() => new Map());
   const [memory, setMemory] = useState(() => new Map());
+  const [ratings, setRatings] = useState(() => new Map());
   const [directorySuppliers, setDirectorySuppliers] = useState([]);
   const [provCat, setProvCat] = useState('All');
   const [provSort, setProvSort] = useState('name');
@@ -207,15 +230,17 @@ const Marketplace = () => {
     let live = true;
     (async () => {
       try {
-        const [sups, st, ports] = await Promise.all([
+        const [sups, st, ports, rat] = await Promise.all([
           fetchMarketplaceSuppliers(),
           fetchMarketplaceSupplierStats(),
           fetchPortLocations(),
+          fetchSupplierRatings(),
         ]);
         if (!live) return;
         setSuppliers(sups);
         setStats(st);
         setPortCoords(ports);
+        setRatings(rat);
         const [prods, mine, lists, directory, mem] = await Promise.all([
           fetchMarketplaceProducts(sups.map(s => s.id)),
           fetchTenantSupplierIds(activeTenantId),
@@ -266,6 +291,16 @@ const Marketplace = () => {
   };
   const enterShop = (s) => { setEnteredId(s.id); resetBrowse(); window.scrollTo({ top: 0 }); };
   const leaveShop = () => { setEnteredId(null); setBrowseAll(false); resetBrowse(); };
+
+  const handleRate = async (supplierId, star) => {
+    try {
+      await rateSupplier(supplierId, star);
+      setRatings(await fetchSupplierRatings());
+      showToast(`Rated ${star}★ — thanks`, 'success');
+    } catch (e) {
+      showToast(e.message || 'Could not save your rating', 'error');
+    }
+  };
   const openAllItems = () => { setBrowseAll(true); resetBrowse(); };
 
   const productCount = useMemo(() => {
@@ -484,6 +519,8 @@ const Marketplace = () => {
             const focused = wallSuppliers[idx] || null;
             const fmeta = focused ? (supplierMeta.get(focused.id) || {}) : {};
             const fmem = focused ? (memory.get(focused.id) || null) : null;
+            const frating = focused ? (ratings.get(focused.id) || null) : null;
+            const fstats = focused ? (stats.get(focused.id) || null) : null;
             const fports = focused?.coverage_ports || [];
             const left = idx > 0 ? wallSuppliers[idx - 1] : null;
             const right = focused && idx < wallSuppliers.length - 1 ? wallSuppliers[idx + 1] : null;
@@ -511,19 +548,11 @@ const Marketplace = () => {
               </div>
             );
 
-            // Coverage for the top bar — the areas they supply, condensed
-            // to a region when the ports get too many/wide to list.
+            // Location line on the card: home port · region.
             const regionOf = (n) => portCoords.get(String(n).toLowerCase())?.region;
-            const coverageLabel = !fports.length
-              ? (focused?.business_country || 'Coverage on request')
-              : fports.length <= 2
-                ? fports.join(' · ')
-                : (() => {
-                    const regions = [...new Set(fports.map(regionOf).filter(Boolean))];
-                    if (regions.length === 1) return regions[0];
-                    const country = portCoords.get(String(fports[0]).toLowerCase())?.country;
-                    return country ? `${fports.length} ports · ${country}` : `${fports.length} ports`;
-                  })();
+            const fregion = fports.map(regionOf).find(Boolean);
+            const locationLabel = [fports[0], fregion].filter(Boolean).join(' · ')
+              || focused?.business_country || 'Coverage on request';
 
             return (
               <>
@@ -609,20 +638,39 @@ const Marketplace = () => {
                       {sideCard(left, 'l')}
                       <button className="mp-supcard center mp-flipcard" onClick={() => enterShop(focused)}>
                         <div className="mp-flip-inner">
-                          <div className="mp-face mp-front">
-                            {focused.logo_url && <img className="mp-sup-logo" src={focused.logo_url} alt="" />}
-                            <span className="tag">{coverageLabel}</span>
-                            <div className="name">
-                              {focused.name}
-                              {focused.verified && <span className="v"> ✓</span>}
+                          <div className="mp-face mp-sf">
+                            <div className="mp-sf-top">
+                              <span className="mp-sf-logo">
+                                {focused.logo_url
+                                  ? <img src={focused.logo_url} alt="" />
+                                  : initialsOf(focused.name)}
+                              </span>
+                              <div className="mp-sf-id">
+                                <div className="mp-sf-nm">{focused.name}</div>
+                                <div className="mp-sf-loc">{locationLabel}</div>
+                                <div className="mp-sf-trust">
+                                  {frating?.avg
+                                    ? <><StarRow value={frating.avg} /> <b>{frating.avg.toFixed(1)}</b> · {frating.count} rating{frating.count === 1 ? '' : 's'}</>
+                                    : <span className="mp-sf-unrated">Not yet rated</span>}
+                                  {fstats?.onTimePct != null && <> <span className="mp-sf-sep">·</span> {fstats.onTimePct}% on-time</>}
+                                </div>
+                                <div className="mp-sf-tags">
+                                  {(fmeta.topCats || []).slice(0, 4).map(c => <span key={c}>{c}</span>)}
+                                  {(fmeta.topCats?.length || 0) > 4 && <span>+{fmeta.topCats.length - 4}</span>}
+                                </div>
+                              </div>
                             </div>
-                            <div className="meta">
-                              {fmeta.count || focused.catalogue_count} products
-                              {fmeta.lastUpdated ? ` · updated ${fmtDate(fmeta.lastUpdated)}` : ''}
-                            </div>
-                            <div className="cats">
-                              {(fmeta.topCats || []).slice(0, 3).map(c => <span key={c}>{c}</span>)}
-                              {(fmeta.topCats?.length || 0) > 3 && <span>+{fmeta.topCats.length - 3}</span>}
+                            <div className="mp-sf-div" />
+                            <div className="mp-sf-contact">
+                              <span className="mp-sf-av">{initialsOf(focused.contact_name)}</span>
+                              <span className="mp-sf-who">
+                                <span className="n">{focused.contact_name || 'Orders desk'}</span>
+                                <span className="r">{focused.contact_role || 'Contact'}</span>
+                              </span>
+                              <span className="mp-sf-lines">
+                                {focused.contact_phone && <span>{focused.contact_phone}</span>}
+                                {focused.contact_email && <span>{focused.contact_email}</span>}
+                              </span>
                             </div>
                           </div>
                           <div className="mp-face mp-back">
@@ -688,6 +736,20 @@ const Marketplace = () => {
                         {[enteredSupplier.business_city, enteredSupplier.business_country].filter(Boolean).join(', ')
                           || (enteredSupplier.coverage_ports || []).slice(0, 4).join(' · ') || 'Coverage on request'}
                       </div>
+                      {(() => {
+                        const r = ratings.get(enteredSupplier.id);
+                        return (
+                          <div className="mp-shop-rate">
+                            <StarRow value={r?.mine || r?.avg || 0} size={18} onPick={(n) => handleRate(enteredSupplier.id, n)} />
+                            <span className="rt">
+                              {r?.avg
+                                ? <>{r.avg.toFixed(1)} · {r.count} rating{r.count === 1 ? '' : 's'}</>
+                                : 'Be the first to rate'}
+                              {r?.mine ? <span className="mine"> · you rated {r.mine}★</span> : ''}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="mp-shop-stats">

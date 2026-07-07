@@ -67,6 +67,38 @@ export const fetchMarketplaceProducts = async (supplierIds) => {
 };
 
 /**
+ * Platform-wide star ratings per supplier — average, count, and the
+ * caller's own rating (get_supplier_ratings RPC). Returns a Map keyed
+ * by supplier id; empty on failure so the card just reads "not rated".
+ */
+export const fetchSupplierRatings = async () => {
+  try {
+    const { data, error } = await supabase.rpc('get_supplier_ratings');
+    if (error) throw error;
+    const map = new Map();
+    (data ?? []).forEach((r) => {
+      map.set(r.supplier_id, {
+        avg: r.avg_rating != null ? Number(r.avg_rating) : null,
+        count: Number(r.rating_count) || 0,
+        mine: r.my_rating != null ? Number(r.my_rating) : null,
+      });
+    });
+    return map;
+  } catch (err) {
+    console.warn('[marketplaceStorage] fetchSupplierRatings (non-blocking):', err?.message);
+    return new Map();
+  }
+};
+
+/** Rate a supplier 1-5 (one per user, editable) with an optional note. */
+export const rateSupplier = async (supplierId, rating, note = null) => {
+  const { error } = await supabase.rpc('rate_supplier', {
+    p_supplier_id: supplierId, p_rating: rating, p_note: note,
+  });
+  if (error) throw error;
+};
+
+/**
  * Per-supplier memory for the caller's tenant — order count, spend,
  * last order, most-ordered categories (get_supplier_memory RPC). Powers
  * the deck card's hover-flip. Returns a Map keyed by supplier id; empty
