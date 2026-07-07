@@ -1665,7 +1665,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   {open && (
                     <div className="std-op-body">
                       {vm && <div className="std-op-vm">{vm}</div>}
-                      {barSegs.length > 0 && (<>
+                      {barSegs.length > 0 && (
                         <div className="std-op-bar">
                           {barSegs.map(s => (
                             <div key={s.key} className="std-op-seg" style={{ flexGrow: s.days, background: s.color, color: s.text }} title={`${s.label} · ${s.days} days`}>
@@ -1673,15 +1673,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                             </div>
                           ))}
                         </div>
-                        <div className="std-op-legend">
-                          {barSegs.map(s => (
-                            <span key={s.key} className="std-op-leg"><span className="dt" style={{ background: s.key === 'leave' ? '#CFC9BC' : s.color }} /><b>{s.days}</b> {s.label}</span>
-                          ))}
-                        </div>
-                        {leaveOff > 0 && spanDays > 0 && (
-                          <div className="std-op-recon">Reconciles to the {spanDays}-day span — {total} {total === 1 ? 'day' : 'days'} service + {leaveOff} {leaveOff === 1 ? 'day' : 'days'} leave.</div>
-                        )}
-                      </>)}
+                      )}
                       <div className="std-op-rows">{p.entries.map(renderLeg)}</div>
                     </div>
                   )}

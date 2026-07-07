@@ -431,8 +431,9 @@
 .std-op-recon{font-size:11.5px;color:var(--muted);margin-top:9px;font-style:italic;}
 .std-op-rows{margin-top:6px;}
 .std-op-rows .std-leg:first-child{border-top:1px solid var(--hair);}
-/* last expanded stint sits above the leave/prior notes — avoid the doubled rule */
-.std-op:last-child .std-op-rows .std-leg:last-child{border-bottom:0;}
+/* the block ends after its last period row — drop that row's rule so it never
+   doubles with the next block's top border or the leave/prior notes' rule */
+.std-op-rows .std-leg:last-child{border-bottom:0;}
 .std-arow{display:grid;grid-template-columns:14px 110px 1fr auto;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--hair);}
 .std-arail{width:5px;height:40px;border-radius:3px;align-self:center;}
 .std-adate{font-family:'DM Serif Display',Georgia,serif;font-weight:500;font-size:15px;color:var(--ink);line-height:1.12;}
