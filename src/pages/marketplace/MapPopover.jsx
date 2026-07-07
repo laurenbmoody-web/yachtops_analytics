@@ -1,39 +1,34 @@
-// The Chart — marketplace map popover.
+// The Chart — marketplace map popover (Google Maps).
 //
-// Opens off the "serves my area" field. The crew sets a point three
-// ways — type an area and Search, click straight on the map, or pan and
-// hit "Search this area". We light up the shops whose service radius
-// reaches that point. Each shop is one labelled pin (at the centre of
-// the ports it covers) with its combined reach drawn as dashed rings.
+// Opens off the "serves my area" field. Set a point four ways: pick a
+// Places autocomplete suggestion, press Search, click the map, or pan
+// and hit "Search this area". Shops whose service radius reaches that
+// point light up; each shop is one labelled pin at the centre of the
+// ports it covers, with its reach drawn as rings. Broad areas (a whole
+// country) draw the searched region as a rectangle.
 //
-// Leaflet + OpenStreetMap raster tiles, warmed toward the Cargo paper
-// palette (see map-popover.css). No API key; the map only mounts while
-// the popover is open.
+// Google Maps JS + Places, styled to the Cargo paper palette. The key
+// is a build-time env var; if it's absent or the API fails to load, the
+// list below still filters by area.
 
 import React, { useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { Search, X, Crosshair, MapPin } from 'lucide-react';
-import { geocodeArea, supplierPortPoints, supplierReaches, centroidOf, isBroadArea } from './geo';
+import { supplierPortPoints, supplierReaches, centroidOf, isBroadArea } from './geo';
+import { loadGoogleMaps, hasGoogleKey, MAP_STYLE_LIGHT, MAP_STYLE_DARK } from './gmaps';
 import './map-popover.css';
-
-const pinIcon = (reaches) => L.divIcon({
-  className: 'mp-pin', iconSize: [18, 18], iconAnchor: [9, 9],
-  html: `<span class="${reaches ? 'live' : 'dim'}"></span>`,
-});
-const youIcon = () => L.divIcon({
-  className: 'mp-youpin', iconSize: [24, 24], iconAnchor: [12, 12], html: '<span></span>',
-});
 
 const MapPopover = ({
   open, onClose, suppliers, portCoords, theme,
   queryValue, onQueryChange, queryPoint, onSetPoint, onEnterShop,
 }) => {
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
+  const gRef = useRef(null);       // google.maps namespace
   const mapRef = useRef(null);
-  const layerRef = useRef(null);
+  const geocoderRef = useRef(null);
+  const overlaysRef = useRef([]);
   const setPointRef = useRef(onSetPoint);
-  const programmaticMove = useRef(false);
+  const programmatic = useRef(false);
   const [mapError, setMapError] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoErr, setGeoErr] = useState(null);
@@ -41,103 +36,137 @@ const MapPopover = ({
 
   useEffect(() => { setPointRef.current = onSetPoint; }, [onSetPoint]);
 
-  // Mount the map once the popover is open and its container exists.
+  const bboxOf = (vp) => (vp ? {
+    south: vp.getSouthWest().lat(), north: vp.getNorthEast().lat(),
+    west: vp.getSouthWest().lng(), east: vp.getNorthEast().lng(),
+  } : null);
+
+  // Mount the Google map once the popover is open.
   useEffect(() => {
     if (!open) return undefined;
-    const el = containerRef.current;
-    if (!el) return undefined;
-    let map;
-    try {
-      map = L.map(el, { zoomControl: true, attributionControl: true, scrollWheelZoom: true, worldCopyJump: true });
-      map.setView([43.55, 7.1], 8);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18, minZoom: 3, attribution: '&copy; OpenStreetMap',
-      }).addTo(map);
-      layerRef.current = L.layerGroup().addTo(map);
-      mapRef.current = map;
-      // Click straight on the chart to drop your point.
-      map.on('click', (e) => setPointRef.current({ lat: e.latlng.lat, lng: e.latlng.lng, label: 'Dropped pin' }));
-      // Panning/zooming offers a "search this area" — but ignore the
-      // programmatic fitBounds we trigger ourselves.
-      map.on('moveend', () => {
-        if (programmaticMove.current) { programmaticMove.current = false; return; }
-        setCanSearchArea(true);
+    if (!hasGoogleKey()) { setMapError(true); return undefined; }
+    let cancelled = false;
+    loadGoogleMaps().then((g) => {
+      if (cancelled || !containerRef.current) return;
+      gRef.current = g;
+      const map = new g.Map(containerRef.current, {
+        center: { lat: 43.55, lng: 7.1 }, zoom: 8,
+        styles: theme === 'dark' ? MAP_STYLE_DARK : MAP_STYLE_LIGHT,
+        mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+        clickableIcons: false, gestureHandling: 'greedy',
       });
-      const t = setTimeout(() => map.invalidateSize(), 80);
-      return () => { clearTimeout(t); map.remove(); mapRef.current = null; layerRef.current = null; };
-    } catch (e) {
-      setMapError(true);
-      return undefined;
-    }
+      mapRef.current = map;
+      geocoderRef.current = new g.Geocoder();
+
+      map.addListener('click', (e) => setPointRef.current({ lat: e.latLng.lat(), lng: e.latLng.lng(), label: 'Dropped pin' }));
+      map.addListener('dragend', () => setCanSearchArea(true));
+      map.addListener('zoom_changed', () => { if (programmatic.current) return; setCanSearchArea(true); });
+      map.addListener('idle', () => { programmatic.current = false; });
+
+      if (inputRef.current && g.places) {
+        const ac = new g.places.Autocomplete(inputRef.current, { fields: ['geometry', 'name', 'formatted_address'] });
+        ac.addListener('place_changed', () => {
+          const p = ac.getPlace();
+          if (p && p.geometry) {
+            const loc = p.geometry.location;
+            onQueryChange(p.name || p.formatted_address || '');
+            setPointRef.current({ lat: loc.lat(), lng: loc.lng(), label: p.name || p.formatted_address, bbox: bboxOf(p.geometry.viewport) });
+          }
+        });
+      }
+    }).catch(() => { if (!cancelled) setMapError(true); });
+
+    return () => {
+      cancelled = true;
+      const g = gRef.current;
+      overlaysRef.current.forEach((o) => o.setMap && o.setMap(null));
+      overlaysRef.current = [];
+      if (g && mapRef.current) g.event.clearInstanceListeners(mapRef.current);
+      mapRef.current = null;
+      geocoderRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Redraw shops (one pin each) + reach rings + the "you" marker.
+  // Re-style on theme change.
   useEffect(() => {
+    if (mapRef.current) mapRef.current.setOptions({ styles: theme === 'dark' ? MAP_STYLE_DARK : MAP_STYLE_LIGHT });
+  }, [theme]);
+
+  // Draw shops (one pin each) + reach rings + the "you" marker / area box.
+  useEffect(() => {
+    const g = gRef.current;
     const map = mapRef.current;
-    const lg = layerRef.current;
-    if (!open || !map || !lg) return undefined;
-    lg.clearLayers();
-    const bounds = [];
+    if (!open || !g || !map) return;
+    overlaysRef.current.forEach((o) => o.setMap && o.setMap(null));
+    const overlays = [];
+    const bounds = new g.LatLngBounds();
+    let any = false;
+
     (suppliers || []).forEach((s) => {
       const pts = supplierPortPoints(s, portCoords);
       if (!pts.length) return;
       const reaches = queryPoint ? supplierReaches(s, portCoords, queryPoint) : true;
       const color = reaches ? '#C65A1A' : '#9AA0AE';
       const radiusM = (Number(s.service_radius_km) || 60) * 1000;
-      // Combined reach: a ring around each covered port (no per-port pins).
       pts.forEach((p) => {
-        L.circle([p.lat, p.lng], {
-          radius: radiusM, color, weight: 1.2, opacity: reaches ? 0.6 : 0.22,
-          fillColor: color, fillOpacity: reaches ? 0.07 : 0.03, dashArray: '5 5',
-        }).addTo(lg);
-        bounds.push([p.lat, p.lng]);
+        overlays.push(new g.Circle({
+          map, center: { lat: p.lat, lng: p.lng }, radius: radiusM,
+          strokeColor: color, strokeOpacity: reaches ? 0.55 : 0.2, strokeWeight: 1.2,
+          fillColor: color, fillOpacity: reaches ? 0.07 : 0.03, clickable: false,
+        }));
+        bounds.extend({ lat: p.lat, lng: p.lng }); any = true;
       });
-      // One labelled pin per shop, at the centre of its ports.
       const c = centroidOf(pts);
       if (c) {
-        L.marker([c.lat, c.lng], { icon: pinIcon(reaches) })
-          .addTo(lg)
-          .bindTooltip(`${s.name}${s.service_radius_km ? ` · ${s.service_radius_km} km reach` : ''}`, { direction: 'top', offset: [0, -8] });
+        overlays.push(new g.Marker({
+          map, position: { lat: c.lat, lng: c.lng },
+          title: `${s.name}${s.service_radius_km ? ` · ${s.service_radius_km} km reach` : ''}`,
+          icon: { path: g.SymbolPath.CIRCLE, scale: 7, fillColor: color, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 },
+        }));
       }
     });
+
     if (queryPoint) {
       if (isBroadArea(queryPoint)) {
-        // A country/region: draw the searched area, not a lone centre pin.
         const b = queryPoint.bbox;
-        L.rectangle([[b.south, b.west], [b.north, b.east]], {
-          color: '#1C1B3A', weight: 1.2, opacity: 0.45, fillColor: '#1C1B3A', fillOpacity: 0.05, dashArray: '4 4',
-        }).addTo(lg);
-        bounds.push([b.south, b.west], [b.north, b.east]);
+        overlays.push(new g.Rectangle({
+          map, bounds: { north: b.north, south: b.south, east: b.east, west: b.west },
+          strokeColor: '#1C1B3A', strokeOpacity: 0.45, strokeWeight: 1.2, fillColor: '#1C1B3A', fillOpacity: 0.05, clickable: false,
+        }));
+        bounds.extend({ lat: b.north, lng: b.east }); bounds.extend({ lat: b.south, lng: b.west }); any = true;
       } else {
-        L.marker([queryPoint.lat, queryPoint.lng], { icon: youIcon() })
-          .addTo(lg).bindTooltip('Your area', { direction: 'top', offset: [0, -8] });
-        bounds.push([queryPoint.lat, queryPoint.lng]);
+        overlays.push(new g.Marker({
+          map, position: { lat: queryPoint.lat, lng: queryPoint.lng }, title: 'Your area',
+          icon: { path: g.SymbolPath.CIRCLE, scale: 8, fillColor: '#1C1B3A', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 3 },
+        }));
+        bounds.extend({ lat: queryPoint.lat, lng: queryPoint.lng }); any = true;
       }
     }
-    if (bounds.length) {
-      programmaticMove.current = true;
-      try { map.fitBounds(bounds, { padding: [42, 42], maxZoom: 9 }); } catch (e) { programmaticMove.current = false; }
-    }
+
+    overlaysRef.current = overlays;
+    if (any) { programmatic.current = true; map.fitBounds(bounds, 48); }
     setCanSearchArea(false);
-    const t = setTimeout(() => map.invalidateSize(), 60);
-    return () => clearTimeout(t);
   }, [open, suppliers, portCoords, queryPoint]);
 
-  const runSearch = async () => {
+  const runSearch = () => {
     const q = (queryValue || '').trim();
     setGeoErr(null);
     if (!q) { onSetPoint(null); return; }
+    const gc = geocoderRef.current;
+    if (!gc) { setGeoErr('Map isn’t ready yet — one moment.'); return; }
     setGeoLoading(true);
-    try {
-      const pt = await geocodeArea(q);
-      if (!pt) { setGeoErr('Couldn’t place that — try a port, city or country.'); onSetPoint(null); }
-      else onSetPoint(pt);
-    } catch (e) {
-      setGeoErr('Location lookup is unavailable right now — filtering by name instead.');
-      onSetPoint(null);
-    } finally {
+    gc.geocode({ address: q }, (res, status) => {
       setGeoLoading(false);
-    }
+      if (status === 'OK' && res && res[0]) {
+        const r = res[0];
+        const loc = r.geometry.location;
+        onSetPoint({ lat: loc.lat(), lng: loc.lng(), label: r.formatted_address, bbox: bboxOf(r.geometry.viewport) });
+      } else {
+        setGeoErr('Couldn’t place that — try a port, city or country.');
+        onSetPoint(null);
+      }
+    });
   };
 
   const useMyLocation = () => {
@@ -155,7 +184,7 @@ const MapPopover = ({
     if (!map) return;
     const c = map.getCenter();
     setGeoErr(null);
-    onSetPoint({ lat: c.lat, lng: c.lng, label: 'Selected area' });
+    onSetPoint({ lat: c.lat(), lng: c.lng(), label: 'Selected area' });
   };
 
   if (!open) return null;
@@ -180,6 +209,7 @@ const MapPopover = ({
           <label className="mpm-field">
             <MapPin size={15} className="ic" />
             <input
+              ref={inputRef}
               autoFocus
               placeholder="Port, city, country or postcode…"
               value={queryValue}

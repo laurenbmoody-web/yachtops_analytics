@@ -65,6 +65,19 @@
 .mpm-map .leaflet-container { font-family: 'Inter', system-ui, sans-serif; background: #DFEAEE; }
 .mpm-mapfail { height: 340px; border-radius: 12px; border: 1px dashed #E8E6DF; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #8B8478; font-size: 13px; }
 
+/* Google Places autocomplete dropdown renders on <body>, so it must be
+   lifted above the modal (z-index: 3001) and dressed to match. */
+.pac-container {
+  z-index: 4000 !important; margin-top: 5px; border: 1px solid #ECEAE3; border-radius: 10px;
+  box-shadow: 0 18px 44px -18px rgba(28, 27, 58, 0.42); font-family: 'Inter', system-ui, sans-serif; background: #fff;
+}
+.pac-item { padding: 7px 13px; font-size: 13px; color: #6B7280; cursor: pointer; border-top: 1px solid #F4F2EC; }
+.pac-item:hover, .pac-item-selected { background: #FBEFE9; }
+.pac-item-query { font-size: 13px; color: #1C1B3A; }
+.pac-matched { color: #C65A1A; font-weight: 600; }
+.pac-icon { display: none; }
+.pac-logo::after { opacity: 0.5; }
+
 /* Custom markers (divIcon) */
 .mp-pin span { display: block; width: 14px; height: 14px; border-radius: 999px; box-shadow: 0 0 0 3px rgba(255,255,255,0.9); }
 .mp-pin span.live { background: #C65A1A; }
