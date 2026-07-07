@@ -32,7 +32,17 @@
   border: 1px solid #E8E6DF; border-radius: 10px; background: #FAFAF8; padding: 0 13px; height: 42px;
 }
 .mpm-field .ic { color: #AEB4C2; flex: none; }
-.mpm-field input { border: none; background: none; outline: none; width: 100%; font-family: inherit; font-size: 14px; font-weight: 400; color: #1C1B3A; }
+.mpm-field input { border: none; background: none; outline: none; width: 100%; min-width: 80px; font-family: inherit; font-size: 14px; font-weight: 400; color: #1C1B3A; }
+/* Searched-area chip, sitting on the search bar */
+.mpm-chip {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  background: #FBEFE9; color: #C65A1A; border: 1px solid #F0D6C6; border-radius: 999px;
+  padding: 3px 5px 3px 11px; font-size: 12.5px; font-weight: 600; white-space: nowrap; max-width: 200px;
+}
+.mpm-chip button { border: none; background: none; color: #C65A1A; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 3px; border-radius: 999px; }
+.mpm-chip button:hover { background: rgba(198, 90, 26, 0.16); }
+.mpm-panel.dark .mpm-chip { background: #3A2519; color: #F0A277; border-color: #5A3A24; }
+.mpm-panel.dark .mpm-chip button { color: #F0A277; }
 .mpm-field input::placeholder { color: #AEB4C2; }
 .mpm-field:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
 .mpm-go {

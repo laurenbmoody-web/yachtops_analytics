@@ -188,7 +188,7 @@ const MapPopover = ({
         <div className="mpm-head">
           <div>
             <h3 className="mpm-title">Who reaches <em>you</em></h3>
-            <p className="mpm-sub">Type an area, or click the chart, to see the shops that deliver there.</p>
+            <p className="mpm-sub">Type an area, or click the chart, to see the suppliers that deliver there.</p>
           </div>
           <button className="mpm-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
@@ -196,10 +196,16 @@ const MapPopover = ({
         <div className="mpm-searchrow">
           <label className="mpm-field">
             <MapPin size={15} className="ic" />
+            {queryPoint && (
+              <span className="mpm-chip">
+                {queryPoint.label?.split(',')[0] || 'Area'}
+                <button type="button" onClick={() => { onSetPoint(null); onQueryChange(''); }} aria-label="Clear area">×</button>
+              </span>
+            )}
             <input
               ref={inputRef}
               autoFocus
-              placeholder="Port, city, country or postcode…"
+              placeholder={queryPoint ? 'Search another area…' : 'Port, city, country or postcode…'}
               value={queryValue}
               onChange={(e) => { setGeoErr(null); onQueryChange(e.target.value); }}
               onKeyDown={(e) => { if (e.key === 'Enter') runSearch(); }}
@@ -229,8 +235,8 @@ const MapPopover = ({
           <div className="mpm-side">
             <div className="mpm-count">
               {queryPoint
-                ? <><b>{reaching.length}</b> shop{reaching.length === 1 ? '' : 's'} reach {queryPoint.label?.split(',')[0] || 'your area'}</>
-                : <><b>{reaching.length}</b> shop{reaching.length === 1 ? '' : 's'} on Cargo</>}
+                ? <><b>{reaching.length}</b> supplier{reaching.length === 1 ? '' : 's'} reach {queryPoint.label?.split(',')[0] || 'your area'}</>
+                : <><b>{reaching.length}</b> supplier{reaching.length === 1 ? '' : 's'} on Cargo</>}
             </div>
             <div className="mpm-list">
               {reaching.map((s) => (
@@ -243,7 +249,7 @@ const MapPopover = ({
                 </button>
               ))}
               {queryPoint && reaching.length === 0 && (
-                <div className="mpm-none">No shops reach there yet — invite the ones you use and they’ll appear here.</div>
+                <div className="mpm-none">No suppliers reach there yet — invite the ones you use and they’ll appear here.</div>
               )}
             </div>
           </div>
