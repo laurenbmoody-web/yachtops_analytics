@@ -36,6 +36,7 @@ import {
   createProvisioningList,
 } from '../provisioning/utils/provisioningStorage';
 import './marketplace.css';
+import '../../styles/editorial.css'; // shared meta strip + greeting — one source of truth
 
 import { categoryHue, orderCategories } from '../../utils/catalogueConstants';
 
@@ -173,7 +174,10 @@ const Marketplace = () => {
   const [port, setPort] = useState('All');
   const [showFilter, setShowFilter] = useState('all'); // all | in | mine
   const [sortBy, setSortBy] = useState('name');
-  const [provSearch, setProvSearch] = useState(''); // the wall's own search
+  const [provSearch, setProvSearch] = useState(''); // the deck's own search
+  const [provPort, setProvPort] = useState('All');
+  const [provCat, setProvCat] = useState('All');
+  const [provSort, setProvSort] = useState('name');
 
   const [basket, setBasket] = useState([]); // [{ product, qty }]
   const [counterOpen, setCounterOpen] = useState(false);
@@ -240,16 +244,6 @@ const Marketplace = () => {
   }, [products]);
 
   // ── Providers (coverflow) ──
-  const wallSuppliers = useMemo(() => {
-    const q = provSearch.trim().toLowerCase();
-    if (!q) return suppliers;
-    return suppliers.filter(s =>
-      (s.name || '').toLowerCase().includes(q)
-      || (s.categories || []).some(c => c.toLowerCase().includes(q))
-      || (s.coverage_ports || []).some(p => p.toLowerCase().includes(q))
-      || (s.business_city || '').toLowerCase().includes(q));
-  }, [suppliers, provSearch]);
-
   // Per-shop storefront facts, drawn from the live catalogue: product
   // count, the busiest aisles (with a real count), and when it last
   // moved. These are always-true numbers — the confident thing to show
@@ -268,6 +262,41 @@ const Marketplace = () => {
     m.forEach(e => { e.topCats = Object.entries(e.cats).sort((a, b) => b[1] - a[1]).map(([k]) => k); });
     return m;
   }, [suppliers, products]);
+
+  // Ports and categories the shops cover — feed the deck's own filters.
+  const provPorts = useMemo(() => {
+    const s = new Set();
+    suppliers.forEach(x => (x.coverage_ports || []).forEach(p => s.add(p)));
+    return Array.from(s).sort();
+  }, [suppliers]);
+  const provCats = useMemo(() => {
+    const s = new Set();
+    suppliers.forEach(x => (x.categories || []).forEach(c => s.add(c)));
+    return Array.from(s).sort();
+  }, [suppliers]);
+
+  const wallSuppliers = useMemo(() => {
+    const q = provSearch.trim().toLowerCase();
+    const rows = suppliers.filter(s =>
+      (provPort === 'All' || (s.coverage_ports || []).includes(provPort))
+      && (provCat === 'All' || (s.categories || []).includes(provCat))
+      && (!q
+        || (s.name || '').toLowerCase().includes(q)
+        || (s.categories || []).some(c => c.toLowerCase().includes(q))
+        || (s.coverage_ports || []).some(p => p.toLowerCase().includes(q))
+        || (s.business_city || '').toLowerCase().includes(q)));
+    const cnt = (id) => supplierMeta.get(id)?.count || 0;
+    const upd = (id) => supplierMeta.get(id)?.lastUpdated || '';
+    const cmp = {
+      name: (a, b) => a.name.localeCompare(b.name),
+      products: (a, b) => cnt(b.id) - cnt(a.id),
+      updated: (a, b) => (upd(b.id) > upd(a.id) ? 1 : upd(b.id) < upd(a.id) ? -1 : 0),
+      verified: (a, b) => (b.verified ? 1 : 0) - (a.verified ? 1 : 0),
+    }[provSort] || ((a, b) => a.name.localeCompare(b.name));
+    return [...rows].sort(cmp);
+  }, [suppliers, provSearch, provPort, provCat, provSort, supplierMeta]);
+
+  const provFiltersDirty = provSearch || provPort !== 'All' || provCat !== 'All' || provSort !== 'name';
 
   // ── Browse surface (aisles = one supplier; items = all) ──
   const ports = useMemo(() => {
@@ -411,76 +440,117 @@ const Marketplace = () => {
           {loading && <div className="mp-loading">Loading the marketplace…</div>}
 
           {/* ── i · The Providers ── */}
-          {!loading && stage === 'providers' && (
-            <>
-              <div className="mp-prov-utility">
-                <label className="mp-searchwrap">
-                  <Search size={15} className="ic" />
-                  <input
-                    className="mp-search bare"
-                    placeholder="Search shops, ports, categories…"
-                    value={provSearch}
-                    onChange={(e) => { setProvSearch(e.target.value); setDeckIndex(0); }}
-                  />
-                </label>
-                <button className="mp-allitems" onClick={openAllItems}>
-                  Browse all items <ChevronRight size={14} />
-                </button>
+          {!loading && stage === 'providers' && (() => {
+            const idx = wallSuppliers.length ? Math.min(Math.max(deckIndex, 0), wallSuppliers.length - 1) : 0;
+            const focused = wallSuppliers[idx] || null;
+            const fmeta = focused ? (supplierMeta.get(focused.id) || {}) : {};
+            const fports = focused?.coverage_ports || [];
+            const left = idx > 0 ? wallSuppliers[idx - 1] : null;
+            const right = focused && idx < wallSuppliers.length - 1 ? wallSuppliers[idx + 1] : null;
+
+            // A flanking card: a real neighbour (dimmed, clickable to
+            // rotate) or a "joining soon" placeholder that sells the
+            // network before it exists.
+            const sideCard = (sup, side) => sup ? (
+              <button
+                key={side}
+                className={`mp-supcard side ${side}`}
+                onClick={() => setDeckIndex(side === 'l' ? idx - 1 : idx + 1)}
+              >
+                <span className="tag">{supplierMeta.get(sup.id)?.count || 0} products</span>
+                <div className="name">{sup.name}</div>
+              </button>
+            ) : (
+              <div
+                key={side}
+                className={`mp-supcard side ${side} ghost`}
+                onClick={() => showToast('Supplier invites are coming soon — you’ll nominate the shops you already use.', 'info')}
+              >
+                <span className="tag">Joining soon</span>
+                <div className="name">—</div>
               </div>
+            );
 
-              {wallSuppliers.length === 0 ? (
-                <div className="mp-empty">
-                  {suppliers.length === 0
-                    ? 'No suppliers have published catalogues yet.'
-                    : 'No shops match that search.'}
-                </div>
-              ) : (() => {
-                const idx = Math.min(Math.max(deckIndex, 0), wallSuppliers.length - 1);
-                const focused = wallSuppliers[idx];
-                const fmeta = supplierMeta.get(focused.id) || {};
-                const fports = focused.coverage_ports || [];
-                const left = idx > 0 ? wallSuppliers[idx - 1] : null;
-                const right = idx < wallSuppliers.length - 1 ? wallSuppliers[idx + 1] : null;
+            const tagBits = ['Provisions', fports.slice(0, 2).join(' — ')].filter(Boolean).join(' · ');
 
-                // A flanking card: a real neighbour (dimmed, clickable to
-                // rotate) or a "joining soon" placeholder that sells the
-                // network before it exists.
-                const sideCard = (sup, side) => sup ? (
-                  <button
-                    key={side}
-                    className={`mp-supcard side ${side}`}
-                    onClick={() => setDeckIndex(side === 'l' ? idx - 1 : idx + 1)}
-                  >
-                    <span className="tag">{supplierMeta.get(sup.id)?.count || 0} products</span>
-                    <div className="name">{sup.name}</div>
+            return (
+              <>
+                {/* Meta strip + headline — shared editorial furniture, matching Provisioning */}
+                <p className="editorial-meta mp-editorial-meta">
+                  <span className="dot">●</span>
+                  <span>Marketplace</span>
+                  <span className="bar" />
+                  <span className="muted">{suppliers.length} shop{suppliers.length === 1 ? '' : 's'}</span>
+                  <span className="bar" />
+                  <span className="muted">{products.length} products</span>
+                  {fports[0] && <><span className="bar" /><span className="muted">Port · {fports[0]}</span></>}
+                  <span className="bar" />
+                  <span className="muted mp-live">Live prices</span>
+                </p>
+                <h1 className="editorial-greeting mp-greeting">
+                  THE MARKET<span className="period">,</span> <em>at your berth</em><span className="period">.</span>
+                </h1>
+
+                {/* Toolbar beneath the header: search + shop filters + sort + all-items */}
+                <div className="mp-controls">
+                  <label className="mp-searchwrap grow">
+                    <Search size={15} className="ic" />
+                    <input
+                      className="mp-search bare"
+                      placeholder="Search shops, ports, categories…"
+                      value={provSearch}
+                      onChange={(e) => { setProvSearch(e.target.value); setDeckIndex(0); }}
+                    />
+                  </label>
+                  {provPorts.length > 0 && (
+                    <label className="mp-filter">
+                      <span className="k">Port</span>
+                      <select value={provPort} onChange={(e) => { setProvPort(e.target.value); setDeckIndex(0); }}>
+                        <option value="All">All</option>
+                        {provPorts.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  {provCats.length > 0 && (
+                    <label className="mp-filter">
+                      <span className="k">Category</span>
+                      <select value={provCat} onChange={(e) => { setProvCat(e.target.value); setDeckIndex(0); }}>
+                        <option value="All">All</option>
+                        {provCats.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  <label className="mp-filter">
+                    <span className="k">Sort</span>
+                    <select value={provSort} onChange={(e) => { setProvSort(e.target.value); setDeckIndex(0); }}>
+                      <option value="name">Name A–Z</option>
+                      <option value="products">Most products</option>
+                      <option value="updated">Recently updated</option>
+                      <option value="verified">Verified first</option>
+                    </select>
+                  </label>
+                  {provFiltersDirty && (
+                    <button
+                      type="button"
+                      className="mp-clear"
+                      onClick={() => { setProvSearch(''); setProvPort('All'); setProvCat('All'); setProvSort('name'); setDeckIndex(0); }}
+                    >
+                      × Clear all
+                    </button>
+                  )}
+                  <button className="mp-allitems mp-allitems-end" onClick={openAllItems}>
+                    Browse all items <ChevronRight size={14} />
                   </button>
-                ) : (
-                  <div
-                    key={side}
-                    className={`mp-supcard side ${side} ghost`}
-                    onClick={() => showToast('Supplier invites are coming soon — you’ll nominate the shops you already use.', 'info')}
-                  >
-                    <span className="tag">Joining soon</span>
-                    <div className="name">—</div>
+                </div>
+
+                {!focused ? (
+                  <div className="mp-empty">
+                    {suppliers.length === 0
+                      ? 'No suppliers have published catalogues yet.'
+                      : 'No shops match those filters.'}
                   </div>
-                );
-
-                const tagBits = [
-                  'Provisions',
-                  fports.slice(0, 2).join(' — '),
-                ].filter(Boolean).join(' · ');
-
-                return (
+                ) : (
                   <>
-                    <div className="mp-deckmeta">
-                      <span><b>Shops</b> · {wallSuppliers.length}</span>
-                      <span><b>Products</b> · {products.length}</span>
-                      {fports[0] && <span><b>Port</b> · {fports[0]}</span>}
-                      <span className="live">● Live prices</span>
-                    </div>
-
-                    <h1 className="mp-deckhero">THE MARKET, <em>at your berth</em>.</h1>
-
                     <div className="mp-deck">
                       {sideCard(left, 'l')}
                       <button className="mp-supcard center" onClick={() => enterShop(focused)}>
@@ -516,10 +586,10 @@ const Marketplace = () => {
                       </div>
                     )}
                   </>
-                );
-              })()}
-            </>
-          )}
+                )}
+              </>
+            );
+          })()}
 
           {/* ── ii · The Aisles / all-items ── */}
           {!loading && stage !== 'providers' && (
