@@ -8,7 +8,7 @@
 // straight into the orient step → view on map. Failures leave the row
 // marked incomplete with retry/discard affordances; nothing orphans.
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -61,8 +61,13 @@ const fmtSize = (bytes) => (bytes == null ? '—' : `${(bytes / (1024 * 1024)).t
 
 export default function ManageScans() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
+
+  // Deep-link from Location Management: /vessel/map/manage?space={id}&name={room}
+  // opens the upload form pre-filled and binds the new scan to that Space.
+  const [linkSpaceId, setLinkSpaceId] = useState(null);
 
   const [scans, setScans] = useState([]);
   const [pinCounts, setPinCounts] = useState({});
@@ -88,6 +93,17 @@ export default function ManageScans() {
   const activeUploadRef = useRef(null);
   const viewerApiRef = useRef(null); // orient-step SplatViewer — poster capture
   const [dragOver, setDragOver] = useState(false);
+
+  // Consume the ?space=&name= handoff once: bind the space and open the form.
+  useEffect(() => {
+    const space = searchParams.get('space');
+    if (!space) return;
+    setLinkSpaceId(space);
+    const roomName = searchParams.get('name');
+    if (roomName) setName(roomName);
+    setStep('form');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Crews who've done this many times can fold the three cards away.
   const [stepsHidden, setStepsHiddenState] = useState(() => {
     try { return localStorage.getItem('cargo-vmm-steps-hidden') === '1'; } catch { return false; }
@@ -215,6 +231,7 @@ export default function ManageScans() {
         tenant_id: activeTenantId,
         name: name.trim(),
         deck: deck.trim() || null,
+        space_id: linkSpaceId || null,
         storage_path: path,
         file_format: ext,
         status: 'uploading',
