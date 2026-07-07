@@ -30,6 +30,7 @@ import {
   fetchTenantSupplierIds,
   fetchPortLocations,
   fetchDirectorySuppliers,
+  fetchSupplierMemory,
   ensureTenantSupplierLinks,
   addBasketToBoard,
 } from '../provisioning/utils/marketplaceStorage';
@@ -72,6 +73,14 @@ const fmtPack = (p) => {
 
 const money = (n, ccy = 'EUR') =>
   n != null ? `${Number(n).toFixed(2)} ${ccy}` : '—';
+
+// Compact money for KPI tiles — €938, $1,240, 900 AED.
+const CUR_SYM = { EUR: '€', USD: '$', GBP: '£' };
+const fmtMoney = (n, ccy = 'EUR') => {
+  const v = Math.round(Number(n) || 0).toLocaleString('en-GB');
+  const s = CUR_SYM[ccy];
+  return s ? `${s}${v}` : `${v} ${ccy}`;
+};
 
 const minQtyOf = (product) => Math.max(1, Number(product.min_order_qty) || 1);
 
@@ -183,6 +192,7 @@ const Marketplace = () => {
   const [queryPoint, setQueryPoint] = useState(null); // geocoded {lat,lng,label}
   const [mapOpen, setMapOpen] = useState(false);
   const [portCoords, setPortCoords] = useState(() => new Map());
+  const [memory, setMemory] = useState(() => new Map());
   const [directorySuppliers, setDirectorySuppliers] = useState([]);
   const [provCat, setProvCat] = useState('All');
   const [provSort, setProvSort] = useState('name');
@@ -206,16 +216,18 @@ const Marketplace = () => {
         setSuppliers(sups);
         setStats(st);
         setPortCoords(ports);
-        const [prods, mine, lists, directory] = await Promise.all([
+        const [prods, mine, lists, directory, mem] = await Promise.all([
           fetchMarketplaceProducts(sups.map(s => s.id)),
           fetchTenantSupplierIds(activeTenantId),
           activeTenantId ? fetchProvisioningLists(activeTenantId).catch(() => []) : [],
           fetchDirectorySuppliers(activeTenantId),
+          fetchSupplierMemory(),
         ]);
         if (!live) return;
         setProducts(prods);
         setMySupplierIds(mine);
         setDirectorySuppliers(directory);
+        setMemory(mem);
         const open = (lists || []).filter(l => !CLOSED_BOARD_STATUSES.has(l.status));
         setBoards(open);
         const param = searchParams.get('board');
@@ -471,6 +483,7 @@ const Marketplace = () => {
             const idx = wallSuppliers.length ? Math.min(Math.max(deckIndex, 0), wallSuppliers.length - 1) : 0;
             const focused = wallSuppliers[idx] || null;
             const fmeta = focused ? (supplierMeta.get(focused.id) || {}) : {};
+            const fmem = focused ? (memory.get(focused.id) || null) : null;
             const fports = focused?.coverage_ports || [];
             const left = idx > 0 ? wallSuppliers[idx - 1] : null;
             const right = focused && idx < wallSuppliers.length - 1 ? wallSuppliers[idx + 1] : null;
@@ -594,20 +607,42 @@ const Marketplace = () => {
                   <>
                     <div className="mp-deck">
                       {sideCard(left, 'l')}
-                      <button className="mp-supcard center" onClick={() => enterShop(focused)}>
-                        {focused.logo_url && <img className="mp-sup-logo" src={focused.logo_url} alt="" />}
-                        <span className="tag">{coverageLabel}</span>
-                        <div className="name">
-                          {focused.name}
-                          {focused.verified && <span className="v"> ✓</span>}
-                        </div>
-                        <div className="meta">
-                          {fmeta.count || focused.catalogue_count} products
-                          {fmeta.lastUpdated ? ` · updated ${fmtDate(fmeta.lastUpdated)}` : ''}
-                        </div>
-                        <div className="cats">
-                          {(fmeta.topCats || []).slice(0, 3).map(c => <span key={c}>{c}</span>)}
-                          {(fmeta.topCats?.length || 0) > 3 && <span>+{fmeta.topCats.length - 3}</span>}
+                      <button className="mp-supcard center mp-flipcard" onClick={() => enterShop(focused)}>
+                        <div className="mp-flip-inner">
+                          <div className="mp-face mp-front">
+                            {focused.logo_url && <img className="mp-sup-logo" src={focused.logo_url} alt="" />}
+                            <span className="tag">{coverageLabel}</span>
+                            <div className="name">
+                              {focused.name}
+                              {focused.verified && <span className="v"> ✓</span>}
+                            </div>
+                            <div className="meta">
+                              {fmeta.count || focused.catalogue_count} products
+                              {fmeta.lastUpdated ? ` · updated ${fmtDate(fmeta.lastUpdated)}` : ''}
+                            </div>
+                            <div className="cats">
+                              {(fmeta.topCats || []).slice(0, 3).map(c => <span key={c}>{c}</span>)}
+                              {(fmeta.topCats?.length || 0) > 3 && <span>+{fmeta.topCats.length - 3}</span>}
+                            </div>
+                          </div>
+                          <div className="mp-face mp-back">
+                            <span className="tag">Your history</span>
+                            {fmem && fmem.orders > 0 ? (
+                              <>
+                                <div className="mp-mem">
+                                  <div className="mp-memstat"><span className="v">{fmem.orders}</span><span className="l">order{fmem.orders === 1 ? '' : 's'}</span></div>
+                                  <div className="mp-memstat"><span className="v">{fmtMoney(fmem.spend, fmem.currency)}</span><span className="l">spent</span></div>
+                                  <div className="mp-memstat"><span className="v">{fmem.lastOrderAt ? fmtDate(fmem.lastOrderAt) : '—'}</span><span className="l">last order</span></div>
+                                </div>
+                                {fmem.topCategories?.length > 0 && (
+                                  <div className="mp-mem-note">Most ordered · {fmem.topCategories.slice(0, 2).join(', ')}</div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="mp-mem-empty">No orders with them yet — be their first.</div>
+                            )}
+                            <span className="mp-flip-hint">Click to enter →</span>
+                          </div>
                         </div>
                       </button>
                       {sideCard(right, 'r')}
