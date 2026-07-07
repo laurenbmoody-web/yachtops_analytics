@@ -68,6 +68,13 @@ html[data-theme="night"] .lg .lg-cf.addcard .card{border-color:#3A3960;}
 .lg-zone{margin-top:18px;}
 .lg-zhdr{display:flex;align-items:center;gap:9px;margin:0 0 6px;}
 .lg-zhdr .zdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--lg-terra);}
+/* zone colour-coding — bands read as distinct (mirrors the mock) */
+.lg-zhdr .zdot.z0{background:#6E9BBC;} .lg-zhdr .zdot.z1{background:#C08E52;}
+.lg-zhdr .zdot.z2{background:#6FA986;} .lg-zhdr .zdot.z3{background:#9877B0;}
+html[data-theme="night"] .lg-zhdr .zdot.z0{background:#7FA8C6;}
+html[data-theme="night"] .lg-zhdr .zdot.z1{background:#CD9E68;}
+html[data-theme="night"] .lg-zhdr .zdot.z2{background:#82B79C;}
+html[data-theme="night"] .lg-zhdr .zdot.z3{background:#A98AC0;}
 .lg-zhdr .zn{font-size:13.5px;font-weight:650;color:var(--lg-ink);}
 .lg-zhdr .zct{font-size:12px;color:var(--lg-faint);}
 .lg-zhdr .zacts{margin-left:auto;display:flex;gap:8px;}
@@ -110,7 +117,9 @@ html[data-theme="night"] .lg .lg-cf.addcard .card{border-color:#3A3960;}
 .lg.flow .lg-cf .plus,.lg.flow .lg-cf .noscan{height:150px;}
 
 /* ── STATIC mode ── */
-.lg.static .row{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;padding:14px 0 4px;}
+/* Generous, breathing cards like the mock — 3–4 wide, not a dense pack. */
+.lg.static .row{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:16px 0 6px;}
+@media(min-width:1180px){.lg.static .row{grid-template-columns:repeat(4,1fr);}}
 @media(max-width:760px){.lg.static .row{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:440px){.lg.static .row{grid-template-columns:1fr;}}
 .lg.static .lg-cf{width:auto;cursor:pointer;transition:transform .22s cubic-bezier(.2,.7,.2,1);}
