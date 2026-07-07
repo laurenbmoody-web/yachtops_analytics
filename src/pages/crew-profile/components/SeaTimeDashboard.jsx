@@ -1570,20 +1570,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             // tap (collapsed by default; the KPI bar up top carries the headline).
             const TYPE_ORDER = ['seagoing', 'watchkeeping', 'standby', 'yard'];
             const capKey = (e) => `${e.vesselId}::${e.masterUserId || e.masterName || ''}`;
-            const dayGap = (aTo, bFrom) => (aTo && bFrom) ? Math.round((new Date(bFrom + 'T00:00:00') - new Date(aTo + 'T00:00:00')) / 86400000) : 0;
+            const daysInclusive = (from, to) => (from && to) ? Math.round((new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / 86400000) + 1 : 0;
+            // One block per vessel+captain, combining engagements across leave —
+            // like the testimonial. The block states the full span; service days +
+            // leave reconcile to it, and the underlying SDB-dated periods stay
+            // visible on expand so a reviewer can tie every day back to the book.
             const sorted = [...shown].sort((a, b) => String(a.from || '').localeCompare(String(b.from || '')));
             const periods = [];
-            let cur = null, lastTo = null;
+            let cur = null;
             sorted.forEach(e => {
               const k = capKey(e);
-              // Each engagement must match the Discharge Book (SDB): a change of
-              // vessel/captain, OR any gap in the dates — going on leave, or
-              // leaving the vessel and rejoining — ends one engagement and starts
-              // a new block, even on the same vessel under the same captain.
-              const broke = !cur || cur.k !== k || (e.from && lastTo && dayGap(lastTo, e.from) > 1);
-              if (broke) { cur = { k, vesselId: e.vesselId, captainId: e.masterUserId || null, captainName: e.masterName || '', entries: [] }; periods.push(cur); }
+              if (!cur || cur.k !== k) { cur = { k, vesselId: e.vesselId, captainId: e.masterUserId || null, captainName: e.masterName || '', entries: [] }; periods.push(cur); }
               cur.entries.push(e);
-              if (e.to) lastTo = e.to; else if (e.from) lastTo = e.from;
             });
             periods.reverse(); // newest stint first
             const openSet = openMonths ?? new Set(); // default: all collapsed
@@ -1634,11 +1632,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               const total = liveEntries.reduce((s, e) => s + (e.days || 0), 0);
               const byType = {};
               liveEntries.forEach(e => { byType[e.type] = (byType[e.type] || 0) + (e.days || 0); });
-              const segs = TYPE_ORDER.filter(t => byType[t]).map(t => ({ t, days: byType[t], tm: TYPE_META[t] }));
+              // Span from first sign-on to last sign-off; the leave between
+              // engagements is the difference, so service + leave = span (this is
+              // what a reviewer reconciles against the SDB).
+              const spanDays = daysInclusive(from, to);
+              const leaveOff = Math.max(0, spanDays - total);
+              const barSegs = [
+                ...TYPE_ORDER.filter(t => byType[t]).map(t => ({ key: t, days: byType[t], label: TYPE_META[t].label, color: TYPE_META[t].color, text: '#fff' })),
+                ...(leaveOff > 0 ? [{ key: 'leave', days: leaveOff, label: 'Leave', color: '#E6E2D9', text: '#8B8478' }] : []),
+              ];
               const vm = [v.flag, v.gt != null ? `${v.gt} GT` : null, v.lengthM != null ? `${v.lengthM} m` : null, v.imo ? `IMO ${v.imo}` : null].filter(Boolean).join(' · ');
               const who = p.captainId === userId ? `Your service as ${topRankWord}` : (p.captainName || null);
               const span = (from && to) ? `${fmtDate(from)} – ${fmtDate(to)}` : (from ? fmtDate(from) : '');
-              const metaBits = [who, span, `${total} ${total === 1 ? 'day' : 'days'}`].filter(Boolean).join(' · ');
+              const metaBits = [who, span, `${total} ${total === 1 ? 'day' : 'days'}`, leaveOff > 0 ? `${leaveOff} leave` : ''].filter(Boolean).join(' · ');
               const key = `${p.k}::${from || pi}`;
               const open = openSet.has(key);
               return (
@@ -1659,19 +1665,22 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   {open && (
                     <div className="std-op-body">
                       {vm && <div className="std-op-vm">{vm}</div>}
-                      {segs.length > 0 && (<>
+                      {barSegs.length > 0 && (<>
                         <div className="std-op-bar">
-                          {segs.map(s => (
-                            <div key={s.t} className="std-op-seg" style={{ flexGrow: s.days, background: s.tm.color }} title={`${s.tm.label} · ${s.days} days`}>
-                              <span className="std-op-seg-t">{s.tm.label} {s.days}</span>
+                          {barSegs.map(s => (
+                            <div key={s.key} className="std-op-seg" style={{ flexGrow: s.days, background: s.color, color: s.text }} title={`${s.label} · ${s.days} days`}>
+                              <span className="std-op-seg-t">{s.label} {s.days}</span>
                             </div>
                           ))}
                         </div>
                         <div className="std-op-legend">
-                          {segs.map(s => (
-                            <span key={s.t} className="std-op-leg"><span className="dt" style={{ background: s.tm.color }} /><b>{s.days}</b> {s.tm.label}</span>
+                          {barSegs.map(s => (
+                            <span key={s.key} className="std-op-leg"><span className="dt" style={{ background: s.key === 'leave' ? '#CFC9BC' : s.color }} /><b>{s.days}</b> {s.label}</span>
                           ))}
                         </div>
+                        {leaveOff > 0 && spanDays > 0 && (
+                          <div className="std-op-recon">Reconciles to the {spanDays}-day span — {total} {total === 1 ? 'day' : 'days'} service + {leaveOff} {leaveOff === 1 ? 'day' : 'days'} leave.</div>
+                        )}
                       </>)}
                       <div className="std-op-rows">{p.entries.map(renderLeg)}</div>
                     </div>
