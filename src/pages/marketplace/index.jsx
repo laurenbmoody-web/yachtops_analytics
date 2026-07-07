@@ -29,6 +29,7 @@ import {
   fetchMarketplaceProducts,
   fetchTenantSupplierIds,
   fetchPortLocations,
+  fetchDirectorySuppliers,
   ensureTenantSupplierLinks,
   addBasketToBoard,
 } from '../provisioning/utils/marketplaceStorage';
@@ -182,6 +183,7 @@ const Marketplace = () => {
   const [queryPoint, setQueryPoint] = useState(null); // geocoded {lat,lng,label}
   const [mapOpen, setMapOpen] = useState(false);
   const [portCoords, setPortCoords] = useState(() => new Map());
+  const [directorySuppliers, setDirectorySuppliers] = useState([]);
   const [provCat, setProvCat] = useState('All');
   const [provSort, setProvSort] = useState('name');
 
@@ -204,14 +206,16 @@ const Marketplace = () => {
         setSuppliers(sups);
         setStats(st);
         setPortCoords(ports);
-        const [prods, mine, lists] = await Promise.all([
+        const [prods, mine, lists, directory] = await Promise.all([
           fetchMarketplaceProducts(sups.map(s => s.id)),
           fetchTenantSupplierIds(activeTenantId),
           activeTenantId ? fetchProvisioningLists(activeTenantId).catch(() => []) : [],
+          fetchDirectorySuppliers(activeTenantId),
         ]);
         if (!live) return;
         setProducts(prods);
         setMySupplierIds(mine);
+        setDirectorySuppliers(directory);
         const open = (lists || []).filter(l => !CLOSED_BOARD_STATUSES.has(l.status));
         setBoards(open);
         const param = searchParams.get('board');
@@ -229,6 +233,13 @@ const Marketplace = () => {
   }, [activeTenantId]);
 
   const supplierById = useMemo(() => new Map(suppliers.map(s => [s.id, s])), [suppliers]);
+
+  // Directory vendors the tenant saved that aren't live on Cargo yet —
+  // the map shows them as faint "invite" pins (the growth loop).
+  const inviteSuppliers = useMemo(() => {
+    const onCargo = new Set(suppliers.map(s => s.id));
+    return directorySuppliers.filter(d => d.name && !onCargo.has(d.id));
+  }, [directorySuppliers, suppliers]);
   const enteredSupplier = enteredId ? supplierById.get(enteredId) : null;
   // Deep-link ?supplier= may resolve only after suppliers load.
   useEffect(() => {
@@ -743,6 +754,8 @@ const Marketplace = () => {
           queryPoint={queryPoint}
           onSetPoint={(pt) => { setQueryPoint(pt); setProvLoc(''); setDeckIndex(0); }}
           onEnterShop={enterShop}
+          inviteSuppliers={inviteSuppliers}
+          onInvite={(s) => showToast(`Supplier invites are coming soon — we’ll help you bring ${s.name} onto Cargo.`, 'info')}
         />
 
         {/* ── iii · The Counter (drawer) ── */}
