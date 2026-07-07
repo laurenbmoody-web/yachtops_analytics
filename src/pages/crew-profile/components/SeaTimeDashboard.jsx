@@ -227,6 +227,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   // Years marked "accounted for" (verified + submitted toward a prior CoC) →
   // collapsed in the ledger and excluded from the active pathway.
   const [accounted, setAccounted] = useState({});
+  // Per-captain-spell "submitted" markers, filled automatically when a spell's
+  // testimonial is exported/copied. Keyed by spellKey → { at, via }. Progress
+  // only — does NOT change any day totals or exclude service.
+  const [submitted, setSubmitted] = useState({});
   const [usingSample, setUsingSample] = useState(true);
   const toastTimer = useRef(null);
   const ledgerRef = useRef(null);
@@ -380,7 +384,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       const [rows, prof, pd, ves] = await Promise.all([
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years, guest_on_days')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years, submitted_testimonials, guest_on_days')?.eq('user_id', userId)?.maybeSingle(),
         supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw, loa_m, typical_guest_count')?.eq('tenant_id', tenantId)?.maybeSingle(),
       ]);
       // The certified passport copy auto-ticks the pack's proof-of-identity doc
@@ -401,6 +405,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         setGuestOnDays(pd?.data?.guest_on_days ?? null);
         setJourney(pd?.data?.cert_progression || null);
         setAccounted(pd?.data?.accounted_years || {});
+        setSubmitted(pd?.data?.submitted_testimonials || {});
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
         // Per-command-spell attestation is derived from each entry's verification
@@ -844,6 +849,23 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
     }).sort((a, b) => (vessels[a.vesselId]?.name || '').localeCompare(vessels[b.vesselId]?.name || '') || String(a.from).localeCompare(String(b.from)));
   }, [live, vessels]);
 
+  // Stable per-spell identity (vessel + captain + span). If the span later
+  // grows, the key changes — a fresh testimonial is genuinely needed, so the
+  // old "submitted" marker no longer applies.
+  const spellKey = (s) => `${s.vesselId}::${s.captainId || s.captainName || 'x'}::${s.from || ''}::${s.to || ''}`;
+  // Mark a spell "submitted" once its testimonial has been exported/copied.
+  // Progress marker only — never touches totals or excludes service.
+  const markSubmitted = async (spell, via) => {
+    const key = spellKey(spell);
+    const next = { ...(submitted || {}), [key]: { at: new Date().toISOString().slice(0, 10), via } };
+    setSubmitted(next);
+    if (usingSample || !userId) return;
+    try {
+      const { error } = await supabase.from('crew_personal_details').upsert({ user_id: userId, submitted_testimonials: next }, { onConflict: 'user_id' });
+      if (error) throw error;
+    } catch (e) { console.error('[seatime] submitted', e); }
+  };
+
   // Build + download ONE captain's Nautilus testimonial, scoped to that spell.
   const onDownloadSpell = async (spell) => {
     if (!canGenerate) { flash('Resolve the outstanding validation checks first'); return; }
@@ -893,6 +915,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       });
       const who = (endorser.name || spell.captainName || 'captain').replace(/\s+/g, '-');
       downloadBytes(pdfBytes, `nautilus-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}-${who}.pdf`);
+      markSubmitted(spell, 'nautilus');
       flash('Nautilus form ready');
     } catch (e) { console.error('[seatime] nautilus export', e); flash('Could not build the Nautilus form'); }
   };
@@ -942,6 +965,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         company: { name: companyName },
       });
       downloadBytes(pdfBytes, `transport-malta-sst${engineForm ? '-engine' : ''}-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
+      markSubmitted(spell, 'transport_malta');
       flash('Transport Malta form ready');
     } catch (e) { console.error('[seatime] transport malta export', e); flash('Could not build the Transport Malta form'); }
   };
@@ -977,6 +1001,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         verifier: vp,
       });
       downloadBytes(bytes, `${verifier === 'mca' ? 'mca-testimonial' : 'pya-record'}-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
+      markSubmitted(spell, verifier);
       flash(`${vp.short} testimonial ready`);
     } catch (e) { console.error('[seatime] testimonial export', e); flash('Could not build the testimonial'); }
   };
@@ -1030,7 +1055,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         engineType,
       });
       await navigator.clipboard.writeText(buildPyaClipboard(payload));
-      flash('Copied — now click the “Fill PYA form” bookmark on the PYA page');
+      markSubmitted(spell, 'pya');
+      flash('Copied — now open the PYA form and click Fill from Cargo');
     } catch (e) { console.error('[seatime] pya copy', e); flash('Could not copy the PYA data'); }
   };
 
@@ -1146,11 +1172,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
     if (isOn) delete next[year];
     else next[year] = { at: new Date().toISOString().slice(0, 10), note: cert?.label ? `Counted toward ${cert.label}` : '' };
     setAccounted(next);
-    if (usingSample || !userId) { flash(isOn ? 'Year reopened (preview)' : 'Year accounted for (preview)'); return; }
+    if (usingSample || !userId) { flash(isOn ? 'Year reopened (preview)' : 'Marked as used for a past CoC (preview)'); return; }
     try {
       const { error } = await supabase.from('crew_personal_details').upsert({ user_id: userId, accounted_years: next }, { onConflict: 'user_id' });
       if (error) throw error;
-      flash(isOn ? `${year} reopened` : `${year} marked accounted for`);
+      flash(isOn ? `${year} reopened` : `${year} marked as used for a past CoC`);
     } catch (e) { console.error('[seatime] accounted', e); flash('Could not update'); setAccounted(accounted); }
   };
 
@@ -1546,15 +1572,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               <div className="std-flex std-ac" style={{ gap: 10 }}>
                 {activeYear && (accountedSet.has(activeYear)
                   ? <button type="button" onClick={() => toggleAccounted(activeYear)} className="std-vs" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C65A1A', fontWeight: 600 }}>Reopen</button>
-                  : <button type="button" onClick={() => toggleAccounted(activeYear)} className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC', padding: '4px 10px' }}><Icon name="CheckCheck" size={13} /> Mark accounted for</button>)}
+                  : <button type="button" onClick={() => toggleAccounted(activeYear)} className="std-dl" title="Service you already used for a certificate you hold — excluded from this goal so it isn’t double-counted." style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC', padding: '4px 10px' }}><Icon name="CheckCheck" size={13} /> Used for a past CoC</button>)}
               </div>
             </div>
           )}
           {activeYear && accountedSet.has(activeYear) && (
             <div className="std-flex std-between std-ac" style={{ padding: '12px 14px', border: '1px solid #CDE6D3', background: '#EFF6F1', borderRadius: 10, marginBottom: 8 }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#3F7A52' }}>{activeYear} · accounted for</div>
-                <div className="std-vs">{yearDays} {yearDays === 1 ? 'day' : 'days'} · verified &amp; submitted{accounted[activeYear]?.note ? ` — ${accounted[activeYear].note}` : ''}. Excluded from your active pathway.</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#3F7A52' }}>{activeYear} · used for a past CoC</div>
+                <div className="std-vs">{yearDays} {yearDays === 1 ? 'day' : 'days'} already used for a certificate you hold{accounted[activeYear]?.note ? ` — ${accounted[activeYear].note}` : ''}. Excluded from this goal.</div>
               </div>
               <Icon name="ShieldCheck" size={20} color="#3F7A52" />
             </div>
@@ -2052,6 +2078,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                           <div className="std-spell-main">
                             <div className="nm">{vessels[s.vesselId]?.name || 'Vessel'} · {s.captainId === userId ? `your service as ${topRankWord}` : (s.captainName || 'Captain')}</div>
                             <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}</div>
+                            {submitted[spellKey(s)] && (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 4, fontSize: 11.5, fontWeight: 600, color: '#3F7A52' }}>
+                                <Icon name="Check" size={13} /> Submitted {fmtDate(submitted[spellKey(s)].at)}
+                              </div>
+                            )}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             {verifier === 'nautilus'
