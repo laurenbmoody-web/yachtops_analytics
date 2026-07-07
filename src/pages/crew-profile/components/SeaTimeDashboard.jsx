@@ -853,11 +853,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   // grows, the key changes — a fresh testimonial is genuinely needed, so the
   // old "submitted" marker no longer applies.
   const spellKey = (s) => `${s.vesselId}::${s.captainId || s.captainName || 'x'}::${s.from || ''}::${s.to || ''}`;
-  // Mark a spell "submitted" once its testimonial has been exported/copied.
-  // Progress marker only — never touches totals or excludes service.
-  const markSubmitted = async (spell, via) => {
-    const key = spellKey(spell);
-    const next = { ...(submitted || {}), [key]: { at: new Date().toISOString().slice(0, 10), via } };
+  // Per-spell "submitted" flag — set automatically when a testimonial is
+  // exported/copied, and freely toggled by the crew (Open ↔ Submitted). Progress
+  // marker only — it never touches day totals or excludes service.
+  const persistSubmitted = async (next) => {
     setSubmitted(next);
     if (usingSample || !userId) return;
     try {
@@ -865,6 +864,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       if (error) throw error;
     } catch (e) { console.error('[seatime] submitted', e); }
   };
+  const setSpellSubmitted = (spell, on, via = 'manual') => {
+    const key = spellKey(spell);
+    const next = { ...(submitted || {}) };
+    if (on) next[key] = { at: new Date().toISOString().slice(0, 10), via };
+    else delete next[key];
+    persistSubmitted(next);
+  };
+  const markSubmitted = (spell, via) => setSpellSubmitted(spell, true, via);
 
   // Build + download ONE captain's Nautilus testimonial, scoped to that spell.
   const onDownloadSpell = async (spell) => {
@@ -1569,29 +1576,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   <Icon name="ChevronRight" size={16} />
                 </button>
               </div>
-              <div className="std-flex std-ac" style={{ gap: 10 }}>
-                {activeYear && (accountedSet.has(activeYear)
-                  ? <button type="button" onClick={() => toggleAccounted(activeYear)} className="std-vs" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C65A1A', fontWeight: 600 }}>Reopen</button>
-                  : <button type="button" onClick={() => toggleAccounted(activeYear)} className="std-dl" title="Service you already used for a certificate you hold — excluded from this goal so it isn’t double-counted." style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC', padding: '4px 10px' }}><Icon name="CheckCheck" size={13} /> Used for a past CoC</button>)}
-              </div>
             </div>
           )}
-          {activeYear && accountedSet.has(activeYear) && (
-            <div className="std-flex std-between std-ac" style={{ padding: '12px 14px', border: '1px solid #CDE6D3', background: '#EFF6F1', borderRadius: 10, marginBottom: 8 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#3F7A52' }}>{activeYear} · used for a past CoC</div>
-                <div className="std-vs">{yearDays} {yearDays === 1 ? 'day' : 'days'} already used for a certificate you hold{accounted[activeYear]?.note ? ` — ${accounted[activeYear].note}` : ''}. Excluded from this goal.</div>
-              </div>
-              <Icon name="ShieldCheck" size={20} color="#3F7A52" />
-            </div>
-          )}
-          {!(activeYear && accountedSet.has(activeYear)) && shown.length === 0 && (
+          {shown.length === 0 && (
             syncInfo && syncInfo.has_start_date === false
               ? <div className="std-foot">Your sea service will populate automatically once your <b>join date is confirmed by command</b> — it’s taken from your employment record, not entered by hand. You can still log a period manually with “Log sea time”.</div>
               : <div className="std-foot">No sea service logged yet — it auto-logs from your current vessel, or use “Log sea time”.</div>
           )}
           {(() => {
-            if (activeYear && accountedSet.has(activeYear)) return null; // collapsed summary shown above
             const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             // Group chronologically into months; each month is a collapsible
             // section. A vessel band is emitted once per vessel run within a
@@ -2070,19 +2062,20 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     <div className="std-foot" style={{ padding: '10px 0 0' }}>No Cargo-tracked service to export yet — it auto-logs from your current vessel. You can still export your full record as CSV below.</div>
                   ) : (
                     <div className="std-spells">
-                      {interiorPathway && (
-                        <div className="std-spells-lbl">Your service under each captain, ready for the PYA to verify. Manual &amp; off-Cargo days are excluded.</div>
-                      )}
-                      {nautilusSpells.map((s, i) => (
-                        <div key={i} className="std-spell">
+                      {(() => {
+                        const openCount = nautilusSpells.filter(s => !submitted[spellKey(s)]).length;
+                        const sorted = [...nautilusSpells].sort((a, b) => (submitted[spellKey(a)] ? 1 : 0) - (submitted[spellKey(b)] ? 1 : 0));
+                        return (<>
+                          <div className="std-spells-lbl">{openCount === 0
+                            ? 'All signed off — every record is marked submitted.'
+                            : `${openCount} still to sign off — mark each submitted once you’ve sent it.`}</div>
+                          {sorted.map((s, i) => {
+                            const isSub = !!submitted[spellKey(s)];
+                            return (
+                        <div key={i} className="std-spell" style={{ opacity: isSub ? 0.72 : 1 }}>
                           <div className="std-spell-main">
                             <div className="nm">{vessels[s.vesselId]?.name || 'Vessel'} · {s.captainId === userId ? `your service as ${topRankWord}` : (s.captainName || 'Captain')}</div>
-                            <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}</div>
-                            {submitted[spellKey(s)] && (
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 4, fontSize: 11.5, fontWeight: 600, color: '#3F7A52' }}>
-                                <Icon name="Check" size={13} /> Submitted {fmtDate(submitted[spellKey(s)].at)}
-                              </div>
-                            )}
+                            <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}{isSub ? ` · submitted ${fmtDate(submitted[spellKey(s)].at)}` : ''}</div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             {verifier === 'nautilus'
@@ -2094,11 +2087,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                                   : verifier === 'pya' ? null
                                     : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
                             {verifier === 'pya' && (
-                              <button className="std-dl" disabled={!canGenerate} style={{ background: '#fff', color: canGenerate ? '#1C1B3A' : '#A6A199', border: '1px solid #E6E8EC', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => canGenerate && onCopySpellForPya(s)} title="Copy this record's details for the PYA autofill bookmarklet"><Icon name="Copy" size={15} /> Copy for PYA</button>
+                              <button className="std-dl" disabled={!canGenerate} style={{ background: '#fff', color: canGenerate ? '#1C1B3A' : '#A6A199', border: '1px solid #E6E8EC', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => canGenerate && onCopySpellForPya(s)} title="Copy this record's details for the Cargo → PYA extension"><Icon name="Copy" size={15} /> Copy for PYA</button>
                             )}
+                            <div className="std-toggle" title="Mark this record submitted, or reopen it">
+                              <button type="button" className={!isSub ? 'on' : ''} onClick={() => setSpellSubmitted(s, false)}>Open</button>
+                              <button type="button" className={isSub ? 'on' : ''} style={isSub ? { background: '#EAF3EC', color: '#3F7A52', boxShadow: '0 1px 2px rgba(28,27,58,.08)' } : undefined} onClick={() => setSpellSubmitted(s, true)}>Submitted</button>
+                            </div>
                           </div>
                         </div>
-                      ))}
+                            );
+                          })}
+                        </>);
+                      })()}
                     </div>
                   )}
                   <div className="std-export-actions">
