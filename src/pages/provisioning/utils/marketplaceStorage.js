@@ -67,6 +67,33 @@ export const fetchMarketplaceProducts = async (supplierIds) => {
 };
 
 /**
+ * Per-supplier memory for the caller's tenant — order count, spend,
+ * last order, most-ordered categories (get_supplier_memory RPC). Powers
+ * the deck card's hover-flip. Returns a Map keyed by supplier id; empty
+ * on any failure so the card just shows "no orders yet".
+ */
+export const fetchSupplierMemory = async () => {
+  try {
+    const { data, error } = await supabase.rpc('get_supplier_memory');
+    if (error) throw error;
+    const map = new Map();
+    (data ?? []).forEach((r) => {
+      map.set(r.supplier_profile_id, {
+        orders: Number(r.orders_count) || 0,
+        spend: r.total_spend != null ? Number(r.total_spend) : 0,
+        currency: r.currency || 'EUR',
+        lastOrderAt: r.last_order_at || null,
+        topCategories: r.top_categories || [],
+      });
+    });
+    return map;
+  } catch (err) {
+    console.warn('[marketplaceStorage] fetchSupplierMemory (non-blocking):', err?.message);
+    return new Map();
+  }
+};
+
+/**
  * Reference coordinates for known yacht ports, keyed by lower-case name.
  * Powers the marketplace map's pins, radius circles, and distance filter.
  * Best-effort: a failure just means the map falls back to name matching.

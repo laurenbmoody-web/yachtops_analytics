@@ -168,6 +168,26 @@
   background: #C65A1A; color: #fff; border-radius: 999px; padding: 9px 18px; font-size: 12.5px; font-weight: 700;
 }
 .mp-supcard.center:hover .enter { background: #B14E16; }
+/* Focused card flips on a long hover to reveal your history with the
+   supplier (the memory). Whole card stays clickable → enter aisles. */
+.mp-supcard.mp-flipcard { background: none; box-shadow: none; padding: 0; overflow: visible; perspective: 1400px; }
+.mp-flip-inner { position: relative; width: 100%; height: 100%; transition: transform .6s cubic-bezier(.2,.7,.3,1); transform-style: preserve-3d; }
+.mp-supcard.mp-flipcard:hover .mp-flip-inner { transform: rotateY(180deg); transition-delay: .4s; }
+.mp-face {
+  position: absolute; inset: 0; border-radius: 18px; padding: 26px 28px;
+  display: flex; flex-direction: column; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: linear-gradient(135deg, #141D2E, #1E2B45); box-shadow: 0 30px 60px -28px rgba(20,29,46,0.6);
+}
+.mp-face.mp-back { transform: rotateY(180deg); }
+.mp-mem { display: flex; gap: 22px; margin-top: auto; }
+.mp-memstat { display: flex; flex-direction: column; gap: 3px; }
+.mp-memstat .v { font-family: 'DM Serif Display', Georgia, serif; font-size: 23px; color: #F7F4EE; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
+.mp-memstat .l { font-family: 'Inter', system-ui, sans-serif; font-size: 9.5px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+.mp-mem-note { font-family: 'Inter', system-ui, sans-serif; font-size: 11px; color: #F0A277; margin-top: 12px; }
+.mp-mem-empty { font-family: 'Inter', system-ui, sans-serif; font-size: 13.5px; color: rgba(255,255,255,0.72); margin-top: auto; line-height: 1.5; max-width: 26ch; }
+.mp-flip-hint { font-family: 'Inter', system-ui, sans-serif; position: absolute; right: 24px; bottom: 22px; font-size: 11px; font-weight: 600; color: #F0A277; }
+@media (prefers-reduced-motion: reduce) { .mp-flip-inner { transition: none; } }
+
 .mp-deckdots { display: flex; justify-content: center; gap: 8px; margin-bottom: 4px; }
 .mp-deckdots button { width: 7px; height: 7px; border-radius: 999px; background: var(--border); border: none; padding: 0; cursor: pointer; }
 .mp-deckdots button.on { background: var(--accent); }
