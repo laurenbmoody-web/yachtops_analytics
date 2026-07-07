@@ -36,4 +36,4 @@ Sea Service Testimonial (SST) form from data they have already prepared in Cargo
 
 ## Contact
 
-Questions: lauren.moody@hotmail.co.uk
+Questions: privacy@cargotechnology.co.uk
