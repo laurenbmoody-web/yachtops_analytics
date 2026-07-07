@@ -224,9 +224,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const [eligOpen, setEligOpen] = useState(false);          // eligibility detail expand (step 01)
   const [pathwayCfgOpen, setPathwayCfgOpen] = useState(false); // dept/goal popover anchored to the target title
   const cfgRef = useRef(null);
-  // Years marked "accounted for" (verified + submitted toward a prior CoC) →
-  // collapsed in the ledger and excluded from the active pathway.
-  const [accounted, setAccounted] = useState({});
   // Per-captain-spell "submitted" markers, filled automatically when a spell's
   // testimonial is exported/copied. Keyed by spellKey → { at, via }. Progress
   // only — does NOT change any day totals or exclude service.
@@ -384,7 +381,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       const [rows, prof, pd, ves] = await Promise.all([
         fetchEntriesAcrossVessels(userId, 'mca-oow-yachts', tenantId),
         supabase?.from('profiles')?.select('full_name, first_name, surname')?.eq('id', userId)?.maybeSingle(),
-        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, accounted_years, submitted_testimonials, guest_on_days')?.eq('user_id', userId)?.maybeSingle(),
+        supabase?.from('crew_personal_details')?.select('date_of_birth, nationality, discharge_book_number, verifier_membership_number, sea_service_prior, cert_progression, submitted_testimonials, guest_on_days')?.eq('user_id', userId)?.maybeSingle(),
         supabase?.from('vessels')?.select('name, imo_number, company_name, company_address, company_email, company_phone, company_country, company_postcode, propulsion_kw, loa_m, typical_guest_count')?.eq('tenant_id', tenantId)?.maybeSingle(),
       ]);
       // The certified passport copy auto-ticks the pack's proof-of-identity doc
@@ -404,7 +401,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         setPrior(priorFromBaseline(pd?.data?.sea_service_prior)); // lifetime baseline accrued before Cargo
         setGuestOnDays(pd?.data?.guest_on_days ?? null);
         setJourney(pd?.data?.cert_progression || null);
-        setAccounted(pd?.data?.accounted_years || {});
         setSubmitted(pd?.data?.submitted_testimonials || {});
         setUsingSample(false);
         setForm(f => ({ ...f, vesselId: Object.keys(vMap)[0] || '' }));
@@ -474,8 +470,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const cargoVesselIds = useMemo(() => new Set(entries.filter(e => e.source === 'vessel').map(e => e.vesselId)), [entries]);
   // Accounted-for years are excluded from the ACTIVE pathway (spent on a prior
   // CoC) — but still shown (collapsed) in the ledger.
-  const accountedSet = useMemo(() => new Set(Object.keys(accounted || {}).map(Number)), [accounted]);
-  const pathwayEntries = useMemo(() => entries.filter(e => !accountedSet.has(yearOf(e))), [entries, accountedSet]);
+  const pathwayEntries = entries;
   // Yard cap is per-certificate (90 for OOW, 30 for Master/Chief Mate) — fold it
   // into the config so the yard bucket totals against the right MCA ceiling.
   const buckets = useMemo(
@@ -1170,21 +1165,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       setJourney(nextMap);
       flash('Certification journey saved');
     } catch (e) { console.error('[seatime] save journey', e); flash('Could not save the journey'); }
-  };
-
-  // Mark / reopen a year as "accounted for" (verified + submitted toward a CoC).
-  const toggleAccounted = async (year) => {
-    const next = { ...(accounted || {}) };
-    const isOn = !!next[year];
-    if (isOn) delete next[year];
-    else next[year] = { at: new Date().toISOString().slice(0, 10), note: cert?.label ? `Counted toward ${cert.label}` : '' };
-    setAccounted(next);
-    if (usingSample || !userId) { flash(isOn ? 'Year reopened (preview)' : 'Marked as used for a past CoC (preview)'); return; }
-    try {
-      const { error } = await supabase.from('crew_personal_details').upsert({ user_id: userId, accounted_years: next }, { onConflict: 'user_id' });
-      if (error) throw error;
-      flash(isOn ? `${year} reopened` : `${year} marked as used for a past CoC`);
-    } catch (e) { console.error('[seatime] accounted', e); flash('Could not update'); setAccounted(accounted); }
   };
 
   const formDays = () => { const { from, to } = form; if (!from || !to) return 1; const d = Math.round((new Date(to) - new Date(from)) / 86400000) + 1; return d > 0 ? d : 1; };
