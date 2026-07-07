@@ -1740,6 +1740,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         // don't let a `length > 0` guard falsely mark it "not eligible".
         const noServiceGate = hardReqs.length === 0;
         const eligible = conf.authoritative && hardReqs.every(r => r.met);
+        // Advisory items (e.g. MCA recency — 6mo seagoing in the last 5yr) don't
+        // gate the eligibility flag (their application point varies by route), but
+        // they DO belong in the popover so a short recency is visible, not hidden.
+        const advisoryReqs = requirements.filter(r => r.advisory);
         const noeExpiry = addYearsIso(j.noe?.issueDate, 5);
         const oralExpiry = addYearsIso(j.oral?.passDate, 3);
         const noeDte = daysUntil(noeExpiry), oralDte = daysUntil(oralExpiry);
@@ -1815,7 +1819,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               n: '02', label: 'Courses', key: 'courses', reachable: eligible,
               state: !eligible ? 'locked' : coursesComplete ? 'done' : ancillaryDone > 0 ? 'active' : 'todo',
               line: !eligible ? 'Locked' : coursesComplete ? (coursesTotal ? 'All courses on file' : 'No extra courses') : `${ancillaryDone} of ${coursesTotal} on file`,
-              detail: eligible && coursesTotal > 0 && !coursesComplete ? <div className="cj-detail">Management-level courses for {cert.short}</div> : null,
+              detail: null,
             },
             {
               n: '03', label: 'Certificate of Competency', key: 'coc', reachable: coursesComplete,
@@ -1838,7 +1842,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             <div className="cj-head">
               <div>
                 <h3 className="cj-title">Certification journey</h3>
-                {MSF_FORMS[deptId] && <div className="cj-ctx">Apply with {MSF_FORMS[deptId].form} ({MSF_FORMS[deptId].notice})</div>}
+                {MSF_FORMS[deptId] && <div className="cj-ctx">Complete your CoC using the GOV.UK form {MSF_FORMS[deptId].form} ({MSF_FORMS[deptId].notice}).</div>}
               </div>
               <div className="cj-progress"><b>{doneCount}</b> of {steps.length} complete</div>
             </div>
@@ -1874,21 +1878,27 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                           <span className="l">No extra sea time — this CoC is gained through the courses above.</span>
                           <span className="v" />
                         </div>
-                      ) : (<>
-                        {hardReqs.map(r => (
-                          <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
-                            <span className="ck">{r.met ? <Icon name="Check" size={11} color="#3F7A52" /> : <span className="dot" />}</span>
-                            <span className="l">{r.label}</span>
-                            <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
-                          </div>
-                        ))}
-                        {!conf.authoritative && <div className="cj-detail" style={{ marginTop: 6 }}>{conf.label}</div>}
-                        <div className="cj-elig-foot">{
-                          !conf.authoritative ? 'Confirm your figures to unlock this step.'
-                            : eligible ? (hasOral ? 'All met — apply for your NoE.' : 'All met — add the courses above.')
-                              : `${unmet.length} service requirement${unmet.length === 1 ? '' : 's'} still to clear — see above.`
-                        }</div>
-                      </>)}
+                      ) : hardReqs.map(r => (
+                        <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
+                          <span className="ck">{r.met ? <Icon name="Check" size={11} color="#3F7A52" /> : <span className="dot" />}</span>
+                          <span className="l">{r.label}</span>
+                          <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
+                        </div>
+                      ))}
+                      {advisoryReqs.map(r => (
+                        <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
+                          <span className="ck">{r.met ? <Icon name="Check" size={11} color="#3F7A52" /> : <span className="dot" />}</span>
+                          <span className="l">{r.label} <span className="cj-elig-adv">advisory</span></span>
+                          <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
+                        </div>
+                      ))}
+                      {!conf.authoritative && <div className="cj-detail" style={{ marginTop: 6 }}>{conf.label}</div>}
+                      <div className="cj-elig-foot">{
+                        !conf.authoritative ? 'Confirm your figures to unlock this step.'
+                          : !eligible ? `${unmet.length} service requirement${unmet.length === 1 ? '' : 's'} still to clear — see above.`
+                            : advisoryReqs.some(r => !r.met) ? 'Sea-time gate met — recency is advisory, verified by the MCA at issue.'
+                              : (hasOral ? 'All met — apply for your NoE.' : 'All met — add the courses above.')
+                      }</div>
                     </div>
                   )}
                 </div>
