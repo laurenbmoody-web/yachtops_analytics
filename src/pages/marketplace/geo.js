@@ -25,6 +25,14 @@ export const supplierPortPoints = (supplier, portCoords) =>
     .map((n) => portCoords.get(String(n).toLowerCase()))
     .filter(Boolean);
 
+/** Average of a set of {lat,lng} points — one pin to stand for a shop. */
+export const centroidOf = (points) => {
+  if (!points || !points.length) return null;
+  const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+  const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
+  return { lat, lng };
+};
+
 /**
  * Does the shop reach `point` ({lat,lng})? True when any covered port is
  * within the shop's service radius. Shops whose ports we can't place are

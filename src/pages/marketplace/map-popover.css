@@ -46,7 +46,17 @@
 .mpm-loc:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
 .mpm-err { padding: 2px 22px 8px; font-size: 12px; color: #B0372B; }
 
-.mpm-mapwrap { padding: 4px 22px 12px; }
+.mpm-mapwrap { padding: 4px 22px 12px; position: relative; }
+.mpm-searcharea {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 500;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fff; color: #1C1B3A; border: 1px solid #ECEAE3; border-radius: 999px;
+  padding: 7px 15px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 8px 22px -8px rgba(28, 27, 58, 0.45);
+}
+.mpm-searcharea:hover { border-color: #C65A1A; color: #C65A1A; }
+.mpm-panel.dark .mpm-searcharea { background: #262238; color: #F2EFE9; border-color: #302C42; }
+.mpm-panel.dark .mpm-searcharea:hover { border-color: #E07A45; color: #E07A45; }
 .mpm-map { height: 340px; border-radius: 12px; overflow: hidden; border: 1px solid #ECEAE3; background: #E7EEF0; }
 .mpm-map .leaflet-tile { filter: sepia(0.26) saturate(0.72) brightness(1.05) hue-rotate(-6deg); }
 .mpm-map .leaflet-container { font-family: 'Inter', system-ui, sans-serif; background: #DFEAEE; }
