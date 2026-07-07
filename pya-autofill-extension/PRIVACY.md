@@ -1,6 +1,12 @@
 # Privacy Policy — Cargo → PYA Autofill
 
-_Last updated: 2026-07-06_
+_Last updated: 2026-07-07_
+
+> **Canonical version:** the hosted policy at
+> **https://cargotechnology.netlify.app/privacy** (the URL on the Chrome Web
+> Store listing). This file is a summary kept in the repo for convenience —
+> if they ever differ, the hosted page wins. The page source lives at
+> `src/marketing/pages/PrivacyPolicyPage.jsx`; update both together.
 
 The **Cargo → PYA Autofill** extension helps a yacht crew member fill the PYA
 Sea Service Testimonial (SST) form from data they have already prepared in Cargo.
