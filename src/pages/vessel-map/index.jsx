@@ -509,7 +509,7 @@ export default function VesselMapPage() {
                 <div className="vm-layer-chips">{layerChips('')}</div>
 
                 {canPlaceHotspots && (
-                  <button className="vm-btn-ghost vm-toolbar-manage" onClick={() => navigate('/vessel/map/manage')}>
+                  <button className="vm-btn-ghost vm-toolbar-manage" onClick={() => navigate('/settings/vessel?section=location-management')}>
                     Manage scans
                   </button>
                 )}
@@ -639,7 +639,7 @@ export default function VesselMapPage() {
 
                 {/* Back-of-house — quiet, near the scan chrome. */}
                 {canPlaceHotspots && (
-                  <button className="vm-manage-link" onClick={() => navigate('/vessel/map/manage')}>
+                  <button className="vm-manage-link" onClick={() => navigate('/settings/vessel?section=location-management')}>
                     Manage scans
                   </button>
                 )}

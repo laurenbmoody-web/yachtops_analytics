@@ -134,6 +134,14 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .lg-cf .cf-grip:active{cursor:grabbing;}
 .lg.flow .cf-grip{display:none;}
 
+/* per-space actions menu (scanned cards) */
+.lg-cf .cf-menu{position:absolute;top:8px;right:8px;z-index:6;opacity:0;transition:opacity .15s;}
+.lg-cf:hover .cf-menu,.lg-cf .cf-menu.pinned{opacity:1;}
+.lg-cf .cf-menu .lg-kebab>button{width:28px;height:28px;background:rgba(255,255,255,.92);border-color:transparent;
+  box-shadow:0 2px 6px rgba(0,0,0,.16);color:#41414f;}
+.lg-cf .cf-menu .lg-kebab>button:hover,.lg-cf .cf-menu .lg-kebab.open>button{background:#fff;color:var(--lg-ink);}
+.lg-cf .cf-menu .lg-menu{top:34px;}
+
 /* inline add/rename input */
 .lg-inline{display:flex;gap:8px;align-items:center;margin:0;}
 .lg-inline input{flex:1;max-width:320px;font-family:var(--lg-sans);font-size:14px;color:var(--lg-ink);

@@ -1,0 +1,32 @@
+/* Add Scan modal — the upload flow bound to one space, in a popover. Reuses the
+   map's vm- and vmm- internals; this only styles the overlay + panel shell. */
+.asm-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-start;justify-content:center;
+  padding:6vh 20px 40px;background:rgba(20,19,42,.46);backdrop-filter:blur(3px);overflow-y:auto;
+  font-family:'Manrope','Inter',system-ui,sans-serif;}
+.asm-panel{position:relative;width:100%;max-width:760px;background:#FFFFFF;border:1px solid #E6E8EF;border-radius:16px;
+  box-shadow:0 30px 80px -24px rgba(20,19,42,.5);padding:20px 24px 24px;}
+.asm-panel.asm-wide{max-width:940px;}
+html[data-theme="night"] .asm-panel{background:#191833;border-color:#2C2B4C;}
+
+.asm-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.asm-head .editorial-meta{margin:0;}
+html[data-theme="night"] .asm-head .editorial-meta{color:#ECEEF8;}
+html[data-theme="night"] .asm-head .editorial-meta .muted{color:#9AA0B4;}
+html[data-theme="night"] .asm-head .editorial-meta .bar{background:#2B2A47;}
+.asm-close{flex:none;width:32px;height:32px;border-radius:9px;border:1px solid #E6E8EF;background:#fff;cursor:pointer;
+  color:#6B7280;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;transition:border-color .14s,color .14s;}
+.asm-close:hover{border-color:#C65A1A;color:#C65A1A;}
+html[data-theme="night"] .asm-close{background:#201F3D;border-color:#2C2B4C;color:#9AA0B4;}
+
+.asm-body{min-height:60px;}
+.asm-over{outline:2px dashed #C65A1A;outline-offset:6px;border-radius:12px;}
+
+/* the three guide cards read tighter inside a modal than full-page */
+.asm-body .cg-grid{gap:14px;}
+
+.asm-stage{margin-top:12px;height:min(56vh,460px);}
+
+.asm-done{padding:20px 2px 6px;text-align:center;}
+.asm-done-title{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-size:22px;color:#1C1B3A;margin:0 0 16px;}
+html[data-theme="night"] .asm-done-title{color:#ECEEF8;}
+.asm-done .vmm-actions{justify-content:center;}

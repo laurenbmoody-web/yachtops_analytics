@@ -5,6 +5,7 @@
 // hands off to the map's upload flow with the space pre-linked.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../../lib/supabaseClient';
 import { getVesselGallery } from '../utils/locationsGalleryStorage';
 import {
   createDeck, createZone, createSpace,
@@ -12,6 +13,7 @@ import {
   archiveDeck, archiveZone, archiveSpace,
   reorderLocations,
 } from '../utils/locationsHierarchyStorage';
+import AddScanModal from './AddScanModal';
 import '../location-gallery.css';
 
 const FlowIcon = () => (
@@ -81,6 +83,7 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
   const [menu, setMenu] = useState(null); // `deck:${id}` | `zone:${id}`
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [dragId, setDragId] = useState(null);
+  const [addScanSpace, setAddScanSpace] = useState(null);
   const rootRef = useRef(null);
   const dataRef = useRef(null);
   const initedRef = useRef(false);
@@ -237,11 +240,23 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
     try { await reorderLocations(ids); } catch (err) { console.error('[loc-gallery] reorder error:', err); await load(); }
   };
 
-  const addScan = (space) => navigate(`/vessel/map/manage?space=${space.id}&name=${encodeURIComponent(space.name)}`);
+  const addScan = (space) => setAddScanSpace(space);
+  const viewOnMap = (space) => navigate(`/vessel/map?scan=${space.scan.id}`);
   const openSpace = (space) => {
-    if (space.scan?.id && space.scan.status === 'ready') navigate(`/vessel/map?scan=${space.scan.id}`);
+    if (space.scan?.id && space.scan.status === 'ready') viewOnMap(space);
     else addScan(space);
   };
+  const removeScan = async (space) => {
+    const scan = space.scan;
+    if (!scan) return;
+    try {
+      await supabase.from('vessel_scans').delete().eq('id', scan.id);
+      const paths = [scan.storagePath, scan.thumbPath].filter(Boolean);
+      if (paths.length) await supabase.storage.from('vessel-scans').remove(paths);
+    } catch (err) { console.error('[loc-gallery] remove scan error:', err); }
+    await load();
+  };
+  const replaceScan = async (space) => { await removeScan(space); setAddScanSpace({ id: space.id, name: space.name }); };
 
   const InlineEditor = ({ placeholder }) => (
     <div className="lg-inline">
@@ -287,6 +302,16 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
         onClick={() => openSpace(space)}
       >
         <span className="cf-grip" onMouseDown={grab} title="Drag to reorder"><GripIcon /></span>
+        {scanned && (
+          <div className="cf-menu">
+            <Kebab id={`space:${space.id}`} items={[
+              { label: 'View on map', on: () => viewOnMap(space) },
+              { label: 'Replace scan', on: () => replaceScan(space) },
+              { sep: true },
+              { label: 'Remove scan', danger: true, on: () => removeScan(space) },
+            ]} />
+          </div>
+        )}
         <div className="card">
           {scanned && scan.thumbUrl ? (
             <div className="img" style={{ backgroundImage: `url("${scan.thumbUrl}")` }} />
@@ -444,6 +469,14 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
           })}
         </div>
       </div>
+
+      {addScanSpace && (
+        <AddScanModal
+          space={addScanSpace}
+          onClose={() => setAddScanSpace(null)}
+          onComplete={() => load()}
+        />
+      )}
     </div>
   );
 }
