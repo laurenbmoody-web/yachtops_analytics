@@ -55,26 +55,28 @@ html[data-theme="night"] .lg .lg-cf.addcard .card{border-color:#3A3960;}
 .lg-btn-primary:hover{background:#B14E16;border-color:#B14E16;}
 
 /* ── deck = rounded card (crew-profile surface) ── */
-.lg-deck{margin-top:22px;background:var(--lg-card);border:1px solid var(--lg-hair);border-radius:16px;
-  box-shadow:var(--lg-sh-card);padding:4px 22px 22px;transition:opacity .18s,box-shadow .2s;}
+.lg-deck{margin-top:18px;background:var(--lg-card);border:1px solid var(--lg-hair);border-radius:16px;
+  box-shadow:var(--lg-sh-card);padding:2px 18px 18px;transition:opacity .18s,box-shadow .2s;}
 .lg-deck.dragging{opacity:.4;}
-.lg-deckhdr{display:flex;align-items:center;gap:10px;margin:0;padding:18px 2px 14px;border-bottom:1px solid var(--lg-hair);}
-.lg-deckhdr .dn{font-family:var(--lg-serif);font-size:22px;letter-spacing:-.01em;}
+.lg-deckhdr{display:flex;align-items:center;gap:7px;margin:0;padding:13px 0 11px;border-bottom:1px solid var(--lg-hair);}
+.lg-deckhdr .dn{font-family:var(--lg-serif);font-size:22px;letter-spacing:-.01em;position:relative;display:inline-block;}
+/* terracotta underline accent under the deck name */
+.lg-deckhdr .dn::after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:2.5px;border-radius:2px;background:var(--lg-terra);}
 .lg-spring{margin-left:auto;}
 /* collapsed deck: header alone, no stray rule, tight card */
-.lg-deck.collapsed{padding-bottom:6px;}
-.lg-deck.collapsed .lg-deckhdr{border-bottom:0;padding-bottom:12px;}
+.lg-deck.collapsed{padding-bottom:4px;}
+.lg-deck.collapsed .lg-deckhdr{border-bottom:0;padding-bottom:11px;}
 
 /* grip + chevron */
-.lg-grip{width:20px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--lg-faint);
-  cursor:grab;border-radius:6px;opacity:0;transition:opacity .15s,color .15s,background .15s;}
-.lg-grip svg{width:16px;height:16px;}
+.lg-grip{width:15px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--lg-faint);
+  cursor:grab;border-radius:5px;opacity:.35;transition:opacity .15s,color .15s,background .15s;}
+.lg-grip svg{width:15px;height:15px;}
 .lg-deckhdr:hover .lg-grip,.lg-zhdr:hover .lg-grip{opacity:1;}
 .lg-grip:hover{color:var(--lg-terra);background:var(--lg-wash);}
 .lg-grip:active{cursor:grabbing;}
-.lg-chev{width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--lg-muted);
+.lg-chev{width:20px;height:20px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--lg-muted);
   cursor:pointer;border:0;background:none;border-radius:6px;transition:transform .2s,background .15s,color .15s;}
-.lg-chev svg{width:16px;height:16px;}
+.lg-chev svg{width:15px;height:15px;}
 .lg-chev:hover{background:var(--lg-wash);color:var(--lg-terra);}
 .lg-chev.closed{transform:rotate(-90deg);}
 
@@ -98,7 +100,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 /* ── zone ── */
 .lg-zone{margin-top:16px;border-radius:12px;transition:opacity .18s;}
 .lg-zone.dragging{opacity:.4;}
-.lg-zhdr{display:flex;align-items:center;gap:9px;margin:0;padding:6px 2px;}
+.lg-zhdr{display:flex;align-items:center;gap:7px;margin:0;padding:5px 0;}
 .lg-zhdr .zn{font-size:13.5px;font-weight:650;color:var(--lg-ink);}
 .lg-zhdr .lg-chev{width:20px;height:20px;}
 .lg-zhdr .lg-chev svg{width:14px;height:14px;}
