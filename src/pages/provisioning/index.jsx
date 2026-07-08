@@ -26,7 +26,6 @@ import {
   fetchVesselDepartments,
   fetchCrewMembers,
   fetchCollaborators,
-  fetchSharedWithMe,
   getSmartDeliveryCounts,
   PROVISIONING_STATUS,
 } from './utils/provisioningStorage';
@@ -387,7 +386,6 @@ const ProvisioningWorkspace = () => {
   const [error, setError] = useState(null);
   const [crewMembers, setCrewMembers] = useState([]);
   const [collaboratorsByList, setCollaboratorsByList] = useState({});
-  const [sharedWithMe, setSharedWithMe] = useState([]);
   const [userDeptId, setUserDeptId] = useState(null);
 
   // Filters
@@ -489,11 +487,6 @@ const ProvisioningWorkspace = () => {
     };
     init();
   }, [activeTenantId, userId]);
-
-  useEffect(() => {
-    if (!userId) return;
-    fetchSharedWithMe(userId).then(setSharedWithMe);
-  }, [userId]);
 
   // Refresh the lists when the user navigates back to the kanban
   // from a board that just changed status (confirmed via quote
@@ -1112,28 +1105,6 @@ const ProvisioningWorkspace = () => {
           <div className="pv-error">
             <p style={{ fontSize: 13, margin: 0 }}>{error}</p>
             <button onClick={loadAll} className="pv-error-retry">Retry</button>
-          </div>
-        )}
-
-        {/* Shared with me */}
-        {sharedWithMe.length > 0 && (
-          <div className="pv-shared">
-            <h2 className="pv-shared-title">Shared with me</h2>
-            <div className="pv-shared-cards">
-              {sharedWithMe.map(list => (
-                <button
-                  key={list.id}
-                  onClick={() => navigate('/provisioning/' + list.id)}
-                  className="pv-shared-card"
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div className="pv-shared-card-name">{list.title}</div>
-                    <div className="pv-shared-card-perm">{list.myPermission || 'view'} access</div>
-                  </div>
-                  <Icon name="ChevronRight" className="w-3.5 h-3.5" />
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
