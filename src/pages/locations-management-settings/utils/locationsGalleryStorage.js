@@ -39,7 +39,7 @@ export const getVesselGallery = async () => {
 
   const [{ data: locs, error: locErr }, { data: scans, error: scanErr }] = await Promise.all([
     supabase.from('vessel_locations')
-      .select('id, level, parent_id, name, sort_order, is_archived')
+      .select('id, level, parent_id, name, sort_order, is_archived, plan_crop, plan_x, plan_y')
       .eq('tenant_id', tenantId)
       .eq('is_archived', false)
       .order('sort_order', { ascending: true })
@@ -76,13 +76,15 @@ export const getVesselGallery = async () => {
         return {
           id: space.id,
           name: space.name,
+          planX: space.plan_x,
+          planY: space.plan_y,
           scan: scan ? { id: scan.id, status: scan.status, thumbPath: scan.thumb_path, storagePath: scan.storage_path } : null,
         };
       });
       return { id: zone.id, name: zone.name, spaces, spaceCount: spaces.length };
     });
     const spaceCount = zones.reduce((n, z) => n + z.spaceCount, 0);
-    return { id: deck.id, name: deck.name, zones, zoneCount: zones.length, spaceCount };
+    return { id: deck.id, name: deck.name, planCrop: deck.plan_crop, zones, zoneCount: zones.length, spaceCount };
   });
 
   const thumbs = await signThumbs(thumbPaths);
