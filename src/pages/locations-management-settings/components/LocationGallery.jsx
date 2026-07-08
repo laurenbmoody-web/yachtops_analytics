@@ -34,11 +34,6 @@ const GripIcon = () => (
     <circle cx="13" cy="10" r="1.3" /><circle cx="7" cy="15" r="1.3" /><circle cx="13" cy="15" r="1.3" />
   </svg>
 );
-const ChevIcon = () => (
-  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-    <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 const DotsIcon = () => (
   <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
     <circle cx="10" cy="4" r="1.7" /><circle cx="10" cy="10" r="1.7" /><circle cx="10" cy="16" r="1.7" />
@@ -393,11 +388,10 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
               >
                 <div className="lg-deckhdr">
                   <span className="lg-grip" onMouseDown={grab} title="Drag to reorder"><GripIcon /></span>
-                  <button className={`lg-chev${deckClosed ? ' closed' : ''}`} onClick={() => toggleCollapse(deck.id)} aria-label={deckClosed ? 'Expand' : 'Collapse'}><ChevIcon /></button>
                   {edit?.mode === 'rename-deck' && edit.id === deck.id
                     ? <InlineEditor placeholder="Deck name" />
                     : (<>
-                        <span className="dn">{deck.name}</span>
+                        <button className="dn" onClick={() => toggleCollapse(deck.id)} aria-expanded={!deckClosed} title={deckClosed ? 'Expand' : 'Collapse'}>{deck.name}</button>
                         <span className="lg-spring" />
                         <Kebab id={`deck:${deck.id}`} items={[
                           { label: 'Rename', on: () => startEdit('rename-deck', deck.id, deck.name) },
@@ -432,11 +426,10 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
                         >
                           <div className="lg-zhdr">
                             <span className="lg-grip" onMouseDown={grab} title="Drag to reorder"><GripIcon /></span>
-                            <button className={`lg-chev${zoneClosed ? ' closed' : ''}`} onClick={() => toggleCollapse(zone.id)} aria-label={zoneClosed ? 'Expand' : 'Collapse'}><ChevIcon /></button>
                             {edit?.mode === 'rename-zone' && edit.id === zone.id
                               ? <InlineEditor placeholder="Zone name" />
                               : (<>
-                                  <span className="zn">{zone.name}</span>
+                                  <button className="zn" onClick={() => toggleCollapse(zone.id)} aria-expanded={!zoneClosed} title={zoneClosed ? 'Expand' : 'Collapse'}>{zone.name}</button>
                                   <span className="lg-spring" />
                                   <Kebab id={`zone:${zone.id}`} items={[
                                     { label: 'Rename', on: () => startEdit('rename-zone', zone.id, zone.name) },
