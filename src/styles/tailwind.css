@@ -16,6 +16,18 @@
   src: url('/fonts/inter.woff2') format('woff2');
 }
 
+/* Self-hosted DM Serif Display — the editorial headline face (greetings,
+   and now the marketplace supplier name). Same reasoning as Inter: keep
+   it same-origin so the name never falls back to Georgia when Google
+   Fonts is blocked or slow. DM Serif ships a single weight (400). */
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/dm-serif-display.woff2') format('woff2');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
