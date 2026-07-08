@@ -28,6 +28,17 @@
   src: url('/fonts/dm-serif-display.woff2') format('woff2');
 }
 
+/* Self-hosted Cormorant Garamond (light) — the marketplace supplier name.
+   Same reasoning as Inter/DM Serif: keep it same-origin so the name always
+   loads and never falls back to Georgia. Single light weight. */
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/cormorant-garamond.woff2') format('woff2');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
