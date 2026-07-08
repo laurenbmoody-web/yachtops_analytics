@@ -58,9 +58,11 @@ function FrameEditor({ gaUrl, deckName, initial, onSave, onCancel }) {
     <div className="dp-modal-overlay" onClick={onCancel}>
       <div className="dp-modal" onClick={(e) => e.stopPropagation()}>
         <p className="dp-modal-title">Frame <em>{deckName}</em> — drag a box around this deck</p>
-        <div ref={wrapRef} className="dp-frame-canvas" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}>
-          <img src={gaUrl} alt="" draggable="false" />
-          {rect && <div className="dp-frame-rect" style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.w * 100}%`, height: `${rect.h * 100}%` }} />}
+        <div className="dp-frame-wrap">
+          <div ref={wrapRef} className="dp-frame-canvas" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}>
+            <img src={gaUrl} alt="" draggable="false" />
+            {rect && <div className="dp-frame-rect" style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.w * 100}%`, height: `${rect.h * 100}%` }} />}
+          </div>
         </div>
         <div className="dp-modal-actions">
           <button className="lg-btn-primary" disabled={!valid} onClick={() => onSave(rect)}>Save frame</button>
