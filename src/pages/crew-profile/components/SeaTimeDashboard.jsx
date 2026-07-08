@@ -1570,6 +1570,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             // vessel + captain + span + total, with the day-type split revealed on
             // tap (collapsed by default; the KPI bar up top carries the headline).
             const TYPE_ORDER = ['seagoing', 'watchkeeping', 'standby', 'yard'];
+            const todayISO = new Date().toISOString().slice(0, 10);
             const capKey = (e) => `${e.vesselId}::${e.masterUserId || e.masterName || ''}`;
             const daysInclusive = (from, to) => (from && to) ? Math.round((new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / 86400000) + 1 : 0;
             // One block per vessel+captain, combining engagements across leave —
@@ -1644,7 +1645,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               ];
               const vm = [v.flag, v.gt != null ? `${v.gt} GT` : null, v.lengthM != null ? `${v.lengthM} m` : null, v.imo ? `IMO ${v.imo}` : null].filter(Boolean).join(' · ');
               const who = p.captainId === userId ? `Your service as ${topRankWord}` : (p.captainName || null);
-              const span = (from && to) ? `${fmtDate(from)} – ${fmtDate(to)}` : (from ? fmtDate(from) : '');
+              // Ongoing stint — still aboard, auto-logging to today. Show "present"
+              // rather than today's date, and mark it Current.
+              const ongoing = !!(to && to >= todayISO);
+              const span = (from && to) ? `${fmtDate(from)} – ${ongoing ? 'present' : fmtDate(to)}` : (from ? fmtDate(from) : '');
               const metaBits = [who, span, `${total} ${total === 1 ? 'day' : 'days'}`, leaveOff > 0 ? `${leaveOff} leave` : ''].filter(Boolean).join(' · ');
               const key = `${p.k}::${from || pi}`;
               const open = openSet.has(key);
@@ -1654,10 +1658,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     <div className="std-op-id">
                       <div className="std-op-top">
                         <span className="std-op-name">{v.name || 'Vessel'}</span>
-                        <span className={`std-prov${isCargo ? ' cargo' : ''}`} style={{ color: isCargo ? '#3F7A52' : '#5A6478', background: isCargo ? '#EFF6F1' : '#F4F5F7' }}
-                          title={isCargo ? 'Cargo-tracked — auto-logged on a Cargo vessel; verifiable and exportable' : 'Off-Cargo, self-recorded — counts toward your pathway, but supply your own testimonial as evidence'}>
-                          <span className="pm" style={isCargo ? { background: '#3F7A52' } : { borderColor: '#5A6478' }} />{isCargo ? 'Cargo-tracked' : 'Off-Cargo'}
-                        </span>
+                        {ongoing && (
+                          <span className="std-prov cargo" style={{ color: '#3F7A52', background: '#EFF6F1' }} title="Current — you’re still aboard; this period is auto-logging to today.">
+                            <span className="pm" style={{ background: '#3F7A52' }} />Current
+                          </span>
+                        )}
+                        {!isCargo && (
+                          <span className="std-prov" style={{ color: '#5A6478', background: '#F4F5F7' }}
+                            title="Off-Cargo, self-recorded — counts toward your pathway, but supply your own testimonial as evidence">
+                            <span className="pm" style={{ borderColor: '#5A6478' }} />Off-Cargo
+                          </span>
+                        )}
                       </div>
                       <div className="std-op-meta">{metaBits}</div>
                     </div>
@@ -1688,7 +1699,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             {prior.onboard > 0 && (
               <div className="std-lnote">
                 <span className="k">Prior service</span>
-                <span className="v"><b>{prior.onboard} {prior.onboard === 1 ? 'day' : 'days'}</b> logged before Cargo, counting toward your pathway <button type="button" onClick={openPrior}>Edit</button></span>
+                <span className="v"><span className="std-lnote-tag">Manual entry</span><b>{prior.onboard} {prior.onboard === 1 ? 'day' : 'days'}</b> logged before Cargo, counting toward your pathway <button type="button" onClick={openPrior}>Edit</button></span>
               </div>
             )}
             {syncInfo?.excluded_leave_days > 0 && (
@@ -1841,8 +1852,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
           <div className="cj" id="cert-journey" ref={journeyRef} style={{ marginTop: 18 }}>
             <div className="cj-head">
               <div>
-                <h3 className="cj-title">Certification journey</h3>
-                {MSF_FORMS[deptId] && <div className="cj-ctx">Complete your CoC using the GOV.UK form {MSF_FORMS[deptId].form} ({MSF_FORMS[deptId].notice}).</div>}
+                <h3 className="cj-title">Certification journey{MSF_FORMS[deptId] && (
+                  <span className="std-fhelp" tabIndex={0} role="note" aria-label="How to apply">
+                    <Icon name="Info" size={14} />
+                    <span className="std-fhelp-pop"><b>How to apply</b><span>Complete your CoC using the GOV.UK form {MSF_FORMS[deptId].form} ({MSF_FORMS[deptId].notice}).</span></span>
+                  </span>
+                )}</h3>
               </div>
               <div className="cj-progress"><b>{doneCount}</b> of {steps.length} complete</div>
             </div>
@@ -1864,8 +1879,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className={`cj-stepcell pos-${i === 0 ? 'first' : i === steps.length - 1 ? 'last' : 'mid'}${s.key === 'elig' && eligOpen ? ' open' : ''}`} key={s.n}>
                   <button type="button" className={`cj-step ${s.state}`} onClick={() => clickStep(s)}
                     title={s.key === 'elig' ? 'Show requirements' : `Update ${s.label}`}>
-                    <div className="cj-steplabel">{s.label}{s.key === 'elig' && <Icon name="ChevronDown" size={12} className="cj-eligchev" style={{ transform: eligOpen ? 'rotate(180deg)' : 'none' }} />}{j[s.key]?.file?.fileName && <Icon name="Paperclip" size={11} className="cj-clip" />}</div>
-                    <div className="cj-statusline">{s.line}</div>
+                    <div className="cj-steplabel">{s.label}{j[s.key]?.file?.fileName && <Icon name="Paperclip" size={11} className="cj-clip" />}</div>
+                    <div className={`cj-statusline${s.key === 'elig' ? ' cj-clickable' : ''}`}>{s.line}</div>
                     {s.detail}
                   </button>
                   {s.key === 'elig' && eligOpen && (
