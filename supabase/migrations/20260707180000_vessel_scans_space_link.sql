@@ -29,29 +29,28 @@ CREATE UNIQUE INDEX IF NOT EXISTS vessel_scans_one_per_space_uidx
 -- (case/space-insensitive) name within the same tenant. Only fills scans that
 -- aren't linked yet, and only when the name resolves to exactly one Space (so
 -- an ambiguous name is left for a human to link, never mis-linked).
-WITH candidate AS (
-  SELECT s.id AS scan_id,
-         (SELECT vl.id
-            FROM public.vessel_locations vl
-           WHERE vl.tenant_id = s.tenant_id
-             AND vl.level = 'space'
-             AND vl.is_archived = false
-             AND lower(btrim(vl.name)) = lower(btrim(s.name))
-           GROUP BY ()
-          HAVING count(*) = 1
-           LIMIT 1) AS space_id
+WITH space_match AS (
+  SELECT s.id AS scan_id, vl.id AS space_id,
+         count(*) OVER (PARTITION BY s.id) AS n
     FROM public.vessel_scans s
+    JOIN public.vessel_locations vl
+      ON vl.tenant_id = s.tenant_id
+     AND vl.level = 'space'
+     AND vl.is_archived = false
+     AND lower(btrim(vl.name)) = lower(btrim(s.name))
    WHERE s.space_id IS NULL
+),
+unambiguous AS (
+  SELECT scan_id, space_id FROM space_match WHERE n = 1
 )
 UPDATE public.vessel_scans s
-   SET space_id = c.space_id
-  FROM candidate c
- WHERE s.id = c.scan_id
-   AND c.space_id IS NOT NULL
+   SET space_id = u.space_id
+  FROM unambiguous u
+ WHERE s.id = u.scan_id
    -- don't collide with the one-per-space rule if two scans share a name
    AND NOT EXISTS (
      SELECT 1 FROM public.vessel_scans t
-      WHERE t.space_id = c.space_id
+      WHERE t.space_id = u.space_id
    );
 
 COMMENT ON COLUMN public.vessel_scans.space_id IS
