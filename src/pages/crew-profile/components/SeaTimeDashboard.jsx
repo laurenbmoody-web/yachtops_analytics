@@ -2110,7 +2110,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   {interiorPathway ? (
                     <div className="std-export-instr">Export your record below, then submit it to the PYA with your guest-on days, GUEST certificates and ID for the IAMI GUEST Yacht Purser CoC.</div>
                   ) : verifier === 'pya' ? (
-                    <div className="std-export-instr">Download the Cargo → PYA extension and auto-fill your PYA Sea Service Testimonial — one per captain to e-sign.</div>
+                    <>
+                      <div className="std-export-instr">Download the Cargo → PYA extension and auto-fill your PYA Sea Service Testimonial — one per captain to e-sign.</div>
+                      <a className="std-dl" href="https://chromewebstore.google.com/detail/ookkdndgoancmldfbjflgflfiienaigm"
+                        target="_blank" rel="noreferrer"
+                        style={{ background: '#C65A1A', color: '#fff', textDecoration: 'none', marginTop: 10, display: 'inline-flex' }}>
+                        <Icon name="Download" size={15} /> Add to Chrome
+                      </a>
+                    </>
                   ) : (
                     <div className="std-export-instr">Export the pre-filled form below, get it signed, then submit it to {vp.short} to verify.
                       <span className="std-fhelp" tabIndex={0} role="note" aria-label={`How the ${vp.short} route works`}>
