@@ -2110,14 +2110,24 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   {interiorPathway ? (
                     <div className="std-export-instr">Export your record below, then submit it to the PYA with your guest-on days, GUEST certificates and ID for the IAMI GUEST Yacht Purser CoC.</div>
                   ) : verifier === 'pya' ? (
-                    <>
-                      <div className="std-export-instr">Download the Cargo → PYA extension and auto-fill your PYA Sea Service Testimonial — one per captain to e-sign.</div>
-                      <a className="std-dl" href="https://chromewebstore.google.com/detail/ookkdndgoancmldfbjflgflfiienaigm"
-                        target="_blank" rel="noreferrer"
-                        style={{ background: '#C65A1A', color: '#fff', textDecoration: 'none', marginTop: 10, display: 'inline-flex' }}>
-                        <Icon name="Download" size={15} /> Add to Chrome
+                    <div className="pya-ext">
+                      <div className="pya-ext-main">
+                        <div className="pya-ext-title">Cargo → PYA Autofill
+                          <span className="std-fhelp" tabIndex={0} role="note" aria-label="How the extension works">
+                            <Icon name="Info" size={13} />
+                            <span className="std-fhelp-pop">
+                              <b>How it works</b>
+                              <span>Install once. Then hit <b className="inl">Copy for PYA</b> on a record below and, on the PYA testimonial page, click <b className="inl">Fill from Cargo</b> — it types every field in for you.</span>
+                              <span>Private by design: it only reads the record you copied, only when you click Fill, and runs only on member.pya.org.</span>
+                            </span>
+                          </span>
+                        </div>
+                        <div className="pya-ext-sub">One-click fill for your PYA Sea Service Testimonial — install once, then use <b>Copy for PYA</b> on each record below.</div>
+                      </div>
+                      <a className="pya-ext-btn" href="https://chromewebstore.google.com/detail/ookkdndgoancmldfbjflgflfiienaigm" target="_blank" rel="noreferrer">
+                        <Icon name="Download" size={14} /> Add to Chrome
                       </a>
-                    </>
+                    </div>
                   ) : (
                     <div className="std-export-instr">Export the pre-filled form below, get it signed, then submit it to {vp.short} to verify.
                       <span className="std-fhelp" tabIndex={0} role="note" aria-label={`How the ${vp.short} route works`}>
@@ -2134,12 +2144,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   ) : (
                     <div className="std-spells">
                       {(() => {
-                        const openCount = nautilusSpells.filter(s => !submitted[spellKey(s)]).length;
                         const sorted = [...nautilusSpells].sort((a, b) => (submitted[spellKey(a)] ? 1 : 0) - (submitted[spellKey(b)] ? 1 : 0));
                         return (<>
-                          <div className="std-spells-lbl">{openCount === 0
-                            ? 'All signed off — every record is marked submitted.'
-                            : `${openCount} still to sign off — mark each submitted once you’ve sent it.`}</div>
                           {sorted.map((s, i) => {
                             const isSub = !!submitted[spellKey(s)];
                             return (
