@@ -130,6 +130,7 @@
   padding: 26px 28px; display: flex; flex-direction: column; text-align: left; cursor: pointer;
   border: none; box-shadow: 0 30px 60px -28px rgba(20,29,46,0.6);
   font-family: 'DM Serif Display', Georgia, serif;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
 .mp-supcard.center { transition: transform .2s; }
 .mp-supcard.center:hover { transform: translateY(-3px); }
@@ -175,6 +176,7 @@
 .mp-supcard.mp-flipcard:hover .mp-flip-inner { transform: rotateY(180deg); transition-delay: .4s; }
 .mp-face {
   position: absolute; inset: 0; border-radius: 18px; padding: 26px 28px; overflow: hidden;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
   display: flex; flex-direction: column; backface-visibility: hidden; -webkit-backface-visibility: hidden;
   background: linear-gradient(135deg, #141D2E, #1E2B45); box-shadow: 0 30px 60px -28px rgba(20,29,46,0.6);
 }
