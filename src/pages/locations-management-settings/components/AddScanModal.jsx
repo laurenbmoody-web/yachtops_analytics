@@ -26,7 +26,10 @@ export default function AddScanModal({ space, onClose, onComplete }) {
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
 
-  const [step, setStep] = useState('pick'); // pick → form → uploading → orient → done
+  const [step, setStep] = useState('choose'); // choose → pick → form → uploading → orient → done
+  const [unlinked, setUnlinked] = useState(null); // null = loading; [] = none
+  const [linkBusy, setLinkBusy] = useState(null);
+  const [linkError, setLinkError] = useState(null);
   const [file, setFile] = useState(null);
   const [name, setName] = useState(space?.name || '');
   const [fileError, setFileError] = useState(null);
@@ -53,6 +56,43 @@ export default function AddScanModal({ space, onClose, onComplete }) {
 
   const markComplete = () => { if (!completedRef.current) { completedRef.current = true; onComplete?.(); } };
   const close = () => { onClose?.(); };
+
+  // Find scans not yet assigned to a space — the "link existing" pick-list.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!activeTenantId) return;
+      const { data, error } = await supabase.from('vessel_scans')
+        .select('id, name, deck, status, thumb_path')
+        .eq('tenant_id', activeTenantId)
+        .is('space_id', null)
+        .order('created_at', { ascending: false });
+      if (!alive) return;
+      if (error) { console.error('[add-scan] unlinked fetch:', error); setUnlinked([]); setStep('pick'); return; }
+      const rows = data || [];
+      const paths = rows.map((r) => r.thumb_path).filter(Boolean);
+      const thumbs = {};
+      if (paths.length) {
+        const { data: signed } = await supabase.storage.from('vessel-scans').createSignedUrls(paths, 3600);
+        (signed || []).forEach((sg) => { if (sg?.signedUrl && !sg.error) thumbs[sg.path] = sg.signedUrl; });
+      }
+      if (!alive) return;
+      const withUrls = rows.map((r) => ({ ...r, thumbUrl: r.thumb_path ? thumbs[r.thumb_path] : null }));
+      setUnlinked(withUrls);
+      if (withUrls.length === 0) setStep('pick');
+    })();
+    return () => { alive = false; };
+  }, [activeTenantId]);
+
+  const linkScan = async (scan) => {
+    setLinkBusy(scan.id);
+    setLinkError(null);
+    const { error } = await supabase.from('vessel_scans').update({ space_id: space.id }).eq('id', scan.id);
+    setLinkBusy(null);
+    if (error) { console.error('[add-scan] link error:', error); setLinkError(error.message || 'Could not link that scan.'); return; }
+    markComplete();
+    close();
+  };
 
   const acceptFile = (f) => {
     if (!f) return;
@@ -205,6 +245,36 @@ export default function AddScanModal({ space, onClose, onComplete }) {
           {dismissable && <button className="asm-close" aria-label="Close" onClick={close}>✕</button>}
         </div>
 
+        {step === 'choose' && (
+          <div className="asm-body">
+            {unlinked === null ? (
+              <p className="asm-loading">Looking for existing scans…</p>
+            ) : (
+              <>
+                <p className="vm-label">Link an existing scan</p>
+                <p className="vmm-note">These scans aren’t assigned to a space yet — pick one to place it in {space?.name}.</p>
+                <div className="asm-scanlist">
+                  {unlinked.map((sc) => (
+                    <button key={sc.id} className="asm-scanrow" disabled={!!linkBusy} onClick={() => linkScan(sc)}>
+                      <span className="asm-scanthumb">
+                        {sc.thumbUrl ? <img src={sc.thumbUrl} alt="" /> : <span className="asm-scanthumb-ph" />}
+                      </span>
+                      <span className="asm-scanmeta">
+                        <span className="asm-scanname">{sc.name}</span>
+                        <span className="asm-scansub">{[sc.deck, sc.status !== 'ready' ? 'Upload incomplete' : null].filter(Boolean).join(' · ') || 'Ready'}</span>
+                      </span>
+                      <span className="asm-scanlink">{linkBusy === sc.id ? 'Linking…' : 'Link'}</span>
+                    </button>
+                  ))}
+                </div>
+                {linkError && <p className="vmm-error">{linkError}</p>}
+                <div className="asm-or"><span>or</span></div>
+                <button className="vm-btn-ghost" onClick={() => setStep('pick')}>Upload a new scan instead</button>
+              </>
+            )}
+          </div>
+        )}
+
         {step === 'pick' && (
           <div
             className={`asm-body${dragOver ? ' asm-over' : ''}`}
@@ -212,6 +282,9 @@ export default function AddScanModal({ space, onClose, onComplete }) {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); acceptFile(e.dataTransfer.files?.[0]); }}
           >
+            {unlinked?.length > 0 && (
+              <button className="asm-backlink" onClick={() => setStep('choose')}>‹ Link an existing scan instead</button>
+            )}
             <GuideCards onFile={acceptFile} />
             {fileError && <p className="vmm-error">{fileError}</p>}
           </div>
