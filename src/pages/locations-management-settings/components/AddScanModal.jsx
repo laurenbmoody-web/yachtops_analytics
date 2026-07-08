@@ -26,7 +26,7 @@ export default function AddScanModal({ space, onClose, onComplete }) {
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
 
-  const [step, setStep] = useState('choose'); // choose → pick → form → uploading → orient → done
+  const [step, setStep] = useState('pick'); // pick (upload cards) → form → uploading → orient → done; choose = link list
   const [unlinked, setUnlinked] = useState(null); // null = loading; [] = none
   const [linkBusy, setLinkBusy] = useState(null);
   const [linkError, setLinkError] = useState(null);
@@ -68,7 +68,7 @@ export default function AddScanModal({ space, onClose, onComplete }) {
         .is('space_id', null)
         .order('created_at', { ascending: false });
       if (!alive) return;
-      if (error) { console.error('[add-scan] unlinked fetch:', error); setUnlinked([]); setStep('pick'); return; }
+      if (error) { console.error('[add-scan] unlinked fetch:', error); setUnlinked([]); return; }
       const rows = data || [];
       const paths = rows.map((r) => r.thumb_path).filter(Boolean);
       const thumbs = {};
@@ -79,7 +79,6 @@ export default function AddScanModal({ space, onClose, onComplete }) {
       if (!alive) return;
       const withUrls = rows.map((r) => ({ ...r, thumbUrl: r.thumb_path ? thumbs[r.thumb_path] : null }));
       setUnlinked(withUrls);
-      if (withUrls.length === 0) setStep('pick');
     })();
     return () => { alive = false; };
   }, [activeTenantId]);
@@ -283,11 +282,11 @@ export default function AddScanModal({ space, onClose, onComplete }) {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); acceptFile(e.dataTransfer.files?.[0]); }}
           >
-            {unlinked?.length > 0 && (
-              <button className="asm-backlink" onClick={() => setStep('choose')}>‹ Link an existing scan instead</button>
-            )}
             <GuideCards onFile={acceptFile} />
             {fileError && <p className="vmm-error">{fileError}</p>}
+            {unlinked?.length > 0 && (
+              <button className="asm-uploadlink" onClick={() => setStep('choose')}>or link to an existing scan ({unlinked.length})</button>
+            )}
           </div>
         )}
 
