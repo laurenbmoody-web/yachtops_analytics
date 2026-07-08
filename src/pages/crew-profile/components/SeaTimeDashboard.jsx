@@ -2110,22 +2110,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   {interiorPathway ? (
                     <div className="std-export-instr">Export your record below, then submit it to the PYA with your guest-on days, GUEST certificates and ID for the IAMI GUEST Yacht Purser CoC.</div>
                   ) : verifier === 'pya' ? (
-                    <div className="pya-ext">
-                      <div className="pya-ext-main">
-                        <div className="pya-ext-title">Cargo → PYA Autofill
-                          <span className="std-fhelp" tabIndex={0} role="note" aria-label="How the extension works">
-                            <Icon name="Info" size={13} />
-                            <span className="std-fhelp-pop">
-                              <b>How it works</b>
-                              <span>Install once. Then hit <b className="inl">Copy for PYA</b> on a record below and, on the PYA testimonial page, click <b className="inl">Fill from Cargo</b> — it types every field in for you.</span>
-                            </span>
-                          </span>
-                        </div>
-                        <div className="pya-ext-sub">One-click fill for your PYA Sea Service Testimonial — install once, then use <b>Copy for PYA</b> on each record below.</div>
-                      </div>
-                      <a className="pya-ext-btn" href="https://chromewebstore.google.com/detail/ookkdndgoancmldfbjflgflfiienaigm" target="_blank" rel="noreferrer">
+                    <div className="pya-dl">
+                      <a className="pya-dl-btn" href="https://chromewebstore.google.com/detail/ookkdndgoancmldfbjflgflfiienaigm" target="_blank" rel="noreferrer">
                         <Icon name="Download" size={14} /> Add to Chrome
                       </a>
+                      <div className="pya-dl-txt">Download our Chrome extension to make filling in your PYA Sea Service Testimonial seamless.
+                        <span className="std-fhelp" tabIndex={0} role="note" aria-label="How it works">
+                          <Icon name="Info" size={13} />
+                          <span className="std-fhelp-pop">
+                            <b>How it works</b>
+                            <span>Once installed, come back here and click <b className="inl">Copy for PYA</b> on a record, then open your PYA member portal, start an SST, and press <b className="inl">Autofill from Cargo</b> (bottom-right). Voilà — every field filled.</span>
+                          </span>
+                        </span>
+                      </div>
                     </div>
                   ) : (
                     <div className="std-export-instr">Export the pre-filled form below, get it signed, then submit it to {vp.short} to verify.
