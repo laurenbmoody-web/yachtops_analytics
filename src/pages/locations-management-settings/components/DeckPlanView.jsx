@@ -4,8 +4,9 @@
 // + per-deck framing + rendering each framed deck's plan.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getVesselLayout, uploadGaImage, setDeckCrop } from '../utils/locationsLayoutStorage';
+import { pdfToPngBlob } from '../utils/pdfRaster';
 
-const IMG_EXT = '.png,.jpg,.jpeg,.webp';
+const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
 
 // Background style that shows just the deck's crop of the shared GA image,
 // undistorted (box aspect matches the crop's pixel aspect).
@@ -63,6 +64,7 @@ export default function DeckPlanView({ decks = [] }) {
   const [layout, setLayout] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [rendering, setRendering] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [gaDims, setGaDims] = useState(null);
   const [framingDeck, setFramingDeck] = useState(null);
@@ -90,13 +92,23 @@ export default function DeckPlanView({ decks = [] }) {
     setUploading(true);
     setUploadError(null);
     try {
-      const r = await uploadGaImage(f);
+      let toUpload = f;
+      const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+      if (isPdf) {
+        setRendering(true);
+        const blob = await pdfToPngBlob(f);
+        setRendering(false);
+        if (!blob) throw new Error('Could not render that PDF.');
+        toUpload = new File([blob], `${(f.name || 'ga').replace(/\.pdf$/i, '')}.png`, { type: 'image/png' });
+      }
+      const r = await uploadGaImage(toUpload);
       setLayout((p) => ({ ...(p || {}), ...r }));
     } catch (err) {
       console.error('[deck-plan] GA upload error:', err);
       setUploadError(err?.message || 'Could not upload the drawing.');
     } finally {
       setUploading(false);
+      setRendering(false);
     }
   };
 
@@ -110,7 +122,7 @@ export default function DeckPlanView({ decks = [] }) {
   if (loading) return <div className="dp-loading">Loading the layout…</div>;
 
   const hidden = (
-    <input ref={fileRef} type="file" accept={IMG_EXT} style={{ display: 'none' }} onChange={onFile} />
+    <input ref={fileRef} type="file" accept={ACCEPT} style={{ display: 'none' }} onChange={onFile} />
   );
 
   if (!layout?.gaImagePath) {
@@ -122,8 +134,8 @@ export default function DeckPlanView({ decks = [] }) {
             <svg viewBox="0 0 120 74" fill="none"><rect x="1" y="1" width="118" height="72" rx="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="6 6" opacity=".5" /><path d="M40 47l14-16 11 13 8-9 12 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="44" cy="26" r="4" stroke="currentColor" strokeWidth="1.6" /></svg>
           </div>
           <p className="dp-upload-title">Upload your General Arrangement</p>
-          <p className="dp-upload-sub">A deck-plan drawing (PNG or JPG — a screenshot is fine). You’ll frame each deck on it, then place rooms.</p>
-          <button className="lg-btn-primary" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? 'Uploading…' : 'Upload drawing'}</button>
+          <p className="dp-upload-sub">A deck-plan drawing — a PDF (best) or an image. You’ll frame each deck on it, then place rooms.</p>
+          <button className="lg-btn-primary" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Upload drawing'}</button>
           {uploadError && <p className="dp-error">{uploadError}</p>}
         </div>
       </div>
@@ -135,7 +147,7 @@ export default function DeckPlanView({ decks = [] }) {
       {hidden}
       <div className="dp-toolbar">
         <span className="dp-toolbar-note">Frame each deck on the drawing, then place rooms.</span>
-        <button className="lg-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? 'Uploading…' : 'Replace drawing'}</button>
+        <button className="lg-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Replace drawing'}</button>
       </div>
       {uploadError && <p className="dp-error">{uploadError}</p>}
 
