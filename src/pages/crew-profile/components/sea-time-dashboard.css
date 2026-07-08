@@ -235,13 +235,10 @@
 
 /* Step 03 — export & submit */
 .std-export-instr{font-size:12px;color:var(--muted);line-height:1.55;margin:8px 0 14px;max-width:640px;}
-.pya-ext{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:13px 15px;border:1px solid #ECEAE3;border-radius:12px;background:#FAFAF8;margin:2px 0 6px;}
-.pya-ext-main{min-width:0;}
-.pya-ext-title{display:flex;align-items:center;gap:2px;font-size:13px;font-weight:700;color:var(--ink);}
-.pya-ext-sub{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:2px;max-width:540px;}
-.pya-ext-sub b{color:var(--ink);font-weight:600;}
-.pya-ext-btn{display:inline-flex;align-items:center;gap:7px;background:var(--ink,#1C1B3A);color:#fff;border-radius:9px;padding:9px 15px;font-size:12.5px;font-weight:600;text-decoration:none;white-space:nowrap;flex:0 0 auto;transition:background .15s;}
-.pya-ext-btn:hover{background:#14132C;}
+.pya-dl{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 10px;}
+.pya-dl-btn{display:inline-flex;align-items:center;gap:7px;background:var(--ink,#1C1B3A);color:#fff;border-radius:9px;padding:9px 16px;font-size:12.5px;font-weight:600;text-decoration:none;white-space:nowrap;flex:0 0 auto;transition:background .15s;}
+.pya-dl-btn:hover{background:#14132C;}
+.pya-dl-txt{font-size:12px;color:var(--muted);line-height:1.5;max-width:560px;}
 .std-spells{display:flex;flex-direction:column;gap:8px;}
 .std-spells-lbl{font-size:11.5px;color:var(--muted);line-height:1.5;margin-bottom:2px;}
 .std-spell{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 14px;border:1px solid #ECEAE3;border-radius:11px;background:#FAFAF8;}
