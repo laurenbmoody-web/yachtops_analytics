@@ -35,6 +35,11 @@
 .std-secnum{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-size:20px;font-weight:500;line-height:1;color:var(--rust);}
 .std-sechead h3{font-size:20px;margin:0;line-height:1;}
 .std-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+/* The action buttons (Prior service / Log sea time) are absolutely positioned
+   top-right of the header and stand taller than the title, so they crowd the
+   card below. Padding (not margin — margin would collapse with the section
+   head's own) reserves clear space beneath the header. */
+.std .cp-tab-head{padding-bottom:16px;}
 /* Clickable section sub-header (cert action). Looks like the editorial group
    head; the label + chevron go terracotta on hover to read as a link. */
 .std-pathhead{width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;margin:0 0 14px;cursor:pointer;text-align:left;}
