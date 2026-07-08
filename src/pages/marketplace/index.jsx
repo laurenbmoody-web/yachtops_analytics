@@ -624,6 +624,17 @@ const Marketplace = () => {
                   <button className="mp-allitems mp-allitems-end" onClick={openAllItems}>
                     Browse all items <ChevronRight size={14} />
                   </button>
+                  {!loading && (
+                    <button
+                      type="button"
+                      className={`mp-counter-btn ${basketUnits > 0 ? 'live' : ''}`}
+                      onClick={() => setCounterOpen(true)}
+                    >
+                      <ShoppingBasket size={15} strokeWidth={1.9} />
+                      <span>The Counter</span>
+                      {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
+                    </button>
+                  )}
                 </div>
 
                 {!focused ? (
@@ -823,6 +834,15 @@ const Marketplace = () => {
                   <button type="button" className="mp-clear" onClick={resetBrowse}>× Clear all</button>
                 )}
                 <span className="mp-count">{filtered.length} of {scopedProducts.length}</span>
+                <button
+                  type="button"
+                  className={`mp-counter-btn mp-counter-btn-end ${basketUnits > 0 ? 'live' : ''}`}
+                  onClick={() => setCounterOpen(true)}
+                >
+                  <ShoppingBasket size={15} strokeWidth={1.9} />
+                  <span>The Counter</span>
+                  {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
+                </button>
               </div>
 
               {filtered.length === 0 ? (
@@ -866,18 +886,8 @@ const Marketplace = () => {
           onInvite={(s) => showToast(`Supplier invites are coming soon — we’ll help you bring ${s.name} onto Cargo.`, 'info')}
         />
 
-        {/* ── iii · The Counter (drawer) ── */}
-        {!loading && (
-          <button
-            className={`mp-counter-fab ${basketUnits > 0 ? 'live' : ''}`}
-            onClick={() => setCounterOpen(true)}
-          >
-            <ShoppingBasket size={17} strokeWidth={1.9} />
-            <span className="lab">The Counter</span>
-            {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
-          </button>
-        )}
-
+        {/* ── iii · The Counter (drawer) — trigger lives inline in the
+             toolbars (next to Browse all items / the in-shop filters) ── */}
         {counterOpen && (
           <>
             <div className="mp-counter-backdrop" onClick={() => setCounterOpen(false)} />

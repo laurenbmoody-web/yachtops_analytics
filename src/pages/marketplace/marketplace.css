@@ -234,17 +234,17 @@
 .mp-stars.pick button:hover ~ button { color: rgba(255,255,255,0.26); }
 
 /* Storefront back — your history as a compact ledger */
-.mp-face.mp-sfback { padding: 18px 22px; }
+.mp-face.mp-sfback { padding: 15px 22px; }
 .mp-face.mp-sfback .tag { text-align: center; max-width: none; letter-spacing: 2px; }
-.mp-sfb-head { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+.mp-sfb-head { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
 .mp-sfb-logo { width: 34px; height: 34px; border-radius: 9px; overflow: hidden; flex: none; background: linear-gradient(150deg, #12726A, #0B4A45); color: #EFE6D2; display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; }
 .mp-sfb-logo img { width: 100%; height: 100%; object-fit: cover; }
 .mp-sfb-nm { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400; font-size: 14.5px; text-transform: uppercase; letter-spacing: 2px; color: #EDE8DE; }
-.mp-sfb-led { flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 6px; }
-.mp-sfb-led .r { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 9px 2px; border-bottom: 1px solid rgba(255,255,255,0.11); }
+.mp-sfb-led { flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 2px; }
+.mp-sfb-led .r { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 6px 2px; border-bottom: 1px solid rgba(255,255,255,0.11); }
 .mp-sfb-led .r:last-child { border-bottom: none; }
 .mp-sfb-led .r .l { font-family: 'Inter', system-ui, sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.48); }
-.mp-sfb-led .r .v { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400; font-size: 21px; color: #F7F4EE; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.mp-sfb-led .r .v { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400; font-size: 19px; color: #F7F4EE; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .mp-sfb-empty { flex: 1; display: flex; align-items: center; font-family: 'Inter', system-ui, sans-serif; font-size: 13.5px; color: rgba(255,255,255,0.72); line-height: 1.5; }
 
 /* Rate control in the aisles band */
@@ -404,23 +404,23 @@
 .mp-page[data-theme="dark"] .mp-error { background: #33201E; border-color: #5A322D; color: #E8988C; }
 
 /* ── iii · The Counter — floating tab + drawer ── */
-.mp-counter-fab {
-  position: fixed; right: 26px; bottom: 26px; z-index: 40;
-  display: inline-flex; align-items: center; gap: 9px;
-  height: 50px; padding: 0 20px; border-radius: 999px; cursor: pointer;
-  background: var(--surface); color: var(--ink);
-  border: 1px solid var(--border); box-shadow: 0 16px 40px -14px var(--shadow-strong);
-  font-family: inherit; font-size: 13.5px; font-weight: 700;
-  transition: transform .15s, box-shadow .15s, background .15s;
+/* The Counter trigger — inline in the toolbars (next to Browse all items,
+   and at the end of the in-shop filter row). Matches the toolbar buttons. */
+.mp-counter-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 15px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--ink);
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: border-color .15s, color .15s, background .15s;
 }
-.mp-counter-fab:hover { transform: translateY(-2px); }
-.mp-counter-fab.live { background: var(--accent); color: #fff; border-color: transparent; }
-.mp-counter-fab .lab { letter-spacing: 0.1px; }
-.mp-counter-fab .badge {
-  min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
-  background: #fff; color: var(--accent); font-size: 12px; font-weight: 800;
+.mp-counter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.mp-counter-btn.live { background: var(--accent); color: #fff; border-color: transparent; }
+.mp-counter-btn-end { margin-left: auto; }
+.mp-counter-btn .badge {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 800;
   display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;
 }
+.mp-counter-btn.live .badge { background: #fff; color: var(--accent); }
 .mp-counter-backdrop { position: fixed; inset: 0; background: rgba(20,19,32,0.42); z-index: 50; backdrop-filter: blur(1.5px); }
 .mp-counter {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 51; width: 388px; max-width: 92vw;
