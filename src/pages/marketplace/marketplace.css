@@ -409,7 +409,8 @@
 /* The Counter trigger — inline in the toolbars (next to Browse all items,
    and at the end of the in-shop filter row). Matches the toolbar buttons. */
 .mp-counter-btn {
-  display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 15px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px;
+  min-width: 40px; padding: 0 11px;
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--ink);
   font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
   transition: border-color .15s, color .15s, background .15s;

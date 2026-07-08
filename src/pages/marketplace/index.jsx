@@ -17,7 +17,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, ChevronLeft, ShoppingBasket, Moon, Sun, Search, X, ChevronRight, MapPin,
+  ArrowLeft, ChevronLeft, ShoppingBasket, ClipboardList, Moon, Sun, Search, X, ChevronRight, MapPin,
 } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -622,16 +622,17 @@ const Marketplace = () => {
                     </button>
                   )}
                   <button className="mp-allitems mp-allitems-end" onClick={openAllItems}>
-                    Browse all items <ChevronRight size={14} />
+                    Browse All <ChevronRight size={14} />
                   </button>
                   {!loading && (
                     <button
                       type="button"
                       className={`mp-counter-btn ${basketUnits > 0 ? 'live' : ''}`}
                       onClick={() => setCounterOpen(true)}
+                      title="The Counter"
+                      aria-label="The Counter"
                     >
-                      <ShoppingBasket size={15} strokeWidth={1.9} />
-                      <span>The Counter</span>
+                      <ClipboardList size={17} strokeWidth={1.8} />
                       {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
                     </button>
                   )}
@@ -831,9 +832,10 @@ const Marketplace = () => {
                   type="button"
                   className={`mp-counter-btn mp-counter-btn-end ${basketUnits > 0 ? 'live' : ''}`}
                   onClick={() => setCounterOpen(true)}
+                  title="The Counter"
+                  aria-label="The Counter"
                 >
-                  <ShoppingBasket size={15} strokeWidth={1.9} />
-                  <span>The Counter</span>
+                  <ClipboardList size={17} strokeWidth={1.8} />
                   {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
                 </button>
               </div>
