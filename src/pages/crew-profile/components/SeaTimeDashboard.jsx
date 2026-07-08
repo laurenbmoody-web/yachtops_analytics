@@ -918,7 +918,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       });
       const who = (endorser.name || spell.captainName || 'captain').replace(/\s+/g, '-');
       downloadBytes(pdfBytes, `nautilus-sst-${(v.name || 'vessel').replace(/\s+/g, '-')}-${who}.pdf`);
-      markSubmitted(spell, 'nautilus');
       flash('Nautilus form ready');
     } catch (e) { console.error('[seatime] nautilus export', e); flash('Could not build the Nautilus form'); }
   };
@@ -968,7 +967,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         company: { name: companyName },
       });
       downloadBytes(pdfBytes, `transport-malta-sst${engineForm ? '-engine' : ''}-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
-      markSubmitted(spell, 'transport_malta');
       flash('Transport Malta form ready');
     } catch (e) { console.error('[seatime] transport malta export', e); flash('Could not build the Transport Malta form'); }
   };
@@ -1004,7 +1002,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         verifier: vp,
       });
       downloadBytes(bytes, `${verifier === 'mca' ? 'mca-testimonial' : 'pya-record'}-${(v.name || 'vessel').replace(/\s+/g, '-')}.pdf`);
-      markSubmitted(spell, verifier);
       flash(`${vp.short} testimonial ready`);
     } catch (e) { console.error('[seatime] testimonial export', e); flash('Could not build the testimonial'); }
   };
@@ -1058,7 +1055,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         engineType,
       });
       await navigator.clipboard.writeText(buildPyaClipboard(payload));
-      markSubmitted(spell, 'pya');
       flash('Copied — now open the PYA form and click Fill from Cargo');
     } catch (e) { console.error('[seatime] pya copy', e); flash('Could not copy the PYA data'); }
   };
@@ -1650,6 +1646,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               const ongoing = !!(to && to >= todayISO);
               const span = (from && to) ? `${fmtDate(from)} – ${ongoing ? 'present' : fmtDate(to)}` : (from ? fmtDate(from) : '');
               const metaBits = [who, span, `${total} ${total === 1 ? 'day' : 'days'}`, leaveOff > 0 ? `${leaveOff} leave` : ''].filter(Boolean).join(' · ');
+              // Submitted state flows here from the sign-off step (matched by
+              // vessel + captain). A submitted record leaves "Get your sea time
+              // signed off" and shows here, reopenable from the expanded body.
+              const capId = p.captainId || p.captainName || 'x';
+              const subKey = Object.keys(submitted || {}).find(k => k.startsWith(`${p.vesselId}::${capId}::`));
+              const subInfo = subKey ? submitted[subKey] : null;
               const key = `${p.k}::${from || pi}`;
               const open = openSet.has(key);
               return (
@@ -1669,6 +1671,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                             <span className="pm" style={{ borderColor: '#5A6478' }} />Off-Cargo
                           </span>
                         )}
+                        {subInfo && (
+                          <span className="std-prov cargo" style={{ color: '#3F7A52', background: '#EAF3EC' }} title={`Marked submitted ${fmtDate(subInfo.at)}`}>
+                            <span className="pm" style={{ background: '#3F7A52' }} />Submitted
+                          </span>
+                        )}
                       </div>
                       <div className="std-op-meta">{metaBits}</div>
                     </div>
@@ -1676,6 +1683,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   </button>
                   {open && (
                     <div className="std-op-body">
+                      {subInfo && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 0 12px', fontSize: 12, fontWeight: 600, color: '#3F7A52' }}>
+                          <Icon name="Check" size={13} /> Submitted {fmtDate(subInfo.at)}
+                          <button type="button" onClick={() => { const next = { ...(submitted || {}) }; delete next[subKey]; persistSubmitted(next); }}
+                            style={{ background: 'none', border: 0, color: '#C65A1A', fontWeight: 600, cursor: 'pointer', fontSize: 12, padding: 0, marginLeft: 4 }}>Reopen</button>
+                        </div>
+                      )}
                       {vm && <div className="std-op-vm">{vm}</div>}
                       {barSegs.length > 0 && (
                         <div className="std-op-bar">
@@ -2145,10 +2159,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   ) : (
                     <div className="std-spells">
                       {(() => {
-                        const sorted = [...nautilusSpells].sort((a, b) => (submitted[spellKey(a)] ? 1 : 0) - (submitted[spellKey(b)] ? 1 : 0));
+                        // Submitted records drop off here and show on the Sea
+                        // Service Record below (reopen from there). This section
+                        // stays a clean to-do of what's still to send.
+                        const openSpells = nautilusSpells.filter(s => !submitted[spellKey(s)]);
+                        if (openSpells.length === 0) {
+                          return <div className="std-spells-lbl" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#3F7A52', fontWeight: 600 }}><Icon name="Check" size={14} /> All records submitted — they’re marked on your Sea Service Record below.</div>;
+                        }
                         return (<>
-                          {sorted.map((s, i) => {
-                            const isSub = !!submitted[spellKey(s)];
+                          {openSpells.map((s, i) => {
+                            const isSub = false;
                             return (
                         <div key={i} className="std-spell" style={{ opacity: isSub ? 0.88 : 1 }}>
                           <div className="std-spell-main">
