@@ -117,14 +117,14 @@ export const CERTIFICATES = {
     msn: 'MSN 1858 Amd 2 §3.1', verified: 'HIGH',
     requires: { seagoingMonths: 6, minVesselMetres: 15 },
     heldWhilst: 'RYA Yachtmaster Offshore (or IYT Master of Yachts Limited)',
-    note: 'STCW II/3, limited to 150nm from a safe haven. 6 months seagoing whilst holding an RYA Yachtmaster Offshore or IYT Master of Yachts Limited. Min age 18; ENG1; GMDSS ROC; form MSF 4343.'
+    note: 'Lets you command small yachts up to 150 nm from a safe haven. You need 6 months at sea while holding an RYA Yachtmaster Offshore (or IYT Master of Yachts Limited), plus an ENG1 medical and a GMDSS ROC radio ticket (min age 18). Apply on form MSF 4343.'
   },
   MASTER_CODE_200_UNLIMITED: {
     family: 'DECK', label: 'Master (Code <200GT) / OOW Yachts <500GT — Unlimited', short: 'Master <200GT · Unltd',
     msn: 'MSN 1858 Amd 2 §3.2', verified: 'HIGH',
     requires: { seagoingMonths: 6, minVesselMetres: 15 },
     heldWhilst: 'RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited)',
-    note: 'STCW II/2, unlimited area. 6 months seagoing whilst holding an RYA Yachtmaster Ocean or IYT Master of Yachts Unlimited. Min age 18; ENG1; GMDSS GOC; form MSF 4343.'
+    note: 'Same as the 150 nm ticket but with no area limit. You need 6 months at sea while holding an RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited), plus an ENG1 medical and a GMDSS GOC radio ticket (min age 18). Apply on form MSF 4343.'
   },
   OOW_YACHT_3000: {
     family: 'DECK', label: 'OOW (Yachts <3000GT)', short: 'OOW <3000GT',
@@ -136,7 +136,7 @@ export const CERTIFICATES = {
       combinedTopUpDays: 115,       // … + 115 days combined seagoing/standby/yard = 365 total
       minVesselMetres: 15
     },
-    note: 'Entry watchkeeping CoC. 365 seagoing days = 250 days seagoing-only + 115 days that may combine seagoing/standby/yard. The 250 must be actual seagoing — standby/yard alone cannot make it up.'
+    note: 'Your first watchkeeping ticket. You need 365 qualifying days: at least 250 actually at sea, plus up to 115 more that can mix sea, standby and yard time. The 250 must be genuine time at sea — standby or yard days can’t make it up.'
   },
   CHIEF_MATE_YACHT_3000: {
     family: 'DECK', label: 'Chief Mate (Yachts <3000GT)', short: 'Chief Mate <3000GT',
@@ -145,7 +145,7 @@ export const CERTIFICATES = {
     requires: {},                   // no additional sea time — concurrent with OOW <3000 (MSN 1858 §3.4)
     oral: false,                    // §3.4 lists NO oral exam (gov.uk has no Chief Mate yacht oral syllabus)
     heldWhilst: 'OOW (Yachts <3000GT) II/1',
-    note: 'A II/2 CoC with NO oral exam and no additional sea time (MSN 1858 §3.4): hold OOW <3000 II/1 (or complete its §3.3 requirements), plus RYA Yachtmaster Ocean and the management-level courses (incl. HELM Management). Applied for via MSF 4343 as an upgrade — may be done at the same time as OOW.'
+    note: 'No extra sea time and no oral exam — it’s an upgrade of your OOW <3000. Once you hold OOW (or finish its requirements), add an RYA Yachtmaster Ocean and the management-level courses (including HELM Management), then apply on form MSF 4343. You can do it at the same time as OOW.'
   },
   MASTER_YACHT_500: {
     family: 'DECK', label: 'Master (Yachts <500GT)', short: 'Master <500GT',
@@ -164,7 +164,7 @@ export const CERTIFICATES = {
       higherTonnage: { metresMonths: 12, metresMin: 24, gtMonths: 6, gtMin: 500 }
     },
     heldWhilst: 'OOW (Yachts <3000GT) II/1', heldWhilstCert: 'OOW_YACHT_3000', asOfficer: true,
-    note: 'All service ≥15m AND include 12 months on ≥24m OR 6 months on ≥500GT. The larger-vessel bar is computed from each vessel’s GT/length on record; the prior-service baseline and any entry without vessel size can’t be size-attributed.'
+    note: 'All your service must be on yachts of 15 m or more, and must include either 12 months on a yacht of 24 m+ or 6 months on one of 500 GT+. Cargo works the larger-vessel part out from each yacht’s recorded size — days on a yacht with no size on record can’t count toward it.'
   },
   CHIEF_MATE_UNLIMITED: {
     family: 'DECK', label: 'Chief Mate (Yachts Unlimited)', short: 'Chief Mate Unltd',
@@ -172,7 +172,7 @@ export const CERTIFICATES = {
     yardCapDays: 30,                // Chief Mate: max 30 yard days (1858 §4.3)
     requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
     heldWhilst: 'OOW Unlimited (or Master Yachts <3000GT II/1)', heldWhilstCert: 'MASTER_YACHT_3000', asOfficer: true,
-    note: 'OOW-Unlimited route (MSN 1858 §4.3): 12 months onboard as OOW incl. 6 months seagoing, all on a yacht ≥500GT, plus the management-level academic modules, MCA assessments and an oral exam (§4.3(f)). Unlike Chief Mate <3000, this rung DOES require an oral.'
+    note: 'You need 12 months onboard as OOW (including 6 months at sea), all on a yacht of 500 GT or more, plus the management-level academic modules and MCA assessments. Unlike Chief Mate <3000, this one does need an oral exam.'
   },
   MASTER_UNLIMITED: {
     family: 'DECK', label: 'Master (Yachts Unlimited)', short: 'Master Unltd',
@@ -211,7 +211,7 @@ export const CERTIFICATES = {
     legacyAlias: 'MEOL (Yachts)',
     msn: 'MSN 1904 §3.2', verified: 'HIGH',
     requires: { onboardMonths: 24, seagoingMonths: 6, minPowerKW: 200 },
-    note: 'Non-STCW entry licence (operate 200–750kW). 24 months onboard as a Small Vessel engineer incl. ≥6 months seagoing on yachts ≥200kW — OR 36 months as dual-purpose deckhand/engineer incl. ≥6 months seagoing. Requires AEC 1 & 2; min age 19; ENG1.'
+    note: 'An entry-level engine licence to run yachts of 200–750 kW. You need 24 months onboard as a small-vessel engineer with at least 6 months at sea on yachts of 200 kW+ — or 36 months as a dual deckhand/engineer with 6 months at sea. Requires the AEC 1 & 2 courses and an ENG1 medical (min age 19).'
   },
   EOOW_SV_Y: {
     family: 'ENGINE', label: 'EOOW Engineer — Small Vessel (Yacht)', short: 'EOOW SV (Y)',
@@ -223,7 +223,7 @@ export const CERTIFICATES = {
     // MSN 1904 + MCA-approved training schools). A TRB / approved cadetship is a
     // training route, not a held CoC, so there is no `heldWhilstCert` gate.
     entryNote: 'Built via a Training Record Book / approved cadetship — no lower engineer CoC is a prerequisite.',
-    note: 'Experienced route: 12 months onboard on yachts ≥350kW, including ≥4 months actual seagoing (days underway). Up to 2 further months at-anchor / fast-to-shore on own power count as watchkeeping (6 months of watch out of 24). STCW III/1. CoC caps: <9000kW, <3000GT.'
+    note: 'Your first engineer-officer ticket. On the experienced route you need 12 months onboard on yachts of 350 kW+, including at least 4 months genuinely at sea; up to 2 months at anchor or alongside on your own power can also count. It covers yachts up to 9000 kW and 3000 GT.'
   },
   CHIEF_SV_500_Y: {
     family: 'ENGINE', label: 'Chief Engineer — Small Vessel <500GT / <3000kW (Yacht)', short: 'Chief SV <500GT (Y)',
@@ -231,7 +231,7 @@ export const CERTIFICATES = {
     msn: 'MSN 1904 §4.9 / §5.8', verified: 'HIGH',
     requires: { onboardMonths: 6, seagoingMonths: 4, minPowerKW: 350 },
     heldWhilst: 'EOOW Engineer SV (Yacht)', heldWhilstCert: 'EOOW_SV_Y', asOfficer: true,
-    note: '6 months onboard as EOOW SV on yachts ≥350kW, incl. ≥4 months seagoing (underway), whilst holding the EOOW SV yacht CoC. STCW III/3. CoC caps: <500GT & <3000kW.'
+    note: 'You need 6 months onboard as an EOOW on yachts of 350 kW+, including at least 4 months at sea, all while holding your EOOW (SV Yacht) ticket. It covers yachts up to 500 GT and 3000 kW.'
   },
   CHIEF_SV_3000_Y: {
     family: 'ENGINE', label: 'Chief Engineer — Small Vessel <3000GT / <9000kW (Yacht)', short: 'Chief SV <3000GT (Y)',
@@ -239,7 +239,7 @@ export const CERTIFICATES = {
     msn: 'MSN 1904 §4.10 / §5.8', verified: 'HIGH',
     requires: { onboardMonths: 12, seagoingMonths: 8, minPowerKW: 350 },
     heldWhilst: 'EOOW Engineer SV (Yacht)', heldWhilstCert: 'EOOW_SV_Y', asOfficer: true,
-    note: '12 months onboard ≥350kW incl. ≥8 months seagoing — of which ≥4 months on yachts ≥750kW — whilst holding EOOW SV; OR 6 months onboard incl. ≥4 months seagoing whilst holding Chief SV <500GT. STCW III/2. CoC caps: <3000GT & <9000kW.',
+    note: 'Two routes: 12 months onboard on yachts of 350 kW+ with at least 8 months at sea (4 of them on yachts of 750 kW+) while holding your EOOW (SV Yacht) ticket — or, if you already hold Chief <500GT, 6 months onboard with 4 months at sea. It covers yachts up to 3000 GT and 9000 kW.',
     routes: [
       { whilstHolding: 'EOOW Engineer SV (Yacht)', onboardMonths: 12, seagoingMonths: 8, minPowerKW: 350, seagoingMinPowerKW: 750 },
       { whilstHolding: 'Chief Engineer SV <500GT (Yacht)', onboardMonths: 6, seagoingMonths: 4, minPowerKW: 350 }
@@ -251,7 +251,7 @@ export const CERTIFICATES = {
     family: 'ETO', label: 'Electro-Technical Officer (STCW III/6)', short: 'ETO',
     msn: 'MSN 1860 Amd 1 §3.2', verified: 'HIGH',
     requires: { seagoingMonths: 6, minPowerKW: 750 },
-    note: 'Cadet / FD-HND route (§3.2): 12 months combined seagoing + workshop, including ≥6 months seagoing on ships ≥750kW + ≥3 months approved workshop skills. Cargo tracks the 6-month seagoing portion; workshop training is logged separately. Non-cadet route (§4.2) is set case-by-case by the MCA between 6 and 33 months — no single figure. Recency: 6 months seagoing in the 5 years before CoC issue. Min age 18; ENG1; High Voltage (Management); oral STCW III/6. Form MSF 4259. Revalidation per MSN 1861.',
+    note: 'On the cadet / FD-HND route you need 12 months of combined sea and workshop time, including at least 6 months at sea on ships of 750 kW+ and 3 months of approved workshop training. Cargo tracks the sea-time part; log workshop training separately. The non-cadet route is set case-by-case by the MCA (6–33 months). You’ll also need a High Voltage (Management) course and an oral exam. Apply on form MSF 4259.',
     routes: [
       { label: 'Cadet / FD-HND (§3.2)', seagoingMonths: 6, workshopMonths: 3, combinedMonths: 12, minPowerKW: 750 },
       { label: 'Non-cadet — set case-by-case by the MCA (§4.2)', seagoingMonthsMin: 6, seagoingMonthsMax: 33, minPowerKW: 750, mcaAssessed: true },
@@ -280,7 +280,7 @@ export const CERTIFICATES = {
     // figures here follow the operative requirement confirmed by the client.)
     requires: { onboardDays: 365, guestOnDays: 60 },
     oral: false,                    // no oral / NoE — GUEST courses + PYA-verified service
-    note: 'Route A: 12 months of verified yacht service in a SENIOR onboard role (Chief Stew / Purser) PLUS at least 60 guest-on days. OR Route B: 3 years in a maritime management/administration role (record that as prior service). Plus the IAMI GUEST course units. Verified by the PYA, not Nautilus.'
+    note: 'Two routes. Route A: 12 months of verified yacht service in a senior role (Chief Stew or Purser) plus at least 60 guest-on days. Route B: 3 years in a maritime management or admin role (log it as prior service). Either way you also need the IAMI GUEST course units. Your service is verified by the PYA, not Nautilus.'
   }
 };
 
