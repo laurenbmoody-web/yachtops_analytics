@@ -591,12 +591,16 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .cj-eligchev{margin-left:5px;color:var(--faint);vertical-align:middle;transition:transform .15s;}
 .cj-step.open .cj-eligchev{color:var(--rust);}
 /* eligibility — small floating popover anchored under step 01 */
-.cj-elig-pop{position:absolute;top:100%;left:0;margin-top:10px;width:296px;max-width:86vw;background:#fff;border:1px solid #ECEAE3;border-radius:12px;box-shadow:0 24px 60px -16px rgba(28,27,58,0.32);padding:13px 15px 13px;z-index:40;}
+.cj-elig-pop{position:absolute;top:100%;left:0;margin-top:10px;width:326px;max-width:88vw;background:#fff;border:1px solid #ECEAE3;border-radius:12px;box-shadow:0 24px 60px -16px rgba(28,27,58,0.32);padding:14px 16px;z-index:40;}
 .cj-elig-pop::before{content:'';position:absolute;top:-6px;left:18px;width:11px;height:11px;background:#fff;border-left:1px solid #ECEAE3;border-top:1px solid #ECEAE3;transform:rotate(45deg);}
 .cj-elig-x{position:absolute;top:9px;right:9px;background:none;border:0;color:var(--faint);cursor:pointer;padding:2px;line-height:0;}
 .cj-elig-x:hover{color:var(--rust);}
 .cj-elig-h{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B8478;margin-bottom:6px;padding-right:18px;}
-.cj-elig-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F0F1F5;}
+.cj-elig-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #F0F1F5;}
+.cj-elig-row.adv{align-items:flex-start;}
+.cj-elig-row.adv .ck,.cj-elig-row.adv .v{padding-top:1px;}
+.cj-elig-l1{display:block;}
+.cj-elig-l2{display:block;font-size:10px;color:var(--faint);margin-top:1px;}
 .cj-elig-row:last-of-type{border-bottom:0;}
 .cj-elig-row .ck{width:14px;display:flex;justify-content:center;flex-shrink:0;}
 .cj-elig-row .ck .dot{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--rust);}

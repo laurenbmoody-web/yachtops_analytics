@@ -1890,7 +1890,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       {noServiceGate ? (
                         <div className="cj-elig-row met">
                           <span className="ck"><Icon name="Check" size={11} color="#3F7A52" /></span>
-                          <span className="l">No extra sea time — this CoC is gained through the courses above.</span>
+                          <span className="l">Sea time met</span>
                           <span className="v" />
                         </div>
                       ) : hardReqs.map(r => (
@@ -1900,20 +1900,27 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                           <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
                         </div>
                       ))}
-                      {advisoryReqs.map(r => (
-                        <div className={`cj-elig-row ${r.met ? 'met' : ''}`} key={r.key}>
-                          <span className="ck">{r.met ? <Icon name="Check" size={11} color="#3F7A52" /> : <span className="dot" />}</span>
-                          <span className="l">{r.label} <span className="cj-elig-adv">advisory</span></span>
-                          <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
-                        </div>
-                      ))}
+                      {advisoryReqs.map(r => {
+                        const [advTitle, ...advRest] = (r.label || '').split(' · ');
+                        const advSub = advRest.join(' · ');
+                        return (
+                          <div className={`cj-elig-row adv ${r.met ? 'met' : ''}`} key={r.key}>
+                            <span className="ck">{r.met ? <Icon name="Check" size={11} color="#3F7A52" /> : <span className="dot" />}</span>
+                            <span className="l">
+                              <span className="cj-elig-l1">{advTitle} <span className="cj-elig-adv">advisory</span></span>
+                              {advSub && <span className="cj-elig-l2">{advSub}</span>}
+                            </span>
+                            <span className="v">{r.current}/{r.required}{!r.met && <em> · {r.remaining} to go</em>}</span>
+                          </div>
+                        );
+                      })}
                       {!conf.authoritative && <div className="cj-detail" style={{ marginTop: 6 }}>{conf.label}</div>}
-                      <div className="cj-elig-foot">{
-                        !conf.authoritative ? 'Confirm your figures to unlock this step.'
-                          : !eligible ? `${unmet.length} service requirement${unmet.length === 1 ? '' : 's'} still to clear — see above.`
-                            : advisoryReqs.some(r => !r.met) ? 'Sea-time gate met — recency is advisory, verified by the MCA at issue.'
-                              : (hasOral ? 'All met — apply for your NoE.' : 'All met — add the courses above.')
-                      }</div>
+                      {(!conf.authoritative || !eligible) && (
+                        <div className="cj-elig-foot">{
+                          !conf.authoritative ? 'Confirm your figures to unlock this step.'
+                            : `${unmet.length} service requirement${unmet.length === 1 ? '' : 's'} still to clear — see above.`
+                        }</div>
+                      )}
                     </div>
                   )}
                 </div>
