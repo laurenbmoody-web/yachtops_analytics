@@ -206,9 +206,11 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-deckhdr .dp-dc{font-size:12.5px;color:var(--lg-faint);}
 .dp-spring{margin-left:auto;}
 
-.dp-plan{width:100%;max-width:820px;max-height:400px;margin:0 auto;border-radius:14px;border:1px solid var(--lg-hair);
+/* Full width so the drawing is legible; height capped so decks read as long,
+   thin strips rather than tall boxes. */
+.dp-plan{width:100%;max-height:300px;margin:0 auto;border-radius:14px;border:1px solid var(--lg-hair);
   background-color:var(--lg-wash);box-shadow:var(--lg-sh-flat, 0 1px 2px rgba(28,27,58,.06));overflow:hidden;}
-.dp-plan-empty{display:flex;align-items:center;justify-content:center;width:100%;max-width:820px;margin:0 auto;min-height:120px;cursor:pointer;
+.dp-plan-empty{display:flex;align-items:center;justify-content:center;width:100%;min-height:110px;cursor:pointer;
   border:1px dashed var(--lg-hair);border-radius:14px;background:var(--lg-wash);color:var(--lg-terra);
   font-family:var(--lg-sans);font-size:13.5px;font-weight:500;}
 .dp-plan-empty:hover{border-color:var(--lg-terra);}
