@@ -685,13 +685,6 @@ const Marketplace = () => {
                             </div>
                           </div>
                           <div className="mp-face mp-back mp-sfback">
-                            <span className="tag">Your history with</span>
-                            <div className="mp-sfb-head">
-                              <span className="mp-sfb-logo">
-                                {focused.logo_url ? <img src={focused.logo_url} alt="" /> : initialsOf(focused.name)}
-                              </span>
-                              <span className="mp-sfb-nm">{focused.name}</span>
-                            </div>
                             {fmem && fmem.orders > 0 ? (
                               <div className="mp-sfb-led">
                                 <div className="r"><span className="l">Orders placed</span><span className="v">{fmem.orders}</span></div>
