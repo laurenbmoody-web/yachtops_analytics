@@ -1191,7 +1191,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const shortMsn = (m) => String(m || '').replace('MSN 1858 Amd 2 ', '').replace('MSN 1859 ', '').replace('MSN 1858 ', '');
 
   // ── pathway: progression spine (Condensed A) or logging-only record ──
-  const heldCount = Object.keys(effectiveHeld).filter(id => CERTIFICATES[id]).length;
   const selectGoals = (() => {
     const ids = [...deptGoalOptions];
     if (goalId && !ids.includes(goalId)) ids.push(goalId);
@@ -1232,7 +1231,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   <span className="stp-m" />
                   <span className="stp-row">
                     <span className="nm">{r.label} <span className="ref">{shortMsn(r.msn)}</span>{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}{isGoal && <span className="goaltag">Goal</span>}</span>
-                    <span className={`st ${status}`}>{isHeld ? <>Held{effectiveHeld[r.id].issueDate ? <> · <span className="dt">{fmtDate(effectiveHeld[r.id].issueDate)}</span></> : ''}</> : status === 'complete' ? 'Covered' : 'Upcoming'}</span>
+                    <span className="stp-rowend">
+                      <span className={`st ${status}`}>{isHeld ? <>Held{effectiveHeld[r.id].issueDate ? <> · <span className="dt">{fmtDate(effectiveHeld[r.id].issueDate)}</span></> : ''}</> : status === 'complete' ? 'Covered' : 'Upcoming'}</span>
+                      {(isHeld || status === 'complete') && <Icon name="Pencil" size={12} className="stp-edit" />}
+                    </span>
                   </span>
                 </button>
               );
@@ -1243,15 +1245,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className="stp-feat">
                   <div className="stp-feathead">
                     <div className="stp-titlewrap" ref={cfgRef}>
-                      <div className="stp-eyebrow">Now working toward · {r.msn}{isGoal ? ' · your goal' : ''}</div>
+                      <div className="stp-eyebrow">Now working toward{isGoal ? ' · your goal' : ''}</div>
                       <button type="button" className={`stp-titlebtn${pathwayCfgOpen ? ' open' : ''}`} onClick={() => setPathwayCfgOpen(o => !o)} aria-haspopup="dialog" aria-expanded={pathwayCfgOpen} title="Change department or goal">
                         <h4 className="stp-title">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}</h4>
                         <svg className="stp-titlechev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                       </button>
-                      {r.note && (
+                      {(r.note || r.msn) && (
                         <span className="std-fhelp stp-titlehelp" tabIndex={0} role="note" aria-label={`About ${r.label}`}>
                           <Icon name="Info" size={14} />
-                          <span className="std-fhelp-pop"><b>{r.label}</b><span>{r.note}</span></span>
+                          <span className="std-fhelp-pop"><b>{r.label}</b>{r.msn && <span className="stp-tipref">{r.msn}</span>}{r.note && <span>{r.note}</span>}</span>
                         </span>
                       )}
                       {certConfidence(r).authoritative === false && (
@@ -1743,14 +1745,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         </div>
       </div>
 
-      {/* Clickable section sub-header — the cert action moved off the toolbar:
-          work toward a certificate (or jump to held certificates). */}
-      <button type="button" className="cp-group-head std-pathhead" onClick={cert ? () => setHeldOpen(true) : startPathway}>
-        <span className="dia">◆</span>
-        <span className="t">{cert ? `Certificates held${heldCount ? ` (${heldCount})` : ''}` : 'Work toward a certificate'}</span>
-        <Icon name="ChevronRight" size={14} className="std-pathhead-chev" />
-        <span className="line" />
-      </button>
+      {/* When no certificate is in play, offer the entry point to start one.
+          Once a cert is held, held certificates are managed inline by clicking
+          the held rung in the pathway spine (with a pencil affordance), so this
+          full-width header is dropped to avoid a redundant floating line. */}
+      {!cert && (
+        <button type="button" className="cp-group-head std-pathhead" onClick={startPathway}>
+          <span className="dia">◆</span>
+          <span className="t">Work toward a certificate</span>
+          <Icon name="ChevronRight" size={14} className="std-pathhead-chev" />
+          <span className="line" />
+        </button>
+      )}
 
       {/* ── pathway spine / logging-only record ── */}
       {PathwaySection()}
