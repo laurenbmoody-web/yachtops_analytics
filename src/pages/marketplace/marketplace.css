@@ -245,6 +245,8 @@
 .mp-sfb-led .r:last-child { border-bottom: none; }
 .mp-sfb-led .r .l { font-family: 'Inter', system-ui, sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.48); }
 .mp-sfb-led .r .v { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400; font-size: 22px; color: #F7F4EE; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+/* dates are supporting metadata, not a headline figure — sit them down a size */
+.mp-sfb-led .r .v.v-date { font-size: 16px; letter-spacing: 0.3px; color: #E8E2D6; }
 .mp-sfb-empty { flex: 1; display: flex; align-items: center; font-family: 'Inter', system-ui, sans-serif; font-size: 13.5px; color: rgba(255,255,255,0.72); line-height: 1.5; }
 
 /* Rate control in the aisles band */
