@@ -1248,6 +1248,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                         <h4 className="stp-title">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}</h4>
                         <svg className="stp-titlechev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                       </button>
+                      {r.note && (
+                        <span className="std-fhelp stp-titlehelp" tabIndex={0} role="note" aria-label={`About ${r.label}`}>
+                          <Icon name="Info" size={14} />
+                          <span className="std-fhelp-pop"><b>{r.label}</b><span>{r.note}</span></span>
+                        </span>
+                      )}
                       {certConfidence(r).authoritative === false && (
                         <div className="stp-provisional">{certConfidence(r).label} — these figures aren’t yet confirmed against {r.msn}. Treat as a guide and verify with your training provider before applying.</div>
                       )}
@@ -1346,7 +1352,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                         : <>Only <b>officer service whilst holding {CERTIFICATES[r.heldWhilstCert]?.short || r.heldWhilst}</b> counts toward this CoC. Set that certificate’s issue date under <b>Certificates held</b> so only qualifying service is counted — for now it’s gated by capacity only.</>}</div>
                     </div>
                   )}
-                  {r.note && <div className="stp-cnote">{r.note}</div>}
                 </div>
               </div>
             );
