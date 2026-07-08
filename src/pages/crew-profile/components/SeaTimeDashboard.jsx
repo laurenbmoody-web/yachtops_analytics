@@ -1230,7 +1230,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <button className={`stp-step ${status}${isGoal ? ' goal' : ''}`} key={r.id} type="button" onClick={onClick}>
                   <span className="stp-m" />
                   <span className="stp-row">
-                    <span className="nm">{r.label} <span className="ref">{shortMsn(r.msn)}</span>{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}{isGoal && <span className="goaltag">Goal</span>}</span>
+                    <span className="nm">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}{isGoal && <span className="goaltag">Goal</span>}</span>
                     <span className="stp-rowend">
                       <span className={`st ${status}`}>{isHeld ? <>Held{effectiveHeld[r.id].issueDate ? <> · <span className="dt">{fmtDate(effectiveHeld[r.id].issueDate)}</span></> : ''}</> : status === 'complete' ? 'Covered' : 'Upcoming'}</span>
                       {(isHeld || status === 'complete') && <Icon name="Pencil" size={12} className="stp-edit" />}
@@ -1305,7 +1305,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                             <span className="v">{rq.required ? <>{rq.current}<em>/{rq.required}</em></> : '—'}</span>
                             {rq.required ? (rq.met
                               ? <span className="stp-reqpill met">Met</span>
-                              : <span className="stp-reqpill togo">{rq.remaining} to go</span>) : null}
+                              : (requirements.length > 1 ? <span className="stp-reqpill togo">{rq.remaining} to go</span> : null)) : null}
                           </div>
                           <div className="stp-track"><i style={{ width: `${rq.pct}%` }} /></div>
                           {rq.orBranch && rq.detail && (
@@ -1452,7 +1452,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className={`stp-drc ${h ? 'held' : ''}`} key={c.id}>
                   <div className="row">
                     <span className="mk">{h ? <Icon name="Check" size={13} color="#3F7A52" /> : <span className="dot" />}</span>
-                    <div className="nm">{c.label} <span className="ref">{shortMsn(c.msn)}</span>{c.legacyAlias && <span className="stp-alias">{c.legacyAlias}</span>}</div>
+                    <div className="nm">{c.label}{c.legacyAlias && <span className="stp-alias">{c.legacyAlias}</span>}</div>
                   </div>
                   {h ? (
                     <>
