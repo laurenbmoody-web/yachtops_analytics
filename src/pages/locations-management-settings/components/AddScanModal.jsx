@@ -42,7 +42,6 @@ export default function AddScanModal({ space, onClose, onComplete }) {
   const [orientSaving, setOrientSaving] = useState(false);
   const [orientError, setOrientError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
-  const [listOpen, setListOpen] = useState(false); // unclaimed-scans list collapsed by default
   const activeUploadRef = useRef(null);
   const viewerApiRef = useRef(null);
   const completedRef = useRef(false); // fire onComplete at most once
@@ -244,7 +243,7 @@ export default function AddScanModal({ space, onClose, onComplete }) {
               <span className="dot">●</span><span>Location</span>
               <span className="bar" /><span className="muted">{space?.name}</span>
             </p>
-            <h2 className="asm-title editorial-greeting">UPLOAD<span className="period">,</span> <em>Scan</em><span className="period">.</span></h2>
+            <h2 className="asm-title editorial-greeting">ADD<span className="period">,</span> <em>Scan</em><span className="period">.</span></h2>
           </div>
           {dismissable && <button className="asm-close" aria-label="Close" onClick={close}>✕</button>}
         </div>
@@ -255,14 +254,7 @@ export default function AddScanModal({ space, onClose, onComplete }) {
               <p className="asm-loading">Looking for existing scans…</p>
             ) : (
               <>
-                <button className="asm-listtoggle" onClick={() => setListOpen((o) => !o)} aria-expanded={listOpen}>
-                  <span className={`asm-chev${listOpen ? ' open' : ''}`} aria-hidden="true">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  </span>
-                  <span className="asm-listtoggle-label">Unclaimed scans</span>
-                  <span className="asm-listcount">{unlinked.length}</span>
-                </button>
-                {listOpen && (
+                <p className="asm-listlabel">Link a ready scan <span className="asm-listcount">{unlinked.length}</span></p>
                 <div className="asm-scanlist">
                   {unlinked.map((sc) => (
                     <button key={sc.id} className="asm-scanrow" disabled={!!linkBusy} onClick={() => linkScan(sc)}>
@@ -277,12 +269,8 @@ export default function AddScanModal({ space, onClose, onComplete }) {
                     </button>
                   ))}
                 </div>
-                )}
                 {linkError && <p className="vmm-error">{linkError}</p>}
-                <div className="asm-or"><span>or</span></div>
-                <div className="asm-uploadrow">
-                  <button className="asm-upload-btn" onClick={() => setStep('pick')}>Upload a new scan instead</button>
-                </div>
+                <button className="asm-uploadlink" onClick={() => setStep('pick')}>or upload a new scan instead</button>
               </>
             )}
           </div>
