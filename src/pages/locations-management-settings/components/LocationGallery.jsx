@@ -15,6 +15,7 @@ import {
 } from '../utils/locationsHierarchyStorage';
 import AddScanModal from './AddScanModal';
 import ScanMotif from './ScanMotif';
+import DeckPlanView from './DeckPlanView';
 import '../location-gallery.css';
 
 const FlowIcon = () => (
@@ -26,6 +27,11 @@ const GridIcon = () => (
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
     <rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.3" /><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.3" />
     <rect x="3.5" y="11" width="5.5" height="5.5" rx="1.3" /><rect x="11" y="11" width="5.5" height="5.5" rx="1.3" />
+  </svg>
+);
+const PlanIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+    <rect x="3" y="3.5" width="14" height="13" rx="1.6" /><path d="M3 8.5h14M9 8.5v8M9 3.5v2" strokeLinecap="round" />
   </svg>
 );
 const GripIcon = () => (
@@ -354,6 +360,7 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
               <div className="lg-seg" role="tablist" aria-label="View">
                 <button className={view === 'flow' ? 'on' : ''} aria-selected={view === 'flow'} onClick={() => setViewPersist('flow')}><FlowIcon />Flow</button>
                 <button className={view === 'static' ? 'on' : ''} aria-selected={view === 'static'} onClick={() => setViewPersist('static')}><GridIcon />Static</button>
+                <button className={view === 'plan' ? 'on' : ''} aria-selected={view === 'plan'} onClick={() => setViewPersist('plan')}><PlanIcon />Plan</button>
               </div>
               <button className="lg-btn-primary" onClick={() => startEdit('new-deck')}>＋ New deck</button>
             </div>
@@ -367,14 +374,18 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
             <div className="lg-loading">Loading the vessel…</div>
           )}
 
-          {!loading && data?.decks?.length === 0 && (
+          {!loading && view === 'plan' && (
+            <DeckPlanView decks={data?.decks || []} />
+          )}
+
+          {!loading && view !== 'plan' && data?.decks?.length === 0 && (
             <div className="lg-empty">
               <div className="big">No decks yet</div>
               Start by adding a deck — then zones and spaces inside it.
             </div>
           )}
 
-          {!loading && data?.decks?.map((deck) => {
+          {!loading && view !== 'plan' && data?.decks?.map((deck) => {
             const deckClosed = isClosed(deck.id);
             return (
               <div
