@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
+import ScanMotif from './ScanMotif';
 import GuideCards from '../../vessel-map/components/GuideCards';
 import SplatViewer from '../../vessel-map/components/SplatViewer';
 import OrientPanel from '../../vessel-map/components/OrientPanel';
@@ -258,7 +259,7 @@ export default function AddScanModal({ space, onClose, onComplete }) {
                   {unlinked.map((sc) => (
                     <button key={sc.id} className="asm-scanrow" disabled={!!linkBusy} onClick={() => linkScan(sc)}>
                       <span className="asm-scanthumb">
-                        {sc.thumbUrl ? <img src={sc.thumbUrl} alt="" /> : <span className="asm-scanthumb-ph" />}
+                        {sc.thumbUrl ? <img src={sc.thumbUrl} alt="" /> : <span className="asm-scanthumb-ph"><ScanMotif /></span>}
                       </span>
                       <span className="asm-scanmeta">
                         <span className="asm-scanname">{sc.name}</span>

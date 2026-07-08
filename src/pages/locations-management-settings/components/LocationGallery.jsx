@@ -14,6 +14,7 @@ import {
   reorderLocations,
 } from '../utils/locationsHierarchyStorage';
 import AddScanModal from './AddScanModal';
+import ScanMotif from './ScanMotif';
 import '../location-gallery.css';
 
 const FlowIcon = () => (
@@ -316,7 +317,7 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
           {scanned && scan.thumbUrl ? (
             <div className="img" style={{ backgroundImage: `url("${scan.thumbUrl}")` }} />
           ) : scanned ? (
-            <div className="img" />
+            <div className="img motif"><ScanMotif /></div>
           ) : (
             <div className="noscan" onClick={(e) => { e.stopPropagation(); addScan(space); }}>
               <span className="sc">＋ Add scan</span>
