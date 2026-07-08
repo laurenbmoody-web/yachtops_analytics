@@ -1246,16 +1246,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   <div className="stp-feathead">
                     <div className="stp-titlewrap" ref={cfgRef}>
                       <div className="stp-eyebrow">Now working toward{isGoal ? ' · your goal' : ''}</div>
-                      <button type="button" className={`stp-titlebtn${pathwayCfgOpen ? ' open' : ''}`} onClick={() => setPathwayCfgOpen(o => !o)} aria-haspopup="dialog" aria-expanded={pathwayCfgOpen} title="Change department or goal">
-                        <h4 className="stp-title">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}</h4>
-                        <svg className="stp-titlechev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                      </button>
-                      {(r.note || r.msn) && (
-                        <span className="std-fhelp stp-titlehelp" tabIndex={0} role="note" aria-label={`About ${r.label}`}>
-                          <Icon name="Info" size={14} />
-                          <span className="std-fhelp-pop"><b>{r.label}</b>{r.msn && <span className="stp-tipref">{r.msn}</span>}{r.note && <span>{r.note}</span>}</span>
-                        </span>
-                      )}
+                      <div className="stp-titlerow">
+                        <button type="button" className={`stp-titlebtn${pathwayCfgOpen ? ' open' : ''}`} onClick={() => setPathwayCfgOpen(o => !o)} aria-haspopup="dialog" aria-expanded={pathwayCfgOpen} title="Change department or goal">
+                          <h4 className="stp-title">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}</h4>
+                          <svg className="stp-titlechev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                        </button>
+                        {(r.note || r.msn) && (
+                          <span className="std-fhelp stp-titlehelp" tabIndex={0} role="note" aria-label={`About ${r.label}`}>
+                            <Icon name="Info" size={14} />
+                            <span className="std-fhelp-pop"><b>{r.label}</b>{r.msn && <span className="stp-tipref">{r.msn}</span>}{r.note && <span>{r.note}</span>}</span>
+                          </span>
+                        )}
+                      </div>
                       {certConfidence(r).authoritative === false && (
                         <div className="stp-provisional">{certConfidence(r).label} — these figures aren’t yet confirmed against {r.msn}. Treat as a guide and verify with your training provider before applying.</div>
                       )}
