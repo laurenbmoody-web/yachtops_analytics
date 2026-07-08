@@ -100,6 +100,30 @@ export default function VesselMapPage() {
     [scans, selectedScanId]
   );
 
+  // Backfill a poster for scans that never got one: the first time a scan
+  // finishes loading on the map without a thumbnail, capture a frame and save
+  // it (new uploads already capture one during "stand it upright"). Runs once
+  // per scan per session, never while orienting.
+  const posterDoneRef = useRef(new Set());
+  useEffect(() => {
+    if (viewer.status !== 'ready' || orientDraft !== null) return undefined;
+    if (!selectedScan || !activeTenantId || selectedScan.thumb_path) return undefined;
+    if (posterDoneRef.current.has(selectedScan.id)) return undefined;
+    posterDoneRef.current.add(selectedScan.id);
+    const scan = selectedScan;
+    const t = setTimeout(async () => {
+      try {
+        const blob = await viewerApiRef.current?.captureFrame?.();
+        if (!blob) return;
+        const newThumbPath = await refreshScanThumb({ scan, tenantId: activeTenantId, blob });
+        if (newThumbPath) setScans((prev) => prev.map((s) => (s.id === scan.id ? { ...s, thumb_path: newThumbPath } : s)));
+      } catch (err) {
+        console.error('[vessel-map] auto poster capture failed:', err);
+      }
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [viewer.status, orientDraft, selectedScan?.id, selectedScan?.thumb_path, activeTenantId]);
+
   // ── Scans for the tenant ────────────────────────────────────────────────
   useEffect(() => {
     if (!activeTenantId) return;
