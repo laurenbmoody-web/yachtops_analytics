@@ -2101,12 +2101,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className="std-fnum">03</div>
                 <div className="std-fbody">
                   <span className="std-fchip" style={{ color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{canGenerate ? 'Ready to export' : 'Locked'}</span>
-                  <div className="std-ftitle">Hand your record to {vp.short}</div>
-                  {!canGenerate && (
-                    <div className="std-fnote" style={{ color: '#A32D2D' }}>
-                      <Icon name="Lock" size={13} /> Locked until steps 01–02 clear — {checks.filter(c => !c.ok).length} check{checks.filter(c => !c.ok).length === 1 ? '' : 's'} still outstanding above.
-                    </div>
-                  )}
+                  <div className="std-ftitle">Hand your record to {vp.short}
+                    {!canGenerate && (
+                      <span className="std-fhelp std-fhelp-lock" tabIndex={0} role="note" aria-label="Why this step is locked">
+                        <Icon name="Lock" size={13} />
+                        <span className="std-fhelp-pop">
+                          <b>Locked</b>
+                          <span>Clear steps 01–02 first — {checks.filter(c => !c.ok).length} check{checks.filter(c => !c.ok).length === 1 ? '' : 's'} still outstanding above.</span>
+                        </span>
+                      </span>
+                    )}
+                  </div>
                   {interiorPathway ? (
                     <div className="std-export-instr">Export your record below, then submit it to the PYA with your guest-on days, GUEST certificates and ID for the IAMI GUEST Yacht Purser CoC.</div>
                   ) : verifier === 'pya' ? (
@@ -2175,7 +2180,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     </div>
                   )}
                   <div className="std-export-actions">
-                    <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Service data (CSV)</button>
+                    <button className="std-dl" title="Your full logged sea service as a spreadsheet (CSV) — for your own records or manual submission." style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Download as spreadsheet</button>
                     {verifier !== 'pya' && <span className="std-fee">{vp.fee}</span>}
                   </div>
                 </div>
@@ -2278,7 +2283,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className="vs" style={{ maxWidth: 480 }}>{vp.instructions}</div>
                 <div className="std-flex" style={{ gap: 10, flexWrap: 'wrap' }}>
                   <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={onDownload}><Icon name="Download" size={15} /> Download PDF</button>
-                  <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Export data (CSV)</button>
+                  <button className="std-dl" title="Your full logged sea service as a spreadsheet (CSV)." style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Download as spreadsheet</button>
                   <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => flash('Pack emailed to the verifier (demo)')}><Icon name="Mail" size={15} /> Email pack</button>
                   <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => flash('Shared in Cargo (demo)')}><Icon name="Send" size={15} /> Send in Cargo</button>
                 </div>

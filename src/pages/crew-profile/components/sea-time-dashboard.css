@@ -181,6 +181,7 @@
 /* help affordance — inline info icon by the step title, popover on hover/focus */
 .std-fhelp{position:relative;display:inline-flex;vertical-align:middle;margin-left:8px;color:#AEB4C2;cursor:help;transition:color .15s;}
 .std-fhelp:hover,.std-fhelp:focus-visible{color:#C65A1A;outline:none;}
+.std-fhelp-lock{color:#C65A1A;}
 .std-fhelp-pop{position:absolute;left:-4px;top:calc(100% + 9px);z-index:30;width:316px;flex-direction:column;gap:6px;padding:14px 16px;background:#fff;border:1px solid #ECEAE3;border-radius:12px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);font-family:'Inter',system-ui,sans-serif;font-size:12px;line-height:1.45;color:#6B7280;display:none;cursor:default;}
 .std-fhelp:hover .std-fhelp-pop,.std-fhelp:focus-within .std-fhelp-pop{display:flex;}
 .std-fhelp-pop::before{content:'';position:absolute;left:9px;top:-5px;width:9px;height:9px;background:#fff;border-left:1px solid #ECEAE3;border-top:1px solid #ECEAE3;transform:rotate(45deg);}
@@ -235,7 +236,7 @@
 
 /* Step 03 — export & submit */
 .std-export-instr{font-size:12px;color:var(--muted);line-height:1.55;margin:8px 0 14px;max-width:640px;}
-.pya-dl{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 10px;}
+.pya-dl{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 18px;}
 .pya-dl-btn{display:inline-flex;align-items:center;gap:7px;background:var(--ink,#1C1B3A);color:#fff;border-radius:9px;padding:9px 16px;font-size:12.5px;font-weight:600;text-decoration:none;white-space:nowrap;flex:0 0 auto;transition:background .15s;}
 .pya-dl-btn:hover{background:#14132C;}
 .pya-dl-txt{font-size:12px;color:var(--muted);line-height:1.5;max-width:560px;}
