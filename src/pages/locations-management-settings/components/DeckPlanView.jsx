@@ -8,12 +8,22 @@ import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
 
+// Tallest a rendered deck plan may get. Width is capped to this × the crop's
+// aspect so the box ALWAYS keeps the crop's true proportions — capping height
+// on its own would distort a percentage-sized background.
+const MAX_PLAN_H = 340;
+
 // Background style that shows just the deck's crop of the shared GA image,
-// undistorted (box aspect matches the crop's pixel aspect).
+// undistorted (box aspect always equals the crop's pixel aspect).
 function cropStyle(crop, dims, url) {
-  const boxAspect = (crop.w * dims.w) / (crop.h * dims.h);
+  const boxAspect = (crop.w * dims.w) / (crop.h * dims.h) || 3;
   return {
-    aspectRatio: String(boxAspect || 3),
+    width: '100%',
+    // Cap the WIDTH, not the height: with aspect-ratio driving the height, the
+    // box can never exceed MAX_PLAN_H yet its shape stays exactly boxAspect, so
+    // the cropped drawing is never stretched.
+    maxWidth: `${Math.round(MAX_PLAN_H * boxAspect)}px`,
+    aspectRatio: String(boxAspect),
     backgroundImage: `url("${url}")`,
     backgroundSize: `${100 / crop.w}% ${100 / crop.h}%`,
     backgroundPosition: `${crop.w < 1 ? (crop.x / (1 - crop.w)) * 100 : 0}% ${crop.h < 1 ? (crop.y / (1 - crop.h)) * 100 : 0}%`,
