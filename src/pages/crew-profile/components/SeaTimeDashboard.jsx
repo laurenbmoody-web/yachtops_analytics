@@ -2118,7 +2118,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                             <span className="std-fhelp-pop">
                               <b>How it works</b>
                               <span>Install once. Then hit <b className="inl">Copy for PYA</b> on a record below and, on the PYA testimonial page, click <b className="inl">Fill from Cargo</b> — it types every field in for you.</span>
-                              <span>Private by design: it only reads the record you copied, only when you click Fill, and runs only on member.pya.org.</span>
                             </span>
                           </span>
                         </div>
