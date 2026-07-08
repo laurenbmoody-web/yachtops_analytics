@@ -497,6 +497,7 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
    opens an anchored popover to change department/goal, so the two chip pills
    that used to crowd the card header are gone. */
 .stp-titlewrap{position:relative;}
+.stp-titlehelp{margin-left:6px;transform:translateY(3px);}
 .stp-titlebtn{display:inline-flex;align-items:center;gap:7px;background:none;border:0;padding:0;margin:0;cursor:pointer;text-align:left;font-family:inherit;}
 .stp-titlebtn .stp-title{transition:color .12s;}
 .stp-titlebtn:hover .stp-title,.stp-titlebtn.open .stp-title{color:var(--rust);}
@@ -554,7 +555,6 @@ button.stp-step:hover .stp-row .nm{color:var(--rust);}
 .stp-req.done .l{color:var(--sage-deep);}
 .stp-accrual{font-size:12px;color:var(--muted);margin-top:14px;padding-left:12px;border-left:2px solid var(--rust);line-height:1.5;}
 .stp-accrual b{color:var(--ink);}
-.stp-cnote{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5;}
 /* While-holding / officer-capacity gate note for higher CoCs. */
 .stp-whilst{display:flex;gap:8px;align-items:flex-start;margin-top:13px;padding:10px 12px;background:#FBEFE9;border:1px solid #F0D7C8;border-radius:9px;font-size:11.5px;line-height:1.5;color:#7A3D14;}
 .stp-whilst svg{flex:none;margin-top:1px;color:#C65A1A;}
