@@ -1,7 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* Self-hosted Inter — the whole app's body font. Google Fonts was the
+   only source (here + index.html), so a blocked fonts.gstatic.com
+   (privacy extensions, offline) silently fell every surface back to the
+   system font — the CSS said Inter but it never rendered. This inlined
+   variable face (wght 100–900) is same-origin, always loads, and covers
+   every weight, so Inter renders reliably everywhere. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter.woff2') format('woff2');
+}
 
 @tailwind base;
 @tailwind components;
