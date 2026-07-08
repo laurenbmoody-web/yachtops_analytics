@@ -1032,26 +1032,32 @@ const ProvisioningWorkspace = () => {
             {canCreate && (
               <button
                 onClick={() => setShowNewBoard(true)}
-                className="pv-btn pv-btn-primary"
+                className="pv-btn pv-btn-primary pv-btn-expand"
+                aria-label="New board"
+                title="New board"
               >
                 <Icon name="Plus" className="w-4 h-4" />
-                New board
+                <span className="pv-btn-label">New board</span>
               </button>
             )}
             <button
               onClick={handleOpenWorkspaceReceive}
               disabled={workspaceItemsLoading || loading}
-              className="pv-btn pv-btn-secondary"
+              className="pv-btn pv-btn-secondary pv-btn-expand"
+              aria-label="Receive items"
+              title="Receive items"
             >
               <Icon name="PackageOpen" className="w-4 h-4" />
-              {workspaceItemsLoading ? 'Loading…' : 'Receive items'}
+              <span className="pv-btn-label">{workspaceItemsLoading ? 'Loading…' : 'Receive items'}</span>
             </button>
             <button
               onClick={() => navigate('/provisioning/marketplace')}
-              className="pv-btn pv-btn-secondary"
+              className="pv-btn pv-btn-secondary pv-btn-expand"
+              aria-label="Marketplace"
+              title="Marketplace"
             >
               <Icon name="Store" className="w-4 h-4" />
-              Marketplace
+              <span className="pv-btn-label">Marketplace</span>
             </button>
           </div>
         </div>

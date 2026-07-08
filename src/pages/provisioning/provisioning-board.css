@@ -70,6 +70,32 @@
 }
 .pv-btn-secondary:hover:not(:disabled) { border-color: var(--pv-navy); }
 
+/* Icon-only by default, label reveals on hover / keyboard focus. The
+   label collapses via max-width (animatable, unlike width:auto) so the
+   button grows smoothly to fit its text. Symmetric padding + no gap keep
+   the collapsed state a tidy square; the label's own margin spaces it
+   from the icon once revealed. aria-label/title carry the name while the
+   text is hidden. */
+.pv-btn-expand {
+  padding: 0 12px;
+  gap: 0;
+}
+.pv-btn-expand .pv-btn-label {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 0.2s ease, opacity 0.16s ease, margin-left 0.2s ease;
+}
+.pv-btn-expand:hover .pv-btn-label,
+.pv-btn-expand:focus-visible .pv-btn-label {
+  max-width: 180px;
+  opacity: 1;
+  margin-left: 8px;
+}
+
 /* ── Toolbar row (search + filters + nav links) ──────────── */
 .pv-toolbar {
   padding: 0 32px 24px;
