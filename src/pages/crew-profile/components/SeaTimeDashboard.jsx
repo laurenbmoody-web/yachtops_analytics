@@ -2150,10 +2150,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                           {sorted.map((s, i) => {
                             const isSub = !!submitted[spellKey(s)];
                             return (
-                        <div key={i} className="std-spell" style={{ opacity: isSub ? 0.72 : 1 }}>
+                        <div key={i} className="std-spell" style={{ opacity: isSub ? 0.88 : 1 }}>
                           <div className="std-spell-main">
                             <div className="nm">{vessels[s.vesselId]?.name || 'Vessel'} · {s.captainId === userId ? `your service as ${topRankWord}` : (s.captainName || 'Captain')}</div>
-                            <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}{isSub ? ` · submitted ${fmtDate(submitted[spellKey(s)].at)}` : ''}</div>
+                            <div className="std-vs">{fmtDate(s.from)} – {fmtDate(s.to)} · {s.days} {s.days === 1 ? 'day' : 'days'}{s.captainId === userId ? ' · endorsed by company' : ''}{isSub && <> · <span style={{ color: '#3F7A52', fontWeight: 600 }}>submitted {fmtDate(submitted[spellKey(s)].at)}</span></>}</div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             {verifier === 'nautilus'
@@ -2169,7 +2169,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                             )}
                             <div className="std-toggle" title="Mark this record submitted, or reopen it">
                               <button type="button" className={!isSub ? 'on' : ''} onClick={() => setSpellSubmitted(s, false)}>Open</button>
-                              <button type="button" className={isSub ? 'on' : ''} style={isSub ? { background: '#EAF3EC', color: '#3F7A52', boxShadow: '0 1px 2px rgba(28,27,58,.08)' } : undefined} onClick={() => setSpellSubmitted(s, true)}>Submitted</button>
+                              <button type="button" className={isSub ? 'on' : ''} style={isSub ? { background: '#3F7A52', color: '#fff', boxShadow: '0 1px 2px rgba(28,27,58,.14)' } : undefined} onClick={() => setSpellSubmitted(s, true)}>{isSub && <Icon name="Check" size={13} />} Submitted</button>
                             </div>
                           </div>
                         </div>
