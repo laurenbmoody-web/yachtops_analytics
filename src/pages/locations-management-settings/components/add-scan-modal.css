@@ -8,8 +8,10 @@
 .asm-panel.asm-wide{max-width:940px;}
 html[data-theme="night"] .asm-panel{background:#191833;border-color:#2C2B4C;}
 
-.asm-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;}
-.asm-head .editorial-meta{margin:0 0 3px;}
+.asm-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #EEF1F5;}
+html[data-theme="night"] .asm-head{border-bottom-color:#2A2947;}
+.asm-head .editorial-meta{margin:0 0 7px;}
 .asm-title{font-size:28px;line-height:1;margin:0;white-space:nowrap;}
 html[data-theme="night"] .asm-panel .editorial-greeting{color:#ECEEF8;}
 html[data-theme="night"] .asm-panel .editorial-greeting .period{color:#ECEEF8;}
@@ -37,9 +39,18 @@ html[data-theme="night"] .asm-done-title{color:#ECEEF8;}
 /* link-an-existing-scan pick list */
 .asm-loading{color:#8B8478;font-size:14px;padding:20px 2px;}
 html[data-theme="night"] .asm-loading{color:#9AA0B4;}
-.asm-listlabel{font-size:12px;font-weight:700;color:#1C1B3A;margin:0 0 8px;}
-html[data-theme="night"] .asm-listlabel{color:#ECEEF8;}
-.asm-scanlist{display:flex;flex-direction:column;gap:7px;margin:0 0 2px;max-height:min(44vh,340px);overflow-y:auto;}
+/* collapsible "unclaimed scans" toggle */
+.asm-listtoggle{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;cursor:pointer;
+  padding:2px 0;margin:0;font-family:inherit;color:#1C1B3A;}
+html[data-theme="night"] .asm-listtoggle{color:#ECEEF8;}
+.asm-chev{display:flex;align-items:center;justify-content:center;width:18px;height:18px;color:#8B8478;
+  transform:rotate(-90deg);transition:transform .18s ease;}
+.asm-chev svg{width:15px;height:15px;}
+.asm-chev.open{transform:rotate(0deg);}
+.asm-listtoggle-label{font-size:13.5px;font-weight:600;}
+.asm-listcount{font-size:11px;font-weight:700;color:#C65A1A;background:#FBEEE4;border-radius:999px;padding:2px 9px;line-height:1.4;}
+html[data-theme="night"] .asm-listcount{background:#2E2136;}
+.asm-scanlist{display:flex;flex-direction:column;gap:7px;margin:10px 0 2px;max-height:min(44vh,340px);overflow-y:auto;}
 .asm-scanrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;
   background:#FFFFFF;border:1px solid #E6E8EF;border-radius:11px;padding:7px 11px;transition:border-color .14s,box-shadow .14s;}
 .asm-scanrow:hover{border-color:#C65A1A;box-shadow:0 1px 2px rgba(28,27,58,.06),0 12px 26px -16px rgba(28,27,58,.3);}

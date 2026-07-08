@@ -42,6 +42,7 @@ export default function AddScanModal({ space, onClose, onComplete }) {
   const [orientSaving, setOrientSaving] = useState(false);
   const [orientError, setOrientError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [listOpen, setListOpen] = useState(false); // unclaimed-scans list collapsed by default
   const activeUploadRef = useRef(null);
   const viewerApiRef = useRef(null);
   const completedRef = useRef(false); // fire onComplete at most once
@@ -254,7 +255,14 @@ export default function AddScanModal({ space, onClose, onComplete }) {
               <p className="asm-loading">Looking for existing scans…</p>
             ) : (
               <>
-                <p className="asm-listlabel">Link:</p>
+                <button className="asm-listtoggle" onClick={() => setListOpen((o) => !o)} aria-expanded={listOpen}>
+                  <span className={`asm-chev${listOpen ? ' open' : ''}`} aria-hidden="true">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </span>
+                  <span className="asm-listtoggle-label">Unclaimed scans</span>
+                  <span className="asm-listcount">{unlinked.length}</span>
+                </button>
+                {listOpen && (
                 <div className="asm-scanlist">
                   {unlinked.map((sc) => (
                     <button key={sc.id} className="asm-scanrow" disabled={!!linkBusy} onClick={() => linkScan(sc)}>
@@ -269,6 +277,7 @@ export default function AddScanModal({ space, onClose, onComplete }) {
                     </button>
                   ))}
                 </div>
+                )}
                 {linkError && <p className="vmm-error">{linkError}</p>}
                 <div className="asm-or"><span>or</span></div>
                 <div className="asm-uploadrow">
