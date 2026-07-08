@@ -689,7 +689,7 @@ const Marketplace = () => {
                               <div className="mp-sfb-led">
                                 <div className="r"><span className="l">Orders placed</span><span className="v">{fmem.orders}</span></div>
                                 <div className="r"><span className="l">Total spent</span><span className="v">{fmtMoney(fmem.spend, fmem.currency)}</span></div>
-                                <div className="r"><span className="l">Last order</span><span className="v">{fmem.lastOrderAt ? fmtDate(fmem.lastOrderAt) : '—'}</span></div>
+                                <div className="r"><span className="l">Last order</span><span className="v v-date">{fmem.lastOrderAt ? fmtDate(fmem.lastOrderAt) : '—'}</span></div>
                               </div>
                             ) : (
                               <div className="mp-sfb-empty">No orders with them yet — be their first.</div>
