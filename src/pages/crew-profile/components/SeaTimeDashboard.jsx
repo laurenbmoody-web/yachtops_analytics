@@ -1245,7 +1245,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className="stp-feat">
                   <div className="stp-feathead">
                     <div className="stp-titlewrap" ref={cfgRef}>
-                      <div className="stp-eyebrow">Now working toward{isGoal ? ' · your goal' : ''}</div>
+                      {isGoal && <div className="stp-eyebrow">Your goal</div>}
                       <div className="stp-titlerow">
                         <button type="button" className={`stp-titlebtn${pathwayCfgOpen ? ' open' : ''}`} onClick={() => setPathwayCfgOpen(o => !o)} aria-haspopup="dialog" aria-expanded={pathwayCfgOpen} title="Change department or goal">
                           <h4 className="stp-title">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}</h4>
