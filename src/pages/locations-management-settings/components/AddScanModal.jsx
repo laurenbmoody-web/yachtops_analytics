@@ -238,10 +238,13 @@ export default function AddScanModal({ space, onClose, onComplete }) {
     <div className="asm-overlay" onClick={() => dismissable && close()}>
       <div className={`asm-panel${step === 'orient' ? ' asm-wide' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="asm-head">
-          <p className="editorial-meta">
-            <span className="dot">●</span><span>Location</span>
-            <span className="bar" /><span className="muted">{space?.name}</span>
-          </p>
+          <div className="asm-headtext">
+            <p className="editorial-meta">
+              <span className="dot">●</span><span>Location</span>
+              <span className="bar" /><span className="muted">{space?.name}</span>
+            </p>
+            <h2 className="asm-title editorial-greeting">UPLOAD<span className="period">,</span> <em>Scan</em><span className="period">.</span></h2>
+          </div>
           {dismissable && <button className="asm-close" aria-label="Close" onClick={close}>✕</button>}
         </div>
 
@@ -251,8 +254,7 @@ export default function AddScanModal({ space, onClose, onComplete }) {
               <p className="asm-loading">Looking for existing scans…</p>
             ) : (
               <>
-                <p className="vm-label">Link an existing scan</p>
-                <p className="vmm-note">These scans aren’t assigned to a space yet — pick one to place it in {space?.name}.</p>
+                <p className="asm-listlabel">Link:</p>
                 <div className="asm-scanlist">
                   {unlinked.map((sc) => (
                     <button key={sc.id} className="asm-scanrow" disabled={!!linkBusy} onClick={() => linkScan(sc)}>
@@ -269,7 +271,9 @@ export default function AddScanModal({ space, onClose, onComplete }) {
                 </div>
                 {linkError && <p className="vmm-error">{linkError}</p>}
                 <div className="asm-or"><span>or</span></div>
-                <button className="vm-btn-ghost" onClick={() => setStep('pick')}>Upload a new scan instead</button>
+                <div className="asm-uploadrow">
+                  <button className="asm-upload-btn" onClick={() => setStep('pick')}>Upload a new scan instead</button>
+                </div>
               </>
             )}
           </div>
