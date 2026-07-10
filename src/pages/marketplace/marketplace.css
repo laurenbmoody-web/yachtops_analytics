@@ -78,17 +78,17 @@
 .mp-sub { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; max-width: 60ch; }
 
 /* ── Search field (shared) ── */
-/* Search / filter / sort controls — matched EXACTLY to the provisioning
-   boards toolbar (.pv-toolbar-search-input / .pv-toolbar-select): global
-   --d- design tokens, 0.5px hairline, radius 11px, 42px tall, 13px/400. */
+/* Controls keep the marketplace's own boxes; only the TEXT is matched to
+   the provisioning toolbar — 13px / weight 400, --d-navy text, --d-muted
+   placeholders (the fonts, not the container). */
 .mp-searchwrap {
   display: inline-flex; align-items: center; gap: 9px;
-  border: 0.5px solid var(--d-border); border-radius: 11px; background: var(--d-card);
-  padding: 0 14px; height: 42px; min-width: 260px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2);
+  padding: 0 14px; height: 40px; min-width: 260px;
 }
 .mp-searchwrap.grow { flex: 1; min-width: 240px; max-width: 400px; }
 .mp-searchwrap .ic { color: var(--d-muted); flex: none; }
-.mp-searchwrap:focus-within { border-color: var(--d-navy); }
+.mp-searchwrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--halo); background: var(--surface); }
 .mp-search.bare { border: none; background: transparent; outline: none; width: 100%; font-family: inherit; font-size: 13px; font-weight: 400; color: var(--d-navy); }
 .mp-search.bare::placeholder { color: var(--d-muted); font-weight: 400; }
 .mp-allitems {
@@ -319,19 +319,23 @@
 
 /* ── Controls (aisles + all-items) ── */
 .mp-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
-.mp-filter { display: inline-flex; align-items: center; }
+.mp-filter {
+  display: inline-flex; align-items: center;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  height: 40px; padding: 0 6px 0 12px;
+}
 .mp-filter .k { display: none; }
 .mp-filter select {
-  height: 42px; padding: 0 32px 0 14px;
-  border: 0.5px solid var(--d-border); border-radius: 11px;
-  background-color: var(--d-card); color: var(--d-navy);
+  border: none; background-color: transparent; color: var(--d-navy);
   font-family: inherit; font-size: 13px; font-weight: 400;
-  outline: none; cursor: pointer; max-width: 200px;
+  height: 38px; cursor: pointer; max-width: 200px; outline: none;
   -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  padding: 0 20px 0 2px;
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23695880' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat; background-position: right 10px center; background-size: 14px;
+  background-repeat: no-repeat; background-position: right center; background-size: 14px;
 }
-.mp-filter select:focus { border-color: var(--d-navy); }
+.mp-filter select:focus { outline: none; }
+.mp-filter:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--halo); }
 .mp-clear {
   border: none; background: transparent; cursor: pointer; font-family: inherit;
   font-size: 12.5px; font-weight: 600; color: var(--accent); padding: 8px 10px; border-radius: 8px; white-space: nowrap;
@@ -341,12 +345,12 @@
 
 /* Location searcher — opens the map popover ("serves my area") */
 .mp-locfield {
-  display: inline-flex; align-items: center; gap: 8px; cursor: pointer; text-align: left;
-  border: 0.5px solid var(--d-border); border-radius: 11px; background: var(--d-card);
-  padding: 0 14px; height: 42px; min-width: 210px; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer; text-align: left;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  padding: 0 13px; height: 40px; min-width: 210px; font-family: inherit;
   transition: border-color .15s, background .15s;
 }
-.mp-locfield:hover { border-color: var(--d-navy); }
+.mp-locfield:hover { border-color: var(--accent); }
 .mp-locfield .ic { color: var(--d-muted); flex: none; }
 .mp-locfield.set { border-color: var(--accent); background: var(--tint); }
 .mp-locfield.set .ic { color: var(--accent); }
