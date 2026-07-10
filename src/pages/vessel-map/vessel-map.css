@@ -1456,3 +1456,11 @@
 }
 .vm-door-cancel { background: rgba(255, 255, 255, 0.12); }
 .vm-door-cancel:hover { background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.3); }
+
+/* Doorway to a room that isn't scanned yet — placeable, but not walkable. */
+.vm-door.vm-door-off {
+  opacity: 0.55;
+  cursor: default;
+  background: rgba(255, 255, 255, 0.05);
+}
+.vm-door.vm-door-off:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.22); }
