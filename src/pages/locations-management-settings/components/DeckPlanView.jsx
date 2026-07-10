@@ -71,8 +71,10 @@ function FrameEditor({ gaUrl, deckName, initial, onSave, onCancel }) {
   );
 }
 
-export default function DeckPlanView({ decks = [] }) {
+export default function DeckPlanView({ decks = [], onAddScan }) {
   const navigate = useNavigate();
+  const onAddScanRef = useRef(onAddScan);
+  onAddScanRef.current = onAddScan;
   const [layout, setLayout] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -124,8 +126,12 @@ export default function DeckPlanView({ decks = [] }) {
     const rect = planRefs.current[d.deckId]?.getBoundingClientRect();
     const inside = rect && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
     if (!moved) {
-      // A click (no real drag): open a scanned room on the map.
-      if (d.fromPlaced && d.scanId) navigate(`/vessel/map?scan=${d.scanId}`);
+      // A click (no real drag) on a placed room: open a scanned room on the
+      // map, or start the add-scan flow for one that isn't scanned yet.
+      if (d.fromPlaced) {
+        if (d.scanId) navigate(`/vessel/map?scan=${d.scanId}`);
+        else onAddScanRef.current?.({ id: d.spaceId, name: d.name });
+      }
     } else if (inside) {
       applyPos(d.spaceId, clamp01((e.clientX - rect.left) / rect.width), clamp01((e.clientY - rect.top) / rect.height));
     } else if (d.fromPlaced) {
@@ -258,7 +264,7 @@ export default function DeckPlanView({ decks = [] }) {
                         className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''}`}
                         style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
                         onPointerDown={(e) => startDrag(e, s, deck, true)}
-                        title={scanned ? `${s.name} — open on map` : s.name}
+                        title={scanned ? `${s.name} — open on map` : `${s.name} — add a scan`}
                       >
                         <span className="dp-pin-label">{s.name}</span>
                       </div>
