@@ -17,11 +17,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, ChevronLeft, ShoppingBasket, ClipboardList, Moon, Sun, Search, X, ChevronRight, MapPin,
+  ArrowLeft, ChevronLeft, ShoppingBasket, ClipboardList, Search, X, ChevronRight, MapPin,
 } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { showToast } from '../../utils/toast';
 import {
   fetchMarketplaceSuppliers,
@@ -57,7 +58,6 @@ const BOARD_STATUS_LABEL = {
   confirmed: 'confirmed', partially_delivered: 'partially delivered',
 };
 const NEW_BOARD = '__new__';
-const THEME_KEY = 'mp-theme';
 
 const fmtDate = (iso) => {
   if (!iso) return null;
@@ -196,12 +196,10 @@ const Marketplace = () => {
   const [browseAll, setBrowseAll] = useState(false);
   const [deckIndex, setDeckIndex] = useState(0); // focused shop in the coverflow
 
-  // Theme — The Dark Market lives here as a switch, remembered per user.
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light'; }
-    catch { return 'light'; }
-  });
-  useEffect(() => { try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ } }, [theme]);
+  // The Dark Market follows the app-wide day/night theme (the nav bar's
+  // toggle) — no separate control on the page.
+  const { theme: appTheme } = useTheme();
+  const theme = appTheme === 'night' ? 'dark' : 'light';
 
   // Browse controls (shared by aisles + all-items).
   const [search, setSearch] = useState('');
@@ -500,14 +498,6 @@ const Marketplace = () => {
             <button className="mp-back" onClick={() => navigate('/provisioning')}>
               <ChevronLeft size={16} /> Back to Provisioning
             </button>
-            <div className="mp-meta-spacer" />
-            <button
-              className="mp-theme"
-              onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
-              title={theme === 'dark' ? 'Day market' : 'Night market'}
-            >
-              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-            </button>
           </div>
 
           {error && <div className="mp-error">{error}</div>}
@@ -598,7 +588,7 @@ const Marketplace = () => {
                     <label className="mp-filter">
                       <span className="k">Category</span>
                       <select value={provCat} onChange={(e) => { setProvCat(e.target.value); setDeckIndex(0); }}>
-                        <option value="All">All</option>
+                        <option value="All">All categories</option>
                         {provCats.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </label>
@@ -795,7 +785,7 @@ const Marketplace = () => {
                   <label className="mp-filter">
                     <span className="k">Port</span>
                     <select value={port} onChange={(e) => setPort(e.target.value)}>
-                      <option value="All">All</option>
+                      <option value="All">All ports</option>
                       {ports.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                   </label>
@@ -803,7 +793,7 @@ const Marketplace = () => {
                 <label className="mp-filter">
                   <span className="k">Category</span>
                   <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                    <option value="All">All ({searched.length})</option>
+                    <option value="All">All categories ({searched.length})</option>
                     {chipDefs.filter(c => c.key !== 'All').map(c => (
                       <option key={c.key} value={c.key}>{c.label} ({c.count})</option>
                     ))}

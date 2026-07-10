@@ -86,8 +86,8 @@
 .mp-searchwrap.grow { flex: 1; min-width: 240px; max-width: 400px; }
 .mp-searchwrap .ic { color: var(--faint); flex: none; }
 .mp-searchwrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--halo); background: var(--surface); }
-.mp-search.bare { border: none; background: transparent; outline: none; width: 100%; font-family: inherit; font-size: 13.5px; color: var(--ink); }
-.mp-search.bare::placeholder { color: var(--faint); }
+.mp-search.bare { border: none; background: transparent; outline: none; width: 100%; font-family: inherit; font-size: 15px; font-weight: 500; color: var(--ink); }
+.mp-search.bare::placeholder { color: var(--faint); font-weight: 500; }
 .mp-allitems {
   display: inline-flex; align-items: center; gap: 5px; height: 40px; padding: 0 16px;
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--ink);
@@ -125,7 +125,7 @@
 
 .mp-deck {
   display: flex; align-items: center; justify-content: center;
-  height: 300px; position: relative; margin-bottom: 24px;
+  height: 236px; position: relative; margin-bottom: 4px;
 }
 .mp-supcard {
   width: 400px; height: 206px; border-radius: 18px; flex: none; position: relative; z-index: 2;
@@ -321,10 +321,10 @@
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
   padding: 0 4px 0 12px; height: 40px;
 }
-.mp-filter .k { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--soft); white-space: nowrap; }
+.mp-filter .k { display: none; }
 .mp-filter select {
-  border: none; background: transparent; font-family: inherit; font-size: 13px; font-weight: 600;
-  color: var(--ink); padding: 0 6px 0 2px; height: 38px; cursor: pointer; max-width: 180px;
+  border: none; background: transparent; font-family: inherit; font-size: 15px; font-weight: 500;
+  color: var(--ink); padding: 0 6px 0 4px; height: 38px; cursor: pointer; max-width: 200px;
 }
 .mp-filter select:focus { outline: none; }
 .mp-filter:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--halo); }
@@ -347,10 +347,10 @@
 .mp-locfield.set { border-color: var(--accent); background: var(--tint); }
 .mp-locfield.set .ic { color: var(--accent); }
 .mp-loc-val {
-  font-size: 13px; font-weight: 500; color: var(--ink);
+  font-size: 15px; font-weight: 500; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;
 }
-.mp-loc-val.ph { color: var(--faint); font-weight: 400; }
+.mp-loc-val.ph { color: var(--faint); font-weight: 500; }
 
 /* ── Product grid ── */
 .mp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 14px; }
