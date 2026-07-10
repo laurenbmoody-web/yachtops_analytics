@@ -95,16 +95,17 @@ export default function VesselMapPage() {
   const isDesktop = useIsDesktop();
   const placementMode = mode === 'pin';
 
-  const [spaceLinks, setSpaceLinks] = useState([]); // doorway links [{a,b}]
+  const [spaceLinks, setSpaceLinks] = useState([]); // doorway links [{id,a,b,aPos,bPos}]
+  const [placingDoor, setPlacingDoor] = useState(null); // {linkId, end, name} being anchored in 3D
 
   const selectedScan = useMemo(
     () => scans.find((s) => s.id === selectedScanId) || null,
     [scans, selectedScanId]
   );
 
-  // Doorways from the current room: linked spaces that have a ready scan you
-  // can walk into. Drives the "Walk to" controls on the stage.
-  const doorways = useMemo(() => {
+  // Doorways from the current room: each link that reaches a room with a scan,
+  // with which end this room is (a/b) and the doorway's placed position (if any).
+  const roomDoorways = useMemo(() => {
     const sid = selectedScan?.space_id;
     if (!sid || spaceLinks.length === 0) return [];
     const scanBySpace = {};
@@ -112,13 +113,29 @@ export default function VesselMapPage() {
     const seen = new Set();
     const out = [];
     spaceLinks.forEach((l) => {
-      const other = l.a === sid ? l.b : l.b === sid ? l.a : null;
-      if (!other || seen.has(other)) return;
+      const end = l.a === sid ? 'a' : l.b === sid ? 'b' : null;
+      if (!end) return;
+      const other = end === 'a' ? l.b : l.a;
+      if (seen.has(other)) return;
       const target = scanBySpace[other];
-      if (target && target.id !== selectedScan.id) { seen.add(other); out.push(target); }
+      if (target && target.id !== selectedScan.id) {
+        seen.add(other);
+        out.push({ linkId: l.id, end, target, pos: end === 'a' ? l.aPos : l.bPos });
+      }
     });
     return out;
   }, [selectedScan?.space_id, selectedScan?.id, spaceLinks, scans]);
+
+  const doorways = useMemo(() => roomDoorways.map((d) => d.target), [roomDoorways]);
+
+  // Placed doorways become 3D pins in the scene (terracotta, flagged isDoor so
+  // they ride the hotspot sprite path but navigate on click).
+  const doorPins = useMemo(
+    () => roomDoorways
+      .filter((d) => d.pos)
+      .map((d) => ({ id: `door-${d.linkId}`, isDoor: true, targetScanId: d.target.id, label: d.target.name, position: d.pos, color: '#0E7C86', layer: 'doorway' })),
+    [roomDoorways]
+  );
 
   // Backfill a poster for scans that never got one: the first time a scan
   // finishes loading on the map without a thumbnail, capture a frame and save
@@ -177,20 +194,16 @@ export default function VesselMapPage() {
   }, [activeTenantId]);
 
   // ── Doorway links between rooms (for walkthrough navigation) ─────────────
-  useEffect(() => {
-    if (!activeTenantId) return undefined;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from('vessel_space_links')
-        .select('a_space_id, b_space_id')
-        .eq('tenant_id', activeTenantId);
-      if (cancelled) return;
-      if (error) { console.error('[vessel-map] links fetch error:', error); setSpaceLinks([]); }
-      else setSpaceLinks((data || []).map((r) => ({ a: r.a_space_id, b: r.b_space_id })));
-    })();
-    return () => { cancelled = true; };
+  const loadLinks = useCallback(async () => {
+    if (!activeTenantId) return;
+    const { data, error } = await supabase
+      .from('vessel_space_links')
+      .select('id, a_space_id, b_space_id, a_pos, b_pos')
+      .eq('tenant_id', activeTenantId);
+    if (error) { console.error('[vessel-map] links fetch error:', error); setSpaceLinks([]); return; }
+    setSpaceLinks((data || []).map((r) => ({ id: r.id, a: r.a_space_id, b: r.b_space_id, aPos: r.a_pos, bPos: r.b_pos })));
   }, [activeTenantId]);
+  useEffect(() => { loadLinks(); }, [loadLinks]);
 
   // ── Signed URL for the selected scan's file ─────────────────────────────
   useEffect(() => {
@@ -280,6 +293,8 @@ export default function VesselMapPage() {
     () => hotspots.map((h) => ({ ...h, color: h.color || layerColor(h.layer) })),
     [hotspots]
   );
+  // Hotspots + placed doorway pins — one stable array for the viewer.
+  const viewerHotspots = useMemo(() => [...allHotspots, ...doorPins], [allHotspots, doorPins]);
   const visibleLayerList = useMemo(() => [...activeLayers], [activeLayers]);
 
   const toggleLayer = (key) => setActiveLayers((prev) => {
@@ -322,6 +337,37 @@ export default function VesselMapPage() {
   const placePending = (pos) => {
     setPendingPosition(pos);
     if (isDesktop && pos && !adjusting) setModalOpen(true);
+  };
+
+  // ── Doorway pin placement ───────────────────────────────────────────────
+  // Anchor a link's doorway to a 3D spot in the current scan; one click saves.
+  const startPlaceDoor = (d) => {
+    setSelectedHotspot(null);
+    setPendingPosition(null);
+    setAdjusting(null);
+    setMode('navigate');
+    setPlacingDoor({ linkId: d.linkId, end: d.end, name: d.target.name });
+  };
+  const saveDoorPosition = async (linkId, end, pos) => {
+    const col = end === 'a' ? 'a_pos' : 'b_pos';
+    const { error } = await supabase.from('vessel_space_links').update({ [col]: pos }).eq('id', linkId);
+    if (error) { console.error('[vessel-map] door position save error:', error); return; }
+    await loadLinks();
+  };
+  // The viewer's place callback: routes to door anchoring or hotspot creation.
+  const handleViewerPlace = (pos) => {
+    if (placingDoor) {
+      const { linkId, end } = placingDoor;
+      setPlacingDoor(null);
+      if (pos) saveDoorPosition(linkId, end, pos);
+      return;
+    }
+    placePending(pos);
+  };
+  // Click a pin: doorway pins walk you through; everything else selects.
+  const handleSelectHotspot = (h) => {
+    if (h?.isDoor) { setSelectedScanId(h.targetScanId); return; }
+    setSelectedHotspot(h);
   };
 
   const dismissModal = () => {
@@ -606,14 +652,14 @@ export default function VesselMapPage() {
                     cameraTarget={selectedScan.camera_target}
                     splatRotation={liveRotation}
                     splatScale={selectedScan.splat_scale}
-                    hotspots={allHotspots}
+                    hotspots={viewerHotspots}
                     visibleLayers={visibleLayerList}
                     selectedId={selectedHotspot?.id ?? null}
                     adjustingId={adjusting?.id ?? null}
-                    placementMode={placementMode}
+                    placementMode={placementMode || !!placingDoor}
                     pendingPosition={pendingPosition}
-                    onPlacePending={placePending}
-                    onSelectHotspot={setSelectedHotspot}
+                    onPlacePending={handleViewerPlace}
+                    onSelectHotspot={handleSelectHotspot}
                     onHoverHotspot={(h, at) => setHovered(h ? { id: h.id, label: h.label, x: at.x, y: at.y } : null)}
                     onLoadState={setViewer}
                     apiRef={viewerApiRef}
@@ -737,14 +783,35 @@ export default function VesselMapPage() {
                   <div className="vm-ov-chips">{layerChips('vm-chip-dark')}</div>
                 </div>
 
-                {showViewer && viewer.status !== 'error' && !placementMode && !orientDraft && !adjusting && doorways.length > 0 && (
+                {showViewer && viewer.status !== 'error' && !orientDraft && !adjusting && mode !== 'pin' && (placingDoor || roomDoorways.length > 0) && (
                   <div className="vm-doors">
-                    <span className="vm-doors-label">Walk to</span>
-                    {doorways.map((t) => (
-                      <button key={t.id} className="vm-door" onClick={() => setSelectedScanId(t.id)} title={`Walk through to ${t.name}`}>
-                        {t.name}<span className="vm-door-arrow" aria-hidden="true">→</span>
-                      </button>
-                    ))}
+                    {placingDoor ? (
+                      <>
+                        <span className="vm-doors-label">Placing</span>
+                        <span className="vm-door-placing">Click the doorway to “{placingDoor.name}” in this scan</span>
+                        <button className="vm-door vm-door-cancel" onClick={() => setPlacingDoor(null)}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="vm-doors-label">Walk to</span>
+                        {roomDoorways.map((d) => (
+                          <span key={d.linkId} className="vm-door-item">
+                            <button className="vm-door" onClick={() => setSelectedScanId(d.target.id)} title={`Walk through to ${d.target.name}`}>
+                              {d.target.name}<span className="vm-door-arrow" aria-hidden="true">→</span>
+                            </button>
+                            {canPlaceHotspots && (
+                              <button
+                                className="vm-door-pinbtn"
+                                onClick={() => startPlaceDoor(d)}
+                                title={d.pos ? `Reposition the doorway pin to ${d.target.name}` : `Place a pin on the doorway to ${d.target.name}`}
+                              >
+                                {d.pos ? '⤺' : '＋'}
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
 
