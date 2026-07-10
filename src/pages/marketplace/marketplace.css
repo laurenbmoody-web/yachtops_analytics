@@ -94,6 +94,9 @@
   font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .mp-allitems:hover { border-color: var(--accent); color: var(--accent); }
+/* Centered 'Browse All' beneath the deck — a distinct 'see everything'
+   action, separate from the supplier filters above. */
+.mp-browse-row { display: flex; justify-content: center; margin-top: 26px; }
 
 /* ── i · The Providers — coverflow deck ──
    Suppliers are the hero, presented like the scan deck: a lit dark
