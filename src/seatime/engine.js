@@ -65,7 +65,7 @@ export const VERIFIER_PROFILES = {
       { id: 'passport', label: 'Attested passport copy (ID)', profileDoc: 'passport_certified_copy' },
       { id: 'srb', label: 'Discharge book / Service Record Book scan', profileDoc: 'seamans_book', optional: true }
     ],
-    fee: 'Members only — join Nautilus to use the service; a free Commercial Yacht SRB is included (MIN 543 authorised).',
+    fee: '',
     // Nautilus issue their own SST form — Cargo fills Parts 1–2 from your record;
     // the master signs Parts 3–4 and Nautilus verify (Part 5).
     instructions: 'Nautilus International verify yacht sea service for the MCA (MIN 543). Export your pre-filled Nautilus testimonial here, have the master sign and stamp it, then submit to Nautilus to verify with the signatory.',
