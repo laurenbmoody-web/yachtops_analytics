@@ -253,12 +253,11 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     <div className="dp">
       {hidden}
       <div className="dp-toolbar">
-        <span className="dp-toolbar-note">{linkMode ? (pendingLink ? 'Now click the room it connects to (or the same dot to cancel).' : 'Click two rooms to link them through a doorway.') : 'Frame each deck, then drag its rooms onto the plan.'}</span>
+        <span className="dp-toolbar-note">Frame each deck, then drag its rooms onto the plan.</span>
         <div className="dp-legend" aria-hidden="true">
           <span className="dp-legend-item"><span className="dp-swatch is-scanned" /> Scanned</span>
           <span className="dp-legend-item"><span className="dp-swatch is-empty" /> Not scanned</span>
         </div>
-        <button className={`lg-btn ${linkMode ? 'is-on' : ''}`} onClick={toggleLinkMode}>{linkMode ? 'Done linking' : 'Connect rooms'}</button>
         <button className="lg-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Replace drawing'}</button>
       </div>
       {uploadError && <p className="dp-error">{uploadError}</p>}
@@ -277,8 +276,22 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
               <span className="dp-dn">{deck.name}</span>
               <span className="dp-dc">{deck.spaceCount} {deck.spaceCount === 1 ? 'space' : 'spaces'}</span>
               <span className="dp-spring" />
+              {crop && gaDims && (
+                <button
+                  className={`dp-linkbtn ${linkMode ? 'is-on' : ''}`}
+                  onClick={toggleLinkMode}
+                  title="Connect rooms through doorways"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <span className="dp-linkbtn-label">{linkMode ? 'Done linking' : 'Connect rooms'}</span>
+                </button>
+              )}
               <button className="lg-btn sm" onClick={() => setFramingDeck(deck)}>{crop ? 'Reframe' : 'Frame deck'}</button>
             </div>
+
+            {linkMode && crop && gaDims && (
+              <p className="dp-linkhint">{pendingLink ? 'Now click the room it connects to (or the same dot again to cancel).' : 'Click two rooms to link them through a doorway. Click a line to remove it.'}</p>
+            )}
 
             {crop && gaDims ? (
               <>
@@ -293,14 +306,12 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                       {deckLinks.map((l) => {
                         const a = posById[l.a]; const b = posById[l.b];
                         return (
-                          <line
-                            key={l.id}
-                            className="dp-link"
-                            x1={a.x * 100} y1={a.y * 100} x2={b.x * 100} y2={b.y * 100}
-                            onClick={() => linkMode && deleteLink(l.id)}
-                          >
-                            {linkMode && <title>Remove doorway</title>}
-                          </line>
+                          <g key={l.id} className="dp-link-g" onClick={() => linkMode && deleteLink(l.id)}>
+                            <line className="dp-link" x1={a.x * 100} y1={a.y * 100} x2={b.x * 100} y2={b.y * 100} />
+                            <line className="dp-link-hit" x1={a.x * 100} y1={a.y * 100} x2={b.x * 100} y2={b.y * 100}>
+                              {linkMode && <title>Remove doorway</title>}
+                            </line>
+                          </g>
                         );
                       })}
                     </svg>

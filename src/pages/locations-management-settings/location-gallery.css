@@ -232,16 +232,30 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-pin .dp-pin-label::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
   border:4px solid transparent;border-top-color:var(--lg-ink,#1C1B3A);}
 
-/* Doorway links (Phase 4): lines between connected room dots. */
+/* Doorway links (Phase 4): lines between connected room dots. Always visible;
+   a fat transparent hit-line makes them easy to click-to-remove in link mode. */
 .dp-links{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:1;}
 .dp-link{stroke:var(--lg-terra);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round;opacity:.7;}
+.dp-link-hit{stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;stroke-linecap:round;pointer-events:none;}
 .dp-plan.is-linking{cursor:default;}
 .dp-plan.is-linking .dp-pin{cursor:pointer;}
-.dp-plan.is-linking .dp-link{pointer-events:stroke;cursor:pointer;stroke-width:3;}
-.dp-plan.is-linking .dp-link:hover{stroke:#B14E16;opacity:1;}
+.dp-plan.is-linking .dp-link-hit{pointer-events:stroke;cursor:pointer;}
+.dp-plan.is-linking .dp-link-g:hover .dp-link{stroke:#B14E16;opacity:1;stroke-width:3;stroke-dasharray:3 3;}
 .dp-pin.is-pending{box-shadow:0 0 0 3px var(--lg-terra), 0 2px 6px rgba(28,27,58,.5);transform:translate(-50%,-50%) scale(1.2);z-index:7;}
-.lg-btn.is-on{background:var(--lg-terra);color:#fff;border-color:var(--lg-terra);}
-.lg-btn.is-on:hover{background:#B14E16;border-color:#B14E16;}
+
+/* Per-deck "Connect rooms" icon button — icon only, expands the label on hover. */
+.dp-linkbtn{display:inline-flex;align-items:center;height:30px;padding:0 9px;border-radius:999px;
+  border:1px solid var(--lg-hair);background:var(--lg-card,#fff);color:var(--lg-ink);cursor:pointer;overflow:hidden;
+  transition:border-color .15s,color .15s,background .15s;}
+.dp-linkbtn svg{width:16px;height:16px;flex:none;}
+.dp-linkbtn-label{max-width:0;opacity:0;white-space:nowrap;overflow:hidden;
+  font-family:var(--lg-sans);font-size:12.5px;font-weight:600;
+  transition:max-width .18s ease,opacity .15s ease,margin-left .18s ease;}
+.dp-linkbtn:hover .dp-linkbtn-label,.dp-linkbtn.is-on .dp-linkbtn-label{max-width:130px;opacity:1;margin-left:6px;}
+.dp-linkbtn:hover{border-color:var(--lg-terra);color:var(--lg-terra);}
+.dp-linkbtn.is-on{background:var(--lg-terra);color:#fff;border-color:var(--lg-terra);}
+.dp-linkbtn.is-on:hover{background:#B14E16;border-color:#B14E16;}
+.dp-linkhint{margin:0 0 10px;font-family:var(--lg-sans);font-size:12.5px;color:var(--lg-terra);}
 
 /* Tray of rooms still to place. */
 .dp-tray{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--lg-hair);}
