@@ -755,6 +755,16 @@ const Marketplace = () => {
                     <div className="mp-shophead-actions">
                       {shopWebsite && <a className="mp-shophead-web" href={shopWebsite} target="_blank" rel="noreferrer">Website ↗</a>}
                       {enteredSupplier.contact_email && <a className="mp-shophead-msg" href={`mailto:${enteredSupplier.contact_email}`}>Message supplier</a>}
+                      <button
+                        type="button"
+                        className={`mp-counter-btn ${basketUnits > 0 ? 'live' : ''}`}
+                        onClick={() => setCounterOpen(true)}
+                        title="The Counter"
+                        aria-label="The Counter"
+                      >
+                        <ClipboardList size={17} strokeWidth={1.8} />
+                        {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
+                      </button>
                     </div>
                   </div>
                 </header>
@@ -814,16 +824,18 @@ const Marketplace = () => {
                   <button type="button" className="mp-clear" onClick={resetBrowse}>× Clear all</button>
                 )}
                 <span className="mp-count">{filtered.length} of {scopedProducts.length}</span>
-                <button
-                  type="button"
-                  className={`mp-counter-btn mp-counter-btn-end ${basketUnits > 0 ? 'live' : ''}`}
-                  onClick={() => setCounterOpen(true)}
-                  title="The Counter"
-                  aria-label="The Counter"
-                >
-                  <ClipboardList size={17} strokeWidth={1.8} />
-                  {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
-                </button>
+                {stage === 'items' && (
+                  <button
+                    type="button"
+                    className={`mp-counter-btn mp-counter-btn-end ${basketUnits > 0 ? 'live' : ''}`}
+                    onClick={() => setCounterOpen(true)}
+                    title="The Counter"
+                    aria-label="The Counter"
+                  >
+                    <ClipboardList size={17} strokeWidth={1.8} />
+                    {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
+                  </button>
+                )}
               </div>
 
               {filtered.length === 0 ? (

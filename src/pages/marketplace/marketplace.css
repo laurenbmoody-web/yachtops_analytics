@@ -390,7 +390,7 @@
   font-family: 'Cormorant Garamond', 'DM Serif Display', Georgia, serif; font-size: 26px; line-height: 1;
   color: color-mix(in srgb, var(--cathue, #8B8478) 40%, var(--faint));
 }
-.mp-pname { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.mp-pname { font-size: 14px; font-weight: 600; letter-spacing: -0.1px; color: var(--ink); line-height: 1.32; }
 .mp-psup { font-size: 11.5px; color: var(--soft); }
 .mp-psup .tick { color: var(--accent); }
 .mp-suptag {
