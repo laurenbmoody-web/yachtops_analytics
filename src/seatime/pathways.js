@@ -116,16 +116,16 @@ export const CERTIFICATES = {
   MASTER_CODE_200_COASTAL: {
     family: 'DECK', label: 'Master (Code <200GT) / OOW Yachts <500GT — 150nm', short: 'Master <200GT · 150nm',
     msn: 'MSN 1858 Amd 2 §3.1', verified: 'HIGH',
-    requires: { seagoingMonths: 6, minVesselMetres: 15 },
+    requires: { seagoingMonths: 6 },   // §3.1(b): 6mo seagoing while holding YM — no vessel-size floor
     heldWhilst: 'RYA Yachtmaster Offshore (or IYT Master of Yachts Limited)',
-    note: 'Lets you command small yachts up to 150 nm from a safe haven. You need 6 months at sea while holding an RYA Yachtmaster Offshore (or IYT Master of Yachts Limited), plus an ENG1 medical and a GMDSS ROC radio ticket (min age 18). Apply on form MSF 4343.'
+    note: 'Lets you command small yachts up to 150 nm from a safe haven. You need 6 months at sea (any size vessel) while holding an RYA Yachtmaster Offshore (or IYT Master of Yachts Limited), plus an ENG1 medical and a GMDSS ROC radio ticket (min age 18). Apply on form MSF 4343 and pass the MCA oral exam.'
   },
   MASTER_CODE_200_UNLIMITED: {
     family: 'DECK', label: 'Master (Code <200GT) / OOW Yachts <500GT — Unlimited', short: 'Master <200GT · Unltd',
     msn: 'MSN 1858 Amd 2 §3.2', verified: 'HIGH',
-    requires: { seagoingMonths: 6, minVesselMetres: 15 },
+    requires: { seagoingMonths: 6 },   // §3.2(b): 6mo seagoing while holding YM — no vessel-size floor
     heldWhilst: 'RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited)',
-    note: 'Same as the 150 nm ticket but with no area limit. You need 6 months at sea while holding an RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited), plus an ENG1 medical and a GMDSS GOC radio ticket (min age 18). Apply on form MSF 4343.'
+    note: 'Same as the 150 nm ticket but with no area limit. You need 6 months at sea (any size vessel) while holding an RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited), plus an ENG1 medical and a GMDSS GOC radio ticket (min age 18). Apply on form MSF 4343 and pass the MCA oral exam.'
   },
   OOW_YACHT_3000: {
     family: 'DECK', label: 'OOW (Yachts <3000GT)', short: 'OOW <3000GT',
@@ -194,8 +194,9 @@ export const CERTIFICATES = {
   // MSN 1904 now REPLACES MIN 524 and MIN 594 and is the in-force notice. Yacht
   // engineers hold STCW Small Vessel CoCs endorsed "Limited to Yachts".
   // Requirements below are taken from the yacht-restricted SV table in MSN 1904
-  // §5.8 (EOOW 12mo onboard / 4mo sea / 6mo watchkeeping; Chief <500 6mo / 4mo
-  // sea; Chief <3000 12mo / 8mo sea). Every SV rung has an MCA oral (MEOL §3.2f;
+  // §5.9.2 (EOOW 12mo onboard / 5mo seagoing incl. ≤1mo workshop, min 4mo actual
+  // watch (fn 34) / 6mo watchkeeping; Chief <500 6mo / 4mo sea; Chief <3000 12mo
+  // / 8mo sea). Every SV rung has an MCA oral (MEOL §3.2f;
   // EOOW §4.6d; Chief
   // <500 §4.9d; Chief <3000 §4.10e). MIN 642 §7.2 is the binding source for the
   // legacy Y-grade conversions (§12.1 delegates to it); codes/targets verified.
@@ -256,7 +257,7 @@ export const CERTIFICATES = {
     routes: [
       { label: 'Cadet / FD-HND (§3.2)', seagoingMonths: 6, workshopMonths: 3, combinedMonths: 12, minPowerKW: 750 },
       { label: 'Non-cadet — set case-by-case by the MCA (§4.2)', seagoingMonthsMin: 6, seagoingMonthsMax: 33, minPowerKW: 750, mcaAssessed: true },
-      { label: 'Electro-technical Rating (§4.3)', combinedMonths: 36, minPowerKW: 750 }
+      { label: 'Electro-technical Rating (§4.3)', combinedMonths: 36, seagoingMonths: 30, workshopMonths: 3, minPowerKW: 750 }
     ]
   },
 
