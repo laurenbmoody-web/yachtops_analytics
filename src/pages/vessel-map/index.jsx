@@ -136,12 +136,13 @@ export default function VesselMapPage() {
   }, [selectedScan?.space_id, selectedScan?.id, spaceLinks, scans, spaceNames]);
 
   // Placed doorways become 3D pins in the scene (flagged isDoor so they ride
-  // the hotspot sprite path). Walkable = teal + navigates; not-yet = muted.
+  // the hotspot sprite path). Walkable = teal + navigates; not-yet = muted. The
+  // door being repositioned is hidden — the pending pin stands in for it.
   const doorPins = useMemo(
     () => roomDoorways
-      .filter((d) => d.pos)
+      .filter((d) => d.pos && placingDoor?.linkId !== d.linkId)
       .map((d) => ({ id: `door-${d.linkId}`, isDoor: true, targetScanId: d.targetScanId, walkable: d.walkable, label: d.name, position: d.pos, color: d.walkable ? '#0E7C86' : '#6B7280', layer: 'doorway' })),
-    [roomDoorways]
+    [roomDoorways, placingDoor]
   );
 
   // Backfill a poster for scans that never got one: the first time a scan
@@ -692,6 +693,7 @@ export default function VesselMapPage() {
                     adjustingId={adjusting?.id ?? null}
                     placementMode={placementMode || !!placingDoor}
                     placeSurfaceOnly={!!placingDoor}
+                    pendingColor={placingDoor ? '#0E7C86' : '#C65A1A'}
                     pendingPosition={pendingPosition}
                     onPlacePending={handleViewerPlace}
                     onSelectHotspot={handleSelectHotspot}
