@@ -9,22 +9,15 @@ import { pdfToPngBlob } from '../utils/pdfRaster';
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
 
 // The plan frame is a fixed long rectangle; the deck's crop is scaled to FIT
-// inside it (contain), centred, undistorted — never stretched, never clipped.
-const FRAME_ASPECT = 3.2;
-
-// Inner element that paints just the deck's crop of the shared GA image, sized
-// to contain the crop (aspect A) within the fixed frame (aspect FRAME_ASPECT).
-// We give it explicit width/height %, so its box aspect always equals A and the
-// percentage-sized background can never distort.
+// The plan panel IS the box you drew: it takes the crop's exact proportions and
+// fills edge-to-edge with that region of the drawing — no padding, no stretch.
+// It spans the full column width; the height follows the crop's aspect, so a
+// long thin deck selection renders as a long thin strip.
 function cropStyle(crop, dims, url) {
-  const A = (crop.w * dims.w) / (crop.h * dims.h) || 3;
-  const F = FRAME_ASPECT;
-  // Contain: wider-than-frame crops span the width; taller ones span the height.
-  const wPct = A >= F ? 100 : (A / F) * 100;
-  const hPct = A >= F ? (F / A) * 100 : 100;
+  const boxAspect = (crop.w * dims.w) / (crop.h * dims.h) || 3;
   return {
-    width: `${wPct}%`,
-    height: `${hPct}%`,
+    width: '100%',
+    aspectRatio: String(boxAspect),
     backgroundImage: `url("${url}")`,
     backgroundSize: `${100 / crop.w}% ${100 / crop.h}%`,
     backgroundPosition: `${crop.w < 1 ? (crop.x / (1 - crop.w)) * 100 : 0}% ${crop.h < 1 ? (crop.y / (1 - crop.h)) * 100 : 0}%`,
@@ -175,9 +168,7 @@ export default function DeckPlanView({ decks = [] }) {
               <button className="lg-btn sm" onClick={() => setFramingDeck(deck)}>{crop ? 'Reframe' : 'Frame deck'}</button>
             </div>
             {crop && gaDims ? (
-              <div className="dp-plan">
-                <div className="dp-plan-fit" style={cropStyle(crop, gaDims, layout.gaImageUrl)} />
-              </div>
+              <div className="dp-plan" style={cropStyle(crop, gaDims, layout.gaImageUrl)} />
             ) : (
               <button className="dp-plan-empty" onClick={() => setFramingDeck(deck)}>
                 Frame this deck on the drawing →
