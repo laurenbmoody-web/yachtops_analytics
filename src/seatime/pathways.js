@@ -514,8 +514,9 @@ export const certConfidence = (cert) => {
 //     capacity; the MCA must see the outlined seagoing service (seagoingCapacity).
 //   · A seafarer who holds ONLY a Y4 cannot use Route C — they follow one of the
 //     Route A lines (A1–A3) instead.
-// `from` = the source grade's GT/kW/STCW-class gate (Y1 is III/2; Y2–Y4 are
-// III/3). Conversions B and E need no extra sea time — courses + ENG1 only. ────
+// `from` = the source grade's GT/kW/STCW-class gate (Y1 and Y2 are III/2; Y3 and
+// Y4 are III/3 — MSN 1859 §2.3–2.6). Conversions B and E need no extra sea time
+// — courses + ENG1 only. ────
 export const LEGACY_GRADE_CONVERSION = {
   Y4: { from: 'Chief Engineer III/3 · <200GT & <1500kW', to: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
         code: 'A1–A3', verified: 'HIGH', codeVerified: 'HIGH',
@@ -525,7 +526,7 @@ export const LEGACY_GRADE_CONVERSION = {
         code: 'B / C', verified: 'HIGH', codeVerified: 'HIGH',
         seagoingCapacity: 'Route C accepts the required seagoing service in a Y3 OR Y4 capacity — the MCA must see the outlined seagoing service.',
         topUp: 'Courses + ENG1 only for Chief <500GT (code B); 12mo onboard incl. 6mo seagoing for Chief <3000GT (code C).' },
-  Y2: { from: 'Chief Engineer III/3 · <3000GT & <3000kW', to: ['CHIEF_SV_3000_Y'],
+  Y2: { from: 'Chief Engineer III/2 · <3000GT & <3000kW', to: ['CHIEF_SV_3000_Y'],
         code: 'D', verified: 'HIGH', codeVerified: 'HIGH',
         topUp: '3 months seagoing on yachts ≥750kW.' },
   Y1: { from: 'Chief Engineer III/2 · <3000GT & <9000kW', to: ['CHIEF_SV_3000_Y'],
