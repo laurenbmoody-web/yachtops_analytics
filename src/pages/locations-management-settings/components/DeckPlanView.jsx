@@ -5,9 +5,11 @@
 //   Phase 2: drag rooms from the tray onto the plan (writes plan_x/plan_y),
 //            markers coloured scanned/not-scanned so the plan doubles as a
 //            coverage map, click a scanned room to open it on the vessel map.
+//   Phase 4: "Connect rooms" mode — click two dots to link them through a
+//            doorway; links render as lines on the plan (vessel_space_links).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition } from '../utils/locationsLayoutStorage';
+import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, getSpaceLinks, addSpaceLink, removeSpaceLink } from '../utils/locationsLayoutStorage';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -86,14 +88,18 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
   const [localPos, setLocalPos] = useState({}); // spaceId -> {x,y} | null (override)
   const [drag, setDrag] = useState(null); // active room drag
   const [ghost, setGhost] = useState(null); // cursor coords while dragging
+  const [links, setLinks] = useState([]); // doorway links [{id,a,b}]
+  const [linkMode, setLinkMode] = useState(false);
+  const [pendingLink, setPendingLink] = useState(null); // {spaceId, deckId} first-picked dot
   const fileRef = useRef(null);
   const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
   const movedRef = useRef(false);
   const dragRef = useRef(null); // active drag info during the gesture (no re-render lag)
 
   const load = useCallback(async () => {
-    const l = await getVesselLayout();
+    const [l, lk] = await Promise.all([getVesselLayout(), getSpaceLinks()]);
     setLayout(l);
+    setLinks(lk);
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -197,6 +203,29 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     window.addEventListener('pointerup', onDragUp);
   };
 
+  const linkExists = (a, b) => links.some((l) => (l.a === a && l.b === b) || (l.a === b && l.b === a));
+
+  // In "Connect rooms" mode a dot press picks endpoints instead of dragging.
+  const onDotDown = (e, space, deck, fromPlaced) => {
+    if (!linkMode) { startDrag(e, space, deck, fromPlaced); return; }
+    e.preventDefault();
+    if (!pendingLink) { setPendingLink({ spaceId: space.id, deckId: deck.id }); return; }
+    if (pendingLink.spaceId === space.id) { setPendingLink(null); return; } // toggle off
+    const a = pendingLink.spaceId; const b = space.id;
+    setPendingLink(null);
+    if (linkExists(a, b)) return;
+    addSpaceLink(a, b)
+      .then((row) => setLinks((p) => (p.some((l) => l.id === row.id) ? p : [...p, row])))
+      .catch((err) => console.error('[deck-plan] add link error:', err));
+  };
+
+  const deleteLink = (linkId) => {
+    setLinks((p) => p.filter((l) => l.id !== linkId));
+    removeSpaceLink(linkId).catch((err) => console.error('[deck-plan] remove link error:', err));
+  };
+
+  const toggleLinkMode = () => { setPendingLink(null); setLinkMode((v) => !v); };
+
   if (loading) return <div className="dp-loading">Loading the layout…</div>;
 
   const hidden = (
@@ -224,11 +253,12 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     <div className="dp">
       {hidden}
       <div className="dp-toolbar">
-        <span className="dp-toolbar-note">Frame each deck, then drag its rooms onto the plan.</span>
+        <span className="dp-toolbar-note">{linkMode ? (pendingLink ? 'Now click the room it connects to (or the same dot to cancel).' : 'Click two rooms to link them through a doorway.') : 'Frame each deck, then drag its rooms onto the plan.'}</span>
         <div className="dp-legend" aria-hidden="true">
           <span className="dp-legend-item"><span className="dp-swatch is-scanned" /> Scanned</span>
           <span className="dp-legend-item"><span className="dp-swatch is-empty" /> Not scanned</span>
         </div>
+        <button className={`lg-btn ${linkMode ? 'is-on' : ''}`} onClick={toggleLinkMode}>{linkMode ? 'Done linking' : 'Connect rooms'}</button>
         <button className="lg-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Replace drawing'}</button>
       </div>
       {uploadError && <p className="dp-error">{uploadError}</p>}
@@ -238,6 +268,9 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
         const spaces = spacesOf(deck);
         const placed = spaces.filter((s) => posOf(s));
         const unplaced = spaces.filter((s) => !posOf(s));
+        // Links whose both endpoints are placed on THIS deck (drawable as lines).
+        const posById = Object.fromEntries(placed.map((s) => [s.id, posOf(s)]));
+        const deckLinks = links.filter((l) => posById[l.a] && posById[l.b]);
         return (
           <div className="dp-deck" key={deck.id}>
             <div className="dp-deckhdr">
@@ -250,21 +283,39 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
             {crop && gaDims ? (
               <>
                 <div
-                  className="dp-plan"
+                  className={`dp-plan ${linkMode ? 'is-linking' : ''}`}
                   ref={(el) => { planRefs.current[deck.id] = el; }}
                   style={{ width: '100%', aspectRatio: String(boxAspectOf(crop, gaDims)) }}
                 >
                   <div className="dp-plan-bg" style={cropBg(crop, layout.gaImageUrl)} />
+                  {deckLinks.length > 0 && (
+                    <svg className="dp-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                      {deckLinks.map((l) => {
+                        const a = posById[l.a]; const b = posById[l.b];
+                        return (
+                          <line
+                            key={l.id}
+                            className="dp-link"
+                            x1={a.x * 100} y1={a.y * 100} x2={b.x * 100} y2={b.y * 100}
+                            onClick={() => linkMode && deleteLink(l.id)}
+                          >
+                            {linkMode && <title>Remove doorway</title>}
+                          </line>
+                        );
+                      })}
+                    </svg>
+                  )}
                   {placed.map((s) => {
                     const p = posOf(s);
                     const scanned = isScanned(s);
+                    const pending = pendingLink?.spaceId === s.id;
                     return (
                       <div
                         key={s.id}
-                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''}`}
+                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''}`}
                         style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
-                        onPointerDown={(e) => startDrag(e, s, deck, true)}
-                        title={scanned ? `${s.name} — open on map` : `${s.name} — add a scan`}
+                        onPointerDown={(e) => onDotDown(e, s, deck, true)}
+                        title={linkMode ? s.name : scanned ? `${s.name} — open on map` : `${s.name} — add a scan`}
                       >
                         <span className="dp-pin-label">{s.name}</span>
                       </div>

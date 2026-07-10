@@ -69,3 +69,34 @@ export const setSpacePosition = async (spaceId, x, y) => {
     .update({ plan_x: x, plan_y: y }).eq('id', spaceId);
   if (error) throw error;
 };
+
+// Doorway links between rooms (undirected). Stored canonically a < b.
+const orderPair = (a, b) => (a < b ? [a, b] : [b, a]);
+
+export const getSpaceLinks = async () => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    .from('vessel_space_links').select('id, a_space_id, b_space_id').eq('tenant_id', tenantId);
+  if (error) { console.error('[layout] links fetch error:', error); return []; }
+  return (data || []).map((r) => ({ id: r.id, a: r.a_space_id, b: r.b_space_id }));
+};
+
+// Create a doorway between two rooms; returns the row (new or already-existing).
+export const addSpaceLink = async (spaceId1, spaceId2) => {
+  const tenantId = await getTenantId();
+  if (!tenantId) throw new Error('No vessel context.');
+  const [a, b] = orderPair(spaceId1, spaceId2);
+  const { data, error } = await supabase
+    .from('vessel_space_links')
+    .upsert({ tenant_id: tenantId, a_space_id: a, b_space_id: b }, { onConflict: 'a_space_id,b_space_id' })
+    .select('id, a_space_id, b_space_id')
+    .single();
+  if (error) throw error;
+  return { id: data.id, a: data.a_space_id, b: data.b_space_id };
+};
+
+export const removeSpaceLink = async (linkId) => {
+  const { error } = await supabase.from('vessel_space_links').delete().eq('id', linkId);
+  if (error) throw error;
+};
