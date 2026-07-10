@@ -376,6 +376,15 @@ export const signEntries = async (tenantId, entryIds, { note, sigPath, signedNam
  * Returns null on failure so callers can fall back.
  */
 export const fetchLeaveDaysInRange = async (userId, fromIso, toIso) => {
+  const b = await fetchLeaveBreakdownInRange(userId, fromIso, toIso);
+  return b ? b.total : null;
+};
+
+/** Leave days in a range, split by kind. `rotational` = days on the crew's
+ *  rotation (crew_status_history status 'rotational_leave'); `leaveOfAbsence` =
+ *  every other non-active day (on_leave, medical_leave, …). PYA reports these
+ *  differently — rotational time is the rotation program, not leave of absence. */
+export const fetchLeaveBreakdownInRange = async (userId, fromIso, toIso) => {
   if (!userId || !fromIso || !toIso) return null;
   const { data, error } = await supabase
     .from('crew_status_history')
@@ -385,14 +394,16 @@ export const fetchLeaveDaysInRange = async (userId, fromIso, toIso) => {
   if (error || !data) return null;
   const changes = data.map(r => ({ d: String(r.changed_at).slice(0, 10), s: r.new_status }));
   const end = new Date(toIso + 'T00:00:00');
-  let leave = 0;
+  let leaveOfAbsence = 0, rotational = 0;
   for (let t = new Date(fromIso + 'T00:00:00'); t <= end; t.setDate(t.getDate() + 1)) {
     const day = t.toISOString().slice(0, 10);
     let status = 'active';
     for (const c of changes) { if (c.d <= day) status = c.s; else break; }
-    if (status !== 'active') leave++;
+    if (status === 'active') continue;
+    if (status === 'rotational_leave') rotational++;
+    else leaveOfAbsence++;
   }
-  return leave;
+  return { total: leaveOfAbsence + rotational, leaveOfAbsence, rotational };
 };
 
 /** Command rejects pending entries with a reason. */
@@ -419,6 +430,7 @@ export default {
   signEntries,
   rejectEntries,
   fetchLeaveDaysInRange,
+  fetchLeaveBreakdownInRange,
   fetchVesselStatusTimeline,
   setVesselStatus
 };

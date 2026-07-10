@@ -55,6 +55,25 @@ export const mapCapacity = (cap) => {
 /** Sail vs motor for the PYA "Vessel Type" radio. */
 export const mapVesselType = (t) => (/sail/i.test(String(t || '')) ? 'Sail Yacht' : 'Motor Yacht');
 
+/** Parse an employment "rotation pattern" (e.g. "2:2", "10:10 weeks", "3:3 months")
+ *  into { onWeeks, offWeeks } for PYA's rotation-program boxes (which are in WEEKS).
+ *  Unit: explicit if the string says weeks/months; otherwise inferred — figures ≤6
+ *  read as MONTHS (the yacht norm the "2:2" placeholder implies), larger as weeks
+ *  (e.g. 10:10). Returns null if unparseable. Filling the wrong unit is worse than
+ *  blank, so the caller should still surface it for the user to verify. */
+export const parseRotationWeeks = (pattern) => {
+  const s = String(pattern || '').toLowerCase().trim();
+  const m = s.match(/(\d+(?:\.\d+)?)\s*[:/x×-]\s*(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const on = parseFloat(m[1]), off = parseFloat(m[2]);
+  if (!(on > 0) && !(off > 0)) return null;
+  const inWeeks = /week|\bwk/.test(s);
+  const inMonths = /month|\bmo\b|\bmth/.test(s);
+  const asMonths = inMonths || (!inWeeks && on <= 6 && off <= 6);
+  const conv = (n) => Math.round(asMonths ? n * 4.345 : n);
+  return { onWeeks: conv(on), offWeeks: conv(off) };
+};
+
 /** Drop a vessel-type prefix (M/Y, S/Y, MV, …) from the name — PYA captures
  *  sail-vs-motor in its own Vessel Type selector, so the Name field is bare. */
 export const cleanVesselName = (name) => String(name || '').replace(/^\s*(m\/y|s\/y|m\/v|s\/v|my|sy|mv|sv)\.?\s+/i, '').trim();
@@ -96,12 +115,14 @@ export const mapAreas = (regionText) => {
  *
  * @param {Object} p
  * @param {import('../testimonial/types.js').TestimonialDataset} p.dataset
- * @param {number|null} [p.leaveDays]      leave/absence days in the period
+ * @param {number|null} [p.leaveDays]      leave-of-absence days (EXCLUDING rotational leave)
  * @param {number|null} [p.guestDays]      guest-on days in the period
+ * @param {number|null} [p.rotationOnWeeks]  rotation-program weeks on (from the employment pattern)
+ * @param {number|null} [p.rotationOffWeeks] rotation-program weeks off
  * @param {string} [p.signatoryEmail]      attesting captain's email
  * @param {string} [p.sstType]             'Deck Testimonial' (default) | 'Engineering Testimonial' | …
  */
-export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, signatoryEmail = '', sstType = 'Deck Testimonial', operatingRegions = '', propulsionKw = null, engineType = '' }) => {
+export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, rotationOnWeeks = null, rotationOffWeeks = null, signatoryEmail = '', sstType = 'Deck Testimonial', operatingRegions = '', propulsionKw = null, engineType = '' }) => {
   const v = (dataset?.vessels && dataset.vessels[0]) || {};
   const t = dataset?.service?.totals || {};
   const atSea = round(t.seagoing) + round(t.watchkeeping);
@@ -123,6 +144,9 @@ export const buildPyaPayload = ({ dataset, leaveDays = null, guestDays = null, s
   };
   if (leaveDays != null) service['Leave of absence'] = round(leaveDays);
   if (guestDays != null && round(guestDays) > 0) service['Days with guests'] = round(guestDays);
+  // Rotation program (weeks) — the schedule shape, distinct from leave-of-absence days.
+  if (rotationOnWeeks != null && round(rotationOnWeeks) > 0) service['Rotation program on'] = round(rotationOnWeeks);
+  if (rotationOffWeeks != null && round(rotationOffWeeks) > 0) service['Rotation program off'] = round(rotationOffWeeks);
 
   const areas = mapAreas(operatingRegions);
   const flag = v.flag || '';

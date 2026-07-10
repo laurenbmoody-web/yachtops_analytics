@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPyaPayload, mapCapacity, mapVesselType, mapAreas, cleanVesselName } from './pyaPayload.js';
+import { buildPyaPayload, mapCapacity, mapVesselType, mapAreas, cleanVesselName, parseRotationWeeks } from './pyaPayload.js';
 
 const dataset = {
   vessels: [{ name: 'M/Y Test', flag: 'Cayman Islands', imo: '9601234', grossTonnage: 499, registeredLengthM: 45, vesselType: 'Motor Yacht' }],
@@ -89,6 +89,23 @@ test('vessel name drops the M/Y · S/Y prefix (type is its own field)', () => {
   assert.equal(cleanVesselName('Belongers'), 'Belongers');      // no prefix, untouched
   assert.equal(cleanVesselName('Mystic'), 'Mystic');            // not a prefix (no space)
   assert.equal(buildPyaPayload({ dataset }).text['Name'], 'M/Y Test'.replace(/^M\/Y /, ''));
+});
+
+test('rotation pattern → PYA weeks (explicit unit wins; else infer months for small figures)', () => {
+  assert.deepEqual(parseRotationWeeks('2:2'), { onWeeks: 9, offWeeks: 9 });         // ≤6 → months → ×4.345
+  assert.deepEqual(parseRotationWeeks('3:3'), { onWeeks: 13, offWeeks: 13 });
+  assert.deepEqual(parseRotationWeeks('2:1'), { onWeeks: 9, offWeeks: 4 });
+  assert.deepEqual(parseRotationWeeks('10:10'), { onWeeks: 10, offWeeks: 10 });     // large → weeks
+  assert.deepEqual(parseRotationWeeks('9:9 weeks'), { onWeeks: 9, offWeeks: 9 });   // explicit weeks
+  assert.deepEqual(parseRotationWeeks('2:2 months'), { onWeeks: 9, offWeeks: 9 });  // explicit months
+  assert.equal(parseRotationWeeks(''), null);
+  assert.equal(parseRotationWeeks('permanent'), null);
+});
+
+test('rotation weeks flow into the payload service block', () => {
+  const p = buildPyaPayload({ dataset, rotationOnWeeks: 9, rotationOffWeeks: 9 });
+  assert.equal(p.service['Rotation program on'], 9);
+  assert.equal(p.service['Rotation program off'], 9);
 });
 
 test('vessel type falls back to Motor', () => {
