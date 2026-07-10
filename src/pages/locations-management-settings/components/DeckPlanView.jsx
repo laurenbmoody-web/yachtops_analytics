@@ -260,7 +260,6 @@ export default function DeckPlanView({ decks = [] }) {
                         onPointerDown={(e) => startDrag(e, s, deck, true)}
                         title={scanned ? `${s.name} — open on map` : s.name}
                       >
-                        <span className="dp-pin-dot" />
                         <span className="dp-pin-label">{s.name}</span>
                       </div>
                     );
