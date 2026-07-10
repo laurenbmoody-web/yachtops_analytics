@@ -206,10 +206,52 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-deckhdr .dp-dc{font-size:12.5px;color:var(--lg-faint);}
 .dp-spring{margin-left:auto;}
 
-/* The panel takes the crop's proportions (width/aspect-ratio come from the
-   inline cropStyle) and fills edge-to-edge with the framed region. */
-.dp-plan{margin:0 auto;border-radius:14px;border:1px solid var(--lg-hair);
+/* The panel takes the crop's proportions (width/aspect-ratio inline) and fills
+   edge-to-edge with the framed region. The background is a clipped inner layer;
+   room pins sit above it and may overhang the edges without being cut. */
+.dp-plan{position:relative;margin:0 auto;}
+.dp-plan-bg{position:absolute;inset:0;border-radius:14px;border:1px solid var(--lg-hair);
   background-color:var(--lg-wash);box-shadow:var(--lg-sh-flat, 0 1px 2px rgba(28,27,58,.06));overflow:hidden;}
+
+/* Room markers on the plan (Phase 2). Terracotta = scanned, soft = not yet. */
+.dp-pin{position:absolute;transform:translate(-50%,-50%);z-index:2;display:inline-flex;align-items:center;gap:6px;
+  max-width:46%;padding:3px 9px 3px 7px;border-radius:999px;font-family:var(--lg-sans);font-size:11px;font-weight:600;
+  line-height:1;white-space:nowrap;cursor:grab;touch-action:none;user-select:none;
+  box-shadow:0 2px 6px rgba(28,27,58,.16);}
+.dp-pin.is-dragging{opacity:.35;}
+.dp-pin .dp-pin-label{overflow:hidden;text-overflow:ellipsis;}
+.dp-pin-dot{flex:none;width:7px;height:7px;border-radius:50%;}
+.dp-pin.is-scanned{background:var(--lg-terra);color:#fff;border:1px solid var(--lg-terra);}
+.dp-pin.is-scanned .dp-pin-dot{background:#fff;}
+.dp-pin.is-empty{background:var(--lg-card,#fff);color:var(--lg-ink);border:1px solid var(--lg-hair);}
+.dp-pin.is-empty .dp-pin-dot{background:var(--lg-faint,#AEB4C2);box-shadow:inset 0 0 0 1px rgba(28,27,58,.12);}
+
+/* Tray of rooms still to place. */
+.dp-tray{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--lg-hair);}
+.dp-tray-label{font-family:var(--lg-sans);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--lg-faint,#8B8478);margin-right:2px;}
+.dp-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px 5px 8px;border-radius:999px;
+  font-family:var(--lg-sans);font-size:12px;font-weight:600;line-height:1;cursor:grab;touch-action:none;user-select:none;
+  background:var(--lg-card,#fff);color:var(--lg-ink);border:1px solid var(--lg-hair);}
+.dp-chip:hover{border-color:var(--lg-terra);}
+.dp-chip.is-scanned .dp-pin-dot{background:var(--lg-terra);}
+.dp-chip.is-empty .dp-pin-dot{background:var(--lg-faint,#AEB4C2);box-shadow:inset 0 0 0 1px rgba(28,27,58,.12);}
+
+/* Floating cursor ghost while dragging. */
+.dp-ghost{position:fixed;z-index:1200;transform:translate(-50%,-50%);pointer-events:none;
+  display:inline-flex;align-items:center;gap:6px;padding:4px 11px 4px 8px;border-radius:999px;
+  font-family:var(--lg-sans);font-size:12px;font-weight:600;line-height:1;white-space:nowrap;
+  box-shadow:0 10px 24px -6px rgba(28,27,58,.4);}
+.dp-ghost.is-scanned{background:var(--lg-terra);color:#fff;}
+.dp-ghost.is-scanned .dp-pin-dot{background:#fff;}
+.dp-ghost.is-empty{background:var(--lg-card,#fff);color:var(--lg-ink);border:1px solid var(--lg-hair);}
+.dp-ghost.is-empty .dp-pin-dot{background:var(--lg-faint,#AEB4C2);}
+
+/* Legend in the toolbar. */
+.dp-legend{display:flex;align-items:center;gap:14px;margin-left:auto;font-family:var(--lg-sans);font-size:11px;color:var(--lg-faint,#8B8478);}
+.dp-legend-item{display:inline-flex;align-items:center;gap:6px;}
+.dp-swatch{width:10px;height:10px;border-radius:50%;}
+.dp-swatch.is-scanned{background:var(--lg-terra);}
+.dp-swatch.is-empty{background:var(--lg-card,#fff);border:1px solid var(--lg-hair);}
 .dp-plan-empty{display:flex;align-items:center;justify-content:center;width:100%;min-height:110px;cursor:pointer;
   border:1px dashed var(--lg-hair);border-radius:14px;background:var(--lg-wash);color:var(--lg-terra);
   font-family:var(--lg-sans);font-size:13.5px;font-weight:500;}

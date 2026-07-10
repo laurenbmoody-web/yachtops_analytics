@@ -1,29 +1,34 @@
 // Deck-plan layout view — the "full vessel layout". Upload the vessel's General
-// Arrangement drawing once, frame each deck's band on it, and (next phase) place
-// rooms onto the plan. Reads/writes via locationsLayoutStorage. Phase 1: upload
-// + per-deck framing + rendering each framed deck's plan.
+// Arrangement drawing once, frame each deck's band on it, then place rooms onto
+// the plan. Reads/writes via locationsLayoutStorage.
+//   Phase 1: GA upload + per-deck framing + rendering each framed deck's plan.
+//   Phase 2: drag rooms from the tray onto the plan (writes plan_x/plan_y),
+//            markers coloured scanned/not-scanned so the plan doubles as a
+//            coverage map, click a scanned room to open it on the vessel map.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getVesselLayout, uploadGaImage, setDeckCrop } from '../utils/locationsLayoutStorage';
+import { useNavigate } from 'react-router-dom';
+import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition } from '../utils/locationsLayoutStorage';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
+const clamp01 = (n) => Math.max(0, Math.min(1, n));
 
-// The plan frame is a fixed long rectangle; the deck's crop is scaled to FIT
-// The plan panel IS the box you drew: it takes the crop's exact proportions and
-// fills edge-to-edge with that region of the drawing — no padding, no stretch.
-// It spans the full column width; the height follows the crop's aspect, so a
-// long thin deck selection renders as a long thin strip.
-function cropStyle(crop, dims, url) {
-  const boxAspect = (crop.w * dims.w) / (crop.h * dims.h) || 3;
+// Box aspect of a deck's crop, in true pixels (undistorted).
+const boxAspectOf = (crop, dims) => (crop.w * dims.w) / (crop.h * dims.h) || 3;
+
+// Background that paints just the deck's crop of the shared GA image, filling
+// its box edge-to-edge (the box carries the crop's aspect, so no stretch/zoom).
+function cropBg(crop, url) {
   return {
-    width: '100%',
-    aspectRatio: String(boxAspect),
     backgroundImage: `url("${url}")`,
     backgroundSize: `${100 / crop.w}% ${100 / crop.h}%`,
     backgroundPosition: `${crop.w < 1 ? (crop.x / (1 - crop.w)) * 100 : 0}% ${crop.h < 1 ? (crop.y / (1 - crop.h)) * 100 : 0}%`,
     backgroundRepeat: 'no-repeat',
   };
 }
+
+const spacesOf = (deck) => (deck.zones || []).flatMap((z) => z.spaces || []);
+const isScanned = (space) => space?.scan?.status === 'ready';
 
 // Draw-a-box framing modal over the full GA image.
 function FrameEditor({ gaUrl, deckName, initial, onSave, onCancel }) {
@@ -34,8 +39,8 @@ function FrameEditor({ gaUrl, deckName, initial, onSave, onCancel }) {
   const pos = (e) => {
     const r = wrapRef.current.getBoundingClientRect();
     return {
-      x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
-      y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)),
+      x: clamp01((e.clientX - r.left) / r.width),
+      y: clamp01((e.clientY - r.top) / r.height),
     };
   };
   const onDown = (e) => { const p = pos(e); drag.current = p; setRect({ x: p.x, y: p.y, w: 0, h: 0 }); e.currentTarget.setPointerCapture?.(e.pointerId); };
@@ -67,6 +72,7 @@ function FrameEditor({ gaUrl, deckName, initial, onSave, onCancel }) {
 }
 
 export default function DeckPlanView({ decks = [] }) {
+  const navigate = useNavigate();
   const [layout, setLayout] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -75,7 +81,13 @@ export default function DeckPlanView({ decks = [] }) {
   const [gaDims, setGaDims] = useState(null);
   const [framingDeck, setFramingDeck] = useState(null);
   const [localCrops, setLocalCrops] = useState({});
+  const [localPos, setLocalPos] = useState({}); // spaceId -> {x,y} | null (override)
+  const [drag, setDrag] = useState(null); // active room drag
+  const [ghost, setGhost] = useState(null); // cursor coords while dragging
   const fileRef = useRef(null);
+  const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
+  const movedRef = useRef(false);
+  const dragRef = useRef(null); // active drag info during the gesture (no re-render lag)
 
   const load = useCallback(async () => {
     const l = await getVesselLayout();
@@ -90,6 +102,38 @@ export default function DeckPlanView({ decks = [] }) {
     img.onload = () => setGaDims({ w: img.naturalWidth, h: img.naturalHeight });
     img.src = layout.gaImageUrl;
   }, [layout?.gaImageUrl]);
+
+  // Room drag: window-level tracking, attached synchronously on pointerdown (via
+  // dragRef) so the first fast moves aren't lost to a state/render round-trip.
+  const onDragMove = useCallback((e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    setGhost({ x: e.clientX, y: e.clientY });
+    if (!movedRef.current && (Math.abs(e.clientX - d.startX) > 4 || Math.abs(e.clientY - d.startY) > 4)) movedRef.current = true;
+  }, []);
+  const onDragUp = useCallback((e) => {
+    const d = dragRef.current;
+    window.removeEventListener('pointermove', onDragMove);
+    window.removeEventListener('pointerup', onDragUp);
+    dragRef.current = null;
+    setDrag(null);
+    setGhost(null);
+    if (!d) return;
+    const moved = movedRef.current;
+    movedRef.current = false;
+    const rect = planRefs.current[d.deckId]?.getBoundingClientRect();
+    const inside = rect && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    if (!moved) {
+      // A click (no real drag): open a scanned room on the map.
+      if (d.fromPlaced && d.scanId) navigate(`/vessel/map?scan=${d.scanId}`);
+    } else if (inside) {
+      applyPos(d.spaceId, clamp01((e.clientX - rect.left) / rect.width), clamp01((e.clientY - rect.top) / rect.height));
+    } else if (d.fromPlaced) {
+      applyPos(d.spaceId, null, null); // dropped off the plan → back to the tray
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate, onDragMove]);
+  useEffect(() => () => { window.removeEventListener('pointermove', onDragMove); window.removeEventListener('pointerup', onDragUp); }, [onDragMove, onDragUp]);
 
   const onFile = async (e) => {
     const f = e.target.files?.[0];
@@ -125,6 +169,28 @@ export default function DeckPlanView({ decks = [] }) {
     try { await setDeckCrop(deckId, crop); } catch (err) { console.error('[deck-plan] save crop error:', err); }
   };
 
+  // Room position: local override wins, else the persisted plan_x/plan_y, else null.
+  const posOf = (space) => {
+    if (space.id in localPos) return localPos[space.id];
+    if (space.planX != null && space.planY != null) return { x: space.planX, y: space.planY };
+    return null;
+  };
+  const applyPos = (spaceId, x, y) => {
+    setLocalPos((p) => ({ ...p, [spaceId]: x == null ? null : { x, y } }));
+    setSpacePosition(spaceId, x, y).catch((err) => console.error('[deck-plan] save position error:', err));
+  };
+  const startDrag = (e, space, deck, fromPlaced) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    movedRef.current = false;
+    const info = { spaceId: space.id, deckId: deck.id, name: space.name, scanId: isScanned(space) ? space.scan.id : null, fromPlaced, startX: e.clientX, startY: e.clientY };
+    dragRef.current = info;
+    setDrag(info);
+    setGhost({ x: e.clientX, y: e.clientY });
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup', onDragUp);
+  };
+
   if (loading) return <div className="dp-loading">Loading the layout…</div>;
 
   const hidden = (
@@ -152,13 +218,20 @@ export default function DeckPlanView({ decks = [] }) {
     <div className="dp">
       {hidden}
       <div className="dp-toolbar">
-        <span className="dp-toolbar-note">Frame each deck on the drawing, then place rooms.</span>
+        <span className="dp-toolbar-note">Frame each deck, then drag its rooms onto the plan.</span>
+        <div className="dp-legend" aria-hidden="true">
+          <span className="dp-legend-item"><span className="dp-swatch is-scanned" /> Scanned</span>
+          <span className="dp-legend-item"><span className="dp-swatch is-empty" /> Not scanned</span>
+        </div>
         <button className="lg-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Replace drawing'}</button>
       </div>
       {uploadError && <p className="dp-error">{uploadError}</p>}
 
       {decks.map((deck) => {
         const crop = cropOf(deck);
+        const spaces = spacesOf(deck);
+        const placed = spaces.filter((s) => posOf(s));
+        const unplaced = spaces.filter((s) => !posOf(s));
         return (
           <div className="dp-deck" key={deck.id}>
             <div className="dp-deckhdr">
@@ -167,8 +240,48 @@ export default function DeckPlanView({ decks = [] }) {
               <span className="dp-spring" />
               <button className="lg-btn sm" onClick={() => setFramingDeck(deck)}>{crop ? 'Reframe' : 'Frame deck'}</button>
             </div>
+
             {crop && gaDims ? (
-              <div className="dp-plan" style={cropStyle(crop, gaDims, layout.gaImageUrl)} />
+              <>
+                <div
+                  className="dp-plan"
+                  ref={(el) => { planRefs.current[deck.id] = el; }}
+                  style={{ width: '100%', aspectRatio: String(boxAspectOf(crop, gaDims)) }}
+                >
+                  <div className="dp-plan-bg" style={cropBg(crop, layout.gaImageUrl)} />
+                  {placed.map((s) => {
+                    const p = posOf(s);
+                    const scanned = isScanned(s);
+                    return (
+                      <div
+                        key={s.id}
+                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''}`}
+                        style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
+                        onPointerDown={(e) => startDrag(e, s, deck, true)}
+                        title={scanned ? `${s.name} — open on map` : s.name}
+                      >
+                        <span className="dp-pin-dot" />
+                        <span className="dp-pin-label">{s.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {unplaced.length > 0 && (
+                  <div className="dp-tray">
+                    <span className="dp-tray-label">Drag onto the plan</span>
+                    {unplaced.map((s) => (
+                      <div
+                        key={s.id}
+                        className={`dp-chip ${isScanned(s) ? 'is-scanned' : 'is-empty'}`}
+                        onPointerDown={(e) => startDrag(e, s, deck, false)}
+                      >
+                        <span className="dp-pin-dot" />{s.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
               <button className="dp-plan-empty" onClick={() => setFramingDeck(deck)}>
                 Frame this deck on the drawing →
@@ -186,6 +299,12 @@ export default function DeckPlanView({ decks = [] }) {
           onSave={(crop) => saveCrop(framingDeck.id, crop)}
           onCancel={() => setFramingDeck(null)}
         />
+      )}
+
+      {drag && ghost && (
+        <div className={`dp-ghost ${drag.scanId ? 'is-scanned' : 'is-empty'}`} style={{ left: ghost.x, top: ghost.y }}>
+          <span className="dp-pin-dot" />{drag.name}
+        </div>
       )}
     </div>
   );
