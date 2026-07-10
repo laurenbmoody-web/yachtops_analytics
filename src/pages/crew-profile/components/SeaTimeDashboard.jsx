@@ -858,6 +858,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   // grows, the key changes — a fresh testimonial is genuinely needed, so the
   // old "submitted" marker no longer applies.
   const spellKey = (s) => `${s.vesselId}::${s.captainId || s.captainName || 'x'}::${s.from || ''}::${s.to || ''}`;
+  // Spells still awaiting submission — drives whether the "how to export" copy
+  // shows at all (no point telling someone to export when there's nothing left
+  // to send).
+  const openSpells = nautilusSpells.filter(s => !submitted[spellKey(s)]);
   // Per-spell "submitted" flag — set automatically when a testimonial is
   // exported/copied, and freely toggled by the crew (Open ↔ Submitted). Progress
   // marker only — it never touches day totals or excludes service.
@@ -2189,7 +2193,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       </span>
                     )}
                   </div>
-                  {interiorPathway ? (
+                  {openSpells.length === 0 ? null : interiorPathway ? (
                     <div className="std-export-instr">Export your record below, then submit it to the PYA with your guest-on days, GUEST certificates and ID for the IAMI GUEST Yacht Purser CoC.</div>
                   ) : verifier === 'pya' ? (
                     <div className="pya-dl">
@@ -2224,8 +2228,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       {(() => {
                         // Submitted records drop off here and show on the Sea
                         // Service Record below (reopen from there). This section
-                        // stays a clean to-do of what's still to send.
-                        const openSpells = nautilusSpells.filter(s => !submitted[spellKey(s)]);
+                        // stays a clean to-do of what's still to send. (openSpells
+                        // is computed once at component scope.)
                         if (openSpells.length === 0) {
                           return <div className="std-spells-lbl" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#3F7A52', fontWeight: 600 }}><Icon name="Check" size={14} /> All records submitted — they’re marked on your Sea Service Record below.</div>;
                         }
