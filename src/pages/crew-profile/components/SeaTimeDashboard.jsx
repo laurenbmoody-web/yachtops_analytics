@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabase';
-import { fetchEntriesForUser, fetchEntriesAcrossVessels, addManualEntries, submitEntries, signEntries, syncFromVessel, fetchLeaveDaysInRange, fetchGuestOnDays } from '../utils/seaTimeService';
+import { fetchEntriesForUser, fetchEntriesAcrossVessels, addManualEntries, submitEntries, signEntries, syncFromVessel, fetchLeaveDaysInRange, fetchLeaveBreakdownInRange, fetchGuestOnDays } from '../utils/seaTimeService';
 import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import SeaServiceCalendar from './SeaServiceCalendar';
 import { SHOW_SIGNOFF } from '../../../seatime/signoffFlag';
@@ -19,7 +19,7 @@ import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../
 import { buildAssurance, makeQrDataUrl, renderPackPdf, buildSpellTestimonialPdf, downloadBytes } from '../../../seatime/packExport';
 import { buildNautilusSST } from '../../../seatime/nautilusExport';
 import { buildTransportMaltaSST, buildTransportMaltaEngineSST } from '../../../seatime/transportMaltaExport';
-import { buildPyaPayload } from '../../../seatime/pya/pyaPayload';
+import { buildPyaPayload, parseRotationWeeks } from '../../../seatime/pya/pyaPayload';
 import { buildPyaClipboard } from '../../../seatime/pya/pyaBookmarklet';
 import CaptainSignoff from '../../../seatime/CaptainSignoff';
 import './sea-time-dashboard.css';
@@ -1030,7 +1030,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       const capCount = {};
       for (const e of mine) if (e.capacity) capCount[e.capacity] = (capCount[e.capacity] || 0) + (e.days || 0);
       const capacity = Object.keys(capCount).sort((a, b) => capCount[b] - capCount[a])[0] || '';
-      const leaveDays = (from && to) ? ((await fetchLeaveDaysInRange(userId, from, to)) ?? null) : null;
+      // Split leave: rotational-leave days are the crew's rotation off-time
+      // (captured by the rotation program below), not "leave of absence".
+      const leaveBreak = (from && to) ? (await fetchLeaveBreakdownInRange(userId, from, to)) : null;
+      const leaveDays = leaveBreak ? leaveBreak.leaveOfAbsence : null;
       let signatoryEmail = '';
       if (spell.captainId && spell.captainId !== userId) {
         const endorser = await resolveEndorserFor(spell.captainId, spell.captainName);
@@ -1050,6 +1053,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         vesselFlagFull = vrow?.flag || '';
         engineType = vrow?.main_engine_type || '';
       } catch { /* leave blank — areas/propulsion/flag/engine fall back */ }
+      // Rotation program (weeks) — from the crew's employment record. The pattern
+      // ("2:2") has no stored unit, so parseRotationWeeks infers it; the user
+      // verifies before submitting (PYA: fill wrong is worse than blank).
+      let rotationOnWeeks = null, rotationOffWeeks = null;
+      try {
+        const { data: emp } = await supabase.from('crew_employment').select('rotation_pattern, contract_type').eq('tenant_id', tenantId).eq('user_id', userId).maybeSingle();
+        if (emp && (emp.contract_type === 'Rotational' || emp.rotation_pattern)) {
+          const rot = parseRotationWeeks(emp.rotation_pattern);
+          if (rot) { rotationOnWeeks = rot.onWeeks; rotationOffWeeks = rot.offWeeks; }
+        }
+      } catch { /* no employment row — rotation stays blank */ }
       const payload = buildPyaPayload({
         dataset: {
           vessels: [{ name: v.name, flag: vesselFlagFull || v.flag, imo: v.imo, grossTonnage: v.gt, registeredLengthM: v.lengthM, vesselType: v.type, officialNumber: v.officialNo }],
@@ -1057,6 +1071,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         },
         leaveDays,
         guestDays: (guestOnDays ?? derivedGuest?.days ?? null),
+        rotationOnWeeks,
+        rotationOffWeeks,
         signatoryEmail,
         sstType,
         operatingRegions,
