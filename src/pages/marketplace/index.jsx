@@ -33,6 +33,7 @@ import {
   fetchDirectorySuppliers,
   fetchSupplierMemory,
   fetchSupplierRatings,
+  fetchSupplierReviews,
   rateSupplier,
   ensureTenantSupplierLinks,
   addBasketToBoard,
@@ -102,6 +103,122 @@ const StarRow = ({ value = 0, size = 12, onPick }) => {
           : <span key={i} className={i <= full ? 'on' : ''}>★</span>
       ))}
     </span>
+  );
+};
+
+// dd/mm/yyyy, zero-padded — Cargo date convention.
+const fmtReviewDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+};
+
+// The reviews modal — clicking a supplier's stars opens this. Shows the
+// platform-wide average, the written reviews (anonymous — "Verified
+// crew", since yacht crew are private about which boat they're on), and a
+// your-review editor (star picker + note) that writes via rate_supplier.
+const ReviewsModal = ({ supplier, rating, onClose, onRated }) => {
+  const [list, setList] = useState([]);
+  const [busy, setBusy] = useState(true);
+  const [star, setStar] = useState(rating?.mine || 0);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setBusy(true);
+    const rows = await fetchSupplierReviews(supplier.id);
+    setList(rows);
+    const mineRow = rows.find(r => r.mine);
+    if (mineRow) { setStar(mineRow.rating); setNote(mineRow.note); }
+    setBusy(false);
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [supplier.id]);
+
+  // Esc closes; lock body scroll while open.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const others = list.filter(r => !r.mine);
+  const avg = rating?.avg;
+  const count = rating?.count || 0;
+
+  const save = async () => {
+    if (!star) { showToast('Pick a star rating first', 'error'); return; }
+    setSaving(true);
+    try {
+      await rateSupplier(supplier.id, star, note.trim() || null);
+      showToast('Your review is saved — thanks', 'success');
+      onRated?.();
+      await load();
+    } catch (e) {
+      showToast(e.message || 'Could not save your review', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="mrev-backdrop" onClick={onClose} />
+      <div className="mrev" role="dialog" aria-modal="true" aria-label={`Reviews for ${supplier.name}`}>
+        <button className="mrev-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+
+        <header className="mrev-head">
+          <div className="mrev-supplier">{supplier.name}</div>
+          <div className="mrev-avg">
+            <span className="mrev-avg-n">{avg ? avg.toFixed(1) : '—'}</span>
+            <span className="mrev-avg-stars"><StarRow value={avg || 0} size={17} /></span>
+            <span className="mrev-avg-c">{count ? `${count} rating${count === 1 ? '' : 's'}` : 'No ratings yet'}</span>
+          </div>
+        </header>
+
+        <section className="mrev-yours">
+          <div className="mrev-label">Your review</div>
+          <div className="mrev-yours-stars"><StarRow value={star} size={28} onPick={setStar} /></div>
+          <textarea
+            className="mrev-note"
+            placeholder="Share what other crew should know — quality, delivery, communication…"
+            value={note}
+            maxLength={600}
+            onChange={(e) => setNote(e.target.value)}
+          />
+          <div className="mrev-yours-foot">
+            <span className="mrev-priv">Posted anonymously as “Verified crew”.</span>
+            <button className="mrev-save" onClick={save} disabled={saving || !star}>
+              {saving ? 'Saving…' : (rating?.mine ? 'Update review' : 'Post review')}
+            </button>
+          </div>
+        </section>
+
+        <section className="mrev-list">
+          <div className="mrev-label">
+            {others.length ? `${others.length} written review${others.length === 1 ? '' : 's'}` : 'Written reviews'}
+          </div>
+          {busy ? (
+            <div className="mrev-empty">Loading…</div>
+          ) : others.length === 0 ? (
+            <div className="mrev-empty">No written reviews yet — be the first to leave one.</div>
+          ) : (
+            others.map(r => (
+              <article className="mrev-item" key={r.id}>
+                <div className="mrev-item-top">
+                  <StarRow value={r.rating} size={12} />
+                  <span className="mrev-who">Verified crew</span>
+                  <span className="mrev-when">{fmtReviewDate(r.createdAt)}</span>
+                </div>
+                <p className="mrev-body">{r.note}</p>
+              </article>
+            ))
+          )}
+        </section>
+      </div>
+    </>
   );
 };
 
@@ -215,6 +332,7 @@ const Marketplace = () => {
 
   const [basket, setBasket] = useState([]); // [{ product, qty }]
   const [counterOpen, setCounterOpen] = useState(false);
+  const [reviewsFor, setReviewsFor] = useState(null); // supplier whose reviews modal is open
   const [targetBoard, setTargetBoard] = useState(searchParams.get('board') || '');
   const [newBoardName, setNewBoardName] = useState('');
   const [placing, setPlacing] = useState(false);
@@ -285,15 +403,11 @@ const Marketplace = () => {
   const enterShop = (s) => { setEnteredId(s.id); resetBrowse(); window.scrollTo({ top: 0 }); };
   const leaveShop = () => { setEnteredId(null); setBrowseAll(false); resetBrowse(); };
 
-  const handleRate = async (supplierId, star) => {
-    try {
-      await rateSupplier(supplierId, star);
-      setRatings(await fetchSupplierRatings());
-      showToast(`Rated ${star}★ — thanks`, 'success');
-    } catch (e) {
-      showToast(e.message || 'Could not save your rating', 'error');
-    }
-  };
+  // Stars are the trigger, not the control: clicking them opens the
+  // reviews modal, where the average + written reviews live and the user
+  // sets/edits their own rating (with an optional note).
+  const openReviews = (supplier) => { if (supplier) setReviewsFor(supplier); };
+  const refreshRatings = async () => { setRatings(await fetchSupplierRatings()); };
   const openAllItems = () => { setBrowseAll(true); resetBrowse(); };
 
   const productCount = useMemo(() => {
@@ -653,10 +767,17 @@ const Marketplace = () => {
                               <div className="mp-sf-id">
                                 <div className="mp-sf-nm">{focused.name}</div>
                                 <div className="mp-sf-loc">{locationLabel}</div>
-                                <div className="mp-sf-trust">
+                                <div
+                                  className="mp-sf-trust"
+                                  role="button"
+                                  tabIndex={0}
+                                  title="See reviews"
+                                  onClick={(e) => { e.stopPropagation(); openReviews(focused); }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); openReviews(focused); } }}
+                                >
                                   {frating?.avg
                                     ? <><StarRow value={frating.avg} /> <b>{frating.avg.toFixed(1)}</b> · {frating.count} rating{frating.count === 1 ? '' : 's'}</>
-                                    : <span className="mp-sf-unrated">Not yet rated</span>}
+                                    : <span className="mp-sf-unrated">Rate this supplier</span>}
                                   {fstats?.onTimePct != null && <> <span className="mp-sf-sep">·</span> {fstats.onTimePct}% on-time</>}
                                 </div>
                                 <div className="mp-sf-tags">
@@ -733,15 +854,15 @@ const Marketplace = () => {
                         {(() => {
                           const r = ratings.get(enteredSupplier.id);
                           return (
-                            <span className="mp-shophead-rate">
-                              <StarRow value={r?.mine || r?.avg || 0} size={13} onPick={(n) => handleRate(enteredSupplier.id, n)} />
+                            <button type="button" className="mp-shophead-rate" onClick={() => openReviews(enteredSupplier)} title="See reviews">
+                              <StarRow value={r?.avg || 0} size={13} />
                               <span className="rt">
                                 {r?.avg
                                   ? <>{r.avg.toFixed(1)} · {r.count} rating{r.count === 1 ? '' : 's'}</>
                                   : 'Be the first to rate'}
                                 {enteredStats?.onTimePct != null && <> · {enteredStats.onTimePct}% on-time</>}
                               </span>
-                            </span>
+                            </button>
                           );
                         })()}
                       </div>
@@ -878,6 +999,16 @@ const Marketplace = () => {
           inviteSuppliers={inviteSuppliers}
           onInvite={(s) => showToast(`Supplier invites are coming soon — we’ll help you bring ${s.name} onto Cargo.`, 'info')}
         />
+
+        {/* Reviews modal — clicking any supplier's stars opens this. */}
+        {reviewsFor && (
+          <ReviewsModal
+            supplier={reviewsFor}
+            rating={ratings.get(reviewsFor.id)}
+            onClose={() => setReviewsFor(null)}
+            onRated={refreshRatings}
+          />
+        )}
 
         {/* ── iii · The Counter (drawer) — trigger lives inline in the
              toolbars (next to Browse all items / the in-shop filters) ── */}
