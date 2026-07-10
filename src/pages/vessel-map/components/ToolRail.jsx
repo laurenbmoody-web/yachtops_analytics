@@ -10,11 +10,10 @@ const LIVE_MODES = [
   { key: 'navigate', icon: 'Hand', label: 'Navigate', kbd: 'V' },
   { key: 'pin', icon: 'MapPin', label: 'Pin', kbd: 'P', gated: true },
   { key: 'doorways', icon: 'DoorOpen', label: 'Doorways', kbd: 'D', gated: true },
+  { key: 'measure', icon: 'Ruler', label: 'Measure', kbd: 'M' },
 ];
 
-const FUTURE_MODES = [
-  { key: 'measure', icon: 'Ruler', label: 'Measure' },
-];
+const FUTURE_MODES = [];
 
 function RailButton({ icon, label, kbd, active, disabled, soon, onClick }) {
   return (
@@ -48,12 +47,12 @@ export default function ToolRail({ mode, onMode, canPin, pinReady }) {
             label={m.label}
             kbd={m.kbd}
             active={mode === m.key}
-            disabled={(m.key === 'pin' || m.key === 'doorways') && !pinReady}
+            disabled={m.key !== 'navigate' && !pinReady}
             onClick={() => onMode(m.key)}
           />
         );
       })}
-      <div className="vm-rail-divider" />
+      {FUTURE_MODES.length > 0 && <div className="vm-rail-divider" />}
       {FUTURE_MODES.map((m) => (
         <RailButton key={m.key} icon={m.icon} label={m.label} disabled soon />
       ))}

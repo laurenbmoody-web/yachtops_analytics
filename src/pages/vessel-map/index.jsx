@@ -98,6 +98,7 @@ export default function VesselMapPage() {
   const [spaceLinks, setSpaceLinks] = useState([]); // doorway links [{id,a,b,aPos,bPos}]
   const [spaceNames, setSpaceNames] = useState({}); // space_id → room name (for doors to un-scanned rooms)
   const [placingDoor, setPlacingDoor] = useState(null); // {linkId, end, name} being anchored in 3D
+  const [measure, setMeasure] = useState(null); // { meters, points } | null — Measure tool readout
 
   const selectedScan = useMemo(
     () => scans.find((s) => s.id === selectedScanId) || null,
@@ -377,8 +378,10 @@ export default function VesselMapPage() {
   const selectMode = (m) => {
     setPlacingDoor(null);
     setPendingPosition(null);
+    if (m !== 'measure') setMeasure(null);
     if (m === 'pin') { setMode('pin'); setSelectedHotspot(null); setAdjusting(null); setAdjustError(null); return; }
     if (m === 'doorways') { setMode('doorways'); setSelectedHotspot(null); setAdjusting(null); setModalOpen(false); return; }
+    if (m === 'measure') { setMode('measure'); setSelectedHotspot(null); setAdjusting(null); setModalOpen(false); return; }
     cancelPlacement(); // navigate
   };
 
@@ -472,13 +475,16 @@ export default function VesselMapPage() {
     d: () => {
       if (canPlaceHotspots && viewer.status === 'ready') selectMode('doorways');
     },
+    m: () => {
+      if (viewer.status === 'ready') selectMode('measure');
+    },
     f: () => setImmersive((v) => !v),
     escape: () => {
       if (modalOpen) dismissModal();
       else if (placingDoor) cancelDoorPlacement();
       else if (adjusting) cancelAdjust();
       else if (selectedHotspot) setSelectedHotspot(null);
-      else if (mode === 'pin' || mode === 'doorways') selectMode('navigate');
+      else if (mode === 'pin' || mode === 'doorways' || mode === 'measure') selectMode('navigate');
       else if (immersive) setImmersive(false);
     },
   }, { enabled: isDesktop });
@@ -717,6 +723,8 @@ export default function VesselMapPage() {
                     placementMode={placementMode || !!placingDoor}
                     placeSurfaceOnly={!!placingDoor}
                     pendingColor={placingDoor ? '#0E7C86' : '#C65A1A'}
+                    measureMode={mode === 'measure'}
+                    onMeasure={setMeasure}
                     pendingPosition={pendingPosition}
                     onPlacePending={handleViewerPlace}
                     onSelectHotspot={handleSelectHotspot}
@@ -883,7 +891,7 @@ export default function VesselMapPage() {
                 )}
 
                 {/* Navigate — a clean walk shortcut for doors that are ready. */}
-                {showViewer && viewer.status !== 'error' && !orientDraft && !adjusting && mode !== 'doorways' && mode !== 'pin' && roomDoorways.some((d) => d.walkable) && (
+                {showViewer && viewer.status !== 'error' && !orientDraft && !adjusting && mode === 'navigate' && roomDoorways.some((d) => d.walkable) && (
                   <div className="vm-doors">
                     <span className="vm-doors-label">Walk to</span>
                     {roomDoorways.filter((d) => d.walkable).map((d) => (
@@ -891,6 +899,21 @@ export default function VesselMapPage() {
                         {d.name}<span className="vm-door-arrow" aria-hidden="true">→</span>
                       </button>
                     ))}
+                  </div>
+                )}
+
+                {/* Measure tool readout. */}
+                {showViewer && viewer.status !== 'error' && mode === 'measure' && (
+                  <div className="vm-doors vm-measure">
+                    <span className="vm-doors-label">Measure</span>
+                    {measure?.points === 2 ? (
+                      <>
+                        <span className="vm-measure-val">≈ {measure.meters.toFixed(2)} m</span>
+                        <span className="vm-door-placing">Click again to start over.</span>
+                      </>
+                    ) : (
+                      <span className="vm-door-placing">{measure?.points === 1 ? 'Click the second point.' : 'Click two points on the scan to measure the distance.'}</span>
+                    )}
                   </div>
                 )}
 
