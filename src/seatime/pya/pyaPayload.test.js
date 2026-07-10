@@ -96,8 +96,11 @@ test('rotation pattern → PYA weeks (explicit unit wins; else infer months for 
   assert.deepEqual(parseRotationWeeks('3:3'), { onWeeks: 13, offWeeks: 13 });
   assert.deepEqual(parseRotationWeeks('2:1'), { onWeeks: 9, offWeeks: 4 });
   assert.deepEqual(parseRotationWeeks('10:10'), { onWeeks: 10, offWeeks: 10 });     // large → weeks
-  assert.deepEqual(parseRotationWeeks('9:9 weeks'), { onWeeks: 9, offWeeks: 9 });   // explicit weeks
-  assert.deepEqual(parseRotationWeeks('2:2 months'), { onWeeks: 9, offWeeks: 9 });  // explicit months
+  assert.deepEqual(parseRotationWeeks('9:9 weeks'), { onWeeks: 9, offWeeks: 9 });   // explicit weeks (in string)
+  assert.deepEqual(parseRotationWeeks('2:2 months'), { onWeeks: 9, offWeeks: 9 });  // explicit months (in string)
+  // explicit unit arg (from the employment form toggle) overrides inference
+  assert.deepEqual(parseRotationWeeks('2:2', 'weeks'), { onWeeks: 2, offWeeks: 2 });
+  assert.deepEqual(parseRotationWeeks('10:10', 'months'), { onWeeks: 43, offWeeks: 43 });
   assert.equal(parseRotationWeeks(''), null);
   assert.equal(parseRotationWeeks('permanent'), null);
 });
