@@ -58,13 +58,28 @@ test('vessel + dates + radios map across', () => {
 });
 
 test('capacity mapping covers the PYA options', () => {
+  // Deck
   assert.equal(mapCapacity('Master'), 'Master');
   assert.equal(mapCapacity('Chief Officer'), 'Chief Mate');
   assert.equal(mapCapacity('Officer of the Watch'), 'OOW');
   assert.equal(mapCapacity('Bosun'), 'Bosun');
   assert.equal(mapCapacity('Chase Boat Captain'), 'Chase Boat Captain');
   assert.equal(mapCapacity('Deckhand'), 'Deckhand');
-  assert.equal(mapCapacity('Stewardess'), null);          // unknown → manual
+  // Engine — checked before deck so a watchkeeping engineer isn't read as deck OOW
+  assert.equal(mapCapacity('Chief Engineer'), 'Chief Engineer');
+  assert.equal(mapCapacity('2nd Engineer'), 'Second Engineer');
+  assert.equal(mapCapacity('EOOW'), 'Engineer Watchkeeper');
+  assert.equal(mapCapacity('Engineer Watchkeeper'), 'Engineer Watchkeeper');
+  assert.equal(mapCapacity('Engineer'), 'Engineer');
+  assert.equal(mapCapacity('ETO'), 'ETO');
+  assert.equal(mapCapacity('Electro-Technical Officer'), 'ETO');
+  // Interior / galley
+  assert.equal(mapCapacity('Stewardess'), 'Steward / ess');
+  assert.equal(mapCapacity('Chief Stewardess'), 'Chief steward / ess');
+  assert.equal(mapCapacity('Purser'), 'Purser');
+  assert.equal(mapCapacity('Chef'), 'Chef');
+  assert.equal(mapCapacity('Cook'), 'Cook');
+  assert.equal(mapCapacity('Random Role'), null);         // unknown → manual
 });
 
 test('vessel name drops the M/Y · S/Y prefix (type is its own field)', () => {

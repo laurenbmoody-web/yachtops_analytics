@@ -20,17 +20,35 @@
 
 const round = (n) => Math.max(0, Math.round(Number(n) || 0));
 
-/** Map our free-text capacity/rank onto one PYA capacity radio. Null = unknown
- *  (the user picks it by hand). */
+/** Map our free-text capacity/rank onto one PYA capacity checkbox label. Null =
+ *  unknown (the user ticks it by hand). Labels mirror PYA's exact option text
+ *  across all four SST types (Deck, Engineering, Dual, Interior). Engine is
+ *  tested BEFORE deck so "Engineer Watchkeeper"/"EOOW" isn't read as a deck OOW,
+ *  and chief/second before the generic Engineer. */
 export const mapCapacity = (cap) => {
   const c = String(cap || '').toLowerCase();
   if (!c) return null;
+  // ── Engine department
+  if (/\beto\b|electro[- ]?tech/.test(c)) return 'ETO';
+  if (/engineer|motorman|\boiler\b|eoow|\beng\b/.test(c)) {
+    if (/chief|c\/e/.test(c)) return 'Chief Engineer';
+    if (/2nd|second/.test(c)) return 'Second Engineer';
+    if (/watch|eoow/.test(c)) return 'Engineer Watchkeeper';
+    return 'Engineer';
+  }
+  // ── Deck department
   if (/\bmaster\b|captain/.test(c) && !/chase/.test(c)) return 'Master';
   if (/chief\s*(mate|officer)|c\/o|1st officer|first officer/.test(c)) return 'Chief Mate';
   if (/oow|officer of the watch|watch\s?keep|2nd officer|second officer|3rd officer|third officer|\bmate\b/.test(c)) return 'OOW';
   if (/chase/.test(c)) return 'Chase Boat Captain';
   if (/bosun|boatswain/.test(c)) return 'Bosun';
   if (/deck/.test(c)) return 'Deckhand';
+  // ── Interior / galley
+  if (/purser/.test(c)) return 'Purser';
+  if (/chief\s*stew|head\s*of\s*(interior|service)/.test(c)) return 'Chief steward / ess';
+  if (/stew/.test(c)) return 'Steward / ess';
+  if (/chef/.test(c)) return 'Chef';
+  if (/cook/.test(c)) return 'Cook';
   return null;
 };
 
