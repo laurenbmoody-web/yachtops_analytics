@@ -1391,3 +1391,50 @@
   cursor: pointer;
 }
 .vm-cupboard-more:hover { color: #C65A1A; }
+
+/* Walkthrough — "Walk to" doors from the current room (Phase 4b). Floats at
+   the foot of the stage, light-on-dark. */
+.vm-doors {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 90%;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(20, 19, 42, 0.55);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.vm-doors-label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  padding-left: 2px;
+}
+.vm-door {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.vm-door:hover { background: #C65A1A; border-color: #C65A1A; }
+.vm-door-arrow { font-size: 13px; opacity: 0.85; }
