@@ -1280,6 +1280,30 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             // if the crew member never logged that intermediate certificate.
             const status = isHeld ? 'held' : (idx > -1 && idx < highestHeldIdx ? 'complete' : r.id === targetId ? 'target' : 'upcoming');
             const isGoal = r.id === goalId;
+            // Top of the pathway reached: the goal rung becomes the clickable
+            // title (chevron opens the department/goal picker, exactly like the
+            // working-toward title) so a topped-out user can switch or aim higher
+            // without a separate banner. The pencil still manages the held cert.
+            if (isGoal && routeComplete) {
+              const held = effectiveHeld[r.id];
+              return (
+                <div className="stp-step held goal" key={r.id} ref={cfgRef} style={{ position: 'relative' }}>
+                  <span className="stp-m" />
+                  <span className="stp-row">
+                    <button type="button" className={`stp-goalbtn${pathwayCfgOpen ? ' open' : ''}`} onClick={() => setPathwayCfgOpen(o => !o)}
+                      aria-haspopup="dialog" aria-expanded={pathwayCfgOpen} title="Reached — switch department or aim for a higher goal">
+                      <span className="nm">{r.label}{r.legacyAlias && <span className="stp-alias">{r.legacyAlias}</span>}<span className="goaltag">Goal</span></span>
+                      <svg className="stp-titlechev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                    <span className="stp-rowend">
+                      <span className="st held">{held ? <>Held{held.issueDate ? <> · <span className="dt">{fmtDate(held.issueDate)}</span></> : ''}</> : 'Covered'}</span>
+                      <button type="button" className="stp-editbtn" onClick={(e) => { e.stopPropagation(); setHeldOpen(true); }} title="Manage certificates"><Icon name="Pencil" size={12} className="stp-edit" /></button>
+                    </span>
+                  </span>
+                  {pathwayCfgOpen && pathwayCfg()}
+                </div>
+              );
+            }
             if (status !== 'target') {
               const onClick = (isHeld || status === 'complete') ? () => setHeldOpen(true) : () => setGoalId(r.id);
               return (
@@ -1392,20 +1416,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             );
           })}
         </div>
-        {routeComplete && (
-          <div className="stp-achieved" ref={cfgRef} style={{ position: 'relative' }}>
-            <IcoPath d="M20 6L9 17l-5-5" color="#5E8E6F" size={22} />
-            <div>
-              <div className="nt">You hold {CERTIFICATES[goalId]?.label || 'your goal'} — the top of this pathway.</div>
-              <div className="ns">Every rung below counts as covered, so there’s nothing left to work toward here. Switch department or aim for a higher goal to keep progressing.</div>
-              <button type="button" className="stp-achieved-cta" onClick={() => setPathwayCfgOpen(o => !o)} aria-haspopup="dialog" aria-expanded={pathwayCfgOpen}>
-                Change department or goal
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-              </button>
-            </div>
-            {pathwayCfgOpen && pathwayCfg()}
-          </div>
-        )}
         </>
       ) : (
         <div className="stp-loghero">
