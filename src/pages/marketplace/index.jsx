@@ -621,13 +621,10 @@ const Marketplace = () => {
                       × Clear all
                     </button>
                   )}
-                  <button className="mp-allitems mp-allitems-end" onClick={openAllItems}>
-                    Browse All <ChevronRight size={14} />
-                  </button>
                   {!loading && (
                     <button
                       type="button"
-                      className={`mp-counter-btn ${basketUnits > 0 ? 'live' : ''}`}
+                      className={`mp-counter-btn mp-counter-btn-end ${basketUnits > 0 ? 'live' : ''}`}
                       onClick={() => setCounterOpen(true)}
                       title="The Counter"
                       aria-label="The Counter"
@@ -713,6 +710,11 @@ const Marketplace = () => {
                         ))}
                       </div>
                     )}
+                    <div className="mp-browse-row">
+                      <button className="mp-allitems" onClick={openAllItems}>
+                        Browse All <ChevronRight size={14} />
+                      </button>
+                    </div>
                   </>
                 )}
               </>
