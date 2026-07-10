@@ -57,18 +57,19 @@ export const mapVesselType = (t) => (/sail/i.test(String(t || '')) ? 'Sail Yacht
 
 /** Parse an employment "rotation pattern" (e.g. "2:2", "10:10 weeks", "3:3 months")
  *  into { onWeeks, offWeeks } for PYA's rotation-program boxes (which are in WEEKS).
- *  Unit: explicit if the string says weeks/months; otherwise inferred — figures ≤6
- *  read as MONTHS (the yacht norm the "2:2" placeholder implies), larger as weeks
- *  (e.g. 10:10). Returns null if unparseable. Filling the wrong unit is worse than
- *  blank, so the caller should still surface it for the user to verify. */
-export const parseRotationWeeks = (pattern) => {
+ *  Unit: an explicit `unit` arg ('weeks'|'months', from the employment form) wins;
+ *  else a unit named in the string; else inferred — figures ≤6 read as MONTHS (the
+ *  yacht norm the "2:2" placeholder implies), larger as weeks (e.g. 10:10). Returns
+ *  null if unparseable. */
+export const parseRotationWeeks = (pattern, unit = '') => {
   const s = String(pattern || '').toLowerCase().trim();
   const m = s.match(/(\d+(?:\.\d+)?)\s*[:/x×-]\s*(\d+(?:\.\d+)?)/);
   if (!m) return null;
   const on = parseFloat(m[1]), off = parseFloat(m[2]);
   if (!(on > 0) && !(off > 0)) return null;
-  const inWeeks = /week|\bwk/.test(s);
-  const inMonths = /month|\bmo\b|\bmth/.test(s);
+  const u = String(unit || '').toLowerCase();
+  const inWeeks = /week|\bwk/.test(u) || /week|\bwk/.test(s);
+  const inMonths = /month|\bmo\b|\bmth/.test(u) || /month|\bmo\b|\bmth/.test(s);
   const asMonths = inMonths || (!inWeeks && on <= 6 && off <= 6);
   const conv = (n) => Math.round(asMonths ? n * 4.345 : n);
   return { onWeeks: conv(on), offWeeks: conv(off) };

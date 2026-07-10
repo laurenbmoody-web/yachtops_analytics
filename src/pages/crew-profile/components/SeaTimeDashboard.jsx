@@ -1058,9 +1058,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       // verifies before submitting (PYA: fill wrong is worse than blank).
       let rotationOnWeeks = null, rotationOffWeeks = null;
       try {
-        const { data: emp } = await supabase.from('crew_employment').select('rotation_pattern, contract_type').eq('tenant_id', tenantId).eq('user_id', userId).maybeSingle();
+        const { data: emp } = await supabase.from('crew_employment').select('rotation_pattern, rotation_unit, contract_type').eq('tenant_id', tenantId).eq('user_id', userId).maybeSingle();
         if (emp && (emp.contract_type === 'Rotational' || emp.rotation_pattern)) {
-          const rot = parseRotationWeeks(emp.rotation_pattern);
+          const rot = parseRotationWeeks(emp.rotation_pattern, emp.rotation_unit);
           if (rot) { rotationOnWeeks = rot.onWeeks; rotationOffWeeks = rot.offWeeks; }
         }
       } catch { /* no employment row — rotation stays blank */ }

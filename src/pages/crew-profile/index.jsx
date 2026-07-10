@@ -1197,6 +1197,7 @@ const canEdit = (() => {
       probation_period_days: empForm.probation_period_days == null || empForm.probation_period_days === ''
         ? null : Number(empForm.probation_period_days),
       rotation_pattern: empForm.rotation_pattern || null,
+      rotation_unit: empForm.rotation_unit || null,
       leave_entitlement_days: empForm.leave_entitlement_days === '' || empForm.leave_entitlement_days == null
         ? null : Number(empForm.leave_entitlement_days),
       notice_period: empForm.notice_period || null,
@@ -4042,7 +4043,17 @@ const canEdit = (() => {
               <div className="cp-group">
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Rotation &amp; leave</span><span className="line" /></div>
                 <div className="cp-grid">
-                  {fld('Rotation pattern', empForm.rotation_pattern, txt('rotation_pattern', 'e.g. 2:2'))}
+                  {fld('Rotation pattern', empForm.rotation_pattern ? `${empForm.rotation_pattern}${empForm.rotation_unit ? ` (${empForm.rotation_unit})` : ''}` : '',
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input className="cp-inline-box" style={{ flex: '1 1 auto', minWidth: 0 }} value={empForm.rotation_pattern || ''} placeholder="e.g. 2:2"
+                        onChange={(e) => setE('rotation_pattern', e.target.value)} />
+                      <select className="cp-inline-select" style={{ flex: '0 0 auto' }} value={empForm.rotation_unit || ''}
+                        onChange={(e) => setE('rotation_unit', e.target.value || null)} title="On/off unit — used to fill your PYA rotation program in weeks">
+                        <option value="">unit…</option>
+                        <option value="weeks">weeks on/off</option>
+                        <option value="months">months on/off</option>
+                      </select>
+                    </div>)}
                   {fld('Next crew change', fmtDate(empForm.next_crew_change_date), dte('next_crew_change_date'))}
                   {fld('Leave entitlement', empForm.leave_entitlement_days != null && empForm.leave_entitlement_days !== '' ? `${empForm.leave_entitlement_days} / days` : '',
                     <input className="cp-inline-box" type="number" min="0" placeholder="/ days" value={empForm.leave_entitlement_days ?? ''} onChange={(e) => setE('leave_entitlement_days', e.target.value)} />)}
