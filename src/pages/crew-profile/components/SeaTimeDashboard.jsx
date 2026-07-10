@@ -1558,6 +1558,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               <button className={logView === 'list' ? 'on' : ''} onClick={() => setLogView('list')} title="List view" aria-label="List view"><Icon name="List" size={15} /></button>
               <button className={logView === 'calendar' ? 'on' : ''} onClick={() => setLogView('calendar')} title="Calendar view" aria-label="Calendar view"><Icon name="Calendar" size={15} /></button>
             </div>
+            <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC', padding: '7px 12px' }}
+              title="Download your full logged sea service as a spreadsheet (CSV)." onClick={onExportCsv}><Icon name="Table" size={14} /> Spreadsheet</button>
           </div>
         </div>
         {/* One bar carries the total, the type breakdown and the filter — tap a
@@ -2077,7 +2079,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     );
                   })}
                 </div>
-                {verifier !== 'pya' && <div className="std-fee">{vp.fee}</div>}
+                {verifier !== 'pya' && vp.fee && <div className="std-fee">{vp.fee}</div>}
               </div>
             </div>
 
@@ -2260,10 +2262,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       })()}
                     </div>
                   )}
-                  <div className="std-export-actions">
-                    <button className="std-dl" title="Your full logged sea service as a spreadsheet (CSV) — for your own records or manual submission." style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Download as spreadsheet</button>
-                    {verifier !== 'pya' && <span className="std-fee">{vp.fee}</span>}
-                  </div>
+                  {verifier !== 'pya' && vp.fee && (
+                    <div className="std-export-actions"><span className="std-fee">{vp.fee}</span></div>
+                  )}
                 </div>
               </div>
             )}
@@ -2364,7 +2365,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <div className="vs" style={{ maxWidth: 480 }}>{vp.instructions}</div>
                 <div className="std-flex" style={{ gap: 10, flexWrap: 'wrap' }}>
                   <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={onDownload}><Icon name="Download" size={15} /> Download PDF</button>
-                  <button className="std-dl" title="Your full logged sea service as a spreadsheet (CSV)." style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={onExportCsv}><Icon name="Table" size={15} /> Download as spreadsheet</button>
                   <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => flash('Pack emailed to the verifier (demo)')}><Icon name="Mail" size={15} /> Email pack</button>
                   <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => flash('Shared in Cargo (demo)')}><Icon name="Send" size={15} /> Send in Cargo</button>
                 </div>
