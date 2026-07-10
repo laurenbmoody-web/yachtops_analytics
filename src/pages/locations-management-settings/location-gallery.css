@@ -206,13 +206,10 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-deckhdr .dp-dc{font-size:12.5px;color:var(--lg-faint);}
 .dp-spring{margin-left:auto;}
 
-/* Fixed long-rectangle frame; the deck crop (inline-sized .dp-plan-fit) is
-   centred and scaled to fit inside it — never stretched, never clipped. */
-.dp-plan{position:relative;width:100%;aspect-ratio:3.2;margin:0 auto;border-radius:14px;
-  border:1px solid var(--lg-hair);background-color:var(--lg-wash);
-  box-shadow:var(--lg-sh-flat, 0 1px 2px rgba(28,27,58,.06));overflow:hidden;
-  display:flex;align-items:center;justify-content:center;}
-.dp-plan-fit{flex:none;}
+/* The panel takes the crop's proportions (width/aspect-ratio come from the
+   inline cropStyle) and fills edge-to-edge with the framed region. */
+.dp-plan{margin:0 auto;border-radius:14px;border:1px solid var(--lg-hair);
+  background-color:var(--lg-wash);box-shadow:var(--lg-sh-flat, 0 1px 2px rgba(28,27,58,.06));overflow:hidden;}
 .dp-plan-empty{display:flex;align-items:center;justify-content:center;width:100%;min-height:110px;cursor:pointer;
   border:1px dashed var(--lg-hair);border-radius:14px;background:var(--lg-wash);color:var(--lg-terra);
   font-family:var(--lg-sans);font-size:13.5px;font-weight:500;}
