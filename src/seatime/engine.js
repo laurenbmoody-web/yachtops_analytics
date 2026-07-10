@@ -12,13 +12,14 @@
 
 import { SERVICE_RULES, isOfficerCapacity } from './pathways.js';
 
-// ── Config — thresholds sourced from MSN 1858 Amd 2 (deck) / MSN 1859 (engine).
+// ── Config — thresholds sourced from MSN 1858 Amd 2 (deck) / MSN 1904 (engine,
+// the in-force Small Vessel notice that superseded the withdrawn MSN 1859).
 // Standby is NOT a flat cap: it may not exceed actual seagoing service (1858
 // §5.2 / MIN 498). Yard service is capped at 90 days for OOW <3000GT and 30 days
-// for Chief Mate / Master (1858 §3.3–§3.6 / 1859 §5.2). The 90 here is the OOW
+// for Chief Mate / Master (1858 §3.3–§3.6 / 1904 §5.5). The 90 here is the OOW
 // baseline; callers pass the per-certificate cap via yardCapForCertificate(). ──
 export const DEFAULT_CONFIG = {
-  watchMinHours: 4,        // 4h/24h = 1 day (1858/1859 §5) HIGH
+  watchMinHours: 4,        // 4h/24h = 1 day (1858 §5 / 1904 §5) HIGH
   minLengthM: 15,          // OOW/Master <3000 vessel-size gate (1858 §3.3) HIGH
   yardCapDays: 90,         // yard cap — OOW baseline; 30 for Master/Chief Mate HIGH
   standbyMode: 'le_seagoing' // standby total ≤ actual seagoing service (1858 §5.2) HIGH

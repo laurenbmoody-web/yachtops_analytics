@@ -16,10 +16,10 @@
 /** @typedef {'deck'|'engineering'|'interior'|'galley'|'other'} Department */
 /** @typedef {'DECK'|'ENGINE'|'ETO'|'INTERIOR'} Family */
 
-// ── Day-counting + service-definition rules (MSN 1858 §5 / MSN 1859 §5) ──────
+// ── Day-counting + service-definition rules (MSN 1858 §5 / MSN 1904 §5) ──────
 export const SERVICE_RULES = {
-  fullDayMinHours: 4,          // "4 hours working duty in 24h = 1 full day" (1858 §5.1/5.2, 1859 §5.1) HIGH
-  monthDays: 30,               // "month = calendar month or 30 days" (1858 §5.3, 1859 §5.3) HIGH
+  fullDayMinHours: 4,          // "4 hours working duty in 24h = 1 full day" (1858 §5.1/5.2, 1904 §5) HIGH
+  monthDays: 30,               // "month = calendar month or 30 days" (1858 §5.3, 1904 §5) HIGH
   seagoingMinLengthM: 15,      // OOW/Master <3000 gate (1858 §3.3/3.5/3.6) HIGH
   // Standby: ≤14 consecutive days, never exceeding the previous voyage, and
   // total standby may NOT exceed total actual seagoing service. (1858 §5.2 /
@@ -28,15 +28,15 @@ export const SERVICE_RULES = {
   standbyNeverExceedsSeagoing: true,
   // Yard service cap; never counts as actual seagoing. Baseline 90 days (OOW
   // <3000GT); Chief Mate / Master = 30 days via the per-certificate override
-  // below. (MSN 1858 §3.3–§3.6 / MSN 1859 §5.2) HIGH — confirmed vs MSN 1858
-  // Amd 2 + MIN 498.
+  // below. (MSN 1858 §3.3–§3.6 / MSN 1904 §5.5) HIGH — confirmed vs MSN 1858
+  // Amd 2 + MSN 1904 + MIN 498.
   yardCapDays: 90,
-  // Dual deck+engine capacity counts at 50%. (1858 §5.1 / 1859) HIGH — not yet modelled.
+  // Dual deck+engine capacity counts at 50%. (1858 §5.1 / 1904 §5) HIGH — not yet modelled.
   dualCapacityRate: 0.5,
   // ≥6 months of qualifying seagoing within the 5 years before application. (1858 §5.1) HIGH — not yet enforced.
   recencyMonthsWithin5y: 6,
   // Verification authority in BOTH notices is the MCA. PYA Service Record Book is
-  // an accepted record *format* (1859 §5.4); Nautilus is not named in either
+  // an accepted record *format* (1904 §5); Nautilus is not named in either
   // notice. The testimonial pack's PYA/Nautilus options are submission ROUTES
   // (per MIN 543/642 industry practice), not claims from these notices.
   verificationAuthority: 'MCA'
@@ -291,7 +291,7 @@ export const DEFAULT_CERTIFICATE = 'OOW_YACHT_3000';
 // ── Goal-based routing. A crew member picks a GOAL (career ceiling); the spine
 // shows only the certificates on the route to it. Held certs (from the crew's
 // CoC documents) mark where they are; the live target is the first un-held rung
-// on the route. TODO(MSN-routes): confirm exact prerequisite chains vs 1858/1859.
+// on the route. TODO(MSN-routes): confirm exact prerequisite chains vs 1858/1904.
 export const CERTIFICATE_ROUTES = {
   // DECK — small-vessel command entry tier (standalone, RYA/IYT based)
   MASTER_CODE_200_COASTAL:   ['MASTER_CODE_200_COASTAL'],
@@ -387,7 +387,7 @@ export const rolesForDepartment = (deptId) =>
 
 /** Yard-service day cap for a certificate (MSN 1858): OOW <3000GT counts up to
  *  90 yard days; Chief Mate / Master up to 30. Falls back to the 90-day baseline
- *  (e.g. engine certs under MSN 1859 §5.2) when a cert sets no override. */
+ *  (e.g. engine certs under MSN 1904 §5.5) when a cert sets no override. */
 export const yardCapForCertificate = (certId) =>
   CERTIFICATES[certId]?.yardCapDays ?? SERVICE_RULES.yardCapDays;
 
@@ -396,7 +396,13 @@ export const yardCapForCertificate = (certId) =>
 // doc-type ids that satisfy it (anyOf — met if the crew holds any of them), so the
 // tracker auto-detects what they hold from the Documents tab. Exam-only modules
 // (e.g. Celestial Nav, GSK) aren't documents, so they're not listed here. ───────
-const A = (key, label, anyOf, note) => ({ key, label, anyOf, ...(note ? { note } : {}) });
+// `match` (optional) further gates a held doc-type by its recorded fields — used
+// where one doc-type spans levels. HELM is a single doc with an Operational /
+// Management level field, so HELM (Management) is only satisfied by a doc whose
+// level is Management (which also covers the Operational requirement); a plain
+// Operational HELM does NOT satisfy the Management requirement.
+const A = (key, label, anyOf, note, match) => ({ key, label, anyOf, ...(note ? { note } : {}), ...(match ? { match } : {}) });
+const HELM_MGMT = (d) => (d?.level || '').toLowerCase() === 'management';
 const STCW_CORE = [
   A('stcw', 'STCW Basic Safety Training', ['stcw_basic']),
   A('pscrb', 'Survival Craft & Rescue Boats (PSCRB)', ['stcw_pscrb']),
@@ -407,7 +413,7 @@ const MASTER_TICKETS = [
   A('med', 'Medical First Aid / Care (A-VI/4)', ['stcw_medical_care']),
   A('ecdis', 'ECDIS', ['ecdis']),
   A('gmdss', 'GMDSS GOC', ['gmdss']),
-  A('helm_m', 'HELM (Management)', ['helm_management']),
+  A('helm_m', 'HELM (Management)', ['helm_management'], undefined, HELM_MGMT),
 ];
 export const ANCILLARY = {
   // Master Code <200GT / OOW <500GT (§3.1–3.2): only the 4 STCW basics + GMDSS +
@@ -443,8 +449,8 @@ export const ANCILLARY = {
   // it's listed at every rung (held from below; shown so the picture is complete).
   MEOL_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care'])],
   EOOW_SV_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_o', 'HELM (Operational)', ['helm_management'])],
-  CHIEF_SV_500_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'])],
-  CHIEF_SV_3000_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'])],
+  CHIEF_SV_500_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'], undefined, HELM_MGMT)],
+  CHIEF_SV_3000_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care']), A('helm_m', 'HELM (Management)', ['helm_management'], undefined, HELM_MGMT)],
   // ETO — MSN 1860 §7.3. HV (Management), GMDSS Radio Maintenance and ENEM are
   // the electro-technical specialist tickets unique to this route.
   ETO_COC: [
