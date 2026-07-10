@@ -722,9 +722,13 @@ button.cj-node:hover{border-color:var(--rust);}
 .stp-achieved{display:flex;gap:12px;align-items:flex-start;margin-top:16px;padding:14px 16px;background:#EFF6F1;border:1px solid #D7E7DD;border-radius:12px;}
 .stp-achieved .nt{font-weight:700;font-size:13.5px;color:#1C1B3A;}
 .stp-achieved .ns{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;}
-.stp-achieved-cta{display:inline-flex;align-items:center;gap:4px;margin-top:9px;background:none;border:0;padding:0;font-family:inherit;font-size:12px;font-weight:600;color:var(--rust);cursor:pointer;}
-.stp-achieved-cta:hover{text-decoration:underline;}
-.stp-achieved-cta svg{flex:none;}
+/* Completed goal rung — the name doubles as the department/goal picker trigger. */
+.stp-goalbtn{display:inline-flex;align-items:center;gap:7px;background:none;border:0;padding:0;margin:0;cursor:pointer;font-family:inherit;text-align:left;}
+.stp-goalbtn .stp-titlechev{color:var(--faint);flex:none;margin-top:0;transition:transform .15s,color .12s;}
+.stp-goalbtn:hover .nm,.stp-goalbtn.open .nm{color:var(--rust);}
+.stp-goalbtn:hover .stp-titlechev,.stp-goalbtn.open .stp-titlechev{color:var(--rust);}
+.stp-goalbtn.open .stp-titlechev{transform:rotate(180deg);}
+.stp-editbtn{background:none;border:0;padding:0;cursor:pointer;display:inline-flex;}
 .stp-loghero{display:grid;grid-template-columns:1fr auto;gap:30px;align-items:center;margin-top:6px;}
 @media(max-width:680px){.stp-loghero{grid-template-columns:1fr;gap:16px;}}
 .stp-loglead{font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:10px;max-width:520px;}
