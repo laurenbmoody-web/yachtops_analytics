@@ -17,7 +17,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, ChevronLeft, ShoppingBasket, ClipboardList, Search, X, ChevronRight, MapPin,
+  ChevronLeft, ShoppingBasket, ClipboardList, Search, X, ChevronRight, MapPin,
 } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -131,8 +131,9 @@ const ProductCard = ({ product, supplier, mine, showSupplier, basketQty, onSetQt
     <div className="mp-card">
       {product.image_url
         ? <img className="mp-img" src={product.image_url} alt="" loading="lazy" />
-        : <div className="mp-img-ph" style={{ background: categoryHue(product.category) }}>
-            {(product.name || '?').charAt(0).toUpperCase()}
+        : <div className="mp-img-ph" style={{ '--cathue': categoryHue(product.category) }}>
+            {product.category && <span className="cat">{product.category}</span>}
+            <span className="gl">{initialsOf(product.name)}</span>
           </div>}
       <div className="mp-pname">{product.name}</div>
       {showSupplier && (
@@ -500,8 +501,8 @@ const Marketplace = () => {
         <div className="mp-shell">
           {/* Meta bar — the one place an eyebrow-like row is allowed. */}
           <div className="mp-metabar">
-            <button className="mp-back" onClick={() => navigate('/provisioning')}>
-              <ChevronLeft size={16} /> Back to Provisioning
+            <button className="mp-back" onClick={() => (stage === 'providers' ? navigate('/provisioning') : leaveShop())}>
+              <ChevronLeft size={16} /> {stage === 'providers' ? 'Back to Provisioning' : 'Back to suppliers'}
             </button>
           </div>
 
@@ -721,9 +722,6 @@ const Marketplace = () => {
             <>
               {stage === 'aisles' ? (
                 <header className="mp-shophead">
-                  <button className="mp-leaveshop light" onClick={leaveShop}>
-                    <ChevronLeft size={14} /> All suppliers
-                  </button>
                   <div className="mp-shophead-row">
                     {enteredSupplier.logo_url
                       ? <img className="mp-shophead-logo" src={enteredSupplier.logo_url} alt="" />
@@ -762,9 +760,6 @@ const Marketplace = () => {
                 </header>
               ) : (
                 <div className="mp-itemshead">
-                  <button className="mp-leaveshop light" onClick={leaveShop}>
-                    <ArrowLeft size={14} /> All suppliers
-                  </button>
                   <h1 className="mp-title sm">All <em>items</em></h1>
                   <p className="mp-sub">Every shop's live stock in one list — filter by port or category, add straight to the board.</p>
                 </div>

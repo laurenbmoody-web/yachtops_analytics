@@ -371,9 +371,24 @@
 }
 .mp-card:hover { box-shadow: 0 14px 34px -18px var(--shadow); }
 .mp-img { width: 100%; height: 116px; border-radius: 10px; object-fit: cover; background: var(--surface-2); }
+/* Soft category-tinted placeholder — a muted tile (not a loud colour block)
+   with a small tracked-caps category label and a faint serif monogram.
+   Shown only until the supplier uploads a real product photo. */
 .mp-img-ph {
-  width: 100%; height: 116px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-  font-family: 'DM Serif Display', Georgia, serif; font-size: 34px; color: #fff;
+  width: 100%; height: 116px; border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--cathue, #8B8478) 12%, var(--border));
+  background: color-mix(in srgb, var(--cathue, #8B8478) 12%, var(--surface-2));
+}
+.mp-img-ph .cat {
+  font-family: 'Inter', system-ui, sans-serif; font-size: 8.5px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: color-mix(in srgb, var(--cathue, #8B8478) 55%, var(--soft));
+  max-width: 88%; text-align: center; line-height: 1.3;
+}
+.mp-img-ph .gl {
+  font-family: 'Cormorant Garamond', 'DM Serif Display', Georgia, serif; font-size: 26px; line-height: 1;
+  color: color-mix(in srgb, var(--cathue, #8B8478) 40%, var(--faint));
 }
 .mp-pname { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.3; }
 .mp-psup { font-size: 11.5px; color: var(--soft); }
