@@ -25,8 +25,10 @@ export default function HotspotModal({ onSave, onCancel }) {
   return (
     <div className="vm-modal-overlay" onClick={onCancel}>
       <form className="vm-modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <p className="vm-modal-title">New hotspot</p>
+
         <p className="vm-label">
-          New hotspot <span className="vm-label-required">required</span>
+          Name <span className="vm-label-required">required</span>
         </p>
         <input
           className="vm-input"
@@ -39,22 +41,30 @@ export default function HotspotModal({ onSave, onCancel }) {
 
         <p className="vm-label" style={{ marginTop: 18 }}>Layer</p>
         <div className="vm-layer-choices">
-          {LAYERS.map((l) => (
-            <button
-              key={l.key}
-              type="button"
-              className={`vm-pill${layer === l.key ? ' vm-pill-selected' : ''}`}
-              onClick={() => setLayer(l.key)}
-            >
-              <span className="vm-pill-dot" style={{ background: l.color }} />
-              {l.label}
-            </button>
-          ))}
+          {LAYERS.map((l) => {
+            const on = layer === l.key;
+            return (
+              <button
+                key={l.key}
+                type="button"
+                className={`vm-pill${on ? ' vm-pill-selected' : ''}`}
+                style={on ? { background: l.color, borderColor: l.color } : undefined}
+                onClick={() => setLayer(l.key)}
+              >
+                <span className="vm-pill-dot" style={{ background: on ? '#fff' : l.color }} />
+                {l.label}
+              </button>
+            );
+          })}
         </div>
-        <p className="vm-modal-hint">
-          Pin colour follows the layer
-          <span className="vm-pill-dot" style={{ background: layerColor(layer), marginLeft: 6 }} />
-        </p>
+
+        <div className="vm-pin-preview">
+          <span className="vm-label" style={{ margin: 0 }}>Preview</span>
+          <span className="vm-pin-preview-chip">
+            <span className="vm-pin-preview-dot" style={{ background: layerColor(layer) }} />
+            <span className="vm-pin-preview-text">{label.trim() || 'Your pin'}</span>
+          </span>
+        </div>
 
         {error && <p className="vm-modal-error">{error}</p>}
 

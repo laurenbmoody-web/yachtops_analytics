@@ -831,6 +831,42 @@
   margin-top: 22px;
 }
 
+/* New-hotspot modal refinements — serif title + live pin preview. */
+.vm-modal-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400;
+  font-size: 22px;
+  color: #1C1B3A;
+  margin: 0 0 16px;
+  line-height: 1.1;
+}
+.vm-pin-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #F0F1F5;
+}
+.vm-pin-preview-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: #FAFAF8;
+  border: 1px solid #ECEAE3;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1C1B3A;
+}
+.vm-pin-preview-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vm-pin-preview-dot {
+  width: 11px; height: 11px; border-radius: 50%; flex: none;
+  box-shadow: 0 0 0 2px #fff, 0 1px 3px rgba(28, 27, 58, 0.35);
+}
+
 @media (max-width: 640px) {
   .vm-page { padding: 84px 16px 32px; }
   .vm-stage { height: 60vh; }
