@@ -452,7 +452,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         // Supporting docs for the verifier submission, pulled from the profile.
         // Carry the document number too (the passport doc is the source of truth
         // for the holder's ID number on official forms).
-        if (!onFile[d.doc_type]) onFile[d.doc_type] = { fileUrl: d.file_url, fileName: d.file_name, docId: d.id, documentNumber: d.document_number || '' };
+        if (!onFile[d.doc_type]) onFile[d.doc_type] = { fileUrl: d.file_url, fileName: d.file_name, docId: d.id, documentNumber: d.document_number || '', level: d.details?.level || '' };
         if (d.doc_type !== 'coc') continue;
         const cid = GRADE_TO_CERT[d.details?.grade];
         if (cid) held[cid] = { issueDate: d.issue_date, number: d.document_number, fileUrl: d.file_url, fileName: d.file_name, docId: d.id,
@@ -507,7 +507,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   // from the crew member's documents (a course counts as held once a matching
   // document type is on file).
   const ancillary = useMemo(
-    () => (cert ? ancillaryFor(targetId).map(item => ({ ...item, met: item.anyOf.some(t => !!docsOnFile[t]) })) : []),
+    () => (cert ? ancillaryFor(targetId).map(item => ({ ...item, met: item.anyOf.some(t => { const d = docsOnFile[t]; return d ? (item.match ? item.match(d) : true) : false; }) })) : []),
     [cert, targetId, docsOnFile],
   );
   const ancillaryDone = ancillary.filter(a => a.met).length;
