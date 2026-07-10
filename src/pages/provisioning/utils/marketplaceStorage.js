@@ -99,6 +99,31 @@ export const rateSupplier = async (supplierId, rating, note = null) => {
 };
 
 /**
+ * Anonymous platform-wide reviews (with notes) for one supplier, newest
+ * first — get_supplier_reviews RPC. Own review flagged is_mine. Returns
+ * [] on failure so the modal just shows "no written reviews yet".
+ */
+export const fetchSupplierReviews = async (supplierId) => {
+  if (!supplierId) return [];
+  try {
+    const { data, error } = await supabase.rpc('get_supplier_reviews', {
+      p_supplier_id: supplierId,
+    });
+    if (error) throw error;
+    return (data ?? []).map((r) => ({
+      id: r.id,
+      rating: Number(r.rating) || 0,
+      note: r.note || '',
+      createdAt: r.created_at,
+      mine: !!r.is_mine,
+    }));
+  } catch (err) {
+    console.warn('[marketplaceStorage] fetchSupplierReviews (non-blocking):', err?.message);
+    return [];
+  }
+};
+
+/**
  * Per-supplier memory for the caller's tenant — order count, spend,
  * last order, most-ordered categories (get_supplier_memory RPC). Powers
  * the deck card's hover-flip. Returns a Map keyed by supplier id; empty
