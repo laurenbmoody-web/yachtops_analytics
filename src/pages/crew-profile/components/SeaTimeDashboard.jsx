@@ -157,7 +157,11 @@ const JOURNEY_DEFAULT = {
 const MSF_FORMS = {
   deck: { form: 'MSF 4343', notice: 'MSN 1858', label: 'Yacht Deck Officers' },
   engineering: { form: 'MSF 4275', notice: 'MSN 1857', label: 'Engineer Officers' },
+  eto: { form: 'MSF 4259', notice: 'MSN 1860', label: 'Electro-Technical Officers' },
 };
+// ETO shares the "engineering" department but applies on its own MSN 1860 form,
+// so the apply-form lookup keys off the family for ETO, not the department.
+const applyFormFor = (family, deptId) => (family === 'ETO' ? MSF_FORMS.eto : MSF_FORMS[deptId]);
 const addYearsIso = (iso, n) => { if (!iso) return ''; const [y, m, d] = String(iso).split('-'); return `${+y + n}-${m}-${d}`; };
 const daysUntil = (iso) => { if (!iso) return null; return Math.round((new Date(iso + 'T00:00:00') - new Date()) / 86400000); };
 const yearOf = (e) => (e.from ? +String(e.from).slice(0, 4) : null);
@@ -281,8 +285,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const familyCerts = family ? Object.entries(CERTIFICATES).filter(([, c]) => c.family === family).map(([id, c]) => ({ id, ...c })) : [];
   const crossDiscipline = !!family && !deptFamilies.includes(family);
   const deptLabel = DEPARTMENTS[deptId]?.label || '—';
-  const familyWord = family === 'DECK' ? 'Deck' : family === 'ENGINE' ? 'Engine' : family === 'ETO' ? 'ETO' : '';
-  const familyPathLabel = family === 'DECK' ? 'Bridge pathway' : family === 'ENGINE' ? 'Engine pathway' : family === 'ETO' ? 'ETO pathway' : '';
   // Who signs the testimonial, by department: the chief engineer for engine/ETO
   // service (MSN 1904 §5.5), otherwise the captain.
   const signerWord = (family === 'ENGINE' || family === 'ETO') ? 'chief engineer' : 'captain';
@@ -548,7 +550,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       !endorsement && { key: 'test', label: 'Verified Sea Service Testimonial (+ your SRB)', detail: canGenerate ? 'Verified & ready to export' : 'Get your record verified first', state: canGenerate ? 'done' : 'todo' },
       !endorsement && { key: 'noe', label: 'Notice of Eligibility (NoE)', detail: noeIssued ? 'On record' : 'Record it in step 02', state: noeIssued ? 'done' : 'todo' },
       !endorsement && { key: 'oral', label: 'Oral exam pass (valid 3 years)', detail: oralPassed ? 'Passed' : 'Record it in step 03', state: oralPassed ? 'done' : 'todo' },
-      { key: 'courses', label: `Management-level courses for ${cert.short}`, detail: ancillary.length ? `${ancillaryDone} of ${ancillary.length} on file — see Courses & tickets` : 'None additional for this route', state: coursesState },
+      { key: 'courses', label: `Required courses for ${cert.short}`, detail: ancillary.length ? `${ancillaryDone} of ${ancillary.length} on file — see Courses & tickets` : 'None additional for this route', state: coursesState },
       { key: 'eng1', label: 'Valid ENG1 medical', detail: hasEng1 ? 'On file' : 'Add to your Documents', state: hasEng1 ? 'done' : 'todo' },
       { key: 'photos', label: 'Two passport-size photographs', detail: '', state: 'todo' },
     ].filter(Boolean);
@@ -556,8 +558,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
-  // days-to-go tracks the certificate's largest single requirement (headline gate)
-  const primary = requirements.reduce((a, b) => (b.required > (a?.required || 0) ? b : a), null) || requirements[0];
+  // days-to-go is the BINDING gate: the unmet hard requirement with the most days
+  // still to go. Advisory bars (e.g. recency) guide but never gate, so they must
+  // not drive the headline — otherwise a cert with no service gate (Chief Mate
+  // <3000) would show "days to go" off an advisory while eligibility reads met.
+  const gatingReqs = requirements.filter(r => !r.advisory && r.key !== 'none');
+  const primary = gatingReqs.filter(r => !r.met).reduce((a, b) => (b.remaining > (a?.remaining || 0) ? b : a), null);
   const daysToGo = primary ? primary.remaining : 0;
   const live = entries.filter(e => !e.excluded);
   const totalLoggedDays = live.reduce((s, e) => s + (e.days || 0), 0);
@@ -1296,9 +1302,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       <b>{buckets.total} of {totalLoggedDays} logged days</b> count toward this certificate. Days served in a {family === 'ENGINE' ? 'engine-room' : family === 'ETO' ? 'electro-technical' : 'deck'} capacity accrue; other service is logged for your CV, visa and tax but doesn’t count toward this CoC.
                     </div>
                   )}
-                  {requirements.length > 0 ? (
-                    <div className="stp-reqs" data-cols={Math.min(requirements.length, 4)}>
-                      {requirements.map(rq => (
+                  {gatingReqs.length === 0 && (
+                    <div className="stp-sub" style={{ marginTop: 12 }}>No additional qualifying service required — may be applied for alongside the certificate above.</div>
+                  )}
+                  {requirements.filter(rq => rq.key !== 'none').length > 0 && (
+                    <div className="stp-reqs" data-cols={Math.min(requirements.filter(rq => rq.key !== 'none').length, 4)}>
+                      {requirements.filter(rq => rq.key !== 'none').map(rq => (
                         <div className={`stp-req ${rq.met ? 'done' : ''}${rq.advisory ? ' advisory' : ''}`} key={rq.key}>
                           <div className="l">{rq.label}{rq.advisory && <span className="stp-advtag">advisory</span>}</div>
                           <div className="stp-reqtop">
@@ -1317,8 +1326,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="stp-sub" style={{ marginTop: 12 }}>No additional qualifying service required — may be applied for alongside the certificate above.</div>
                   )}
                   {cert?.family === 'INTERIOR' && (() => {
                     const derived = derivedGuest?.days ?? 0;
@@ -1879,10 +1886,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
           <div className="cj" id="cert-journey" ref={journeyRef} style={{ marginTop: 18 }}>
             <div className="cj-head">
               <div>
-                <h3 className="cj-title">Certification journey{MSF_FORMS[deptId] && (
+                <h3 className="cj-title">Certification journey{applyFormFor(family, deptId) && (
                   <span className="std-fhelp" tabIndex={0} role="note" aria-label="How to apply">
                     <Icon name="Info" size={14} />
-                    <span className="std-fhelp-pop"><b>How to apply</b><span>Complete your CoC using the GOV.UK form {MSF_FORMS[deptId].form} ({MSF_FORMS[deptId].notice}).</span></span>
+                    <span className="std-fhelp-pop"><b>How to apply</b><span>Complete your CoC using the GOV.UK form {applyFormFor(family, deptId).form} ({applyFormFor(family, deptId).notice}).</span></span>
                   </span>
                 )}</h3>
               </div>

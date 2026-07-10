@@ -75,8 +75,9 @@ export const ROLES = {
   // INTERIOR / GALLEY — log days, no CoC credit
   stewardess:     { label: 'Stewardess',               department: 'interior', accruesToward: [], watchkeepingDomain: null },
   // Senior interior service (Chief Stew / Purser) counts toward the Yacht Purser
-  // CoC's "24 months in a senior onboard role" requirement; a junior Stewardess's
-  // time is logged for CV/visa but isn't senior service, so it accrues nothing.
+  // CoC's 12-month (365-day) senior-onboard-service requirement; a junior
+  // Stewardess's time is logged for CV/visa but isn't senior service, so it
+  // accrues nothing.
   chief_stew:     { label: 'Chief Stewardess',         department: 'interior', accruesToward: ['INTERIOR'], watchkeepingDomain: null },
   purser:         { label: 'Purser',                   department: 'interior', accruesToward: ['INTERIOR'], watchkeepingDomain: null },
   cook:           { label: 'Cook',                     department: 'galley', accruesToward: [], watchkeepingDomain: null },
@@ -193,19 +194,19 @@ export const CERTIFICATES = {
   // MSN 1904 now REPLACES MIN 524 and MIN 594 and is the in-force notice. Yacht
   // engineers hold STCW Small Vessel CoCs endorsed "Limited to Yachts".
   // Requirements below are taken from the yacht-restricted SV table in MSN 1904
-  // §5.8 (EOOW 12mo onboard / 5mo sea incl. ≤1mo workshop / 6mo watchkeeping;
-  // Chief <500 6mo / 4mo sea; Chief <3000 12mo / 8mo sea), verified against the
-  // primary PDF. Every SV rung has an MCA oral (MEOL §3.2f; EOOW §4.6d; Chief
+  // §5.8 (EOOW 12mo onboard / 4mo sea / 6mo watchkeeping; Chief <500 6mo / 4mo
+  // sea; Chief <3000 12mo / 8mo sea). Every SV rung has an MCA oral (MEOL §3.2f;
+  // EOOW §4.6d; Chief
   // <500 §4.9d; Chief <3000 §4.10e). MIN 642 §7.2 is the binding source for the
   // legacy Y-grade conversions (§12.1 delegates to it); codes/targets verified.
   //   legacyAlias = the nearest old Y-grade, for crew who still think in Y-grades.
   // Yacht seagoing = days actually UNDERWAY with main propulsion in full use; yard
   // time never counts as seagoing; up to 2 months at-anchor/fast-to-shore on own
   // power may count as watchkeeping (MSN 1904 §5.8 fn 28).
-  // §5.8 multiplier — RESOLVED: the 1.5× yacht-seagoing uplift is already baked
-  // into the yacht-restricted table figures the MCA publishes, so qualifying
-  // service only needs to meet those baseline numbers. The tracker therefore
-  // counts raw underway days against the baselines below — no separate multiplier.
+  // Sea service counts raw underway days against the baseline figures in the
+  // yacht-restricted table — no separate multiplier is applied. Lay-up /
+  // anchorage / yard time does not count as sea service (only the limited
+  // at-anchor/fast-to-shore concession above may count as watchkeeping).
   MEOL_Y: {
     family: 'ENGINE', label: 'MEOL — Small Vessel (Yacht)', short: 'MEOL (SV·Y)',
     legacyAlias: 'MEOL (Yachts)',
@@ -435,8 +436,8 @@ export const ANCILLARY = {
   CHIEF_MATE_YACHT_3000: [...MASTER_TICKETS, A('ym', 'RYA Yachtmaster Ocean (or IYT Master of Yachts Unlimited)', ['yachtmaster'], 'Required for Chief Mate <3000 (MSN 1858 §3.4b).')],
   MASTER_YACHT_500: MASTER_TICKETS,
   MASTER_YACHT_3000: MASTER_TICKETS,
-  CHIEF_MATE_UNLIMITED: [...MASTER_TICKETS, A('naest', 'NAEST (Management)', ['radar_arpa', 'ecdis'])],
-  MASTER_UNLIMITED: [...MASTER_TICKETS, A('naest', 'NAEST (Management)', ['radar_arpa', 'ecdis'])],
+  CHIEF_MATE_UNLIMITED: [...MASTER_TICKETS, A('naest', 'NAEST (Management)', ['radar_arpa'])],
+  MASTER_UNLIMITED: [...MASTER_TICKETS, A('naest', 'NAEST (Management)', ['radar_arpa'])],
   // ENGINE — MSN 1904 Small Vessel (Yacht). AEC is the entry building block, so
   // it's listed at every rung (held from below; shown so the picture is complete).
   MEOL_Y: [A('aec', 'Approved Engine Course (AEC 1 & 2)', ['aec']), ...STCW_CORE, A('adv_ff', 'Advanced Firefighting', ['stcw_advanced_ff']), A('med', 'Medical First Aid', ['stcw_medical_care'])],
