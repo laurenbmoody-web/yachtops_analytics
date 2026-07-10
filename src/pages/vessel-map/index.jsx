@@ -95,10 +95,30 @@ export default function VesselMapPage() {
   const isDesktop = useIsDesktop();
   const placementMode = mode === 'pin';
 
+  const [spaceLinks, setSpaceLinks] = useState([]); // doorway links [{a,b}]
+
   const selectedScan = useMemo(
     () => scans.find((s) => s.id === selectedScanId) || null,
     [scans, selectedScanId]
   );
+
+  // Doorways from the current room: linked spaces that have a ready scan you
+  // can walk into. Drives the "Walk to" controls on the stage.
+  const doorways = useMemo(() => {
+    const sid = selectedScan?.space_id;
+    if (!sid || spaceLinks.length === 0) return [];
+    const scanBySpace = {};
+    scans.forEach((s) => { if (s.space_id && !scanBySpace[s.space_id]) scanBySpace[s.space_id] = s; });
+    const seen = new Set();
+    const out = [];
+    spaceLinks.forEach((l) => {
+      const other = l.a === sid ? l.b : l.b === sid ? l.a : null;
+      if (!other || seen.has(other)) return;
+      const target = scanBySpace[other];
+      if (target && target.id !== selectedScan.id) { seen.add(other); out.push(target); }
+    });
+    return out;
+  }, [selectedScan?.space_id, selectedScan?.id, spaceLinks, scans]);
 
   // Backfill a poster for scans that never got one: the first time a scan
   // finishes loading on the map without a thumbnail, capture a frame and save
@@ -152,6 +172,22 @@ export default function VesselMapPage() {
         });
       }
       setScansLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [activeTenantId]);
+
+  // ── Doorway links between rooms (for walkthrough navigation) ─────────────
+  useEffect(() => {
+    if (!activeTenantId) return undefined;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('vessel_space_links')
+        .select('a_space_id, b_space_id')
+        .eq('tenant_id', activeTenantId);
+      if (cancelled) return;
+      if (error) { console.error('[vessel-map] links fetch error:', error); setSpaceLinks([]); }
+      else setSpaceLinks((data || []).map((r) => ({ a: r.a_space_id, b: r.b_space_id })));
     })();
     return () => { cancelled = true; };
   }, [activeTenantId]);
@@ -700,6 +736,17 @@ export default function VesselMapPage() {
                   </p>
                   <div className="vm-ov-chips">{layerChips('vm-chip-dark')}</div>
                 </div>
+
+                {showViewer && viewer.status !== 'error' && !placementMode && !orientDraft && !adjusting && doorways.length > 0 && (
+                  <div className="vm-doors">
+                    <span className="vm-doors-label">Walk to</span>
+                    {doorways.map((t) => (
+                      <button key={t.id} className="vm-door" onClick={() => setSelectedScanId(t.id)} title={`Walk through to ${t.name}`}>
+                        {t.name}<span className="vm-door-arrow" aria-hidden="true">→</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {signError && (
                   <div className="vm-panel vm-missing">
