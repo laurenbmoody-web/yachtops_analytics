@@ -367,7 +367,10 @@ export default function VesselMapPage() {
   };
 
   // ── Doorway pin placement ───────────────────────────────────────────────
-  // Anchor a link's doorway to a 3D spot in the current scan; one click saves.
+  // Same discipline as hotspots: click drops a pending pin, drag to nudge it
+  // exactly onto the door, then confirm. (A doorway is an opening, so the first
+  // click often lands on the fallback plane — the nudge is what puts it on the
+  // door and keeps it there as you orbit.)
   const startPlaceDoor = (d) => {
     setSelectedHotspot(null);
     setPendingPosition(null);
@@ -381,14 +384,18 @@ export default function VesselMapPage() {
     if (error) { console.error('[vessel-map] door position save error:', error); return; }
     await loadLinks();
   };
-  // The viewer's place callback: routes to door anchoring or hotspot creation.
+  const confirmDoorPlacement = async () => {
+    if (!placingDoor || !pendingPosition) return;
+    const { linkId, end } = placingDoor;
+    setPlacingDoor(null);
+    setPendingPosition(null);
+    await saveDoorPosition(linkId, end, pendingPosition);
+  };
+  const cancelDoorPlacement = () => { setPlacingDoor(null); setPendingPosition(null); };
+  // The viewer's place callback: a door drop/drag sets the pending pin (confirm
+  // to save); otherwise it's the hotspot flow.
   const handleViewerPlace = (pos) => {
-    if (placingDoor) {
-      const { linkId, end } = placingDoor;
-      setPlacingDoor(null);
-      if (pos) saveDoorPosition(linkId, end, pos);
-      return;
-    }
+    if (placingDoor) { setPendingPosition(pos); return; }
     placePending(pos);
   };
   // Click a pin: a walkable doorway walks you through; everything else selects.
@@ -815,8 +822,15 @@ export default function VesselMapPage() {
                     {placingDoor ? (
                       <>
                         <span className="vm-doors-label">Placing</span>
-                        <span className="vm-door-placing">Click the doorway to “{placingDoor.name}” in this scan</span>
-                        <button className="vm-door vm-door-cancel" onClick={() => setPlacingDoor(null)}>Cancel</button>
+                        <span className="vm-door-placing">
+                          {pendingPosition
+                            ? `Drag the pin onto the door to “${placingDoor.name}”, then place it`
+                            : `Click the doorway to “${placingDoor.name}” in this scan`}
+                        </span>
+                        {pendingPosition && (
+                          <button className="vm-door vm-door-confirm" onClick={confirmDoorPlacement}>Place door</button>
+                        )}
+                        <button className="vm-door vm-door-cancel" onClick={cancelDoorPlacement}>Cancel</button>
                       </>
                     ) : (
                       <>
