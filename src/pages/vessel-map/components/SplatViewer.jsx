@@ -114,6 +114,7 @@ export default function SplatViewer({
   adjustingId,            // pin being repositioned — hidden while the pending pin stands in
   placementMode,
   placeSurfaceOnly = false, // when true, only drop/drag onto real splat surface (no floor-plane fallback) — used for doorway pins
+  pendingColor = '#C65A1A', // colour of the not-yet-saved pin (teal while placing a door)
   pendingPosition,        // {x,y,z} | null — the not-yet-saved pin
   onPlacePending,         // (pos) => void — click/drag placed the pending pin
   onSelectHotspot,        // (hotspot | null) => void
@@ -128,6 +129,7 @@ export default function SplatViewer({
   const visibleRef = useRef(visibleLayers);
   const placementRef = useRef(placementMode);
   const surfaceOnlyRef = useRef(placeSurfaceOnly);
+  const pendingColorRef = useRef(pendingColor);
   const pendingRef = useRef(pendingPosition);
   const selectedRef = useRef(selectedId);
   const adjustingRef = useRef(adjustingId);
@@ -137,6 +139,7 @@ export default function SplatViewer({
   visibleRef.current = visibleLayers;
   placementRef.current = placementMode;
   surfaceOnlyRef.current = placeSurfaceOnly;
+  pendingColorRef.current = pendingColor;
   adjustingRef.current = adjustingId;
   callbacksRef.current = { onPlacePending, onSelectHotspot, onHoverHotspot, onLoadState };
 
@@ -301,7 +304,7 @@ export default function SplatViewer({
         spriteGroup.add(pin);
       }
       if (pendingRef.current) {
-        pendingPin = makePin('#C65A1A');
+        pendingPin = makePin(pendingColorRef.current);
         pendingPin.material.opacity = 0.85;
         pendingPin.position.set(pendingRef.current.x, pendingRef.current.y, pendingRef.current.z);
         pendingPin.userData.isPending = true;
