@@ -372,11 +372,20 @@ export default function VesselMapPage() {
   // exactly onto the door, then confirm. (A doorway is an opening, so the first
   // click often lands on the fallback plane — the nudge is what puts it on the
   // door and keeps it there as you orbit.)
+  // The rail's single active tool. Doorways is its own edit mode: the door
+  // controls live here, not in an always-on bar.
+  const selectMode = (m) => {
+    setPlacingDoor(null);
+    setPendingPosition(null);
+    if (m === 'pin') { setMode('pin'); setSelectedHotspot(null); setAdjusting(null); setAdjustError(null); return; }
+    if (m === 'doorways') { setMode('doorways'); setSelectedHotspot(null); setAdjusting(null); setModalOpen(false); return; }
+    cancelPlacement(); // navigate
+  };
+
   const startPlaceDoor = (d) => {
     setSelectedHotspot(null);
     setPendingPosition(null);
     setAdjusting(null);
-    setMode('navigate');
     setPlacingDoor({ linkId: d.linkId, end: d.end, name: d.name });
   };
   const saveDoorPosition = async (linkId, end, pos) => {
@@ -399,9 +408,19 @@ export default function VesselMapPage() {
     if (placingDoor) { setPendingPosition(pos); return; }
     placePending(pos);
   };
-  // Click a pin: a walkable doorway walks you through; everything else selects.
+  // Click a pin. Doorway pins: in Doorways mode a click starts repositioning
+  // that door; otherwise a walkable door walks you through. Everything else
+  // selects the hotspot.
   const handleSelectHotspot = (h) => {
-    if (h?.isDoor) { if (h.targetScanId) setSelectedScanId(h.targetScanId); return; }
+    if (h?.isDoor) {
+      if (mode === 'doorways') {
+        const d = roomDoorways.find((rd) => `door-${rd.linkId}` === h.id);
+        if (d) startPlaceDoor(d);
+      } else if (h.targetScanId) {
+        setSelectedScanId(h.targetScanId);
+      }
+      return;
+    }
     setSelectedHotspot(h);
   };
 
@@ -446,16 +465,20 @@ export default function VesselMapPage() {
   // Keyboard vocabulary (desktop only): V navigate, P pin, Escape unwinds —
   // modal first, then adjust, then selection, then back to Navigate.
   useCanvasShortcuts({
-    v: () => cancelPlacement(),
+    v: () => selectMode('navigate'),
     p: () => {
-      if (canPlaceHotspots && viewer.status === 'ready') startPlacement();
+      if (canPlaceHotspots && viewer.status === 'ready') selectMode('pin');
+    },
+    d: () => {
+      if (canPlaceHotspots && viewer.status === 'ready') selectMode('doorways');
     },
     f: () => setImmersive((v) => !v),
     escape: () => {
       if (modalOpen) dismissModal();
+      else if (placingDoor) cancelDoorPlacement();
       else if (adjusting) cancelAdjust();
       else if (selectedHotspot) setSelectedHotspot(null);
-      else if (mode === 'pin') cancelPlacement();
+      else if (mode === 'pin' || mode === 'doorways') selectMode('navigate');
       else if (immersive) setImmersive(false);
     },
   }, { enabled: isDesktop });
@@ -718,7 +741,7 @@ export default function VesselMapPage() {
 
                 <ToolRail
                   mode={mode}
-                  onMode={(m) => (m === 'pin' ? startPlacement() : cancelPlacement())}
+                  onMode={selectMode}
                   canPin={canPlaceHotspots}
                   pinReady={viewer.status === 'ready'}
                 />
@@ -820,7 +843,9 @@ export default function VesselMapPage() {
                   <div className="vm-ov-chips">{layerChips('vm-chip-dark')}</div>
                 </div>
 
-                {showViewer && viewer.status !== 'error' && !orientDraft && !adjusting && mode !== 'pin' && (placingDoor || roomDoorways.length > 0) && (
+                {/* Doorways EDIT mode (rail tool) — placement lives here, not in
+                    an always-on bar. */}
+                {showViewer && viewer.status !== 'error' && !orientDraft && !adjusting && mode === 'doorways' && (
                   <div className="vm-doors">
                     {placingDoor ? (
                       <>
@@ -835,32 +860,37 @@ export default function VesselMapPage() {
                         )}
                         <button className="vm-door vm-door-cancel" onClick={cancelDoorPlacement}>Cancel</button>
                       </>
+                    ) : roomDoorways.length === 0 ? (
+                      <span className="vm-door-placing">No doorways here yet — link this room to another on the deck plan.</span>
                     ) : (
                       <>
                         <span className="vm-doors-label">Doorways</span>
                         {roomDoorways.map((d) => (
-                          <span key={d.linkId} className="vm-door-item">
-                            <button
-                              className={`vm-door${d.walkable ? '' : ' vm-door-off'}`}
-                              disabled={!d.walkable}
-                              onClick={() => d.walkable && setSelectedScanId(d.targetScanId)}
-                              title={d.walkable ? `Walk through to ${d.name}` : `${d.name} — no scan yet; the door opens once it's scanned`}
-                            >
-                              {d.name}{d.walkable && <span className="vm-door-arrow" aria-hidden="true">→</span>}
-                            </button>
-                            {canPlaceHotspots && (
-                              <button
-                                className="vm-door-pinbtn"
-                                onClick={() => startPlaceDoor(d)}
-                                title={d.pos ? `Reposition the doorway pin to ${d.name}` : `Place a pin on the doorway to ${d.name}`}
-                              >
-                                {d.pos ? '⤺' : '＋'}
-                              </button>
-                            )}
-                          </span>
+                          <button
+                            key={d.linkId}
+                            className={`vm-door vm-door-edit${d.walkable ? ' is-walkable' : ''}`}
+                            onClick={() => startPlaceDoor(d)}
+                            title={d.pos ? `Move the pin for ${d.name}` : `Place a pin on the door for ${d.name}`}
+                          >
+                            <span className="vm-door-dot" aria-hidden="true" />
+                            {d.name}
+                            <span className="vm-door-act">{d.pos ? 'Move' : 'Place'}</span>
+                          </button>
                         ))}
                       </>
                     )}
+                  </div>
+                )}
+
+                {/* Navigate — a clean walk shortcut for doors that are ready. */}
+                {showViewer && viewer.status !== 'error' && !orientDraft && !adjusting && mode !== 'doorways' && mode !== 'pin' && roomDoorways.some((d) => d.walkable) && (
+                  <div className="vm-doors">
+                    <span className="vm-doors-label">Walk to</span>
+                    {roomDoorways.filter((d) => d.walkable).map((d) => (
+                      <button key={d.linkId} className="vm-door" onClick={() => setSelectedScanId(d.targetScanId)} title={`Walk through to ${d.name}`}>
+                        {d.name}<span className="vm-door-arrow" aria-hidden="true">→</span>
+                      </button>
+                    ))}
                   </div>
                 )}
 
