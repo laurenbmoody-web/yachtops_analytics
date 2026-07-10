@@ -1519,9 +1519,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         <div className="std-compwrap">
           <div className="std-comphd">
             <span className="big">{buckets.total}<em>{buckets.total === 1 ? 'day' : 'days'}{offCargoDays > 0 ? ` · ${offCargoDays} off-Cargo` : ''}</em></span>
-            {serviceFilter === 'all'
-              ? <span className="hint">tap a band to filter</span>
-              : <button type="button" className="std-comp-clear" onClick={() => setServiceFilter('all')}>Showing {TYPE_META[serviceFilter].label} · clear ×</button>}
+            {serviceFilter !== 'all' && <button type="button" className="std-comp-clear" onClick={() => setServiceFilter('all')}>Showing {TYPE_META[serviceFilter].label} · clear ×</button>}
           </div>
           <div className="std-comp" role="group" aria-label="Service by type — tap to filter">
             {[['seagoing', 'Seagoing'], ['watchkeeping', 'Watchkeeping'], ['standby', 'Standby'], ['yard', 'Shipyard']].map(([k, label]) => {
@@ -1569,6 +1567,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               ? <div className="std-foot">Your sea service will populate automatically once your <b>join date is confirmed by command</b> — it’s taken from your employment record, not entered by hand. You can still log a period manually with “Log sea time”.</div>
               : <div className="std-foot">No sea service logged yet — it auto-logs from your current vessel, or use “Log sea time”.</div>
           )}
+          <div className="std-op-list">
           {(() => {
             // Group consecutive entries (same vessel + captain, in date order)
             // into "on-periods" — one stint aboard. Each stint is one calm block:
@@ -1716,6 +1715,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               );
             });
           })()}
+          </div>
         </div>
         {(prior.onboard > 0 || syncInfo?.excluded_leave_days > 0) && (
           <div className="std-lnotes">
