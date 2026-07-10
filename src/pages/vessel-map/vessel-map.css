@@ -1464,3 +1464,7 @@
   background: rgba(255, 255, 255, 0.05);
 }
 .vm-door.vm-door-off:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.22); }
+
+/* Confirm placing a doorway pin (teal, matches the door marker). */
+.vm-door.vm-door-confirm { background: #0E7C86; border-color: #0E7C86; }
+.vm-door.vm-door-confirm:hover { background: #0b656d; border-color: #0b656d; }
