@@ -9,11 +9,11 @@ import Icon from '../../../components/AppIcon';
 const LIVE_MODES = [
   { key: 'navigate', icon: 'Hand', label: 'Navigate', kbd: 'V' },
   { key: 'pin', icon: 'MapPin', label: 'Pin', kbd: 'P', gated: true },
+  { key: 'doorways', icon: 'DoorOpen', label: 'Doorways', kbd: 'D', gated: true },
 ];
 
 const FUTURE_MODES = [
   { key: 'measure', icon: 'Ruler', label: 'Measure' },
-  { key: 'walkthrough', icon: 'Footprints', label: 'Walkthrough' },
 ];
 
 function RailButton({ icon, label, kbd, active, disabled, soon, onClick }) {
@@ -48,7 +48,7 @@ export default function ToolRail({ mode, onMode, canPin, pinReady }) {
             label={m.label}
             kbd={m.kbd}
             active={mode === m.key}
-            disabled={m.key === 'pin' && !pinReady}
+            disabled={(m.key === 'pin' || m.key === 'doorways') && !pinReady}
             onClick={() => onMode(m.key)}
           />
         );
