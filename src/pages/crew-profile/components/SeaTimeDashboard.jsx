@@ -156,12 +156,15 @@ const JOURNEY_DEFAULT = {
 // Notice (gov.uk). The journey is the same; only the form differs by route.
 const MSF_FORMS = {
   deck: { form: 'MSF 4343', notice: 'MSN 1858', label: 'Yacht Deck Officers' },
-  engineering: { form: 'MSF 4275', notice: 'MSN 1857', label: 'Engineer Officers' },
   eto: { form: 'MSF 4259', notice: 'MSN 1860', label: 'Electro-Technical Officers' },
+  // Yacht Small Vessel engineers apply under MSN 1904; there is no single MSF
+  // application form (the SV route goes via the NoE), so form is null.
+  engine: { form: null, notice: 'MSN 1904', label: 'Yacht Small Vessel Engineers' },
 };
-// ETO shares the "engineering" department but applies on its own MSN 1860 form,
-// so the apply-form lookup keys off the family for ETO, not the department.
-const applyFormFor = (family, deptId) => (family === 'ETO' ? MSF_FORMS.eto : MSF_FORMS[deptId]);
+// Yacht engine (SV) and ETO share the "engineering" department but each applies
+// under its own notice, so the lookup keys off the family for those two; deck
+// falls back to the department, and interior (purser) has no MSF form.
+const applyFormFor = (family, deptId) => (family === 'ETO' ? MSF_FORMS.eto : family === 'ENGINE' ? MSF_FORMS.engine : MSF_FORMS[deptId]);
 const addYearsIso = (iso, n) => { if (!iso) return ''; const [y, m, d] = String(iso).split('-'); return `${+y + n}-${m}-${d}`; };
 const daysUntil = (iso) => { if (!iso) return null; return Math.round((new Date(iso + 'T00:00:00') - new Date()) / 86400000); };
 const yearOf = (e) => (e.from ? +String(e.from).slice(0, 4) : null);
@@ -1889,7 +1892,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                 <h3 className="cj-title">Certification journey{applyFormFor(family, deptId) && (
                   <span className="std-fhelp" tabIndex={0} role="note" aria-label="How to apply">
                     <Icon name="Info" size={14} />
-                    <span className="std-fhelp-pop"><b>How to apply</b><span>Complete your CoC using the GOV.UK form {applyFormFor(family, deptId).form} ({applyFormFor(family, deptId).notice}).</span></span>
+                    <span className="std-fhelp-pop"><b>How to apply</b><span>{applyFormFor(family, deptId).form
+                      ? `Complete your CoC using the GOV.UK form ${applyFormFor(family, deptId).form} (${applyFormFor(family, deptId).notice}).`
+                      : `Apply for your CoC under ${applyFormFor(family, deptId).notice} — see the GOV.UK guidance (the Small Vessel route is via the Notice of Eligibility).`}</span></span>
                   </span>
                 )}</h3>
               </div>
