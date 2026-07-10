@@ -1225,6 +1225,37 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const deptOpts = Object.values(DEPARTMENTS).map(d => ({ value: d.id, label: d.label }));
   const goalOpts = selectGoals.map(g => ({ value: g.id, label: g.short, sub: goalSub(g) }));
 
+  // The department/goal picker — anchored to the working-toward title while a
+  // pathway is in progress, and to the "you hold the top" banner once it's
+  // complete (so a user can still switch department/goal after finishing).
+  const pathwayCfg = () => (
+    <div className="stp-cfg" role="dialog" aria-label="Change pathway">
+      <div className="stp-cfg-sec">
+        <div className="stp-cfg-lbl">Department</div>
+        <StpSelect variant="plain" value={deptId} options={deptOpts} onChange={changeDept} />
+      </div>
+      <div className="stp-cfg-sec">
+        <div className="stp-cfg-lbl">Goal</div>
+        <div className="stp-cfg-list">
+          {goalOpts.map(o => (
+            <button key={o.value} type="button" role="option" aria-selected={o.value === goalId}
+              className={`stp-cfg-opt${o.value === goalId ? ' on' : ''}`} onClick={() => setGoalId(o.value)}>
+              <span className="ck"><Icon name="Check" size={13} /></span>
+              <span className="txt"><span className="t">{o.label}</span>{o.sub && <span className="s">{o.sub}</span>}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      {(family === 'DECK' || family === 'ENGINE') && (
+        <label className="stp-cfg-dual" title="On smaller yachts one person may serve as both deck and engineer. The MCA counts dual deck+engine service at 50% toward each Certificate of Competency (MSN 1858 §5.1).">
+          <input type="checkbox" checked={dualMode} onChange={(e) => setDualMode(e.target.checked)} />
+          <span>Dual deck + engine role <em>— counts at 50% toward each CoC</em></span>
+        </label>
+      )}
+      <button type="button" className="stp-cfg-stop" onClick={stopPathway}>Just track my days — no certificate</button>
+    </div>
+  );
+
   const PathwaySection = () => (
     <>
     <div className="std-card std-pad std-pathway">
@@ -1286,33 +1317,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       {certConfidence(r).authoritative === false && (
                         <div className="stp-provisional">{certConfidence(r).label} — these figures aren’t yet confirmed against {r.msn}. Treat as a guide and verify with your training provider before applying.</div>
                       )}
-                      {pathwayCfgOpen && (
-                        <div className="stp-cfg" role="dialog" aria-label="Change pathway">
-                          <div className="stp-cfg-sec">
-                            <div className="stp-cfg-lbl">Department</div>
-                            <StpSelect variant="plain" value={deptId} options={deptOpts} onChange={changeDept} />
-                          </div>
-                          <div className="stp-cfg-sec">
-                            <div className="stp-cfg-lbl">Goal</div>
-                            <div className="stp-cfg-list">
-                              {goalOpts.map(o => (
-                                <button key={o.value} type="button" role="option" aria-selected={o.value === goalId}
-                                  className={`stp-cfg-opt${o.value === goalId ? ' on' : ''}`} onClick={() => setGoalId(o.value)}>
-                                  <span className="ck"><Icon name="Check" size={13} /></span>
-                                  <span className="txt"><span className="t">{o.label}</span>{o.sub && <span className="s">{o.sub}</span>}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          {(family === 'DECK' || family === 'ENGINE') && (
-                            <label className="stp-cfg-dual" title="On smaller yachts one person may serve as both deck and engineer. The MCA counts dual deck+engine service at 50% toward each Certificate of Competency (MSN 1858 §5.1).">
-                              <input type="checkbox" checked={dualMode} onChange={(e) => setDualMode(e.target.checked)} />
-                              <span>Dual deck + engine role <em>— counts at 50% toward each CoC</em></span>
-                            </label>
-                          )}
-                          <button type="button" className="stp-cfg-stop" onClick={stopPathway}>Just track my days — no certificate</button>
-                        </div>
-                      )}
+                      {pathwayCfgOpen && pathwayCfg()}
                     </div>
                     <div className="stp-fig"><span className="big">{daysToGo}</span><span className="cap">{daysToGo === 1 ? 'day to go' : 'days to go'}</span></div>
                   </div>
@@ -1388,12 +1393,17 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
           })}
         </div>
         {routeComplete && (
-          <div className="stp-achieved">
+          <div className="stp-achieved" ref={cfgRef} style={{ position: 'relative' }}>
             <IcoPath d="M20 6L9 17l-5-5" color="#5E8E6F" size={22} />
             <div>
               <div className="nt">You hold {CERTIFICATES[goalId]?.label || 'your goal'} — the top of this pathway.</div>
-              <div className="ns">Every rung below counts as covered, so there’s nothing left to work toward here. Pick a higher goal to keep progressing, or switch to “just track my days”.</div>
+              <div className="ns">Every rung below counts as covered, so there’s nothing left to work toward here. Switch department or aim for a higher goal to keep progressing.</div>
+              <button type="button" className="stp-achieved-cta" onClick={() => setPathwayCfgOpen(o => !o)} aria-haspopup="dialog" aria-expanded={pathwayCfgOpen}>
+                Change department or goal
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </button>
             </div>
+            {pathwayCfgOpen && pathwayCfg()}
           </div>
         )}
         </>
@@ -1773,11 +1783,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         </div>
       </div>
 
-      {/* When no certificate is in play, offer the entry point to start one.
-          Once a cert is held, held certificates are managed inline by clicking
-          the held rung in the pathway spine (with a pencil affordance), so this
-          full-width header is dropped to avoid a redundant floating line. */}
-      {!cert && (
+      {/* Entry point to START a pathway — only when the crew are logging-only (no
+          goal set). Hidden once a cert is in play, and hidden when the pathway is
+          COMPLETE (the "you hold the top" banner carries the switch-goal control
+          instead, so this would be a pointless dead header). */}
+      {!cert && !routeComplete && (
         <button type="button" className="cp-group-head std-pathhead" onClick={startPathway}>
           <span className="dia">◆</span>
           <span className="t">Work toward a certificate</span>
