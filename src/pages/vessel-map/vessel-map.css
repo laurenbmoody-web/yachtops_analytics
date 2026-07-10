@@ -1438,3 +1438,21 @@
 }
 .vm-door:hover { background: #C65A1A; border-color: #C65A1A; }
 .vm-door-arrow { font-size: 13px; opacity: 0.85; }
+
+/* Doorway placement affordances in the "Walk to" bar. */
+.vm-door-item { display: inline-flex; align-items: center; gap: 3px; }
+.vm-door-pinbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff; font-size: 13px; line-height: 1; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.vm-door-pinbtn:hover { background: #0E7C86; border-color: #0E7C86; }
+.vm-door-placing {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12.5px; font-weight: 500; color: #fff;
+}
+.vm-door-cancel { background: rgba(255, 255, 255, 0.12); }
+.vm-door-cancel:hover { background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.3); }

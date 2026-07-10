@@ -232,8 +232,10 @@ export default function SplatViewer({
         if (!pin.userData.isPending) {
           // Chips toggle their pins with a 150ms fade, not a pop. A pin
           // being repositioned hides — the pending pin stands in for it.
-          const shown = (!visible || visible.includes(pin.userData.hotspot?.layer || 'general'))
-            && pin.userData.hotspot?.id !== adjustingRef.current;
+          // Doorway pins are always shown (they aren't part of the layers).
+          const h = pin.userData.hotspot;
+          const shown = (h?.isDoor || !visible || visible.includes(h?.layer || 'general'))
+            && h?.id !== adjustingRef.current;
           pin.userData.shown = shown;
           const target = shown ? 1 : 0;
           const o = pin.material.opacity;
