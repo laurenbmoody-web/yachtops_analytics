@@ -113,6 +113,7 @@ export default function SplatViewer({
   selectedId,             // id of the selected hotspot — ring + target glide
   adjustingId,            // pin being repositioned — hidden while the pending pin stands in
   placementMode,
+  placeSurfaceOnly = false, // when true, only drop/drag onto real splat surface (no floor-plane fallback) — used for doorway pins
   pendingPosition,        // {x,y,z} | null — the not-yet-saved pin
   onPlacePending,         // (pos) => void — click/drag placed the pending pin
   onSelectHotspot,        // (hotspot | null) => void
@@ -126,6 +127,7 @@ export default function SplatViewer({
   const hotspotsRef = useRef(hotspots);
   const visibleRef = useRef(visibleLayers);
   const placementRef = useRef(placementMode);
+  const surfaceOnlyRef = useRef(placeSurfaceOnly);
   const pendingRef = useRef(pendingPosition);
   const selectedRef = useRef(selectedId);
   const adjustingRef = useRef(adjustingId);
@@ -134,6 +136,7 @@ export default function SplatViewer({
   hotspotsRef.current = hotspots;
   visibleRef.current = visibleLayers;
   placementRef.current = placementMode;
+  surfaceOnlyRef.current = placeSurfaceOnly;
   adjustingRef.current = adjustingId;
   callbacksRef.current = { onPlacePending, onSelectHotspot, onHoverHotspot, onLoadState };
 
@@ -508,8 +511,10 @@ export default function SplatViewer({
       return null;
     };
 
-    // Surface first, focus plane as the fallback — placement's one rule.
-    const placeHit = () => surfacePick() ?? planeHit();
+    // Surface first, focus plane as the fallback — placement's one rule. In
+    // surface-only mode (doorway pins) the fallback is dropped: a miss returns
+    // null so the pin only ever lands flush on real geometry, never mid-air.
+    const placeHit = () => (surfaceOnlyRef.current ? surfacePick() : (surfacePick() ?? planeHit()));
 
     const selectablePins = () =>
       spriteGroup.children.filter((c) => !c.userData.isPending && c.userData.shown);

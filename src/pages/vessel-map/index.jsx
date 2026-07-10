@@ -691,6 +691,7 @@ export default function VesselMapPage() {
                     selectedId={selectedHotspot?.id ?? null}
                     adjustingId={adjusting?.id ?? null}
                     placementMode={placementMode || !!placingDoor}
+                    placeSurfaceOnly={!!placingDoor}
                     pendingPosition={pendingPosition}
                     onPlacePending={handleViewerPlace}
                     onSelectHotspot={handleSelectHotspot}
@@ -825,7 +826,7 @@ export default function VesselMapPage() {
                         <span className="vm-door-placing">
                           {pendingPosition
                             ? `Drag the pin onto the door to “${placingDoor.name}”, then place it`
-                            : `Click the doorway to “${placingDoor.name}” in this scan`}
+                            : `Click the door/frame for “${placingDoor.name}” — the pin snaps to the surface`}
                         </span>
                         {pendingPosition && (
                           <button className="vm-door vm-door-confirm" onClick={confirmDoorPlacement}>Place door</button>
