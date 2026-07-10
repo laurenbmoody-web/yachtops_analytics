@@ -107,13 +107,6 @@ const StarRow = ({ value = 0, size = 12, onPick }) => {
 
 const minQtyOf = (product) => Math.max(1, Number(product.min_order_qty) || 1);
 
-// Response time in human units: <1h, ~6h, ~2d.
-const fmtResponse = (hours) => {
-  if (hours == null) return null;
-  if (hours < 1) return '<1h';
-  if (hours < 24) return `~${Math.round(hours)}h`;
-  return `~${Math.round(hours / 24)}d`;
-};
 
 // ─────────────────────────────────────────────────────────────────────
 // ii · The Aisles / all-items — one product card.
@@ -489,6 +482,17 @@ const Marketplace = () => {
 
   const enteredStats = enteredSupplier ? stats.get(enteredSupplier.id) : null;
 
+  // Compact storefront-header facts (real data only).
+  const shopLocation = enteredSupplier
+    ? [enteredSupplier.business_city, enteredSupplier.business_country].filter(Boolean).join(', ')
+    : '';
+  const shopPorts = enteredSupplier ? (enteredSupplier.coverage_ports || []).slice(0, 4) : [];
+  const shopCats = enteredSupplier ? (enteredSupplier.categories || []) : [];
+  const shopCount = enteredSupplier ? (enteredSupplier.catalogue_count ?? scopedProducts.length) : 0;
+  const shopWebsite = enteredSupplier?.website
+    ? (/^https?:\/\//i.test(enteredSupplier.website) ? enteredSupplier.website : `https://${enteredSupplier.website}`)
+    : null;
+
   return (
     <>
       <Header />
@@ -716,52 +720,46 @@ const Marketplace = () => {
           {!loading && stage !== 'providers' && (
             <>
               {stage === 'aisles' ? (
-                <div className="mp-shopband">
-                  <button className="mp-leaveshop" onClick={leaveShop}>
-                    <X size={14} /> Leave supplier
+                <header className="mp-shophead">
+                  <button className="mp-leaveshop light" onClick={leaveShop}>
+                    <ChevronLeft size={14} /> All suppliers
                   </button>
-                  <div className="mp-shop-id">
+                  <div className="mp-shophead-row">
                     {enteredSupplier.logo_url
-                      ? <img className="mp-shop-logo" src={enteredSupplier.logo_url} alt="" />
-                      : <span className="mp-shop-logo ph">{(enteredSupplier.name || '?').charAt(0).toUpperCase()}</span>}
-                    <div>
-                      <div className="mp-shop-name">
-                        {enteredSupplier.name}
-                        {enteredSupplier.verified && <span className="tick">✓</span>}
-                        {mySupplierIds.has(enteredSupplier.id) && <span className="mp-shop-yours">Your supplier</span>}
-                      </div>
-                      <div className="mp-shop-where">
-                        {[enteredSupplier.business_city, enteredSupplier.business_country].filter(Boolean).join(', ')
-                          || (enteredSupplier.coverage_ports || []).slice(0, 4).join(' · ') || 'Coverage on request'}
-                      </div>
-                      {(() => {
-                        const r = ratings.get(enteredSupplier.id);
-                        return (
-                          <div className="mp-shop-rate">
-                            <StarRow value={r?.mine || r?.avg || 0} size={18} onPick={(n) => handleRate(enteredSupplier.id, n)} />
-                            <span className="rt">
-                              {r?.avg
-                                ? <>{r.avg.toFixed(1)} · {r.count} rating{r.count === 1 ? '' : 's'}</>
-                                : 'Be the first to rate'}
-                              {r?.mine ? <span className="mine"> · you rated {r.mine}★</span> : ''}
+                      ? <img className="mp-shophead-logo" src={enteredSupplier.logo_url} alt="" />
+                      : <span className="mp-shophead-logo ph">{initialsOf(enteredSupplier.name)}</span>}
+                    <div className="mp-shophead-id">
+                      <div className="mp-shophead-top">
+                        <span className="mp-shophead-name">{enteredSupplier.name}</span>
+                        {mySupplierIds.has(enteredSupplier.id) && <span className="mp-shophead-pill">Your supplier</span>}
+                        {(() => {
+                          const r = ratings.get(enteredSupplier.id);
+                          return (
+                            <span className="mp-shophead-rate">
+                              <StarRow value={r?.mine || r?.avg || 0} size={13} onPick={(n) => handleRate(enteredSupplier.id, n)} />
+                              <span className="rt">
+                                {r?.avg
+                                  ? <>{r.avg.toFixed(1)} · {r.count} rating{r.count === 1 ? '' : 's'}</>
+                                  : 'Be the first to rate'}
+                                {enteredStats?.onTimePct != null && <> · {enteredStats.onTimePct}% on-time</>}
+                              </span>
                             </span>
-                          </div>
-                        );
-                      })()}
+                          );
+                        })()}
+                      </div>
+                      <div className="mp-shophead-facts">
+                        {shopLocation && <span className="f"><MapPin size={12} /> {shopLocation}</span>}
+                        {shopPorts.length > 0 && <><span className="sep">·</span><span className="f">Serves <b>{shopPorts.join(' · ')}</b></span></>}
+                        {shopCount > 0 && <><span className="sep">·</span><span className="f"><b>{shopCount}</b> products</span></>}
+                        {shopCats.length > 0 && <><span className="sep">·</span><span className="f">{shopCats.slice(0, 3).join(' · ')}{shopCats.length > 3 && <span className="more"> +{shopCats.length - 3}</span>}</span></>}
+                      </div>
+                    </div>
+                    <div className="mp-shophead-actions">
+                      {shopWebsite && <a className="mp-shophead-web" href={shopWebsite} target="_blank" rel="noreferrer">Website ↗</a>}
+                      {enteredSupplier.contact_email && <a className="mp-shophead-msg" href={`mailto:${enteredSupplier.contact_email}`}>Message supplier</a>}
                     </div>
                   </div>
-                  <div className="mp-shop-stats">
-                    {enteredStats && enteredStats.orders > 0 ? (
-                      <>
-                        <div className="mp-shopstat"><span className="v">{enteredStats.fulfilled}</span><span className="l">orders filled</span></div>
-                        <div className="mp-shopstat"><span className="v">{enteredStats.onTimePct != null ? `${enteredStats.onTimePct}%` : '—'}</span><span className="l">on time</span></div>
-                        <div className="mp-shopstat"><span className="v">{fmtResponse(enteredStats.responseHours) || '—'}</span><span className="l">typical reply</span></div>
-                      </>
-                    ) : (
-                      <div className="mp-shopstat solo"><span className="v">New</span><span className="l">to Cargo</span></div>
-                    )}
-                  </div>
-                </div>
+                </header>
               ) : (
                 <div className="mp-itemshead">
                   <button className="mp-leaveshop light" onClick={leaveShop}>
