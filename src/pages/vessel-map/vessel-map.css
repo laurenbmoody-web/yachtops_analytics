@@ -1482,3 +1482,10 @@
   font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
 }
 .vm-door-edit:hover .vm-door-act { background: rgba(255, 255, 255, 0.28); }
+
+/* Measure tool readout. */
+.vm-measure-val {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 15px; font-weight: 700; color: #fff;
+  padding: 4px 12px; border-radius: 999px; background: #2563EB;
+}

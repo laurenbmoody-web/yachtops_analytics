@@ -115,6 +115,8 @@ export default function SplatViewer({
   placementMode,
   placeSurfaceOnly = false, // when true, only drop/drag onto real splat surface (no floor-plane fallback) — used for doorway pins
   pendingColor = '#C65A1A', // colour of the not-yet-saved pin (teal while placing a door)
+  measureMode = false,    // Measure tool — click two surface points to read the distance
+  onMeasure,              // ({ meters, points } | null) => void
   pendingPosition,        // {x,y,z} | null — the not-yet-saved pin
   onPlacePending,         // (pos) => void — click/drag placed the pending pin
   onSelectHotspot,        // (hotspot | null) => void
@@ -130,6 +132,7 @@ export default function SplatViewer({
   const placementRef = useRef(placementMode);
   const surfaceOnlyRef = useRef(placeSurfaceOnly);
   const pendingColorRef = useRef(pendingColor);
+  const measureRef = useRef(measureMode);
   const pendingRef = useRef(pendingPosition);
   const selectedRef = useRef(selectedId);
   const adjustingRef = useRef(adjustingId);
@@ -140,8 +143,9 @@ export default function SplatViewer({
   placementRef.current = placementMode;
   surfaceOnlyRef.current = placeSurfaceOnly;
   pendingColorRef.current = pendingColor;
+  measureRef.current = measureMode;
   adjustingRef.current = adjustingId;
-  callbacksRef.current = { onPlacePending, onSelectHotspot, onHoverHotspot, onLoadState };
+  callbacksRef.current = { onPlacePending, onSelectHotspot, onHoverHotspot, onLoadState, onMeasure };
 
   // ── Main GL lifecycle — rebuilt only when the file changes ────────────────
   useEffect(() => {
@@ -205,6 +209,17 @@ export default function SplatViewer({
     reticle.visible = false;
     scene.add(reticle);
     let reticleOn = false;
+
+    // Measure tool — two surface-snapped endpoints joined by a line.
+    const MEASURE_COLOR = '#2563EB';
+    const measureA = makePin(MEASURE_COLOR); measureA.visible = false; measureA.renderOrder = 12;
+    const measureB = makePin(MEASURE_COLOR); measureB.visible = false; measureB.renderOrder = 12;
+    const measureLineGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    const measureLine = new THREE.Line(measureLineGeom, new THREE.LineBasicMaterial({ color: MEASURE_COLOR, depthTest: false, transparent: true, opacity: 0.9 }));
+    measureLine.renderOrder = 11; measureLine.visible = false;
+    scene.add(measureA); scene.add(measureB); scene.add(measureLine);
+    let measurePts = [];
+    let wasMeasuring = false;
 
     // Target glide on selection — cancelled the moment the user grabs.
     let glide = null; // { from, to, start }
@@ -283,7 +298,28 @@ export default function SplatViewer({
         }
       }
 
-      reticle.visible = !!placementRef.current && reticleOn;
+      // Measure markers + line: constant screen size; auto-clear when the tool
+      // is switched off.
+      const measuring = !!measureRef.current;
+      if (!measuring && wasMeasuring && measurePts.length) {
+        measurePts = [];
+        callbacksRef.current.onMeasure?.(null);
+      }
+      wasMeasuring = measuring;
+      const scaleMarker = (m) => { const d = m.position.distanceTo(camera.position); m.scale.setScalar(d * fovScale * PIN_VIEW_FRACTION); };
+      measureA.visible = measurePts.length >= 1;
+      if (measureA.visible) { measureA.position.copy(measurePts[0]); scaleMarker(measureA); }
+      measureB.visible = measurePts.length >= 2;
+      if (measureB.visible) { measureB.position.copy(measurePts[1]); scaleMarker(measureB); }
+      measureLine.visible = measurePts.length >= 2;
+      if (measureLine.visible) {
+        const p = measureLine.geometry.attributes.position;
+        p.setXYZ(0, measurePts[0].x, measurePts[0].y, measurePts[0].z);
+        p.setXYZ(1, measurePts[1].x, measurePts[1].y, measurePts[1].z);
+        p.needsUpdate = true;
+      }
+
+      reticle.visible = (!!placementRef.current || measuring) && reticleOn;
       if (reticle.visible) {
         const d = reticle.position.distanceTo(camera.position);
         reticle.scale.setScalar(d * fovScale * PIN_VIEW_FRACTION * 0.5);
@@ -545,8 +581,8 @@ export default function SplatViewer({
         pendingPin.position.copy(hit);
         return;
       }
-      // Pin mode: the reticle previews where a click would land.
-      if (placementRef.current && !downAt) {
+      // Pin / Measure mode: the reticle previews where a click would land.
+      if ((placementRef.current || measureRef.current) && !downAt) {
         setPointer(e);
         const hit = surfacePick();
         reticleOn = !!hit;
@@ -554,7 +590,7 @@ export default function SplatViewer({
         return;
       }
       // Hover: pointer cursor + label tag. Skipped while placing or dragging.
-      if (downAt || placementRef.current) return;
+      if (downAt || placementRef.current || measureRef.current) return;
       setPointer(e);
       const hits = raycaster.intersectObjects(selectablePins());
       const hot = hits.length > 0 ? hits[0].object.userData.hotspot : null;
@@ -589,6 +625,20 @@ export default function SplatViewer({
       if (moved > CLICK_SLOP_PX) return; // orbit drag, not a click
 
       setPointer(e);
+      // Measure: click two points; the pair reports its distance. Surface-first
+      // with the focus-plane fallback so a click always lands a point.
+      if (measureRef.current) {
+        const hit = surfacePick() ?? planeHit();
+        if (!hit) return;
+        if (measurePts.length !== 1) {
+          measurePts = [hit];
+          callbacksRef.current.onMeasure?.({ meters: null, points: 1 });
+        } else {
+          measurePts = [measurePts[0], hit];
+          callbacksRef.current.onMeasure?.({ meters: measurePts[0].distanceTo(measurePts[1]), points: 2 });
+        }
+        return;
+      }
       if (placementRef.current) {
         const hit = placeHit();
         if (hit) {
@@ -636,6 +686,10 @@ export default function SplatViewer({
       steadyRing.material.dispose();
       pulseRing.material.dispose();
       reticle.material.dispose();
+      measureA.material.dispose();
+      measureB.material.dispose();
+      measureLine.material.dispose();
+      measureLineGeom.dispose();
       try {
         mesh.dispose();
         spark.dispose();
