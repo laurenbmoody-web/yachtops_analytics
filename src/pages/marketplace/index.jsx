@@ -45,6 +45,7 @@ import {
 } from '../provisioning/utils/provisioningStorage';
 import './marketplace.css';
 import '../../styles/editorial.css'; // shared meta strip + greeting — one source of truth
+import '../../styles/editorial-tokens.css'; // --d- design tokens — filter controls match the provisioning toolbar exactly
 
 import { categoryHue, orderCategories } from '../../utils/catalogueConstants';
 
@@ -565,7 +566,7 @@ const Marketplace = () => {
                 {/* Toolbar beneath the header: search + shop filters + sort + all-items */}
                 <div className="mp-controls">
                   <label className="mp-searchwrap grow">
-                    <Search size={15} className="ic" />
+                    <Search size={16} className="ic" />
                     <input
                       className="mp-search bare"
                       placeholder="Search suppliers, ports, categories…"
@@ -773,7 +774,7 @@ const Marketplace = () => {
 
               <div className="mp-controls">
                 <label className="mp-searchwrap grow">
-                  <Search size={15} className="ic" />
+                  <Search size={16} className="ic" />
                   <input
                     className="mp-search bare"
                     placeholder={stage === 'aisles' ? `Search ${enteredSupplier.name}…` : 'Search products, brands, barcodes…'}
