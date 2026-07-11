@@ -1581,15 +1581,18 @@
 .vm-iv-crumb-here { color: #fff; font-weight: 600; cursor: default; }
 .vm-iv-crumb-here:hover { text-decoration: none; }
 .vm-iv-sep { color: rgba(255, 255, 255, 0.38); font-size: 13px; }
-.vm-iv-frame { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 0 18px 18px; }
-.vm-iv-photo { position: relative; display: inline-block; max-width: 100%; max-height: 100%; line-height: 0;
-  border-radius: 12px; overflow: hidden; box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.55); }
-.vm-iv-photo img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; user-select: none; }
+.vm-iv-frame { position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+  min-height: 0; padding: 0 18px 18px; }
+/* The image sizes itself to fit the frame (aspect preserved, never cropped);
+   its element box == the visible photo, which the pin overlay is measured to. */
+.vm-iv-img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain;
+  border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.55); user-select: none; }
 .vm-iv-placing { cursor: crosshair; }
+.vm-iv-pins { position: absolute; pointer-events: none; }
 .vm-iv-missing { color: rgba(255, 255, 255, 0.6); font-size: 14px; }
 .vm-iv-pin { position: absolute; transform: translate(-50%, -50%); width: 16px; height: 16px; border-radius: 50%;
   background: var(--pin, #8B8478); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45); padding: 0; cursor: pointer;
-  transition: transform .12s; }
+  pointer-events: auto; transition: transform .12s; }
 .vm-iv-pin-box { border-radius: 5px; }
 .vm-iv-pin.on { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55), 0 1px 4px rgba(0, 0, 0, 0.45); }
 .vm-iv-pin:hover { transform: translate(-50%, -50%) scale(1.18); z-index: 2; }
