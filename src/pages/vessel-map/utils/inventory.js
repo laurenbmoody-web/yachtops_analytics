@@ -5,12 +5,23 @@ import { supabase } from '../../../lib/supabaseClient';
 
 const clean = (q) => q.replace(/[,%]/g, ' ').trim();
 
+// The item's inventory category — its browse-folder path (Guest › Alcohol ›
+// Wine). Stored on the item as location + sub_location (' > '-joined); despite
+// the column names these are the CATEGORY folders, not a physical place.
+export const categoryPath = (item) => {
+  if (!item) return '';
+  const segs = [item.location, ...String(item.sub_location || '').split(' > ')]
+    .map((s) => (s || '').trim())
+    .filter(Boolean);
+  return segs.join(' › ');
+};
+
 export async function searchInventoryItems(tenantId, query) {
   const q = clean(query);
   if (!q) return { items: [] };
   const { data, error } = await supabase
     .from('inventory_items')
-    .select('id, name, quantity, unit')
+    .select('id, name, quantity, unit, location, sub_location')
     .eq('tenant_id', tenantId)
     .ilike('name', `%${q}%`)
     .limit(8);
