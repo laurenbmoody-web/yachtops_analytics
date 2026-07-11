@@ -24,6 +24,7 @@ create index if not exists vessel_space_links_tenant_idx on public.vessel_space_
 alter table public.vessel_space_links enable row level security;
 
 -- Any active member of the vessel may read the links.
+drop policy if exists vessel_space_links_member_read on public.vessel_space_links;
 create policy vessel_space_links_member_read on public.vessel_space_links
   for select to authenticated
   using (exists (
@@ -33,6 +34,7 @@ create policy vessel_space_links_member_read on public.vessel_space_links
        and tm.active = true));
 
 -- Command / Chief may create + delete them.
+drop policy if exists vessel_space_links_command_write on public.vessel_space_links;
 create policy vessel_space_links_command_write on public.vessel_space_links
   for all to authenticated
   using (exists (
