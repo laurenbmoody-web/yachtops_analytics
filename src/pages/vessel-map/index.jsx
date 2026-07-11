@@ -14,7 +14,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import Header from '../../components/navigation/Header';
 import SplatViewer from './components/SplatViewer';
-import HotspotModal from './components/HotspotModal';
 import ToolRail from './components/ToolRail';
 import Inspector from './components/Inspector';
 import OrientPanel from './components/OrientPanel';
@@ -99,6 +98,7 @@ export default function VesselMapPage() {
   const [spaceNames, setSpaceNames] = useState({}); // space_id → room name (for doors to un-scanned rooms)
   const [placingDoor, setPlacingDoor] = useState(null); // {linkId, end, name} being anchored in 3D
   const [measure, setMeasure] = useState(null); // { meters, points } | null — Measure tool readout
+  const [justCreatedId, setJustCreatedId] = useState(null); // a freshly-dropped pin — autofocus its name, discard if unnamed
 
   const selectedScan = useMemo(
     () => scans.find((s) => s.id === selectedScanId) || null,
@@ -359,13 +359,72 @@ export default function VesselMapPage() {
     setAdjustError(null);
   };
 
-  // Desktop is the one-gesture flow: click drops the pin AND opens the
-  // creation modal. The mobile variant keeps the shipped two-step
-  // (drop → drag to fine-tune → Save). While adjusting an existing pin,
-  // clicks/drags only move the pending pin — Save commits.
+  // Dropping a pin creates it straight away and opens the inspector as its
+  // editor — name, category and every tab in one place, no create-then-reopen.
+  // Desktop drops on click; mobile drops a pending pin to nudge, then commits.
   const placePending = (pos) => {
     setPendingPosition(pos);
-    if (isDesktop && pos && !adjusting) setModalOpen(true);
+    if (isDesktop && pos && !adjusting) createDraftPin(pos);
+  };
+
+  // Create a blank pin at pos and open it. Name is filled in the inspector;
+  // an unnamed pin is discarded when the inspector closes (see closeInspector).
+  const createDraftPin = async (pos) => {
+    if (!pos || !selectedScan) return;
+    const layer = 'general';
+    const { data, error } = await supabase
+      .from('scan_hotspots')
+      .insert({
+        scan_id: selectedScan.id,
+        tenant_id: activeTenantId,
+        label: '',
+        layer,
+        color: layerColor(layer),
+        position: pos,
+        detail: {},
+        created_by: user?.id ?? null,
+      })
+      .select()
+      .single();
+    cancelPlacement();
+    if (error) { console.error('[vessel-map] draft pin error:', error); return; }
+    setHotspots((prev) => [...prev, data]);
+    setActiveLayers((prev) => new Set(prev).add(layer));
+    if (data.created_by && !creatorNames[data.created_by]) {
+      const name = user?.user_metadata?.full_name || user?.email;
+      if (name) setCreatorNames((prev) => ({ ...prev, [data.created_by]: name }));
+    }
+    setSelectedHotspot(data);
+    setJustCreatedId(data.id);
+  };
+
+  const renameHotspot = (id, label) => {
+    setHotspots((prev) => prev.map((h) => (h.id === id ? { ...h, label } : h)));
+    setSelectedHotspot((prev) => (prev && prev.id === id ? { ...prev, label } : prev));
+    supabase.from('scan_hotspots').update({ label }).eq('id', id)
+      .then(({ error }) => { if (error) console.error('[vessel-map] rename error:', error); });
+  };
+
+  const relayerHotspot = (id, layer) => {
+    const color = layerColor(layer);
+    setHotspots((prev) => prev.map((h) => (h.id === id ? { ...h, layer, color } : h)));
+    setSelectedHotspot((prev) => (prev && prev.id === id ? { ...prev, layer, color } : prev));
+    setActiveLayers((prev) => new Set(prev).add(layer));
+    supabase.from('scan_hotspots').update({ layer, color }).eq('id', id)
+      .then(({ error }) => { if (error) console.error('[vessel-map] relayer error:', error); });
+  };
+
+  // Closing the inspector discards a pin that was never named — so a stray
+  // drop doesn't leave a blank pin behind.
+  const closeInspector = () => {
+    const h = selectedHotspot;
+    setSelectedHotspot(null);
+    setJustCreatedId(null);
+    if (h && !(h.label && h.label.trim())) {
+      setHotspots((prev) => prev.filter((x) => x.id !== h.id));
+      supabase.from('scan_hotspots').delete().eq('id', h.id)
+        .then(({ error }) => { if (error) console.error('[vessel-map] discard draft error:', error); });
+    }
   };
 
   // ── Doorway pin placement ───────────────────────────────────────────────
@@ -427,10 +486,6 @@ export default function VesselMapPage() {
     setSelectedHotspot(h);
   };
 
-  const dismissModal = () => {
-    setModalOpen(false);
-    if (isDesktop) setPendingPosition(null); // stay in Pin mode, retry the click
-  };
 
   // ── Adjust position (COMMAND/CHIEF, from the inspector) ─────────────────
   const startAdjust = (h) => {
@@ -480,10 +535,9 @@ export default function VesselMapPage() {
     },
     f: () => setImmersive((v) => !v),
     escape: () => {
-      if (modalOpen) dismissModal();
-      else if (placingDoor) cancelDoorPlacement();
+      if (placingDoor) cancelDoorPlacement();
       else if (adjusting) cancelAdjust();
-      else if (selectedHotspot) setSelectedHotspot(null);
+      else if (selectedHotspot) closeInspector();
       else if (mode === 'pin' || mode === 'doorways' || mode === 'measure') selectMode('navigate');
       else if (immersive) setImmersive(false);
     },
@@ -546,39 +600,6 @@ export default function VesselMapPage() {
     }
     setHotspots((prev) => prev.filter((h) => h.id !== id));
     setSelectedHotspot(null);
-    return null;
-  };
-
-  // Returns an error message on failure (modal shows it), null on success.
-  const saveHotspot = async ({ label, layer }) => {
-    const { data, error } = await supabase
-      .from('scan_hotspots')
-      .insert({
-        scan_id: selectedScan.id,
-        tenant_id: activeTenantId,
-        label,
-        layer,
-        color: layerColor(layer),
-        position: pendingPosition,
-        detail: {},
-        created_by: user?.id ?? null,
-      })
-      .select()
-      .single();
-    if (error) {
-      console.error('[vessel-map] hotspot insert error:', error);
-      return error.message || 'Could not save the hotspot.';
-    }
-    setHotspots((prev) => [...prev, data]);
-    setActiveLayers((prev) => new Set(prev).add(layer)); // never save into a hidden layer
-    // The creator-name map fills from profiles on load — a pin saved this
-    // session is the signed-in user, so seed their name without a refetch.
-    if (data.created_by && !creatorNames[data.created_by]) {
-      const name = user?.user_metadata?.full_name || user?.email;
-      if (name) setCreatorNames((prev) => ({ ...prev, [data.created_by]: name }));
-    }
-    cancelPlacement();
-    setSelectedHotspot(data); // pin it, name it, then enrich it — selection opens the details
     return null;
   };
 
@@ -693,8 +714,8 @@ export default function VesselMapPage() {
                           : 'Click in the room to drop a pin'}
                       </span>
                       {pendingPosition && (
-                        <button className="vm-btn-primary" onClick={() => setModalOpen(true)}>
-                          Save hotspot
+                        <button className="vm-btn-primary" onClick={() => createDraftPin(pendingPosition)}>
+                          Place pin
                         </button>
                       )}
                       <button className="vm-btn-ghost" onClick={cancelPlacement}>Cancel</button>
@@ -829,9 +850,12 @@ export default function VesselMapPage() {
                   names={creatorNames}
                   onDetailSaved={onDetailSaved}
                   onLocationChanged={onLocationChanged}
-                  onClose={() => setSelectedHotspot(null)}
+                  onClose={closeInspector}
                   onDelete={deleteHotspot}
                   onAdjust={startAdjust}
+                  onRename={renameHotspot}
+                  onRelayer={relayerHotspot}
+                  autoFocusName={justCreatedId === selectedHotspot?.id}
                 />
 
                 {/* ≥1024px: breadcrumb + layer chips float on the dark stage,
@@ -953,13 +977,38 @@ export default function VesselMapPage() {
 
                 {selectedHotspot && (
                   <aside className="vm-side-panel">
-                    <button className="vm-side-close" onClick={() => setSelectedHotspot(null)} aria-label="Close">×</button>
-                    <p className="vm-label">Hotspot</p>
-                    <h2 className="vm-side-title">{selectedHotspot.label}</h2>
-                    <span className="vm-pill vm-pill-static">
-                      <span className="vm-pill-dot" style={{ background: selectedHotspot.color || layerColor(selectedHotspot.layer) }} />
-                      {layerLabel(selectedHotspot.layer)}
-                    </span>
+                    <button className="vm-side-close" onClick={closeInspector} aria-label="Close">×</button>
+                    <p className="vm-label">Pin<span className="vm-label-required"> required</span></p>
+                    {canPlaceHotspots ? (
+                      <input
+                        className="vm-input vm-name-input"
+                        value={selectedHotspot.label}
+                        placeholder="Name this pin"
+                        autoFocus={justCreatedId === selectedHotspot.id}
+                        onChange={(e) => renameHotspot(selectedHotspot.id, e.target.value)}
+                      />
+                    ) : (
+                      <h2 className="vm-side-title">{selectedHotspot.label || 'Untitled pin'}</h2>
+                    )}
+                    {canPlaceHotspots ? (
+                      <div className="vm-swatch-row" role="radiogroup" aria-label="Category">
+                        {LAYERS.map((l) => {
+                          const on = (selectedHotspot.layer || 'general') === l.key;
+                          return (
+                            <button key={l.key} type="button" role="radio" aria-checked={on} title={l.label}
+                              className={`vm-swatch${on ? ' on' : ''}`}
+                              style={{ background: l.color, color: l.color }}
+                              onClick={() => relayerHotspot(selectedHotspot.id, l.key)} />
+                          );
+                        })}
+                        <span className="vm-swatch-name">{layerLabel(selectedHotspot.layer)}</span>
+                      </div>
+                    ) : (
+                      <span className="vm-pill vm-pill-static">
+                        <span className="vm-pill-dot" style={{ background: selectedHotspot.color || layerColor(selectedHotspot.layer) }} />
+                        {layerLabel(selectedHotspot.layer)}
+                      </span>
+                    )}
 
                     {/* Same four rooms as the desktop inspector — functional,
                         not redesigned. Photos-from-phone is the headline. */}
@@ -1011,10 +1060,6 @@ export default function VesselMapPage() {
 
         </div>
       </div>
-
-      {modalOpen && pendingPosition && (
-        <HotspotModal onSave={saveHotspot} onCancel={dismissModal} />
-      )}
     </>
   );
 }
