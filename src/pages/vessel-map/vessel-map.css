@@ -1552,3 +1552,23 @@
 .vm-ct-text { display: flex; flex-direction: column; gap: 2px; }
 .vm-ct-title { font-size: 13px; font-weight: 700; color: #1C1B3A; }
 .vm-ct-sub { font-size: 11.5px; color: #6B7280; }
+
+/* Container "inside" section — photograph the interior, then place pins. */
+.vm-interior { margin-top: 4px; }
+.vm-interior-empty { display: flex; gap: 13px; align-items: flex-start; border: 1px dashed #C9C4B6;
+  border-radius: 12px; background: #FAFAF8; padding: 16px; }
+.vm-interior-empty-ic { width: 34px; height: 34px; border-radius: 9px; background: #EDEBF6; color: #5B57A8;
+  display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 700; flex: none; }
+.vm-interior-empty-t { display: block; font-size: 13.5px; font-weight: 700; color: #1C1B3A; }
+.vm-interior-empty-s { display: block; font-size: 12px; color: #6B7280; line-height: 1.45; margin-top: 2px; }
+.vm-interior-add { width: 100%; margin-top: 12px; background: #5B57A8; }
+.vm-interior-add:hover { background: #4b489a; }
+.vm-interior-set { display: flex; flex-direction: column; gap: 12px; }
+.vm-interior-thumb { width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden;
+  background: #2c2c38; border: 1px solid #ECEAE3; }
+.vm-interior-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vm-interior-actions { display: flex; gap: 9px; }
+.vm-interior-open { background: #5B57A8; }
+.vm-interior-open:hover { background: #4b489a; }
+.vm-interior-open:disabled { opacity: 0.55; }
+.vm-interior-open:disabled:hover { background: #5B57A8; }

@@ -412,6 +412,13 @@ export default function VesselMapPage() {
       .then(({ error }) => { if (error) console.error('[vessel-map] container toggle error:', error); });
   };
 
+  const setInteriorPhoto = (id, path) => {
+    setHotspots((prev) => prev.map((h) => (h.id === id ? { ...h, interior_photo_path: path } : h)));
+    setSelectedHotspot((prev) => (prev && prev.id === id ? { ...prev, interior_photo_path: path } : prev));
+    supabase.from('scan_hotspots').update({ interior_photo_path: path }).eq('id', id)
+      .then(({ error }) => { if (error) console.error('[vessel-map] interior photo save error:', error); });
+  };
+
   const relayerHotspot = (id, layer) => {
     const color = layerColor(layer);
     setHotspots((prev) => prev.map((h) => (h.id === id ? { ...h, layer, color } : h)));
@@ -863,6 +870,7 @@ export default function VesselMapPage() {
                   onRename={renameHotspot}
                   onRelayer={relayerHotspot}
                   onToggleContainer={setContainer}
+                  onInteriorPhoto={setInteriorPhoto}
                   autoFocusName={justCreatedId === selectedHotspot?.id}
                 />
 
