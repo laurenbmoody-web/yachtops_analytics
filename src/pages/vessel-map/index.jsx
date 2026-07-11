@@ -965,6 +965,7 @@ export default function VesselMapPage() {
                   onOpenInterior={openInterior}
                   childCount={selectedHotspot ? hotspots.filter((h) => h.parent_id === selectedHotspot.id).length : 0}
                   autoFocusName={justCreatedId === selectedHotspot?.id}
+                  raised={!!openContainer}
                 />
 
                 {/* ≥1024px: breadcrumb + layer chips float on the dark stage,
