@@ -13,13 +13,17 @@ import {
   searchInventoryItems, getInventoryItem, quantityAt, setQuantityHere, categoryPath,
 } from '../utils/inventory';
 
-export default function PinItems({ hotspot, canManage, tenantId, onDetailSaved, locationRoot }) {
+export default function PinItems({ hotspot, canManage, tenantId, onDetailSaved, locationRoot, locationTrail }) {
   const attached = hotspot?.detail?.items || []; // [{ id, item_id, label }]
   const attachedKey = attached.map((i) => i.item_id).join(',');
-  // The pin's physical spot: the scan's room › this pin's label.
-  const pinLoc = locationRoot
-    ? { location: locationRoot, sub_location: hotspot?.label ? hotspot.label.trim() : null }
-    : null;
+  // The pin's physical spot: the scan's room (location) then the full path
+  // through any containers down to this pin's label (sub_location, ' > '-
+  // joined — arbitrary depth, e.g. "test > Dry Store > Shelf 1").
+  const subPath = [...(locationTrail || []), hotspot?.label]
+    .map((s) => (s || '').trim())
+    .filter(Boolean)
+    .join(' > ');
+  const pinLoc = locationRoot ? { location: locationRoot, sub_location: subPath || null } : null;
 
   const [rows, setRows] = useState(null); // [{ item_id, label, qty, unit, category, attachId }]
   const [adding, setAdding] = useState(false);

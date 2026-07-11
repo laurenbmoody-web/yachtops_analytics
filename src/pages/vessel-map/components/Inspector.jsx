@@ -97,7 +97,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, onOpenInterior, childCount, autoFocusName, raised, user, tier, tenantId, names, onDetailSaved, locationRoot }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, onOpenInterior, childCount, autoFocusName, raised, user, tier, tenantId, names, onDetailSaved, locationRoot, locationTrail }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -268,6 +268,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
               tenantId={tenantId}
               onDetailSaved={onDetailSaved}
               locationRoot={locationRoot}
+              locationTrail={locationTrail}
             />
             {dangerActions}
           </>
