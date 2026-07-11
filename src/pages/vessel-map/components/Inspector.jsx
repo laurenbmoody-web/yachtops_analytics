@@ -5,7 +5,7 @@
 // payloads live on pins, not on the rail. Notes/List/Photos ship as
 // furnished-next-update rooms; Details is live.
 import React, { useEffect, useRef, useState } from 'react';
-import { layerColor, layerLabel } from '../layers';
+import { LAYERS, layerColor, layerLabel } from '../layers';
 import PinPayload from './PinPayload';
 import PinLocation from './PinLocation';
 import { getInventoryLocation, locationLabel } from '../utils/inventory';
@@ -23,7 +23,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, autoFocusName, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -53,6 +53,11 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
     setConfirming(false);
     setDeleteError(null);
   }, [hotspot?.id]);
+
+  // Name is edited locally and written through on each keystroke, so the field
+  // never round-trips through parent state and the caret can't jump.
+  const [nameDraft, setNameDraft] = useState(shown?.label || '');
+  useEffect(() => { setNameDraft(hotspot?.label || ''); }, [hotspot?.id]);
 
   // The linked inventory location belongs in the header — visible from
   // every tab, not buried in Details. pickSignal nudges PinLocation's
@@ -88,12 +93,45 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
     <aside className={`vm-inspector${open ? ' vm-open' : ''}`} aria-label="Pin inspector">
       <div className="vm-insp-head">
         <button className="vm-side-close" onClick={onClose} aria-label="Close inspector">×</button>
-        <p className="vm-label">Hotspot</p>
-        <h2 className="vm-insp-title">{shown.label}</h2>
-        <span className="vm-pill vm-pill-static">
-          <span className="vm-pill-dot" style={{ background: shown.color || layerColor(shown.layer) }} />
-          {layerLabel(shown.layer)}
-        </span>
+        {canManage ? (
+          <>
+            <p className="vm-label">Pin <span className="vm-label-required">required</span></p>
+            <input
+              className="vm-input vm-name-input"
+              value={nameDraft}
+              placeholder="Name this pin"
+              autoFocus={autoFocusName}
+              onChange={(e) => { setNameDraft(e.target.value); onRename?.(shown.id, e.target.value); }}
+            />
+            <div className="vm-swatch-row" role="radiogroup" aria-label="Category">
+              {LAYERS.map((l) => {
+                const on = (shown.layer || 'general') === l.key;
+                return (
+                  <button
+                    key={l.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    title={l.label}
+                    className={`vm-swatch${on ? ' on' : ''}`}
+                    style={{ background: l.color, color: l.color }}
+                    onClick={() => onRelayer?.(shown.id, l.key)}
+                  />
+                );
+              })}
+              <span className="vm-swatch-name">{layerLabel(shown.layer)}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="vm-label">Hotspot</p>
+            <h2 className="vm-insp-title">{shown.label || 'Untitled pin'}</h2>
+            <span className="vm-pill vm-pill-static">
+              <span className="vm-pill-dot" style={{ background: shown.color || layerColor(shown.layer) }} />
+              {layerLabel(shown.layer)}
+            </span>
+          </>
+        )}
         {locId && headLoc && (
           <button className="vm-insp-loc" onClick={() => setTab('details')} title="Inventory location — see contents in Details">
             {locationLabel(headLoc)}

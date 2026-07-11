@@ -1525,3 +1525,16 @@
   font-size: 15px; font-weight: 700; color: #fff;
   padding: 4px 12px; border-radius: 999px; background: #2563EB;
 }
+
+/* Editable pin header (create + edit in one place): name field + category swatches. */
+.vm-name-input { font-size: 15.5px; font-weight: 600; margin-bottom: 12px; }
+.vm-swatch-row { display: flex; align-items: center; gap: 10px; margin: 2px 0 4px; flex-wrap: wrap; }
+.vm-swatch {
+  width: 24px; height: 24px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #E8E6DF, 0 1px 2px rgba(28, 27, 58, 0.15);
+  transition: box-shadow .12s, transform .12s;
+}
+.vm-swatch:hover { transform: scale(1.08); }
+.vm-swatch.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px currentColor; }
+.vm-swatch-name { margin-left: 2px; font-size: 13px; font-weight: 700; color: #1C1B3A; }
