@@ -3,14 +3,31 @@ import { X } from 'lucide-react';
 import { submitOrderReview } from '../utils/marketplaceStorage';
 import './delivery-review-prompt.css';
 
-// A tap-to-rate star row.
-const Stars = ({ value, onPick, size = 28 }) => (
-  <span className="drp-stars" style={{ fontSize: size }}>
-    {[1, 2, 3, 4, 5].map(i => (
-      <button key={i} type="button" className={i <= value ? 'on' : ''} onClick={() => onPick(i)} aria-label={`${i} star${i === 1 ? '' : 's'}`}>★</button>
-    ))}
-  </span>
-);
+// A tap-to-rate star row with half-stars: each star has a left (½) and
+// right (whole) hit zone; hovering previews.
+const Stars = ({ value, onPick, size = 28 }) => {
+  const [hover, setHover] = useState(null);
+  const shown = hover != null ? hover : (value || 0);
+  return (
+    <span className="drp-stars" style={{ fontSize: size }} onMouseLeave={() => onPick && setHover(null)}>
+      {[1, 2, 3, 4, 5].map(i => {
+        const fill = shown >= i ? 100 : (shown >= i - 0.5 ? 50 : 0);
+        return (
+          <span key={i} className="drp-star">
+            <span className="drp-star-base">★</span>
+            <span className="drp-star-fill" style={{ width: `${fill}%` }}>★</span>
+            {onPick && (
+              <>
+                <button type="button" className="drp-hit l" onMouseEnter={() => setHover(i - 0.5)} onClick={() => onPick(i - 0.5)} aria-label={`${i - 0.5} stars`} />
+                <button type="button" className="drp-hit r" onMouseEnter={() => setHover(i)} onClick={() => onPick(i)} aria-label={`${i} star${i === 1 ? '' : 's'}`} />
+              </>
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+};
 
 const SubRow = ({ label, value, onPick }) => (
   <div className="drp-sub"><span className="l">{label}</span><Stars value={value} onPick={onPick} size={16} /></div>

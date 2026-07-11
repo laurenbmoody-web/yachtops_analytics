@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Star } from 'lucide-react';
 import { fetchMySupplierReviews, replyToReview } from '../utils/supplierStorage';
 import EmptyState from '../components/EmptyState';
 import './supplier-reviews.css';
@@ -15,10 +14,15 @@ const fmtDate = (val) => {
 
 const Stars = ({ value = 0 }) => (
   <span className="spr-stars" aria-label={`${value} out of 5`}>
-    {[1, 2, 3, 4, 5].map(i => (
-      <Star key={i} size={14} className={i <= Math.round(value) ? 'on' : ''}
-        fill={i <= Math.round(value) ? 'currentColor' : 'none'} strokeWidth={1.6} />
-    ))}
+    {[1, 2, 3, 4, 5].map(i => {
+      const fill = value >= i ? 100 : (value >= i - 0.5 ? 50 : 0);
+      return (
+        <span key={i} className="spr-star">
+          <span className="spr-star-base">★</span>
+          <span className="spr-star-fill" style={{ width: `${fill}%` }}>★</span>
+        </span>
+      );
+    })}
   </span>
 );
 

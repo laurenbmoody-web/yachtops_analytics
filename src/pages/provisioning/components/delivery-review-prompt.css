@@ -29,10 +29,12 @@
 .drp-thanks { font-size: 12.5px; font-weight: 600; color: #C65A1A; }
 
 .drp-stars { display: inline-flex; gap: 2px; line-height: 1; }
-.drp-stars button { background: none; border: none; padding: 0 1px; cursor: pointer; line-height: 1; color: #DED9CE; font-size: inherit; transition: color .1s; }
-.drp-stars button.on { color: #C65A1A; }
-.drp-stars:hover button { color: #C65A1A; }
-.drp-stars button:hover ~ button { color: #DED9CE; }
+.drp-star { position: relative; display: inline-block; line-height: 1; }
+.drp-star-base { color: #DED9CE; }
+.drp-star-fill { position: absolute; top: 0; left: 0; overflow: hidden; white-space: nowrap; color: #C65A1A; pointer-events: none; }
+.drp-hit { position: absolute; top: 0; height: 100%; width: 50%; padding: 0; margin: 0; border: none; background: none; cursor: pointer; z-index: 2; }
+.drp-hit.l { left: 0; }
+.drp-hit.r { right: 0; }
 
 /* Overall stands alone (headline); Quality/Delivery/Service grouped in a
    soft "in detail" panel beneath. Note underneath. */
