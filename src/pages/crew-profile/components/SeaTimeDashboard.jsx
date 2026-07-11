@@ -1430,14 +1430,20 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       </div>
                     );
                   })()}
-                  {activeCert?.asOfficer && (
-                    <div className="stp-whilst">
-                      <Icon name="Info" size={13} />
-                      <div>{whileHoldingISO
-                        ? <>Counts <b>deck/engineer-officer service from {fmtDate(whileHoldingISO)}</b> — when you held {CERTIFICATES[activeCert.heldWhilstCert]?.short || r.heldWhilst}. Earlier and rating service counted toward that certificate, not this one (MSN 1858 / MSN 1904).</>
-                        : <>Only <b>officer service whilst holding {CERTIFICATES[activeCert.heldWhilstCert]?.short || r.heldWhilst}</b> counts toward this CoC. Set that certificate’s issue date under <b>Certificates held</b> so only qualifying service is counted — for now it’s gated by capacity only.</>}</div>
-                    </div>
-                  )}
+                  {activeCert?.asOfficer && (() => {
+                    const fam = activeCert.family || r.family;
+                    const officerNoun = fam === 'ENGINE' ? 'engineer-officer' : fam === 'ETO' ? 'ETO' : 'deck-officer';
+                    const famMsn = fam === 'ENGINE' ? 'MSN 1904' : fam === 'ETO' ? 'MSN 1860' : 'MSN 1858';
+                    const heldShort = CERTIFICATES[activeCert.heldWhilstCert]?.short || r.heldWhilst;
+                    return (
+                      <div className="stp-whilst">
+                        <Icon name="Info" size={13} />
+                        <div>{whileHoldingISO
+                          ? <>Counts your <b>{officerNoun} service from {fmtDate(whileHoldingISO)}</b> — the day you qualified as {heldShort}. Earlier days, and any served as a rating, counted toward {heldShort}, not this ticket. ({famMsn})</>
+                          : <>Only <b>{officerNoun} service whilst holding {heldShort}</b> counts toward this CoC. Set that certificate’s issue date under <b>Certificates held</b> so only qualifying service is counted — for now it’s gated by capacity only.</>}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             );
