@@ -950,6 +950,7 @@ export default function VesselMapPage() {
                   names={creatorNames}
                   onDetailSaved={onDetailSaved}
                   locationRoot={selectedScan?.name}
+                  locationTrail={containerTrail.map((c) => c.label)}
                   onClose={closeInspector}
                   onDelete={deleteHotspot}
                   onAdjust={startAdjust}
@@ -1152,6 +1153,7 @@ export default function VesselMapPage() {
                           tenantId={activeTenantId}
                           onDetailSaved={onDetailSaved}
                           locationRoot={selectedScan?.name}
+                          locationTrail={containerTrail.map((c) => c.label)}
                         />
                       </>
                     )}
