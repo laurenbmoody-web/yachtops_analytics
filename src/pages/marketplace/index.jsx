@@ -14,10 +14,11 @@
 // catalogue-linked), and the board stays the single point of control.
 // Night mode (The Dark Market) is a theme toggle, not a fourth view.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, ClipboardList, Search, X, ChevronRight, MapPin,
+  SlidersHorizontal, ChevronDown,
 } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -129,6 +130,77 @@ const StarRow = ({ value = 0, size = 12, onPick }) => {
 };
 
 const minQtyOf = (product) => Math.max(1, Number(product.min_order_qty) || 1);
+
+// The toolbar's "Filters" chip — folds Category / Show (and Port, in the
+// all-items view) into one popover so the bar stays clean. A badge shows
+// how many filters are active.
+const FiltersMenu = ({
+  category, setCategory, showFilter, setShowFilter, port, setPort,
+  ports, chipDefs, searchedLen, showPort, showMine,
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  const active = (category !== 'All' ? 1 : 0)
+    + (showFilter !== 'all' ? 1 : 0)
+    + (showPort && port !== 'All' ? 1 : 0);
+
+  return (
+    <div className="mp-filters" ref={ref}>
+      <button type="button" className={`mp-filters-btn ${open ? 'open' : ''} ${active ? 'on' : ''}`} onClick={() => setOpen(o => !o)}>
+        <SlidersHorizontal size={14} />
+        <span>Filters</span>
+        {active > 0 && <span className="mp-filters-badge">{active}</span>}
+        <ChevronDown size={14} className="chev" />
+      </button>
+      {open && (
+        <div className="mp-filters-pop">
+          <div className="mp-fp-group">
+            <span className="mp-fp-label">Category</span>
+            <div className="mp-fp-select">
+              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="All">All categories ({searchedLen})</option>
+                {chipDefs.filter(c => c.key !== 'All').map(c => (
+                  <option key={c.key} value={c.key}>{c.label} ({c.count})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {showPort && (
+            <div className="mp-fp-group">
+              <span className="mp-fp-label">Port</span>
+              <div className="mp-fp-select">
+                <select value={port} onChange={(e) => setPort(e.target.value)}>
+                  <option value="All">All ports</option>
+                  {ports.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+          <div className="mp-fp-group">
+            <span className="mp-fp-label">Show</span>
+            <div className="mp-fp-select">
+              <select value={showFilter} onChange={(e) => setShowFilter(e.target.value)}>
+                <option value="all">Everything</option>
+                <option value="in">In stock</option>
+                {showMine && <option value="mine">Your suppliers</option>}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 
 // ─────────────────────────────────────────────────────────────────────
@@ -812,33 +884,14 @@ const Marketplace = () => {
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </label>
-                {stage === 'items' && (
-                  <label className="mp-filter">
-                    <span className="k">Port</span>
-                    <select value={port} onChange={(e) => setPort(e.target.value)}>
-                      <option value="All">All ports</option>
-                      {ports.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </label>
-                )}
-                <label className="mp-filter">
-                  <span className="k">Category</span>
-                  <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                    <option value="All">All categories ({searched.length})</option>
-                    {chipDefs.filter(c => c.key !== 'All').map(c => (
-                      <option key={c.key} value={c.key}>{c.label} ({c.count})</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="mp-filter">
-                  <span className="k">Show</span>
-                  <select value={showFilter} onChange={(e) => setShowFilter(e.target.value)}>
-                    <option value="all">Everything</option>
-                    <option value="in">In stock</option>
-                    {stage === 'items' && <option value="mine">Your suppliers</option>}
-                  </select>
-                </label>
-                <label className="mp-filter">
+                <FiltersMenu
+                  category={category} setCategory={setCategory}
+                  showFilter={showFilter} setShowFilter={setShowFilter}
+                  port={port} setPort={setPort} ports={ports}
+                  chipDefs={chipDefs} searchedLen={searched.length}
+                  showPort={stage === 'items'} showMine={stage === 'items'}
+                />
+                <label className="mp-filter mp-sort">
                   <span className="k">Sort</span>
                   <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                     <option value="name">Name A–Z</option>
@@ -850,7 +903,6 @@ const Marketplace = () => {
                 {filtersDirty && (
                   <button type="button" className="mp-clear" onClick={resetBrowse}>× Clear all</button>
                 )}
-                <span className="mp-count">{filtered.length} of {scopedProducts.length}</span>
                 {stage === 'items' && (
                   <button
                     type="button"
@@ -863,6 +915,10 @@ const Marketplace = () => {
                     {basketUnits > 0 && <span className="badge">{basketUnits}</span>}
                   </button>
                 )}
+              </div>
+
+              <div className="mp-count-row">
+                <span className="mp-count">{filtered.length} of {scopedProducts.length} items</span>
               </div>
 
               {filtered.length === 0 ? (
