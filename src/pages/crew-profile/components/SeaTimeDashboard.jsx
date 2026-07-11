@@ -11,7 +11,7 @@ import {
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset, recentQualifyingDays
 } from '../../../seatime/engine';
 import {
-  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY, DUAL_CAPACITY_RATE, isDualCapacityRole, ancillaryFor
+  DEPARTMENTS, DEPT_FAMILIES, CERTIFICATES, GOAL_OPTIONS, DEFAULT_GOAL, routeFor, resolveEntry, GRADE_TO_CERT, CERT_TO_GRADE, yardCapForCertificate, certConfidence, legacyConversionForGrade, CONVERSION_RECENCY, DUAL_CAPACITY_RATE, isDualCapacityRole, ancillaryFor
 } from '../../../seatime/pathways';
 import { fetchCrewDocuments, uploadDocumentFile } from '../utils/crewDocuments';
 import { sendDbNotification } from '../../../lib/dbNotifications';
@@ -251,7 +251,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const deptFamilies = DEPT_FAMILIES[deptId] || [];
   const deptGoalOptions = deptFamilies.flatMap(f => GOAL_OPTIONS[f] || []);
   const family = goalId && CERTIFICATES[goalId] ? CERTIFICATES[goalId].family : null;
-  const route = useMemo(() => routeFor(goalId), [goalId]);
+  const route = useMemo(() => {
+    // §4.3/§4.4 alternative entry: a crew on the OOW-Unlimited route (holds OOW
+    // Unlimited but not a Master <3000 CoC) reaches Chief Mate / Master Unlimited
+    // via OOW Unlimited, not the yacht ladder — show that path so the live target
+    // is the Unlimited rung, not an OOW <3000 rung they've bypassed.
+    if ((goalId === 'CHIEF_MATE_UNLIMITED' || goalId === 'MASTER_UNLIMITED')
+      && heldCerts.OOW_UNLIMITED && !heldCerts.MASTER_YACHT_3000) {
+      return goalId === 'MASTER_UNLIMITED'
+        ? ['OOW_UNLIMITED', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED']
+        : ['OOW_UNLIMITED', 'CHIEF_MATE_UNLIMITED'];
+    }
+    return routeFor(goalId);
+  }, [goalId, heldCerts]);
   // The route is a strict progression — each rung requires the one below it, so
   // holding a higher rung implies every rung at or below it is satisfied (a crew
   // member who logged only their top CoC still counts as having the rest). The
@@ -282,6 +294,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const targetId = highestHeldIdx >= route.length - 1 ? null : route[highestHeldIdx + 1];
   const routeComplete = !targetId && route.length > 0;
   const cert = targetId && CERTIFICATES[targetId] ? CERTIFICATES[targetId] : null;
+  // For certs with alternative entries (§4.3/§4.4), swap in the requirements of
+  // the route the crew is actually on, so eligibility reflects their path (e.g.
+  // via Master <3000 → no extra sea time; via OOW Unlimited → 12/6/≥500GT).
+  const entry = resolveEntry(cert, effectiveHeld);
+  const activeCert = cert ? { ...cert, requires: entry.requires, asOfficer: entry.asOfficer, heldWhilstCert: entry.heldWhilstCert } : null;
   // The live journey is the current target's entry (fresh until they start it).
   const activeJourney = (targetId && journeyMap[targetId]) ? journeyMap[targetId] : JOURNEY_DEFAULT;
   const rungs = route.map(id => ({ id, ...CERTIFICATES[id] }));
@@ -490,19 +507,19 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   // the crew hasn't recorded the prerequisite's issue date — then we gate by
   // officer capacity only and flag it). Prior (pre-Cargo) service has no dates
   // and is trusted as entered. Entry certs (no asOfficer) use the plain buckets.
-  const whileHoldingISO = cert?.heldWhilstCert ? (effectiveHeld[cert.heldWhilstCert]?.issueDate || null) : null;
+  const whileHoldingISO = activeCert?.heldWhilstCert ? (effectiveHeld[activeCert.heldWhilstCert]?.issueDate || null) : null;
   const reqBuckets = useMemo(
-    () => (cert?.asOfficer
+    () => (activeCert?.asOfficer
       ? computeBuckets(pathwayEntries, vessels, { ...config, yardCapDays: yardCapForCertificate(targetId), dualRate, officerOnly: true, sinceISO: whileHoldingISO })
       : buckets),
-    [cert, pathwayEntries, vessels, config, targetId, dualRate, whileHoldingISO, buckets],
+    [activeCert, pathwayEntries, vessels, config, targetId, dualRate, whileHoldingISO, buckets],
   );
   // Recent qualifying seagoing service in the last 5 years (MCA recency rule).
   const recentDays = useMemo(() => recentQualifyingDays(pathwayEntries.filter(e => !e.excluded)), [pathwayEntries]);
   // Guest-on days for the Yacht Purser Route A gate — manual override if set,
   // otherwise the count auto-derived from guest-carrying trips.
   const effectiveGuestOn = guestOnDays != null ? guestOnDays : (derivedGuest?.days ?? 0);
-  const requirements = useMemo(() => (cert ? buildRequirementBars(reqBuckets, prior, cert, recentDays, effectiveGuestOn) : []), [reqBuckets, prior, cert, recentDays, effectiveGuestOn]);
+  const requirements = useMemo(() => (activeCert ? buildRequirementBars(reqBuckets, prior, activeCert, recentDays, effectiveGuestOn) : []), [reqBuckets, prior, activeCert, recentDays, effectiveGuestOn]);
   // Ancillary courses/tickets for the target CoC, with held-state auto-detected
   // from the crew member's documents (a course counts as held once a matching
   // document type is on file).
@@ -1407,12 +1424,12 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                       </div>
                     );
                   })()}
-                  {r.asOfficer && (
+                  {activeCert?.asOfficer && (
                     <div className="stp-whilst">
                       <Icon name="Info" size={13} />
                       <div>{whileHoldingISO
-                        ? <>Counts <b>deck/engineer-officer service from {fmtDate(whileHoldingISO)}</b> — when you held {CERTIFICATES[r.heldWhilstCert]?.short || r.heldWhilst}. Earlier and rating service counted toward that certificate, not this one (MSN 1858 / MSN 1904).</>
-                        : <>Only <b>officer service whilst holding {CERTIFICATES[r.heldWhilstCert]?.short || r.heldWhilst}</b> counts toward this CoC. Set that certificate’s issue date under <b>Certificates held</b> so only qualifying service is counted — for now it’s gated by capacity only.</>}</div>
+                        ? <>Counts <b>deck/engineer-officer service from {fmtDate(whileHoldingISO)}</b> — when you held {CERTIFICATES[activeCert.heldWhilstCert]?.short || r.heldWhilst}. Earlier and rating service counted toward that certificate, not this one (MSN 1858 / MSN 1904).</>
+                        : <>Only <b>officer service whilst holding {CERTIFICATES[activeCert.heldWhilstCert]?.short || r.heldWhilst}</b> counts toward this CoC. Set that certificate’s issue date under <b>Certificates held</b> so only qualifying service is counted — for now it’s gated by capacity only.</>}</div>
                     </div>
                   )}
                 </div>

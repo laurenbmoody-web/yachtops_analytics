@@ -177,9 +177,17 @@ export const CERTIFICATES = {
     family: 'DECK', label: 'Chief Mate (Yachts Unlimited)', short: 'Chief Mate Unltd',
     msn: 'MSN 1858 Amd 2 §4.3', verified: 'HIGH',
     yardCapDays: 30,                // Chief Mate: max 30 yard days (1858 §4.3)
-    requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
-    heldWhilst: 'OOW Unlimited (or Master Yachts <3000GT II/1)', heldWhilstCert: 'MASTER_YACHT_3000', asOfficer: true,
-    note: 'You need 12 months onboard as OOW (including 6 months at sea), all on a yacht of 500 GT or more, plus the management-level academic modules and MCA assessments. Unlike Chief Mate <3000, this one does need an oral exam.'
+    // §4.3(a) gives TWO entry routes with DIFFERENT service requirements.
+    // Path A (default) — via a Master Yachts <3000 II/1 CoC: management modules
+    // + oral only, NO additional sea service (first bullet of §4.3(a)).
+    requires: {},
+    heldWhilst: 'Master (Yachts <3000GT) II/1 (or OOW Unlimited — see routes)',
+    primaryEntryCert: 'MASTER_YACHT_3000',
+    // Path B — via OOW Unlimited (second bullet of §4.3(a)): 12 months onboard as
+    // OOW incl. 6 months seagoing, all on ≥500GT, plus NAEST(M). Applied when the
+    // crew holds OOW Unlimited but NOT a Master <3000 CoC (see resolveEntry).
+    altEntries: [{ heldWhilstCert: 'OOW_UNLIMITED', requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 }, asOfficer: true }],
+    note: 'Two entry routes (MSN 1858 §4.3): (A) hold a Master (Yachts <3000GT) CoC, then just the management modules and oral — no extra sea time; or (B) hold an OOW Unlimited CoC plus 12 months onboard as OOW (incl. 6 months at sea) on 500 GT+, and NAEST(M). Both then sit the same oral exam.'
   },
   MASTER_UNLIMITED: {
     family: 'DECK', label: 'Master (Yachts Unlimited)', short: 'Master Unltd',
@@ -343,6 +351,22 @@ export const DEPT_FAMILIES = {
 };
 
 export const routeFor = (goalId) => CERTIFICATE_ROUTES[goalId] || (goalId ? [goalId] : []);
+
+/** Some certificates can be reached by more than one entry route, each with its
+ *  OWN service requirements (MSN 1858 §4.3/§4.4). Resolve which one a crew is on
+ *  from the certs they hold and return the effective { requires, asOfficer,
+ *  heldWhilstCert }. Default = the primary path; the alternative is used only
+ *  when the crew holds an alternative prerequisite but NOT the primary one
+ *  (e.g. an OOW Unlimited holder without a Master <3000 CoC). `heldMap` is a
+ *  certId → truthy map of held certificates. */
+export const resolveEntry = (cert, heldMap = {}) => {
+  const base = { requires: cert?.requires || {}, asOfficer: !!cert?.asOfficer, heldWhilstCert: cert?.heldWhilstCert || null };
+  if (!cert || !Array.isArray(cert.altEntries) || !cert.altEntries.length) return base;
+  if (cert.primaryEntryCert && heldMap[cert.primaryEntryCert]) return base;   // on the primary path
+  const alt = cert.altEntries.find(e => heldMap[e.heldWhilstCert]);
+  if (!alt) return base;   // neither prerequisite held → default to the primary path
+  return { requires: alt.requires || {}, asOfficer: !!alt.asOfficer, heldWhilstCert: alt.heldWhilstCert };
+};
 
 /** Maps a personal_documents CoC `grade` (documentTypes.js) to a ladder cert id. */
 export const GRADE_TO_CERT = {

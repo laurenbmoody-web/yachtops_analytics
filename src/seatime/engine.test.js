@@ -7,7 +7,7 @@ import {
   runChecks, computeAssurance, buildTestimonialDataset, getVerifierProfiles,
   buildRequirementBars, recentQualifyingDays, MCA_APPLICATION_DOCS
 } from './engine.js';
-import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate, LEGACY_GRADE_CONVERSION, CONVERSION_RECENCY, legacyConversionForGrade, ancillaryFor, isOfficerCapacity } from './pathways.js';
+import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES, yardCapForCertificate, LEGACY_GRADE_CONVERSION, CONVERSION_RECENCY, legacyConversionForGrade, ancillaryFor, isOfficerCapacity, resolveEntry } from './pathways.js';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from './seed.js';
 
 const V = SEED_VESSELS;
@@ -280,8 +280,9 @@ test('cert-aware gate names the route threshold; accrual never blocks attestatio
 });
 
 test('a tonnage-gated route fails service on an under-GT vessel', () => {
-  // Chief Mate Unlimited gates on ≥500GT; v1 is 380GT.
-  const cert = CERTIFICATES.CHIEF_MATE_UNLIMITED;
+  // Chief Mate Unlimited's OOW-Unlimited entry (§4.3 Path B) gates on ≥500GT;
+  // v1 is 380GT. (The default Master-<3000 entry has no extra sea-time gate.)
+  const cert = { ...CERTIFICATES.CHIEF_MATE_UNLIMITED, requires: CERTIFICATES.CHIEF_MATE_UNLIMITED.altEntries[0].requires };
   const entries = [{ id: 'a', vesselId: 'v1', type: 'seagoing', watchHours: 0, days: 30 }];
   const r = runChecks({ entries, vessels: V, signatory: 'master', verifier: 'pya',
     docMet: { passport: true, srb: true }, cert });
@@ -470,6 +471,27 @@ test('engine certificates use kW gates (MSN 1904 Small Vessel)', () => {
   assert.equal(CERTIFICATES.EOOW_SV_Y.requires.minPowerKW, 350);
   assert.equal(CERTIFICATES.CHIEF_SV_3000_Y.requires.minPowerKW, 350);
   assert.equal(CERTIFICATES.MEOL_Y.requires.minPowerKW, 200);
+});
+
+test('Chief Mate Unlimited resolves the entry route (§4.3): Master <3000 = no extra sea time, OOW Unlimited = 12/6/500', () => {
+  const cmu = CERTIFICATES.CHIEF_MATE_UNLIMITED;
+  // Path A — holds Master <3000 (the primary entry): no additional sea service.
+  const a = resolveEntry(cmu, { MASTER_YACHT_3000: { issueDate: '2025-01-01' } });
+  assert.deepEqual(a.requires, {});
+  assert.equal(a.asOfficer, false);
+  // Path B — holds OOW Unlimited but NOT Master <3000: the §4.3 service applies.
+  const b = resolveEntry(cmu, { OOW_UNLIMITED: { issueDate: '2025-01-01' } });
+  assert.equal(b.requires.onboardMonths, 12);
+  assert.equal(b.requires.seagoingMonths, 6);
+  assert.equal(b.requires.minGT, 500);
+  assert.equal(b.asOfficer, true);
+  assert.equal(b.heldWhilstCert, 'OOW_UNLIMITED');
+  // Neither held → default to the primary (no extra sea time), not the alt.
+  assert.deepEqual(resolveEntry(cmu, {}).requires, {});
+  // Master <3000 wins even if OOW Unlimited is also held (on the primary path).
+  assert.deepEqual(resolveEntry(cmu, { MASTER_YACHT_3000: {}, OOW_UNLIMITED: {} }).requires, {});
+  // A plain cert with no altEntries is unchanged.
+  assert.deepEqual(resolveEntry(CERTIFICATES.OOW_YACHT_3000, {}).requires, CERTIFICATES.OOW_YACHT_3000.requires);
 });
 
 test('roles map to eligible certificate families', () => {
