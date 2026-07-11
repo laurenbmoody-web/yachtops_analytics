@@ -67,9 +67,9 @@ export const fetchMarketplaceProducts = async (supplierIds) => {
 };
 
 /**
- * Platform-wide star ratings per supplier — average, count, and the
- * caller's own rating (get_supplier_ratings RPC). Returns a Map keyed
- * by supplier id; empty on failure so the card just reads "not rated".
+ * Platform-wide average + count per supplier, over VERIFIED (order-based)
+ * reviews only — get_supplier_ratings RPC. Returns a Map keyed by supplier
+ * id; empty on failure so the card just reads "not rated".
  */
 export const fetchSupplierRatings = async () => {
   try {
@@ -80,7 +80,6 @@ export const fetchSupplierRatings = async () => {
       map.set(r.supplier_id, {
         avg: r.avg_rating != null ? Number(r.avg_rating) : null,
         count: Number(r.rating_count) || 0,
-        mine: r.my_rating != null ? Number(r.my_rating) : null,
       });
     });
     return map;
@@ -90,18 +89,47 @@ export const fetchSupplierRatings = async () => {
   }
 };
 
-/** Rate a supplier 1-5 (one per user, editable) with an optional note. */
-export const rateSupplier = async (supplierId, rating, note = null) => {
-  const { error } = await supabase.rpc('rate_supplier', {
-    p_supplier_id: supplierId, p_rating: rating, p_note: note,
+/**
+ * The caller's delivered orders with a supplier, each with its review (if
+ * any) — get_reviewable_orders RPC. Powers "review your deliveries". Only
+ * delivered orders come back, so an empty list means "nothing to review
+ * yet". Returns [] on failure.
+ */
+export const fetchReviewableOrders = async (supplierId) => {
+  if (!supplierId) return [];
+  try {
+    const { data, error } = await supabase.rpc('get_reviewable_orders', {
+      p_supplier_id: supplierId,
+    });
+    if (error) throw error;
+    return (data ?? []).map((o) => ({
+      orderId: o.order_id,
+      deliveryDate: o.delivery_date,
+      deliveryPort: o.delivery_port || '',
+      listTitle: o.list_title || '',
+      orderedAt: o.ordered_at,
+      rating: o.rating != null ? Number(o.rating) : null,
+      note: o.note || '',
+      reviewedAt: o.reviewed_at,
+    }));
+  } catch (err) {
+    console.warn('[marketplaceStorage] fetchReviewableOrders (non-blocking):', err?.message);
+    return [];
+  }
+};
+
+/** Submit / edit the review for one delivered order (verified). */
+export const submitOrderReview = async (orderId, rating, note = null) => {
+  const { error } = await supabase.rpc('submit_order_review', {
+    p_order_id: orderId, p_rating: rating, p_note: note,
   });
   if (error) throw error;
 };
 
 /**
- * Anonymous platform-wide reviews (with notes) for one supplier, newest
- * first — get_supplier_reviews RPC. Own review flagged is_mine. Returns
- * [] on failure so the modal just shows "no written reviews yet".
+ * Verified reviews (with notes) for one supplier, newest first —
+ * get_supplier_reviews RPC. Anonymous to buyers; carries the supplier's
+ * public reply. Own-tenant reviews flagged mine. Returns [] on failure.
  */
 export const fetchSupplierReviews = async (supplierId) => {
   if (!supplierId) return [];
@@ -115,6 +143,8 @@ export const fetchSupplierReviews = async (supplierId) => {
       rating: Number(r.rating) || 0,
       note: r.note || '',
       createdAt: r.created_at,
+      supplierReply: r.supplier_reply || '',
+      repliedAt: r.replied_at,
       mine: !!r.is_mine,
     }));
   } catch (err) {

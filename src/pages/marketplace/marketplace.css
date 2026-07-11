@@ -525,8 +525,8 @@
 
 /* ── Reviews modal (mrev-) — editorial, theme-aware. Inherits the
    --tokens from .mp-page, so day/night just work. Stars open it; the
-   average + written reviews live here, and the your-review editor writes
-   through rate_supplier. Reviews are anonymous ("Verified crew"). ── */
+   average + verified reviews live here, and crew review their delivered
+   orders (submit_order_review). Anonymous to buyers ("Verified crew"). ── */
 .mrev-backdrop { position: fixed; inset: 0; background: rgba(20,19,32,0.42); z-index: 60; backdrop-filter: blur(1.5px); }
 .mrev {
   position: fixed; z-index: 61; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -577,15 +577,30 @@
 .mrev-cancel:hover:not(:disabled) { color: var(--ink); border-color: var(--soft); }
 .mrev-cancel:disabled { opacity: 0.5; cursor: default; }
 
-/* Saved own-review card — sits where the editor was once you've reviewed. */
-.mrev-mine { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px 12px; }
-.mrev-mine .mrev-body { margin-top: 7px; }
 .mrev-nonote { font-style: italic; color: var(--faint); }
 .mrev-edit {
-  margin-top: 10px; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+  background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
   font-size: 12px; font-weight: 600; color: var(--accent); transition: color .15s;
 }
 .mrev-edit:hover { color: var(--accent-hover); }
+
+/* One delivered order in "review your deliveries". */
+.mrev-order { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; margin-bottom: 10px; }
+.mrev-order:last-child { margin-bottom: 0; }
+.mrev-order-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.mrev-order-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+.mrev-order-meta { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+.mrev-order-saved { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mrev-order-note { font-size: 12.5px; color: var(--muted); font-style: italic; }
+.mrev-order-saved .mrev-edit { margin-left: auto; }
+.mrev-order .mrev-yours-stars { margin-bottom: 10px; }
+.mrev-order .mrev-note { min-height: 56px; }
+
+/* Supplier's public reply under a review. */
+.mrev-item.is-mine { }
+.mrev-reply { margin: 9px 0 0 12px; padding: 9px 12px; background: var(--surface-2); border-left: 2px solid var(--accent); border-radius: 0 8px 8px 0; }
+.mrev-reply-who { font-size: 10.5px; font-weight: 700; letter-spacing: 0.3px; color: var(--accent); }
+.mrev-reply-body { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); white-space: pre-wrap; }
 
 .mrev-list { padding-top: 18px; }
 .mrev-empty { font-size: 13px; color: var(--muted); padding: 6px 0 2px; }
