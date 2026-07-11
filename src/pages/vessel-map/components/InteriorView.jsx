@@ -4,7 +4,11 @@
 // scan position; everything else (name, category, links, nesting) is the same
 // pin machinery as the 3-D scan. Breadcrumb walks back out; nested containers
 // push another level on.
-import React, { useEffect, useRef, useState } from 'react';
+//
+// Layout: the <img> sizes itself (max 100% of the frame, aspect preserved) so
+// it never crops. A pin overlay is positioned to the image's measured box, so
+// pins and click-to-place map to the photo exactly regardless of letterboxing.
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { layerColor } from '../layers';
 
@@ -16,7 +20,9 @@ export default function InteriorView({
   const path = container?.interior_photo_path || null;
   const [signedUrl, setSignedUrl] = useState(null);
   const [hovered, setHovered] = useState(null);
-  const photoRef = useRef(null);
+  const [box, setBox] = useState(null); // displayed image rect within the frame
+  const frameRef = useRef(null);
+  const imgRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,12 +34,32 @@ export default function InteriorView({
     return () => { cancelled = true; };
   }, [path]);
 
+  // Track the image's on-screen box so the pin overlay lines up with the photo
+  // (not the letterbox around it). Re-measures on load and whenever the frame
+  // or image resizes.
+  const measure = () => {
+    const img = imgRef.current;
+    const frame = frameRef.current;
+    if (!img || !frame || !img.naturalWidth) { setBox(null); return; }
+    const ir = img.getBoundingClientRect();
+    const fr = frame.getBoundingClientRect();
+    setBox({ left: ir.left - fr.left, top: ir.top - fr.top, w: ir.width, h: ir.height });
+  };
+
+  useLayoutEffect(() => {
+    if (!signedUrl) { setBox(null); return undefined; }
+    const ro = new ResizeObserver(() => measure());
+    if (frameRef.current) ro.observe(frameRef.current);
+    if (imgRef.current) ro.observe(imgRef.current);
+    return () => ro.disconnect();
+  }, [signedUrl]);
+
   const place = (e) => {
     if (!placing || !canManage) return;
-    const rect = photoRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
+    const ir = imgRef.current?.getBoundingClientRect();
+    if (!ir) return;
+    const x = (e.clientX - ir.left) / ir.width;
+    const y = (e.clientY - ir.top) / ir.height;
     if (x < 0 || x > 1 || y < 0 || y > 1) return;
     onPlace({ x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) });
   };
@@ -54,35 +80,46 @@ export default function InteriorView({
         ))}
       </nav>
 
-      <div className="vm-iv-frame">
+      <div className="vm-iv-frame" ref={frameRef}>
         {signedUrl ? (
-          <div
-            ref={photoRef}
-            className={`vm-iv-photo${placing ? ' vm-iv-placing' : ''}`}
-            onClick={place}
-          >
-            <img src={signedUrl} alt={`Inside ${container?.label || ''}`} draggable="false" />
-            {childPins.map((p) => {
-              const pos = p.position || {};
-              const color = p.color || layerColor(p.layer);
-              const on = p.id === selectedId;
-              return (
-                <button
-                  key={p.id}
-                  className={`vm-iv-pin${p.is_container ? ' vm-iv-pin-box' : ''}${on ? ' on' : ''}`}
-                  style={{ left: `${(pos.x ?? 0.5) * 100}%`, top: `${(pos.y ?? 0.5) * 100}%`, '--pin': color }}
-                  onClick={(e) => { e.stopPropagation(); onSelectPin(p); }}
-                  onMouseEnter={() => setHovered(p.id)}
-                  onMouseLeave={() => setHovered((h) => (h === p.id ? null : h))}
-                  aria-label={p.label || 'Untitled pin'}
-                >
-                  {(hovered === p.id || on) && (p.label || p.is_container) && (
-                    <span className="vm-iv-pin-tag">{p.label || 'Untitled'}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <>
+            <img
+              ref={imgRef}
+              className={`vm-iv-img${placing ? ' vm-iv-placing' : ''}`}
+              src={signedUrl}
+              alt={`Inside ${container?.label || ''}`}
+              draggable="false"
+              onLoad={measure}
+              onClick={place}
+            />
+            {box && (
+              <div
+                className="vm-iv-pins"
+                style={{ left: box.left, top: box.top, width: box.w, height: box.h }}
+              >
+                {childPins.map((p) => {
+                  const pos = p.position || {};
+                  const color = p.color || layerColor(p.layer);
+                  const on = p.id === selectedId;
+                  return (
+                    <button
+                      key={p.id}
+                      className={`vm-iv-pin${p.is_container ? ' vm-iv-pin-box' : ''}${on ? ' on' : ''}`}
+                      style={{ left: `${(pos.x ?? 0.5) * 100}%`, top: `${(pos.y ?? 0.5) * 100}%`, '--pin': color }}
+                      onClick={(e) => { e.stopPropagation(); onSelectPin(p); }}
+                      onMouseEnter={() => setHovered(p.id)}
+                      onMouseLeave={() => setHovered((h) => (h === p.id ? null : h))}
+                      aria-label={p.label || 'Untitled pin'}
+                    >
+                      {(hovered === p.id || on) && (p.label || p.is_container) && (
+                        <span className="vm-iv-pin-tag">{p.label || 'Untitled'}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
         ) : (
           <div className="vm-iv-missing">This container has no inside photo yet.</div>
         )}
