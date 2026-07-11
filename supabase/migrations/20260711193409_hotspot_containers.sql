@@ -1,4 +1,4 @@
--- 20260711120000_hotspot_containers.sql
+-- 20260711193409_hotspot_containers.sql
 --
 -- Vessel-map pins, phase "containers": a pin can hold other pins. When
 -- is_container is true it opens into an interior photo (interior_photo_path)
