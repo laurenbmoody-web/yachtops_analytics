@@ -19,7 +19,7 @@ import Inspector from './components/Inspector';
 import InteriorView from './components/InteriorView';
 import OrientPanel from './components/OrientPanel';
 import PinPayload from './components/PinPayload';
-import PinLocation from './components/PinLocation';
+import PinItems from './components/PinItems';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel } from './layers';
 import { refreshScanThumb } from './utils/scanThumb';
@@ -1151,10 +1151,11 @@ export default function VesselMapPage() {
                           <span className="vm-label">Added</span>
                           {fmtDate(selectedHotspot.created_at)}
                         </p>
-                        <PinLocation
+                        <PinItems
                           hotspot={selectedHotspot}
                           canManage={canPlaceHotspots}
                           tenantId={activeTenantId}
+                          onDetailSaved={onDetailSaved}
                           onLocationChanged={onLocationChanged}
                         />
                       </>

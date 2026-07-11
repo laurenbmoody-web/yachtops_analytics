@@ -8,8 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { LAYERS, layerColor, layerLabel } from '../layers';
 import PinPayload from './PinPayload';
-import PinLocation from './PinLocation';
-import { getInventoryLocation, locationLabel } from '../utils/inventory';
+import PinItems from './PinItems';
 import { uploadInteriorPhoto } from '../utils/photoUpload';
 
 // The container's "inside" — prompt to photograph the interior, then (next
@@ -134,22 +133,6 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
   const [nameDraft, setNameDraft] = useState(shown?.label || '');
   useEffect(() => { setNameDraft(hotspot?.label || ''); }, [hotspot?.id]);
 
-  // The linked inventory location belongs in the header — visible from
-  // every tab, not buried in Details. pickSignal nudges PinLocation's
-  // picker open when the header affordance is used on an unlinked pin.
-  const [headLoc, setHeadLoc] = useState(null);
-  const [pickSignal, setPickSignal] = useState(0);
-  const locId = shown?.storage_location_id || null;
-  useEffect(() => {
-    if (!locId) { setHeadLoc(null); return undefined; }
-    let cancelled = false;
-    (async () => {
-      const { location } = await getInventoryLocation(locId);
-      if (!cancelled) setHeadLoc(location || null);
-    })();
-    return () => { cancelled = true; };
-  }, [locId]);
-
   if (!shown) return null;
 
   const doDelete = async () => {
@@ -244,19 +227,6 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
             </span>
           </>
         )}
-        {!shown.is_container && locId && headLoc && (
-          <button className="vm-insp-loc" onClick={() => setTab('details')} title="Inventory location — see contents in Details">
-            {locationLabel(headLoc)}
-          </button>
-        )}
-        {!shown.is_container && !locId && canManage && (
-          <button
-            className="vm-insp-loc vm-insp-loc-empty"
-            onClick={() => { setTab('details'); setPickSignal((n) => n + 1); }}
-          >
-            + Link inventory location
-          </button>
-        )}
       </div>
 
       {!shown.is_container && (
@@ -292,12 +262,12 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
                 {creatorName}
               </div>
             )}
-            <PinLocation
+            <PinItems
               hotspot={shown}
               canManage={canManage}
               tenantId={tenantId}
+              onDetailSaved={onDetailSaved}
               onLocationChanged={onLocationChanged}
-              pickSignal={pickSignal}
             />
             {dangerActions}
           </>
