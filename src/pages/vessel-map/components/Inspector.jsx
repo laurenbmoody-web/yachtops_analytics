@@ -98,7 +98,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, onOpenInterior, childCount, autoFocusName, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, onOpenInterior, childCount, autoFocusName, raised, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -195,7 +195,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
   );
 
   return (
-    <aside className={`vm-inspector${open ? ' vm-open' : ''}`} aria-label="Pin inspector">
+    <aside className={`vm-inspector${open ? ' vm-open' : ''}${raised ? ' vm-inspector-front' : ''}`} aria-label="Pin inspector">
       <div className="vm-insp-head">
         <button className="vm-side-close" onClick={onClose} aria-label="Close inspector">×</button>
         {canManage ? (
