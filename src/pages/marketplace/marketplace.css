@@ -551,7 +551,25 @@
 
 .mrev-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--soft); margin-bottom: 10px; }
 
+/* Aggregate sub-score breakdown under the average. */
+.mrev-breakdown { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.mrev-bd { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 11px; }
+.mrev-bd .l { font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--soft); }
+.mrev-bd .v { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+
 .mrev-yours { padding: 18px 0; border-bottom: 1px solid var(--hair); }
+
+/* Overall picker (required) + optional Quality/Delivery/Service rows. */
+.mrev-overall { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.mrev-overall-l { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--soft); min-width: 58px; }
+.mrev-detail-toggle {
+  margin-top: 10px; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+  font-size: 12px; font-weight: 600; color: var(--accent); transition: color .15s;
+}
+.mrev-detail-toggle:hover { color: var(--accent-hover); }
+.mrev-subs { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.mrev-sub-row { display: flex; align-items: center; gap: 12px; }
+.mrev-sub-label { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--soft); min-width: 58px; }
 .mrev-yours-stars { margin-bottom: 12px; }
 .mrev-note {
   width: 100%; box-sizing: border-box; resize: vertical; min-height: 68px;

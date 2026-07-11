@@ -60,6 +60,14 @@ const ReviewCard = ({ review, onReplied }) => {
         ? <p className="spr-note">{review.note}</p>
         : <p className="spr-note spr-nonote">Rating only — no written note.</p>}
 
+      {(review.quality != null || review.delivery != null || review.service != null) && (
+        <div className="spr-subs">
+          {review.quality != null && <span className="spr-sub"><span className="l">Quality</span><span className="v">{review.quality}★</span></span>}
+          {review.delivery != null && <span className="spr-sub"><span className="l">Delivery</span><span className="v">{review.delivery}★</span></span>}
+          {review.service != null && <span className="spr-sub"><span className="l">Service</span><span className="v">{review.service}★</span></span>}
+        </div>
+      )}
+
       {/* Reply / support loop */}
       {review.reply && !editing ? (
         <div className="spr-reply">
@@ -111,6 +119,12 @@ const SupplierReviews = () => {
   const count = reviews.length;
   const avg = count ? (reviews.reduce((s, r) => s + r.rating, 0) / count) : null;
   const needsReply = reviews.filter(r => r.rating <= 2 && !r.reply).length;
+  const subAvg = (key) => {
+    const vals = reviews.map(r => r[key]).filter(v => v != null);
+    return vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length) : null;
+  };
+  const breakdown = [['Quality', subAvg('quality')], ['Delivery', subAvg('delivery')], ['Service', subAvg('service')]]
+    .filter(([, v]) => v != null);
 
   return (
     <div className="sp-page">
@@ -119,6 +133,13 @@ const SupplierReviews = () => {
           <div className="sp-eyebrow">{loading ? '…' : (count ? `${avg.toFixed(1)} ★ · ${count} verified review${count === 1 ? '' : 's'}` : 'No reviews yet')}</div>
           <h1 className="sp-page-title">Yacht <em>reviews</em></h1>
           <p className="sp-page-sub">Verified reviews from vessels you've delivered to. Anonymous to other buyers — but you can see the vessel and reply to offer support.</p>
+          {breakdown.length > 0 && (
+            <div className="spr-agg">
+              {breakdown.map(([l, v]) => (
+                <span className="spr-agg-item" key={l}><span className="l">{l}</span><span className="v">{v.toFixed(1)}★</span></span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

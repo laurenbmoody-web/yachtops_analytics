@@ -24,6 +24,17 @@
 .spr-note { margin: 10px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--fg-2); white-space: pre-wrap; }
 .spr-nonote { font-style: italic; color: var(--muted); }
 
+/* Per-review sub-score chips + page-head aggregate. */
+.spr-subs { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+.spr-sub { display: inline-flex; align-items: center; gap: 5px; background: var(--bg-3); border-radius: 999px; padding: 3px 10px; }
+.spr-sub .l { font-size: 9.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted-s); }
+.spr-sub .v { font-size: 12px; font-weight: 700; color: var(--fg); }
+
+.spr-agg { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.spr-agg-item { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+.spr-agg-item .l { font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted-s); }
+.spr-agg-item .v { font-size: 13px; font-weight: 800; color: var(--orange); }
+
 /* Reply / support loop */
 .spr-reply-cta {
   margin-top: 12px; background: none; border: 1px solid var(--line); border-radius: 8px;

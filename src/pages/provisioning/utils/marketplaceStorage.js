@@ -75,11 +75,15 @@ export const fetchSupplierRatings = async () => {
   try {
     const { data, error } = await supabase.rpc('get_supplier_ratings');
     if (error) throw error;
+    const num = (v) => (v != null ? Number(v) : null);
     const map = new Map();
     (data ?? []).forEach((r) => {
       map.set(r.supplier_id, {
-        avg: r.avg_rating != null ? Number(r.avg_rating) : null,
+        avg: num(r.avg_rating),
         count: Number(r.rating_count) || 0,
+        quality: num(r.avg_quality),
+        delivery: num(r.avg_delivery),
+        service: num(r.avg_service),
       });
     });
     return map;
@@ -111,6 +115,9 @@ export const fetchReviewableOrders = async (supplierId) => {
       rating: o.rating != null ? Number(o.rating) : null,
       note: o.note || '',
       reviewedAt: o.reviewed_at,
+      quality: o.quality_rating != null ? Number(o.quality_rating) : null,
+      delivery: o.delivery_rating != null ? Number(o.delivery_rating) : null,
+      service: o.service_rating != null ? Number(o.service_rating) : null,
     }));
   } catch (err) {
     console.warn('[marketplaceStorage] fetchReviewableOrders (non-blocking):', err?.message);
@@ -118,10 +125,19 @@ export const fetchReviewableOrders = async (supplierId) => {
   }
 };
 
-/** Submit / edit the review for one delivered order (verified). */
-export const submitOrderReview = async (orderId, rating, note = null) => {
+/**
+ * Submit / edit the review for one delivered order (verified). Overall
+ * rating is required; sub = { quality, delivery, service } are optional
+ * 1-5 sub-scores (any may be null).
+ */
+export const submitOrderReview = async (orderId, rating, note = null, sub = {}) => {
   const { error } = await supabase.rpc('submit_order_review', {
-    p_order_id: orderId, p_rating: rating, p_note: note,
+    p_order_id: orderId,
+    p_rating: rating,
+    p_note: note,
+    p_quality: sub.quality ?? null,
+    p_delivery: sub.delivery ?? null,
+    p_service: sub.service ?? null,
   });
   if (error) throw error;
 };
@@ -146,6 +162,9 @@ export const fetchSupplierReviews = async (supplierId) => {
       supplierReply: r.supplier_reply || '',
       repliedAt: r.replied_at,
       mine: !!r.is_mine,
+      quality: r.quality_rating != null ? Number(r.quality_rating) : null,
+      delivery: r.delivery_rating != null ? Number(r.delivery_rating) : null,
+      service: r.service_rating != null ? Number(r.service_rating) : null,
     }));
   } catch (err) {
     console.warn('[marketplaceStorage] fetchSupplierReviews (non-blocking):', err?.message);
