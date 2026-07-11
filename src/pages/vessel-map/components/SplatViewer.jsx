@@ -50,6 +50,29 @@ const discTexture = (color) => {
   return tex;
 };
 
+// Rounded-square texture for container pins (they hold other pins), cached
+// per colour. Same footprint as the disc so the per-frame sizing is shared.
+const squareTextureCache = new Map();
+const squareTexture = (color) => {
+  if (squareTextureCache.has(color)) return squareTextureCache.get(color);
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const m = 7; const r = 14; const s = size - m * 2;
+  ctx.beginPath();
+  ctx.roundRect(m, m, s, s, r);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.stroke();
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  squareTextureCache.set(color, tex);
+  return tex;
+};
+
 // Off-white ring texture for the selection treatment.
 let ringTextureCached = null;
 const ringTexture = () => {
@@ -68,9 +91,9 @@ const ringTexture = () => {
   return ringTextureCached;
 };
 
-const makePin = (color) => {
+const makePin = (color, container = false) => {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: discTexture(color),
+    map: container ? squareTexture(color) : discTexture(color),
     depthTest: false,
     transparent: true,
   }));
@@ -333,7 +356,7 @@ export default function SplatViewer({
         child.material.dispose();
       }
       for (const h of hotspotsRef.current || []) {
-        const pin = makePin(h.color);
+        const pin = makePin(h.color, h.isContainer);
         pin.position.set(Number(h.position?.x) || 0, Number(h.position?.y) || 0, Number(h.position?.z) || 0);
         pin.userData.hotspot = h;
         pin.userData.shown = true;

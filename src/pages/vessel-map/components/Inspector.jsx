@@ -23,7 +23,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, autoFocusName, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, autoFocusName, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -120,6 +120,14 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
               })}
               <span className="vm-swatch-name">{layerLabel(shown.layer)}</span>
             </div>
+            <label className={`vm-ct${shown.is_container ? ' on' : ''}`}>
+              <input type="checkbox" checked={!!shown.is_container} onChange={(e) => onToggleContainer?.(shown.id, e.target.checked)} />
+              <span className="vm-ct-switch" aria-hidden="true" />
+              <span className="vm-ct-text">
+                <span className="vm-ct-title">Other pins live inside this one</span>
+                <span className="vm-ct-sub">{shown.is_container ? 'Opens a photo of the inside where you place pins' : 'Off — just this one pin, nothing inside it'}</span>
+              </span>
+            </label>
           </>
         ) : (
           <>
