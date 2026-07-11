@@ -34,8 +34,13 @@
 .drp-stars:hover button { color: #C65A1A; }
 .drp-stars button:hover ~ button { color: #DED9CE; }
 
-.drp-overall { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.drp-overall .l { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #8B8478; min-width: 54px; }
+/* All ratings shown together — Overall (emphasised) then Quality/Delivery/
+   Service — with the note underneath. */
+.drp-ratings { display: flex; flex-direction: column; gap: 9px; margin-bottom: 12px; }
+.drp-sub { display: flex; align-items: center; gap: 12px; }
+.drp-sub .l { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #8B8478; min-width: 62px; }
+.drp-sub.overall { padding-bottom: 9px; border-bottom: 1px solid #F0F1F5; }
+.drp-sub.overall .l { color: #1C1B3A; }
 
 .drp-note {
   width: 100%; box-sizing: border-box; resize: vertical; min-height: 56px;
@@ -45,12 +50,6 @@
 }
 .drp-note::placeholder { color: #AEB4C2; }
 .drp-note:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
-
-.drp-detail { margin-top: 10px; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; color: #C65A1A; }
-.drp-detail:hover { color: #B14E16; }
-.drp-subs { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-.drp-sub { display: flex; align-items: center; gap: 12px; }
-.drp-sub .l { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #8B8478; min-width: 54px; }
 
 .drp-save {
   margin-top: 14px; width: 100%; background: #C65A1A; color: #fff; border: none; border-radius: 10px;
@@ -62,3 +61,5 @@
 .drp-foot { margin-top: 16px; text-align: center; }
 .drp-later { background: none; border: none; cursor: pointer; font-family: inherit; font-size: 12.5px; color: #8B8478; padding: 4px; }
 .drp-later:hover { color: #1C1B3A; }
+.drp-done-btn { background: none; border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700; color: #C65A1A; padding: 4px 8px; }
+.drp-done-btn:hover { color: #B14E16; }

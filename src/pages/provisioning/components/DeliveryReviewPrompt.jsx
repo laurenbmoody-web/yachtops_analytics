@@ -16,16 +16,14 @@ const SubRow = ({ label, value, onPick }) => (
   <div className="drp-sub"><span className="l">{label}</span><Stars value={value} onPick={onPick} size={16} /></div>
 );
 
-// One supplier's delivery to rate. Overall required; Quality/Delivery/
-// Service optional behind a toggle. Reviews are verified — this order was
-// just received.
-const OrderForm = ({ order }) => {
+// One supplier's delivery to rate. Overall (required) + Quality / Delivery
+// / Service, all shown. Reviews are verified — this order was just received.
+const OrderForm = ({ order, onDone }) => {
   const [star, setStar] = useState(order.rating || 0);
   const [note, setNote] = useState(order.note || '');
   const [q, setQ] = useState(order.quality || 0);
   const [d, setD] = useState(order.delivery || 0);
   const [s, setS] = useState(order.service || 0);
-  const [detail, setDetail] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -37,6 +35,7 @@ const OrderForm = ({ order }) => {
         quality: q || null, delivery: d || null, service: s || null,
       });
       setDone(true);
+      onDone?.();
     } catch (e) {
       alert(e.message || 'Could not save your review');
     } finally {
@@ -56,7 +55,12 @@ const OrderForm = ({ order }) => {
   return (
     <div className="drp-order">
       <div className="drp-order-sup">{order.supplierName}</div>
-      <div className="drp-overall"><span className="l">Overall</span><Stars value={star} onPick={setStar} /></div>
+      <div className="drp-ratings">
+        <div className="drp-sub overall"><span className="l">Overall</span><Stars value={star} onPick={setStar} size={22} /></div>
+        <SubRow label="Quality" value={q} onPick={setQ} />
+        <SubRow label="Delivery" value={d} onPick={setD} />
+        <SubRow label="Service" value={s} onPick={setS} />
+      </div>
       <textarea
         className="drp-note"
         placeholder="Anything worth noting — quality, substitutions, timing, packing…"
@@ -64,15 +68,6 @@ const OrderForm = ({ order }) => {
         maxLength={600}
         onChange={(e) => setNote(e.target.value)}
       />
-      {detail ? (
-        <div className="drp-subs">
-          <SubRow label="Quality" value={q} onPick={setQ} />
-          <SubRow label="Delivery" value={d} onPick={setD} />
-          <SubRow label="Service" value={s} onPick={setS} />
-        </div>
-      ) : (
-        <button className="drp-detail" onClick={() => setDetail(true)}>+ Rate quality, delivery &amp; service</button>
-      )}
       <button className="drp-save" onClick={save} disabled={saving || !star}>{saving ? 'Saving…' : 'Post review'}</button>
     </div>
   );
@@ -81,7 +76,9 @@ const OrderForm = ({ order }) => {
 // Fires when a board's delivery is received: nudges crew to rate the
 // supplier(s) they just received from. Anonymous to other buyers.
 const DeliveryReviewPrompt = ({ orders, onClose }) => {
+  const [doneCount, setDoneCount] = useState(0);
   if (!orders?.length) return null;
+  const allDone = doneCount >= orders.length;
   return (
     <>
       <div className="drp-backdrop" onClick={onClose} />
@@ -93,9 +90,11 @@ const DeliveryReviewPrompt = ({ orders, onClose }) => {
             A quick rating helps other yachts — and lets {orders.length === 1 ? 'your supplier' : 'your suppliers'} know how they did. Anonymous to other buyers.
           </p>
         </div>
-        {orders.map(o => <OrderForm key={o.orderId} order={o} />)}
+        {orders.map(o => <OrderForm key={o.orderId} order={o} onDone={() => setDoneCount(c => c + 1)} />)}
         <div className="drp-foot">
-          <button className="drp-later" onClick={onClose}>Not now</button>
+          {allDone
+            ? <button className="drp-done-btn" onClick={onClose}>Done</button>
+            : <button className="drp-later" onClick={onClose}>Not now</button>}
         </div>
       </div>
     </>
