@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Inbox, Truck, FileText, Package, List, Ship, MessageSquare,
   RotateCcw, Settings, Search, Bell, HelpCircle,
-  ChevronDown, BarChart2,
+  ChevronDown, BarChart2, Star,
 } from 'lucide-react';
 import { useSupplier } from '../../contexts/SupplierContext';
 import { hasClientPermission } from '../../contexts/SupplierPermissionContext';
@@ -15,6 +15,7 @@ import SupplierProducts    from './views/SupplierProducts';
 import SupplierDeliveries  from './views/SupplierDeliveries';
 import SupplierInvoices    from './views/SupplierInvoices';
 import SupplierClients     from './views/SupplierClients';
+import SupplierReviews     from './views/SupplierReviews';
 import SupplierMessages    from './views/SupplierMessages';
 import SupplierReturns     from './views/SupplierReturns';
 import SupplierSettings    from './views/SupplierSettings';
@@ -34,6 +35,7 @@ const NAV = [
   ]},
   { group: 'RELATIONSHIPS', items: [
     { id: 'clients',    label: 'Yacht clients',   icon: Ship,         requires: 'clients:view' },
+    { id: 'reviews',    label: 'Reviews',         icon: Star },
     { id: 'messages',   label: 'Messages',        icon: MessageSquare,requires: 'messages:view' },
   ]},
   { group: '', items: [
@@ -74,6 +76,7 @@ const SupplierPortal = () => {
       case 'deliveries':  return <SupplierDeliveries />;
       case 'invoices':    return <SupplierInvoices />;
       case 'clients':     return <SupplierClients />;
+      case 'reviews':     return <SupplierReviews />;
       case 'messages':    return <SupplierMessages onOpenOrder={openOrder} />;
       case 'returns':     return <SupplierReturns />;
       case 'settings':    return <SupplierSettings />;
