@@ -11,7 +11,24 @@ import {
 import { showToast } from '../../utils/toast';
 import { listSupportedCountries } from '../../data/countryTaxPresets';
 import { getSupplierMetrics } from './supplier-detail/supplierMetrics';
+import { fetchSupplierRatings } from './utils/marketplaceStorage';
+import ReviewsModal from '../../components/reviews/ReviewsModal';
 import './supplier-detail/supplier-detail.css';
+
+// Compact half-star display for the reviews line (editorial palette).
+const RatingStars = ({ value = 0 }) => (
+  <span className="sd-rating-stars">
+    {[1, 2, 3, 4, 5].map(i => {
+      const fill = value >= i ? 100 : (value >= i - 0.5 ? 50 : 0);
+      return (
+        <span key={i} className="sd-rstar">
+          <span className="b">★</span>
+          <span className="f" style={{ width: `${fill}%` }}>★</span>
+        </span>
+      );
+    })}
+  </span>
+);
 
 // TODO(reporting-currency): hard-coded for v1. Swap for
 // vessels.reporting_currency once that column exists.
@@ -300,6 +317,19 @@ export default function SupplierDetailPage() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [supplierRating, setSupplierRating] = useState(null); // {avg,count,quality,delivery,service}
+  const [reviewsOpen, setReviewsOpen] = useState(false);
+
+  // Platform-wide rating for this supplier — shared with the marketplace
+  // storefront (get_supplier_ratings). Non-blocking.
+  const loadRating = () => fetchSupplierRatings()
+    .then(map => setSupplierRating(map.get(supplierProfileId) || null))
+    .catch(() => {});
+  useEffect(() => {
+    if (!supplierProfileId) return;
+    loadRating();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supplierProfileId]);
 
   // Inline confirm state — first × click on a contact stages the
   // delete; second × click confirms. Resets on any other interaction.
@@ -635,6 +665,29 @@ export default function SupplierDetailPage() {
 
           {addressLine && (
             <div className="sd-address-subline">{addressLine}</div>
+          )}
+
+          {/* ── Reviews line — shares the marketplace reviews modal ── */}
+          <button type="button" className="sd-reviews-line" onClick={() => setReviewsOpen(true)}>
+            <RatingStars value={supplierRating?.avg || 0} />
+            {supplierRating?.avg != null ? (
+              <>
+                <span className="sd-reviews-score">{supplierRating.avg.toFixed(1)}</span>
+                <span className="sd-reviews-count">{supplierRating.count} verified review{supplierRating.count === 1 ? '' : 's'}</span>
+              </>
+            ) : (
+              <span className="sd-reviews-count">No reviews yet</span>
+            )}
+            <span className="sd-reviews-cta">View &amp; rate ›</span>
+          </button>
+
+          {reviewsOpen && (
+            <ReviewsModal
+              supplier={{ id: profile.id, name: profile.name }}
+              rating={supplierRating}
+              onClose={() => setReviewsOpen(false)}
+              onRated={loadRating}
+            />
           )}
 
           {/* ── Essential KPIs ────────────────────────────────── */}

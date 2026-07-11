@@ -122,8 +122,23 @@
 .sd-currency-toggle .opt.active { background: var(--sd-navy); color: var(--sd-bg); }
 .sd-address-subline {
   font-size: 12px; font-weight: 500; letter-spacing: 0.16em;
-  color: var(--sd-muted); margin-bottom: 40px;
+  color: var(--sd-muted); margin-bottom: 14px;
 }
+
+/* Reviews line — opens the shared reviews modal. */
+.sd-reviews-line {
+  display: inline-flex; align-items: center; gap: 10px; margin-bottom: 34px;
+  background: none; border: none; padding: 4px 0; cursor: pointer; font-family: inherit;
+}
+.sd-reviews-score { font-size: 14px; font-weight: 700; color: #1C1B3A; }
+.sd-reviews-count { font-size: 12.5px; color: var(--sd-muted); }
+.sd-reviews-cta { font-size: 12px; font-weight: 600; color: #C65A1A; transition: color .15s; }
+.sd-reviews-line:hover .sd-reviews-cta { color: #B14E16; }
+
+.sd-rating-stars { display: inline-flex; gap: 1px; line-height: 1; font-size: 15px; }
+.sd-rstar { position: relative; display: inline-block; line-height: 1; }
+.sd-rstar .b { color: #E2DED5; }
+.sd-rstar .f { position: absolute; top: 0; left: 0; overflow: hidden; white-space: nowrap; color: #C65A1A; }
 
 /* ─── Card system (3D bottom edge) ───────────────────────────
    Canonical card shape: 1px navy-tinted top/side border, 5px
