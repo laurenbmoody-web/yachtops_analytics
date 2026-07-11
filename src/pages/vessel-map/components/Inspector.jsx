@@ -95,7 +95,6 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
         <button className="vm-side-close" onClick={onClose} aria-label="Close inspector">×</button>
         {canManage ? (
           <>
-            <p className="vm-label">Pin <span className="vm-label-required">required</span></p>
             <input
               className="vm-input vm-name-input"
               value={nameDraft}

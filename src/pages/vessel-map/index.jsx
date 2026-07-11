@@ -978,7 +978,6 @@ export default function VesselMapPage() {
                 {selectedHotspot && (
                   <aside className="vm-side-panel">
                     <button className="vm-side-close" onClick={closeInspector} aria-label="Close">×</button>
-                    <p className="vm-label">Pin<span className="vm-label-required"> required</span></p>
                     {canPlaceHotspots ? (
                       <input
                         className="vm-input vm-name-input"
