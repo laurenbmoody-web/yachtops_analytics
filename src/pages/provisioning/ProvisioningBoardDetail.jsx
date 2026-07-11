@@ -77,6 +77,8 @@ import BulkChangeDeptModal from './components/BulkChangeDeptModal';
 import BulkEditModal from './components/BulkEditModal';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
+import DeliveryReviewPrompt from './components/DeliveryReviewPrompt';
+import { fetchListReviewableOrders } from './utils/marketplaceStorage';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { showToast } from '../../utils/toast';
@@ -597,6 +599,7 @@ const ProvisioningBoardDetail = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [reviewPromptOrders, setReviewPromptOrders] = useState([]);
   const [itemDrawer, setItemDrawer] = useState({ open: false, item: null });
   const [activeTab, setActiveTab] = useState('items');
   const [deliveries, setDeliveries] = useState([]);
@@ -5336,8 +5339,20 @@ const SUPPLIER_MIRROR_FIELD = {
             fetchProvisioningList(id).then(fresh => fresh && setList(prev => ({ ...prev, ...fresh }))).catch(() => {});
             fetchSupplierOrders(id).then(orders => setSupplierOrders(orders || [])).catch(() => {});
             showToast('Delivery received', 'success');
+            // Nudge the crew to rate the delivery they just received — but
+            // only for marketplace suppliers they haven't reviewed yet.
+            fetchListReviewableOrders(id)
+              .then(list => {
+                const unreviewed = (list || []).filter(o => o.rating == null);
+                if (unreviewed.length) setReviewPromptOrders(unreviewed);
+              })
+              .catch(() => {});
           }}
         />
+      )}
+
+      {reviewPromptOrders.length > 0 && (
+        <DeliveryReviewPrompt orders={reviewPromptOrders} onClose={() => setReviewPromptOrders([])} />
       )}
 
       {showConfirmModal && (
