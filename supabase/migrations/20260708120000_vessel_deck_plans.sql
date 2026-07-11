@@ -21,6 +21,7 @@ create table if not exists public.vessel_layout (
 alter table public.vessel_layout enable row level security;
 
 -- Any active member of the vessel may read the layout.
+drop policy if exists vessel_layout_member_read on public.vessel_layout;
 create policy vessel_layout_member_read on public.vessel_layout
   for select to authenticated
   using (exists (
@@ -30,6 +31,7 @@ create policy vessel_layout_member_read on public.vessel_layout
        and tm.active = true));
 
 -- Command / Chief may create + edit it.
+drop policy if exists vessel_layout_command_write on public.vessel_layout;
 create policy vessel_layout_command_write on public.vessel_layout
   for all to authenticated
   using (exists (

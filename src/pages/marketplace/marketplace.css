@@ -563,12 +563,29 @@
 .mrev-note:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--halo); }
 .mrev-yours-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .mrev-priv { font-size: 11px; color: var(--muted); }
+.mrev-yours-btns { display: inline-flex; align-items: center; gap: 8px; }
 .mrev-save {
   background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 9px 18px;
   font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; transition: background .15s;
 }
 .mrev-save:hover:not(:disabled) { background: var(--accent-hover); }
 .mrev-save:disabled { opacity: 0.5; cursor: default; }
+.mrev-cancel {
+  background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 10px;
+  padding: 9px 14px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: color .15s, border-color .15s;
+}
+.mrev-cancel:hover:not(:disabled) { color: var(--ink); border-color: var(--soft); }
+.mrev-cancel:disabled { opacity: 0.5; cursor: default; }
+
+/* Saved own-review card — sits where the editor was once you've reviewed. */
+.mrev-mine { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px 12px; }
+.mrev-mine .mrev-body { margin-top: 7px; }
+.mrev-nonote { font-style: italic; color: var(--faint); }
+.mrev-edit {
+  margin-top: 10px; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+  font-size: 12px; font-weight: 600; color: var(--accent); transition: color .15s;
+}
+.mrev-edit:hover { color: var(--accent-hover); }
 
 .mrev-list { padding-top: 18px; }
 .mrev-empty { font-size: 13px; color: var(--muted); padding: 6px 0 2px; }

@@ -118,11 +118,20 @@ const fmtReviewDate = (iso) => {
 // The reviews modal — clicking a supplier's stars opens this. Shows the
 // platform-wide average, the written reviews (anonymous — "Verified
 // crew", since yacht crew are private about which boat they're on), and a
-// your-review editor (star picker + note) that writes via rate_supplier.
+// your-review block. You get ONE review per supplier (editable), so once
+// you've left one it shows as a saved card with an Edit button — never a
+// second, duplicate post.
 const ReviewsModal = ({ supplier, rating, onClose, onRated }) => {
+  // The ratings map is the reliable source for "have I reviewed?" — it's
+  // populated even for a stars-only review and doesn't depend on the
+  // reviews RPC. The reviews list adds the note + date when present.
+  const myRating = rating?.mine ?? null;
+  const hasMine = myRating != null;
+
   const [list, setList] = useState([]);
   const [busy, setBusy] = useState(true);
-  const [star, setStar] = useState(rating?.mine || 0);
+  const [editing, setEditing] = useState(!hasMine);
+  const [star, setStar] = useState(myRating || 0);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -131,19 +140,21 @@ const ReviewsModal = ({ supplier, rating, onClose, onRated }) => {
     const rows = await fetchSupplierReviews(supplier.id);
     setList(rows);
     const mineRow = rows.find(r => r.mine);
-    if (mineRow) { setStar(mineRow.rating); setNote(mineRow.note); }
+    if (mineRow) { setStar(mineRow.rating); setNote(mineRow.note || ''); }
+    else if (myRating) { setStar(myRating); }
     setBusy(false);
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [supplier.id]);
 
-  // Esc closes; lock body scroll while open.
+  // Esc closes.
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const myRow = list.find(r => r.mine) || null;
   const others = list.filter(r => !r.mine);
   const avg = rating?.avg;
   const count = rating?.count || 0;
@@ -156,6 +167,7 @@ const ReviewsModal = ({ supplier, rating, onClose, onRated }) => {
       showToast('Your review is saved — thanks', 'success');
       onRated?.();
       await load();
+      setEditing(false);
     } catch (e) {
       showToast(e.message || 'Could not save your review', 'error');
     } finally {
@@ -180,30 +192,53 @@ const ReviewsModal = ({ supplier, rating, onClose, onRated }) => {
 
         <section className="mrev-yours">
           <div className="mrev-label">Your review</div>
-          <div className="mrev-yours-stars"><StarRow value={star} size={28} onPick={setStar} /></div>
-          <textarea
-            className="mrev-note"
-            placeholder="Share what other crew should know — quality, delivery, communication…"
-            value={note}
-            maxLength={600}
-            onChange={(e) => setNote(e.target.value)}
-          />
-          <div className="mrev-yours-foot">
-            <span className="mrev-priv">Posted anonymously as “Verified crew”.</span>
-            <button className="mrev-save" onClick={save} disabled={saving || !star}>
-              {saving ? 'Saving…' : (rating?.mine ? 'Update review' : 'Post review')}
-            </button>
-          </div>
+
+          {hasMine && !editing ? (
+            // Saved state — clearly recorded, edited (not re-posted) in place.
+            <div className="mrev-mine">
+              <div className="mrev-item-top">
+                <StarRow value={star} size={13} />
+                <span className="mrev-who">You</span>
+                {myRow?.createdAt && <span className="mrev-when">{fmtReviewDate(myRow.createdAt)}</span>}
+              </div>
+              {note
+                ? <p className="mrev-body">{note}</p>
+                : <p className="mrev-body mrev-nonote">Rating only — no note added.</p>}
+              <button className="mrev-edit" onClick={() => setEditing(true)}>Edit review</button>
+            </div>
+          ) : (
+            <>
+              <div className="mrev-yours-stars"><StarRow value={star} size={28} onPick={setStar} /></div>
+              <textarea
+                className="mrev-note"
+                placeholder="Share what other crew should know — quality, delivery, communication…"
+                value={note}
+                maxLength={600}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <div className="mrev-yours-foot">
+                <span className="mrev-priv">Posted anonymously as “Verified crew”.</span>
+                <span className="mrev-yours-btns">
+                  {hasMine && (
+                    <button className="mrev-cancel" onClick={() => { setEditing(false); setStar(myRow?.rating || myRating || 0); setNote(myRow?.note || ''); }} disabled={saving}>Cancel</button>
+                  )}
+                  <button className="mrev-save" onClick={save} disabled={saving || !star}>
+                    {saving ? 'Saving…' : (hasMine ? 'Update review' : 'Post review')}
+                  </button>
+                </span>
+              </div>
+            </>
+          )}
         </section>
 
         <section className="mrev-list">
           <div className="mrev-label">
-            {others.length ? `${others.length} written review${others.length === 1 ? '' : 's'}` : 'Written reviews'}
+            {others.length ? `${others.length} other written review${others.length === 1 ? '' : 's'}` : 'Other written reviews'}
           </div>
           {busy ? (
             <div className="mrev-empty">Loading…</div>
           ) : others.length === 0 ? (
-            <div className="mrev-empty">No written reviews yet — be the first to leave one.</div>
+            <div className="mrev-empty">No other written reviews yet.</div>
           ) : (
             others.map(r => (
               <article className="mrev-item" key={r.id}>
