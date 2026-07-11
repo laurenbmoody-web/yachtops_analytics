@@ -1104,6 +1104,9 @@ export const fetchMySupplierReviews = async () => {
     createdAt: r.created_at,
     reply: r.supplier_reply || '',
     repliedAt: r.replied_at,
+    quality: r.quality_rating != null ? Number(r.quality_rating) : null,
+    delivery: r.delivery_rating != null ? Number(r.delivery_rating) : null,
+    service: r.service_rating != null ? Number(r.service_rating) : null,
   }));
 };
 

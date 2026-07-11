@@ -116,24 +116,63 @@ const fmtReviewDate = (iso) => {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
 };
 
-// One delivered order in the "your deliveries" list — its own star picker
-// + note, saved/edit states. Reviews are verified: they hang off a real
-// delivered order, one review per delivery, editable.
+// One labeled sub-rating row (Quality / Delivery / Service) — optional.
+const SubRatingRow = ({ label, value, onPick }) => (
+  <div className="mrev-sub-row">
+    <span className="mrev-sub-label">{label}</span>
+    <StarRow value={value || 0} size={16} onPick={onPick} />
+  </div>
+);
+
+// The aggregate sub-score breakdown (read-only) — shown where there's data.
+const RatingBreakdown = ({ rating }) => {
+  const items = [
+    ['Quality', rating?.quality],
+    ['Delivery', rating?.delivery],
+    ['Service', rating?.service],
+  ].filter(([, v]) => v != null);
+  if (!items.length) return null;
+  return (
+    <div className="mrev-breakdown">
+      {items.map(([l, v]) => (
+        <span className="mrev-bd" key={l}><span className="l">{l}</span><span className="v">{v.toFixed(1)}</span></span>
+      ))}
+    </div>
+  );
+};
+
+// One delivered order in the "your deliveries" list — an overall star
+// (required) plus optional Quality/Delivery/Service and a note. Reviews are
+// verified: they hang off a real delivered order, one per delivery,
+// editable.
 const OrderReviewRow = ({ order, onSaved }) => {
   const hasReview = order.rating != null;
+  const hasSub = order.quality != null || order.delivery != null || order.service != null;
   const [editing, setEditing] = useState(!hasReview);
   const [star, setStar] = useState(order.rating || 0);
   const [note, setNote] = useState(order.note || '');
+  const [quality, setQuality] = useState(order.quality || 0);
+  const [delivery, setDelivery] = useState(order.delivery || 0);
+  const [service, setService] = useState(order.service || 0);
+  const [showDetail, setShowDetail] = useState(hasSub);
   const [saving, setSaving] = useState(false);
 
   const meta = [order.deliveryPort, order.deliveryDate ? fmtReviewDate(order.deliveryDate) : null]
     .filter(Boolean).join(' · ');
 
+  const resetFromOrder = () => {
+    setStar(order.rating || 0); setNote(order.note || '');
+    setQuality(order.quality || 0); setDelivery(order.delivery || 0); setService(order.service || 0);
+    setShowDetail(hasSub);
+  };
+
   const save = async () => {
-    if (!star) { showToast('Pick a star rating first', 'error'); return; }
+    if (!star) { showToast('Pick an overall rating first', 'error'); return; }
     setSaving(true);
     try {
-      await submitOrderReview(order.orderId, star, note.trim() || null);
+      await submitOrderReview(order.orderId, star, note.trim() || null, {
+        quality: quality || null, delivery: delivery || null, service: service || null,
+      });
       showToast('Your review is saved — thanks', 'success');
       setEditing(false);
       onSaved?.();
@@ -159,7 +198,10 @@ const OrderReviewRow = ({ order, onSaved }) => {
         </div>
       ) : (
         <>
-          <div className="mrev-yours-stars"><StarRow value={star} size={26} onPick={setStar} /></div>
+          <div className="mrev-overall">
+            <span className="mrev-overall-l">Overall</span>
+            <StarRow value={star} size={26} onPick={setStar} />
+          </div>
           <textarea
             className="mrev-note"
             placeholder="How was this delivery — quality, substitutions, timing, packing…"
@@ -167,11 +209,20 @@ const OrderReviewRow = ({ order, onSaved }) => {
             maxLength={600}
             onChange={(e) => setNote(e.target.value)}
           />
+          {showDetail ? (
+            <div className="mrev-subs">
+              <SubRatingRow label="Quality" value={quality} onPick={setQuality} />
+              <SubRatingRow label="Delivery" value={delivery} onPick={setDelivery} />
+              <SubRatingRow label="Service" value={service} onPick={setService} />
+            </div>
+          ) : (
+            <button className="mrev-detail-toggle" onClick={() => setShowDetail(true)}>+ Rate quality, delivery &amp; service</button>
+          )}
           <div className="mrev-yours-foot">
             <span className="mrev-priv">Anonymous to other yachts · your supplier can see it to help.</span>
             <span className="mrev-yours-btns">
               {hasReview && (
-                <button className="mrev-cancel" onClick={() => { setEditing(false); setStar(order.rating || 0); setNote(order.note || ''); }} disabled={saving}>Cancel</button>
+                <button className="mrev-cancel" onClick={() => { setEditing(false); resetFromOrder(); }} disabled={saving}>Cancel</button>
               )}
               <button className="mrev-save" onClick={save} disabled={saving || !star}>
                 {saving ? 'Saving…' : (hasReview ? 'Update' : 'Post review')}
@@ -233,6 +284,7 @@ const ReviewsModal = ({ supplier, rating, onClose, onRated }) => {
               {count ? `${count} verified review${count === 1 ? '' : 's'}` : 'No reviews yet'}
             </span>
           </div>
+          <RatingBreakdown rating={rating} />
         </header>
 
         <section className="mrev-yours">
