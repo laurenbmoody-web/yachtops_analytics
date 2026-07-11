@@ -178,6 +178,8 @@ export const DOCUMENT_TYPES = [
           'OOW <3000GT', 'OOW unlimited',
           // In-force MSN 1904 Small Vessel (Yacht) engineer CoCs
           'Engineering — MEOL (Yachts)', 'Engineering — EOOW SV (Yachts)', 'Engineering — Chief SV <500GT (Yachts)', 'Engineering — Chief SV <3000GT (Yachts)',
+          // Electro-Technical Officer (MSN 1860)
+          'Electro-Technical Officer (ETO)',
           // Legacy MSN 1859 Y-grade CoCs (still recordable if held)
           'Engineering — SV / Y4', 'Engineering — Y3', 'Engineering — Y2', 'Engineering — Y1',
           'Y4 / OOW (Yachts)', 'Y3 / Master <500GT', 'Y2 / Master <3000GT', 'Y1 / Master <3000GT (>500GT)',
