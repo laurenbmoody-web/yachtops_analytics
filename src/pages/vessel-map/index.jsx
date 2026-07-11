@@ -319,7 +319,7 @@ export default function VesselMapPage() {
   // All pins go to the viewer; layer visibility is a fade, not a filter
   // (chips toggle their pins with a 150ms fade, not a pop).
   const allHotspots = useMemo(
-    () => hotspots.map((h) => ({ ...h, color: h.color || layerColor(h.layer) })),
+    () => hotspots.map((h) => ({ ...h, color: h.color || layerColor(h.layer), isContainer: !!h.is_container })),
     [hotspots]
   );
   // Hotspots + placed doorway pins — one stable array for the viewer.
@@ -403,6 +403,13 @@ export default function VesselMapPage() {
     setSelectedHotspot((prev) => (prev && prev.id === id ? { ...prev, label } : prev));
     supabase.from('scan_hotspots').update({ label }).eq('id', id)
       .then(({ error }) => { if (error) console.error('[vessel-map] rename error:', error); });
+  };
+
+  const setContainer = (id, on) => {
+    setHotspots((prev) => prev.map((h) => (h.id === id ? { ...h, is_container: on } : h)));
+    setSelectedHotspot((prev) => (prev && prev.id === id ? { ...prev, is_container: on } : prev));
+    supabase.from('scan_hotspots').update({ is_container: on }).eq('id', id)
+      .then(({ error }) => { if (error) console.error('[vessel-map] container toggle error:', error); });
   };
 
   const relayerHotspot = (id, layer) => {
@@ -855,6 +862,7 @@ export default function VesselMapPage() {
                   onAdjust={startAdjust}
                   onRename={renameHotspot}
                   onRelayer={relayerHotspot}
+                  onToggleContainer={setContainer}
                   autoFocusName={justCreatedId === selectedHotspot?.id}
                 />
 
@@ -1007,6 +1015,16 @@ export default function VesselMapPage() {
                         <span className="vm-pill-dot" style={{ background: selectedHotspot.color || layerColor(selectedHotspot.layer) }} />
                         {layerLabel(selectedHotspot.layer)}
                       </span>
+                    )}
+                    {canPlaceHotspots && (
+                      <label className={`vm-ct${selectedHotspot.is_container ? ' on' : ''}`}>
+                        <input type="checkbox" checked={!!selectedHotspot.is_container} onChange={(e) => setContainer(selectedHotspot.id, e.target.checked)} />
+                        <span className="vm-ct-switch" aria-hidden="true" />
+                        <span className="vm-ct-text">
+                          <span className="vm-ct-title">Other pins live inside this one</span>
+                          <span className="vm-ct-sub">{selectedHotspot.is_container ? 'Opens a photo of the inside where you place pins' : 'Off — just this one pin, nothing inside it'}</span>
+                        </span>
+                      </label>
                     )}
 
                     {/* Same four rooms as the desktop inspector — functional,
