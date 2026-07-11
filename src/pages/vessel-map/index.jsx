@@ -16,6 +16,7 @@ import Header from '../../components/navigation/Header';
 import SplatViewer from './components/SplatViewer';
 import ToolRail from './components/ToolRail';
 import Inspector from './components/Inspector';
+import InteriorView from './components/InteriorView';
 import OrientPanel from './components/OrientPanel';
 import PinPayload from './components/PinPayload';
 import PinLocation from './components/PinLocation';
@@ -99,6 +100,7 @@ export default function VesselMapPage() {
   const [placingDoor, setPlacingDoor] = useState(null); // {linkId, end, name} being anchored in 3D
   const [measure, setMeasure] = useState(null); // { meters, points } | null — Measure tool readout
   const [justCreatedId, setJustCreatedId] = useState(null); // a freshly-dropped pin — autofocus its name, discard if unnamed
+  const [containerStack, setContainerStack] = useState([]); // opened containers, deepest last ([] = the 3-D scan)
 
   const selectedScan = useMemo(
     () => scans.find((s) => s.id === selectedScanId) || null,
@@ -307,20 +309,37 @@ export default function VesselMapPage() {
     setSelectedHotspot(null);
     setMode('navigate');
     setPendingPosition(null);
+    setContainerStack([]);
     loadHotspots();
   }, [loadHotspots]);
 
+  // Only top-level pins live on the 3-D scan; nested pins sit on a container's
+  // interior photo (parent_id set) and are handled by the interior view.
+  const topHotspots = useMemo(() => hotspots.filter((h) => !h.parent_id), [hotspots]);
+
   const layerCounts = useMemo(() => {
     const counts = {};
-    for (const h of hotspots) counts[h.layer] = (counts[h.layer] || 0) + 1;
+    for (const h of topHotspots) counts[h.layer] = (counts[h.layer] || 0) + 1;
     return counts;
-  }, [hotspots]);
+  }, [topHotspots]);
 
-  // All pins go to the viewer; layer visibility is a fade, not a filter
-  // (chips toggle their pins with a 150ms fade, not a pop).
+  // All top-level pins go to the viewer; layer visibility is a fade, not a
+  // filter (chips toggle their pins with a 150ms fade, not a pop).
   const allHotspots = useMemo(
-    () => hotspots.map((h) => ({ ...h, color: h.color || layerColor(h.layer), isContainer: !!h.is_container })),
-    [hotspots]
+    () => topHotspots.map((h) => ({ ...h, color: h.color || layerColor(h.layer), isContainer: !!h.is_container })),
+    [topHotspots]
+  );
+
+  // The opened-container path, resolved live from hotspots (so labels/photo
+  // track edits), and the child pins sitting on the deepest one's photo.
+  const containerTrail = useMemo(
+    () => containerStack.map((c) => hotspots.find((h) => h.id === c.id) || c),
+    [containerStack, hotspots]
+  );
+  const openContainer = containerTrail[containerTrail.length - 1] || null;
+  const childPins = useMemo(
+    () => (openContainer ? hotspots.filter((h) => h.parent_id === openContainer.id) : []),
+    [openContainer, hotspots]
   );
   // Hotspots + placed doorway pins — one stable array for the viewer.
   const viewerHotspots = useMemo(() => [...allHotspots, ...doorPins], [allHotspots, doorPins]);
@@ -388,6 +407,59 @@ export default function VesselMapPage() {
       .single();
     cancelPlacement();
     if (error) { console.error('[vessel-map] draft pin error:', error); return; }
+    setHotspots((prev) => [...prev, data]);
+    setActiveLayers((prev) => new Set(prev).add(layer));
+    if (data.created_by && !creatorNames[data.created_by]) {
+      const name = user?.user_metadata?.full_name || user?.email;
+      if (name) setCreatorNames((prev) => ({ ...prev, [data.created_by]: name }));
+    }
+    setSelectedHotspot(data);
+    setJustCreatedId(data.id);
+  };
+
+  // ── Container interiors ─────────────────────────────────────────────────
+  // Open a container's inside (its photo + child pins). Nested containers push
+  // another level; the breadcrumb walks back out. Editing chrome is reset so
+  // the interior opens clean.
+  const openInterior = (container) => {
+    if (!container) return;
+    setContainerStack((s) => [...s, { id: container.id, label: container.label }]);
+    setSelectedHotspot(null);
+    setJustCreatedId(null);
+    setMode('navigate');
+    setAdjusting(null);
+    setPlacingDoor(null);
+    setMeasure(null);
+  };
+  // Breadcrumb navigation: -1 = back out to the 3-D scan; i = up to that level.
+  const crumbTo = (index) => {
+    setSelectedHotspot(null);
+    setJustCreatedId(null);
+    setMode('navigate');
+    setContainerStack((s) => (index < 0 ? [] : s.slice(0, index + 1)));
+  };
+  // Drop a child pin on the open container's photo at a 2-D {x,y} (0..1), then
+  // open its inspector — same create-and-edit flow as a 3-D pin.
+  const createChildPin = async (pos) => {
+    const parent = containerTrail[containerTrail.length - 1];
+    if (!parent || !selectedScan) return;
+    const layer = 'general';
+    const { data, error } = await supabase
+      .from('scan_hotspots')
+      .insert({
+        scan_id: selectedScan.id,
+        tenant_id: activeTenantId,
+        parent_id: parent.id,
+        label: '',
+        layer,
+        color: layerColor(layer),
+        position: pos,
+        detail: {},
+        created_by: user?.id ?? null,
+      })
+      .select()
+      .single();
+    if (error) { console.error('[vessel-map] child pin error:', error); return; }
     setHotspots((prev) => [...prev, data]);
     setActiveLayers((prev) => new Set(prev).add(layer));
     if (data.created_by && !creatorNames[data.created_by]) {
@@ -553,6 +625,7 @@ export default function VesselMapPage() {
       else if (adjusting) cancelAdjust();
       else if (selectedHotspot) closeInspector();
       else if (mode === 'pin' || mode === 'doorways' || mode === 'measure') selectMode('navigate');
+      else if (containerStack.length) crumbTo(containerStack.length - 2);
       else if (immersive) setImmersive(false);
     },
   }, { enabled: isDesktop });
@@ -770,9 +843,26 @@ export default function VesselMapPage() {
                   />
                 )}
 
+                {/* Inside a container — a photo of the interior, covering the
+                    3-D stage, with its own pins. The scan keeps rendering
+                    underneath so backing out restores the camera. */}
+                {openContainer && (
+                  <InteriorView
+                    scanName={selectedScan.name}
+                    trail={containerTrail}
+                    childPins={childPins}
+                    canManage={canPlaceHotspots}
+                    placing={mode === 'pin'}
+                    selectedId={selectedHotspot?.id ?? null}
+                    onPlace={createChildPin}
+                    onSelectPin={setSelectedHotspot}
+                    onCrumb={crumbTo}
+                  />
+                )}
+
                 {/* Fullscreen: the room deserves the whole glass. f toggles.
                     Yields the corner while the straighten panel is open. */}
-                {viewer.status === 'ready' && orientDraft === null && (
+                {viewer.status === 'ready' && orientDraft === null && !openContainer && (
                   <button
                     className="vm-fullscreen-btn"
                     onClick={() => setImmersive((v) => !v)}
@@ -786,7 +876,8 @@ export default function VesselMapPage() {
                   mode={mode}
                   onMode={selectMode}
                   canPin={canPlaceHotspots}
-                  pinReady={viewer.status === 'ready'}
+                  pinReady={openContainer ? true : viewer.status === 'ready'}
+                  interior={!!openContainer}
                 />
 
                 {placementMode && !modalOpen && !adjusting && (
@@ -871,6 +962,8 @@ export default function VesselMapPage() {
                   onRelayer={relayerHotspot}
                   onToggleContainer={setContainer}
                   onInteriorPhoto={setInteriorPhoto}
+                  onOpenInterior={openInterior}
+                  childCount={selectedHotspot ? hotspots.filter((h) => h.parent_id === selectedHotspot.id).length : 0}
                   autoFocusName={justCreatedId === selectedHotspot?.id}
                 />
 

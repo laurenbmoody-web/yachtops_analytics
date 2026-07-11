@@ -14,7 +14,7 @@ import { uploadInteriorPhoto } from '../utils/photoUpload';
 
 // The container's "inside" — prompt to photograph the interior, then (next
 // slice) open it to place child pins on it.
-function InteriorSection({ hotspot, tenantId, canManage, onInteriorPhoto }) {
+function InteriorSection({ hotspot, tenantId, canManage, onInteriorPhoto, onOpenInterior, childCount }) {
   const [signedUrl, setSignedUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -48,9 +48,14 @@ function InteriorSection({ hotspot, tenantId, canManage, onInteriorPhoto }) {
       <p className="vm-label">Inside</p>
       {path ? (
         <div className="vm-interior-set">
-          <div className="vm-interior-thumb">{signedUrl && <img src={signedUrl} alt="Inside" />}</div>
+          <button type="button" className="vm-interior-thumb" onClick={() => onOpenInterior?.(hotspot)} title="Open the inside">
+            {signedUrl && <img src={signedUrl} alt="Inside" />}
+            {childCount > 0 && <span className="vm-interior-count">{childCount} {childCount === 1 ? 'pin' : 'pins'}</span>}
+          </button>
           <div className="vm-interior-actions">
-            <button className="vm-btn-primary vm-interior-open" disabled title="Placing pins inside comes next">Open · place pins</button>
+            <button className="vm-btn-primary vm-interior-open" onClick={() => onOpenInterior?.(hotspot)}>
+              {childCount > 0 ? 'Open · place pins' : 'Open · place first pin'}
+            </button>
             {canManage && (
               <button className="vm-btn-ghost" onClick={() => fileRef.current?.click()} disabled={uploading}>
                 {uploading ? 'Uploading…' : 'Replace photo'}
@@ -93,7 +98,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, autoFocusName, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, onOpenInterior, childCount, autoFocusName, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -160,11 +165,15 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
   };
 
   // Adjust + remove — shared by the details tab and the container view.
+  // "Adjust position" moves a pin in 3-D; a nested pin lives on a 2-D photo,
+  // so it's hidden there (repositioning inside comes later).
   const dangerActions = canManage && (
     <>
-      <button className="vm-btn-ghost vm-insp-adjust" onClick={() => onAdjust?.(shown)}>
-        Adjust position
-      </button>
+      {!shown.parent_id && (
+        <button className="vm-btn-ghost vm-insp-adjust" onClick={() => onAdjust?.(shown)}>
+          Adjust position
+        </button>
+      )}
       <div className="vm-insp-danger">
         {deleteError && <p className="vm-insp-error">{deleteError}</p>}
         {confirming ? (
@@ -268,7 +277,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
 
       <div className="vm-insp-body">
         {shown.is_container && (
-          <InteriorSection hotspot={shown} tenantId={tenantId} canManage={canManage} onInteriorPhoto={onInteriorPhoto} />
+          <InteriorSection hotspot={shown} tenantId={tenantId} canManage={canManage} onInteriorPhoto={onInteriorPhoto} onOpenInterior={onOpenInterior} childCount={childCount} />
         )}
         {shown.is_container && dangerActions}
         {!shown.is_container && tab === 'details' && (
