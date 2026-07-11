@@ -55,8 +55,9 @@ const OrderForm = ({ order, onDone }) => {
   return (
     <div className="drp-order">
       <div className="drp-order-sup">{order.supplierName}</div>
-      <div className="drp-ratings">
-        <div className="drp-sub overall"><span className="l">Overall</span><Stars value={star} onPick={setStar} size={22} /></div>
+      <div className="drp-overall-row"><span className="l">Overall</span><Stars value={star} onPick={setStar} size={26} /></div>
+      <div className="drp-detail-group">
+        <div className="drp-detail-cap">In detail · optional</div>
         <SubRow label="Quality" value={q} onPick={setQ} />
         <SubRow label="Delivery" value={d} onPick={setD} />
         <SubRow label="Service" value={s} onPick={setS} />
