@@ -20,7 +20,6 @@ export default function PinItems({ hotspot, canManage, tenantId, onDetailSaved, 
   const pinLoc = locationRoot
     ? { location: locationRoot, sub_location: hotspot?.label ? hotspot.label.trim() : null }
     : null;
-  const hereLabel = [locationRoot, hotspot?.label?.trim()].filter(Boolean).join(' › ');
 
   const [rows, setRows] = useState(null); // [{ item_id, label, qty, unit, category, attachId }]
   const [adding, setAdding] = useState(false);
@@ -96,7 +95,6 @@ export default function PinItems({ hotspot, canManage, tenantId, onDetailSaved, 
   return (
     <div className="vm-pinitems">
       <p className="vm-label">What’s inside</p>
-      {hereLabel && <p className="vm-pinitems-here">stored at <strong>{hereLabel}</strong></p>}
 
       {rows === null && <p className="vm-payload-empty">Loading…</p>}
       {rows !== null && rows.length === 0 && !adding && (
@@ -105,28 +103,38 @@ export default function PinItems({ hotspot, canManage, tenantId, onDetailSaved, 
 
       {rows && rows.length > 0 && (
         <div className="vm-pinitems-list">
-          {rows.map((r) => (
-            <div key={r.item_id} className="vm-pinitem">
-              <span className="vm-pinitem-main">
-                <button className="vm-pinitem-name" onClick={() => navigate(`/inventory/item/${r.item_id}`)} title="View in inventory">
-                  {r.label}
-                </button>
-                {r.category && <span className="vm-pinitem-cat">{r.category}</span>}
-              </span>
-              {canManage ? (
-                <span className="vm-pinitem-step">
-                  <button className="vm-pinitem-btn" onClick={() => bump(r, -1)} disabled={busy === r.item_id || r.qty <= 0} aria-label={`One fewer ${r.label}`}>–</button>
-                  <span className="vm-pinitem-qty">{r.qty}{r.unit ? ` ${r.unit}` : ''}</span>
-                  <button className="vm-pinitem-btn" onClick={() => bump(r, 1)} disabled={busy === r.item_id} aria-label={`One more ${r.label}`}>+</button>
+          {rows.map((r) => {
+            const segs = r.category ? r.category.split(' › ') : [];
+            const leaf = segs.pop();
+            const head = segs.join(' › ');
+            return (
+              <div key={r.item_id} className="vm-pinitem">
+                <span className="vm-pinitem-main">
+                  <button className="vm-pinitem-name" onClick={() => navigate(`/inventory/item/${r.item_id}`)} title="View in inventory">
+                    {r.label}
+                  </button>
+                  {leaf && (
+                    <span className="vm-pinitem-cat" title={r.category}>
+                      {head && <span className="vm-pinitem-cat-head">{head} › </span>}
+                      <span className="vm-pinitem-cat-leaf">{leaf}</span>
+                    </span>
+                  )}
                 </span>
-              ) : (
-                <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}{r.unit ? ` ${r.unit}` : ''} {r.where}</span>
-              )}
-              {canManage && (
-                <button className="vm-pinitem-del" onClick={() => removeItem(r.attachId)} aria-label={`Remove ${r.label}`}>×</button>
-              )}
-            </div>
-          ))}
+                {canManage ? (
+                  <span className="vm-pinitem-step">
+                    <button className="vm-pinitem-btn" onClick={() => bump(r, -1)} disabled={busy === r.item_id || r.qty <= 0} aria-label={`One fewer ${r.label}`}>–</button>
+                    <span className="vm-pinitem-qty">{r.qty}{r.unit ? <small> {r.unit}</small> : null}</span>
+                    <button className="vm-pinitem-btn" onClick={() => bump(r, 1)} disabled={busy === r.item_id} aria-label={`One more ${r.label}`}>+</button>
+                  </span>
+                ) : (
+                  <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}{r.unit ? ` ${r.unit}` : ''} {r.where}</span>
+                )}
+                {canManage && (
+                  <button className="vm-pinitem-del" onClick={() => removeItem(r.attachId)} aria-label={`Remove ${r.label}`}>×</button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
