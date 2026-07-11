@@ -17,7 +17,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ChevronLeft, ShoppingBasket, ClipboardList, Search, X, ChevronRight, MapPin,
+  ChevronLeft, ClipboardList, Search, X, ChevronRight, MapPin,
 } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -937,7 +937,6 @@ const Marketplace = () => {
               <div className="mp-counter-body">
                 {basket.length === 0 ? (
                   <div className="mp-counter-empty">
-                    <ShoppingBasket size={22} strokeWidth={1.4} style={{ marginBottom: 8 }} />
                     <div>Nothing added yet</div>
                     <div className="hint">Add items from any shop — they gather here, grouped by supplier.</div>
                   </div>
