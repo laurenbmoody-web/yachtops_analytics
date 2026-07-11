@@ -147,14 +147,12 @@ const RatingBreakdown = ({ rating }) => {
 // editable.
 const OrderReviewRow = ({ order, onSaved }) => {
   const hasReview = order.rating != null;
-  const hasSub = order.quality != null || order.delivery != null || order.service != null;
   const [editing, setEditing] = useState(!hasReview);
   const [star, setStar] = useState(order.rating || 0);
   const [note, setNote] = useState(order.note || '');
   const [quality, setQuality] = useState(order.quality || 0);
   const [delivery, setDelivery] = useState(order.delivery || 0);
   const [service, setService] = useState(order.service || 0);
-  const [showDetail, setShowDetail] = useState(hasSub);
   const [saving, setSaving] = useState(false);
 
   const meta = [order.deliveryPort, order.deliveryDate ? fmtReviewDate(order.deliveryDate) : null]
@@ -163,7 +161,6 @@ const OrderReviewRow = ({ order, onSaved }) => {
   const resetFromOrder = () => {
     setStar(order.rating || 0); setNote(order.note || '');
     setQuality(order.quality || 0); setDelivery(order.delivery || 0); setService(order.service || 0);
-    setShowDetail(hasSub);
   };
 
   const save = async () => {
@@ -198,9 +195,14 @@ const OrderReviewRow = ({ order, onSaved }) => {
         </div>
       ) : (
         <>
-          <div className="mrev-overall">
-            <span className="mrev-overall-l">Overall</span>
-            <StarRow value={star} size={26} onPick={setStar} />
+          <div className="mrev-subs">
+            <div className="mrev-overall">
+              <span className="mrev-overall-l">Overall</span>
+              <StarRow value={star} size={22} onPick={setStar} />
+            </div>
+            <SubRatingRow label="Quality" value={quality} onPick={setQuality} />
+            <SubRatingRow label="Delivery" value={delivery} onPick={setDelivery} />
+            <SubRatingRow label="Service" value={service} onPick={setService} />
           </div>
           <textarea
             className="mrev-note"
@@ -209,15 +211,6 @@ const OrderReviewRow = ({ order, onSaved }) => {
             maxLength={600}
             onChange={(e) => setNote(e.target.value)}
           />
-          {showDetail ? (
-            <div className="mrev-subs">
-              <SubRatingRow label="Quality" value={quality} onPick={setQuality} />
-              <SubRatingRow label="Delivery" value={delivery} onPick={setDelivery} />
-              <SubRatingRow label="Service" value={service} onPick={setService} />
-            </div>
-          ) : (
-            <button className="mrev-detail-toggle" onClick={() => setShowDetail(true)}>+ Rate quality, delivery &amp; service</button>
-          )}
           <div className="mrev-yours-foot">
             <span className="mrev-priv">Anonymous to other yachts · your supplier can see it to help.</span>
             <span className="mrev-yours-btns">
