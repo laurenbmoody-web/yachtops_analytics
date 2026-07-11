@@ -1085,3 +1085,33 @@ export const confirmOrderItem = async (itemId, { quoted_price, quoted_currency }
   if (error) throw error;
   return data;
 };
+
+// ─── Reviews ─────────────────────────────────────────────────────────────────
+
+// The reviews for the caller's supplier profile, each traceable to its
+// order + vessel (get_my_supplier_reviews RPC). Anonymous to other buyers,
+// but the fulfilling supplier sees the vessel so they can offer support.
+export const fetchMySupplierReviews = async () => {
+  const { data, error } = await supabase.rpc('get_my_supplier_reviews');
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    orderId: r.order_id,
+    vesselName: r.vessel_name || 'A vessel',
+    deliveryDate: r.delivery_date,
+    rating: Number(r.rating) || 0,
+    note: r.note || '',
+    createdAt: r.created_at,
+    reply: r.supplier_reply || '',
+    repliedAt: r.replied_at,
+  }));
+};
+
+// Post / edit / clear a public reply to a review (reply_to_review RPC).
+// Pass an empty string to clear. Only affects reviews on your own profile.
+export const replyToReview = async (reviewId, reply) => {
+  const { error } = await supabase.rpc('reply_to_review', {
+    p_review_id: reviewId, p_reply: reply,
+  });
+  if (error) throw error;
+};
