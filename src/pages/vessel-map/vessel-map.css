@@ -1527,7 +1527,7 @@
 }
 
 /* Editable pin header (create + edit in one place): name field + category swatches. */
-.vm-name-input { font-size: 15.5px; font-weight: 600; margin-bottom: 12px; }
+.vm-name-input { font-size: 15.5px; font-weight: 500; margin-bottom: 12px; }
 .vm-swatch-row { display: flex; align-items: center; gap: 10px; margin: 2px 0 4px; flex-wrap: wrap; }
 .vm-swatch {
   width: 24px; height: 24px; border-radius: 50%; padding: 0; cursor: pointer;
@@ -1537,7 +1537,7 @@
 }
 .vm-swatch:hover { transform: scale(1.08); }
 .vm-swatch.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px currentColor; }
-.vm-swatch-name { margin-left: 2px; font-size: 13px; font-weight: 700; color: #1C1B3A; }
+.vm-swatch-name { margin-left: 2px; font-size: 13px; font-weight: 500; color: #1C1B3A; }
 
 /* Container toggle — "other pins live inside this one". */
 .vm-ct { display: flex; align-items: center; gap: 11px; margin: 14px 0 2px; padding: 11px 13px;
@@ -1550,7 +1550,7 @@
 .vm-ct.on .vm-ct-switch::after { left: 18px; }
 .vm-ct input:focus-visible + .vm-ct-switch { box-shadow: 0 0 0 3px #E7E5F5; }
 .vm-ct-text { display: flex; flex-direction: column; gap: 2px; }
-.vm-ct-title { font-size: 13px; font-weight: 700; color: #1C1B3A; }
+.vm-ct-title { font-size: 13px; font-weight: 600; color: #1C1B3A; }
 .vm-ct-sub { font-size: 11.5px; color: #6B7280; }
 
 /* Container "inside" section — photograph the interior, then place pins. */
@@ -1558,15 +1558,47 @@
 .vm-interior-empty { display: flex; gap: 13px; align-items: flex-start; border: 1px dashed #C9C4B6;
   border-radius: 12px; background: #FAFAF8; padding: 16px; }
 .vm-interior-empty-ic { width: 34px; height: 34px; border-radius: 9px; background: #EDEBF6; color: #5B57A8;
-  display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 700; flex: none; }
-.vm-interior-empty-t { display: block; font-size: 13.5px; font-weight: 700; color: #1C1B3A; }
+  display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 400; flex: none; }
+.vm-interior-empty-t { display: block; font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .vm-interior-empty-s { display: block; font-size: 12px; color: #6B7280; line-height: 1.45; margin-top: 2px; }
 .vm-interior-add { width: 100%; margin-top: 12px; background: #5B57A8; }
 .vm-interior-add:hover { background: #4b489a; }
 .vm-interior-set { display: flex; flex-direction: column; gap: 12px; }
-.vm-interior-thumb { width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden;
-  background: #2c2c38; border: 1px solid #ECEAE3; }
+.vm-interior-thumb { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden;
+  background: #2c2c38; border: 1px solid #ECEAE3; padding: 0; cursor: pointer; display: block; }
 .vm-interior-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vm-interior-thumb:hover img { opacity: 0.92; }
+.vm-interior-count { position: absolute; right: 8px; bottom: 8px; background: rgba(28, 27, 58, 0.85);
+  color: #fff; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+
+/* Container interior — a 2-D photo overlaying the 3-D stage, with its own pins. */
+.vm-iv { position: absolute; inset: 0; z-index: 900; display: flex; flex-direction: column;
+  background: var(--vm-stage, #22253F); }
+.vm-iv-crumbs { display: flex; align-items: center; gap: 8px; padding: 13px 18px 10px; flex-wrap: wrap; }
+.vm-iv-crumb { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit;
+  font-size: 13px; color: rgba(255, 255, 255, 0.66); }
+.vm-iv-crumb:hover { color: #fff; text-decoration: underline; }
+.vm-iv-crumb-here { color: #fff; font-weight: 600; cursor: default; }
+.vm-iv-crumb-here:hover { text-decoration: none; }
+.vm-iv-sep { color: rgba(255, 255, 255, 0.38); font-size: 13px; }
+.vm-iv-frame { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 0 18px 18px; }
+.vm-iv-photo { position: relative; display: inline-block; max-width: 100%; max-height: 100%; line-height: 0;
+  border-radius: 12px; overflow: hidden; box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.55); }
+.vm-iv-photo img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; user-select: none; }
+.vm-iv-placing { cursor: crosshair; }
+.vm-iv-missing { color: rgba(255, 255, 255, 0.6); font-size: 14px; }
+.vm-iv-pin { position: absolute; transform: translate(-50%, -50%); width: 16px; height: 16px; border-radius: 50%;
+  background: var(--pin, #8B8478); border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45); padding: 0; cursor: pointer;
+  transition: transform .12s; }
+.vm-iv-pin-box { border-radius: 5px; }
+.vm-iv-pin.on { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55), 0 1px 4px rgba(0, 0, 0, 0.45); }
+.vm-iv-pin:hover { transform: translate(-50%, -50%) scale(1.18); z-index: 2; }
+.vm-iv-pin-tag { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap;
+  background: #1C1B3A; color: #fff; font-size: 11.5px; line-height: 1.4; padding: 3px 8px; border-radius: 6px; pointer-events: none; }
+.vm-iv-hint { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); background: rgba(10, 10, 26, 0.72);
+  color: #fff; font-size: 12.5px; padding: 7px 14px; border-radius: 999px; display: flex; align-items: center; gap: 10px; }
+.vm-iv-hint-kbd { font-size: 10.5px; opacity: 0.7; }
+.vm-rail-front { z-index: 910 !important; }
 .vm-interior-actions { display: flex; gap: 9px; }
 .vm-interior-open { background: #5B57A8; }
 .vm-interior-open:hover { background: #4b489a; }

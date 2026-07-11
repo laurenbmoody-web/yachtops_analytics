@@ -35,10 +35,13 @@ function RailButton({ icon, label, kbd, active, disabled, soon, onClick }) {
   );
 }
 
-export default function ToolRail({ mode, onMode, canPin, pinReady }) {
+export default function ToolRail({ mode, onMode, canPin, pinReady, interior }) {
+  // Inside a container it's a flat photo — only Navigate + Pin make sense
+  // (no doorways/measure), and the rail rides above the interior overlay.
+  const modes = interior ? LIVE_MODES.filter((m) => m.key === 'navigate' || m.key === 'pin') : LIVE_MODES;
   return (
-    <div className="vm-rail" role="toolbar" aria-label="Canvas tools" aria-orientation="vertical">
-      {LIVE_MODES.map((m) => {
+    <div className={`vm-rail${interior ? ' vm-rail-front' : ''}`} role="toolbar" aria-label="Canvas tools" aria-orientation="vertical">
+      {modes.map((m) => {
         if (m.gated && !canPin) return null;
         return (
           <RailButton
