@@ -494,6 +494,27 @@ test('Chief Mate Unlimited resolves the entry route (§4.3): Master <3000 = no e
   assert.deepEqual(resolveEntry(CERTIFICATES.OOW_YACHT_3000, {}).requires, CERTIFICATES.OOW_YACHT_3000.requires);
 });
 
+test('Master Unlimited resolves the three §4.4 routes by the cert held whilst', () => {
+  const mu = CERTIFICATES.MASTER_UNLIMITED;
+  // Route 1 — whilst Chief Mate Unlimited (primary): 12/6/500.
+  const r1 = resolveEntry(mu, { CHIEF_MATE_UNLIMITED: {} });
+  assert.equal(r1.requires.onboardMonths, 12);
+  assert.equal(r1.requires.seagoingMonths, 6);
+  assert.equal(r1.heldWhilstCert, 'CHIEF_MATE_UNLIMITED');
+  // Route 2 — whilst Master <3000 (no CMU): 6/3/500.
+  const r2 = resolveEntry(mu, { MASTER_YACHT_3000: {} });
+  assert.equal(r2.requires.onboardMonths, 6);
+  assert.equal(r2.requires.seagoingMonths, 3);
+  assert.equal(r2.heldWhilstCert, 'MASTER_YACHT_3000');
+  // Route 3 — whilst OOW Unlimited (no CMU/Master <3000): 36/15/500.
+  const r3 = resolveEntry(mu, { OOW_UNLIMITED: {} });
+  assert.equal(r3.requires.onboardMonths, 36);
+  assert.equal(r3.requires.seagoingMonths, 15);
+  assert.equal(r3.heldWhilstCert, 'OOW_UNLIMITED');
+  // Higher cert wins: holding Master <3000 AND OOW Unlimited → Route 2.
+  assert.equal(resolveEntry(mu, { MASTER_YACHT_3000: {}, OOW_UNLIMITED: {} }).requires.onboardMonths, 6);
+});
+
 test('roles map to eligible certificate families', () => {
   assert.ok(eligibleCertificates('master').every(c => c.family === 'DECK'));
   assert.ok(eligibleCertificates('chief_engineer').every(c => c.family === 'ENGINE'));

@@ -193,14 +193,20 @@ export const CERTIFICATES = {
     family: 'DECK', label: 'Master (Yachts Unlimited)', short: 'Master Unltd',
     msn: 'MSN 1858 Amd 2 §4.4', verified: 'HIGH',
     yardCapDays: 30,                // Master: max 30 yard days (1858 §4.4)
-    // 3 alternative routes — default bar uses the Chief-Mate-Unlimited route (A).
+    // §4.4(b) gives THREE routes, differing by the CoC held whilst doing the
+    // qualifying service. Default/primary = Route 1 (whilst Chief Mate Unlimited).
     requires: { onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
     heldWhilst: 'Chief Mate (Yachts Unlimited)', heldWhilstCert: 'CHIEF_MATE_UNLIMITED', asOfficer: true,
-    routes: [
-      { whilstHolding: 'Chief Mate Yachts Unlimited', onboardMonths: 12, seagoingMonths: 6, minGT: 500 },
-      { whilstHolding: 'Master Yachts <3000GT II/2', onboardMonths: 6, seagoingMonths: 3, minGT: 500 },
-      { whilstHolding: 'OOW Unlimited', onboardMonths: 36, seagoingMonths: 15, minVesselMetres: 15, seagoingMinGT: 500 }
-    ]
+    primaryEntryCert: 'CHIEF_MATE_UNLIMITED',
+    altEntries: [
+      // Route 2 — whilst holding Master (Yachts <3000GT) II/2: 6mo / 3mo seagoing / ≥500GT.
+      { heldWhilstCert: 'MASTER_YACHT_3000', requires: { onboardMonths: 6, seagoingMonths: 3, minGT: 500 }, asOfficer: true },
+      // Route 3 — whilst holding OOW Unlimited: 36mo / 15mo seagoing, all ≥15m,
+      // seagoing on ≥500GT. (Gated on ≥500GT — the binding seagoing gate; the
+      // ≥15m all-service floor is noted rather than separately modelled.)
+      { heldWhilstCert: 'OOW_UNLIMITED', requires: { onboardMonths: 36, seagoingMonths: 15, minGT: 500 }, asOfficer: true }
+    ],
+    note: 'Three routes (MSN 1858 §4.4), by the CoC held whilst doing the qualifying service: (1) Chief Mate (Yachts) Unlimited — 12 months as Chief Mate incl. 6 at sea on 500 GT+; (2) Master (Yachts <3000GT) — 6 months as Master incl. 3 at sea on 500 GT+; (3) OOW Unlimited — 36 months as OOW incl. 15 at sea, all on 15 m+ with seagoing on 500 GT+.'
   },
 
   // ====== ENGINE — MSN 1904 (Small Vessel CoC, "Limited to Yachts") ===========
