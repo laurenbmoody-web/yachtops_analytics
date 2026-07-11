@@ -611,9 +611,9 @@
 .mrev-order-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
 .mrev-order-title { font-size: 13px; font-weight: 600; color: var(--ink); }
 .mrev-order-meta { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
-.mrev-order-saved { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.mrev-order-note { font-size: 12.5px; color: var(--muted); font-style: italic; }
-.mrev-order-saved .mrev-edit { margin-left: auto; }
+.mrev-order-saved { display: flex; flex-direction: column; gap: 7px; }
+.mrev-saved-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mrev-order-note { margin: 0; font-size: 12.5px; color: var(--muted); font-style: italic; line-height: 1.5; }
 .mrev-order .mrev-yours-stars { margin-bottom: 10px; }
 .mrev-order .mrev-note { min-height: 56px; }
 

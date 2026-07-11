@@ -178,8 +178,9 @@ const OrderReviewRow = ({ order, onSaved }) => {
   const [service, setService] = useState(order.service || 0);
   const [saving, setSaving] = useState(false);
 
-  const meta = [order.deliveryPort, order.deliveryDate ? fmtReviewDate(order.deliveryDate) : null]
-    .filter(Boolean).join(' · ');
+  // Identify the delivery by date (+ port) — never the board name, which
+  // is the vessel's own internal working title.
+  const orderLabel = order.deliveryDate ? `Delivered ${fmtReviewDate(order.deliveryDate)}` : 'This delivery';
 
   const resetFromOrder = () => {
     setStar(order.rating || 0); setNote(order.note || '');
@@ -206,15 +207,17 @@ const OrderReviewRow = ({ order, onSaved }) => {
   return (
     <div className="mrev-order">
       <div className="mrev-order-head">
-        <span className="mrev-order-title">{order.listTitle || 'Delivery'}</span>
-        {meta && <span className="mrev-order-meta">{meta}</span>}
+        <span className="mrev-order-title">{orderLabel}</span>
+        {order.deliveryPort && <span className="mrev-order-meta">{order.deliveryPort}</span>}
       </div>
 
       {hasReview && !editing ? (
         <div className="mrev-order-saved">
-          <StarRow value={star} size={13} />
-          {note ? <span className="mrev-order-note">“{note}”</span> : <span className="mrev-nonote">Rating only</span>}
-          <button className="mrev-edit" onClick={() => setEditing(true)}>Edit</button>
+          <div className="mrev-saved-row">
+            <StarRow value={star} size={14} />
+            <button className="mrev-edit" onClick={() => setEditing(true)}>Edit</button>
+          </div>
+          {note ? <p className="mrev-order-note">“{note}”</p> : <span className="mrev-nonote">Rating only</span>}
         </div>
       ) : (
         <>
