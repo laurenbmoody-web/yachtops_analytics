@@ -34,13 +34,18 @@
 .drp-stars:hover button { color: #C65A1A; }
 .drp-stars button:hover ~ button { color: #DED9CE; }
 
-/* All ratings shown together — Overall (emphasised) then Quality/Delivery/
-   Service — with the note underneath. */
-.drp-ratings { display: flex; flex-direction: column; gap: 9px; margin-bottom: 12px; }
+/* Overall stands alone (headline); Quality/Delivery/Service grouped in a
+   soft "in detail" panel beneath. Note underneath. */
+.drp-overall-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.drp-overall-row .l { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #1C1B3A; min-width: 62px; }
+
+.drp-detail-group {
+  background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 12px; padding: 12px 14px;
+  margin-bottom: 12px; display: flex; flex-direction: column; gap: 9px;
+}
+.drp-detail-cap { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-bottom: 1px; }
 .drp-sub { display: flex; align-items: center; gap: 12px; }
 .drp-sub .l { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #8B8478; min-width: 62px; }
-.drp-sub.overall { padding-bottom: 9px; border-bottom: 1px solid #F0F1F5; }
-.drp-sub.overall .l { color: #1C1B3A; }
 
 .drp-note {
   width: 100%; box-sizing: border-box; resize: vertical; min-height: 56px;

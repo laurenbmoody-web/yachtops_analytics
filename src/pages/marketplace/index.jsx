@@ -195,11 +195,12 @@ const OrderReviewRow = ({ order, onSaved }) => {
         </div>
       ) : (
         <>
-          <div className="mrev-subs">
-            <div className="mrev-overall">
-              <span className="mrev-overall-l">Overall</span>
-              <StarRow value={star} size={22} onPick={setStar} />
-            </div>
+          <div className="mrev-overall">
+            <span className="mrev-overall-l">Overall</span>
+            <StarRow value={star} size={24} onPick={setStar} />
+          </div>
+          <div className="mrev-detail-group">
+            <div className="mrev-detail-cap">In detail · optional</div>
             <SubRatingRow label="Quality" value={quality} onPick={setQuality} />
             <SubRatingRow label="Delivery" value={delivery} onPick={setDelivery} />
             <SubRatingRow label="Service" value={service} onPick={setService} />
