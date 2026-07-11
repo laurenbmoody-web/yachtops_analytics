@@ -352,6 +352,8 @@ export const GRADE_TO_CERT = {
   'Engineering — EOOW SV (Yachts)': 'EOOW_SV_Y',
   'Engineering — Chief SV <500GT (Yachts)': 'CHIEF_SV_500_Y',
   'Engineering — Chief SV <3000GT (Yachts)': 'CHIEF_SV_3000_Y',
+  // Electro-Technical Officer (MSN 1860 §3.2)
+  'Electro-Technical Officer (ETO)': 'ETO_COC',
   // Legacy MSN 1859 Y-grade CoCs a crew member may still hold → mapped to the
   // SV rung they convert across to (MIN 642 §7, per MSN 1904 §12.1). Held-position
   // approximation; the exact conversion top-up is in LEGACY_GRADE_CONVERSION.
