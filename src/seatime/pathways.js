@@ -167,6 +167,12 @@ export const CERTIFICATES = {
     heldWhilst: 'OOW (Yachts <3000GT) II/1', heldWhilstCert: 'OOW_YACHT_3000', asOfficer: true,
     note: 'All your service must be on yachts of 15 m or more, and must include either 12 months on a yacht of 24 m+ or 6 months on one of 500 GT+. Cargo works the larger-vessel part out from each yacht’s recorded size — days on a yacht with no size on record can’t count toward it.'
   },
+  OOW_UNLIMITED: {
+    family: 'DECK', label: 'OOW (Unlimited)', short: 'OOW Unltd',
+    msn: 'STCW II/1 · Unlimited', verified: 'HIGH',
+    requires: {},                   // earned via an approved merchant cadetship/training (MSN 1856), not yacht sea time
+    note: 'The unlimited Officer of the Watch CoC (STCW II/1). It’s earned through an approved merchant cadetship or training programme (MSN 1856), not from yacht sea time — so it’s recorded here rather than tracked. It’s an entry point to the Chief Mate (Yachts) Unlimited route (MSN 1858 §4.3), as an alternative to holding a Master (Yachts <3000GT) CoC.'
+  },
   CHIEF_MATE_UNLIMITED: {
     family: 'DECK', label: 'Chief Mate (Yachts Unlimited)', short: 'Chief Mate Unltd',
     msn: 'MSN 1858 Amd 2 §4.3', verified: 'HIGH',
@@ -301,6 +307,8 @@ export const CERTIFICATE_ROUTES = {
   CHIEF_MATE_YACHT_3000: ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000'],
   MASTER_YACHT_500:      ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_500'],
   MASTER_YACHT_3000:     ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_500', 'MASTER_YACHT_3000'],
+  // OOW Unlimited — a merchant-route entry CoC (recorded, not yacht-tracked).
+  OOW_UNLIMITED:         ['OOW_UNLIMITED'],
   CHIEF_MATE_UNLIMITED:  ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED'],
   MASTER_UNLIMITED:      ['OOW_YACHT_3000', 'CHIEF_MATE_YACHT_3000', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
   // ENGINE — MSN 1904 Small Vessel (Yacht) ladder
@@ -316,7 +324,7 @@ export const CERTIFICATE_ROUTES = {
 
 /** Sensible career-ceiling goals offered per family (entry certs excluded). */
 export const GOAL_OPTIONS = {
-  DECK: ['MASTER_CODE_200_COASTAL', 'MASTER_CODE_200_UNLIMITED', 'MASTER_YACHT_500', 'MASTER_YACHT_3000', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
+  DECK: ['MASTER_CODE_200_COASTAL', 'MASTER_CODE_200_UNLIMITED', 'MASTER_YACHT_500', 'MASTER_YACHT_3000', 'OOW_UNLIMITED', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'],
   ENGINE: ['EOOW_SV_Y', 'CHIEF_SV_500_Y', 'CHIEF_SV_3000_Y'],
   ETO: ['ETO_COC'],
   INTERIOR: ['PURSER_COC']
@@ -345,6 +353,7 @@ export const GRADE_TO_CERT = {
   'Chief Mate unlimited': 'CHIEF_MATE_UNLIMITED',
   'Master <500GT': 'MASTER_YACHT_500',
   'Master <3000GT': 'MASTER_YACHT_3000',
+  'OOW unlimited': 'OOW_UNLIMITED',
   'Master unlimited': 'MASTER_UNLIMITED',
   // In-force MSN 1904 Small Vessel (Yacht) grades — canonical (listed first so
   // CERT_TO_GRADE presets the current name when adding a held cert).
