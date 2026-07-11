@@ -703,11 +703,6 @@ export default function VesselMapPage() {
     }
   }, [user, creatorNames]);
 
-  const onLocationChanged = useCallback((hotspotId, locationId) => {
-    setHotspots((prev) => prev.map((h) => (h.id === hotspotId ? { ...h, storage_location_id: locationId } : h)));
-    setSelectedHotspot((prev) => (prev && prev.id === hotspotId ? { ...prev, storage_location_id: locationId } : prev));
-  }, []);
-
   const showViewer = signedUrl && !signError;
   const loadPct = viewer.status === 'loading' ? viewer.progress : null;
 
@@ -954,7 +949,7 @@ export default function VesselMapPage() {
                   tenantId={activeTenantId}
                   names={creatorNames}
                   onDetailSaved={onDetailSaved}
-                  onLocationChanged={onLocationChanged}
+                  locationRoot={selectedScan?.name}
                   onClose={closeInspector}
                   onDelete={deleteHotspot}
                   onAdjust={startAdjust}
@@ -1156,7 +1151,7 @@ export default function VesselMapPage() {
                           canManage={canPlaceHotspots}
                           tenantId={activeTenantId}
                           onDetailSaved={onDetailSaved}
-                          onLocationChanged={onLocationChanged}
+                          locationRoot={selectedScan?.name}
                         />
                       </>
                     )}
