@@ -126,6 +126,37 @@ export const fetchReviewableOrders = async (supplierId) => {
 };
 
 /**
+ * Reviewable delivered orders on ONE board (get_reviewable_orders_for_list
+ * RPC) — powers the "rate this delivery" prompt at receive time. Carries
+ * the supplier name + any existing review. Returns [] on failure.
+ */
+export const fetchListReviewableOrders = async (listId) => {
+  if (!listId) return [];
+  try {
+    const { data, error } = await supabase.rpc('get_reviewable_orders_for_list', {
+      p_list_id: listId,
+    });
+    if (error) throw error;
+    return (data ?? []).map((o) => ({
+      orderId: o.order_id,
+      supplierId: o.supplier_id,
+      supplierName: o.supplier_name || 'your supplier',
+      deliveryDate: o.delivery_date,
+      deliveryPort: o.delivery_port || '',
+      listTitle: o.list_title || '',
+      rating: o.rating != null ? Number(o.rating) : null,
+      note: o.note || '',
+      quality: o.quality_rating != null ? Number(o.quality_rating) : null,
+      delivery: o.delivery_rating != null ? Number(o.delivery_rating) : null,
+      service: o.service_rating != null ? Number(o.service_rating) : null,
+    }));
+  } catch (err) {
+    console.warn('[marketplaceStorage] fetchListReviewableOrders (non-blocking):', err?.message);
+    return [];
+  }
+};
+
+/**
  * Submit / edit the review for one delivered order (verified). Overall
  * rating is required; sub = { quality, delivery, service } are optional
  * 1-5 sub-scores (any may be null).
