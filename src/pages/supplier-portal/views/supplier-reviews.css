@@ -1,8 +1,9 @@
 /* Supplier-portal Reviews view (spr-). Uses the portal's #sp-root tokens. */
 
-.spr-stars { display: inline-flex; gap: 1px; color: #C65A1A; line-height: 0; flex: none; }
-.spr-stars .on { color: #C65A1A; }
-.spr-stars svg:not(.on) { color: #CBD5E1; }
+.spr-stars { display: inline-flex; gap: 1px; line-height: 1; flex: none; font-size: 14px; }
+.spr-star { position: relative; display: inline-block; line-height: 1; }
+.spr-star-base { color: #CBD5E1; }
+.spr-star-fill { position: absolute; top: 0; left: 0; overflow: hidden; white-space: nowrap; color: #C65A1A; }
 
 .spr-banner {
   background: #FFF7ED; border: 1px solid #FED7AA; color: #9A3412;

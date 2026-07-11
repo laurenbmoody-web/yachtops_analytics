@@ -93,16 +93,39 @@ const initialsOf = (name) => {
   return parts.slice(0, 2).map(w => w[0]).join('').toUpperCase();
 };
 
-// Five stars, filled to the (rounded) value. onClick(i) makes them a picker.
+// Five stars, filled to the value on the half (4.5 → four-and-a-half).
+// With onPick, each star has two hit zones — left = ½, right = whole — so
+// crew can give half-stars; hovering previews the value.
 const StarRow = ({ value = 0, size = 12, onPick }) => {
-  const full = Math.round(value);
+  const [hover, setHover] = useState(null);
+  const shown = hover != null ? hover : (value || 0);
   return (
-    <span className={`mp-stars ${onPick ? 'pick' : ''}`} style={{ fontSize: size }}>
-      {[1, 2, 3, 4, 5].map(i => (
-        onPick
-          ? <button key={i} type="button" className={i <= full ? 'on' : ''} onClick={(e) => { e.stopPropagation(); onPick(i); }} aria-label={`${i} star${i === 1 ? '' : 's'}`}>★</button>
-          : <span key={i} className={i <= full ? 'on' : ''}>★</span>
-      ))}
+    <span
+      className={`mp-stars ${onPick ? 'pick' : ''}`}
+      style={{ fontSize: size }}
+      onMouseLeave={() => onPick && setHover(null)}
+    >
+      {[1, 2, 3, 4, 5].map(i => {
+        const fill = shown >= i ? 100 : (shown >= i - 0.5 ? 50 : 0);
+        return (
+          <span key={i} className="mp-star">
+            <span className="mp-star-base">★</span>
+            <span className="mp-star-fill" style={{ width: `${fill}%` }}>★</span>
+            {onPick && (
+              <>
+                <button type="button" className="mp-star-hit l"
+                  onMouseEnter={() => setHover(i - 0.5)}
+                  onClick={(e) => { e.stopPropagation(); onPick(i - 0.5); }}
+                  aria-label={`${i - 0.5} stars`} />
+                <button type="button" className="mp-star-hit r"
+                  onMouseEnter={() => setHover(i)}
+                  onClick={(e) => { e.stopPropagation(); onPick(i); }}
+                  aria-label={`${i} star${i === 1 ? '' : 's'}`} />
+              </>
+            )}
+          </span>
+        );
+      })}
     </span>
   );
 };

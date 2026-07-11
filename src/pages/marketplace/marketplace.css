@@ -232,13 +232,17 @@
 .mp-sf-lines span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Star row — read-only or a picker */
-.mp-stars { display: inline-flex; gap: 1px; line-height: 1; }
-.mp-stars span { color: rgba(255,255,255,0.22); }
-.mp-stars span.on { color: #C65A1A; }
-.mp-stars.pick button { background: none; border: none; padding: 0 1px; cursor: pointer; font-size: inherit; line-height: 1; color: rgba(255,255,255,0.26); }
-.mp-stars.pick button.on { color: #C65A1A; }
-.mp-stars.pick:hover button { color: #C65A1A; }
-.mp-stars.pick button:hover ~ button { color: rgba(255,255,255,0.26); }
+/* Half-fillable stars: an empty base glyph with a clipped filled glyph on
+   top (width = fill %). Colours come from --star-empty / --star-on so each
+   context (dark deck, light modal) can re-theme without touching markup. */
+.mp-stars { display: inline-flex; gap: 1px; line-height: 1; --star-empty: rgba(255,255,255,0.22); --star-on: #C65A1A; }
+.mp-star { position: relative; display: inline-block; line-height: 1; }
+.mp-star-base { color: var(--star-empty); }
+.mp-star-fill { position: absolute; top: 0; left: 0; overflow: hidden; white-space: nowrap; color: var(--star-on); pointer-events: none; }
+.mp-stars.pick .mp-star { cursor: pointer; }
+.mp-stars.pick .mp-star-hit { position: absolute; top: 0; height: 100%; width: 50%; padding: 0; margin: 0; border: none; background: none; cursor: pointer; z-index: 2; }
+.mp-stars.pick .mp-star-hit.l { left: 0; }
+.mp-stars.pick .mp-star-hit.r { right: 0; }
 
 /* Storefront back — your history as a compact ledger */
 .mp-face.mp-sfback { padding: 14px 24px; justify-content: center; }
@@ -296,8 +300,7 @@
 .mp-shophead-rate { display: inline-flex; align-items: center; gap: 8px; background: none; border: none; padding: 4px 7px; margin: -4px -7px; cursor: pointer; border-radius: 8px; font-family: inherit; transition: background .15s; }
 .mp-shophead-rate:hover { background: var(--hair); }
 .mp-shophead-rate .rt { font-size: 11.5px; color: var(--muted); }
-.mp-shophead-rate .mp-stars span { color: var(--faint); }
-.mp-shophead-rate .mp-stars span.on { color: var(--accent); }
+.mp-shophead-rate .mp-stars { --star-empty: var(--faint); --star-on: var(--accent); }
 .mp-shophead-facts {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin-top: 8px; font-size: 11.5px; color: var(--muted);
@@ -630,12 +633,7 @@
 .mrev-body { margin: 7px 0 0; font-size: 13px; line-height: 1.55; color: var(--muted); white-space: pre-wrap; }
 
 /* Modal stars sit on a light surface — override the deck's white-on-dark base. */
-.mrev .mp-stars span { color: var(--faint); }
-.mrev .mp-stars span.on { color: var(--accent); }
-.mrev .mp-stars.pick button { color: var(--faint); }
-.mrev .mp-stars.pick button.on { color: var(--accent); }
-.mrev .mp-stars.pick:hover button { color: var(--accent); }
-.mrev .mp-stars.pick button:hover ~ button { color: var(--faint); }
+.mrev .mp-stars { --star-empty: var(--faint); --star-on: var(--accent); }
 
 @media (max-width: 640px) {
   .mrev { width: calc(100vw - 24px); padding: 22px 18px 20px; }
