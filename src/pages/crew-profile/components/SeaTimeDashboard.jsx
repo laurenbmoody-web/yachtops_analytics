@@ -252,15 +252,21 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   const deptGoalOptions = deptFamilies.flatMap(f => GOAL_OPTIONS[f] || []);
   const family = goalId && CERTIFICATES[goalId] ? CERTIFICATES[goalId].family : null;
   const route = useMemo(() => {
-    // §4.3/§4.4 alternative entry: a crew on the OOW-Unlimited route (holds OOW
-    // Unlimited but not a Master <3000 CoC) reaches Chief Mate / Master Unlimited
-    // via OOW Unlimited, not the yacht ladder — show that path so the live target
-    // is the Unlimited rung, not an OOW <3000 rung they've bypassed.
-    if ((goalId === 'CHIEF_MATE_UNLIMITED' || goalId === 'MASTER_UNLIMITED')
-      && heldCerts.OOW_UNLIMITED && !heldCerts.MASTER_YACHT_3000) {
-      return goalId === 'MASTER_UNLIMITED'
-        ? ['OOW_UNLIMITED', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED']
-        : ['OOW_UNLIMITED', 'CHIEF_MATE_UNLIMITED'];
+    // §4.3/§4.4 alternative entries — show the ladder for the crew's ACTUAL entry
+    // so the live target is the Unlimited rung, not a lower rung they've bypassed.
+    // Chief Mate Unlimited (§4.3): via Master <3000 (default) or OOW Unlimited.
+    if (goalId === 'CHIEF_MATE_UNLIMITED') {
+      if (heldCerts.OOW_UNLIMITED && !heldCerts.MASTER_YACHT_3000) return ['OOW_UNLIMITED', 'CHIEF_MATE_UNLIMITED'];
+      return routeFor(goalId);
+    }
+    // Master Unlimited (§4.4): Route 1 via Chief Mate Unlimited (default); Route 2
+    // direct from Master <3000 (6mo); OOW-Unlimited holders go via Chief Mate
+    // Unlimited (the clearer of §4.4's two OOW options).
+    if (goalId === 'MASTER_UNLIMITED') {
+      if (heldCerts.CHIEF_MATE_UNLIMITED) return routeFor(goalId);
+      if (heldCerts.MASTER_YACHT_3000) return ['MASTER_YACHT_3000', 'MASTER_UNLIMITED'];
+      if (heldCerts.OOW_UNLIMITED) return ['OOW_UNLIMITED', 'CHIEF_MATE_UNLIMITED', 'MASTER_UNLIMITED'];
+      return routeFor(goalId);
     }
     return routeFor(goalId);
   }, [goalId, heldCerts]);
