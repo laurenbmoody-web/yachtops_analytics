@@ -1293,7 +1293,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
       {untaggedCocs > 0 && (
         <div className="stp-untagged">
           <IcoPath d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" color="#A6712C" size={18} />
-          <div>{untaggedCocs} Certificate{untaggedCocs === 1 ? '' : 's'} of Competency {untaggedCocs === 1 ? 'is' : 'are'} uploaded without a grade set, so {untaggedCocs === 1 ? "it can't" : "they can't"} be matched to your pathway. Open <b>Documents</b> and set the certificate’s grade/level so it counts.</div>
+          <div>You’ve uploaded {untaggedCocs} Certificate{untaggedCocs === 1 ? '' : 's'} of Competency with no grade recorded, so {untaggedCocs === 1 ? "it can’t" : "they can’t"} be matched to your pathway. Open <b>Documents</b>, set the grade/level, and {untaggedCocs === 1 ? 'it' : 'they'}’ll count.</div>
         </div>
       )}
 
@@ -1378,7 +1378,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     </div>
                   )}
                   {gatingReqs.length === 0 && (
-                    <div className="stp-sub" style={{ marginTop: 12 }}>No additional qualifying service required — may be applied for alongside the certificate above.</div>
+                    <div className="stp-sub" style={{ marginTop: 12 }}>No extra sea time needed — you can apply for this at the same time as the certificate it builds on.</div>
                   )}
                   {requirements.filter(rq => rq.key !== 'none').length > 0 && (
                     <div className="stp-reqs" data-cols={Math.min(requirements.filter(rq => rq.key !== 'none').length, 4)}>
@@ -1394,8 +1394,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                           <div className="stp-track"><i style={{ width: `${rq.pct}%` }} /></div>
                           {rq.orBranch && rq.detail && (
                             <div className="stp-orhint">
-                              by length {rq.detail.metres24}/{rq.detail.metresTarget} · by tonnage {rq.detail.gt500}/{rq.detail.gtTarget}
-                              {rq.detail.sizeUnknownDays > 0 ? ` · ${rq.detail.sizeUnknownDays} day${rq.detail.sizeUnknownDays === 1 ? '' : 's'} without vessel size not counted` : ''}
+                              Either route counts: 24 m+ vessels {rq.detail.metres24}/{rq.detail.metresTarget} · 500 GT+ vessels {rq.detail.gt500}/{rq.detail.gtTarget}
+                              {rq.detail.sizeUnknownDays > 0 ? ` · ${rq.detail.sizeUnknownDays} day${rq.detail.sizeUnknownDays === 1 ? '' : 's'} not counted (no vessel size on record)` : ''}
                             </div>
                           )}
                         </div>
@@ -1417,7 +1417,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                               ? <><b>Route A</b> pairs your 12 months’ senior service with at least <b>{target} guest-on days</b> (charters, shows, owner trips). Or take <b>Route B</b> — 3 years in a maritime management/administration role, logged as prior service.{' '}</>
                               : <>Days with guests aboard (charters, shows, owner trips).{' '}</>}
                             {derivedTrips > 0
-                              ? <>Auto-counted from <b>{derivedTrips} trip{derivedTrips === 1 ? '' : 's'}</b> carrying guests on your record{overridden ? <> — overridden (auto-count {derived})</> : ' — edit to override'}.</>
+                              ? (overridden
+                                  ? <>You’ve entered your own total. We’d auto-count <b>{derived}</b> from <b>{derivedTrips} guest trip{derivedTrips === 1 ? '' : 's'}</b> on your record — tap <b>Use auto-count</b> to switch back.</>
+                                  : <>Auto-counted from <b>{derivedTrips} trip{derivedTrips === 1 ? '' : 's'}</b> carrying guests on your record — edit to override.</>)
                               : <>No guest-carrying trips on record yet — enter a verified total (captain/company or charter records).</>}
                             {overridden && <> <button type="button" className="stp-guest-reset" onClick={() => saveGuestOnDays('')}>Use auto-count</button></>}
                           </span>
@@ -1440,7 +1442,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                         <Icon name="Info" size={13} />
                         <div>{whileHoldingISO
                           ? <>Counts your <b>{officerNoun} service from {fmtDate(whileHoldingISO)}</b> — the day you qualified as {heldShort}. Earlier days, and any served as a rating, counted toward {heldShort}, not this ticket. ({famMsn})</>
-                          : <>Only <b>{officerNoun} service whilst holding {heldShort}</b> counts toward this CoC. Set that certificate’s issue date under <b>Certificates held</b> so only qualifying service is counted — for now it’s gated by capacity only.</>}</div>
+                          : <>Only <b>{officerNoun} service whilst holding {heldShort}</b> counts toward this CoC. Set that certificate’s issue date under <b>Certificates held</b> so only qualifying service is counted — until then we count every officer-capacity day, which may over-count.</>}</div>
                       </div>
                     );
                   })()}
@@ -1541,7 +1543,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     </div>
                     {h.legacy && (
                       <div className="stp-convert">
-                        <b>This is a legacy {h.legacy.key} certificate.</b> Since 2023 the yacht-engineer scheme moved to Small Vessel CoCs — under the current system your {h.legacy.key} converts to {h.legacy.to.map(id => CERTIFICATES[id]?.short).filter(Boolean).join(' / ')} (MCA conversion {h.legacy.code}, MIN 642). Typical top-up: {h.legacy.topUp} Every conversion also needs {CONVERSION_RECENCY.months} months’ seagoing in the last {CONVERSION_RECENCY.windowYears} years ({CONVERSION_RECENCY.msn}).{h.legacy.seagoingCapacity ? ` ${h.legacy.seagoingCapacity}` : ''}{h.legacy.note ? ` ${h.legacy.note}` : ''} The MCA assess your outlined seagoing service — confirm the exact requirement with them or your training provider, then upload your converted CoC here.
+                        <b>This is a legacy {h.legacy.key} certificate.</b> Since 2023 the yacht-engineer scheme moved to Small Vessel CoCs — under the current system your {h.legacy.key} converts to {h.legacy.to.map(id => CERTIFICATES[id]?.short).filter(Boolean).join(' / ')} (MCA conversion {h.legacy.code}, MIN 642). Typical top-up: {h.legacy.topUp} Every conversion also needs {CONVERSION_RECENCY.months} months’ seagoing in the last {CONVERSION_RECENCY.windowYears} years ({CONVERSION_RECENCY.msn}).{h.legacy.seagoingCapacity ? ` ${h.legacy.seagoingCapacity}` : ''}{h.legacy.note ? ` ${h.legacy.note}` : ''} The MCA will assess the seagoing service you’ve logged — confirm the exact requirement with them or your training provider, then upload your converted CoC here.
                       </div>
                     )}
                     </>
@@ -1910,7 +1912,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             {
               n: '03', label: 'Oral exam', key: 'oral', reachable: noeIssued,
               state: oralPassed ? 'done' : (j.oral?.status === 'booked' || j.oral?.status === 'failed') ? 'active' : noeIssued ? 'todo' : 'locked',
-              line: oralPassed ? `Passed ${fmtDate(j.oral.passDate)}` : j.oral?.status === 'booked' ? `Booked ${fmtDate(j.oral.bookedDate) || ''}`.trim() : j.oral?.status === 'failed' ? 'Failed — book re-sit' : noeIssued ? 'Not booked' : 'Locked',
+              line: oralPassed ? `Passed ${fmtDate(j.oral.passDate)}` : j.oral?.status === 'booked' ? (j.oral.bookedDate ? `Booked ${fmtDate(j.oral.bookedDate)}` : 'Booked') : j.oral?.status === 'failed' ? 'Failed — book re-sit' : noeIssued ? 'Not booked' : 'Locked',
               detail: oralPassed && !cocIssued && oralDte != null
                 ? <div className="cj-detail">{oralDte < 0 ? 'Pass expired — re-sit' : `Pass valid to ${fmtDate(oralExpiry)}${oralDte < 180 ? ` · ${oralDte}d left` : ''}`}</div>
                 : (j.oral?.fails?.length ? <div className="cj-detail">Attempt {j.oral.fails.length + 1}</div> : null),
@@ -2127,7 +2129,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     <Icon name="Info" size={15} />
                     <span className="std-fhelp-pop">
                       <b>How each period is confirmed</b>
-                      <span>By the captain who ran that ship at the time — never her current one:</span>
+                      <span>By whoever was captain during that period — not the ship’s current captain:</span>
                       <span>· <b className="inl">Still aboard in Cargo</b> — verified automatically.</span>
                       <span>· <b className="inl">Moved on</b> — they sign digitally, in the app or by a secure email link.</span>
                       <span>· <b className="inl">Never on Cargo</b> — you upload their signed testimonial.</span>
@@ -2234,7 +2236,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                           <Icon name="Info" size={13} />
                           <span className="std-fhelp-pop">
                             <b>How it works</b>
-                            <span>Once installed, come back here and click <b className="inl">Copy for PYA</b> on a record, then open your PYA member portal, start an SST, and press <b className="inl">Autofill from Cargo</b> (bottom-right). Voilà — every field filled.</span>
+                            <span>Once installed, come back here and click <b className="inl">Copy for PYA</b> on a record, then open your PYA member portal, start an SST, and press <b className="inl">Fill from Cargo</b> (bottom-right). Voilà — every field filled.</span>
                           </span>
                         </span>
                       </div>
@@ -2260,7 +2262,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                         // stays a clean to-do of what's still to send. (openSpells
                         // is computed once at component scope.)
                         if (openSpells.length === 0) {
-                          return <div className="std-spells-lbl" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#3F7A52', fontWeight: 600 }}><Icon name="Check" size={14} /> All records submitted — they’re marked on your Sea Service Record below.</div>;
+                          return <div className="std-spells-lbl" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#3F7A52', fontWeight: 600 }}><Icon name="Check" size={14} /> All records submitted — they’re listed under Logged sea service below.</div>;
                         }
                         return (<>
                           {openSpells.map((s, i) => {
@@ -2279,7 +2281,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                                 : (verifier === 'mca' && !interiorPathway)
                                   ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellRecord(s)}><Icon name="FileText" size={15} /> Testimonial · MSN 1858 (PDF)</button>
                                   : verifier === 'pya' ? null
-                                    : <span className="std-spell-tag">Submit on the {vp.short} route</span>}
+                                    : <span className="std-spell-tag">No Cargo form for {vp.short} — follow their own submission process</span>}
                             {verifier === 'pya' && (
                               <button className="std-dl" disabled={!canGenerate} style={{ background: '#fff', color: canGenerate ? '#1C1B3A' : '#A6A199', border: '1px solid #E6E8EC', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => canGenerate && onCopySpellForPya(s)} title="Copy this record's details for the Cargo → PYA extension"><Icon name="Copy" size={15} /> Copy for PYA</button>
                             )}
@@ -2308,7 +2310,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
             <div>
               <div className="mlabel">Step 03 · Captain sign-off</div>
               <div className="std-issue-h">
-                {!canGenerate ? `${checks.filter(c => !c.ok).length} check(s) still to clear`
+                {!canGenerate ? `${checks.filter(c => !c.ok).length} check${checks.filter(c => !c.ok).length === 1 ? '' : 's'} still to clear`
                   : allAttested ? 'Every ship verified — your pack is ready to export'
                     : `${attestedCount} of ${recVessels.length} ships verified — ${recVessels.length - attestedCount} still to confirm`}
               </div>
@@ -2350,7 +2352,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                     </tr>
                   ); })}</tbody>
                 </table>
-                <div className="mlabel" style={{ marginTop: 16 }}>Service totals — totalled separately</div>
+                <div className="mlabel" style={{ marginTop: 16 }}>Service totals — counted by type</div>
                 <div className="totals">
                   {[['Seagoing', buckets.seagoing], ['Watchkeeping', buckets.watchkeeping], ['Standby', buckets.standby], ['Shipyard', buckets.yard]].map(([l, n]) => (
                     <div className="tbox" key={l}><div className="tn">{n}</div><div className="tl">{l} days</div></div>
@@ -2449,7 +2451,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               <div className="cso-eyebrow">Certification journey · Step {journeyStep === 'noe' ? '02' : journeyStep === 'oral' ? '03' : (cert?.oral === false ? '03' : '04')}</div>
               <h3 className="cso-title">{journeyStep === 'noe' ? 'Notice of Eligibility' : journeyStep === 'oral' ? 'Oral examination' : 'Certificate of Competency'}</h3>
               <div className="cso-sub">{journeyStep === 'noe'
-                ? 'Apply with your MSF form once eligible. The NoE lets you book the oral exam and is valid 5 years.'
+                ? `Apply once eligible${applyFormFor(family, deptId)?.form ? ` on form ${applyFormFor(family, deptId).form}` : ''}. The NoE lets you book the oral exam and is valid 5 years.`
                 : journeyStep === 'oral'
                   ? 'Book your MCA oral exam and record the result. A pass is valid 3 years; if you fail, add a re-sit.'
                   : 'The final step. Pull your application bundle together below, record the date you apply, then add the certificate number once it’s issued.'}</div>
