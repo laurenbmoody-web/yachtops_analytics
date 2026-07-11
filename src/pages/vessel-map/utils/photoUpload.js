@@ -46,3 +46,24 @@ export async function uploadHotspotPhoto({ tenantId, hotspotId, photoId, file })
   }
   return { path };
 }
+
+// A container's interior photo — the "inside" its child pins are placed on.
+// One per pin, overwritten on replace (upsert). Returns { path } or { error }.
+export async function uploadInteriorPhoto({ tenantId, hotspotId, file }) {
+  let blob;
+  try {
+    blob = await compressPhoto(file);
+  } catch (err) {
+    console.error('[pin-interior] compression error:', err);
+    return { error: 'That image could not be read — try a JPEG or PNG.' };
+  }
+  const path = `${tenantId}/hotspot-interior/${hotspotId}.jpg`;
+  const { error: uploadError } = await supabase.storage
+    .from('vessel-scans')
+    .upload(path, blob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: true });
+  if (uploadError) {
+    console.error('[pin-interior] upload error:', uploadError);
+    return { error: uploadError.message || 'The photo could not be uploaded.' };
+  }
+  return { path };
+}

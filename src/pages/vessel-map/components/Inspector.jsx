@@ -5,10 +5,80 @@
 // payloads live on pins, not on the rail. Notes/List/Photos ship as
 // furnished-next-update rooms; Details is live.
 import React, { useEffect, useRef, useState } from 'react';
+import { supabase } from '../../../lib/supabaseClient';
 import { LAYERS, layerColor, layerLabel } from '../layers';
 import PinPayload from './PinPayload';
 import PinLocation from './PinLocation';
 import { getInventoryLocation, locationLabel } from '../utils/inventory';
+import { uploadInteriorPhoto } from '../utils/photoUpload';
+
+// The container's "inside" — prompt to photograph the interior, then (next
+// slice) open it to place child pins on it.
+function InteriorSection({ hotspot, tenantId, canManage, onInteriorPhoto }) {
+  const [signedUrl, setSignedUrl] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+  const fileRef = useRef(null);
+  const path = hotspot.interior_photo_path;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!path) { setSignedUrl(null); return undefined; }
+    (async () => {
+      const { data, error: e } = await supabase.storage.from('vessel-scans').createSignedUrl(path, 3600);
+      if (!cancelled) setSignedUrl(e ? null : (data?.signedUrl || null));
+    })();
+    return () => { cancelled = true; };
+  }, [path]);
+
+  const onFile = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setUploading(true);
+    setError(null);
+    const { path: newPath, error: upErr } = await uploadInteriorPhoto({ tenantId, hotspotId: hotspot.id, file: f });
+    setUploading(false);
+    if (upErr) { setError(upErr); return; }
+    onInteriorPhoto?.(hotspot.id, newPath);
+  };
+
+  return (
+    <div className="vm-interior">
+      <p className="vm-label">Inside</p>
+      {path ? (
+        <div className="vm-interior-set">
+          <div className="vm-interior-thumb">{signedUrl && <img src={signedUrl} alt="Inside" />}</div>
+          <div className="vm-interior-actions">
+            <button className="vm-btn-primary vm-interior-open" disabled title="Placing pins inside comes next">Open · place pins</button>
+            {canManage && (
+              <button className="vm-btn-ghost" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                {uploading ? 'Uploading…' : 'Replace photo'}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="vm-interior-empty">
+            <span className="vm-interior-empty-ic" aria-hidden="true">＋</span>
+            <span>
+              <span className="vm-interior-empty-t">Add a photo of the inside</span>
+              <span className="vm-interior-empty-s">Then place a pin on each thing — items, defects, jobs. Their contents, links &amp; QR codes live on those pins.</span>
+            </span>
+          </div>
+          {canManage && (
+            <button className="vm-btn-primary vm-interior-add" onClick={() => fileRef.current?.click()} disabled={uploading}>
+              {uploading ? 'Uploading…' : 'Take / upload inside photo'}
+            </button>
+          )}
+        </>
+      )}
+      {error && <p className="vm-payload-error">{error}</p>}
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onFile} />
+    </div>
+  );
+}
 
 const TABS = [
   { key: 'details', label: 'Details' },
@@ -23,7 +93,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, autoFocusName, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, autoFocusName, user, tier, tenantId, names, onDetailSaved, onLocationChanged }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -89,6 +159,32 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
     }
   };
 
+  // Adjust + remove — shared by the details tab and the container view.
+  const dangerActions = canManage && (
+    <>
+      <button className="vm-btn-ghost vm-insp-adjust" onClick={() => onAdjust?.(shown)}>
+        Adjust position
+      </button>
+      <div className="vm-insp-danger">
+        {deleteError && <p className="vm-insp-error">{deleteError}</p>}
+        {confirming ? (
+          <div className="vm-insp-confirm">
+            <button className="vm-insp-delete vm-insp-delete-armed" onClick={doDelete} disabled={deleting}>
+              {deleting ? 'Removing…' : 'Confirm remove'}
+            </button>
+            <button className="vm-btn-ghost vm-insp-ghost" onClick={() => setConfirming(false)} disabled={deleting}>
+              Keep
+            </button>
+          </div>
+        ) : (
+          <button className="vm-insp-delete" onClick={() => setConfirming(true)}>
+            Remove pin
+          </button>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <aside className={`vm-inspector${open ? ' vm-open' : ''}`} aria-label="Pin inspector">
       <div className="vm-insp-head">
@@ -139,12 +235,12 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
             </span>
           </>
         )}
-        {locId && headLoc && (
+        {!shown.is_container && locId && headLoc && (
           <button className="vm-insp-loc" onClick={() => setTab('details')} title="Inventory location — see contents in Details">
             {locationLabel(headLoc)}
           </button>
         )}
-        {!locId && canManage && (
+        {!shown.is_container && !locId && canManage && (
           <button
             className="vm-insp-loc vm-insp-loc-empty"
             onClick={() => { setTab('details'); setPickSignal((n) => n + 1); }}
@@ -154,22 +250,28 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
         )}
       </div>
 
-      <div className="vm-insp-tabs" role="tablist">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={tab === t.key}
-            className={`vm-insp-tab${tab === t.key ? ' vm-insp-tab-on' : ''}`}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {!shown.is_container && (
+        <div className="vm-insp-tabs" role="tablist">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={tab === t.key}
+              className={`vm-insp-tab${tab === t.key ? ' vm-insp-tab-on' : ''}`}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="vm-insp-body">
-        {tab === 'details' && (
+        {shown.is_container && (
+          <InteriorSection hotspot={shown} tenantId={tenantId} canManage={canManage} onInteriorPhoto={onInteriorPhoto} />
+        )}
+        {shown.is_container && dangerActions}
+        {!shown.is_container && tab === 'details' && (
           <>
             <div className="vm-insp-row">
               <span className="vm-label">Added</span>
@@ -188,36 +290,11 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
               onLocationChanged={onLocationChanged}
               pickSignal={pickSignal}
             />
-
-            {canManage && (
-              <button className="vm-btn-ghost vm-insp-adjust" onClick={() => onAdjust?.(shown)}>
-                Adjust position
-              </button>
-            )}
-
-            {canManage && (
-              <div className="vm-insp-danger">
-                {deleteError && <p className="vm-insp-error">{deleteError}</p>}
-                {confirming ? (
-                  <div className="vm-insp-confirm">
-                    <button className="vm-insp-delete vm-insp-delete-armed" onClick={doDelete} disabled={deleting}>
-                      {deleting ? 'Removing…' : 'Confirm remove'}
-                    </button>
-                    <button className="vm-btn-ghost vm-insp-ghost" onClick={() => setConfirming(false)} disabled={deleting}>
-                      Keep
-                    </button>
-                  </div>
-                ) : (
-                  <button className="vm-insp-delete" onClick={() => setConfirming(true)}>
-                    Remove pin
-                  </button>
-                )}
-              </div>
-            )}
+            {dangerActions}
           </>
         )}
 
-        {tab !== 'details' && (
+        {!shown.is_container && tab !== 'details' && (
           <PinPayload
             hotspot={shown}
             tab={tab}
