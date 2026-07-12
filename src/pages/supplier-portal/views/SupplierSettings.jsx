@@ -10,6 +10,7 @@ import {
   fetchMyCertifications,
   saveMyCertifications,
   uploadCertDoc,
+  requestCertReview,
   fetchAliases,
   addAlias,
   resendAliasVerification,
@@ -1111,6 +1112,12 @@ const StorefrontSection = ({ supplier, onSaved }) => {
         delivery_days:      form.delivery_days || [],
         cutoff_strict:      !!form.cutoff_strict,
       });
+      // Queue an AI first-pass review for any cert with a document that isn't
+      // yet verified — the edge function is idempotent per document, so it's
+      // safe to fire for all of them. Don't block the save on it.
+      certs
+        .filter(c => c.docUrl && !c.verified)
+        .forEach(c => { requestCertReview(supplier.id, c.name); });
       await onSaved?.();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
