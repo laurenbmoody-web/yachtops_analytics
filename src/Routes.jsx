@@ -104,6 +104,7 @@ const SupplierInvoices   = lazyWithRetry(() => import('./pages/supplier-portal/v
 const SupplierClients    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierClients'));
 const SupplierMessages   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierMessages'));
 const SupplierReturns    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierReturns'));
+const CertReviewConsole  = lazyWithRetry(() => import('./pages/cargo-console/CertReviewConsole'));
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
@@ -1134,6 +1135,9 @@ const Routes = () => {
         <Route path="/invite-accept-preview" element={<InviteAcceptPage previewMode />} />
 
         {/* Protected Routes */}
+        {/* Cargo internal console — platform-admin gated in-page (no tenant needed) */}
+        <Route path="/cargo/certifications" element={<ProtectedRoute requiresTenant={false}><CertReviewConsole /></ProtectedRoute>} />
+
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/safe-dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/today" element={<ProtectedRoute><TodayDetailPage /></ProtectedRoute>} />
