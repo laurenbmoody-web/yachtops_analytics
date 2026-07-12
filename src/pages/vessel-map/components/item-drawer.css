@@ -1,0 +1,127 @@
+/* Quick-view inventory drawer — opened from a pin item. Editorial (Cargo)
+   system, scoped under .vmid- because it's portaled outside the page tree.
+   Two tabs: Details (the item's richer inventory fields + metadata) and
+   History (the shared movement log). Keeps the map pin drawer light — the
+   rich data lives here, where inventory already is. */
+
+.vmid-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(28, 27, 58, 0.28);
+  opacity: 0; transition: opacity 220ms ease-out;
+}
+.vmid-backdrop.vmid-open { opacity: 1; }
+
+.vmid-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 1001;
+  width: min(440px, 92vw);
+  background: #FFFFFF;
+  border-left: 1px solid #ECEAE3;
+  box-shadow: -24px 0 60px -16px rgba(28, 27, 58, 0.32);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 240ms ease-out;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.vmid-panel.vmid-open { transform: translateX(0); }
+
+/* Header */
+.vmid-head { padding: 22px 24px 0; position: relative; flex-shrink: 0; }
+.vmid-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 30px; height: 30px; border: none; background: transparent;
+  font-size: 22px; line-height: 1; color: #8B8478; cursor: pointer; border-radius: 8px;
+}
+.vmid-close:hover { background: #F6F5F2; color: #1C1B3A; }
+.vmid-eyebrow {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin: 0 0 6px;
+}
+.vmid-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 24px; line-height: 1.15; font-weight: 400; margin: 0 40px 4px 0;
+  color: #1C1B3A;
+}
+.vmid-cat { font-size: 12.5px; color: #8B8478; margin: 0 0 16px; word-break: break-word; }
+.vmid-cat-sep { color: #AEB4C2; }
+
+/* Tabs */
+.vmid-tabs { display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid #ECEAE3; flex-shrink: 0; }
+.vmid-tab {
+  appearance: none; border: none; background: transparent; cursor: pointer;
+  padding: 10px 2px; margin-right: 18px; font-size: 13px; font-weight: 600;
+  color: #8B8478; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.vmid-tab:hover { color: #1C1B3A; }
+.vmid-tab-on { color: #C65A1A; border-bottom-color: #C65A1A; }
+
+/* Body */
+.vmid-body { flex: 1; overflow-y: auto; padding: 20px 24px 28px; }
+.vmid-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin: 0 0 8px;
+}
+
+/* Total onboard */
+.vmid-total { display: flex; align-items: baseline; gap: 8px; margin: 0 0 18px; }
+.vmid-total-n {
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 32px; color: #1C1B3A; line-height: 1;
+}
+.vmid-total-u { font-size: 13px; color: #8B8478; }
+
+/* Stock by location */
+.vmid-section { margin: 0 0 20px; }
+.vmid-stock-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 9px 0; border-bottom: 1px solid #F0F1F5;
+}
+.vmid-stock-row:last-child { border-bottom: none; }
+.vmid-stock-name { font-size: 13.5px; color: #1C1B3A; word-break: break-word; }
+.vmid-stock-qty { font-size: 13.5px; font-weight: 600; color: #1C1B3A; white-space: nowrap; }
+.vmid-empty { font-size: 13px; color: #AEB4C2; }
+
+/* Metadata grid */
+.vmid-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin: 0 0 20px; }
+.vmid-meta-full { grid-column: 1 / -1; }
+.vmid-meta-k {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin: 0 0 3px;
+}
+.vmid-meta-v { font-size: 13.5px; color: #1C1B3A; word-break: break-word; }
+.vmid-notes { font-size: 13.5px; color: #1C1B3A; white-space: pre-wrap; line-height: 1.5; }
+
+/* Footer meta */
+.vmid-foot {
+  display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px; padding-top: 14px;
+  border-top: 1px solid #F0F1F5; font-size: 11.5px; color: #AEB4C2;
+}
+
+/* Actions */
+.vmid-actions { display: flex; gap: 10px; margin: 22px 0 0; flex-wrap: wrap; }
+.vmid-btn {
+  appearance: none; cursor: pointer; font-size: 13px; font-weight: 600;
+  padding: 9px 16px; border-radius: 10px; font-family: inherit;
+}
+.vmid-btn-primary { background: #C65A1A; color: #fff; border: 1px solid #C65A1A; }
+.vmid-btn-primary:hover { background: #B14E16; border-color: #B14E16; }
+.vmid-btn-ghost { background: #fff; color: #1C1B3A; border: 1px solid #E8E6DF; }
+.vmid-btn-ghost:hover { background: #FAFAF8; }
+
+/* History timeline */
+.vmid-hist-empty { font-size: 13px; color: #AEB4C2; padding: 8px 0; }
+.vmid-ev { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0F1F5; }
+.vmid-ev:last-child { border-bottom: none; }
+.vmid-ev-dot {
+  width: 8px; height: 8px; border-radius: 999px; margin-top: 6px; flex-shrink: 0;
+  background: #AEB4C2;
+}
+.vmid-ev-dot.received, .vmid-ev-dot.created { background: #2E7D5B; }
+.vmid-ev-dot.transferred { background: #C65A1A; }
+.vmid-ev-dot.adjusted { background: #C89A2B; }
+.vmid-ev-body { flex: 1; min-width: 0; }
+.vmid-ev-sum { font-size: 13px; color: #1C1B3A; margin: 0 0 3px; word-break: break-word; }
+.vmid-ev-meta { font-size: 11px; color: #8B8478; }
+.vmid-ev-meta .vmid-ev-dot-sep { color: #D8D4CA; padding: 0 5px; }
+.vmid-ev-actor { color: #6B7280; font-weight: 600; }
+
+.vmid-loading { font-size: 13px; color: #AEB4C2; padding: 10px 0; }

@@ -5,12 +5,20 @@
 // and reads/writes the items placed there.
 import { supabase } from '../../../lib/supabaseClient';
 import { applyPlacement, setPinQty, pinQty, entryKey } from './stockMath';
+import { logReceived, logMoved, logCounted, logRemoved, logCreated } from './movementLog';
 
 const ITEM_COLS = 'id, name, unit, quantity, total_qty, location, sub_location, stock_locations';
+// Read what we need to mutate stock AND to write a readable movement-log line
+// (name + department ride along so the log entry is self-describing).
 const readItem = async (itemId) => {
-  const { data, error } = await supabase.from('inventory_items').select('stock_locations, total_qty, quantity').eq('id', itemId).single();
+  const { data, error } = await supabase.from('inventory_items').select('name, usage_department, stock_locations, total_qty, quantity').eq('id', itemId).single();
   if (error) return { error: error.message || 'Could not load the item.' };
-  return { stockLocations: data?.stock_locations || [], total: Number(data?.total_qty ?? data?.quantity) || 0 };
+  return {
+    name: data?.name || '',
+    department: data?.usage_department || null,
+    stockLocations: data?.stock_locations || [],
+    total: Number(data?.total_qty ?? data?.quantity) || 0,
+  };
 };
 const writeStock = (itemId, { stockLocations, totalQty }) =>
   supabase.from('inventory_items').update({ stock_locations: stockLocations, total_qty: totalQty, quantity: totalQty }).eq('id', itemId);
@@ -106,9 +114,23 @@ export async function itemStock(itemId) {
 export async function placeStock(itemId, { pin, addNew = 0, moves = [] }) {
   const r = await readItem(itemId);
   if (r.error) return { error: r.error };
+  // Resolve each source's label + available qty from the PRE-write stock so the
+  // log reads "…from Main Galley" and never overstates what actually moved.
+  const srcOf = (key) => {
+    if (key === '__unplaced__') return { label: 'Unplaced', avail: Infinity };
+    const e = (r.stockLocations || []).find((x) => entryKey(x) === key);
+    return { label: (e && (e.locationName || e.subLocation)) || 'Location', avail: e ? (Number(e.qty ?? e.quantity) || 0) : 0 };
+  };
   const next = applyPlacement({ stockLocations: r.stockLocations, total: r.total }, { pin, addNew, moves });
   const { error } = await writeStock(itemId, next);
   if (error) return { error: error.message || 'Could not place the stock.' };
+  const item = { id: itemId, name: r.name, usage_department: r.department };
+  logReceived(item, { qty: Number(addNew) || 0, pinName: pin.name, nodeId: pin.nodeId });
+  for (const m of moves) {
+    const src = srcOf(m.key);
+    const qty = Math.min(Math.max(0, Number(m.qty) || 0), src.avail);
+    logMoved(item, { qty, fromLabel: src.label, fromKey: m.key, pinName: pin.name, nodeId: pin.nodeId });
+  }
   return {};
 }
 
@@ -116,9 +138,12 @@ export async function placeStock(itemId, { pin, addNew = 0, moves = [] }) {
 export async function setPinCount(itemId, { pin, newQty }) {
   const r = await readItem(itemId);
   if (r.error) return { error: r.error };
+  const before = pinQty(r.stockLocations, pin.nodeId);
+  const to = Math.max(0, Number(newQty) || 0);
   const next = setPinQty({ stockLocations: r.stockLocations, total: r.total }, { pin, newQty });
   const { error } = await writeStock(itemId, next);
   if (error) return { error: error.message || 'Could not save the count.' };
+  logCounted({ id: itemId, name: r.name, usage_department: r.department }, { from: before, to, pinName: pin.name, nodeId: pin.nodeId });
   return {};
 }
 
@@ -127,11 +152,13 @@ export async function setPinCount(itemId, { pin, newQty }) {
 export async function clearItemNode(itemId, pin) {
   const r = await readItem(itemId);
   if (r.error) return { error: r.error };
+  const removedQty = pinQty(r.stockLocations, pin.nodeId);
   const kept = (r.stockLocations || []).filter((e) => entryKey(e) !== pin.nodeId);
   const { error } = await supabase.from('inventory_items')
     .update({ stock_locations: kept.map((e) => ({ ...e, quantity: Number(e.qty ?? e.quantity) || 0 })) })
     .eq('id', itemId);
   if (error) return { error: error.message || 'Could not remove the item.' };
+  logRemoved({ id: itemId, name: r.name, usage_department: r.department }, { qty: removedQty, pinName: pin.name, nodeId: pin.nodeId });
   return {};
 }
 
@@ -159,6 +186,7 @@ export async function createItemAtNode({ tenantId, userId, name, qty, unit, pin,
     .select(ITEM_COLS)
     .single();
   if (error) return { error: error.message || 'Could not create the item.' };
+  logCreated({ id: data.id, name: data.name }, { qty: quantity, pinName: pin.name, nodeId: pin.nodeId });
   return { item: data };
 }
 

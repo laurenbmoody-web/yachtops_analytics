@@ -9,13 +9,13 @@
 //   • −/+ recounts what's on the pin;
 //   • category (the item's inventory folder) rides along as subtext.
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { searchInventoryItems, searchInventoryLocations, locationLabel, categoryPath } from '../utils/inventory';
 import { sources as sourcesOf, pinQty } from '../utils/stockMath';
 import {
   resolvePinNode, itemsAtNode, itemStock, placeStock, setPinCount,
   clearItemNode, createItemAtNode,
 } from '../utils/placement';
+import ItemDrawer from './ItemDrawer';
 
 export default function PinItems({
   hotspot, canManage, tenantId, userId,
@@ -35,9 +35,9 @@ export default function PinItems({
   const [catResults, setCatResults] = useState([]);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
+  const [openItem, setOpenItem] = useState(null); // itemId shown in the quick-view drawer
   const debounce = useRef(null);
   const catDebounce = useRef(null);
-  const navigate = useNavigate();
 
   // The stock location's display name = the pin's full path, so pins in the
   // same room don't collide into identical "Main Galley" entries.
@@ -214,7 +214,7 @@ export default function PinItems({
               <React.Fragment key={r.id}>
                 <div className="vm-pinitem">
                   <span className="vm-pinitem-main">
-                    <button className="vm-pinitem-name" onClick={() => navigate(`/inventory/item/${r.id}`)} title="View in inventory">{r.name}</button>
+                    <button className="vm-pinitem-name" onClick={() => setOpenItem(r.id)} title="Quick view">{r.name}</button>
                     {leaf ? (
                       <span className="vm-pinitem-cat">
                         {head && <span className="vm-pinitem-cat-head">{head} › </span>}
@@ -305,6 +305,10 @@ export default function PinItems({
       )}
 
       {error && <p className="vm-payload-error">{error}</p>}
+
+      {openItem && (
+        <ItemDrawer itemId={openItem} onClose={() => { setOpenItem(null); load(nodeId); }} />
+      )}
     </div>
   );
 }
