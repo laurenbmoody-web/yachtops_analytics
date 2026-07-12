@@ -18,7 +18,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, ClipboardList, Search, X, ChevronRight, MapPin,
-  SlidersHorizontal, ChevronDown, ArrowUpDown, Check,
+  SlidersHorizontal, ChevronDown, ArrowUpDown, Check, Zap,
 } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -918,7 +918,7 @@ const Marketplace = () => {
                           {shopLead != null && <span className="term"><b>≈{shopLead}d</b> lead time</span>}
                           {shopCutoff && <span className="term">order by <b>{shopCutoff}</b></span>}
                           {shopMin != null && <span className="term"><b>{money(shopMin, shopMinCur)}</b> min</span>}
-                          {shopExpress && <span className="term rush">⚡ Rush available</span>}
+                          {shopExpress && <span className="term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
                           {shopCerts.map(c => <span className="cert" key={c}>{c}</span>)}
                         </div>
                       )}
