@@ -22,8 +22,11 @@
   height: calc(100vh - 64px);
   width: min(424px, 100vw);
   background: #FFFFFF;
-  border-left: 1px solid #EDEBE5;
-  box-shadow: -16px 0 48px -24px rgba(28, 27, 58, 0.22);
+  border-left: 1px solid #EAE8E1;
+  /* Tight, near-horizontal shadow: enough to lift the panel off the page but
+     with almost no upward bleed, so it doesn't look like it tucks under the
+     nav. The border-left carries most of the edge definition. */
+  box-shadow: -7px 0 20px -16px rgba(28, 27, 58, 0.16);
   z-index: var(--z-dropdown, 1000);
   display: flex;
   flex-direction: column;
@@ -38,26 +41,19 @@
   .ad-overlay, .ad-panel { animation: none; }
 }
 
-/* Header */
-.ad-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 21px 22px 17px;
-}
-.ad-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 24px; line-height: 1; color: #1C1B3A; letter-spacing: -0.01em; }
+/* Top bar — no title (the panel is more than an inbox); the tabs sit at the
+   top with the close button trailing on the same row. */
+.ad-tabs { display: flex; align-items: flex-end; gap: 22px; padding: 18px 16px 0 22px; border-bottom: 1px solid #EFEDE7; }
+.ad-tabgroup { display: flex; gap: 22px; flex: 1; }
 .ad-x {
-  color: #B0ABA0; background: none; border: 0; padding: 5px; margin: -5px -3px -5px 0;
-  cursor: pointer; display: inline-flex; border-radius: 8px; transition: color 0.14s ease, background 0.14s ease;
+  align-self: center; margin-bottom: 7px;
+  color: #B0ABA0; background: none; border: 0; padding: 5px; cursor: pointer;
+  display: inline-flex; border-radius: 8px; transition: color 0.14s ease, background 0.14s ease;
 }
 .ad-x:hover { color: #1C1B3A; background: #F5F3EE; }
-
-/* Tabs — quiet left-aligned underline set (no fills, no icons) */
-.ad-tabs { display: flex; gap: 22px; padding: 0 22px; border-bottom: 1px solid #EFEDE7; }
 .ad-tab {
   display: inline-flex; align-items: center; gap: 7px;
-  padding: 9px 1px 12px; margin-bottom: -1px;
+  padding: 0 1px 12px; margin-bottom: -1px;
   border: 0; border-bottom: 2px solid transparent; background: none;
   font: inherit; font-size: 13px; font-weight: 500; color: #918B7F; cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease;
