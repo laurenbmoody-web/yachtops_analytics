@@ -13,7 +13,7 @@ import { getCurrentUser, clearCurrentUser, hasCommandAccess, loadUsers } from '.
 import { getInitials } from '../../utils/profileHelpers';
 import { canAccessGuestManagement } from '../../pages/guest-management-dashboard/utils/guestPermissions';
 import { canAccessTrips } from '../../pages/trips-management-dashboard/utils/tripPermissions';
-import NotificationsDrawer from './NotificationsDrawer';
+import AlertsDrawer from './AlertsDrawer';
 import SettingsModal from './SettingsModal';
 import { getUnreadCount, checkDueAndOverdueJobs } from '../../pages/team-jobs-management/utils/notifications';
 import { fetchDbUnreadCount } from '../../lib/dbNotifications';
@@ -120,8 +120,8 @@ const Header = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [alertsTab, setAlertsTab] = useState('notifications');
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   // Live count of pending review_items routed to the current user via
@@ -134,7 +134,6 @@ const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const menuRef = useRef(null);
-  const alertRef = useRef(null);
   const settingsRef = useRef(null);
   const searchRef = useRef(null);
   const searchTimeout = useRef(null);
@@ -282,7 +281,7 @@ const Header = () => {
     refresh();
     const id = setInterval(refresh, 30_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [authUser, notificationsOpen]);
+  }, [authUser, alertsOpen]);
 
   // Realtime: new notification rows for this user should bump the
   // badge immediately, not on the next 30s poll tick. INSERT fires the
@@ -310,9 +309,6 @@ const Header = () => {
     const handleClickOutside = (event) => {
       if (menuRef?.current && !menuRef?.current?.contains(event?.target)) {
         setUserMenuOpen(false);
-      }
-      if (alertRef?.current && !alertRef?.current?.contains(event?.target)) {
-        setAlertsOpen(false);
       }
       if (settingsRef?.current && !settingsRef?.current?.contains(event?.target)) {
         setSettingsMenuOpen(false);
@@ -677,59 +673,27 @@ const Header = () => {
         </div>
         {/* RIGHT ZONE: Icons + User */}
         <div className="flex items-center gap-3 flex-shrink-0">
-          {/* Alerts — consolidated Activity feed + Reviews inbox + Notifications.
-              Single Bell icon; badge sums the pending Reviews + Notifications
-              counts. Opening the dropdown routes to each surface. */}
-          <div className="relative" ref={alertRef}>
-            {(() => {
-              const alertCount = inboxCount + unreadCount;
-              return (
-                <button
-                  onClick={() => setAlertsOpen(!alertsOpen)}
-                  className="relative p-2 hover:bg-muted rounded-lg transition-smooth"
-                  title="Alerts"
-                  aria-label={alertCount > 0 ? `Alerts — ${alertCount} pending` : 'Alerts'}
-                >
-                  <Icon name="Bell" size={20} color="var(--color-foreground)" />
-                  {alertCount > 0 && (
-                    <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] text-white text-xs font-semibold rounded-full flex items-center justify-center px-1" style={{ background: '#C65A1A' }}>
-                      {alertCount > 99 ? '99+' : alertCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })()}
-
-            {alertsOpen && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                width: 260, background: '#FFFFFF', border: '1px solid #ECEAE3',
-                borderRadius: 14, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)',
-                zIndex: 50, overflow: 'hidden', pointerEvents: 'auto',
-              }}>
-                <AvatarMenuSectionLabel label="Alerts" />
-                <HeaderMenuItem
-                  icon="Activity"
-                  label="Activity Feed"
-                  active={location?.pathname === '/activity'}
-                  onClick={() => { setAlertsOpen(false); navigate('/activity'); }}
-                />
-                <HeaderMenuItem
-                  icon="Inbox"
-                  label="Reviews"
-                  count={inboxCount}
-                  active={location?.pathname === '/reviews'}
-                  onClick={() => { setAlertsOpen(false); navigate('/reviews'); }}
-                />
-                <HeaderMenuItem
-                  icon="Bell"
-                  label="Notifications"
-                  count={unreadCount}
-                  onClick={() => { setAlertsOpen(false); setNotificationsOpen(true); }}
-                />
-              </div>
-            )}
-          </div>
+          {/* Alerts — a single Bell icon opening the unified Inbox drawer
+              (Notifications · Reviews · Activity). The badge sums the pending
+              Reviews + Notification counts. */}
+          {(() => {
+            const alertCount = inboxCount + unreadCount;
+            return (
+              <button
+                onClick={() => { setAlertsTab('notifications'); setAlertsOpen(true); }}
+                className="relative p-2 hover:bg-muted rounded-lg transition-smooth"
+                title="Inbox — notifications, reviews & activity"
+                aria-label={alertCount > 0 ? `Inbox — ${alertCount} pending` : 'Inbox'}
+              >
+                <Icon name="Bell" size={20} color="var(--color-foreground)" />
+                {alertCount > 0 && (
+                  <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] text-white text-xs font-semibold rounded-full flex items-center justify-center px-1" style={{ background: '#C65A1A' }}>
+                    {alertCount > 99 ? '99+' : alertCount}
+                  </span>
+                )}
+              </button>
+            );
+          })()}
 
           {basketUnits > 0 && (
             <button
@@ -935,10 +899,13 @@ const Header = () => {
       </header>
       {/* Spacer — pushes page content below the fixed header (h-16 = 64px) */}
       <div className="h-16" aria-hidden="true" />
-      {/* Notifications Drawer */}
-      <NotificationsDrawer 
-        isOpen={notificationsOpen} 
-        onClose={() => setNotificationsOpen(false)} 
+      {/* Unified Inbox drawer — Notifications · Reviews · Activity */}
+      <AlertsDrawer
+        isOpen={alertsOpen}
+        onClose={() => setAlertsOpen(false)}
+        initialTab={alertsTab}
+        reviewsCount={inboxCount}
+        notificationsCount={unreadCount}
       />
       {/* Accept Admin Banner */}
       <AcceptAdminBanner 
