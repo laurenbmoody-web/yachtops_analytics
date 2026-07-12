@@ -21,7 +21,7 @@ export async function searchInventoryItems(tenantId, query) {
   if (!q) return { items: [] };
   const { data, error } = await supabase
     .from('inventory_items')
-    .select('id, name, quantity, unit, location, sub_location')
+    .select('id, name, quantity, unit, location, sub_location, default_location_id')
     .eq('tenant_id', tenantId)
     .ilike('name', `%${q}%`)
     .limit(8);
