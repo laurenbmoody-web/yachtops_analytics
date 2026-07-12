@@ -48,7 +48,7 @@ const formatTimestamp = (timestamp) => {
 
 const EmptyState = ({ icon, label }) => (
   <div className="ad-empty">
-    <Icon name={icon} size={38} color="#CFCABF" />
+    <span className="ad-empty-ic"><Icon name={icon} size={20} color="#B7B1A5" /></span>
     <p>{label}</p>
   </div>
 );
@@ -139,14 +139,14 @@ const NotificationsTab = ({ userId, onNavigate }) => {
   return (
     <>
       <div className="ad-toolbar">
-        <div className="ad-chips">
+        <div className="ad-seg">
           {['unread', 'all'].map(f => (
             <button
               key={f}
-              className={`ad-chip${filter === f ? ' is-active' : ''}`}
+              className={`ad-seg-btn${filter === f ? ' is-active' : ''}`}
               onClick={() => setFilter(f)}
             >
-              {f}
+              {f === 'unread' ? 'Unread' : 'All'}
             </button>
           ))}
         </div>
@@ -173,15 +173,15 @@ const NotificationsTab = ({ userId, onNavigate }) => {
                 onClick={() => handleClick(n)}
               >
                 <span className="ad-ico">
-                  <Icon name={getNotificationIcon(n?.type)} size={17} color={getNotificationColor(n?.severity)} />
+                  <Icon name={getNotificationIcon(n?.type)} size={16} color={getNotificationColor(n?.severity)} />
                 </span>
                 <span className="ad-main">
                   <span className="ad-row-top">
                     <span className="ad-row-title">{n?.title}</span>
-                    {!n?.isRead && <span className="ad-dot" />}
+                    {!n?.isRead ? <span className="ad-udot" /> : <span className="ad-time">{formatTimestamp(n?.createdAt)}</span>}
                   </span>
                   {n?.message && <span className="ad-msg">{n.message}</span>}
-                  <span className="ad-meta">{formatTimestamp(n?.createdAt)}</span>
+                  {!n?.isRead && <span className="ad-meta">{formatTimestamp(n?.createdAt)}</span>}
                 </span>
               </button>
             ))
@@ -235,7 +235,10 @@ const ReviewsTab = ({ onNavigate }) => {
           )}
       </div>
       <div className="ad-foot">
-        <button className="ad-btn ad-btn-primary" onClick={() => onNavigate('/reviews')}>Open Reviews</button>
+        <button className="ad-foot-link" onClick={() => onNavigate('/reviews')}>
+          <span>Open Reviews</span>
+          <Icon name="ChevronRight" size={16} />
+        </button>
       </div>
     </>
   );
@@ -290,7 +293,7 @@ const ActivityTab = ({ onNavigate }) => {
                   <Icon name={getActionIcon(a?.action)} size={16} color="#8B8478" />
                 </span>
                 <span className="ad-main">
-                  <span className="ad-row-title" style={{ fontWeight: 500 }}>{a?.summary}</span>
+                  <span className="ad-row-title">{a?.summary}</span>
                   <span className="ad-meta">
                     <span className="ad-cap">{a?.module}</span>
                     <span className="ad-sep">·</span>
@@ -304,7 +307,10 @@ const ActivityTab = ({ onNavigate }) => {
           )}
       </div>
       <div className="ad-foot">
-        <button className="ad-btn ad-btn-ghost" onClick={() => onNavigate('/activity')}>View all activity</button>
+        <button className="ad-foot-link" onClick={() => onNavigate('/activity')}>
+          <span>View all activity</span>
+          <Icon name="ChevronRight" size={16} />
+        </button>
       </div>
     </>
   );
@@ -335,12 +341,9 @@ const AlertsDrawer = ({ isOpen, onClose, initialTab = 'notifications', reviewsCo
       <div className="ad-overlay" onClick={onClose} />
       <aside className="ad-panel" role="dialog" aria-label="Inbox">
         <div className="ad-head">
-          <div>
-            <div className="ad-eyebrow">Alerts</div>
-            <h2 className="ad-title">Inbox</h2>
-          </div>
+          <h2 className="ad-title">Inbox</h2>
           <button className="ad-x" onClick={onClose} aria-label="Close">
-            <Icon name="X" size={20} />
+            <Icon name="X" size={19} />
           </button>
         </div>
 
@@ -354,7 +357,6 @@ const AlertsDrawer = ({ isOpen, onClose, initialTab = 'notifications', reviewsCo
                 className={`ad-tab${active ? ' is-active' : ''}`}
                 onClick={() => setActiveTab(t.key)}
               >
-                <Icon name={t.icon} size={14} color={active ? '#fff' : '#8B8478'} />
                 <span>{t.label}</span>
                 {count > 0 && <span className="ad-tab-count">{count > 99 ? '99+' : count}</span>}
               </button>
