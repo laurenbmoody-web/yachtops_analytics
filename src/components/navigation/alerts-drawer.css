@@ -23,16 +23,21 @@
   width: min(424px, 100vw);
   background: #FFFFFF;
   border-left: 1px solid #EAE8E1;
-  /* Tight, near-horizontal shadow: enough to lift the panel off the page but
-     with almost no upward bleed, so it doesn't look like it tucks under the
-     nav. The border-left carries most of the edge definition. */
-  box-shadow: -7px 0 20px -16px rgba(28, 27, 58, 0.16);
   z-index: var(--z-dropdown, 1000);
   display: flex;
   flex-direction: column;
   font-family: 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
   animation: ad-slide 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Edge lift as a left-only gradient rather than a box-shadow, so it hugs the
+   panel's left edge and casts nothing upward at the nav junction. */
+.ad-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: -20px; width: 20px;
+  background: linear-gradient(to right, rgba(28, 27, 58, 0), rgba(28, 27, 58, 0.06));
+  pointer-events: none;
 }
 
 @keyframes ad-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -52,17 +57,18 @@
 }
 .ad-x:hover { color: #1C1B3A; background: #F5F3EE; }
 .ad-tab {
-  display: inline-flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center; gap: 6px;
   padding: 0 1px 12px; margin-bottom: -1px;
   border: 0; border-bottom: 2px solid transparent; background: none;
-  font: inherit; font-size: 13px; font-weight: 500; color: #918B7F; cursor: pointer;
+  font-family: 'Outfit', system-ui, sans-serif; font-size: 11.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.085em; color: #948E82; cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 .ad-tab:hover { color: #1C1B3A; }
-.ad-tab.is-active { color: #1C1B3A; font-weight: 600; border-bottom-color: #C65A1A; }
+.ad-tab.is-active { color: #1C1B3A; font-weight: 700; border-bottom-color: #C65A1A; }
 .ad-tab-count {
-  min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums;
   display: inline-flex; align-items: center; justify-content: center;
   background: #F4EFE9; color: #B4602B;
 }
