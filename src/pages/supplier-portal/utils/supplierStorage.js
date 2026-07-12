@@ -49,7 +49,7 @@ export const updateSupplierStorefront = async (f) => {
 export const fetchMyCertifications = async () => {
   const { data, error } = await supabase.rpc('get_my_certifications');
   if (error) throw error;
-  return (data ?? []).map(c => ({ id: c.id, name: c.name, docUrl: c.doc_url || '', verified: !!c.verified }));
+  return (data ?? []).map(c => ({ id: c.id, name: c.name, docUrl: c.doc_url || '', verified: !!c.verified, expiryDate: c.expiry_date || null, status: c.status || 'pending' }));
 };
 
 // Replace the caller's certification set. certs: [{ name, docUrl }].
