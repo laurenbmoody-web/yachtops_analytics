@@ -163,32 +163,52 @@ export default function PinItems({
 
   const startCreateFromQuery = () => { setNewName(query.trim()); setNewQty(''); setMode('create'); setResults([]); };
 
-  // The receive-new + move-in panel. Rendered inline under a row (from its ▾)
-  // or below the list (from the add-item search).
+  // Set how many to move from a source, clamped to what's actually there.
+  const setMove = (key, val, max) => {
+    const n = Math.max(0, Math.min(Number(val) || 0, max));
+    setTransfer((t) => ({ ...t, moves: { ...t.moves, [key]: n === 0 ? '' : String(n) } }));
+  };
+  const bumpMove = (key, delta, max) => setMove(key, (Number(transfer.moves[key]) || 0) + delta, max);
+
+  // The move-in panel. From an existing row's ▾ it's ONLY "move in from other
+  // locations" (the row's own − / + handles receiving here). From the add-item
+  // search it also offers "New stock arriving here" for a first placement.
+  const forRow = !!transfer?.forRow;
   const panel = transfer && (
     <div className="vm-transfer">
-      {!transfer.forRow && <p className="vm-transfer-head"><strong>{transfer.item.name}</strong> · {transfer.total} onboard</p>}
-      <label className="vm-transfer-new">
-        <span>New stock arriving here</span>
-        <input className="vm-check-input vm-transfer-qty" type="number" min="0"
-          value={transfer.addNew} onChange={(e) => setTransfer((t) => ({ ...t, addNew: e.target.value }))} autoFocus />
-      </label>
-      {transfer.sources.length > 0 && (
+      {!forRow && <p className="vm-transfer-head"><strong>{transfer.item.name}</strong> · {transfer.total} onboard</p>}
+      {!forRow && (
+        <label className="vm-transfer-new">
+          <span>New stock arriving here</span>
+          <input className="vm-check-input vm-transfer-qty" type="number" min="0"
+            value={transfer.addNew} onChange={(e) => setTransfer((t) => ({ ...t, addNew: e.target.value }))} autoFocus />
+        </label>
+      )}
+      {transfer.sources.length > 0 ? (
         <>
-          <p className="vm-transfer-sub">Or move some in from where it is now:</p>
-          {transfer.sources.map((s) => (
-            <div key={s.key} className="vm-transfer-src">
-              <span className="vm-transfer-src-name" title={s.label}>{s.label}</span>
-              <span className="vm-transfer-src-have">{s.qty}</span>
-              <input className="vm-check-input vm-transfer-qty" type="number" min="0" max={s.qty}
-                value={transfer.moves[s.key] || ''} onChange={(e) => setTransfer((t) => ({ ...t, moves: { ...t.moves, [s.key]: e.target.value } }))} />
-            </div>
-          ))}
+          <p className="vm-transfer-sub">{forRow ? 'Move some in from where else it’s stored:' : 'Or move some in from where it is now:'}</p>
+          {transfer.sources.map((s) => {
+            const n = Number(transfer.moves[s.key]) || 0;
+            return (
+              <div key={s.key} className="vm-transfer-src">
+                <span className="vm-transfer-src-name" title={s.label}>{s.label}</span>
+                <span className="vm-transfer-src-have">of {s.qty}</span>
+                <span className="vm-move-step">
+                  <button type="button" className="vm-move-btn" onClick={() => bumpMove(s.key, -1, s.qty)} disabled={n <= 0} aria-label={`Move one fewer from ${s.label}`}>–</button>
+                  <input className="vm-move-input" type="number" min="0" max={s.qty}
+                    value={transfer.moves[s.key] || ''} onChange={(e) => setMove(s.key, e.target.value, s.qty)} />
+                  <button type="button" className="vm-move-btn" onClick={() => bumpMove(s.key, 1, s.qty)} disabled={n >= s.qty} aria-label={`Move one more from ${s.label}`}>+</button>
+                </span>
+              </div>
+            );
+          })}
         </>
+      ) : (
+        forRow && <p className="vm-transfer-sub">Not stored anywhere else — use – / + above to change the count here.</p>
       )}
       <p className="vm-transfer-total">This pin will hold: <strong>{willHold}</strong></p>
       <div className="vm-transfer-actions">
-        <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || willHold <= (transfer.existing || 0)}>{busy === 'transfer' ? 'Saving…' : 'Place'}</button>
+        <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || willHold <= (transfer.existing || 0)}>{busy === 'transfer' ? 'Saving…' : (forRow ? 'Move here' : 'Place')}</button>
         <button className="vm-btn-ghost" onClick={() => setTransfer(null)}>Cancel</button>
       </div>
     </div>
@@ -253,7 +273,9 @@ export default function PinItems({
       {canManage && mode === 'add' && (
         <div className="vm-cupboard-picker">
           <input className="vm-check-input" placeholder="Search inventory — “champagne”…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
-          {results.map((r) => {
+          {/* Items already on this pin aren't offered again — adjust them with
+              their own − / + instead of adding a duplicate line. */}
+          {results.filter((r) => !(rows || []).some((row) => row.id === r.id)).map((r) => {
             const cat = categoryPath(r);
             return (
               <button key={r.id} className="vm-cupboard-result" onClick={() => openTransfer(r)}>
