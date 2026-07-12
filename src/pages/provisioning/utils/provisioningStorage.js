@@ -3098,6 +3098,15 @@ export const fetchSupplierProfileById = async (supplierProfileId) => {
   return data;
 };
 
+// Which of a supplier's certifications Cargo has verified — buyers render the
+// Verified tick on these. Returns a Set of names (empty on any error).
+export const fetchSupplierVerifiedCerts = async (supplierProfileId) => {
+  if (!supplierProfileId) return new Set();
+  const { data, error } = await supabase.rpc('get_supplier_verified_certs', { p_supplier_id: supplierProfileId });
+  if (error) return new Set();
+  return new Set(Array.isArray(data) ? data : []);
+};
+
 // Sprint 9c.2 Commit 2 follow-up — list every supplier_order tied to a
 // given supplier_profile_id. RLS scopes this to the caller's tenant
 // automatically (the supplier_orders policy chain runs through

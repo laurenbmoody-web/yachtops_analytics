@@ -149,9 +149,12 @@
 .sd-term b { color: var(--fg); font-weight: 700; }
 .sd-term.rush { background: #FBEFE9; border-color: transparent; color: #C65A1A; font-weight: 600; }
 .sd-cert {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
   font-size: 9.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--sd-muted);
   border: 1px solid var(--sd-border); border-radius: 999px; padding: 4px 10px;
 }
+.sd-cert svg { flex-shrink: 0; }
+.sd-cert.verified { color: #1D9E75; border-color: rgba(29,158,117,0.4); }
 
 /* ─── Card system (3D bottom edge) ───────────────────────────
    Canonical card shape: 1px navy-tinted top/side border, 5px

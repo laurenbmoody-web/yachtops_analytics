@@ -44,6 +44,7 @@ import { supplierReaches } from './geo';
 import {
   fetchProvisioningLists,
   createProvisioningList,
+  fetchSupplierVerifiedCerts,
 } from '../provisioning/utils/provisioningStorage';
 import './marketplace.css';
 import '../../styles/editorial.css'; // shared meta strip + greeting — one source of truth
@@ -372,6 +373,15 @@ const Marketplace = () => {
   const [directorySuppliers, setDirectorySuppliers] = useState([]);
   const [provCat, setProvCat] = useState('All');
   const [provSort, setProvSort] = useState('name');
+  const [shopVerifiedCerts, setShopVerifiedCerts] = useState(() => new Set()); // verified cert names for the entered shop
+
+  // Load which of the entered shop's certifications Cargo has verified (for the tick).
+  useEffect(() => {
+    if (!enteredId) { setShopVerifiedCerts(new Set()); return; }
+    let live = true;
+    fetchSupplierVerifiedCerts(enteredId).then(s => { if (live) setShopVerifiedCerts(s); });
+    return () => { live = false; };
+  }, [enteredId]);
 
   const { basket, setBasket } = useBasket(); // app-wide [{ product, qty }], persisted
   const [counterOpen, setCounterOpen] = useState(false);
@@ -845,18 +855,22 @@ const Marketplace = () => {
                                 </div>
                               </div>
                             </div>
-                            <div className="mp-sf-div" />
-                            <div className="mp-sf-contact">
-                              <span className="mp-sf-av">{initialsOf(focused.contact_name)}</span>
-                              <span className="mp-sf-who">
-                                <span className="n">{focused.contact_name || 'Orders desk'}</span>
-                                <span className="r">{focused.contact_role || 'Contact'}</span>
-                              </span>
-                              <span className="mp-sf-lines">
-                                {focused.contact_phone && <span>{focused.contact_phone}</span>}
-                                {focused.contact_email && <span>{focused.contact_email}</span>}
-                              </span>
-                            </div>
+                            {(focused.contact_name || focused.contact_phone || focused.contact_email) && (
+                              <>
+                                <div className="mp-sf-div" />
+                                <div className="mp-sf-contact">
+                                  <span className="mp-sf-av">{initialsOf(focused.contact_name)}</span>
+                                  <span className="mp-sf-who">
+                                    <span className="n">{focused.contact_name || 'Orders desk'}</span>
+                                    <span className="r">{focused.contact_role || 'Contact'}</span>
+                                  </span>
+                                  <span className="mp-sf-lines">
+                                    {focused.contact_phone && <span>{focused.contact_phone}</span>}
+                                    {focused.contact_email && <span>{focused.contact_email}</span>}
+                                  </span>
+                                </div>
+                              </>
+                            )}
                           </div>
                           <div className="mp-face mp-back mp-sfback">
                             {fmem && fmem.orders > 0 ? (
@@ -938,7 +952,11 @@ const Marketplace = () => {
                           {shopCutoff && <span className="term">order by <b>{shopCutoff}</b> {shopCutoffStrict ? '(firm)' : '(flexible)'}</span>}
                           {shopMin != null && <span className="term"><b>{money(shopMin, shopMinCur)}</b> min</span>}
                           {shopExpress && <span className="term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
-                          {shopCerts.map(c => <span className="cert" key={c}>{c}</span>)}
+                          {shopCerts.map(c => (
+                            <span className={`cert${shopVerifiedCerts.has(c) ? ' verified' : ''}`} key={c}>
+                              {c}{shopVerifiedCerts.has(c) && <Check size={11} strokeWidth={3} />}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>
