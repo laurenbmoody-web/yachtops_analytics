@@ -1,0 +1,135 @@
+/* AlertsDrawer — the unified Inbox panel (Notifications · Reviews · Activity),
+   rebuilt in the Cargo editorial language: navy ink, terracotta accent, DM Serif
+   heading, tracked-caps labels, hairline-separated rows (no boxed cards) and a
+   soft-shadowed white panel. Scoped under .ad because the panel is portaled
+   over the app ground. Light surface by design, matching the avatar menu and
+   the editorial modals (StatusChangeModal, breach-notes). */
+
+.ad-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 27, 58, 0.28);
+  z-index: var(--z-dropdown, 1000);
+  animation: ad-fade 0.16s ease;
+}
+
+.ad-panel {
+  position: fixed;
+  top: 64px;
+  right: 0;
+  height: calc(100vh - 64px);
+  width: min(430px, 100vw);
+  background: #FFFFFF;
+  border-left: 1px solid #ECEAE3;
+  box-shadow: -24px 0 60px -20px rgba(28, 27, 58, 0.32);
+  z-index: var(--z-dropdown, 1000);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+  animation: ad-slide 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ad-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ad-slide { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Header */
+.ad-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px 15px;
+  border-bottom: 1px solid #ECEAE3;
+}
+.ad-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #8B8478; }
+.ad-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 25px; line-height: 1.05; color: #1C1B3A; margin-top: 5px; }
+.ad-x { color: #AEB4C2; background: none; border: 0; padding: 2px; cursor: pointer; display: inline-flex; margin-top: 2px; }
+.ad-x:hover { color: #1C1B3A; }
+
+/* Tabs — editorial pill set */
+.ad-tabs { display: flex; gap: 7px; padding: 14px 22px; border-bottom: 1px solid #F0F1F5; }
+.ad-tab {
+  flex: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 6px; border-radius: 999px; border: 1px solid #ECEAE3;
+  font: inherit; font-size: 12px; font-weight: 600; color: #6B7280; background: #fff;
+  cursor: pointer; transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.ad-tab:hover { color: #1C1B3A; border-color: #CBD5E1; }
+.ad-tab.is-active { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.ad-tab-count {
+  min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+  background: #FBEFE9; color: #C65A1A;
+}
+.ad-tab.is-active .ad-tab-count { background: rgba(255, 255, 255, 0.24); color: #fff; }
+
+/* Toolbar (Notifications: unread/all filter + actions) */
+.ad-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 11px 22px; border-bottom: 1px solid #F0F1F5;
+}
+.ad-chips { display: flex; gap: 6px; }
+.ad-chip {
+  padding: 5px 13px; border-radius: 999px; border: 1px solid #ECEAE3;
+  font: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280; background: #fff;
+  cursor: pointer; text-transform: capitalize; transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.ad-chip:hover { color: #1C1B3A; border-color: #CBD5E1; }
+.ad-chip.is-active { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.ad-actions { display: flex; gap: 2px; }
+.ad-iconbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px; border: 0; background: none;
+  color: #8B8478; cursor: pointer; transition: color 0.12s ease, background 0.12s ease;
+}
+.ad-iconbtn:hover:not(:disabled) { color: #1C1B3A; background: #F6F5F2; }
+.ad-iconbtn:disabled { opacity: 0.4; cursor: default; }
+
+/* Scroll area + rows */
+.ad-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+.ad-row {
+  display: flex; gap: 12px; width: 100%; text-align: left;
+  padding: 14px 22px; border: 0; border-bottom: 1px solid #F0F1F5; background: none;
+  cursor: pointer; font: inherit; transition: background 0.12s ease;
+}
+.ad-row:last-child { border-bottom: 0; }
+.ad-row:hover { background: #FAFAF8; }
+.ad-row.is-unread { background: #FDF6F1; }
+.ad-row.is-unread:hover { background: #FBEFE9; }
+
+.ad-ico {
+  flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px;
+  background: #F6F5F2; display: inline-flex; align-items: center; justify-content: center;
+}
+.ad-main { flex: 1; min-width: 0; }
+.ad-row-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.ad-row-title { font-size: 13.5px; font-weight: 600; color: #1C1B3A; line-height: 1.35; }
+.ad-time { flex: 0 0 auto; font-size: 11px; color: #AEB4C2; white-space: nowrap; margin-top: 1px; }
+.ad-msg {
+  font-size: 12.5px; color: #6B7280; margin-top: 3px; line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ad-sub { font-size: 12.5px; color: #6B7280; margin-top: 2px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; font-size: 11px; color: #8B8478; }
+.ad-meta svg { flex: 0 0 auto; }
+.ad-sep { color: #D6D3CA; }
+.ad-cap { text-transform: capitalize; }
+.ad-dot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 999px; background: #C65A1A; margin-top: 5px; }
+
+/* Empty state */
+.ad-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px 24px; gap: 12px; }
+.ad-empty p { font-size: 13px; color: #8B8478; }
+.ad-loading { display: flex; align-items: center; justify-content: center; height: 100%; }
+
+/* Footer */
+.ad-foot { padding: 13px 22px; border-top: 1px solid #ECEAE3; background: #FCFDFE; }
+.ad-btn {
+  display: block; width: 100%; text-align: center; font: inherit; font-size: 13px; font-weight: 600;
+  border-radius: 10px; padding: 10px 16px; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.ad-btn-primary { background: #C65A1A; border: 1px solid #C65A1A; color: #fff; }
+.ad-btn-primary:hover { background: #B14E16; border-color: #B14E16; }
+.ad-btn-ghost { background: #fff; border: 1px solid #ECEAE3; color: #1C1B3A; }
+.ad-btn-ghost:hover { background: #F6F5F2; border-color: #CBD5E1; }

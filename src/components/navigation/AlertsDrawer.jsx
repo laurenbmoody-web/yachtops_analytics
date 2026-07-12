@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import Icon from '../AppIcon';
-import Button from '../ui/Button';
 import LogoSpinner from '../LogoSpinner';
 import {
   getUserNotifications,
@@ -24,12 +23,14 @@ import { getCurrentUser } from '../../utils/authStorage';
 import { useReviewItems } from '../../pages/reviews/useReviewItems';
 import { fmtDateRange } from '../../pages/reviews/reviewFormat';
 import { useAuth } from '../../contexts/AuthContext';
+import './alerts-drawer.css';
 
 // AlertsDrawer — a single slide-out panel that unifies the three feeds that
 // used to live behind separate nav icons: Notifications, Reviews (the approvals
 // inbox), and the Activity feed. Tabs switch between them; each tab links out
-// to its full page for the deeper workflow. Replaces NotificationsDrawer and
-// the old Activity / Reviews nav buttons.
+// to its full page for the deeper workflow. Built in the Cargo editorial
+// language (see alerts-drawer.css). Replaces NotificationsDrawer and the old
+// Activity / Reviews nav buttons.
 
 const TABS = [
   { key: 'notifications', label: 'Notifications', icon: 'Bell' },
@@ -44,6 +45,17 @@ const formatTimestamp = (timestamp) => {
     return 'Recently';
   }
 };
+
+const EmptyState = ({ icon, label }) => (
+  <div className="ad-empty">
+    <Icon name={icon} size={38} color="#CFCABF" />
+    <p>{label}</p>
+  </div>
+);
+
+const Loading = () => (
+  <div className="ad-loading"><LogoSpinner size={28} /></div>
+);
 
 // ── Notifications tab ──────────────────────────────────────────────────────
 const getNotificationIcon = (type) => {
@@ -73,10 +85,10 @@ const getNotificationIcon = (type) => {
 
 const getNotificationColor = (severity) => {
   switch (severity) {
-    case SEVERITY?.URGENT: return 'var(--color-error)';
-    case SEVERITY?.WARN: return 'var(--color-warning)';
+    case SEVERITY?.URGENT: return '#C9544B';
+    case SEVERITY?.WARN: return '#C68A1A';
     case SEVERITY?.INFO:
-    default: return 'var(--color-primary)';
+    default: return '#C65A1A';
   }
 };
 
@@ -125,71 +137,57 @@ const NotificationsTab = ({ userId, onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border">
-        <div className="flex items-center gap-1.5">
+    <>
+      <div className="ad-toolbar">
+        <div className="ad-chips">
           {['unread', 'all'].map(f => (
             <button
               key={f}
+              className={`ad-chip${filter === f ? ' is-active' : ''}`}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1 rounded-full text-xs font-medium capitalize transition-smooth ${
-                filter === f ? 'text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-              style={filter === f ? { background: '#C65A1A' } : undefined}
             >
               {f}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={handleMarkAllRead} disabled={notifications.length === 0}>
-            <Icon name="CheckCheck" size={15} />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleClearRead} disabled={notifications.length === 0}>
-            <Icon name="Trash2" size={15} />
-          </Button>
+        <div className="ad-actions">
+          <button className="ad-iconbtn" title="Mark all read" onClick={handleMarkAllRead} disabled={notifications.length === 0}>
+            <Icon name="CheckCheck" size={16} />
+          </button>
+          <button className="ad-iconbtn" title="Clear read" onClick={handleClearRead} disabled={notifications.length === 0}>
+            <Icon name="Trash2" size={16} />
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <LogoSpinner size={28} />
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <Icon name="Bell" size={40} color="var(--color-muted-foreground)" />
-            <p className="text-muted-foreground mt-3 text-sm">
-              {filter === 'unread' ? 'No unread notifications' : 'No notifications'}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {notifications.map((n) => (
-              <div
+      <div className="ad-scroll">
+        {loading ? <Loading />
+          : notifications.length === 0 ? (
+            <EmptyState icon="Bell" label={filter === 'unread' ? 'No unread notifications' : 'No notifications'} />
+          ) : (
+            notifications.map((n) => (
+              <button
+                type="button"
                 key={n?.id}
+                className={`ad-row${!n?.isRead ? ' is-unread' : ''}`}
                 onClick={() => handleClick(n)}
-                className={`p-4 cursor-pointer hover:bg-muted/50 transition-smooth ${!n?.isRead ? 'bg-primary/5' : ''}`}
               >
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 mt-0.5">
-                    <Icon name={getNotificationIcon(n?.type)} size={18} color={getNotificationColor(n?.severity)} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{n?.title}</h3>
-                      {!n?.isRead && <span className="flex-shrink-0 w-2 h-2 rounded-full mt-1" style={{ background: '#C65A1A' }} />}
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{n?.message}</p>
-                    <p className="text-xs text-muted-foreground mt-2">{formatTimestamp(n?.createdAt)}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                <span className="ad-ico">
+                  <Icon name={getNotificationIcon(n?.type)} size={17} color={getNotificationColor(n?.severity)} />
+                </span>
+                <span className="ad-main">
+                  <span className="ad-row-top">
+                    <span className="ad-row-title">{n?.title}</span>
+                    {!n?.isRead && <span className="ad-dot" />}
+                  </span>
+                  {n?.message && <span className="ad-msg">{n.message}</span>}
+                  <span className="ad-meta">{formatTimestamp(n?.createdAt)}</span>
+                </span>
+              </button>
+            ))
+          )}
       </div>
-    </div>
+    </>
   );
 };
 
@@ -198,20 +196,13 @@ const ReviewsTab = ({ onNavigate }) => {
   const { items, loading } = useReviewItems('pending');
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <LogoSpinner size={28} />
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <Icon name="Inbox" size={40} color="var(--color-muted-foreground)" />
-            <p className="text-muted-foreground mt-3 text-sm">Nothing awaiting review</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {items.map((item) => {
+    <>
+      <div className="ad-scroll">
+        {loading ? <Loading />
+          : items.length === 0 ? (
+            <EmptyState icon="Inbox" label="Nothing awaiting review" />
+          ) : (
+            items.map((item) => {
               const range = fmtDateRange(item.date_start, item.date_end);
               const mlc = item.mlc_override_count > 0 ? ` · ${item.mlc_override_count} MLC` : '';
               const counts = `${item.day_count} day${item.day_count === 1 ? '' : 's'} · ${item.shift_count} shift${item.shift_count === 1 ? '' : 's'}${mlc}`;
@@ -219,48 +210,34 @@ const ReviewsTab = ({ onNavigate }) => {
                 <button
                   key={item.id}
                   type="button"
+                  className="ad-row"
                   onClick={() => onNavigate(`/reviews?selected=${item.id}`)}
-                  className="w-full text-left p-4 cursor-pointer hover:bg-muted/50 transition-smooth"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 mt-0.5">
-                      <Icon name="ClipboardCheck" size={18} color="#C65A1A" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-semibold text-foreground truncate">
-                          {item.department_name || 'Rota'}
-                        </h3>
-                        <span className="text-xs text-muted-foreground flex-shrink-0">{formatTimestamp(item.created_at)}</span>
-                      </div>
-                      {item.rota_name && (
-                        <p className="text-sm text-muted-foreground mt-0.5 truncate">{item.rota_name}</p>
-                      )}
-                      <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
-                        <Icon name="Calendar" size={12} />
-                        <span className="truncate">{range || counts}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        by {item.submitter_name || 'crew'}{item.submitter_role ? ` · ${item.submitter_role}` : ''}
-                      </p>
-                    </div>
-                  </div>
+                  <span className="ad-ico">
+                    <Icon name="ClipboardCheck" size={17} color="#C65A1A" />
+                  </span>
+                  <span className="ad-main">
+                    <span className="ad-row-top">
+                      <span className="ad-row-title">{item.department_name || 'Rota'}</span>
+                      <span className="ad-time">{formatTimestamp(item.created_at)}</span>
+                    </span>
+                    {item.rota_name && <span className="ad-sub">{item.rota_name}</span>}
+                    <span className="ad-meta">
+                      <Icon name="Calendar" size={12} />
+                      <span>{range || counts}</span>
+                      <span className="ad-sep">·</span>
+                      <span>by {item.submitter_name || 'crew'}{item.submitter_role ? ` · ${item.submitter_role}` : ''}</span>
+                    </span>
+                  </span>
                 </button>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
       </div>
-      <div className="border-t border-border p-3">
-        <button
-          onClick={() => onNavigate('/reviews')}
-          className="w-full py-2 rounded-lg text-sm font-medium text-white transition-smooth"
-          style={{ background: '#C65A1A' }}
-        >
-          Open Reviews
-        </button>
+      <div className="ad-foot">
+        <button className="ad-btn ad-btn-primary" onClick={() => onNavigate('/reviews')}>Open Reviews</button>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -301,50 +278,35 @@ const ActivityTab = ({ onNavigate }) => {
   }, []);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <LogoSpinner size={28} />
-          </div>
-        ) : activities.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <Icon name="Activity" size={40} color="var(--color-muted-foreground)" />
-            <p className="text-muted-foreground mt-3 text-sm">No activity in the last 24 hours</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {activities.map((a, i) => (
-              <div key={`${a?.id}-${i}`} className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 mt-0.5 p-2 rounded-lg bg-muted/60 text-muted-foreground">
-                    <Icon name={getActionIcon(a?.action)} size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground">{a?.summary}</p>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-muted-foreground">
-                      <span className="capitalize">{a?.module}</span>
-                      <span>·</span>
-                      <span>{a?.actorName}</span>
-                      <span>·</span>
-                      <span>{formatTimestamp(a?.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
+    <>
+      <div className="ad-scroll">
+        {loading ? <Loading />
+          : activities.length === 0 ? (
+            <EmptyState icon="Activity" label="No activity in the last 24 hours" />
+          ) : (
+            activities.map((a, i) => (
+              <div key={`${a?.id}-${i}`} className="ad-row" style={{ cursor: 'default' }}>
+                <span className="ad-ico">
+                  <Icon name={getActionIcon(a?.action)} size={16} color="#8B8478" />
+                </span>
+                <span className="ad-main">
+                  <span className="ad-row-title" style={{ fontWeight: 500 }}>{a?.summary}</span>
+                  <span className="ad-meta">
+                    <span className="ad-cap">{a?.module}</span>
+                    <span className="ad-sep">·</span>
+                    <span>{a?.actorName}</span>
+                    <span className="ad-sep">·</span>
+                    <span>{formatTimestamp(a?.createdAt)}</span>
+                  </span>
+                </span>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
       </div>
-      <div className="border-t border-border p-3">
-        <button
-          onClick={() => onNavigate('/activity')}
-          className="w-full py-2 rounded-lg text-sm font-medium bg-muted text-foreground hover:bg-muted/80 transition-smooth"
-        >
-          View all activity
-        </button>
+      <div className="ad-foot">
+        <button className="ad-btn ad-btn-ghost" onClick={() => onNavigate('/activity')}>View all activity</button>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -369,58 +331,42 @@ const AlertsDrawer = ({ isOpen, onClose, initialTab = 'notifications', reviewsCo
   const tabCount = { reviews: reviewsCount, notifications: notificationsCount };
 
   return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/50 z-[var(--z-dropdown)] transition-opacity"
-        onClick={onClose}
-      />
-      <div className="fixed right-0 top-16 h-[calc(100vh-4rem)] w-full sm:w-[420px] bg-card border-l border-border z-[var(--z-dropdown)] flex flex-col shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Inbox</h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-smooth">
-            <Icon name="X" size={20} color="var(--color-foreground)" />
+    <div className="ad">
+      <div className="ad-overlay" onClick={onClose} />
+      <aside className="ad-panel" role="dialog" aria-label="Inbox">
+        <div className="ad-head">
+          <div>
+            <div className="ad-eyebrow">Alerts</div>
+            <h2 className="ad-title">Inbox</h2>
+          </div>
+          <button className="ad-x" onClick={onClose} aria-label="Close">
+            <Icon name="X" size={20} />
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-stretch border-b border-border">
+        <div className="ad-tabs">
           {TABS.map(t => {
             const active = activeTab === t.key;
             const count = tabCount[t.key] || 0;
             return (
               <button
                 key={t.key}
+                className={`ad-tab${active ? ' is-active' : ''}`}
                 onClick={() => setActiveTab(t.key)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-smooth relative"
-                style={{ color: active ? '#C65A1A' : 'var(--color-muted-foreground)' }}
               >
-                <Icon name={t.icon} size={15} color={active ? '#C65A1A' : 'var(--color-muted-foreground)'} />
+                <Icon name={t.icon} size={14} color={active ? '#fff' : '#8B8478'} />
                 <span>{t.label}</span>
-                {count > 0 && (
-                  <span
-                    className="min-w-[16px] h-4 px-1 rounded-full text-white text-[10px] font-semibold inline-flex items-center justify-center"
-                    style={{ background: '#C65A1A' }}
-                  >
-                    {count > 99 ? '99+' : count}
-                  </span>
-                )}
-                {active && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full" style={{ background: '#C65A1A' }} />
-                )}
+                {count > 0 && <span className="ad-tab-count">{count > 99 ? '99+' : count}</span>}
               </button>
             );
           })}
         </div>
 
-        {/* Body */}
-        <div className="flex-1 min-h-0">
-          {activeTab === 'notifications' && <NotificationsTab userId={authUser?.id} onNavigate={handleNavigate} />}
-          {activeTab === 'reviews' && <ReviewsTab onNavigate={handleNavigate} />}
-          {activeTab === 'activity' && <ActivityTab onNavigate={handleNavigate} />}
-        </div>
-      </div>
-    </>
+        {activeTab === 'notifications' && <NotificationsTab userId={authUser?.id} onNavigate={handleNavigate} />}
+        {activeTab === 'reviews' && <ReviewsTab onNavigate={handleNavigate} />}
+        {activeTab === 'activity' && <ActivityTab onNavigate={handleNavigate} />}
+      </aside>
+    </div>
   );
 };
 
