@@ -2,6 +2,29 @@ import { supabase } from '../../../lib/supabaseClient';
 
 // ─── Profile ────────────────────────────────────────────────────────────────
 
+// The supplier's own reputation KPIs — orders filled, on-time %, response
+// time — from real order history (get_my_supplier_health RPC). Returns null
+// on failure so the Overview can degrade quietly.
+export const fetchMySupplierHealth = async () => {
+  try {
+    const { data, error } = await supabase.rpc('get_my_supplier_health');
+    if (error) throw error;
+    const r = Array.isArray(data) ? data[0] : data;
+    if (!r) return null;
+    const elig = Number(r.on_time_eligible) || 0;
+    return {
+      ordersFilled: Number(r.orders_fulfilled) || 0,
+      ordersCount: Number(r.orders_count) || 0,
+      onTimePct: elig > 0 ? Math.round((Number(r.on_time_count) || 0) / elig * 100) : null,
+      avgResponseHours: r.avg_response_hours != null ? Number(r.avg_response_hours) : null,
+      lastOrderAt: r.last_order_at || null,
+    };
+  } catch (err) {
+    console.warn('[supplierStorage] fetchMySupplierHealth (non-blocking):', err?.message);
+    return null;
+  }
+};
+
 // Storefront fields — saved via a SECURITY DEFINER RPC (a direct table
 // update is blocked by table privileges on supplier_profiles).
 export const updateSupplierStorefront = async (f) => {

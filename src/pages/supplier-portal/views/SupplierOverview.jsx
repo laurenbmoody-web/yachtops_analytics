@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ShoppingBag, FileText, BookOpen, AlertTriangle } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { fetchSupplierKPIs } from '../utils/supplierStorage';
+import { fetchSupplierKPIs, fetchMySupplierHealth, fetchMySupplierReviews } from '../utils/supplierStorage';
 import { SUPPLIER_PORTAL_DEFAULTS } from '../config';
 import KPICard from '../components/KPICard';
 import EmptyState from '../components/EmptyState';
@@ -46,6 +46,8 @@ const SupplierOverview = () => {
   const [kpis, setKpis] = useState(null);
   const [kpiLoading, setKpiLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [rating, setRating] = useState(null);
 
   useEffect(() => {
     if (!supplier?.id) return;
@@ -54,6 +56,10 @@ const SupplierOverview = () => {
       .then(setKpis)
       .catch(e => setError(e.message))
       .finally(() => setKpiLoading(false));
+    fetchMySupplierHealth().then(setHealth).catch(() => {});
+    fetchMySupplierReviews()
+      .then(rows => setRating(rows.length ? { avg: rows.reduce((s, r) => s + r.rating, 0) / rows.length, count: rows.length } : null))
+      .catch(() => {});
   }, [supplier?.id]);
 
   // First name: contact.name → user_metadata.full_name → nothing (no email fallback)
@@ -120,6 +126,29 @@ const SupplierOverview = () => {
           Failed to load KPIs: {error}
         </div>
       )}
+
+      {/* Reputation — what yachts see when choosing you */}
+      <div className="sp-card" style={{ padding: '16px 20px', marginBottom: 20 }}>
+        <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--muted-s)', marginBottom: 12 }}>
+          Your reputation · what yachts see
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18 }}>
+          {[
+            { label: 'Rating', value: rating ? rating.avg.toFixed(1) : '—', sub: rating ? `${rating.count} review${rating.count === 1 ? '' : 's'}` : 'No reviews yet', star: !!rating },
+            { label: 'On-time', value: health?.onTimePct != null ? `${health.onTimePct}%` : '—', sub: health?.onTimePct != null ? 'delivered on time' : 'no data yet' },
+            { label: 'Response', value: health?.avgResponseHours != null ? (health.avgResponseHours < 1 ? '<1h' : `${Math.round(health.avgResponseHours)}h`) : '—', sub: 'to confirm an order' },
+            { label: 'Orders filled', value: health?.ordersFilled ?? '—', sub: 'through Cargo' },
+          ].map(s => (
+            <div key={s.label}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--muted-s)', marginBottom: 5 }}>{s.label}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 700, color: 'var(--fg)', lineHeight: 1 }}>
+                {s.value}{s.star && <span style={{ color: '#C65A1A', fontSize: 16, fontWeight: 400 }}>★</span>}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--muted-s)', marginTop: 4 }}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="sp-kpis" style={{ marginBottom: 32 }}>
         <KPICard
