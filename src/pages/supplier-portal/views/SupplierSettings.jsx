@@ -909,6 +909,21 @@ const EmailAliasesSection = ({ supplierId }) => {
 
 // 24-hour time picker (no AM/PM). Two scrollable columns — hours 00–23,
 // minutes in 5s — matching the app's editorial fields. Value is 'HH:MM'.
+const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// Compress selected weekdays into readable ranges: Mon,Tue,Wed,Fri → "Mon–Wed, Fri".
+const fmtDays = (days) => {
+  if (!days || !days.length) return '';
+  const idx = days.map(d => WEEK_DAYS.indexOf(d)).filter(i => i >= 0).sort((a, b) => a - b);
+  if (!idx.length) return '';
+  if (idx.length === 7) return 'Every day';
+  const runs = []; let start = idx[0], prev = idx[0];
+  for (let i = 1; i < idx.length; i++) {
+    if (idx[i] === prev + 1) prev = idx[i];
+    else { runs.push([start, prev]); start = idx[i]; prev = idx[i]; }
+  }
+  runs.push([start, prev]);
+  return runs.map(([a, b]) => (a === b ? WEEK_DAYS[a] : `${WEEK_DAYS[a]}–${WEEK_DAYS[b]}`)).join(', ');
+};
 const TIME_HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const TIME_MINS = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
 const TimeField = ({ value, onChange }) => {
@@ -976,9 +991,11 @@ const StorefrontPreview = ({ supplier, form, certs }) => {
   const min = form.min_order_value;
   const cur = form.min_order_currency || 'EUR';
   const express = !!form.express_available;
+  const days = fmtDays(form.delivery_days);
+  const cutoffStrict = !!form.cutoff_strict;
   const hasLead = lead !== '' && lead != null;
   const hasMin = min !== '' && min != null;
-  const hasTerms = hasLead || cutoff || hasMin || express || certs.length > 0;
+  const hasTerms = hasLead || cutoff || hasMin || express || days || certs.length > 0;
 
   const stars = (v) => [1, 2, 3, 4, 5].map(i => {
     const fill = v >= i ? 100 : (v >= i - 0.5 ? 50 : 0);
@@ -1011,8 +1028,9 @@ const StorefrontPreview = ({ supplier, form, certs }) => {
 
       {hasTerms ? (
         <div className="spv-terms">
+          {days && <span className="spv-term">delivers <b>{days}</b></span>}
           {hasLead && <span className="spv-term"><b>≈{lead}d</b> lead time</span>}
-          {cutoff && <span className="spv-term">order by <b>{cutoff}</b></span>}
+          {cutoff && <span className="spv-term">order by <b>{cutoff}</b> {cutoffStrict ? '(firm)' : '(flexible)'}</span>}
           {hasMin && <span className="spv-term"><b>{cur} {min}</b> min</span>}
           {express && <span className="spv-term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
           {certs.map(c => <span key={c} className="spv-cert">{c}</span>)}
@@ -1035,6 +1053,8 @@ const StorefrontSection = ({ supplier, onSaved }) => {
     min_order_value:    supplier.min_order_value ?? '',
     min_order_currency: supplier.min_order_currency || 'EUR',
     express_available:  !!supplier.express_available,
+    delivery_days:      Array.isArray(supplier.delivery_days) ? supplier.delivery_days : [],
+    cutoff_strict:      !!supplier.cutoff_strict,
   });
   const [certs, setCerts] = useState(Array.isArray(supplier.certifications) ? supplier.certifications : []);
   const [certDraft, setCertDraft] = useState('');
@@ -1062,6 +1082,8 @@ const StorefrontSection = ({ supplier, onSaved }) => {
         min_order_currency: form.min_order_currency || 'EUR',
         certifications:     certs,
         express_available:  !!form.express_available,
+        delivery_days:      form.delivery_days || [],
+        cutoff_strict:      !!form.cutoff_strict,
       });
       await onSaved?.();
       setSaved(true);
@@ -1110,6 +1132,54 @@ const StorefrontSection = ({ supplier, onSaved }) => {
             <option value="GBP">GBP</option>
           </select>
         </div>
+      </div>
+
+      {/* Delivery days */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={lbl}>Delivery days</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {WEEK_DAYS.map(d => {
+            const on = form.delivery_days.includes(d);
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => set('delivery_days', on ? form.delivery_days.filter(x => x !== d) : [...form.delivery_days, d])}
+                style={{
+                  border: `1px solid ${on ? '#C65A1A' : 'var(--line)'}`, background: on ? '#C65A1A' : 'var(--card)',
+                  color: on ? '#fff' : 'var(--fg)', borderRadius: 999, padding: '6px 14px', fontSize: 12.5,
+                  fontWeight: on ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >{d}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Cut-off strict vs flexible */}
+      <div style={{ marginBottom: 18 }}>
+        <label style={lbl}>Cut-off is</label>
+        <div style={{ display: 'inline-flex', border: '1px solid var(--line)', borderRadius: 9, overflow: 'hidden' }}>
+          {[{ k: false, t: 'Flexible', s: "We'll try after cut-off" }, { k: true, t: 'Firm', s: 'Blocks the next run' }].map((o, i) => {
+            const on = !!form.cutoff_strict === o.k;
+            return (
+              <button
+                key={o.t}
+                type="button"
+                title={o.s}
+                onClick={() => set('cutoff_strict', o.k)}
+                style={{
+                  border: 'none', borderLeft: i ? '1px solid var(--line)' : 'none',
+                  background: on ? '#C65A1A' : 'var(--card)', color: on ? '#fff' : 'var(--muted-s)',
+                  padding: '8px 16px', fontSize: 12.5, fontWeight: on ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >{o.t}</button>
+            );
+          })}
+        </div>
+        <span style={{ fontSize: 11.5, color: 'var(--muted-s)', marginLeft: 12 }}>
+          {form.cutoff_strict ? 'Orders after cut-off roll to the next delivery.' : 'You may still take an order after cut-off — buyers see "flexible".'}
+        </span>
       </div>
 
       {/* Express / rush */}

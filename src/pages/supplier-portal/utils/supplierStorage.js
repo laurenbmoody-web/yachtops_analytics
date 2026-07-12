@@ -12,6 +12,8 @@ export const updateSupplierStorefront = async (f) => {
     p_min_order_currency: f.min_order_currency || 'EUR',
     p_certifications:     f.certifications || [],
     p_express_available:  !!f.express_available,
+    p_delivery_days:      f.delivery_days || [],
+    p_cutoff_strict:      !!f.cutoff_strict,
   });
   if (error) throw error;
 };
