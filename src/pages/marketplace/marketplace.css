@@ -352,13 +352,18 @@
 }
 .mp-clear:hover { background: var(--tint); }
 
-/* Sort control keeps a visible label so it reads as the sort, not a
-   nameless dropdown. */
-.mp-filter.mp-sort { gap: 8px; padding-left: 12px; }
-.mp-filter.mp-sort .k {
-  display: inline; font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: var(--soft);
+/* Sort menu — the chip just reads "Sort"; the current choice is a tick in
+   the dropdown, so the bar stays short. */
+.mp-sortmenu { position: relative; }
+.mp-sort-pop { width: 200px; padding: 6px; gap: 2px; }
+.mp-sort-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  padding: 9px 10px; border: none; background: none; border-radius: 8px; cursor: pointer;
+  font-family: inherit; font-size: 13px; color: var(--d-navy); text-align: left; transition: background .12s;
 }
+.mp-sort-opt:hover { background: var(--surface-2); }
+.mp-sort-opt.sel { color: var(--accent); font-weight: 600; }
+.mp-sort-opt svg { color: var(--accent); flex: none; }
 
 /* Filters chip — one button that opens Category / Show / Port. */
 .mp-filters { position: relative; }
