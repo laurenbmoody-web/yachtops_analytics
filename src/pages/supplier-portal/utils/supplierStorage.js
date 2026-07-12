@@ -2,6 +2,20 @@ import { supabase } from '../../../lib/supabaseClient';
 
 // ─── Profile ────────────────────────────────────────────────────────────────
 
+// Storefront fields — saved via a SECURITY DEFINER RPC (a direct table
+// update is blocked by table privileges on supplier_profiles).
+export const updateSupplierStorefront = async (f) => {
+  const { error } = await supabase.rpc('update_supplier_storefront', {
+    p_lead_time_days:     f.lead_time_days ?? null,
+    p_order_cutoff:       f.order_cutoff || null,
+    p_min_order_value:    f.min_order_value ?? null,
+    p_min_order_currency: f.min_order_currency || 'EUR',
+    p_certifications:     f.certifications || [],
+    p_express_available:  !!f.express_available,
+  });
+  if (error) throw error;
+};
+
 export const updateSupplierProfile = async (supplierId, updates) => {
   const { data, error } = await supabase
     .from('supplier_profiles')

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Save, Plus, Trash2, Mail, RefreshCw, UserPlus, X, Crown, Shield } from 'lucide-react';
+import { Save, Plus, Trash2, Mail, RefreshCw, UserPlus, X, Crown, Shield, Clock, Zap } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { usePermission, useTier, hasClientPermission } from '../../../contexts/SupplierPermissionContext';
 import {
   updateSupplierProfile,
+  updateSupplierStorefront,
   fetchAliases,
   addAlias,
   resendAliasVerification,
@@ -904,6 +905,51 @@ const EmailAliasesSection = ({ supplierId }) => {
   );
 };
 
+// 24-hour time picker (no AM/PM). Two scrollable columns — hours 00–23,
+// minutes in 5s — matching the app's editorial fields. Value is 'HH:MM'.
+const TIME_HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const TIME_MINS = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+const TimeField = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  const [h, m] = (value || '').split(':');
+  const opt = (sel) => ({
+    display: 'block', width: '100%', textAlign: 'center', border: 'none', cursor: 'pointer',
+    background: sel ? '#C65A1A' : 'transparent', color: sel ? '#fff' : 'var(--fg)',
+    borderRadius: 7, padding: '7px 0', fontSize: 13, fontWeight: sel ? 600 : 400, fontFamily: 'inherit',
+  });
+  const col = { flex: 1, maxHeight: 182, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 };
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button type="button" onClick={() => setOpen(o => !o)} style={{
+        width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '9px 12px', fontSize: 13,
+        background: 'var(--card)', color: value ? 'var(--fg)' : 'var(--muted)', fontFamily: 'inherit',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', boxSizing: 'border-box',
+      }}>
+        <span>{value || 'Set time'}</span>
+        <Clock size={14} style={{ color: 'var(--muted-s)' }} />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 30, display: 'flex', gap: 4,
+          background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10,
+          boxShadow: '0 16px 40px -16px rgba(15,23,42,0.25)', padding: 6, width: 148,
+        }}>
+          <div style={col}>{TIME_HOURS.map(x => <button key={x} type="button" style={opt(x === h)} onClick={() => onChange(`${x}:${m || '00'}`)}>{x}</button>)}</div>
+          <div style={{ alignSelf: 'center', color: 'var(--muted)', fontWeight: 700 }}>:</div>
+          <div style={col}>{TIME_MINS.map(x => <button key={x} type="button" style={opt(x === m)} onClick={() => onChange(`${h || '00'}:${x}`)}>{x}</button>)}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Storefront details — the operational trust signals a buyer sees before
 // choosing this supplier. Framed as TYPICAL, not hard limits; the
 // express-available toggle captures that a good supplier will rush for the
@@ -935,7 +981,7 @@ const StorefrontSection = ({ supplier, onSaved }) => {
     setSaving(true); setSaved(false); setError(null);
     try {
       const num = (v) => (v === '' || v == null ? null : Number(v));
-      await updateSupplierProfile(supplier.id, {
+      await updateSupplierStorefront({
         lead_time_days:     num(form.lead_time_days),
         order_cutoff:       form.order_cutoff ? form.order_cutoff : null,
         min_order_value:    num(form.min_order_value),
@@ -973,7 +1019,7 @@ const StorefrontSection = ({ supplier, onSaved }) => {
         </div>
         <div>
           <label style={lbl}>Standard order cut-off</label>
-          <input type="time" value={form.order_cutoff} onChange={e => set('order_cutoff', e.target.value)} style={inp} />
+          <TimeField value={form.order_cutoff} onChange={v => set('order_cutoff', v)} />
         </div>
         <div>
           <label style={lbl}>Typical minimum order</label>
@@ -993,8 +1039,10 @@ const StorefrontSection = ({ supplier, onSaved }) => {
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 20, cursor: 'pointer' }}>
         <input type="checkbox" checked={form.express_available} onChange={e => set('express_available', e.target.checked)} style={{ marginTop: 2 }} />
         <span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>Express / rush orders on request</span>
-          <span style={{ display: 'block', fontSize: 11.5, color: 'var(--muted-s)', marginTop: 2 }}>Shows a “⚡ Rush available” badge — you'll take urgent orders for the right job.</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Zap size={14} strokeWidth={1.8} style={{ color: '#C65A1A' }} /> Express / rush orders on request
+          </span>
+          <span style={{ display: 'block', fontSize: 11.5, color: 'var(--muted-s)', marginTop: 2 }}>Shows a “Rush available” badge — you'll take urgent orders for the right job.</span>
         </span>
       </label>
 

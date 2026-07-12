@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Zap } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -704,7 +705,7 @@ export default function SupplierDetailPage() {
                 {lead != null && <span className="sd-term"><b>≈{lead}d</b> lead time</span>}
                 {cutoff && <span className="sd-term">order by <b>{cutoff}</b></span>}
                 {min != null && <span className="sd-term"><b>{minCur} {min}</b> min</span>}
-                {express && <span className="sd-term rush">⚡ Rush available</span>}
+                {express && <span className="sd-term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
                 {certs.map(c => <span className="sd-cert" key={c}>{c}</span>)}
               </div>
             );
