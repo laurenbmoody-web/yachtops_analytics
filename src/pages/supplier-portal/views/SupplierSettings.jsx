@@ -24,6 +24,7 @@ import InvoicingSettings from '../components/InvoicingSettings';
 // Tab order per spec. adminOnly tabs are hidden from managers.
 const ALL_TABS = [
   { slug: 'company',       label: 'Company profile',    adminOnly: false },
+  { slug: 'storefront',    label: 'Storefront',          adminOnly: false },
   { slug: 'team',          label: 'Team & permissions',  adminOnly: false },
   { slug: 'zones',         label: 'Delivery zones',      adminOnly: false },
   { slug: 'tax',           label: 'Tax & invoicing',     adminOnly: false },
@@ -903,6 +904,138 @@ const EmailAliasesSection = ({ supplierId }) => {
   );
 };
 
+// Storefront details — the operational trust signals a buyer sees before
+// choosing this supplier. Framed as TYPICAL, not hard limits; the
+// express-available toggle captures that a good supplier will rush for the
+// right job. Self-contained save (own form + sanitising).
+const StorefrontSection = ({ supplier, onSaved }) => {
+  const [form, setForm] = useState({
+    lead_time_days:     supplier.lead_time_days ?? '',
+    order_cutoff:       (supplier.order_cutoff || '').slice(0, 5), // 'HH:MM'
+    min_order_value:    supplier.min_order_value ?? '',
+    min_order_currency: supplier.min_order_currency || 'EUR',
+    express_available:  !!supplier.express_available,
+  });
+  const [certs, setCerts] = useState(Array.isArray(supplier.certifications) ? supplier.certifications : []);
+  const [certDraft, setCertDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(null);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const addCert = () => {
+    const c = certDraft.trim();
+    if (!c) return;
+    if (!certs.some(x => x.toLowerCase() === c.toLowerCase())) setCerts([...certs, c]);
+    setCertDraft('');
+  };
+
+  const handleSave = async () => {
+    setSaving(true); setSaved(false); setError(null);
+    try {
+      const num = (v) => (v === '' || v == null ? null : Number(v));
+      await updateSupplierProfile(supplier.id, {
+        lead_time_days:     num(form.lead_time_days),
+        order_cutoff:       form.order_cutoff ? form.order_cutoff : null,
+        min_order_value:    num(form.min_order_value),
+        min_order_currency: form.min_order_currency || 'EUR',
+        certifications:     certs,
+        express_available:  !!form.express_available,
+      });
+      await onSaved?.();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const lbl = { fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 };
+  const inp = { width: '100%', border: '1px solid var(--line)', borderRadius: 7, padding: '9px 12px', fontSize: 13, background: 'var(--card)', color: 'var(--fg)', fontFamily: 'inherit', boxSizing: 'border-box' };
+
+  return (
+    <>
+      <h4 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 15, color: 'var(--fg)', margin: '0 0 4px' }}>Storefront</h4>
+      <p style={{ fontSize: 12.5, color: 'var(--muted-strong)', margin: '0 0 18px', lineHeight: 1.5, maxWidth: 460 }}>
+        What yachts see before choosing you. These are your <em>typical</em> terms — not hard limits.
+      </p>
+
+      {error && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 13, color: 'var(--red)' }}>{error}</div>}
+      {saved && <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 13, color: 'var(--green)' }}>Storefront updated.</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
+        <div>
+          <label style={lbl}>Standard lead time (days)</label>
+          <input type="number" min="0" value={form.lead_time_days} onChange={e => set('lead_time_days', e.target.value)} placeholder="e.g. 2" style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Standard order cut-off</label>
+          <input type="time" value={form.order_cutoff} onChange={e => set('order_cutoff', e.target.value)} style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Typical minimum order</label>
+          <input type="number" min="0" step="0.01" value={form.min_order_value} onChange={e => set('min_order_value', e.target.value)} placeholder="e.g. 300" style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Currency</label>
+          <select value={form.min_order_currency} onChange={e => set('min_order_currency', e.target.value)} style={inp}>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Express / rush */}
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 20, cursor: 'pointer' }}>
+        <input type="checkbox" checked={form.express_available} onChange={e => set('express_available', e.target.checked)} style={{ marginTop: 2 }} />
+        <span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>Express / rush orders on request</span>
+          <span style={{ display: 'block', fontSize: 11.5, color: 'var(--muted-s)', marginTop: 2 }}>Shows a “⚡ Rush available” badge — you'll take urgent orders for the right job.</span>
+        </span>
+      </label>
+
+      {/* Certifications */}
+      <div style={{ marginBottom: 22 }}>
+        <label style={lbl}>Certifications</label>
+        <div style={{ display: 'flex', gap: 8, marginBottom: certs.length ? 10 : 0 }}>
+          <input
+            value={certDraft}
+            onChange={e => setCertDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCert(); } }}
+            placeholder="e.g. HACCP, Organic, IFS, Cold-chain"
+            style={{ ...inp, flex: 1 }}
+          />
+          <button type="button" className="sp-pill" style={{ padding: '9px 14px', whiteSpace: 'nowrap' }} onClick={addCert}>
+            <Plus size={13} /> Add
+          </button>
+        </div>
+        {certs.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {certs.map(c => (
+              <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-3)', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 6px 4px 12px', fontSize: 12.5, color: 'var(--fg)' }}>
+                {c}
+                <button type="button" onClick={() => setCerts(certs.filter(x => x !== c))} aria-label={`Remove ${c}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--muted-s)', lineHeight: 0, padding: 2 }}>
+                  <X size={13} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button className="sp-pill primary" style={{ padding: '9px 20px' }} onClick={handleSave} disabled={saving}>
+          <Save size={13} />{saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </>
+  );
+};
+
 const Field = ({ label, value, onChange, type = 'text', readOnly = false }) => (
   <div>
     <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>{label}</label>
@@ -1058,6 +1191,8 @@ const SupplierSettings = () => {
 
               <EmailAliasesSection supplierId={supplier.id} />
             </>
+          ) : activeSlug === 'storefront' ? (
+            <StorefrontSection supplier={supplier} onSaved={refreshSupplier} />
           ) : activeSlug === 'team' ? (
             hasClientPermission(contact?.permission_tier, 'team:view') ? (
               <TeamSection supplier={supplier} currentContact={contact} />
