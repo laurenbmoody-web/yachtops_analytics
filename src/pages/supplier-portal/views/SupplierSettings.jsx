@@ -6,6 +6,7 @@ import { usePermission, useTier, hasClientPermission } from '../../../contexts/S
 import {
   updateSupplierProfile,
   updateSupplierStorefront,
+  fetchMySupplierReviews,
   fetchAliases,
   addAlias,
   resendAliasVerification,
@@ -21,6 +22,7 @@ import {
 } from '../utils/supplierStorage';
 import { getSupplierTier } from '../../../components/SupplierRoleGuard';
 import InvoicingSettings from '../components/InvoicingSettings';
+import './storefront-preview.css';
 
 // Tab order per spec. adminOnly tabs are hidden from managers.
 const ALL_TABS = [
@@ -950,6 +952,78 @@ const TimeField = ({ value, onChange }) => {
   );
 };
 
+// Live "what yachts see" preview — the supplier's own buyer-facing card,
+// built from their profile + the current form values so it updates as they
+// edit. Closes the loop the review flagged: they can see their storefront.
+const StorefrontPreview = ({ supplier, form, certs }) => {
+  const [rating, setRating] = useState(null);
+  useEffect(() => {
+    fetchMySupplierReviews()
+      .then(rows => {
+        if (!rows.length) { setRating(null); return; }
+        setRating({ avg: rows.reduce((s, r) => s + r.rating, 0) / rows.length, count: rows.length });
+      })
+      .catch(() => {});
+  }, []);
+
+  const name = supplier.name || 'Your storefront';
+  const initials = (name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('') || '•').toUpperCase();
+  const location = [supplier.business_city, supplier.business_country].filter(Boolean).join(', ');
+  const ports = (supplier.coverage_ports || []).slice(0, 4);
+  const cats = supplier.categories || [];
+  const lead = form.lead_time_days;
+  const cutoff = form.order_cutoff;
+  const min = form.min_order_value;
+  const cur = form.min_order_currency || 'EUR';
+  const express = !!form.express_available;
+  const hasLead = lead !== '' && lead != null;
+  const hasMin = min !== '' && min != null;
+  const hasTerms = hasLead || cutoff || hasMin || express || certs.length > 0;
+
+  const stars = (v) => [1, 2, 3, 4, 5].map(i => {
+    const fill = v >= i ? 100 : (v >= i - 0.5 ? 50 : 0);
+    return <span key={i} className="spv-star"><span className="b">★</span><span className="f" style={{ width: `${fill}%` }}>★</span></span>;
+  });
+
+  return (
+    <div className="spv-card">
+      <div className="spv-eyebrow">Preview · what yachts see</div>
+      <div className="spv-head">
+        <span className="spv-logo">{supplier.logo_url ? <img src={supplier.logo_url} alt="" /> : initials}</span>
+        <div className="spv-id">
+          <div className="spv-name">{name}</div>
+          <div className="spv-sub">
+            {rating
+              ? <span className="spv-rating"><span className="spv-stars">{stars(rating.avg)}</span> {rating.avg.toFixed(1)} · {rating.count} review{rating.count === 1 ? '' : 's'}</span>
+              : <span className="spv-unrated">No reviews yet</span>}
+            {location && <><span className="spv-dot">·</span>{location}</>}
+          </div>
+        </div>
+      </div>
+
+      {(ports.length > 0 || cats.length > 0) && (
+        <div className="spv-facts">
+          {ports.length > 0 && <span>Serves <b>{ports.join(' · ')}</b></span>}
+          {ports.length > 0 && cats.length > 0 && <span className="spv-dot">·</span>}
+          {cats.length > 0 && <span>{cats.slice(0, 3).join(' · ')}{cats.length > 3 ? ` +${cats.length - 3}` : ''}</span>}
+        </div>
+      )}
+
+      {hasTerms ? (
+        <div className="spv-terms">
+          {hasLead && <span className="spv-term"><b>≈{lead}d</b> lead time</span>}
+          {cutoff && <span className="spv-term">order by <b>{cutoff}</b></span>}
+          {hasMin && <span className="spv-term"><b>{cur} {min}</b> min</span>}
+          {express && <span className="spv-term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
+          {certs.map(c => <span key={c} className="spv-cert">{c}</span>)}
+        </div>
+      ) : (
+        <div className="spv-empty">Fill in the details below and they'll show here — this is how a captain sees you when choosing a supplier.</div>
+      )}
+    </div>
+  );
+};
+
 // Storefront details — the operational trust signals a buyer sees before
 // choosing this supplier. Framed as TYPICAL, not hard limits; the
 // express-available toggle captures that a good supplier will rush for the
@@ -1008,6 +1082,9 @@ const StorefrontSection = ({ supplier, onSaved }) => {
       <p style={{ fontSize: 12.5, color: 'var(--muted-strong)', margin: '0 0 18px', lineHeight: 1.5, maxWidth: 460 }}>
         What yachts see before choosing you. These are your <em>typical</em> terms — not hard limits.
       </p>
+
+      <StorefrontPreview supplier={supplier} form={form} certs={certs} />
+
 
       {error && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 13, color: 'var(--red)' }}>{error}</div>}
       {saved && <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 13, color: 'var(--green)' }}>Storefront updated.</div>}
