@@ -6,7 +6,7 @@
 // separate axis the map never touches.
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { searchInventoryItems, categoryPath } from '../utils/inventory';
+import { searchInventoryItems, searchInventoryLocations, locationLabel, categoryPath } from '../utils/inventory';
 import {
   resolvePinNode, itemsAtNode, placeItemAtNode, clearItemNode,
   createItemAtNode, setItemQuantity, nodePath,
@@ -23,6 +23,11 @@ export default function PinItems({
   const [results, setResults] = useState([]);
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('');
+  const [newCat, setNewCat] = useState(null);   // { location, sub_location, label } | null
+  const [catPicking, setCatPicking] = useState(false);
+  const [catQuery, setCatQuery] = useState('');
+  const [catResults, setCatResults] = useState([]);
+  const catDebounce = useRef(null);
   const [move, setMove] = useState(null);       // { item, fromPath, nodeId }
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
@@ -32,7 +37,19 @@ export default function PinItems({
   useEffect(() => {
     setNodeId(hotspot?.location_node_id || null);
     setMode(null); setQuery(''); setResults([]); setNewName(''); setNewQty(''); setMove(null); setError(null);
+    setNewCat(null); setCatPicking(false); setCatQuery(''); setCatResults([]);
   }, [hotspot?.id]);
+
+  // Debounced category (inventory folder) search while picking one.
+  useEffect(() => {
+    if (!catPicking) return undefined;
+    clearTimeout(catDebounce.current);
+    catDebounce.current = setTimeout(async () => {
+      const { locations, error: e } = await searchInventoryLocations(tenantId, catQuery);
+      if (e) setError(e); else setCatResults(locations || []);
+    }, 250);
+    return () => clearTimeout(catDebounce.current);
+  }, [catPicking, catQuery, tenantId]);
 
   const load = async (nid) => {
     if (!nid) { setRows([]); return; }
@@ -97,10 +114,10 @@ export default function PinItems({
     const nid = await ensureNode();
     if (!nid) return;
     setBusy('new');
-    const { item, error: e } = await createItemAtNode({ tenantId, userId, name, qty: newQty, nodeId: nid });
+    const { item, error: e } = await createItemAtNode({ tenantId, userId, name, qty: newQty, nodeId: nid, category: newCat });
     setBusy(null);
     if (e) { setError(e); return; }
-    setMode(null); setNewName(''); setNewQty('');
+    setMode(null); setNewName(''); setNewQty(''); setNewCat(null);
     if (item) await load(nid);
   };
 
@@ -204,12 +221,33 @@ export default function PinItems({
       {canManage && mode === 'create' && (
         <div className="vm-pinitems-new">
           <input className="vm-check-input" placeholder="Item name" value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus />
+
+          {/* Category (its inventory folder) */}
+          {newCat ? (
+            <div className="vm-pinitems-cat-set">
+              <span className="vm-pinitems-cat-label">{newCat.label}</span>
+              <button className="vm-pinitems-cat-change" onClick={() => { setNewCat(null); setCatPicking(true); setCatQuery(''); setCatResults([]); }}>Change</button>
+            </div>
+          ) : catPicking ? (
+            <div className="vm-cupboard-picker">
+              <input className="vm-check-input" placeholder="Search categories — “alcohol”…" value={catQuery} onChange={(e) => setCatQuery(e.target.value)} autoFocus />
+              {catResults.map((r) => (
+                <button key={r.id} className="vm-cupboard-result" onClick={() => { setNewCat({ location: r.location, sub_location: r.sub_location, label: locationLabel(r) }); setCatPicking(false); setCatQuery(''); setCatResults([]); }}>
+                  {locationLabel(r)}
+                </button>
+              ))}
+              <button className="vm-cupboard-cancel" onClick={() => { setCatPicking(false); setCatQuery(''); }}>Skip category</button>
+            </div>
+          ) : (
+            <button className="vm-pinitems-cat-add" onClick={() => { setCatPicking(true); setCatQuery(''); setCatResults([]); }}>+ Choose a category</button>
+          )}
+
           <div className="vm-pinitems-new-row">
             <input className="vm-check-input vm-pinitems-new-qty" type="number" min="0" placeholder="Qty" value={newQty} onChange={(e) => setNewQty(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createItem(); }} />
             <button className="vm-btn-primary" onClick={createItem} disabled={!newName.trim() || busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add here'}</button>
-            <button className="vm-btn-ghost" onClick={() => { setMode(null); setNewName(''); setNewQty(''); }}>Cancel</button>
+            <button className="vm-btn-ghost" onClick={() => { setMode(null); setNewName(''); setNewQty(''); setNewCat(null); setCatPicking(false); }}>Cancel</button>
           </div>
-          <p className="vm-pinitems-new-hint">Files it here; set its category later in inventory.</p>
+          <p className="vm-pinitems-new-hint">{newCat ? 'Filed here, in your chosen category.' : 'Files it here; category optional — set it now or later in inventory.'}</p>
         </div>
       )}
 

@@ -1592,6 +1592,14 @@
 .vm-pinitems-new-row .vm-btn-ghost { height: 38px; padding: 0 16px; white-space: nowrap; display: inline-flex; align-items: center; }
 .vm-pinitems-new-row .vm-btn-primary { flex: 1; justify-content: center; }
 .vm-pinitems-new-hint { font-size: 11px; color: #8B8478; margin: 0; }
+.vm-pinitems-cat-add { align-self: flex-start; background: none; border: 1px dashed #D9D5CB; border-radius: 8px;
+  padding: 7px 12px; font-family: inherit; font-size: 12.5px; color: #6B7280; cursor: pointer; }
+.vm-pinitems-cat-add:hover { border-color: #C65A1A; color: #C65A1A; }
+.vm-pinitems-cat-set { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid #ECEAE3;
+  border-radius: 8px; background: #FBEFE9; }
+.vm-pinitems-cat-label { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vm-pinitems-cat-change { flex: none; background: none; border: 0; padding: 0; font-family: inherit; font-size: 12px; color: #C65A1A; cursor: pointer; }
+.vm-pinitems-cat-change:hover { text-decoration: underline; }
 /* "currently at X — move here?" */
 .vm-pinitems-move { margin-top: 10px; padding: 11px 13px; border: 1px solid #ECEAE3; border-radius: 11px; background: #FAFAF8;
   font-size: 12.5px; color: #6B7280; display: flex; flex-direction: column; gap: 9px; }

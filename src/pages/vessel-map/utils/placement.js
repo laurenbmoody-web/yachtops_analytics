@@ -93,8 +93,9 @@ export async function clearItemNode(itemId) {
 }
 
 // Create a brand-new inventory item, physically here — the on-the-map add.
-// Category (its inventory folder) is left blank; the crew can file it later.
-export async function createItemAtNode({ tenantId, userId, name, qty, unit, nodeId }) {
+// `category` (an inventory_locations folder) files it in the inventory tree;
+// omit it to leave the item uncategorised (the crew can file it later).
+export async function createItemAtNode({ tenantId, userId, name, qty, unit, nodeId, category }) {
   const n = Number(qty);
   const quantity = Number.isFinite(n) && n >= 0 ? n : 0;
   const { data, error } = await supabase
@@ -105,6 +106,8 @@ export async function createItemAtNode({ tenantId, userId, name, qty, unit, node
       quantity,
       total_qty: quantity,
       unit: unit || null,
+      location: category?.location || null,
+      sub_location: category?.sub_location || null,
       default_location_id: nodeId,
       created_by: userId || null,
     })
