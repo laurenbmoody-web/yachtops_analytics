@@ -252,16 +252,6 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
         {shown.is_container && dangerActions}
         {!shown.is_container && tab === 'details' && (
           <>
-            <div className="vm-insp-row">
-              <span className="vm-label">Added</span>
-              {fmtDate(shown.created_at)}
-            </div>
-            {creatorName && (
-              <div className="vm-insp-row">
-                <span className="vm-label">Added by</span>
-                {creatorName}
-              </div>
-            )}
             <PinItems
               hotspot={shown}
               canManage={canManage}
@@ -272,6 +262,11 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
               containerTrail={containerTrail}
               onNodeResolved={onNodeResolved}
             />
+            {/* Pin metadata — quiet, out of the way at the foot of the tab. */}
+            <div className="vm-insp-meta">
+              <span className="vm-insp-meta-item">Added {fmtDate(shown.created_at)}</span>
+              {creatorName && <span className="vm-insp-meta-item">by {creatorName}</span>}
+            </div>
             {dangerActions}
           </>
         )}
