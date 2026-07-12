@@ -24,6 +24,7 @@ import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useBasket } from '../../contexts/BasketContext';
 import { showToast } from '../../utils/toast';
 import {
   fetchMarketplaceSuppliers,
@@ -356,12 +357,18 @@ const Marketplace = () => {
   const [provCat, setProvCat] = useState('All');
   const [provSort, setProvSort] = useState('name');
 
-  const [basket, setBasket] = useState([]); // [{ product, qty }]
+  const { basket, setBasket } = useBasket(); // app-wide [{ product, qty }], persisted
   const [counterOpen, setCounterOpen] = useState(false);
   const [reviewsFor, setReviewsFor] = useState(null); // supplier whose reviews modal is open
   const [targetBoard, setTargetBoard] = useState(searchParams.get('board') || '');
   const [newBoardName, setNewBoardName] = useState('');
   const [placing, setPlacing] = useState(false);
+
+  // Opened from the nav-bar basket indicator (?counter=1).
+  useEffect(() => {
+    if (searchParams.get('counter') === '1') setCounterOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let live = true;
