@@ -999,7 +999,8 @@ const StorefrontPreview = ({ supplier, form, certs }) => {
   const cutoffStrict = !!form.cutoff_strict;
   const hasLead = lead !== '' && lead != null;
   const hasMin = min !== '' && min != null;
-  const hasTerms = hasLead || cutoff || hasMin || express || days || certs.length > 0;
+  const shownCerts = certs.filter(c => c.verified); // yachts only see Cargo-verified certs
+  const hasTerms = hasLead || cutoff || hasMin || express || days || shownCerts.length > 0;
 
   const stars = (v) => [1, 2, 3, 4, 5].map(i => {
     const fill = v >= i ? 100 : (v >= i - 0.5 ? 50 : 0);
@@ -1037,7 +1038,7 @@ const StorefrontPreview = ({ supplier, form, certs }) => {
           {cutoff && <span className="spv-term">order by <b>{cutoff}</b> {cutoffStrict ? '(firm)' : '(flexible)'}</span>}
           {hasMin && <span className="spv-term"><b>{cur} {min}</b> min</span>}
           {express && <span className="spv-term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
-          {certs.map(c => <span key={c.name} className="spv-cert">{c.name}{c.verified && <Check size={11} strokeWidth={3} style={{ marginLeft: 3, color: '#1D9E75', verticalAlign: '-1px' }} />}</span>)}
+          {shownCerts.map(c => <span key={c.name} className="spv-cert">{c.name}<Check size={11} strokeWidth={3} style={{ marginLeft: 3, color: '#1D9E75', verticalAlign: '-1px' }} /></span>)}
         </div>
       ) : (
         <div className="spv-empty">Fill in the details below and they'll show here — this is how a captain sees you when choosing a supplier.</div>

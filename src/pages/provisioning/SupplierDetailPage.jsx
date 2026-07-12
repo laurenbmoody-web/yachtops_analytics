@@ -715,7 +715,8 @@ export default function SupplierDetailPage() {
             const cutoff = (profile.order_cutoff || '').slice(0, 5);
             const min = profile.min_order_value;
             const minCur = profile.min_order_currency || 'EUR';
-            const certs = Array.isArray(profile.certifications) ? profile.certifications : [];
+            const allCerts = Array.isArray(profile.certifications) ? profile.certifications : [];
+            const certs = allCerts.filter(c => verifiedCerts.has(c)); // yachts only see verified certs
             const express = !!profile.express_available;
             const days = fmtDeliveryDays(profile.delivery_days);
             const strict = !!profile.cutoff_strict;
@@ -728,8 +729,8 @@ export default function SupplierDetailPage() {
                 {min != null && <span className="sd-term"><b>{minCur} {min}</b> min</span>}
                 {express && <span className="sd-term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
                 {certs.map(c => (
-                  <span className={`sd-cert${verifiedCerts.has(c) ? ' verified' : ''}`} key={c}>
-                    {c}{verifiedCerts.has(c) && <Check size={11} strokeWidth={3} />}
+                  <span className="sd-cert verified" key={c}>
+                    {c}<Check size={11} strokeWidth={3} />
                   </span>
                 ))}
               </div>
@@ -940,9 +941,26 @@ export default function SupplierDetailPage() {
             </div>
 
             <div className="sd-card sd-card-lg">
-              <div className="sd-label-cap" style={{ marginBottom: 18 }}>CONTACTS</div>
+              {/* Published by the supplier — read-only, the channel they want used for orders */}
+              {(profile.storefront_contact_name || profile.storefront_contact_email || profile.storefront_contact_phone) && (
+                <div className="sd-pubcontact">
+                  <div className="sd-label-cap" style={{ marginBottom: 10 }}>ORDERS CONTACT · FROM THE SUPPLIER</div>
+                  <div className="sd-pubcontact-row">
+                    <div className="sd-avatar">{initials(profile.storefront_contact_name || 'Orders desk')}</div>
+                    <div className="sd-pubcontact-who">
+                      <div className="n">{profile.storefront_contact_name || 'Orders desk'}</div>
+                      {profile.storefront_contact_role && <div className="r">{profile.storefront_contact_role}</div>}
+                    </div>
+                    <div className="sd-pubcontact-lines">
+                      {profile.storefront_contact_phone && <a href={`tel:${profile.storefront_contact_phone}`}>{profile.storefront_contact_phone}</a>}
+                      {profile.storefront_contact_email && <a href={`mailto:${profile.storefront_contact_email}`}>{profile.storefront_contact_email}</a>}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="sd-label-cap" style={{ marginBottom: 18 }}>YOUR CONTACTS</div>
               {contacts.length === 0 && !addingContact && (
-                <div className="sd-contacts-empty">No contacts yet.</div>
+                <div className="sd-contacts-empty">No contacts yet — your team's private phonebook for this supplier.</div>
               )}
               {contacts.map((c) => (
                 editingContactId === c.id ? (

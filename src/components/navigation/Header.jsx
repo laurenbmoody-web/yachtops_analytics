@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useInboxCount } from '../../hooks/useInboxCount';
 import { getCurrentUser, clearCurrentUser, hasCommandAccess, loadUsers } from '../../utils/authStorage';
 import { getInitials } from '../../utils/profileHelpers';
+import { amIPlatformAdmin } from '../../pages/cargo-console/utils';
 import { canAccessGuestManagement } from '../../pages/guest-management-dashboard/utils/guestPermissions';
 import { canAccessTrips } from '../../pages/trips-management-dashboard/utils/tripPermissions';
 import AlertsDrawer from './AlertsDrawer';
@@ -92,6 +93,7 @@ const Header = () => {
   const inboxCount = useInboxCount();
   const { basketUnits } = useBasket();
   const [tenantMemberRole, setTenantMemberRole] = useState(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false); // Cargo reviewer — sees the internal Certificates link
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -99,6 +101,14 @@ const Header = () => {
   const menuRef = useRef(null);
   const searchRef = useRef(null);
   const searchTimeout = useRef(null);
+
+  // Is this user a Cargo reviewer? Gates the internal Certificates link.
+  useEffect(() => {
+    let live = true;
+    if (!session) { setIsPlatformAdmin(false); return; }
+    amIPlatformAdmin().then(ok => { if (live) setIsPlatformAdmin(ok); });
+    return () => { live = false; };
+  }, [session]);
 
   // New state for real data from Supabase
   const [profileData, setProfileData] = useState(null);
@@ -793,6 +803,12 @@ const Header = () => {
                           { show: isCommandRole, icon: 'UserCheck', label: 'Guest Management', path: '/guest-management-dashboard', onClick: () => handleNavigation('/guest-management-dashboard', 'Guest Management') },
                           { show: isCommandRole || isChiefRole || isHODRole, icon: 'Calendar', label: 'Trips', path: '/trips-management-dashboard', onClick: () => handleNavigation('/trips-management-dashboard', 'Trips') },
                           { show: isCommandRole || isChiefRole || isHODRole, icon: 'Heart', label: 'Preferences', path: '/preferences', onClick: () => handleNavigation('/preferences', 'Preferences') },
+                        ],
+                      },
+                      {
+                        label: 'Cargo internal',
+                        items: [
+                          { show: isPlatformAdmin, icon: 'ShieldCheck', label: 'Certificates', path: '/cargo/certifications', onClick: () => handleNavigation('/cargo/certifications', 'Certificates') },
                         ],
                       },
                     ];
