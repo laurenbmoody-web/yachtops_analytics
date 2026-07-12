@@ -56,6 +56,18 @@ export const saveMyCertifications = async (certs) => {
   if (error) throw error;
 };
 
+// Kick off the AI first-pass review for a certificate the supplier just
+// attached — Claude reads the document and emails the Cargo team the parsed
+// details + a link to the issuing body's register. Fire-and-forget: the
+// supplier's save must not wait on (or fail because of) the review.
+export const requestCertReview = async (supplierId, name) => {
+  try {
+    await supabase.functions.invoke('review-supplier-cert', { body: { supplierId, name } });
+  } catch (e) {
+    console.warn('[requestCertReview] could not queue review:', e?.message || e);
+  }
+};
+
 // Upload a certificate document to the public supplier-certs bucket under the
 // supplier's own folder. Returns the public URL.
 export const uploadCertDoc = async (supplierId, file) => {
