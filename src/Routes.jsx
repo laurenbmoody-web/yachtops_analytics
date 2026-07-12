@@ -1287,6 +1287,7 @@ const Routes = () => {
           {/* Workspace profile (replaces /supplier/settings) — manager+ required */}
           <Route path="workspace" element={<Navigate to="/supplier/workspace/company" replace />} />
           <Route path="workspace/company"       element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="workspace/storefront"    element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/team"          element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/zones"         element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/tax"           element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
