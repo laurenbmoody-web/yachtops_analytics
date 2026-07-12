@@ -862,11 +862,12 @@ export default function VesselMapPage() {
                   />
                 )}
 
-                {/* Fullscreen: the room deserves the whole glass. f toggles.
-                    Yields the corner while the straighten panel is open. */}
-                {viewer.status === 'ready' && orientDraft === null && !openContainer && (
+                {/* Fullscreen: the room (or an open container's photo) deserves
+                    the whole glass. f toggles. Rides above the interior overlay
+                    so it's there on every screen. Yields while straightening. */}
+                {orientDraft === null && (viewer.status === 'ready' || openContainer) && (
                   <button
-                    className="vm-fullscreen-btn"
+                    className={`vm-fullscreen-btn${openContainer ? ' vm-fullscreen-front' : ''}`}
                     onClick={() => setImmersive((v) => !v)}
                     aria-label={immersive ? 'Exit fullscreen' : 'Fullscreen'}
                   >
