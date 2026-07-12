@@ -92,6 +92,13 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Dates render dd/mm/yyyy (Cargo convention), not the raw ISO the model returns.
+function fmtDate(s: string | null | undefined): string {
+  if (!s) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(s);
+}
+
 function escapeHtml(s: string): string {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -162,7 +169,7 @@ Deno.serve(async (req: Request) => {
     const flags: string[] = [];
     const today = new Date().toISOString().slice(0, 10);
     if (parsed.is_certificate === false) flags.push('Document does not look like a certificate');
-    if (parsed.expiry_date && parsed.expiry_date < today) flags.push(`Expired on ${parsed.expiry_date}`);
+    if (parsed.expiry_date && parsed.expiry_date < today) flags.push(`Expired on ${fmtDate(parsed.expiry_date)}`);
     if (!parsed.cert_number) flags.push('No certificate number found — cannot be looked up');
     // Loose holder-name match: does the supplier name share a word with the cert holder?
     const norm = (s: string) => (s || '').toLowerCase().replace(/\b(ltd|limited|llc|inc|sarl|bv|gmbh|srl|co|the|and)\b/g, '').replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
@@ -244,8 +251,8 @@ Deno.serve(async (req: Request) => {
               ${row('Certificate no.', parsed.cert_number)}
               ${row('Issued to', parsed.issued_to)}
               ${row('Issuing body', parsed.issuing_body)}
-              ${row('Issued', parsed.issue_date)}
-              ${row('Expires', parsed.expiry_date)}
+              ${row('Issued', fmtDate(parsed.issue_date))}
+              ${row('Expires', fmtDate(parsed.expiry_date))}
             </table>
             ${flagsHtml}
           </div>
