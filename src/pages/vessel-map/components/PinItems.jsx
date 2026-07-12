@@ -39,7 +39,12 @@ export default function PinItems({
   const catDebounce = useRef(null);
   const navigate = useNavigate();
 
-  const pinName = hotspot?.label ? hotspot.label.trim() : (scanName || 'this pin');
+  // The stock location's display name = the pin's full path, so pins in the
+  // same room don't collide into identical "Main Galley" entries.
+  const pinName = [scanName, ...containerTrail.map((c) => c.label), hotspot?.label]
+    .map((s) => (s || '').trim())
+    .filter(Boolean)
+    .join(' › ') || (scanName || 'this pin');
 
   const resetAll = () => {
     setMode(null); setQuery(''); setResults([]); setTransfer(null); setError(null);
@@ -207,7 +212,7 @@ export default function PinItems({
           <p className="vm-transfer-head"><strong>{transfer.item.name}</strong> · {transfer.total} onboard</p>
           <label className="vm-transfer-new">
             <span>New stock arriving here</span>
-            <input className="vm-check-input vm-transfer-qty" type="number" min="0" placeholder="0"
+            <input className="vm-check-input vm-transfer-qty" type="number" min="0"
               value={transfer.addNew} onChange={(e) => setTransfer((t) => ({ ...t, addNew: e.target.value }))} autoFocus />
           </label>
           {transfer.sources.length > 0 && (
@@ -217,7 +222,7 @@ export default function PinItems({
                 <div key={s.key} className="vm-transfer-src">
                   <span className="vm-transfer-src-name">{s.label}</span>
                   <span className="vm-transfer-src-have">{s.qty}</span>
-                  <input className="vm-check-input vm-transfer-qty" type="number" min="0" max={s.qty} placeholder="0"
+                  <input className="vm-check-input vm-transfer-qty" type="number" min="0" max={s.qty}
                     value={transfer.moves[s.key] || ''} onChange={(e) => setTransfer((t) => ({ ...t, moves: { ...t.moves, [s.key]: e.target.value } }))} />
                 </div>
               ))}
