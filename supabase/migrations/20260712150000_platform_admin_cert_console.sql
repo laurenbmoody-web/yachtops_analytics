@@ -50,7 +50,7 @@ returns table (
   created_at    timestamptz
 )
 language sql stable security definer set search_path = public as $$
-  select c.id, c.supplier_id, coalesce(sp.company_name, sp.name), c.name, c.doc_url,
+  select c.id, c.supplier_id, sp.name, c.name, c.doc_url,
          c.status, c.scheme, c.cert_number, c.issued_to, c.issue_date, c.expiry_date,
          c.ai_verdict, c.ai_flags, c.ai_confidence, c.registry_url,
          c.verified, c.verified_at, c.parsed_at, c.created_at

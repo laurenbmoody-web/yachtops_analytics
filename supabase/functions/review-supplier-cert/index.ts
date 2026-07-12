@@ -115,11 +115,11 @@ Deno.serve(async (req: Request) => {
     if (cert.parsed_doc_url === cert.doc_url) return json({ skipped: 'already reviewed' });
 
     const supRows = await fetch(
-      `${SUPABASE_URL}/rest/v1/supplier_profiles?id=eq.${supplierId}&select=name,company_name`,
+      `${SUPABASE_URL}/rest/v1/supplier_profiles?id=eq.${supplierId}&select=name`,
       { headers: restHeaders },
     ).then(r => r.json()).catch(() => []);
     const sup = Array.isArray(supRows) ? supRows[0] : null;
-    const supplierName = sup?.company_name || sup?.name || 'Unknown supplier';
+    const supplierName = sup?.name || 'Unknown supplier';
 
     // ── Fetch the document and read it with Claude ───────────────────────
     const docRes = await fetch(cert.doc_url);
