@@ -149,7 +149,9 @@ const CertReviewConsole = () => {
             shown.map(c => {
               const vp = verdictPill(c.verdict);
               const busy = busyId === c.id;
-              const expired = c.expiryDate && new Date(c.expiryDate) < new Date();
+              const expDays = c.expiryDate ? Math.ceil((new Date(c.expiryDate) - new Date()) / 86400000) : null;
+              const expired = expDays != null && expDays < 0;
+              const expSoon = expDays != null && expDays >= 0 && expDays <= 30;
               return (
                 <div key={c.id} className="cc-card">
                   <div className="cc-cardhead">
@@ -172,7 +174,7 @@ const CertReviewConsole = () => {
                     <div className="cc-row"><span className="k">Issued to</span><span className={`v ${c.issuedTo ? '' : 'mut'}`}>{c.issuedTo || '—'}</span></div>
                     <div className="cc-row"><span className="k">Issuing body</span><span className={`v ${c.issuingBody ? '' : 'mut'}`}>{c.issuingBody || '—'}</span></div>
                     <div className="cc-row"><span className="k">Issued</span><span className={`v ${c.issueDate ? '' : 'mut'}`}>{fmtDate(c.issueDate) || '—'}</span></div>
-                    <div className="cc-row"><span className="k">Expires</span><span className="v" style={expired ? { color: '#C0392B' } : undefined}>{fmtDate(c.expiryDate) || <span className="mut">—</span>}{expired ? ' · expired' : ''}</span></div>
+                    <div className="cc-row"><span className="k">Expires</span><span className="v" style={expired ? { color: '#C0392B' } : expSoon ? { color: '#9A6700' } : undefined}>{fmtDate(c.expiryDate) || <span className="mut">—</span>}{expired ? ' · expired' : expSoon ? ` · in ${expDays}d` : ''}</span></div>
                     <div className="cc-row"><span className="k">Uploaded</span><span className="v mut" style={{ fontWeight: 400, color: '#8B8478' }}>{fmtDate(c.createdAt) || '—'}</span></div>
                   </div>
 

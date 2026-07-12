@@ -974,6 +974,14 @@ const TimeField = ({ value, onChange }) => {
 // Live "what yachts see" preview — the supplier's own buyer-facing card,
 // built from their profile + the current form values so it updates as they
 // edit. Closes the loop the review flagged: they can see their storefront.
+// Days-to-expiry state for a cert (expired / expiring soon within 30 days).
+const certExpiry = (d) => {
+  if (!d) return { expired: false, soon: false, label: null };
+  const days = Math.ceil((new Date(d) - new Date()) / 86400000);
+  const label = new Date(d).toLocaleDateString('en-GB');
+  return { expired: days < 0, soon: days >= 0 && days <= 30, days, label };
+};
+
 const StorefrontPreview = ({ supplier, form, certs }) => {
   const [rating, setRating] = useState(null);
   useEffect(() => {
@@ -999,7 +1007,7 @@ const StorefrontPreview = ({ supplier, form, certs }) => {
   const cutoffStrict = !!form.cutoff_strict;
   const hasLead = lead !== '' && lead != null;
   const hasMin = min !== '' && min != null;
-  const shownCerts = certs.filter(c => c.verified); // yachts only see Cargo-verified certs
+  const shownCerts = certs.filter(c => c.verified && !certExpiry(c.expiryDate).expired); // yachts only see verified, in-date certs
   const hasTerms = hasLead || cutoff || hasMin || express || days || shownCerts.length > 0;
 
   const stars = (v) => [1, 2, 3, 4, 5].map(i => {
@@ -1290,6 +1298,16 @@ const StorefrontSection = ({ supplier, onSaved }) => {
                       <Check size={11} strokeWidth={3} /> Verified
                     </span>
                   )}
+                  {(() => {
+                    const e = certExpiry(c.expiryDate);
+                    if (!c.expiryDate) return null;
+                    const tone = e.expired ? { bg: '#FDECEC', fg: '#C0392B' } : e.soon ? { bg: '#FEF6E7', fg: '#9A6700' } : { bg: 'var(--bg-3)', fg: 'var(--muted-s)' };
+                    return (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: tone.bg, color: tone.fg, borderRadius: 999, padding: '2px 9px', fontSize: 10.5, fontWeight: 600 }}>
+                        <Clock size={10} /> {e.expired ? `Expired ${e.label}` : e.soon ? `Expires ${e.label}` : `Valid to ${e.label}`}
+                      </span>
+                    );
+                  })()}
                 </span>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                   {c.docUrl ? (
