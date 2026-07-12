@@ -862,7 +862,7 @@ const Marketplace = () => {
                                   <span className="mp-sf-av">{initialsOf(focused.contact_name)}</span>
                                   <span className="mp-sf-who">
                                     <span className="n">{focused.contact_name || 'Orders desk'}</span>
-                                    <span className="r">{focused.contact_role || 'Contact'}</span>
+                                    {focused.contact_role && <span className="r">{focused.contact_role}</span>}
                                   </span>
                                   <span className="mp-sf-lines">
                                     {focused.contact_phone && <span>{focused.contact_phone}</span>}

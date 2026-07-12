@@ -1048,7 +1048,7 @@ const StorefrontPreview = ({ supplier, form, certs }) => {
           <span className="spv-contact-av">{((form.contact_name || '·').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('') || '·').toUpperCase()}</span>
           <span className="spv-contact-who">
             <b>{form.contact_name || 'Orders desk'}</b>
-            <span>{form.contact_role || 'Contact'}</span>
+            {form.contact_role && <span>{form.contact_role}</span>}
           </span>
           <span className="spv-contact-lines">
             {form.contact_phone && <span>{form.contact_phone}</span>}
