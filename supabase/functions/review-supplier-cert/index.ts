@@ -223,6 +223,7 @@ Deno.serve(async (req: Request) => {
         registry_url: registryUrl,
         parsed_doc_url: cert.doc_url,
         parsed_at: new Date().toISOString(),
+        expiry_reminded_stages: [], // fresh document → reminders restart for the new expiry
       }),
     });
 
