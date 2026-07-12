@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import Header from '../../components/navigation/Header';
-import { getCurrentUser } from '../../utils/authStorage';
+import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -206,12 +206,24 @@ const SettingsPage = () => {
     tz?.offset?.includes(timezoneSearch)
   );
 
+  // Personal ("You") sections — available to everyone; rendered in-page.
   const sections = [
     { id: 'membership', label: 'Membership', icon: 'CreditCard' },
     { id: 'timezone', label: 'Timezone', icon: 'Clock' },
     { id: 'notifications', label: 'Notifications', icon: 'Bell' },
     { id: 'legal', label: 'Legal', icon: 'FileText' },
     { id: 'help', label: 'Help', icon: 'HelpCircle' },
+  ];
+
+  // Vessel (admin) sections — COMMAND/CHIEF only; they deep-link into the
+  // vessel-settings admin page so this stays the single settings home while
+  // keeping the admin surface (and its VesselAdminRoute guard) intact.
+  const canAccessVessel = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
+  const vesselSections = [
+    { id: 'vessel-profile', label: 'Vessel Profile', icon: 'Ship' },
+    { id: 'location-management', label: 'Locations', icon: 'MapPin' },
+    { id: 'role-management', label: 'Roles', icon: 'Users' },
+    { id: 'provisioning-approval', label: 'Provisioning Approval', icon: 'CheckCircle' },
   ];
 
   const renderContent = () => {
@@ -614,6 +626,7 @@ const SettingsPage = () => {
           <div className="p-4">
             <h1 className="text-xl font-semibold text-foreground mb-6">Settings</h1>
             <nav className="space-y-1">
+              <div className="px-4 pt-1 pb-2 text-[10px] font-bold tracking-[0.11em] uppercase text-muted-foreground">You</div>
               {sections?.map((section) => (
                 <button
                   key={section?.id}
@@ -627,6 +640,23 @@ const SettingsPage = () => {
                   <span className="text-sm font-medium">{section?.label}</span>
                 </button>
               ))}
+
+              {canAccessVessel && (
+                <>
+                  <div className="px-4 pt-5 pb-2 text-[10px] font-bold tracking-[0.11em] uppercase text-muted-foreground">Vessel</div>
+                  {vesselSections?.map((section) => (
+                    <button
+                      key={section?.id}
+                      onClick={() => navigate(`/settings/vessel?section=${section?.id}`)}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-foreground hover:bg-muted"
+                    >
+                      <Icon name={section?.icon} size={18} />
+                      <span className="text-sm font-medium">{section?.label}</span>
+                      <Icon name="ArrowUpRight" size={14} className="ml-auto text-muted-foreground" />
+                    </button>
+                  ))}
+                </>
+              )}
             </nav>
           </div>
         </div>

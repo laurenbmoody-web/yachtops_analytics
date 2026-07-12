@@ -14,7 +14,6 @@ import { getInitials } from '../../utils/profileHelpers';
 import { canAccessGuestManagement } from '../../pages/guest-management-dashboard/utils/guestPermissions';
 import { canAccessTrips } from '../../pages/trips-management-dashboard/utils/tripPermissions';
 import AlertsDrawer from './AlertsDrawer';
-import SettingsModal from './SettingsModal';
 import { getUnreadCount, checkDueAndOverdueJobs } from '../../pages/team-jobs-management/utils/notifications';
 import { fetchDbUnreadCount } from '../../lib/dbNotifications';
 import { isDevMode } from '../../utils/devMode';
@@ -78,40 +77,6 @@ const AvatarMenuItem = ({ icon, label, onClick, danger, active }) => {
 // Row used inside the consolidated header dropdowns (Alerts, Settings). Same
 // editorial language as AvatarMenuItem, plus an optional terracotta count pill
 // on the right for feeds that carry a pending count (reviews, notifications).
-const HeaderMenuItem = ({ icon, label, description, count, onClick, active }) => {
-  const baseColor = active ? '#C65A1A' : '#1C1B3A';
-  const iconColor = active ? '#C65A1A' : '#8B8478';
-  const baseBg = active ? '#FBEFE9' : 'transparent';
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 11, width: '100%', padding: '10px 16px',
-        background: baseBg, border: 'none', textAlign: 'left', cursor: 'pointer',
-        color: baseColor, transition: 'background 100ms',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = active ? '#FBEFE9' : '#F6F5F2'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = baseBg; }}
-    >
-      <Icon name={icon} size={16} color={iconColor} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 13, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", lineHeight: 1.3 }}>{label}</span>
-        {description && (
-          <span style={{ display: 'block', fontSize: 11, color: '#8B8478', marginTop: 1 }}>{description}</span>
-        )}
-      </span>
-      {count > 0 && (
-        <span style={{
-          minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999,
-          background: '#C65A1A', color: '#fff', fontSize: 11, fontWeight: 600,
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        }}>{count > 99 ? '99+' : count}</span>
-      )}
-    </button>
-  );
-};
-
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -121,8 +86,6 @@ const Header = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [alertsTab, setAlertsTab] = useState('notifications');
-  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   // Live count of pending review_items routed to the current user via
   // Phase 1 RLS. Polled at 30s; rendered as the inbox icon's badge.
@@ -134,7 +97,6 @@ const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const menuRef = useRef(null);
-  const settingsRef = useRef(null);
   const searchRef = useRef(null);
   const searchTimeout = useRef(null);
 
@@ -309,9 +271,6 @@ const Header = () => {
     const handleClickOutside = (event) => {
       if (menuRef?.current && !menuRef?.current?.contains(event?.target)) {
         setUserMenuOpen(false);
-      }
-      if (settingsRef?.current && !settingsRef?.current?.contains(event?.target)) {
-        setSettingsMenuOpen(false);
       }
       if (searchRef?.current && !searchRef?.current?.contains(event?.target)) {
         setIsSearchOpen(false);
@@ -709,40 +668,17 @@ const Header = () => {
             </button>
           )}
 
-          {/* Settings — consolidated Vessel Settings + System Settings under a
-              single gear icon. */}
-          <div className="relative" ref={settingsRef}>
-            <button
-              onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-              className="p-2 hover:bg-muted rounded-lg transition-smooth"
-              title="Settings"
-              aria-label="Settings"
-            >
-              <Icon name="Settings" size={20} color="var(--color-foreground)" />
-            </button>
-
-            {settingsMenuOpen && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                width: 220, background: '#FFFFFF', border: '1px solid #ECEAE3',
-                borderRadius: 14, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)',
-                zIndex: 50, overflow: 'hidden', pointerEvents: 'auto',
-              }}>
-                <AvatarMenuSectionLabel label="Settings" />
-                <HeaderMenuItem
-                  icon="Ship"
-                  label="Vessel Settings"
-                  active={location?.pathname === '/settings/vessel' || location?.pathname?.startsWith('/settings/vessel/')}
-                  onClick={() => { setSettingsMenuOpen(false); navigate('/settings/vessel'); }}
-                />
-                <HeaderMenuItem
-                  icon="Settings"
-                  label="System Settings"
-                  onClick={() => { setSettingsMenuOpen(false); setSettingsOpen(true); }}
-                />
-              </div>
-            )}
-          </div>
+          {/* Settings — single gear to the unified settings home (/settings),
+              which hosts personal ("You") sections and, for command/chief, the
+              vessel admin sections. */}
+          <button
+            onClick={() => navigate('/settings')}
+            className="p-2 hover:bg-muted rounded-lg transition-smooth"
+            title="Settings"
+            aria-label="Settings"
+          >
+            <Icon name="Settings" size={20} color="var(--color-foreground)" />
+          </button>
 
           <button
             className="p-2 hover:bg-muted rounded-lg transition-smooth"
@@ -911,11 +847,6 @@ const Header = () => {
       <AcceptAdminBanner 
         onAccept={() => {}}
         onRefresh={() => {}}
-      />
-      {/* Settings Modal */}
-      <SettingsModal 
-        isOpen={settingsOpen} 
-        onClose={() => setSettingsOpen(false)} 
       />
     </>
   );
