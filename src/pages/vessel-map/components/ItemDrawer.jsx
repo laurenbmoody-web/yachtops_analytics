@@ -13,6 +13,8 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { getItemById, saveItem } from '../../inventory/utils/inventoryStorage';
 import { searchInventoryLocations, locationLabel } from '../utils/inventory';
+import { setPinCount, clearItemNode } from '../utils/placement';
+import { entryKey } from '../utils/stockMath';
 import { getActivityForEntity } from '../../../utils/activityStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../../utils/authStorage';
 import { canViewCost, formatCurrency } from '../../../utils/costPermissions';
@@ -65,6 +67,7 @@ export default function ItemDrawer({ itemId, onClose }) {
   const [catPicking, setCatPicking] = useState(false);
   const [catQuery, setCatQuery] = useState('');
   const [catResults, setCatResults] = useState([]);
+  const [locBusy, setLocBusy] = useState(null);
   const catDebounce = useRef(null);
 
   const user = getCurrentUser();
@@ -124,6 +127,31 @@ export default function ItemDrawer({ itemId, onClose }) {
     setSaving(false);
     if (!ok) { setSaveErr('Could not save — check the fields and try again.'); return; }
     setEditing(false); setDraft(null); setCatPicking(false);
+    await loadItem();
+  };
+
+  // Per-location count editing — the item's "god view". Any location's count
+  // can be recounted here regardless of which pin you came from, which the map
+  // can't do (its steppers only touch the pin you're standing on). Each entry
+  // is keyed the same way stockMath keys stock_locations, so the recount lands
+  // on the right row and flows its delta to the total.
+  const locKey = (e) => entryKey({ vesselLocationId: e.vesselLocationId, locationId: e.locationId, locationName: e.locationName, subLocation: e.subLocation });
+  const locName = (e) => e.locationName || e.subLocation || 'Location';
+  const stepLoc = async (e, delta) => {
+    const key = locKey(e);
+    const cur = Number(e.qty ?? e.quantity) || 0;
+    const newQty = Math.max(0, cur + delta);
+    if (newQty === cur) return;
+    setLocBusy(key);
+    const { error } = await setPinCount(itemId, { pin: { nodeId: key, name: locName(e) }, newQty });
+    setLocBusy(null);
+    if (!error) await loadItem();
+  };
+  const removeLoc = async (e) => {
+    const key = locKey(e);
+    setLocBusy(key);
+    await clearItemNode(itemId, { nodeId: key, name: locName(e) });
+    setLocBusy(null);
     await loadItem();
   };
 
@@ -257,14 +285,32 @@ export default function ItemDrawer({ itemId, onClose }) {
       <div className="vmid-section">
         <p className="vmid-label">Where it is</p>
         {item.stockLocations && item.stockLocations.length > 0 ? (
-          item.stockLocations.map((loc, i) => (
-            <div key={i} className="vmid-stock-row">
-              <span className="vmid-stock-name">{loc.locationName || loc.subLocation || 'Location'}</span>
-              <span className="vmid-stock-qty">{loc.qty ?? loc.quantity ?? 0}</span>
-            </div>
-          ))
+          item.stockLocations.map((loc, i) => {
+            const key = locKey(loc);
+            const q = loc.qty ?? loc.quantity ?? 0;
+            return (
+              <div key={i} className="vmid-stock-row">
+                <span className="vmid-stock-name">{locName(loc)}</span>
+                {canEdit ? (
+                  <span className="vmid-stock-edit">
+                    <span className="vmid-loc-step">
+                      <button className="vmid-loc-btn" onClick={() => stepLoc(loc, -1)} disabled={locBusy === key || q <= 0} aria-label={`One fewer at ${locName(loc)}`}>–</button>
+                      <span className="vmid-loc-qty">{q}</span>
+                      <button className="vmid-loc-btn" onClick={() => stepLoc(loc, 1)} disabled={locBusy === key} aria-label={`One more at ${locName(loc)}`}>+</button>
+                    </span>
+                    <button className="vmid-loc-del" onClick={() => removeLoc(loc)} disabled={locBusy === key} aria-label={`Remove from ${locName(loc)}`}>×</button>
+                  </span>
+                ) : (
+                  <span className="vmid-stock-qty">{q}</span>
+                )}
+              </div>
+            );
+          })
         ) : (
           <p className="vmid-empty">Not placed anywhere yet.</p>
+        )}
+        {canEdit && item.stockLocations && item.stockLocations.length > 0 && (
+          <p className="vmid-editnote">Adjust any location’s count here — the total follows. New locations are added by placing stock on a pin.</p>
         )}
       </div>
 
