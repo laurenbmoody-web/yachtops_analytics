@@ -18,7 +18,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, ClipboardList, Search, X, ChevronRight, MapPin,
-  SlidersHorizontal, ChevronDown,
+  SlidersHorizontal, ChevronDown, ArrowUpDown, Check,
 } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -196,6 +196,54 @@ const FiltersMenu = ({
               </select>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SORT_OPTIONS = [
+  { key: 'name', label: 'Name A–Z' },
+  { key: 'price_asc', label: 'Price · low first' },
+  { key: 'price_desc', label: 'Price · high first' },
+  { key: 'updated_desc', label: 'Recently updated' },
+];
+
+// Sort as a menu: the chip just reads "Sort"; the current choice shows as
+// a tick inside the dropdown, so the bar stays short.
+const SortMenu = ({ sortBy, setSortBy }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  return (
+    <div className="mp-sortmenu" ref={ref}>
+      <button type="button" className={`mp-filters-btn ${open ? 'open' : ''} ${sortBy !== 'name' ? 'on' : ''}`} onClick={() => setOpen(o => !o)}>
+        <ArrowUpDown size={14} />
+        <span>Sort</span>
+        <ChevronDown size={14} className="chev" />
+      </button>
+      {open && (
+        <div className="mp-filters-pop mp-sort-pop">
+          {SORT_OPTIONS.map(o => (
+            <button
+              key={o.key}
+              type="button"
+              className={`mp-sort-opt ${sortBy === o.key ? 'sel' : ''}`}
+              onClick={() => { setSortBy(o.key); setOpen(false); }}
+            >
+              <span>{o.label}</span>
+              {sortBy === o.key && <Check size={15} />}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -891,15 +939,7 @@ const Marketplace = () => {
                   chipDefs={chipDefs} searchedLen={searched.length}
                   showPort={stage === 'items'} showMine={stage === 'items'}
                 />
-                <label className="mp-filter mp-sort">
-                  <span className="k">Sort</span>
-                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                    <option value="name">Name A–Z</option>
-                    <option value="price_asc">Price · low first</option>
-                    <option value="price_desc">Price · high first</option>
-                    <option value="updated_desc">Recently updated</option>
-                  </select>
-                </label>
+                <SortMenu sortBy={sortBy} setSortBy={setSortBy} />
                 {filtersDirty && (
                   <button type="button" className="mp-clear" onClick={resetBrowse}>× Clear all</button>
                 )}
