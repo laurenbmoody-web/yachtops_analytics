@@ -93,15 +93,18 @@ export default function PinItems({
     return nid;
   };
 
-  // Clicking a search result opens the transfer panel for that item.
-  const openTransfer = async (inv) => {
+  // Open the transfer panel for an item — from a search result (add) or from
+  // an existing row's ▾ (move more in without re-searching). forRow renders it
+  // inline under that row.
+  const openTransfer = async (inv, forRow = null) => {
+    if (transfer?.forRow === inv.id && forRow) { setTransfer(null); return; } // toggle
     setMode(null); setQuery(''); setResults([]); setError(null);
     const nid = await ensureNode();
     if (!nid) return;
     const { stockLocations, total, error: e } = await itemStock(inv.id);
     if (e) { setError(e); return; }
     setTransfer({
-      item: inv, total,
+      item: inv, total, forRow,
       existing: pinQty(stockLocations, nid),
       sources: sourcesOf({ stockLocations, total }, nid),
       addNew: '', moves: {},
@@ -160,6 +163,37 @@ export default function PinItems({
 
   const startCreateFromQuery = () => { setNewName(query.trim()); setNewQty(''); setMode('create'); setResults([]); };
 
+  // The receive-new + move-in panel. Rendered inline under a row (from its ▾)
+  // or below the list (from the add-item search).
+  const panel = transfer && (
+    <div className="vm-transfer">
+      {!transfer.forRow && <p className="vm-transfer-head"><strong>{transfer.item.name}</strong> · {transfer.total} onboard</p>}
+      <label className="vm-transfer-new">
+        <span>New stock arriving here</span>
+        <input className="vm-check-input vm-transfer-qty" type="number" min="0"
+          value={transfer.addNew} onChange={(e) => setTransfer((t) => ({ ...t, addNew: e.target.value }))} autoFocus />
+      </label>
+      {transfer.sources.length > 0 && (
+        <>
+          <p className="vm-transfer-sub">Or move some in from where it is now:</p>
+          {transfer.sources.map((s) => (
+            <div key={s.key} className="vm-transfer-src">
+              <span className="vm-transfer-src-name" title={s.label}>{s.label}</span>
+              <span className="vm-transfer-src-have">{s.qty}</span>
+              <input className="vm-check-input vm-transfer-qty" type="number" min="0" max={s.qty}
+                value={transfer.moves[s.key] || ''} onChange={(e) => setTransfer((t) => ({ ...t, moves: { ...t.moves, [s.key]: e.target.value } }))} />
+            </div>
+          ))}
+        </>
+      )}
+      <p className="vm-transfer-total">This pin will hold: <strong>{willHold}</strong></p>
+      <div className="vm-transfer-actions">
+        <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || willHold <= (transfer.existing || 0)}>{busy === 'transfer' ? 'Saving…' : 'Place'}</button>
+        <button className="vm-btn-ghost" onClick={() => setTransfer(null)}>Cancel</button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="vm-pinitems">
       <p className="vm-label">What’s inside</p>
@@ -175,66 +209,46 @@ export default function PinItems({
             const segs = r.category ? r.category.split(' › ') : [];
             const leaf = segs.pop();
             const head = segs.join(' › ');
+            const open = transfer?.forRow === r.id;
             return (
-              <div key={r.id} className="vm-pinitem">
-                <span className="vm-pinitem-main">
-                  <button className="vm-pinitem-name" onClick={() => navigate(`/inventory/item/${r.id}`)} title="View in inventory">{r.name}</button>
-                  {leaf ? (
-                    <span className="vm-pinitem-cat" title={r.category}>
-                      {head && <span className="vm-pinitem-cat-head">{head} › </span>}
-                      <span className="vm-pinitem-cat-leaf">{leaf}</span>
+              <React.Fragment key={r.id}>
+                <div className="vm-pinitem">
+                  <span className="vm-pinitem-main">
+                    <button className="vm-pinitem-name" onClick={() => navigate(`/inventory/item/${r.id}`)} title="View in inventory">{r.name}</button>
+                    {leaf ? (
+                      <span className="vm-pinitem-cat">
+                        {head && <span className="vm-pinitem-cat-head">{head} › </span>}
+                        <span className="vm-pinitem-cat-leaf">{leaf}</span>
+                      </span>
+                    ) : (
+                      <span className="vm-pinitem-cat"><span className="vm-pinitem-cat-head">Uncategorised</span></span>
+                    )}
+                  </span>
+                  {canManage && (
+                    <button className={`vm-pinitem-move${open ? ' on' : ''}`} onClick={() => openTransfer({ id: r.id, name: r.name }, r.id)} aria-label={`Move stock for ${r.name}`} title="Receive / move stock">▾</button>
+                  )}
+                  {canManage ? (
+                    <span className="vm-pinitem-step">
+                      <button className="vm-pinitem-btn" onClick={() => bump(r, -1)} disabled={busy === r.id || r.qty <= 0} aria-label={`One fewer ${r.name}`}>–</button>
+                      <span className="vm-pinitem-qty">{r.qty}</span>
+                      <button className="vm-pinitem-btn" onClick={() => bump(r, 1)} disabled={busy === r.id} aria-label={`One more ${r.name}`}>+</button>
                     </span>
                   ) : (
-                    <span className="vm-pinitem-cat"><span className="vm-pinitem-cat-head">Uncategorised</span></span>
+                    <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}</span>
                   )}
-                </span>
-                {canManage ? (
-                  <span className="vm-pinitem-step">
-                    <button className="vm-pinitem-btn" onClick={() => bump(r, -1)} disabled={busy === r.id || r.qty <= 0} aria-label={`One fewer ${r.name}`}>–</button>
-                    <span className="vm-pinitem-qty">{r.qty}</span>
-                    <button className="vm-pinitem-btn" onClick={() => bump(r, 1)} disabled={busy === r.id} aria-label={`One more ${r.name}`}>+</button>
-                  </span>
-                ) : (
-                  <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}</span>
-                )}
-                {canManage && (
-                  <button className="vm-pinitem-del" onClick={() => removeItem(r.id)} aria-label={`Remove ${r.name}`}>×</button>
-                )}
-              </div>
+                  {canManage && (
+                    <button className="vm-pinitem-del" onClick={() => removeItem(r.id)} aria-label={`Remove ${r.name}`}>×</button>
+                  )}
+                </div>
+                {open && panel}
+              </React.Fragment>
             );
           })}
         </div>
       )}
 
-      {/* Transfer panel — receive new + move existing in */}
-      {transfer && (
-        <div className="vm-transfer">
-          <p className="vm-transfer-head"><strong>{transfer.item.name}</strong> · {transfer.total} onboard</p>
-          <label className="vm-transfer-new">
-            <span>New stock arriving here</span>
-            <input className="vm-check-input vm-transfer-qty" type="number" min="0"
-              value={transfer.addNew} onChange={(e) => setTransfer((t) => ({ ...t, addNew: e.target.value }))} autoFocus />
-          </label>
-          {transfer.sources.length > 0 && (
-            <>
-              <p className="vm-transfer-sub">Or move some in from where it is now:</p>
-              {transfer.sources.map((s) => (
-                <div key={s.key} className="vm-transfer-src">
-                  <span className="vm-transfer-src-name">{s.label}</span>
-                  <span className="vm-transfer-src-have">{s.qty}</span>
-                  <input className="vm-check-input vm-transfer-qty" type="number" min="0" max={s.qty}
-                    value={transfer.moves[s.key] || ''} onChange={(e) => setTransfer((t) => ({ ...t, moves: { ...t.moves, [s.key]: e.target.value } }))} />
-                </div>
-              ))}
-            </>
-          )}
-          <p className="vm-transfer-total">This pin will hold: <strong>{willHold}</strong></p>
-          <div className="vm-transfer-actions">
-            <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || willHold <= (transfer.existing || 0)}>{busy === 'transfer' ? 'Placing…' : 'Place'}</button>
-            <button className="vm-btn-ghost" onClick={() => setTransfer(null)}>Cancel</button>
-          </div>
-        </div>
-      )}
+      {/* Add-flow transfer panel (below the list) */}
+      {transfer && !transfer.forRow && panel}
 
       {canManage && mode === 'add' && (
         <div className="vm-cupboard-picker">

@@ -1565,9 +1565,14 @@
 .vm-pinitem-name { text-align: left; background: none; border: 0; padding: 0; cursor: pointer;
   font-family: inherit; font-size: 14px; font-weight: 600; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vm-pinitem-name:hover { color: #C65A1A; }
-.vm-pinitem-cat { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vm-pinitem-cat { font-size: 11px; line-height: 1.35; }
 .vm-pinitem-cat-head { color: #AEB4C2; }
 .vm-pinitem-cat-leaf { color: #8B8478; font-weight: 500; }
+/* ▾ receive/move stock — expands the transfer panel under the row */
+.vm-pinitem-move { flex: none; width: 22px; height: 22px; border: 0; background: none; color: #AEB4C2; font-size: 12px;
+  cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: transform .15s, color .12s, background .12s; }
+.vm-pinitem-move:hover { color: #C65A1A; background: #FBEFE9; }
+.vm-pinitem-move.on { color: #C65A1A; transform: rotate(180deg); }
 /* rounded-pill −/+ stepper, unit small next to the number */
 .vm-pinitem-step { flex: none; display: inline-flex; align-items: center; border: 1px solid #ECEAE3; border-radius: 999px; overflow: hidden; background: #fff; }
 .vm-pinitem-step .vm-pinitem-qty { min-width: 52px; text-align: center; padding: 0 4px; font-size: 13px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; }
