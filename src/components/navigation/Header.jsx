@@ -6,6 +6,7 @@ import LogoSpinner from '../LogoSpinner';
 import AcceptAdminBanner from './AcceptAdminBanner';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useBasket } from '../../contexts/BasketContext';
 import { supabase } from '../../lib/supabaseClient';
 import { useInboxCount } from '../../hooks/useInboxCount';
 import { getCurrentUser, clearCurrentUser, hasCommandAccess, loadUsers } from '../../utils/authStorage';
@@ -88,6 +89,7 @@ const Header = () => {
   // Live count of pending review_items routed to the current user via
   // Phase 1 RLS. Polled at 30s; rendered as the inbox icon's badge.
   const inboxCount = useInboxCount();
+  const { basketUnits } = useBasket();
   const [tenantMemberRole, setTenantMemberRole] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -640,6 +642,20 @@ const Header = () => {
           >
             <Icon name="Activity" size={20} className="text-muted-foreground" />
           </button>
+
+          {basketUnits > 0 && (
+            <button
+              onClick={() => navigate('/provisioning/marketplace?counter=1')}
+              className="relative p-2 hover:bg-muted rounded-lg transition-smooth"
+              title={`The Counter — ${basketUnits} item${basketUnits === 1 ? '' : 's'} to add to a board`}
+              aria-label={`The Counter — ${basketUnits} item${basketUnits === 1 ? '' : 's'}`}
+            >
+              <Icon name="ClipboardList" size={20} color="var(--color-foreground)" />
+              <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] text-white text-xs font-semibold rounded-full flex items-center justify-center px-1" style={{ background: '#C65A1A' }}>
+                {basketUnits > 99 ? '99+' : basketUnits}
+              </span>
+            </button>
+          )}
 
           <button
             onClick={() => navigate('/reviews')}
