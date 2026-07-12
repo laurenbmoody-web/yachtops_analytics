@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Zap } from 'lucide-react';
+import { Zap, Check } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   fetchSupplierProfileById,
+  fetchSupplierVerifiedCerts,
   fetchUserNames,
   updateSupplierNotes,
   updateSupplierContacts,
@@ -335,6 +336,7 @@ export default function SupplierDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [supplierRating, setSupplierRating] = useState(null); // {avg,count,quality,delivery,service}
   const [reviewsOpen, setReviewsOpen] = useState(false);
+  const [verifiedCerts, setVerifiedCerts] = useState(() => new Set()); // Cargo-verified cert names
 
   // Platform-wide rating for this supplier — shared with the marketplace
   // storefront (get_supplier_ratings). Non-blocking.
@@ -412,6 +414,7 @@ export default function SupplierDetailPage() {
         setNotesDraft(p.notes || '');
         setContacts(Array.isArray(p.contacts) ? p.contacts : []);
         setLoading(false);
+        fetchSupplierVerifiedCerts(p.id).then((s) => { if (!cancelled) setVerifiedCerts(s); });
         // Look up the notes editor's name if we have one.
         if (p.notes_updated_by) {
           fetchUserNames([p.notes_updated_by]).then((map) => {
@@ -724,7 +727,11 @@ export default function SupplierDetailPage() {
                 {cutoff && <span className="sd-term">order by <b>{cutoff}</b> {strict ? '(firm)' : '(flexible)'}</span>}
                 {min != null && <span className="sd-term"><b>{minCur} {min}</b> min</span>}
                 {express && <span className="sd-term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
-                {certs.map(c => <span className="sd-cert" key={c}>{c}</span>)}
+                {certs.map(c => (
+                  <span className={`sd-cert${verifiedCerts.has(c) ? ' verified' : ''}`} key={c}>
+                    {c}{verifiedCerts.has(c) && <Check size={11} strokeWidth={3} />}
+                  </span>
+                ))}
               </div>
             );
           })()}
