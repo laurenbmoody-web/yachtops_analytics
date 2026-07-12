@@ -52,17 +52,27 @@ const restHeaders = {
 // Where a scheme has a public per-certificate lookup we deep-link its search;
 // where it doesn't (HACCP is a method, not a register) we say so. A web-search
 // fallback on the certificate number is always added so the team has a click.
-const REGISTRY: Record<string, { label: string; url: string }> = {
-  brcgs:          { label: 'BRCGS Directory',            url: 'https://directory.brcgs.com/' },
-  ifs:            { label: 'IFS certified companies',    url: 'https://www.ifs-certification.com/index.php/en/certified-companies-int' },
-  msc:            { label: 'MSC certificate search',     url: 'https://cert.msc.org/' },
-  asc:            { label: 'ASC certificate finder',     url: 'https://www.asc-aqua.org/what-you-can-do/take-action/find-a-farm/' },
-  globalgap:      { label: 'GLOBALG.A.P. database',      url: 'https://database.globalgap.org/globalgap/search/SearchMain.faces' },
-  eu_organic:     { label: 'EU organic operators (OFIS)',url: 'https://ec.europa.eu/agriculture/ofis_public/actor/index.cfm' },
-  soil_association:{ label: 'Soil Association licensees',url: 'https://www.soilassociation.org/certification/find-a-licensee/' },
-  brc:            { label: 'BRCGS Directory',            url: 'https://directory.brcgs.com/' },
-  fssc:           { label: 'FSSC 22000 registered',      url: 'https://www.fssc.com/certified-organizations/' },
-  organic:        { label: 'Check the issuing control body', url: 'https://www.google.com/search?q=organic+certification+register' },
+const REGISTRY: Record<string, { label: string; url: string; hint: string }> = {
+  brcgs:          { label: 'BRCGS approved bodies',      url: 'https://directory.brcgs.com/certification-body-search',
+                    hint: 'Search the ISSUING BODY name below. BRCGS says any body not listed is not authorised to issue a certificate — so if it isn\'t there, the cert isn\'t valid.' },
+  brc:            { label: 'BRCGS approved bodies',      url: 'https://directory.brcgs.com/certification-body-search',
+                    hint: 'Search the ISSUING BODY name below. If it isn\'t a listed BRCGS-approved body, the cert isn\'t valid.' },
+  ifs:            { label: 'IFS certified companies',    url: 'https://www.ifs-certification.com/index.php/en/certified-companies-int',
+                    hint: 'Search the certified company (issued-to) and confirm the certificate is current.' },
+  fssc:           { label: 'FSSC 22000 register',        url: 'https://www.fssc.com/certified-organizations/',
+                    hint: 'Search the organisation name below and confirm the certificate is active.' },
+  msc:            { label: 'MSC certificate search',     url: 'https://cert.msc.org/',
+                    hint: 'Search the certificate number or company and confirm it is a valid MSC chain-of-custody certificate.' },
+  asc:            { label: 'ASC finder',                 url: 'https://www.asc-aqua.org/what-you-can-do/take-action/find-a-farm/',
+                    hint: 'Search the farm / company and confirm the certificate is current.' },
+  globalgap:      { label: 'GLOBALG.A.P. database',      url: 'https://database.globalgap.org/globalgap/search/SearchMain.faces',
+                    hint: 'Search the GGN or certificate number below and confirm it is valid.' },
+  eu_organic:     { label: 'EU organic operators (OFIS)',url: 'https://ec.europa.eu/agriculture/ofis_public/actor/index.cfm',
+                    hint: 'Confirm the operator with its control body / the organic register.' },
+  soil_association:{ label: 'Soil Association licensees',url: 'https://www.soilassociation.org/certification/find-a-licensee/',
+                    hint: 'Search the licensee name and confirm certification is current.' },
+  organic:        { label: 'Organic control body',       url: 'https://www.google.com/search?q=organic+certification+register',
+                    hint: 'Organic schemes vary — confirm the operator with the control body named on the certificate.' },
 };
 
 const SCHEME_LABEL: Record<string, string> = {
@@ -204,6 +214,7 @@ Deno.serve(async (req: Request) => {
         scheme: schemeId,
         cert_number: parsed.cert_number || null,
         issued_to: parsed.issued_to || null,
+        issuing_body: parsed.issuing_body || null,
         issue_date: parsed.issue_date || null,
         expiry_date: parsed.expiry_date || null,
         ai_verdict: verdict,
@@ -231,7 +242,10 @@ Deno.serve(async (req: Request) => {
 
     const registryBtn = reg
       ? `<a href="${reg.url}" style="display:inline-block;background:#1C2340;color:#fff;text-decoration:none;font-size:13px;font-weight:600;padding:11px 18px;border-radius:8px;margin-right:10px">Check on ${escapeHtml(reg.label)} →</a>`
-      : `<span style="display:inline-block;color:#6B6F7B;font-size:12px;margin-right:10px">${schemeId === 'haccp' ? 'HACCP has no central register — verify the scheme certificate behind it.' : 'No public register for this scheme.'}</span>`;
+      : `<span style="display:inline-block;color:#6B6F7B;font-size:12px;margin-right:10px">${schemeId === 'haccp' ? 'HACCP has no central register — verify the scheme certificate behind it and the issuing body directly.' : 'No public register for this scheme.'}</span>`;
+    const hintHtml = reg
+      ? `<div style="font-size:11.5px;color:#6B6F7B;margin:0 0 10px;line-height:1.5">${escapeHtml(reg.hint)}</div>`
+      : '';
     const searchBtn = searchUrl
       ? `<a href="${searchUrl}" style="display:inline-block;color:#C65A1A;text-decoration:none;font-size:13px;font-weight:600;padding:11px 4px">Search the number on the web →</a>`
       : '';
@@ -259,7 +273,7 @@ Deno.serve(async (req: Request) => {
           <div style="padding:18px 24px 24px;border-top:1px solid #EFEAE0;margin-top:16px">
             <div style="margin-bottom:14px"><a href="${escapeHtml(cert.doc_url)}" style="display:inline-block;background:#C65A1A;color:#fff;text-decoration:none;font-size:13px;font-weight:600;padding:11px 18px;border-radius:8px">View the document →</a></div>
             <div style="font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#6B6F7B;margin-bottom:8px">Check it on the official register</div>
-            ${registryBtn}${searchBtn}
+            ${hintHtml}${registryBtn}${searchBtn}
           </div>
         </div>
         <div style="text-align:center;color:#9AA0AC;font-size:11px;margin-top:16px;line-height:1.5">

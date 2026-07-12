@@ -24,6 +24,7 @@ export const fetchCertReviewQueue = async () => {
     scheme:       c.scheme,
     certNumber:   c.cert_number,
     issuedTo:     c.issued_to,
+    issuingBody:  c.issuing_body,
     issueDate:    c.issue_date,
     expiryDate:   c.expiry_date,
     verdict:      c.ai_verdict,
