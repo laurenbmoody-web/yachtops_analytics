@@ -93,30 +93,47 @@
 .ad-iconbtn:hover:not(:disabled) { color: #1C1B3A; background: #F5F3EE; }
 .ad-iconbtn:disabled { opacity: 0.4; cursor: default; }
 
-/* Scroll area + rows */
-.ad-scroll { flex: 1; overflow-y: auto; min-height: 0; padding: 4px 0; }
+/* Tab body holds one tab's scroll area + optional footer as a flex column. */
+.ad-tabbody { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* Scroll area, day sections + rows */
+.ad-scroll { position: relative; flex: 1; overflow-y: auto; min-height: 0; padding-bottom: 6px; }
+.ad-summary { padding: 10px 22px; font-size: 11.5px; color: #A29C90; border-bottom: 1px solid #F2F0EA; }
+.ad-daylabel {
+  position: sticky; top: 0; z-index: 2; background: #FFFFFF;
+  padding: 10px 22px 6px; font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: #ABA599;
+}
+
+/* A row is the flex layout (icon + main). Used directly (reviews/activity) or
+   wrapped in .ad-nrow (notifications, which add per-row actions + unread wash). */
 .ad-row {
   display: flex; gap: 13px; width: 100%; text-align: left; align-items: flex-start;
   padding: 12px 22px; border: 0; background: none;
-  cursor: pointer; font: inherit; position: relative; transition: background 0.14s ease;
+  cursor: pointer; font: inherit; transition: background 0.14s ease;
 }
-.ad-row + .ad-row::before {
-  content: ''; position: absolute; top: 0; left: 57px; right: 22px; height: 1px; background: #F2F0EA;
-}
+.ad-row { border-bottom: 1px solid #F3F1EB; }
 .ad-row:hover { background: #FAF8F4; }
-.ad-row.is-unread { background: #FDF8F4; }
-.ad-row.is-unread:hover { background: #FBF2EB; }
-.ad-row.is-unread + .ad-row::before, .ad-row.is-unread::before { background: transparent; }
+
+.ad-nrow { position: relative; border-bottom: 1px solid #F3F1EB; transition: background 0.14s ease; }
+.ad-nrow > .ad-row { border-bottom: 0; }
+.ad-nrow:hover { background: #FAF8F4; }
+.ad-nrow.is-unread { background: #FDF8F4; }
+.ad-nrow.is-unread:hover { background: #FBF2EB; }
+.ad-nrow.is-sub { background: #FCFBF9; }
+.ad-nrow.is-sub > .ad-row { padding-left: 40px; }
 
 .ad-ico {
   flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%;
   background: #F5F3EE; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px;
 }
 .ad-main { flex: 1; min-width: 0; }
-.ad-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.ad-row-top { display: flex; align-items: baseline; gap: 8px; }
 .ad-row-title { font-size: 13.5px; font-weight: 500; color: #201F3E; line-height: 1.4; letter-spacing: -0.005em; }
-.ad-row.is-unread .ad-row-title { font-weight: 600; }
-.ad-time { flex: 0 0 auto; font-size: 11px; font-weight: 500; color: #B4AFA4; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ad-nrow.is-unread .ad-row-title { font-weight: 600; }
+.ad-titlewrap { display: inline-flex; align-items: baseline; gap: 7px; min-width: 0; flex: 1; }
+.ad-titlewrap .ad-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-time { flex: 0 0 auto; margin-left: auto; font-size: 11px; font-weight: 500; color: #B4AFA4; white-space: nowrap; font-variant-numeric: tabular-nums; transition: opacity 0.12s ease; }
 .ad-msg {
   font-size: 12.5px; color: #77726A; margin-top: 2px; line-height: 1.5;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -128,11 +145,46 @@
 .ad-cap { text-transform: capitalize; }
 .ad-udot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 999px; background: #C65A1A; align-self: center; }
 
-/* Empty + loading */
-.ad-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px 24px; gap: 14px; }
-.ad-empty-ic { width: 46px; height: 46px; border-radius: 50%; background: #F7F5F0; display: inline-flex; align-items: center; justify-content: center; }
-.ad-empty p { font-size: 13px; color: #918B7F; margin: 0; }
-.ad-loading { display: flex; align-items: center; justify-content: center; height: 100%; }
+/* Category tag on review rows */
+.ad-cat {
+  flex: 0 0 auto; font-family: 'Outfit', system-ui, sans-serif; font-size: 8.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: #9A7B62; background: #F4EFE9;
+  border-radius: 999px; padding: 2px 7px;
+}
+
+/* Collapsed notification group */
+.ad-groupcount {
+  flex: 0 0 auto; min-width: 18px; height: 17px; padding: 0 5px; border-radius: 999px;
+  background: #F1EFEA; color: #7C766B; font-size: 10.5px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ad-chev { flex: 0 0 auto; align-self: center; margin-top: 1px; transition: transform 0.16s ease; }
+.ad-chev.is-open { transform: rotate(180deg); }
+
+/* Per-row actions (mark read / dismiss) — revealed on hover, over the time */
+.ad-rowacts { position: absolute; top: 9px; right: 14px; display: flex; gap: 3px; opacity: 0; pointer-events: none; transition: opacity 0.12s ease; }
+.ad-nrow.has-acts:hover .ad-rowacts, .ad-nrow.has-acts:focus-within .ad-rowacts { opacity: 1; pointer-events: auto; }
+.ad-nrow.has-acts:hover .ad-time, .ad-nrow.has-acts:focus-within .ad-time { opacity: 0; }
+.ad-act {
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  border-radius: 7px; border: 1px solid #ECEAE3; background: #FFFFFF; color: #8B8478; cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+.ad-act:hover { color: #1C1B3A; background: #F6F5F2; border-color: #DAD6CD; }
+
+/* Empty + loading (skeleton) */
+.ad-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px 24px; gap: 10px; }
+.ad-empty-ic { width: 46px; height: 46px; border-radius: 50%; background: #F7F5F0; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+.ad-empty p { font-size: 13px; font-weight: 500; color: #6F6A61; margin: 0; }
+.ad-empty-hint { font-size: 12px; font-weight: 400 !important; color: #A8A296 !important; }
+.ad-skrow { display: flex; gap: 13px; align-items: center; padding: 13px 22px; }
+.ad-sk { background: linear-gradient(90deg, #F1EFEA 25%, #F8F6F2 37%, #F1EFEA 63%); background-size: 400% 100%; animation: ad-shimmer 1.4s ease infinite; border-radius: 6px; }
+.ad-sk-ico { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 auto; }
+.ad-sk-main { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.ad-sk-line { height: 10px; }
+.ad-sk-line.short { height: 9px; }
+@keyframes ad-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .ad-sk { animation: none; } }
 
 /* Footer — quiet primary link, not a loud filled block */
 .ad-foot { border-top: 1px solid #EFEDE7; }

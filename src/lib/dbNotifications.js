@@ -84,6 +84,13 @@ export async function clearDbRead(userId) {
     .then(() => {}).catch(() => {});
 }
 
+// Delete a single DB notification (per-row dismiss). RLS scopes to the owner.
+export async function deleteDbNotification(id) {
+  if (!id) return;
+  await supabase.from('notifications').delete().eq('id', id)
+    .then(() => {}).catch(() => {});
+}
+
 // Write a notification for a user (server-backed, cross-device).
 export async function sendDbNotification(userId, { type, title, message, actionUrl, severity = 'info' }) {
   if (!userId) return;

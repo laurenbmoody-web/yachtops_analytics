@@ -397,6 +397,16 @@ export const clearReadNotifications = (userId) => {
 };
 
 /**
+ * Delete a single notification (per-row dismiss).
+ * @param {string} notificationId - Notification ID
+ */
+export const deleteNotification = (notificationId) => {
+  const notifications = loadNotifications();
+  const filtered = notifications?.filter(n => n?.id !== notificationId);
+  saveNotifications(filtered);
+};
+
+/**
  * Get unread count for a user
  * @param {string} userId - User ID
  * @returns {number} Unread count
