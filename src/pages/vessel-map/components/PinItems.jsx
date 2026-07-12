@@ -1,15 +1,20 @@
-// "What's inside" — the inventory items physically placed at this pin. A pin
-// is a node in the physical-location tree; an item's physical location is its
-// default_location_id → that node. So "what's inside" is a live query, adding
-// an item files it here, creating one makes it here, and −/+ is the item's
-// count. Category (the item's inventory folder) rides along as subtext — a
-// separate axis the map never touches.
+// "What's inside" — the inventory items physically at this pin, and how many.
+// A pin is a node in the physical-location tree; an item can hold stock at the
+// pin (a stock_locations entry keyed by the node) alongside stock elsewhere.
+// So:
+//   • the count shown is how many are HERE, not the grand total;
+//   • adding an item opens a transfer — receive new stock here and/or move
+//     existing stock in from its other places (see the maths in stockMath.js);
+//   • creating a new item receives all of it here;
+//   • −/+ recounts what's on the pin;
+//   • category (the item's inventory folder) rides along as subtext.
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { searchInventoryItems, searchInventoryLocations, locationLabel, categoryPath } from '../utils/inventory';
+import { sources as sourcesOf, pinQty } from '../utils/stockMath';
 import {
-  resolvePinNode, itemsAtNode, placeItemAtNode, clearItemNode,
-  createItemAtNode, setItemQuantity, nodePath,
+  resolvePinNode, itemsAtNode, itemStock, placeStock, setPinCount,
+  clearItemNode, createItemAtNode,
 } from '../utils/placement';
 
 export default function PinItems({
@@ -21,48 +26,35 @@ export default function PinItems({
   const [mode, setMode] = useState(null);       // 'add' | 'create' | null
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [transfer, setTransfer] = useState(null); // { item, total, existing, sources, addNew, moves }
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('');
-  const [newCat, setNewCat] = useState(null);   // { location, sub_location, label } | null
+  const [newCat, setNewCat] = useState(null);
   const [catPicking, setCatPicking] = useState(false);
   const [catQuery, setCatQuery] = useState('');
   const [catResults, setCatResults] = useState([]);
-  const catDebounce = useRef(null);
-  const [move, setMove] = useState(null);       // { item, fromPath, nodeId }
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const debounce = useRef(null);
+  const catDebounce = useRef(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setNodeId(hotspot?.location_node_id || null);
-    setMode(null); setQuery(''); setResults([]); setNewName(''); setNewQty(''); setMove(null); setError(null);
-    setNewCat(null); setCatPicking(false); setCatQuery(''); setCatResults([]);
-  }, [hotspot?.id]);
+  const pinName = hotspot?.label ? hotspot.label.trim() : (scanName || 'this pin');
 
-  // Debounced category (inventory folder) search while picking one.
-  useEffect(() => {
-    if (!catPicking) return undefined;
-    clearTimeout(catDebounce.current);
-    catDebounce.current = setTimeout(async () => {
-      const { locations, error: e } = await searchInventoryLocations(tenantId, catQuery);
-      if (e) setError(e); else setCatResults(locations || []);
-    }, 250);
-    return () => clearTimeout(catDebounce.current);
-  }, [catPicking, catQuery, tenantId]);
+  const resetAll = () => {
+    setMode(null); setQuery(''); setResults([]); setTransfer(null); setError(null);
+    setNewName(''); setNewQty(''); setNewCat(null); setCatPicking(false); setCatQuery(''); setCatResults([]);
+  };
+  useEffect(() => { setNodeId(hotspot?.location_node_id || null); resetAll(); }, [hotspot?.id]);
 
   const load = async (nid) => {
     if (!nid) { setRows([]); return; }
     const { items, error: e } = await itemsAtNode(tenantId, nid);
     if (e) { setError(e); setRows([]); return; }
-    setRows(items.map((it) => ({
-      id: it.id, name: it.name, qty: Number(it.quantity ?? it.total_qty) || 0,
-      unit: it.unit || null, category: categoryPath(it),
-    })));
+    setRows(items.map((it) => ({ id: it.id, name: it.name, qty: it.pinQty, unit: it.unit || null, category: categoryPath(it) })));
   };
   useEffect(() => { setRows(null); load(hotspot?.location_node_id || null); /* eslint-disable-next-line */ }, [hotspot?.id, hotspot?.location_node_id, tenantId]);
 
-  // Debounced inventory search while adding.
   useEffect(() => {
     if (mode !== 'add') return undefined;
     clearTimeout(debounce.current);
@@ -73,7 +65,16 @@ export default function PinItems({
     return () => clearTimeout(debounce.current);
   }, [mode, query, tenantId]);
 
-  // Resolve (creating if needed) this pin's location node.
+  useEffect(() => {
+    if (!catPicking) return undefined;
+    clearTimeout(catDebounce.current);
+    catDebounce.current = setTimeout(async () => {
+      const { locations, error: e } = await searchInventoryLocations(tenantId, catQuery);
+      if (e) setError(e); else setCatResults(locations || []);
+    }, 250);
+    return () => clearTimeout(catDebounce.current);
+  }, [catPicking, catQuery, tenantId]);
+
   const ensureNode = async () => {
     if (nodeId) return nodeId;
     const { nodeId: nid, patched, error: e } = await resolvePinNode({
@@ -82,29 +83,42 @@ export default function PinItems({
       pin: { id: hotspot.id, label: hotspot.label, location_node_id: hotspot.location_node_id },
     });
     if (e) { setError(e); return null; }
-    (patched || []).forEach((p) => onNodeResolved?.(p.hotspotId, p.nodeId));
+    (patched || []).forEach((pp) => onNodeResolved?.(pp.hotspotId, pp.nodeId));
     setNodeId(nid);
     return nid;
   };
 
-  const doPlace = async (itemId, nid) => {
-    setBusy(itemId); setError(null);
-    const { error: e } = await placeItemAtNode(itemId, nid);
-    setBusy(null);
-    if (e) { setError(e); return; }
-    await load(nid);
-  };
-
-  const addItem = async (inv) => {
+  // Clicking a search result opens the transfer panel for that item.
+  const openTransfer = async (inv) => {
     setMode(null); setQuery(''); setResults([]); setError(null);
     const nid = await ensureNode();
     if (!nid) return;
-    if (inv.default_location_id && inv.default_location_id !== nid) {
-      const { path } = await nodePath(inv.default_location_id);
-      setMove({ item: inv, fromPath: path || 'another location', nodeId: nid });
-      return;
-    }
-    await doPlace(inv.id, nid);
+    const { stockLocations, total, error: e } = await itemStock(inv.id);
+    if (e) { setError(e); return; }
+    setTransfer({
+      item: inv, total,
+      existing: pinQty(stockLocations, nid),
+      sources: sourcesOf({ stockLocations, total }, nid),
+      addNew: '', moves: {},
+    });
+  };
+
+  const willHold = transfer
+    ? (transfer.existing || 0) + (Number(transfer.addNew) || 0)
+      + transfer.sources.reduce((s, src) => s + Math.min(Number(transfer.moves[src.key]) || 0, src.qty), 0)
+    : 0;
+
+  const applyTransfer = async () => {
+    const t = transfer;
+    const moves = t.sources.map((s) => ({ key: s.key, qty: Number(t.moves[s.key]) || 0 })).filter((m) => m.qty > 0);
+    const addNew = Number(t.addNew) || 0;
+    if (addNew <= 0 && moves.length === 0) { setTransfer(null); return; }
+    setBusy('transfer'); setError(null);
+    const { error: e } = await placeStock(t.item.id, { pin: { nodeId, name: pinName }, addNew, moves });
+    setBusy(null);
+    if (e) { setError(e); return; }
+    setTransfer(null);
+    await load(nodeId);
   };
 
   const createItem = async () => {
@@ -114,7 +128,7 @@ export default function PinItems({
     const nid = await ensureNode();
     if (!nid) return;
     setBusy('new');
-    const { item, error: e } = await createItemAtNode({ tenantId, userId, name, qty: newQty, nodeId: nid, category: newCat });
+    const { item, error: e } = await createItemAtNode({ tenantId, userId, name, qty: newQty, pin: { nodeId: nid, name: pinName }, category: newCat });
     setBusy(null);
     if (e) { setError(e); return; }
     setMode(null); setNewName(''); setNewQty(''); setNewCat(null);
@@ -123,7 +137,7 @@ export default function PinItems({
 
   const removeItem = async (itemId) => {
     setBusy(itemId);
-    const { error: e } = await clearItemNode(itemId);
+    const { error: e } = await clearItemNode(itemId, { nodeId, name: pinName });
     setBusy(null);
     if (e) { setError(e); return; }
     setRows((rs) => (rs || []).filter((r) => r.id !== itemId));
@@ -133,7 +147,7 @@ export default function PinItems({
     if (busy) return;
     const next = Math.max(0, (Number(row.qty) || 0) + delta);
     setBusy(row.id); setError(null);
-    const { error: e } = await setItemQuantity(row.id, next);
+    const { error: e } = await setPinCount(row.id, { pin: { nodeId, name: pinName }, newQty: next });
     setBusy(null);
     if (e) { setError(e); return; }
     setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, qty: next } : r)));
@@ -146,7 +160,7 @@ export default function PinItems({
       <p className="vm-label">What’s inside</p>
 
       {rows === null && <p className="vm-payload-empty">Loading…</p>}
-      {rows !== null && rows.length === 0 && !mode && (
+      {rows !== null && rows.length === 0 && !mode && !transfer && (
         <p className="vm-payload-empty">Nothing here yet{canManage ? ' — add an item below.' : '.'}</p>
       )}
 
@@ -187,13 +201,32 @@ export default function PinItems({
         </div>
       )}
 
-      {/* "currently at X — move here?" */}
-      {move && (
-        <div className="vm-pinitems-move">
-          <span><strong>{move.item.name}</strong> is currently at {move.fromPath}.</span>
-          <div className="vm-pinitems-move-actions">
-            <button className="vm-btn-primary vm-pinitems-move-go" onClick={async () => { const m = move; setMove(null); await doPlace(m.item.id, m.nodeId); }}>Move here</button>
-            <button className="vm-btn-ghost" onClick={() => setMove(null)}>Cancel</button>
+      {/* Transfer panel — receive new + move existing in */}
+      {transfer && (
+        <div className="vm-transfer">
+          <p className="vm-transfer-head"><strong>{transfer.item.name}</strong> · {transfer.total} onboard</p>
+          <label className="vm-transfer-new">
+            <span>New stock arriving here</span>
+            <input className="vm-check-input vm-transfer-qty" type="number" min="0" placeholder="0"
+              value={transfer.addNew} onChange={(e) => setTransfer((t) => ({ ...t, addNew: e.target.value }))} autoFocus />
+          </label>
+          {transfer.sources.length > 0 && (
+            <>
+              <p className="vm-transfer-sub">Or move some in from where it is now:</p>
+              {transfer.sources.map((s) => (
+                <div key={s.key} className="vm-transfer-src">
+                  <span className="vm-transfer-src-name">{s.label}</span>
+                  <span className="vm-transfer-src-have">{s.qty}</span>
+                  <input className="vm-check-input vm-transfer-qty" type="number" min="0" max={s.qty} placeholder="0"
+                    value={transfer.moves[s.key] || ''} onChange={(e) => setTransfer((t) => ({ ...t, moves: { ...t.moves, [s.key]: e.target.value } }))} />
+                </div>
+              ))}
+            </>
+          )}
+          <p className="vm-transfer-total">This pin will hold: <strong>{willHold}</strong></p>
+          <div className="vm-transfer-actions">
+            <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || willHold <= (transfer.existing || 0)}>{busy === 'transfer' ? 'Placing…' : 'Place'}</button>
+            <button className="vm-btn-ghost" onClick={() => setTransfer(null)}>Cancel</button>
           </div>
         </div>
       )}
@@ -204,7 +237,7 @@ export default function PinItems({
           {results.map((r) => {
             const cat = categoryPath(r);
             return (
-              <button key={r.id} className="vm-cupboard-result" onClick={() => addItem(r)}>
+              <button key={r.id} className="vm-cupboard-result" onClick={() => openTransfer(r)}>
                 {r.name}{cat ? ` · ${cat}` : ''}
               </button>
             );
@@ -221,8 +254,6 @@ export default function PinItems({
       {canManage && mode === 'create' && (
         <div className="vm-pinitems-new">
           <input className="vm-check-input" placeholder="Item name" value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus />
-
-          {/* Category (its inventory folder) */}
           {newCat ? (
             <div className="vm-pinitems-cat-set">
               <span className="vm-pinitems-cat-label">{newCat.label}</span>
@@ -241,17 +272,16 @@ export default function PinItems({
           ) : (
             <button className="vm-pinitems-cat-add" onClick={() => { setCatPicking(true); setCatQuery(''); setCatResults([]); }}>+ Choose a category</button>
           )}
-
           <div className="vm-pinitems-new-row">
             <input className="vm-check-input vm-pinitems-new-qty" type="number" min="0" placeholder="Qty" value={newQty} onChange={(e) => setNewQty(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createItem(); }} />
             <button className="vm-btn-primary" onClick={createItem} disabled={!newName.trim() || busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add here'}</button>
             <button className="vm-btn-ghost" onClick={() => { setMode(null); setNewName(''); setNewQty(''); setNewCat(null); setCatPicking(false); }}>Cancel</button>
           </div>
-          <p className="vm-pinitems-new-hint">{newCat ? 'Filed here, in your chosen category.' : 'Files it here; category optional — set it now or later in inventory.'}</p>
+          <p className="vm-pinitems-new-hint">{newCat ? 'New stock, filed here in your chosen category.' : 'New stock received here; category optional.'}</p>
         </div>
       )}
 
-      {canManage && !mode && !move && (
+      {canManage && !mode && !transfer && (
         <button className="vm-btn-ghost vm-pinitems-add" onClick={() => { setMode('add'); setQuery(''); }}>+ Add an item</button>
       )}
 

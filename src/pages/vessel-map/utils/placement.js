@@ -4,6 +4,16 @@
 // room > container > … > pin lazily, keyed by stable ids so it's rename-safe)
 // and reads/writes the items placed there.
 import { supabase } from '../../../lib/supabaseClient';
+import { applyPlacement, setPinQty, pinQty, entryKey } from './stockMath';
+
+const ITEM_COLS = 'id, name, unit, quantity, total_qty, location, sub_location, stock_locations';
+const readItem = async (itemId) => {
+  const { data, error } = await supabase.from('inventory_items').select('stock_locations, total_qty, quantity').eq('id', itemId).single();
+  if (error) return { error: error.message || 'Could not load the item.' };
+  return { stockLocations: data?.stock_locations || [], total: Number(data?.total_qty ?? data?.quantity) || 0 };
+};
+const writeStock = (itemId, { stockLocations, totalQty }) =>
+  supabase.from('inventory_items').update({ stock_locations: stockLocations, total_qty: totalQty, quantity: totalQty }).eq('id', itemId);
 
 // Find-or-create one vessel_locations node by (parent, name) within the tenant.
 async function findOrCreateNode({ tenantId, userId, parentId, name }) {
@@ -63,41 +73,73 @@ export async function resolvePinNode({ tenantId, userId, rootSpaceId, rootName, 
   return { nodeId: leaf.id, patched };
 }
 
-// Items physically at a node — the pin's contents. Category comes along on the
-// row (location/sub_location = the item's inventory folder).
+// Items physically at a node — the pin's contents. Matches items whose
+// stock_locations carry an entry for this node; the row's `pinQty` is how many
+// are HERE (not the grand total). Category rides along (location/sub_location).
 export async function itemsAtNode(tenantId, nodeId) {
   if (!nodeId) return { items: [] };
   const { data, error } = await supabase
     .from('inventory_items')
-    .select('id, name, quantity, unit, total_qty, location, sub_location, default_location_id')
+    .select(ITEM_COLS)
     .eq('tenant_id', tenantId)
-    .eq('default_location_id', nodeId)
+    .contains('stock_locations', [{ vesselLocationId: nodeId }])
     .order('name', { ascending: true });
   if (error) return { error: error.message || 'Could not load what’s here.' };
-  return { items: data || [] };
+  const items = (data || [])
+    .map((it) => ({ ...it, pinQty: pinQty(it.stock_locations, nodeId) }))
+    .filter((it) => it.pinQty > 0);
+  return { items };
 }
 
-// Place an existing item at a node (set its physical location). Returns the
-// item's prior default_location_id so the caller can offer a "move" undo/warn.
-export async function placeItemAtNode(itemId, nodeId) {
-  const { error } = await supabase.from('inventory_items').update({ default_location_id: nodeId }).eq('id', itemId);
-  if (error) return { error: error.message || 'Could not place the item.' };
+// An item's stock breakdown, for the transfer panel (where it is + total).
+export async function itemStock(itemId) {
+  const r = await readItem(itemId);
+  if (r.error) return { error: r.error };
+  return { stockLocations: r.stockLocations, total: r.total };
+}
+
+// Receive new stock at the pin and/or move existing stock in from elsewhere.
+// `addNew` raises the total; `moves` ([{key, qty}]) just relocate. pin = {nodeId, name}.
+export async function placeStock(itemId, { pin, addNew = 0, moves = [] }) {
+  const r = await readItem(itemId);
+  if (r.error) return { error: r.error };
+  const next = applyPlacement({ stockLocations: r.stockLocations, total: r.total }, { pin, addNew, moves });
+  const { error } = await writeStock(itemId, next);
+  if (error) return { error: error.message || 'Could not place the stock.' };
   return {};
 }
 
-// Remove an item from a pin — clears its physical location (doesn't delete it).
-export async function clearItemNode(itemId) {
-  const { error } = await supabase.from('inventory_items').update({ default_location_id: null }).eq('id', itemId);
+// Recount how many are on the pin now (the −/+). The change hits the total.
+export async function setPinCount(itemId, { pin, newQty }) {
+  const r = await readItem(itemId);
+  if (r.error) return { error: r.error };
+  const next = setPinQty({ stockLocations: r.stockLocations, total: r.total }, { pin, newQty });
+  const { error } = await writeStock(itemId, next);
+  if (error) return { error: error.message || 'Could not save the count.' };
+  return {};
+}
+
+// Take an item off the pin — drop the pin's stock entry back into "unplaced"
+// (total unchanged; the item isn't deleted, just no longer sitting here).
+export async function clearItemNode(itemId, pin) {
+  const r = await readItem(itemId);
+  if (r.error) return { error: r.error };
+  const kept = (r.stockLocations || []).filter((e) => entryKey(e) !== pin.nodeId);
+  const { error } = await supabase.from('inventory_items')
+    .update({ stock_locations: kept.map((e) => ({ ...e, quantity: Number(e.qty ?? e.quantity) || 0 })) })
+    .eq('id', itemId);
   if (error) return { error: error.message || 'Could not remove the item.' };
   return {};
 }
 
-// Create a brand-new inventory item, physically here — the on-the-map add.
-// `category` (an inventory_locations folder) files it in the inventory tree;
-// omit it to leave the item uncategorised (the crew can file it later).
-export async function createItemAtNode({ tenantId, userId, name, qty, unit, nodeId, category }) {
+// Create a brand-new inventory item, all of it received AT the pin.
+// `category` (an inventory_locations folder) files it in the inventory tree.
+export async function createItemAtNode({ tenantId, userId, name, qty, unit, pin, category }) {
   const n = Number(qty);
   const quantity = Number.isFinite(n) && n >= 0 ? n : 0;
+  const stock = quantity > 0
+    ? [{ vesselLocationId: pin.nodeId, locationId: pin.nodeId, locationName: pin.name || '', subLocation: pin.name || '', qty: quantity, quantity }]
+    : [];
   const { data, error } = await supabase
     .from('inventory_items')
     .insert({
@@ -108,33 +150,13 @@ export async function createItemAtNode({ tenantId, userId, name, qty, unit, node
       unit: unit || null,
       location: category?.location || null,
       sub_location: category?.sub_location || null,
-      default_location_id: nodeId,
+      stock_locations: stock,
       created_by: userId || null,
     })
-    .select('id, name, quantity, unit, total_qty, location, sub_location, default_location_id')
+    .select(ITEM_COLS)
     .single();
   if (error) return { error: error.message || 'Could not create the item.' };
   return { item: data };
-}
-
-// The quick-check count — the item's quantity here (it lives at one node, so
-// its quantity IS the count). Writes quantity + total_qty together.
-export async function setItemQuantity(itemId, qty) {
-  const n = Math.max(0, Number(qty) || 0);
-  const { error } = await supabase.from('inventory_items').update({ quantity: n, total_qty: n }).eq('id', itemId);
-  if (error) return { error: error.message || 'Could not save the count.' };
-  return {};
-}
-
-// Where an item currently is (for the "currently at X — move here?" check).
-export async function itemPlacement(itemId) {
-  const { data, error } = await supabase
-    .from('inventory_items')
-    .select('default_location_id')
-    .eq('id', itemId)
-    .single();
-  if (error) return { error: error.message };
-  return { nodeId: data?.default_location_id || null };
 }
 
 // Human-readable path of a node ("Main Galley › test › Dry Store › Shelf 1").
