@@ -310,6 +310,19 @@
 .mp-shophead-facts .f svg { color: var(--soft); }
 .mp-shophead-facts .sep { color: #D8D4CA; }
 .mp-shophead-facts .more { color: var(--faint); }
+
+/* Operational storefront terms — lead time, cut-off, minimum, rush, certs. */
+.mp-shophead-terms { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.mp-shophead-terms .term {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 11px;
+}
+.mp-shophead-terms .term b { color: var(--ink); font-weight: 700; }
+.mp-shophead-terms .term.rush { background: var(--tint); border-color: transparent; color: var(--accent); font-weight: 600; }
+.mp-shophead-terms .cert {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--soft);
+  border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px;
+}
 .mp-shophead-actions { display: flex; align-items: center; gap: 10px; flex: none; }
 .mp-shophead-web, .mp-shophead-msg {
   display: inline-flex; align-items: center; gap: 6px; border-radius: 10px;

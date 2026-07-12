@@ -140,6 +140,19 @@
 .sd-rstar .b { color: #E2DED5; }
 .sd-rstar .f { position: absolute; top: 0; left: 0; overflow: hidden; white-space: nowrap; color: #C65A1A; }
 
+/* Storefront terms strip — typical lead time, cut-off, minimum, rush, certs. */
+.sd-terms { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 30px; }
+.sd-term {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--sd-muted);
+  background: var(--sd-card); border: 1px solid var(--sd-border); border-radius: 999px; padding: 4px 12px;
+}
+.sd-term b { color: var(--fg); font-weight: 700; }
+.sd-term.rush { background: #FBEFE9; border-color: transparent; color: #C65A1A; font-weight: 600; }
+.sd-cert {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--sd-muted);
+  border: 1px solid var(--sd-border); border-radius: 999px; padding: 4px 10px;
+}
+
 /* ─── Card system (3D bottom edge) ───────────────────────────
    Canonical card shape: 1px navy-tinted top/side border, 5px
    navy-tinted bottom edge for the slight 3D lift, 18px radius. */
