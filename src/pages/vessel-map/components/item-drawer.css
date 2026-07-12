@@ -72,13 +72,23 @@
 /* Stock by location */
 .vmid-section { margin: 0 0 20px; }
 .vmid-stock-row {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding: 9px 0; border-bottom: 1px solid #F0F1F5;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid #F0F1F5;
 }
 .vmid-stock-row:last-child { border-bottom: none; }
-.vmid-stock-name { font-size: 13.5px; color: #1C1B3A; word-break: break-word; }
+.vmid-stock-name { flex: 1; min-width: 0; font-size: 13.5px; color: #1C1B3A; word-break: break-word; }
 .vmid-stock-qty { font-size: 13.5px; font-weight: 600; color: #1C1B3A; white-space: nowrap; }
 .vmid-empty { font-size: 13px; color: #AEB4C2; }
+/* editable per-location count */
+.vmid-stock-edit { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.vmid-loc-step { display: inline-flex; align-items: center; border: 1px solid #ECEAE3; border-radius: 999px; overflow: hidden; background: #fff; }
+.vmid-loc-btn { width: 28px; height: 28px; border: 0; background: #fff; color: #1C1B3A; font-size: 15px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.vmid-loc-btn:hover:not(:disabled) { background: #FBEFE9; color: #C65A1A; }
+.vmid-loc-btn:disabled { opacity: 0.35; cursor: default; }
+.vmid-loc-qty { min-width: 34px; text-align: center; font-size: 13px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; padding: 0 2px; }
+.vmid-loc-del { width: 24px; height: 24px; border: 0; background: none; color: #AEB4C2; font-size: 16px; line-height: 1; cursor: pointer; border-radius: 6px; }
+.vmid-loc-del:hover:not(:disabled) { color: #A32D2D; background: #FBEFE9; }
+.vmid-loc-del:disabled { opacity: 0.35; cursor: default; }
 
 /* Metadata grid */
 .vmid-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin: 0 0 20px; }
