@@ -640,6 +640,14 @@ const Marketplace = () => {
   const shopWebsite = enteredSupplier?.website
     ? (/^https?:\/\//i.test(enteredSupplier.website) ? enteredSupplier.website : `https://${enteredSupplier.website}`)
     : null;
+  // Operational storefront terms (typical, not hard limits).
+  const shopLead = enteredSupplier?.lead_time_days;
+  const shopCutoff = (enteredSupplier?.order_cutoff || '').slice(0, 5);
+  const shopMin = enteredSupplier?.min_order_value;
+  const shopMinCur = enteredSupplier?.min_order_currency || 'EUR';
+  const shopCerts = enteredSupplier?.certifications || [];
+  const shopExpress = !!enteredSupplier?.express_available;
+  const hasTerms = shopLead != null || shopCutoff || shopMin != null || shopExpress || shopCerts.length > 0;
 
   return (
     <>
@@ -905,6 +913,15 @@ const Marketplace = () => {
                         {shopCount > 0 && <><span className="sep">·</span><span className="f"><b>{shopCount}</b> products</span></>}
                         {shopCats.length > 0 && <><span className="sep">·</span><span className="f">{shopCats.slice(0, 3).join(' · ')}{shopCats.length > 3 && <span className="more"> +{shopCats.length - 3}</span>}</span></>}
                       </div>
+                      {hasTerms && (
+                        <div className="mp-shophead-terms">
+                          {shopLead != null && <span className="term"><b>≈{shopLead}d</b> lead time</span>}
+                          {shopCutoff && <span className="term">order by <b>{shopCutoff}</b></span>}
+                          {shopMin != null && <span className="term"><b>{money(shopMin, shopMinCur)}</b> min</span>}
+                          {shopExpress && <span className="term rush">⚡ Rush available</span>}
+                          {shopCerts.map(c => <span className="cert" key={c}>{c}</span>)}
+                        </div>
+                      )}
                     </div>
                     <div className="mp-shophead-actions">
                       {shopWebsite && <a className="mp-shophead-web" href={shopWebsite} target="_blank" rel="noreferrer">Website ↗</a>}

@@ -690,6 +690,26 @@ export default function SupplierDetailPage() {
             />
           )}
 
+          {/* ── Storefront terms (typical, not hard limits) ────── */}
+          {(() => {
+            const lead = profile.lead_time_days;
+            const cutoff = (profile.order_cutoff || '').slice(0, 5);
+            const min = profile.min_order_value;
+            const minCur = profile.min_order_currency || 'EUR';
+            const certs = Array.isArray(profile.certifications) ? profile.certifications : [];
+            const express = !!profile.express_available;
+            if (lead == null && !cutoff && min == null && !express && certs.length === 0) return null;
+            return (
+              <div className="sd-terms">
+                {lead != null && <span className="sd-term"><b>≈{lead}d</b> lead time</span>}
+                {cutoff && <span className="sd-term">order by <b>{cutoff}</b></span>}
+                {min != null && <span className="sd-term"><b>{minCur} {min}</b> min</span>}
+                {express && <span className="sd-term rush">⚡ Rush available</span>}
+                {certs.map(c => <span className="sd-cert" key={c}>{c}</span>)}
+              </div>
+            );
+          })()}
+
           {/* ── Essential KPIs ────────────────────────────────── */}
           <div className="sd-essential-kpis">
             <div className="sd-card sd-kpi-essential">
