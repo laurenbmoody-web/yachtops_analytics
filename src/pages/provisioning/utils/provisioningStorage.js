@@ -3090,7 +3090,9 @@ export const fetchSupplierProfileById = async (supplierProfileId) => {
       tenant_id, vendor_type, categories, subcategories, primary_category,
       is_favourite, archived_at,
       lead_time_days, order_cutoff, min_order_value, min_order_currency,
-      certifications, express_available, delivery_days, cutoff_strict
+      certifications, express_available, delivery_days, cutoff_strict,
+      storefront_contact_name, storefront_contact_role,
+      storefront_contact_email, storefront_contact_phone
     `)
     .eq('id', supplierProfileId)
     .maybeSingle();

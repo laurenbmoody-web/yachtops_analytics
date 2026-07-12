@@ -675,7 +675,7 @@ const Marketplace = () => {
   const shopExpress = !!enteredSupplier?.express_available;
   const shopDays = fmtDeliveryDays(enteredSupplier?.delivery_days);
   const shopCutoffStrict = !!enteredSupplier?.cutoff_strict;
-  const hasTerms = shopLead != null || shopCutoff || shopMin != null || shopExpress || shopDays || shopCerts.length > 0;
+  const hasTerms = shopLead != null || shopCutoff || shopMin != null || shopExpress || shopDays || shopCerts.some(c => shopVerifiedCerts.has(c));
 
   return (
     <>
@@ -952,9 +952,9 @@ const Marketplace = () => {
                           {shopCutoff && <span className="term">order by <b>{shopCutoff}</b> {shopCutoffStrict ? '(firm)' : '(flexible)'}</span>}
                           {shopMin != null && <span className="term"><b>{money(shopMin, shopMinCur)}</b> min</span>}
                           {shopExpress && <span className="term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
-                          {shopCerts.map(c => (
-                            <span className={`cert${shopVerifiedCerts.has(c) ? ' verified' : ''}`} key={c}>
-                              {c}{shopVerifiedCerts.has(c) && <Check size={11} strokeWidth={3} />}
+                          {shopCerts.filter(c => shopVerifiedCerts.has(c)).map(c => (
+                            <span className="cert verified" key={c}>
+                              {c}<Check size={11} strokeWidth={3} />
                             </span>
                           ))}
                         </div>
