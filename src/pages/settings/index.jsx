@@ -156,7 +156,6 @@ const SettingsPage = () => {
     return () => { cancelled = true; };
   }, [session]);
 
-  const roleLabel = hasCommandAccess(currentUser) ? 'Command' : hasChiefAccess(currentUser) ? 'Chief' : 'Crew';
   const canAccessVessel = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
 
   const timezones = [
@@ -375,21 +374,6 @@ const SettingsPage = () => {
       <Header />
       <div className="settings-page">
         <div className="set-wrap">
-          {/* Account card */}
-          <div className="set-account">
-            <div className="set-av">
-              {acct.avatarUrl ? <img src={acct.avatarUrl} alt={acct.name || 'Profile'} /> : getInitials(acct.name)}
-            </div>
-            <div>
-              <div className="set-acct-eyebrow"><span className="dot">•</span> Your account</div>
-              <div className="set-acct-name">{acct.name || 'Your profile'}</div>
-              <div className="set-acct-sub">
-                {acct.tenant || 'M/Y Belongers'}
-                <span className="set-chip">{roleLabel}</span>
-              </div>
-            </div>
-          </div>
-
           <div className="set-layout">
             {/* Rail */}
             <aside className="set-rail">

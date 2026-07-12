@@ -29,7 +29,7 @@ body.settings-editorial {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-.settings-page .set-wrap { max-width: 960px; margin: 0 auto; }
+.settings-page .set-wrap { width: 100%; }
 
 /* ── Account card header ────────────────────────────────────────────────────*/
 .settings-page .set-account {
@@ -69,7 +69,7 @@ body.settings-editorial {
 .settings-page .set-ext { flex: 0 0 auto; color: #C3BEB2; }
 
 /* ── Content ───────────────────────────────────────────────────────────────*/
-.settings-page .set-content { min-width: 0; max-width: 600px; }
+.settings-page .set-content { min-width: 0; }
 .settings-page .set-h { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 24px; line-height: 1.05; letter-spacing: -0.01em; color: #1C1B3A; margin: 0; }
 .settings-page .set-hsub { font-size: 13.5px; color: #6F7396; margin: 6px 0 0; line-height: 1.45; }
 .settings-page .set-caps { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #A7A296; margin: 26px 4px 9px; }
