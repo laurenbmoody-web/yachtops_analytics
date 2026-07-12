@@ -340,28 +340,26 @@ const AlertsDrawer = ({ isOpen, onClose, initialTab = 'notifications', reviewsCo
     <div className="ad">
       <div className="ad-overlay" onClick={onClose} />
       <aside className="ad-panel" role="dialog" aria-label="Inbox">
-        <div className="ad-head">
-          <h2 className="ad-title">Inbox</h2>
-          <button className="ad-x" onClick={onClose} aria-label="Close">
-            <Icon name="X" size={19} />
-          </button>
-        </div>
-
         <div className="ad-tabs">
-          {TABS.map(t => {
-            const active = activeTab === t.key;
-            const count = tabCount[t.key] || 0;
-            return (
-              <button
-                key={t.key}
-                className={`ad-tab${active ? ' is-active' : ''}`}
-                onClick={() => setActiveTab(t.key)}
-              >
-                <span>{t.label}</span>
-                {count > 0 && <span className="ad-tab-count">{count > 99 ? '99+' : count}</span>}
-              </button>
-            );
-          })}
+          <div className="ad-tabgroup">
+            {TABS.map(t => {
+              const active = activeTab === t.key;
+              const count = tabCount[t.key] || 0;
+              return (
+                <button
+                  key={t.key}
+                  className={`ad-tab${active ? ' is-active' : ''}`}
+                  onClick={() => setActiveTab(t.key)}
+                >
+                  <span>{t.label}</span>
+                  {count > 0 && <span className="ad-tab-count">{count > 99 ? '99+' : count}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <button className="ad-x" onClick={onClose} aria-label="Close">
+            <Icon name="X" size={18} />
+          </button>
         </div>
 
         {activeTab === 'notifications' && <NotificationsTab userId={authUser?.id} onNavigate={handleNavigate} />}
