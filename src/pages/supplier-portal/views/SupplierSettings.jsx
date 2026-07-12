@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Save, Plus, Trash2, Mail, RefreshCw, UserPlus, X, Crown, Shield, Clock, Zap } from 'lucide-react';
+import { Save, Plus, Trash2, Mail, RefreshCw, UserPlus, X, Crown, Shield, Clock, Zap, Paperclip, Check, FileText } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { usePermission, useTier, hasClientPermission } from '../../../contexts/SupplierPermissionContext';
 import {
   updateSupplierProfile,
   updateSupplierStorefront,
   fetchMySupplierReviews,
+  fetchMyCertifications,
+  saveMyCertifications,
+  uploadCertDoc,
   fetchAliases,
   addAlias,
   resendAliasVerification,
@@ -1033,7 +1036,7 @@ const StorefrontPreview = ({ supplier, form, certs }) => {
           {cutoff && <span className="spv-term">order by <b>{cutoff}</b> {cutoffStrict ? '(firm)' : '(flexible)'}</span>}
           {hasMin && <span className="spv-term"><b>{cur} {min}</b> min</span>}
           {express && <span className="spv-term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
-          {certs.map(c => <span key={c} className="spv-cert">{c}</span>)}
+          {certs.map(c => <span key={c.name} className="spv-cert">{c.name}{c.verified && <Check size={11} strokeWidth={3} style={{ marginLeft: 3, color: '#1D9E75', verticalAlign: '-1px' }} />}</span>)}
         </div>
       ) : (
         <div className="spv-empty">Fill in the details below and they'll show here — this is how a captain sees you when choosing a supplier.</div>
@@ -1056,31 +1059,54 @@ const StorefrontSection = ({ supplier, onSaved }) => {
     delivery_days:      Array.isArray(supplier.delivery_days) ? supplier.delivery_days : [],
     cutoff_strict:      !!supplier.cutoff_strict,
   });
-  const [certs, setCerts] = useState(Array.isArray(supplier.certifications) ? supplier.certifications : []);
+  // Certs are records now: { name, docUrl, verified }. Loaded fresh so we
+  // have documents + verified state (not just the names on the profile).
+  const [certs, setCerts] = useState(
+    (Array.isArray(supplier.certifications) ? supplier.certifications : []).map(name => ({ name, docUrl: '', verified: false }))
+  );
   const [certDraft, setCertDraft] = useState('');
+  const [uploadingCert, setUploadingCert] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchMyCertifications().then(rows => { if (rows.length) setCerts(rows); }).catch(() => {});
+  }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const addCert = () => {
     const c = certDraft.trim();
     if (!c) return;
-    if (!certs.some(x => x.toLowerCase() === c.toLowerCase())) setCerts([...certs, c]);
+    if (!certs.some(x => x.name.toLowerCase() === c.toLowerCase())) setCerts([...certs, { name: c, docUrl: '', verified: false }]);
     setCertDraft('');
+  };
+
+  const uploadDoc = async (name, file) => {
+    if (!file) return;
+    setUploadingCert(name);
+    try {
+      const url = await uploadCertDoc(supplier.id, file);
+      setCerts(cs => cs.map(c => (c.name === name ? { ...c, docUrl: url } : c)));
+    } catch (e) {
+      setError(e.message || 'Could not upload the document');
+    } finally {
+      setUploadingCert(null);
+    }
   };
 
   const handleSave = async () => {
     setSaving(true); setSaved(false); setError(null);
     try {
       const num = (v) => (v === '' || v == null ? null : Number(v));
+      await saveMyCertifications(certs);
       await updateSupplierStorefront({
         lead_time_days:     num(form.lead_time_days),
         order_cutoff:       form.order_cutoff ? form.order_cutoff : null,
         min_order_value:    num(form.min_order_value),
         min_order_currency: form.min_order_currency || 'EUR',
-        certifications:     certs,
+        certifications:     certs.map(c => c.name),
         express_available:  !!form.express_available,
         delivery_days:      form.delivery_days || [],
         cutoff_strict:      !!form.cutoff_strict,
@@ -1209,17 +1235,47 @@ const StorefrontSection = ({ supplier, onSaved }) => {
           </button>
         </div>
         {certs.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 2 }}>
             {certs.map(c => (
-              <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-3)', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 6px 4px 12px', fontSize: 12.5, color: 'var(--fg)' }}>
-                {c}
-                <button type="button" onClick={() => setCerts(certs.filter(x => x !== c))} aria-label={`Remove ${c}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--muted-s)', lineHeight: 0, padding: 2 }}>
-                  <X size={13} />
-                </button>
-              </span>
+              <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-3)', border: '1px solid var(--line)', borderRadius: 10, padding: '8px 10px 8px 14px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>
+                  {c.name}
+                  {c.verified && (
+                    <span title="Verified by Cargo" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#EAF6EF', color: '#1D9E75', borderRadius: 999, padding: '2px 8px 2px 6px', fontSize: 10.5, fontWeight: 700, letterSpacing: 0.2 }}>
+                      <Check size={11} strokeWidth={3} /> Verified
+                    </span>
+                  )}
+                </span>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {c.docUrl ? (
+                    <a href={c.docUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: '#C65A1A', textDecoration: 'none', fontWeight: 600 }}>
+                      <FileText size={13} /> View
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: 11, color: 'var(--faint)' }}>No document</span>
+                  )}
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--muted-s)', cursor: uploadingCert === c.name ? 'default' : 'pointer', fontWeight: 500 }}>
+                    <Paperclip size={13} />
+                    {uploadingCert === c.name ? 'Uploading…' : c.docUrl ? 'Replace' : 'Attach'}
+                    <input
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png,image/webp"
+                      onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; uploadDoc(c.name, f); }}
+                      disabled={uploadingCert === c.name}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  <button type="button" onClick={() => setCerts(certs.filter(x => x.name !== c.name))} aria-label={`Remove ${c.name}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--muted-s)', lineHeight: 0, padding: 2 }}>
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}
+        <p style={{ fontSize: 11, color: 'var(--muted-s)', margin: '8px 2px 0', lineHeight: 1.4 }}>
+          Attach the certificate (PDF or image). Cargo reviews uploads and adds a <strong>Verified</strong> tick buyers can trust.
+        </p>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

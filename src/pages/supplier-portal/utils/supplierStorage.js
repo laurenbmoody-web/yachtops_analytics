@@ -41,6 +41,36 @@ export const updateSupplierStorefront = async (f) => {
   if (error) throw error;
 };
 
+// ─── Certifications (with optional documents) ────────────────────────────────
+export const fetchMyCertifications = async () => {
+  const { data, error } = await supabase.rpc('get_my_certifications');
+  if (error) throw error;
+  return (data ?? []).map(c => ({ id: c.id, name: c.name, docUrl: c.doc_url || '', verified: !!c.verified }));
+};
+
+// Replace the caller's certification set. certs: [{ name, docUrl }].
+export const saveMyCertifications = async (certs) => {
+  const { error } = await supabase.rpc('save_my_certifications', {
+    p_certs: (certs || []).map(c => ({ name: c.name, doc_url: c.docUrl || null })),
+  });
+  if (error) throw error;
+};
+
+// Upload a certificate document to the public supplier-certs bucket under the
+// supplier's own folder. Returns the public URL.
+export const uploadCertDoc = async (supplierId, file) => {
+  if (!file) throw new Error('No file provided');
+  const ext = (file.name.split('.').pop() || 'pdf').toLowerCase();
+  const safe = (file.name.replace(/\.[^.]+$/, '') || 'cert').replace(/[^a-z0-9]+/gi, '-').slice(0, 40).toLowerCase() || 'cert';
+  const path = `${supplierId}/${safe}-${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from('supplier-certs')
+    .upload(path, file, { upsert: true, cacheControl: '3600' });
+  if (uploadError) throw uploadError;
+  const { data: { publicUrl } } = supabase.storage.from('supplier-certs').getPublicUrl(path);
+  return publicUrl;
+};
+
 export const updateSupplierProfile = async (supplierId, updates) => {
   const { data, error } = await supabase
     .from('supplier_profiles')
