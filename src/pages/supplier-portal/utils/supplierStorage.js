@@ -37,6 +37,10 @@ export const updateSupplierStorefront = async (f) => {
     p_express_available:  !!f.express_available,
     p_delivery_days:      f.delivery_days || [],
     p_cutoff_strict:      !!f.cutoff_strict,
+    p_contact_name:       f.contact_name || null,
+    p_contact_role:       f.contact_role || null,
+    p_contact_email:      f.contact_email || null,
+    p_contact_phone:      f.contact_phone || null,
   });
   if (error) throw error;
 };

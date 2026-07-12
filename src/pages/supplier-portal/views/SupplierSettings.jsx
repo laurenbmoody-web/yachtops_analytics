@@ -1042,6 +1042,20 @@ const StorefrontPreview = ({ supplier, form, certs }) => {
       ) : (
         <div className="spv-empty">Fill in the details below and they'll show here — this is how a captain sees you when choosing a supplier.</div>
       )}
+
+      {(form.contact_name || form.contact_email || form.contact_phone) && (
+        <div className="spv-contact">
+          <span className="spv-contact-av">{((form.contact_name || '·').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('') || '·').toUpperCase()}</span>
+          <span className="spv-contact-who">
+            <b>{form.contact_name || 'Orders desk'}</b>
+            <span>{form.contact_role || 'Contact'}</span>
+          </span>
+          <span className="spv-contact-lines">
+            {form.contact_phone && <span>{form.contact_phone}</span>}
+            {form.contact_email && <span>{form.contact_email}</span>}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -1059,6 +1073,10 @@ const StorefrontSection = ({ supplier, onSaved }) => {
     express_available:  !!supplier.express_available,
     delivery_days:      Array.isArray(supplier.delivery_days) ? supplier.delivery_days : [],
     cutoff_strict:      !!supplier.cutoff_strict,
+    contact_name:       supplier.storefront_contact_name  || '',
+    contact_role:       supplier.storefront_contact_role  || '',
+    contact_email:      supplier.storefront_contact_email || '',
+    contact_phone:      supplier.storefront_contact_phone || '',
   });
   // Certs are records now: { name, docUrl, verified }. Loaded fresh so we
   // have documents + verified state (not just the names on the profile).
@@ -1111,6 +1129,10 @@ const StorefrontSection = ({ supplier, onSaved }) => {
         express_available:  !!form.express_available,
         delivery_days:      form.delivery_days || [],
         cutoff_strict:      !!form.cutoff_strict,
+        contact_name:       form.contact_name?.trim() || null,
+        contact_role:       form.contact_role?.trim() || null,
+        contact_email:      form.contact_email?.trim() || null,
+        contact_phone:      form.contact_phone?.trim() || null,
       });
       // Queue an AI first-pass review for any cert with a document that isn't
       // yet verified — the edge function is idempotent per document, so it's
@@ -1225,6 +1247,21 @@ const StorefrontSection = ({ supplier, onSaved }) => {
           <span style={{ display: 'block', fontSize: 11.5, color: 'var(--muted-s)', marginTop: 2 }}>Shows a “Rush available” badge — you'll take urgent orders for the right job.</span>
         </span>
       </label>
+
+      {/* Orders contact — who yachts should reach about orders */}
+      <div style={{ marginBottom: 22, paddingTop: 18, borderTop: '1px solid var(--line)' }}>
+        <label style={lbl}>Orders contact <span style={{ color: 'var(--faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>· optional</span></label>
+        <p style={{ fontSize: 11.5, color: 'var(--muted-s)', margin: '0 0 10px', lineHeight: 1.45, maxWidth: 460 }}>
+          Who should a yacht contact about an order? Shown on your marketplace card. Use the channel you actually
+          want enquiries on — this can differ from your company's main line.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <input value={form.contact_name} onChange={e => set('contact_name', e.target.value)} placeholder="Name (e.g. Orders desk)" style={inp} />
+          <input value={form.contact_role} onChange={e => set('contact_role', e.target.value)} placeholder="Role (e.g. Provisioning)" style={inp} />
+          <input value={form.contact_email} onChange={e => set('contact_email', e.target.value)} type="email" placeholder="Email" style={inp} />
+          <input value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)} placeholder="Phone" style={inp} />
+        </div>
+      </div>
 
       {/* Certifications */}
       <div style={{ marginBottom: 22 }}>
