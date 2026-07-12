@@ -16,6 +16,21 @@ import { fetchSupplierRatings } from './utils/marketplaceStorage';
 import ReviewsModal from '../../components/reviews/ReviewsModal';
 import './supplier-detail/supplier-detail.css';
 
+const WEEK_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const fmtDeliveryDays = (days) => {
+  if (!days || !days.length) return '';
+  const idx = days.map(d => WEEK_ORDER.indexOf(d)).filter(i => i >= 0).sort((a, b) => a - b);
+  if (!idx.length) return '';
+  if (idx.length === 7) return 'Every day';
+  const runs = []; let start = idx[0], prev = idx[0];
+  for (let i = 1; i < idx.length; i++) {
+    if (idx[i] === prev + 1) prev = idx[i];
+    else { runs.push([start, prev]); start = idx[i]; prev = idx[i]; }
+  }
+  runs.push([start, prev]);
+  return runs.map(([a, b]) => (a === b ? WEEK_ORDER[a] : `${WEEK_ORDER[a]}–${WEEK_ORDER[b]}`)).join(', ');
+};
+
 // Compact half-star display for the reviews line (editorial palette).
 const RatingStars = ({ value = 0 }) => (
   <span className="sd-rating-stars">
@@ -699,11 +714,14 @@ export default function SupplierDetailPage() {
             const minCur = profile.min_order_currency || 'EUR';
             const certs = Array.isArray(profile.certifications) ? profile.certifications : [];
             const express = !!profile.express_available;
-            if (lead == null && !cutoff && min == null && !express && certs.length === 0) return null;
+            const days = fmtDeliveryDays(profile.delivery_days);
+            const strict = !!profile.cutoff_strict;
+            if (lead == null && !cutoff && min == null && !express && !days && certs.length === 0) return null;
             return (
               <div className="sd-terms">
+                {days && <span className="sd-term">delivers <b>{days}</b></span>}
                 {lead != null && <span className="sd-term"><b>≈{lead}d</b> lead time</span>}
-                {cutoff && <span className="sd-term">order by <b>{cutoff}</b></span>}
+                {cutoff && <span className="sd-term">order by <b>{cutoff}</b> {strict ? '(firm)' : '(flexible)'}</span>}
                 {min != null && <span className="sd-term"><b>{minCur} {min}</b> min</span>}
                 {express && <span className="sd-term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
                 {certs.map(c => <span className="sd-cert" key={c}>{c}</span>)}

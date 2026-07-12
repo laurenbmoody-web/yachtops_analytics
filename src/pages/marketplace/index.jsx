@@ -79,6 +79,22 @@ const fmtPack = (p) => {
 const money = (n, ccy = 'EUR') =>
   n != null ? `${Number(n).toFixed(2)} ${ccy}` : '—';
 
+// Compress delivery weekdays into readable ranges: Mon,Tue,Wed,Fri → "Mon–Wed, Fri".
+const WEEK_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const fmtDeliveryDays = (days) => {
+  if (!days || !days.length) return '';
+  const idx = days.map(d => WEEK_ORDER.indexOf(d)).filter(i => i >= 0).sort((a, b) => a - b);
+  if (!idx.length) return '';
+  if (idx.length === 7) return 'Every day';
+  const runs = []; let start = idx[0], prev = idx[0];
+  for (let i = 1; i < idx.length; i++) {
+    if (idx[i] === prev + 1) prev = idx[i];
+    else { runs.push([start, prev]); start = idx[i]; prev = idx[i]; }
+  }
+  runs.push([start, prev]);
+  return runs.map(([a, b]) => (a === b ? WEEK_ORDER[a] : `${WEEK_ORDER[a]}–${WEEK_ORDER[b]}`)).join(', ');
+};
+
 // Compact money for KPI tiles — €938, $1,240, 900 AED.
 const CUR_SYM = { EUR: '€', USD: '$', GBP: '£' };
 const fmtMoney = (n, ccy = 'EUR') => {
@@ -647,7 +663,9 @@ const Marketplace = () => {
   const shopMinCur = enteredSupplier?.min_order_currency || 'EUR';
   const shopCerts = enteredSupplier?.certifications || [];
   const shopExpress = !!enteredSupplier?.express_available;
-  const hasTerms = shopLead != null || shopCutoff || shopMin != null || shopExpress || shopCerts.length > 0;
+  const shopDays = fmtDeliveryDays(enteredSupplier?.delivery_days);
+  const shopCutoffStrict = !!enteredSupplier?.cutoff_strict;
+  const hasTerms = shopLead != null || shopCutoff || shopMin != null || shopExpress || shopDays || shopCerts.length > 0;
 
   return (
     <>
@@ -915,8 +933,9 @@ const Marketplace = () => {
                       </div>
                       {hasTerms && (
                         <div className="mp-shophead-terms">
+                          {shopDays && <span className="term">delivers <b>{shopDays}</b></span>}
                           {shopLead != null && <span className="term"><b>≈{shopLead}d</b> lead time</span>}
-                          {shopCutoff && <span className="term">order by <b>{shopCutoff}</b></span>}
+                          {shopCutoff && <span className="term">order by <b>{shopCutoff}</b> {shopCutoffStrict ? '(firm)' : '(flexible)'}</span>}
                           {shopMin != null && <span className="term"><b>{money(shopMin, shopMinCur)}</b> min</span>}
                           {shopExpress && <span className="term rush"><Zap size={12} strokeWidth={2} /> Rush available</span>}
                           {shopCerts.map(c => <span className="cert" key={c}>{c}</span>)}
