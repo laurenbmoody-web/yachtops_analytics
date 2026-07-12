@@ -11,6 +11,22 @@ const SCHEME_LABEL = {
   fssc: 'FSSC 22000', haccp: 'HACCP', organic: 'Organic', iso22000: 'ISO 22000', other: 'Other',
 };
 
+// What to actually check on each scheme's register — the links point to
+// different kinds of search (BRCGS lists approved bodies, not certificates).
+const CHECK_HINT = {
+  brcgs: 'Search the issuing body on the directory — BRCGS says any body not listed is not authorised to issue a certificate, so if it isn\'t there the cert isn\'t valid.',
+  brc:   'Search the issuing body on the directory — if it isn\'t a listed BRCGS-approved body, the cert isn\'t valid.',
+  ifs:   'Search the certified company and confirm the certificate is current.',
+  fssc:  'Search the organisation and confirm the certificate is active.',
+  msc:   'Search the certificate number or company and confirm it\'s a valid MSC certificate.',
+  asc:   'Search the farm / company and confirm the certificate is current.',
+  globalgap: 'Search the GGN or certificate number and confirm it\'s valid.',
+  eu_organic: 'Confirm the operator with its control body / the organic register.',
+  soil_association: 'Search the licensee and confirm certification is current.',
+  organic: 'Organic schemes vary — confirm the operator with the control body named on the certificate.',
+  haccp: 'HACCP has no central register — check the scheme certificate behind it and the issuing body directly.',
+};
+
 const fmtDate = (d) => {
   if (!d) return null;
   const dt = new Date(d);
@@ -154,6 +170,7 @@ const CertReviewConsole = () => {
                     <div className="cc-row"><span className="k">Scheme</span><span className="v">{SCHEME_LABEL[c.scheme] || c.scheme || <span className="mut">—</span>}</span></div>
                     <div className="cc-row"><span className="k">Certificate no.</span><span className={`v ${c.certNumber ? '' : 'mut'}`}>{c.certNumber || '—'}</span></div>
                     <div className="cc-row"><span className="k">Issued to</span><span className={`v ${c.issuedTo ? '' : 'mut'}`}>{c.issuedTo || '—'}</span></div>
+                    <div className="cc-row"><span className="k">Issuing body</span><span className={`v ${c.issuingBody ? '' : 'mut'}`}>{c.issuingBody || '—'}</span></div>
                     <div className="cc-row"><span className="k">Issued</span><span className={`v ${c.issueDate ? '' : 'mut'}`}>{fmtDate(c.issueDate) || '—'}</span></div>
                     <div className="cc-row"><span className="k">Expires</span><span className="v" style={expired ? { color: '#C0392B' } : undefined}>{fmtDate(c.expiryDate) || <span className="mut">—</span>}{expired ? ' · expired' : ''}</span></div>
                     <div className="cc-row"><span className="k">Uploaded</span><span className="v mut" style={{ fontWeight: 400, color: '#8B8478' }}>{fmtDate(c.createdAt) || '—'}</span></div>
@@ -166,6 +183,10 @@ const CertReviewConsole = () => {
                     </div>
                   ) : (
                     <div className="cc-noflags">No automated flags.</div>
+                  )}
+
+                  {inReview(c) && CHECK_HINT[c.scheme] && (
+                    <div className="cc-hint"><span className="h">How to check</span>{CHECK_HINT[c.scheme]}</div>
                   )}
 
                   <div className="cc-actions">
