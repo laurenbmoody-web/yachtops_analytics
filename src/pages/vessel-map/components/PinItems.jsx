@@ -56,7 +56,12 @@ export default function PinItems({
     if (!nid) { setRows([]); return; }
     const { items, error: e } = await itemsAtNode(tenantId, nid);
     if (e) { setError(e); setRows([]); return; }
-    setRows(items.map((it) => ({ id: it.id, name: it.name, qty: it.pinQty, unit: it.unit || null, category: categoryPath(it) })));
+    setRows(items.map((it) => ({
+      id: it.id, name: it.name, qty: it.pinQty, unit: it.unit || null, category: categoryPath(it),
+      // Is any of this item stored anywhere OTHER than this pin? Only then is
+      // "move some here" meaningful — otherwise we don't show it at all.
+      elsewhere: (Number(it.total_qty ?? it.quantity) || 0) - it.pinQty > 0,
+    })));
   };
   useEffect(() => { setRows(null); load(hotspot?.location_node_id || null); /* eslint-disable-next-line */ }, [hotspot?.id, hotspot?.location_node_id, tenantId]);
 
@@ -174,6 +179,9 @@ export default function PinItems({
   // locations" (the row's own − / + handles receiving here). From the add-item
   // search it also offers "New stock arriving here" for a first placement.
   const forRow = !!transfer?.forRow;
+  const movesTotal = transfer
+    ? transfer.sources.reduce((s, src) => s + Math.min(Number(transfer.moves[src.key]) || 0, src.qty), 0)
+    : 0;
   const panel = transfer && (
     <div className="vm-transfer">
       {!forRow && <p className="vm-transfer-head"><strong>{transfer.item.name}</strong> · {transfer.total} onboard</p>}
@@ -186,13 +194,13 @@ export default function PinItems({
       )}
       {transfer.sources.length > 0 ? (
         <>
-          <p className="vm-transfer-sub">{forRow ? 'Move some in from where else it’s stored:' : 'Or move some in from where it is now:'}</p>
+          <p className="vm-transfer-sub">{forRow ? 'Bring stock here from another store — pick how many to move:' : 'Or move some in from where it is now:'}</p>
           {transfer.sources.map((s) => {
             const n = Number(transfer.moves[s.key]) || 0;
             return (
               <div key={s.key} className="vm-transfer-src">
                 <span className="vm-transfer-src-name" title={s.label}>{s.label}</span>
-                <span className="vm-transfer-src-have">of {s.qty}</span>
+                <span className="vm-transfer-src-have">{s.qty} there</span>
                 <span className="vm-move-step">
                   <button type="button" className="vm-move-btn" onClick={() => bumpMove(s.key, -1, s.qty)} disabled={n <= 0} aria-label={`Move one fewer from ${s.label}`}>–</button>
                   <input className="vm-move-input" type="number" min="0" max={s.qty}
@@ -206,9 +214,13 @@ export default function PinItems({
       ) : (
         forRow && <p className="vm-transfer-sub">Not stored anywhere else — use – / + above to change the count here.</p>
       )}
-      <p className="vm-transfer-total">This pin will hold: <strong>{willHold}</strong></p>
+      {!forRow && <p className="vm-transfer-total">This pin will hold: <strong>{willHold}</strong></p>}
       <div className="vm-transfer-actions">
-        <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || willHold <= (transfer.existing || 0)}>{busy === 'transfer' ? 'Saving…' : (forRow ? 'Move here' : 'Place')}</button>
+        {forRow ? (
+          <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || movesTotal <= 0}>{busy === 'transfer' ? 'Moving…' : (movesTotal > 0 ? `Move ${movesTotal} here` : 'Move here')}</button>
+        ) : (
+          <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || willHold <= (transfer.existing || 0)}>{busy === 'transfer' ? 'Saving…' : 'Place'}</button>
+        )}
         <button className="vm-btn-ghost" onClick={() => setTransfer(null)}>Cancel</button>
       </div>
     </div>
@@ -233,32 +245,42 @@ export default function PinItems({
             return (
               <React.Fragment key={r.id}>
                 <div className="vm-pinitem">
-                  <span className="vm-pinitem-main">
+                  {/* Line 1 — the name gets the full width so it wraps in full. */}
+                  <div className="vm-pinitem-top">
                     <button className="vm-pinitem-name" onClick={() => setOpenItem(r.id)} title="Quick view">{r.name}</button>
-                    {leaf ? (
-                      <span className="vm-pinitem-cat">
-                        {head && <span className="vm-pinitem-cat-head">{head} › </span>}
-                        <span className="vm-pinitem-cat-leaf">{leaf}</span>
-                      </span>
-                    ) : (
-                      <span className="vm-pinitem-cat"><span className="vm-pinitem-cat-head">Uncategorised</span></span>
+                    {canManage && (
+                      <button className="vm-pinitem-del" onClick={() => removeItem(r.id)} aria-label={`Remove ${r.name}`}>×</button>
                     )}
-                  </span>
-                  {canManage && (
-                    <button className={`vm-pinitem-move${open ? ' on' : ''}`} onClick={() => openTransfer({ id: r.id, name: r.name }, r.id)} aria-label={`Move stock for ${r.name}`} title="Receive / move stock">▾</button>
-                  )}
-                  {canManage ? (
-                    <span className="vm-pinitem-step">
-                      <button className="vm-pinitem-btn" onClick={() => bump(r, -1)} disabled={busy === r.id || r.qty <= 0} aria-label={`One fewer ${r.name}`}>–</button>
-                      <span className="vm-pinitem-qty">{r.qty}</span>
-                      <button className="vm-pinitem-btn" onClick={() => bump(r, 1)} disabled={busy === r.id} aria-label={`One more ${r.name}`}>+</button>
+                  </div>
+                  {leaf ? (
+                    <span className="vm-pinitem-cat">
+                      {head && <span className="vm-pinitem-cat-head">{head} › </span>}
+                      <span className="vm-pinitem-cat-leaf">{leaf}</span>
                     </span>
                   ) : (
-                    <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}</span>
+                    <span className="vm-pinitem-cat"><span className="vm-pinitem-cat-head">Uncategorised</span></span>
                   )}
-                  {canManage && (
-                    <button className="vm-pinitem-del" onClick={() => removeItem(r.id)} aria-label={`Remove ${r.name}`}>×</button>
-                  )}
+                  {/* Line 2 — the count HERE, and (only if stored elsewhere) a
+                      clearly separate "move some here" action. */}
+                  <div className="vm-pinitem-ctrls">
+                    {canManage ? (
+                      <span className="vm-pinitem-here">
+                        <span className="vm-pinitem-here-lbl">Here</span>
+                        <span className="vm-pinitem-step">
+                          <button className="vm-pinitem-btn" onClick={() => bump(r, -1)} disabled={busy === r.id || r.qty <= 0} aria-label={`One fewer ${r.name}`}>–</button>
+                          <span className="vm-pinitem-qty">{r.qty}</span>
+                          <button className="vm-pinitem-btn" onClick={() => bump(r, 1)} disabled={busy === r.id} aria-label={`One more ${r.name}`}>+</button>
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="vm-pinitem-here"><span className="vm-pinitem-here-lbl">Here</span> <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}</span></span>
+                    )}
+                    {canManage && r.elsewhere && (
+                      <button className={`vm-pinitem-movebtn${open ? ' on' : ''}`} onClick={() => openTransfer({ id: r.id, name: r.name }, r.id)} title="Move stock here from another store">
+                        Move in <span className="vm-pinitem-movechev" aria-hidden="true">▾</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {open && panel}
               </React.Fragment>
