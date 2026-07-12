@@ -75,6 +75,43 @@ const AvatarMenuItem = ({ icon, label, onClick, danger, active }) => {
   );
 };
 
+// Row used inside the consolidated header dropdowns (Alerts, Settings). Same
+// editorial language as AvatarMenuItem, plus an optional terracotta count pill
+// on the right for feeds that carry a pending count (reviews, notifications).
+const HeaderMenuItem = ({ icon, label, description, count, onClick, active }) => {
+  const baseColor = active ? '#C65A1A' : '#1C1B3A';
+  const iconColor = active ? '#C65A1A' : '#8B8478';
+  const baseBg = active ? '#FBEFE9' : 'transparent';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 11, width: '100%', padding: '10px 16px',
+        background: baseBg, border: 'none', textAlign: 'left', cursor: 'pointer',
+        color: baseColor, transition: 'background 100ms',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = active ? '#FBEFE9' : '#F6F5F2'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = baseBg; }}
+    >
+      <Icon name={icon} size={16} color={iconColor} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 13, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", lineHeight: 1.3 }}>{label}</span>
+        {description && (
+          <span style={{ display: 'block', fontSize: 11, color: '#8B8478', marginTop: 1 }}>{description}</span>
+        )}
+      </span>
+      {count > 0 && (
+        <span style={{
+          minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999,
+          background: '#C65A1A', color: '#fff', fontSize: 11, fontWeight: 600,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}>{count > 99 ? '99+' : count}</span>
+      )}
+    </button>
+  );
+};
+
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -83,6 +120,7 @@ const Header = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -97,6 +135,7 @@ const Header = () => {
   const [isSearching, setIsSearching] = useState(false);
   const menuRef = useRef(null);
   const alertRef = useRef(null);
+  const settingsRef = useRef(null);
   const searchRef = useRef(null);
   const searchTimeout = useRef(null);
 
@@ -274,6 +313,9 @@ const Header = () => {
       }
       if (alertRef?.current && !alertRef?.current?.contains(event?.target)) {
         setAlertsOpen(false);
+      }
+      if (settingsRef?.current && !settingsRef?.current?.contains(event?.target)) {
+        setSettingsMenuOpen(false);
       }
       if (searchRef?.current && !searchRef?.current?.contains(event?.target)) {
         setIsSearchOpen(false);
@@ -635,13 +677,59 @@ const Header = () => {
         </div>
         {/* RIGHT ZONE: Icons + User */}
         <div className="flex items-center gap-3 flex-shrink-0">
-          <button
-            onClick={() => navigate('/activity')}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-            title="Activity Feed"
-          >
-            <Icon name="Activity" size={20} className="text-muted-foreground" />
-          </button>
+          {/* Alerts — consolidated Activity feed + Reviews inbox + Notifications.
+              Single Bell icon; badge sums the pending Reviews + Notifications
+              counts. Opening the dropdown routes to each surface. */}
+          <div className="relative" ref={alertRef}>
+            {(() => {
+              const alertCount = inboxCount + unreadCount;
+              return (
+                <button
+                  onClick={() => setAlertsOpen(!alertsOpen)}
+                  className="relative p-2 hover:bg-muted rounded-lg transition-smooth"
+                  title="Alerts"
+                  aria-label={alertCount > 0 ? `Alerts — ${alertCount} pending` : 'Alerts'}
+                >
+                  <Icon name="Bell" size={20} color="var(--color-foreground)" />
+                  {alertCount > 0 && (
+                    <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] text-white text-xs font-semibold rounded-full flex items-center justify-center px-1" style={{ background: '#C65A1A' }}>
+                      {alertCount > 99 ? '99+' : alertCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })()}
+
+            {alertsOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                width: 260, background: '#FFFFFF', border: '1px solid #ECEAE3',
+                borderRadius: 14, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)',
+                zIndex: 50, overflow: 'hidden', pointerEvents: 'auto',
+              }}>
+                <AvatarMenuSectionLabel label="Alerts" />
+                <HeaderMenuItem
+                  icon="Activity"
+                  label="Activity Feed"
+                  active={location?.pathname === '/activity'}
+                  onClick={() => { setAlertsOpen(false); navigate('/activity'); }}
+                />
+                <HeaderMenuItem
+                  icon="Inbox"
+                  label="Reviews"
+                  count={inboxCount}
+                  active={location?.pathname === '/reviews'}
+                  onClick={() => { setAlertsOpen(false); navigate('/reviews'); }}
+                />
+                <HeaderMenuItem
+                  icon="Bell"
+                  label="Notifications"
+                  count={unreadCount}
+                  onClick={() => { setAlertsOpen(false); setNotificationsOpen(true); }}
+                />
+              </div>
+            )}
+          </div>
 
           {basketUnits > 0 && (
             <button
@@ -657,48 +745,40 @@ const Header = () => {
             </button>
           )}
 
-          <button
-            onClick={() => navigate('/reviews')}
-            className="relative p-2 hover:bg-muted rounded-lg transition-smooth"
-            title={inboxCount > 0 ? `Reviews (${inboxCount} pending)` : 'Reviews'}
-            aria-label={inboxCount > 0 ? `Reviews — ${inboxCount} pending` : 'Reviews'}
-          >
-            <Icon name="Inbox" size={20} color="var(--color-foreground)" />
-            {inboxCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] text-white text-xs font-semibold rounded-full flex items-center justify-center px-1" style={{ background: '#C65A1A' }}>
-                {inboxCount > 99 ? '99+' : inboxCount}
-              </span>
+          {/* Settings — consolidated Vessel Settings + System Settings under a
+              single gear icon. */}
+          <div className="relative" ref={settingsRef}>
+            <button
+              onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
+              className="p-2 hover:bg-muted rounded-lg transition-smooth"
+              title="Settings"
+              aria-label="Settings"
+            >
+              <Icon name="Settings" size={20} color="var(--color-foreground)" />
+            </button>
+
+            {settingsMenuOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                width: 220, background: '#FFFFFF', border: '1px solid #ECEAE3',
+                borderRadius: 14, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)',
+                zIndex: 50, overflow: 'hidden', pointerEvents: 'auto',
+              }}>
+                <AvatarMenuSectionLabel label="Settings" />
+                <HeaderMenuItem
+                  icon="Ship"
+                  label="Vessel Settings"
+                  active={location?.pathname === '/settings/vessel' || location?.pathname?.startsWith('/settings/vessel/')}
+                  onClick={() => { setSettingsMenuOpen(false); navigate('/settings/vessel'); }}
+                />
+                <HeaderMenuItem
+                  icon="Settings"
+                  label="System Settings"
+                  onClick={() => { setSettingsMenuOpen(false); setSettingsOpen(true); }}
+                />
+              </div>
             )}
-          </button>
-
-          <button
-            onClick={() => setNotificationsOpen(!notificationsOpen)}
-            className="relative p-2 hover:bg-muted rounded-lg transition-smooth"
-            title="Notifications"
-          >
-            <Icon name="Bell" size={20} color="var(--color-foreground)" />
-            {unreadCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] bg-error text-white text-xs font-semibold rounded-full flex items-center justify-center px-1">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </button>
-
-          <button 
-            onClick={() => navigate('/settings/vessel')}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-            title="Vessel Settings"
-          >
-            <Icon name="Ship" size={20} color="var(--color-foreground)" />
-          </button>
-
-          <button 
-            onClick={() => setSettingsOpen(true)}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-            title="System Settings"
-          >
-            <Icon name="Settings" size={20} color="var(--color-foreground)" />
-          </button>
+          </div>
 
           <button
             className="p-2 hover:bg-muted rounded-lg transition-smooth"
