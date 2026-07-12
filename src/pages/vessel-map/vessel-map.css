@@ -1581,6 +1581,19 @@
   line-height: 1; cursor: pointer; border-radius: 6px; }
 .vm-pinitem-del:hover { color: #A32D2D; background: #FBEFE9; }
 .vm-pinitems-add { margin-top: 12px; }
+.vm-cupboard-create { color: #C65A1A; font-weight: 600; }
+.vm-cupboard-create:hover { background: #FBEFE9; }
+/* create-new-item mini form */
+.vm-pinitems-new { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.vm-pinitems-new-row { display: flex; align-items: center; gap: 8px; }
+.vm-pinitems-new-qty { width: 76px; flex: none; }
+.vm-pinitems-new-hint { font-size: 11px; color: #8B8478; margin: 0; }
+/* "currently at X — move here?" */
+.vm-pinitems-move { margin-top: 10px; padding: 11px 13px; border: 1px solid #ECEAE3; border-radius: 11px; background: #FAFAF8;
+  font-size: 12.5px; color: #6B7280; display: flex; flex-direction: column; gap: 9px; }
+.vm-pinitems-move strong { color: #1C1B3A; font-weight: 600; }
+.vm-pinitems-move-actions { display: flex; align-items: center; gap: 8px; }
+.vm-pinitems-move-go { padding: 6px 14px; }
 
 /* Container "inside" section — photograph the interior, then place pins. */
 .vm-interior { margin-top: 4px; }

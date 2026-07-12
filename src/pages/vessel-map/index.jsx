@@ -703,6 +703,13 @@ export default function VesselMapPage() {
     }
   }, [user, creatorNames]);
 
+  // A pin (or one of its containers) just got its physical-location node
+  // resolved/created — cache it on the hotspot so we never recreate it.
+  const onNodeResolved = useCallback((hotspotId, nid) => {
+    setHotspots((prev) => prev.map((h) => (h.id === hotspotId ? { ...h, location_node_id: nid } : h)));
+    setSelectedHotspot((prev) => (prev && prev.id === hotspotId ? { ...prev, location_node_id: nid } : prev));
+  }, []);
+
   const showViewer = signedUrl && !signError;
   const loadPct = viewer.status === 'loading' ? viewer.progress : null;
 
@@ -949,8 +956,10 @@ export default function VesselMapPage() {
                   tenantId={activeTenantId}
                   names={creatorNames}
                   onDetailSaved={onDetailSaved}
-                  locationRoot={selectedScan?.name}
-                  locationTrail={containerTrail.map((c) => c.label)}
+                  scanSpaceId={selectedScan?.space_id}
+                  scanName={selectedScan?.name}
+                  containerTrail={containerTrail}
+                  onNodeResolved={onNodeResolved}
                   onClose={closeInspector}
                   onDelete={deleteHotspot}
                   onAdjust={startAdjust}
@@ -1151,9 +1160,11 @@ export default function VesselMapPage() {
                           hotspot={selectedHotspot}
                           canManage={canPlaceHotspots}
                           tenantId={activeTenantId}
-                          onDetailSaved={onDetailSaved}
-                          locationRoot={selectedScan?.name}
-                          locationTrail={containerTrail.map((c) => c.label)}
+                          userId={user?.id}
+                          scanSpaceId={selectedScan?.space_id}
+                          scanName={selectedScan?.name}
+                          containerTrail={containerTrail}
+                          onNodeResolved={onNodeResolved}
                         />
                       </>
                     )}
