@@ -115,7 +115,31 @@ const SettingsPage = () => {
   const [tzOpen, setTzOpen] = useState(false);
   const [tzSearch, setTzSearch] = useState('');
   const [acct, setAcct] = useState({ name: '', email: '', avatarUrl: '', tenant: '' });
+  const [notifEmail, setNotifEmail] = useState('');
+  const [notifStatus, setNotifStatus] = useState('');
   const [, setTick] = useState(0);
+
+  // Per-vessel notification email override (crew_notification_emails).
+  const saveNotifEmail = async () => {
+    const uid = session?.user?.id;
+    const tid = localStorage.getItem('cargo_active_tenant_id');
+    const val = notifEmail.trim();
+    if (val && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) { setNotifStatus('Enter a valid email'); return; }
+    if (!uid || !tid) return;
+    try {
+      if (val) {
+        await supabase.from('crew_notification_emails')
+          .upsert({ user_id: uid, tenant_id: tid, email: val, updated_at: new Date().toISOString() }, { onConflict: 'user_id,tenant_id' });
+      } else {
+        await supabase.from('crew_notification_emails').delete().eq('user_id', uid).eq('tenant_id', tid);
+      }
+      setNotifStatus('Saved');
+      setTimeout(() => setNotifStatus(''), 1800);
+    } catch (e) {
+      console.warn('[settings] notification email save failed', e);
+      setNotifStatus('Couldn’t save');
+    }
+  };
 
   const setPref = (name, val) => {
     const [k, t] = PREF_KEY[name];
@@ -150,7 +174,11 @@ const SettingsPage = () => {
         }
         const tid = localStorage.getItem('cargo_active_tenant_id');
         if (tid) { const { data: tn } = await supabase.from('tenants').select('name').eq('id', tid).single(); if (tn?.name) tenant = tn.name; }
-      } catch { /* ignore */ }
+        if (uid && tid) {
+          const { data: ne } = await supabase.from('crew_notification_emails').select('email').eq('user_id', uid).eq('tenant_id', tid).maybeSingle();
+          if (!cancelled && ne?.email) setNotifEmail(ne.email);
+        }
+      } catch { /* ignore (table may not exist until migration lands) */ }
       if (!cancelled) setAcct({ name, email, avatarUrl, tenant });
     })();
     return () => { cancelled = true; };
@@ -198,12 +226,31 @@ const SettingsPage = () => {
         return (
           <>
             <h2 className="set-h">Account</h2>
-            <p className="set-hsub">Your identity on Cargo.</p>
+            <p className="set-hsub">Your identity, and where Cargo reaches you.</p>
             <Group>
-              <RowNav label="Name" value={acct.name || '—'} onClick={() => navigate('/my-profile')} />
-              <RowNav label="Email" value={acct.email || '—'} onClick={() => navigate('/my-profile')} />
-              <RowNav label="Photo" value="Change" onClick={() => navigate('/my-profile')} />
-              <RowNav label="Full crew profile" desc="Documents, banking, next of kin…" ext onClick={() => navigate('/my-profile')} />
+              <RowNav label="Profile" desc="Name, photo, personal details, documents." ext onClick={() => navigate('/my-profile')} />
+            </Group>
+            <Caps>Email</Caps>
+            <Group>
+              <div className="set-r">
+                <RMain label="Login email" desc="Where you sign in — your account address." />
+                <span className="set-r-val">{acct.email || '—'}</span>
+              </div>
+              <div className="set-r set-stack">
+                <RMain label="Notification email" desc={`Send ${acct.tenant || 'this vessel'}’s alerts to a different address — e.g. a shared or work inbox. Leave blank to use your login email.`} />
+                <div className="set-emailrow">
+                  <input
+                    className="set-field"
+                    type="email"
+                    placeholder="e.g. interior@vessel.com"
+                    value={notifEmail}
+                    onChange={(e) => { setNotifEmail(e.target.value); if (notifStatus) setNotifStatus(''); }}
+                    onBlur={saveNotifEmail}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                  />
+                  {notifStatus && <span className="set-savenote">{notifStatus}</span>}
+                </div>
+              </div>
             </Group>
           </>
         );
