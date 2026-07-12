@@ -5,6 +5,7 @@ import Header from '../../components/navigation/Header';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
+import '../../styles/editorial.css';
 import './settings.css';
 
 // Editorial switch + hairline row — the two building blocks reused across the
@@ -24,6 +25,18 @@ const Row = ({ label, desc, children }) => (
     </div>
     {children && <div className="set-row-aside">{children}</div>}
   </div>
+);
+
+// Numbered serif section head — mirrors the profile's "01 / Personal Details".
+const SectionHead = ({ n, title, sub }) => (
+  <>
+    <div className="set-sechead">
+      <span className="set-secnum">{String(n).padStart(2, '0')}</span>
+      <span className="set-secslash">/</span>
+      <h2 className="set-sectitle">{title}</h2>
+    </div>
+    {sub && <p className="set-secsub">{sub}</p>}
+  </>
 );
 
 const GMT_OFFSETS = [
@@ -75,6 +88,13 @@ const SettingsPage = () => {
     setManualOffset(offset);
     setOriginalManualOffset(offset);
     setPageLoading(false);
+  }, []);
+
+  // Re-skin the token layer to editorial while this page is mounted, the same
+  // mechanism the crew-profile page uses so the two shell identically.
+  useEffect(() => {
+    document.body.classList.add('settings-editorial');
+    return () => document.body.classList.remove('settings-editorial');
   }, []);
 
   // Check if there are unsaved changes
@@ -251,10 +271,7 @@ const SettingsPage = () => {
       case 'membership':
         return (
           <>
-            <div className="set-head">
-              <h2 className="set-h2">Membership</h2>
-              <p className="set-sub">Manage your subscription and billing.</p>
-            </div>
+            <SectionHead n={1} title="Membership" sub="Manage your subscription and billing." />
             <div className="set-block">
               <Row label="Current plan" desc="View and manage your membership.">
                 <button className="set-btn set-btn-ghost" onClick={() => navigate('/membership')}>Manage plan</button>
@@ -269,10 +286,7 @@ const SettingsPage = () => {
       case 'timezone':
         return (
           <>
-            <div className="set-head">
-              <h2 className="set-h2">Time zone</h2>
-              <p className="set-sub">Set your preferred time zone for dates and times.</p>
-            </div>
+            <SectionHead n={2} title="Time zone" sub="Set your preferred time zone for dates and times." />
             <div className="set-block">
               <Row label="Manual time zone" desc="Set a custom GMT offset instead of a city-based zone.">
                 <Switch on={manualTimezoneEnabled} onClick={handleManualTimezoneToggle} label="Manual time zone" />
@@ -321,10 +335,7 @@ const SettingsPage = () => {
       case 'notifications':
         return (
           <>
-            <div className="set-head">
-              <h2 className="set-h2">Notifications</h2>
-              <p className="set-sub">Manage how you receive notifications.</p>
-            </div>
+            <SectionHead n={3} title="Notifications" sub="Manage how you receive notifications." />
             <div className="set-block">
               <Row label="Email notifications" desc="Receive notifications via email.">
                 <Switch on={settings?.emailNotifications} onClick={() => handleNotificationToggle('emailNotifications')} label="Email notifications" />
@@ -345,10 +356,7 @@ const SettingsPage = () => {
       case 'legal':
         return (
           <>
-            <div className="set-head">
-              <h2 className="set-h2">Legal</h2>
-              <p className="set-sub">Terms, privacy, and legal information.</p>
-            </div>
+            <SectionHead n={4} title="Legal" sub="Terms, privacy, and legal information." />
             <div className="set-block">
               <Row label="Terms of Service" desc="Read our terms and conditions for using Cargo.">
                 <button className="set-btn set-btn-ghost">View</button>
@@ -366,10 +374,7 @@ const SettingsPage = () => {
       case 'help':
         return (
           <>
-            <div className="set-head">
-              <h2 className="set-h2">Help &amp; support</h2>
-              <p className="set-sub">Get help and contact support.</p>
-            </div>
+            <SectionHead n={5} title="Help &amp; support" sub="Get help and contact support." />
             <div className="set-block">
               <Row label="Documentation" desc="Browse our comprehensive guides and tutorials.">
                 <button className="set-btn set-btn-ghost">View docs</button>
@@ -397,72 +402,85 @@ const SettingsPage = () => {
     return (
       <>
         <Header />
-        <div className="set-loading"><div className="set-spinner" /></div>
+        <div className="settings-page"><div className="set-loading"><div className="set-spinner" /></div></div>
       </>
     );
   }
 
   const showSaveBar = activeSection === 'timezone' || activeSection === 'notifications';
+  const roleLabel = hasCommandAccess(currentUser) ? 'Command' : hasChiefAccess(currentUser) ? 'Chief' : 'Crew';
 
   return (
     <>
       <Header />
-      <div className="set-root">
-        {/* Sidebar */}
-        <aside className="set-side">
-          <div className="set-side-title">Settings</div>
-
-          <div className="set-grouplabel">You</div>
-          <nav className="set-nav">
-            {sections?.map((section) => {
-              const active = activeSection === section?.id;
-              return (
-                <button
-                  key={section?.id}
-                  onClick={() => setActiveSection(section?.id)}
-                  className={`set-navitem${active ? ' is-active' : ''}`}
-                >
-                  <Icon name={section?.icon} size={17} color={active ? '#C65A1A' : '#8B8478'} />
-                  <span>{section?.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          {canAccessVessel && (
-            <>
-              <div className="set-grouplabel">Vessel</div>
-              <nav className="set-nav">
-                {vesselSections?.map((section) => (
-                  <button
-                    key={section?.id}
-                    onClick={() => navigate(`/settings/vessel?section=${section?.id}`)}
-                    className="set-navitem"
-                  >
-                    <Icon name={section?.icon} size={17} color="#8B8478" />
-                    <span>{section?.label}</span>
-                    <Icon name="ArrowUpRight" size={14} color="#C3BEB2" className="set-ext" />
-                  </button>
-                ))}
-              </nav>
-            </>
-          )}
-        </aside>
-
-        {/* Content */}
-        <main className="set-main">
-          <div className="set-content">{renderContent()}</div>
-          {showSaveBar && (
-            <div className="set-savebar">
-              <div className="set-savebar-inner">
-                <button className="set-btn set-btn-primary" onClick={handleSave} disabled={!hasUnsavedChanges()}>
-                  Save changes
-                </button>
-                {hasUnsavedChanges() && <span className="set-savenote">You have unsaved changes</span>}
-              </div>
+      <div className="settings-page">
+        <div className="set-wrap">
+          {/* Canonical editorial hero — meta strip + two-colour headline */}
+          <div className="set-hero">
+            <div className="editorial-meta">
+              <span className="dot">•</span>
+              <span>Your account</span>
+              <span className="bar" />
+              <span className="muted">{roleLabel}</span>
             </div>
-          )}
-        </main>
+            <h1 className="editorial-greeting">
+              Settings<span className="period">,</span>{' '}
+              <em>your way</em><span className="period">.</span>
+            </h1>
+          </div>
+
+          <div className="set-layout">
+            {/* Rail */}
+            <aside className="set-rail">
+              <nav>
+                <div className="set-nav-grp first">You</div>
+                {sections?.map((section) => {
+                  const active = activeSection === section?.id;
+                  return (
+                    <button
+                      key={section?.id}
+                      onClick={() => setActiveSection(section?.id)}
+                      className={`set-nav-it${active ? ' active' : ''}`}
+                    >
+                      <Icon name={section?.icon} size={18} color={active ? '#C65A1A' : '#8B8478'} />
+                      <span>{section?.label}</span>
+                    </button>
+                  );
+                })}
+
+                {canAccessVessel && (
+                  <>
+                    <div className="set-nav-grp">Vessel</div>
+                    {vesselSections?.map((section) => (
+                      <button
+                        key={section?.id}
+                        onClick={() => navigate(`/settings/vessel?section=${section?.id}`)}
+                        className="set-nav-it"
+                      >
+                        <Icon name={section?.icon} size={18} color="#8B8478" />
+                        <span>{section?.label}</span>
+                        <Icon name="ArrowUpRight" size={14} color="#C3BEB2" className="set-ext" />
+                      </button>
+                    ))}
+                  </>
+                )}
+              </nav>
+            </aside>
+
+            {/* Content */}
+            <div className="set-content">
+              {renderContent()}
+              {showSaveBar && (
+                <div className="set-saverow">
+                  <button className="set-btn set-btn-primary" onClick={handleSave} disabled={!hasUnsavedChanges()}>
+                    Save changes
+                  </button>
+                  {hasUnsavedChanges() && <span className="set-savenote">You have unsaved changes</span>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );
