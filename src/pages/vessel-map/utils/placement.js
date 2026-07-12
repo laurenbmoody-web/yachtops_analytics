@@ -78,11 +78,14 @@ export async function resolvePinNode({ tenantId, userId, rootSpaceId, rootName, 
 // are HERE (not the grand total). Category rides along (location/sub_location).
 export async function itemsAtNode(tenantId, nodeId) {
   if (!nodeId) return { items: [] };
+  // stock_locations is jsonb — pass the containment probe as a JSON STRING, or
+  // supabase-js serializes a JS array as a Postgres array literal ({…}) and
+  // Postgres rejects it ("invalid input syntax for type json").
   const { data, error } = await supabase
     .from('inventory_items')
     .select(ITEM_COLS)
     .eq('tenant_id', tenantId)
-    .contains('stock_locations', [{ vesselLocationId: nodeId }])
+    .contains('stock_locations', JSON.stringify([{ vesselLocationId: nodeId }]))
     .order('name', { ascending: true });
   if (error) return { error: error.message || 'Could not load what’s here.' };
   const items = (data || [])
