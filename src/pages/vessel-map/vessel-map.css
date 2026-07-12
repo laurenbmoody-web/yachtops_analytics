@@ -1583,10 +1583,14 @@
 .vm-pinitems-add { margin-top: 12px; }
 .vm-cupboard-create { color: #C65A1A; font-weight: 600; }
 .vm-cupboard-create:hover { background: #FBEFE9; }
-/* create-new-item mini form */
+/* create-new-item mini form — name on top, then [qty] [Add here] [Cancel]
+   all the same height, no wrapping. */
 .vm-pinitems-new { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .vm-pinitems-new-row { display: flex; align-items: center; gap: 8px; }
-.vm-pinitems-new-qty { width: 76px; flex: none; }
+.vm-pinitems-new-qty { width: 64px; flex: none; height: 38px; padding: 0 10px; }
+.vm-pinitems-new-row .vm-btn-primary,
+.vm-pinitems-new-row .vm-btn-ghost { height: 38px; padding: 0 16px; white-space: nowrap; display: inline-flex; align-items: center; }
+.vm-pinitems-new-row .vm-btn-primary { flex: 1; justify-content: center; }
 .vm-pinitems-new-hint { font-size: 11px; color: #8B8478; margin: 0; }
 /* "currently at X — move here?" */
 .vm-pinitems-move { margin-top: 10px; padding: 11px 13px; border: 1px solid #ECEAE3; border-radius: 11px; background: #FAFAF8;

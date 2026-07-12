@@ -155,11 +155,11 @@ export default function PinItems({
                 {canManage ? (
                   <span className="vm-pinitem-step">
                     <button className="vm-pinitem-btn" onClick={() => bump(r, -1)} disabled={busy === r.id || r.qty <= 0} aria-label={`One fewer ${r.name}`}>–</button>
-                    <span className="vm-pinitem-qty">{r.qty}{r.unit ? <small> {r.unit}</small> : null}</span>
+                    <span className="vm-pinitem-qty">{r.qty}</span>
                     <button className="vm-pinitem-btn" onClick={() => bump(r, 1)} disabled={busy === r.id} aria-label={`One more ${r.name}`}>+</button>
                   </span>
                 ) : (
-                  <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}{r.unit ? ` ${r.unit}` : ''}</span>
+                  <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}</span>
                 )}
                 {canManage && (
                   <button className="vm-pinitem-del" onClick={() => removeItem(r.id)} aria-label={`Remove ${r.name}`}>×</button>
