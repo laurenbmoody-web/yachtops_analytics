@@ -1612,6 +1612,10 @@
 .vm-transfer-src-name { flex: 1; min-width: 0; font-size: 13px; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vm-transfer-src-have { flex: none; font-size: 12px; color: #8B8478; font-variant-numeric: tabular-nums; min-width: 28px; text-align: right; }
 .vm-transfer-qty { width: 62px; flex: none; height: 34px; padding: 0 8px; text-align: center; }
+/* no spinner arrows on the qty boxes (cleaner, and they crowded the cursor) */
+.vm-transfer-qty, .vm-pinitems-new-qty { -moz-appearance: textfield; appearance: textfield; }
+.vm-transfer-qty::-webkit-inner-spin-button, .vm-transfer-qty::-webkit-outer-spin-button,
+.vm-pinitems-new-qty::-webkit-inner-spin-button, .vm-pinitems-new-qty::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .vm-transfer-total { margin: 4px 0 0; font-size: 13px; color: #1C1B3A; }
 .vm-transfer-total strong { color: #C65A1A; }
 .vm-transfer-actions { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
