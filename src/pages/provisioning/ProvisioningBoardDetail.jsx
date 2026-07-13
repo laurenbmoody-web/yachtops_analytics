@@ -561,6 +561,41 @@ const AlwaysEditCell = ({ value, placeholder, onSave, type = 'text', inputStyle 
 const BULK_STATUS_OPTIONS = ['draft', 'ordered', 'unavailable', 'not_received', 'returned', 'invoiced', 'paid']
   .map((value) => ({ value, label: getItemStatusConfig(value).label }));
 
+// Inline pack breakdown on a board row: reads "24 × 500ml / pack" — the count
+// (units_per_pack), the each-size (from the row's Size), and the pack unit. The
+// count is click-to-edit when the line is editable: it expands to a number
+// input and commits on Enter/blur (Esc cancels), then collapses back.
+const PackChip = ({ unit, perPack, size, editable, onSave }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(perPack ?? ''));
+  useEffect(() => { setDraft(String(perPack ?? '')); }, [perPack]);
+  const commit = () => {
+    setEditing(false);
+    const n = parseInt(draft, 10);
+    if (Number.isFinite(n) && n > 0 && n !== Number(perPack)) onSave(n);
+    else setDraft(String(perPack ?? ''));
+  };
+  const wrap = { fontSize: 9.5, fontWeight: 600, color: '#8B8478', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' };
+  const count = editing ? (
+    <input
+      autoFocus type="number" min="1" value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { setDraft(String(perPack ?? '')); setEditing(false); }
+      }}
+      style={{ width: 30, fontSize: 9.5, fontWeight: 700, color: '#1C1B3A', border: '1px solid #C65A1A', borderRadius: 4, padding: '0 2px', outline: 'none', textAlign: 'center', MozAppearance: 'textfield' }}
+    />
+  ) : editable ? (
+    <button type="button" onClick={() => setEditing(true)} title="Click to change how many per pack"
+      style={{ background: 'none', border: 0, padding: 0, font: 'inherit', color: '#C65A1A', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline dotted' }}>
+      {Number(perPack)}
+    </button>
+  ) : <span style={{ color: '#C65A1A', fontWeight: 700 }}>{Number(perPack)}</span>;
+  return <span style={wrap}>{count}{size ? ` × ${size}` : ''} / {unit}</span>;
+};
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const ProvisioningBoardDetail = () => {
@@ -4129,12 +4164,13 @@ const SUPPLIER_MIRROR_FIELD = {
                                   </select>
                               }
                               {isBulkUnit(itemOrder?.unit || item.unit) && Number(item.units_per_pack) > 1 && (
-                                <span
-                                  title={`A ${normalizeUnit(itemOrder?.unit || item.unit)} holds ${Number(item.units_per_pack)}`}
-                                  style={{ fontSize: 9.5, fontWeight: 600, color: '#8B8478', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
-                                >
-                                  ×{Number(item.units_per_pack)} / {normalizeUnit(itemOrder?.unit || item.unit)}
-                                </span>
+                                <PackChip
+                                  unit={normalizeUnit(itemOrder?.unit || item.unit)}
+                                  perPack={Number(item.units_per_pack)}
+                                  size={itemOrder?.size || item.size || ''}
+                                  editable={!(isReceived || supplierActed || catLocked)}
+                                  onSave={n => handleCellSave(item, 'units_per_pack', n)}
+                                />
                               )}
                             </div>
                             {/* Qty — strikethrough requested_quantity next to
