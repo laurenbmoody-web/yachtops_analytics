@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, ArrowRight, AlertTriangle, Search, Zap, Flag, Download, MessageSquare, SlidersHorizontal, Check, ChevronDown } from 'lucide-react';
+import { RefreshCw, ArrowRight, AlertTriangle, Search, Zap, Flag, Download, MessageSquare, SlidersHorizontal, ArrowUpDown, Check, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { fetchSupplierOrders } from '../utils/supplierStorage';
@@ -58,11 +58,22 @@ const deliverUrgency = (o) => {
   return null;
 };
 
-// Filter dropdown — sits next to Sort. Rush + Flagged toggles inside.
-const FilterMenu = ({ fRush, setFRush, fFlagged, setFFlagged }) => {
+// A standalone toggle pill (Rush / Flagged).
+const TogglePill = ({ on, onClick, Icon, label, tone }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 999, fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
+      border: `1px solid ${on ? tone : 'var(--line)'}`, background: on ? tone : 'var(--card)', color: on ? '#fff' : 'var(--muted-s)', fontWeight: on ? 600 : 500 }}
+  ><Icon size={12} />{label}</button>
+);
+
+// A labelled single-select dropdown (Filter = status, Sort = order). The
+// button just carries its own name, matching the Filter/Sort chrome.
+const MenuSelect = ({ label, Icon, value, options, onChange }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const active = (fRush ? 1 : 0) + (fFlagged ? 1 : 0);
+  const isDefault = value === options[0].key;
 
   useEffect(() => {
     if (!open) return;
@@ -71,34 +82,27 @@ const FilterMenu = ({ fRush, setFRush, fFlagged, setFFlagged }) => {
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
-  const Row = ({ on, toggle, Icon, label, tone }) => (
-    <button type="button" onClick={toggle} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '8px 10px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--fg)', borderRadius: 8, textAlign: 'left' }}>
-      <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${on ? tone : 'var(--line)'}`, background: on ? tone : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        {on && <Check size={11} strokeWidth={3} color="#fff" />}
-      </span>
-      <Icon size={13} style={{ color: tone }} />{label}
-    </button>
-  );
-
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer',
-          border: `1px solid ${active ? '#C65A1A' : 'var(--line)'}`, background: 'var(--card)', color: active ? '#C65A1A' : 'var(--muted-s)', fontWeight: active ? 600 : 500 }}
+          border: `1px solid ${!isDefault ? '#C65A1A' : 'var(--line)'}`, background: 'var(--card)', color: !isDefault ? '#C65A1A' : 'var(--muted-s)', fontWeight: !isDefault ? 600 : 500 }}
       >
-        <SlidersHorizontal size={13} />Filter{active > 0 && <span style={{ background: '#C65A1A', color: '#fff', borderRadius: 999, fontSize: 10, fontWeight: 700, minWidth: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{active}</span>}
+        <Icon size={13} />{label}
+        {!isDefault && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C65A1A' }} />}
         <ChevronDown size={12} />
       </button>
       {open && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 20, minWidth: 180, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 12px 32px -8px rgba(28,27,58,0.22)', padding: 6 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted-s)', padding: '6px 10px 4px' }}>Show only</div>
-          <Row on={fRush} toggle={() => setFRush(v => !v)} Icon={Zap} label="Rush / urgent" tone="#C65A1A" />
-          <Row on={fFlagged} toggle={() => setFFlagged(v => !v)} Icon={Flag} label="Flagged items" tone="var(--amber)" />
-          {active > 0 && (
-            <button type="button" onClick={() => { setFRush(false); setFFlagged(false); }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', marginTop: 2, borderTop: '1px solid var(--line)', border: 'none', borderTopStyle: 'solid', background: 'none', color: 'var(--muted-s)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Clear filters</button>
-          )}
+        <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 20, minWidth: 190, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 12px 32px -8px rgba(28,27,58,0.22)', padding: 6 }}>
+          {options.map(o => (
+            <button key={o.key} type="button" onClick={() => { onChange(o.key); setOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '8px 10px', border: 'none', background: o.key === value ? 'var(--bg-3)' : 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--fg)', borderRadius: 8, textAlign: 'left', fontWeight: o.key === value ? 600 : 400 }}>
+              <span style={{ width: 14, flexShrink: 0 }}>{o.key === value && <Check size={13} strokeWidth={3} style={{ color: '#C65A1A' }} />}</span>
+              {o.label}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -204,25 +208,9 @@ const SupplierOrders = () => {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: '6px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: tab === t.key ? 700 : 500,
-              border: tab === t.key ? '1px solid var(--navy)' : '1px solid var(--line)',
-              background: tab === t.key ? 'var(--navy)' : 'var(--card)',
-              color: tab === t.key ? '#fff' : 'var(--muted-s)', cursor: 'pointer',
-            }}
-          >{t.label}</button>
-        ))}
-      </div>
-
-      {/* Desk toolbar: search · quick filters · sort */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: '1 1 260px', minWidth: 200 }}>
+      {/* Desk toolbar: search · Rush/Flagged pills · Filter (status) · Sort */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 180 }}>
           <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
           <input
             value={query}
@@ -231,18 +219,11 @@ const SupplierOrders = () => {
             style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 12px 8px 32px', fontSize: 13, background: 'var(--card)', color: 'var(--fg)', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <FilterMenu fRush={fRush} setFRush={setFRush} fFlagged={fFlagged} setFFlagged={setFFlagged} />
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-s)' }}>
-            Sort
-            <select
-              value={sortKey}
-              onChange={e => setSortKey(e.target.value)}
-              style={{ border: '1px solid var(--line)', borderRadius: 8, padding: '7px 10px', fontSize: 12.5, background: 'var(--card)', color: 'var(--fg)', fontFamily: 'inherit', cursor: 'pointer' }}
-            >
-              {SORTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-            </select>
-          </label>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <TogglePill on={fRush} onClick={() => setFRush(v => !v)} Icon={Zap} label="Rush" tone="#C65A1A" />
+          <TogglePill on={fFlagged} onClick={() => setFFlagged(v => !v)} Icon={Flag} label="Flagged" tone="var(--amber)" />
+          <MenuSelect label="Filter" Icon={SlidersHorizontal} value={tab} options={TABS} onChange={setTab} />
+          <MenuSelect label="Sort" Icon={ArrowUpDown} value={sortKey} options={SORTS} onChange={setSortKey} />
         </div>
       </div>
 
