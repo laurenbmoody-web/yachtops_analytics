@@ -94,7 +94,9 @@ const MyProfileManagement = () => {
       const userEmail = session?.user?.email;
 
       // Fetch profile
-      const { data: profileData, error: profileError } = await supabase?.from('profiles')?.select('id, full_name, email, last_active_tenant_id')?.eq('id', userId)?.single();
+      // email is column-restricted on profiles; for self it's the auth session
+      // email, injected below where the profile is stored.
+      const { data: profileData, error: profileError } = await supabase?.from('profiles')?.select('id, full_name, last_active_tenant_id')?.eq('id', userId)?.single();
 
       // If profile doesn't exist, create it silently
       if (profileError && profileError?.code === 'PGRST116') {
@@ -103,7 +105,7 @@ const MyProfileManagement = () => {
             id: userId,
             email: userEmail,
             full_name: null
-          })?.select()?.single();
+          })?.select('id, full_name, last_active_tenant_id')?.single();
 
         if (insertError) {
           console.error('[PROFILE] Error creating profile:', insertError);
@@ -126,7 +128,7 @@ const MyProfileManagement = () => {
         }
 
         console.log('[PROFILE] fetch success (new profile created)');
-        setProfile(newProfile);
+        setProfile({ ...newProfile, email: userEmail });
         setFormData({
           fullName: '',
           firstName: '',
@@ -159,7 +161,7 @@ const MyProfileManagement = () => {
         return;
       } else {
         console.log('[PROFILE] fetch success');
-        setProfile(profileData);
+        setProfile({ ...profileData, email: userEmail });
         
         // Parse full_name into firstName and surname if available
         const nameParts = profileData?.full_name ? profileData?.full_name?.split(' ') : ['', ''];

@@ -248,7 +248,7 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
       // Step 2: fetch profiles for these user_ids
       const userIds = tmData?.map(tm => tm?.user_id)?.filter(Boolean);
       const { data: profilesData, error: profilesError } = await supabase
-        ?.from('profiles')?.select('id, full_name, first_name, last_name, email')?.in('id', userIds);
+        ?.from('profiles')?.select('id, full_name, first_name, last_name')?.in('id', userIds);
 
       if (profilesError) {
         console.error('[CREATE JOB MODAL] profiles query error:', profilesError);
@@ -262,7 +262,6 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
         const displayName =
           p?.full_name ||
           [p?.first_name, p?.last_name]?.filter(Boolean)?.join(' ') ||
-          p?.email ||
           tm?.user_id;
         return {
           id: tm?.user_id,
