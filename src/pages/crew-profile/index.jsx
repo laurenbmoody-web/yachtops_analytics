@@ -976,10 +976,12 @@ const canEdit = (() => {
     { key: 'documents', label: 'Documents', icon: 'FileText' },
     { key: 'hor', label: 'Hours of Rest (HOR)', icon: 'Clock' },
     { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' },
-    { key: 'history', label: 'Activity', icon: 'Activity' },
+    // Activity (status/movement history) is vessel-scoped — hidden off a vessel.
+    activeTenantId && { key: 'history', label: 'Activity', icon: 'Activity' },
     { key: 'contract', label: 'Contract / Employment', icon: 'FileSignature' },
     { key: 'kit', label: 'Issued Kit', icon: 'Shirt' },
-    { key: 'permissions', label: 'Permissions', icon: 'ShieldCheck' },
+    // Permissions only exist relative to a vessel membership — hidden off a vessel.
+    activeTenantId && { key: 'permissions', label: 'Permissions', icon: 'ShieldCheck' },
     { key: 'notifications', label: 'Notifications', icon: 'Bell' },
     showCaptainCredentials && { key: 'captain-credentials', label: 'Signature & Stamp', icon: 'Stamp' },
   ].filter(Boolean);
@@ -3756,6 +3758,16 @@ const canEdit = (() => {
     };
     const qOn = notifPrefs?.quiet_enabled === true;
 
+    // Off a vessel, only the portable notifications still fire — document
+    // expiry and sea-service sign-off decisions follow the person, not the
+    // vessel. The rest (rota, provisioning, vessel docs) resume on rejoining.
+    const PORTABLE_BELLS = new Set(['notify_document_expiry', 'notify_seatime']);
+    const notifGroups = activeTenantId
+      ? NOTIF_GROUPS
+      : NOTIF_GROUPS
+          .map((grp) => ({ ...grp, items: grp.items.filter((it) => PORTABLE_BELLS.has(it.bell)) }))
+          .filter((grp) => grp.items.length > 0);
+
     return (
       <div className="cp-settings2">
         <div className="cp-section-head s2-head">
@@ -3774,7 +3786,12 @@ const canEdit = (() => {
             {renderSwitch(qOn, () => saveQuiet({ quiet_enabled: !qOn }, 'quiet_enabled'), { disabled: notifSavingKey === 'quiet_enabled', busy: notifSavingKey === 'quiet_enabled' })}
           </div>
         </div>
-        {NOTIF_GROUPS.map((grp) => (
+        {!activeTenantId && (
+          <p className="cp-set-note-empty" style={{ marginBottom: 4 }}>
+            You’re not on a vessel. Only your personal alerts — document expiry and sea-service sign-off — are active. Vessel notifications resume when you join a vessel.
+          </p>
+        )}
+        {notifGroups.map((grp) => (
           <div className="s2-block" key={grp.g}>
             <div className="s2-grp">{grp.g}</div>
             {grp.items.filter((it) => !it.senior || isSenior).map((it) => (
@@ -4423,10 +4440,15 @@ const canEdit = (() => {
                 stretching to the (much taller) content column. */}
             <div className="cp-flatcard p-3 self-start">
               <nav>
-                {navGroups.map((group, gi) => (
+                {navGroups.map((group, gi) => {
+                  // Drop a group entirely when none of its sections are visible
+                  // (e.g. the Activity group off a vessel) so no orphan header shows.
+                  const visibleKeys = group.keys.filter((key) => navigationSections.some((s) => s.key === key));
+                  if (visibleKeys.length === 0) return null;
+                  return (
                   <div key={group.label}>
                     <div className={`cp-nav-grp${gi === 0 ? ' first' : ''}`}>{group.label}</div>
-                    {group.keys.map((key) => {
+                    {visibleKeys.map((key) => {
                       const section = navigationSections.find((s) => s.key === key);
                       if (!section) return null;
                       const isActive = activeSection === section.key;
@@ -4445,7 +4467,8 @@ const canEdit = (() => {
                       );
                     })}
                   </div>
-                ))}
+                  );
+                })}
               </nav>
             </div>
 
