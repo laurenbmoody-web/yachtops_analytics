@@ -10,6 +10,7 @@ import Icon from '../../components/AppIcon';
 import '../../styles/editorial.css';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 import {
   fetchChildren, fetchBreadcrumb, fetchShelf, createFolder, uploadFile,
   renameItem, setExpiry, deleteItem, getFileUrl, moveItem, fetchFolders,
@@ -37,9 +38,12 @@ const fmtSize = (n) => {
 
 export default function VesselDocuments() {
   const navigate = useNavigate();
-  const { activeTenantId } = useTenant();
-  const { session } = useAuth();
+  const { activeTenantId, currentTenantMember } = useTenant();
+  const { session, isVesselAdmin } = useAuth();
   const userId = session?.user?.id;
+  // Only Command/Chief may sync crew certificates into the vault (matches the
+  // vault's write RLS).
+  const canSync = isVesselAdmin || ['COMMAND', 'CHIEF'].includes(String(currentTenantMember?.permission_tier || '').toUpperCase());
 
   const [cwd, setCwd] = useState(null);          // current folder id (null = root)
   const [items, setItems] = useState([]);
@@ -59,6 +63,25 @@ export default function VesselDocuments() {
   const seededRef = useRef(null);                // tenant whose empty vault we've already seeded
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2800); };
+
+  // Pull every active crew member's certificates into the vault (idempotent —
+  // only new docs on each run). Server-side (cross-bucket copy + Command check).
+  const syncCrewDocs = async () => {
+    if (!activeTenantId) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-crew-documents-to-vault', { body: { tenant_id: activeTenantId } });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'failed');
+      const n = data?.synced || 0;
+      flash(n ? `Synced ${n} crew document${n === 1 ? '' : 's'}` : 'Crew certificates up to date');
+      await load();
+    } catch (e) {
+      console.warn('[vessel-documents] crew sync failed', e);
+      flash('Couldn’t sync crew certificates');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
@@ -465,6 +488,11 @@ export default function VesselDocuments() {
               ))}
             </div>
             <div className="vd-tools">
+              {canSync && (
+                <button type="button" className="vd-btn vd-btn-ghost" disabled={busy} onClick={syncCrewDocs} title="Pull every crew member's certificates into the vault">
+                  <Icon name="RefreshCw" size={15} /> Sync crew certs
+                </button>
+              )}
               <button type="button" className="vd-btn vd-btn-ghost" disabled={busy || isVirtualId(cwd)} onClick={openNewFolder}>
                 <Icon name="FolderPlus" size={15} /> New folder
               </button>
