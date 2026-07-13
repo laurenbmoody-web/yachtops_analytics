@@ -124,12 +124,13 @@
 }
 .crh-search input {
   width: 100%;
-  font: 14px 'Plus Jakarta Sans', system-ui, sans-serif;
+  height: 40px;
+  font: 400 13px 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
   background: #F6F8FB;
   border: 1px solid #E5E7EB;
-  border-radius: 12px;
-  padding: 12px 14px 12px 38px;
+  border-radius: 10px;
+  padding: 0 14px 0 36px;
   box-sizing: border-box;
 }
 .crh-search input::placeholder { color: #8B8478; }
@@ -144,13 +145,14 @@
 .crh-dd-btn {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif;
+  gap: 7px;
+  height: 40px;
+  font: 500 13px 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
-  border-radius: 12px;
-  padding: 11px 15px;
+  border-radius: 10px;
+  padding: 0 12px;
   cursor: pointer;
   transition: border-color 0.14s, box-shadow 0.14s;
 }
@@ -160,8 +162,8 @@
   box-shadow: 0 0 0 3px #FAECE7;
 }
 .crh-dd-ic { color: #1C1B3A; flex: none; }
-.crh-dd-label { font-weight: 600; }
-.crh-dd-ch { color: #8B8478; transition: transform 0.18s; flex: none; }
+.crh-dd-label { font-weight: 500; }
+.crh-dd-ch { color: #7C7E9B; transition: transform 0.18s; flex: none; }
 .crh-dd.open .crh-dd-ch { transform: rotate(180deg); }
 .crh-dd-menu {
   position: absolute;
@@ -178,7 +180,7 @@
 .crh-dd-menu.right { left: auto; right: 0; }
 /* Section head + divider inside the multi-facet Filters menu. */
 .crh-dd-sec {
-  font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 700 9px 'Inter', system-ui, sans-serif;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #AEB4C2;
@@ -198,7 +200,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 500 13px 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
   background: none;
   border: none;
@@ -213,7 +215,7 @@
 .crh-dd-opt.disabled:hover { background: none; }
 .crh-dd-opt .crh-oc {
   margin-left: auto;
-  font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 600 11px 'Inter', system-ui, sans-serif;
   color: #8B8478;
   font-variant-numeric: tabular-nums;
 }
