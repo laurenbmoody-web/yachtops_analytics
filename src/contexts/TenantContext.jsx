@@ -119,7 +119,7 @@ const PersonalModeScreen = ({ userName }) => {
 // Personal pages that must stay reachable in unberthed mode — when the user is
 // on one of these, the full-screen personal landing steps aside so the page
 // renders. Anything else shows the landing.
-const UNBERTHED_ALLOW = ['/my-profile', '/profile', '/settings', '/invite', '/invite-accept', '/reset-password', '/forgot-password', '/login'];
+const UNBERTHED_ALLOW = ['/my-profile', '/profile', '/settings', '/supplier', '/invite', '/invite-accept', '/reset-password', '/forgot-password', '/login'];
 
 export const VesselFallbackUI = () => {
   const { vesselChooserOptions, noVesselAccess, selectVesselFromChooser, userDisplayName } = useTenant();
@@ -355,11 +355,20 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
       if (!memberships || memberships?.length === 0) {
         console.log('[TENANT] No active memberships found');
 
-        // A user who explicitly LEFT their last vessel goes to personal
+        // Suppliers legitimately have no vessel membership — they live in the
+        // supplier portal, never in crew personal mode. Clear any stray
+        // unberthed flag (it can leak across logins in the same browser) and
+        // keep the existing behaviour.
+        const isSupplier = authUser?.user_metadata?.user_type === 'supplier';
+        if (isSupplier) {
+          localStorage.removeItem('cargo_unberthed');
+        }
+
+        // A CREW user who explicitly LEFT their last vessel goes to personal
         // (unberthed) mode — their personal record stays, vessel features are
         // gated. Gated to this flag so new-signup onboarding (also membership-
         // less) is unaffected and keeps the existing behaviour below.
-        if (localStorage.getItem('cargo_unberthed') === '1') {
+        if (!isSupplier && localStorage.getItem('cargo_unberthed') === '1') {
           console.log('[TENANT] Unberthed → personal mode');
           setActiveTenantId(null);
           setCurrentTenantMember(null);
