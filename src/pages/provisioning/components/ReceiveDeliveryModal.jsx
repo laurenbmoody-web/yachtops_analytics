@@ -19,6 +19,17 @@ import {
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
+import { isBulkUnit, normalizeUnit } from '../../../data/unitGroups';
+
+// A bulk delivery line (a case of 24) expands into stocking units on receipt.
+// ratio = units_per_pack when the line's unit is a bulk unit and has a pack;
+// otherwise 1 (received as-is). Catch-weight isn't a bulk unit, so it never
+// multiplies — you receive the actual weight.
+const packRatio = (item) =>
+  (isBulkUnit(item?.unit) && Number(item?.units_per_pack) > 1) ? Number(item.units_per_pack) : 1;
+// The stocking unit a bulk line lands as (its inner unit), else the line unit.
+const innerStockUnit = (item) =>
+  packRatio(item) > 1 ? (normalizeUnit(item?.pack_unit) || 'each') : (normalizeUnit(item?.unit) || 'each');
 import { logActivity } from '../../../utils/activityStorage';
 import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
 import '../delivery-inbox.css';
@@ -882,6 +893,8 @@ const PushStep = ({
       <div className="rdm-route-list">
         {receivedItems.map(item => {
           const qty = parseFloat(receiving[item.id]?.qty) || 0;
+          const ratio = packRatio(item);
+          const stockUnits = qty * ratio; // what actually lands in stock (bulk expanded)
           const match = matches[item.id];
           const isLoading = match === 'loading';
           const hasMatch = match && match !== 'loading';
@@ -946,6 +959,11 @@ const PushStep = ({
                 <div className="rdm-route-head-actions">
                   <strong style={{ fontFamily: 'Outfit, system-ui, sans-serif', fontSize: 14, color: 'var(--d-navy)', whiteSpace: 'nowrap' }}>
                     +{qty} {item.unit || ''}
+                    {ratio > 1 && (
+                      <span style={{ color: 'var(--d-orange)', fontWeight: 600, marginLeft: 6 }}>
+                        → {stockUnits} {innerStockUnit(item)}
+                      </span>
+                    )}
                   </strong>
                   {hasMatch && (
                     <button type="button" onClick={() => onUnlinkMatch(item.id)} className="rdm-btn rdm-btn-quiet rdm-btn-sm">Unlink</button>
@@ -963,8 +981,8 @@ const PushStep = ({
               </div>
 
               {/* Body — varies by state. Loading + skipped show no body. */}
-              {hasMatch && renderSplits(item.id, qty, splits)}
-              {choice === 'link' && inlineLink && renderSplits(item.id, qty, splits)}
+              {hasMatch && renderSplits(item.id, stockUnits, splits)}
+              {choice === 'link' && inlineLink && renderSplits(item.id, stockUnits, splits)}
 
               {choice === 'link' && !inlineLink && (
                 <div style={{ position: 'relative' }}>
@@ -1063,14 +1081,14 @@ const PushStep = ({
                         {(() => {
                           const splits = newForm.splits || [];
                           const totalAllocated = splits.reduce((sum, s) => sum + (parseFloat(s.addQty) || 0), 0);
-                          const allocOk = Math.abs(totalAllocated - qty) < 0.001;
+                          const allocOk = Math.abs(totalAllocated - stockUnits) < 0.001;
                           return (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                               <button type="button" onClick={() => onNewItemAddSplit(item.id)} className="rdm-split-add">
                                 + Add location
                               </button>
                               <span className={`rdm-split-summary${allocOk ? ' is-complete' : ' is-incomplete'}`}>
-                                {totalAllocated} of {qty} allocated{allocOk ? ' ✓' : ''}
+                                {totalAllocated} of {stockUnits} allocated{allocOk ? ' ✓' : ''}
                               </span>
                             </div>
                           );
@@ -1221,7 +1239,8 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
     fetchVesselLocations(tenantId).then(locs => setVesselLocations(locs || []));
     checkedItems.forEach(item => {
       setMatches(prev => ({ ...prev, [item.id]: 'loading' }));
-      const receivedQty = parseFloat(receiving[item.id]?.qty) || 0;
+      // Splits are allocated in STOCKING units — expand a bulk line by its pack.
+      const stockUnits = (parseFloat(receiving[item.id]?.qty) || 0) * packRatio(item);
       findMatchingInventoryItem(item, tenantId).then(match => {
         setMatches(prev => ({ ...prev, [item.id]: match || null }));
         if (match) {
@@ -1232,10 +1251,10 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             splits = existingLocs.map((loc, i) => ({
               locationName: loc.locationName || loc.name || '',
               currentQty: loc.qty ?? loc.quantity ?? 0,
-              addQty: i === 0 ? receivedQty : 0,
+              addQty: i === 0 ? stockUnits : 0,
             }));
           } else {
-            splits = [{ locationName: match.location || '', currentQty: 0, addQty: receivedQty }];
+            splits = [{ locationName: match.location || '', currentQty: 0, addQty: stockUnits }];
           }
           setLocationSplits(prev => ({ ...prev, [item.id]: splits }));
         }
@@ -1960,16 +1979,20 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
 
   const handleInitNewItemForm = (itemId, provItem) => {
     const qty = parseFloat(receiving[itemId]?.qty) || 0;
+    // Bulk line → seed the new item in its inner stocking unit, allocate the
+    // expanded stock count (qty × units_per_pack).
+    const bulk = packRatio(provItem) > 1;
+    const stockUnits = qty * packRatio(provItem);
     setNewItemForms(prev => ({
       ...prev,
       [itemId]: {
         name: provItem.name || '',
         brand: provItem.brand || '',
         size: provItem.size || '',
-        unit: provItem.unit || 'bottle',
+        unit: bulk ? innerStockUnit(provItem) : (normalizeUnit(provItem.unit) || 'bottle'),
         barcode: provItem.barcode || '',
         categoryPath: '',                                       // inventory hierarchy
-        splits: [{ locationName: '', addQty: qty }],           // physical storage split rows
+        splits: [{ locationName: '', addQty: stockUnits }],    // physical storage split rows (stocking units)
       },
     }));
   };
@@ -2027,11 +2050,18 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       const match = matches[item.id];
       const choice = noMatchChoices[item.id] || null;
       const inlineLink = inlineLinks[item.id] || null;
+      // Bulk-aware: a case line stocks as its inner unit; the 'case' becomes
+      // purchase_unit and units_per_pack gets stamped on the item. Splits are
+      // already in stocking units (defaulted to qty × ratio).
+      const ratio = packRatio(item);
+      const stockUnit = innerStockUnit(item);           // stocking unit (never the case)
+      const purchaseUnit = ratio > 1 ? normalizeUnit(item.unit) : null;
+      const upp = ratio > 1 ? Number(item.units_per_pack) : null;
 
       // Path 1: auto-matched to inventory item
       if (match && typeof match === 'object') {
-        const splits = locationSplits[item.id] || [{ locationName: match.location || '', currentQty: 0, addQty: qty }];
-        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: match.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null, unit: item.unit, size: item.size });
+        const splits = locationSplits[item.id] || [{ locationName: match.location || '', currentQty: 0, addQty: qty * ratio }];
+        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: match.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null, unit: stockUnit, size: item.size, purchaseUnit, unitsPerPack: upp });
         if (ok) {
           try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: match.id })?.eq('id', item.id); } catch { /* non-fatal */ }
           pushed++;
@@ -2043,8 +2073,8 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
 
       // Path 2: user manually linked to inventory item
       if (choice === 'link' && inlineLink) {
-        const splits = locationSplits[item.id] || [{ locationName: inlineLink.location || '', currentQty: 0, addQty: qty }];
-        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: inlineLink.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null, unit: item.unit, size: item.size });
+        const splits = locationSplits[item.id] || [{ locationName: inlineLink.location || '', currentQty: 0, addQty: qty * ratio }];
+        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: inlineLink.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null, unit: stockUnit, size: item.size, purchaseUnit, unitsPerPack: upp });
         if (ok) {
           try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: inlineLink.id })?.eq('id', item.id); } catch { /* non-fatal */ }
           pushed++;
@@ -2063,9 +2093,14 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             provItem: { ...item, name: form.name, brand: form.brand || item.brand, size: form.size || item.size, unit: form.unit || item.unit, barcode: form.barcode || item.barcode },
             categoryPath: form.categoryPath || null,
             storageLocations: form.splits || [],
-            qty,
+            qty: qty * ratio,
             tenantId,
             userId,
+            // For a bulk line the user's chosen create-form unit is already the
+            // inner stocking unit; still stamp the purchasing pack from the line.
+            stockUnit: form.unit || null,
+            purchaseUnit,
+            unitsPerPack: upp,
           });
           if (created) pushed++;
           else skipped++;
