@@ -124,6 +124,17 @@ body.settings-editorial {
 .settings-page .set-emailrow .set-field { flex: 1; padding-left: 12px; max-width: 380px; }
 .settings-page .set-savenote { font-size: 12px; font-weight: 500; color: #6F7396; white-space: nowrap; }
 
+/* Two-factor authentication — "On" pill + enrolment (QR + manual key + code) */
+.settings-page .set-badge-on { color: #3F7A52; background: #E9F3EC; }
+.settings-page .set-mfa-setup { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 4px 0 2px; }
+.settings-page .set-mfa-qr { width: 156px; height: 156px; border: 1px solid #ECEAE3; border-radius: 12px; background: #fff; display: grid; place-items: center; overflow: hidden; flex: 0 0 auto; }
+.settings-page .set-mfa-qr img { display: block; width: 148px; height: 148px; }
+.settings-page .set-mfa-qr-fallback { font-size: 11px; color: #A7A296; text-align: center; padding: 0 12px; }
+.settings-page .set-mfa-manual { min-width: 0; }
+.settings-page .set-mfa-manual-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 7px; }
+.settings-page .set-mfa-secret { display: inline-block; font-family: 'SFMono-Regular', ui-monospace, Menlo, monospace; font-size: 13px; letter-spacing: 1.5px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 8px; padding: 8px 12px; overflow-wrap: anywhere; }
+.settings-page .set-mfa-code { max-width: 160px; letter-spacing: 3px; text-align: center; font-variant-numeric: tabular-nums; }
+
 .settings-page .set-search { position: relative; }
 .settings-page .set-search .set-searchic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .settings-page .set-search .set-field { padding-left: 34px; }

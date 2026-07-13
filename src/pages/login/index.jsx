@@ -42,6 +42,14 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
+  // Two-factor step-up. When the signed-in account has a verified authenticator
+  // the password call returns an aal1 session; we hold routing until a valid
+  // code raises it to aal2.
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [pendingUser, setPendingUser] = useState(null);
+
   // If already logged in, route the user to their home.
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +58,25 @@ const Login = () => {
         const { data: { session } } = await supabase?.auth?.getSession();
         if (cancelled) return;
         if (session?.user) {
+          // Don't route a session that still owes a two-factor step-up — a
+          // reload mid-challenge must land back on the code prompt, not slip
+          // through to the app.
+          try {
+            const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
+              const { data: factors } = await supabase.auth.mfa.listFactors();
+              const totp = (factors?.totp || []).find((f) => f.status === 'verified');
+              if (totp && !cancelled) {
+                setPendingUser(session.user);
+                setMfaFactorId(totp.id);
+                setMfaStep(true);
+                setCheckingSession(false);
+                return;
+              }
+            }
+          } catch (mfaErr) {
+            console.warn('[LOGIN] MFA session check failed:', mfaErr);
+          }
           const userType = session?.user?.user_metadata?.user_type;
           if (userType === 'supplier') {
             navigate('/supplier/overview', { replace: true });
@@ -89,6 +116,58 @@ const Login = () => {
     });
   }, []);
 
+  // Final routing once the session is fully authenticated (post-MFA if any).
+  // Routes on the authoritative user_type, not the login toggle, so a resumed
+  // session lands in the right portal too.
+  const routeUser = async (user) => {
+    if (user?.user_metadata?.user_type === 'supplier') {
+      navigate('/supplier/overview', { replace: true });
+      return;
+    }
+    const profileResult = await ensureProfileExists(user);
+    if (!profileResult?.success) {
+      if (profileResult?.error?.includes('Network error')) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      throw new Error(profileResult?.error || 'Failed to create user profile');
+    }
+    navigate('/dashboard', { replace: true });
+  };
+
+  const submitMfa = async (e) => {
+    e?.preventDefault();
+    const code = mfaCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      setError('Enter the 6-digit code from your authenticator app.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const { error: vErr } = await supabase.auth.mfa.challengeAndVerify({ factorId: mfaFactorId, code });
+      if (vErr) {
+        setError('That code didn’t match. Try the current one from your app.');
+        setLoading(false);
+        return;
+      }
+      await routeUser(pendingUser);
+    } catch (err) {
+      console.error('[LOGIN] MFA verify error:', err);
+      setError('Could not verify the code. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const cancelMfa = async () => {
+    setMfaStep(false);
+    setMfaCode('');
+    setMfaFactorId(null);
+    setPendingUser(null);
+    setError('');
+    try { await supabase?.auth?.signOut(); } catch { /* best effort */ }
+  };
+
   const handleSubmit = async (e) => {
     e?.preventDefault();
     setError('');
@@ -126,35 +205,42 @@ const Login = () => {
 
       const userType = authData?.user?.user_metadata?.user_type;
 
-      if (mode === 'supplier') {
-        if (userType !== 'supplier') {
-          setError('This account is not registered as a supplier. Switch to Crew login to sign in.');
-          await supabase?.auth?.signOut();
-          setLoading(false);
-          return;
-        }
-        navigate('/supplier/overview', { replace: true });
+      // Portal gating — keep suppliers and crew in their own portal.
+      if (mode === 'supplier' && userType !== 'supplier') {
+        setError('This account is not registered as a supplier. Switch to Crew login to sign in.');
+        await supabase?.auth?.signOut();
+        setLoading(false);
         return;
       }
-
-      // Crew mode
-      if (userType === 'supplier') {
+      if (mode !== 'supplier' && userType === 'supplier') {
         setError('This is a supplier account. Switch to Supplier login to sign in.');
         await supabase?.auth?.signOut();
         setLoading(false);
         return;
       }
 
-      const profileResult = await ensureProfileExists(authData?.user);
-      if (!profileResult?.success) {
-        if (profileResult?.error?.includes('Network error')) {
-          navigate('/dashboard', { replace: true });
-          return;
+      // Two-factor step-up — if the account has a verified authenticator the
+      // session is aal1 and must be raised to aal2 before we let them through.
+      try {
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const totp = (factors?.totp || []).find((f) => f.status === 'verified');
+          if (totp) {
+            setPendingUser(authData.user);
+            setMfaFactorId(totp.id);
+            setMfaStep(true);
+            setLoading(false);
+            return;
+          }
         }
-        throw new Error(profileResult?.error || 'Failed to create user profile');
+      } catch (mfaErr) {
+        // Fail open to a normal login rather than lock anyone out on an MFA
+        // lookup hiccup — the account simply isn't stepped up this session.
+        console.warn('[LOGIN] MFA check failed:', mfaErr);
       }
 
-      navigate('/dashboard', { replace: true });
+      await routeUser(authData.user);
     } catch (err) {
       console.error('[LOGIN] Error:', err);
       let msg = err?.message || 'Login failed. Please try again.';
@@ -245,6 +331,34 @@ const Login = () => {
             </div>
           )}
 
+          {mfaStep ? (
+            <form className="cl-form" onSubmit={submitMfa}>
+              <p className="cl-mfa-lead">Two-factor authentication is on for this account. Enter the 6-digit code from your authenticator app to finish signing in.</p>
+              <div className="cl-field">
+                <label className="cl-label" htmlFor="cl-mfa">Authentication code</label>
+                <input
+                  id="cl-mfa"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode((e?.target?.value || '').replace(/\D/g, ''))}
+                  disabled={loading}
+                  autoFocus
+                  required
+                />
+              </div>
+              <button type="submit" className="cl-submit" disabled={loading}>
+                <span>{loading ? 'Verifying…' : 'Verify'}</span>
+                <span className="cl-arrow" aria-hidden="true">→</span>
+              </button>
+              <button type="button" className="cl-mfa-back" onClick={cancelMfa} disabled={loading}>
+                ← Back to sign in
+              </button>
+            </form>
+          ) : (
           <form className="cl-form" onSubmit={handleSubmit}>
             <div className="cl-field">
               <label className="cl-label" htmlFor="cl-email">Email</label>
@@ -300,7 +414,9 @@ const Login = () => {
               <span className="cl-arrow" aria-hidden="true">→</span>
             </button>
           </form>
+          )}
 
+          {!mfaStep && (
           <div className="cl-card-foot">
             <p className="cl-foot-primary">
               {content.footerLead}{' '}
@@ -317,6 +433,7 @@ const Login = () => {
               </button>
             </p>
           </div>
+          )}
         </section>
       </main>
     </div>

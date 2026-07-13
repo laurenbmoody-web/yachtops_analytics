@@ -429,6 +429,34 @@
   color: var(--cl-rust);
 }
 
+/* Two-factor step — lead copy + back link, and a monospaced code field. */
+#cargo-login-root .cl-mfa-lead {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--cl-ink-muted);
+}
+#cargo-login-root .cl-mfa-back {
+  align-self: flex-start;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--cl-ink-muted);
+  cursor: pointer;
+  transition: color .15s ease;
+}
+#cargo-login-root .cl-mfa-back:hover { color: var(--cl-rust); }
+#cargo-login-root .cl-mfa-back:disabled { opacity: .5; cursor: default; }
+#cargo-login-root #cl-mfa {
+  letter-spacing: 6px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  font-size: 18px;
+}
+
 /* Loading state */
 #cargo-login-root.cl-is-loading {
   align-items: center;
