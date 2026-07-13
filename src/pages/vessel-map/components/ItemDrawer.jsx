@@ -175,6 +175,15 @@ export default function ItemDrawer({ itemId, onClose }) {
   const catPath = src
     ? [src.location, ...(src.subLocation ? src.subLocation.split(' > ') : [])].filter(Boolean)
     : [];
+  // For the header line, drop a trailing folder that just repeats the item name
+  // (e.g. an item "champagne" filed under … › Wine › Champagne) — it's redundant
+  // beside the title. Keep it when it differs ("Dom Pérignon" under … › Champagne).
+  const catSegs = (() => {
+    const segs = catPath.slice();
+    const nm = (src?.name || '').trim().toLowerCase();
+    if (segs.length && nm && segs[segs.length - 1].trim().toLowerCase() === nm) segs.pop();
+    return segs;
+  })();
   const cost = item?.unitCost && item?.currency ? formatCurrency(item.unitCost, item.currency) : null;
   const restock = item?.restockEnabled && item?.restockLevel != null ? `${item.restockLevel} ${item.unit || ''}`.trim() : null;
 
@@ -210,7 +219,7 @@ export default function ItemDrawer({ itemId, onClose }) {
           </div>
         ) : (
           <div className="vmid-cat-set">
-            <span className="vmid-cat-cur">{catPath.length ? catPath.join(' › ') : 'Uncategorised'}</span>
+            <span className="vmid-cat-cur">{catPath.length ? catPath.join(' · ') : 'Uncategorised'}</span>
             <button type="button" className="vmid-cat-change" onClick={() => { setCatPicking(true); setCatQuery(''); setCatResults([]); }}>Change</button>
           </div>
         )}
@@ -371,15 +380,8 @@ export default function ItemDrawer({ itemId, onClose }) {
           <button className="vmid-close" onClick={close} aria-label="Close">×</button>
           <p className="vmid-eyebrow">Inventory item{editing ? ' · editing' : ''}</p>
           <h2 className="vmid-title">{src?.name || 'Loading…'}</h2>
-          {!editing && catPath.length > 0 && (
-            <p className="vmid-cat">
-              {catPath.map((seg, i) => (
-                <React.Fragment key={i}>
-                  {i > 0 && <span className="vmid-cat-sep"> › </span>}
-                  {seg}
-                </React.Fragment>
-              ))}
-            </p>
+          {!editing && catSegs.length > 0 && (
+            <p className="vmid-cat">{catSegs.join(' · ')}</p>
           )}
         </div>
 

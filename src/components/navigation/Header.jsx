@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
 import Image from '../AppImage';
@@ -99,6 +100,7 @@ const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const menuRef = useRef(null);
+  const userPopRef = useRef(null); // the portaled user dropdown (lives on <body>)
   const searchRef = useRef(null);
   const searchTimeout = useRef(null);
 
@@ -279,7 +281,13 @@ const Header = () => {
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef?.current && !menuRef?.current?.contains(event?.target)) {
+      // The dropdown is portaled onto <body> (so it can sit above full-screen
+      // overlays like the vessel map), so it's outside menuRef — check it too,
+      // or clicking a menu item would close the menu before the click lands.
+      if (
+        menuRef?.current && !menuRef?.current?.contains(event?.target) &&
+        (!userPopRef?.current || !userPopRef?.current?.contains(event?.target))
+      ) {
         setUserMenuOpen(false);
       }
       if (searchRef?.current && !searchRef?.current?.contains(event?.target)) {
@@ -727,12 +735,14 @@ const Header = () => {
               </div>
             )}
 
-            {userMenuOpen && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+            {userMenuOpen && createPortal(
+              <div ref={userPopRef} style={{
+                position: 'fixed',
+                top: (menuRef.current?.getBoundingClientRect().bottom ?? 64) + 8,
+                right: Math.max(8, window.innerWidth - (menuRef.current?.getBoundingClientRect().right ?? window.innerWidth)),
                 width: 320, background: '#FFFFFF', border: '1px solid #ECEAE3',
                 borderRadius: 14, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)',
-                zIndex: 50, overflow: 'hidden', pointerEvents: 'auto',
+                zIndex: 2000, overflow: 'hidden', pointerEvents: 'auto',
               }}>
                 {/* Header block — avatar, name, email, workspace + department-tinted role pill */}
                 <div style={{ padding: 16, background: '#F8FAFC', borderBottom: '1px solid #ECEAE3' }}>
@@ -844,7 +854,8 @@ const Header = () => {
                     }}
                   />
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>
