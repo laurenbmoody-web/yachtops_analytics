@@ -50,7 +50,11 @@ const Login = () => {
   const [mfaCode, setMfaCode] = useState('');
   const [pendingUser, setPendingUser] = useState(null);
 
-  const passkeysSupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
+  // Needs a WebAuthn-capable browser AND an SDK new enough to expose the passkey
+  // API (older bundles lack auth.signInWithPasskey).
+  const passkeysSupported = typeof window !== 'undefined'
+    && !!window.PublicKeyCredential
+    && typeof supabase?.auth?.signInWithPasskey === 'function';
 
   // If already logged in, route the user to their home.
   useEffect(() => {
