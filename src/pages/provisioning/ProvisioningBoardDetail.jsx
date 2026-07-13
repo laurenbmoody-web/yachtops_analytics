@@ -62,7 +62,7 @@ import {
   SUPPLIER_ORDER_STATUS,
   formatCurrency,
 } from './utils/provisioningStorage';
-import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../data/unitGroups';
+import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit, isBulkUnit } from '../../data/unitGroups';
 import SendToSupplierModal from './components/SendToSupplierModal';
 import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
@@ -4107,8 +4107,11 @@ const SUPPLIER_MIRROR_FIELD = {
                                 : <AlwaysEditCell value={item.size ?? ''} placeholder="e.g. 750ml" onSave={v => handleCellSave(item, 'size', v)} inputStyle={{ fontSize: 12, color: '#0F172A' }} />
                               }
                             </div>
-                            {/* Unit — same strikethrough treatment as Size. */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                            {/* Unit — same strikethrough treatment as Size. A
+                                bulk unit with a pack shows a derived "×N" chip
+                                (units_per_pack) so the pack breakdown reads on
+                                the row, not only in the drawer. */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '11px 8px' }}>
                               {isReceived || supplierActed || catLocked
                                 ? (
                                     itemOrder?.unitChanged
@@ -4120,11 +4123,19 @@ const SUPPLIER_MIRROR_FIELD = {
                                         )
                                       : <span style={{ fontSize: 11, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{itemOrder?.unit || item.unit || 'each'}</span>
                                   )
-                                : <select value={UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) ? normalizeUnit(item.unit) : (item.unit || 'each')} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}>
+                                : <select value={UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) ? normalizeUnit(item.unit) : (item.unit || 'each')} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, minWidth: 0, flex: 1 }}>
                                     {item.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) && <option value={item.unit}>{item.unit}</option>}
                                     {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
                                   </select>
                               }
+                              {isBulkUnit(itemOrder?.unit || item.unit) && Number(item.units_per_pack) > 1 && (
+                                <span
+                                  title={`A ${normalizeUnit(itemOrder?.unit || item.unit)} holds ${Number(item.units_per_pack)}`}
+                                  style={{ flexShrink: 0, fontSize: 9, fontWeight: 700, color: '#C65A1A', background: '#FBEFE9', borderRadius: 999, padding: '1px 5px', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
+                                >
+                                  ×{Number(item.units_per_pack)}
+                                </span>
+                              )}
                             </div>
                             {/* Qty — strikethrough requested_quantity next to
                                 the supplier's actual quantity when it
