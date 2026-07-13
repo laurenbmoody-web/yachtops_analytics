@@ -186,6 +186,37 @@ const SettingsPage = () => {
     } finally { setLoginBusy(false); }
   };
 
+  // ── Change password ────────────────────────────────────────────────────────
+  const [editingPw, setEditingPw] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwMsg, setPwMsg] = useState(null);
+  const [pwDone, setPwDone] = useState(false);
+  const cancelPw = () => { setEditingPw(false); setPwCurrent(''); setPwNew(''); setPwConfirm(''); setPwMsg(null); };
+  const submitPwChange = async () => {
+    const currentEmail = (acct.email || session?.user?.email || '').toLowerCase();
+    if (!pwCurrent) { setPwMsg({ t: 'err', m: 'Enter your current password' }); return; }
+    if (pwNew.length < 8) { setPwMsg({ t: 'err', m: 'New password must be at least 8 characters' }); return; }
+    if (pwNew !== pwConfirm) { setPwMsg({ t: 'err', m: 'Passwords don’t match' }); return; }
+    if (pwNew === pwCurrent) { setPwMsg({ t: 'err', m: 'Choose a different password' }); return; }
+    if (!currentEmail) { setPwMsg({ t: 'err', m: 'Couldn’t read your account' }); return; }
+    setPwBusy(true); setPwMsg(null);
+    try {
+      const { error: authErr } = await supabase.auth.signInWithPassword({ email: currentEmail, password: pwCurrent });
+      if (authErr) { setPwMsg({ t: 'err', m: 'Incorrect current password' }); setPwBusy(false); return; }
+      const { error: updErr } = await supabase.auth.updateUser({ password: pwNew });
+      if (updErr) { setPwMsg({ t: 'err', m: updErr.message || 'Could not update password' }); setPwBusy(false); return; }
+      cancelPw();
+      setPwDone(true);
+      setTimeout(() => setPwDone(false), 3000);
+    } catch (e) {
+      console.warn('[settings] password change failed', e);
+      setPwMsg({ t: 'err', m: 'Something went wrong' });
+    } finally { setPwBusy(false); }
+  };
+
   const setPref = (name, val) => {
     const [k, t] = PREF_KEY[name];
     localStorage.setItem(k, t === 'bool' ? String(val) : val);
@@ -311,7 +342,7 @@ const SettingsPage = () => {
               )}
               {editingNotif ? (
                 <div className="set-r set-stack">
-                  <RMain label="Notification email" desc={`Request to send ${acct.tenant || 'this vessel'}’s alerts to a different address. Command approves the change.`} />
+                  <RMain label="Notification email" desc={`Request to send ${acct.tenant || 'this vessel'}’s alerts to a different address.`} />
                   <div className="set-emailrow">
                     <input
                       className="set-field"
@@ -343,7 +374,33 @@ const SettingsPage = () => {
             </Group>
             <Caps>Security</Caps>
             <Group>
-              <RowSoon label="Password" desc="Change your sign-in password." />
+              {editingPw ? (
+                <div className="set-r set-stack">
+                  <RMain label="Change password" desc="Enter your current password, then a new one." />
+                  <form className="set-loginform" autoComplete="on" onSubmit={(e) => { e.preventDefault(); submitPwChange(); }}>
+                    <input type="text" name="username" autoComplete="username" defaultValue={acct.email || ''} readOnly tabIndex={-1} aria-hidden="true"
+                      style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
+                    <input className="set-field" type="password" autoComplete="current-password" placeholder="Current password"
+                      value={pwCurrent} onChange={(e) => { setPwCurrent(e.target.value); if (pwMsg) setPwMsg(null); }} />
+                    <input className="set-field" type="password" autoComplete="new-password" placeholder="New password"
+                      value={pwNew} onChange={(e) => { setPwNew(e.target.value); if (pwMsg) setPwMsg(null); }} />
+                    <input className="set-field" type="password" autoComplete="new-password" placeholder="Confirm new password"
+                      value={pwConfirm} onChange={(e) => { setPwConfirm(e.target.value); if (pwMsg) setPwMsg(null); }}
+                      onKeyDown={(e) => { if (e.key === 'Escape') cancelPw(); }} />
+                    <div className="set-emailrow">
+                      <button type="submit" className="set-btn set-btn-primary" disabled={pwBusy}>{pwBusy ? 'Updating…' : 'Update password'}</button>
+                      <button type="button" className="set-btn" onClick={cancelPw} disabled={pwBusy}>Cancel</button>
+                    </div>
+                    {pwMsg && <span className="set-savenote" style={{ color: pwMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{pwMsg.m}</span>}
+                  </form>
+                </div>
+              ) : (
+                <div className="set-r">
+                  <RMain label="Password" desc="Change your sign-in password." />
+                  {pwDone && <span className="set-savenote" style={{ color: '#3F7A52' }}>Updated</span>}
+                  <button className="set-btn" onClick={() => { setEditingPw(true); setPwDone(false); }}>Change</button>
+                </div>
+              )}
               <RowSoon label="Two-factor authentication" desc="Add an extra step at sign-in." />
               <RowSoon label="Passkeys" desc="Sign in with Face ID / Touch ID." />
               <RowSoon label="Active sessions" desc="See and sign out other devices." />
