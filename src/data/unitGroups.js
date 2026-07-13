@@ -51,3 +51,18 @@ export function normalizeUnit(v) {
 
 // True when the (normalised) value is one of our known units.
 export const isKnownUnit = (v) => UNIT_GROUP_VALUES.has(normalizeUnit(v));
+
+// Bulk / grouping units — a single one of these actually contains several
+// inner units (a case of 24 bottles, a box of 12, a dozen eggs). Anything
+// that carries a bulk unit must be able to be broken down into what makes
+// that bulk up: units_per_pack (the inner count) × the inner size. Drives
+// the pack expander on the provisioning drawer and the "case of N × size"
+// descriptor everywhere a line is displayed.
+export const BULK_UNITS = new Set([
+  'case', 'box', 'carton', 'pack', 'crate', 'tray',
+  'dozen', 'pair', 'set', 'bundle', 'sleeve', 'pallet',
+]);
+
+// True when the (normalised) value is a bulk/grouping unit that should be
+// broken down into its inner units.
+export const isBulkUnit = (v) => BULK_UNITS.has(normalizeUnit(v));

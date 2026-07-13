@@ -349,6 +349,42 @@ textarea.idr-field { resize: none; line-height: 1.6; min-height: 80px; }
   gap: 8px;
 }
 
+/* PACK breakdown — the bulk-unit expander under the measure row */
+.idr-pack-break {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--d-soft-field, #FAFAF8);
+  border: 1px solid var(--d-border);
+  border-radius: 8px;
+}
+.idr-pack-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.idr-pack-lead {
+  font-size: 13.5px;
+  color: var(--d-navy);
+  white-space: nowrap;
+}
+.idr-pack-count {
+  width: 84px;
+  flex: 0 0 auto;
+  text-align: center;
+}
+.idr-pack-inner-hint {
+  color: var(--d-muted-soft);
+  font-style: italic;
+}
+.idr-pack-total {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--d-orange);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 /* DEPARTMENT section field stack */
 .idr-field-stack {
   display: flex;
