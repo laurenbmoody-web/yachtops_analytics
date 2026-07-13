@@ -59,10 +59,10 @@ import {
   fetchPortalEnabledSuppliers,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
-  PROVISION_UNITS,
   SUPPLIER_ORDER_STATUS,
   formatCurrency,
 } from './utils/provisioningStorage';
+import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../data/unitGroups';
 import SendToSupplierModal from './components/SendToSupplierModal';
 import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
@@ -4120,8 +4120,9 @@ const SUPPLIER_MIRROR_FIELD = {
                                         )
                                       : <span style={{ fontSize: 11, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{itemOrder?.unit || item.unit || 'each'}</span>
                                   )
-                                : <select value={item.unit || 'each'} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}>
-                                    {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                                : <select value={UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) ? normalizeUnit(item.unit) : (item.unit || 'each')} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}>
+                                    {item.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) && <option value={item.unit}>{item.unit}</option>}
+                                    {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
                                   </select>
                               }
                             </div>

@@ -5,7 +5,7 @@ import { saveItem, getFolderTree, createFolder } from '../utils/inventoryStorage
 import { supabase } from '../../../lib/supabaseClient';
 
 import ModalShell from '../../../components/ui/ModalShell';
-const UNIT_OPTIONS = ['each', 'bottle', 'box', 'kg', 'litre', 'pack', 'case', 'bag', 'roll', 'pair', 'set', 'tin', 'jar', 'tube', 'sachet', 'piece'];
+import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../../data/unitGroups';
 
 const SUGGESTED_TAGS = ['drinks', 'wine', 'cleaning', 'spares', 'linen', 'snacks', 'bar', 'medical', 'food', 'tools', 'safety', 'toiletries', 'laundry'];
 
@@ -557,6 +557,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     brand: '',
     supplier: '',
     unit: 'each',
+    size: '',
     restockLevel: '',
     defaultLocationId: '',
     expiryDate: '',
@@ -640,6 +641,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
         brand: item?.brand || '',
         supplier: item?.supplier || '',
         unit: item?.unit || 'each',
+        size: item?.size || '',
         restockLevel: item?.restockLevel ?? '',
         defaultLocationId: item?.defaultLocationId || '',
         expiryDate: item?.expiryDate || '',
@@ -775,6 +777,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
         ...formData,
         location,
         subLocation,
+        unit: normalizeUnit(formData?.unit),
         quantity: stockLocations?.[0]?.quantity ?? 0,
         totalQty,
         stockLocations,
@@ -971,29 +974,37 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
             </div>
           )}
 
-          {/* ── Unit ── */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Unit</label>
-            <div className="flex gap-2">
-              <select
-                value={UNIT_OPTIONS?.includes(formData?.unit) ? formData?.unit : '__custom__'}
-                onChange={(e) => {
-                  if (e?.target?.value !== '__custom__') handleChange('unit', e?.target?.value);
-                }}
-                className="flex-1 px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                {UNIT_OPTIONS?.map(u => <option key={u} value={u}>{u}</option>)}
-                {!UNIT_OPTIONS?.includes(formData?.unit) && formData?.unit && (
-                  <option value="__custom__">{formData?.unit}</option>
-                )}
-              </select>
+          {/* ── Size + Unit — the "measure + unit" pair, one shared vocabulary ── */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Size <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
               <input
                 type="text"
-                value={UNIT_OPTIONS?.includes(formData?.unit) ? '' : formData?.unit}
-                onChange={(e) => handleChange('unit', e?.target?.value)}
-                placeholder="Custom unit..."
-                className="w-32 px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+                value={formData?.size || ''}
+                onChange={(e) => handleChange('size', e?.target?.value)}
+                placeholder="e.g. 750ml"
+                className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Unit</label>
+              <select
+                value={UNIT_GROUP_VALUES.has(normalizeUnit(formData?.unit)) ? normalizeUnit(formData?.unit) : (formData?.unit || 'each')}
+                onChange={(e) => handleChange('unit', e?.target?.value)}
+                className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                {/* keep an unknown/legacy custom value selectable */}
+                {formData?.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(formData?.unit)) && (
+                  <option value={formData.unit}>{formData.unit}</option>
+                )}
+                {UNIT_GROUPS.map(g => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.options.map(u => <option key={u} value={u}>{u}</option>)}
+                  </optgroup>
+                ))}
+              </select>
             </div>
           </div>
 

@@ -6,7 +6,7 @@ import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
-import { UNIT_GROUPS, UNIT_GROUP_VALUES } from '../../../data/unitGroups';
+import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../../data/unitGroups';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
@@ -933,10 +933,13 @@ const EditableCell = ({
 const UnitSelectCell = ({ value, requested, canEdit, onCommit }) => {
   const [saving, setSaving] = useState(false);
 
-  const requestedKey = requested == null ? '' : String(requested);
-  const valueKey = value == null ? '' : String(value);
+  // Normalise legacy spellings ("litre" → "l") so the saved value resolves to
+  // the shared vocabulary. Only genuinely unknown (custom) values stay sticky.
+  const norm = normalizeUnit(value);
+  const requestedKey = requested == null ? '' : normalizeUnit(String(requested));
+  const valueKey = value == null || value === '' ? '' : String(norm);
   const changed = canEdit && requestedKey !== '' && requestedKey !== valueKey;
-  const legacy = value && !UNIT_GROUP_VALUES.has(value);
+  const legacy = value && !UNIT_GROUP_VALUES.has(norm);
 
   if (!canEdit) {
     return (
@@ -965,7 +968,7 @@ const UnitSelectCell = ({ value, requested, canEdit, onCommit }) => {
       {changed && <span className="sod-wq-strike">{requestedKey}</span>}
       <select
         className="sod-wq-unit-select-control"
-        value={value ?? ''}
+        value={legacy ? value : (norm || '')}
         onChange={handleChange}
         disabled={saving}
         title={changed ? `Vessel asked for ${requestedKey}` : 'Choose a unit'}

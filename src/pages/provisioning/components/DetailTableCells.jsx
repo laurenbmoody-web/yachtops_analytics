@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import SelectionCheckbox from './SelectionCheckbox';
 import { ITEM_STATUS_ORDER, ITEM_STATUS_CONFIG, getItemStatusConfig } from '../data/statusConfig';
-import { UNIT_GROUPS } from '../../../data/unitGroups';
+import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../../data/unitGroups';
 
 // ── Grid template shared across header / rows / subtotal ─────────────────────
 // cols: check | name | brand | category | dept | size/unit/qty | qty_rec | unit_cost | total | status | actions
@@ -350,11 +350,12 @@ const CompoundMeasureCell = ({ item, editingCell, setEditingCell, onSave, onStep
 
       {/* Unit */}
       <select
-        value={item.unit || 'each'}
+        value={UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) ? normalizeUnit(item.unit) : (item.unit || 'each')}
         onChange={e => onSave(item, 'unit', e.target.value)}
         className="bg-transparent border-none outline-none text-[12px] text-foreground cursor-pointer flex-shrink-0"
         style={{ maxWidth: 58 }}
       >
+        {item.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) && <option value={item.unit}>{item.unit}</option>}
         {UNIT_GROUPS.map(g => (
           <optgroup key={g.label} label={g.label}>
             {g.options.map(u => <option key={u} value={u}>{u}</option>)}

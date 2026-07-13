@@ -15,6 +15,7 @@ import { getItemById, saveItem } from '../../inventory/utils/inventoryStorage';
 import { searchInventoryLocations, locationLabel } from '../utils/inventory';
 import { setPinCount, clearItemNode } from '../utils/placement';
 import { entryKey } from '../utils/stockMath';
+import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../../data/unitGroups';
 import { getActivityForEntity } from '../../../utils/activityStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../../utils/authStorage';
 import { canViewCost, formatCurrency } from '../../../utils/costPermissions';
@@ -131,6 +132,7 @@ export default function ItemDrawer({ itemId, onClose }) {
     setSaving(true); setSaveErr(null);
     const payload = {
       ...draft,
+      unit: normalizeUnit(draft.unit),
       year: numOrNull(draft.year),
       unitCost: numOrNull(draft.unitCost),
       restockLevel: numOrNull(draft.restockLevel),
@@ -239,8 +241,19 @@ export default function ItemDrawer({ itemId, onClose }) {
       <div className="vmid-meta">
         {fieldEl('brand', 'Brand')}
         {fieldEl('supplier', 'Supplier')}
-        {fieldEl('unit', 'Unit', { placeholder: 'each' })}
-        {fieldEl('size', 'Size')}
+        <label className="vmid-field">
+          <span className="vmid-meta-k">Unit</span>
+          <select className="vmid-input" value={UNIT_GROUP_VALUES.has(normalizeUnit(draft.unit)) ? normalizeUnit(draft.unit) : (draft.unit || 'each')}
+            onChange={(e) => set('unit', e.target.value)}>
+            {draft.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(draft.unit)) && <option value={draft.unit}>{draft.unit}</option>}
+            {UNIT_GROUPS.map((g) => (
+              <optgroup key={g.label} label={g.label}>
+                {g.options.map((u) => <option key={u} value={u}>{u}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        {fieldEl('size', 'Size', { placeholder: 'e.g. 750ml' })}
         {fieldEl('year', 'Year', { type: 'number' })}
         {fieldEl('condition', 'Condition')}
         <label className="vmid-field">

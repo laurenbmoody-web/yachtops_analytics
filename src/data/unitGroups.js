@@ -1,17 +1,35 @@
-// Shared unit dropdown taxonomy. Used by both the captain-side
-// provisioning board (DetailTableCells, ItemDrawer) and the
-// supplier-portal order detail so the two surfaces speak the same
-// vocabulary. Size = the number; Unit = something from this list.
+// THE canonical unit taxonomy for the whole app. Based on the provisioning
+// drawer / receive vocabulary (the richest, grouped list) and now shared by
+// inventory, the vessel-map item drawer, the provisioning board grid, CSV
+// import and the supplier portal — so a unit means the same thing everywhere.
+// Size = the number ("750ml", "5"); Unit = something from this list.
 //
-// Groups are ordered for the dropdown rendering itself — Weight /
-// Volume / Count / Length / Other — keep that order stable so the
-// muscle memory works across both UIs.
+// Group order (Weight / Volume / Count / Length / Other) is stable so the
+// dropdown muscle-memory works across every surface.
 export const UNIT_GROUPS = [
   { label: 'Weight',  options: ['g', 'kg', 'oz', 'lb'] },
   { label: 'Volume',  options: ['ml', 'l', 'fl oz', 'cup', 'tsp', 'tbsp'] },
-  { label: 'Count',   options: ['each', 'pair', 'set', 'box', 'pack', 'case', 'carton', 'dozen'] },
+  { label: 'Count',   options: ['each', 'piece', 'pair', 'set', 'box', 'pack', 'case', 'carton', 'dozen'] },
   { label: 'Length',  options: ['cm', 'm', 'ft', 'inch'] },
-  { label: 'Other',   options: ['portion', 'serving', 'sheet', 'roll', 'sachet', 'tube', 'bottle', 'can', 'jar', 'bag'] },
+  { label: 'Other',   options: ['portion', 'serving', 'sheet', 'roll', 'sachet', 'tube', 'bottle', 'can', 'jar', 'tin', 'bag'] },
 ];
 
 export const UNIT_GROUP_VALUES = new Set(UNIT_GROUPS.flatMap((g) => g.options));
+
+// Legacy spellings → canonical value. Historically inventory used "litre" and
+// the catalogue used "L" for the same unit UNIT_GROUPS calls "l". Normalising
+// on read means old records resolve to the right dropdown option instead of
+// showing a value the <select> doesn't contain. Unknown values (genuine custom
+// units) pass through untouched.
+const UNIT_ALIASES = { litre: 'l', litres: 'l', liter: 'l', liters: 'l', pcs: 'piece', pc: 'piece' };
+
+export function normalizeUnit(v) {
+  if (v === null || v === undefined || v === '') return v;
+  const low = String(v).trim().toLowerCase();
+  if (UNIT_GROUP_VALUES.has(low)) return low;
+  if (UNIT_ALIASES[low]) return UNIT_ALIASES[low];
+  return String(v).trim();
+}
+
+// True when the (normalised) value is one of our known units.
+export const isKnownUnit = (v) => UNIT_GROUP_VALUES.has(normalizeUnit(v));
