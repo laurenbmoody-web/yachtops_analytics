@@ -2430,9 +2430,8 @@ const SupplierOrderDetail = () => {
       {/* ── Editorial meta strip ── */}
       <p className="editorial-meta" style={{ marginBottom: 14, flexWrap: 'wrap' }}>
         <span className="dot">●</span>
-        <a onClick={() => navigate('/supplier/orders')} style={{ cursor: 'pointer' }}>Orders</a>
-        <span className="bar" />
         <span>#{orderShortId}</span>
+        {sentRelative && <><span className="bar" /><span className="muted">sent {sentRelative}</span></>}
         <span className="bar" />
         <span className="muted">{mItems.length} items</span>
         <span className="bar" />
@@ -2458,18 +2457,6 @@ const SupplierOrderDetail = () => {
               {yachtDisplayName}.
             </button>
           </h1>
-          <div className="sod-order-sub">
-            {senderName
-              ? <strong>{senderName}</strong>
-              : <strong>{order.vessel_name || order.yacht_name || 'Vessel crew'}</strong>}
-            {senderRole && <>, {senderRole}</>}
-            {sentRelative && (
-              <>
-                <span className="sep">·</span>
-                sent {sentRelative}
-              </>
-            )}
-          </div>
         </div>
 
         <button
