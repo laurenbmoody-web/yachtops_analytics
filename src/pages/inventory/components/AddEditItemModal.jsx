@@ -558,6 +558,8 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     supplier: '',
     unit: 'each',
     size: '',
+    purchaseUnit: '',
+    packSize: '',
     restockLevel: '',
     defaultLocationId: '',
     expiryDate: '',
@@ -642,6 +644,8 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
         supplier: item?.supplier || '',
         unit: item?.unit || 'each',
         size: item?.size || '',
+        purchaseUnit: item?.purchaseUnit || '',
+        packSize: item?.packSize ?? '',
         restockLevel: item?.restockLevel ?? '',
         defaultLocationId: item?.defaultLocationId || '',
         expiryDate: item?.expiryDate || '',
@@ -1006,6 +1010,49 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* ── Buying — how you order it (case→unit conversion on delivery) ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Buying <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <p className="text-xs text-muted-foreground mb-1.5">If you buy it by the case/box, set the pack so deliveries convert to stock automatically.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Purchase unit</label>
+                <select
+                  value={UNIT_GROUP_VALUES.has(normalizeUnit(formData?.purchaseUnit)) ? normalizeUnit(formData?.purchaseUnit) : (formData?.purchaseUnit || '')}
+                  onChange={(e) => handleChange('purchaseUnit', e?.target?.value)}
+                  className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="">— same as stock unit —</option>
+                  {formData?.purchaseUnit && !UNIT_GROUP_VALUES.has(normalizeUnit(formData?.purchaseUnit)) && (
+                    <option value={formData.purchaseUnit}>{formData.purchaseUnit}</option>
+                  )}
+                  {UNIT_GROUPS.map(g => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.options.map(u => <option key={u} value={u}>{u}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Units per pack</label>
+                <input
+                  type="number" min="0" step="1"
+                  value={formData?.packSize}
+                  onChange={(e) => handleChange('packSize', e?.target?.value)}
+                  placeholder="e.g. 12"
+                  className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+            </div>
+            {formData?.purchaseUnit && Number(formData?.packSize) > 0 && (
+              <p className="text-xs text-muted-foreground mt-1.5">
+                1 {normalizeUnit(formData.purchaseUnit)} = {Number(formData.packSize)} {normalizeUnit(formData.unit) || 'unit'}
+              </p>
+            )}
           </div>
 
           {/* ── Restock Level ── */}
