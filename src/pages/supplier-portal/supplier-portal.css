@@ -1047,8 +1047,11 @@
   font-family: 'Inter'; font-weight: 600;
   font-size: 11px; letter-spacing: 0.18em;
   text-transform: uppercase; color: var(--muted-strong);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  display: inline-flex; align-items: center; gap: 9px;
 }
+/* Contact icon now rides the eyebrow line — smaller than the where-line size */
+#sp-root .sod-hero-when-eyebrow .sod-hero-contact-btn { width: 22px; height: 22px; }
 #sp-root .sod-hero-when {
   font-family: 'Inter'; font-weight: 700;
   font-size: 32px; line-height: 1; letter-spacing: -0.02em;
@@ -1234,7 +1237,9 @@
   text-transform: uppercase; color: var(--muted-strong);
   margin: 0 0 16px;
 }
-#sp-root .sod-tl-scroll { overflow-x: auto; margin: 0 -4px; }
+/* overflow-x:auto makes this a scroll container that also clips vertically —
+   pad top/bottom so the current-step halo isn't cut off on wide screens. */
+#sp-root .sod-tl-scroll { overflow-x: auto; margin: 0 -4px; padding: 8px 0; }
 #sp-root .sod-stepper-line {
   position: relative; display: flex; justify-content: space-between;
   min-width: 560px; padding: 0 4px;

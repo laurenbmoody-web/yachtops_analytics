@@ -473,25 +473,11 @@ const Hero = ({
 
       <div className="sod-hero-when-block">
         <div className="sod-hero-when-eyebrow">
-          Delivery{weekday ? ` · ${weekday}` : ''}
-        </div>
-        <div className="sod-hero-when">
-          {day != null ? (
-            <>
-              <span className="sod-day">{day}</span>
-              <span className="sod-month">{month}</span>
-            </>
-          ) : (
-            <span className="sod-day" style={{ color: 'var(--muted)' }}>TBC</span>
-          )}
-        </div>
-        <div className="sod-hero-where">
-          {time && <span className="sod-mtag">{time}</span>}
-          {portText ? <strong>{portText}</strong> : <span style={{ color: 'var(--muted)' }}>Port TBC</span>}
+          <span>Delivery{weekday ? ` · ${weekday}` : ''}</span>
           {order.delivery_contact && (
             <span className="sod-hero-contact">
               <button type="button" className="sod-hero-contact-btn" aria-label={`Delivery contact: ${order.delivery_contact}`} title="Delivery contact">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
               </button>
               <span className="sod-hero-contact-pop" role="tooltip">
                 <span className="l">Delivery contact</span>
@@ -509,6 +495,20 @@ const Hero = ({
               </span>
             </span>
           )}
+        </div>
+        <div className="sod-hero-when">
+          {day != null ? (
+            <>
+              <span className="sod-day">{day}</span>
+              <span className="sod-month">{month}</span>
+            </>
+          ) : (
+            <span className="sod-day" style={{ color: 'var(--muted)' }}>TBC</span>
+          )}
+        </div>
+        <div className="sod-hero-where">
+          {time && <span className="sod-mtag">{time}</span>}
+          {portText ? <strong>{portText}</strong> : <span style={{ color: 'var(--muted)' }}>Port TBC</span>}
         </div>
       </div>
 
