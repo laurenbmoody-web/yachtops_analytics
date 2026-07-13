@@ -80,6 +80,11 @@ const RowSeg = ({ label, desc, options, value, onChange }) => (
 const RowSoon = ({ label, desc }) => (
   <div className="set-r"><RMain label={label} desc={desc} /><span className="set-soon">Soon</span></div>
 );
+// "Added 13/07/2026" for a passkey/factor timestamp; empty on a bad date.
+const fmtFactorDate = (iso) => {
+  try { return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+  catch { return ''; }
+};
 
 const NAV = [
   { grp: 'Account', items: [
@@ -229,18 +234,69 @@ const SettingsPage = () => {
   const [mfaMsg, setMfaMsg] = useState(null);         // { t:'err'|'ok', m }
   const [mfaConfirmOff, setMfaConfirmOff] = useState(false);
 
+  // ── Passkeys (WebAuthn) ─────────────────────────────────────────────────────
+  // Supabase models a passkey as a verified 'webauthn' MFA factor. register()
+  // runs the enroll → browser credential ceremony (Face ID / Touch ID / security
+  // key) → verify in one call; each registered passkey is one factor we can list
+  // and remove. Like TOTP, a verified passkey raises sign-in to aal2.
+  const passkeysSupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
+  const [passkeys, setPasskeys] = useState([]);
+  const [pkName, setPkName] = useState('');
+  const [pkAdding, setPkAdding] = useState(false);   // name field open
+  const [pkBusy, setPkBusy] = useState(false);
+  const [pkMsg, setPkMsg] = useState(null);
+  const [pkRemoveId, setPkRemoveId] = useState(null);
+
   const loadFactors = useCallback(async () => {
     setMfaLoading(true);
     try {
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) throw error;
       setMfaFactor((data?.totp || []).find(f => f.status === 'verified') || null);
+      setPasskeys((data?.webauthn || data?.all?.filter(f => f.factor_type === 'webauthn' && f.status === 'verified') || []));
     } catch (e) {
       console.warn('[settings] listFactors failed', e);
       setMfaFactor(null);
+      setPasskeys([]);
     } finally { setMfaLoading(false); }
   }, []);
   useEffect(() => { loadFactors(); }, [loadFactors]);
+
+  const addPasskey = async () => {
+    const name = pkName.trim() || 'Passkey';
+    setPkBusy(true); setPkMsg(null);
+    try {
+      const { error } = await supabase.auth.mfa.webauthn.register({ friendlyName: name, webauthn: {} });
+      if (error) {
+        // User dismissed the browser prompt, or the device declined.
+        const msg = /NotAllowed|abort|cancel/i.test(error.message || '')
+          ? 'Passkey setup was cancelled.'
+          : (error.message || 'Could not add that passkey');
+        setPkMsg({ t: 'err', m: msg });
+        setPkBusy(false);
+        return;
+      }
+      setPkAdding(false); setPkName('');
+      await loadFactors();
+      setPkMsg({ t: 'ok', m: 'Passkey added' });
+    } catch (e) {
+      console.warn('[settings] passkey register failed', e);
+      setPkMsg({ t: 'err', m: /NotAllowed|abort|cancel/i.test(e.message || '') ? 'Passkey setup was cancelled.' : 'Could not add that passkey' });
+    } finally { setPkBusy(false); }
+  };
+
+  const removePasskey = async (id) => {
+    setPkBusy(true); setPkMsg(null);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId: id });
+      if (error) throw error;
+      setPkRemoveId(null);
+      await loadFactors();
+    } catch (e) {
+      console.warn('[settings] passkey remove failed', e);
+      setPkMsg({ t: 'err', m: e.message || 'Could not remove that passkey' });
+    } finally { setPkBusy(false); }
+  };
 
   const startMfaEnroll = async () => {
     setMfaBusy(true); setMfaMsg(null);
@@ -528,7 +584,49 @@ const SettingsPage = () => {
                   <button className="set-btn" onClick={startMfaEnroll} disabled={mfaBusy || mfaLoading}>{mfaBusy ? 'Starting…' : 'Set up'}</button>
                 </div>
               )}
-              <RowSoon label="Passkeys" desc="Sign in with Face ID / Touch ID." />
+              {!passkeysSupported ? (
+                <div className="set-r"><RMain label="Passkeys" desc="Sign in with Face ID, Touch ID or a security key." /><span className="set-soon">Unavailable</span></div>
+              ) : (
+                <>
+                  {passkeys.map((pk) => (
+                    pkRemoveId === pk.id ? (
+                      <div key={pk.id} className="set-r set-stack">
+                        <RMain label={`Remove “${pk.friendly_name || 'Passkey'}”?`} desc="You won’t be able to sign in with this passkey anymore." />
+                        <div className="set-emailrow">
+                          <button className="set-btn set-btn-danger" onClick={() => removePasskey(pk.id)} disabled={pkBusy}>{pkBusy ? 'Removing…' : 'Remove'}</button>
+                          <button className="set-btn" onClick={() => { setPkRemoveId(null); setPkMsg(null); }} disabled={pkBusy}>Keep</button>
+                        </div>
+                        {pkMsg && pkMsg.t === 'err' && <span className="set-savenote" style={{ color: '#B23B2E' }}>{pkMsg.m}</span>}
+                      </div>
+                    ) : (
+                      <div key={pk.id} className="set-r">
+                        <RMain label={pk.friendly_name || 'Passkey'} desc={pk.created_at ? `Added ${fmtFactorDate(pk.created_at)}` : 'Passkey'} />
+                        <span className="set-badge set-badge-on">Active</span>
+                        <button className="set-btn" onClick={() => { setPkRemoveId(pk.id); setPkMsg(null); }}>Remove</button>
+                      </div>
+                    )
+                  ))}
+                  {pkAdding ? (
+                    <div className="set-r set-stack">
+                      <RMain label="Add a passkey" desc="Name it, then follow your device prompt — Face ID, Touch ID or a security key." />
+                      <div className="set-emailrow">
+                        <input className="set-field" placeholder="e.g. My MacBook" autoFocus value={pkName}
+                          onChange={(e) => { setPkName(e.target.value); if (pkMsg) setPkMsg(null); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPasskey(); } if (e.key === 'Escape') { setPkAdding(false); setPkName(''); setPkMsg(null); } }} />
+                        <button className="set-btn set-btn-primary" onClick={addPasskey} disabled={pkBusy}>{pkBusy ? 'Waiting…' : 'Create passkey'}</button>
+                        <button className="set-btn" onClick={() => { setPkAdding(false); setPkName(''); setPkMsg(null); }} disabled={pkBusy}>Cancel</button>
+                      </div>
+                      {pkMsg && <span className="set-savenote" style={{ color: pkMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{pkMsg.m}</span>}
+                    </div>
+                  ) : (
+                    <div className="set-r">
+                      <RMain label={passkeys.length ? 'Add another passkey' : 'Passkeys'} desc={passkeys.length ? 'Register another device or security key.' : 'Sign in with Face ID, Touch ID or a security key.'} />
+                      {pkMsg && !pkRemoveId && <span className="set-savenote" style={{ color: pkMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{pkMsg.m}</span>}
+                      <button className="set-btn" onClick={() => { setPkAdding(true); setPkMsg(null); }} disabled={mfaLoading}>{passkeys.length ? 'Add' : 'Set up'}</button>
+                    </div>
+                  )}
+                </>
+              )}
               <RowSoon label="Active sessions" desc="See and sign out other devices." />
             </Group>
           </>

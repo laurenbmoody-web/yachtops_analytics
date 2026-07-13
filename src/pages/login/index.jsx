@@ -42,11 +42,12 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
-  // Two-factor step-up. When the signed-in account has a verified authenticator
-  // the password call returns an aal1 session; we hold routing until a valid
-  // code raises it to aal2.
+  // Two-factor step-up. When the signed-in account has a verified factor the
+  // password call returns an aal1 session; we hold routing until it's raised to
+  // aal2 — via an authenticator code (TOTP) or a passkey (WebAuthn).
   const [mfaStep, setMfaStep] = useState(false);
-  const [mfaFactorId, setMfaFactorId] = useState(null);
+  const [mfaTotpId, setMfaTotpId] = useState(null);
+  const [mfaPasskeyId, setMfaPasskeyId] = useState(null);
   const [mfaCode, setMfaCode] = useState('');
   const [pendingUser, setPendingUser] = useState(null);
 
@@ -66,9 +67,11 @@ const Login = () => {
             if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
               const { data: factors } = await supabase.auth.mfa.listFactors();
               const totp = (factors?.totp || []).find((f) => f.status === 'verified');
-              if (totp && !cancelled) {
+              const passkey = (factors?.webauthn || (factors?.all || []).filter((f) => f.factor_type === 'webauthn' && f.status === 'verified'))[0];
+              if ((totp || passkey) && !cancelled) {
                 setPendingUser(session.user);
-                setMfaFactorId(totp.id);
+                setMfaTotpId(totp?.id || null);
+                setMfaPasskeyId(passkey?.id || null);
                 setMfaStep(true);
                 setCheckingSession(false);
                 return;
@@ -145,7 +148,7 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      const { error: vErr } = await supabase.auth.mfa.challengeAndVerify({ factorId: mfaFactorId, code });
+      const { error: vErr } = await supabase.auth.mfa.challengeAndVerify({ factorId: mfaTotpId, code });
       if (vErr) {
         setError('That code didn’t match. Try the current one from your app.');
         setLoading(false);
@@ -159,10 +162,32 @@ const Login = () => {
     }
   };
 
+  const usePasskey = async () => {
+    if (!mfaPasskeyId) return;
+    setError('');
+    setLoading(true);
+    try {
+      const { error: aErr } = await supabase.auth.mfa.webauthn.authenticate({ factorId: mfaPasskeyId, webauthn: {} });
+      if (aErr) {
+        setError(/NotAllowed|abort|cancel/i.test(aErr.message || '')
+          ? 'Passkey sign-in was cancelled.'
+          : (aErr.message || 'Could not verify your passkey.'));
+        setLoading(false);
+        return;
+      }
+      await routeUser(pendingUser);
+    } catch (err) {
+      console.error('[LOGIN] passkey auth error:', err);
+      setError('Could not verify your passkey. Please try again.');
+      setLoading(false);
+    }
+  };
+
   const cancelMfa = async () => {
     setMfaStep(false);
     setMfaCode('');
-    setMfaFactorId(null);
+    setMfaTotpId(null);
+    setMfaPasskeyId(null);
     setPendingUser(null);
     setError('');
     try { await supabase?.auth?.signOut(); } catch { /* best effort */ }
@@ -226,9 +251,11 @@ const Login = () => {
         if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
           const { data: factors } = await supabase.auth.mfa.listFactors();
           const totp = (factors?.totp || []).find((f) => f.status === 'verified');
-          if (totp) {
+          const passkey = (factors?.webauthn || (factors?.all || []).filter((f) => f.factor_type === 'webauthn' && f.status === 'verified'))[0];
+          if (totp || passkey) {
             setPendingUser(authData.user);
-            setMfaFactorId(totp.id);
+            setMfaTotpId(totp?.id || null);
+            setMfaPasskeyId(passkey?.id || null);
             setMfaStep(true);
             setLoading(false);
             return;
@@ -332,32 +359,54 @@ const Login = () => {
           )}
 
           {mfaStep ? (
-            <form className="cl-form" onSubmit={submitMfa}>
-              <p className="cl-mfa-lead">Two-factor authentication is on for this account. Enter the 6-digit code from your authenticator app to finish signing in.</p>
-              <div className="cl-field">
-                <label className="cl-label" htmlFor="cl-mfa">Authentication code</label>
-                <input
-                  id="cl-mfa"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={mfaCode}
-                  onChange={(e) => setMfaCode((e?.target?.value || '').replace(/\D/g, ''))}
-                  disabled={loading}
-                  autoFocus
-                  required
-                />
-              </div>
-              <button type="submit" className="cl-submit" disabled={loading}>
-                <span>{loading ? 'Verifying…' : 'Verify'}</span>
-                <span className="cl-arrow" aria-hidden="true">→</span>
-              </button>
+            <div className="cl-form">
+              <p className="cl-mfa-lead">
+                Two-factor authentication is on for this account.{' '}
+                {mfaPasskeyId && mfaTotpId
+                  ? 'Use your passkey, or enter a code from your authenticator app.'
+                  : mfaPasskeyId
+                    ? 'Use your passkey to finish signing in.'
+                    : 'Enter the 6-digit code from your authenticator app to finish signing in.'}
+              </p>
+
+              {mfaPasskeyId && (
+                <button type="button" className="cl-submit" onClick={usePasskey} disabled={loading}>
+                  <span>{loading ? 'Waiting…' : 'Use a passkey'}</span>
+                  <span className="cl-arrow" aria-hidden="true">→</span>
+                </button>
+              )}
+
+              {mfaPasskeyId && mfaTotpId && <div className="cl-mfa-or"><span>or</span></div>}
+
+              {mfaTotpId && (
+                <form className="cl-form" onSubmit={submitMfa}>
+                  <div className="cl-field">
+                    <label className="cl-label" htmlFor="cl-mfa">Authentication code</label>
+                    <input
+                      id="cl-mfa"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="123456"
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode((e?.target?.value || '').replace(/\D/g, ''))}
+                      disabled={loading}
+                      autoFocus={!mfaPasskeyId}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className={mfaPasskeyId ? 'cl-submit cl-submit-ghost' : 'cl-submit'} disabled={loading}>
+                    <span>{loading ? 'Verifying…' : 'Verify code'}</span>
+                    <span className="cl-arrow" aria-hidden="true">→</span>
+                  </button>
+                </form>
+              )}
+
               <button type="button" className="cl-mfa-back" onClick={cancelMfa} disabled={loading}>
                 ← Back to sign in
               </button>
-            </form>
+            </div>
           ) : (
           <form className="cl-form" onSubmit={handleSubmit}>
             <div className="cl-field">
