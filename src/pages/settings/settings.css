@@ -126,7 +126,8 @@ body.settings-editorial {
 
 .settings-page .set-search { position: relative; }
 .settings-page .set-search .set-searchic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
-.settings-page .set-field { width: 100%; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 9px; padding: 9px 12px 9px 34px; font: inherit; font-size: 13.5px; color: #1C1B3A; transition: border-color 0.12s ease, box-shadow 0.12s ease; }
+.settings-page .set-search .set-field { padding-left: 34px; }
+.settings-page .set-field { width: 100%; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 9px; padding: 9px 12px; font: inherit; font-size: 13.5px; color: #1C1B3A; transition: border-color 0.12s ease, box-shadow 0.12s ease; }
 .settings-page .set-field:focus { outline: 0; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .settings-page .set-field::placeholder { color: #AEB4C2; font-style: italic; }
 .settings-page .set-tzlist { max-height: 260px; overflow-y: auto; margin-top: 10px; }
