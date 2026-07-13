@@ -4,6 +4,7 @@ import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import JSZip from 'jszip';
 import './settings.css';
@@ -150,6 +151,7 @@ const VESSEL_ITEMS = [
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
+  const { activeTenantId } = useTenant();
   const currentUser = getCurrentUser();
 
   const [activeSection, setActiveSection] = useState('account');
@@ -412,6 +414,36 @@ const SettingsPage = () => {
   // records are a separate controllership and are deliberately not included.
   const [exportBusy, setExportBusy] = useState(false);
   const [exportMsg, setExportMsg] = useState(null);
+
+  // ── Leave this vessel ───────────────────────────────────────────────────────
+  // Deactivates the caller's own membership (via leave_tenant RPC). Personal
+  // record is untouched. If it was the last vessel, flag unberthed so the app
+  // lands in personal mode after reload.
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveBusy, setLeaveBusy] = useState(false);
+  const [leaveMsg, setLeaveMsg] = useState(null);
+  const leaveVessel = async () => {
+    const uid = session?.user?.id;
+    if (!activeTenantId) { setLeaveMsg({ t: 'err', m: 'No active vessel to leave' }); return; }
+    setLeaveBusy(true); setLeaveMsg(null);
+    try {
+      const { error } = await supabase.rpc('leave_tenant', { p_tenant: activeTenantId });
+      if (error) {
+        const m = /last_command/.test(error.message) ? 'You’re the last Command on this vessel — transfer command before leaving.'
+          : /not_member/.test(error.message) ? 'You’re not an active member of this vessel.'
+          : 'Could not leave the vessel.';
+        setLeaveMsg({ t: 'err', m }); setLeaveBusy(false); return;
+      }
+      const { data: rem } = await supabase.from('tenant_members').select('tenant_id').eq('user_id', uid).eq('active', true);
+      if (!rem || rem.length === 0) localStorage.setItem('cargo_unberthed', '1');
+      ['activeTenantId', 'currentTenantId', 'last_active_tenant_id', 'tenantId', 'cargo_active_tenant_id'].forEach((k) => localStorage.removeItem(k));
+      window.location.href = '/dashboard';
+    } catch (e) {
+      console.warn('[settings] leave vessel failed', e);
+      setLeaveMsg({ t: 'err', m: 'Could not leave the vessel.' });
+      setLeaveBusy(false);
+    }
+  };
 
   // ── Delete account (irreversible) ───────────────────────────────────────────
   const [delOpen, setDelOpen] = useState(false);
@@ -862,6 +894,25 @@ const SettingsPage = () => {
                     )
                   )}
                 </>
+              )}
+            </Group>
+
+            <Caps>Vessel membership</Caps>
+            <Group>
+              {leaveOpen ? (
+                <div className="set-r set-stack">
+                  <RMain danger label={`Leave ${acct.tenant || 'this vessel'}?`} desc="You’ll come off this vessel’s crew list. Your profile, documents and sea service stay with you and travel to your next vessel. The vessel keeps only records it’s legally required to hold." />
+                  <div className="set-emailrow">
+                    <button className="set-btn set-btn-danger" onClick={leaveVessel} disabled={leaveBusy}>{leaveBusy ? 'Leaving…' : 'Leave vessel'}</button>
+                    <button className="set-btn" onClick={() => { setLeaveOpen(false); setLeaveMsg(null); }} disabled={leaveBusy}>Cancel</button>
+                  </div>
+                  {leaveMsg && <span className="set-savenote" style={{ color: '#B23B2E' }}>{leaveMsg.m}</span>}
+                </div>
+              ) : (
+                <div className="set-r">
+                  <RMain label="Leave this vessel" desc={acct.tenant ? `Come off ${acct.tenant}. Your personal record stays yours.` : 'Come off this vessel. Your personal record stays yours.'} />
+                  <button className="set-btn" onClick={() => { setLeaveOpen(true); setLeaveMsg(null); }}>Leave</button>
+                </div>
               )}
             </Group>
           </>
