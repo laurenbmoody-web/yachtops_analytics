@@ -32,12 +32,8 @@ const MyProfileManagement = () => {
 
   useEffect(() => {
     console.log('[PAGE] Mounted /my-profile');
-    if (activeTenantId) {
-      loadProfileData();
-    } else {
-      setError('No tenant context (currentTenantId missing)');
-      setLoading(false);
-    }
+    // Load the self-profile with or without a tenant (unberthed users too).
+    loadProfileData();
     
     // Set 8-second timeout
     timeoutRef.current = setTimeout(() => {
@@ -70,11 +66,9 @@ const MyProfileManagement = () => {
     }, 8000);
     
     try {
-      if (!activeTenantId) {
-        setError('No tenant context (currentTenantId missing)');
-        return;
-      }
-      
+      // No tenant is fine here — this is the personal profile (unberthed users
+      // manage it too). Tenant-specific bits below are guarded on activeTenantId.
+
       // Get current auth session
       const { data: { session }, error: sessionError } = await supabase?.auth?.getSession();
       

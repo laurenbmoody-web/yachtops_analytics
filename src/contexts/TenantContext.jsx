@@ -93,7 +93,7 @@ const PersonalModeScreen = ({ userName }) => {
           You’re not on a vessel right now. Your personal record — profile, documents and sea service — is safe and travels with you. Vessel features unlock again as soon as you join or are added to a vessel.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
-          <button style={card} onClick={() => go('/my-profile')}>
+          <button style={card} onClick={() => go('/my-profile-management')}>
             <div style={cardTitle}>My profile &amp; documents</div>
             <div style={cardSub}>Your details, certificates and sea service — keep them up to date.</div>
           </button>

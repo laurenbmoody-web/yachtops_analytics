@@ -1170,7 +1170,7 @@ const Routes = () => {
         <Route path="/feedback-inbox" element={<ProtectedRoute requiresTenant={false}><FeedbackInbox /></ProtectedRoute>} />
 
         {/* Settings Page - Protected Route */}
-        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute requiresTenant={false}><SettingsPage /></ProtectedRoute>} />
         
         {/* Membership - Protected Route */}
         <Route path="/membership" element={<ProtectedRoute><Membership /></ProtectedRoute>} />
@@ -1225,7 +1225,7 @@ const Routes = () => {
         <Route path="/crew-management/roles" element={<CommandRoute><RoleManagement /></CommandRoute>} />
         <Route path="/profile/:crewId" element={<ProtectedRoute requiresTenant={false}><CrewProfile /></ProtectedRoute>} />
         <Route path="/my-profile" element={<MyProfileRedirect />} />
-        <Route path="/my-profile-management" element={<ProtectedRoute><MyProfileManagement /></ProtectedRoute>} />
+        <Route path="/my-profile-management" element={<ProtectedRoute requiresTenant={false}><MyProfileManagement /></ProtectedRoute>} />
         
         {/* Jobs Routes */}
         <Route path="/team-jobs-management" element={<ProtectedRoute><TeamJobsManagement /></ProtectedRoute>} />
