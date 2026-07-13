@@ -270,7 +270,12 @@ const SettingsPage = () => {
   // is a PRIMARY, passwordless sign-in credential — the "Sign in with a passkey"
   // button on the login page — not a second factor. The friendly name is derived
   // by the authenticator (e.g. "iCloud Keychain", "1Password").
-  const passkeysSupported = typeof window !== 'undefined' && !!window.PublicKeyCredential;
+  // Needs both a WebAuthn-capable browser AND an SDK new enough to expose the
+  // passkey API (older bundles don't have auth.registerPasskey / auth.passkey).
+  const passkeysSupported = typeof window !== 'undefined'
+    && !!window.PublicKeyCredential
+    && typeof supabase?.auth?.registerPasskey === 'function'
+    && typeof supabase?.auth?.passkey?.list === 'function';
   const [passkeys, setPasskeys] = useState([]);
   const [pkLoading, setPkLoading] = useState(true);
   const [pkBusy, setPkBusy] = useState(false);
