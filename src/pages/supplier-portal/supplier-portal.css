@@ -1032,9 +1032,9 @@
   display: flex; flex-direction: column; justify-content: center;
 }
 #sp-root .sod-hero-countdown-n {
-  font-family: 'Inter'; font-weight: 800;
-  font-size: 52px; line-height: 0.9;
-  letter-spacing: -0.03em; color: var(--amber);
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400;
+  font-size: 54px; line-height: 0.9;
+  letter-spacing: -0.02em; color: var(--amber);
 }
 #sp-root .sod-hero-countdown-u {
   font-family: 'Inter'; font-weight: 600;
@@ -1056,10 +1056,10 @@
   margin-bottom: 8px;
   display: flex; align-items: baseline; gap: 8px;
 }
-#sp-root .sod-hero-when .sod-day { font-family: 'Inter'; font-weight: 800; font-size: 36px; }
+#sp-root .sod-hero-when .sod-day { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400; font-size: 40px; letter-spacing: -0.01em; }
 #sp-root .sod-hero-when .sod-month {
-  font-family: 'Inter'; font-weight: 700; font-size: 28px;
-  text-transform: uppercase; letter-spacing: -0.01em; color: var(--navy-app);
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400; font-size: 30px;
+  text-transform: uppercase; letter-spacing: 0; color: var(--navy-app);
 }
 #sp-root .sod-hero-where {
   font-family: 'DM Sans'; font-size: 13.5px;
