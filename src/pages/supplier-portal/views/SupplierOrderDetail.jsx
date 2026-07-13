@@ -150,11 +150,6 @@ const firstNameOf = (name) => {
   return String(name).trim().split(/\s+/)[0] || null;
 };
 
-// Stub for actions whose backing flows aren't built yet (Sprints 8/9/10).
-// Better than a silent click — see the dropdown action triage in the
-// follow-up backlog notes.
-const showComingSoon = (action) => window.alert(`"${action}" is coming soon.`);
-
 // ─── Hero + action dropdowns ────────────────────────────────────────────────
 
 const ActionDropdown = ({ open, top, children }) => {
@@ -402,7 +397,6 @@ const HeroActions = ({
         />
         <DropdownRow icon="⚓" name="Dock access notes" onClick={onOpenDock} />
         <div className="sod-dd-divider" role="separator" />
-        <DropdownRow icon="⎘" name="Duplicate order"   onClick={() => showComingSoon('Duplicate order')} />
         <DropdownRow icon="✉" name="Message vessel"    onClick={onMessageVessel} />
       </ActionDropdown>
 
