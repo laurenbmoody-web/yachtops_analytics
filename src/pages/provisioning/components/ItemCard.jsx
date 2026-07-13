@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ITEM_STATUS_ORDER, getItemStatusConfig, deriveDisplayStatus } from '../data/statusConfig';
+import { normalizeUnit } from '../../../data/unitGroups';
 
 // Per-card status pill + right-click status picker. Pipes item + supplier_
 // order_item + supplier_order through deriveDisplayStatus so the kanban
@@ -36,6 +37,14 @@ const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusCha
   };
 
   const handleTouchEnd = () => clearTimeout(longPressTimer.current);
+
+  // Pack breakdown sublabel — a bulk unit (case, box, dozen…) that carries an
+  // inner count reads as "case of 24 × 500ml" under the name, so the chief
+  // sees what one ordered unit actually contains without opening the drawer.
+  const perPack = Number(item.units_per_pack) || 0;
+  const packLabel = perPack > 1
+    ? `${normalizeUnit(item.unit) || 'pack'} of ${perPack}${item.size ? ` × ${item.size}` : ''}`
+    : null;
 
   const handleQty = (e, delta) => {
     e.stopPropagation();
@@ -100,10 +109,19 @@ const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusCha
         onTouchMove={handleTouchEnd}
         className="pv-item"
       >
-        {/* Name takes the freed width — single line, ellipsis only in the extreme */}
-        <span className="pv-item-name">
-          {item.name || 'Untitled'}
-        </span>
+        {/* Name takes the freed width — single line, ellipsis only in the extreme.
+            When the line carries a pack breakdown, the descriptor sits under
+            the name as a muted sublabel. */}
+        {packLabel ? (
+          <span className="pv-item-namewrap">
+            <span className="pv-item-name">{item.name || 'Untitled'}</span>
+            <span className="pv-item-packlabel">{packLabel}</span>
+          </span>
+        ) : (
+          <span className="pv-item-name">
+            {item.name || 'Untitled'}
+          </span>
+        )}
 
         {/* Supplier pips — small inline indicators that the supplier
             wrote a note or overrode qty/unit/size on this line. Click

@@ -556,6 +556,20 @@
   color: var(--pv-navy);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Name + pack-breakdown sublabel stacked in the freed width */
+.pv-item-namewrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pv-item-namewrap .pv-item-name { flex: 0 0 auto; }
+.pv-item-packlabel {
+  font-size: 11px;
+  color: var(--pv-muted, #8B8478);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .pv-item-stepper {
   display: flex; align-items: center; gap: 4px;
   flex-shrink: 0;
