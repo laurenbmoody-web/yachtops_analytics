@@ -116,35 +116,38 @@ const SettingsPage = () => {
   const [acct, setAcct] = useState({ name: '', email: '', avatarUrl: '', tenant: '' });
   const [notifEmail, setNotifEmail] = useState('');
   const [savedNotifEmail, setSavedNotifEmail] = useState('');
+  const [pendingReq, setPendingReq] = useState(null);
   const [editingNotif, setEditingNotif] = useState(false);
   const [notifStatus, setNotifStatus] = useState('');
   const [, setTick] = useState(0);
 
-  // Per-vessel notification email override (crew_notification_emails).
-  const saveNotifEmail = async () => {
+  // Notification email is vessel-governed: crew REQUEST an address, Command
+  // approves it (Vessel Settings › Notification Requests). Approval writes
+  // crew_notification_emails; here we only raise / cancel the request.
+  const submitNotifRequest = async () => {
     const uid = session?.user?.id;
     const tid = localStorage.getItem('cargo_active_tenant_id');
     const val = notifEmail.trim();
-    if (val && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) { setNotifStatus('Enter a valid email'); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) { setNotifStatus('Enter a valid email'); return; }
     if (!uid || !tid) return;
     try {
-      if (val) {
-        await supabase.from('crew_notification_emails')
-          .upsert({ user_id: uid, tenant_id: tid, email: val, updated_at: new Date().toISOString() }, { onConflict: 'user_id,tenant_id' });
-      } else {
-        await supabase.from('crew_notification_emails').delete().eq('user_id', uid).eq('tenant_id', tid);
-      }
-      setSavedNotifEmail(val);
-      setNotifEmail(val);
+      const { data, error } = await supabase.from('notification_email_requests')
+        .insert({ tenant_id: tid, user_id: uid, requested_email: val, status: 'pending' })
+        .select('id, requested_email, requested_at').single();
+      if (error) throw error;
+      setPendingReq(data);
       setEditingNotif(false);
-      setNotifStatus('Saved');
-      setTimeout(() => setNotifStatus(''), 2200);
+      setNotifStatus('');
     } catch (e) {
-      console.warn('[settings] notification email save failed', e);
-      setNotifStatus('Couldn’t save');
+      console.warn('[settings] notification email request failed', e);
+      setNotifStatus('Couldn’t send request');
     }
   };
-  const cancelNotif = () => { setNotifEmail(savedNotifEmail); setEditingNotif(false); setNotifStatus(''); };
+  const cancelNotifRequest = async () => {
+    if (!pendingReq) return;
+    try { await supabase.from('notification_email_requests').delete().eq('id', pendingReq.id); } catch { /* ignore */ }
+    setPendingReq(null);
+  };
 
   // ── Change login (auth) email — secure flow ────────────────────────────────
   // Re-auth with the current password, then supabase.auth.updateUser({ email })
@@ -219,6 +222,10 @@ const SettingsPage = () => {
         if (uid && tid) {
           const { data: ne } = await supabase.from('crew_notification_emails').select('email').eq('user_id', uid).eq('tenant_id', tid).maybeSingle();
           if (!cancelled && ne?.email) { setNotifEmail(ne.email); setSavedNotifEmail(ne.email); }
+          const { data: pr } = await supabase.from('notification_email_requests')
+            .select('id, requested_email, requested_at').eq('user_id', uid).eq('tenant_id', tid).eq('status', 'pending')
+            .order('requested_at', { ascending: false }).limit(1).maybeSingle();
+          if (!cancelled && pr) setPendingReq(pr);
         }
       } catch { /* ignore (table may not exist until migration lands) */ }
       if (!cancelled) setAcct({ name, email, avatarUrl, tenant });
@@ -304,7 +311,7 @@ const SettingsPage = () => {
               )}
               {editingNotif ? (
                 <div className="set-r set-stack">
-                  <RMain label="Notification email" desc={`Send ${acct.tenant || 'this vessel'}’s alerts to a different address — a shared or work inbox. Leave blank to use your login email.`} />
+                  <RMain label="Notification email" desc={`Request to send ${acct.tenant || 'this vessel'}’s alerts to a different address. Command approves the change.`} />
                   <div className="set-emailrow">
                     <input
                       className="set-field"
@@ -313,19 +320,24 @@ const SettingsPage = () => {
                       autoFocus
                       value={notifEmail}
                       onChange={(e) => { setNotifEmail(e.target.value); if (notifStatus) setNotifStatus(''); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveNotifEmail(); } if (e.key === 'Escape') cancelNotif(); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitNotifRequest(); } if (e.key === 'Escape') { setEditingNotif(false); setNotifEmail(savedNotifEmail); } }}
                     />
-                    <button className="set-btn set-btn-primary" onClick={saveNotifEmail}>Save</button>
-                    <button className="set-btn" onClick={cancelNotif}>Cancel</button>
+                    <button className="set-btn set-btn-primary" onClick={submitNotifRequest}>Request change</button>
+                    <button className="set-btn" onClick={() => { setEditingNotif(false); setNotifEmail(savedNotifEmail); setNotifStatus(''); }}>Cancel</button>
                   </div>
-                  {notifStatus && notifStatus !== 'Saved' && <span className="set-savenote" style={{ color: '#B23B2E' }}>{notifStatus}</span>}
+                  {notifStatus && <span className="set-savenote" style={{ color: '#B23B2E' }}>{notifStatus}</span>}
+                </div>
+              ) : pendingReq ? (
+                <div className="set-r">
+                  <RMain label="Notification email" desc={`Requested ${pendingReq.requested_email} — awaiting Command approval.`} />
+                  <span className="set-badge">Pending</span>
+                  <button className="set-btn" onClick={cancelNotifRequest}>Cancel</button>
                 </div>
               ) : (
                 <div className="set-r">
                   <RMain label="Notification email" desc={savedNotifEmail ? `Where ${acct.tenant || 'this vessel'}’s alerts are sent.` : 'Using your login email.'} />
-                  {notifStatus === 'Saved' && <span className="set-savenote" style={{ color: '#3F7A52' }}>Saved</span>}
                   <span className={`set-r-val${savedNotifEmail ? '' : ' muted'}`}>{savedNotifEmail || 'Login email'}</span>
-                  <button className="set-btn" onClick={() => setEditingNotif(true)}>{savedNotifEmail ? 'Change' : 'Add'}</button>
+                  <button className="set-btn" onClick={() => { setEditingNotif(true); setNotifEmail(savedNotifEmail); }}>{savedNotifEmail ? 'Change' : 'Add'}</button>
                 </div>
               )}
             </Group>
