@@ -14,7 +14,8 @@ const itemPrice = (i) => i.agreed_price ?? i.quoted_price ?? i.estimated_price ?
 const orderTotal = (o) => (o.supplier_order_items ?? []).reduce((s, i) => s + itemPrice(i) * (i.quantity ?? 1), 0);
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 const fmtDay = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—');
-const fmtMoney0 = (a, cur = 'EUR') => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(a || 0);
+// en-GB → symbol on the left, comma thousands (€1,531 / £1,531 / $1,531).
+const fmtMoney0 = (a, cur = 'EUR') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(a || 0);
 const shortId = (id) => (id ? String(id).slice(0, 8).toUpperCase() : '—');
 const pct = (f) => (f == null ? '—' : `${Math.round(f * 100)}%`);
 const initialsOf = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
@@ -124,7 +125,7 @@ const SupplierClientDetail = () => {
 
     // Ports
     const portCount = {};
-    for (const o of orders) { const p = (o.delivery_port || '').trim(); if (p) portCount[p] = (portCount[p] || 0) + 1; }
+    for (const o of orders) { const p = (o.delivery_port || '').trim(); if (p.length >= 2) portCount[p] = (portCount[p] || 0) + 1; }
     const ports = Object.entries(portCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
     const maxPort = ports[0]?.[1] || 1;
 

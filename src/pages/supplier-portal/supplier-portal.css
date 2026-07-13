@@ -3410,8 +3410,10 @@
 }
 #sp-root .scd-kpi { background: var(--card); padding: 14px 16px; }
 #sp-root .scd-kpi-n {
-  font-family: 'DM Serif Display', Georgia, serif; font-weight: 400;
-  font-size: 21px; line-height: 1; color: var(--fg); margin-bottom: 5px;
+  font-family: 'Inter', system-ui, sans-serif; font-weight: 700;
+  font-size: 20px; line-height: 1; letter-spacing: -0.01em;
+  color: var(--fg); margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 #sp-root .scd-kpi-l { font-size: 9px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted-strong); }
