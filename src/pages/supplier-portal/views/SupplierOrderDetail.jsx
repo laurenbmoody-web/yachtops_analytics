@@ -205,6 +205,7 @@ const HeroActions = ({
   onOpenDeliveryNote,
   onOpenSignedDeliveryNote,
   onEmailDeliveryNote,
+  onMessageVessel,
   canEdit,
 }) => {
   const isOpen = (id) => openMenu === id;
@@ -402,7 +403,7 @@ const HeroActions = ({
         <DropdownRow icon="⚓" name="Dock access notes" onClick={onOpenDock} />
         <div className="sod-dd-divider" role="separator" />
         <DropdownRow icon="⎘" name="Duplicate order"   onClick={() => showComingSoon('Duplicate order')} />
-        <DropdownRow icon="✉" name="Message vessel"    onClick={() => showComingSoon('Message vessel')} />
+        <DropdownRow icon="✉" name="Message vessel"    onClick={onMessageVessel} />
       </ActionDropdown>
 
       {/* No returns dropdown — the Returns button above is a direct drawer
@@ -536,6 +537,7 @@ const Hero = ({
           onOpenDeliveryNote={onOpenDeliveryNote}
           onOpenSignedDeliveryNote={onOpenSignedDeliveryNote}
           onEmailDeliveryNote={onEmailDeliveryNote}
+          onMessageVessel={() => navigate(`/supplier/messages?orderId=${order.id}`)}
           canEdit={canEdit}
         />
       </div>
