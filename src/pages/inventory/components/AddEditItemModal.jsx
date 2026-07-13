@@ -5,7 +5,7 @@ import { saveItem, getFolderTree, createFolder } from '../utils/inventoryStorage
 import { supabase } from '../../../lib/supabaseClient';
 
 import ModalShell from '../../../components/ui/ModalShell';
-import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../../data/unitGroups';
+import { UNIT_GROUP_VALUES, STOCK_UNIT_GROUPS, STOCK_UNIT_VALUES, BOUGHT_BY_GROUPS, normalizeUnit } from '../../../data/unitGroups';
 
 const SUGGESTED_TAGS = ['drinks', 'wine', 'cleaning', 'spares', 'linen', 'snacks', 'bar', 'medical', 'food', 'tools', 'safety', 'toiletries', 'laundry'];
 
@@ -995,15 +995,16 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Unit</label>
               <select
-                value={UNIT_GROUP_VALUES.has(normalizeUnit(formData?.unit)) ? normalizeUnit(formData?.unit) : (formData?.unit || 'each')}
+                value={STOCK_UNIT_VALUES.has(normalizeUnit(formData?.unit)) ? normalizeUnit(formData?.unit) : (formData?.unit || 'each')}
                 onChange={(e) => handleChange('unit', e?.target?.value)}
                 className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
               >
-                {/* keep an unknown/legacy custom value selectable */}
-                {formData?.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(formData?.unit)) && (
+                {/* keep an unknown/legacy custom value selectable — bulk units
+                    (case/pack) belong in the Purchase-unit picker below, not here */}
+                {formData?.unit && !STOCK_UNIT_VALUES.has(normalizeUnit(formData?.unit)) && (
                   <option value={formData.unit}>{formData.unit}</option>
                 )}
-                {UNIT_GROUPS.map(g => (
+                {STOCK_UNIT_GROUPS.map(g => (
                   <optgroup key={g.label} label={g.label}>
                     {g.options.map(u => <option key={u} value={u}>{u}</option>)}
                   </optgroup>
@@ -1030,7 +1031,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                   {formData?.purchaseUnit && !UNIT_GROUP_VALUES.has(normalizeUnit(formData?.purchaseUnit)) && (
                     <option value={formData.purchaseUnit}>{formData.purchaseUnit}</option>
                   )}
-                  {UNIT_GROUPS.map(g => (
+                  {BOUGHT_BY_GROUPS.map(g => (
                     <optgroup key={g.label} label={g.label}>
                       {g.options.map(u => <option key={u} value={u}>{u}</option>)}
                     </optgroup>

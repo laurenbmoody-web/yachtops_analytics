@@ -15,7 +15,7 @@ import { getItemById, saveItem } from '../../inventory/utils/inventoryStorage';
 import { searchInventoryLocations, locationLabel } from '../utils/inventory';
 import { setPinCount, clearItemNode } from '../utils/placement';
 import { entryKey } from '../utils/stockMath';
-import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../../data/unitGroups';
+import { UNIT_GROUP_VALUES, STOCK_UNIT_GROUPS, STOCK_UNIT_VALUES, BOUGHT_BY_GROUPS, normalizeUnit } from '../../../data/unitGroups';
 import { getActivityForEntity } from '../../../utils/activityStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../../utils/authStorage';
 import { canViewCost, formatCurrency } from '../../../utils/costPermissions';
@@ -243,10 +243,10 @@ export default function ItemDrawer({ itemId, onClose }) {
         {fieldEl('supplier', 'Supplier')}
         <label className="vmid-field">
           <span className="vmid-meta-k">Unit</span>
-          <select className="vmid-input" value={UNIT_GROUP_VALUES.has(normalizeUnit(draft.unit)) ? normalizeUnit(draft.unit) : (draft.unit || 'each')}
+          <select className="vmid-input" value={STOCK_UNIT_VALUES.has(normalizeUnit(draft.unit)) ? normalizeUnit(draft.unit) : (draft.unit || 'each')}
             onChange={(e) => set('unit', e.target.value)}>
-            {draft.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(draft.unit)) && <option value={draft.unit}>{draft.unit}</option>}
-            {UNIT_GROUPS.map((g) => (
+            {draft.unit && !STOCK_UNIT_VALUES.has(normalizeUnit(draft.unit)) && <option value={draft.unit}>{draft.unit}</option>}
+            {STOCK_UNIT_GROUPS.map((g) => (
               <optgroup key={g.label} label={g.label}>
                 {g.options.map((u) => <option key={u} value={u}>{u}</option>)}
               </optgroup>
@@ -260,7 +260,7 @@ export default function ItemDrawer({ itemId, onClose }) {
             onChange={(e) => set('purchaseUnit', e.target.value)}>
             <option value="">— same as stock —</option>
             {draft.purchaseUnit && !UNIT_GROUP_VALUES.has(normalizeUnit(draft.purchaseUnit)) && <option value={draft.purchaseUnit}>{draft.purchaseUnit}</option>}
-            {UNIT_GROUPS.map((g) => (
+            {BOUGHT_BY_GROUPS.map((g) => (
               <optgroup key={g.label} label={g.label}>
                 {g.options.map((u) => <option key={u} value={u}>{u}</option>)}
               </optgroup>

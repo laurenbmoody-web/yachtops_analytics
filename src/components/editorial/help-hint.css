@@ -56,6 +56,15 @@
   cursor: default;
   pointer-events: auto;
 }
+/* Portaled variant — rendered at <body> with fixed coordinates read
+   from the trigger, so no ancestor's overflow can clip it. Top/left are
+   set inline; this just switches the positioning scheme and lifts it
+   above table rows / drawers. */
+.help-hint-popover-fixed {
+  position: fixed;
+  z-index: 4000;
+}
+
 /* Default — align="start": popover extends from the trigger's
    leading edge (left, in LTR). Use when the trigger sits in the
    middle / left of the viewport. */

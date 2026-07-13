@@ -6,7 +6,7 @@ import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
-import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../../data/unitGroups';
+import { STOCK_UNIT_GROUPS, STOCK_UNIT_VALUES, normalizeUnit } from '../../../data/unitGroups';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
@@ -1124,7 +1124,10 @@ const UnitSelectCell = ({ value, requested, canEdit, onCommit }) => {
   const requestedKey = requested == null ? '' : normalizeUnit(String(requested));
   const valueKey = value == null || value === '' ? '' : String(norm);
   const changed = canEdit && requestedKey !== '' && requestedKey !== valueKey;
-  const legacy = value && !UNIT_GROUP_VALUES.has(norm);
+  // Keep bulk units (case/pack) out of the picker — they belong in the pack
+  // overlay, not the unit — but still surface a legacy bulk value if a line
+  // already carries one, so nothing silently changes.
+  const legacy = value && !STOCK_UNIT_VALUES.has(norm);
 
   if (!canEdit) {
     return (
@@ -1160,7 +1163,7 @@ const UnitSelectCell = ({ value, requested, canEdit, onCommit }) => {
       >
         <option value="">—</option>
         {legacy && <option value={value}>{value}</option>}
-        {UNIT_GROUPS.map((g) => (
+        {STOCK_UNIT_GROUPS.map((g) => (
           <optgroup key={g.label} label={g.label}>
             {g.options.map((u) => <option key={u} value={u}>{u}</option>)}
           </optgroup>

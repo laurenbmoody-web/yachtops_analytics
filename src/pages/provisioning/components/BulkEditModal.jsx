@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ModalShell from '../../../components/ui/ModalShell';
 import SupplierPicker from './SupplierPicker';
-import { UNIT_GROUPS } from './DetailTableCells';
+import { STOCK_UNIT_GROUPS } from '../../../data/unitGroups';
 import { fetchVendors } from '../utils/provisioningStorage';
 import { ITEM_STATUS_ORDER, ITEM_STATUS_CONFIG } from '../data/statusConfig';
 
@@ -201,7 +201,7 @@ const BulkEditModal = ({
             className="pv-bulk-edit-input"
           >
             <option value="">{placeholders.unit || '— select —'}</option>
-            {UNIT_GROUPS.map((g) => (
+            {STOCK_UNIT_GROUPS.map((g) => (
               <optgroup key={g.label} label={g.label}>
                 {g.options.map((u) => (
                   <option key={u} value={u}>{u}</option>
