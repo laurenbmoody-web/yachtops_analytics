@@ -84,7 +84,6 @@ const RowSoon = ({ label, desc }) => (
 const NAV = [
   { grp: 'Account', items: [
     { id: 'account', label: 'Account', icon: 'User' },
-    { id: 'security', label: 'Security', icon: 'Shield' },
     { id: 'privacy', label: 'Privacy & data', icon: 'Lock' },
     { id: 'membership', label: 'Membership', icon: 'CreditCard' },
   ] },
@@ -116,6 +115,8 @@ const SettingsPage = () => {
   const [tzSearch, setTzSearch] = useState('');
   const [acct, setAcct] = useState({ name: '', email: '', avatarUrl: '', tenant: '' });
   const [notifEmail, setNotifEmail] = useState('');
+  const [savedNotifEmail, setSavedNotifEmail] = useState('');
+  const [editingNotif, setEditingNotif] = useState(false);
   const [notifStatus, setNotifStatus] = useState('');
   const [, setTick] = useState(0);
 
@@ -133,13 +134,17 @@ const SettingsPage = () => {
       } else {
         await supabase.from('crew_notification_emails').delete().eq('user_id', uid).eq('tenant_id', tid);
       }
+      setSavedNotifEmail(val);
+      setNotifEmail(val);
+      setEditingNotif(false);
       setNotifStatus('Saved');
-      setTimeout(() => setNotifStatus(''), 1800);
+      setTimeout(() => setNotifStatus(''), 2200);
     } catch (e) {
       console.warn('[settings] notification email save failed', e);
       setNotifStatus('Couldn’t save');
     }
   };
+  const cancelNotif = () => { setNotifEmail(savedNotifEmail); setEditingNotif(false); setNotifStatus(''); };
 
   const setPref = (name, val) => {
     const [k, t] = PREF_KEY[name];
@@ -176,7 +181,7 @@ const SettingsPage = () => {
         if (tid) { const { data: tn } = await supabase.from('tenants').select('name').eq('id', tid).single(); if (tn?.name) tenant = tn.name; }
         if (uid && tid) {
           const { data: ne } = await supabase.from('crew_notification_emails').select('email').eq('user_id', uid).eq('tenant_id', tid).maybeSingle();
-          if (!cancelled && ne?.email) setNotifEmail(ne.email);
+          if (!cancelled && ne?.email) { setNotifEmail(ne.email); setSavedNotifEmail(ne.email); }
         }
       } catch { /* ignore (table may not exist until migration lands) */ }
       if (!cancelled) setAcct({ name, email, avatarUrl, tenant });
@@ -226,7 +231,7 @@ const SettingsPage = () => {
         return (
           <>
             <h2 className="set-h">Account</h2>
-            <p className="set-hsub">Your identity, and where Cargo reaches you.</p>
+            <p className="set-hsub">Your identity, sign-in and security.</p>
             <Group>
               <RowNav label="Profile" desc="Name, photo, personal details, documents." ext onClick={() => navigate('/my-profile')} />
             </Group>
@@ -236,30 +241,34 @@ const SettingsPage = () => {
                 <RMain label="Login email" desc="Where you sign in — your account address." />
                 <span className="set-r-val">{acct.email || '—'}</span>
               </div>
-              <div className="set-r set-stack">
-                <RMain label="Notification email" desc={`Send ${acct.tenant || 'this vessel'}’s alerts to a different address — e.g. a shared or work inbox. Leave blank to use your login email.`} />
-                <div className="set-emailrow">
-                  <input
-                    className="set-field"
-                    type="email"
-                    placeholder="e.g. interior@vessel.com"
-                    value={notifEmail}
-                    onChange={(e) => { setNotifEmail(e.target.value); if (notifStatus) setNotifStatus(''); }}
-                    onBlur={saveNotifEmail}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                  />
-                  {notifStatus && <span className="set-savenote">{notifStatus}</span>}
+              {editingNotif ? (
+                <div className="set-r set-stack">
+                  <RMain label="Notification email" desc={`Send ${acct.tenant || 'this vessel'}’s alerts to a different address — a shared or work inbox. Leave blank to use your login email.`} />
+                  <div className="set-emailrow">
+                    <input
+                      className="set-field"
+                      type="email"
+                      placeholder="e.g. interior@vessel.com"
+                      autoFocus
+                      value={notifEmail}
+                      onChange={(e) => { setNotifEmail(e.target.value); if (notifStatus) setNotifStatus(''); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveNotifEmail(); } if (e.key === 'Escape') cancelNotif(); }}
+                    />
+                    <button className="set-btn set-btn-primary" onClick={saveNotifEmail}>Save</button>
+                    <button className="set-btn" onClick={cancelNotif}>Cancel</button>
+                  </div>
+                  {notifStatus && notifStatus !== 'Saved' && <span className="set-savenote" style={{ color: '#B23B2E' }}>{notifStatus}</span>}
                 </div>
-              </div>
+              ) : (
+                <div className="set-r">
+                  <RMain label="Notification email" desc={savedNotifEmail ? `Where ${acct.tenant || 'this vessel'}’s alerts are sent.` : 'Using your login email.'} />
+                  {notifStatus === 'Saved' && <span className="set-savenote" style={{ color: '#3F7A52' }}>Saved</span>}
+                  <span className={`set-r-val${savedNotifEmail ? '' : ' muted'}`}>{savedNotifEmail || 'Login email'}</span>
+                  <button className="set-btn" onClick={() => setEditingNotif(true)}>{savedNotifEmail ? 'Edit' : 'Add'}</button>
+                </div>
+              )}
             </Group>
-          </>
-        );
-
-      case 'security':
-        return (
-          <>
-            <h2 className="set-h">Security</h2>
-            <p className="set-hsub">Keep your account safe.</p>
+            <Caps>Security</Caps>
             <Group>
               <RowSoon label="Password" desc="Change your sign-in password." />
               <RowSoon label="Two-factor authentication" desc="Add an extra step at sign-in." />
