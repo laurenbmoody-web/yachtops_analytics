@@ -456,6 +456,33 @@
   text-align: center;
   font-size: 18px;
 }
+/* "or" divider between the passkey button and the code form */
+#cargo-login-root .cl-mfa-or {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--cl-ink-muted);
+  font-size: 12px;
+  gap: 12px;
+}
+#cargo-login-root .cl-mfa-or::before,
+#cargo-login-root .cl-mfa-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--cl-hairline, #E8E6DF);
+}
+/* Secondary submit — used for "Verify code" when a passkey is the primary path */
+#cargo-login-root .cl-submit.cl-submit-ghost {
+  background: transparent;
+  color: var(--cl-ink, #1C1B3A);
+  border: 1px solid var(--cl-hairline, #E8E6DF);
+}
+#cargo-login-root .cl-submit.cl-submit-ghost:hover:not(:disabled) {
+  background: var(--cl-rust-soft);
+  border-color: var(--cl-rust);
+  color: var(--cl-rust);
+}
 
 /* Loading state */
 #cargo-login-root.cl-is-loading {
