@@ -1,0 +1,158 @@
+/* ============================================================
+   Global header search — editorial refresh (hsearch-*)
+   Cool soft field + terracotta focus + clean white results
+   panel, matching the marketplace / reviews controls. Light by
+   default (day); dark tokens under [data-theme="night"] / .dark.
+   ============================================================ */
+
+.hsearch-ic {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8B8478;
+  pointer-events: none;
+}
+
+.hsearch-input {
+  width: 100%;
+  height: 42px;
+  font: 400 14px 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+  background: #F6F8FB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 0 36px 0 40px;
+  box-sizing: border-box;
+  transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
+}
+.hsearch-input::placeholder { color: #8B8478; }
+.hsearch-input:focus {
+  outline: none;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px #FAECE7;
+  background: #FFFFFF;
+}
+
+.hsearch-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #8B8478;
+  cursor: pointer;
+  transition: color 0.14s, background 0.14s;
+}
+.hsearch-clear:hover { color: #C65A1A; background: rgba(28, 27, 58, 0.05); }
+
+/* Results panel */
+.hsearch-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  box-shadow: 0 22px 50px -22px rgba(28, 27, 58, 0.28);
+  z-index: 50;
+  overflow: hidden;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.hsearch-msg {
+  padding: 14px 16px;
+  font: 400 13px 'Inter', system-ui, sans-serif;
+  color: #8B8478;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hsearch-group-h {
+  padding: 9px 16px 6px;
+  font: 700 10px 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8B8478;
+  background: #F6F8FB;
+  border-bottom: 1px solid #EEF0F4;
+}
+.hsearch-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #F0F1F5;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.hsearch-item:last-child { border-bottom: none; }
+.hsearch-item:hover { background: #FDF6F1; box-shadow: inset 3px 0 0 #C65A1A; }
+.hsearch-ico { color: #8B8478; flex: none; }
+.hsearch-body { min-width: 0; }
+.hsearch-label {
+  font: 600 14px 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hsearch-sub {
+  font: 400 12px 'Inter', system-ui, sans-serif;
+  color: #8B8478;
+  margin: 0;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hsearch-chev { color: #AEB4C2; margin-left: auto; flex: none; }
+
+/* ── Dark (night) ─────────────────────────────────────────── */
+:root[data-theme="night"] .hsearch-input,
+.dark .hsearch-input {
+  background: #1C1E2E;
+  border-color: #2A2C40;
+  color: #ECEAF4;
+}
+:root[data-theme="night"] .hsearch-input::placeholder,
+.dark .hsearch-input::placeholder { color: #9A93A8; }
+:root[data-theme="night"] .hsearch-input:focus,
+.dark .hsearch-input:focus {
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.28);
+  background: #171826;
+}
+:root[data-theme="night"] .hsearch-clear:hover,
+.dark .hsearch-clear:hover { background: rgba(255, 255, 255, 0.07); }
+:root[data-theme="night"] .hsearch-pop,
+.dark .hsearch-pop {
+  background: #171826;
+  border-color: #2A2C40;
+  box-shadow: 0 22px 50px -22px rgba(0, 0, 0, 0.6);
+}
+:root[data-theme="night"] .hsearch-group-h,
+.dark .hsearch-group-h {
+  background: #12131F;
+  color: #9A93A8;
+  border-bottom-color: #242639;
+}
+:root[data-theme="night"] .hsearch-item,
+.dark .hsearch-item { border-bottom-color: #242639; }
+:root[data-theme="night"] .hsearch-item:hover,
+.dark .hsearch-item:hover { background: #20222E; }
+:root[data-theme="night"] .hsearch-label,
+.dark .hsearch-label { color: #ECEAF4; }

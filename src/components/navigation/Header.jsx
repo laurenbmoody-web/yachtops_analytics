@@ -16,6 +16,7 @@ import { amIPlatformAdmin } from '../../pages/cargo-console/utils';
 import { canAccessGuestManagement } from '../../pages/guest-management-dashboard/utils/guestPermissions';
 import { canAccessTrips } from '../../pages/trips-management-dashboard/utils/tripPermissions';
 import AlertsDrawer from './AlertsDrawer';
+import './header-search.css';
 import { getUnreadCount, checkDueAndOverdueJobs } from '../../pages/team-jobs-management/utils/notifications';
 import { fetchDbUnreadCount } from '../../lib/dbNotifications';
 import { isDevMode } from '../../utils/devMode';
@@ -586,8 +587,7 @@ const Header = () => {
             <Icon
               name="Search"
               size={18}
-              color="var(--color-muted-foreground)"
-              className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              className="hsearch-ic"
             />
             <input
               type="text"
@@ -596,12 +596,13 @@ const Header = () => {
               onFocus={() => { if (searchQuery.trim()) setIsSearchOpen(true); }}
               onKeyDown={(e) => { if (e.key === 'Escape') handleSearchClear(); }}
               placeholder="Search pages, crew, jobs, guests..."
-              className="w-full pl-10 pr-8 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="hsearch-input"
             />
             {searchQuery && (
               <button
                 onClick={handleSearchClear}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-smooth"
+                className="hsearch-clear"
+                aria-label="Clear search"
               >
                 <Icon name="X" size={14} />
               </button>
@@ -609,36 +610,36 @@ const Header = () => {
 
             {/* Results dropdown */}
             {isSearchOpen && searchQuery.trim() && (
-              <div className="absolute top-full left-0 right-0 mt-1.5 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[480px] overflow-y-auto" onMouseDown={e => e.preventDefault()}>
+              <div className="hsearch-pop" onMouseDown={e => e.preventDefault()}>
                 {isSearching ? (
-                  <div className="px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+                  <div className="hsearch-msg">
                     <LogoSpinner size={14} />
                     Searching...
                   </div>
                 ) : searchResults.length === 0 ? (
-                  <div className="px-4 py-3 text-sm text-muted-foreground">
+                  <div className="hsearch-msg">
                     No results for &ldquo;{searchQuery}&rdquo;
                   </div>
                 ) : (
                   searchResults.map((group) => (
                     <div key={group.category}>
-                      <div className="px-4 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/40 border-b border-border">
+                      <div className="hsearch-group-h">
                         {group.category}
                       </div>
                       {group.items.map((item, i) => (
                         <button
                           key={i}
                           onClick={() => handleSearchSelect(item.path)}
-                          className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-muted transition-smooth border-b border-border/50 last:border-0"
+                          className="hsearch-item"
                         >
-                          <Icon name={item.icon} size={15} className="text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{item.label}</p>
+                          <Icon name={item.icon} size={15} className="hsearch-ico" />
+                          <div className="hsearch-body">
+                            <p className="hsearch-label">{item.label}</p>
                             {item.subtitle && (
-                              <p className="text-xs text-muted-foreground capitalize truncate">{item.subtitle}</p>
+                              <p className="hsearch-sub">{item.subtitle}</p>
                             )}
                           </div>
-                          <Icon name="ChevronRight" size={14} className="text-muted-foreground ml-auto flex-shrink-0" />
+                          <Icon name="ChevronRight" size={14} className="hsearch-chev" />
                         </button>
                       ))}
                     </div>
