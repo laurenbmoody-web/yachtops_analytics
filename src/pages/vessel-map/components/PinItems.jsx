@@ -176,9 +176,14 @@ export default function PinItems({
       {rows && rows.length > 0 && (
         <div className="vm-pinitems-list">
           {rows.map((r) => {
-            const segs = r.category ? r.category.split(' › ') : [];
+            let segs = r.category ? r.category.split(' › ') : [];
+            // Drop a trailing category that just repeats the item name — the
+            // name's already above; the useful bucket (e.g. "Wine") then leads.
+            if (segs.length && segs[segs.length - 1].trim().toLowerCase() === (r.name || '').trim().toLowerCase()) {
+              segs = segs.slice(0, -1);
+            }
             const leaf = segs.pop();
-            const head = segs.join(' › ');
+            const head = segs.join(' · ');
             return (
               <div className="vm-pinitem" key={r.id}>
                 {/* Line 1 — the name gets the full width so it wraps in full. */}
@@ -190,7 +195,7 @@ export default function PinItems({
                 </div>
                 {leaf ? (
                   <span className="vm-pinitem-cat">
-                    {head && <span className="vm-pinitem-cat-head">{head} › </span>}
+                    {head && <span className="vm-pinitem-cat-head">{head} · </span>}
                     <span className="vm-pinitem-cat-leaf">{leaf}</span>
                   </span>
                 ) : (
