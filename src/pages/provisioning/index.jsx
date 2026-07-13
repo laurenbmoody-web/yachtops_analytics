@@ -300,6 +300,11 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
             >
               Create board
             </button>
+            <button onClick={onCancel} className="pv-wizard-btn pv-wizard-btn-ghost">
+              Cancel
+            </button>
+            {/* Full-width on its own line — the label is too long to sit
+                inline in the narrow board-column panel without clipping. */}
             <button
               onClick={() => {
                 if (!title.trim()) return;
@@ -307,13 +312,10 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
                 else triggerCreate('blank', [], true);
               }}
               disabled={!title.trim()}
-              className="pv-wizard-btn pv-wizard-btn-ghost"
+              className="pv-wizard-btn pv-wizard-btn-ghost pv-wizard-btn-block"
               title="Create the board and start filling it from supplier catalogues"
             >
               Create &amp; browse marketplace
-            </button>
-            <button onClick={onCancel} className="pv-wizard-btn pv-wizard-btn-ghost">
-              Cancel
             </button>
           </div>
         </>
