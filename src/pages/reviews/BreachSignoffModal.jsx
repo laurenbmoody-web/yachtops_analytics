@@ -58,7 +58,7 @@ export default function BreachSignoffModal({
               onChange={(e) => onReasonChange?.(e.target.value)}
               placeholder="Required — e.g. port call / safety operation / agreed exception"
               rows={3}
-              style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, color: '#1C1B3A', padding: '10px 12px', border: '0.5px solid #DFD8CC', borderRadius: 6, background: '#FFFFFF', resize: 'vertical', boxSizing: 'border-box' }}
+              style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, color: '#1C1B3A', padding: '10px 12px', border: '0.5px solid #E5E7EB', borderRadius: 6, background: '#FFFFFF', resize: 'vertical', boxSizing: 'border-box' }}
               aria-label="Reason for accepting non-compliant hours"
             />
           </div>

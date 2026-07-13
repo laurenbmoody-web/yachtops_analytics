@@ -29,7 +29,7 @@
   margin-bottom: 22px;
 }
 .crh-eyebrow {
-  font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 600 11px 'Inter', system-ui, sans-serif;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: #8B8478;
@@ -62,7 +62,7 @@
   font-variant-numeric: tabular-nums;
 }
 .crh-stat .l {
-  font: 600 10px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 600 10px 'Inter', system-ui, sans-serif;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #8B8478;
@@ -256,7 +256,7 @@
   border-bottom: 1px solid #E5E7EB;
 }
 .crh-colh span {
-  font: 700 9.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 700 9.5px 'Inter', system-ui, sans-serif;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #8B8478;
@@ -286,7 +286,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 600 11.5px 'Inter', system-ui, sans-serif;
   color: #C65A1A;
   background: #FBEFE9;
   overflow: hidden;
@@ -318,7 +318,7 @@
 .crh-sum .crh-arw { color: #AEB4C2; margin: 0 6px; }
 .crh-sum strong { color: #1C1B3A; font-weight: 600; }
 .crh-when {
-  font: 12px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 12px 'Inter', system-ui, sans-serif;
   color: #8B8478;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -329,7 +329,7 @@
 
 /* buttons */
 .crh-btn {
-  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 600 12.5px 'Inter', system-ui, sans-serif;
   border-radius: 9px;
   padding: 8px 14px;
   cursor: pointer;
@@ -355,7 +355,7 @@
 .crh-row.open .crh-btn.review .crh-rc { transform: rotate(180deg); }
 
 .crh-chip {
-  font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 600 11px 'Inter', system-ui, sans-serif;
   border-radius: 999px;
   padding: 4px 11px;
 }
@@ -386,7 +386,7 @@
   box-shadow: 0 6px 18px -8px rgba(28, 27, 58, 0.14);
 }
 .crh-flow .k {
-  font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 700 9px 'Inter', system-ui, sans-serif;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #8B8478;
@@ -400,7 +400,7 @@
 .crh-detail-meta { font-size: 12px; color: #8B8478; margin-top: 12px; }
 .crh-decided {
   margin-top: 16px;
-  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 600 12.5px 'Inter', system-ui, sans-serif;
   color: #6B7280;
 }
 
