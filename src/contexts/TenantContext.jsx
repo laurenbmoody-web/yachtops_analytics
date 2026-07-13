@@ -54,7 +54,7 @@ const VesselChooserModal = ({ options, onSelect }) => (
 // vessel features are gated. Full-screen (not the router's shell) so it doesn't
 // depend on a tenant; links do a full navigation so the allowlist in
 // VesselFallbackUI lets the personal pages render.
-const PersonalModeScreen = ({ userName }) => {
+const PersonalModeScreen = ({ userName, userId }) => {
   const go = (path) => { window.location.href = path; };
   const handleSignOut = async () => {
     try {
@@ -93,7 +93,7 @@ const PersonalModeScreen = ({ userName }) => {
           You’re not on a vessel right now. Your personal record — profile, documents and sea service — is safe and travels with you. Vessel features unlock again as soon as you join or are added to a vessel.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
-          <button style={card} onClick={() => go('/my-profile')}>
+          <button style={card} onClick={() => go(userId ? `/profile/${userId}` : '/my-profile')}>
             <div style={cardTitle}>My profile &amp; documents</div>
             <div style={cardSub}>Your details, certificates and sea service — keep them up to date.</div>
           </button>
@@ -122,12 +122,12 @@ const PersonalModeScreen = ({ userName }) => {
 const UNBERTHED_ALLOW = ['/my-profile', '/profile', '/settings', '/supplier', '/invite', '/invite-accept', '/reset-password', '/forgot-password', '/login'];
 
 export const VesselFallbackUI = () => {
-  const { vesselChooserOptions, noVesselAccess, selectVesselFromChooser, userDisplayName } = useTenant();
+  const { vesselChooserOptions, noVesselAccess, selectVesselFromChooser, userDisplayName, userId } = useTenant();
 
   if (noVesselAccess) {
     const path = (typeof window !== 'undefined' && window.location?.pathname) || '';
     if (UNBERTHED_ALLOW.some((p) => path.startsWith(p))) return null;
-    return <PersonalModeScreen userName={userDisplayName} />;
+    return <PersonalModeScreen userName={userDisplayName} userId={userId} />;
   }
 
   if (vesselChooserOptions && vesselChooserOptions?.length > 0) {
@@ -510,6 +510,7 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
     vesselChooserOptions,
     noVesselAccess,
     currentTenantMember,
+    userId: authUser?.id || null,
     userDisplayName: authUser?.user_metadata?.full_name || authUser?.email || '',
     setActiveTenantId,
     ensureTenantSelected,
