@@ -276,20 +276,24 @@ const SettingsPage = () => {
             <Group>
               {editingLogin ? (
                 <div className="set-r set-stack">
-                  <RMain label="Change login email" desc="Confirm your password, then we’ll email a confirmation link to your new address (and, with secure change on, your current one). The change only applies once confirmed." />
-                  <div className="set-loginform">
+                  <RMain label="Change login email" desc="We’ll email a link to your new address to confirm the change." />
+                  <form className="set-loginform" autoComplete="on" onSubmit={(e) => { e.preventDefault(); submitLoginEmailChange(); }}>
+                    {/* Hidden username scopes the password autofill to this form,
+                        so Chrome fills here rather than the nav search bar. */}
+                    <input type="text" name="username" autoComplete="username" defaultValue={acct.email || ''} readOnly tabIndex={-1} aria-hidden="true"
+                      style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
                     <input className="set-field" type="password" autoComplete="current-password" placeholder="Current password"
                       value={curPassword} onChange={(e) => { setCurPassword(e.target.value); if (loginMsg) setLoginMsg(null); }} />
-                    <input className="set-field" type="email" placeholder="New login email"
+                    <input className="set-field" type="email" autoComplete="off" placeholder="New login email"
                       value={newLoginEmail}
                       onChange={(e) => { setNewLoginEmail(e.target.value); if (loginMsg) setLoginMsg(null); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitLoginEmailChange(); } if (e.key === 'Escape') cancelLogin(); }} />
+                      onKeyDown={(e) => { if (e.key === 'Escape') cancelLogin(); }} />
                     <div className="set-emailrow">
-                      <button className="set-btn set-btn-primary" onClick={submitLoginEmailChange} disabled={loginBusy}>{loginBusy ? 'Sending…' : 'Send confirmation'}</button>
-                      <button className="set-btn" onClick={cancelLogin} disabled={loginBusy}>Cancel</button>
+                      <button type="submit" className="set-btn set-btn-primary" disabled={loginBusy}>{loginBusy ? 'Sending…' : 'Send confirmation'}</button>
+                      <button type="button" className="set-btn" onClick={cancelLogin} disabled={loginBusy}>Cancel</button>
                     </div>
                     {loginMsg && <span className="set-savenote" style={{ color: loginMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{loginMsg.m}</span>}
-                  </div>
+                  </form>
                 </div>
               ) : (
                 <div className="set-r">
@@ -321,7 +325,7 @@ const SettingsPage = () => {
                   <RMain label="Notification email" desc={savedNotifEmail ? `Where ${acct.tenant || 'this vessel'}’s alerts are sent.` : 'Using your login email.'} />
                   {notifStatus === 'Saved' && <span className="set-savenote" style={{ color: '#3F7A52' }}>Saved</span>}
                   <span className={`set-r-val${savedNotifEmail ? '' : ' muted'}`}>{savedNotifEmail || 'Login email'}</span>
-                  <button className="set-btn" onClick={() => setEditingNotif(true)}>{savedNotifEmail ? 'Edit' : 'Add'}</button>
+                  <button className="set-btn" onClick={() => setEditingNotif(true)}>{savedNotifEmail ? 'Change' : 'Add'}</button>
                 </div>
               )}
             </Group>

@@ -1739,12 +1739,11 @@ const canEdit = (() => {
               onChange={(next) => handleInputChange('phones', next)}
             />
           </Field>
-          <Field label="Email" required>
+          <Field label="Email" required hint="Your login email — change it in Settings › Account.">
             <Input
               type="email"
               value={formData?.email}
-              onChange={(e) => handleInputChange('email', e?.target?.value)}
-              disabled={!isEditing}
+              disabled
               placeholder="—"
             />
           </Field>
