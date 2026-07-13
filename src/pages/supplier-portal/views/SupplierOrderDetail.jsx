@@ -1173,8 +1173,19 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
 
       <div className="sod-wq-cell sod-wq-cell-item">
         <div className="sod-wq-name">
-          {item.item_name}
-          {item.brand && <span className="sod-wq-brand">{item.brand}</span>}
+          {status === 'substituted' && item.substitute_description ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ textDecoration: 'line-through', color: 'var(--muted)' }}>{item.item_name}</span>
+              <span style={{ color: 'var(--muted)' }}>→</span>
+              <span style={{ color: 'var(--orange)', fontWeight: 600 }}>{item.substitute_description}</span>
+              <span className="sod-wq-revised-chip" title="Substitute proposed for the vessel" style={{ background: '#FBEFE9', color: '#C65A1A' }}>Sub</span>
+            </span>
+          ) : (
+            <>
+              {item.item_name}
+              {item.brand && <span className="sod-wq-brand">{item.brand}</span>}
+            </>
+          )}
           {isPending && item.revised_at && (
             <span
               className="sod-wq-revised-chip"
