@@ -1106,6 +1106,61 @@
   font-family: 'Inter'; font-weight: 600; font-size: 12px; margin-right: 4px;
 }
 
+/* Copyable order number (hero-left) */
+#sp-root .sod-hero-id-copy {
+  background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+  font: inherit; color: inherit; display: inline-flex; align-items: center; gap: 8px;
+}
+#sp-root .sod-hero-id-copy:hover { color: var(--orange); }
+#sp-root .sod-copied {
+  font-family: 'Inter'; font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--green);
+  opacity: 0; transition: opacity 0.15s;
+}
+#sp-root .sod-copied.is-on { opacity: 1; }
+
+/* Delivery mini-actions row — directions + add to calendar */
+#sp-root .sod-hero-when-actions {
+  display: flex; align-items: center; gap: 14px; margin-top: 10px; flex-wrap: wrap;
+}
+#sp-root .sod-hero-miniact {
+  background: none; border: none; padding: 0; cursor: pointer; font-family: 'Inter';
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: var(--muted-strong);
+  transition: color 0.12s;
+}
+#sp-root .sod-hero-miniact:hover { color: var(--orange); }
+#sp-root .sod-hero-miniact svg { flex-shrink: 0; }
+
+/* Directions — map-of-choice popover */
+#sp-root .sod-hero-dir { position: relative; display: inline-flex; }
+#sp-root .sod-hero-dir-pop {
+  position: absolute; top: calc(100% + 8px); left: 0;
+  background: var(--card); border: 1px solid var(--line); border-radius: 11px;
+  box-shadow: 0 14px 34px -10px rgba(28,27,58,0.28);
+  padding: 8px; min-width: 162px; z-index: 20;
+  display: flex; flex-direction: column; gap: 1px;
+  opacity: 0; visibility: hidden; transform: translateY(4px);
+  transition: opacity 0.14s, transform 0.14s, visibility 0.14s;
+}
+#sp-root .sod-hero-dir:hover .sod-hero-dir-pop,
+#sp-root .sod-hero-dir:focus-within .sod-hero-dir-pop {
+  opacity: 1; visibility: visible; transform: translateY(0);
+}
+#sp-root .sod-hero-dir-pop .l {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); padding: 4px 8px 5px;
+}
+#sp-root .sod-hero-dir-pop a,
+#sp-root .sod-hero-dir-pop button {
+  display: block; text-align: left; text-decoration: none; width: 100%;
+  background: none; border: none; cursor: pointer; font-family: 'Inter';
+  font-size: 13px; font-weight: 500; color: var(--fg);
+  padding: 7px 8px; border-radius: 7px; transition: background 0.1s, color 0.1s;
+}
+#sp-root .sod-hero-dir-pop a:hover,
+#sp-root .sod-hero-dir-pop button:hover { background: var(--bg-2); color: var(--orange); }
+
 /* hero right column — actions stack */
 #sp-root .sod-hero-right {
   display: flex; flex-direction: column;
