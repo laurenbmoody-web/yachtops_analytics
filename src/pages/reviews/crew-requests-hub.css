@@ -227,7 +227,7 @@
   font-family: inherit;
 }
 .crh-main:hover { background: #F1F5F9; }
-.crh-row.open .crh-main { background: #F1F5F9; }
+.crh-row.open .crh-main { background: #FFFFFF; }
 .crh-row.target .crh-main { box-shadow: inset 3px 0 0 #C65A1A; }
 
 .crh-crew { display: flex; align-items: center; gap: 11px; min-width: 0; }
@@ -310,7 +310,7 @@
 /* ── expanded detail (in-place) ────────────────────────────── */
 .crh-detail {
   padding: 4px 18px 22px 61px;
-  background: #F1F5F9;
+  background: #FFFFFF;
   border-top: 1px dashed #E7EBF1;
 }
 .crh-lede {
@@ -324,8 +324,8 @@
   display: inline-flex;
   align-items: center;
   gap: 16px;
-  background: #FFFFFF;
-  border: 1px solid #E7EBF1;
+  background: #F1F5F9;
+  border: 1px solid #E5E7EB;
   border-radius: 12px;
   padding: 13px 18px;
 }
