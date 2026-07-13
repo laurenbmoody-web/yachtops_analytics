@@ -49,49 +49,85 @@ const VesselChooserModal = ({ options, onSelect }) => (
   </ModalShell>
 );
 
-// ─── No Vessel Access UI ─────────────────────────────────────────────────────
-const NoVesselAccessScreen = () => {
+// ─── Personal (unberthed) mode ───────────────────────────────────────────────
+// Shown when a user has left their last vessel. Their personal record stays;
+// vessel features are gated. Full-screen (not the router's shell) so it doesn't
+// depend on a tenant; links do a full navigation so the allowlist in
+// VesselFallbackUI lets the personal pages render.
+const PersonalModeScreen = ({ userName }) => {
+  const go = (path) => { window.location.href = path; };
   const handleSignOut = async () => {
     try {
-      localStorage.removeItem('activeTenantId');
-      localStorage.removeItem('currentTenantId');
-      localStorage.removeItem('last_active_tenant_id');
-      localStorage.removeItem('tenantId');
+      ['activeTenantId', 'currentTenantId', 'last_active_tenant_id', 'tenantId', 'cargo_active_tenant_id', 'cargo_unberthed']
+        .forEach((k) => localStorage.removeItem(k));
       await supabase.auth.signOut();
-      window.location.href = '/login-authentication';
     } catch (err) {
       console.error('[TENANT] Sign out error:', err);
-      window.location.href = '/login-authentication';
     }
+    window.location.href = '/login-authentication';
   };
 
+  const first = (userName || '').trim().split(' ')[0];
+  const card = {
+    display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+    background: '#fff', border: '1px solid #ECEAE3', borderRadius: 12,
+    padding: '15px 18px', font: 'inherit',
+  };
+  const cardTitle = { fontSize: 14.5, fontWeight: 600, color: '#1C1B3A' };
+  const cardSub = { fontSize: 12.5, color: '#8B8478', marginTop: 2 };
+
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center">
-      <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-        </svg>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999, background: '#F8FAFC',
+      display: 'grid', placeItems: 'center', padding: 24,
+      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+    }}>
+      <div style={{ width: '100%', maxWidth: 500 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#8B8478', marginBottom: 12 }}>
+          Your Cargo account
+        </div>
+        <h1 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 32, color: '#1C1B3A', margin: '0 0 10px', lineHeight: 1.12 }}>
+          {first ? `${first}, you’re ` : 'You’re '}<em style={{ color: '#C65A1A' }}>between vessels</em>.
+        </h1>
+        <p style={{ fontSize: 14.5, lineHeight: 1.55, color: '#6F7396', margin: '0 0 24px' }}>
+          You’re not on a vessel right now. Your personal record — profile, documents and sea service — is safe and travels with you. Vessel features unlock again as soon as you join or are added to a vessel.
+        </p>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <button style={card} onClick={() => go('/my-profile')}>
+            <div style={cardTitle}>My profile &amp; documents</div>
+            <div style={cardSub}>Your details, certificates and sea service — keep them up to date.</div>
+          </button>
+          <button style={card} onClick={() => go('/settings')}>
+            <div style={cardTitle}>Settings</div>
+            <div style={cardSub}>Account, security and privacy.</div>
+          </button>
+        </div>
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #ECEAE3', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <span style={{ fontSize: 12.5, color: '#8B8478', lineHeight: 1.4 }}>
+            Joining a vessel? Accept your invite link, or ask the vessel’s admin to add you.
+          </span>
+          <button onClick={handleSignOut} style={{ flex: '0 0 auto', fontSize: 13, fontWeight: 600, color: '#1C1B3A', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 9, padding: '8px 14px', cursor: 'pointer' }}>
+            Sign out
+          </button>
+        </div>
       </div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-2">No Active Vessel Access</h2>
-      <p className="text-sm text-gray-500 leading-relaxed mb-6">
-        You don't have an active membership on any vessel. Please contact your vessel administrator to be added.
-      </p>
-      <button
-        onClick={handleSignOut}
-        className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
-      >
-        Sign Out
-      </button>
-    </ModalShell>
+    </div>
   );
 };
 
 // ─── Exported helper so AuthContext can render fallback UI ───────────────────
+// Personal pages that must stay reachable in unberthed mode — when the user is
+// on one of these, the full-screen personal landing steps aside so the page
+// renders. Anything else shows the landing.
+const UNBERTHED_ALLOW = ['/my-profile', '/settings', '/invite', '/invite-accept', '/reset-password', '/forgot-password', '/login'];
+
 export const VesselFallbackUI = () => {
-  const { vesselChooserOptions, noVesselAccess, selectVesselFromChooser } = useTenant();
+  const { vesselChooserOptions, noVesselAccess, selectVesselFromChooser, userDisplayName } = useTenant();
 
   if (noVesselAccess) {
-    return <NoVesselAccessScreen />;
+    const path = (typeof window !== 'undefined' && window.location?.pathname) || '';
+    if (UNBERTHED_ALLOW.some((p) => path.startsWith(p))) return null;
+    return <PersonalModeScreen userName={userDisplayName} />;
   }
 
   if (vesselChooserOptions && vesselChooserOptions?.length > 0) {
@@ -318,7 +354,20 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
 
       if (!memberships || memberships?.length === 0) {
         console.log('[TENANT] No active memberships found');
-        
+
+        // A user who explicitly LEFT their last vessel goes to personal
+        // (unberthed) mode — their personal record stays, vessel features are
+        // gated. Gated to this flag so new-signup onboarding (also membership-
+        // less) is unaffected and keeps the existing behaviour below.
+        if (localStorage.getItem('cargo_unberthed') === '1') {
+          console.log('[TENANT] Unberthed → personal mode');
+          setActiveTenantId(null);
+          setCurrentTenantMember(null);
+          setNoVesselAccess(true);
+          setLoadingTenant(false);
+          return;
+        }
+
         if (DEV_MODE && !devFallbackApplied?.current) {
           console.log('🔧 DEV tenant fallback active');
           const mockTenantId = 'dev-mock-tenant-' + Date.now();
@@ -327,11 +376,15 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
           setLoadingTenant(false);
           return;
         }
-        
+
         setActiveTenantId(null);
         setLoadingTenant(false);
         return;
       }
+
+      // Reaching here means the user has at least one active membership — clear
+      // any stale unberthed flag so they don't drop back into personal mode.
+      localStorage.removeItem('cargo_unberthed');
 
       // Check if localStorage tenant is valid against fetched memberships
       const storedTenantId = localStorage.getItem('activeTenantId');
@@ -436,6 +489,7 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
     vesselChooserOptions,
     noVesselAccess,
     currentTenantMember,
+    userDisplayName: authUser?.user_metadata?.full_name || authUser?.email || '',
     setActiveTenantId,
     ensureTenantSelected,
     selectVesselFromChooser,
