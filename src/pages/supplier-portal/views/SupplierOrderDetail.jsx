@@ -1330,6 +1330,18 @@ const ItemsCard = ({
   }
   const grandTotal = subtotal + vatTotal;
 
+  // Value the supplier has proposed (re-quoted) that the vessel hasn't yet
+  // agreed — the slice of the total still hanging on the buyer's approval.
+  let pendingApprovalCount = 0;
+  let pendingApprovalValue = 0;
+  for (const i of items) {
+    if (i.status === 'unavailable') continue;
+    if (i.quote_status === 'quoted' && i.agreed_price == null) {
+      pendingApprovalCount += 1;
+      pendingApprovalValue += (Number(i.quoted_price) || 0) * (Number(i.quantity) || 0);
+    }
+  }
+
   // Progress segments for the header bar — done / sub / unavailable widths
   // sum to (done + sub + un) / total; the remaining gap is the "to do"
   // share. Each segment shows up only when its count is non-zero.
@@ -1481,6 +1493,12 @@ const ItemsCard = ({
           <div className="sod-totals-label">Subtotal</div>
           <div className="sod-totals-value">{formatCurrency(subtotal, currency)}</div>
         </div>
+        {pendingApprovalCount > 0 && (
+          <div className="sod-totals-row" style={{ color: '#9A6700' }}>
+            <div className="sod-totals-label" style={{ color: '#9A6700' }}>Awaiting vessel approval · {pendingApprovalCount} line{pendingApprovalCount === 1 ? '' : 's'}</div>
+            <div className="sod-totals-value" style={{ color: '#9A6700' }}>{formatCurrency(pendingApprovalValue, currency)}</div>
+          </div>
+        )}
         <div className="sod-totals-row">
           <div className="sod-totals-label">Delivery</div>
           <div className="sod-totals-value">{formatCurrency(0, currency)}</div>
@@ -2468,6 +2486,13 @@ const SupplierOrderDetail = () => {
   const mStatus = TIMELINE_STEPS[STATUS_TO_STEP_INDEX[order.status] ?? 1]?.label || order.status;
   const mMoney = (a) => new Intl.NumberFormat(undefined, { style: 'currency', currency: mCur, maximumFractionDigits: 0 }).format(a || 0);
 
+  // Line-confirmation sub-state — surfaced as a pill under the title.
+  const mPending = mItems.filter(i => (i.status || 'pending') === 'pending').length;
+  const lineState = mItems.length === 0 ? null
+    : mPending === 0 ? { bg: '#EAF6EF', fg: '#1D7A4D', dot: '#1D9E75', label: `All ${mItems.length} lines actioned` }
+    : mPending === mItems.length ? { bg: '#F6F5F2', fg: '#8B8478', dot: '#AEB4C2', label: `Awaiting confirmation · ${mPending} line${mPending === 1 ? '' : 's'}` }
+    : { bg: '#FEF6E7', fg: '#9A6700', dot: '#E0A63E', label: `Partially confirmed · ${mPending} to action` };
+
   return (
     <div className="sod-page">
 
@@ -2501,6 +2526,11 @@ const SupplierOrderDetail = () => {
               {yachtDisplayName}.
             </button>
           </h1>
+          {lineState && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4, background: lineState.bg, color: lineState.fg, borderRadius: 999, padding: '4px 12px', fontSize: 12, fontWeight: 600 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: lineState.dot }} />{lineState.label}
+            </span>
+          )}
         </div>
 
         <button
