@@ -2245,7 +2245,19 @@ const SUPPLIER_MIRROR_FIELD = {
       showToast('Board archived', 'success');
     } catch (err) {
       console.error('[ProvisioningBoardDetail] archive failed:', err);
-      showToast('Failed to archive board', 'error');
+      // The archived_at column ships in a migration that may not have been
+      // applied yet — surface an honest "not live yet" message rather than
+      // a generic failure so it doesn't read as a bug.
+      const missingColumn =
+        err?.code === '42703' || err?.code === 'PGRST204'
+        || /archived_at/i.test(err?.message || '')
+        || /column .* does not exist/i.test(err?.message || '');
+      showToast(
+        missingColumn
+          ? 'Archiving isn’t live yet — a pending database update is still being applied. Try again shortly.'
+          : 'Failed to archive board',
+        'error',
+      );
     }
   };
 
