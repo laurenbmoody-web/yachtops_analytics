@@ -32,11 +32,11 @@ const SORT_OPTIONS = [
   { val: 'name', label: 'Crew A–Z' },
 ];
 
-// Status facet — Pending is the working queue; the rest read from history.
+// Status facet — Pending is the working queue; Resolved is the history of
+// everything already approved/declined (each row keeps its own chip).
 const STATUS_OPTIONS = [
   { val: 'pending', label: 'Pending' },
-  { val: 'approved', label: 'Approved' },
-  { val: 'declined', label: 'Declined' },
+  { val: 'resolved', label: 'Resolved' },
   { val: 'all', label: 'All' },
 ];
 
@@ -237,6 +237,27 @@ function RequestDetail({ request }) {
 // `items` query (no status column selected) so treat a missing status as such.
 const isPending = (r) => !r.status || r.status === 'pending';
 
+// A stat tile. When onClick is supplied it becomes a filter shortcut —
+// clicking drives the Status facet, so the Filters dropdown reflects it too.
+function StatTile({ n, label, active, onClick }) {
+  const clickable = typeof onClick === 'function';
+  return (
+    <div
+      className={`crh-stat${clickable ? ' clickable' : ''}${active ? ' active' : ''}`}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      aria-pressed={clickable ? !!active : undefined}
+      onClick={clickable ? onClick : undefined}
+      onKeyDown={clickable ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); }
+      } : undefined}
+    >
+      <div className="n">{n}</div>
+      <div className="l">{label}</div>
+    </div>
+  );
+}
+
 export default function CrewRequestsHub({
   items, loading, resolved, resolvedLoading, loadResolved,
   eyebrow, initialSelectedId, onDecide, onToast,
@@ -275,10 +296,12 @@ export default function CrewRequestsHub({
   const sourceRows = useMemo(() => {
     if (statusFilter === 'pending') return pendingRows;
     if (statusFilter === 'all') return [...pendingRows, ...resolvedRows];
-    return resolvedRows.filter((r) => r.status === statusFilter);
+    return resolvedRows; // 'resolved'
   }, [statusFilter, pendingRows, resolvedRows]);
 
-  const listLoading = statusFilter === 'pending' ? loading : resolvedLoading;
+  const listLoading = statusFilter === 'pending' ? loading
+    : statusFilter === 'all' ? (loading || resolvedLoading)
+      : resolvedLoading;
 
   const typeCounts = useMemo(() => {
     const c = { all: sourceRows.length };
@@ -288,8 +311,7 @@ export default function CrewRequestsHub({
 
   const statusCounts = useMemo(() => ({
     pending: pendingRows.length,
-    approved: resolvedRows.filter((r) => r.status === 'approved').length,
-    declined: resolvedRows.filter((r) => r.status === 'declined').length,
+    resolved: resolvedRows.length,
     all: pendingRows.length + resolvedRows.length,
   }), [pendingRows, resolvedRows]);
 
@@ -322,10 +344,7 @@ export default function CrewRequestsHub({
     }, Infinity);
     return compactAge(new Date(oldest).toISOString());
   }, [pendingRows]);
-  const resolvedThisWeek = useMemo(() => {
-    const wk = Date.now() - 7 * 864e5;
-    return resolvedRows.filter((r) => new Date(r.decided_at || 0).getTime() >= wk).length;
-  }, [resolvedRows]);
+  const resolvedTotal = resolvedRows.length;
 
   const typeOptions = TYPE_OPTIONS.map((o) => ({
     ...o,
@@ -372,9 +391,19 @@ export default function CrewRequestsHub({
             <h1 className="crh-title">Crew requests</h1>
           </div>
           <div className="crh-stats">
-            <div className="crh-stat"><div className="n">{awaitingYou}</div><div className="l">Awaiting you</div></div>
+            <StatTile
+              n={awaitingYou}
+              label="Awaiting you"
+              active={statusFilter === 'pending'}
+              onClick={() => setStatusFilter('pending')}
+            />
             <div className="crh-stat"><div className="n">{oldestWaiting}</div><div className="l">Oldest waiting</div></div>
-            <div className="crh-stat"><div className="n">{resolvedThisWeek}</div><div className="l">Resolved this week</div></div>
+            <StatTile
+              n={resolvedTotal}
+              label="Resolved"
+              active={statusFilter === 'resolved'}
+              onClick={() => setStatusFilter('resolved')}
+            />
           </div>
         </div>
 
