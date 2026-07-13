@@ -51,6 +51,7 @@ import '../../styles/editorial.css'; // shared meta strip + greeting — one sou
 import '../../styles/editorial-tokens.css'; // --d- design tokens — filter controls match the provisioning toolbar exactly
 
 import { categoryHue, orderCategories } from '../../utils/catalogueConstants';
+import { normalizeUnit } from '../../data/unitGroups';
 
 // Boards that can still take new lines — everything not yet fully
 // delivered. New lines land as drafts with their own lifecycle, so a
@@ -72,9 +73,10 @@ const fmtDate = (iso) => {
 };
 
 const fmtPack = (p) => {
-  if (!p.pack_size && !p.unit_size) return p.unit || '';
-  const inner = [p.pack_size, p.pack_unit].filter(Boolean).join(' × ');
-  return [p.unit, [inner || null, p.unit_size].filter(Boolean).join(' · ')].filter(Boolean).join(' — ');
+  const unit = normalizeUnit(p.unit);
+  if (!p.pack_size && !p.unit_size) return unit || '';
+  const inner = [p.pack_size, normalizeUnit(p.pack_unit)].filter(Boolean).join(' × ');
+  return [unit, [inner || null, p.unit_size].filter(Boolean).join(' · ')].filter(Boolean).join(' — ');
 };
 
 const money = (n, ccy = 'EUR') =>
@@ -311,7 +313,7 @@ const ProductCard = ({ product, supplier, mine, showSupplier, basketQty, onSetQt
       <div className="mp-prow">
         <span className="mp-price">
           {money(product.unit_price, product.currency)}
-          {product.unit && <small> / {product.unit}</small>}
+          {product.unit && <small> / {normalizeUnit(product.unit)}</small>}
         </span>
         {out
           ? <span className="mp-oos">Out of stock</span>

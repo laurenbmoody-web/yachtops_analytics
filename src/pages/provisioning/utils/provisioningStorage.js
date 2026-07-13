@@ -67,7 +67,8 @@ export const ITEM_STATUS = {
 
 export const PROVISION_DEPARTMENTS = ['Galley', 'Interior', 'Deck', 'Engineering', 'Admin'];
 
-export const PROVISION_UNITS = ['each', 'kg', 'litre', 'box', 'bottle', 'case', 'tin', 'bag', 'pack', 'dozen'];
+// Units now come from the shared taxonomy (data/unitGroups.js) — PROVISION_UNITS
+// removed; every provisioning surface uses the grouped UNIT_GROUPS dropdown.
 
 // TODO(backlog): PROVISION_CATEGORIES below duplicates CATEGORY_GROUPS in
 // data/categories.js with diverging names (e.g. 'Dry Goods' vs 'Pantry & Dry
