@@ -559,7 +559,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     unit: 'each',
     size: '',
     purchaseUnit: '',
-    packSize: '',
+    unitsPerPack: '',
     restockLevel: '',
     defaultLocationId: '',
     expiryDate: '',
@@ -645,7 +645,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
         unit: item?.unit || 'each',
         size: item?.size || '',
         purchaseUnit: item?.purchaseUnit || '',
-        packSize: item?.packSize ?? '',
+        unitsPerPack: item?.unitsPerPack ?? '',
         restockLevel: item?.restockLevel ?? '',
         defaultLocationId: item?.defaultLocationId || '',
         expiryDate: item?.expiryDate || '',
@@ -1041,16 +1041,16 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                 <label className="block text-xs text-muted-foreground mb-1">Units per pack</label>
                 <input
                   type="number" min="0" step="1"
-                  value={formData?.packSize}
-                  onChange={(e) => handleChange('packSize', e?.target?.value)}
+                  value={formData?.unitsPerPack}
+                  onChange={(e) => handleChange('unitsPerPack', e?.target?.value)}
                   placeholder="e.g. 12"
                   className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             </div>
-            {formData?.purchaseUnit && Number(formData?.packSize) > 0 && (
+            {formData?.purchaseUnit && Number(formData?.unitsPerPack) > 0 && (
               <p className="text-xs text-muted-foreground mt-1.5">
-                1 {normalizeUnit(formData.purchaseUnit)} = {Number(formData.packSize)} {normalizeUnit(formData.unit) || 'unit'}
+                1 {normalizeUnit(formData.purchaseUnit)} = {Number(formData.unitsPerPack)} {normalizeUnit(formData.unit) || 'unit'}
               </p>
             )}
           </div>

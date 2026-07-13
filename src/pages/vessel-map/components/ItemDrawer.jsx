@@ -267,7 +267,7 @@ export default function ItemDrawer({ itemId, onClose }) {
             ))}
           </select>
         </label>
-        {fieldEl('packSize', 'Units per pack', { type: 'number', placeholder: 'e.g. 12' })}
+        {fieldEl('unitsPerPack', 'Units per pack', { type: 'number', placeholder: 'e.g. 12' })}
         {fieldEl('year', 'Year', { type: 'number' })}
         {fieldEl('condition', 'Condition')}
         <label className="vmid-field">
@@ -365,7 +365,7 @@ export default function ItemDrawer({ itemId, onClose }) {
       <div className="vmid-meta">
         <Meta k="Unit" v={item.unit} />
         <Meta k="Size" v={item.size} />
-        <Meta k="Buy by" v={item.purchaseUnit && Number(item.packSize) > 0 ? `${item.purchaseUnit} · ${Number(item.packSize)} ${item.unit || ''}`.trim() : null} />
+        <Meta k="Buy by" v={item.purchaseUnit && Number(item.unitsPerPack) > 0 ? `${item.purchaseUnit} · ${Number(item.unitsPerPack)} ${item.unit || ''}`.trim() : null} />
         <Meta k="Department" v={item.usageDepartment} />
         <Meta k="Supplier" v={item.supplier} />
         <Meta k="Brand" v={item.brand} />
