@@ -6,7 +6,7 @@ import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
-import { STOCK_UNIT_GROUPS, STOCK_UNIT_VALUES, normalizeUnit } from '../../../data/unitGroups';
+import { STOCK_UNIT_GROUPS, STOCK_UNIT_VALUES, normalizeUnit, formatBoughtIn } from '../../../data/unitGroups';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
@@ -1289,12 +1289,12 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
   const isPending = status === 'pending';
   const completed = !isPending;
 
-  // Pack descriptor — for compound packs (a case of 24 × 500 ml), the inner
-  // count lives in units_per_pack; Size/Unit only hold one dimension each, so
-  // show the full pack as a read-only sublabel: "case of 24 × 500ml".
-  const perPack = Number(item.units_per_pack) || 0;
-  const packLabel = perPack > 1
-    ? `${item.unit || 'pack'} of ${perPack}${item.size ? ` × ${item.size}` : ''}`
+  // Bought-in descriptor — the pack noun comes from purchase_unit (`unit` is
+  // now the BASE stocking unit), so a case of 24 × 500ml reads "cases of 24 ×
+  // 500ml" as a read-only sublabel.
+  const boughtIn = formatBoughtIn(item.purchase_unit, item.units_per_pack);
+  const packLabel = boughtIn
+    ? `${boughtIn}${item.size ? ` × ${item.size}` : ''}`
     : null;
 
   const setUnavailable = async () => {
