@@ -166,20 +166,22 @@ const COLUMN_HELP_HINTS = {
   size: {
     title: 'What goes in Size?',
     width: 300,
+    align: 'end',
     buckets: [
-      { label: 'Tip',    example: 'numeric only — the measure (g, ml…) lives in Unit' },
-      { label: 'Weight', example: '"500" with Unit "g"' },
-      { label: 'Volume', example: '"750" with Unit "ml"' },
-      { label: 'Bundle', example: '"6" with Unit "pack"' },
+      { label: 'Tip',     example: 'the measure of ONE — number + measure together' },
+      { label: 'Volume',  example: '"500ml", "1L"' },
+      { label: 'Weight',  example: '"500g", "1.5kg"' },
+      { label: 'Not the pack', example: 'how you buy it (case of 24) goes in “Bought by”' },
     ],
   },
   unit: {
     title: 'What goes in Unit?',
-    width: 280,
+    width: 290,
+    align: 'end',
     buckets: [
-      { label: 'Each',        example: 'bottle, can, jar, piece, side' },
-      { label: 'Measurement', example: 'g, kg, ml, L' },
-      { label: 'Bundle',      example: 'punnet, bunch, pack, tray, bag' },
+      { label: 'Count it', example: 'the thing you stock & use: bottle, can, jar, each' },
+      { label: 'Or loose', example: 'kg, L, g, ml — when it isn’t whole items' },
+      { label: 'Not the pack', example: 'buying by the case/pack goes in “Bought by”' },
     ],
   },
   status: {
@@ -562,39 +564,64 @@ const AlwaysEditCell = ({ value, placeholder, onSave, type = 'text', inputStyle 
 const BULK_STATUS_OPTIONS = ['draft', 'ordered', 'unavailable', 'not_received', 'returned', 'invoiced', 'paid']
   .map((value) => ({ value, label: getItemStatusConfig(value).label }));
 
-// Inline pack breakdown on a board row: reads "24 × 500ml / pack" — the count
-// (units_per_pack), the each-size (from the row's Size), and the pack unit. The
-// count is click-to-edit when the line is editable: it expands to a number
-// input and commits on Enter/blur (Esc cancels), then collapses back.
-const PackChip = ({ unit, perPack, size, editable, onSave }) => {
+// Inline "Bought by" on a board row: the purchase pack, editable without the
+// drawer. Empty + editable shows a faint "＋ bought by"; picking a pack reveals
+// the count. Set → "24 / pack" with the count click-to-edit and an × to clear.
+const BOUGHT_BY_UNITS = ['pack', 'case', 'box', 'carton', 'crate', 'tray', 'dozen', 'bundle', 'sleeve', 'sack'];
+const BoughtBy = ({ purchaseUnit, perPack, editable, onSetUnit, onSetCount }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(perPack ?? ''));
+  const [picking, setPicking] = useState(false);
   useEffect(() => { setDraft(String(perPack ?? '')); }, [perPack]);
+  const wrap = { fontSize: 9.5, fontWeight: 600, color: '#8B8478', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3, fontVariantNumeric: 'tabular-nums' };
   const commit = () => {
     setEditing(false);
     const n = parseInt(draft, 10);
-    if (Number.isFinite(n) && n > 0 && n !== Number(perPack)) onSave(n);
+    if (Number.isFinite(n) && n > 0 && n !== Number(perPack)) onSetCount(n);
     else setDraft(String(perPack ?? ''));
   };
-  const wrap = { fontSize: 9.5, fontWeight: 600, color: '#8B8478', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' };
+
+  if (!purchaseUnit) {
+    if (!editable) return null;
+    if (picking) {
+      return (
+        <select autoFocus value="" onBlur={() => setPicking(false)}
+          onChange={e => { if (e.target.value) onSetUnit(e.target.value); setPicking(false); }}
+          style={{ fontSize: 9.5, color: '#C65A1A', background: '#fff', border: '1px solid #C65A1A', borderRadius: 4, padding: '0 2px', outline: 'none', cursor: 'pointer' }}>
+          <option value="">bought by…</option>
+          {BOUGHT_BY_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+      );
+    }
+    return (
+      <button type="button" onClick={() => setPicking(true)} title="Bought by the pack?"
+        style={{ ...wrap, background: 'none', border: 0, padding: 0, color: '#AEB4C2', cursor: 'pointer' }}>
+        ＋ bought by
+      </button>
+    );
+  }
+
   const count = editing ? (
-    <input
-      autoFocus type="number" min="1" value={draft}
-      onChange={e => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={e => {
-        if (e.key === 'Enter') { e.preventDefault(); commit(); }
-        else if (e.key === 'Escape') { setDraft(String(perPack ?? '')); setEditing(false); }
-      }}
-      style={{ width: 30, fontSize: 9.5, fontWeight: 700, color: '#1C1B3A', border: '1px solid #C65A1A', borderRadius: 4, padding: '0 2px', outline: 'none', textAlign: 'center', MozAppearance: 'textfield' }}
-    />
+    <input autoFocus type="number" min="1" value={draft}
+      onChange={e => setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } else if (e.key === 'Escape') { setDraft(String(perPack ?? '')); setEditing(false); } }}
+      style={{ width: 28, fontSize: 9.5, fontWeight: 700, color: '#1C1B3A', border: '1px solid #C65A1A', borderRadius: 4, padding: '0 2px', outline: 'none', textAlign: 'center', MozAppearance: 'textfield' }} />
   ) : editable ? (
     <button type="button" onClick={() => setEditing(true)} title="Click to change how many per pack"
       style={{ background: 'none', border: 0, padding: 0, font: 'inherit', color: '#C65A1A', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline dotted' }}>
-      {Number(perPack)}
+      {Number(perPack) || '?'}
     </button>
   ) : <span style={{ color: '#C65A1A', fontWeight: 700 }}>{Number(perPack)}</span>;
-  return <span style={wrap}>{count}{size ? ` × ${size}` : ''} / {unit}</span>;
+
+  return (
+    <span style={wrap}>
+      {count} / {purchaseUnit}
+      {editable && (
+        <button type="button" title="Not bought by the pack" onClick={() => onSetUnit('')}
+          style={{ background: 'none', border: 0, padding: 0, color: '#CBB8AE', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>×</button>
+      )}
+    </span>
+  );
 };
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -4203,13 +4230,13 @@ const SUPPLIER_MIRROR_FIELD = {
                                     {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
                                   </select>
                               }
-                              {item.purchase_unit && Number(item.units_per_pack) > 1 && (
-                                <PackChip
-                                  unit={normalizeUnit(item.purchase_unit)}
-                                  perPack={Number(item.units_per_pack)}
-                                  size=""
+                              {(item.purchase_unit || !(isReceived || supplierActed || catLocked)) && (
+                                <BoughtBy
+                                  purchaseUnit={item.purchase_unit ? normalizeUnit(item.purchase_unit) : ''}
+                                  perPack={Number(item.units_per_pack) || ''}
                                   editable={!(isReceived || supplierActed || catLocked)}
-                                  onSave={n => handleCellSave(item, 'units_per_pack', n)}
+                                  onSetUnit={v => handleCellSave(item, 'purchase_unit', v)}
+                                  onSetCount={n => handleCellSave(item, 'units_per_pack', n)}
                                 />
                               )}
                             </div>
