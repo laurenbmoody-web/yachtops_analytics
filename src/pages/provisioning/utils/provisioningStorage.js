@@ -34,7 +34,7 @@
  */
 
 import { supabase } from '../../../lib/supabaseClient';
-import { normalizeUnit } from '../../../data/unitGroups';
+import { normalizeUnit, isBulkUnit } from '../../../data/unitGroups';
 import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
 import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/utils/tripStorage';
 
@@ -1577,7 +1577,7 @@ export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName,
  * Create a new inventory item from provisioning data and link it.
  * Returns the created row id, or null on failure.
  */
-export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, storageLocations, locationName, qty, tenantId, userId }) => {
+export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, storageLocations, locationName, qty, tenantId, userId, stockUnit = null, purchaseUnit = null, unitsPerPack = null }) => {
   if (!tenantId) return null;
   try {
     // categoryPath → inventory hierarchy (location + sub_location fields)
@@ -1599,7 +1599,11 @@ export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, 
         name: provItem?.name || '',
         brand: provItem?.brand || null,
         size: provItem?.size || null,
-        unit: normalizeUnit(provItem?.unit) || 'each',
+        // For a bulk line the caller passes the resolved inner stocking unit
+        // (pack_unit ?? 'each'); the 'case' becomes purchase_unit below.
+        unit: normalizeUnit(stockUnit || provItem?.unit) || 'each',
+        purchase_unit: purchaseUnit ? normalizeUnit(purchaseUnit) : null,
+        units_per_pack: Number(unitsPerPack) > 0 ? Number(unitsPerPack) : null,
         location: catPath?.split(' > ')?.[0]?.trim() || catPath || null,
         sub_location: catPath?.split(' > ')?.slice(1)?.join(' > ') || null,
         stock_locations: stockLocations,
@@ -1644,14 +1648,15 @@ export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, 
  * Push received qty to multiple locations in one atomic fetch+update.
  * splits: [{ locationName: string, addQty: number }]
  */
-export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, tenantId, provisioningItemId = null, listId = null, unit = null, size = null }) => {
-  // Accept splits with a quantity — locationName is optional
+export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, tenantId, provisioningItemId = null, listId = null, unit = null, size = null, purchaseUnit = null, unitsPerPack = null }) => {
+  // Accept splits with a quantity — locationName is optional. addQty is already
+  // in STOCKING units (the receive step converts a bulk line by units_per_pack).
   const activeSplits = (splits || []).filter(s => (parseFloat(s.addQty) || 0) > 0);
   if (!activeSplits.length || !inventoryItemId || !tenantId) return false;
   try {
     const { data: item, error: fetchErr } = await supabase
       ?.from('inventory_items')
-      ?.select('stock_locations, total_qty, unit, size')
+      ?.select('stock_locations, total_qty, unit, size, purchase_unit, units_per_pack')
       ?.eq('id', inventoryItemId)
       ?.eq('tenant_id', tenantId)
       ?.single();
@@ -1675,9 +1680,10 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
       totalAdded += addQty;
     }
 
-    // Reconcile unit/size from the received line — non-destructively: fill a
-    // missing size, and upgrade a blank/default 'each' unit to the received
-    // one. Never clobber a unit the crew deliberately set on the item.
+    // Reconcile from the received line — non-destructively. `unit` here is the
+    // STOCKING unit (the caller resolves a bulk line's inner unit, never the
+    // 'case'); fill it only if missing/default. Fill a missing size. Stamp the
+    // purchasing pack (purchase_unit + units_per_pack) if the item has none yet.
     const patch = {
       stock_locations: locs,
       total_qty: (item.total_qty ?? 0) + totalAdded,
@@ -1686,6 +1692,9 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
     const inUnit = normalizeUnit(unit);
     if (inUnit && (!item.unit || item.unit === 'each') && inUnit !== item.unit) patch.unit = inUnit;
     if (size && !item.size) patch.size = size;
+    const inPurchase = normalizeUnit(purchaseUnit);
+    if (inPurchase && !item.purchase_unit) patch.purchase_unit = inPurchase;
+    if (Number(unitsPerPack) > 0 && !(Number(item.units_per_pack) > 0)) patch.units_per_pack = Number(unitsPerPack);
 
     const { error: updateErr } = await supabase
       ?.from('inventory_items')
