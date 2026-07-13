@@ -11,20 +11,20 @@ const fmtDate = (iso) => {
   catch { return ''; }
 };
 
-export default function NotificationEmailRequests({ tenantId }) {
+export default function NotificationEmailRequests() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    if (!tenantId) { setItems([]); setLoading(false); return; }
     setLoading(true); setError(null);
     try {
+      // No tenant filter — RLS (is_tenant_command) already scopes this to the
+      // vessel(s) the viewer commands, and vesselData.id is NOT the tenant_id.
       const { data: reqs, error: rErr } = await supabase
         .from('notification_email_requests')
         .select('id, user_id, requested_email, requested_at')
-        .eq('tenant_id', tenantId)
         .eq('status', 'pending')
         .order('requested_at', { ascending: false });
       if (rErr) throw rErr;
@@ -39,7 +39,7 @@ export default function NotificationEmailRequests({ tenantId }) {
       setError('Couldn’t load requests.');
       setItems([]);
     } finally { setLoading(false); }
-  }, [tenantId]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
