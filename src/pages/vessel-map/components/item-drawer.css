@@ -76,7 +76,9 @@
   padding: 8px 0; border-bottom: 1px solid #F0F1F5;
 }
 .vmid-stock-row:last-child { border-bottom: none; }
-.vmid-stock-name { flex: 1; min-width: 0; font-size: 13.5px; color: #1C1B3A; word-break: break-word; }
+.vmid-stock-name { flex: 1; min-width: 0; font-size: 13.5px; color: #1C1B3A; word-break: break-word; line-height: 1.35; }
+.vmid-stock-trail { color: #AEB4C2; font-size: 11.5px; }
+.vmid-stock-leaf { color: #1C1B3A; font-weight: 600; }
 .vmid-stock-qty { font-size: 13.5px; font-weight: 600; color: #1C1B3A; white-space: nowrap; }
 .vmid-empty { font-size: 13px; color: #AEB4C2; }
 /* editable per-location count */

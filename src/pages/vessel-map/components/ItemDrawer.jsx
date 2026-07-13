@@ -41,6 +41,20 @@ const dotClass = (action = '') => {
 };
 const numOrNull = (v) => { const n = Number(v); return v === '' || v == null || Number.isNaN(n) ? null : n; };
 
+// A physical-location path renders as a muted trail + a bold leaf, so a long
+// route ("Main Galley › test › Dry Store › Shelf 1") reads at a glance.
+const LocPath = ({ name }) => {
+  const segs = String(name || '').split(/\s*[›>]\s*/).filter(Boolean);
+  const leaf = segs.pop() || 'Location';
+  const trail = segs.join(' › ');
+  return (
+    <span className="vmid-stock-name">
+      {trail && <span className="vmid-stock-trail">{trail} › </span>}
+      <span className="vmid-stock-leaf">{leaf}</span>
+    </span>
+  );
+};
+
 // A quiet read-only metadata cell — renders nothing when empty.
 const Meta = ({ k, v, full }) => {
   if (v === null || v === undefined || v === '') return null;
@@ -290,7 +304,7 @@ export default function ItemDrawer({ itemId, onClose }) {
             const q = loc.qty ?? loc.quantity ?? 0;
             return (
               <div key={i} className="vmid-stock-row">
-                <span className="vmid-stock-name">{locName(loc)}</span>
+                <LocPath name={locName(loc)} />
                 {canEdit ? (
                   <span className="vmid-stock-edit">
                     <span className="vmid-loc-step">
@@ -308,9 +322,6 @@ export default function ItemDrawer({ itemId, onClose }) {
           })
         ) : (
           <p className="vmid-empty">Not placed anywhere yet.</p>
-        )}
-        {canEdit && item.stockLocations && item.stockLocations.length > 0 && (
-          <p className="vmid-editnote">Adjust any location’s count here — the total follows. New locations are added by placing stock on a pin.</p>
         )}
       </div>
 
