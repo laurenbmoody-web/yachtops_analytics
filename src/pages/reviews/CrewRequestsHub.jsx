@@ -108,9 +108,9 @@ function Dropdown({ icon, label, value, options, onChange, align }) {
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        {icon && <Icon name={icon} size={15} className="crh-dd-ic" />}
+        {icon && <Icon name={icon} size={14} className="crh-dd-ic" />}
         <span className="crh-dd-label">{label}</span>
-        <Icon name="ChevronDown" size={13} className="crh-dd-ch" />
+        <Icon name="ChevronDown" size={14} className="crh-dd-ch" />
       </button>
       {open && (
         <div className={`crh-dd-menu${align === 'right' ? ' right' : ''}`} role="listbox">
@@ -188,10 +188,10 @@ function FiltersDropdown({ typeValue, typeOptions, onType, statusValue, statusOp
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <Icon name="SlidersHorizontal" size={15} className="crh-dd-ic" />
+        <Icon name="SlidersHorizontal" size={14} className="crh-dd-ic" />
         <span className="crh-dd-label">Filters</span>
         {active && <span className="crh-dd-marker" aria-hidden="true" />}
-        <Icon name="ChevronDown" size={13} className="crh-dd-ch" />
+        <Icon name="ChevronDown" size={14} className="crh-dd-ch" />
       </button>
       {open && (
         <div className="crh-dd-menu right" role="listbox">
