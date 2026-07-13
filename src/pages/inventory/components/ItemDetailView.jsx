@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 
 import AddEditItemModal from './AddEditItemModal';
+import { formatBoughtIn } from '../../../data/unitGroups';
 import { getCategoryL1ById, getCategoryL2ById, getCategoryL3ById, getCategoryL4ById } from '../utils/taxonomyStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../../utils/authStorage';
 import useDismissable from '../../../components/ui/useDismissable';
@@ -276,6 +277,12 @@ const ItemDetailView = ({ item, onClose, onUpdate }) => {
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Unit</h4>
                 <p className="text-gray-900">{item?.unit}</p>
+              </div>
+            )}
+            {formatBoughtIn(item?.purchaseUnit, item?.unitsPerPack) && (
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Bought in</h4>
+                <p className="text-gray-900">{formatBoughtIn(item?.purchaseUnit, item?.unitsPerPack)}</p>
               </div>
             )}
             {item?.size && (

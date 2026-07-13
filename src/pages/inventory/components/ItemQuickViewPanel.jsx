@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import useDismissable from '../../../components/ui/useDismissable';
+import { formatBoughtIn } from '../../../data/unitGroups';
 
 // Resolve a location name from a loc object, falling back to vesselLocations lookup
 const resolveLocationName = (loc, vesselLocations, idx) => {
@@ -187,6 +188,7 @@ const ItemQuickViewPanel = ({ item, onClose, vesselLocations = [] }) => {
             </div>
           </FieldRow>
           <FieldRow label="Unit" value={item?.unit} />
+          <FieldRow label="Bought in" value={formatBoughtIn(item?.purchaseUnit, item?.unitsPerPack)} />
           <FieldRow label="Size" value={item?.size} />
           <FieldRow label="Barcode / Code" value={item?.barcode || item?.code} />
           {hasValue(item?.expiryDate || item?.expiry_date) && (

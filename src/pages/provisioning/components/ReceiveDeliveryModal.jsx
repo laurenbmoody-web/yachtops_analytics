@@ -438,7 +438,7 @@ const ReceiveStep = ({
           )}
         </div>
         <p className="rdm-item-ordered">
-          {ordered}{item.unit ? <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--d-muted-soft)' }}>{item.unit}</span> : null}
+          {ordered}<span style={{ marginLeft: 4, fontSize: 10, color: 'var(--d-muted-soft)' }}>{orderUnit(item)}</span>
         </p>
         <input
           type="number" min="0" value={r.qty} disabled={!r.checked}
