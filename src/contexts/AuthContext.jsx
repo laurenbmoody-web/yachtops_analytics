@@ -721,6 +721,9 @@ export const AuthProvider = ({ children }) => {
     setActiveTenantId(null);
     localStorage.removeItem('cargo.currentTenantId');
     localStorage.removeItem('cargo_active_tenant_id');
+    // Clear the unberthed flag on logout so it can't leak into the next account
+    // signed in on this browser (e.g. a supplier).
+    localStorage.removeItem('cargo_unberthed');
   };
 
   // Authorization helpers
