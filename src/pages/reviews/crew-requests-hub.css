@@ -222,7 +222,7 @@
   text-align: left;
   font-family: inherit;
 }
-.crh-main:hover { background: #F1F5F9; }
+.crh-main:hover { background: #FDF6F1; box-shadow: inset 3px 0 0 #C65A1A; }
 .crh-row.open .crh-main { background: #FFFFFF; }
 .crh-row.target .crh-main { box-shadow: inset 3px 0 0 #C65A1A; }
 
@@ -238,6 +238,14 @@
   font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #C65A1A;
   background: #FBEFE9;
+  overflow: hidden;
+}
+.crh-av img {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
+  display: block;
 }
 .crh-nm {
   font-size: 13.5px;

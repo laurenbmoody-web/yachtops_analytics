@@ -301,7 +301,11 @@ export default function CrewRequestsHub({ items, loading, eyebrow, initialSelect
                     }}
                   >
                     <span className="crh-crew">
-                      <span className="crh-av">{initials(r._name)}</span>
+                      <span className="crh-av">
+                        {r.requester?.avatar_url
+                          ? <img src={r.requester.avatar_url} alt="" />
+                          : initials(r._name)}
+                      </span>
                       <span style={{ minWidth: 0 }}>
                         <span className="crh-nm">{r._name}</span>
                         <br />
