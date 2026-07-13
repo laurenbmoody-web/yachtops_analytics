@@ -49,15 +49,46 @@ function SidebarItem({ icon, label, to, active = false, count, onNavigate }) {
   );
 }
 
-export default function InboxSidebar({ activeCategory = 'rotas', counts = {} }) {
+export default function InboxSidebar({ activeCategory = 'rotas', counts = {}, collapsed = false, onToggleCollapse }) {
   const navigate = useNavigate();
   const go = (to) => navigate(to);
+
+  // Collapsed rail — the inbox was opened from a notification, so the user has
+  // already chosen their destination. Show only a chevron to bring the nav back.
+  if (collapsed) {
+    return (
+      <aside className="rv-sidebar collapsed" aria-label="Inbox navigation">
+        <button
+          type="button"
+          className="rv-sb-toggle"
+          onClick={onToggleCollapse}
+          aria-label="Expand inbox navigation"
+          aria-expanded="false"
+        >
+          <Icon name="PanelLeftOpen" size={18} />
+        </button>
+      </aside>
+    );
+  }
 
   return (
     <aside className="rv-sidebar" aria-label="Inbox navigation">
       <div className="rv-sb-header">
-        <div className="rv-sb-title">Inbox</div>
-        <div className="rv-sb-subtitle">All your work</div>
+        <div>
+          <div className="rv-sb-title">Inbox</div>
+          <div className="rv-sb-subtitle">All your work</div>
+        </div>
+        {onToggleCollapse && (
+          <button
+            type="button"
+            className="rv-sb-toggle"
+            onClick={onToggleCollapse}
+            aria-label="Collapse inbox navigation"
+            aria-expanded="true"
+          >
+            <Icon name="PanelLeftClose" size={18} />
+          </button>
+        )}
       </div>
 
       <div className="rv-sb-section">
