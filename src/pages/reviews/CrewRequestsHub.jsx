@@ -59,8 +59,11 @@ const fmtWhen = (iso) => {
 // A single email address, kept on one line — the middle ellipsises in the row.
 const shortEmail = (e) => e || '—';
 
-// ── Custom filter dropdown ───────────────────────────────────────────────
-function Dropdown({ lead, value, options, onChange }) {
+// ── Filter/sort dropdown ─────────────────────────────────────────────────
+// A labelled control (icon + word + chevron) — the button shows the facet
+// name ("Filters" / "Sort"), never the current value; the active option is
+// marked in the menu. Matches the app-wide Filters/Sort button style.
+function Dropdown({ icon, label, value, options, onChange, align }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -72,7 +75,6 @@ function Dropdown({ lead, value, options, onChange }) {
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
   }, [open]);
 
-  const cur = options.find((o) => o.val === value) || options[0];
   return (
     <div className={`crh-dd${open ? ' open' : ''}`} ref={ref}>
       <button
@@ -82,12 +84,12 @@ function Dropdown({ lead, value, options, onChange }) {
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="crh-dd-lead">{lead}</span>
-        <span className="crh-dd-cur">{cur.label}</span>
+        {icon && <Icon name={icon} size={15} className="crh-dd-ic" />}
+        <span className="crh-dd-label">{label}</span>
         <Icon name="ChevronDown" size={13} className="crh-dd-ch" />
       </button>
       {open && (
-        <div className="crh-dd-menu" role="listbox">
+        <div className={`crh-dd-menu${align === 'right' ? ' right' : ''}`} role="listbox">
           {options.map((o) => {
             const disabled = o.disabled;
             return (
@@ -252,8 +254,8 @@ export default function CrewRequestsHub({ items, loading, eyebrow, initialSelect
               aria-label="Search requests"
             />
           </label>
-          <Dropdown lead="Type" value={typeFilter} options={typeOptions} onChange={setTypeFilter} />
-          <Dropdown lead="Sort" value={sort} options={SORT_OPTIONS} onChange={setSort} />
+          <Dropdown icon="SlidersHorizontal" label="Filters" value={typeFilter} options={typeOptions} onChange={setTypeFilter} align="right" />
+          <Dropdown icon="ArrowUpDown" label="Sort" value={sort} options={SORT_OPTIONS} onChange={setSort} align="right" />
         </div>
 
         <div className="crh-table">
