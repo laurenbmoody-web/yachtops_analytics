@@ -7,7 +7,7 @@
 // Group order (Weight / Volume / Count / Length / Other) is stable so the
 // dropdown muscle-memory works across every surface.
 export const UNIT_GROUPS = [
-  { label: 'Weight',  options: ['g', 'kg', 'oz', 'lb'] },
+  { label: 'Weight',  options: ['g', 'kg', 'oz', 'lb', 'catch weight'] },
   { label: 'Volume',  options: ['ml', 'l', 'fl oz', 'cup', 'tsp', 'tbsp'] },
   { label: 'Count',   options: ['each', 'piece', 'pair', 'set', 'box', 'pack', 'case', 'carton', 'dozen'] },
   { label: 'Length',  options: ['cm', 'm', 'ft', 'inch'] },
