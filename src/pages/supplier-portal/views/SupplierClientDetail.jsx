@@ -56,7 +56,7 @@ const SupplierClientDetail = () => {
   }, [supplier?.id, tenantId]);
 
   const tenant = profile?.tenants;
-  const vesselName = tenant?.vessel_name || tenant?.name || orders[0]?.vessel_name || 'Yacht client';
+  const vesselName = tenant?.name || orders[0]?.vessel_name || 'Yacht client';
   const currency = orders[0]?.currency || 'EUR';
   const lifetime = useMemo(() => orders.reduce((s, o) => s + orderTotal(o), 0), [orders]);
   const lastOrder = orders[0]?.delivery_date || orders[0]?.created_at || null;

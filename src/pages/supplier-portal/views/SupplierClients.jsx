@@ -44,7 +44,7 @@ const SupplierClients = () => {
         <div className="sp-clients">
           {clients.map(c => {
             const tenant = c.tenants;
-            const vesselName = tenant?.vessel_name ?? tenant?.name ?? 'Unknown vessel';
+            const vesselName = tenant?.name ?? 'Unknown vessel';
             return (
               <div
                 key={c.id}
