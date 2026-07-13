@@ -1129,6 +1129,7 @@ export const duplicateList = async (sourceListId, vesselId, userId) => {
         supplier_name:       it.supplier_name || null,
         estimated_unit_cost: it.estimated_unit_cost ?? null,
         currency:            it.currency || null,
+        purchase_unit:       it.purchase_unit || null,
         units_per_pack:      it.units_per_pack ?? null,
         status:              ITEM_STATUS.DRAFT,
         source:              it.source || null,
@@ -2975,6 +2976,7 @@ export const createSupplierOrder = async ({
       // Structured pack count — supplier sees this as the order
       // spec; receive flow uses it to expect N packages. Distinct
       // from quantity (order count) and size (the pack size).
+      purchase_unit:       it.purchase_unit || null,
       units_per_pack:      it.units_per_pack ?? null,
       // Fall back to the order's supplier when the item carries no
       // explicit FK — covers the Unassigned-bucket case where the

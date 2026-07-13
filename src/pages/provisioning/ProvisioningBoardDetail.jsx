@@ -4203,11 +4203,11 @@ const SUPPLIER_MIRROR_FIELD = {
                                     {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
                                   </select>
                               }
-                              {isBulkUnit(itemOrder?.unit || item.unit) && Number(item.units_per_pack) > 1 && (
+                              {item.purchase_unit && Number(item.units_per_pack) > 1 && (
                                 <PackChip
-                                  unit={normalizeUnit(itemOrder?.unit || item.unit)}
+                                  unit={normalizeUnit(item.purchase_unit)}
                                   perPack={Number(item.units_per_pack)}
-                                  size={itemOrder?.size || item.size || ''}
+                                  size=""
                                   editable={!(isReceived || supplierActed || catLocked)}
                                   onSave={n => handleCellSave(item, 'units_per_pack', n)}
                                 />

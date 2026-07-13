@@ -207,6 +207,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         sub_category: item.sub_category || '',
         quantity_ordered: item.quantity_ordered ?? 1,
         unit: item.unit || 'each',
+        purchase_unit: item.purchase_unit || '',
         units_per_pack: item.units_per_pack ?? '',
         estimated_unit_cost: item.estimated_unit_cost || '',
         currency: item.currency || null,
@@ -371,7 +372,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     const ext = {
       brand:                  base.brand               || null,
       size:                   base.size                || null,
-      units_per_pack:         isBulkUnit(base.unit) && base.units_per_pack ? parseInt(base.units_per_pack, 10) || null : null,
+      purchase_unit:          base.purchase_unit ? normalizeUnit(base.purchase_unit) : null,
+      units_per_pack:         base.purchase_unit && base.units_per_pack ? parseInt(base.units_per_pack, 10) || null : null,
       sub_category:           base.sub_category        || null,
       estimated_unit_cost:    base.estimated_unit_cost ? parseFloat(base.estimated_unit_cost) : null,
       currency:               base.currency            || null,
@@ -393,7 +395,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     // authoritative — force those fields back to the original values so
     // drawer edits can't drift them. Qty, notes etc. save normally.
     if (item?.catalogue_item_id) {
-      ['name', 'brand', 'size', 'unit', 'units_per_pack', 'category', 'sub_category', 'estimated_unit_cost', 'currency']
+      ['name', 'brand', 'size', 'unit', 'purchase_unit', 'units_per_pack', 'category', 'sub_category', 'estimated_unit_cost', 'currency']
         .forEach((k) => { if (item[k] !== undefined && item[k] !== null) payload[k] = item[k]; });
     }
     return payload;
@@ -950,44 +952,53 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               </div>
             )}
 
-            {/* Pack breakdown — appears the moment the unit is a bulk/grouping
-                unit (case, box, dozen…). A single case actually holds several
-                inner units, so capture what makes the bulk up: units_per_pack
-                × the inner size. Supplier + receive flows read this to know
-                how many pieces land per package. */}
-            {isBulkUnit(form.unit) && (
-              <div className="idr-pack-break">
-                {isLight ? <FL>Pack breakdown</FL> : <label className={labelCls}>Pack breakdown</label>}
-                <div className="idr-pack-row">
-                  <span className="idr-pack-lead">A {normalizeUnit(form.unit)} holds</span>
-                  <input
-                    type="number" min="1" step="1"
-                    value={form.units_per_pack ?? ''}
-                    onChange={e => !isReadOnly && set('units_per_pack', e.target.value)}
-                    onBlur={() => !isReadOnly && saveField()}
-                    readOnly={isReadOnly}
-                    className="idr-field idr-pack-count"
-                    placeholder="e.g. 24"
-                  />
-                  <span className="idr-pack-lead">
-                    × {form.size?.trim() ? form.size : <em className="idr-pack-inner-hint">inner size</em>}
-                  </span>
-                </div>
-                {Number(form.units_per_pack) > 1 && (
-                  <p className="idr-pack-total">
-                    {(() => {
-                      const q = parseFloat(form.quantity_ordered) || 0;
-                      const per = parseInt(form.units_per_pack, 10) || 0;
-                      const u = normalizeUnit(form.unit);
-                      const inner = form.size?.trim() ? ` × ${form.size}` : '';
-                      return q > 0
-                        ? `${q} ${u}${q === 1 ? '' : 's'} = ${q * per}${inner}`
-                        : `Each ${u} = ${per}${inner}`;
-                    })()}
-                  </p>
+            {/* Bought by — the pack model. `Unit` above is the BASE unit you
+                stock/count (bottle). If you buy it by the case/pack, set that
+                here + how many base units it holds. Ordering is in this pack;
+                receive expands it into base units and stocks in the base unit. */}
+            <div className="idr-pack-break">
+              {isLight ? <FL>Bought by <span className="opt">optional</span></FL> : <label className={labelCls}>Bought by (optional)</label>}
+              <div className="idr-pack-row">
+                <select
+                  value={UNIT_GROUP_VALUES.has(normalizeUnit(form.purchase_unit)) ? normalizeUnit(form.purchase_unit) : (form.purchase_unit || '')}
+                  onChange={e => !isReadOnly && setAndSave('purchase_unit', e.target.value)}
+                  disabled={isReadOnly}
+                  className="idr-field"
+                >
+                  <option value="">— sold loose —</option>
+                  {form.purchase_unit && !UNIT_GROUP_VALUES.has(normalizeUnit(form.purchase_unit)) && <option value={form.purchase_unit}>{form.purchase_unit}</option>}
+                  {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
+                </select>
+                {form.purchase_unit && (
+                  <>
+                    <span className="idr-pack-lead">holds</span>
+                    <input
+                      type="number" min="1" step="1"
+                      value={form.units_per_pack ?? ''}
+                      onChange={e => !isReadOnly && set('units_per_pack', e.target.value)}
+                      onBlur={() => !isReadOnly && saveField()}
+                      readOnly={isReadOnly}
+                      className="idr-field idr-pack-count"
+                      placeholder="e.g. 24"
+                    />
+                    <span className="idr-pack-lead">
+                      × {form.size?.trim() ? form.size : <em className="idr-pack-inner-hint">size</em>} {normalizeUnit(form.unit) || 'each'}
+                    </span>
+                  </>
                 )}
               </div>
-            )}
+              {form.purchase_unit && Number(form.units_per_pack) > 1 && (
+                <p className="idr-pack-total">
+                  {(() => {
+                    const per = parseInt(form.units_per_pack, 10) || 0;
+                    const pu = normalizeUnit(form.purchase_unit);
+                    const bu = normalizeUnit(form.unit) || 'each';
+                    const inner = form.size?.trim() ? ` × ${form.size}` : '';
+                    return `1 ${pu} = ${per}${inner} ${bu}${per === 1 ? '' : 's'}`;
+                  })()}
+                </p>
+              )}
+            </div>
           </Section>
 
           {/* ════ SECTION 3: DEPARTMENT ════ */}

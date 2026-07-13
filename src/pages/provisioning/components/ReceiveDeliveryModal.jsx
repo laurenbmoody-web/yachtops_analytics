@@ -21,15 +21,17 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
 import { isBulkUnit, normalizeUnit } from '../../../data/unitGroups';
 
-// A bulk delivery line (a case of 24) expands into stocking units on receipt.
-// ratio = units_per_pack when the line's unit is a bulk unit and has a pack;
-// otherwise 1 (received as-is). Catch-weight isn't a bulk unit, so it never
-// multiplies — you receive the actual weight.
+// A line bought by the pack (case of 24) expands into base units on receipt.
+// `unit` is the base/stocking unit (bottle); `purchase_unit` is how it's bought
+// (pack). ratio = units_per_pack when a purchase_unit + pack are set, else 1
+// (received as-is). Catch-weight has no pack, so it never multiplies — you
+// receive the actual weight.
 const packRatio = (item) =>
-  (isBulkUnit(item?.unit) && Number(item?.units_per_pack) > 1) ? Number(item.units_per_pack) : 1;
-// The stocking unit a bulk line lands as (its inner unit), else the line unit.
-const innerStockUnit = (item) =>
-  packRatio(item) > 1 ? (normalizeUnit(item?.pack_unit) || 'each') : (normalizeUnit(item?.unit) || 'each');
+  (item?.purchase_unit && Number(item?.units_per_pack) > 1) ? Number(item.units_per_pack) : 1;
+// The base/stocking unit an item lands as (bottle).
+const baseUnit = (item) => normalizeUnit(item?.unit) || 'each';
+// What you order / receive in — the purchase unit when packed, else the base.
+const orderUnit = (item) => packRatio(item) > 1 ? (normalizeUnit(item?.purchase_unit) || 'each') : baseUnit(item);
 import { logActivity } from '../../../utils/activityStorage';
 import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
 import '../delivery-inbox.css';
@@ -958,10 +960,10 @@ const PushStep = ({
                 </div>
                 <div className="rdm-route-head-actions">
                   <strong style={{ fontFamily: 'Outfit, system-ui, sans-serif', fontSize: 14, color: 'var(--d-navy)', whiteSpace: 'nowrap' }}>
-                    +{qty} {item.unit || ''}
+                    +{qty} {orderUnit(item)}
                     {ratio > 1 && (
                       <span style={{ color: 'var(--d-orange)', fontWeight: 600, marginLeft: 6 }}>
-                        → {stockUnits} {innerStockUnit(item)}
+                        → {stockUnits} {baseUnit(item)}
                       </span>
                     )}
                   </strong>
@@ -1989,7 +1991,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         name: provItem.name || '',
         brand: provItem.brand || '',
         size: provItem.size || '',
-        unit: bulk ? innerStockUnit(provItem) : (normalizeUnit(provItem.unit) || 'bottle'),
+        unit: baseUnit(provItem),
         barcode: provItem.barcode || '',
         categoryPath: '',                                       // inventory hierarchy
         splits: [{ locationName: '', addQty: stockUnits }],    // physical storage split rows (stocking units)
@@ -2050,12 +2052,13 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       const match = matches[item.id];
       const choice = noMatchChoices[item.id] || null;
       const inlineLink = inlineLinks[item.id] || null;
-      // Bulk-aware: a case line stocks as its inner unit; the 'case' becomes
-      // purchase_unit and units_per_pack gets stamped on the item. Splits are
-      // already in stocking units (defaulted to qty × ratio).
+      // Pack-aware: the line's `unit` is already the base/stocking unit; a set
+      // purchase_unit + units_per_pack expands the received packs into base
+      // units and gets stamped on the item. Splits are already in base units
+      // (defaulted to qty × ratio).
       const ratio = packRatio(item);
-      const stockUnit = innerStockUnit(item);           // stocking unit (never the case)
-      const purchaseUnit = ratio > 1 ? normalizeUnit(item.unit) : null;
+      const stockUnit = baseUnit(item);                 // base/stocking unit (bottle)
+      const purchaseUnit = ratio > 1 ? normalizeUnit(item.purchase_unit) : null;
       const upp = ratio > 1 ? Number(item.units_per_pack) : null;
 
       // Path 1: auto-matched to inventory item
