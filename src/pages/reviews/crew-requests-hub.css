@@ -68,6 +68,38 @@
   color: #8B8478;
   margin-top: 6px;
 }
+/* Clickable stat tiles double as filter shortcuts (Awaiting you / Resolved). */
+.crh-stat.clickable {
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.crh-stat.clickable .l {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.crh-stat.clickable .l::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.4px solid currentColor;
+  border-bottom: 1.4px solid currentColor;
+  transform: rotate(-45deg);
+  opacity: 0;
+  transition: opacity 0.14s, transform 0.14s;
+}
+.crh-stat.clickable:hover { border-color: #C9CED6; box-shadow: 0 6px 18px -10px rgba(28, 27, 58, 0.18); }
+.crh-stat.clickable:hover .l::after { opacity: 0.5; transform: rotate(-45deg) translate(1px, 1px); }
+.crh-stat.clickable:focus-visible {
+  outline: none;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px #FAECE7;
+}
+.crh-stat.active { border-color: #C65A1A; }
+.crh-stat.active .n { color: #C65A1A; }
+.crh-stat.active .l { color: #C65A1A; }
+.crh-stat.active .l::after { opacity: 0.6; }
 
 /* ── toolbar: search + real filter dropdowns ───────────────── */
 .crh-tools {
