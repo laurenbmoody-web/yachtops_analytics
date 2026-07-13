@@ -254,6 +254,20 @@ export default function ItemDrawer({ itemId, onClose }) {
           </select>
         </label>
         {fieldEl('size', 'Size', { placeholder: 'e.g. 750ml' })}
+        <label className="vmid-field">
+          <span className="vmid-meta-k">Purchase unit</span>
+          <select className="vmid-input" value={UNIT_GROUP_VALUES.has(normalizeUnit(draft.purchaseUnit)) ? normalizeUnit(draft.purchaseUnit) : (draft.purchaseUnit || '')}
+            onChange={(e) => set('purchaseUnit', e.target.value)}>
+            <option value="">— same as stock —</option>
+            {draft.purchaseUnit && !UNIT_GROUP_VALUES.has(normalizeUnit(draft.purchaseUnit)) && <option value={draft.purchaseUnit}>{draft.purchaseUnit}</option>}
+            {UNIT_GROUPS.map((g) => (
+              <optgroup key={g.label} label={g.label}>
+                {g.options.map((u) => <option key={u} value={u}>{u}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        {fieldEl('unitsPerPack', 'Units per pack', { type: 'number', placeholder: 'e.g. 12' })}
         {fieldEl('year', 'Year', { type: 'number' })}
         {fieldEl('condition', 'Condition')}
         <label className="vmid-field">
@@ -351,6 +365,7 @@ export default function ItemDrawer({ itemId, onClose }) {
       <div className="vmid-meta">
         <Meta k="Unit" v={item.unit} />
         <Meta k="Size" v={item.size} />
+        <Meta k="Buy by" v={item.purchaseUnit && Number(item.unitsPerPack) > 0 ? `${item.purchaseUnit} · ${Number(item.unitsPerPack)} ${item.unit || ''}`.trim() : null} />
         <Meta k="Department" v={item.usageDepartment} />
         <Meta k="Supplier" v={item.supplier} />
         <Meta k="Brand" v={item.brand} />

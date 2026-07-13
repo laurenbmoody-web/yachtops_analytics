@@ -2,6 +2,7 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { logActivity, InventoryActions } from '../../../utils/activityStorage';
+import { normalizeUnit } from '../../../data/unitGroups';
 
 const getActiveTenantId = () =>
   localStorage.getItem('cargo_active_tenant_id') ||
@@ -60,6 +61,10 @@ const rowToItem = (row) => {
     name: row?.name || '',
     unit: row?.unit || 'each',
     size: row?.size || '',
+    // Purchasing pack (step C): buy in `purchaseUnit` (case), stock in `unit`
+    // (bottle); unitsPerPack = stocking units per purchase unit (24).
+    purchaseUnit: row?.purchase_unit || '',
+    unitsPerPack: row?.units_per_pack ?? null,
     quantity: row?.quantity ?? row?.totalQty ?? 0,
     totalQty: computedTotalQty,
     notes: row?.notes || '',
@@ -593,6 +598,22 @@ export const saveItem = async (itemData) => {
           ?.update({
             icon: itemData?.icon || null,
             color: itemData?.color || null,
+          })
+          ?.eq('id', savedItem.id)
+          ?.eq('tenant_id', tenantId);
+      } catch (_) {}
+    }
+    // Best-effort: write the purchasing pack separately (columns are additive and
+    // may not exist until the migration runs — a missing column must not fail the
+    // save). Only when explicitly provided.
+    if (savedItem?.id && (itemData?.purchaseUnit !== undefined || itemData?.unitsPerPack !== undefined)) {
+      try {
+        const pu = (itemData?.purchaseUnit || '').trim?.() || '';
+        const upp = itemData?.unitsPerPack;
+        await supabase?.from('inventory_items')
+          ?.update({
+            purchase_unit: pu ? normalizeUnit(pu) : null,
+            units_per_pack: (upp === '' || upp == null) ? null : (Number(upp) || null),
           })
           ?.eq('id', savedItem.id)
           ?.eq('tenant_id', tenantId);
