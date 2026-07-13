@@ -146,6 +146,43 @@ const SettingsPage = () => {
   };
   const cancelNotif = () => { setNotifEmail(savedNotifEmail); setEditingNotif(false); setNotifStatus(''); };
 
+  // ── Change login (auth) email — secure flow ────────────────────────────────
+  // Re-auth with the current password, then supabase.auth.updateUser({ email })
+  // which fires Supabase's confirmation email(s). The change only lands once
+  // confirmed; with "Secure email change" on, the CURRENT address must confirm
+  // too. This is deliberately NOT a plain profile field.
+  const [editingLogin, setEditingLogin] = useState(false);
+  const [curPassword, setCurPassword] = useState('');
+  const [newLoginEmail, setNewLoginEmail] = useState('');
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginMsg, setLoginMsg] = useState(null); // { t: 'err'|'ok', m }
+  const [loginSent, setLoginSent] = useState(null); // the pending new address
+
+  const cancelLogin = () => { setEditingLogin(false); setCurPassword(''); setNewLoginEmail(''); setLoginMsg(null); };
+  const submitLoginEmailChange = async () => {
+    const newE = newLoginEmail.trim().toLowerCase();
+    const currentEmail = (acct.email || session?.user?.email || '').toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newE)) { setLoginMsg({ t: 'err', m: 'Enter a valid email' }); return; }
+    if (newE === currentEmail) { setLoginMsg({ t: 'err', m: 'That’s already your login email' }); return; }
+    if (!curPassword) { setLoginMsg({ t: 'err', m: 'Enter your current password' }); return; }
+    if (!currentEmail) { setLoginMsg({ t: 'err', m: 'Couldn’t read your current email' }); return; }
+    setLoginBusy(true); setLoginMsg(null);
+    try {
+      // 1. Re-authenticate — verifies the password before anything changes.
+      const { error: authErr } = await supabase.auth.signInWithPassword({ email: currentEmail, password: curPassword });
+      if (authErr) { setLoginMsg({ t: 'err', m: 'Incorrect password' }); setLoginBusy(false); return; }
+      // 2. Request the change — Supabase emails the confirmation link(s).
+      const { error: updErr } = await supabase.auth.updateUser({ email: newE }, { emailRedirectTo: `${window.location.origin}/settings` });
+      if (updErr) { setLoginMsg({ t: 'err', m: updErr.message || 'Could not start the change' }); setLoginBusy(false); return; }
+      setLoginSent(newE);
+      setEditingLogin(false);
+      setCurPassword(''); setNewLoginEmail('');
+    } catch (e) {
+      console.warn('[settings] login email change failed', e);
+      setLoginMsg({ t: 'err', m: 'Something went wrong' });
+    } finally { setLoginBusy(false); }
+  };
+
   const setPref = (name, val) => {
     const [k, t] = PREF_KEY[name];
     localStorage.setItem(k, t === 'bool' ? String(val) : val);
@@ -237,10 +274,30 @@ const SettingsPage = () => {
             </Group>
             <Caps>Email</Caps>
             <Group>
-              <div className="set-r">
-                <RMain label="Login email" desc="Where you sign in — your account address." />
-                <span className="set-r-val">{acct.email || '—'}</span>
-              </div>
+              {editingLogin ? (
+                <div className="set-r set-stack">
+                  <RMain label="Change login email" desc="Confirm your password, then we’ll email a confirmation link to your new address (and, with secure change on, your current one). The change only applies once confirmed." />
+                  <div className="set-loginform">
+                    <input className="set-field" type="password" autoComplete="current-password" placeholder="Current password"
+                      value={curPassword} onChange={(e) => { setCurPassword(e.target.value); if (loginMsg) setLoginMsg(null); }} />
+                    <input className="set-field" type="email" placeholder="New login email"
+                      value={newLoginEmail}
+                      onChange={(e) => { setNewLoginEmail(e.target.value); if (loginMsg) setLoginMsg(null); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitLoginEmailChange(); } if (e.key === 'Escape') cancelLogin(); }} />
+                    <div className="set-emailrow">
+                      <button className="set-btn set-btn-primary" onClick={submitLoginEmailChange} disabled={loginBusy}>{loginBusy ? 'Sending…' : 'Send confirmation'}</button>
+                      <button className="set-btn" onClick={cancelLogin} disabled={loginBusy}>Cancel</button>
+                    </div>
+                    {loginMsg && <span className="set-savenote" style={{ color: loginMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{loginMsg.m}</span>}
+                  </div>
+                </div>
+              ) : (
+                <div className="set-r">
+                  <RMain label="Login email" desc={loginSent ? `Confirmation sent to ${loginSent}. Check that inbox and your current email to finish.` : 'Where you sign in — your account address.'} />
+                  <span className="set-r-val">{acct.email || '—'}</span>
+                  <button className="set-btn" onClick={() => { setEditingLogin(true); setLoginSent(null); }}>Change</button>
+                </div>
+              )}
               {editingNotif ? (
                 <div className="set-r set-stack">
                   <RMain label="Notification email" desc={`Send ${acct.tenant || 'this vessel'}’s alerts to a different address — a shared or work inbox. Leave blank to use your login email.`} />
