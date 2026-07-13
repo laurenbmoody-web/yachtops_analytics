@@ -1,15 +1,18 @@
 /* ============================================================
    /reviews — inbox for rota submissions
-   Page background uses the data-theme="day" --color-background token
-   (paler grey-cream #F4F1EC). Deeper cream #F4EEE4 is reserved for
-   inside-card surface accents (workload strip in sub-commit 5).
+   Page background is the cool maritime ground (#F8FAFC, the --d-bg
+   used across provisioning / crew-profile), not the shell's warm
+   grey-cream. Deeper cream #F4EEE4 is reserved for inside-card
+   surface accents (workload strip in sub-commit 5).
    ============================================================ */
 
 /* Three-column split view: 220px sidebar · 380px list strip · fluid right
    pane. Header is the fixed h-16 (64px) nav chrome; the grid fills the
-   remaining viewport and each column scrolls on its own. */
+   remaining viewport and each column scrolls on its own. When the inbox is
+   opened from a notification the nav rail collapses to a thin toggle rail
+   (the user has already picked their destination), see .rv-page.rv-collapsed. */
 .rv-page {
-  background: var(--color-background);
+  background: #F8FAFC;
   height: calc(100vh - 64px);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
@@ -17,6 +20,9 @@
   grid-template-columns: 220px 380px 1fr;
   align-items: stretch;
   overflow: hidden;
+}
+.rv-page.rv-collapsed {
+  grid-template-columns: 44px 380px 1fr;
 }
 
 /* LEFT — inbox navigation sidebar. */
@@ -27,6 +33,48 @@
   height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
+}
+
+/* Collapsed rail — a thin column holding just the expand affordance, shown
+   when the inbox is deep-linked from a notification. */
+.rv-sidebar.collapsed {
+  padding: 16px 0;
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+}
+
+/* Header row that carries the collapse chevron alongside the wordmark. */
+.rv-sb-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Toggle button — subtle ghost square, terracotta on hover, used to
+   collapse (in the header) and to expand (on the collapsed rail). */
+.rv-sb-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(28, 27, 58, 0.55);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.rv-sb-toggle:hover {
+  background: rgba(28, 27, 58, 0.06);
+  color: #C65A1A;
+}
+.rv-sb-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px #FAECE7;
 }
 
 /* MIDDLE — list strip of compact cards. */

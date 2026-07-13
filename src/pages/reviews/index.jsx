@@ -47,6 +47,17 @@ export default function ReviewsPage() {
   const location = useLocation();
   const activeCategory = categoryFromPath(location.pathname);
 
+  // Nav-rail collapse. When the inbox is opened from a notification the deep
+  // link carries ?selected= — the user has already chosen their destination,
+  // so start with the rail collapsed. Landing from the Inbox itself (no
+  // selection yet) keeps it open. Evaluated once at mount; the auto-select
+  // effect that later stamps ?selected= must not re-collapse it, and the user
+  // can toggle it back either way.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => new URLSearchParams(location.search).has('selected'),
+  );
+  const toggleSidebar = () => setSidebarCollapsed((v) => !v);
+
   const tier = (currentTenantMember?.permission_tier || '').toUpperCase();
   const userDeptId = currentTenantMember?.department_id || null;
 
@@ -247,8 +258,8 @@ export default function ReviewsPage() {
     return (
       <>
         <Header />
-        <div className="rv-page">
-          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} />
+        <div className={`rv-page${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
+          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
           <SeaTimeReviewPanel items={stItems} loading={stLoading} selectedId={stSelected?.id} onSelect={stSelect} eyebrow={eyebrow} />
           <section className="rv-rightpane-col" aria-label="Sign-off detail">
             {stSelected ? (
@@ -296,8 +307,8 @@ export default function ReviewsPage() {
     return (
       <>
         <Header />
-        <div className="rv-page">
-          <InboxSidebar activeCategory="crew-requests" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crItems.length }} />
+        <div className={`rv-page${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
+          <InboxSidebar activeCategory="crew-requests" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crItems.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
           <CrewRequestsPanel
             items={crItems}
             loading={crewRequests.loading}
@@ -348,8 +359,8 @@ export default function ReviewsPage() {
     return (
       <>
         <Header />
-        <div className="rv-page">
-          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: ordersItems.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} />
+        <div className={`rv-page${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
+          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: ordersItems.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
           <OrdersReviewPanel
             items={ordersItems}
             loading={provisioningApprovals.loading}
@@ -390,8 +401,8 @@ export default function ReviewsPage() {
   return (
     <>
       <Header />
-      <div className="rv-page">
-        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} />
+      <div className={`rv-page${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
+        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
 
         {/* Middle — list strip */}
         <section className="rv-liststrip" aria-label="Rota submissions">
