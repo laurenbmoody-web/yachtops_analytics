@@ -32,6 +32,14 @@ const SORT_OPTIONS = [
   { val: 'name', label: 'Crew A–Z' },
 ];
 
+// Status facet — Pending is the working queue; the rest read from history.
+const STATUS_OPTIONS = [
+  { val: 'pending', label: 'Pending' },
+  { val: 'approved', label: 'Approved' },
+  { val: 'declined', label: 'Declined' },
+  { val: 'all', label: 'All' },
+];
+
 const initials = (name) => (name || 'Crew member')
   .trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '·';
 
@@ -54,6 +62,22 @@ const fmtWhen = (iso) => {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
   } catch { return ''; }
+};
+
+const fmtDate = (iso) => {
+  try {
+    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch { return ''; }
+};
+
+// Compact age of the oldest pending request — the "Oldest waiting" KPI.
+const compactAge = (iso) => {
+  if (!iso) return '—';
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (min < 60) return `${Math.max(min, 0)}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  return `${Math.floor(hr / 24)}d`;
 };
 
 // A single email address, kept on one line — the middle ellipsises in the row.
@@ -116,6 +140,70 @@ function Dropdown({ icon, label, value, options, onChange, align }) {
   );
 }
 
+// ── Filters dropdown — one button hosting the Type + Status facets ───────
+function FiltersDropdown({ typeValue, typeOptions, onType, statusValue, statusOptions, onStatus }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  // A small terracotta dot marks the button when a non-default filter is set.
+  const active = typeValue !== 'all' || statusValue !== 'pending';
+
+  const Section = ({ title, value, options, onChange }) => (
+    <>
+      <div className="crh-dd-sec">{title}</div>
+      {options.map((o) => (
+        <button
+          key={o.val}
+          type="button"
+          role="option"
+          aria-selected={o.val === value}
+          aria-disabled={o.disabled || undefined}
+          className={`crh-dd-opt${o.val === value ? ' sel' : ''}${o.disabled ? ' disabled' : ''}`}
+          onClick={() => { if (o.disabled) return; onChange(o.val); }}
+        >
+          {o.dot && <span className={`crh-odot crh-dot ${o.dot}`} />}
+          <span>{o.label}</span>
+          {o.soon && <span className="crh-soon">soon</span>}
+          {o.count != null && !o.soon && <span className="crh-oc">{o.count}</span>}
+          {o.val === value && <Icon name="Check" size={15} className="crh-ck" />}
+        </button>
+      ))}
+    </>
+  );
+
+  return (
+    <div className={`crh-dd${open ? ' open' : ''}`} ref={ref}>
+      <button
+        type="button"
+        className={`crh-dd-btn${active ? ' has-active' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <Icon name="SlidersHorizontal" size={15} className="crh-dd-ic" />
+        <span className="crh-dd-label">Filters</span>
+        {active && <span className="crh-dd-marker" aria-hidden="true" />}
+        <Icon name="ChevronDown" size={13} className="crh-dd-ch" />
+      </button>
+      {open && (
+        <div className="crh-dd-menu right" role="listbox">
+          <Section title="Type" value={typeValue} options={typeOptions} onChange={onType} />
+          <div className="crh-dd-div" />
+          <Section title="Status" value={statusValue} options={statusOptions} onChange={onStatus} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Per-kind detail body (shown when a row is expanded) ──────────────────
 function RequestDetail({ request }) {
   const name = request.requester?.full_name || 'Crew member';
@@ -145,13 +233,24 @@ function RequestDetail({ request }) {
   return <p className="crh-lede">{name} raised a request awaiting your decision.</p>;
 }
 
-export default function CrewRequestsHub({ items, loading, eyebrow, initialSelectedId, onDecide, onToast }) {
+// A row is actionable while it's still pending. Pending rows come from the
+// `items` query (no status column selected) so treat a missing status as such.
+const isPending = (r) => !r.status || r.status === 'pending';
+
+export default function CrewRequestsHub({
+  items, loading, resolved, resolvedLoading, loadResolved,
+  eyebrow, initialSelectedId, onDecide, onToast,
+}) {
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('pending');
   const [sort, setSort] = useState('newest');
   const [openId, setOpenId] = useState(initialSelectedId || null);
   const [busyId, setBusyId] = useState(null);
   const targetRef = useRef(null);
+
+  // Load resolved history once — drives the Status facet and the throughput KPI.
+  useEffect(() => { loadResolved?.(); }, [loadResolved]);
 
   // Deep-linked from a notification (?selected=): expand + scroll to that row.
   useEffect(() => {
@@ -163,25 +262,40 @@ export default function CrewRequestsHub({ items, loading, eyebrow, initialSelect
     return () => clearTimeout(t);
   }, [initialSelectedId]);
 
-  const decorated = useMemo(
-    () => (items || []).map((r) => ({
-      ...r,
-      _tag: KIND[r.kind]?.tag || 'Request',
-      _type: KIND[r.kind]?.type || 'other',
-      _name: r.requester?.full_name || 'Crew member',
-    })),
-    [items],
-  );
+  const decorate = (r) => ({
+    ...r,
+    _tag: KIND[r.kind]?.tag || 'Request',
+    _type: KIND[r.kind]?.type || 'other',
+    _name: r.requester?.full_name || 'Crew member',
+  });
+  const pendingRows = useMemo(() => (items || []).map(decorate), [items]);
+  const resolvedRows = useMemo(() => (resolved || []).map(decorate), [resolved]);
+
+  // The set the list draws from, per the Status facet.
+  const sourceRows = useMemo(() => {
+    if (statusFilter === 'pending') return pendingRows;
+    if (statusFilter === 'all') return [...pendingRows, ...resolvedRows];
+    return resolvedRows.filter((r) => r.status === statusFilter);
+  }, [statusFilter, pendingRows, resolvedRows]);
+
+  const listLoading = statusFilter === 'pending' ? loading : resolvedLoading;
 
   const typeCounts = useMemo(() => {
-    const c = { all: decorated.length };
-    for (const r of decorated) c[r._type] = (c[r._type] || 0) + 1;
+    const c = { all: sourceRows.length };
+    for (const r of sourceRows) c[r._type] = (c[r._type] || 0) + 1;
     return c;
-  }, [decorated]);
+  }, [sourceRows]);
+
+  const statusCounts = useMemo(() => ({
+    pending: pendingRows.length,
+    approved: resolvedRows.filter((r) => r.status === 'approved').length,
+    declined: resolvedRows.filter((r) => r.status === 'declined').length,
+    all: pendingRows.length + resolvedRows.length,
+  }), [pendingRows, resolvedRows]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let rows = decorated.filter((r) => {
+    let rows = sourceRows.filter((r) => {
       if (typeFilter !== 'all' && r._type !== typeFilter) return false;
       if (q) {
         const hay = `${r._name} ${r._tag} ${r.requested_email || ''} ${r.requester?.email || ''}`.toLowerCase();
@@ -196,13 +310,22 @@ export default function CrewRequestsHub({ items, loading, eyebrow, initialSelect
       return sort === 'oldest' ? ta - tb : tb - ta;
     });
     return rows;
-  }, [decorated, typeFilter, sort, query]);
+  }, [sourceRows, typeFilter, sort, query]);
 
-  const pending = decorated.length;
-  const thisWeek = useMemo(() => {
+  // KPIs: one act-now count, one attention nudge, one throughput number.
+  const awaitingYou = pendingRows.length;
+  const oldestWaiting = useMemo(() => {
+    if (pendingRows.length === 0) return '—';
+    const oldest = pendingRows.reduce((min, r) => {
+      const t = new Date(r.requested_at || 0).getTime();
+      return t < min ? t : min;
+    }, Infinity);
+    return compactAge(new Date(oldest).toISOString());
+  }, [pendingRows]);
+  const resolvedThisWeek = useMemo(() => {
     const wk = Date.now() - 7 * 864e5;
-    return decorated.filter((r) => new Date(r.requested_at || 0).getTime() >= wk).length;
-  }, [decorated]);
+    return resolvedRows.filter((r) => new Date(r.decided_at || 0).getTime() >= wk).length;
+  }, [resolvedRows]);
 
   const typeOptions = TYPE_OPTIONS.map((o) => ({
     ...o,
@@ -210,6 +333,18 @@ export default function CrewRequestsHub({ items, loading, eyebrow, initialSelect
     soon: !o.live,
     count: o.live ? (typeCounts[o.val] || 0) : null,
   }));
+  const statusOptions = STATUS_OPTIONS.map((o) => ({ ...o, count: statusCounts[o.val] }));
+
+  // Empty-state copy varies by whether a filter is narrowing an otherwise
+  // non-empty set, vs a genuinely empty pending queue / history.
+  const filtered = !!query || typeFilter !== 'all';
+  const emptyTitle = filtered ? 'No matches'
+    : statusFilter === 'pending' ? 'All clear' : 'No history yet';
+  const emptySub = filtered
+    ? 'Try a different filter or clear your search.'
+    : statusFilter === 'pending'
+      ? 'Requests from crew — like where a vessel’s alerts are sent — appear here for your decision.'
+      : 'Approved and declined requests will be listed here.';
 
   const decide = async (request, approve) => {
     setBusyId(request.id);
@@ -237,9 +372,9 @@ export default function CrewRequestsHub({ items, loading, eyebrow, initialSelect
             <h1 className="crh-title">Crew requests</h1>
           </div>
           <div className="crh-stats">
-            <div className="crh-stat"><div className="n">{pending}</div><div className="l">Pending</div></div>
-            <div className="crh-stat"><div className="n">{typeCounts.notification || 0}</div><div className="l">Notifications</div></div>
-            <div className="crh-stat"><div className="n">{thisWeek}</div><div className="l">This week</div></div>
+            <div className="crh-stat"><div className="n">{awaitingYou}</div><div className="l">Awaiting you</div></div>
+            <div className="crh-stat"><div className="n">{oldestWaiting}</div><div className="l">Oldest waiting</div></div>
+            <div className="crh-stat"><div className="n">{resolvedThisWeek}</div><div className="l">Resolved this week</div></div>
           </div>
         </div>
 
@@ -254,7 +389,14 @@ export default function CrewRequestsHub({ items, loading, eyebrow, initialSelect
               aria-label="Search requests"
             />
           </label>
-          <Dropdown icon="SlidersHorizontal" label="Filters" value={typeFilter} options={typeOptions} onChange={setTypeFilter} align="right" />
+          <FiltersDropdown
+            typeValue={typeFilter}
+            typeOptions={typeOptions}
+            onType={setTypeFilter}
+            statusValue={statusFilter}
+            statusOptions={statusOptions}
+            onStatus={setStatusFilter}
+          />
           <Dropdown icon="ArrowUpDown" label="Sort" value={sort} options={SORT_OPTIONS} onChange={setSort} align="right" />
         </div>
 
@@ -267,22 +409,19 @@ export default function CrewRequestsHub({ items, loading, eyebrow, initialSelect
             <span aria-hidden="true" />
           </div>
 
-          {loading ? (
+          {listLoading ? (
             <div className="crh-empty" role="status">Loading…</div>
           ) : visible.length === 0 ? (
             <div className="crh-empty" role="status">
-              <div className="crh-empty-title">
-                {decorated.length === 0 ? 'All clear' : 'No matches'}
-              </div>
-              {decorated.length === 0
-                ? 'Requests from crew — like where a vessel’s alerts are sent — appear here for your decision.'
-                : 'Try a different type or clear your search.'}
+              <div className="crh-empty-title">{emptyTitle}</div>
+              {emptySub}
             </div>
           ) : (
             visible.map((r) => {
               const open = openId === r.id;
               const isTarget = r.id === initialSelectedId;
               const busy = busyId === r.id;
+              const pendingRow = isPending(r);
               return (
                 <div
                   key={r.id}
@@ -320,52 +459,68 @@ export default function CrewRequestsHub({ items, loading, eyebrow, initialSelect
                       <span className="crh-arw">→</span>
                       <strong>{shortEmail(r.requested_email)}</strong>
                     </span>
-                    <span className="crh-when">{timeAgo(r.requested_at)}</span>
+                    <span className="crh-when">
+                      {pendingRow ? timeAgo(r.requested_at) : fmtDate(r.decided_at)}
+                    </span>
                     <span className="crh-act" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="crh-btn approve"
-                        disabled={busy}
-                        onClick={() => decide(r, true)}
-                      >
-                        {busy ? 'Saving…' : 'Approve'}
-                      </button>
-                      <button
-                        type="button"
-                        className="crh-btn decline"
-                        disabled={busy}
-                        onClick={() => decide(r, false)}
-                      >
-                        Decline
-                      </button>
+                      {pendingRow ? (
+                        <>
+                          <button
+                            type="button"
+                            className="crh-btn approve"
+                            disabled={busy}
+                            onClick={() => decide(r, true)}
+                          >
+                            {busy ? 'Saving…' : 'Approve'}
+                          </button>
+                          <button
+                            type="button"
+                            className="crh-btn decline"
+                            disabled={busy}
+                            onClick={() => decide(r, false)}
+                          >
+                            Decline
+                          </button>
+                        </>
+                      ) : (
+                        <span className={`crh-chip ${r.status}`}>
+                          {r.status === 'approved' ? 'Approved' : 'Declined'}
+                        </span>
+                      )}
                       <Icon name="ChevronDown" size={16} className="crh-chev" />
                     </span>
                   </div>
 
                   {open && (
                     <div className="crh-detail">
-                      <div style={{ fontSize: 12, color: '#8B8478', marginTop: 12 }}>
-                        Requested {fmtWhen(r.requested_at)}
-                      </div>
+                      <div className="crh-detail-meta">Requested {fmtWhen(r.requested_at)}</div>
                       <RequestDetail request={r} />
-                      <div className="crh-dact">
-                        <button
-                          type="button"
-                          className="crh-btn approve"
-                          disabled={busy}
-                          onClick={() => decide(r, true)}
-                        >
-                          {busy ? 'Saving…' : 'Approve'}
-                        </button>
-                        <button
-                          type="button"
-                          className="crh-btn decline"
-                          disabled={busy}
-                          onClick={() => decide(r, false)}
-                        >
-                          Decline
-                        </button>
-                      </div>
+                      {pendingRow ? (
+                        <div className="crh-dact">
+                          <button
+                            type="button"
+                            className="crh-btn approve"
+                            disabled={busy}
+                            onClick={() => decide(r, true)}
+                          >
+                            {busy ? 'Saving…' : 'Approve'}
+                          </button>
+                          <button
+                            type="button"
+                            className="crh-btn decline"
+                            disabled={busy}
+                            onClick={() => decide(r, false)}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="crh-decided">
+                          {r.status === 'approved' ? 'Approved' : 'Declined'}
+                          {r.decider?.full_name ? ` by ${r.decider.full_name}` : ''}
+                          {r.decided_at ? ` · ${fmtWhen(r.decided_at)}` : ''}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
