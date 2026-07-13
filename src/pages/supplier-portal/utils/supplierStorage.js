@@ -730,6 +730,33 @@ export const fetchClients = async (supplierId) => {
   return data ?? [];
 };
 
+// One yacht client's relationship row (status, payment terms, credit limit,
+// notes) + the tenant it points at. Keyed by tenant so both the clients list
+// (c.tenants.id) and an order (order.tenant_id) resolve to the same profile.
+export const fetchClientProfile = async (supplierId, tenantId) => {
+  const { data, error } = await supabase
+    .from('tenant_suppliers')
+    .select('*, tenants(id, name, vessel_name)')
+    .eq('supplier_id', supplierId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+// Every order this supplier has fulfilled for one yacht — with items so the
+// profile can value each order. RLS also scopes to the caller's supplier.
+export const fetchClientOrders = async (supplierId, tenantId) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .select('*, supplier_order_items(*)')
+    .eq('supplier_profile_id', supplierId)
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+};
+
 // ─── Email Aliases ───────────────────────────────────────────────────────────
 
 export const fetchAliases = async (supplierId) => {

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { fetchClients } from '../utils/supplierStorage';
 import EmptyState from '../components/EmptyState';
 
 const SupplierClients = () => {
   const { supplier } = useSupplier();
+  const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -44,7 +46,15 @@ const SupplierClients = () => {
             const tenant = c.tenants;
             const vesselName = tenant?.vessel_name ?? tenant?.name ?? 'Unknown vessel';
             return (
-              <div key={c.id} className="sp-cc">
+              <div
+                key={c.id}
+                className="sp-cc"
+                role={c.tenants?.id ? 'button' : undefined}
+                tabIndex={c.tenants?.id ? 0 : undefined}
+                style={c.tenants?.id ? { cursor: 'pointer' } : undefined}
+                onClick={c.tenants?.id ? () => navigate(`/supplier/clients/${c.tenants.id}`) : undefined}
+                onKeyDown={c.tenants?.id ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/supplier/clients/${c.tenants.id}`); } } : undefined}
+              >
                 <div className="sp-cc-head">
                   <div className="sp-ym m2" style={{ width: 40, height: 40, borderRadius: 11, fontSize: 12 }}>
                     {vesselName.slice(0, 3).toUpperCase()}
