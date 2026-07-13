@@ -73,7 +73,7 @@ export default function VesselDocuments() {
       const { data, error } = await supabase.functions.invoke('sync-crew-documents-to-vault', { body: { tenant_id: activeTenantId } });
       if (error || data?.error) throw new Error(data?.error || error?.message || 'failed');
       const n = data?.synced || 0;
-      flash(n ? `Synced ${n} crew document${n === 1 ? '' : 's'}` : 'Crew certificates up to date');
+      flash(n ? `Synced ${n} crew document${n === 1 ? '' : 's'}` : 'Crew certificates & contracts up to date');
       await load();
     } catch (e) {
       console.warn('[vessel-documents] crew sync failed', e);
@@ -489,8 +489,8 @@ export default function VesselDocuments() {
             </div>
             <div className="vd-tools">
               {canSync && (
-                <button type="button" className="vd-btn vd-btn-ghost" disabled={busy} onClick={syncCrewDocs} title="Pull every crew member's certificates into the vault">
-                  <Icon name="RefreshCw" size={15} /> Sync crew certs
+                <button type="button" className="vd-btn vd-btn-ghost" disabled={busy} onClick={syncCrewDocs} title="Pull every crew member's certificates and contracts into the vault">
+                  <Icon name="RefreshCw" size={15} /> Sync
                 </button>
               )}
               <button type="button" className="vd-btn vd-btn-ghost" disabled={busy || isVirtualId(cwd)} onClick={openNewFolder}>
