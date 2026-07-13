@@ -64,6 +64,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     // refresh token is never used concurrently, while avoiding the navigator.locks
     // timeouts that React Strict Mode's double-mount triggered.
     lock: serialAuthLock,
+    // Opt in to passkeys (WebAuthn). Required for auth.signInWithPasskey(),
+    // auth.registerPasskey() and the auth.passkey.* namespace — these throw
+    // without it. Still gated server-side by the project's Passkeys setting.
+    experimental: { passkey: true },
   },
   // Add global options for better error handling
   global: {
