@@ -32,6 +32,8 @@ const OPEN_STATUSES = new Set([
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 const fmtTime = (t) => (t ? String(t).slice(0, 5) : null);
 const fmtAmt  = (a, cur = 'EUR') => (a == null ? '—' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a));
+const fmtMoney0 = (a, cur = 'EUR') => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(a || 0);
+const isToday = (d) => { if (!d) return false; const x = new Date(d), n = new Date(); return x.getFullYear() === n.getFullYear() && x.getMonth() === n.getMonth() && x.getDate() === n.getDate(); };
 
 // The agreed price wins, then the supplier's quote, then the buyer's estimate.
 // (unit_price is a legacy column that's empty on marketplace orders — summing
@@ -163,6 +165,13 @@ const SupplierOrders = () => {
   const newCount = orders.filter(o => o.status === 'sent').length;
   const rushCount = orders.filter(o => deliverUrgency(o)).length;
   const flaggedOpen = orders.filter(o => OPEN_STATUSES.has(o.status) && flaggedCount(o) > 0).length;
+
+  // Live stats for the meta strip.
+  const outstanding = orders.filter(o => OPEN_STATUSES.has(o.status)).length;
+  const flaggedOrders = orders.filter(o => flaggedCount(o) > 0).length;
+  const deliveriesToday = orders.filter(o => isToday(o.delivery_date)).length;
+  const totalValue = orders.reduce((s, o) => s + orderTotal(o), 0);
+  const totalCur = orders[0]?.currency || 'EUR';
   const sub = (() => {
     if (loading || orders.length === 0) return '';
     const parts = [];
@@ -200,13 +209,13 @@ const SupplierOrders = () => {
         <div>
           <p className="editorial-meta" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
             <span className="dot">●</span>
-            <span>Orders desk</span>
+            <span>{outstanding} outstanding</span>
             <span className="bar" />
-            <span className="muted">{orders.length} {orders.length === 1 ? 'order' : 'orders'}</span>
-            {newCount > 0 && <><span className="bar" /><span className="muted">{newCount} new</span></>}
-            {rushCount > 0 && <><span className="bar" /><span className="muted">{rushCount} rush</span></>}
+            <span className="muted">{fmtMoney0(totalValue, totalCur)} total</span>
             <span className="bar" />
-            <span className="muted" style={{ color: '#C65A1A' }}>Live</span>
+            <span className="muted">{deliveriesToday} delivering today</span>
+            {flaggedOrders > 0 && <><span className="bar" /><span className="muted" style={{ color: 'var(--amber)' }}>{flaggedOrders} flagged</span></>}
+            {rushCount > 0 && <><span className="bar" /><span className="muted" style={{ color: '#C65A1A' }}>{rushCount} rush</span></>}
           </p>
           <h1 className="editorial-greeting" style={{ fontSize: 46, letterSpacing: '-1px', margin: 0 }}>
             YOUR ORDERS <em>inbox</em>
