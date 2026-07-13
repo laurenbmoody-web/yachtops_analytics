@@ -4,7 +4,6 @@ import { supabase } from '../../lib/supabaseClient';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import ProvisioningApprovalSettings from './ProvisioningApprovalSettings';
-import NotificationEmailRequests from './NotificationEmailRequests';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import { FLAG_STATES } from '../../data/flagStates';
@@ -729,7 +728,6 @@ const VesselSettings = () => {
     { id: 'location-management', label: 'Location Management', icon: 'MapPin' },
     { id: 'role-management', label: 'Role Management', icon: 'Users' },
     { id: 'provisioning-approval', label: 'Provisioning Approval', icon: 'CheckCircle' },
-    { id: 'notification-requests', label: 'Notification Requests', icon: 'Mail' },
   ];
 
   const renderContent = () => {
@@ -1407,10 +1405,6 @@ const VesselSettings = () => {
     } else if (activeSection === 'provisioning-approval') {
       return (
         <ProvisioningApprovalSettings tenantId={vesselData?.id} />
-      );
-    } else if (activeSection === 'notification-requests') {
-      return (
-        <NotificationEmailRequests tenantId={vesselData?.id} />
       );
     }
   };
