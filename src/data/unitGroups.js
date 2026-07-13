@@ -84,3 +84,19 @@ export const STOCK_UNIT_VALUES = new Set(STOCK_UNIT_GROUPS.flatMap((g) => g.opti
 export const BOUGHT_BY_GROUPS = [
   { label: 'Bought in', options: ['pack', 'case', 'box', 'carton', 'crate', 'tray', 'dozen', 'bundle', 'sleeve', 'pallet'] },
 ];
+
+// Pluralise a unit noun for natural reading after "bought in" ("bought in
+// packs of 24", "boxes of 6"). Handles the -es cases.
+export const pluralizeUnit = (u) =>
+  !u ? u : (/(x|s|ch|sh|z)$/i.test(u) ? `${u}es` : `${u}s`);
+
+// THE canonical way to render the buying overlay across every surface, so the
+// pack always reads the same: "packs of 24", or "packs" when the per-pack count
+// is unknown. Returns null when there's no purchase unit (sold loose). The base
+// stocking unit is shown separately — this is only the "bought in …" part.
+export function formatBoughtIn(purchaseUnit, unitsPerPack) {
+  const pu = normalizeUnit(purchaseUnit);
+  if (!pu) return null;
+  const n = Number(unitsPerPack);
+  return n > 0 ? `${pluralizeUnit(pu)} of ${n}` : pluralizeUnit(pu);
+}
