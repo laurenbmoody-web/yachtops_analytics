@@ -5,6 +5,7 @@ import { useSupplier } from '../../../contexts/SupplierContext';
 import { fetchSupplierOrders } from '../utils/supplierStorage';
 import StatusBadge from '../components/StatusBadge';
 import EmptyState from '../components/EmptyState';
+import '../../../styles/editorial.css'; // shared editorial meta strip + serif greeting (matches marketplace)
 
 const TABS = [
   { key: 'all',                 label: 'All' },
@@ -163,13 +164,12 @@ const SupplierOrders = () => {
   const rushCount = orders.filter(o => deliverUrgency(o)).length;
   const flaggedOpen = orders.filter(o => OPEN_STATUSES.has(o.status) && flaggedCount(o) > 0).length;
   const sub = (() => {
-    if (loading) return 'Loading…';
-    if (orders.length === 0) return 'Provisioning requests from your yacht clients land here.';
+    if (loading || orders.length === 0) return '';
     const parts = [];
     if (newCount) parts.push(`${newCount} new to confirm`);
     if (rushCount) parts.push(`${rushCount} rush`);
     if (flaggedOpen) parts.push(`${flaggedOpen} flagged to resolve`);
-    return parts.length ? parts.join(' · ') : 'All caught up — nothing needs your attention.';
+    return parts.join(' · '); // empty when nothing needs attention → no subline
   })();
 
   const openMessages = (o) => {
@@ -198,13 +198,20 @@ const SupplierOrders = () => {
     <div className="sp-page">
       <div className="sp-page-head">
         <div>
-          <div className="sp-eyebrow"><span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: '#C65A1A', marginRight: 6, verticalAlign: 'middle' }} />{loading ? '…' : `${orders.length} order${orders.length === 1 ? '' : 's'}`}</div>
-          <h1 className="sp-page-title"><span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>Your orders </span><em style={{ color: '#C65A1A' }}>inbox</em></h1>
-          <p className="sp-page-sub">{sub}</p>
-        </div>
-        <div className="sp-actions">
-          <button className="sp-pill" onClick={exportCsv} disabled={view.length === 0}><Download size={12} />Export</button>
-          <button className="sp-pill" onClick={load}><RefreshCw size={12} />Refresh</button>
+          <p className="editorial-meta" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+            <span className="dot">●</span>
+            <span>Orders desk</span>
+            <span className="bar" />
+            <span className="muted">{orders.length} {orders.length === 1 ? 'order' : 'orders'}</span>
+            {newCount > 0 && <><span className="bar" /><span className="muted">{newCount} new</span></>}
+            {rushCount > 0 && <><span className="bar" /><span className="muted">{rushCount} rush</span></>}
+            <span className="bar" />
+            <span className="muted" style={{ color: '#C65A1A' }}>Live</span>
+          </p>
+          <h1 className="editorial-greeting" style={{ fontSize: 46, letterSpacing: '-1px', margin: 0 }}>
+            YOUR ORDERS <em>inbox</em>
+          </h1>
+          {sub && <p className="sp-page-sub" style={{ marginTop: 10 }}>{sub}</p>}
         </div>
       </div>
 
@@ -224,6 +231,15 @@ const SupplierOrders = () => {
           <TogglePill on={fFlagged} onClick={() => setFFlagged(v => !v)} Icon={Flag} label="Flagged" tone="var(--amber)" />
           <MenuSelect label="Filter" Icon={SlidersHorizontal} value={tab} options={TABS} onChange={setTab} />
           <MenuSelect label="Sort" Icon={ArrowUpDown} value={sortKey} options={SORTS} onChange={setSortKey} />
+          <span style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 2px' }} />
+          <button type="button" onClick={exportCsv} disabled={view.length === 0} title="Export current view to CSV"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', cursor: view.length === 0 ? 'default' : 'pointer', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted-s)', opacity: view.length === 0 ? 0.5 : 1 }}>
+            <Download size={13} />Export
+          </button>
+          <button type="button" onClick={load} title="Refresh" aria-label="Refresh"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 33, height: 33, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted-s)', cursor: 'pointer' }}>
+            <RefreshCw size={14} />
+          </button>
         </div>
       </div>
 
