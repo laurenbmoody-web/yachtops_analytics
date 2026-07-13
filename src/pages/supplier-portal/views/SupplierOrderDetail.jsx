@@ -450,8 +450,15 @@ const Hero = ({
     : null;
   const portText = order.delivery_port || null;
 
+  // Countdown urgency — red when imminent, amber within a week, calm ink
+  // when there's plenty of runway. Drives the number + the hero's left edge.
+  const urgencyTone = !showDays ? 'var(--amber)'
+    : days <= 2 ? '#C0392B'
+    : days <= 7 ? 'var(--amber)'
+    : 'var(--fg)';
+
   return (
-    <div className="sod-hero">
+    <div className="sod-hero" style={{ borderLeftColor: urgencyTone }}>
       <div className="sod-hero-id">
         <div className="sod-hero-l">Order</div>
         <div className="sod-hero-id-n">#{orderShortId}</div>
@@ -459,7 +466,7 @@ const Hero = ({
 
       <div className="sod-hero-countdown">
         <div className="sod-hero-l">Countdown</div>
-        <div className="sod-hero-countdown-n">{showDays ? days : '—'}</div>
+        <div className="sod-hero-countdown-n" style={{ color: urgencyTone }}>{showDays ? days : '—'}</div>
         <div className="sod-hero-countdown-u">{showDays ? (days === 1 ? 'day' : 'days') : 'no date'}</div>
       </div>
 
