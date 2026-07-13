@@ -2,7 +2,7 @@
    /reviews — inbox for rota submissions
    Page background is the cool maritime ground (#F8FAFC, the --d-bg
    used across provisioning / crew-profile), not the shell's warm
-   grey-cream. Deeper cream #F4EEE4 is reserved for inside-card
+   grey-cream. Deeper cream #F1F5F9 is reserved for inside-card
    surface accents (workload strip in sub-commit 5).
    ============================================================ */
 
@@ -14,7 +14,7 @@
 .rv-page {
   background: #F8FAFC;
   height: calc(100vh - 64px);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
   display: grid;
   grid-template-columns: 220px 380px 1fr;
@@ -200,7 +200,7 @@
 }
 
 .rv-eyebrow {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -227,7 +227,7 @@
 .rv-title-period { color: #C65A1A; }
 
 .rv-subtitle {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   color: rgba(28, 27, 58, 0.6);
   margin-top: 8px;
@@ -240,7 +240,7 @@
   margin-top: 16px;
 }
 .rv-tab {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.3px;
@@ -291,7 +291,7 @@
   gap: 16px; margin-bottom: 12px; flex-wrap: wrap;
 }
 .rv-resolved-lines-label {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
   color: rgba(28, 27, 58, 0.5);
 }
@@ -301,7 +301,7 @@
   display: inline-flex; align-items: center; gap: 7px;
   background: none; border: none; padding: 4px 6px; margin: -4px -6px;
   border-radius: 6px; cursor: pointer;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11px; color: rgba(28, 27, 58, 0.6);
 }
 .rv-resolved-lines-toggle:hover { background: rgba(28, 27, 58, 0.05); }
@@ -341,7 +341,7 @@
 .rv-type-legend {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   margin: 14px 0 0;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11.5px; color: rgba(28, 27, 58, 0.6);
 }
 .rv-type-legend-item { display: inline-flex; align-items: center; gap: 6px; }
@@ -351,13 +351,13 @@
 .rv-edit-pop-backdrop { position: fixed; inset: 0; z-index: 60; }
 .rv-edit-pop {
   position: fixed; z-index: 61; min-width: 168px; max-width: 260px;
-  background: #1C1B3A; color: #F5F1EA;
+  background: #1C1B3A; color: #F5F7FA;
   border-radius: 10px; padding: 12px 14px;
   box-shadow: 0 10px 30px rgba(28, 27, 58, 0.3);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 .rv-edit-pop-head { font-size: 11px; color: rgba(245, 241, 234, 0.6); margin-bottom: 8px; }
-.rv-edit-pop-name { color: #F5F1EA; font-weight: 600; }
+.rv-edit-pop-name { color: #F5F7FA; font-weight: 600; }
 .rv-edit-pop-k {
   font-size: 10px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase;
   color: rgba(245, 241, 234, 0.55); margin-bottom: 4px;
@@ -374,7 +374,7 @@
    mode — rounded name-tile corners + gaps let cells peek through, so the names
    sit on a plain cream column instead (no tiles). The dept strip stays. */
 .rv-resolved-lines .cw-nm {
-  background: #F4F1EC;
+  background: #F8FAFC;
   border-radius: 0;
   border-top: none;
   border-bottom: 1px solid rgba(28, 27, 58, 0.06);
@@ -382,27 +382,27 @@
 .rv-resolved-lines .cw-dept-strip { border-radius: 10px 0 0 10px; }
 /* Header corner: opaque (covers day headers scrolling under) but blended, so
    no white "CREW" block. */
-.rv-resolved-lines .cw-head-spacer { background: #F4F1EC; font-size: 0; }
+.rv-resolved-lines .cw-head-spacer { background: #F8FAFC; font-size: 0; }
 .rv-resolved-lines-empty {
-  margin-top: 28px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  margin-top: 28px; font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px; color: rgba(28, 27, 58, 0.5);
 }
 .rv-resolved-eyebrow {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
   color: rgba(28, 27, 58, 0.5);
 }
 .rv-resolved-badge {
   display: inline-flex; align-items: center; gap: 6px;
   margin: 16px 0 24px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px; font-weight: 600;
   padding: 6px 14px; border-radius: 999px;
 }
 .rv-resolved-badge.ok   { background: #E8F1E9; color: #2D5A3A; }
 .rv-resolved-badge.warn { background: #FAECE7; color: #7A2E1E; }
 .rv-resolved-meta {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   margin: 0; max-width: 560px;
   border: 1px solid rgba(28, 27, 58, 0.08);
   border-radius: 14px;
@@ -468,13 +468,13 @@
 
 /* ── Review item card ─────────────────────────────────────────
    White on the paler page background. Workload strip inside is
-   the deeper #F4EEE4 cream for visual nesting against the page. */
+   the deeper #F1F5F9 cream for visual nesting against the page. */
 .rv-card {
   background: #FFFFFF;
-  border: 0.5px solid #E2DDD4;
+  border: 0.5px solid #E5E7EB;
   border-radius: 12px;
   padding: 18px 20px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
 }
 .rv-card-head {
@@ -510,7 +510,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #F4EEE4;
+  background: #F1F5F9;
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 13px;
@@ -522,14 +522,14 @@
   display: inline-block;
   width: 1px;
   height: 14px;
-  background: #DFD8CC;
+  background: #E5E7EB;
   margin: 0 4px;
 }
 
 .rv-card-actions-placeholder {
   font-style: italic;
   font-size: 11px;
-  color: #C9C0AE;
+  color: #C3CAD4;
   text-align: right;
 }
 
@@ -540,7 +540,7 @@
   gap: 8px;
 }
 .rv-btn {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 12px;
   font-weight: 500;
   border-radius: 999px;
@@ -553,16 +553,16 @@
 }
 .rv-btn.primary {
   background: #1C1B3A;
-  color: #F5F1EA;
+  color: #F5F7FA;
   border: none;
 }
 .rv-btn.primary:hover { background: #2A2948; }
 .rv-btn.ghost {
   background: transparent;
   color: #1C1B3A;
-  border-color: #DFD8CC;
+  border-color: #E5E7EB;
 }
-.rv-btn.ghost:hover { background: #FAFAF7; }
+.rv-btn.ghost:hover { background: #F6F8FB; }
 .rv-btn.danger {
   background: #7A2E1E;
   color: #FFFFFF;
@@ -594,15 +594,15 @@
   width: 100%;
   text-align: left;
   background: #FFFFFF;
-  border: 0.5px solid #E2DDD4;
+  border: 0.5px solid #E5E7EB;
   border-radius: 10px;
   padding: 14px 16px;
   cursor: pointer;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
-.rv-cc:hover { border-color: #CFC7B8; }
+.rv-cc:hover { border-color: #CBD2DC; }
 .rv-cc.selected {
   border: 1px solid #1C1B3A;
   box-shadow: 0 2px 4px rgba(28, 27, 58, 0.04);
@@ -634,7 +634,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #F4EEE4;
+  background: #F1F5F9;
   border-radius: 6px;
   padding: 6px 9px;
   margin-top: 10px;
@@ -665,7 +665,7 @@
 }
 .rv-rp-header { margin-bottom: 20px; }
 .rv-rp-eyebrow {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -682,7 +682,7 @@
   color: #1C1B3A;
 }
 .rv-rp-meta {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 12px;
   color: rgba(28, 27, 58, 0.55);
   margin-top: 8px;
@@ -711,7 +711,7 @@
 /* Inline reject panel anchored in the footer. */
 .rv-rp-reject {
   width: 100%;
-  background: #FBF5EE;
+  background: #F6F8FB;
   border: 0.5px solid #7A2E1E;
   border-radius: 8px;
   padding: 14px;
@@ -727,11 +727,11 @@
 .rv-rp-reject-textarea {
   width: 100%;
   min-height: 64px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   color: #1C1B3A;
   padding: 10px 12px;
-  border: 0.5px solid #DFD8CC;
+  border: 0.5px solid #E5E7EB;
   border-radius: 6px;
   background: #FFFFFF;
   resize: vertical;
@@ -754,7 +754,7 @@
   justify-content: center;
   text-align: center;
   padding: 48px 24px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 .rv-rp-blank-icon { margin-bottom: 14px; }
 .rv-rp-blank-title {
@@ -772,14 +772,14 @@
 
 /* ── Inline reject panel ───────────────────────────────────── */
 .rv-reject-panel {
-  background: #FBF5EE;
+  background: #F6F8FB;
   border: 0.5px solid #7A2E1E;
   border-radius: 8px;
   padding: 14px;
   margin-top: 0;
 }
 .rv-reject-label {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -790,11 +790,11 @@
 .rv-reject-textarea {
   width: 100%;
   min-height: 64px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   color: #1C1B3A;
   padding: 10px 12px;
-  border: 0.5px solid #DFD8CC;
+  border: 0.5px solid #E5E7EB;
   border-radius: 6px;
   background: #FFFFFF;
   resize: vertical;
@@ -815,10 +815,10 @@
   bottom: 24px;
   transform: translateX(-50%);
   background: #1C1B3A;
-  color: #F5F1EA;
+  color: #F5F7FA;
   padding: 10px 18px;
   border-radius: 999px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 12px;
   z-index: 1200;
   box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.4);
@@ -828,11 +828,11 @@
 /* ── Empty state ───────────────────────────────────────────── */
 .rv-empty {
   background: #FFFFFF;
-  border: 0.5px solid #E2DDD4;
+  border: 0.5px solid #E5E7EB;
   border-radius: 12px;
   padding: 48px 24px;
   text-align: center;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 .rv-empty-icon {
   display: block;
@@ -1405,7 +1405,7 @@
 .rv-cr-detail {
   padding: 40px 44px;
   max-width: 620px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
 }
 .rv-cr-head { margin-bottom: 20px; }
@@ -1428,7 +1428,7 @@
 }
 .rv-cr-when {
   font-size: 12px;
-  color: #A29C90;
+  color: #99A0AC;
   margin-top: 8px;
 }
 .rv-cr-lede {
@@ -1463,7 +1463,7 @@
   overflow-wrap: anywhere;
 }
 .rv-cr-flow-val.muted { color: #8B8478; font-weight: 500; }
-.rv-cr-flow-arrow { color: #C0BDB2; flex: none; }
+.rv-cr-flow-arrow { color: #BEC4CE; flex: none; }
 .rv-cr-actions { display: flex; gap: 12px; }
 .rv-cr-approve {
   font-size: 13.5px;
