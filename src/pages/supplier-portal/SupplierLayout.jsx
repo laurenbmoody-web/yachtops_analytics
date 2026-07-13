@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingBag, Truck, FileText, BookOpen,
-  Users, MessageSquare, RotateCcw, Bell, Search,
+  Users, MessageSquare, RotateCcw, Bell, Search, Radar,
   PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import SupplierAvatarMenu from './components/SupplierAvatarMenu';
@@ -20,6 +20,7 @@ const NAV_GROUPS = [
     label: 'Work',
     items: [
       { to: '/supplier/overview',   icon: LayoutDashboard, label: 'Overview' },
+      { to: '/supplier/radar',      icon: Radar,           label: 'Radar',     requires: 'clients:view' },
       { to: '/supplier/orders',     icon: ShoppingBag,     label: 'Orders',    requires: 'orders:view' },
       { to: '/supplier/deliveries', icon: Truck,           label: 'Deliveries', requires: 'deliveries:view' },
       { to: '/supplier/invoices',   icon: FileText,        label: 'Invoices',  requires: 'invoices:view' },
