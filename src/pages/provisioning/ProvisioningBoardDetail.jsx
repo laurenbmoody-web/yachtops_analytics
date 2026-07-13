@@ -4111,7 +4111,7 @@ const SUPPLIER_MIRROR_FIELD = {
                                 bulk unit with a pack shows a derived "×N" chip
                                 (units_per_pack) so the pack breakdown reads on
                                 the row, not only in the drawer. */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '11px 8px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, padding: '11px 8px' }}>
                               {isReceived || supplierActed || catLocked
                                 ? (
                                     itemOrder?.unitChanged
@@ -4123,7 +4123,7 @@ const SUPPLIER_MIRROR_FIELD = {
                                         )
                                       : <span style={{ fontSize: 11, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{itemOrder?.unit || item.unit || 'each'}</span>
                                   )
-                                : <select value={UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) ? normalizeUnit(item.unit) : (item.unit || 'each')} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, minWidth: 0, flex: 1 }}>
+                                : <select value={UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) ? normalizeUnit(item.unit) : (item.unit || 'each')} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}>
                                     {item.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(item.unit)) && <option value={item.unit}>{item.unit}</option>}
                                     {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
                                   </select>
@@ -4131,9 +4131,9 @@ const SUPPLIER_MIRROR_FIELD = {
                               {isBulkUnit(itemOrder?.unit || item.unit) && Number(item.units_per_pack) > 1 && (
                                 <span
                                   title={`A ${normalizeUnit(itemOrder?.unit || item.unit)} holds ${Number(item.units_per_pack)}`}
-                                  style={{ flexShrink: 0, fontSize: 9, fontWeight: 700, color: '#C65A1A', background: '#FBEFE9', borderRadius: 999, padding: '1px 5px', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
+                                  style={{ fontSize: 9.5, fontWeight: 600, color: '#8B8478', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
                                 >
-                                  ×{Number(item.units_per_pack)}
+                                  ×{Number(item.units_per_pack)} / {normalizeUnit(itemOrder?.unit || item.unit)}
                                 </span>
                               )}
                             </div>
