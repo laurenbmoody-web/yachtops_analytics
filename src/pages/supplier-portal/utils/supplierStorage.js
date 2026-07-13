@@ -723,7 +723,7 @@ export const fetchSupplierKPIs = async (supplierId) => {
 export const fetchClients = async (supplierId) => {
   const { data, error } = await supabase
     .from('tenant_suppliers')
-    .select('*, tenants(id, name, vessel_name)')
+    .select('*, tenants(id, name)')
     .eq('supplier_id', supplierId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -736,7 +736,7 @@ export const fetchClients = async (supplierId) => {
 export const fetchClientProfile = async (supplierId, tenantId) => {
   const { data, error } = await supabase
     .from('tenant_suppliers')
-    .select('*, tenants(id, name, vessel_name)')
+    .select('*, tenants(id, name)')
     .eq('supplier_id', supplierId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
