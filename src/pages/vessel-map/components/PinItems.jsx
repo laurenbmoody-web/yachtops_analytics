@@ -1,18 +1,16 @@
 // "What's inside" — the inventory items physically at this pin, and how many.
-// A pin is a node in the physical-location tree; an item can hold stock at the
-// pin (a stock_locations entry keyed by the node) alongside stock elsewhere.
-// So:
+// The map pin is deliberately simple: it only answers "how many of X are HERE".
 //   • the count shown is how many are HERE, not the grand total;
-//   • adding an item opens a transfer — receive new stock here and/or move
-//     existing stock in from its other places (see the maths in stockMath.js);
+//   • −/+ recounts what's on this pin (the delta flows to the item's total);
+//   • adding an item places a quantity here;
 //   • creating a new item receives all of it here;
-//   • −/+ recounts what's on the pin;
 //   • category (the item's inventory folder) rides along as subtext.
+// Cross-location work — moving stock between locations, or fixing another
+// location's count — lives in the item drawer (its god-view), not here.
 import React, { useEffect, useRef, useState } from 'react';
 import { searchInventoryItems, searchInventoryLocations, locationLabel, categoryPath } from '../utils/inventory';
-import { sources as sourcesOf, pinQty } from '../utils/stockMath';
 import {
-  resolvePinNode, itemsAtNode, itemStock, placeStock, setPinCount,
+  resolvePinNode, itemsAtNode, placeStock, setPinCount,
   clearItemNode, createItemAtNode,
 } from '../utils/placement';
 import ItemDrawer from './ItemDrawer';
@@ -26,7 +24,7 @@ export default function PinItems({
   const [mode, setMode] = useState(null);       // 'add' | 'create' | null
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
-  const [transfer, setTransfer] = useState(null); // { item, total, existing, sources, addNew, moves }
+  const [transfer, setTransfer] = useState(null); // { item, addNew } — "how many here"
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('');
   const [newCat, setNewCat] = useState(null);
@@ -58,9 +56,6 @@ export default function PinItems({
     if (e) { setError(e); setRows([]); return; }
     setRows(items.map((it) => ({
       id: it.id, name: it.name, qty: it.pinQty, unit: it.unit || null, category: categoryPath(it),
-      // Is any of this item stored anywhere OTHER than this pin? Only then is
-      // "move some here" meaningful — otherwise we don't show it at all.
-      elsewhere: (Number(it.total_qty ?? it.quantity) || 0) - it.pinQty > 0,
     })));
   };
   useEffect(() => { setRows(null); load(hotspot?.location_node_id || null); /* eslint-disable-next-line */ }, [hotspot?.id, hotspot?.location_node_id, tenantId]);
@@ -98,36 +93,20 @@ export default function PinItems({
     return nid;
   };
 
-  // Open the transfer panel for an item — from a search result (add) or from
-  // an existing row's ▾ (move more in without re-searching). forRow renders it
-  // inline under that row.
-  const openTransfer = async (inv, forRow = null) => {
-    if (transfer?.forRow === inv.id && forRow) { setTransfer(null); return; } // toggle
+  // Open the "how many here?" panel for an inventory item picked in search.
+  const openTransfer = async (inv) => {
     setMode(null); setQuery(''); setResults([]); setError(null);
     const nid = await ensureNode();
     if (!nid) return;
-    const { stockLocations, total, error: e } = await itemStock(inv.id);
-    if (e) { setError(e); return; }
-    setTransfer({
-      item: inv, total, forRow,
-      existing: pinQty(stockLocations, nid),
-      sources: sourcesOf({ stockLocations, total }, nid),
-      addNew: '', moves: {},
-    });
+    setTransfer({ item: inv, addNew: '' });
   };
-
-  const willHold = transfer
-    ? (transfer.existing || 0) + (Number(transfer.addNew) || 0)
-      + transfer.sources.reduce((s, src) => s + Math.min(Number(transfer.moves[src.key]) || 0, src.qty), 0)
-    : 0;
 
   const applyTransfer = async () => {
     const t = transfer;
-    const moves = t.sources.map((s) => ({ key: s.key, qty: Number(t.moves[s.key]) || 0 })).filter((m) => m.qty > 0);
     const addNew = Number(t.addNew) || 0;
-    if (addNew <= 0 && moves.length === 0) { setTransfer(null); return; }
+    if (addNew <= 0) { setTransfer(null); return; }
     setBusy('transfer'); setError(null);
-    const { error: e } = await placeStock(t.item.id, { pin: { nodeId, name: pinName }, addNew, moves });
+    const { error: e } = await placeStock(t.item.id, { pin: { nodeId, name: pinName }, addNew, moves: [] });
     setBusy(null);
     if (e) { setError(e); return; }
     setTransfer(null);
@@ -168,59 +147,18 @@ export default function PinItems({
 
   const startCreateFromQuery = () => { setNewName(query.trim()); setNewQty(''); setMode('create'); setResults([]); };
 
-  // Set how many to move from a source, clamped to what's actually there.
-  const setMove = (key, val, max) => {
-    const n = Math.max(0, Math.min(Number(val) || 0, max));
-    setTransfer((t) => ({ ...t, moves: { ...t.moves, [key]: n === 0 ? '' : String(n) } }));
-  };
-  const bumpMove = (key, delta, max) => setMove(key, (Number(transfer.moves[key]) || 0) + delta, max);
-
-  // The move-in panel. From an existing row's ▾ it's ONLY "move in from other
-  // locations" (the row's own − / + handles receiving here). From the add-item
-  // search it also offers "New stock arriving here" for a first placement.
-  const forRow = !!transfer?.forRow;
-  const movesTotal = transfer
-    ? transfer.sources.reduce((s, src) => s + Math.min(Number(transfer.moves[src.key]) || 0, src.qty), 0)
-    : 0;
+  // "How many here?" — placing an existing inventory item onto this pin. Just a
+  // quantity; anything cross-location happens in the item drawer.
+  const placeQty = Number(transfer?.addNew) || 0;
   const panel = transfer && (
     <div className="vm-transfer">
-      {!forRow && <p className="vm-transfer-head"><strong>{transfer.item.name}</strong> · {transfer.total} onboard</p>}
-      {!forRow && (
-        <label className="vm-transfer-new">
-          <span>New stock arriving here</span>
-          <input className="vm-check-input vm-transfer-qty" type="number" min="0"
-            value={transfer.addNew} onChange={(e) => setTransfer((t) => ({ ...t, addNew: e.target.value }))} autoFocus />
-        </label>
-      )}
-      {transfer.sources.length > 0 ? (
-        <>
-          <p className="vm-transfer-sub">{forRow ? 'Bring stock here from another store — pick how many to move:' : 'Or move some in from where it is now:'}</p>
-          {transfer.sources.map((s) => {
-            const n = Number(transfer.moves[s.key]) || 0;
-            return (
-              <div key={s.key} className="vm-transfer-src">
-                <span className="vm-transfer-src-name" title={s.label}>{s.label}</span>
-                <span className="vm-transfer-src-have">{s.qty} there</span>
-                <span className="vm-move-step">
-                  <button type="button" className="vm-move-btn" onClick={() => bumpMove(s.key, -1, s.qty)} disabled={n <= 0} aria-label={`Move one fewer from ${s.label}`}>–</button>
-                  <input className="vm-move-input" type="number" min="0" max={s.qty}
-                    value={transfer.moves[s.key] || ''} onChange={(e) => setMove(s.key, e.target.value, s.qty)} />
-                  <button type="button" className="vm-move-btn" onClick={() => bumpMove(s.key, 1, s.qty)} disabled={n >= s.qty} aria-label={`Move one more from ${s.label}`}>+</button>
-                </span>
-              </div>
-            );
-          })}
-        </>
-      ) : (
-        forRow && <p className="vm-transfer-sub">Not stored anywhere else — use – / + above to change the count here.</p>
-      )}
-      {!forRow && <p className="vm-transfer-total">This pin will hold: <strong>{willHold}</strong></p>}
+      <label className="vm-transfer-new">
+        <span>How many of <strong>{transfer.item.name}</strong> here?</span>
+        <input className="vm-check-input vm-transfer-qty" type="number" min="0"
+          value={transfer.addNew} onChange={(e) => setTransfer((t) => ({ ...t, addNew: e.target.value }))} autoFocus />
+      </label>
       <div className="vm-transfer-actions">
-        {forRow ? (
-          <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || movesTotal <= 0}>{busy === 'transfer' ? 'Moving…' : (movesTotal > 0 ? `Move ${movesTotal} here` : 'Move here')}</button>
-        ) : (
-          <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || willHold <= (transfer.existing || 0)}>{busy === 'transfer' ? 'Saving…' : 'Place'}</button>
-        )}
+        <button className="vm-btn-primary" onClick={applyTransfer} disabled={busy === 'transfer' || placeQty <= 0}>{busy === 'transfer' ? 'Saving…' : 'Place here'}</button>
         <button className="vm-btn-ghost" onClick={() => setTransfer(null)}>Cancel</button>
       </div>
     </div>
@@ -241,56 +179,46 @@ export default function PinItems({
             const segs = r.category ? r.category.split(' › ') : [];
             const leaf = segs.pop();
             const head = segs.join(' › ');
-            const open = transfer?.forRow === r.id;
             return (
-              <React.Fragment key={r.id}>
-                <div className="vm-pinitem">
-                  {/* Line 1 — the name gets the full width so it wraps in full. */}
-                  <div className="vm-pinitem-top">
-                    <button className="vm-pinitem-name" onClick={() => setOpenItem(r.id)} title="Quick view">{r.name}</button>
-                    {canManage && (
-                      <button className="vm-pinitem-del" onClick={() => removeItem(r.id)} aria-label={`Remove ${r.name}`}>×</button>
-                    )}
-                  </div>
-                  {leaf ? (
-                    <span className="vm-pinitem-cat">
-                      {head && <span className="vm-pinitem-cat-head">{head} › </span>}
-                      <span className="vm-pinitem-cat-leaf">{leaf}</span>
+              <div className="vm-pinitem" key={r.id}>
+                {/* Line 1 — the name gets the full width so it wraps in full. */}
+                <div className="vm-pinitem-top">
+                  <button className="vm-pinitem-name" onClick={() => setOpenItem(r.id)} title="Quick view">{r.name}</button>
+                  {canManage && (
+                    <button className="vm-pinitem-del" onClick={() => removeItem(r.id)} aria-label={`Remove ${r.name}`}>×</button>
+                  )}
+                </div>
+                {leaf ? (
+                  <span className="vm-pinitem-cat">
+                    {head && <span className="vm-pinitem-cat-head">{head} › </span>}
+                    <span className="vm-pinitem-cat-leaf">{leaf}</span>
+                  </span>
+                ) : (
+                  <span className="vm-pinitem-cat"><span className="vm-pinitem-cat-head">Uncategorised</span></span>
+                )}
+                {/* Line 2 — the count HERE. Cross-location work is in the drawer. */}
+                <div className="vm-pinitem-ctrls">
+                  {canManage ? (
+                    <span className="vm-pinitem-here">
+                      <span className="vm-pinitem-here-lbl">Here</span>
+                      <span className="vm-pinitem-step">
+                        <button className="vm-pinitem-btn" onClick={() => bump(r, -1)} disabled={busy === r.id || r.qty <= 0} aria-label={`One fewer ${r.name}`}>–</button>
+                        <span className="vm-pinitem-qty">{r.qty}</span>
+                        <button className="vm-pinitem-btn" onClick={() => bump(r, 1)} disabled={busy === r.id} aria-label={`One more ${r.name}`}>+</button>
+                      </span>
                     </span>
                   ) : (
-                    <span className="vm-pinitem-cat"><span className="vm-pinitem-cat-head">Uncategorised</span></span>
+                    <span className="vm-pinitem-here"><span className="vm-pinitem-here-lbl">Here</span> <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}</span></span>
                   )}
-                  {/* Line 2 — the count HERE, and (only if stored elsewhere) a
-                      clearly separate "move some here" action. */}
-                  <div className="vm-pinitem-ctrls">
-                    {canManage ? (
-                      <span className="vm-pinitem-here">
-                        <span className="vm-pinitem-here-lbl">Here</span>
-                        <span className="vm-pinitem-step">
-                          <button className="vm-pinitem-btn" onClick={() => bump(r, -1)} disabled={busy === r.id || r.qty <= 0} aria-label={`One fewer ${r.name}`}>–</button>
-                          <span className="vm-pinitem-qty">{r.qty}</span>
-                          <button className="vm-pinitem-btn" onClick={() => bump(r, 1)} disabled={busy === r.id} aria-label={`One more ${r.name}`}>+</button>
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="vm-pinitem-here"><span className="vm-pinitem-here-lbl">Here</span> <span className="vm-pinitem-qty vm-pinitem-qty-read">{r.qty}</span></span>
-                    )}
-                    {canManage && r.elsewhere && (
-                      <button className={`vm-pinitem-movebtn${open ? ' on' : ''}`} onClick={() => openTransfer({ id: r.id, name: r.name }, r.id)} title="Move stock here from another store">
-                        Move in <span className="vm-pinitem-movechev" aria-hidden="true">▾</span>
-                      </button>
-                    )}
-                  </div>
                 </div>
-                {open && panel}
-              </React.Fragment>
+              </div>
             );
           })}
         </div>
       )}
 
-      {/* Add-flow transfer panel (below the list) */}
-      {transfer && !transfer.forRow && panel}
+      {/* "How many here?" panel (below the list, after picking in search) */}
+      {transfer && panel}
 
       {canManage && mode === 'add' && (
         <div className="vm-cupboard-picker">
