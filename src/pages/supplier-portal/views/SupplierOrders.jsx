@@ -213,7 +213,7 @@ const SupplierOrders = () => {
             <span className="bar" />
             <span className="muted">{fmtMoney0(totalValue, totalCur)} total</span>
             <span className="bar" />
-            <span className="muted">{deliveriesToday} delivering today</span>
+            <span className="muted">{deliveriesToday} deliveries today</span>
             {flaggedOrders > 0 && <><span className="bar" /><span className="muted" style={{ color: 'var(--amber)' }}>{flaggedOrders} flagged</span></>}
             {rushCount > 0 && <><span className="bar" /><span className="muted" style={{ color: '#C65A1A' }}>{rushCount} rush</span></>}
           </p>
