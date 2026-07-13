@@ -93,7 +93,7 @@ const PersonalModeScreen = ({ userName }) => {
           You’re not on a vessel right now. Your personal record — profile, documents and sea service — is safe and travels with you. Vessel features unlock again as soon as you join or are added to a vessel.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
-          <button style={card} onClick={() => go('/my-profile-management')}>
+          <button style={card} onClick={() => go('/my-profile')}>
             <div style={cardTitle}>My profile &amp; documents</div>
             <div style={cardSub}>Your details, certificates and sea service — keep them up to date.</div>
           </button>
@@ -119,7 +119,7 @@ const PersonalModeScreen = ({ userName }) => {
 // Personal pages that must stay reachable in unberthed mode — when the user is
 // on one of these, the full-screen personal landing steps aside so the page
 // renders. Anything else shows the landing.
-const UNBERTHED_ALLOW = ['/my-profile', '/settings', '/invite', '/invite-accept', '/reset-password', '/forgot-password', '/login'];
+const UNBERTHED_ALLOW = ['/my-profile', '/profile', '/settings', '/invite', '/invite-accept', '/reset-password', '/forgot-password', '/login'];
 
 export const VesselFallbackUI = () => {
   const { vesselChooserOptions, noVesselAccess, selectVesselFromChooser, userDisplayName } = useTenant();
