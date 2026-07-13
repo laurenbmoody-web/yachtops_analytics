@@ -264,8 +264,15 @@
 /* ── CTA row (Next / Cancel pair) ─────────────────────────── */
 .pv-wizard-cta-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
+}
+/* Forces its own full-width line inside the CTA row (e.g. the long
+   "Create & browse marketplace" label that clips when inline). */
+.pv-wizard-cta-row .pv-wizard-btn-block {
+  flex: 1 1 100%;
+  text-align: center;
 }
 
 /* ── Buttons ──────────────────────────────────────────────── */
