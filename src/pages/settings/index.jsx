@@ -5,6 +5,7 @@ import Header from '../../components/navigation/Header';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
+import JSZip from 'jszip';
 import './settings.css';
 
 // ── Preference persistence (instant, silent save to localStorage) ────────────
@@ -417,33 +418,56 @@ const SettingsPage = () => {
     setExportBusy(true); setExportMsg(null);
     try {
       const [prof, details, docs, sea, notif] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', uid).maybeSingle(),
+        supabase.from('profiles').select('id, full_name, first_name, last_name, surname, email, avatar_url, department, created_at, updated_at').eq('id', uid).maybeSingle(),
         supabase.from('crew_personal_details').select('*').eq('user_id', uid).maybeSingle(),
         supabase.from('personal_documents').select('*').eq('user_id', uid),
         supabase.from('sea_service_entries').select('*').eq('user_id', uid),
         supabase.from('crew_notification_emails').select('*').eq('user_id', uid),
       ]);
+      const documents = docs.data || [];
       const bundle = {
         export: {
           generated_at: new Date().toISOString(),
           account_email: acct.email || session?.user?.email || null,
-          note: 'This is the personal data Cargo holds for your account. Records a vessel is legally required to keep (e.g. compliance and safety logs) are controlled by that vessel and are not included here.',
+          note: 'This is the personal data Cargo holds for your account (GDPR access + portability). Records a vessel is legally required to keep (e.g. compliance and safety logs) are controlled by that vessel and are not included here. Your uploaded document files are in the /documents folder.',
         },
         profile: prof.data || null,
         personal_details: details.data || null,
-        documents: docs.data || [],
+        documents,
         sea_service: sea.data || [],
         notification_routing: notif.data || [],
         preferences: prefs,
       };
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+
+      // ZIP: machine-readable data + the actual files the user uploaded (Art. 20
+      // portability covers data they provided, i.e. their documents — not just
+      // the metadata). file_url is a long-lived signed URL, fetchable directly.
+      const zip = new JSZip();
+      zip.file('cargo-data.json', JSON.stringify(bundle, null, 2));
+      const folder = zip.folder('documents');
+      const used = new Set();
+      let ok = 0, missed = 0;
+      await Promise.all(documents.filter(d => d.file_url).map(async (d) => {
+        try {
+          const res = await fetch(d.file_url);
+          if (!res.ok) throw new Error(`http ${res.status}`);
+          const blob = await res.blob();
+          let name = (d.file_name || `${d.doc_type || 'document'}-${d.id}`).replace(/[^\w.\-]+/g, '_');
+          while (used.has(name)) name = `${d.id}-${name}`;
+          used.add(name);
+          folder.file(name, blob);
+          ok++;
+        } catch (e) { missed++; }
+      }));
+
+      const out = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(out);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `cargo-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `cargo-my-data-${new Date().toISOString().slice(0, 10)}.zip`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      setExportMsg({ t: 'ok', m: 'Download started' });
+      setExportMsg({ t: 'ok', m: missed ? `Downloaded — ${ok} file${ok === 1 ? '' : 's'}, ${missed} couldn’t be fetched` : 'Download started' });
     } catch (e) {
       console.warn('[settings] data export failed', e);
       setExportMsg({ t: 'err', m: 'Could not prepare your download' });
@@ -827,10 +851,6 @@ const SettingsPage = () => {
             <p className="set-hsub">See exactly who can access your information, and take a copy with you.</p>
 
             <Caps>What your vessel can see</Caps>
-            <p className="set-note">
-              Cargo only shows your details to the people who need them. Heads of department can’t
-              see your documents or contact details — only the Command tier can.
-            </p>
             <Group>
               <VisRow label="Name &amp; photo" who="crew" whoLabel="Everyone on board" />
               <VisRow label="Role &amp; department" who="crew" whoLabel="Everyone on board" />
@@ -844,7 +864,7 @@ const SettingsPage = () => {
             <Caps>Your data</Caps>
             <Group>
               <div className="set-r">
-                <RMain label="Download my data" desc="A copy of your profile, documents, personal details and sea service — yours to keep and take to your next boat." />
+                <RMain label="Download my data" desc="A ZIP of your profile, personal details, sea service and your uploaded document files — yours to keep and take to your next boat." />
                 {exportMsg && <span className="set-savenote" style={{ color: exportMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{exportMsg.m}</span>}
                 <button className="set-btn" onClick={downloadMyData} disabled={exportBusy}>{exportBusy ? 'Preparing…' : 'Download'}</button>
               </div>
