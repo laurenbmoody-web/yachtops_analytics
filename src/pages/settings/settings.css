@@ -124,6 +124,14 @@ body.settings-editorial {
 .settings-page .set-emailrow .set-field { flex: 1; padding-left: 12px; max-width: 380px; }
 .settings-page .set-savenote { font-size: 12px; font-weight: 500; color: #6F7396; white-space: nowrap; }
 
+/* Privacy — small explanatory note under a caps label */
+.settings-page .set-note { font-size: 12.5px; line-height: 1.5; color: #6F7396; margin: -2px 0 12px; max-width: 640px; }
+/* Data-visibility pills: who can see a category */
+.settings-page .set-vis { font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 2px 10px; flex: 0 0 auto; white-space: nowrap; }
+.settings-page .set-vis.you { color: #3F7A52; background: #E9F3EC; }       /* you only — private */
+.settings-page .set-vis.command { color: #C65A1A; background: #FBEFE9; }   /* command tier */
+.settings-page .set-vis.crew { color: #5A5E82; background: #EEF0F6; }      /* everyone on board */
+
 /* Two-factor authentication — "On" pill + enrolment (QR + manual key + code) */
 .settings-page .set-badge-on { color: #3F7A52; background: #E9F3EC; }
 .settings-page .set-mfa-setup { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 4px 0 2px; }

@@ -80,6 +80,14 @@ const RowSeg = ({ label, desc, options, value, onChange }) => (
 const RowSoon = ({ label, desc }) => (
   <div className="set-r"><RMain label={label} desc={desc} /><span className="set-soon">Soon</span></div>
 );
+// A data-visibility row: a category and a pill saying who can see it.
+// who ∈ 'you' (private) · 'command' · 'crew' (everyone on board).
+const VisRow = ({ label, who, whoLabel }) => (
+  <div className="set-r">
+    <RMain label={label} />
+    <span className={`set-vis ${who}`}>{whoLabel}</span>
+  </div>
+);
 // "Added 13/07/2026" for a passkey/factor timestamp; empty on a bad date.
 const fmtFactorDate = (iso) => {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
@@ -395,6 +403,51 @@ const SettingsPage = () => {
       console.warn('[settings] revoke other sessions failed', e);
       setSessMsg({ t: 'err', m: 'Could not sign out other devices' });
     } finally { setSessBusyId(null); }
+  };
+
+  // ── Download my data ────────────────────────────────────────────────────────
+  // Gathers the personal records Cargo holds for THIS user (via RLS — own rows
+  // only) into a single JSON bundle they can keep. Vessel-controlled compliance
+  // records are a separate controllership and are deliberately not included.
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportMsg, setExportMsg] = useState(null);
+  const downloadMyData = async () => {
+    const uid = session?.user?.id;
+    if (!uid) { setExportMsg({ t: 'err', m: 'You need to be signed in' }); return; }
+    setExportBusy(true); setExportMsg(null);
+    try {
+      const [prof, details, docs, sea, notif] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', uid).maybeSingle(),
+        supabase.from('crew_personal_details').select('*').eq('user_id', uid).maybeSingle(),
+        supabase.from('personal_documents').select('*').eq('user_id', uid),
+        supabase.from('sea_service_entries').select('*').eq('user_id', uid),
+        supabase.from('crew_notification_emails').select('*').eq('user_id', uid),
+      ]);
+      const bundle = {
+        export: {
+          generated_at: new Date().toISOString(),
+          account_email: acct.email || session?.user?.email || null,
+          note: 'This is the personal data Cargo holds for your account. Records a vessel is legally required to keep (e.g. compliance and safety logs) are controlled by that vessel and are not included here.',
+        },
+        profile: prof.data || null,
+        personal_details: details.data || null,
+        documents: docs.data || [],
+        sea_service: sea.data || [],
+        notification_routing: notif.data || [],
+        preferences: prefs,
+      };
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cargo-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      setExportMsg({ t: 'ok', m: 'Download started' });
+    } catch (e) {
+      console.warn('[settings] data export failed', e);
+      setExportMsg({ t: 'err', m: 'Could not prepare your download' });
+    } finally { setExportBusy(false); }
   };
 
   const startMfaEnroll = async () => {
@@ -771,11 +824,45 @@ const SettingsPage = () => {
         return (
           <>
             <h2 className="set-h">Privacy &amp; data</h2>
-            <p className="set-hsub">Control your data.</p>
+            <p className="set-hsub">See exactly who can access your information, and take a copy with you.</p>
+
+            <Caps>What your vessel can see</Caps>
+            <p className="set-note">
+              Cargo only shows your details to the people who need them. Heads of department can’t
+              see your documents or contact details — only the Command tier can.
+            </p>
             <Group>
-              <RowSoon label="Export my data" desc="Download a copy of your records." />
-              <RowToggle label="Usage analytics" desc="Help improve Cargo with anonymous usage data." on={prefs.analytics} onChange={() => toggle('analytics')} />
-              <RowSoon label="Delete account" desc="Permanently remove your account." />
+              <VisRow label="Name &amp; photo" who="crew" whoLabel="Everyone on board" />
+              <VisRow label="Role &amp; department" who="crew" whoLabel="Everyone on board" />
+              <VisRow label="Email address" who="crew" whoLabel="Everyone on board" />
+              <VisRow label="Contact details &amp; next of kin" who="command" whoLabel="Command only" />
+              <VisRow label="Documents — passport, CoC, visas, medical" who="command" whoLabel="Command only" />
+              <VisRow label="Sea-service record" who="command" whoLabel="Command only" />
+              <VisRow label="Password, 2FA, passkeys &amp; sessions" who="you" whoLabel="You only" />
+            </Group>
+
+            <Caps>Your data</Caps>
+            <Group>
+              <div className="set-r">
+                <RMain label="Download my data" desc="A copy of your profile, documents, personal details and sea service — yours to keep and take to your next boat." />
+                {exportMsg && <span className="set-savenote" style={{ color: exportMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{exportMsg.m}</span>}
+                <button className="set-btn" onClick={downloadMyData} disabled={exportBusy}>{exportBusy ? 'Preparing…' : 'Download'}</button>
+              </div>
+              <RowNav label="Correct my details" desc="Update your name, contact details and documents." ext onClick={() => navigate('/my-profile')} />
+            </Group>
+
+            <Caps>Consent &amp; tracking</Caps>
+            <Group>
+              <RowToggle label="Product analytics" desc="Cargo uses no third-party or advertising trackers. Leave this on to allow anonymous product analytics if we ever add it." on={prefs.analytics} onChange={() => toggle('analytics')} />
+              <div className="set-r">
+                <RMain label="Cookies &amp; storage" desc="Only essential storage, used to keep you signed in. No advertising cookies." />
+                <span className="set-vis you">Essential only</span>
+              </div>
+            </Group>
+
+            <Caps>Account</Caps>
+            <Group>
+              <RowSoon label="Delete account" desc="Permanently erase your Cargo account." />
             </Group>
           </>
         );
