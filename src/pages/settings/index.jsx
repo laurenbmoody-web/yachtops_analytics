@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
@@ -217,6 +217,85 @@ const SettingsPage = () => {
     } finally { setPwBusy(false); }
   };
 
+  // ── Two-factor authentication (TOTP) ────────────────────────────────────────
+  // Supabase MFA is entirely client-side: enroll returns a QR + secret, the
+  // user's authenticator app produces a rolling 6-digit code, challengeAndVerify
+  // confirms it. A verified 'totp' factor = 2FA is on. Turning it off unenrolls.
+  const [mfaLoading, setMfaLoading] = useState(true);
+  const [mfaFactor, setMfaFactor] = useState(null);   // the verified TOTP factor, or null
+  const [mfaEnroll, setMfaEnroll] = useState(null);   // { factorId, qr, secret } mid-setup
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [mfaMsg, setMfaMsg] = useState(null);         // { t:'err'|'ok', m }
+  const [mfaConfirmOff, setMfaConfirmOff] = useState(false);
+
+  const loadFactors = useCallback(async () => {
+    setMfaLoading(true);
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error) throw error;
+      setMfaFactor((data?.totp || []).find(f => f.status === 'verified') || null);
+    } catch (e) {
+      console.warn('[settings] listFactors failed', e);
+      setMfaFactor(null);
+    } finally { setMfaLoading(false); }
+  }, []);
+  useEffect(() => { loadFactors(); }, [loadFactors]);
+
+  const startMfaEnroll = async () => {
+    setMfaBusy(true); setMfaMsg(null);
+    try {
+      // Clear any half-finished (unverified) factors so a fresh enroll doesn't
+      // collide on a previous abandoned attempt.
+      const { data: list } = await supabase.auth.mfa.listFactors();
+      for (const f of (list?.all || []).filter(f => f.status === 'unverified')) {
+        await supabase.auth.mfa.unenroll({ factorId: f.id });
+      }
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
+      if (error) throw error;
+      setMfaEnroll({ factorId: data.id, qr: data.totp?.qr_code, secret: data.totp?.secret });
+      setMfaCode('');
+    } catch (e) {
+      console.warn('[settings] mfa enroll failed', e);
+      setMfaMsg({ t: 'err', m: e.message || 'Could not start setup' });
+    } finally { setMfaBusy(false); }
+  };
+
+  const verifyMfa = async () => {
+    const code = mfaCode.trim();
+    if (!/^\d{6}$/.test(code)) { setMfaMsg({ t: 'err', m: 'Enter the 6-digit code' }); return; }
+    setMfaBusy(true); setMfaMsg(null);
+    try {
+      const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: mfaEnroll.factorId, code });
+      if (error) { setMfaMsg({ t: 'err', m: 'That code didn’t match — use the current one from your app' }); setMfaBusy(false); return; }
+      setMfaEnroll(null); setMfaCode('');
+      await loadFactors();
+    } catch (e) {
+      console.warn('[settings] mfa verify failed', e);
+      setMfaMsg({ t: 'err', m: 'Something went wrong' });
+    } finally { setMfaBusy(false); }
+  };
+
+  const cancelMfaEnroll = async () => {
+    const fid = mfaEnroll?.factorId;
+    setMfaEnroll(null); setMfaCode(''); setMfaMsg(null);
+    if (fid) { try { await supabase.auth.mfa.unenroll({ factorId: fid }); } catch { /* best effort */ } }
+  };
+
+  const disableMfa = async () => {
+    if (!mfaFactor) return;
+    setMfaBusy(true); setMfaMsg(null);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId: mfaFactor.id });
+      if (error) throw error;
+      setMfaConfirmOff(false);
+      await loadFactors();
+    } catch (e) {
+      console.warn('[settings] mfa unenroll failed', e);
+      setMfaMsg({ t: 'err', m: e.message || 'Could not turn it off' });
+    } finally { setMfaBusy(false); }
+  };
+
   const setPref = (name, val) => {
     const [k, t] = PREF_KEY[name];
     localStorage.setItem(k, t === 'bool' ? String(val) : val);
@@ -401,7 +480,54 @@ const SettingsPage = () => {
                   <button className="set-btn" onClick={() => { setEditingPw(true); setPwDone(false); }}>Change</button>
                 </div>
               )}
-              <RowSoon label="Two-factor authentication" desc="Add an extra step at sign-in." />
+              {mfaEnroll ? (
+                <div className="set-r set-stack">
+                  <RMain label="Set up two-factor authentication" desc="Scan the QR code with an authenticator app (1Password, Authy, Google Authenticator), then enter the 6-digit code it shows." />
+                  <div className="set-mfa-setup">
+                    <div className="set-mfa-qr">
+                      {mfaEnroll.qr
+                        ? <img src={mfaEnroll.qr} alt="Two-factor QR code" width={156} height={156} />
+                        : <span className="set-mfa-qr-fallback">QR unavailable — use the key</span>}
+                    </div>
+                    <div className="set-mfa-manual">
+                      <div className="set-mfa-manual-label">Can’t scan? Enter this key</div>
+                      <code className="set-mfa-secret">{mfaEnroll.secret}</code>
+                    </div>
+                  </div>
+                  <div className="set-emailrow">
+                    <input className="set-field set-mfa-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6-digit code"
+                      value={mfaCode} autoFocus
+                      onChange={(e) => { setMfaCode(e.target.value.replace(/\D/g, '')); if (mfaMsg) setMfaMsg(null); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); verifyMfa(); } if (e.key === 'Escape') cancelMfaEnroll(); }} />
+                    <button className="set-btn set-btn-primary" onClick={verifyMfa} disabled={mfaBusy}>{mfaBusy ? 'Verifying…' : 'Verify & turn on'}</button>
+                    <button className="set-btn" onClick={cancelMfaEnroll} disabled={mfaBusy}>Cancel</button>
+                  </div>
+                  {mfaMsg && <span className="set-savenote" style={{ color: mfaMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{mfaMsg.m}</span>}
+                </div>
+              ) : mfaFactor ? (
+                mfaConfirmOff ? (
+                  <div className="set-r set-stack">
+                    <RMain label="Turn off two-factor authentication" desc="You’ll sign in with just your password again. You can set it up again any time." />
+                    <div className="set-emailrow">
+                      <button className="set-btn set-btn-danger" onClick={disableMfa} disabled={mfaBusy}>{mfaBusy ? 'Turning off…' : 'Turn off'}</button>
+                      <button className="set-btn" onClick={() => { setMfaConfirmOff(false); setMfaMsg(null); }} disabled={mfaBusy}>Keep it on</button>
+                    </div>
+                    {mfaMsg && <span className="set-savenote" style={{ color: '#B23B2E' }}>{mfaMsg.m}</span>}
+                  </div>
+                ) : (
+                  <div className="set-r">
+                    <RMain label="Two-factor authentication" desc="On — you’ll enter a code from your authenticator app at sign-in." />
+                    <span className="set-badge set-badge-on">On</span>
+                    <button className="set-btn" onClick={() => { setMfaConfirmOff(true); setMfaMsg(null); }}>Turn off</button>
+                  </div>
+                )
+              ) : (
+                <div className="set-r">
+                  <RMain label="Two-factor authentication" desc="Add an extra step at sign-in with an authenticator app." />
+                  {mfaMsg && <span className="set-savenote" style={{ color: mfaMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{mfaMsg.m}</span>}
+                  <button className="set-btn" onClick={startMfaEnroll} disabled={mfaBusy || mfaLoading}>{mfaBusy ? 'Starting…' : 'Set up'}</button>
+                </div>
+              )}
               <RowSoon label="Passkeys" desc="Sign in with Face ID / Touch ID." />
               <RowSoon label="Active sessions" desc="See and sign out other devices." />
             </Group>
