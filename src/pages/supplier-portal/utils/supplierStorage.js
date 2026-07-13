@@ -204,10 +204,25 @@ export const fetchOrderActivity = async (orderId) => {
   return data ?? [];
 };
 
+// Which timestamp column a status transition stamps. Only genuine
+// lifecycle transitions get a stamp; picking/packed are display-only.
+// confirmed_at is also set by the confirm-flow trigger — re-stamping on a
+// manual confirm here is harmless and keeps the two paths consistent.
+const STATUS_STAMP = {
+  confirmed:  'confirmed_at',
+  dispatched: 'dispatched_at',
+  received:   'delivered_at',
+  invoiced:   'invoiced_at',
+  paid:       'paid_at',
+};
+
 export const updateOrderStatus = async (orderId, status) => {
+  const patch = { status };
+  const stampCol = STATUS_STAMP[status];
+  if (stampCol) patch[stampCol] = new Date().toISOString();
   const { data, error } = await supabase
     .from('supplier_orders')
-    .update({ status })
+    .update(patch)
     .eq('id', orderId)
     .select()
     .single();

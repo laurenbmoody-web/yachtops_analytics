@@ -552,90 +552,150 @@ const currentStepIndexFor = (status) => {
   return typeof idx === 'number' ? idx : 1;  // fallback to "Confirming"
 };
 
-const Timeline = ({ order, items, canEdit, onAdvance }) => {
+// Editorial fulfilment trail — display-only dots (settled navy ticks for the
+// past, one terracotta accent on the current stage) with a real stamped time
+// under each genuine transition. Advancing the order is driven by the
+// do-station below, not by clicking dots (picking/packed aren't real
+// statuses, so a dot-advance to them would violate the DB check constraint).
+const Timeline = ({ order, items }) => {
   const currentIdx = currentStepIndexFor(order.status);
-  const pendingCount = items.filter((i) => i.status === 'pending').length;
   const totalCount = items.length;
+  const actioned = items.filter((i) => (i.status || 'pending') !== 'pending').length;
 
-  // Progress bar width as a fraction of the full track between dots. The
-  // track sits inside 9px-from-each-edge (matches the CSS `left:9px;right:9px`),
-  // so we scale by (currentIdx / (steps-1)).
   const progressFraction = currentIdx > 0
     ? Math.min(1, currentIdx / (TIMELINE_STEPS.length - 1))
     : 0;
 
+  // Only genuine transitions carry a stamped time; picking/packed are
+  // display-only sub-steps between confirmed and dispatched.
+  const STEP_TS = {
+    0: order.sent_at || order.created_at,
+    1: order.confirmed_at,
+    4: order.dispatched_at,
+    5: order.delivered_at,
+    6: order.invoiced_at,
+  };
+
   const stepWhen = (idx) => {
-    if (idx === 0) {
-      return fmtTimestamp(order.sent_at || order.created_at) || 'Received';
-    }
+    const ts = STEP_TS[idx];
+    if (ts) return fmtTimestamp(ts) || 'Done';
+    if (idx < currentIdx) return 'Done';
     if (idx === currentIdx) {
-      // "Confirming" gets the X of Y progress hint.
       if (TIMELINE_STEPS[idx].key === 'confirming' && totalCount > 0) {
-        return `Now · ${totalCount - pendingCount} of ${totalCount}`;
+        return `${actioned} of ${totalCount}`;
       }
-      return 'Now';
+      return 'In progress';
     }
-    if (idx < currentIdx) {
-      // TODO(schema): per-step timestamps (picking_at, packed_at, …) need columns.
-      return '✓';
-    }
-    // Future delivery step gets the planned date if we have one.
+    // Future delivery step shows the planned date (dd/mm/yyyy) when we have one.
     if (TIMELINE_STEPS[idx].key === 'delivered' && order.delivery_date) {
       const dt = safeDate(order.delivery_date);
-      return dt ? dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '—';
+      return dt ? dt.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
     }
     return '—';
   };
 
-  const handleStepClick = (idx) => {
-    if (idx === currentIdx) return;             // no-op on current
-    if (idx < currentIdx) {
-      // Walking backward isn't supported via the UI — flag intent in console
-      // and bail. Future work: an explicit "revert" affordance.
-      console.warn('[SupplierOrderDetail] Backward step click ignored:', TIMELINE_STEPS[idx].key);
-      return;
-    }
-    if (idx > currentIdx + 1) {
-      window.alert(`Advance one step at a time. Next step: ${TIMELINE_STEPS[currentIdx + 1].label}.`);
-      return;
-    }
-    if (!canEdit) {
-      window.alert(NO_PERMISSION_TITLE);
-      return;
-    }
-    const target = TIMELINE_STEPS[idx];
-    const ok = window.confirm(`Advance order to "${target.label}"? This is logged on the order.`);
-    if (!ok) return;
-    onAdvance(target.key);
+  return (
+    <div className="sod-timeline-card">
+      <p className="sod-tl-label">Fulfilment</p>
+      <div className="sod-tl-scroll">
+        <div className="sod-stepper-line">
+          <div className="sod-stepper-progress" style={{ width: `calc((100% - 28px) * ${progressFraction})` }} />
+          {TIMELINE_STEPS.map((step, idx) => {
+            const isDone = idx < currentIdx;
+            const isCurrent = idx === currentIdx;
+            const cls = `sod-step${isDone ? ' sod-done' : ''}${isCurrent ? ' sod-current' : ''}`;
+            return (
+              <div key={step.key} className={cls} aria-current={isCurrent ? 'step' : undefined}>
+                <div className="sod-step-dot" />
+                <div className="sod-step-name">{step.label}</div>
+                <div className="sod-step-when">{stepWhen(idx)}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// The do-station — the current stage spelled out with its live detail and the
+// single next action, so the supplier drives the order forward without leaving
+// the timeline. Each stage's action routes to the existing flow for that
+// stage (confirm-all, the picking screen, the invoice modal, status advance)
+// rather than duplicating it.
+const DoStation = ({ order, items, canEdit, onConfirmAll, onStartPicking, onGenerateInvoice, onAdvance }) => {
+  const total = items.length;
+  const pending = items.filter((i) => (i.status || 'pending') === 'pending').length;
+  const actioned = total - pending;
+  const status = order.status;
+  const port = order.delivery_port || 'the vessel';
+  const preConfirm = ['draft', 'sent', 'pending', 'partially_confirmed', 'confirming'].includes(status);
+
+  let eyebrow = 'Current stage';
+  let title = null;
+  let hint = null;
+  let progress = null;
+  let primary = null;
+
+  if (preConfirm && pending > 0) {
+    title = <>Confirming — <em>{pending} line{pending === 1 ? '' : 's'}</em> still need pricing or a call</>;
+    progress = total > 0 ? actioned / total : 0;
+    hint = `${actioned} of ${total} lines actioned`;
+    primary = { label: `Confirm remaining (${pending})`, onClick: onConfirmAll };
+  } else if (preConfirm) {
+    title = <>All {total} lines actioned — ready to confirm</>;
+    hint = 'Confirm to move the order into picking';
+    primary = { label: 'Confirm order →', onClick: onConfirmAll };
+  } else if (['confirmed', 'picking'].includes(status)) {
+    title = status === 'picking' ? 'Picking in progress' : 'Confirmed — ready to pick';
+    hint = 'Count lines off the shelf — short picks carry a note to the yacht.';
+    primary = { label: status === 'picking' ? 'Continue picking' : 'Start picking →', onClick: onStartPicking };
+  } else if (['dispatched', 'out_for_delivery'].includes(status)) {
+    title = <>In transit to <em>{port}</em></>;
+    hint = 'Mark delivered once the yacht signs for it.';
+    primary = { label: 'Mark delivered →', onClick: () => onAdvance('received') };
+  } else if (status === 'received') {
+    title = 'Delivered — ready to invoice';
+    hint = 'Raise the invoice from the confirmed lines.';
+    primary = { label: 'Generate invoice →', onClick: onGenerateInvoice };
+  } else if (status === 'invoiced') {
+    title = 'Invoiced — awaiting payment';
+    hint = 'Mark paid when the invoice settles.';
+    primary = { label: 'Mark paid →', onClick: () => onAdvance('paid') };
+  } else if (status === 'paid') {
+    eyebrow = 'Complete';
+    title = 'Order complete · paid';
+    hint = 'Nothing left to do on this order.';
+  } else {
+    return null;
+  }
+
+  const firePrimary = () => {
+    if (!canEdit) { window.alert(NO_PERMISSION_TITLE); return; }
+    primary.onClick();
   };
 
   return (
-    <div className="sod-timeline-card">
-      <div className="sod-stepper-line">
-        <div className="sod-stepper-progress" style={{ width: `calc((100% - 18px) * ${progressFraction})` }} />
-        {TIMELINE_STEPS.map((step, idx) => {
-          const isDone = idx < currentIdx;
-          const isCurrent = idx === currentIdx;
-          const cls = `sod-step${isDone ? ' sod-done' : ''}${isCurrent ? ' sod-current' : ''}`;
-          return (
-            <button
-              key={step.key}
-              type="button"
-              className={cls}
-              onClick={() => handleStepClick(idx)}
-              aria-current={isCurrent ? 'step' : undefined}
-              title={isCurrent ? 'Current step' : (idx > currentIdx ? `Advance to ${step.label}` : 'Already completed')}
-            >
-              <div className="sod-step-dot" />
-              <div className="sod-step-name">{step.label}</div>
-              <div className="sod-step-when">{stepWhen(idx)}</div>
-            </button>
-          );
-        })}
+    <div className="sod-station">
+      <div className="sod-station-left">
+        <div className="sod-station-eyebrow">{eyebrow}</div>
+        <div className="sod-station-title">{title}</div>
+        {progress != null && (
+          <div className="sod-station-bar"><i style={{ width: `${Math.round(progress * 100)}%` }} /></div>
+        )}
+        {hint && <div className="sod-station-hint">{hint}</div>}
       </div>
-      <div className="sod-timeline-meta">
-        Click a step to advance — confirmation required before any state change.
-      </div>
+      {primary && (
+        <button
+          type="button"
+          className="sod-station-btn"
+          disabled={!canEdit}
+          title={!canEdit ? NO_PERMISSION_TITLE : undefined}
+          onClick={firePrimary}
+        >
+          {primary.label}
+        </button>
+      )}
     </div>
   );
 };
@@ -2645,35 +2705,17 @@ const SupplierOrderDetail = () => {
         })()}
       </div>
 
-      {/* ── 7-state timeline ── */}
-      <Timeline
+      {/* ── Fulfilment timeline + do-station ── */}
+      <Timeline order={order} items={items} />
+      <DoStation
         order={order}
         items={items}
         canEdit={canEdit}
+        onConfirmAll={handleConfirmAll}
+        onStartPicking={() => navigate(`/supplier/orders/${order.id}/pick`)}
+        onGenerateInvoice={() => setGenerateInvoiceOpen(true)}
         onAdvance={handleStatusAdvance}
       />
-
-      {/* ── Pick-list entry (Phase 3) — once lines are confirmed, the
-          warehouse flow moves to the dedicated picking screen. ── */}
-      {['confirmed', 'partially_confirmed', 'picking'].includes(order.status) && (
-        <div className="sod-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', padding: '14px 18px' }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>
-              {order.status === 'picking' ? 'Picking in progress' : 'Ready to pick'}
-            </div>
-            <div style={{ fontSize: 12.5, color: 'var(--muted-strong)' }}>
-              Count lines off the shelf — tap or scan barcodes. Short picks carry a note to the yacht.
-            </div>
-          </div>
-          <button
-            type="button"
-            className="sp-pill primary"
-            onClick={() => navigate(`/supplier/orders/${order.id}/pick`)}
-          >
-            {order.status === 'picking' ? 'Continue picking' : 'Start picking'}
-          </button>
-        </div>
-      )}
 
       {/* ── Items: progress header, To do / Done sections, totals footer ── */}
       <ItemsCard

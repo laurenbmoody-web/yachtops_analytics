@@ -1226,65 +1226,110 @@
 /* ── Timeline ───────────────────────────────────────────── */
 #sp-root .sod-timeline-card {
   background: var(--card); border: 1px solid var(--line);
-  border-radius: 12px; padding: 18px 28px 14px;
+  border-radius: 12px; padding: 16px 26px 18px;
   margin-bottom: 18px; position: relative;
 }
-#sp-root .sod-timeline-meta {
-  text-align: center;
-  font-family: 'Inter'; font-weight: 500;
-  font-size: 11px; color: var(--muted);
-  margin-top: 10px; letter-spacing: 0.04em;
+#sp-root .sod-tl-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted-strong);
+  margin: 0 0 16px;
 }
-#sp-root .sod-stepper-line { position: relative; display: flex; justify-content: space-between; }
+#sp-root .sod-tl-scroll { overflow-x: auto; margin: 0 -4px; }
+#sp-root .sod-stepper-line {
+  position: relative; display: flex; justify-content: space-between;
+  min-width: 560px; padding: 0 4px;
+}
 #sp-root .sod-stepper-line::before {
   content: ''; position: absolute;
-  top: 9px; left: 9px; right: 9px;
+  top: 8px; left: 14px; right: 14px;
   height: 2px; background: var(--line); z-index: 0;
 }
 #sp-root .sod-stepper-progress {
-  position: absolute;
-  top: 9px; left: 9px; height: 2px;
-  background: var(--green); z-index: 1;
-  transition: width 200ms ease;
+  position: absolute; top: 8px; left: 14px; height: 2px;
+  background: var(--orange); z-index: 1;
+  transition: width 500ms cubic-bezier(.4, 0, .2, 1);
 }
 #sp-root .sod-step {
   position: relative; z-index: 2; flex: 1;
   display: flex; flex-direction: column;
   align-items: center; text-align: center; min-width: 0;
-  cursor: pointer; padding: 4px 0;
-  border-radius: 6px; transition: background 120ms ease;
-  background: transparent; border: none; font: inherit;
+  padding: 2px 2px 0;
 }
-#sp-root .sod-step:hover { background: var(--bg); }
+/* done = settled navy ink with a hairline tick */
 #sp-root .sod-step .sod-step-dot {
-  width: 20px; height: 20px; border-radius: 50%;
+  width: 17px; height: 17px; border-radius: 50%;
   background: var(--card); border: 2px solid var(--line);
-  margin-bottom: 6px;
+  margin-bottom: 9px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 9px; font-family: 'Inter'; font-weight: 800; color: var(--muted);
-  transition: all 120ms ease;
+  font-size: 8.5px; font-weight: 800; color: var(--muted);
+  transition: all 180ms ease;
 }
-#sp-root .sod-step.sod-done .sod-step-dot { background: var(--green); border-color: var(--green); color: #fff; }
+#sp-root .sod-step.sod-done .sod-step-dot { background: var(--navy); border-color: var(--navy); color: var(--card); }
 #sp-root .sod-step.sod-done .sod-step-dot::before { content: '✓'; }
+/* current = the single terracotta accent with a soft halo */
 #sp-root .sod-step.sod-current .sod-step-dot {
-  background: var(--navy); border-color: var(--navy);
-  box-shadow: 0 0 0 4px rgba(38,42,83,0.12);
+  background: var(--orange); border-color: var(--orange);
+  box-shadow: 0 0 0 4px rgba(198, 90, 26, 0.15);
+  animation: sodPulse 2.4s ease-in-out infinite;
 }
-#sp-root .sod-step:not(.sod-done):not(.sod-current):hover .sod-step-dot {
-  border-color: var(--navy); background: var(--bg-2);
+@keyframes sodPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(198, 90, 26, 0.15); }
+  50%      { box-shadow: 0 0 0 6px rgba(198, 90, 26, 0.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #sp-root .sod-step.sod-current .sod-step-dot { animation: none; }
 }
 #sp-root .sod-step .sod-step-name {
-  font-family: 'Inter'; font-weight: 600;
-  font-size: 11.5px; color: var(--muted-strong); margin-bottom: 1px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.7px;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 3px; white-space: nowrap;
 }
-#sp-root .sod-step.sod-done .sod-step-name { color: var(--green); }
-#sp-root .sod-step.sod-current .sod-step-name { color: var(--navy); font-weight: 700; }
-#sp-root .sod-step:not(.sod-done):not(.sod-current):hover .sod-step-name { color: var(--navy); }
+#sp-root .sod-step.sod-done .sod-step-name { color: var(--muted-strong); }
+#sp-root .sod-step.sod-current .sod-step-name { color: var(--orange); }
 #sp-root .sod-step .sod-step-when {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-weight: 500;
-  font-size: 10px; color: var(--muted);
+  font-size: 10.5px; color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-#sp-root .sod-step.sod-current .sod-step-when { color: var(--navy-app); font-weight: 600; }
+#sp-root .sod-step.sod-done .sod-step-when { color: var(--muted-strong); }
+#sp-root .sod-step.sod-current .sod-step-when { color: var(--fg); font-weight: 600; }
+
+/* ── Do-station — current stage spelled out + its single next action ── */
+#sp-root .sod-station {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 16px 22px; margin-bottom: 18px;
+}
+#sp-root .sod-station-left { flex: 1; min-width: 0; }
+#sp-root .sod-station-eyebrow {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--orange); margin-bottom: 5px;
+}
+#sp-root .sod-station-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 18px; line-height: 1.15; color: var(--fg); margin-bottom: 8px;
+}
+#sp-root .sod-station-title em { color: var(--orange); font-style: italic; }
+#sp-root .sod-station-bar {
+  height: 5px; border-radius: 999px; background: var(--bg-2);
+  overflow: hidden; max-width: 240px; margin-bottom: 6px;
+}
+#sp-root .sod-station-bar > i {
+  display: block; height: 100%; background: var(--orange);
+  border-radius: 999px; transition: width 400ms ease;
+}
+#sp-root .sod-station-hint { font-size: 12px; color: var(--muted-strong); }
+#sp-root .sod-station-btn {
+  flex: 0 0 auto; background: var(--orange); color: #fff;
+  border: none; border-radius: 10px; padding: 11px 18px;
+  font-family: inherit; font-weight: 600; font-size: 13px;
+  cursor: pointer; white-space: nowrap; transition: background 140ms ease;
+}
+#sp-root .sod-station-btn:hover:not(:disabled) { background: #B14E16; }
+#sp-root .sod-station-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+@media (max-width: 640px) {
+  #sp-root .sod-station { flex-direction: column; align-items: stretch; }
+  #sp-root .sod-station-btn { width: 100%; }
+}
 
 /* ── Card primitives ────────────────────────────────────── */
 #sp-root .sod-card {
