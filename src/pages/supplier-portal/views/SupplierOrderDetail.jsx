@@ -1289,6 +1289,8 @@ const ItemsCard = ({
   onItemUpdate,
   onItemQuote,
   onConfirmAll,
+  onPriceAll,
+  onMarkRestUnavailable,
 }) => {
   const itemCount = items.length;
   const counts = items.reduce((acc, i) => {
@@ -1361,7 +1363,19 @@ const ItemsCard = ({
             {unCt   > 0 && <i className="un"   style={{ width: `${(unCt   / denom) * 100}%` }} />}
           </div>
         </div>
-        <div className="sod-wq-cta-wrap">
+        <div className="sod-wq-cta-wrap" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {canEdit && hasPending && (
+            <>
+              <button type="button" onClick={onPriceAll} title="Set every unpriced pending line to its estimated price"
+                style={{ padding: '8px 12px', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted-s)' }}>
+                Price all
+              </button>
+              <button type="button" onClick={onMarkRestUnavailable} title="Mark all remaining pending lines unavailable"
+                style={{ padding: '8px 12px', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--red)' }}>
+                Mark rest unavailable
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="sod-wq-cta"
@@ -2367,6 +2381,33 @@ const SupplierOrderDetail = () => {
 
   useEffect(load, [orderId]);
 
+  // Bulk: price every unpriced pending line at its estimate (so the supplier
+  // can then confirm in one sweep).
+  const handlePriceAll = useCallback(async () => {
+    const pend = (order?.supplier_order_items || []).filter(
+      (i) => (i.status || 'pending') === 'pending' && i.quoted_price == null && i.estimated_price != null,
+    );
+    if (pend.length === 0) { window.alert('Every pending line already has a price.'); return; }
+    if (!window.confirm(`Set ${pend.length} unpriced line${pend.length === 1 ? '' : 's'} to their estimated price?`)) return;
+    try {
+      for (const i of pend) await quoteOrderItem(i.id, { quoted_price: i.estimated_price, quoted_currency: i.estimated_currency });
+      load();
+      refetchActivity();
+    } catch (e) { window.alert(`Failed to price: ${e.message}`); }
+  }, [order, refetchActivity]);
+
+  // Bulk: mark every remaining pending line unavailable.
+  const handleMarkRestUnavailable = useCallback(async () => {
+    const pend = (order?.supplier_order_items || []).filter((i) => (i.status || 'pending') === 'pending');
+    if (pend.length === 0) { window.alert('No pending lines to mark.'); return; }
+    if (!window.confirm(`Mark ${pend.length} remaining pending line${pend.length === 1 ? '' : 's'} as unavailable?`)) return;
+    try {
+      for (const i of pend) await updateOrderItem(i.id, { status: 'unavailable' });
+      load();
+      refetchActivity();
+    } catch (e) { window.alert(`Failed: ${e.message}`); }
+  }, [order, refetchActivity]);
+
   // Auto-ack the vessel-approved marker the first time the supplier
   // opens this order. Cheap no-op when the order doesn't carry one.
   // Fires the supplier-order-items-changed event so the topbar bell
@@ -2567,6 +2608,8 @@ const SupplierOrderDetail = () => {
         onItemUpdate={handleItemUpdate}
         onItemQuote={handleItemQuote}
         onConfirmAll={handleConfirmAll}
+        onPriceAll={handlePriceAll}
+        onMarkRestUnavailable={handleMarkRestUnavailable}
       />
 
       {/* ── Yacht client + Standing notes (locked equal heights) ── */}
