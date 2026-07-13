@@ -102,6 +102,7 @@ const SupplierSettings   = lazyWithRetry(() => import('./pages/supplier-portal/v
 const SupplierDeliveries = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierDeliveries'));
 const SupplierInvoices   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierInvoices'));
 const SupplierClients    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierClients'));
+const SupplierClientDetail = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierClientDetail'));
 const SupplierMessages   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierMessages'));
 const SupplierReturns    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierReturns'));
 const CertReviewConsole  = lazyWithRetry(() => import('./pages/cargo-console/CertReviewConsole'));
@@ -1358,6 +1359,7 @@ const Routes = () => {
           <Route path="invoices"        element={<SupplierInvoices />} />
           <Route path="products"        element={<SupplierProducts />} />
           <Route path="clients"         element={<SupplierClients />} />
+          <Route path="clients/:id"     element={<SupplierClientDetail />} />
           <Route path="messages"        element={<SupplierMessages />} />
           <Route path="returns"         element={<SupplierReturns />} />
 

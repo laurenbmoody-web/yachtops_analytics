@@ -1776,9 +1776,11 @@ const YachtClientCard = ({ order }) => {
           >
             <NoteBubble />
           </button>
-          <button type="button" className="sod-card-link" onClick={() => { /* TODO(schema): yacht client profile route */ }}>
-            View profile →
-          </button>
+          {order.tenant_id && (
+            <button type="button" className="sod-card-link" onClick={() => navigate(`/supplier/clients/${order.tenant_id}`)}>
+              View profile →
+            </button>
+          )}
         </div>
       </div>
       <div className="sod-yacht-card-body">
@@ -2724,13 +2726,18 @@ const SupplierOrderDetail = () => {
         <div>
           <h1 className="sod-order-title">
             FROM{' '}
-            <button
-              type="button"
-              className="sod-yacht-link"
-              onClick={() => { /* TODO(schema): yacht client page link */ }}
-            >
-              {yachtDisplayName}.
-            </button>
+            {order.tenant_id ? (
+              <button
+                type="button"
+                className="sod-yacht-link"
+                onClick={() => navigate(`/supplier/clients/${order.tenant_id}`)}
+                title={`View ${yachtDisplayName}'s client profile`}
+              >
+                {yachtDisplayName}.
+              </button>
+            ) : (
+              <span className="sod-yacht-link sod-yacht-static">{yachtDisplayName}.</span>
+            )}
           </h1>
           {lineState && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4, background: lineState.bg, color: lineState.fg, borderRadius: 999, padding: '4px 12px', fontSize: 12, fontWeight: 600 }}>
