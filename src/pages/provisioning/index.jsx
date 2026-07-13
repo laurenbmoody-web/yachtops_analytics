@@ -26,6 +26,7 @@ import {
   fetchVesselDepartments,
   fetchCrewMembers,
   fetchCollaborators,
+  unarchiveProvisioningList,
   getSmartDeliveryCounts,
   PROVISIONING_STATUS,
 } from './utils/provisioningStorage';
@@ -390,6 +391,11 @@ const ProvisioningWorkspace = () => {
 
   // Data
   const [lists, setLists] = useState([]);
+  // Archived (soft-closed) boards — loaded lazily when the Archived view is
+  // toggled on. Kept out of the active `lists` so the kanban stays clean.
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedLists, setArchivedLists] = useState([]);
+  const [archivedLoading, setArchivedLoading] = useState(false);
   const [itemsByList, setItemsByList] = useState({});
   // supplier_orders keyed by list_id. Fed to the kanban so each ItemCard
   // can run deriveDisplayStatus and surface confirmed/unavailable/
@@ -502,6 +508,33 @@ const ProvisioningWorkspace = () => {
     };
     init();
   }, [activeTenantId, userId]);
+
+  // Lazy-load archived boards when the Archived view is opened. Kept
+  // separate from the active kanban fetch.
+  useEffect(() => {
+    if (!showArchived || !activeTenantId) return undefined;
+    let cancelled = false;
+    setArchivedLoading(true);
+    fetchProvisioningLists(activeTenantId, userId, userDeptId, userTier, 'archived')
+      .then(rows => { if (!cancelled) setArchivedLists(rows || []); })
+      .catch(() => { if (!cancelled) setArchivedLists([]); })
+      .finally(() => { if (!cancelled) setArchivedLoading(false); });
+    return () => { cancelled = true; };
+  }, [showArchived, activeTenantId, userId, userDeptId, userTier]);
+
+  // Un-archive a board — it drops out of the archived list and the active
+  // kanban is refreshed so it reappears there.
+  const handleUnarchive = async (listId) => {
+    try {
+      await unarchiveProvisioningList(listId);
+      setArchivedLists(prev => prev.filter(l => l.id !== listId));
+      showToast('Board un-archived', 'success');
+      loadAll();
+    } catch (err) {
+      console.error('[provisioning] un-archive failed:', err);
+      showToast('Failed to un-archive board', 'error');
+    }
+  };
 
   // Refresh the lists when the user navigates back to the kanban
   // from a board that just changed status (confirmed via quote
@@ -1130,6 +1163,13 @@ const ProvisioningWorkspace = () => {
             <Icon name="Users" className="w-4 h-4" />
             Suppliers
           </button>
+          <button
+            onClick={() => setShowArchived(v => !v)}
+            className={`pv-toolbar-link${showArchived ? ' is-active' : ''}`}
+          >
+            <Icon name={showArchived ? 'LayoutGrid' : 'Archive'} className="w-4 h-4" />
+            {showArchived ? 'Active boards' : 'Archived'}
+          </button>
         </div>
 
         {/* Error */}
@@ -1140,8 +1180,47 @@ const ProvisioningWorkspace = () => {
           </div>
         )}
 
+        {/* Archived boards view — soft-closed boards, hidden from the
+            active kanban. Simple cards with Open + Un-archive. */}
+        {showArchived && (
+          <div className="pv-archived">
+            {archivedLoading ? (
+              <div className="pv-archived-empty">Loading archived boards…</div>
+            ) : archivedLists.length === 0 ? (
+              <div className="pv-archived-empty">
+                <div className="pv-empty-title">No archived boards</div>
+                <div className="pv-empty-body">Boards you archive (finished — delivered &amp; paid) show up here.</div>
+              </div>
+            ) : (
+              <div className="pv-archived-grid">
+                {archivedLists.map(l => (
+                  <div key={l.id} className="pv-archived-card">
+                    <button
+                      className="pv-archived-open"
+                      onClick={() => navigate('/provisioning/' + l.id)}
+                    >
+                      <span className="pv-archived-name">{l.title}</span>
+                      <span className="pv-archived-meta">
+                        {(l.board_type || 'Board')}
+                        {l.archived_at ? ` · archived ${new Date(l.archived_at).toLocaleDateString('en-GB')}` : ''}
+                      </span>
+                    </button>
+                    <button
+                      className="pv-archived-restore"
+                      onClick={() => handleUnarchive(l.id)}
+                      title="Un-archive — return to active boards"
+                    >
+                      <Icon name="ArchiveRestore" className="w-4 h-4" /> Un-archive
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Empty state — only for users who cannot create boards */}
-        {!error && visibleLists.length === 0 && !showNewBoard && !canCreate && (
+        {!showArchived && !error && visibleLists.length === 0 && !showNewBoard && !canCreate && (
           <div className="pv-empty" style={{ minHeight: 'calc(100vh - 240px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <div className="pv-empty-title">No provisioning boards yet</div>
             <div className="pv-empty-body">Create your first board to get started.</div>
@@ -1154,7 +1233,7 @@ const ProvisioningWorkspace = () => {
         )}
 
         {/* Board workspace — horizontal scroll */}
-        {(visibleLists.length > 0 || showNewBoard || canCreate) && (
+        {!showArchived && (visibleLists.length > 0 || showNewBoard || canCreate) && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <div className="pv-lanes">
               <SortableContext items={visibleLists.map(l => l.id)} strategy={horizontalListSortingStrategy}>

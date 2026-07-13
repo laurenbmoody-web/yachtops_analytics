@@ -175,6 +175,7 @@
   transition: color 0.15s;
 }
 .pv-toolbar-link:hover { color: var(--pv-rust); }
+.pv-toolbar-link.is-active { color: var(--pv-rust); font-weight: 600; }
 .pv-toolbar-link + .pv-toolbar-link { margin-left: 16px; }
 .pv-toolbar-link-badge {
   position: absolute;
@@ -228,6 +229,76 @@
   color: var(--pv-muted);
   text-transform: capitalize;
 }
+
+/* ── Archived boards view ────────────────────────────────── */
+.pv-archived { padding: 4px 32px 32px; }
+.pv-archived-empty {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--pv-muted);
+  font-size: 13.5px;
+}
+.pv-archived-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.pv-archived-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--pv-card);
+  border: 0.5px solid var(--pv-hairline);
+  border-radius: 12px;
+}
+.pv-archived-open {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+.pv-archived-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pv-navy);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pv-archived-open:hover .pv-archived-name { color: var(--pv-rust); }
+.pv-archived-meta {
+  font-size: 11.5px;
+  color: var(--pv-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pv-archived-restore {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  background: none;
+  border: 0.5px solid var(--pv-hairline);
+  border-radius: 9px;
+  color: var(--pv-navy);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.pv-archived-restore:hover { border-color: var(--pv-rust); color: var(--pv-rust); }
 
 /* ── Lanes scroll area ───────────────────────────────────── */
 .pv-lanes {
