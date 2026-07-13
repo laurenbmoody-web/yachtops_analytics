@@ -404,7 +404,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
 
   // ── load live data ──
   const loadLive = async () => {
-    if (!tenantId || !userId) return;
+    // Sea service is a personal career record — load it by user even with no
+    // active vessel (so a crew member between vessels can still view their
+    // history and export testimonials to issuing bodies). Writes stay gated on
+    // tenantId below, so no new time can be logged while unberthed.
+    if (!userId) return;
     try {
       // Sea service is a personal career record — fetch across EVERY Cargo vessel
       // the crew member has served on (RLS scopes it: the seafarer sees all their
@@ -454,11 +458,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
   // syncInfo.has_start_date is false and we prompt for COMMAND to set it.
   const [syncInfo, setSyncInfo] = useState(null);
   useEffect(() => {
-    if (!tenantId || !userId) return;
+    if (!userId) return;
     let cancelled = false;
     (async () => {
-      try { const r = await syncFromVessel(tenantId, userId); if (!cancelled) setSyncInfo(r); }
-      catch (e) { console.warn('[seatime] auto-log sync failed', e); }
+      // Auto-log sync is vessel-specific — only when actually on a vessel.
+      if (tenantId) {
+        try { const r = await syncFromVessel(tenantId, userId); if (!cancelled) setSyncInfo(r); }
+        catch (e) { console.warn('[seatime] auto-log sync failed', e); }
+      }
       if (!cancelled) await loadLive();
     })();
     return () => { cancelled = true; };
