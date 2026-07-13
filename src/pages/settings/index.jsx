@@ -418,7 +418,7 @@ const SettingsPage = () => {
     setExportBusy(true); setExportMsg(null);
     try {
       const [prof, details, docs, sea, notif] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, first_name, last_name, surname, email, avatar_url, department, created_at, updated_at').eq('id', uid).maybeSingle(),
+        supabase.from('profiles').select('id, full_name, first_name, last_name, surname, avatar_url, department, created_at, updated_at').eq('id', uid).maybeSingle(),
         supabase.from('crew_personal_details').select('*').eq('user_id', uid).maybeSingle(),
         supabase.from('personal_documents').select('*').eq('user_id', uid),
         supabase.from('sea_service_entries').select('*').eq('user_id', uid),
@@ -431,7 +431,7 @@ const SettingsPage = () => {
           account_email: acct.email || session?.user?.email || null,
           note: 'This is the personal data Cargo holds for your account (GDPR access + portability). Records a vessel is legally required to keep (e.g. compliance and safety logs) are controlled by that vessel and are not included here. Your uploaded document files are in the /documents folder.',
         },
-        profile: prof.data || null,
+        profile: prof.data ? { ...prof.data, email: acct.email || session?.user?.email || null } : null,
         personal_details: details.data || null,
         documents,
         sea_service: sea.data || [],
@@ -556,8 +556,10 @@ const SettingsPage = () => {
       let tenant = '';
       try {
         if (uid) {
-          const { data: p } = await supabase.from('profiles').select('full_name, email, avatar_url').eq('id', uid).single();
-          if (p) { name = p.full_name || name; email = p.email || email; avatarUrl = p.avatar_url || avatarUrl; }
+          const { data: p } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', uid).single();
+          // email is the auth session email (login address) — profiles.email is
+          // no longer client-readable for self; session already has it.
+          if (p) { name = p.full_name || name; avatarUrl = p.avatar_url || avatarUrl; }
         }
         const tid = localStorage.getItem('cargo_active_tenant_id');
         if (tid) { const { data: tn } = await supabase.from('tenants').select('name').eq('id', tid).single(); if (tn?.name) tenant = tn.name; }
@@ -854,7 +856,7 @@ const SettingsPage = () => {
             <Group>
               <VisRow label="Name &amp; photo" who="crew" whoLabel="Everyone on board" />
               <VisRow label="Role &amp; department" who="crew" whoLabel="Everyone on board" />
-              <VisRow label="Email address" who="crew" whoLabel="Everyone on board" />
+              <VisRow label="Email address" who="command" whoLabel="Command only" />
               <VisRow label="Contact details &amp; next of kin" who="command" whoLabel="Command only" />
               <VisRow label="Documents — passport, CoC, visas, medical" who="command" whoLabel="Command only" />
               <VisRow label="Sea-service record" who="command" whoLabel="Command only" />

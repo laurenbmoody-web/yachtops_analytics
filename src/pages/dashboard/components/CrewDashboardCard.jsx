@@ -97,8 +97,10 @@ const CrewDashboardCard = ({ userId, tenantId }) => {
     (async () => {
       try {
         const [{ data: profile }, { count }] = await Promise.all([
-          // Select * so we tolerate schemas that do or don't have avatar_url/phone/bio.
-          supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+          // Explicit columns: profiles.email is column-restricted, so select('*')
+          // would 403. This card only needs name + avatar (phone/bio aren't real
+          // profile columns and stay undefined, as before).
+          supabase.from('profiles').select('id, full_name, avatar_url').eq('id', userId).maybeSingle(),
           supabase
             .from('team_jobs')
             .select('id', { count: 'exact', head: true })

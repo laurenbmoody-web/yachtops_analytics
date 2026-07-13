@@ -37,8 +37,11 @@ export function useCrewRequests() {
       if (rows.length === 0) { setItems([]); setLoading(false); return; }
       const ids = [...new Set(rows.map((r) => r.user_id))];
       const { data: profs } = await supabase
-        .from('profiles').select('id, full_name, email').in('id', ids);
-      const nameMap = new Map((profs || []).map((p) => [p.id, p]));
+        .from('profiles').select('id, full_name').in('id', ids);
+      // email is column-restricted; Command reads it via the crew_emails RPC.
+      const { data: emails } = await supabase.rpc('crew_emails', { p_ids: ids });
+      const emailMap = new Map((emails || []).map((e) => [e.id, e.email]));
+      const nameMap = new Map((profs || []).map((p) => [p.id, { ...p, email: emailMap.get(p.id) || null }]));
       setItems(rows.map((r) => ({
         ...r,
         kind: 'notification_email',

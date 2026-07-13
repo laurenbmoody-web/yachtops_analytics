@@ -421,7 +421,7 @@ const CrewProfile = () => {
         setProfileError(null);
 
         // Fetch profile from public.profiles using crewId as USER ID
-        const { data: profileData, error: profileError } = await supabase?.from('profiles')?.select('id, full_name, email, last_active_tenant_id, avatar_url')?.eq('id', crewId)?.single();
+        const { data: profileData, error: profileError } = await supabase?.from('profiles')?.select('id, full_name, last_active_tenant_id, avatar_url')?.eq('id', crewId)?.single();
 
         if (profileError) {
           console.error('PROFILE Supabase error:', profileError);
@@ -479,11 +479,19 @@ const CrewProfile = () => {
 
         console.log('PROFILE data loaded:', profileData);
 
+        // email is column-restricted on profiles; read it via the self/Command-
+        // scoped RPC. A non-Command viewer simply gets no email back.
+        let crewEmail = '';
+        try {
+          const { data: em } = await supabase.rpc('crew_emails', { p_ids: [crewId] });
+          crewEmail = em?.[0]?.email || '';
+        } catch { /* not entitled to this crew member's email */ }
+
         // Convert Supabase profile to crew member format for compatibility
         const crew = {
           id: profileData?.id,
           fullName: profileData?.full_name || 'Unknown',
-          email: profileData?.email || '',
+          email: crewEmail,
           firstName: profileData?.full_name?.split(' ')?.[0] || '',
           lastName: profileData?.full_name?.split(' ')?.slice(1)?.join(' ') || '',
           avatarUrl: profileData?.avatar_url || null,
