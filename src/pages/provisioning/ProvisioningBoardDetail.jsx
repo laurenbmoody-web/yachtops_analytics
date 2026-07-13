@@ -577,12 +577,11 @@ const pluralizePack = (u) => {
 // clear. This is the buying overlay — the base unit you stock lives in the Unit
 // cell above, so the two can never say "case" at once.
 const BoughtBy = ({ purchaseUnit, perPack, editable, onSetUnit, onSetCount }) => {
-  const [editing, setEditing] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState(String(perPack ?? ''));
   const [picking, setPicking] = useState(false);
   useEffect(() => { setDraft(String(perPack ?? '')); }, [perPack]);
   const commit = () => {
-    setEditing(false);
     const n = parseInt(draft, 10);
     if (Number.isFinite(n) && n > 0 && n !== Number(perPack)) onSetCount(n);
     else setDraft(String(perPack ?? ''));
@@ -608,27 +607,26 @@ const BoughtBy = ({ purchaseUnit, perPack, editable, onSetUnit, onSetCount }) =>
     );
   }
 
-  // Set state — a tinted terracotta pill "case of 24". The count is
-  // click-to-edit; the × drops back to no pack.
-  const count = editing ? (
-    <input autoFocus type="number" min="1" value={draft}
-      onChange={e => setDraft(e.target.value)} onBlur={commit}
-      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } else if (e.key === 'Escape') { setDraft(String(perPack ?? '')); setEditing(false); } }}
+  // Set state — plain "packs of [ 24 ]". No pill, no underline: the count is a
+  // small neutral box that grows + turns terracotta on focus. × drops the pack.
+  const count = editable ? (
+    <input type="number" min="1" value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); commit(); }}
+      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } else if (e.key === 'Escape') { setDraft(String(perPack ?? '')); e.target.blur(); } }}
+      title="How many per pack"
       className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-      style={{ width: 32, fontSize: 11, fontWeight: 700, color: '#1C1B3A', border: '1px solid #C65A1A', borderRadius: 4, padding: '0 2px', outline: 'none', textAlign: 'center' }} />
-  ) : editable ? (
-    <button type="button" onClick={() => setEditing(true)} title="Click to change how many per pack"
-      style={{ background: 'none', border: 0, padding: 0, font: 'inherit', color: 'inherit', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline dotted' }}>
-      {Number(perPack) || '?'}
-    </button>
-  ) : <span style={{ fontWeight: 700 }}>{Number(perPack) || '?'}</span>;
+      style={{ width: focused ? 44 : 26, fontSize: 11, fontWeight: 700, color: '#1C1B3A', textAlign: 'center', background: '#fff', border: `1px solid ${focused ? '#C65A1A' : '#E5E7EB'}`, borderRadius: 5, padding: '1px 2px', outline: 'none', boxShadow: focused ? '0 0 0 3px #FAECE7' : 'none', transition: 'width 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease' }} />
+  ) : <span style={{ fontWeight: 700, color: '#1C1B3A' }}>{Number(perPack) || '?'}</span>;
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, background: '#FBEFE9', color: '#C65A1A', borderRadius: 999, padding: '1px 4px 1px 8px', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', maxWidth: '100%' }}>
-      <span>{pluralizePack(purchaseUnit)} of {count}</span>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, color: '#8B8478', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', maxWidth: '100%' }}>
+      <span>{pluralizePack(purchaseUnit)} of</span>
+      {count}
       {editable && (
         <button type="button" title="Not bought in packs" onClick={() => onSetUnit('')}
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: 999, background: 'none', border: 0, padding: 0, color: '#C99', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>×</button>
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: 999, background: 'none', border: 0, padding: 0, color: '#AEB4C2', cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>×</button>
       )}
     </span>
   );
