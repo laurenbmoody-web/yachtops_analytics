@@ -14,7 +14,8 @@ import {
   upsertCatalogueCost,
   fetchCommittedQuantities,
 } from '../utils/supplierStorage';
-import { STANDARD_CATEGORIES, UNIT_SUGGESTIONS, categoryHue, orderCategories } from '../../../utils/catalogueConstants';
+import { STANDARD_CATEGORIES, categoryHue, orderCategories } from '../../../utils/catalogueConstants';
+import { UNIT_GROUPS, UNIT_GROUP_VALUES, normalizeUnit } from '../../../data/unitGroups';
 import EmptyState from '../components/EmptyState';
 import CatalogueImportModal from '../components/CatalogueImportModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -45,7 +46,7 @@ const intOrNull = (v) => {
 
 const fmtPack = (item) => {
   if (!item.pack_size && !item.unit_size) return '—';
-  const inner = [item.pack_size, item.pack_unit].filter(Boolean).join(' × ');
+  const inner = [item.pack_size, normalizeUnit(item.pack_unit)].filter(Boolean).join(' × ');
   return [inner || null, item.unit_size].filter(Boolean).join(' · ');
 };
 
@@ -156,8 +157,8 @@ const ProductModal = ({ initial, initialCost, categorySuggestions, onSave, onClo
       sku: form.sku.trim() || null,
       barcode: form.barcode.trim() || null,
       category: form.category.trim() || null,
-      unit: form.unit.trim() || 'each',
-      pack_unit: form.pack_unit.trim() || null,
+      unit: normalizeUnit(form.unit.trim()) || 'each',
+      pack_unit: form.pack_unit.trim() ? normalizeUnit(form.pack_unit.trim()) : null,
       unit_size: form.unit_size.trim() || null,
       description: form.description.trim() || null,
       unit_price: numOrNull(form.unit_price),
@@ -235,10 +236,10 @@ const ProductModal = ({ initial, initialCost, categorySuggestions, onSave, onClo
               <div className="spm-grid c3">
                 <div className="spm-field">
                   <label>Sell unit</label>
-                  <input className="spm-input" list="spp-unit-suggestions" value={form.unit} onChange={e => set('unit', e.target.value)} />
-                  <datalist id="spp-unit-suggestions">
-                    {UNIT_SUGGESTIONS.map(u => <option key={u} value={u} />)}
-                  </datalist>
+                  <select className="spm-input" value={UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) ? normalizeUnit(form.unit) : (form.unit || 'each')} onChange={e => set('unit', e.target.value)}>
+                    {form.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) && <option value={form.unit}>{form.unit}</option>}
+                    {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
+                  </select>
                 </div>
                 <div className="spm-field">
                   <label>Unit price <small>— what yachts pay</small></label>
@@ -271,8 +272,12 @@ const ProductModal = ({ initial, initialCost, categorySuggestions, onSave, onClo
                 </div>
                 <div className="spm-field">
                   <label>Inner unit</label>
-                  <input className="spm-input" placeholder="bottle" value={form.pack_unit}
-                    onChange={e => set('pack_unit', e.target.value)} />
+                  <select className="spm-input" value={form.pack_unit && UNIT_GROUP_VALUES.has(normalizeUnit(form.pack_unit)) ? normalizeUnit(form.pack_unit) : (form.pack_unit || '')}
+                    onChange={e => set('pack_unit', e.target.value)}>
+                    <option value="">—</option>
+                    {form.pack_unit && !UNIT_GROUP_VALUES.has(normalizeUnit(form.pack_unit)) && <option value={form.pack_unit}>{form.pack_unit}</option>}
+                    {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
+                  </select>
                 </div>
                 <div className="spm-field">
                   <label>Size each</label>

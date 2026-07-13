@@ -19,10 +19,8 @@ export const STANDARD_CATEGORIES = [
   'Other',
 ];
 
-export const UNIT_SUGGESTIONS = [
-  'each', 'kg', 'g', 'L', 'ml', 'case', 'box', 'bottle', 'pack', 'roll',
-  'tin', 'jar', 'bag', 'tray', 'piece', 'set', 'pair', 'drum', 'tube', 'kit', 'metre',
-];
+// (UNIT_SUGGESTIONS removed — units now come from the shared taxonomy in
+// data/unitGroups.js; the catalogue product form uses that grouped dropdown.)
 
 const KNOWN_HUES = {
   'Produce': '#4E8A3E', 'Meat & Fish': '#A5484F', 'Dairy': '#C99A2C',
