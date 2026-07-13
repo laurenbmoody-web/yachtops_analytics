@@ -1102,6 +1102,14 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
   const isPending = status === 'pending';
   const completed = !isPending;
 
+  // Pack descriptor — for compound packs (a case of 24 × 500 ml), the inner
+  // count lives in units_per_pack; Size/Unit only hold one dimension each, so
+  // show the full pack as a read-only sublabel: "case of 24 × 500ml".
+  const perPack = Number(item.units_per_pack) || 0;
+  const packLabel = perPack > 1
+    ? `${item.unit || 'pack'} of ${perPack}${item.size ? ` × ${item.size}` : ''}`
+    : null;
+
   const setUnavailable = async () => {
     try { await onUpdate(item.id, { status: 'unavailable' }); }
     catch (e) { window.alert(`Update failed: ${e.message}`); }
@@ -1193,6 +1201,9 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
             >Revised</span>
           )}
         </div>
+        {packLabel && (
+          <div style={{ fontSize: 11, color: 'var(--muted-s)', marginTop: 2, fontWeight: 500 }}>{packLabel}</div>
+        )}
         {item.notes && (
           <div className="sod-wq-vessel-note">{item.notes}</div>
         )}
