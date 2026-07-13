@@ -41,16 +41,17 @@ const dotClass = (action = '') => {
 };
 const numOrNull = (v) => { const n = Number(v); return v === '' || v == null || Number.isNaN(n) ? null : n; };
 
-// A physical-location path renders as a muted trail + a bold leaf, so a long
-// route ("Main Galley › test › Dry Store › Shelf 1") reads at a glance.
+// A physical-location path renders with the place itself (the leaf) on top and
+// the route to it quiet underneath — so "Shelf 1" reads first and the deep
+// ancestry ("Main Galley · test · Dry Store") sits back as context.
 const LocPath = ({ name }) => {
   const segs = String(name || '').split(/\s*[›>]\s*/).filter(Boolean);
   const leaf = segs.pop() || 'Location';
-  const trail = segs.join(' › ');
+  const trail = segs.join(' · ');
   return (
     <span className="vmid-stock-name">
-      {trail && <span className="vmid-stock-trail">{trail} › </span>}
       <span className="vmid-stock-leaf">{leaf}</span>
+      {trail && <span className="vmid-stock-trail">{trail}</span>}
     </span>
   );
 };
