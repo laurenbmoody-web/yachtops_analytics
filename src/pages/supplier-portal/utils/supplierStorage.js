@@ -727,7 +727,28 @@ export const fetchClients = async (supplierId) => {
     .eq('supplier_id', supplierId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  const clients = data ?? [];
+
+  // The yacht's display name lives on the orders (vessel_name), not reliably
+  // on tenants.name — attach the latest order's vessel_name per tenant so the
+  // list shows "M/Y Belongers" instead of "Unknown vessel".
+  const tenantIds = clients.map((c) => c.tenant_id).filter(Boolean);
+  if (tenantIds.length) {
+    const { data: orders } = await supabase
+      .from('supplier_orders')
+      .select('tenant_id, vessel_name, created_at')
+      .eq('supplier_profile_id', supplierId)
+      .in('tenant_id', tenantIds)
+      .order('created_at', { ascending: false });
+    const nameByTenant = {};
+    for (const o of orders ?? []) {
+      if (o.tenant_id && o.vessel_name && !nameByTenant[o.tenant_id]) {
+        nameByTenant[o.tenant_id] = o.vessel_name;
+      }
+    }
+    clients.forEach((c) => { c.vessel_name = nameByTenant[c.tenant_id] || c.tenants?.name || null; });
+  }
+  return clients;
 };
 
 // One yacht client's relationship row (status, payment terms, credit limit,
