@@ -82,5 +82,5 @@ export const STOCK_UNIT_VALUES = new Set(STOCK_UNIT_GROUPS.flatMap((g) => g.opti
 // Bought-by / purchase-unit picker options — the bulk units, in a sensible
 // buying order. A single "Other" group so it drops straight into a <select>.
 export const BOUGHT_BY_GROUPS = [
-  { label: 'Bought by', options: ['pack', 'case', 'box', 'carton', 'crate', 'tray', 'dozen', 'bundle', 'sleeve', 'pallet'] },
+  { label: 'Bought in', options: ['pack', 'case', 'box', 'carton', 'crate', 'tray', 'dozen', 'bundle', 'sleeve', 'pallet'] },
 ];

@@ -171,7 +171,7 @@ const COLUMN_HELP_HINTS = {
       { label: 'Tip',     example: 'the measure of ONE — number + measure together' },
       { label: 'Volume',  example: '"500ml", "1L"' },
       { label: 'Weight',  example: '"500g", "1.5kg"' },
-      { label: 'Not the pack', example: 'how you buy it (case of 24) goes in “Bought by”' },
+      { label: 'Not the pack', example: 'how you buy it (case of 24) goes in “Bought in”' },
     ],
   },
   unit: {
@@ -181,7 +181,7 @@ const COLUMN_HELP_HINTS = {
     buckets: [
       { label: 'Count it', example: 'the thing you stock & use: bottle, can, jar, each' },
       { label: 'Or loose', example: 'kg, L, g, ml — when it isn’t whole items' },
-      { label: 'Not the pack', example: 'buying by the case/pack goes in “Bought by”' },
+      { label: 'Not the pack', example: 'buying by the case/pack goes in “Bought in”' },
     ],
   },
   status: {
@@ -564,11 +564,18 @@ const AlwaysEditCell = ({ value, placeholder, onSave, type = 'text', inputStyle 
 const BULK_STATUS_OPTIONS = ['draft', 'ordered', 'unavailable', 'not_received', 'returned', 'invoiced', 'paid']
   .map((value) => ({ value, label: getItemStatusConfig(value).label }));
 
-// Inline "Bought by" on a board row: the purchase pack, editable without the
-// drawer. Empty + editable shows a faint "＋ bought by"; picking a pack reveals
-// a terracotta pill "case of 24" with the count click-to-edit and an × to clear.
-// This is the buying overlay — the base unit you stock lives in the Unit cell
-// above, so the two can never say "case" at once.
+// Pluralise a purchase-unit noun so it reads naturally after "bought in"
+// ("bought in packs of 24", "bought in boxes of 6"). Handles the -es cases.
+const pluralizePack = (u) => {
+  if (!u) return u;
+  return /(x|s|ch|sh|z)$/i.test(u) ? `${u}es` : `${u}s`;
+};
+
+// Inline "Bought in" on a board row: the purchase pack, editable without the
+// drawer. Empty + editable shows a faint "＋ bought in"; picking a pack reveals
+// a terracotta pill "packs of 24" with the count click-to-edit and an × to
+// clear. This is the buying overlay — the base unit you stock lives in the Unit
+// cell above, so the two can never say "case" at once.
 const BoughtBy = ({ purchaseUnit, perPack, editable, onSetUnit, onSetCount }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(perPack ?? ''));
@@ -588,15 +595,15 @@ const BoughtBy = ({ purchaseUnit, perPack, editable, onSetUnit, onSetCount }) =>
         <select autoFocus value="" onBlur={() => setPicking(false)}
           onChange={e => { if (e.target.value) onSetUnit(e.target.value); setPicking(false); }}
           style={{ fontSize: 11, color: '#C65A1A', background: '#fff', border: '1px solid #C65A1A', borderRadius: 6, padding: '1px 4px', outline: 'none', cursor: 'pointer' }}>
-          <option value="">bought by…</option>
-          {BOUGHT_BY_GROUPS.flatMap(g => g.options).map(u => <option key={u} value={u}>{u}</option>)}
+          <option value="">bought in…</option>
+          {BOUGHT_BY_GROUPS.flatMap(g => g.options).map(u => <option key={u} value={u}>{pluralizePack(u)}</option>)}
         </select>
       );
     }
     return (
-      <button type="button" onClick={() => setPicking(true)} title="Also bought by the pack/case?"
+      <button type="button" onClick={() => setPicking(true)} title="Also bought in packs / cases?"
         style={{ fontSize: 10.5, fontWeight: 600, color: '#AEB4C2', background: 'none', border: 0, padding: 0, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-        ＋ bought by
+        ＋ bought in
       </button>
     );
   }
@@ -607,7 +614,8 @@ const BoughtBy = ({ purchaseUnit, perPack, editable, onSetUnit, onSetCount }) =>
     <input autoFocus type="number" min="1" value={draft}
       onChange={e => setDraft(e.target.value)} onBlur={commit}
       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } else if (e.key === 'Escape') { setDraft(String(perPack ?? '')); setEditing(false); } }}
-      style={{ width: 30, fontSize: 11, fontWeight: 700, color: '#1C1B3A', border: '1px solid #C65A1A', borderRadius: 4, padding: '0 2px', outline: 'none', textAlign: 'center', MozAppearance: 'textfield' }} />
+      className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      style={{ width: 32, fontSize: 11, fontWeight: 700, color: '#1C1B3A', border: '1px solid #C65A1A', borderRadius: 4, padding: '0 2px', outline: 'none', textAlign: 'center' }} />
   ) : editable ? (
     <button type="button" onClick={() => setEditing(true)} title="Click to change how many per pack"
       style={{ background: 'none', border: 0, padding: 0, font: 'inherit', color: 'inherit', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline dotted' }}>
@@ -616,10 +624,10 @@ const BoughtBy = ({ purchaseUnit, perPack, editable, onSetUnit, onSetCount }) =>
   ) : <span style={{ fontWeight: 700 }}>{Number(perPack) || '?'}</span>;
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, background: '#FBEFE9', color: '#C65A1A', borderRadius: 999, padding: '1px 4px 1px 8px', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-      <span>{purchaseUnit} of {count}</span>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, background: '#FBEFE9', color: '#C65A1A', borderRadius: 999, padding: '1px 4px 1px 8px', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', maxWidth: '100%' }}>
+      <span>{pluralizePack(purchaseUnit)} of {count}</span>
       {editable && (
-        <button type="button" title="Not bought by the pack" onClick={() => onSetUnit('')}
+        <button type="button" title="Not bought in packs" onClick={() => onSetUnit('')}
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: 999, background: 'none', border: 0, padding: 0, color: '#C99', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>×</button>
       )}
     </span>
@@ -2928,9 +2936,9 @@ const SUPPLIER_MIRROR_FIELD = {
   // Column widths. Notes sits between Category and Size in the
   // full grid, and right after Item in the no-cat grid. Free-form
   // so it gets the second-biggest minmax after Item.
-  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) minmax(150px,1.2fr) 76px 70px 92px 90px 80px 56px 56px';
+  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) minmax(150px,1.2fr) 76px 116px 92px 90px 80px 56px 56px';
   // cols: check | item | size | unit | qty | unit cost | total | status | actions  (category dropped)
-  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) minmax(150px,1.2fr) 76px 70px 92px 90px 80px 56px 56px';
+  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) minmax(150px,1.2fr) 76px 116px 92px 90px 80px 56px 56px';
   const TABLE_GRID = groupBy === 'category' ? TABLE_GRID_NO_CAT : TABLE_GRID_FULL;
 
   const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
@@ -4228,7 +4236,7 @@ const SUPPLIER_MIRROR_FIELD = {
                                       : <span style={{ fontSize: 11, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{itemOrder?.unit || item.unit || 'each'}</span>
                                   )
                                 : <select value={STOCK_UNIT_VALUES.has(normalizeUnit(item.unit)) ? normalizeUnit(item.unit) : (item.unit || 'each')} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}>
-                                    {item.unit && !STOCK_UNIT_VALUES.has(normalizeUnit(item.unit)) && <option value={item.unit}>{item.unit}{isBulkUnit(item.unit) ? ' — set “bought by” instead' : ''}</option>}
+                                    {item.unit && !STOCK_UNIT_VALUES.has(normalizeUnit(item.unit)) && <option value={item.unit}>{item.unit}{isBulkUnit(item.unit) ? ' — set “bought in” instead' : ''}</option>}
                                     {STOCK_UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
                                   </select>
                               }
