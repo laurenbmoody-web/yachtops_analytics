@@ -364,11 +364,23 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
           localStorage.removeItem('cargo_unberthed');
         }
 
-        // A CREW user who explicitly LEFT their last vessel goes to personal
-        // (unberthed) mode — their personal record stays, vessel features are
-        // gated. Gated to this flag so new-signup onboarding (also membership-
-        // less) is unaffected and keeps the existing behaviour below.
-        if (!isSupplier && localStorage.getItem('cargo_unberthed') === '1') {
+        // Personal (unberthed) mode for a CREW user who has left or lost their
+        // vessel — their personal record stays, vessel features are gated. The
+        // signal is persistent (survives logout/login): the just-left flag OR
+        // any INACTIVE membership on record. Brand-new signups have NO
+        // memberships at all, so they still fall through to onboarding below.
+        let unberthed = !isSupplier && localStorage.getItem('cargo_unberthed') === '1';
+        if (!isSupplier && !unberthed && authUser?.id) {
+          try {
+            const { data: past } = await supabase
+              .from('tenant_members').select('id')
+              .eq('user_id', authUser.id).eq('active', false).limit(1);
+            if (past && past.length > 0) unberthed = true;
+          } catch (e) {
+            console.warn('[TENANT] inactive-membership check failed', e);
+          }
+        }
+        if (unberthed) {
           console.log('[TENANT] Unberthed → personal mode');
           setActiveTenantId(null);
           setCurrentTenantMember(null);

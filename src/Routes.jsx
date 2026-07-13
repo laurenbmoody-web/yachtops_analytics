@@ -416,12 +416,24 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
           <p className="text-muted-foreground mb-6">
             You're logged in but not linked to a vessel yet.
           </p>
-          <a
-            href="/dashboard"
-            className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            Back to Dashboard
-          </a>
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href="/dashboard"
+              className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Back to Dashboard
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                try { localStorage.clear(); await supabase?.auth?.signOut(); } catch (e) { /* ignore */ }
+                window.location.href = '/login-authentication';
+              }}
+              className="inline-block px-6 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
         
         {/* DEV MODE DEBUG PANEL */}
@@ -462,12 +474,24 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
           <p className="text-muted-foreground mb-6">
             Your role information is not available. Please contact your vessel administrator.
           </p>
-          <a
-            href="/dashboard"
-            className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            Back to Dashboard
-          </a>
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href="/dashboard"
+              className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Back to Dashboard
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                try { localStorage.clear(); await supabase?.auth?.signOut(); } catch (e) { /* ignore */ }
+                window.location.href = '/login-authentication';
+              }}
+              className="inline-block px-6 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
         
         {/* DEV MODE DEBUG PANEL */}
@@ -655,12 +679,24 @@ const CommandRoute = ({ children }) => {
           <p className="text-muted-foreground mb-6">
             You're logged in but not linked to a vessel yet.
           </p>
-          <a
-            href="/dashboard"
-            className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            Back to Dashboard
-          </a>
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href="/dashboard"
+              className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Back to Dashboard
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                try { localStorage.clear(); await supabase?.auth?.signOut(); } catch (e) { /* ignore */ }
+                window.location.href = '/login-authentication';
+              }}
+              className="inline-block px-6 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
 
         {DEV_MODE && (
@@ -700,12 +736,24 @@ const CommandRoute = ({ children }) => {
           <p className="text-muted-foreground mb-6">
             Your permission tier does not allow access to this page.
           </p>
-          <a
-            href="/dashboard"
-            className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            Back to Dashboard
-          </a>
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href="/dashboard"
+              className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Back to Dashboard
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                try { localStorage.clear(); await supabase?.auth?.signOut(); } catch (e) { /* ignore */ }
+                window.location.href = '/login-authentication';
+              }}
+              className="inline-block px-6 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
         
         {DEV_MODE && (
@@ -840,12 +888,24 @@ const CommandChiefRoute = ({ children }) => {
           <p className="text-muted-foreground mb-6">
             You're logged in but not linked to a vessel yet.
           </p>
-          <a
-            href="/dashboard"
-            className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            Back to Dashboard
-          </a>
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href="/dashboard"
+              className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Back to Dashboard
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                try { localStorage.clear(); await supabase?.auth?.signOut(); } catch (e) { /* ignore */ }
+                window.location.href = '/login-authentication';
+              }}
+              className="inline-block px-6 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
 
         {DEV_MODE && (
@@ -885,12 +945,24 @@ const CommandChiefRoute = ({ children }) => {
           <p className="text-muted-foreground mb-6">
             Your permission tier does not allow access to this page.
           </p>
-          <a
-            href="/dashboard"
-            className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            Back to Dashboard
-          </a>
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href="/dashboard"
+              className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Back to Dashboard
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                try { localStorage.clear(); await supabase?.auth?.signOut(); } catch (e) { /* ignore */ }
+                window.location.href = '/login-authentication';
+              }}
+              className="inline-block px-6 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
         
         {DEV_MODE && (
