@@ -14,8 +14,8 @@
   box-sizing: border-box;
 }
 .crh-wrap {
-  max-width: 1080px;
-  padding: 30px 34px 72px;
+  width: 100%;
+  padding: 30px 40px 72px;
   box-sizing: border-box;
 }
 
@@ -94,7 +94,7 @@
   width: 100%;
   font: 13.5px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
-  background: #FAFAF8;
+  background: #F1F5F9;
   border: 1px solid #E7EBF1;
   border-radius: 10px;
   padding: 10px 12px 10px 34px;
@@ -115,7 +115,7 @@
   gap: 8px;
   font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
-  background: #FAFAF8;
+  background: #F1F5F9;
   border: 1px solid #E7EBF1;
   border-radius: 10px;
   padding: 10px 13px;
@@ -142,7 +142,7 @@
   left: 0;
   min-width: 232px;
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 12px;
   box-shadow: 0 22px 50px -22px rgba(28, 27, 58, 0.22);
   padding: 6px;
@@ -162,7 +162,7 @@
   cursor: pointer;
   text-align: left;
 }
-.crh-dd-opt:hover { background: #F4F6FA; }
+.crh-dd-opt:hover { background: #F1F5F9; }
 .crh-dd-opt.sel { color: #C65A1A; }
 .crh-dd-opt.disabled { color: #AEB4C2; cursor: default; }
 .crh-dd-opt.disabled:hover { background: none; }
@@ -205,7 +205,7 @@
 }
 .crh-colh {
   padding: 11px 18px;
-  background: #F4F6FA;
+  background: #F1F5F9;
   border-bottom: 1px solid #E7EBF1;
 }
 .crh-colh span {
@@ -215,7 +215,7 @@
   color: #8B8478;
 }
 .crh-colh span:last-child { text-align: right; }
-.crh-row { border-bottom: 1px solid #ECEAE3; }
+.crh-row { border-bottom: 1px solid #E5E7EB; }
 .crh-row:last-child { border-bottom: none; }
 .crh-main {
   width: 100%;
@@ -226,8 +226,8 @@
   text-align: left;
   font-family: inherit;
 }
-.crh-main:hover { background: #FAFAF8; }
-.crh-row.open .crh-main { background: #FAFAF8; }
+.crh-main:hover { background: #F1F5F9; }
+.crh-row.open .crh-main { background: #F1F5F9; }
 .crh-row.target .crh-main { box-shadow: inset 3px 0 0 #C65A1A; }
 
 .crh-crew { display: flex; align-items: center; gap: 11px; min-width: 0; }
@@ -310,7 +310,7 @@
 /* ── expanded detail (in-place) ────────────────────────────── */
 .crh-detail {
   padding: 4px 18px 22px 61px;
-  background: #FAFAF8;
+  background: #F1F5F9;
   border-top: 1px dashed #E7EBF1;
 }
 .crh-lede {
