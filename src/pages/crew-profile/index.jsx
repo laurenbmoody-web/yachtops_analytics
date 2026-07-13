@@ -2943,6 +2943,23 @@ const canEdit = (() => {
   };
 
   const renderHOR = () => {
+    // Hours of Rest are recorded against a vessel. With no active vessel there's
+    // nothing to log or change — show a placeholder rather than an empty grid.
+    if (!activeTenantId) {
+      return (
+        <div>
+          <div className="cp-tab-head">
+            <div className="cp-section-head">
+              <span className="cp-section-num">10 /</span>
+              <h3>Hours of Rest</h3>
+            </div>
+          </div>
+          <p className="cp-set-note-empty">
+            Hours of Rest are recorded per vessel. Your logged history stays on record; new hours resume once you join or are added to a vessel.
+          </p>
+        </div>
+      );
+    }
     // Check if user is Command
     const isCommand = currentUser?.tier === PermissionTier?.COMMAND;
 
@@ -3779,6 +3796,23 @@ const canEdit = (() => {
   };
 
   const renderContract = () => {
+    // Contract & employment are entirely vessel-specific — nothing to load when
+    // the crew member isn't on a vessel. Show a placeholder instead of hanging.
+    if (!activeTenantId) {
+      return (
+        <div>
+          <div className="cp-tab-head">
+            <div className="cp-section-head">
+              <span className="cp-section-num">07 /</span>
+              <h3>Contract</h3>
+            </div>
+          </div>
+          <p className="cp-set-note-empty">
+            You’re not linked to a vessel. Contract, role and employment details appear here once you join or are added to a vessel.
+          </p>
+        </div>
+      );
+    }
     const editing = empEditing && canEditPermissions;
     const setE = (k, v) => setEmpForm((p) => ({ ...p, [k]: v }));
     // Authoritative role / department / permission (tenant_members) — current
