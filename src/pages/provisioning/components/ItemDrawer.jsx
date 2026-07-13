@@ -18,6 +18,7 @@ import {
 import { PAYMENT_STATUS_OPTIONS } from './InvoiceUploadModal';
 import { showToast } from '../../../utils/toast';
 import { UNIT_GROUPS } from './DetailTableCells';
+import { UNIT_GROUP_VALUES, normalizeUnit } from '../../../data/unitGroups';
 import { useAuth } from '../../../contexts/AuthContext';
 import '../provisioning-dashboard.css';
 import './item-drawer.css';
@@ -909,7 +910,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 </div>
                 <div>
                   <FL>Unit</FL>
-                  <select value={form.unit || 'each'} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className="idr-field">
+                  <select value={UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) ? normalizeUnit(form.unit) : (form.unit || 'each')} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className="idr-field">
+                    {form.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) && <option value={form.unit}>{form.unit}</option>}
                     {UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
                         {g.options.map(u => <option key={u} value={u}>{u}</option>)}
@@ -930,7 +932,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 </div>
                 <div style={{ flex: 2 }}>
                   <label className={labelCls}>Unit</label>
-                  <select value={form.unit || 'each'} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className={inputCls} style={isReadOnly ? { opacity: 0.55 } : {}}>
+                  <select value={UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) ? normalizeUnit(form.unit) : (form.unit || 'each')} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className={inputCls} style={isReadOnly ? { opacity: 0.55 } : {}}>
+                    {form.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) && <option value={form.unit}>{form.unit}</option>}
                     {UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
                         {g.options.map(u => <option key={u} value={u}>{u}</option>)}
