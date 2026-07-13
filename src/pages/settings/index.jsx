@@ -897,6 +897,7 @@ const SettingsPage = () => {
               )}
             </Group>
 
+            {activeTenantId && (<>
             <Caps>Vessel membership</Caps>
             <Group>
               {leaveOpen ? (
@@ -915,6 +916,7 @@ const SettingsPage = () => {
                 </div>
               )}
             </Group>
+            </>)}
           </>
         );
 
