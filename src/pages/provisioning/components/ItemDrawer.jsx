@@ -957,7 +957,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 here + how many base units it holds. Ordering is in this pack;
                 receive expands it into base units and stocks in the base unit. */}
             <div className="idr-pack-break">
-              {isLight ? <FL>Bought by <span className="opt">optional</span></FL> : <label className={labelCls}>Bought by (optional)</label>}
+              {isLight ? <FL>Bought in <span className="opt">optional</span></FL> : <label className={labelCls}>Bought in (optional)</label>}
               <div className="idr-pack-row">
                 <select
                   value={UNIT_GROUP_VALUES.has(normalizeUnit(form.purchase_unit)) ? normalizeUnit(form.purchase_unit) : (form.purchase_unit || '')}
