@@ -765,6 +765,18 @@ export const fetchClientProfile = async (supplierId, tenantId) => {
   return data;
 };
 
+// This supplier's invoices for one yacht — for the profile's AR (outstanding
+// balance, credit usage). RLS also scopes to the caller's supplier.
+export const fetchClientInvoices = async (supplierId, tenantId) => {
+  const { data, error } = await supabase
+    .from('supplier_invoices')
+    .select('id, amount, currency, status, due_date, created_at, order_id')
+    .eq('supplier_id', supplierId)
+    .eq('tenant_id', tenantId);
+  if (error) throw error;
+  return data ?? [];
+};
+
 // Every order this supplier has fulfilled for one yacht — with items so the
 // profile can value each order. RLS also scopes to the caller's supplier.
 export const fetchClientOrders = async (supplierId, tenantId) => {
