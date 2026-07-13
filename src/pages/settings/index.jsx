@@ -707,7 +707,7 @@ const SettingsPage = () => {
                   <button className="set-btn" onClick={() => { setEditingLogin(true); setLoginSent(null); setLoginCurRO(true); }}>Change</button>
                 </div>
               )}
-              {editingNotif ? (
+              {activeTenantId && (editingNotif ? (
                 <div className="set-r set-stack">
                   <RMain label="Notification email" desc={`Request to send ${acct.tenant || 'this vessel'}’s alerts to a different address.`} />
                   <div className="set-emailrow">
@@ -737,7 +737,7 @@ const SettingsPage = () => {
                   <span className={`set-r-val${savedNotifEmail ? '' : ' muted'}`}>{savedNotifEmail || 'Login email'}</span>
                   <button className="set-btn" onClick={() => { setEditingNotif(true); setNotifEmail(savedNotifEmail); }}>{savedNotifEmail ? 'Change' : 'Add'}</button>
                 </div>
-              )}
+              ))}
             </Group>
             <Caps>Security</Caps>
             <Group>
@@ -926,16 +926,30 @@ const SettingsPage = () => {
             <h2 className="set-h">Privacy &amp; data</h2>
             <p className="set-hsub">See exactly who can access your information, and take a copy with you.</p>
 
-            <Caps>What your vessel can see</Caps>
-            <Group>
-              <VisRow label="Name &amp; photo" who="crew" whoLabel="Everyone on board" />
-              <VisRow label="Role &amp; department" who="crew" whoLabel="Everyone on board" />
-              <VisRow label="Email address" who="command" whoLabel="Command only" />
-              <VisRow label="Contact details &amp; next of kin" who="command" whoLabel="Command only" />
-              <VisRow label="Documents — passport, CoC, visas, medical" who="command" whoLabel="Command only" />
-              <VisRow label="Sea-service record" who="command" whoLabel="Command only" />
-              <VisRow label="Password, 2FA, passkeys &amp; sessions" who="you" whoLabel="You only" />
-            </Group>
+            {activeTenantId ? (
+              <>
+                <Caps>What your vessel can see</Caps>
+                <Group>
+                  <VisRow label="Name &amp; photo" who="crew" whoLabel="Everyone on board" />
+                  <VisRow label="Role &amp; department" who="crew" whoLabel="Everyone on board" />
+                  <VisRow label="Email address" who="command" whoLabel="Command only" />
+                  <VisRow label="Contact details &amp; next of kin" who="command" whoLabel="Command only" />
+                  <VisRow label="Documents — passport, CoC, visas, medical" who="command" whoLabel="Command only" />
+                  <VisRow label="Sea-service record" who="command" whoLabel="Command only" />
+                  <VisRow label="Password, 2FA, passkeys &amp; sessions" who="you" whoLabel="You only" />
+                </Group>
+              </>
+            ) : (
+              <>
+                <Caps>Who can see your record</Caps>
+                <Group>
+                  <div className="set-r">
+                    <RMain label="Only you" desc="You’re not on a vessel, so no one else can see your profile, documents or sea service. When you join a vessel, a visibility breakdown appears here." />
+                    <span className="set-vis you">You only</span>
+                  </div>
+                </Group>
+              </>
+            )}
 
             <Caps>Your data</Caps>
             <Group>
@@ -987,12 +1001,25 @@ const SettingsPage = () => {
             <h2 className="set-h">Membership</h2>
             <p className="set-hsub">Your plan and billing.</p>
             <Group>
-              <RowNav label="Current plan" desc="Cargo — Command seat" chip={<span className="set-chip ok">Active</span>} onClick={() => navigate('/membership')} />
-              <RowNav label="Billing" desc="Manage payment and invoices." onClick={() => navigate('/membership')} />
-              <div className="set-r">
-                <RMain label="Onboarding tour" desc="Restore the setup guide on your dashboard." />
-                <button className="set-btn" onClick={handleRestoreTour}>Show again</button>
-              </div>
+              {activeTenantId ? (
+                <RowNav label="Current plan" desc="Cargo — Command seat" chip={<span className="set-chip ok">Active</span>} onClick={() => navigate('/membership')} />
+              ) : (
+                <div className="set-r">
+                  <RMain label="Current plan" desc="You’re not on a vessel — your account and personal record travel with you until you join one." />
+                  <span className="set-chip off">Inactive · no vessel</span>
+                </div>
+              )}
+              {/* Billing is the subscription owner’s concern — Command on an active vessel only. */}
+              {activeTenantId && hasCommandAccess(currentUser) && (
+                <RowNav label="Billing" desc="Manage payment and invoices." onClick={() => navigate('/membership')} />
+              )}
+              {/* The setup guide lives on the vessel dashboard — nothing to restore without one. */}
+              {activeTenantId && (
+                <div className="set-r">
+                  <RMain label="Onboarding tour" desc="Restore the setup guide on your dashboard." />
+                  <button className="set-btn" onClick={handleRestoreTour}>Show again</button>
+                </div>
+              )}
             </Group>
           </>
         );
@@ -1007,14 +1034,29 @@ const SettingsPage = () => {
               <RowToggle label="Email" desc="Receive notifications by email." on={prefs.emailNotifications} onChange={() => toggle('emailNotifications')} />
               <RowToggle label="Push" desc="In-browser push notifications." on={prefs.pushNotifications} onChange={() => toggle('pushNotifications')} />
             </Group>
-            <Caps>By category</Caps>
-            <Group>
-              <RowToggle label="Jobs & tasks" on={prefs.catJobs} onChange={() => toggle('catJobs')} />
-              <RowToggle label="Hours of Rest" on={prefs.catHor} onChange={() => toggle('catHor')} />
-              <RowToggle label="Provisioning approvals" on={prefs.catProvisioning} onChange={() => toggle('catProvisioning')} />
-              <RowToggle label="Trips & guests" on={prefs.catTrips} onChange={() => toggle('catTrips')} />
-              <RowToggle label="Defects" on={prefs.catDefects} onChange={() => toggle('catDefects')} />
-            </Group>
+            {/* Category toggles are all vessel-operational — only meaningful aboard. */}
+            {activeTenantId ? (
+              <>
+                <Caps>By category</Caps>
+                <Group>
+                  <RowToggle label="Jobs & tasks" on={prefs.catJobs} onChange={() => toggle('catJobs')} />
+                  <RowToggle label="Hours of Rest" on={prefs.catHor} onChange={() => toggle('catHor')} />
+                  <RowToggle label="Provisioning approvals" on={prefs.catProvisioning} onChange={() => toggle('catProvisioning')} />
+                  <RowToggle label="Trips & guests" on={prefs.catTrips} onChange={() => toggle('catTrips')} />
+                  <RowToggle label="Defects" on={prefs.catDefects} onChange={() => toggle('catDefects')} />
+                </Group>
+              </>
+            ) : (
+              <>
+                <Caps>By category</Caps>
+                <Group>
+                  <div className="set-r">
+                    <RMain label="Vessel notifications" desc="Rota, Hours of Rest, provisioning, trips and defects resume when you join a vessel." />
+                    <span className="set-chip off">Paused</span>
+                  </div>
+                </Group>
+              </>
+            )}
             <Caps>Timing</Caps>
             <Group>
               <div className="set-r">
