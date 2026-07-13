@@ -18,8 +18,7 @@ import {
   triggerCrossDepartmentMatch,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
-import { UNIT_GROUPS } from './DetailTableCells';
-import { isBulkUnit, normalizeUnit } from '../../../data/unitGroups';
+import { isBulkUnit, normalizeUnit, STOCK_UNIT_GROUPS } from '../../../data/unitGroups';
 
 // A line bought by the pack (case of 24) expands into base units on receipt.
 // `unit` is the base/stocking unit (bottle); `purchase_unit` is how it's bought
@@ -1034,7 +1033,7 @@ const PushStep = ({
                     <div className="rdm-create-field">
                       <FLD>Unit <span style={{ color: 'var(--d-orange)' }}>*</span></FLD>
                       <select value={newForm.unit} onChange={e => onNewItemFormChange(item.id, 'unit', e.target.value)} className="rdm-create-select">
-                        {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
+                        {STOCK_UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
                       </select>
                     </div>
                     <div className="rdm-create-field">

@@ -66,3 +66,21 @@ export const BULK_UNITS = new Set([
 // True when the (normalised) value is a bulk/grouping unit that should be
 // broken down into its inner units.
 export const isBulkUnit = (v) => BULK_UNITS.has(normalizeUnit(v));
+
+// Stocking-unit groups — UNIT_GROUPS with the bulk/grouping units removed.
+// The `unit` field is the base thing you actually count on the shelf
+// (bottle, can, kg, each); how you *buy* it (case, pack, box…) lives in the
+// separate "Bought by" overlay (purchase_unit), never in the unit picker.
+// Feed every stocking-unit <select> from this list so the two concepts can't
+// collide (a line can't be a "case" AND bought by the case).
+export const STOCK_UNIT_GROUPS = UNIT_GROUPS
+  .map((g) => ({ ...g, options: g.options.filter((u) => !BULK_UNITS.has(u)) }))
+  .filter((g) => g.options.length > 0);
+
+export const STOCK_UNIT_VALUES = new Set(STOCK_UNIT_GROUPS.flatMap((g) => g.options));
+
+// Bought-by / purchase-unit picker options — the bulk units, in a sensible
+// buying order. A single "Other" group so it drops straight into a <select>.
+export const BOUGHT_BY_GROUPS = [
+  { label: 'Bought by', options: ['pack', 'case', 'box', 'carton', 'crate', 'tray', 'dozen', 'bundle', 'sleeve', 'pallet'] },
+];

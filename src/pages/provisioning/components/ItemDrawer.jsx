@@ -17,7 +17,7 @@ import {
 } from '../utils/provisioningStorage';
 import { PAYMENT_STATUS_OPTIONS } from './InvoiceUploadModal';
 import { showToast } from '../../../utils/toast';
-import { UNIT_GROUPS } from './DetailTableCells';
+import { STOCK_UNIT_GROUPS, STOCK_UNIT_VALUES, BOUGHT_BY_GROUPS } from '../../../data/unitGroups';
 import { UNIT_GROUP_VALUES, normalizeUnit, isBulkUnit } from '../../../data/unitGroups';
 import { useAuth } from '../../../contexts/AuthContext';
 import '../provisioning-dashboard.css';
@@ -914,9 +914,9 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 </div>
                 <div>
                   <FL>Unit</FL>
-                  <select value={UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) ? normalizeUnit(form.unit) : (form.unit || 'each')} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className="idr-field">
-                    {form.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) && <option value={form.unit}>{form.unit}</option>}
-                    {UNIT_GROUPS.map(g => (
+                  <select value={STOCK_UNIT_VALUES.has(normalizeUnit(form.unit)) ? normalizeUnit(form.unit) : (form.unit || 'each')} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className="idr-field">
+                    {form.unit && !STOCK_UNIT_VALUES.has(normalizeUnit(form.unit)) && <option value={form.unit}>{form.unit}</option>}
+                    {STOCK_UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
                         {g.options.map(u => <option key={u} value={u}>{u}</option>)}
                       </optgroup>
@@ -936,9 +936,9 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 </div>
                 <div style={{ flex: 2 }}>
                   <label className={labelCls}>Unit</label>
-                  <select value={UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) ? normalizeUnit(form.unit) : (form.unit || 'each')} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className={inputCls} style={isReadOnly ? { opacity: 0.55 } : {}}>
-                    {form.unit && !UNIT_GROUP_VALUES.has(normalizeUnit(form.unit)) && <option value={form.unit}>{form.unit}</option>}
-                    {UNIT_GROUPS.map(g => (
+                  <select value={STOCK_UNIT_VALUES.has(normalizeUnit(form.unit)) ? normalizeUnit(form.unit) : (form.unit || 'each')} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className={inputCls} style={isReadOnly ? { opacity: 0.55 } : {}}>
+                    {form.unit && !STOCK_UNIT_VALUES.has(normalizeUnit(form.unit)) && <option value={form.unit}>{form.unit}</option>}
+                    {STOCK_UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
                         {g.options.map(u => <option key={u} value={u}>{u}</option>)}
                       </optgroup>
@@ -967,7 +967,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 >
                   <option value="">— sold loose —</option>
                   {form.purchase_unit && !UNIT_GROUP_VALUES.has(normalizeUnit(form.purchase_unit)) && <option value={form.purchase_unit}>{form.purchase_unit}</option>}
-                  {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
+                  {BOUGHT_BY_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
                 </select>
                 {form.purchase_unit && (
                   <>
