@@ -407,9 +407,62 @@ const HeroActions = ({
   );
 };
 
+// Delivery deep-links — the browser can't know the user's default map app,
+// so we offer the common ones and let them pick. Destination is the port
+// name (all we store); each service resolves it to a place + routes there.
+const mapsLinks = (dest) => {
+  const q = encodeURIComponent(dest || '');
+  return {
+    google: `https://www.google.com/maps/dir/?api=1&destination=${q}`,
+    apple:  `https://maps.apple.com/?daddr=${q}`,
+    waze:   `https://waze.com/ul?q=${q}&navigate=yes`,
+  };
+};
+
+// Build + download an .ics for the delivery slot. Floating local time (no Z)
+// so the event lands at the stated clock time in whatever calendar imports it.
+const downloadDeliveryIcs = ({ order, orderShortId, yachtName }) => {
+  if (!order?.delivery_date) return;
+  const [Y, M, D] = String(order.delivery_date).split('-').map(Number);
+  if (!Y || !M || !D) return;
+  const [h, m] = order.delivery_time
+    ? String(order.delivery_time).split(':').map(Number)
+    : [9, 0];
+  const pad = (n) => String(n).padStart(2, '0');
+  const start = new Date(Y, M - 1, D, h || 9, m || 0);
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
+  const local = (dt) => `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+  const now = new Date();
+  const stamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
+  const esc = (s) => String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+  const port = order.delivery_port || '';
+  const ics = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cargo//Supplier//EN', 'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    `UID:order-${order.id}@cargo`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART:${local(start)}`,
+    `DTEND:${local(end)}`,
+    `SUMMARY:${esc(`Delivery — ${yachtName} (#${orderShortId})`)}`,
+    port ? `LOCATION:${esc(port)}` : null,
+    `DESCRIPTION:${esc(`Cargo order #${orderShortId} delivery to ${yachtName}.`)}`,
+    'END:VEVENT', 'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `delivery-${orderShortId}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
 const Hero = ({
   order,
   orderShortId,
+  yachtDisplayName,
   documentsCount,
   returnsCount,
   openMenu,
@@ -446,6 +499,18 @@ const Hero = ({
     : null;
   const portText = order.delivery_port || null;
 
+  // Copy order number → brief "Copied" flash on the hero-left id.
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef(null);
+  const copyOrderNo = () => {
+    try { navigator.clipboard?.writeText(`#${orderShortId}`); } catch { /* clipboard blocked */ }
+    setCopied(true);
+    clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(false), 1400);
+  };
+  const dirs = portText ? mapsLinks(portText) : null;
+  const copyAddress = () => { try { navigator.clipboard?.writeText(portText || ''); } catch { /* noop */ } };
+
   // Countdown urgency — red when imminent, amber within a week, calm ink
   // when there's plenty of runway. Drives the number + the hero's left edge.
   const urgencyTone = !showDays ? 'var(--amber)'
@@ -457,7 +522,16 @@ const Hero = ({
     <div className="sod-hero" style={{ borderLeftColor: urgencyTone }}>
       <div className="sod-hero-id">
         <div className="sod-hero-l">Order</div>
-        <div className="sod-hero-id-n">#{orderShortId}</div>
+        <button
+          type="button"
+          className="sod-hero-id-n sod-hero-id-copy"
+          onClick={copyOrderNo}
+          title="Copy order number"
+          aria-label={`Copy order number ${orderShortId}`}
+        >
+          #{orderShortId}
+          <span className={`sod-copied${copied ? ' is-on' : ''}`} aria-live="polite">{copied ? 'Copied' : ''}</span>
+        </button>
       </div>
 
       <div className="sod-hero-countdown">
@@ -505,6 +579,37 @@ const Hero = ({
           {time && <span className="sod-mtag">{time}</span>}
           {portText ? <strong>{portText}</strong> : <span style={{ color: 'var(--muted)' }}>Port TBC</span>}
         </div>
+
+        {(dirs || order.delivery_date) && (
+          <div className="sod-hero-when-actions">
+            {dirs && (
+              <span className="sod-hero-dir">
+                <button type="button" className="sod-hero-miniact" aria-haspopup="menu">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z" /></svg>
+                  Directions
+                </button>
+                <span className="sod-hero-dir-pop" role="menu">
+                  <span className="l">Open in</span>
+                  <a role="menuitem" href={dirs.google} target="_blank" rel="noopener noreferrer">Google Maps</a>
+                  <a role="menuitem" href={dirs.apple} target="_blank" rel="noopener noreferrer">Apple Maps</a>
+                  <a role="menuitem" href={dirs.waze} target="_blank" rel="noopener noreferrer">Waze</a>
+                  <button type="button" role="menuitem" onClick={copyAddress}>Copy address</button>
+                </span>
+              </span>
+            )}
+            {order.delivery_date && (
+              <button
+                type="button"
+                className="sod-hero-miniact"
+                onClick={() => downloadDeliveryIcs({ order, orderShortId, yachtName: yachtDisplayName || 'the yacht' })}
+                title="Add the delivery slot to your calendar"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+                Add to calendar
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="sod-hero-right">
@@ -2673,6 +2778,7 @@ const SupplierOrderDetail = () => {
             <Hero
               order={order}
               orderShortId={orderShortId}
+              yachtDisplayName={yachtDisplayName}
               documentsCount={docsCount}
               returnsCount={returnsCount}
               openMenu={openMenu}
