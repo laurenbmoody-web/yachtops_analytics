@@ -196,7 +196,13 @@ const SettingsPage = () => {
   const [loginMsg, setLoginMsg] = useState(null); // { t: 'err'|'ok', m }
   const [loginSent, setLoginSent] = useState(null); // the pending new address
 
-  const cancelLogin = () => { setEditingLogin(false); setCurPassword(''); setNewLoginEmail(''); setLoginMsg(null); };
+  // Re-auth "current password" fields start read-only so the browser/password
+  // manager can't silently pre-fill them — the whole point is that the user
+  // re-types their password. Focus flips them editable (a manual fill dropdown
+  // is still fine; a silent pre-fill isn't).
+  const [loginCurRO, setLoginCurRO] = useState(true);
+  const [pwCurRO, setPwCurRO] = useState(true);
+  const cancelLogin = () => { setEditingLogin(false); setCurPassword(''); setNewLoginEmail(''); setLoginMsg(null); setLoginCurRO(true); };
   const submitLoginEmailChange = async () => {
     const newE = newLoginEmail.trim().toLowerCase();
     const currentEmail = (acct.email || session?.user?.email || '').toLowerCase();
@@ -229,7 +235,7 @@ const SettingsPage = () => {
   const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState(null);
   const [pwDone, setPwDone] = useState(false);
-  const cancelPw = () => { setEditingPw(false); setPwCurrent(''); setPwNew(''); setPwConfirm(''); setPwMsg(null); };
+  const cancelPw = () => { setEditingPw(false); setPwCurrent(''); setPwNew(''); setPwConfirm(''); setPwMsg(null); setPwCurRO(true); };
   const submitPwChange = async () => {
     const currentEmail = (acct.email || session?.user?.email || '').toLowerCase();
     if (!pwCurrent) { setPwMsg({ t: 'err', m: 'Enter your current password' }); return; }
@@ -549,6 +555,7 @@ const SettingsPage = () => {
                     <input type="text" name="username" autoComplete="username" defaultValue={acct.email || ''} readOnly tabIndex={-1} aria-hidden="true"
                       style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
                     <input className="set-field" type="password" autoComplete="current-password" placeholder="Current password"
+                      readOnly={loginCurRO} onFocus={() => setLoginCurRO(false)}
                       value={curPassword} onChange={(e) => { setCurPassword(e.target.value); if (loginMsg) setLoginMsg(null); }} />
                     <input className="set-field" type="email" autoComplete="off" placeholder="New login email"
                       value={newLoginEmail}
@@ -565,7 +572,7 @@ const SettingsPage = () => {
                 <div className="set-r">
                   <RMain label="Login email" desc={loginSent ? `Confirmation sent to ${loginSent}. Check that inbox and your current email to finish.` : 'Where you sign in — your account address.'} />
                   <span className="set-r-val">{acct.email || '—'}</span>
-                  <button className="set-btn" onClick={() => { setEditingLogin(true); setLoginSent(null); }}>Change</button>
+                  <button className="set-btn" onClick={() => { setEditingLogin(true); setLoginSent(null); setLoginCurRO(true); }}>Change</button>
                 </div>
               )}
               {editingNotif ? (
@@ -609,6 +616,7 @@ const SettingsPage = () => {
                     <input type="text" name="username" autoComplete="username" defaultValue={acct.email || ''} readOnly tabIndex={-1} aria-hidden="true"
                       style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
                     <input className="set-field" type="password" autoComplete="current-password" placeholder="Current password"
+                      readOnly={pwCurRO} onFocus={() => setPwCurRO(false)}
                       value={pwCurrent} onChange={(e) => { setPwCurrent(e.target.value); if (pwMsg) setPwMsg(null); }} />
                     <input className="set-field" type="password" autoComplete="new-password" placeholder="New password"
                       value={pwNew} onChange={(e) => { setPwNew(e.target.value); if (pwMsg) setPwMsg(null); }} />
@@ -626,7 +634,7 @@ const SettingsPage = () => {
                 <div className="set-r">
                   <RMain label="Password" desc="Change your sign-in password." />
                   {pwDone && <span className="set-savenote" style={{ color: '#3F7A52' }}>Updated</span>}
-                  <button className="set-btn" onClick={() => { setEditingPw(true); setPwDone(false); }}>Change</button>
+                  <button className="set-btn" onClick={() => { setEditingPw(true); setPwDone(false); setPwCurRO(true); }}>Change</button>
                 </div>
               )}
               {mfaEnroll ? (
