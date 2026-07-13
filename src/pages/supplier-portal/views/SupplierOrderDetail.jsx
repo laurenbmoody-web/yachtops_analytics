@@ -10,6 +10,7 @@ import { UNIT_GROUPS, UNIT_GROUP_VALUES } from '../../../data/unitGroups';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
+import '../../../styles/editorial.css'; // shared editorial meta strip + serif greeting (matches orders list / marketplace)
 import SupplierModal from '../components/SupplierModal';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
@@ -2412,15 +2413,37 @@ const SupplierOrderDetail = () => {
   const sentRelative = fmtRelative(order.sent_at || order.created_at);
   const yachtDisplayName = order.vessel_name || order.yacht_name || 'the yacht';
 
+  // Meta-strip stats — line states + overall status from the timeline.
+  const mItems = order.supplier_order_items || [];
+  const mCur = order.currency || 'EUR';
+  const mLineVal = (i) => (i.agreed_price ?? i.quoted_price ?? i.estimated_price ?? i.unit_price ?? 0) * (i.quantity ?? 1);
+  const mTotal = mItems.reduce((s, i) => s + mLineVal(i), 0);
+  const mConfirmed = mItems.filter(i => i.status === 'confirmed').length;
+  const mSub = mItems.filter(i => i.status === 'substituted').length;
+  const mUnavail = mItems.filter(i => i.status === 'unavailable').length;
+  const mStatus = TIMELINE_STEPS[STATUS_TO_STEP_INDEX[order.status] ?? 1]?.label || order.status;
+  const mMoney = (a) => new Intl.NumberFormat(undefined, { style: 'currency', currency: mCur, maximumFractionDigits: 0 }).format(a || 0);
+
   return (
     <div className="sod-page">
 
-      {/* ── Crumb ── */}
-      <div className="sod-crumb">
-        <a onClick={() => navigate('/supplier/orders')}>Orders</a>
-        <span className="sep">›</span>
-        #{orderShortId}
-      </div>
+      {/* ── Editorial meta strip ── */}
+      <p className="editorial-meta" style={{ marginBottom: 14, flexWrap: 'wrap' }}>
+        <span className="dot">●</span>
+        <a onClick={() => navigate('/supplier/orders')} style={{ cursor: 'pointer' }}>Orders</a>
+        <span className="bar" />
+        <span>#{orderShortId}</span>
+        <span className="bar" />
+        <span className="muted">{mItems.length} items</span>
+        <span className="bar" />
+        <span className="muted">{mMoney(mTotal)} total</span>
+        <span className="bar" />
+        <span className="muted">{mConfirmed} confirmed</span>
+        {mSub > 0 && <><span className="bar" /><span className="muted" style={{ color: 'var(--orange)' }}>{mSub} sub</span></>}
+        {mUnavail > 0 && <><span className="bar" /><span className="muted" style={{ color: 'var(--red)' }}>{mUnavail} unavailable</span></>}
+        <span className="bar" />
+        <span className="muted" style={{ color: '#C65A1A' }}>{mStatus}</span>
+      </p>
 
       {/* ── Page header: title + assignee chip ── */}
       <header className="sod-order-header">
