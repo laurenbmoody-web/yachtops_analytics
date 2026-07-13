@@ -15,8 +15,7 @@ import OrdersReviewPanel from './OrdersReviewPanel';
 import OrderApprovalRightPane from './OrderApprovalRightPane';
 import { useProvisioningApprovals } from './useProvisioningApprovals';
 import { useCrewRequests } from './useCrewRequests';
-import CrewRequestsPanel from './CrewRequestsPanel';
-import CrewRequestRightPane from './CrewRequestRightPane';
+import CrewRequestsHub from './CrewRequestsHub';
 import SeaTimeReviewPanel from './SeaTimeReviewPanel';
 import CaptainSignoff from '../../seatime/CaptainSignoff';
 import { buildSpellTestimonialPdf, bytesToBase64 } from '../../seatime/packExport';
@@ -293,47 +292,27 @@ export default function ReviewsPage() {
   }
 
   if (activeCategory === 'crew-requests') {
-    // Flat approve/decline queue. ?selected= deep-links a request (e.g. from
-    // the bell) straight onto the right pane; deciding clears it so the list
-    // advances to whatever is next.
+    // Single-screen "Console" hub (no split-view). ?selected= deep-links a
+    // request (e.g. from the bell) — the hub auto-expands and scrolls to it.
+    // Deciding removes it from the queue in place.
     const crSelectedId = searchParams.get('selected');
     const crItems = crewRequests.items;
-    const crSelected = crItems.find((i) => i.id === crSelectedId) || crItems[0] || null;
-    const crSelect = (id) => setSearchParams({ selected: id });
     const crDecide = async (id, approve) => {
       await crewRequests.decide(id, approve);
-      setSearchParams({}, { replace: true });
     };
     return (
       <>
         <Header />
-        <div className={`rv-page${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
+        <div className={`rv-page rv-hub${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
           <InboxSidebar activeCategory="crew-requests" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crItems.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
-          <CrewRequestsPanel
+          <CrewRequestsHub
             items={crItems}
             loading={crewRequests.loading}
-            selectedId={crSelected?.id}
-            onSelect={crSelect}
             eyebrow={eyebrow}
+            initialSelectedId={crSelectedId}
+            onDecide={crDecide}
+            onToast={showToast}
           />
-          <section className="rv-rightpane-col" aria-label="Crew request detail">
-            {crSelected ? (
-              <CrewRequestRightPane
-                key={crSelected.id}
-                request={crSelected}
-                onDecide={crDecide}
-                onToast={showToast}
-              />
-            ) : (
-              <div className="rv-rp-blank" role="status">
-                <Icon name="Check" size={36} color="#8B8478" className="rv-rp-blank-icon" />
-                <div className="rv-rp-blank-title">{crewRequests.loading ? 'Loading…' : 'All clear'}</div>
-                <div className="rv-rp-blank-sub">
-                  Requests from crew — like where a vessel's alerts are sent — appear here for your decision.
-                </div>
-              </div>
-            )}
-          </section>
           {toast && (
             <div className={`rv-toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.msg}</div>
           )}

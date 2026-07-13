@@ -24,6 +24,14 @@
 .rv-page.rv-collapsed {
   grid-template-columns: 44px 380px 1fr;
 }
+/* Single-screen surfaces (e.g. the Crew requests Console hub) drop the middle
+   list strip + right pane for one full-width content column beside the rail. */
+.rv-page.rv-hub {
+  grid-template-columns: 220px 1fr;
+}
+.rv-page.rv-hub.rv-collapsed {
+  grid-template-columns: 44px 1fr;
+}
 
 /* LEFT — inbox navigation sidebar. */
 .rv-sidebar {
