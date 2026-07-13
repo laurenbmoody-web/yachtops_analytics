@@ -92,12 +92,12 @@
 }
 .crh-search input {
   width: 100%;
-  font: 13.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 14px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
-  background: #F1F5F9;
-  border: 1px solid #E7EBF1;
-  border-radius: 10px;
-  padding: 10px 12px 10px 34px;
+  background: #F6F8FB;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 12px 14px 12px 38px;
   box-sizing: border-box;
 }
 .crh-search input::placeholder { color: #8B8478; }
@@ -112,29 +112,24 @@
 .crh-dd-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif;
+  gap: 9px;
+  font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
-  background: #F1F5F9;
-  border: 1px solid #E7EBF1;
-  border-radius: 10px;
-  padding: 10px 13px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 11px 15px;
   cursor: pointer;
   transition: border-color 0.14s, box-shadow 0.14s;
 }
-.crh-dd-btn:hover { border-color: #E0B79E; }
+.crh-dd-btn:hover { border-color: #C9CED6; }
 .crh-dd.open .crh-dd-btn {
   border-color: #C65A1A;
   box-shadow: 0 0 0 3px #FAECE7;
 }
-.crh-dd-lead {
-  font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: #8B8478;
-}
-.crh-dd-cur { font-weight: 600; }
-.crh-dd-ch { color: #8B8478; transition: transform 0.18s; }
+.crh-dd-ic { color: #1C1B3A; flex: none; }
+.crh-dd-label { font-weight: 600; }
+.crh-dd-ch { color: #8B8478; transition: transform 0.18s; flex: none; }
 .crh-dd.open .crh-dd-ch { transform: rotate(180deg); }
 .crh-dd-menu {
   position: absolute;
@@ -148,6 +143,7 @@
   padding: 6px;
   z-index: 30;
 }
+.crh-dd-menu.right { left: auto; right: 0; }
 .crh-dd-opt {
   width: 100%;
   display: flex;
@@ -204,9 +200,9 @@
   align-items: center;
 }
 .crh-colh {
-  padding: 11px 18px;
-  background: #F1F5F9;
-  border-bottom: 1px solid #E7EBF1;
+  padding: 12px 18px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #E5E7EB;
 }
 .crh-colh span {
   font: 700 9.5px 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -324,10 +320,11 @@
   display: inline-flex;
   align-items: center;
   gap: 16px;
-  background: #F1F5F9;
+  background: #FFFFFF;
   border: 1px solid #E5E7EB;
   border-radius: 12px;
-  padding: 13px 18px;
+  padding: 14px 20px;
+  box-shadow: 0 6px 18px -8px rgba(28, 27, 58, 0.14);
 }
 .crh-flow .k {
   font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif;
