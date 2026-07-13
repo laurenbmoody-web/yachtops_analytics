@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ITEM_STATUS_ORDER, getItemStatusConfig, deriveDisplayStatus } from '../data/statusConfig';
-import { normalizeUnit } from '../../../data/unitGroups';
+import { formatBoughtIn } from '../../../data/unitGroups';
 
 // Per-card status pill + right-click status picker. Pipes item + supplier_
 // order_item + supplier_order through deriveDisplayStatus so the kanban
@@ -38,12 +38,13 @@ const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusCha
 
   const handleTouchEnd = () => clearTimeout(longPressTimer.current);
 
-  // Pack breakdown sublabel — a bulk unit (case, box, dozen…) that carries an
-  // inner count reads as "case of 24 × 500ml" under the name, so the chief
-  // sees what one ordered unit actually contains without opening the drawer.
-  const perPack = Number(item.units_per_pack) || 0;
-  const packLabel = perPack > 1
-    ? `${normalizeUnit(item.unit) || 'pack'} of ${perPack}${item.size ? ` × ${item.size}` : ''}`
+  // Bought-in sublabel — when a line is bought in packs (case, box, dozen…)
+  // this reads "packs of 24 × 500ml" under the name, so the chief sees how it's
+  // purchased without opening the drawer. `unit` stays the base stocking unit;
+  // the pack noun comes from purchase_unit, never the unit itself.
+  const boughtIn = formatBoughtIn(item.purchase_unit, item.units_per_pack);
+  const packLabel = boughtIn
+    ? `${boughtIn}${item.size ? ` × ${item.size}` : ''}`
     : null;
 
   const handleQty = (e, delta) => {

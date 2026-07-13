@@ -9,6 +9,28 @@
 // members SELECT on all catalogues.
 
 import { supabase } from '../../../lib/supabaseClient';
+import { normalizeUnit } from '../../../data/unitGroups';
+
+// Translate a supplier-catalogue product (outer sell `unit` + inner
+// `pack_size` × `pack_unit` of `unit_size`) into the yacht split, where
+// `unit` is the BASE stocking unit and the pack is a bought-in overlay:
+//   base unit      → the inner unit if the product is sold in a pack, else
+//                    the sell unit itself
+//   purchase_unit  → the outer sell unit when it wraps a pack (else loose)
+//   units_per_pack → how many base units one sell unit holds
+//   size           → the size of one base unit
+const mapCatalogueUnits = (product) => {
+  const per = Number(product.pack_size) || 0;
+  const inner = normalizeUnit(product.pack_unit);
+  const outer = normalizeUnit(product.unit);
+  const hasPack = per > 0 && inner && inner !== outer;
+  return {
+    unit: (hasPack ? inner : outer) || 'each',
+    purchase_unit: hasPack ? (outer || null) : null,
+    units_per_pack: hasPack ? per : null,
+    size: product.unit_size || null,
+  };
+};
 
 export const fetchMarketplaceSuppliers = async () => {
   const { data, error } = await supabase.rpc('get_marketplace_suppliers');
@@ -353,15 +375,17 @@ export const addBasketToBoard = async (listId, lines) => {
   if (!listId || !lines?.length) return [];
   const payload = lines.map(({ product, qty }) => {
     const mapped = mapCatalogueCategory(product);
+    const units = mapCatalogueUnits(product);
     return {
       list_id: listId,
       name: product.name,
-      size: product.unit_size || null,
+      size: units.size,
       category: mapped.category,
       department: mapped.department,
       quantity_ordered: qty,
-      unit: product.unit || 'each',
-      units_per_pack: product.pack_size || null,
+      unit: units.unit,
+      purchase_unit: units.purchase_unit,
+      units_per_pack: units.units_per_pack,
       estimated_unit_cost: product.unit_price ?? null,
       supplier_profile_id: product.supplier_id,
       catalogue_item_id: product.id,
