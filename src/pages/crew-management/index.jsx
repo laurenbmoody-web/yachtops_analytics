@@ -143,9 +143,10 @@ const CrewManagement = () => {
   const { activeTenantId } = useTenant();
   const [currentUser, setCurrentUser] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState(null); // NEW: Store tenant_members.permission_tier
-  // Crew emails are only shown to the Command tier (and vessel admins). Peers
-  // see names/roles but not each other's email — hidden in the UI, not the DB.
-  const canSeeEmails = isVesselAdmin || currentUserRole === 'COMMAND';
+  // Command tier (and vessel admins) only. Peers see names/roles, but not each
+  // other's email or the pending-invite list — hidden in the UI, not the DB.
+  const isCommandOrAdmin = isVesselAdmin || currentUserRole === 'COMMAND';
+  const canSeeEmails = isCommandOrAdmin;
   const [users, setUsers] = useState([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showGuestBook, setShowGuestBook] = useState(false);
@@ -2096,8 +2097,10 @@ const CrewManagement = () => {
         {/* Content */}
         {!loading && !error && (
           <>
-            {/* Pending Invites Section */}
-            <PendingInvitesSection refreshTrigger={inviteRefreshTrigger} canInvite={canInvite} onInviteClick={handleInviteClick} />
+            {/* Pending Invites Section — Command / vessel admin only */}
+            {isCommandOrAdmin && (
+              <PendingInvitesSection refreshTrigger={inviteRefreshTrigger} canInvite={canInvite} onInviteClick={handleInviteClick} />
+            )}
 
             {/* Roster section — no header; the view tabs are self-explanatory. */}
             <div className="cm-section">
