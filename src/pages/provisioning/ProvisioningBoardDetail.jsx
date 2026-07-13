@@ -26,6 +26,7 @@ import {
   decideProvisioningApproval,
   uploadProvisioningQuoteFile,
   deleteProvisioningList,
+  archiveProvisioningList,
   duplicateList,
   fetchVesselDepartments,
   fetchDeliveryBatches,
@@ -2194,6 +2195,25 @@ const SUPPLIER_MIRROR_FIELD = {
     } catch { showToast('Failed to delete board', 'error'); }
   };
 
+  // Archive (soft close) — for a finished board (delivered & paid). Closes
+  // it out of the active kanban but keeps the record for history; it can be
+  // un-archived from the Archived view. Reversible, unlike delete.
+  const handleArchiveBoard = async () => {
+    setShowMenu(false);
+    if (!window.confirm(
+      `Archive "${list?.title}"?\n\nIt closes out of your active boards but stays in history — un-archive it any time from the Archived view.`,
+    )) return;
+    try {
+      await archiveProvisioningList(id);
+      try { window.dispatchEvent(new Event('provisioning-list-status-changed')); } catch { /* noop */ }
+      navigate('/provisioning');
+      showToast('Board archived', 'success');
+    } catch (err) {
+      console.error('[ProvisioningBoardDetail] archive failed:', err);
+      showToast('Failed to archive board', 'error');
+    }
+  };
+
   // ── Allergen helpers ──────────────────────────────────────────────────────
 
   const isAllergenRisk = useCallback((item) => {
@@ -3535,6 +3555,14 @@ const SUPPLIER_MIRROR_FIELD = {
                           <Icon name="FileText" style={{ width: 14, height: 14 }} />
                           View quote file
                         </button>
+                      )}
+                      {canEdit && (
+                        <>
+                          <div className="pv-board-menu-divider" />
+                          <button onClick={handleArchiveBoard} className="pv-board-menu-item">
+                            <Icon name="Archive" style={{ width: 14, height: 14 }} /> Archive Board
+                          </button>
+                        </>
                       )}
                       {canDelete && (
                         <>

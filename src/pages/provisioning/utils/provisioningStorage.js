@@ -192,46 +192,58 @@ export const fetchVesselDepartments = async (tenantId) => {
 
 // ── Lists ─────────────────────────────────────────────────────────────────────
 
-export const fetchProvisioningLists = async (vesselId, userId = null, userDeptId = null, userTier = null) => {
-  try {
-    // Build visibility filter when userId is provided (app-level backup for environments
-    // where RLS may not be fully configured). With RLS enabled this is redundant but harmless.
-    const buildQuery = async (base) => {
-      if (!userId) return base; // no filter — rely entirely on RLS
+// archivedMode: 'active' (default — hide archived), 'archived' (only
+// archived), 'all' (both). Resilient to the archived_at column not being
+// migrated yet — see the catch below.
+export const fetchProvisioningLists = async (vesselId, userId = null, userDeptId = null, userTier = null, archivedMode = 'active') => {
+  // Build visibility filter when userId is provided (app-level backup for environments
+  // where RLS may not be fully configured). With RLS enabled this is redundant but harmless.
+  const buildQuery = async (base) => {
+    if (!userId) return base; // no filter — rely entirely on RLS
 
-      // Collect list IDs the user is a collaborator on
-      let collabListIds = [];
-      try {
-        const { data: collabData } = await supabase
-          ?.from('provisioning_list_collaborators')
-          ?.select('list_id')
-          ?.eq('user_id', userId);
-        collabListIds = (collabData || []).map(c => c.list_id);
-      } catch { /* ignore — not fatal */ }
+    // Collect list IDs the user is a collaborator on
+    let collabListIds = [];
+    try {
+      const { data: collabData } = await supabase
+        ?.from('provisioning_list_collaborators')
+        ?.select('list_id')
+        ?.eq('user_id', userId);
+      collabListIds = (collabData || []).map(c => c.list_id);
+    } catch { /* ignore — not fatal */ }
 
-      // Build OR filter: owner OR dept-visibility OR collaborator
-      const orParts = [`owner_id.eq.${userId}`, `created_by.eq.${userId}`];
-      const tier = (userTier || '').toUpperCase();
-      if (tier === 'COMMAND') {
-        // COMMAND sees all department boards in the tenant
-        orParts.push('visibility.eq.department');
-      } else if (userDeptId) {
-        // Other tiers see only their own department's boards
-        orParts.push(`and(visibility.eq.department,department_id.eq.${userDeptId})`);
-      }
-      if (collabListIds.length) {
-        orParts.push(`id.in.(${collabListIds.join(',')})`);
-      }
-      return base?.or(orParts.join(','));
+    // Build OR filter: owner OR dept-visibility OR collaborator
+    const orParts = [`owner_id.eq.${userId}`, `created_by.eq.${userId}`];
+    const tier = (userTier || '').toUpperCase();
+    if (tier === 'COMMAND') {
+      // COMMAND sees all department boards in the tenant
+      orParts.push('visibility.eq.department');
+    } else if (userDeptId) {
+      // Other tiers see only their own department's boards
+      orParts.push(`and(visibility.eq.department,department_id.eq.${userDeptId})`);
+    }
+    if (collabListIds.length) {
+      orParts.push(`id.in.(${collabListIds.join(',')})`);
+    }
+    return base?.or(orParts.join(','));
+  };
+
+  // withArchiveFilter is turned off in the fallback path when the
+  // archived_at column isn't migrated yet, so the boards page still loads.
+  const run = async (withArchiveFilter) => {
+    const applyArchive = (q) => {
+      if (!withArchiveFilter) return q;
+      if (archivedMode === 'archived') return q?.not('archived_at', 'is', null);
+      if (archivedMode === 'all') return q;
+      return q?.is('archived_at', null); // 'active'
     };
 
     // Try ordering by sort_order first
-    let query = supabase
+    let query = applyArchive(supabase
       ?.from('provisioning_lists')
       ?.select('*')
       ?.eq('tenant_id', vesselId)
       ?.order('sort_order', { ascending: true, nullsFirst: false })
-      ?.order('created_at', { ascending: true });
+      ?.order('created_at', { ascending: true }));
 
     query = await buildQuery(query);
     const { data, error } = await query;
@@ -239,13 +251,13 @@ export const fetchProvisioningLists = async (vesselId, userId = null, userDeptId
     // Graceful fallback if sort_order column doesn't exist yet
     if (error) {
       const isMissingColumn = error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('sort_order');
-      if (isMissingColumn) {
+      if (isMissingColumn && !error.message?.includes('archived_at')) {
         console.warn('[provisioningStorage] sort_order column missing — run migration. Falling back to created_at order.');
-        let fbQuery = supabase
+        let fbQuery = applyArchive(supabase
           ?.from('provisioning_lists')
           ?.select('*')
           ?.eq('tenant_id', vesselId)
-          ?.order('created_at', { ascending: false });
+          ?.order('created_at', { ascending: false }));
         fbQuery = await buildQuery(fbQuery);
         const { data: fallback, error: fbErr } = await fbQuery;
         if (fbErr) throw fbErr;
@@ -254,11 +266,34 @@ export const fetchProvisioningLists = async (vesselId, userId = null, userDeptId
       throw error;
     }
     return data || [];
+  };
+
+  try {
+    return await run(true);
   } catch (err) {
+    // archived_at not migrated yet — don't break the boards page. Active
+    // mode returns everything (nothing is archived without the column);
+    // the archived view is simply empty.
+    if (err?.code === '42703' || err?.message?.includes('archived_at')) {
+      console.warn('[provisioningStorage] archived_at column missing — run migration. Ignoring archive filter.');
+      if (archivedMode === 'archived') return [];
+      try { return await run(false); } catch (e2) {
+        console.error('[provisioningStorage] fetchProvisioningLists fallback error:', e2);
+        throw e2;
+      }
+    }
     console.error('[provisioningStorage] fetchProvisioningLists error:', err);
     throw err;
   }
 };
+
+// Soft close / reopen a board. archived_at non-null = archived (hidden
+// from the active kanban, kept for history). Reuses updateProvisioningList
+// so the standard updated_at bump + RLS path apply.
+export const archiveProvisioningList = (listId) =>
+  updateProvisioningList(listId, { archived_at: new Date().toISOString() });
+export const unarchiveProvisioningList = (listId) =>
+  updateProvisioningList(listId, { archived_at: null });
 
 export const fetchProvisioningListsByTrip = async (tripId) => {
   try {
