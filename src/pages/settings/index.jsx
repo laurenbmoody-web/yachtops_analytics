@@ -412,6 +412,27 @@ const SettingsPage = () => {
   // records are a separate controllership and are deliberately not included.
   const [exportBusy, setExportBusy] = useState(false);
   const [exportMsg, setExportMsg] = useState(null);
+
+  // ── Delete account (irreversible) ───────────────────────────────────────────
+  const [delOpen, setDelOpen] = useState(false);
+  const [delConfirm, setDelConfirm] = useState('');
+  const [delBusy, setDelBusy] = useState(false);
+  const [delMsg, setDelMsg] = useState(null);
+  const deleteAccount = async () => {
+    if (delConfirm.trim().toUpperCase() !== 'DELETE') { setDelMsg({ t: 'err', m: 'Type DELETE to confirm' }); return; }
+    setDelBusy(true); setDelMsg(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-my-account', { body: { confirm: true } });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'failed');
+      try { await supabase.auth.signOut(); } catch { /* already gone */ }
+      try { localStorage.clear(); } catch { /* ignore */ }
+      window.location.href = '/login-authentication';
+    } catch (e) {
+      console.warn('[settings] delete account failed', e);
+      setDelMsg({ t: 'err', m: 'Could not delete your account. Please try again.' });
+      setDelBusy(false);
+    }
+  };
   const downloadMyData = async () => {
     const uid = session?.user?.id;
     if (!uid) { setExportMsg({ t: 'err', m: 'You need to be signed in' }); return; }
@@ -884,7 +905,25 @@ const SettingsPage = () => {
 
             <Caps>Account</Caps>
             <Group>
-              <RowSoon label="Delete account" desc="Permanently erase your Cargo account." />
+              {delOpen ? (
+                <div className="set-r set-stack">
+                  <RMain danger label="Delete account" desc="This permanently erases your Cargo account and personal data — profile, documents, personal details and sea service. It can’t be undone. A vessel may still hold compliance records it’s legally required to keep." />
+                  <form className="set-loginform" onSubmit={(e) => { e.preventDefault(); deleteAccount(); }}>
+                    <input className="set-field" placeholder="Type DELETE to confirm" autoFocus value={delConfirm}
+                      onChange={(e) => { setDelConfirm(e.target.value); if (delMsg) setDelMsg(null); }} />
+                    <div className="set-emailrow">
+                      <button type="submit" className="set-btn set-btn-danger" disabled={delBusy}>{delBusy ? 'Deleting…' : 'Delete my account'}</button>
+                      <button type="button" className="set-btn" onClick={() => { setDelOpen(false); setDelConfirm(''); setDelMsg(null); }} disabled={delBusy}>Cancel</button>
+                    </div>
+                    {delMsg && <span className="set-savenote" style={{ color: '#B23B2E' }}>{delMsg.m}</span>}
+                  </form>
+                </div>
+              ) : (
+                <div className="set-r">
+                  <RMain danger label="Delete account" desc="Permanently erase your Cargo account and personal data." />
+                  <button className="set-btn set-btn-danger" onClick={() => { setDelOpen(true); setDelConfirm(''); setDelMsg(null); }}>Delete</button>
+                </div>
+              )}
             </Group>
           </>
         );
