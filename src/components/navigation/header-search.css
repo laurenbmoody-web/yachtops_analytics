@@ -80,7 +80,7 @@
 }
 .hsearch-group-h {
   padding: 9px 16px 6px;
-  font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 600 10px 'Plus Jakarta Sans', system-ui, sans-serif;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #8B8478;
@@ -105,7 +105,7 @@
 .hsearch-ico { color: #8B8478; flex: none; }
 .hsearch-body { min-width: 0; }
 .hsearch-label {
-  font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font: 500 14px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
   margin: 0;
   white-space: nowrap;
