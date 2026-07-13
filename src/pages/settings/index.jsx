@@ -85,6 +85,36 @@ const fmtFactorDate = (iso) => {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
   catch { return ''; }
 };
+// "Chrome on macOS" from a user-agent string; best-effort, never throws.
+const deviceLabel = (ua) => {
+  if (!ua) return 'Unknown device';
+  const os = /Windows/i.test(ua) ? 'Windows'
+    : /iPhone/i.test(ua) ? 'iPhone'
+    : /iPad/i.test(ua) ? 'iPad'
+    : /Macintosh|Mac OS X/i.test(ua) ? 'macOS'
+    : /Android/i.test(ua) ? 'Android'
+    : /Linux/i.test(ua) ? 'Linux' : '';
+  const br = /Edg\//i.test(ua) ? 'Edge'
+    : /OPR\/|Opera/i.test(ua) ? 'Opera'
+    : /Chrome\//i.test(ua) ? 'Chrome'
+    : /Firefox\//i.test(ua) ? 'Firefox'
+    : /Safari\//i.test(ua) ? 'Safari' : '';
+  if (br && os) return `${br} on ${os}`;
+  return br || os || 'Unknown device';
+};
+// Relative "3h ago" / "2d ago" for a last-active timestamp.
+const relTime = (iso) => {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  if (d < 30) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
 
 const NAV = [
   { grp: 'Account', items: [
@@ -304,6 +334,56 @@ const SettingsPage = () => {
       console.warn('[settings] passkey delete failed', e);
       setPkMsg({ t: 'err', m: e.message || 'Could not remove that passkey' });
     } finally { setPkBusy(false); }
+  };
+
+  // ── Active sessions ─────────────────────────────────────────────────────────
+  // The user's own auth sessions, via SECURITY DEFINER RPCs (auth.sessions isn't
+  // reachable from the client). Each is one signed-in device; revoking deletes
+  // the session row, which cascades its refresh tokens so the device drops out.
+  const [sessions, setSessions] = useState([]);
+  const [sessLoading, setSessLoading] = useState(true);
+  const [sessBusyId, setSessBusyId] = useState(null); // session id being revoked, or 'all'
+  const [sessMsg, setSessMsg] = useState(null);
+  const [sessConfirmAll, setSessConfirmAll] = useState(false);
+
+  const loadSessions = useCallback(async () => {
+    setSessLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('list_my_sessions');
+      if (error) throw error;
+      setSessions(data || []);
+    } catch (e) {
+      // RPC absent until the migration lands → read as empty.
+      console.warn('[settings] list sessions failed', e);
+      setSessions([]);
+    } finally { setSessLoading(false); }
+  }, []);
+  useEffect(() => { loadSessions(); }, [loadSessions]);
+
+  const revokeSession = async (id) => {
+    setSessBusyId(id); setSessMsg(null);
+    try {
+      const { error } = await supabase.rpc('revoke_my_session', { p_session_id: id });
+      if (error) throw error;
+      await loadSessions();
+    } catch (e) {
+      console.warn('[settings] revoke session failed', e);
+      setSessMsg({ t: 'err', m: 'Could not sign out that device' });
+    } finally { setSessBusyId(null); }
+  };
+
+  const revokeOtherSessions = async () => {
+    setSessBusyId('all'); setSessMsg(null);
+    try {
+      const { error } = await supabase.rpc('revoke_my_other_sessions');
+      if (error) throw error;
+      setSessConfirmAll(false);
+      await loadSessions();
+      setSessMsg({ t: 'ok', m: 'Signed out other devices' });
+    } catch (e) {
+      console.warn('[settings] revoke other sessions failed', e);
+      setSessMsg({ t: 'err', m: 'Could not sign out other devices' });
+    } finally { setSessBusyId(null); }
   };
 
   const startMfaEnroll = async () => {
@@ -626,7 +706,50 @@ const SettingsPage = () => {
                   </div>
                 </>
               )}
-              <RowSoon label="Active sessions" desc="See and sign out other devices." />
+            </Group>
+            <Caps>Active sessions</Caps>
+            <Group>
+              {sessLoading ? (
+                <div className="set-r"><RMain label="Devices" desc="Where you’re currently signed in." /><span className="set-r-val muted">Loading…</span></div>
+              ) : sessions.length === 0 ? (
+                <div className="set-r"><RMain label="Devices" desc="Where you’re currently signed in." /><span className="set-r-val muted">—</span></div>
+              ) : (
+                <>
+                  {sessions.map((s) => (
+                    <div key={s.id} className="set-r">
+                      <RMain
+                        label={deviceLabel(s.user_agent)}
+                        desc={`${s.is_current ? 'This device' : `Last active ${relTime(s.refreshed_at)}`}${s.ip ? ` · ${s.ip}` : ''}`}
+                      />
+                      {s.is_current ? (
+                        <span className="set-badge set-badge-on">Current</span>
+                      ) : (
+                        <button className="set-btn" onClick={() => revokeSession(s.id)} disabled={sessBusyId === s.id}>
+                          {sessBusyId === s.id ? 'Signing out…' : 'Sign out'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {sessions.some((s) => !s.is_current) && (
+                    sessConfirmAll ? (
+                      <div className="set-r set-stack">
+                        <RMain label="Sign out all other devices?" desc="Every session except this one will end immediately." />
+                        <div className="set-emailrow">
+                          <button className="set-btn set-btn-danger" onClick={revokeOtherSessions} disabled={sessBusyId === 'all'}>{sessBusyId === 'all' ? 'Signing out…' : 'Sign out others'}</button>
+                          <button className="set-btn" onClick={() => { setSessConfirmAll(false); setSessMsg(null); }} disabled={sessBusyId === 'all'}>Cancel</button>
+                        </div>
+                        {sessMsg && sessMsg.t === 'err' && <span className="set-savenote" style={{ color: '#B23B2E' }}>{sessMsg.m}</span>}
+                      </div>
+                    ) : (
+                      <div className="set-r">
+                        <RMain label="Sign out everywhere else" desc="End every session except this device." />
+                        {sessMsg && <span className="set-savenote" style={{ color: sessMsg.t === 'err' ? '#B23B2E' : '#3F7A52' }}>{sessMsg.m}</span>}
+                        <button className="set-btn" onClick={() => { setSessConfirmAll(true); setSessMsg(null); }}>Sign out others</button>
+                      </div>
+                    )
+                  )}
+                </>
+              )}
             </Group>
           </>
         );
