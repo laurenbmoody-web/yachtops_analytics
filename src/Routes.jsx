@@ -1190,6 +1190,7 @@ const Routes = () => {
         <Route path="/reviews/rotas" element={<ProtectedRoute><ReviewsPage /></ProtectedRoute>} />
         <Route path="/reviews/orders" element={<ProtectedRoute><ReviewsPage /></ProtectedRoute>} />
         <Route path="/reviews/seatime" element={<ProtectedRoute><ReviewsPage /></ProtectedRoute>} />
+        <Route path="/reviews/crew-requests" element={<ProtectedRoute><ReviewsPage /></ProtectedRoute>} />
         <Route path="/trips/:tripId/itinerary" element={<ProtectedRoute><TripItineraryTimeline /></ProtectedRoute>} />
         <Route path="/trips/:tripId/preferences" element={<ProtectedRoute><TripPreferencesView /></ProtectedRoute>} />
         <Route path="/trips/:tripId/preferences-overview" element={<ProtectedRoute><TripPreferencesOverview /></ProtectedRoute>} />

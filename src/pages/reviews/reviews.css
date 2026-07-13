@@ -1344,3 +1344,92 @@
   color: var(--d-muted);
   letter-spacing: 0.02em;
 }
+
+/* ── Crew requests — right-pane decision surface ─────────────────────────── */
+.rv-cr-detail {
+  padding: 40px 44px;
+  max-width: 620px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.rv-cr-head { margin-bottom: 20px; }
+.rv-cr-kind {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #C65A1A;
+  margin-bottom: 8px;
+}
+.rv-cr-name {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 30px;
+  font-weight: 400;
+  color: #1C1B3A;
+  margin: 0;
+  line-height: 1.1;
+}
+.rv-cr-when {
+  font-size: 12px;
+  color: #A29C90;
+  margin-top: 8px;
+}
+.rv-cr-lede {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #6F7396;
+  margin: 0 0 26px;
+}
+.rv-cr-flow {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 22px;
+  background: #fff;
+  border: 1px solid #E6E8EF;
+  border-radius: 14px;
+  margin-bottom: 30px;
+}
+.rv-cr-flow-cell { flex: 1; min-width: 0; }
+.rv-cr-flow-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 6px;
+}
+.rv-cr-flow-val {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1C1B3A;
+  overflow-wrap: anywhere;
+}
+.rv-cr-flow-val.muted { color: #8B8478; font-weight: 500; }
+.rv-cr-flow-arrow { color: #C0BDB2; flex: none; }
+.rv-cr-actions { display: flex; gap: 12px; }
+.rv-cr-approve {
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 22px;
+  cursor: pointer;
+  background: #C65A1A;
+  border: 1px solid #C65A1A;
+  color: #fff;
+}
+.rv-cr-approve:hover { background: #B14E16; border-color: #B14E16; }
+.rv-cr-approve:disabled { opacity: 0.6; cursor: default; }
+.rv-cr-decline {
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 22px;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #EAD7D3;
+  color: #B23B2E;
+}
+.rv-cr-decline:hover { background: #FBF3F1; }
+.rv-cr-decline:disabled { opacity: 0.6; cursor: default; }

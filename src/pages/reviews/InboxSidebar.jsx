@@ -88,6 +88,14 @@ export default function InboxSidebar({ activeCategory = 'rotas', counts = {} }) 
             onNavigate={go}
           />
         )}
+        <SidebarItem
+          icon="UserCog"
+          label="Crew requests"
+          to="/reviews/crew-requests"
+          active={activeCategory === 'crew-requests'}
+          count={counts.crewRequests}
+          onNavigate={go}
+        />
         <SidebarItem icon="Undo2" label="Supplier returns" />
         <SidebarItem icon="Receipt" label="Expense approvals" />
       </div>

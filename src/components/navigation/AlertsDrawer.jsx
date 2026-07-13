@@ -23,6 +23,7 @@ import { getActivityLast24Hours } from '../../utils/activityStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { useReviewItems } from '../../pages/reviews/useReviewItems';
 import { useProvisioningApprovals } from '../../pages/reviews/useProvisioningApprovals';
+import { useCrewRequests } from '../../pages/reviews/useCrewRequests';
 import { useSeaTimeSignoffs } from '../../pages/reviews/useSeaTimeSignoffs';
 import { fmtDateRange } from '../../pages/reviews/reviewFormat';
 import { useAuth } from '../../contexts/AuthContext';
@@ -331,9 +332,10 @@ const ReviewsTab = ({ onNavigate }) => {
 
   const rota = useReviewItems('pending');
   const prov = useProvisioningApprovals();
+  const crew = useCrewRequests();
   const sea = useSeaTimeSignoffs(tier === 'COMMAND' ? tenantId : null, signerName);
 
-  const loading = rota.loading || prov.loading || sea.loading;
+  const loading = rota.loading || prov.loading || crew.loading || sea.loading;
   const items = useMemo(() => {
     const out = [];
     for (const it of rota.items || []) out.push({
@@ -346,13 +348,18 @@ const ReviewsTab = ({ onNavigate }) => {
       meta: [it.is_re_approval ? 'Re-approval' : 'Approval', `by ${it.submitter_name || 'someone'}`],
       time: it.created_at, nav: `/reviews/orders?selected=${it.id}`,
     });
+    for (const it of crew.items || []) out.push({
+      key: `crew:${it.id}`, cat: 'Crew request', icon: 'UserCog', title: it.requester?.full_name || 'Crew member', sub: 'Notification email',
+      meta: [`to ${it.requested_email}`],
+      time: it.requested_at, nav: `/reviews/crew-requests?selected=${it.id}`,
+    });
     for (const it of sea.items || []) out.push({
       key: `st:${it.id}`, cat: 'Sea-time', icon: 'Anchor', title: it.seafarer?.fullName || 'Seafarer', sub: it.unit?.name || it.unit?.vesselName || 'Sea service',
       meta: [`${it.unit?.periods?.length || 0} day${(it.unit?.periods?.length || 0) === 1 ? '' : 's'}`, it.unit?.cmdLabel || 'Sign-off'],
       time: it.requestedAt, nav: `/reviews/seatime?selected=${it.id}`,
     });
     return out.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-  }, [rota.items, prov.items, sea.items]);
+  }, [rota.items, prov.items, crew.items, sea.items]);
 
   return (
     <>

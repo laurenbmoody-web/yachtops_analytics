@@ -14,6 +14,9 @@ import InboxSidebar from './InboxSidebar';
 import OrdersReviewPanel from './OrdersReviewPanel';
 import OrderApprovalRightPane from './OrderApprovalRightPane';
 import { useProvisioningApprovals } from './useProvisioningApprovals';
+import { useCrewRequests } from './useCrewRequests';
+import CrewRequestsPanel from './CrewRequestsPanel';
+import CrewRequestRightPane from './CrewRequestRightPane';
 import SeaTimeReviewPanel from './SeaTimeReviewPanel';
 import CaptainSignoff from '../../seatime/CaptainSignoff';
 import { buildSpellTestimonialPdf, bytesToBase64 } from '../../seatime/packExport';
@@ -29,6 +32,7 @@ import './reviews.css';
 const categoryFromPath = (pathname) => {
   if (pathname.startsWith('/reviews/orders')) return 'orders';
   if (pathname.startsWith('/reviews/seatime')) return 'seatime';
+  if (pathname.startsWith('/reviews/crew-requests')) return 'crew-requests';
   return 'rotas';
 };
 
@@ -50,6 +54,11 @@ export default function ReviewsPage() {
   // the page level (not inside OrdersReviewPanel) so the badge stays
   // accurate while the user is sitting on the rotas queue.
   const provisioningApprovals = useProvisioningApprovals();
+
+  // Crew requests (currently notification-email changes) awaiting a COMMAND
+  // decision. Loaded at page level so the sidebar badge stays accurate from
+  // any inbox tab, exactly like the order-approvals count above.
+  const crewRequests = useCrewRequests();
 
   // Eyebrow: "<TIER>" / "<TIER> · <DEPT>" for the list-strip title.
   const [deptName, setDeptName] = useState(null);
@@ -239,7 +248,7 @@ export default function ReviewsPage() {
       <>
         <Header />
         <div className="rv-page">
-          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount }} />
+          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} />
           <SeaTimeReviewPanel items={stItems} loading={stLoading} selectedId={stSelected?.id} onSelect={stSelect} eyebrow={eyebrow} />
           <section className="rv-rightpane-col" aria-label="Sign-off detail">
             {stSelected ? (
@@ -272,6 +281,56 @@ export default function ReviewsPage() {
     );
   }
 
+  if (activeCategory === 'crew-requests') {
+    // Flat approve/decline queue. ?selected= deep-links a request (e.g. from
+    // the bell) straight onto the right pane; deciding clears it so the list
+    // advances to whatever is next.
+    const crSelectedId = searchParams.get('selected');
+    const crItems = crewRequests.items;
+    const crSelected = crItems.find((i) => i.id === crSelectedId) || crItems[0] || null;
+    const crSelect = (id) => setSearchParams({ selected: id });
+    const crDecide = async (id, approve) => {
+      await crewRequests.decide(id, approve);
+      setSearchParams({}, { replace: true });
+    };
+    return (
+      <>
+        <Header />
+        <div className="rv-page">
+          <InboxSidebar activeCategory="crew-requests" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crItems.length }} />
+          <CrewRequestsPanel
+            items={crItems}
+            loading={crewRequests.loading}
+            selectedId={crSelected?.id}
+            onSelect={crSelect}
+            eyebrow={eyebrow}
+          />
+          <section className="rv-rightpane-col" aria-label="Crew request detail">
+            {crSelected ? (
+              <CrewRequestRightPane
+                key={crSelected.id}
+                request={crSelected}
+                onDecide={crDecide}
+                onToast={showToast}
+              />
+            ) : (
+              <div className="rv-rp-blank" role="status">
+                <Icon name="Check" size={36} color="#8B8478" className="rv-rp-blank-icon" />
+                <div className="rv-rp-blank-title">{crewRequests.loading ? 'Loading…' : 'All clear'}</div>
+                <div className="rv-rp-blank-sub">
+                  Requests from crew — like where a vessel's alerts are sent — appear here for your decision.
+                </div>
+              </div>
+            )}
+          </section>
+          {toast && (
+            <div className={`rv-toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.msg}</div>
+          )}
+        </div>
+      </>
+    );
+  }
+
   if (activeCategory === 'orders') {
     // Selection state for the orders queue lives on the URL so deep
     // links from the bell notification (?selected=<request_id>) drop
@@ -290,7 +349,7 @@ export default function ReviewsPage() {
       <>
         <Header />
         <div className="rv-page">
-          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: ordersItems.length, seatime: seatimeCount }} />
+          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: ordersItems.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} />
           <OrdersReviewPanel
             items={ordersItems}
             loading={provisioningApprovals.loading}
@@ -332,7 +391,7 @@ export default function ReviewsPage() {
     <>
       <Header />
       <div className="rv-page">
-        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount }} />
+        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} />
 
         {/* Middle — list strip */}
         <section className="rv-liststrip" aria-label="Rota submissions">

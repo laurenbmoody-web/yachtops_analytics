@@ -33,6 +33,7 @@ const POLL_MS = 30_000;
 export function useInboxCount() {
   const [rotaCount, setRotaCount] = useState(0);
   const [provisioningCount, setProvisioningCount] = useState(0);
+  const [crewRequestCount, setCrewRequestCount] = useState(0);
   const { user } = useAuth();
   const { currentTenantMember, activeTenantId } = useTenant();
   const tier = currentTenantMember?.permission_tier;
@@ -104,5 +105,33 @@ export function useInboxCount() {
     };
   }, [user?.id]);
 
-  return rotaCount + provisioningCount + seatime.items.length;
+  // Crew requests — pending notification_email_requests the viewer can action
+  // (RLS returns the viewer's own + any they COMMAND; .neq drops their own, so
+  // what's counted is exactly the reviewer set). Table may be pre-migration.
+  useEffect(() => {
+    if (!user?.id) { setCrewRequestCount(0); return undefined; }
+    let cancelled = false;
+    const fetchCount = async () => {
+      const { count, error } = await supabase
+        .from('notification_email_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .neq('user_id', user.id);
+      if (cancelled) return;
+      if (error) {
+        const code = error.code;
+        if (code !== 'PGRST205' && code !== '42P01') {
+          console.warn('[useInboxCount] crew-request count failed:', error.message || error);
+        }
+        setCrewRequestCount(0);
+        return;
+      }
+      setCrewRequestCount(count || 0);
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [user?.id]);
+
+  return rotaCount + provisioningCount + crewRequestCount + seatime.items.length;
 }
