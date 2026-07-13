@@ -308,6 +308,9 @@ export default function ReviewsPage() {
           <CrewRequestsHub
             items={crItems}
             loading={crewRequests.loading}
+            resolved={crewRequests.resolved}
+            resolvedLoading={crewRequests.resolvedLoading}
+            loadResolved={crewRequests.loadResolved}
             eyebrow={eyebrow}
             initialSelectedId={crSelectedId}
             onDecide={crDecide}
