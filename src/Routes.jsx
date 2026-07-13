@@ -103,6 +103,7 @@ const SupplierDeliveries = lazyWithRetry(() => import('./pages/supplier-portal/v
 const SupplierInvoices   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierInvoices'));
 const SupplierClients    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierClients'));
 const SupplierClientDetail = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierClientDetail'));
+const SupplierRadar      = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierRadar'));
 const SupplierMessages   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierMessages'));
 const SupplierReturns    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierReturns'));
 const CertReviewConsole  = lazyWithRetry(() => import('./pages/cargo-console/CertReviewConsole'));
@@ -1352,6 +1353,7 @@ const Routes = () => {
         >
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview"        element={<SupplierOverview />} />
+          <Route path="radar"           element={<SupplierRadar />} />
           <Route path="orders"          element={<SupplierOrders />} />
           <Route path="orders/:orderId" element={<SupplierOrderDetail />} />
           <Route path="orders/:orderId/pick" element={<SupplierPickList />} />
