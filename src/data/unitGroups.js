@@ -21,7 +21,25 @@ export const UNIT_GROUP_VALUES = new Set(UNIT_GROUPS.flatMap((g) => g.options));
 // on read means old records resolve to the right dropdown option instead of
 // showing a value the <select> doesn't contain. Unknown values (genuine custom
 // units) pass through untouched.
-const UNIT_ALIASES = { litre: 'l', litres: 'l', liter: 'l', liters: 'l', pcs: 'piece', pc: 'piece' };
+const UNIT_ALIASES = {
+  // litre spellings
+  litre: 'l', litres: 'l', liter: 'l', liters: 'l',
+  // piece
+  pcs: 'piece', pc: 'piece', ea: 'each',
+  // common plurals / synonyms (mostly for forgiving CSV import + free text)
+  bottles: 'bottle', boxes: 'box', cases: 'case', packs: 'pack', cans: 'can',
+  jars: 'jar', tins: 'tin', bags: 'bag', sets: 'set', pairs: 'pair', rolls: 'roll',
+  tubes: 'tube', sachets: 'sachet', cartons: 'carton', dozens: 'dozen',
+  portions: 'portion', servings: 'serving', sheets: 'sheet', cups: 'cup',
+  // weight / volume word forms
+  gram: 'g', grams: 'g', kgs: 'kg', kilogram: 'kg', kilograms: 'kg',
+  millilitre: 'ml', millilitres: 'ml', milliliter: 'ml', milliliters: 'ml',
+  lbs: 'lb', pound: 'lb', pounds: 'lb', ounce: 'oz', ounces: 'oz',
+  // length word forms
+  metre: 'm', metres: 'm', meter: 'm', meters: 'm',
+  centimetre: 'cm', centimetres: 'cm', centimeter: 'cm', centimeters: 'cm',
+  inches: 'inch', feet: 'ft', foot: 'ft',
+};
 
 export function normalizeUnit(v) {
   if (v === null || v === undefined || v === '') return v;
