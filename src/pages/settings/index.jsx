@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
-import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
+import { getCurrentUser, hasCommandAccess, hasChiefAccess, getTierDisplayName } from '../../utils/authStorage';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -632,6 +632,17 @@ const SettingsPage = () => {
 
   const canAccessVessel = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
 
+  // The membership label reflects the user's actual permission tier on this
+  // vessel (Command / Chief / Head of Dept / Crew …), not a hardcoded seat.
+  const currentTierRaw = (
+    currentUser?.permission_tier ||
+    currentUser?.permissionTier ||
+    currentUser?.effectiveTier ||
+    currentUser?.tier ||
+    ''
+  ).toUpperCase().trim();
+  const currentTierLabel = currentTierRaw ? getTierDisplayName(currentTierRaw) : '';
+
   const timezones = [
     { value: 'UTC', label: 'UTC — Coordinated Universal Time', offset: '+00:00' },
     { value: 'America/New_York', label: 'New York (Eastern)', offset: '-05:00' },
@@ -1002,7 +1013,7 @@ const SettingsPage = () => {
             <p className="set-hsub">Your plan and billing.</p>
             <Group>
               {activeTenantId ? (
-                <RowNav label="Current plan" desc="Cargo — Command seat" chip={<span className="set-chip ok">Active</span>} onClick={() => navigate('/membership')} />
+                <RowNav label="Current plan" desc={currentTierLabel ? `Cargo — ${currentTierLabel} seat` : 'Cargo — active membership'} chip={<span className="set-chip ok">Active</span>} onClick={() => navigate('/membership')} />
               ) : (
                 <div className="set-r">
                   <RMain label="Current plan" desc="You’re not on a vessel — your account and personal record travel with you until you join one." />
