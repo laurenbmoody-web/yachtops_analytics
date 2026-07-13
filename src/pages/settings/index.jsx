@@ -877,7 +877,7 @@ const SettingsPage = () => {
             <Group>
               <VisRow label="Name &amp; photo" who="crew" whoLabel="Everyone on board" />
               <VisRow label="Role &amp; department" who="crew" whoLabel="Everyone on board" />
-              <VisRow label="Email address" who="crew" whoLabel="Everyone on board" />
+              <VisRow label="Email address" who="command" whoLabel="Command only" />
               <VisRow label="Contact details &amp; next of kin" who="command" whoLabel="Command only" />
               <VisRow label="Documents — passport, CoC, visas, medical" who="command" whoLabel="Command only" />
               <VisRow label="Sea-service record" who="command" whoLabel="Command only" />

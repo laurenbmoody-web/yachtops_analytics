@@ -143,6 +143,9 @@ const CrewManagement = () => {
   const { activeTenantId } = useTenant();
   const [currentUser, setCurrentUser] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState(null); // NEW: Store tenant_members.permission_tier
+  // Crew emails are only shown to the Command tier (and vessel admins). Peers
+  // see names/roles but not each other's email — hidden in the UI, not the DB.
+  const canSeeEmails = isVesselAdmin || currentUserRole === 'COMMAND';
   const [users, setUsers] = useState([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showGuestBook, setShowGuestBook] = useState(false);
@@ -1019,7 +1022,7 @@ const CrewManagement = () => {
             <span className="cm-av">{initials(user?.fullName)}</span>
             <div style={{ minWidth: 0 }}>
               <div className="cm-name">{user?.fullName}</div>
-              <div className="cm-sub">{user?.email}</div>
+              {canSeeEmails && <div className="cm-sub">{user?.email}</div>}
             </div>
           </div>
         </td>
@@ -1231,7 +1234,7 @@ const CrewManagement = () => {
               {/* Contact */}
               <div className="cm-dsec"><span>Contact</span><span className="cm-dsec-rule" /></div>
               <div className="cm-dgrid">
-                <div className="cm-drow"><span className="k">Email</span><span className="v">{sel.email ? <a href={`mailto:${sel.email}`} className="cm-dlink">{sel.email}</a> : '—'}</span></div>
+                {canSeeEmails && <div className="cm-drow"><span className="k">Email</span><span className="v">{sel.email ? <a href={`mailto:${sel.email}`} className="cm-dlink">{sel.email}</a> : '—'}</span></div>}
                 <div className="cm-drow"><span className="k">Phone</span><span className="v">{phone ? <a href={`tel:${phone}`} className="cm-dlink">{phone}</a> : '—'}</span></div>
               </div>
 
@@ -2265,6 +2268,7 @@ const CrewManagement = () => {
         isOpen={showViewProfileModal}
         onClose={() => setShowViewProfileModal(false)}
         userId={viewingUserId}
+        canSeeEmail={canSeeEmails}
       />
       {/* Edit Assignment Modal */}
       <EditAssignmentModal

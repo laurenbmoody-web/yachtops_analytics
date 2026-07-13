@@ -5,7 +5,7 @@ import Button from '../../../components/ui/Button';
 import { supabase } from '../../../lib/supabaseClient';
 
 import ModalShell from '../../../components/ui/ModalShell';
-const ViewProfileModal = ({ isOpen, onClose, userId }) => {
+const ViewProfileModal = ({ isOpen, onClose, userId, canSeeEmail = false }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -99,10 +99,12 @@ const ViewProfileModal = ({ isOpen, onClose, userId }) => {
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Full Name</label>
                   <p className="text-sm text-foreground">{profile?.full_name || '—'}</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Email</label>
-                  <p className="text-sm text-foreground">{profile?.email || '—'}</p>
-                </div>
+                {canSeeEmail && (
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Email</label>
+                    <p className="text-sm text-foreground">{profile?.email || '—'}</p>
+                  </div>
+                )}
                 {profile?.phone && (
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Phone</label>
