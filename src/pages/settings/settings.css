@@ -119,6 +119,7 @@ body.settings-editorial {
 .settings-page .set-tzpanel { padding: 12px 14px 14px; border-top: 1px solid #EFF1F6; }
 /* Stacked row (label/desc on top, control full-width below) — notification email */
 .settings-page .set-r.set-stack { flex-direction: column; align-items: stretch; gap: 10px; }
+.settings-page .set-loginform { display: grid; gap: 8px; max-width: 380px; }
 .settings-page .set-emailrow { display: flex; align-items: center; gap: 10px; }
 .settings-page .set-emailrow .set-field { flex: 1; padding-left: 12px; max-width: 380px; }
 .settings-page .set-savenote { font-size: 12px; font-weight: 500; color: #6F7396; white-space: nowrap; }
