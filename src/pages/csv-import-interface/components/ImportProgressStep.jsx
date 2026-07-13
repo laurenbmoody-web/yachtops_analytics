@@ -5,6 +5,7 @@ import Button from '../../../components/ui/Button';
 import { saveItem } from '../../inventory-management/utils/inventoryStorage';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { logActivity, InventoryActions, resolveActorName } from '../../../utils/activityStorage';
+import { findClosestUnit } from '../utils/importStorage';
 
 const ImportProgressStep = ({ csvData, fieldMapping, validationResults, onImportComplete, onStartOver, onBackToInventory }) => {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ const ImportProgressStep = ({ csvData, fieldMapping, validationResults, onImport
           category: normalizedCategory,
           categoryId: categoryIdMap?.[normalizedCategory?.toLowerCase()] || 'pantry',
           subcategory: row?.[reverseMapping?.['subcategory']] || '',
-          unit: row?.[reverseMapping?.['unit']]?.toLowerCase() || 'each',
+          unit: findClosestUnit(row?.[reverseMapping?.['unit']]),
           primaryLocation: row?.[reverseMapping?.['primaryLocation']] || 'Other',
           quantity: parseFloat(row?.[reverseMapping?.['quantity']]) || 0,
           parLevel: parseFloat(row?.[reverseMapping?.['parLevel']]) || 0,

@@ -1,5 +1,7 @@
 // Import Storage Utility for Staging-First CSV Import
 
+import { normalizeUnit, isKnownUnit } from '../../../data/unitGroups';
+
 const BATCH_STORAGE_KEY = 'cargo_import_batches';
 const ROW_STORAGE_KEY = 'cargo_import_rows';
 
@@ -156,9 +158,6 @@ const validCategories = [
   'Safety & Compliance'
 ];
 
-// Valid units
-const validUnits = ['each', 'bottle', 'case', 'pack', 'litre', 'kg', 'g', 'ml', 'set', 'roll', 'box', 'other'];
-
 // Valid locations
 const validLocations = [
   'Bar Storage',
@@ -181,11 +180,12 @@ export const findClosestCategory = (input) => {
   return match || 'Uncategorised'; // Default to Uncategorised
 };
 
-// Find closest match for unit
+// Find closest match for unit — resolves against the shared units taxonomy
+// (incl. aliases like litre→l, bottles→bottle). Unrecognised values default to
+// 'each'. Genuine custom units aren't expected from CSV, so defaulting is safe.
 export const findClosestUnit = (input) => {
-  const normalized = normalizeText(input);
-  const match = validUnits?.find(unit => normalizeText(unit) === normalized);
-  return match || 'each'; // Default to each
+  if (!input) return 'each';
+  return isKnownUnit(input) ? normalizeUnit(input) : 'each';
 };
 
 // Find closest match for location

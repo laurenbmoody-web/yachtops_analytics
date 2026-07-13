@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import { isKnownUnit } from '../../../data/unitGroups';
 
 const PreviewStep = ({ csvData, fieldMapping, onValidationComplete, onBack }) => {
   const [validationResults, setValidationResults] = useState([]);
@@ -19,9 +20,6 @@ const PreviewStep = ({ csvData, fieldMapping, onValidationComplete, onBack }) =>
     'Spare Parts',
     'Safety & Compliance'
   ];
-
-  // Valid units
-  const validUnits = ['each', 'bottle', 'case', 'pack', 'litre', 'kg', 'g', 'ml', 'set', 'roll', 'box', 'other'];
 
   // Valid locations
   const validLocations = [
@@ -80,8 +78,9 @@ const PreviewStep = ({ csvData, fieldMapping, onValidationComplete, onBack }) =>
         warnings?.push(`Category "${category}" not recognized. Will use closest match or "Pantry" as default.`);
       }
 
-      // Unit validation
-      if (unit && !validUnits?.some(u => u?.toLowerCase() === unit?.toLowerCase())) {
+      // Unit validation — anything the shared units taxonomy recognises
+      // (incl. aliases like litre/l, bottles→bottle) passes without a warning.
+      if (unit && !isKnownUnit(unit)) {
         warnings?.push(`Unit "${unit}" not recognized. Will use "each" as default.`);
       }
 
