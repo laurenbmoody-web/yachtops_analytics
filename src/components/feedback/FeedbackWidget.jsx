@@ -35,6 +35,9 @@ export default function FeedbackWidget() {
   const { user, activeTenantId } = useAuth();
   const [enabled, setEnabled] = useState(false);
   const [open, setOpen] = useState(false);
+  // An explicit "Report a bug" (from Settings) force-opens the composer even
+  // when the passive bottom-right tab is toggled off for the vessel.
+  const [forced, setForced] = useState(false);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -124,8 +127,16 @@ export default function FeedbackWidget() {
   const close = () => {
     if (recording) stopRecording();
     setOpen(false);
+    setForced(false);
     setError('');
   };
+
+  // Open on an explicit request from elsewhere (Settings › Report a bug).
+  useEffect(() => {
+    const onOpen = () => { setMessage(''); resetAudio(); setSent(false); setError(''); setForced(true); setOpen(true); };
+    window.addEventListener('cargo:open-feedback', onOpen);
+    return () => window.removeEventListener('cargo:open-feedback', onOpen);
+  }, [resetAudio]);
 
   const reset = () => {
     setMessage('');
@@ -172,7 +183,7 @@ export default function FeedbackWidget() {
     }
   };
 
-  if (!enabled) return null;
+  if (!enabled && !forced) return null;
 
   return (
     <div className="fbw-root">
