@@ -1173,6 +1173,15 @@ const SettingsPage = () => {
       <Header />
       <div className="settings-page">
         <div className="set-wrap">
+          {/* Back — off a vessel, full navigation so the personal-mode landing
+              (rendered outside the router) shows instead of the guarded dash. */}
+          <button
+            type="button"
+            onClick={() => { if (activeTenantId) navigate('/dashboard'); else window.location.href = '/dashboard'; }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#8B8478', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 16 }}
+          >
+            <Icon name="ChevronLeft" size={16} /> {activeTenantId ? 'Back to Dashboard' : 'Back'}
+          </button>
           <div className="set-layout">
             {/* Rail */}
             <aside className="set-rail">
