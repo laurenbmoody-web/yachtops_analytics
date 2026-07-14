@@ -3628,3 +3628,8 @@
 #sp-root .msg-blank-sub b { color: var(--fg); }
 #sp-root .msg-blank-cta { margin-top: 6px; background: var(--orange); color: #fff; border: 0; border-radius: 10px; padding: 10px 20px; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.14s; }
 #sp-root .msg-blank-cta:hover { background: #B14E16; }
+
+/* Messaging: AI "turn into a quote" chip */
+#sp-root .msg-qchip-ai { border-color: var(--orange); color: var(--orange); background: var(--pill, #FBEFE9); font-weight: 700; }
+#sp-root .msg-qchip-ai:hover:not(:disabled) { background: var(--orange); color: #fff; }
+#sp-root .msg-qchip-ai:disabled { opacity: 0.7; cursor: default; }
