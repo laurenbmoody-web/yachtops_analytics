@@ -847,6 +847,16 @@ export const deleteThread = async (threadId) => {
   if (error) throw error;
 };
 
+// Vessel logos (uploaded in the vessel profile) for the inbox avatars, keyed by
+// tenant_id. Scoped by the RPC to vessels this supplier has a thread with.
+export const fetchVesselLogos = async () => {
+  const { data, error } = await supabase.rpc('supplier_vessel_logos');
+  if (error) throw error;
+  const map = {};
+  for (const r of data ?? []) if (r.tenant_id && r.logo_url) map[r.tenant_id] = r.logo_url;
+  return map;
+};
+
 export const fetchMessages = async (threadId) => {
   const { data, error } = await supabase
     .from('supplier_messages')
