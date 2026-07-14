@@ -158,7 +158,31 @@ const PrivacyPolicyPage = () => {
         </ul>
       </Section>
 
-      <Section id="extension" label="03 — Browser extension" title="Cargo → PYA Autofill extension">
+      <Section id="cookies" label="03" title="Cookies &amp; storage">
+        <p className="mkt-dmsans" style={bodyStyle}>
+          Cargo uses only the storage it needs to run. There are no advertising cookies and
+          no cross-site tracking.
+        </p>
+        <h3 className="mkt-archivo" style={h3Style}>What we use</h3>
+        <ul style={listStyle}>
+          <li className="mkt-dmsans" style={listItemStyle}><strong>Essential cookies &amp; tokens</strong> — used to keep you securely signed in (your authentication session). Without these you can't stay logged in.</li>
+          <li className="mkt-dmsans" style={listItemStyle}><strong>Local storage</strong> — kept in your browser to remember preferences and app state, such as your active vessel, theme, and dashboard layout. It stays on your device.</li>
+        </ul>
+        <h3 className="mkt-archivo" style={h3Style}>What we don't use</h3>
+        <ul style={listStyle}>
+          <li className="mkt-dmsans" style={listItemStyle}>No advertising or marketing cookies.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>No third-party tracking or cross-site profiling.</li>
+        </ul>
+        <h3 className="mkt-archivo" style={h3Style}>Managing them</h3>
+        <p className="mkt-dmsans" style={bodyStyle}>
+          Because we only use storage that's strictly necessary to provide the Service, there
+          is nothing non-essential to opt out of. You can clear cookies and local storage in
+          your browser settings at any time — doing so will sign you out and reset your saved
+          preferences. The browser extension, described below, uses no cookies or storage at all.
+        </p>
+      </Section>
+
+      <Section id="extension" label="04 — Browser extension" title="Cargo → PYA Autofill extension">
         <p className="mkt-dmsans" style={bodyStyle}>
           The extension has a single purpose: it fills the PYA Sea Service Testimonial form
           on <strong>member.pya.org</strong> with the sea-service record you copied from
@@ -238,7 +262,7 @@ const PrivacyPolicyPage = () => {
         </p>
       </Section>
 
-      <Section id="your-rights" label="04" title="Your rights">
+      <Section id="your-rights" label="05" title="Your rights">
         <p className="mkt-dmsans" style={bodyStyle}>
           Where UK or EU data-protection law (GDPR) applies, you have the right to access
           the personal data we hold about you, to have it corrected or deleted, to restrict
@@ -258,7 +282,7 @@ const PrivacyPolicyPage = () => {
         </p>
       </Section>
 
-      <Section id="changes" label="05" title="Changes to this policy">
+      <Section id="changes" label="06" title="Changes to this policy">
         <p className="mkt-dmsans" style={bodyStyle}>
           If we change how either product handles data, we will update this page and the
           "Last updated" date above. Material changes to the extension's data practices
