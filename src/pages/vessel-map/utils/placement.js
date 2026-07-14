@@ -6,6 +6,13 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { applyPlacement, setPinQty, pinQty, entryKey } from './stockMath';
 import { logReceived, logMoved, logCounted, logRemoved, logCreated } from './movementLog';
+// The node resolver lives in the shared physical-location tree module so the map,
+// the inventory picker, and Location Management all resolve one place to one row.
+import { resolvePinNode, getNodePath } from '../../../utils/locationTree';
+
+// Back-compat re-exports — existing importers (PinItems) pull these from here.
+export { resolvePinNode };
+export { getNodePath as nodePath };
 
 const ITEM_COLS = 'id, name, unit, quantity, total_qty, location, sub_location, stock_locations';
 // Read what we need to mutate stock AND to write a readable movement-log line
@@ -22,64 +29,6 @@ const readItem = async (itemId) => {
 };
 const writeStock = (itemId, { stockLocations, totalQty }) =>
   supabase.from('inventory_items').update({ stock_locations: stockLocations, total_qty: totalQty, quantity: totalQty }).eq('id', itemId);
-
-// Find-or-create one vessel_locations node by (parent, name) within the tenant.
-async function findOrCreateNode({ tenantId, userId, parentId, name }) {
-  const label = (name || 'Untitled').trim();
-  let q = supabase
-    .from('vessel_locations')
-    .select('id')
-    .eq('tenant_id', tenantId)
-    .eq('name', label)
-    .eq('is_archived', false)
-    .limit(1);
-  q = parentId ? q.eq('parent_id', parentId) : q.is('parent_id', null);
-  const { data: found, error: findErr } = await q;
-  if (findErr) return { error: findErr.message || 'Could not read locations.' };
-  if (found && found.length) return { id: found[0].id };
-
-  const { data: made, error: makeErr } = await supabase
-    .from('vessel_locations')
-    .insert({ tenant_id: tenantId, level: 'space', name: label, parent_id: parentId || null, created_by: userId || null })
-    .select('id')
-    .single();
-  if (makeErr) return { error: makeErr.message || 'Could not create the location.' };
-  return { id: made.id, created: true };
-}
-
-// Resolve (creating if needed) the pin's location node. `trail` is the pin's
-// container ancestry (outermost first) as { id, label, location_node_id };
-// `pin` is the pin itself. Nodes are cached on each hotspot's location_node_id.
-// Returns { nodeId, patched: [{hotspotId, nodeId}] } so the caller can sync
-// page state, or { error }.
-export async function resolvePinNode({ tenantId, userId, rootSpaceId, rootName, trail = [], pin }) {
-  const patched = [];
-  let parentId = rootSpaceId || null;
-  // If the scan isn't tied to a space, root the tree at a node named for it.
-  if (!parentId && rootName) {
-    const r = await findOrCreateNode({ tenantId, userId, parentId: null, name: rootName });
-    if (r.error) return { error: r.error };
-    parentId = r.id;
-  }
-  // Walk the container chain, caching each node id on its hotspot.
-  for (const c of trail) {
-    if (c.location_node_id) { parentId = c.location_node_id; continue; }
-    const r = await findOrCreateNode({ tenantId, userId, parentId, name: c.label });
-    if (r.error) return { error: r.error };
-    parentId = r.id;
-    patched.push({ hotspotId: c.id, nodeId: r.id });
-  }
-  // The pin's own node.
-  if (pin.location_node_id) return { nodeId: pin.location_node_id, patched };
-  const leaf = await findOrCreateNode({ tenantId, userId, parentId, name: pin.label });
-  if (leaf.error) return { error: leaf.error };
-  patched.push({ hotspotId: pin.id, nodeId: leaf.id });
-  // Persist the node ids on the hotspots so we never recreate them.
-  for (const p of patched) {
-    await supabase.from('scan_hotspots').update({ location_node_id: p.nodeId }).eq('id', p.hotspotId);
-  }
-  return { nodeId: leaf.id, patched };
-}
 
 // Items physically at a node — the pin's contents. Matches items whose
 // stock_locations carry an entry for this node; the row's `pinQty` is how many
@@ -188,19 +137,4 @@ export async function createItemAtNode({ tenantId, userId, name, qty, unit, pin,
   if (error) return { error: error.message || 'Could not create the item.' };
   logCreated({ id: data.id, name: data.name }, { qty: quantity, pinName: pin.name, nodeId: pin.nodeId });
   return { item: data };
-}
-
-// Human-readable path of a node ("Main Galley › test › Dry Store › Shelf 1").
-export async function nodePath(nodeId) {
-  if (!nodeId) return { path: '' };
-  const names = [];
-  let cur = nodeId;
-  for (let i = 0; i < 12 && cur; i++) {
-    // eslint-disable-next-line no-await-in-loop
-    const { data, error } = await supabase.from('vessel_locations').select('name, parent_id').eq('id', cur).single();
-    if (error || !data) break;
-    names.unshift(data.name);
-    cur = data.parent_id;
-  }
-  return { path: names.join(' › ') };
 }
