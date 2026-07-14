@@ -3520,7 +3520,7 @@
 
 /* ══ Messaging — command list (vessel groups + swipe rows + depth) ══════════ */
 #sp-root .msg-shell {
-  display: grid; grid-template-columns: 340px 1fr;
+  display: grid; grid-template-columns: 296px 1fr;
   border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
   height: calc(100vh - 240px); min-height: 460px; background: var(--card);
   box-shadow: var(--sh3);
@@ -3543,25 +3543,26 @@
 }
 #sp-root .msg-menu-btn:hover { border-color: var(--muted); }
 #sp-root .msg-menu.open .msg-menu-btn { border-color: var(--orange); box-shadow: 0 0 0 3px var(--pill); }
-#sp-root .msg-menu-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-#sp-root .msg-menu-val { font-size: 12.5px; font-weight: 600; }
+#sp-root .msg-menu-label { font-size: 12.5px; font-weight: 600; color: var(--fg); }
 #sp-root .msg-menu-btn svg { color: var(--muted); }
 #sp-root .msg-menu-pop {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: 190px;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: 200px;
   background: var(--card); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: var(--sh3); padding: 6px; display: flex; flex-direction: column;
 }
 #sp-root .msg-menu-opt {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  display: flex; align-items: center; gap: 9px;
   font-family: inherit; font-size: 13px; color: var(--fg); background: none; border: 0;
   border-radius: 8px; padding: 8px 10px; cursor: pointer; text-align: left; width: 100%;
 }
 #sp-root .msg-menu-opt:hover { background: var(--bg-2); }
 #sp-root .msg-menu-opt.on { color: var(--orange); font-weight: 700; }
+#sp-root .msg-menu-tick { flex: none; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; color: var(--orange); }
+#sp-root .msg-menu-opt-label { flex: 1; min-width: 0; }
 #sp-root .msg-menu-c { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--bg-2); border-radius: 999px; padding: 1px 7px; min-width: 20px; text-align: center; }
 #sp-root .msg-menu-opt.on .msg-menu-c { color: var(--orange); background: var(--pill); }
 
-#sp-root .msg-search { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 0 10px; transition: border-color 0.12s, box-shadow 0.12s; }
+#sp-root .msg-search { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 0 11px; transition: border-color 0.12s, box-shadow 0.12s; }
 #sp-root .msg-search:focus-within { border-color: var(--orange); box-shadow: 0 0 0 3px var(--pill); }
 #sp-root .msg-search svg { color: var(--muted); flex: none; }
 #sp-root .msg-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: inherit; font-size: 12.5px; color: var(--fg); padding: 8px 0; }
@@ -3626,6 +3627,13 @@
 #sp-root .msg-hbtn { width: 28px; height: 28px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--sh1); color: var(--muted-strong); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 #sp-root .msg-hbtn:hover { color: var(--orange); border-color: var(--orange); }
 #sp-root .msg-hbtn.del:hover { color: var(--red); border-color: var(--red); }
+/* Clear the time + right-column badge while the hover actions are showing,
+   so the icons never sit on top of the timestamp. */
+@media (hover: hover) {
+  #sp-root .msg-sw:hover .msg-row-when,
+  #sp-root .msg-sw:hover .msg-row-un,
+  #sp-root .msg-sw:hover .msg-row-wait { opacity: 0; transition: opacity 0.12s; }
+}
 
 #sp-root .msg-row-main { grid-column: 1; min-width: 0; display: contents; }
 #sp-root .msg-row-top { grid-column: 1; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
@@ -3654,7 +3662,7 @@
 #sp-root .msg-arch-banner { display: flex; align-items: center; gap: 10px; margin: 12px 20px 0; padding: 9px 13px; background: var(--bg-2); border-radius: 10px; font-size: 12px; color: var(--muted-strong); }
 #sp-root .msg-arch-banner button { margin-left: auto; background: none; border: 0; color: var(--orange); font-weight: 700; font-family: inherit; font-size: 12px; cursor: pointer; }
 
-#sp-root .msg-ctx { display: flex; align-items: center; gap: 8px; margin: 12px 20px 0; padding: 8px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--sh1); font-size: 12px; color: var(--muted-strong); align-self: center; }
+#sp-root .msg-ctx { display: flex; align-items: center; gap: 8px; margin: 14px 20px 6px; padding: 8px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--sh1); font-size: 12px; color: var(--muted-strong); align-self: center; }
 #sp-root .msg-ctx b { color: var(--fg); }
 #sp-root .msg-ctx-go { margin-left: 6px; background: none; border: 0; color: var(--orange); font-weight: 600; font-family: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
 
