@@ -14,6 +14,7 @@ import {
   clearItemNode, createItemAtNode,
 } from '../utils/placement';
 import { getFolderTree } from '../../inventory/utils/inventoryStorage';
+import { findExistingItem } from '../../../utils/itemIdentity';
 import InventoryFolderPicker from '../../inventory/components/InventoryFolderPicker';
 import ItemDrawer from './ItemDrawer';
 
@@ -34,9 +35,13 @@ export default function PinItems({
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
-  const [dup, setDup] = useState(null); // a same-named existing item awaiting confirm
+  // As the crew types a new item's name we look it up live — if it already
+  // exists we offer to place THAT one here, before any folder/qty busywork.
+  const [nameMatch, setNameMatch] = useState(null);
+  const [forceNew, setForceNew] = useState(false); // crew chose a separate item despite a match
   const [openItem, setOpenItem] = useState(null); // itemId shown in the quick-view drawer
   const debounce = useRef(null);
+  const matchDebounce = useRef(null);
 
   // The stock location's display name = the pin's full path, so pins in the
   // same room don't collide into identical "Main Galley" entries.
@@ -46,8 +51,9 @@ export default function PinItems({
     .join(' › ') || (scanName || 'this pin');
 
   const resetAll = () => {
-    setMode(null); setQuery(''); setResults([]); setTransfer(null); setError(null); setDup(null);
+    setMode(null); setQuery(''); setResults([]); setTransfer(null); setError(null);
     setNewName(''); setNewQty(''); setNewCat(null); setShowFolderPicker(false);
+    setNameMatch(null); setForceNew(false);
   };
   useEffect(() => { setNodeId(hotspot?.location_node_id || null); resetAll(); }, [hotspot?.id]);
 
@@ -79,6 +85,21 @@ export default function PinItems({
     getFolderTree().then((t) => { if (!cancelled) setFolderTree(t || {}); }).catch(() => {});
     return () => { cancelled = true; };
   }, [mode, folderTree]);
+
+  // Live "does this already exist?" as the name is typed — surfaced up-front so
+  // the crew places the existing item instead of filing a duplicate.
+  useEffect(() => {
+    if (mode !== 'create') return undefined;
+    setForceNew(false);
+    const name = newName.trim();
+    if (!name) { setNameMatch(null); return undefined; }
+    clearTimeout(matchDebounce.current);
+    matchDebounce.current = setTimeout(async () => {
+      const { item } = await findExistingItem(tenantId, { name });
+      setNameMatch(item || null);
+    }, 300);
+    return () => clearTimeout(matchDebounce.current);
+  }, [mode, newName, tenantId]);
 
   const ensureNode = async () => {
     if (nodeId) return nodeId;
@@ -113,7 +134,9 @@ export default function PinItems({
     await load(nodeId);
   };
 
-  const createItem = async (force = false) => {
+  // Create a genuinely new item. Existence was already resolved inline (the crew
+  // saw the match and chose "separate item"), so this always forces the insert.
+  const createItem = async () => {
     const name = newName.trim();
     if (!name) return;
     if (!newCat) { setShowFolderPicker(true); return; } // must be filed in a folder
@@ -121,26 +144,27 @@ export default function PinItems({
     const nid = await ensureNode();
     if (!nid) return;
     setBusy('new');
-    const { item, existing, error: e } = await createItemAtNode({ tenantId, userId, name, qty: newQty, pin: { nodeId: nid, name: pinName }, category: newCat, force });
+    const { item, error: e } = await createItemAtNode({ tenantId, userId, name, qty: newQty, pin: { nodeId: nid, name: pinName }, category: newCat, force: true });
     setBusy(null);
     if (e) { setError(e); return; }
-    // A same-named item already exists — ask before spawning a duplicate.
-    if (existing) { setDup(existing); return; }
-    setMode(null); setNewName(''); setNewQty(''); setNewCat(null); setDup(null);
+    resetAll();
     if (item) await load(nid);
   };
 
-  // "Add to existing" from the duplicate prompt — put the typed qty onto this
-  // pin against the item that already exists, instead of creating a new one.
-  const addToExisting = async () => {
-    if (!dup) return;
-    setBusy('new'); setError(null);
+  // Place the already-existing item (surfaced from the live name match) onto this
+  // pin — no duplicate, no folder step (it's already filed).
+  const placeExistingHere = async () => {
+    if (!nameMatch) return;
+    setError(null);
+    const nid = await ensureNode();
+    if (!nid) return;
+    setBusy('new');
     const addNew = Number(newQty) || 0;
-    const { error: e } = await placeStock(dup.id, { pin: { nodeId, name: pinName }, addNew, moves: [] });
+    const { error: e } = await placeStock(nameMatch.id, { pin: { nodeId: nid, name: pinName }, addNew, moves: [] });
     setBusy(null);
     if (e) { setError(e); return; }
-    setMode(null); setNewName(''); setNewQty(''); setNewCat(null); setDup(null);
-    await load(nodeId);
+    resetAll();
+    await load(nid);
   };
 
   const removeItem = async (itemId) => {
@@ -266,29 +290,31 @@ export default function PinItems({
       {canManage && mode === 'create' && (
         <div className="vm-pinitems-new">
           <input className="vm-check-input" placeholder="Item name" value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus />
-          {newCat ? (
-            <div className="vm-pinitems-cat-set">
-              <span className="vm-pinitems-cat-label">{newCat.label}</span>
-              <button className="vm-pinitems-cat-change" onClick={() => setShowFolderPicker(true)}>Change</button>
-            </div>
-          ) : (
-            <button className="vm-pinitems-cat-add" onClick={() => setShowFolderPicker(true)}>+ File in a folder</button>
-          )}
-          {dup ? (
-            <div className="vm-transfer">
-              <span className="vm-transfer-new">
-                <strong>“{dup.name}”</strong> already exists in{' '}
-                <strong>{[dup.location, dup.sub_location].filter(Boolean).join(' › ') || 'inventory'}</strong>.
-                Add {Number(newQty) || 0} to it here, or create a separate item?
-              </span>
-              <div className="vm-transfer-actions vm-transfer-actions-stack">
-                <button className="vm-btn-primary vm-btn-block" onClick={addToExisting} disabled={busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add to existing'}</button>
-                <button className="vm-btn-ghost vm-btn-block" onClick={() => createItem(true)} disabled={busy === 'new'}>Create separate item</button>
-                <button className="vm-btn-ghost vm-btn-block" onClick={() => setDup(null)}>Back</button>
+
+          {nameMatch && !forceNew ? (
+            /* It already exists — place THAT one here, no folder step. */
+            <div className="vm-pinitems-match">
+              <p className="vm-pinitems-match-lead"><strong>“{nameMatch.name}”</strong> is already in inventory</p>
+              <p className="vm-pinitems-match-where">📁 {[nameMatch.location, nameMatch.sub_location].filter(Boolean).join(' › ') || 'Unfiled'}</p>
+              <div className="vm-pinitems-new-row">
+                <input className="vm-check-input vm-pinitems-new-qty" type="number" min="0" placeholder="Qty" value={newQty} onChange={(e) => setNewQty(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') placeExistingHere(); }} autoFocus />
+                <button className="vm-btn-primary" onClick={placeExistingHere} disabled={busy === 'new'}>{busy === 'new' ? 'Placing…' : 'Place here'}</button>
+                <button className="vm-btn-ghost" onClick={resetAll}>Cancel</button>
               </div>
+              <button className="vm-pinitems-match-alt" onClick={() => setForceNew(true)}>Not this one — create a new item instead</button>
             </div>
           ) : (
+            /* No match (or the crew chose a separate item) — file & create new. */
             <>
+              {forceNew && <p className="vm-pinitems-new-hint">Creating a new item, separate from the existing one.</p>}
+              {newCat ? (
+                <div className="vm-pinitems-cat-set">
+                  <span className="vm-pinitems-cat-label">{newCat.label}</span>
+                  <button className="vm-pinitems-cat-change" onClick={() => setShowFolderPicker(true)}>Change</button>
+                </div>
+              ) : (
+                <button className="vm-pinitems-cat-add" onClick={() => setShowFolderPicker(true)}>+ File in a folder</button>
+              )}
               <div className="vm-pinitems-new-row">
                 <input className="vm-check-input vm-pinitems-new-qty" type="number" min="0" placeholder="Qty" value={newQty} onChange={(e) => setNewQty(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createItem(); }} />
                 <button className="vm-btn-primary" onClick={() => createItem()} disabled={!newName.trim() || !newCat || busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add here'}</button>

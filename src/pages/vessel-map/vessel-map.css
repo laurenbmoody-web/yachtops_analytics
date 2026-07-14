@@ -1618,6 +1618,15 @@
   border-radius: 8px; background: #FBEFE9; }
 .vm-pinitems-cat-label { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vm-pinitems-cat-change { flex: none; background: none; border: 0; padding: 0; font-family: inherit; font-size: 12px; color: #C65A1A; cursor: pointer; }
+/* "already in inventory — place that one" card (shown live as the name is typed). */
+.vm-pinitems-match { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #ECEAE3;
+  border-radius: 12px; background: #FAFAF8; }
+.vm-pinitems-match-lead { margin: 0; font-size: 13px; line-height: 1.4; color: #1C1B3A; }
+.vm-pinitems-match-lead strong { font-weight: 600; }
+.vm-pinitems-match-where { margin: 0; font-size: 12px; color: #8B8478; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vm-pinitems-match-alt { align-self: flex-start; background: none; border: 0; padding: 2px 0; font-family: inherit;
+  font-size: 12px; color: #6B7280; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.vm-pinitems-match-alt:hover { color: #C65A1A; }
 .vm-pinitems-cat-change:hover { text-decoration: underline; }
 
 /* Transfer panel — receive new stock + move existing stock onto the pin. */
@@ -1648,10 +1657,6 @@
 .vm-transfer-total strong { color: #C65A1A; }
 .vm-transfer-actions { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
 .vm-transfer-actions .vm-btn-primary { flex: 1; justify-content: center; }
-/* Stacked, equal-width action buttons (duplicate-item confirm). */
-.vm-transfer-actions-stack { flex-direction: column; align-items: stretch; gap: 7px; }
-.vm-btn-block { width: 100%; height: 38px; justify-content: center; display: inline-flex; align-items: center; white-space: nowrap; }
-.vm-transfer-actions-stack .vm-btn-primary { flex: none; }
 /* "currently at X — move here?" */
 .vm-pinitems-move { margin-top: 10px; padding: 11px 13px; border: 1px solid #ECEAE3; border-radius: 11px; background: #FAFAF8;
   font-size: 12.5px; color: #6B7280; display: flex; flex-direction: column; gap: 9px; }
