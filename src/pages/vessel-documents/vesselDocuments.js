@@ -59,7 +59,7 @@ export const DEFAULT_VAULT_FOLDERS = [
 // The linked folders that sit at the vault root alongside real items.
 const systemFolders = () => ([
   { id: VIRT_HOR, kind: 'folder', name: 'Hours of Rest', system: true, meta: 'Signed records · linked' },
-  { id: VIRT_CREW, kind: 'folder', name: 'Crew Certification', system: true, meta: 'Per-crew · linked' },
+  { id: VIRT_CREW, kind: 'folder', name: 'Crew Documents', system: true, meta: 'Per-crew · linked' },
   { id: VIRT_TEMPLATES, kind: 'folder', name: 'Contract Templates', system: true, meta: 'Templates · linked' },
 ]);
 
@@ -97,13 +97,18 @@ export async function fetchChildren({ tenantId, parentId = null }) {
 // expired-but-replaced cert reads as "Historic" here too, not a live expiry.
 // Version grouping is per crew member, so the full per-user set is grouped even
 // when only filed docs are later shown.
-async function fetchCrewDocsTagged(tenantId, userId = null) {
-  let q = supabase.from('personal_documents')
+// Fetch a vessel's crew documents keyed BY OWNER rather than by the
+// document's tenant_id — so a crew member's certificates surface in the vessel
+// vault the moment they join, even though those files were uploaded on a
+// previous vessel (or in personal mode) and carry a different tenant_id. RLS
+// (command_manages_tenant_personal_documents) still scopes reads to members the
+// caller shares a vessel with, so this never widens what Command can see.
+async function fetchCrewDocsForUsers(userIds) {
+  if (!userIds?.length) return [];
+  const { data, error } = await supabase.from('personal_documents')
     .select('id, user_id, doc_type, category, expiry_date, issue_date, created_at, file_url, file_name, mime_type, size_bytes, title, document_number, issuing_authority')
-    .eq('tenant_id', tenantId);
-  if (userId) q = q.eq('user_id', userId);
-  const { data, error } = await q;
-  if (error) { console.error('[vault] crew docs fetch failed', error); return []; }
+    .in('user_id', userIds);
+  if (error) { console.error('[vault] crew docs by owner fetch failed', error); return []; }
   const byUser = new Map();
   (data || []).forEach((d) => { const a = byUser.get(d.user_id) || []; a.push(d); byUser.set(d.user_id, a); });
   const out = [];
@@ -193,9 +198,18 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
   // enriched with role / department / tenure / expiry so the view can be
   // organised and filtered.
   if (parentId === VIRT_CREW) {
-    const visible = (await fetchCrewDocsTagged(tenantId))
+    // Every crew member of this vessel — active AND former. Former members are
+    // retained so their record stays visible for audit after they leave.
+    const { data: members } = await supabase.from('tenant_members')
+      .select('user_id, role, display_name, department_id, start_date, joined_at, active')
+      .eq('tenant_id', tenantId);
+    const memberRows = (members || []).filter((m) => m.user_id);
+    const ids = [...new Set(memberRows.map((m) => m.user_id))];
+    if (!ids.length) return [];
+    // Docs BY OWNER (not by the doc's tenant_id) so a new joiner's existing
+    // certificates surface immediately. RLS still scopes to shared members.
+    const visible = (await fetchCrewDocsForUsers(ids))
       .filter((d) => d.file_url && d.category !== CREW_DOC_EXCLUDE);
-    if (!visible.length) return [];
     const today = new Date().toISOString().slice(0, 10);
     const agg = new Map(); // user_id → { count, expired, soonest } (historic excluded from expiry)
     visible.forEach((d) => {
@@ -210,29 +224,28 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
       }
       agg.set(d.user_id, a);
     });
-    const ids = [...agg.keys()];
-    if (!ids.length) return [];
-    const [{ data: profs }, { data: members }] = await Promise.all([
-      supabase.from('profiles').select('id, full_name').in('id', ids),
-      supabase.from('tenant_members')
-        .select('user_id, role, display_name, department_id, start_date, joined_at')
-        .eq('tenant_id', tenantId).in('user_id', ids),
-    ]);
+    // Only surface members who actually hold documents.
+    const withDocs = ids.filter((uid) => agg.has(uid));
+    if (!withDocs.length) return [];
+    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', withDocs);
     const names = {}; (profs || []).forEach((p) => { names[p.id] = p.full_name; });
-    const mem = {}; (members || []).forEach((m) => { mem[m.user_id] = m; });
-    const deptIds = [...new Set((members || []).map((m) => m.department_id).filter(Boolean))];
+    // Prefer an active membership row if a user has both (rejoined crew).
+    const mem = {};
+    memberRows.forEach((m) => { const cur = mem[m.user_id]; if (!cur || (m.active && !cur.active)) mem[m.user_id] = m; });
+    const deptIds = [...new Set(memberRows.map((m) => m.department_id).filter(Boolean))];
     const depts = {};
     if (deptIds.length) {
       const { data: d } = await supabase.from('departments').select('id, name').in('id', deptIds);
       (d || []).forEach((x) => { depts[x.id] = x.name; });
     }
-    return ids.map((uid) => {
+    return withDocs.map((uid) => {
       const a = agg.get(uid); const m = mem[uid] || {};
       return {
         id: `${VIRT_CREW}:${uid}`,
         kind: 'folder',
         system: true,
         crew: true,
+        active: m.active !== false,
         name: names[uid] || m.display_name || 'Crew member',
         role: m.role || null,
         dept: m.department_id ? (depts[m.department_id] || null) : null,
@@ -249,7 +262,7 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
   // opens via its stored signed URL, the same one the profile uses).
   if (parentId.startsWith(`${VIRT_CREW}:`)) {
     const uid = parentId.slice(`${VIRT_CREW}:`.length);
-    const docs = (await fetchCrewDocsTagged(tenantId, uid))
+    const docs = (await fetchCrewDocsForUsers([uid]))
       .filter((d) => d.file_url && d.category !== CREW_DOC_EXCLUDE)
       .map((d) => ({ ...d, _st: getDocStatus(d) }));
     // Live credentials first (soonest expiry up top), advisory renewals next,
@@ -298,12 +311,12 @@ export async function fetchBreadcrumb({ tenantId, folderId }) {
       ];
     }
     if (folderId === VIRT_TEMPLATES) return [{ id: VIRT_TEMPLATES, name: 'Contract Templates' }];
-    if (folderId === VIRT_CREW) return [{ id: VIRT_CREW, name: 'Crew Certification' }];
+    if (folderId === VIRT_CREW) return [{ id: VIRT_CREW, name: 'Crew Documents' }];
     if (folderId.startsWith(`${VIRT_CREW}:`)) {
       const uid = folderId.slice(`${VIRT_CREW}:`.length);
       const { data } = await supabase.from('profiles').select('full_name').eq('id', uid).maybeSingle();
       return [
-        { id: VIRT_CREW, name: 'Crew Certification' },
+        { id: VIRT_CREW, name: 'Crew Documents' },
         { id: folderId, name: data?.full_name || 'Crew member' },
       ];
     }
@@ -542,10 +555,16 @@ export async function fetchShelf({ tenantId }) {
     templates = count || 0;
   } catch { /* noop */ }
   try {
-    const { data: c } = await supabase.from('personal_documents')
-      .select('user_id').eq('tenant_id', tenantId)
-      .not('file_url', 'is', null).neq('category', CREW_DOC_EXCLUDE);
-    crew = new Set((c || []).map((r) => r.user_id).filter(Boolean)).size;
+    // Count crew (active + former) who hold at least one document — by owner,
+    // matching the membership-based lens rather than the doc's tenant_id.
+    const { data: mem } = await supabase.from('tenant_members').select('user_id').eq('tenant_id', tenantId);
+    const memIds = [...new Set((mem || []).map((r) => r.user_id).filter(Boolean))];
+    if (memIds.length) {
+      const { data: c } = await supabase.from('personal_documents')
+        .select('user_id').in('user_id', memIds)
+        .not('file_url', 'is', null).neq('category', CREW_DOC_EXCLUDE);
+      crew = new Set((c || []).map((r) => r.user_id).filter(Boolean)).size;
+    }
   } catch { /* noop */ }
 
   return { folders, rootFiles, linked: { hor, templates, crew } };

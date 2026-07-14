@@ -10,7 +10,6 @@ import Icon from '../../components/AppIcon';
 import '../../styles/editorial.css';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabaseClient';
 import {
   fetchChildren, fetchBreadcrumb, fetchShelf, createFolder, uploadFile,
   renameItem, setExpiry, deleteItem, getFileUrl, moveItem, fetchFolders,
@@ -38,12 +37,9 @@ const fmtSize = (n) => {
 
 export default function VesselDocuments() {
   const navigate = useNavigate();
-  const { activeTenantId, currentTenantMember } = useTenant();
-  const { session, isVesselAdmin } = useAuth();
+  const { activeTenantId } = useTenant();
+  const { session } = useAuth();
   const userId = session?.user?.id;
-  // Only Command/Chief may sync crew certificates into the vault (matches the
-  // vault's write RLS).
-  const canSync = isVesselAdmin || ['COMMAND', 'CHIEF'].includes(String(currentTenantMember?.permission_tier || '').toUpperCase());
 
   const [cwd, setCwd] = useState(null);          // current folder id (null = root)
   const [items, setItems] = useState([]);
@@ -63,25 +59,6 @@ export default function VesselDocuments() {
   const seededRef = useRef(null);                // tenant whose empty vault we've already seeded
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2800); };
-
-  // Pull every active crew member's certificates into the vault (idempotent —
-  // only new docs on each run). Server-side (cross-bucket copy + Command check).
-  const syncCrewDocs = async () => {
-    if (!activeTenantId) return;
-    setBusy(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-crew-documents-to-vault', { body: { tenant_id: activeTenantId } });
-      if (error || data?.error) throw new Error(data?.error || error?.message || 'failed');
-      const n = data?.synced || 0;
-      flash(n ? `Synced ${n} crew document${n === 1 ? '' : 's'}` : 'Crew certificates & contracts up to date');
-      await load();
-    } catch (e) {
-      console.warn('[vessel-documents] crew sync failed', e);
-      flash('Couldn’t sync crew certificates');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
@@ -359,6 +336,9 @@ export default function VesselDocuments() {
       .slice()
       .sort(crewComparator(crewSort))
     : [];
+  // Active crew up top; former crew (retained for the record) in their own group.
+  const activeCrewRows = crewRows.filter((f) => f.active !== false);
+  const formerCrewRows = crewRows.filter((f) => f.active === false);
 
   const renderCrewBar = () => (
     <div className="vd-crewbar">
@@ -409,6 +389,20 @@ export default function VesselDocuments() {
       .filter((f) => crewDocCat === 'all' || f.cat === crewDocCat)
       .slice()
       .sort(crewDocComparator(crewDocSort))
+    : [];
+  // Group a member's docs into Certificates / Documents / Expired. Expired is
+  // status-based (cuts across both types); the other two split by category.
+  const CERT_CATS = new Set(['safety', 'medical', 'deck', 'engineering', 'interior', 'watersports', 'qualification', 'professional']);
+  const docBucket = (f) => {
+    if (f.historic || f.statusLevel === 'expired') return 'expired';
+    return CERT_CATS.has(f.cat) ? 'certificates' : 'documents';
+  };
+  const crewDocSections = inCrewMember
+    ? [
+      { key: 'certificates', label: 'Certificates', files: crewDocFiles.filter((f) => docBucket(f) === 'certificates') },
+      { key: 'documents', label: 'Documents', files: crewDocFiles.filter((f) => docBucket(f) === 'documents') },
+      { key: 'expired', label: 'Expired & historic', files: crewDocFiles.filter((f) => docBucket(f) === 'expired') },
+    ].filter((s) => s.files.length > 0)
     : [];
 
   const renderCrewDocBar = () => (
@@ -488,11 +482,6 @@ export default function VesselDocuments() {
               ))}
             </div>
             <div className="vd-tools">
-              {canSync && (
-                <button type="button" className="vd-btn vd-btn-ghost" disabled={busy} onClick={syncCrewDocs} title="Pull every crew member's certificates and contracts into the vault">
-                  <Icon name="RefreshCw" size={15} /> Sync
-                </button>
-              )}
               <button type="button" className="vd-btn vd-btn-ghost" disabled={busy || isVirtualId(cwd)} onClick={openNewFolder}>
                 <Icon name="FolderPlus" size={15} /> New folder
               </button>
@@ -512,7 +501,7 @@ export default function VesselDocuments() {
                 <div className="vd-shelf">
                   {(shelf?.folders || []).map(renderCard)}
                   {renderLinkedCard(VIRT_HOR, 'Hours of Rest', 'Signed monthly MLC records', shelf?.linked?.hor || 0, 'month')}
-                  {renderLinkedCard(VIRT_CREW, 'Crew Certification', 'Certs & docs, by crew member', shelf?.linked?.crew || 0, 'crew member')}
+                  {renderLinkedCard(VIRT_CREW, 'Crew Documents', 'Certs, contracts & docs, by crew member', shelf?.linked?.crew || 0, 'crew member')}
                   {renderLinkedCard(VIRT_TEMPLATES, 'Contract Templates', 'Crew SEA & letter templates', shelf?.linked?.templates || 0, 'template')}
                   <button type="button" className="vd-card vd-card-new" disabled={busy} onClick={openNewFolder}>
                     <Icon name="Plus" size={20} />
@@ -529,20 +518,38 @@ export default function VesselDocuments() {
             ) : inCrew && items.length > 0 ? (
               <>
                 {renderCrewBar()}
-                <div className="vd-idx">
-                  {crewRows.length === 0
-                    ? <div className="vd-empty-inline">No crew in this department.</div>
-                    : crewRows.map(renderCrewFolder)}
-                </div>
+                {crewRows.length === 0 ? (
+                  <div className="vd-idx"><div className="vd-empty-inline">No crew in this department.</div></div>
+                ) : (
+                  <>
+                    {activeCrewRows.length > 0 && (
+                      <div className="vd-idx">
+                        <div className="vd-idx-head"><span className="t">Active crew</span><span className="c">{activeCrewRows.length}</span></div>
+                        {activeCrewRows.map(renderCrewFolder)}
+                      </div>
+                    )}
+                    {formerCrewRows.length > 0 && (
+                      <div className="vd-idx vd-idx-loose">
+                        <div className="vd-idx-head"><span className="t">Former crew</span><span className="c">{formerCrewRows.length}</span></div>
+                        {formerCrewRows.map(renderCrewFolder)}
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             ) : inCrewMember && items.length > 0 ? (
               <>
                 {renderCrewDocBar()}
-                <div className="vd-idx">
-                  {crewDocFiles.length === 0
-                    ? <div className="vd-empty-inline">No documents in this category.</div>
-                    : crewDocFiles.map((f, i) => renderFile(f, i + 1))}
-                </div>
+                {crewDocFiles.length === 0 ? (
+                  <div className="vd-idx"><div className="vd-empty-inline">No documents in this category.</div></div>
+                ) : (
+                  crewDocSections.map((sec) => (
+                    <div key={sec.key} className={`vd-idx${sec.key === 'expired' ? ' vd-idx-loose' : ''}`}>
+                      <div className="vd-idx-head"><span className="t">{sec.label}</span><span className="c">{sec.files.length}</span></div>
+                      {sec.files.map((f, i) => renderFile(f, i + 1))}
+                    </div>
+                  ))
+                )}
               </>
             ) : items.length === 0 ? (
               <div className="vd-empty">
