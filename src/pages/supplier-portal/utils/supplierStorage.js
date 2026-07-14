@@ -790,6 +790,62 @@ export const fetchClientOrders = async (supplierId, tenantId) => {
   return data ?? [];
 };
 
+// ─── Messaging (supplier ↔ yacht) ────────────────────────────────────────────
+
+// The supplier's message threads, newest activity first, with the yacht.
+export const fetchMessageThreads = async (supplierId) => {
+  const { data, error } = await supabase
+    .from('supplier_message_threads')
+    .select('*, tenants(id, name)')
+    .eq('supplier_id', supplierId)
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+};
+
+// Find or open the (single) thread between this supplier and a yacht.
+export const getOrCreateThread = async (supplierId, tenantId, orderId = null) => {
+  const { data: existing, error: selErr } = await supabase
+    .from('supplier_message_threads')
+    .select('*, tenants(id, name)')
+    .eq('supplier_id', supplierId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (selErr) throw selErr;
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from('supplier_message_threads')
+    .insert({ supplier_id: supplierId, tenant_id: tenantId, order_id: orderId })
+    .select('*, tenants(id, name)')
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const fetchMessages = async (threadId) => {
+  const { data, error } = await supabase
+    .from('supplier_messages')
+    .select('*')
+    .eq('thread_id', threadId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+};
+
+// Send a message from the supplier side.
+export const sendSupplierMessage = async (threadId, body) => {
+  const { data: auth } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('supplier_messages')
+    .insert({ thread_id: threadId, sender_type: 'supplier', sender_user_id: auth?.user?.id ?? null, body })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
 // ─── Email Aliases ───────────────────────────────────────────────────────────
 
 export const fetchAliases = async (supplierId) => {

@@ -557,7 +557,7 @@ const Hero = ({
                     {order.delivery_phone}
                   </a>
                 )}
-                <button type="button" className="msg" onClick={() => navigate(`/supplier/messages?orderId=${order.id}`)}>
+                <button type="button" className="msg" onClick={() => navigate(`/supplier/messages?orderId=${order.id}${order.tenant_id ? `&yachtId=${order.tenant_id}` : ''}`)}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                   Message yacht
                 </button>
@@ -636,7 +636,7 @@ const Hero = ({
           onOpenDeliveryNote={onOpenDeliveryNote}
           onOpenSignedDeliveryNote={onOpenSignedDeliveryNote}
           onEmailDeliveryNote={onEmailDeliveryNote}
-          onMessageVessel={() => navigate(`/supplier/messages?orderId=${order.id}`)}
+          onMessageVessel={() => navigate(`/supplier/messages?orderId=${order.id}${order.tenant_id ? `&yachtId=${order.tenant_id}` : ''}`)}
           canEdit={canEdit}
         />
       </div>
@@ -1759,8 +1759,7 @@ const YachtClientCard = ({ order }) => {
   const openMessages = () => {
     const params = new URLSearchParams();
     if (order.id) params.set('orderId', order.id);
-    const yachtId = order.yacht_id || order.yacht_client_id;
-    if (yachtId) params.set('yachtId', yachtId);
+    if (order.tenant_id) params.set('yachtId', order.tenant_id);
     const qs = params.toString();
     navigate(qs ? `/supplier/messages?${qs}` : '/supplier/messages');
   };
