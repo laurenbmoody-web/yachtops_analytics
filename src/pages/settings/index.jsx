@@ -167,6 +167,40 @@ const SettingsPage = () => {
   const [notifStatus, setNotifStatus] = useState('');
   const [, setTick] = useState(0);
 
+  // Contact support — an in-app modal that carries the signed-in user's identity
+  // (captured server-side by submit-feedback) so support can reply directly.
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportMsg, setSupportMsg] = useState('');
+  const [supportBusy, setSupportBusy] = useState(false);
+  const [supportSent, setSupportSent] = useState(false);
+  const [supportErr, setSupportErr] = useState('');
+  const closeSupport = () => { setSupportOpen(false); setSupportMsg(''); setSupportErr(''); setSupportSent(false); };
+  const submitSupport = async () => {
+    const text = supportMsg.trim();
+    if (!text || supportBusy) return;
+    setSupportBusy(true); setSupportErr('');
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-feedback', {
+        body: {
+          tenantId: activeTenantId || null,
+          message: `[Support request] ${text}`,
+          pagePath: '/settings',
+          pageTitle: 'Settings — Contact support',
+          userAgent: navigator.userAgent,
+          viewport: `${window.innerWidth}x${window.innerHeight}`,
+          userName: acct.name || '',
+        },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'failed');
+      setSupportSent(true);
+    } catch (e) {
+      console.warn('[settings] support submit failed', e);
+      setSupportErr('Couldn’t send just now — please try again.');
+    } finally {
+      setSupportBusy(false);
+    }
+  };
+
   // Notification email is vessel-governed: crew REQUEST an address, Command
   // approves it (Vessel Settings › Notification Requests). Approval writes
   // crew_notification_emails; here we only raise / cancel the request.
@@ -1139,7 +1173,7 @@ const SettingsPage = () => {
             <p className="set-hsub">Guides, contact and version.</p>
             <Group>
               <RowNav ext label="FAQ" desc="Answers to common questions." onClick={() => window.open('/faq', '_blank', 'noopener')} />
-              <RowNav ext label="Contact support" desc="Get in touch with the Cargo team." onClick={() => window.open('/contact', '_blank', 'noopener')} />
+              <RowNav label="Contact support" desc="Message the Cargo team — we’ll reply to you directly." onClick={() => { setSupportSent(false); setSupportMsg(''); setSupportErr(''); setSupportOpen(true); }} />
               <RowNav label="Report a bug" desc="Send feedback or flag an issue." onClick={() => window.dispatchEvent(new Event('cargo:open-feedback'))} />
               <div className="set-r"><div className="set-r-main"><div className="set-r-label" style={{ color: '#8B8478', fontWeight: 400 }}>Version 1.0.0</div></div></div>
             </Group>
@@ -1217,6 +1251,56 @@ const SettingsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Contact support modal — pre-attaches the signed-in user so support can reply. */}
+      {supportOpen && (
+        <div
+          onClick={() => !supportBusy && closeSupport()}
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(28,27,58,0.32)', display: 'grid', placeItems: 'center', padding: 24 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', border: '1px solid #ECEAE3', borderRadius: 16, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)', width: '100%', maxWidth: 440, padding: '24px 24px 20px' }}>
+            <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 22, color: '#1C1B3A', margin: '0 0 6px' }}>Contact support</h2>
+            {supportSent ? (
+              <>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, margin: '0 0 18px' }}>
+                  Thanks — your message is with the Cargo team. We’ll reply to <strong>{acct.email || 'your account email'}</strong>.
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button type="button" className="set-btn set-btn-primary" onClick={closeSupport}>Done</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6, margin: '0 0 14px' }}>
+                  Send us a message and we’ll get back to you at <strong>{acct.email || 'your account email'}</strong>.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: '#FAFAF8', border: '1px solid #ECEAE3', marginBottom: 12 }}>
+                  <Icon name="User" size={15} color="#8B8478" />
+                  <span style={{ fontSize: 12.5, color: '#6B7280' }}>
+                    {acct.name || 'You'}{acct.tenant ? ` · ${acct.tenant}` : ''}
+                  </span>
+                </div>
+                <textarea
+                  className="set-field"
+                  autoFocus
+                  rows={5}
+                  placeholder="How can we help?"
+                  value={supportMsg}
+                  onChange={(e) => { setSupportMsg(e.target.value); if (supportErr) setSupportErr(''); }}
+                  style={{ width: '100%', resize: 'vertical', minHeight: 100, fontFamily: 'inherit' }}
+                />
+                {supportErr && <div style={{ marginTop: 8, fontSize: 13, color: '#B23B2E' }}>{supportErr}</div>}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                  <button type="button" className="set-btn" onClick={closeSupport} disabled={supportBusy}>Cancel</button>
+                  <button type="button" className="set-btn set-btn-primary" onClick={submitSupport} disabled={supportBusy || !supportMsg.trim()}>
+                    {supportBusy ? 'Sending…' : 'Send message'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 };
