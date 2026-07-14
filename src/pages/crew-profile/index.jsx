@@ -4431,13 +4431,14 @@ const canEdit = (() => {
             className="hidden"
           />
           
-          {/* Back Button */}
+          {/* Back Button — Crew Management is vessel-only; off a vessel it errors,
+              so send the user back to their personal home instead. */}
           <button
-            onClick={() => navigate('/crew-management')}
+            onClick={() => navigate(activeTenantId ? '/crew-management' : '/dashboard')}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-smooth"
           >
             <Icon name="ChevronLeft" size={16} />
-            Back to Crew Management
+            {activeTenantId ? 'Back to Crew Management' : 'Back'}
           </button>
 
           {/* Header Area */}

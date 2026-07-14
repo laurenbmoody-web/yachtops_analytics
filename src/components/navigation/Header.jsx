@@ -7,6 +7,7 @@ import LogoSpinner from '../LogoSpinner';
 import AcceptAdminBanner from './AcceptAdminBanner';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTenant } from '../../contexts/TenantContext';
 import { useBasket } from '../../contexts/BasketContext';
 import { supabase } from '../../lib/supabaseClient';
 import { useInboxCount } from '../../hooks/useInboxCount';
@@ -85,6 +86,10 @@ const Header = () => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user: authUser, session } = useAuth();
+  const { noVesselAccess } = useTenant();
+  // Between vessels: strip vessel-only chrome (inbox, admin menu) down to the
+  // personal essentials — the only pages reachable are profile & settings.
+  const unberthed = noVesselAccess === true;
   const [currentUser, setCurrentUser] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -581,8 +586,9 @@ const Header = () => {
           <div className="text-muted-foreground text-xl">|</div>
           
         </div>
-        {/* CENTRE ZONE: Search Bar */}
+        {/* CENTRE ZONE: Search Bar — vessel-scoped, so hidden between vessels */}
         <div className="flex-1 flex justify-center px-8">
+          {!unberthed && (
           <div className="relative w-full max-w-md" ref={searchRef}>
             <Icon
               name="Search"
@@ -648,13 +654,14 @@ const Header = () => {
               </div>
             )}
           </div>
+          )}
         </div>
         {/* RIGHT ZONE: Icons + User */}
         <div className="flex items-center gap-3 flex-shrink-0">
           {/* Alerts — a single Bell icon opening the unified Inbox drawer
               (Notifications · Reviews · Activity). The badge sums the pending
               Reviews + Notification counts. */}
-          {(() => {
+          {!unberthed && (() => {
             const alertCount = inboxCount + unreadCount;
             return (
               <button
@@ -798,6 +805,7 @@ const Header = () => {
                         label: 'Personal',
                         items: [
                           { show: true, icon: 'User', label: 'My Profile', path: '/my-profile', onClick: () => handleNavigation(`/profile/${session?.user?.id}`, 'My Profile') },
+                          { show: true, icon: 'Settings', label: 'Settings', path: '/settings', onClick: () => handleNavigation('/settings', 'Settings') },
                         ],
                       },
                       {
@@ -823,8 +831,11 @@ const Header = () => {
                         ],
                       },
                     ];
+                    // Between vessels, only the personal section is reachable —
+                    // everything else routes to a "no vessel access" screen.
+                    const shownSections = unberthed ? sections.filter(s => s.label === 'Personal') : sections;
                     let rendered = 0;
-                    return sections.map((sec) => {
+                    return shownSections.map((sec) => {
                       const visible = sec.items.filter(i => i.show);
                       if (visible.length === 0) return null;
                       const node = (
