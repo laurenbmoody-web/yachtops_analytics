@@ -15,24 +15,9 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
 import { buildStatusPeriods, getStatusForDay } from '../../../utils/crewStatus';
-import { fetchCabins, fetchAssignments } from '../../crew-management/utils/vesselCabins';
-
-const dayKey = (d) => {
-  const dt = d instanceof Date ? d : new Date(d);
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-};
-
-// end_date is the first FREE day (exclusive); null = open-ended. Dates are
-// stored as ISO 'YYYY-MM-DD', so lexical string comparison is date-correct.
-const spansDay = (a, key) => {
-  if (!a?.start_date || a.start_date > key) return false;
-  if (!a?.end_date) return true;
-  return key < a.end_date;
-};
 
 export async function loadOnboardCrew(tenantId, day = new Date()) {
   if (!tenantId) return [];
-  const key = dayKey(day);
 
   const crew = await fetchTenantCrew(tenantId);
   if (!crew?.length) return [];
@@ -56,19 +41,17 @@ export async function loadOnboardCrew(tenantId, day = new Date()) {
     // No history table / no rows — treat everyone as aboard.
   }
 
-  // Berth cabin for the day (best-effort).
-  const cabinByUser = {};
+  // Cabin + interior laundry marking (number / colour) — set on the Issued Kit
+  // tab, stored on crew_employment. This is what the laundry needs.
+  const kitByUser = {};
   try {
-    const [cabins, assigns] = await Promise.all([fetchCabins(tenantId), fetchAssignments(tenantId)]);
-    const cabinOfBed = {};
-    (cabins || []).forEach((c) => (c.beds || []).forEach((b) => { cabinOfBed[b.id] = { name: c.name, deck: c.deck }; }));
-    (assigns || []).forEach((a) => {
-      if (!spansDay(a, key)) return;
-      const c = cabinOfBed[a.bed_id];
-      if (c) cabinByUser[a.user_id] = [c.deck, c.name].filter(Boolean).join(' · ');
-    });
+    const { data } = await supabase
+      .from('crew_employment')
+      .select('user_id, cabin, laundry_number, laundry_colour')
+      .in('user_id', ids);
+    (data || []).forEach((r) => { kitByUser[r.user_id] = r; });
   } catch (e) {
-    // No cabins configured — leave the cabin blank.
+    // No employment rows — leave the marking blank.
   }
 
   return crew
@@ -78,7 +61,9 @@ export async function loadOnboardCrew(tenantId, day = new Date()) {
       fullName: c.fullName,
       roleTitle: c.roleTitle,
       department: c.department,
-      cabin: cabinByUser[c.id] || '',
+      cabin: kitByUser[c.id]?.cabin || '',
+      laundryNumber: kitByUser[c.id]?.laundry_number || '',
+      laundryColour: kitByUser[c.id]?.laundry_colour || '',
     }))
     .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
 }

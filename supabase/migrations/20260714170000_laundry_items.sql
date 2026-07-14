@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 20260714120000_laundry_items.sql
+-- 20260714170000_laundry_items.sql
 --
 -- Move laundry off localStorage onto a shared, vessel-scoped table so the whole
 -- crew (and the laundry master) work from the same list. Mirrors the previous
