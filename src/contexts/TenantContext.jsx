@@ -67,7 +67,6 @@ const PersonalModeScreen = ({ userName, userId }) => {
     window.location.href = '/login-authentication';
   };
 
-  const first = (userName || '').trim().split(/\s+/)[0];
   const initials = (userName || '').trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'C';
 
   const ic = { width: 19, height: 19, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
@@ -98,21 +97,21 @@ const PersonalModeScreen = ({ userName, userId }) => {
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
       <div style={{ width: '100%', maxWidth: 452 }}>
-        {/* Identity + status */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 13, marginBottom: 24 }}>
+        {/* Identity */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
           <div style={{ width: 54, height: 54, borderRadius: 999, background: '#1C1B3A', color: '#fff', display: 'grid', placeItems: 'center', fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 21, letterSpacing: '0.02em' }}>
             {initials}
-          </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 12px', borderRadius: 999, background: '#FBEFE9', border: '1px solid #F3D9CF' }}>
-            <span style={{ width: 6, height: 6, borderRadius: 999, background: '#C65A1A' }} />
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#B14E16' }}>Between vessels</span>
           </div>
         </div>
 
         {/* Card */}
         <div style={{ background: '#fff', border: '1px solid #ECEAE3', borderRadius: 18, boxShadow: '0 30px 60px -28px rgba(28,27,58,0.28)', padding: '30px 28px 24px' }}>
-          <h1 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 27, color: '#1C1B3A', margin: '0 0 10px', lineHeight: 1.16, textAlign: 'center' }}>
-            {first ? `${first}, your record ` : 'Your record '}<em style={{ color: '#C65A1A' }}>travels with you</em>.
+          <h1 style={{
+            fontFamily: "'DM Serif Display', 'DM Serif Text', Georgia, serif", fontWeight: 500,
+            fontSize: 34, lineHeight: 1.02, letterSpacing: '-0.5px', color: '#1C1B3A',
+            textTransform: 'uppercase', margin: '0 0 12px', textAlign: 'center',
+          }}>
+            Between, <em style={{ fontStyle: 'italic', fontWeight: 400, color: '#C65A1A', textTransform: 'none' }}>vessels</em>.
           </h1>
           <p style={{ fontSize: 14, lineHeight: 1.6, color: '#6F7396', margin: '0 0 22px', textAlign: 'center' }}>
             You’re not on a vessel right now. Your profile, documents and sea service stay safe — vessel features unlock the moment you join or are added to one.
