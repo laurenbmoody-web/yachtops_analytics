@@ -1125,9 +1125,10 @@ const SettingsPage = () => {
             <h2 className="set-h">Legal</h2>
             <p className="set-hsub">Terms, privacy and cookies.</p>
             <Group>
-              <RowNav label="Terms of Service" onClick={() => {}} />
-              <RowNav label="Privacy Policy" onClick={() => {}} />
-              <RowNav label="Cookie Policy" onClick={() => {}} />
+              {/* Terms & Cookie pages aren't published yet — mark Soon until they exist. */}
+              <RowSoon label="Terms of Service" />
+              <RowNav ext label="Privacy Policy" desc="How we handle your data." onClick={() => window.open('/privacy', '_blank', 'noopener')} />
+              <RowSoon label="Cookie Policy" />
             </Group>
           </>
         );
@@ -1138,9 +1139,9 @@ const SettingsPage = () => {
             <h2 className="set-h">Help &amp; support</h2>
             <p className="set-hsub">Guides, contact and version.</p>
             <Group>
-              <RowNav label="Documentation" onClick={() => {}} />
-              <RowNav label="Contact support" onClick={() => {}} />
-              <RowNav label="Report a bug" onClick={() => {}} />
+              <RowNav ext label="FAQ" desc="Answers to common questions." onClick={() => window.open('/faq', '_blank', 'noopener')} />
+              <RowNav ext label="Contact support" desc="Get in touch with the Cargo team." onClick={() => window.open('/contact', '_blank', 'noopener')} />
+              <RowNav label="Report a bug" desc="Send feedback or flag an issue." onClick={() => window.dispatchEvent(new Event('cargo:open-feedback'))} />
               <div className="set-r"><div className="set-r-main"><div className="set-r-label" style={{ color: '#8B8478', fontWeight: 400 }}>Version 1.0.0</div></div></div>
             </Group>
           </>
