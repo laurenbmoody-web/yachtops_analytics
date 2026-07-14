@@ -25,6 +25,14 @@ const fmtWhen = (d) => {
   if (days === 1) return 'Yesterday';
   return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 };
+const fmtAge = (d) => {
+  if (!d) return '';
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
+};
 const dayLabel = (d) => {
   const dt = new Date(d);
   const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(dt).setHours(0, 0, 0, 0)) / 86400000);
@@ -103,8 +111,11 @@ const SupplierMessages = () => {
 
   const activeThread = useMemo(() => threads.find((t) => t.id === activeId), [threads, activeId]);
   const totalUnread = useMemo(() => threads.reduce((s, t) => s + (t.id === activeId ? 0 : (t.supplier_unread_count || 0)), 0), [threads, activeId]);
-  const awaitingReply = useMemo(() => threads.filter((t) => t.last_sender_type === 'vessel').length, [threads]);
-  const lastActive = useMemo(() => threads.reduce((acc, t) => (t.last_message_at && (!acc || t.last_message_at > acc) ? t.last_message_at : acc), null), [threads]);
+  // Awaiting your reply = the yacht sent last. The oldest one is the urgency
+  // read that actually matters at scale (how long has someone been waiting).
+  const awaiting = useMemo(() => threads.filter((t) => t.last_sender_type === 'vessel'), [threads]);
+  const awaitingReply = awaiting.length;
+  const oldestWaiting = useMemo(() => awaiting.reduce((acc, t) => (t.last_message_at && (!acc || t.last_message_at < acc) ? t.last_message_at : acc), null), [awaiting]);
 
   useEffect(() => {
     if (!activeId) { setMessages([]); return; }
@@ -218,10 +229,19 @@ const SupplierMessages = () => {
         <div>
           <p className="editorial-meta" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
             <span className="dot">●</span>
-            <span>{threads.length} conversation{threads.length === 1 ? '' : 's'}</span>
-            {awaitingReply > 0 && <><span className="bar" /><span className="muted" style={{ color: '#C65A1A' }}>{awaitingReply} awaiting your reply</span></>}
-            {totalUnread > 0 && <><span className="bar" /><span className="muted">{totalUnread} unread</span></>}
-            {lastActive && <><span className="bar" /><span className="muted">Last active {fmtWhen(lastActive)}</span></>}
+            {awaitingReply > 0 ? (
+              <>
+                <span style={{ color: '#C65A1A', fontWeight: 600 }}>{awaitingReply} awaiting your reply</span>
+                {oldestWaiting && <><span className="bar" /><span className="muted">oldest {fmtAge(oldestWaiting)} ago</span></>}
+                {totalUnread > 0 && <><span className="bar" /><span className="muted">{totalUnread} unread</span></>}
+              </>
+            ) : (
+              <>
+                <span>All caught up</span>
+                <span className="bar" /><span className="muted">{threads.length} conversation{threads.length === 1 ? '' : 's'}</span>
+                {totalUnread > 0 && <><span className="bar" /><span className="muted">{totalUnread} unread</span></>}
+              </>
+            )}
           </p>
           <h1 className="editorial-greeting" style={{ fontSize: 46, letterSpacing: '-1px', margin: 0 }}>
             YACHT <em>messages</em>
