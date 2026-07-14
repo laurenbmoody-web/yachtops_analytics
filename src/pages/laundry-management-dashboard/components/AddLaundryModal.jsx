@@ -161,6 +161,8 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
       ...prev,
       ownerName: crew?.fullName, ownerCrewUserId: crew?.id, ownerDisplayName: crew?.fullName,
       area: crew?.cabin || prev.area, areaLocationId: null,
+      laundryNumber: crew?.laundryNumber || prev.laundryNumber,
+      colour: crew?.laundryColour || prev.colour,
     }));
     setCrewSearchQuery(crew?.fullName); setShowCrewDropdown(false); clearError('owner');
   };
