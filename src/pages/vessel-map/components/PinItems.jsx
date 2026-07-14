@@ -277,12 +277,14 @@ export default function PinItems({
           {dup ? (
             <div className="vm-transfer">
               <span className="vm-transfer-new">
-                <strong>“{dup.name}”</strong> already exists in inventory. Add {Number(newQty) || 0} here, or create a separate item?
+                <strong>“{dup.name}”</strong> already exists in{' '}
+                <strong>{[dup.location, dup.sub_location].filter(Boolean).join(' › ') || 'inventory'}</strong>.
+                Add {Number(newQty) || 0} to it here, or create a separate item?
               </span>
-              <div className="vm-transfer-actions">
-                <button className="vm-btn-primary" onClick={addToExisting} disabled={busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add to existing'}</button>
-                <button className="vm-btn-ghost" onClick={() => createItem(true)} disabled={busy === 'new'}>Create new anyway</button>
-                <button className="vm-btn-ghost" onClick={() => setDup(null)}>Back</button>
+              <div className="vm-transfer-actions vm-transfer-actions-stack">
+                <button className="vm-btn-primary vm-btn-block" onClick={addToExisting} disabled={busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add to existing'}</button>
+                <button className="vm-btn-ghost vm-btn-block" onClick={() => createItem(true)} disabled={busy === 'new'}>Create separate item</button>
+                <button className="vm-btn-ghost vm-btn-block" onClick={() => setDup(null)}>Back</button>
               </div>
             </div>
           ) : (

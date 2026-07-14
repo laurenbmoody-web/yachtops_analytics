@@ -1143,7 +1143,8 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
           <div className="px-6 py-5">
             <h3 className="text-lg font-bold text-foreground mb-1">This looks like an existing item</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              <span className="font-semibold text-foreground">“{duplicate.item?.name}”</span> is already in inventory
+              <span className="font-semibold text-foreground">“{duplicate.item?.name}”</span> already exists in{' '}
+              <span className="font-semibold text-foreground">{[duplicate.item?.location, duplicate.item?.sub_location].filter(Boolean).join(' › ') || 'inventory'}</span>
               {duplicate.matchedBy === 'barcode' ? ' (same barcode)' : ' (same name)'}. Add this location and quantity to it,
               or create a separate item?
             </p>
