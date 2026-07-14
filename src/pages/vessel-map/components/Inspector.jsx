@@ -97,7 +97,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, onOpenInterior, childCount, autoFocusName, raised, user, tier, tenantId, names, onDetailSaved, scanSpaceId, scanName, containerTrail, onNodeResolved }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, onOpenInterior, childCount, autoFocusName, raised, user, tier, tenantId, names, onDetailSaved, scanSpaceId, scanName, containerTrail, onNodeResolved, placingItem, onPlaced }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -261,6 +261,8 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
               scanName={scanName}
               containerTrail={containerTrail}
               onNodeResolved={onNodeResolved}
+              placingItem={placingItem}
+              onPlaced={onPlaced}
             />
             {/* Pin metadata — quiet, out of the way at the foot of the tab. */}
             <div className="vm-insp-meta">

@@ -233,8 +233,18 @@ const ReadFirstItemDetailView = () => {
               </div>
             </div>
 
-            {/* On the vessel map — pins whose photos tag this item */}
+            {/* On the vessel map — where this item is pinned, + set a new spot */}
             <MapPresence itemId={itemId} />
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => navigate(`/vessel/map?placeItem=${itemId}&placeName=${encodeURIComponent(item?.name || '')}`)}
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border border-[#E5E1D8] text-[#C65A1A] hover:bg-[#FBEFE9] transition-colors"
+              >
+                <Icon name="MapPin" size={16} />
+                Set location on the map
+              </button>
+            )}
 
             {/* Restock Alert */}
             {canEdit && (

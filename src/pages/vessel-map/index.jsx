@@ -92,6 +92,13 @@ export default function VesselMapPage() {
   const viewerApiRef = useRef(null); // SplatViewer API — poster capture on orient save
   // ?pin= deep link (from inventory's "On the vessel map"), consumed once.
   const pendingPinRef = useRef(new URLSearchParams(window.location.search).get('pin'));
+  // ?placeItem=&placeName= — arrived from an item's Location "Set location on the
+  // map"; every pin then offers "Place <item> here". Cleared on placement / cancel.
+  const [placingItem, setPlacingItem] = useState(() => {
+    const q = new URLSearchParams(window.location.search);
+    const id = q.get('placeItem');
+    return id ? { id, name: q.get('placeName') || 'this item' } : null;
+  });
   const isDesktop = useIsDesktop();
   const placementMode = mode === 'pin';
 
@@ -710,6 +717,15 @@ export default function VesselMapPage() {
     setSelectedHotspot((prev) => (prev && prev.id === hotspotId ? { ...prev, location_node_id: nid } : prev));
   }, []);
 
+  // The item was placed on a pin (or the crew cancelled) — leave placing mode and
+  // return to the item they came from.
+  const finishPlacing = useCallback((placed) => {
+    setPlacingItem((cur) => {
+      if (placed && cur?.id) navigate(`/inventory/item/${cur.id}`);
+      return null;
+    });
+  }, [navigate]);
+
   const showViewer = signedUrl && !signError;
   const loadPct = viewer.status === 'loading' ? viewer.progress : null;
 
@@ -883,6 +899,13 @@ export default function VesselMapPage() {
                   interior={!!openContainer}
                 />
 
+                {placingItem && (
+                  <div className="vm-placing-bar">
+                    <span className="vm-placing-text">Placing <strong>{placingItem.name}</strong> — tap a pin, then set how many are here.</span>
+                    <button className="vm-placing-cancel" onClick={() => finishPlacing(false)}>Cancel</button>
+                  </div>
+                )}
+
                 {placementMode && !modalOpen && !adjusting && (
                   <div className="vm-pin-hint">
                     Click to drop a pin
@@ -961,6 +984,8 @@ export default function VesselMapPage() {
                   scanName={selectedScan?.name}
                   containerTrail={containerTrail}
                   onNodeResolved={onNodeResolved}
+                  placingItem={placingItem}
+                  onPlaced={() => finishPlacing(true)}
                   onClose={closeInspector}
                   onDelete={deleteHotspot}
                   onAdjust={startAdjust}
@@ -1166,6 +1191,8 @@ export default function VesselMapPage() {
                           scanName={selectedScan?.name}
                           containerTrail={containerTrail}
                           onNodeResolved={onNodeResolved}
+                          placingItem={placingItem}
+                          onPlaced={() => finishPlacing(true)}
                         />
                       </>
                     )}
