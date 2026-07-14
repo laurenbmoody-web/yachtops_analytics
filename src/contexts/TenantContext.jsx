@@ -77,7 +77,7 @@ const PersonalModeScreen = ({ userName, userId }) => {
   const ActionRow = ({ icon, title, sub, onClick }) => (
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left',
-      background: '#FBFAF8', border: '1px solid #EFEDE6', borderRadius: 12,
+      background: '#F6F8FB', border: '1px solid #E9EDF2', borderRadius: 12,
       padding: '13px 14px', cursor: 'pointer', font: 'inherit',
     }}>
       <span style={{ width: 38, height: 38, borderRadius: 10, background: '#FBEFE9', color: '#C65A1A', display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>{icon}</span>
@@ -92,7 +92,7 @@ const PersonalModeScreen = ({ userName, userId }) => {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999, overflow: 'auto',
-      background: 'radial-gradient(120% 120% at 50% 0%, #FBFAF7 0%, #F1EFE8 100%)',
+      background: 'radial-gradient(120% 120% at 50% 0%, #FFFFFF 0%, #EEF1F5 100%)',
       display: 'grid', placeItems: 'center', padding: 24,
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
@@ -105,7 +105,7 @@ const PersonalModeScreen = ({ userName, userId }) => {
         </div>
 
         {/* Card */}
-        <div style={{ background: '#fff', border: '1px solid #ECEAE3', borderRadius: 18, boxShadow: '0 30px 60px -28px rgba(28,27,58,0.28)', padding: '30px 28px 24px' }}>
+        <div style={{ background: '#fff', border: '1px solid #E8ECF1', borderRadius: 18, boxShadow: '0 30px 60px -28px rgba(28,27,58,0.28)', padding: '30px 28px 24px' }}>
           <h1 style={{
             fontFamily: "'DM Serif Display', 'DM Serif Text', Georgia, serif", fontWeight: 500,
             fontSize: 34, lineHeight: 1.02, letterSpacing: '-0.5px', color: '#1C1B3A',
