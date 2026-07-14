@@ -518,17 +518,24 @@ export default function VesselDocuments() {
               ))}
             </div>
             <div className="vd-tools">
+              {/* Crew tree is a live view of personal records — the only write
+                  action is filing a document onto a member (Command only). The
+                  generic New folder / Upload belong to real vault folders. */}
               {(inCrewMember || inCrewBucket) && isCommand && (
                 <button type="button" className="vd-btn vd-btn-primary" disabled={busy} onClick={() => crewFileRef.current?.click()} title="Upload a document onto this crew member's record">
                   <Icon name="Upload" size={15} /> Add document
                 </button>
               )}
-              <button type="button" className="vd-btn vd-btn-ghost" disabled={busy || isVirtualId(cwd)} onClick={openNewFolder}>
-                <Icon name="FolderPlus" size={15} /> New folder
-              </button>
-              <button type="button" className="vd-btn vd-btn-primary" disabled={busy || isVirtualId(cwd)} onClick={() => fileRef.current?.click()}>
-                <Icon name="Upload" size={15} /> Upload
-              </button>
+              {!isVirtualId(cwd) && (
+                <>
+                  <button type="button" className="vd-btn vd-btn-ghost" disabled={busy} onClick={openNewFolder}>
+                    <Icon name="FolderPlus" size={15} /> New folder
+                  </button>
+                  <button type="button" className="vd-btn vd-btn-primary" disabled={busy} onClick={() => fileRef.current?.click()}>
+                    <Icon name="Upload" size={15} /> Upload
+                  </button>
+                </>
+              )}
               <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
               <input ref={crewFileRef} type="file" hidden onChange={onPickCrewFile} />
             </div>
