@@ -332,10 +332,14 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   }, [topHotspots]);
 
   // All top-level pins go to the viewer; layer visibility is a fade, not a
-  // filter (chips toggle their pins with a 150ms fade, not a pop).
+  // filter (chips toggle their pins with a 150ms fade, not a pop). While
+  // placing an item from Inventory, only stock-bearing pins (Inventory, Safety)
+  // are shown at all — the rest can't hold an item, so they're hidden.
   const allHotspots = useMemo(
-    () => topHotspots.map((h) => ({ ...h, color: h.color || layerColor(h.layer), isContainer: !!h.is_container })),
-    [topHotspots]
+    () => topHotspots
+      .filter((h) => !placingItem || layerHoldsStock(h.layer))
+      .map((h) => ({ ...h, color: h.color || layerColor(h.layer), isContainer: !!h.is_container })),
+    [topHotspots, placingItem]
   );
 
   // The opened-container path, resolved live from hotspots (so labels/photo
@@ -735,7 +739,10 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
 
   // One chip row, two treatments: '' (light, in the cream toolbar — the
   // mobile variant) and 'vm-chip-dark' (floating on the dark stage, ≥1024px).
-  const layerChips = (variant) => LAYERS.map((l) => {
+  const layerChips = (variant) => LAYERS
+    // While placing an item, only the stock-bearing layers are relevant.
+    .filter((l) => !placingItem || layerHoldsStock(l.key))
+    .map((l) => {
     const on = activeLayers.has(l.key);
     return (
       <button
