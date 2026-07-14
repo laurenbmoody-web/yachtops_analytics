@@ -157,12 +157,13 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   };
 
   const handleCrewSelect = (crew) => {
+    const marking = [crew?.laundryNumber, crew?.laundryColour].filter(Boolean).join(' · ');
     setFormData((prev) => ({
       ...prev,
       ownerName: crew?.fullName, ownerCrewUserId: crew?.id, ownerDisplayName: crew?.fullName,
       area: crew?.cabin || prev.area, areaLocationId: null,
-      laundryNumber: crew?.laundryNumber || prev.laundryNumber,
-      colour: crew?.laundryColour || prev.colour,
+      laundryNumber: marking || prev.laundryNumber,
+      colour: '',
     }));
     setCrewSearchQuery(crew?.fullName); setShowCrewDropdown(false); clearError('owner');
   };
@@ -430,18 +431,14 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
               </div>
               {errors.owner && <div className="alm-err">{errors.owner}</div>}
             </div>
-            <div className="alm-section">
-              <label className="alm-label">Cabin <span className="alm-opt">optional</span></label>
-              <input className="alm-field" value={formData.area} onChange={(e) => setField('area', e?.target?.value)} placeholder="Where to deliver back to" />
-            </div>
             <div className="alm-grid2">
               <div>
-                <label className="alm-label">Laundry number <span className="alm-opt">optional</span></label>
-                <input className="alm-field" value={formData.laundryNumber} onChange={(e) => setField('laundryNumber', e?.target?.value)} placeholder="e.g. 14" />
+                <label className="alm-label">Cabin <span className="alm-opt">optional</span></label>
+                <input className="alm-field" value={formData.area} onChange={(e) => setField('area', e?.target?.value)} placeholder="Where to deliver back to" />
               </div>
               <div>
-                <label className="alm-label">Colour <span className="alm-opt">optional</span></label>
-                <input className="alm-field" value={formData.colour} onChange={(e) => setField('colour', e?.target?.value)} placeholder="e.g. Navy" />
+                <label className="alm-label">Laundry no. &amp; colour <span className="alm-opt">optional</span></label>
+                <input className="alm-field" value={formData.laundryNumber} onChange={(e) => setField('laundryNumber', e?.target?.value)} placeholder="e.g. 14 · Navy" />
               </div>
             </div>
           </>
