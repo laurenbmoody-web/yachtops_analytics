@@ -316,6 +316,35 @@
 .alm-drop.compact { flex-direction: row; padding: 16px 18px; gap: 12px; justify-content: flex-start; }
 .alm-drop.compact .alm-drop-sub { margin-left: auto; }
 
+/* owner bar: segmented toggle + urgent far right */
+.alm-ownerbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.alm-urgent-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  background: none; border: none; cursor: pointer; padding: 6px 2px;
+}
+.alm-urgent-toggle.on { color: #C65A1A; }
+.alm-switch.sm { width: 34px; height: 19px; display: inline-block; }
+.alm-switch.sm::after { width: 15px; height: 15px; }
+.alm-switch.sm.on::after { transform: translateX(15px); }
+
+/* two-column field grid */
+.alm-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+
+/* description with dictation */
+.alm-desc { position: relative; }
+.alm-desc textarea { padding-right: 48px; }
+.alm-mic {
+  position: absolute; top: 8px; right: 8px; width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 8px; background: #F1F5F9; color: #6B7280; cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+.alm-mic:hover { background: #E7EBF1; color: #1C1B3A; }
+.alm-mic.on { background: #C65A1A; color: #FFFFFF; animation: alm-pulse 1.2s ease-in-out infinite; }
+@keyframes alm-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0.45); } 50% { box-shadow: 0 0 0 5px rgba(198, 90, 26, 0); } }
+.alm-mic-hint { margin-top: 7px; font-size: 12px; font-weight: 500; color: #C65A1A; }
+
 /* owner-type choice cards */
 .alm-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .alm-choice {
@@ -468,6 +497,6 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 
 @media (max-width: 720px) {
   .lm-page { padding: 20px 16px 60px; }
-  .lm-choices, .alm-choices { grid-template-columns: 1fr; }
+  .lm-choices, .alm-choices, .alm-grid2 { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .lm-dd-ch, .alm-switch, .alm-switch::after { transition: none; } }
