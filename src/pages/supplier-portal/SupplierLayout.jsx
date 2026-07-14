@@ -9,7 +9,8 @@ import SupplierAvatarMenu from './components/SupplierAvatarMenu';
 import { useTier, hasClientPermission } from '../../contexts/SupplierPermissionContext';
 import { useSupplier } from '../../contexts/SupplierContext';
 import { fetchUnactionedReturnsCount } from './utils/supplierReturnTasks';
-import { fetchVesselRevisedCount, fetchVesselRevisedLines, fetchVesselApprovedOrders } from './utils/supplierStorage';
+import { fetchVesselRevisedCount, fetchVesselRevisedLines, fetchVesselApprovedOrders, fetchSupplierUnreadCount } from './utils/supplierStorage';
+import { supabase } from '../../lib/supabaseClient';
 import './supplier-portal.css';
 
 // `requires` gates each nav item via hasClientPermission. Items without
@@ -82,6 +83,34 @@ const SupplierLayout = () => {
       cancelled = true;
       window.removeEventListener('focus', refresh);
       window.removeEventListener('supplier-return-tasks-changed', refresh);
+    };
+  }, [supplier?.id]);
+
+  // Unread messages badge for /supplier/messages. Re-fetches on mount,
+  // window focus, a local 'supplier-messages-read' event (instant drop when a
+  // thread is opened), and live via realtime on the supplier's threads (so a
+  // new message bumps the badge from anywhere in the portal).
+  const [messagesCount, setMessagesCount] = useState(0);
+  useEffect(() => {
+    if (!supplier?.id) return undefined;
+    let cancelled = false;
+    const refresh = () => {
+      fetchSupplierUnreadCount(supplier.id)
+        .then((n) => { if (!cancelled) setMessagesCount(n); })
+        .catch((e) => console.error('[SupplierLayout messages badge]', e));
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('supplier-messages-read', refresh);
+    const ch = supabase
+      .channel(`nav-unread-${supplier.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'supplier_message_threads', filter: `supplier_id=eq.${supplier.id}` }, refresh)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('supplier-messages-read', refresh);
+      supabase.removeChannel(ch);
     };
   }, [supplier?.id]);
 
@@ -177,6 +206,11 @@ const SupplierLayout = () => {
                   {to === '/supplier/returns' && returnsCount > 0 && (
                     <span className="sp-nav-item-badge" aria-label={`${returnsCount} unactioned return${returnsCount === 1 ? '' : 's'}`}>
                       {returnsCount}
+                    </span>
+                  )}
+                  {to === '/supplier/messages' && messagesCount > 0 && (
+                    <span className="sp-nav-item-badge" aria-label={`${messagesCount} unread message${messagesCount === 1 ? '' : 's'}`}>
+                      {messagesCount > 9 ? '9+' : messagesCount}
                     </span>
                   )}
                 </NavLink>

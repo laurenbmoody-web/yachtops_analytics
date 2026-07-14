@@ -834,6 +834,17 @@ export const fetchMessages = async (threadId) => {
   return data ?? [];
 };
 
+// Total unread messages for the supplier — sum across threads. Drives the
+// Messages nav badge.
+export const fetchSupplierUnreadCount = async (supplierId) => {
+  const { data, error } = await supabase
+    .from('supplier_message_threads')
+    .select('supplier_unread_count')
+    .eq('supplier_id', supplierId);
+  if (error) throw error;
+  return (data ?? []).reduce((s, t) => s + (t.supplier_unread_count || 0), 0);
+};
+
 // Mark a thread read on the supplier side — clears the unread badge and moves
 // the read cursor so the vessel's receipts update. RLS lets the supplier
 // update their own thread.
