@@ -8,11 +8,13 @@
 // Cross-location work — moving stock between locations, or fixing another
 // location's count — lives in the item drawer (its god-view), not here.
 import React, { useEffect, useRef, useState } from 'react';
-import { searchInventoryItems, searchInventoryLocations, locationLabel, categoryPath } from '../utils/inventory';
+import { searchInventoryItems, categoryPath } from '../utils/inventory';
 import {
   resolvePinNode, itemsAtNode, placeStock, setPinCount,
   clearItemNode, createItemAtNode,
 } from '../utils/placement';
+import { getFolderTree } from '../../inventory/utils/inventoryStorage';
+import InventoryFolderPicker from '../../inventory/components/InventoryFolderPicker';
 import ItemDrawer from './ItemDrawer';
 
 export default function PinItems({
@@ -27,16 +29,14 @@ export default function PinItems({
   const [transfer, setTransfer] = useState(null); // { item, addNew } — "how many here"
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('');
-  const [newCat, setNewCat] = useState(null);
-  const [catPicking, setCatPicking] = useState(false);
-  const [catQuery, setCatQuery] = useState('');
-  const [catResults, setCatResults] = useState([]);
+  const [newCat, setNewCat] = useState(null); // { location, sub_location, label } — inventory folder
+  const [folderTree, setFolderTree] = useState(null);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const [dup, setDup] = useState(null); // a same-named existing item awaiting confirm
   const [openItem, setOpenItem] = useState(null); // itemId shown in the quick-view drawer
   const debounce = useRef(null);
-  const catDebounce = useRef(null);
 
   // The stock location's display name = the pin's full path, so pins in the
   // same room don't collide into identical "Main Galley" entries.
@@ -47,7 +47,7 @@ export default function PinItems({
 
   const resetAll = () => {
     setMode(null); setQuery(''); setResults([]); setTransfer(null); setError(null); setDup(null);
-    setNewName(''); setNewQty(''); setNewCat(null); setCatPicking(false); setCatQuery(''); setCatResults([]);
+    setNewName(''); setNewQty(''); setNewCat(null); setShowFolderPicker(false);
   };
   useEffect(() => { setNodeId(hotspot?.location_node_id || null); resetAll(); }, [hotspot?.id]);
 
@@ -71,15 +71,14 @@ export default function PinItems({
     return () => clearTimeout(debounce.current);
   }, [mode, query, tenantId]);
 
+  // Load the inventory folder tree lazily the first time the create form opens,
+  // so the map files items into the same department › subfolder tree inventory uses.
   useEffect(() => {
-    if (!catPicking) return undefined;
-    clearTimeout(catDebounce.current);
-    catDebounce.current = setTimeout(async () => {
-      const { locations, error: e } = await searchInventoryLocations(tenantId, catQuery);
-      if (e) setError(e); else setCatResults(locations || []);
-    }, 250);
-    return () => clearTimeout(catDebounce.current);
-  }, [catPicking, catQuery, tenantId]);
+    if (mode !== 'create' || folderTree) return;
+    let cancelled = false;
+    getFolderTree().then((t) => { if (!cancelled) setFolderTree(t || {}); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [mode, folderTree]);
 
   const ensureNode = async () => {
     if (nodeId) return nodeId;
@@ -117,6 +116,7 @@ export default function PinItems({
   const createItem = async (force = false) => {
     const name = newName.trim();
     if (!name) return;
+    if (!newCat) { setShowFolderPicker(true); return; } // must be filed in a folder
     setError(null);
     const nid = await ensureNode();
     if (!nid) return;
@@ -269,20 +269,10 @@ export default function PinItems({
           {newCat ? (
             <div className="vm-pinitems-cat-set">
               <span className="vm-pinitems-cat-label">{newCat.label}</span>
-              <button className="vm-pinitems-cat-change" onClick={() => { setNewCat(null); setCatPicking(true); setCatQuery(''); setCatResults([]); }}>Change</button>
-            </div>
-          ) : catPicking ? (
-            <div className="vm-cupboard-picker">
-              <input className="vm-check-input" placeholder="Search categories — “alcohol”…" value={catQuery} onChange={(e) => setCatQuery(e.target.value)} autoFocus />
-              {catResults.map((r) => (
-                <button key={r.id} className="vm-cupboard-result" onClick={() => { setNewCat({ location: r.location, sub_location: r.sub_location, label: locationLabel(r) }); setCatPicking(false); setCatQuery(''); setCatResults([]); }}>
-                  {locationLabel(r)}
-                </button>
-              ))}
-              <button className="vm-cupboard-cancel" onClick={() => { setCatPicking(false); setCatQuery(''); }}>Skip category</button>
+              <button className="vm-pinitems-cat-change" onClick={() => setShowFolderPicker(true)}>Change</button>
             </div>
           ) : (
-            <button className="vm-pinitems-cat-add" onClick={() => { setCatPicking(true); setCatQuery(''); setCatResults([]); }}>+ Choose a category</button>
+            <button className="vm-pinitems-cat-add" onClick={() => setShowFolderPicker(true)}>+ File in a folder</button>
           )}
           {dup ? (
             <div className="vm-transfer">
@@ -299,10 +289,10 @@ export default function PinItems({
             <>
               <div className="vm-pinitems-new-row">
                 <input className="vm-check-input vm-pinitems-new-qty" type="number" min="0" placeholder="Qty" value={newQty} onChange={(e) => setNewQty(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createItem(); }} />
-                <button className="vm-btn-primary" onClick={() => createItem()} disabled={!newName.trim() || busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add here'}</button>
-                <button className="vm-btn-ghost" onClick={() => { setMode(null); setNewName(''); setNewQty(''); setNewCat(null); setCatPicking(false); }}>Cancel</button>
+                <button className="vm-btn-primary" onClick={() => createItem()} disabled={!newName.trim() || !newCat || busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add here'}</button>
+                <button className="vm-btn-ghost" onClick={resetAll}>Cancel</button>
               </div>
-              <p className="vm-pinitems-new-hint">{newCat ? 'New stock, filed here in your chosen category.' : 'New stock received here; category optional.'}</p>
+              <p className="vm-pinitems-new-hint">{newCat ? `Filed in ${newCat.label}, stocked on this pin.` : 'Pick a folder (department › subfolder) to file this item.'}</p>
             </>
           )}
         </div>
@@ -316,6 +306,18 @@ export default function PinItems({
 
       {openItem && (
         <ItemDrawer itemId={openItem} onClose={() => { setOpenItem(null); load(nodeId); }} />
+      )}
+
+      {showFolderPicker && (
+        <InventoryFolderPicker
+          tree={folderTree || {}}
+          onSelect={({ path, displayPath }) => {
+            setNewCat({ location: path?.[0] || null, sub_location: (path || []).slice(1).join(' > ') || null, label: displayPath });
+            setShowFolderPicker(false);
+          }}
+          onClose={() => setShowFolderPicker(false)}
+          onFolderCreated={(t) => setFolderTree(t)}
+        />
       )}
     </div>
   );
