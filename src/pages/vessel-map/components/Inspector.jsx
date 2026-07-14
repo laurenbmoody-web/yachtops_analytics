@@ -151,14 +151,14 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
   // "Adjust position" moves a pin in 3-D; a nested pin lives on a 2-D photo,
   // so it's hidden there (repositioning inside comes later).
   const dangerActions = canManage && (
-    <>
-      {!shown.parent_id && (
-        <button className="vm-btn-ghost vm-insp-adjust" onClick={() => onAdjust?.(shown)}>
-          Adjust position
-        </button>
-      )}
-      <div className="vm-insp-danger">
-        {deleteError && <p className="vm-insp-error">{deleteError}</p>}
+    <div className="vm-insp-danger">
+      {deleteError && <p className="vm-insp-error">{deleteError}</p>}
+      <div className="vm-insp-actions-row">
+        {!shown.parent_id && (
+          <button className="vm-btn-ghost vm-insp-adjust" onClick={() => onAdjust?.(shown)}>
+            Adjust position
+          </button>
+        )}
         {confirming ? (
           <div className="vm-insp-confirm">
             <button className="vm-insp-delete vm-insp-delete-armed" onClick={doDelete} disabled={deleting}>
@@ -174,7 +174,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
           </button>
         )}
       </div>
-    </>
+    </div>
   );
 
   return (
