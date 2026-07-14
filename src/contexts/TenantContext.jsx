@@ -67,46 +67,68 @@ const PersonalModeScreen = ({ userName, userId }) => {
     window.location.href = '/login-authentication';
   };
 
-  const first = (userName || '').trim().split(' ')[0];
-  const card = {
-    display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
-    background: '#fff', border: '1px solid #ECEAE3', borderRadius: 12,
-    padding: '15px 18px', font: 'inherit',
-  };
-  const cardTitle = { fontSize: 14.5, fontWeight: 600, color: '#1C1B3A' };
-  const cardSub = { fontSize: 12.5, color: '#8B8478', marginTop: 2 };
+  const first = (userName || '').trim().split(/\s+/)[0];
+  const initials = (userName || '').trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'C';
+
+  const ic = { width: 19, height: 19, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const UserIcon = () => (<svg viewBox="0 0 24 24" style={ic}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>);
+  const GearIcon = () => (<svg viewBox="0 0 24 24" style={ic}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>);
+  const Chevron = () => (<svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}><path d="M9 18l6-6-6-6" /></svg>);
+
+  const ActionRow = ({ icon, title, sub, onClick }) => (
+    <button onClick={onClick} style={{
+      display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left',
+      background: '#FBFAF8', border: '1px solid #EFEDE6', borderRadius: 12,
+      padding: '13px 14px', cursor: 'pointer', font: 'inherit',
+    }}>
+      <span style={{ width: 38, height: 38, borderRadius: 10, background: '#FBEFE9', color: '#C65A1A', display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>{icon}</span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#1C1B3A' }}>{title}</span>
+        <span style={{ display: 'block', fontSize: 12, color: '#8B8478', marginTop: 1 }}>{sub}</span>
+      </span>
+      <span style={{ color: '#CFCABF', flex: '0 0 auto' }}><Chevron /></span>
+    </button>
+  );
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999, background: '#F8FAFC',
+      position: 'fixed', inset: 0, zIndex: 9999, overflow: 'auto',
+      background: 'radial-gradient(120% 120% at 50% 0%, #FBFAF7 0%, #F1EFE8 100%)',
       display: 'grid', placeItems: 'center', padding: 24,
-      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+      fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-      <div style={{ width: '100%', maxWidth: 500 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#8B8478', marginBottom: 12 }}>
-          Your Cargo account
+      <div style={{ width: '100%', maxWidth: 452 }}>
+        {/* Identity + status */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 13, marginBottom: 24 }}>
+          <div style={{ width: 54, height: 54, borderRadius: 999, background: '#1C1B3A', color: '#fff', display: 'grid', placeItems: 'center', fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 21, letterSpacing: '0.02em' }}>
+            {initials}
+          </div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '4px 12px', borderRadius: 999, background: '#FBEFE9', border: '1px solid #F3D9CF' }}>
+            <span style={{ width: 6, height: 6, borderRadius: 999, background: '#C65A1A' }} />
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#B14E16' }}>Between vessels</span>
+          </div>
         </div>
-        <h1 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 32, color: '#1C1B3A', margin: '0 0 10px', lineHeight: 1.12 }}>
-          {first ? `${first}, you’re ` : 'You’re '}<em style={{ color: '#C65A1A' }}>between vessels</em>.
-        </h1>
-        <p style={{ fontSize: 14.5, lineHeight: 1.55, color: '#6F7396', margin: '0 0 24px' }}>
-          You’re not on a vessel right now. Your personal record — profile, documents and sea service — is safe and travels with you. Vessel features unlock again as soon as you join or are added to a vessel.
-        </p>
-        <div style={{ display: 'grid', gap: 10 }}>
-          <button style={card} onClick={() => go(userId ? `/profile/${userId}` : '/my-profile')}>
-            <div style={cardTitle}>My profile &amp; documents</div>
-            <div style={cardSub}>Your details, certificates and sea service — keep them up to date.</div>
-          </button>
-          <button style={card} onClick={() => go('/settings')}>
-            <div style={cardTitle}>Settings</div>
-            <div style={cardSub}>Account, security and privacy.</div>
-          </button>
+
+        {/* Card */}
+        <div style={{ background: '#fff', border: '1px solid #ECEAE3', borderRadius: 18, boxShadow: '0 30px 60px -28px rgba(28,27,58,0.28)', padding: '30px 28px 24px' }}>
+          <h1 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 27, color: '#1C1B3A', margin: '0 0 10px', lineHeight: 1.16, textAlign: 'center' }}>
+            {first ? `${first}, your record ` : 'Your record '}<em style={{ color: '#C65A1A' }}>travels with you</em>.
+          </h1>
+          <p style={{ fontSize: 14, lineHeight: 1.6, color: '#6F7396', margin: '0 0 22px', textAlign: 'center' }}>
+            You’re not on a vessel right now. Your profile, documents and sea service stay safe — vessel features unlock the moment you join or are added to one.
+          </p>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <ActionRow icon={<UserIcon />} title={'My profile & documents'} sub={'Details, certificates & sea service'} onClick={() => go(userId ? `/profile/${userId}` : '/my-profile')} />
+            <ActionRow icon={<GearIcon />} title={'Settings'} sub={'Account, security & privacy'} onClick={() => go('/settings')} />
+          </div>
         </div>
-        <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #ECEAE3', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-          <span style={{ fontSize: 12.5, color: '#8B8478', lineHeight: 1.4 }}>
+
+        {/* Footer */}
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <p style={{ fontSize: 12.5, color: '#8B8478', lineHeight: 1.5, margin: '0 0 12px' }}>
             Joining a vessel? Accept your invite link, or ask the vessel’s admin to add you.
-          </span>
-          <button onClick={handleSignOut} style={{ flex: '0 0 auto', fontSize: 13, fontWeight: 600, color: '#1C1B3A', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 9, padding: '8px 14px', cursor: 'pointer' }}>
+          </p>
+          <button onClick={handleSignOut} style={{ fontSize: 13, fontWeight: 600, color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>
             Sign out
           </button>
         </div>
