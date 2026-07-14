@@ -111,7 +111,7 @@ const PersonalModeScreen = ({ userName, userId }) => {
             fontSize: 34, lineHeight: 1.02, letterSpacing: '-0.5px', color: '#1C1B3A',
             textTransform: 'uppercase', margin: '0 0 12px', textAlign: 'center',
           }}>
-            Between, <em style={{ fontStyle: 'italic', fontWeight: 400, color: '#C65A1A', textTransform: 'none' }}>vessels</em>.
+            Between, <em style={{ fontStyle: 'italic', fontWeight: 400, color: '#C65A1A', textTransform: 'none' }}>vessels</em>
           </h1>
           <p style={{ fontSize: 14, lineHeight: 1.6, color: '#6F7396', margin: '0 0 22px', textAlign: 'center' }}>
             You’re not on a vessel right now. Your profile, documents and sea service stay safe — vessel features unlock the moment you join or are added to one.

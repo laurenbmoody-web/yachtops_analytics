@@ -4431,10 +4431,12 @@ const canEdit = (() => {
             className="hidden"
           />
           
-          {/* Back Button — Crew Management is vessel-only; off a vessel it errors,
-              so send the user back to their personal home instead. */}
+          {/* Back Button — Crew Management is vessel-only; off a vessel, do a full
+              navigation to /dashboard so the personal-mode landing (rendered
+              outside the router) re-evaluates and shows, instead of the guarded
+              dashboard's error. */}
           <button
-            onClick={() => navigate(activeTenantId ? '/crew-management' : '/dashboard')}
+            onClick={() => { if (activeTenantId) navigate('/crew-management'); else window.location.href = '/dashboard'; }}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-smooth"
           >
             <Icon name="ChevronLeft" size={16} />
