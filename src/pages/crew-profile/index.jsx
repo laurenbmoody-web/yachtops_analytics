@@ -465,6 +465,7 @@ const CrewProfile = () => {
               can_edit_rota,
               can_order_without_approval,
               can_confirm_quotes_without_approval,
+              can_view_crew_docs,
               start_date,
               joined_at,
               departments(name),
@@ -512,6 +513,7 @@ const CrewProfile = () => {
           canEditRota: membershipData?.can_edit_rota ?? null,
           canOrderWithoutApproval: membershipData?.can_order_without_approval ?? null,
           canConfirmQuotesWithoutApproval: membershipData?.can_confirm_quotes_without_approval ?? null,
+          canViewCrewDocs: membershipData?.can_view_crew_docs ?? null,
           startDate: membershipData?.start_date || membershipData?.joined_at || null,
           // Initialize empty fields for sections that may not have data yet
           dateOfBirth: '',
@@ -3569,6 +3571,8 @@ const canEdit = (() => {
     const confirmQuotesNoApproval = orderNoApproval
       ? (crewMember?.canConfirmQuotesWithoutApproval ?? (memberTier === 'COMMAND'))
       : false;
+    // Viewing other crew's certs/contracts — Command always can; others opt-in.
+    const viewCrewDocs = crewMember?.canViewCrewDocs ?? (memberTier === 'COMMAND');
 
     // Toggle handlers (with master→dependent cascades).
     const toggleCanEditRota = () => {
@@ -3601,6 +3605,10 @@ const canEdit = (() => {
       const next = !confirmQuotesNoApproval;
       updateCaps({ can_confirm_quotes_without_approval: next }, { canConfirmQuotesWithoutApproval: next });
     };
+    const toggleViewCrewDocs = () => {
+      const next = !viewCrewDocs;
+      updateCaps({ can_view_crew_docs: next }, { canViewCrewDocs: next });
+    };
 
     const editable = canEditPermissions && !permSaving;
     const whom = firstName === 'This person' ? 'this person' : firstName;
@@ -3623,7 +3631,8 @@ const canEdit = (() => {
     const defPublish = defEdit && memberTier !== 'HOD';
     const defOrder = memberTier === 'COMMAND';
     const defConfirm = memberTier === 'COMMAND';
-    const exceptions = [canEditRota !== defEdit, publishNoApproval !== defPublish, orderNoApproval !== defOrder, confirmQuotesNoApproval !== defConfirm].filter(Boolean).length;
+    const defViewCrewDocs = memberTier === 'COMMAND';
+    const exceptions = [canEditRota !== defEdit, publishNoApproval !== defPublish, orderNoApproval !== defOrder, confirmQuotesNoApproval !== defConfirm, viewCrewDocs !== defViewCrewDocs].filter(Boolean).length;
 
     // One-line class summary + the capability map it grants, grouped by area.
     const CLASS_DESC = {
@@ -3711,6 +3720,7 @@ const canEdit = (() => {
         {capRow('Publish rota without approval', canEditRota ? 'On publishes directly; off routes changes for review.' : 'Needs rota editing enabled first.', publishNoApproval, togglePublishNoApproval, { disabled: !canEditRota, def: defPublish })}
         {capRow('Send supplier orders without approval', 'On sends straight to suppliers; off routes for approval.', orderNoApproval, toggleOrderNoApproval, { def: defOrder })}
         {capRow('Confirm supplier quotes without approval', orderNoApproval ? 'On confirms directly; off routes for approval.' : 'Needs sending-without-approval enabled first.', confirmQuotesNoApproval, toggleConfirmQuotes, { disabled: !orderNoApproval, def: defConfirm })}
+        {capRow('View all crew documents', memberTier === 'COMMAND' ? 'Command always sees every crew member’s certificates & contracts.' : 'See every crew member’s certificates & contracts in the vault and renewals — normally Command only.', viewCrewDocs, toggleViewCrewDocs, { disabled: memberTier === 'COMMAND', def: defViewCrewDocs })}
 
         <div className="s2-lock"><Icon name="Lock" size={13} /> {canEditPermissions ? 'Changes save immediately.' : `Only Command can change ${whom}’s access.`}</div>
       </div>
