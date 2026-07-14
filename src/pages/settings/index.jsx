@@ -141,12 +141,6 @@ const NAV = [
     { id: 'help', label: 'Help', icon: 'HelpCircle' },
   ] },
 ];
-const VESSEL_ITEMS = [
-  { id: 'vessel-profile', label: 'Vessel Profile', icon: 'Ship' },
-  { id: 'location-management', label: 'Locations', icon: 'MapPin' },
-  { id: 'role-management', label: 'Roles', icon: 'Users' },
-  { id: 'provisioning-approval', label: 'Provisioning Approval', icon: 'CheckCircle' },
-];
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -1234,13 +1228,13 @@ const SettingsPage = () => {
                 {canAccessVessel && (
                   <>
                     <div className="set-nav-grp">Vessel</div>
-                    {VESSEL_ITEMS.map(item => (
-                      <button key={item.id} className="set-nav-it" onClick={() => navigate(`/settings/vessel?section=${item.id}`)}>
-                        <Icon name={item.icon} size={17} color="#8B8478" />
-                        <span>{item.label}</span>
-                        <Icon name="ArrowUpRight" size={14} className="set-ext" />
-                      </button>
-                    ))}
+                    {/* One entry that jumps straight to the vessel settings page,
+                        which hosts its own sections (profile, locations, roles…). */}
+                    <button className="set-nav-it" onClick={() => navigate('/settings/vessel')}>
+                      <Icon name="Ship" size={17} color="#8B8478" />
+                      <span>Vessel settings</span>
+                      <Icon name="ArrowUpRight" size={14} className="set-ext" />
+                    </button>
                   </>
                 )}
               </nav>
