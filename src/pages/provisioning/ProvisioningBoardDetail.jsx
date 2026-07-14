@@ -593,7 +593,7 @@ const BoughtBy = ({ purchaseUnit, perPack, editable, onSetUnit, onSetCount }) =>
       return (
         <select autoFocus value="" onBlur={() => setPicking(false)}
           onChange={e => { if (e.target.value) onSetUnit(e.target.value); setPicking(false); }}
-          style={{ fontSize: 11, color: '#C65A1A', background: '#fff', border: '1px solid #C65A1A', borderRadius: 6, padding: '1px 4px', outline: 'none', cursor: 'pointer' }}>
+          style={{ fontSize: 11, color: '#1C1B3A', background: '#fff', border: '1px solid #94A3B8', borderRadius: 6, padding: '1px 4px', outline: 'none', cursor: 'pointer' }}>
           <option value="">bought in…</option>
           {BOUGHT_BY_GROUPS.flatMap(g => g.options).map(u => <option key={u} value={u}>{pluralizePack(u)}</option>)}
         </select>
@@ -617,7 +617,7 @@ const BoughtBy = ({ purchaseUnit, perPack, editable, onSetUnit, onSetCount }) =>
       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } else if (e.key === 'Escape') { setDraft(String(perPack ?? '')); e.target.blur(); } }}
       title="How many per pack"
       className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-      style={{ width: focused ? 44 : 26, fontSize: 11, fontWeight: 700, color: '#1C1B3A', textAlign: 'center', background: '#fff', border: `1px solid ${focused ? '#C65A1A' : '#E5E7EB'}`, borderRadius: 5, padding: '1px 2px', outline: 'none', boxShadow: focused ? '0 0 0 3px #FAECE7' : 'none', transition: 'width 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease' }} />
+      style={{ width: focused ? 44 : 26, fontSize: 11, fontWeight: 700, color: '#1C1B3A', textAlign: 'center', background: '#fff', border: `1px solid ${focused ? '#94A3B8' : '#E5E7EB'}`, borderRadius: 5, padding: '1px 2px', outline: 'none', boxShadow: focused ? '0 0 0 3px rgba(28,27,58,0.06)' : 'none', transition: 'width 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease' }} />
   ) : <span style={{ fontWeight: 700, color: '#1C1B3A' }}>{Number(perPack) || '?'}</span>;
 
   return (

@@ -478,7 +478,7 @@ export default function PastActivityPicker({
       if (tab === 'boards' && boardsToggle !== 'templates') {
         const { data: sourceItems } = await supabase
           ?.from('provisioning_items')
-          ?.select('name, category, department, quantity_ordered, unit, estimated_unit_cost, allergen_flags, notes, source')
+          ?.select('name, category, department, quantity_ordered, unit, purchase_unit, units_per_pack, estimated_unit_cost, allergen_flags, notes, source')
           ?.eq('list_id', selectedBoardId);
         const sourceGuests = selectedBoard?._guestCount || 0;
         const shouldScale = scaleQty && sourceGuests > 0 && newGuestCount > 0 && sourceGuests !== newGuestCount;
@@ -491,6 +491,8 @@ export default function PastActivityPicker({
             ? Math.max(1, Math.ceil((item.quantity_ordered || 1) * scaleFactor))
             : (item.quantity_ordered || 1),
           unit:             item.unit || null,
+          purchase_unit:    item.purchase_unit || null,
+          units_per_pack:   item.units_per_pack ?? null,
           estimated_unit_cost: item.estimated_unit_cost || null,
           allergen_flags:   item.allergen_flags || null,
           notes:            item.notes || null,
@@ -505,7 +507,7 @@ export default function PastActivityPicker({
         if (selectedTemplate._kind === 'saved') {
           const { data: sourceItems } = await supabase
             ?.from('provisioning_items')
-            ?.select('name, category, department, quantity_ordered, unit, estimated_unit_cost, allergen_flags, notes')
+            ?.select('name, category, department, quantity_ordered, unit, purchase_unit, units_per_pack, estimated_unit_cost, allergen_flags, notes')
             ?.eq('list_id', selectedTemplate.id);
           const items = (sourceItems || []).map(item => ({
             name:             item.name,
@@ -513,6 +515,8 @@ export default function PastActivityPicker({
             department:       item.department || null,
             quantity_ordered: item.quantity_ordered || 1,
             unit:             item.unit || null,
+            purchase_unit:    item.purchase_unit || null,
+            units_per_pack:   item.units_per_pack ?? null,
             estimated_unit_cost: item.estimated_unit_cost || null,
             allergen_flags:   item.allergen_flags || null,
             notes:            item.notes || null,
@@ -532,6 +536,10 @@ export default function PastActivityPicker({
             name:             item.name,
             category:         item.category,
             unit:             item.unit || null,
+            // Templates seed the pack as a "bought in" overlay with the count
+            // left blank for the crew to fill in per their supplier.
+            purchase_unit:    item.purchase_unit || null,
+            units_per_pack:   item.units_per_pack ?? null,
             quantity_ordered: qty,
             status:           'draft',
             department:       tpl.department,
@@ -545,7 +553,7 @@ export default function PastActivityPicker({
       if (tab === 'orders') {
         const { data: rows } = await supabase
           ?.from('supplier_order_items')
-          ?.select('item_name, brand, size, category, sub_category, department, allergen_flags, quantity, unit')
+          ?.select('item_name, brand, size, category, sub_category, department, allergen_flags, quantity, unit, purchase_unit, units_per_pack')
           ?.eq('order_id', selectedOrderId);
         const items = (rows || []).map(r => ({
           name:             r.item_name,
@@ -557,6 +565,8 @@ export default function PastActivityPicker({
           allergen_flags:   r.allergen_flags || null,
           quantity_ordered: r.quantity ?? 1,
           unit:             r.unit || null,
+          purchase_unit:    r.purchase_unit || null,
+          units_per_pack:   r.units_per_pack ?? null,
           status:           'draft',
         }));
         const source = favouritesOnly || selectedOrder?.is_favourite ? 'favourite' : 'history';
