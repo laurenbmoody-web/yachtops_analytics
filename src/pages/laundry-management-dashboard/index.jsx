@@ -215,6 +215,13 @@ const LaundryManagementDashboard = () => {
   const active = (counts.inProgress + counts.ready) > 0;
   const totalItems = laundryItems?.length || 0;
 
+  // Status groups (workflow order) for the list, populated from the filtered set.
+  const groups = [
+    { key: LaundryStatus?.IN_PROGRESS, label: 'In progress' },
+    { key: LaundryStatus?.READY_TO_DELIVER, label: 'Ready to deliver' },
+    { key: LaundryStatus?.DELIVERED, label: 'Delivered' },
+  ].map((g) => ({ ...g, items: filteredItems.filter((i) => i?.status === g.key) })).filter((g) => g.items.length);
+
   return (
     <>
       <Header />
@@ -283,16 +290,30 @@ const LaundryManagementDashboard = () => {
             <SortMenu value={sortBy} onChange={setSortBy} />
           </div>
 
-          {/* List */}
+          {/* List — grouped by status when viewing everything */}
           <div className="lm-list">
             {filteredItems?.length === 0 ? (
               <div className="lm-empty" role="status">
                 <Icon name="Package" size={44} className="lm-empty-ic" />
                 <div className="lm-empty-title">{isFiltered ? 'No matches' : 'Nothing in the wash'}</div>
                 <div className="lm-empty-sub">
-                  {isFiltered ? 'Try a different filter or clear your search.' : 'Add your first laundry item to get started.'}
+                  {isFiltered ? 'Try a different filter or clear your search.' : 'Everything the crew adds shows here, from pickup to delivery.'}
                 </div>
+                {!isFiltered && (
+                  <button type="button" className="lm-btn primary lm-empty-cta" onClick={() => setShowAddModal(true)}>
+                    <Icon name="Plus" size={16} /> Add first item
+                  </button>
+                )}
               </div>
+            ) : groups.length > 1 ? (
+              groups.map((g) => (
+                <div key={g.key} className="lm-group">
+                  <div className="lm-group-h">{g.label}<span className="lm-group-n">{g.items.length}</span></div>
+                  {g.items.map((item) => (
+                    <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} />
+                  ))}
+                </div>
+              ))
             ) : (
               filteredItems?.map((item) => (
                 <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} />

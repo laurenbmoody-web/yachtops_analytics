@@ -177,12 +177,20 @@
 
 /* ── list ──────────────────────────────────────────────────── */
 .lm-list { margin-top: 6px; }
+.lm-group { margin-top: 8px; }
+.lm-group-h {
+  display: flex; align-items: baseline; gap: 9px;
+  font: 700 10px 'Inter', system-ui, sans-serif; letter-spacing: 0.12em;
+  text-transform: uppercase; color: #8B8478; padding: 20px 6px 8px;
+}
+.lm-group-n { font-size: 11px; letter-spacing: 0; color: #C65A1A; font-variant-numeric: tabular-nums; }
 .lm-row {
   display: flex;
   gap: 16px;
   padding: 18px 6px;
   border-bottom: 1px solid #E5E7EB;
 }
+.lm-row.urgent { box-shadow: inset 3px 0 0 #C65A1A; padding-left: 12px; }
 .lm-thumb {
   width: 64px; height: 64px; border-radius: 12px; flex: none; object-fit: cover;
   background: #F1F5F9;
@@ -247,6 +255,7 @@
   color: #1C1B3A; margin-top: 14px;
 }
 .lm-empty-sub { font-size: 13.5px; color: #8B8478; margin-top: 6px; }
+.lm-empty-cta { margin-top: 20px; }
 
 /* ════════════════════════════════════════════════════════════
    Add Laundry modal (alm-*)
@@ -287,6 +296,25 @@
 }
 
 .alm-q { font-size: 14px; color: #4B4A66; margin: 0 0 16px; }
+
+/* segmented owner toggle */
+.alm-seg { display: inline-flex; gap: 4px; background: #F1F5F9; border-radius: 12px; padding: 4px; }
+.alm-seg-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: 600 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280;
+  background: none; border: none; border-radius: 9px; padding: 9px 20px; cursor: pointer;
+  transition: background 0.14s, color 0.14s, box-shadow 0.14s;
+}
+.alm-seg-btn.on { background: #FFFFFF; color: #C65A1A; box-shadow: 0 1px 3px rgba(28, 27, 58, 0.12); }
+
+/* inline validation */
+.alm-field.invalid { border-color: #C0492E; background: #FCEFEC; }
+.alm-field.invalid:focus { box-shadow: 0 0 0 3px rgba(192, 73, 46, 0.14); }
+.alm-err { margin-top: 7px; font-size: 12px; color: #A32D2D; }
+
+/* compact photo dropzone */
+.alm-drop.compact { flex-direction: row; padding: 16px 18px; gap: 12px; justify-content: flex-start; }
+.alm-drop.compact .alm-drop-sub { margin-left: auto; }
 
 /* owner-type choice cards */
 .alm-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
