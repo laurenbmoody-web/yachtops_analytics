@@ -129,7 +129,8 @@ function crewDocBucket(d) {
   const st = getDocStatus(d);
   if (d.historic || st.level === 'expired') return 'expired';
   const cat = getDocType(d.doc_type)?.category || d.category || 'other';
-  return CREW_CERT_CATS.has(cat) ? 'certificates' : 'documents';
+  if (cat === 'issued') return 'issued';                 // employer-issued: contracts, SEA, letters
+  return CREW_CERT_CATS.has(cat) ? 'certificates' : 'documents'; // certs vs travel/identity
 }
 
 // One row per crew member (active or former) who holds at least one document,
@@ -288,29 +289,46 @@ async function fetchVirtualChildren({ tenantId, parentId }) {
       }));
   }
 
-  // Member → Certificates / Documents / Expired & historic folders (non-empty).
+  // Member → Certificates / Documents / Issued / Expired folders (non-empty),
+  // each carrying an expiry rollup so live compliance shows on the folder.
   const crewMemberMatch = parentId.match(/^virt:crew:(active|former):([0-9a-fA-F-]{36})$/);
   if (crewMemberMatch) {
     const [, group, uid] = crewMemberMatch;
     const docs = (await fetchCrewDocsForUsers([uid]))
       .filter((d) => d.file_url && d.category !== CREW_DOC_EXCLUDE);
-    const counts = { certificates: 0, documents: 0, expired: 0 };
-    docs.forEach((d) => { counts[crewDocBucket(d)] += 1; });
+    const stats = {}; // bucket → { count, expiring, soonest }
+    docs.forEach((d) => {
+      const b = crewDocBucket(d);
+      const s = stats[b] || { count: 0, expiring: 0, soonest: null };
+      s.count += 1;
+      const st = getDocStatus(d);
+      if (!d.historic && d.expiry_date && !isAdvisoryDocType(d.doc_type)) {
+        if (st.level === 'red' || st.level === 'amber') s.expiring += 1; // within 90 days
+        if (!s.soonest || d.expiry_date < s.soonest) s.soonest = d.expiry_date;
+      }
+      stats[b] = s;
+    });
     const defs = [
       { key: 'certificates', name: 'Certificates' },
       { key: 'documents', name: 'Documents' },
+      { key: 'issued', name: 'Issued documents' },
       { key: 'expired', name: 'Expired & historic' },
     ];
-    return defs.filter((def) => counts[def.key] > 0).map((def) => ({
-      id: `${VIRT_CREW}:${group}:${uid}:${def.key}`,
-      kind: 'folder', system: true,
-      name: def.name,
-      meta: `${counts[def.key]} document${counts[def.key] !== 1 ? 's' : ''}`,
-    }));
+    return defs.filter((def) => stats[def.key]?.count > 0).map((def) => {
+      const s = stats[def.key];
+      return {
+        id: `${VIRT_CREW}:${group}:${uid}:${def.key}`,
+        kind: 'folder', system: true,
+        name: def.name,
+        expiringCount: def.key === 'expired' ? 0 : s.expiring,
+        soonestExpiry: def.key === 'expired' ? null : s.soonest,
+        meta: `${s.count} document${s.count !== 1 ? 's' : ''}`,
+      };
+    });
   }
 
   // Bucket → the read-only files (opens via the stored signed URL).
-  const crewBucketMatch = parentId.match(/^virt:crew:(active|former):([0-9a-fA-F-]{36}):(certificates|documents|expired)$/);
+  const crewBucketMatch = parentId.match(/^virt:crew:(active|former):([0-9a-fA-F-]{36}):(certificates|documents|issued|expired)$/);
   if (crewBucketMatch) {
     const [, , uid, bucket] = crewBucketMatch;
     const docs = (await fetchCrewDocsForUsers([uid]))
@@ -372,7 +390,7 @@ export async function fetchBreadcrumb({ tenantId, folderId }) {
         const { data } = await supabase.from('profiles').select('full_name').eq('id', uid).maybeSingle();
         crumbs.push({ id: `${VIRT_CREW}:${group}:${uid}`, name: data?.full_name || 'Crew member' });
         if (bucket) {
-          const label = bucket === 'certificates' ? 'Certificates' : bucket === 'documents' ? 'Documents' : 'Expired & historic';
+          const label = bucket === 'certificates' ? 'Certificates' : bucket === 'documents' ? 'Documents' : bucket === 'issued' ? 'Issued documents' : 'Expired & historic';
           crumbs.push({ id: folderId, name: label });
         }
       }

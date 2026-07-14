@@ -269,7 +269,18 @@ export default function VesselDocuments() {
       </span>
       <span className="vd-idx-nm">{f.name}</span>
       <span className="vd-idx-lead" />
-      <span className="vd-idx-rt vd-idx-meta">{f.meta || 'Folder'}</span>
+      <span className="vd-idx-rt">
+        {f.expiringCount > 0 && (
+          <span className="vd-pill" style={{ background: PILL.amber.bg, color: PILL.amber.fg }} title="Documents expiring within 90 days">
+            {f.expiringCount} expiring
+          </span>
+        )}
+        {f.soonestExpiry && !f.expiringCount ? (
+          <span className="vd-idx-meta" title={`Next renewal ${formatDocDate(f.soonestExpiry)}`}>Next {formatDocDate(f.soonestExpiry)}</span>
+        ) : (
+          <span className="vd-idx-meta">{f.meta || 'Folder'}</span>
+        )}
+      </span>
       <Icon name="ChevronRight" size={15} className="vd-idx-go" />
       {!f.system && (
         <span className="vd-actions" onClick={(e) => e.stopPropagation()}>
