@@ -262,50 +262,55 @@
    ════════════════════════════════════════════════════════════ */
 .alm-panel {
   background: #FFFFFF;
-  border: 1px solid #E5E7EB;
-  border-radius: 16px;
-  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
-  width: min(640px, calc(100vw - 32px));
+  border: 1px solid #ECEAE3;
+  border-radius: 22px;
+  box-shadow: 0 40px 90px -28px rgba(28, 27, 58, 0.34);
+  width: min(560px, calc(100vw - 32px));
   max-height: 90vh;
   overflow-y: auto;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
 }
+/* Atelier head — centred serif display over a soft terracotta wash */
 .alm-head {
-  position: sticky; top: 0; z-index: 3; background: #FFFFFF;
-  padding: 22px 26px 16px; border-bottom: 1px solid #F0F1F5;
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
-  border-radius: 16px 16px 0 0;
+  position: sticky; top: 0; z-index: 3;
+  padding: 30px 34px 22px; border-bottom: 1px solid #F0F1F5;
+  text-align: center; border-radius: 22px 22px 0 0;
+  background:
+    radial-gradient(130% 100% at 50% 0, #FBEFE9, transparent 68%),
+    #FFFFFF;
 }
 .alm-eyebrow {
-  font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1.4px;
-  text-transform: uppercase; color: #8B8478;
+  font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.22em;
+  text-transform: uppercase; color: #C65A1A;
 }
-.alm-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 24px; line-height: 1.1; margin-top: 5px; }
+.alm-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400; font-size: 34px; line-height: 1.05; letter-spacing: 0.2px; margin-top: 9px; }
+.alm-subtitle { margin-top: 7px; font-size: 13.5px; color: #6E6B85; }
 .alm-x {
-  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  position: absolute; top: 18px; right: 18px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border: none; border-radius: 9px; background: transparent;
   color: #8B8478; cursor: pointer; transition: background 0.14s, color 0.14s;
 }
 .alm-x:hover { background: #F4F6FA; color: #C65A1A; }
-.alm-body { padding: 22px 26px; }
+.alm-body { padding: 26px 34px; }
 .alm-foot {
-  position: sticky; bottom: 0; background: #FFFFFF; border-top: 1px solid #F0F1F5;
-  padding: 15px 26px; display: flex; align-items: center; justify-content: space-between;
-  border-radius: 0 0 16px 16px;
+  position: sticky; bottom: 0; background: #FBFCFE; border-top: 1px solid #F0F1F5;
+  padding: 18px 34px; display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+  border-radius: 0 0 22px 22px;
 }
 
 .alm-q { font-size: 14px; color: #4B4A66; margin: 0 0 16px; }
 
-/* segmented owner toggle */
-.alm-seg { display: inline-flex; gap: 4px; background: #F1F5F9; border-radius: 12px; padding: 4px; }
+/* segmented owner toggle — Atelier pill: soft field track, navy-ink selected */
+.alm-seg { display: inline-flex; gap: 4px; background: #F8FAFC; border: 1px solid #ECECEE; border-radius: 999px; padding: 5px; }
 .alm-seg-btn {
   display: inline-flex; align-items: center; gap: 7px;
-  font: 600 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280;
-  background: none; border: none; border-radius: 9px; padding: 9px 20px; cursor: pointer;
-  transition: background 0.14s, color 0.14s, box-shadow 0.14s;
+  font: 600 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6E6B85;
+  background: none; border: none; border-radius: 999px; padding: 9px 20px; cursor: pointer;
+  transition: background 0.14s, color 0.14s;
 }
-.alm-seg-btn.on { background: #FFFFFF; color: #C65A1A; box-shadow: 0 1px 3px rgba(28, 27, 58, 0.12); }
+.alm-seg-btn.on { background: #1C1B3A; color: #FFFFFF; }
 
 /* inline validation */
 .alm-field.invalid { border-color: #C0492E; background: #FCEFEC; }
@@ -345,6 +350,32 @@
 @keyframes alm-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0.45); } 50% { box-shadow: 0 0 0 5px rgba(198, 90, 26, 0); } }
 .alm-mic-hint { margin-top: 7px; font-size: 12px; font-weight: 500; color: #C65A1A; }
 
+/* ── Atelier voice hero — the primary, easiest way to describe an item ── */
+.alm-voice {
+  text-align: center; padding: 30px 20px; border-radius: 20px;
+  background: linear-gradient(180deg, #FBEFE9, #F8FAFC); border: 1px solid #ECECEE;
+}
+.alm-voice-mic {
+  position: relative; width: 86px; height: 86px; border-radius: 999px; border: none; cursor: pointer;
+  margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #FFFFFF;
+  background: radial-gradient(120% 120% at 30% 20%, #E07C43, #C65A1A);
+  box-shadow: 0 18px 40px -12px rgba(198, 90, 26, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.15s;
+}
+.alm-voice-mic:hover { transform: scale(1.05); }
+.alm-voice-rg { position: absolute; inset: 0; border-radius: 999px; border: 2px solid #C65A1A; opacity: 0; pointer-events: none; }
+.alm-voice.live .alm-voice-rg { animation: alm-rg 1.7s ease-out infinite; }
+.alm-voice.live .alm-voice-rg.b { animation-delay: 0.55s; }
+@keyframes alm-rg { 0% { opacity: 0.45; transform: scale(1); } 100% { opacity: 0; transform: scale(2); } }
+.alm-voice-title { margin: 16px 0 0; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 19px; color: #1C1B3A; }
+.alm-voice-eg { margin: 5px 0 0; font-size: 12.5px; color: #6E6B85; font-style: italic; }
+.alm-voice-or {
+  margin-top: 14px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A;
+  background: none; border: none; border-bottom: 1px dashed #E3B79E; cursor: pointer; padding-bottom: 1px;
+}
+.alm-voice-txt { margin-top: 16px; text-align: left; }
+.alm-voice-txt textarea { background: #FFFFFF; }
+
 /* owner-type choice cards */
 .alm-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .alm-choice {
@@ -373,20 +404,20 @@
 .alm-section { margin-bottom: 20px; }
 .alm-label {
   display: block;
-  font: 700 10px 'Inter', system-ui, sans-serif;
-  letter-spacing: 0.09em;
+  font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #8B8478;
-  margin-bottom: 9px;
+  color: #9A93A0;
+  margin-bottom: 11px;
 }
 .alm-req { color: #C65A1A; font-weight: 700; }
 .alm-opt { color: #AEB4C2; font-weight: 600; text-transform: none; letter-spacing: 0.02em; font-style: italic; }
 .alm-field {
   width: 100%; font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif;
-  color: #1C1B3A; background: #F6F8FB; border: 1px solid #E5E7EB; border-radius: 10px;
-  padding: 11px 13px; box-sizing: border-box; transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
+  color: #1C1B3A; background: #F8FAFC; border: 1px solid #ECECEE; border-radius: 13px;
+  padding: 12px 15px; box-sizing: border-box; transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
 }
-.alm-field::placeholder { color: #8B8478; }
+.alm-field::placeholder { color: #AEB4C2; }
 .alm-field:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
 textarea.alm-field { resize: vertical; min-height: 84px; line-height: 1.5; }
 select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; background-image: none; }
@@ -467,6 +498,25 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
   box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 .alm-switch.on::after { transform: translateX(20px); }
+
+/* Atelier photo tiles — soft rounded thumbs + a dashed add tile */
+.alm-photos { display: flex; flex-wrap: wrap; gap: 10px; }
+.alm-thumb { width: 64px; height: 64px; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #ECECEE; flex: none; }
+.alm-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.alm-thumb .alm-thumb-x {
+  position: absolute; top: 3px; right: 3px; width: 19px; height: 19px; border-radius: 999px;
+  background: rgba(28, 27, 58, 0.6); color: #fff; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.alm-thumb .alm-thumb-x:hover { background: rgba(28, 27, 58, 0.85); }
+.alm-add {
+  width: 64px; height: 64px; border-radius: 12px; border: 1.5px dashed #D8DAE2;
+  background: #F8FAFC; color: #6E6B85; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase;
+  transition: border-color 0.14s, color 0.14s;
+}
+.alm-add:hover { border-color: #C65A1A; color: #C65A1A; }
 
 /* photo preview (step 3) */
 .alm-preview { position: relative; margin-bottom: 20px; }

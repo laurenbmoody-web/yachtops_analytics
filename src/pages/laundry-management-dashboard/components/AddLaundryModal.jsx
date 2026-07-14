@@ -24,6 +24,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
   const [listening, setListening] = useState(false);
+  const [descOpen, setDescOpen] = useState(false); // reveal the transcript field
 
   const [formData, setFormData] = useState({
     ownerType: OwnerType?.GUEST,
@@ -320,8 +321,9 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     <ModalShell onClose={onClose} panelClassName="alm-panel">
       <div className="alm-head">
         <div>
-          <div className="alm-eyebrow">Housekeeping</div>
+          <div className="alm-eyebrow">Housekeeping · Today</div>
           <h2 className="alm-title">Add laundry</h2>
+          <p className="alm-subtitle">A moment to log it — just say it out loud.</p>
         </div>
         <button className="alm-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
       </div>
@@ -348,6 +350,39 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
               <span className={`alm-switch sm${isUrgent ? ' on' : ''}`} />
             </button>
           </div>
+        </div>
+
+        {/* Description — voice-first (Atelier hero). The mic is the easiest,
+            primary path; typing is the quiet fallback. */}
+        <div className="alm-section">
+          <div className={`alm-voice${listening ? ' live' : ''}`}>
+            <button
+              type="button"
+              className="alm-voice-mic"
+              onClick={SpeechRec ? toggleMic : () => setDescOpen(true)}
+              aria-label={SpeechRec ? (listening ? 'Stop dictation' : 'Dictate description') : 'Write description'}
+            >
+              <span className="alm-voice-rg" /><span className="alm-voice-rg b" />
+              <Icon name={SpeechRec ? (listening ? 'Square' : 'Mic') : 'Pencil'} size={32} />
+            </button>
+            <h3 className="alm-voice-title">{listening ? 'Listening…' : (SpeechRec ? 'Tap and describe it' : 'Describe the item')}</h3>
+            <p className="alm-voice-eg">“Ivory linen shirt, wine mark on the cuff — hand wash”</p>
+            {SpeechRec && !descOpen && !formData?.description && (
+              <button type="button" className="alm-voice-or" onClick={() => setDescOpen(true)}>or write it</button>
+            )}
+            {(descOpen || listening || formData?.description) && (
+              <div className="alm-voice-txt">
+                <textarea
+                  className={`alm-field${errors.description ? ' invalid' : ''}`}
+                  value={formData?.description}
+                  onChange={(e) => { setField('description', e?.target?.value); clearError('description'); }}
+                  placeholder="Your words appear here — edit anytime."
+                  rows={3}
+                />
+              </div>
+            )}
+          </div>
+          {errors.description && <div className="alm-err" style={{ textAlign: 'center' }}>{errors.description}</div>}
         </div>
 
         {/* Identity — guest */}
@@ -444,45 +479,6 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
           </>
         )}
 
-        {/* Description with dictation */}
-        <div className="alm-section">
-          <label className="alm-label">Description <span className="alm-req">required</span></label>
-          <div className="alm-desc">
-            <textarea
-              className={`alm-field${errors.description ? ' invalid' : ''}`}
-              value={formData?.description}
-              onChange={(e) => { setField('description', e?.target?.value); clearError('description'); }}
-              placeholder="Item + colour + instructions — type or tap the mic to dictate…"
-              rows={3}
-            />
-            {SpeechRec && (
-              <button type="button" className={`alm-mic${listening ? ' on' : ''}`} onClick={toggleMic} aria-label={listening ? 'Stop dictation' : 'Dictate description'}>
-                <Icon name={listening ? 'Square' : 'Mic'} size={16} />
-              </button>
-            )}
-          </div>
-          {listening && <div className="alm-mic-hint">Listening… speak now</div>}
-          {errors.description && <div className="alm-err">{errors.description}</div>}
-        </div>
-
-        {/* Photo (optional) */}
-        <div className="alm-section">
-          <label className="alm-label">Photo <span className="alm-opt">optional</span></label>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-          {photoPreview ? (
-            <div className="alm-preview">
-              <img src={photoPreview} alt="Laundry item preview" />
-              <button type="button" onClick={handleRemovePhoto} aria-label="Remove photo"><Icon name="Trash2" size={15} /></button>
-            </div>
-          ) : (
-            <button type="button" className="alm-drop compact" onClick={() => fileInputRef?.current?.click()}>
-              <Icon name="Camera" size={22} className="alm-drop-ic" />
-              <span className="alm-drop-title">Take or upload photo</span>
-              <span className="alm-drop-sub">Max 5MB</span>
-            </button>
-          )}
-        </div>
-
         {/* Tags */}
         <div className="alm-section">
           <label className="alm-label">Tags <span className="alm-opt">optional</span></label>
@@ -515,7 +511,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
         </div>
 
         {/* Notes */}
-        <div className="alm-section" style={{ marginBottom: 0 }}>
+        <div className="alm-section">
           <label className="alm-label">Notes <span className="alm-opt">optional</span></label>
           <textarea
             className="alm-field"
@@ -525,12 +521,30 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
             rows={2}
           />
         </div>
+
+        {/* Photos */}
+        <div className="alm-section" style={{ marginBottom: 0 }}>
+          <label className="alm-label">Photos <span className="alm-opt">optional</span></label>
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+          <div className="alm-photos">
+            {photoPreview ? (
+              <div className="alm-thumb">
+                <img src={photoPreview} alt="Laundry item" />
+                <button type="button" className="alm-thumb-x" onClick={handleRemovePhoto} aria-label="Remove photo"><Icon name="X" size={12} /></button>
+              </div>
+            ) : (
+              <button type="button" className="alm-add" onClick={() => fileInputRef?.current?.click()}>
+                <Icon name="Plus" size={18} /> Add
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="alm-foot">
         <button type="button" className="alm-linkbtn" onClick={onClose}>Cancel</button>
         <button type="button" className="alm-btn primary" onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : 'Save laundry item'}
+          {isSubmitting ? 'Adding…' : 'Add to the wash'}
         </button>
       </div>
     </ModalShell>
