@@ -1604,6 +1604,8 @@
 .vm-cupboard-create:hover { background: #FBEFE9; }
 /* create-new-item mini form — name on top, then [qty] [Add here] [Cancel]
    all the same height, no wrapping. */
+.vm-pinitems-note { margin: 10px 0 0; font-size: 11.5px; line-height: 1.45; color: #8B8478; }
+.vm-pinitems-note strong { color: #1C1B3A; font-weight: 600; }
 .vm-pinitems-new { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .vm-pinitems-new-row { display: flex; align-items: center; gap: 8px; }
 .vm-pinitems-new-qty { width: 64px; flex: none; height: 38px; padding: 0 10px; }
