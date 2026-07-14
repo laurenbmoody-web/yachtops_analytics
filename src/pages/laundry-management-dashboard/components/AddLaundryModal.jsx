@@ -254,7 +254,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     if (Object.keys(next).length) { setErrors(next); return; }
     setIsSubmitting(true);
     try {
-      const newItem = createLaundryItem({
+      const newItem = await createLaundryItem({
         ownerType: formData?.ownerType,
         ownerName: formData?.ownerName,
         ownerGuestId: formData?.ownerGuestId,

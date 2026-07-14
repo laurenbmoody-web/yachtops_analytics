@@ -14,8 +14,8 @@ const ownerKind = (t) => {
 };
 
 const LaundryItemRow = ({ item, onUpdate }) => {
-  const handleStatusUpdate = (newStatus) => {
-    updateLaundryStatus(item?.id, newStatus);
+  const handleStatusUpdate = async (newStatus) => {
+    await updateLaundryStatus(item?.id, newStatus);
     onUpdate?.();
   };
 

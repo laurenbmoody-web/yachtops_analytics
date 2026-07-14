@@ -1,677 +1,283 @@
-// Laundry Storage - Persistent Laundry Management
+// Laundry Storage — Supabase-backed (vessel-scoped `laundry_items` table).
+//
+// Previously localStorage; now shared across the crew. Every export is async.
+// Reads fetch the vessel's items and filter client-side (a vessel's laundry is
+// a small set); writes go straight to Supabase. `archived_at` replaces the old
+// client "reset day" flag. Photos are compressed base64 in a text column for
+// now (a Storage bucket is a future optimisation).
 
+import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { logActivity } from '../../../utils/activityStorage';
 import { showToast } from '../../../utils/toast';
 
-const LAUNDRY_STORAGE_KEY = 'cargo_laundry_v1';
+// Owner / status / priority enums (unchanged — values match stored strings).
+export const OwnerType = { GUEST: 'Guest', CREW: 'Crew' };
+export const LaundryStatus = { IN_PROGRESS: 'InProgress', READY_TO_DELIVER: 'ReadyToDeliver', DELIVERED: 'Delivered' };
+export const LaundryPriority = { NORMAL: 'Normal', URGENT: 'Urgent' };
 
-// Owner Type Enum
-export const OwnerType = {
-  GUEST: 'Guest',
-  CREW: 'Crew'
-};
-
-// Laundry Status Enum
-export const LaundryStatus = {
-  IN_PROGRESS: 'InProgress',
-  READY_TO_DELIVER: 'ReadyToDeliver',
-  DELIVERED: 'Delivered'
-};
-
-// Priority Enum
-export const LaundryPriority = {
-  NORMAL: 'Normal',
-  URGENT: 'Urgent'
-};
-
-/**
- * Load all laundry items from localStorage
- * @returns {Array} Array of laundry item objects
- */
-const loadAllLaundryItems = () => {
+// Active vessel for the signed-in user (same mechanism the locations store uses).
+const getTenantId = async () => {
   try {
-    const stored = localStorage.getItem(LAUNDRY_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-    return [];
-  } catch (error) {
-    console.error('Error loading laundry items:', error);
-    return [];
+    const { data, error } = await supabase?.rpc('get_my_context');
+    if (error || !data?.[0]?.tenant_id) return null;
+    return data[0].tenant_id;
+  } catch (e) {
+    console.error('[laundry] get_my_context failed', e);
+    return null;
   }
 };
 
-/**
- * Compress image to reduce storage size
- * @param {string} dataUrl - Base64 data URL
- * @param {number} maxWidth - Maximum width in pixels
- * @param {number} quality - JPEG quality (0-1)
- * @returns {Promise<string>} Compressed data URL
- */
-const compressImage = (dataUrl, maxWidth = 800, quality = 0.7) => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
+// DB row (snake_case) → app item (camelCase), matching the historical shape.
+const mapRow = (r) => ({
+  id: r.id,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+  deliveredAt: r.delivered_at,
+  serviceDay: (r.created_at || '').split('T')[0],
+  isArchivedFromToday: !!r.archived_at,
+  createdByName: r.created_by_name,
+  ownerType: r.owner_type,
+  ownerId: r.owner_guest_id || r.owner_crew_user_id || null,
+  ownerName: r.owner_name,
+  ownerGuestId: r.owner_guest_id,
+  ownerCrewUserId: r.owner_crew_user_id,
+  ownerDisplayName: r.owner_display_name,
+  area: r.area || '',
+  areaLocationId: r.area_location_id,
+  colour: r.colour || '',
+  laundryNumber: r.laundry_number || '',
+  photo: r.photo || '',
+  description: r.description || '',
+  priority: r.priority || LaundryPriority.NORMAL,
+  status: r.status,
+  tags: Array.isArray(r.tags) ? r.tags : [],
+  notes: r.notes || '',
+  tripId: r.trip_id || null,
+});
 
-      // Calculate new dimensions
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Convert to JPEG with quality compression
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-      resolve(compressedDataUrl);
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-};
-
-/**
- * Calculate storage size in MB
- * @param {string} data - JSON string
- * @returns {number} Size in MB
- */
-const getStorageSize = (data) => {
-  return new Blob([data])?.size / (1024 * 1024);
-};
-
-/**
- * Save laundry items to localStorage
- * @param {Array} items - Array of laundry item objects
- */
-const saveLaundryItems = (items) => {
-  try {
-    const jsonData = JSON.stringify(items);
-    const sizeInMB = getStorageSize(jsonData);
-    
-    // Warn if approaching quota (assume 5MB limit)
-    if (sizeInMB > 4) {
-      console.warn(`Laundry storage size: ${sizeInMB?.toFixed(2)}MB - approaching quota limit`);
-    }
-    
-    localStorage.setItem(LAUNDRY_STORAGE_KEY, jsonData);
-  } catch (error) {
-    console.error('Error saving laundry items:', error);
-    
-    // Handle quota exceeded error
-    if (error?.name === 'QuotaExceededError' || error?.code === 22) {
-      showToast(
-        'Storage limit reached. Photos are being compressed to save space. Please try again.',
-        'error'
-      );
-      throw new Error('QUOTA_EXCEEDED');
-    }
-    throw error;
-  }
-};
-
-/**
- * Get today's date key in YYYY-MM-DD format (local timezone)
- * @returns {string} Date key
- */
+// ── date helpers ─────────────────────────────────────────────────────────────
 export const getTodayKey = () => {
-  const now = new Date();
-  return now?.toISOString()?.split('T')?.[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const localDateKey = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-/**
- * Get last laundry day key from localStorage
- * @returns {string|null} Last day key or null
- */
-export const getLastLaundryDayKey = () => {
-  try {
-    return localStorage.getItem('cargo_laundry_last_day_key');
-  } catch (error) {
-    console.error('Error getting last laundry day key:', error);
-    return null;
-  }
-};
+// Day-key / migration helpers are obsolete under Supabase — kept as harmless
+// no-ops so existing callers don't break.
+export const getLastLaundryDayKey = () => null;
+export const setLastLaundryDayKey = () => {};
+export const isNewDay = () => false;
+export const migrateLaundryItems = async () => 0;
 
-/**
- * Set last laundry day key in localStorage
- * @param {string} dayKey - Day key in YYYY-MM-DD format
- */
-export const setLastLaundryDayKey = (dayKey) => {
-  try {
-    localStorage.setItem('cargo_laundry_last_day_key', dayKey);
-  } catch (error) {
-    console.error('Error setting last laundry day key:', error);
-  }
+// ── reads ────────────────────────────────────────────────────────────────────
+export const loadAllLaundryItems = async () => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    .from('laundry_items')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false });
+  if (error) { console.error('[laundry] load failed', error); return []; }
+  return (data || []).map(mapRow);
 };
+export const getAllLaundryItems = async () => loadAllLaundryItems();
 
-/**
- * Check if a new day has started since last visit
- * @returns {boolean} True if new day detected
- */
-export const isNewDay = () => {
+// Today view: open items (not archived) + items delivered today (not archived).
+export const getTodayViewItems = async () => {
+  const items = await loadAllLaundryItems();
   const todayKey = getTodayKey();
-  const lastDayKey = getLastLaundryDayKey();
-  return lastDayKey !== todayKey;
-};
-
-/**
- * Migrate existing laundry items to add serviceDay and deliveredAt fields
- * @returns {number} Number of items migrated
- */
-export const migrateLaundryItems = () => {
-  const items = loadAllLaundryItems();
-  let migratedCount = 0;
-  
-  items?.forEach(item => {
-    let needsSave = false;
-    
-    // Add serviceDay if missing (use createdAt date)
-    if (!item?.serviceDay && item?.createdAt) {
-      const createdDate = new Date(item.createdAt);
-      item.serviceDay = createdDate?.toISOString()?.split('T')?.[0];
-      needsSave = true;
-      migratedCount++;
-    }
-    
-    // Add deliveredAt if missing but status is delivered
-    if (!item?.deliveredAt && item?.status === LaundryStatus?.DELIVERED) {
-      // Use updatedAt as fallback for deliveredAt
-      item.deliveredAt = item?.updatedAt || item?.createdAt;
-      needsSave = true;
-    }
-  });
-  
-  if (migratedCount > 0) {
-    saveLaundryItems(items);
-    console.log(`Migrated ${migratedCount} laundry items with serviceDay field`);
-  }
-  
-  return migratedCount;
-};
-
-/**
- * Create a new laundry item
- * @param {Object} itemData - Laundry item data
- * @returns {Object} New laundry item object
- */
-export const createLaundryItem = (itemData) => {
-  const currentUser = getCurrentUser();
-  const now = new Date()?.toISOString();
-  const todayKey = getTodayKey();
-  
-  // Normalize ownerType to lowercase: guest, crew, or unknown
-  let ownerType = 'unknown';
-  if (itemData?.ownerType) {
-    const normalizedType = itemData?.ownerType?.toLowerCase();
-    if (normalizedType === 'guest' || normalizedType === 'crew') {
-      ownerType = normalizedType;
-    }
-  }
-  
-  // Determine ownerName with fallback to 'Unknown'
-  let ownerName = itemData?.ownerName || 'Unknown';
-  if (!itemData?.ownerName || itemData?.ownerName?.trim() === '') {
-    ownerName = 'Unknown';
-  }
-  
-  const newItem = {
-    id: `laundry-${Date.now()}-${Math.random()?.toString(36)?.substr(2, 9)}`,
-    createdAt: now,
-    updatedAt: now,
-    serviceDay: todayKey, // NEW: Set service day to today
-    deliveredAt: null, // NEW: Initialize as null
-    createdByUserId: currentUser?.id || '',
-    createdByName: currentUser?.fullName || currentUser?.name || 'Unknown User',
-    createdByTier: currentUser?.effectiveTier || currentUser?.tier || 'CREW',
-    createdByDepartment: currentUser?.department || '',
-    ownerType: ownerType,
-    ownerId: itemData?.ownerGuestId || itemData?.ownerCrewUserId || null,
-    ownerName: ownerName,
-    ownerGuestId: itemData?.ownerGuestId || null,
-    ownerCrewUserId: itemData?.ownerCrewUserId || null,
-    ownerDisplayName: itemData?.ownerDisplayName || ownerName,
-    area: itemData?.area || '',
-    areaLocationId: itemData?.areaLocationId || null,
-    colour: itemData?.colour || '',
-    laundryNumber: itemData?.laundryNumber || '',
-    photo: itemData?.photo || '',
-    description: itemData?.description || '',
-    priority: itemData?.priority || LaundryPriority?.NORMAL,
-    status: LaundryStatus?.IN_PROGRESS,
-    tags: itemData?.tags || [],
-    notes: itemData?.notes || '',
-    tripId: itemData?.tripId || null // Support tripId if provided
-  };
-  
-  const items = loadAllLaundryItems();
-  items?.push(newItem);
-  saveLaundryItems(items);
-  
-  // Log activity
-  try {
-    logActivity({
-      module: 'laundry',
-      action: 'LAUNDRY_ITEM_CREATED',
-      entityType: 'laundryItem',
-      entityId: newItem?.id,
-      summary: `Added laundry item: ${newItem?.description}`,
-      meta: {
-        ownerType: newItem?.ownerType,
-        ownerDisplayName: newItem?.ownerDisplayName,
-        priority: newItem?.priority
-      }
-    });
-  } catch (error) {
-    console.error('Error logging activity:', error);
-  }
-  
-  showToast('Laundry item added successfully', 'success');
-  return newItem;
-};
-
-/**
- * Update laundry item status
- * @param {string} itemId - Item ID
- * @param {string} newStatus - New status
- * @returns {Object|null} Updated item or null
- */
-export const updateLaundryStatus = (itemId, newStatus) => {
-  const items = loadAllLaundryItems();
-  const itemIndex = items?.findIndex(item => item?.id === itemId);
-  
-  if (itemIndex === -1) {
-    showToast('Laundry item not found', 'error');
-    return null;
-  }
-  
-  const now = new Date()?.toISOString();
-  
-  items[itemIndex].status = newStatus;
-  items[itemIndex].updatedAt = now;
-  
-  if (newStatus === LaundryStatus?.DELIVERED) {
-    items[itemIndex].deliveredAt = now; // FIXED: Store full ISO timestamp instead of date key
-    
-    // Log delivery activity
-    try {
-      logActivity({
-        module: 'laundry',
-        action: 'LAUNDRY_ITEM_DELIVERED',
-        entityType: 'laundryItem',
-        entityId: itemId,
-        summary: `Delivered laundry: ${items?.[itemIndex]?.description}`,
-        meta: {
-          ownerType: items?.[itemIndex]?.ownerType,
-          ownerName: items?.[itemIndex]?.ownerName
-        }
-      });
-    } catch (error) {
-      console.error('Error logging activity:', error);
-    }
-  }
-  
-  saveLaundryItems(items);
-  showToast('Status updated', 'success');
-  return items?.[itemIndex];
-};
-
-/**
- * Update laundry item
- * @param {string} itemId - Item ID
- * @param {Object} updates - Fields to update
- * @returns {Object|null} Updated item or null
- */
-export const updateLaundryItem = (itemId, updates) => {
-  const items = loadAllLaundryItems();
-  const itemIndex = items?.findIndex(item => item?.id === itemId);
-  
-  if (itemIndex === -1) {
-    showToast('Laundry item not found', 'error');
-    return null;
-  }
-  
-  items[itemIndex] = {
-    ...items?.[itemIndex],
-    ...updates,
-    updatedAt: new Date()?.toISOString()
-  };
-  
-  saveLaundryItems(items);
-  showToast('Laundry item updated', 'success');
-  return items?.[itemIndex];
-};
-
-/**
- * Get all laundry items
- * @returns {Array} Array of laundry items
- */
-export const getAllLaundryItems = () => {
-  return loadAllLaundryItems();
-};
-
-/**
- * Get laundry items for today
- * @returns {Array} Array of today's laundry items
- */
-export const getTodayLaundryItems = () => {
-  const items = loadAllLaundryItems();
-  const today = new Date();
-  today?.setHours(0, 0, 0, 0);
-  
-  return items?.filter(item => {
-    const itemDate = new Date(item.createdAt);
-    itemDate?.setHours(0, 0, 0, 0);
-    return itemDate?.getTime() === today?.getTime();
-  });
-};
-
-/**
- * Get today's laundry counts for dashboard widget
- * @returns {Object} { itemsIn, itemsOut }
- */
-export const getTodayLaundryCounts = () => {
-  const items = loadAllLaundryItems();
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
-  // Items IN: status is InProgress or ReadyToDeliver (created today or earlier, not delivered)
-  const itemsIn = items?.filter(item => {
-    return (item?.status === LaundryStatus?.IN_PROGRESS || item?.status === LaundryStatus?.READY_TO_DELIVER);
-  })?.length;
-
-  // Items OUT: status is Delivered AND deliveredAt is today
-  const itemsOut = items?.filter(item => {
-    if (item?.status !== LaundryStatus?.DELIVERED || !item?.deliveredAt) {
-      return false;
-    }
-    const deliveredDate = new Date(item.deliveredAt);
-    return deliveredDate >= todayStart && deliveredDate <= todayEnd;
-  })?.length;
-
-  return { itemsIn, itemsOut };
-};
-
-/**
- * Get today's laundry items by status for widget breakdown
- * @returns {Object} { inProgress, readyToDeliver, delivered }
- */
-export const getTodayLaundryBreakdown = () => {
-  const items = loadAllLaundryItems();
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
-  const inProgress = items?.filter(item => item?.status === LaundryStatus?.IN_PROGRESS)?.length;
-  const readyToDeliver = items?.filter(item => item?.status === LaundryStatus?.READY_TO_DELIVER)?.length;
-  const delivered = items?.filter(item => {
-    if (item?.status !== LaundryStatus?.DELIVERED || !item?.deliveredAt) {
-      return false;
-    }
-    const deliveredDate = new Date(item.deliveredAt);
-    return deliveredDate >= todayStart && deliveredDate <= todayEnd;
-  })?.length;
-
-  return { inProgress, readyToDeliver, delivered };
-};
-
-/**
- * Get laundry items by date
- * @param {Date} date - Target date
- * @returns {Array} Array of laundry items for that date
- */
-export const getLaundryItemsByDate = (date) => {
-  const items = loadAllLaundryItems();
-  const targetDate = new Date(date);
-  targetDate?.setHours(0, 0, 0, 0);
-  
-  return items?.filter(item => {
-    const itemDate = new Date(item.createdAt);
-    itemDate?.setHours(0, 0, 0, 0);
-    return itemDate?.getTime() === targetDate?.getTime();
-  });
-};
-
-/**
- * Get laundry items for Today view (open items + delivered today)
- * @returns {Object} { openItems, deliveredToday }
- */
-export const getTodayViewItems = () => {
-  const items = loadAllLaundryItems();
-  const todayKey = getTodayKey();
-
-  // Open items: In Progress or Ready, regardless of serviceDay
-  const openItems = items?.filter(item =>
-    item?.status === LaundryStatus?.IN_PROGRESS ||
-    item?.status === LaundryStatus?.READY_TO_DELIVER
-  );
-
-  // Delivered today: Delivered status AND deliveredAt matches today (extract date from ISO timestamp)
-  const deliveredToday = items?.filter(item => {
-    if (item?.status !== LaundryStatus?.DELIVERED || !item?.deliveredAt) {
-      return false;
-    }
-    const deliveredDateKey = item?.deliveredAt?.split('T')?.[0];
-    return deliveredDateKey === todayKey;
-  });
-
+  const openItems = items.filter((i) => !i.isArchivedFromToday
+    && (i.status === LaundryStatus.IN_PROGRESS || i.status === LaundryStatus.READY_TO_DELIVER));
+  const deliveredToday = items.filter((i) => !i.isArchivedFromToday
+    && i.status === LaundryStatus.DELIVERED && localDateKey(i.deliveredAt) === todayKey);
   return { openItems, deliveredToday };
 };
 
-/**
- * Get laundry items by delivered date for History view
- * @param {string} dateKey - Date key in YYYY-MM-DD format
- * @returns {Array} Array of delivered items for that date
- */
-export const getLaundryItemsByDeliveredDate = (dateKey) => {
-  const items = loadAllLaundryItems();
-  
-  return items?.filter(item => {
-    if (item?.status !== LaundryStatus?.DELIVERED || !item?.deliveredAt) {
-      return false;
-    }
-    // Extract date portion from ISO timestamp
-    const deliveredDateKey = item?.deliveredAt?.split('T')?.[0];
-    return deliveredDateKey === dateKey;
-  });
+const isDeliveredToday = (i) => {
+  if (i.status !== LaundryStatus.DELIVERED || !i.deliveredAt) return false;
+  return localDateKey(i.deliveredAt) === getTodayKey();
 };
 
-/**
- * Get unique delivered dates for History view
- * @returns {Array} Array of date strings (YYYY-MM-DD) sorted descending
- */
-export const getDeliveredDates = () => {
-  const items = loadAllLaundryItems();
-  const dates = new Set();
-  
-  items?.forEach(item => {
-    if (item?.status === LaundryStatus?.DELIVERED && item?.deliveredAt) {
-      // Extract date portion from ISO timestamp
-      const dateKey = item?.deliveredAt?.split('T')?.[0];
-      dates?.add(dateKey);
-    }
-  });
-  
-  return Array.from(dates)?.sort()?.reverse();
+export const getTodayLaundryCounts = async () => {
+  const items = await loadAllLaundryItems();
+  const itemsIn = items.filter((i) => i.status === LaundryStatus.IN_PROGRESS || i.status === LaundryStatus.READY_TO_DELIVER).length;
+  const itemsOut = items.filter(isDeliveredToday).length;
+  return { itemsIn, itemsOut };
 };
 
-/**
- * Reset day (manual) - updates last day key and refreshes view
- * @returns {boolean} Success status
- */
-export const manualResetDay = () => {
-  const currentUser = getCurrentUser();
-  const userTier = (currentUser?.effectiveTier || currentUser?.tier || '')?.trim()?.toUpperCase();
-  
-  // Only COMMAND can manually reset
-  if (userTier !== 'COMMAND' && userTier !== 'CHIEF') {
-    showToast('Only Command/Chief can manually reset the day', 'error');
-    return false;
-  }
-  
+export const getTodayLaundryBreakdown = async () => {
+  const items = await loadAllLaundryItems();
+  return {
+    inProgress: items.filter((i) => i.status === LaundryStatus.IN_PROGRESS).length,
+    readyToDeliver: items.filter((i) => i.status === LaundryStatus.READY_TO_DELIVER).length,
+    delivered: items.filter(isDeliveredToday).length,
+  };
+};
+
+export const getTodayLaundryItems = async () => {
+  const items = await loadAllLaundryItems();
   const todayKey = getTodayKey();
-  setLastLaundryDayKey(todayKey);
-  
-  // Log activity
-  try {
-    logActivity({
-      module: 'laundry',
-      action: 'LAUNDRY_MANUAL_RESET',
-      entityType: 'laundryItem',
-      entityId: 'manual-reset',
-      summary: 'Manually reset laundry day view',
-      meta: {
-        resetDate: todayKey
-      }
-    });
-  } catch (error) {
-    console.error('Error logging activity:', error);
-  }
-  
-  showToast('Day reset successfully. Delivered items cleared from Today view.', 'success');
-  return true;
+  return items.filter((i) => localDateKey(i.createdAt) === todayKey);
 };
 
-/**
- * Reset delivered items for the day (Chief only)
- * Marks delivered items as archived so they don't show in today's view
- * @returns {boolean} Success status
- */
-export const resetDailyDelivered = () => {
-  const currentUser = getCurrentUser();
-  const userTier = (currentUser?.effectiveTier || currentUser?.tier || '')?.trim()?.toUpperCase();
-  
-  // Only COMMAND can reset
-  if (userTier !== 'COMMAND') {
-    showToast('Only Command can reset daily delivered items', 'error');
-    return false;
-  }
-  
-  const items = loadAllLaundryItems();
-  const today = new Date();
-  today?.setHours(0, 0, 0, 0);
-  
-  let resetCount = 0;
-  
-  items?.forEach(item => {
-    if (item?.status === LaundryStatus?.DELIVERED) {
-      const itemDate = new Date(item.createdAt);
-      itemDate?.setHours(0, 0, 0, 0);
-      
-      // Mark as archived if delivered today
-      if (itemDate?.getTime() === today?.getTime()) {
-        item.isArchivedFromToday = true;
-        resetCount++;
-      }
-    }
-  });
-  
-  saveLaundryItems(items);
-  
-  // Log activity
-  try {
-    logActivity({
-      module: 'laundry',
-      action: 'LAUNDRY_RESET',
-      entityType: 'laundryItem',
-      entityId: 'daily-reset',
-      summary: `Reset daily delivered items (${resetCount} items archived)`,
-      meta: {
-        resetCount
-      }
-    });
-  } catch (error) {
-    console.error('Error logging activity:', error);
-  }
-  
-  showToast(`Daily reset complete. ${resetCount} delivered items archived.`, 'success');
-  return true;
+export const getLaundryItemsByDate = async (date) => {
+  const items = await loadAllLaundryItems();
+  const key = localDateKey(new Date(date).toISOString());
+  return items.filter((i) => localDateKey(i.createdAt) === key);
 };
 
-/**
- * Get laundry items for today (excluding archived delivered items)
- * @returns {Array} Array of active today's laundry items
- */
-export const getActiveTodayLaundryItems = () => {
-  const items = loadAllLaundryItems();
-  const today = new Date();
-  today?.setHours(0, 0, 0, 0);
-  
-  return items?.filter(item => {
-    const itemDate = new Date(item.createdAt);
-    itemDate?.setHours(0, 0, 0, 0);
-    
-    // Include today's items that are not archived
-    if (itemDate?.getTime() === today?.getTime()) {
-      return !item?.isArchivedFromToday;
-    }
-    
-    // Include older items that are still in progress or ready to deliver
-    if (itemDate?.getTime() < today?.getTime()) {
-      return item?.status === LaundryStatus?.IN_PROGRESS || item?.status === LaundryStatus?.READY_TO_DELIVER;
-    }
-    
-    return false;
-  });
+export const getLaundryItemsByDeliveredDate = async (dateKey) => {
+  const items = await loadAllLaundryItems();
+  return items.filter((i) => i.status === LaundryStatus.DELIVERED && localDateKey(i.deliveredAt) === dateKey);
 };
 
-/**
- * Get unique dates with laundry items
- * @returns {Array} Array of date strings (YYYY-MM-DD)
- */
-export const getLaundryDates = () => {
-  const items = loadAllLaundryItems();
+export const getDeliveredDates = async () => {
+  const items = await loadAllLaundryItems();
   const dates = new Set();
-  
-  items?.forEach(item => {
-    const date = new Date(item.createdAt);
-    date?.setHours(0, 0, 0, 0);
-    dates?.add(date?.toISOString()?.split('T')?.[0]);
-  });
-  
-  return Array.from(dates)?.sort()?.reverse();
+  items.forEach((i) => { if (i.status === LaundryStatus.DELIVERED && i.deliveredAt) dates.add(localDateKey(i.deliveredAt)); });
+  return Array.from(dates).sort().reverse();
 };
 
-/**
- * Add note to laundry item
- * @param {string} itemId - Item ID
- * @param {string} note - Note text
- * @returns {Object|null} Updated item or null
- */
-export const addNoteToLaundryItem = (itemId, note) => {
-  const items = loadAllLaundryItems();
-  const itemIndex = items?.findIndex(item => item?.id === itemId);
-  
-  if (itemIndex === -1) {
-    showToast('Laundry item not found', 'error');
-    return null;
+export const getActiveTodayLaundryItems = async () => {
+  const { openItems, deliveredToday } = await getTodayViewItems();
+  return [...openItems, ...deliveredToday];
+};
+
+export const getLaundryDates = async () => {
+  const items = await loadAllLaundryItems();
+  const dates = new Set();
+  items.forEach((i) => dates.add(localDateKey(i.createdAt)));
+  return Array.from(dates).filter(Boolean).sort().reverse();
+};
+
+// ── writes ───────────────────────────────────────────────────────────────────
+export const createLaundryItem = async (itemData) => {
+  const tenantId = await getTenantId();
+  if (!tenantId) { showToast('No active vessel', 'error'); throw new Error('NO_TENANT'); }
+
+  const normalized = ['guest', 'crew'].includes((itemData?.ownerType || '').toLowerCase())
+    ? itemData.ownerType.toLowerCase() : 'unknown';
+  const ownerName = itemData?.ownerName?.trim() ? itemData.ownerName : 'Unknown';
+  const { data: authData } = await supabase.auth.getUser();
+  const currentUser = getCurrentUser();
+
+  const payload = {
+    tenant_id: tenantId,
+    owner_type: normalized,
+    owner_name: ownerName,
+    owner_display_name: itemData?.ownerDisplayName || ownerName,
+    owner_guest_id: itemData?.ownerGuestId || null,
+    owner_crew_user_id: itemData?.ownerCrewUserId || null,
+    area: itemData?.area || '',
+    area_location_id: itemData?.areaLocationId || null,
+    colour: itemData?.colour || '',
+    laundry_number: itemData?.laundryNumber || '',
+    photo: itemData?.photo || '',
+    description: itemData?.description || '',
+    priority: itemData?.priority || LaundryPriority.NORMAL,
+    status: LaundryStatus.IN_PROGRESS,
+    tags: itemData?.tags || [],
+    notes: itemData?.notes || '',
+    trip_id: itemData?.tripId || null,
+    created_by: authData?.user?.id || null,
+    created_by_name: currentUser?.fullName || currentUser?.name || 'Unknown User',
+  };
+
+  const { data, error } = await supabase.from('laundry_items').insert(payload).select('*').single();
+  if (error) {
+    console.error('[laundry] create failed', error);
+    showToast('Failed to add laundry item. Please try again.', 'error');
+    throw error;
   }
-  
-  const currentNotes = items?.[itemIndex]?.notes || '';
-  const timestamp = new Date()?.toLocaleString('en-GB');
+
+  try {
+    logActivity({
+      module: 'laundry', action: 'LAUNDRY_ITEM_CREATED', entityType: 'laundryItem', entityId: data.id,
+      summary: `Added laundry item: ${data.description}`,
+      meta: { ownerType: data.owner_type, ownerDisplayName: data.owner_display_name, priority: data.priority },
+    });
+  } catch (e) { console.error('Error logging activity:', e); }
+
+  showToast('Laundry item added', 'success');
+  return mapRow(data);
+};
+
+export const updateLaundryStatus = async (itemId, newStatus) => {
+  const patch = { status: newStatus, updated_at: new Date().toISOString() };
+  if (newStatus === LaundryStatus.DELIVERED) patch.delivered_at = new Date().toISOString();
+  const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', itemId).select('*').single();
+  if (error) { console.error('[laundry] status update failed', error); showToast('Could not update status', 'error'); return null; }
+  if (newStatus === LaundryStatus.DELIVERED) {
+    try {
+      logActivity({
+        module: 'laundry', action: 'LAUNDRY_ITEM_DELIVERED', entityType: 'laundryItem', entityId: itemId,
+        summary: `Delivered laundry: ${data.description}`, meta: { ownerType: data.owner_type, ownerName: data.owner_name },
+      });
+    } catch (e) { console.error('Error logging activity:', e); }
+  }
+  showToast('Status updated', 'success');
+  return mapRow(data);
+};
+
+export const updateLaundryItem = async (itemId, updates) => {
+  const map = {
+    ownerName: 'owner_name', ownerDisplayName: 'owner_display_name', area: 'area', areaLocationId: 'area_location_id',
+    colour: 'colour', laundryNumber: 'laundry_number', photo: 'photo', description: 'description',
+    priority: 'priority', status: 'status', tags: 'tags', notes: 'notes',
+  };
+  const patch = { updated_at: new Date().toISOString() };
+  Object.entries(updates || {}).forEach(([k, v]) => { if (map[k]) patch[map[k]] = v; });
+  const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', itemId).select('*').single();
+  if (error) { console.error('[laundry] update failed', error); showToast('Could not update item', 'error'); return null; }
+  showToast('Laundry item updated', 'success');
+  return mapRow(data);
+};
+
+export const addNoteToLaundryItem = async (itemId, note) => {
+  const { data: existing, error: readErr } = await supabase.from('laundry_items').select('notes').eq('id', itemId).single();
+  if (readErr) { console.error('[laundry] note read failed', readErr); showToast('Laundry item not found', 'error'); return null; }
   const currentUser = getCurrentUser();
   const userName = currentUser?.fullName || currentUser?.name || 'Unknown User';
-  
-  const newNote = `[${timestamp}] ${userName}: ${note}`;
-  items[itemIndex].notes = currentNotes ? `${currentNotes}\n${newNote}` : newNote;
-  items[itemIndex].updatedAt = new Date()?.toISOString();
-  
-  saveLaundryItems(items);
+  const stamped = `[${new Date().toLocaleString('en-GB')}] ${userName}: ${note}`;
+  const notes = existing?.notes ? `${existing.notes}\n${stamped}` : stamped;
+  const { data, error } = await supabase.from('laundry_items').update({ notes, updated_at: new Date().toISOString() }).eq('id', itemId).select('*').single();
+  if (error) { console.error('[laundry] note update failed', error); return null; }
   showToast('Note added', 'success');
-  return items?.[itemIndex];
+  return mapRow(data);
 };
-export { loadAllLaundryItems };
-function deleteLaundryItem(...args) {
-  // eslint-disable-next-line no-console
-  console.warn('Placeholder: deleteLaundryItem is not implemented yet.', args);
-  return null;
-}
 
-export { deleteLaundryItem };
+// Command/Chief only: archive today's delivered items so they leave the Today
+// view (the multi-user equivalent of the old "reset day").
+export const manualResetDay = async () => {
+  const currentUser = getCurrentUser();
+  const tier = (currentUser?.effectiveTier || currentUser?.tier || '').trim().toUpperCase();
+  if (tier !== 'COMMAND' && tier !== 'CHIEF') { showToast('Only Command/Chief can reset the day', 'error'); return false; }
+  const tenantId = await getTenantId();
+  if (!tenantId) return false;
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const { error } = await supabase.from('laundry_items')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('tenant_id', tenantId)
+    .eq('status', LaundryStatus.DELIVERED)
+    .is('archived_at', null)
+    .gte('delivered_at', todayStart.toISOString());
+  if (error) { console.error('[laundry] reset failed', error); showToast('Could not reset the day', 'error'); return false; }
+  try {
+    logActivity({ module: 'laundry', action: 'LAUNDRY_MANUAL_RESET', entityType: 'laundryItem', entityId: 'manual-reset', summary: 'Reset laundry day view', meta: { resetDate: getTodayKey() } });
+  } catch (e) { console.error('Error logging activity:', e); }
+  showToast('Day reset — delivered items cleared from Today.', 'success');
+  return true;
+};
+export const resetDailyDelivered = async () => manualResetDay();
+
+export const deleteLaundryItem = async (itemId) => {
+  const { error } = await supabase.from('laundry_items').delete().eq('id', itemId);
+  if (error) { console.error('[laundry] delete failed', error); showToast('Could not delete item', 'error'); return false; }
+  return true;
+};

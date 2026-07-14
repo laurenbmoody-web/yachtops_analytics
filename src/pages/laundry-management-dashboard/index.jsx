@@ -118,8 +118,12 @@ const LaundryManagementDashboard = () => {
   useEffect(() => { setGuests(loadGuests() || []); }, []);
 
   useEffect(() => {
-    const { openItems, deliveredToday } = getTodayViewItems();
-    setLaundryItems([...openItems, ...deliveredToday]);
+    let cancelled = false;
+    (async () => {
+      const { openItems, deliveredToday } = await getTodayViewItems();
+      if (!cancelled) setLaundryItems([...openItems, ...deliveredToday]);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -177,13 +181,13 @@ const LaundryManagementDashboard = () => {
     setFilteredItems(filtered);
   }, [laundryItems, statusFilter, ownerFilter, searchQuery, sortBy, tripId, trip]);
 
-  const loadLaundryItems = () => {
-    const { openItems, deliveredToday } = getTodayViewItems();
+  const loadLaundryItems = async () => {
+    const { openItems, deliveredToday } = await getTodayViewItems();
     setLaundryItems([...openItems, ...deliveredToday]);
   };
 
   const handleAddSuccess = () => { setShowAddModal(false); loadLaundryItems(); };
-  const confirmResetDay = () => { if (manualResetDay()) loadLaundryItems(); setShowResetModal(false); };
+  const confirmResetDay = async () => { if (await manualResetDay()) await loadLaundryItems(); setShowResetModal(false); };
 
   const getStatusCounts = () => {
     let itemsToCount = laundryItems;
