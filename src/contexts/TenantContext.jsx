@@ -77,7 +77,7 @@ const PersonalModeScreen = ({ userName, userId }) => {
   const ActionRow = ({ icon, title, sub, onClick }) => (
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left',
-      background: '#F6F8FB', border: '1px solid #E9EDF2', borderRadius: 12,
+      background: '#FCFCFD', border: '1px solid #E6EAEF', borderRadius: 12,
       padding: '13px 14px', cursor: 'pointer', font: 'inherit',
     }}>
       <span style={{ width: 38, height: 38, borderRadius: 10, background: '#FBEFE9', color: '#C65A1A', display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>{icon}</span>
