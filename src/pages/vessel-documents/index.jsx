@@ -16,6 +16,8 @@ import {
   seedDefaultFolders, getExpiryStatus, formatDocDate, isVirtualId,
   VIRT_HOR, VIRT_CREW, VIRT_TEMPLATES,
 } from './vesselDocuments';
+import { DOCUMENT_TYPES, DOC_CATEGORIES } from '../crew-profile/documentTypes';
+import { persistCrewDocument } from '../crew-profile/utils/crewDocuments';
 import './vessel-documents.css';
 
 // Editorial RAG colours for expiry pills (mirrors the crew-doc thresholds).
@@ -37,9 +39,12 @@ const fmtSize = (n) => {
 
 export default function VesselDocuments() {
   const navigate = useNavigate();
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, currentTenantMember } = useTenant();
   const { session } = useAuth();
   const userId = session?.user?.id;
+  // Only Command may file a document onto a crew member's record (matches the
+  // personal_documents / crew-documents storage RLS).
+  const isCommand = String(currentTenantMember?.permission_tier || '').toUpperCase() === 'COMMAND';
 
   const [cwd, setCwd] = useState(null);          // current folder id (null = root)
   const [items, setItems] = useState([]);
@@ -56,6 +61,8 @@ export default function VesselDocuments() {
   const [crewDocSort, setCrewDocSort] = useState('status'); // member docs: status|az|za|expiry
   const [crewDocCat, setCrewDocCat] = useState('all'); // member docs: category filter
   const fileRef = useRef(null);
+  const crewFileRef = useRef(null);
+  const [crewUpload, setCrewUpload] = useState(null); // { file, uid, docType, expiryDate, busy, error }
   const seededRef = useRef(null);                // tenant whose empty vault we've already seeded
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2800); };
@@ -336,6 +343,37 @@ export default function VesselDocuments() {
   const inCrewGroup = crewParts.length === 3 && crewParts[1] === 'crew';  // member folders
   const inCrewMember = crewParts.length === 4 && crewParts[1] === 'crew'; // Certificates/Documents/Expired folders
   const inCrewBucket = crewParts.length === 5 && crewParts[1] === 'crew'; // files
+  // The crew member whose record we're inside (member or bucket level) — the
+  // target for filing an uploaded document.
+  const crewTargetUid = (inCrewMember || inCrewBucket) ? crewParts[3] : null;
+
+  // Command can add a document straight onto a crew member's record from here —
+  // pick the file, choose its type (which files it into the right folder), save.
+  const onPickCrewFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !crewTargetUid) return;
+    setCrewUpload({ file, uid: crewTargetUid, docType: '', expiryDate: '', busy: false, error: null });
+  };
+  const submitCrewUpload = async () => {
+    if (!crewUpload?.docType || crewUpload.busy) return;
+    setCrewUpload((u) => ({ ...u, busy: true, error: null }));
+    try {
+      await persistCrewDocument({
+        form: { docType: crewUpload.docType, expiryDate: crewUpload.expiryDate || null, details: {} },
+        file: crewUpload.file,
+        userId: crewUpload.uid,
+        tenantId: activeTenantId,
+        createdBy: userId,
+      });
+      setCrewUpload(null);
+      flash('Document added');
+      await load();
+    } catch (err) {
+      console.warn('[vault] crew document upload failed', err);
+      setCrewUpload((u) => ({ ...u, busy: false, error: err?.message || 'Couldn’t add the document' }));
+    }
+  };
   const crewDepts = inCrewGroup
     ? Array.from(new Set(items.map((i) => i.dept || '—'))).sort((a, b) => a.localeCompare(b))
     : [];
@@ -480,6 +518,11 @@ export default function VesselDocuments() {
               ))}
             </div>
             <div className="vd-tools">
+              {(inCrewMember || inCrewBucket) && isCommand && (
+                <button type="button" className="vd-btn vd-btn-primary" disabled={busy} onClick={() => crewFileRef.current?.click()} title="Upload a document onto this crew member's record">
+                  <Icon name="Upload" size={15} /> Add document
+                </button>
+              )}
               <button type="button" className="vd-btn vd-btn-ghost" disabled={busy || isVirtualId(cwd)} onClick={openNewFolder}>
                 <Icon name="FolderPlus" size={15} /> New folder
               </button>
@@ -487,6 +530,7 @@ export default function VesselDocuments() {
                 <Icon name="Upload" size={15} /> Upload
               </button>
               <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
+              <input ref={crewFileRef} type="file" hidden onChange={onPickCrewFile} />
             </div>
           </div>
 
@@ -584,6 +628,39 @@ export default function VesselDocuments() {
                 <button type="button" className="vd-btn vd-btn-ghost" disabled={busy} onClick={() => setPrompt(null)}>Cancel</button>
                 <button type="button" className="vd-btn vd-btn-primary" disabled={busy || (prompt.mode !== 'expiry' && !promptValue.trim())} onClick={submitPrompt}>
                   {busy ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add-a-crew-document modal — pick type (files it correctly), optional expiry */}
+        {crewUpload && (
+          <div className="vd-modal-scrim" onClick={() => !crewUpload.busy && setCrewUpload(null)}>
+            <div className="vd-modal" onClick={(e) => e.stopPropagation()}>
+              <h2 className="vd-modal-title">Add document</h2>
+              <p style={{ margin: '0 0 14px', fontSize: 13, color: '#8B8478', wordBreak: 'break-word' }}>{crewUpload.file?.name}</p>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#8B8478', margin: '0 0 6px' }}>Document type</label>
+              <select className="vd-input" value={crewUpload.docType} autoFocus
+                onChange={(e) => setCrewUpload((u) => ({ ...u, docType: e.target.value, error: null }))}>
+                <option value="">Select a type…</option>
+                {DOC_CATEGORIES.map((c) => {
+                  const types = DOCUMENT_TYPES.filter((t) => t.category === c.id);
+                  return types.length ? (
+                    <optgroup key={c.id} label={c.label}>
+                      {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    </optgroup>
+                  ) : null;
+                })}
+              </select>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#8B8478', margin: '14px 0 6px' }}>Expiry date (optional)</label>
+              <input type="date" className="vd-input" value={crewUpload.expiryDate}
+                onChange={(e) => setCrewUpload((u) => ({ ...u, expiryDate: e.target.value }))} />
+              {crewUpload.error && <div style={{ marginTop: 10, fontSize: 13, color: '#9A2B12' }}>{crewUpload.error}</div>}
+              <div className="vd-modal-actions">
+                <button type="button" className="vd-btn vd-btn-ghost" disabled={crewUpload.busy} onClick={() => setCrewUpload(null)}>Cancel</button>
+                <button type="button" className="vd-btn vd-btn-primary" disabled={crewUpload.busy || !crewUpload.docType} onClick={submitCrewUpload}>
+                  {crewUpload.busy ? 'Saving…' : 'Add document'}
                 </button>
               </div>
             </div>
