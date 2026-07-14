@@ -621,6 +621,9 @@
   }
 
   .vm-insp-danger { margin-top: 22px; padding-top: 16px; border-top: 1px solid #F0F1F5; }
+  /* Adjust position + Remove pin sit side by side. */
+  .vm-insp-actions-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .vm-insp-actions-row .vm-insp-adjust { margin-top: 0; }
   .vm-insp-error {
     margin: 0 0 10px;
     font-size: 12.5px;
