@@ -8,6 +8,8 @@ import { getAllDecks, getAllZones, getAllSpaces } from '../../locations-manageme
 import { loadGuests } from '../../guest-management-dashboard/utils/guestStorage';
 import { getActiveGuestsFromCurrentTrip } from '../../trips-management-dashboard/utils/tripStorage';
 import { loadUsers, UserStatus } from '../../../utils/authStorage';
+import { useTenant } from '../../../contexts/TenantContext';
+import { loadOnboardCrew } from '../utils/onboardCrew';
 import ModalShell from '../../../components/ui/ModalShell';
 
 const availableTags = ['DryClean', 'HandWash', 'Iron', 'StainTreat', 'Delicate', 'Express'];
@@ -18,6 +20,7 @@ const SpeechRec = (typeof window !== 'undefined') && (window.SpeechRecognition |
 // notes. Guest: name + cabin, or Unknown + colour + area found. Crew: name +
 // laundry number (± colour).
 const AddLaundryModal = ({ onClose, onSuccess }) => {
+  const { activeTenantId } = useTenant();
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
   const [listening, setListening] = useState(false);
@@ -72,11 +75,25 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     })();
   }, [isGuest]);
 
+  // Crew picker: only members active AND on board for today (excludes leave /
+  // rotation / medical / travelling), each with their berth cabin. Falls back
+  // to the local user store when there's no Supabase tenant (sample/dev).
   useEffect(() => {
-    if (isGuest) return;
-    const allUsers = loadUsers();
-    setActiveCrew(allUsers?.filter((u) => u?.status === UserStatus?.ACTIVE) || []);
-  }, [isGuest]);
+    if (isGuest) return undefined;
+    let cancelled = false;
+    (async () => {
+      if (activeTenantId) {
+        const crew = await loadOnboardCrew(activeTenantId, new Date());
+        if (!cancelled) setActiveCrew(crew);
+      } else {
+        const allUsers = loadUsers();
+        const mapped = (allUsers?.filter((u) => u?.status === UserStatus?.ACTIVE) || [])
+          .map((u) => ({ id: u.id, fullName: u.fullName, roleTitle: u.roleTitle, department: u.department, cabin: '' }));
+        if (!cancelled) setActiveCrew(mapped);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isGuest, activeTenantId]);
 
   useEffect(() => {
     (async () => {
@@ -140,7 +157,11 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   };
 
   const handleCrewSelect = (crew) => {
-    setFormData((prev) => ({ ...prev, ownerName: crew?.fullName, ownerCrewUserId: crew?.id, ownerDisplayName: crew?.fullName }));
+    setFormData((prev) => ({
+      ...prev,
+      ownerName: crew?.fullName, ownerCrewUserId: crew?.id, ownerDisplayName: crew?.fullName,
+      area: crew?.cabin || prev.area, areaLocationId: null,
+    }));
     setCrewSearchQuery(crew?.fullName); setShowCrewDropdown(false); clearError('owner');
   };
 
@@ -397,15 +418,19 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
                       <button key={crew?.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleCrewSelect(crew)}>
                         <span style={{ minWidth: 0 }}>
                           <span className="alm-combo-name">{crew?.fullName}</span>
-                          {crew?.roleTitle && <span className="alm-combo-meta">{crew?.roleTitle} · {crew?.department}</span>}
+                          {(crew?.roleTitle || crew?.cabin) && <span className="alm-combo-meta">{[crew?.roleTitle, crew?.cabin].filter(Boolean).join(' · ')}</span>}
                         </span>
-                        <span className="alm-combo-active">Active</span>
+                        <span className="alm-combo-active">Aboard</span>
                       </button>
-                    )) : <div className="alm-combo-empty">No active crew members found</div>}
+                    )) : <div className="alm-combo-empty">No crew on board found</div>}
                   </div>
                 )}
               </div>
               {errors.owner && <div className="alm-err">{errors.owner}</div>}
+            </div>
+            <div className="alm-section">
+              <label className="alm-label">Cabin <span className="alm-opt">optional</span></label>
+              <input className="alm-field" value={formData.area} onChange={(e) => setField('area', e?.target?.value)} placeholder="Where to deliver back to" />
             </div>
             <div className="alm-grid2">
               <div>
