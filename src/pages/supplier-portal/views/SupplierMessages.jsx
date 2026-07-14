@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
-import { fetchMessageThreads, getOrCreateThread, fetchMessages, sendSupplierMessage, fetchClients, fetchClientOrders } from '../utils/supplierStorage';
+import { fetchMessageThreads, getOrCreateThread, fetchMessages, sendSupplierMessage, markThreadReadSupplier, fetchClients, fetchClientOrders } from '../utils/supplierStorage';
+import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
 
 // Supplier ↔ yacht messaging. Threads on the left, the conversation + composer
@@ -104,7 +105,35 @@ const SupplierMessages = () => {
   useEffect(() => {
     if (!activeId) { setMessages([]); return; }
     fetchMessages(activeId).then(setMessages).catch((e) => setError(e.message));
+    // Opening a thread reads it — clear the badge locally + on the server.
+    setThreads((prev) => prev.map((t) => (t.id === activeId ? { ...t, supplier_unread_count: 0 } : t)));
+    markThreadReadSupplier(activeId).catch(() => {});
   }, [activeId]);
+
+  // Realtime — new messages in the open thread, and inbox changes.
+  useEffect(() => {
+    if (!activeId) return;
+    const ch = supabase
+      .channel(`msgs-${activeId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'supplier_messages', filter: `thread_id=eq.${activeId}` }, (payload) => {
+        const msg = payload.new;
+        setMessages((m) => (m.some((x) => x.id === msg.id) ? m : [...m, msg]));
+        if (msg.sender_type === 'vessel') markThreadReadSupplier(activeId).catch(() => {});
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeId]);
+
+  useEffect(() => {
+    if (!supplierId) return;
+    const ch = supabase
+      .channel(`threads-${supplierId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'supplier_message_threads', filter: `supplier_id=eq.${supplierId}` }, () => {
+        loadThreads().catch(() => {});
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [supplierId, loadThreads]);
 
   // Order-context: the yacht's most recent order with this supplier.
   useEffect(() => {
@@ -184,18 +213,22 @@ const SupplierMessages = () => {
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search conversations…" />
             </div>
             <div className="msg-tlist">
-              {visibleThreads.map((t) => (
-                <button key={t.id} type="button" className={`msg-thread${t.id === activeId ? ' on' : ''}`} onClick={() => setActiveId(t.id)}>
-                  <span className="msg-thread-av">{initials(nameFor(t))}</span>
-                  <span className="msg-thread-main">
-                    <span className="msg-thread-top">
-                      <span className="msg-thread-name">{nameFor(t)}</span>
-                      <span className="msg-thread-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
+              {visibleThreads.map((t) => {
+                const unread = t.id === activeId ? 0 : (t.supplier_unread_count || 0);
+                return (
+                  <button key={t.id} type="button" className={`msg-thread${t.id === activeId ? ' on' : ''}${unread > 0 ? ' unread-row' : ''}`} onClick={() => setActiveId(t.id)}>
+                    <span className="msg-thread-av">{initials(nameFor(t))}</span>
+                    <span className="msg-thread-main">
+                      <span className="msg-thread-top">
+                        <span className="msg-thread-name">{nameFor(t)}</span>
+                        <span className="msg-thread-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
+                      </span>
+                      <span className="msg-thread-prev">{t.last_message_preview || 'No messages yet'}</span>
                     </span>
-                    <span className="msg-thread-prev">{t.last_message_preview || 'No messages yet'}</span>
-                  </span>
-                </button>
-              ))}
+                    {unread > 0 && <span className="msg-unread">{unread}</span>}
+                  </button>
+                );
+              })}
               {visibleThreads.length === 0 && <div className="msg-empty" style={{ padding: '24px 12px' }}>No matches.</div>}
             </div>
           </div>
@@ -233,7 +266,14 @@ const SupplierMessages = () => {
                     <div key={r.msg.id} className={`msg-row ${r.msg.sender_type === 'supplier' ? 'me' : 'them'}${r.grouped ? ' grouped' : ''}`}>
                       <div className="msg-bubble">
                         {r.msg.body}
-                        <span className="msg-time">{fmtClock(r.msg.created_at)}</span>
+                        <span className="msg-time">
+                          {fmtClock(r.msg.created_at)}
+                          {r.msg.sender_type === 'supplier' && (
+                            <span className={`msg-tick${activeThread?.vessel_last_read_at && new Date(activeThread.vessel_last_read_at) >= new Date(r.msg.created_at) ? ' read' : ''}`}>
+                              {activeThread?.vessel_last_read_at && new Date(activeThread.vessel_last_read_at) >= new Date(r.msg.created_at) ? '✓✓' : '✓'}
+                            </span>
+                          )}
+                        </span>
                       </div>
                     </div>
                   ))}

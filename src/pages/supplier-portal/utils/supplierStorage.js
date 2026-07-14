@@ -834,6 +834,17 @@ export const fetchMessages = async (threadId) => {
   return data ?? [];
 };
 
+// Mark a thread read on the supplier side — clears the unread badge and moves
+// the read cursor so the vessel's receipts update. RLS lets the supplier
+// update their own thread.
+export const markThreadReadSupplier = async (threadId) => {
+  const { error } = await supabase
+    .from('supplier_message_threads')
+    .update({ supplier_last_read_at: new Date().toISOString(), supplier_unread_count: 0 })
+    .eq('id', threadId);
+  if (error) throw error;
+};
+
 // Send a message from the supplier side.
 export const sendSupplierMessage = async (threadId, body) => {
   const { data: auth } = await supabase.auth.getUser();
