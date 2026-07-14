@@ -57,6 +57,13 @@ jobs:
             echo "No deployable function changed."; exit 0
           fi
           for fn in $FNS; do
+            # A function whose directory was removed shows up in the diff but can
+            # no longer be deployed — skip it (delete it in the dashboard if the
+            # remote copy should go too).
+            if [ ! -d "supabase/functions/$fn" ]; then
+              echo "── Skipping $fn (removed from repo)"
+              continue
+            fi
             echo "── Deploying $fn"
             supabase functions deploy "$fn" --project-ref "$PROJECT_ID"
           done
