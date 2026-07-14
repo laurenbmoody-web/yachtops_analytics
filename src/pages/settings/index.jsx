@@ -1125,9 +1125,9 @@ const SettingsPage = () => {
             <h2 className="set-h">Legal</h2>
             <p className="set-hsub">Terms, privacy and cookies.</p>
             <Group>
-              {/* Terms & Cookie pages aren't published yet — mark Soon until they exist. */}
-              <RowSoon label="Terms of Service" />
+              <RowNav ext label="Terms of Service" desc="The agreement for using Cargo." onClick={() => window.open('/terms', '_blank', 'noopener')} />
               <RowNav ext label="Privacy Policy" desc="How we handle your data." onClick={() => window.open('/privacy', '_blank', 'noopener')} />
+              {/* Cookie page isn't published yet — mark Soon until it exists. */}
               <RowSoon label="Cookie Policy" />
             </Group>
           </>
