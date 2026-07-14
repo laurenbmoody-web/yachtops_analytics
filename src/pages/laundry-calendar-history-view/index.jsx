@@ -25,14 +25,14 @@ const LaundryCalendarHistoryView = () => {
     loadLaundryForDate();
   }, [selectedDate]);
   
-  const loadAvailableDates = () => {
-    const dates = getDeliveredDates();
+  const loadAvailableDates = async () => {
+    const dates = await getDeliveredDates();
     setAvailableDates(dates);
   };
-  
-  const loadLaundryForDate = () => {
+
+  const loadLaundryForDate = async () => {
     const dateKey = selectedDate?.toISOString()?.split('T')?.[0];
-    const items = getLaundryItemsByDeliveredDate(dateKey);
+    const items = await getLaundryItemsByDeliveredDate(dateKey);
     setLaundryItems(items);
   };
   

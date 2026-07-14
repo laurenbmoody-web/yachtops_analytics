@@ -12,47 +12,34 @@ const LaundryLogWidget = () => {
   const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
-    // Load real laundry data
-    const items = loadAllLaundryItems();
-    
-    // Get today's date at midnight for comparison
-    const today = new Date();
-    today?.setHours(0, 0, 0, 0);
-    const todayTime = today?.getTime();
-    
-    const tomorrow = new Date(today);
-    tomorrow?.setDate(tomorrow?.getDate() + 1);
-    const tomorrowTime = tomorrow?.getTime();
-    
-    // Count items IN (InProgress + ReadyToDeliver created today)
-    const itemsIn = items?.filter(item => {
-      if (item?.status !== LaundryStatus?.IN_PROGRESS && item?.status !== LaundryStatus?.READY_TO_DELIVER) {
-        return false;
-      }
-      
-      // Check if created today
-      const createdDate = new Date(item?.createdAt);
-      const createdTime = createdDate?.getTime();
-      return createdTime >= todayTime && createdTime < tomorrowTime;
-    })?.length || 0;
-    
-    // Count items OUT (Delivered today)
-    const itemsOut = items?.filter(item => {
-      if (item?.status !== LaundryStatus?.DELIVERED) {
-        return false;
-      }
-      
-      // Check if delivered today
-      if (item?.deliveredAt) {
-        const deliveredDate = new Date(item?.deliveredAt);
-        const deliveredTime = deliveredDate?.getTime();
+    let cancelled = false;
+    (async () => {
+      const items = await loadAllLaundryItems();
+
+      const today = new Date();
+      today?.setHours(0, 0, 0, 0);
+      const todayTime = today?.getTime();
+      const tomorrow = new Date(today);
+      tomorrow?.setDate(tomorrow?.getDate() + 1);
+      const tomorrowTime = tomorrow?.getTime();
+
+      // Count items IN (InProgress + ReadyToDeliver created today)
+      const itemsIn = items?.filter(item => {
+        if (item?.status !== LaundryStatus?.IN_PROGRESS && item?.status !== LaundryStatus?.READY_TO_DELIVER) return false;
+        const createdTime = new Date(item?.createdAt)?.getTime();
+        return createdTime >= todayTime && createdTime < tomorrowTime;
+      })?.length || 0;
+
+      // Count items OUT (Delivered today)
+      const itemsOut = items?.filter(item => {
+        if (item?.status !== LaundryStatus?.DELIVERED || !item?.deliveredAt) return false;
+        const deliveredTime = new Date(item?.deliveredAt)?.getTime();
         return deliveredTime >= todayTime && deliveredTime < tomorrowTime;
-      }
-      
-      return false;
-    })?.length || 0;
-    
-    setLaundryStats({ itemsIn, itemsOut });
+      })?.length || 0;
+
+      if (!cancelled) setLaundryStats({ itemsIn, itemsOut });
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleCenterClick = (e) => {
