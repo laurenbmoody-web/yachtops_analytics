@@ -101,6 +101,7 @@ const SupplierMessages = () => {
   }, [threads, activeId, yachtParam]);
 
   const activeThread = useMemo(() => threads.find((t) => t.id === activeId), [threads, activeId]);
+  const totalUnread = useMemo(() => threads.reduce((s, t) => s + (t.id === activeId ? 0 : (t.supplier_unread_count || 0)), 0), [threads, activeId]);
 
   useEffect(() => {
     if (!activeId) { setMessages([]); return; }
@@ -166,7 +167,8 @@ const SupplierMessages = () => {
     } catch (e) { setError(e.message); }
     finally { setSending(false); }
   };
-  const onKey = (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } };
+  // Enter sends; Shift+Enter (or ⌘/Ctrl+Enter) inserts a new line.
+  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (fn) => { setDraft((d) => (d.trim() ? `${d.trim()} ${fn(activeOrder)}` : fn(activeOrder))); taRef.current?.focus(); };
 
   // Build a render list: date dividers + grouping flags (same sender ≤5 min).
@@ -195,9 +197,14 @@ const SupplierMessages = () => {
     <div className="sp-page">
       <div className="sp-page-head">
         <div>
-          <div className="sp-eyebrow">Inbox</div>
-          <h1 className="sp-page-title">Yacht <em>messages</em></h1>
-          <p className="sp-page-sub">Direct conversations with your yacht clients.</p>
+          <p className="editorial-meta" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+            <span className="dot">●</span>
+            <span>{threads.length} conversation{threads.length === 1 ? '' : 's'}</span>
+            {totalUnread > 0 && <><span className="bar" /><span className="muted" style={{ color: '#C65A1A' }}>{totalUnread} unread</span></>}
+          </p>
+          <h1 className="editorial-greeting" style={{ fontSize: 46, letterSpacing: '-1px', margin: 0 }}>
+            YACHT <em>messages</em>
+          </h1>
         </div>
       </div>
 
@@ -288,7 +295,7 @@ const SupplierMessages = () => {
                   ))}
                 </div>
                 <div className="msg-composer">
-                  <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} placeholder="Write a message…  (⌘↵ to send)" rows={2} />
+                  <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} placeholder="Write a message…  (Enter to send · Shift+Enter for a new line)" rows={2} />
                   <button type="button" className="msg-send" disabled={!draft.trim() || sending} onClick={send}>{sending ? 'Sending…' : 'Send'}</button>
                 </div>
               </>
