@@ -9,6 +9,7 @@ import { logReceived, logMoved, logCounted, logRemoved, logCreated } from './mov
 // The node resolver lives in the shared physical-location tree module so the map,
 // the inventory picker, and Location Management all resolve one place to one row.
 import { resolvePinNode, getNodePath } from '../../../utils/locationTree';
+import { findExistingItem } from '../../../utils/itemIdentity';
 
 // Back-compat re-exports — existing importers (PinItems) pull these from here.
 export { resolvePinNode };
@@ -113,23 +114,38 @@ export async function clearItemNode(itemId, pin) {
 
 // Create a brand-new inventory item, all of it received AT the pin.
 // `category` (an inventory_locations folder) files it in the inventory tree.
-export async function createItemAtNode({ tenantId, userId, name, qty, unit, pin, category }) {
+//
+// Dedupe: unless `force`, first look for an existing item of the same name in
+// the tenant. On a hit we DON'T insert — we return { existing } so the caller
+// can confirm (add stock to it) rather than silently spawning a duplicate.
+export async function createItemAtNode({ tenantId, userId, name, qty, unit, pin, category, force = false }) {
+  const clean = (name || '').trim();
+  if (!force) {
+    const { item } = await findExistingItem(tenantId, { name: clean });
+    if (item) return { existing: item };
+  }
   const n = Number(qty);
   const quantity = Number.isFinite(n) && n >= 0 ? n : 0;
   const stock = quantity > 0
     ? [{ vesselLocationId: pin.nodeId, locationId: pin.nodeId, locationName: pin.name || '', subLocation: pin.name || '', qty: quantity, quantity }]
     : [];
+  // Always file the item somewhere the inventory browse can see it — the folder
+  // dashboard groups by `location`, so an item with no category would vanish.
+  // Fall back to "Unfiled › Map" (two segments satisfy the department-folder guard).
+  const location = category?.location || 'Unfiled';
+  const subLocation = category?.sub_location || (category?.location ? null : 'Map');
   const { data, error } = await supabase
     .from('inventory_items')
     .insert({
       tenant_id: tenantId,
-      name: (name || '').trim(),
+      name: clean,
       quantity,
       total_qty: quantity,
       unit: unit || null,
-      location: category?.location || null,
-      sub_location: category?.sub_location || null,
+      location,
+      sub_location: subLocation,
       stock_locations: stock,
+      default_location_id: pin.nodeId || null,
       created_by: userId || null,
     })
     .select(ITEM_COLS)
