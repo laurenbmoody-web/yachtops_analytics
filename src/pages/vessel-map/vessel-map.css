@@ -23,6 +23,23 @@
   margin: 0 auto;
 }
 
+/* Embedded in the map-picker modal: no fixed-nav clearance, fill the panel,
+   scroll internally, and drop the page title (the modal has its own chrome). */
+.vm-page-embedded { min-height: 0; height: 100%; padding: 14px 16px 16px; overflow-y: auto; background: #FAFAF8; }
+.vm-page-embedded .vm-shell { max-width: none; }
+.vm-page-embedded .vm-headblock { display: none; }
+
+/* Map-picker modal — blurred backdrop over the item form. */
+.vm-picker-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(28, 27, 58, 0.34); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.vm-picker-panel { position: relative; width: min(1120px, 96vw); height: min(88vh, 920px);
+  background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 18px; overflow: hidden;
+  box-shadow: 0 30px 80px -20px rgba(28, 27, 58, 0.5); display: flex; flex-direction: column; }
+.vm-picker-close { position: absolute; top: 12px; right: 12px; z-index: 40; width: 30px; height: 30px; border-radius: 999px;
+  border: 0; background: rgba(28, 27, 58, 0.06); color: #1C1B3A; font-size: 18px; line-height: 1; cursor: pointer; }
+.vm-picker-close:hover { background: rgba(28, 27, 58, 0.12); }
+.vm-picker-loading { flex: 1; display: flex; align-items: center; justify-content: center; color: #8B8478; font-size: 13px; }
+
 .vm-headblock {
   padding-bottom: 18px;
   border-bottom: 1px solid #F0F1F5;
