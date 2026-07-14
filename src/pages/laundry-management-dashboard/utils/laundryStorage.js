@@ -239,6 +239,8 @@ export const createLaundryItem = (itemData) => {
     ownerDisplayName: itemData?.ownerDisplayName || ownerName,
     area: itemData?.area || '',
     areaLocationId: itemData?.areaLocationId || null,
+    colour: itemData?.colour || '',
+    laundryNumber: itemData?.laundryNumber || '',
     photo: itemData?.photo || '',
     description: itemData?.description || '',
     priority: itemData?.priority || LaundryPriority?.NORMAL,

@@ -38,6 +38,8 @@ const LaundryItemRow = ({ item, onUpdate }) => {
             <div className="lm-sub">
               <span className={`lm-owner-tag ${kind}`}>{kind === 'unknown' ? 'Unknown' : kind[0].toUpperCase() + kind.slice(1)}</span>
               {item?.ownerName && (<><span className="dot">·</span><span>{item.ownerName}</span></>)}
+              {item?.laundryNumber && (<><span className="dot">·</span><span>No. {item.laundryNumber}</span></>)}
+              {item?.colour && (<><span className="dot">·</span><span>{item.colour}</span></>)}
               {item?.area && (<><span className="dot">·</span><span>{item.area}</span></>)}
             </div>
             {item?.tags?.length > 0 && (

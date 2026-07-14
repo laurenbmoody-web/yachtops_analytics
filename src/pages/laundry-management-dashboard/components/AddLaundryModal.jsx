@@ -11,11 +11,16 @@ import { loadUsers, UserStatus } from '../../../utils/authStorage';
 import ModalShell from '../../../components/ui/ModalShell';
 
 const availableTags = ['DryClean', 'HandWash', 'Iron', 'StainTreat', 'Delicate', 'Express'];
+const SpeechRec = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
-// Single-screen Add Laundry. Owner is a segmented toggle, photo is an optional
-// inline dropzone, and everything else follows in one scroll — no wizard steps.
+// Single-screen Add Laundry. Owner (segmented Guest/Crew, with Urgent far
+// right) → identity fields → description (type or dictate) → photo → tags +
+// notes. Guest: name + cabin, or Unknown + colour + area found. Crew: name +
+// laundry number (± colour).
 const AddLaundryModal = ({ onClose, onSuccess }) => {
   const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const [listening, setListening] = useState(false);
 
   const [formData, setFormData] = useState({
     ownerType: OwnerType?.GUEST,
@@ -27,6 +32,9 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     ownerDisplayName: '',
     area: '',
     areaLocationId: null,
+    colour: '',
+    laundryNumber: '',
+    notes: '',
     tags: [],
     priority: LaundryPriority?.NORMAL,
   });
@@ -36,7 +44,6 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Guest / crew pickers
   const [activeGuests, setActiveGuests] = useState([]);
   const [guestSearchQuery, setGuestSearchQuery] = useState('');
   const [showGuestDropdown, setShowGuestDropdown] = useState(false);
@@ -44,16 +51,17 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   const [crewSearchQuery, setCrewSearchQuery] = useState('');
   const [showCrewDropdown, setShowCrewDropdown] = useState(false);
 
-  // Flat, searchable location list
   const [locations, setLocations] = useState([]);
   const [locationQuery, setLocationQuery] = useState('');
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
 
   const isGuest = formData?.ownerType === OwnerType?.GUEST;
+  const isUnknown = formData?.ownerDisplayName === 'Unknown';
+  const isUrgent = formData?.priority === LaundryPriority?.URGENT;
 
   const clearError = (key) => setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
+  const setField = (key, value) => setFormData((prev) => ({ ...prev, [key]: value }));
 
-  // Load active guests / crew for the current owner type.
   useEffect(() => {
     if (!isGuest) return;
     (async () => {
@@ -70,19 +78,17 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     setActiveCrew(allUsers?.filter((u) => u?.status === UserStatus?.ACTIVE) || []);
   }, [isGuest]);
 
-  // Build a flat, searchable list of spaces with their full "Deck → Zone → Space" path.
   useEffect(() => {
     (async () => {
       try {
         const [decks, zones, spaces] = await Promise.all([getAllDecks(), getAllZones(), getAllSpaces()]);
         const deckName = new Map((decks || []).map((d) => [d?.id, d?.name]));
         const zoneById = new Map((zones || []).map((z) => [z?.id, z]));
-        const flat = (spaces || []).map((s) => {
+        setLocations((spaces || []).map((s) => {
           const z = zoneById.get(s?.zoneId);
           const label = [z ? deckName.get(z?.deckId) : null, z?.name, s?.name].filter(Boolean).join(' → ');
           return { id: s?.id, label };
-        });
-        setLocations(flat);
+        }));
       } catch (e) {
         console.warn('[AddLaundryModal] locations load failed', e);
         setLocations([]);
@@ -90,57 +96,57 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     })();
   }, []);
 
+  // Stop dictation if the modal unmounts.
+  useEffect(() => () => { try { recognitionRef.current?.stop(); } catch { /* noop */ } }, []);
+
+  const toggleMic = () => {
+    if (!SpeechRec) return;
+    if (listening) { try { recognitionRef.current?.stop(); } catch { /* noop */ } setListening(false); return; }
+    const rec = new SpeechRec();
+    rec.lang = 'en-GB'; rec.interimResults = false; rec.continuous = false; rec.maxAlternatives = 1;
+    rec.onresult = (e) => {
+      const text = Array.from(e.results).map((r) => r[0]?.transcript).join(' ').trim();
+      if (text) { setFormData((prev) => ({ ...prev, description: prev.description ? `${prev.description} ${text}` : text })); clearError('description'); }
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognitionRef.current = rec;
+    try { rec.start(); setListening(true); } catch { setListening(false); }
+  };
+
   const chooseOwnerType = (type) => {
     setFormData((prev) => ({
-      ...prev,
-      ownerType: type,
-      ownerGuestId: null,
-      ownerCrewUserId: null,
-      ownerName: '',
-      ownerDisplayName: '',
-      area: '',
-      areaLocationId: null,
+      ...prev, ownerType: type,
+      ownerGuestId: null, ownerCrewUserId: null, ownerName: '', ownerDisplayName: '',
+      area: '', areaLocationId: null, colour: '', laundryNumber: '',
     }));
-    setGuestSearchQuery('');
-    setCrewSearchQuery('');
-    setLocationQuery('');
-    setErrors({});
+    setGuestSearchQuery(''); setCrewSearchQuery(''); setLocationQuery(''); setErrors({});
   };
 
   const handleGuestSelect = (guest) => {
     if (guest === 'unknown') {
       setFormData((prev) => ({ ...prev, ownerGuestId: null, ownerDisplayName: 'Unknown', ownerName: 'Unknown', area: '', areaLocationId: null }));
-      setGuestSearchQuery('Unknown');
-      setLocationQuery('');
+      setGuestSearchQuery('Unknown'); setLocationQuery('');
     } else {
       const name = `${guest?.firstName} ${guest?.lastName}`.trim();
       setFormData((prev) => ({
-        ...prev,
-        ownerGuestId: guest?.id,
-        ownerDisplayName: name,
-        ownerName: name,
-        area: guest?.cabinLocationLabel || guest?.cabinAllocated || '',
-        areaLocationId: guest?.cabinLocationId || null,
+        ...prev, ownerGuestId: guest?.id, ownerDisplayName: name, ownerName: name,
+        area: guest?.cabinLocationLabel || guest?.cabinAllocated || '', areaLocationId: guest?.cabinLocationId || null,
       }));
       setGuestSearchQuery(name);
       setLocationQuery(guest?.cabinLocationLabel || guest?.cabinAllocated || '');
     }
-    setShowGuestDropdown(false);
-    clearError('owner');
+    setShowGuestDropdown(false); clearError('owner');
   };
 
   const handleCrewSelect = (crew) => {
     setFormData((prev) => ({ ...prev, ownerName: crew?.fullName, ownerCrewUserId: crew?.id, ownerDisplayName: crew?.fullName }));
-    setCrewSearchQuery(crew?.fullName);
-    setShowCrewDropdown(false);
-    clearError('owner');
+    setCrewSearchQuery(crew?.fullName); setShowCrewDropdown(false); clearError('owner');
   };
 
   const handleLocationSelect = (loc) => {
     setFormData((prev) => ({ ...prev, area: loc?.label, areaLocationId: loc?.id }));
-    setLocationQuery(loc?.label);
-    setShowLocationDropdown(false);
-    clearError('area');
+    setLocationQuery(loc?.label); setShowLocationDropdown(false); clearError('area');
   };
 
   const getFilteredGuests = () => {
@@ -182,8 +188,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     reader.onloadend = async () => {
       try {
         const compressed = await compressImageForStorage(reader?.result);
-        setPhotoPreview(compressed);
-        setFormData((prev) => ({ ...prev, photo: compressed }));
+        setPhotoPreview(compressed); setField('photo', compressed);
       } catch (err) {
         console.error('Error processing image:', err);
         showToast('Failed to process image. Please try a smaller file.', 'error');
@@ -191,25 +196,19 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     };
     reader?.readAsDataURL(file);
   };
-
   const handleRemovePhoto = () => {
-    setPhotoPreview(null);
-    setFormData((prev) => ({ ...prev, photo: '' }));
+    setPhotoPreview(null); setField('photo', '');
     if (fileInputRef?.current) fileInputRef.current.value = '';
   };
 
-  const handleToggleTag = (tag) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: prev?.tags?.includes(tag) ? prev?.tags?.filter((t) => t !== tag) : [...prev?.tags, tag],
-    }));
-  };
+  const handleToggleTag = (tag) => setFormData((prev) => ({
+    ...prev, tags: prev?.tags?.includes(tag) ? prev?.tags?.filter((t) => t !== tag) : [...prev?.tags, tag],
+  }));
   const handleAddCustomTag = () => {
     const t = customTag?.trim();
     if (!t) return;
     if (formData?.tags?.includes(t)) { showToast('Tag already added', 'error'); return; }
-    setFormData((prev) => ({ ...prev, tags: [...prev?.tags, t] }));
-    setCustomTag('');
+    setFormData((prev) => ({ ...prev, tags: [...prev?.tags, t] })); setCustomTag('');
   };
   const handleRemoveTag = (tag) => setFormData((prev) => ({ ...prev, tags: prev?.tags?.filter((t) => t !== tag) }));
 
@@ -217,8 +216,12 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     const next = {};
     if (!formData?.description?.trim()) next.description = 'Add a short description.';
     if (isGuest) {
-      if (!formData?.ownerGuestId && formData?.ownerDisplayName !== 'Unknown') next.owner = 'Select a guest, or choose Unknown.';
-      else if (!formData?.area?.trim()) next.area = 'Choose an area — required when the guest has no cabin on file.';
+      if (isUnknown) {
+        if (!formData?.colour?.trim()) next.colour = 'Note a colour or item so it can be found again.';
+        if (!formData?.area?.trim()) next.area = 'Where was it found?';
+      } else if (!formData?.ownerGuestId) {
+        next.owner = 'Select a guest, or choose Unknown.';
+      }
     } else if (!formData?.ownerCrewUserId) {
       next.owner = 'Select a crew member.';
     }
@@ -238,12 +241,14 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
         ownerDisplayName: formData?.ownerDisplayName,
         area: formData?.area,
         areaLocationId: formData?.areaLocationId,
+        colour: formData?.colour,
+        laundryNumber: formData?.laundryNumber,
         photo: formData?.photo,
         description: formData?.description,
         priority: formData?.priority,
         tags: formData?.tags,
+        notes: formData?.notes,
       });
-      showToast('Laundry item added', 'success');
       onSuccess?.(newItem);
       onClose?.();
     } catch (error) {
@@ -257,7 +262,35 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   };
 
   const customTags = formData?.tags?.filter((t) => !availableTags?.includes(t)) || [];
-  const isUrgent = formData?.priority === LaundryPriority?.URGENT;
+
+  // A plain JSX-returning helper (NOT a component) so typing doesn't remount
+  // the input and drop focus. Only one location field is shown at a time.
+  const locationCombo = (label, required) => (
+    <>
+      <label className="alm-label">{label} {required ? <span className="alm-req">required</span> : <span className="alm-opt">optional</span>}</label>
+      <div className="alm-combo">
+        <input
+          type="text"
+          className={`alm-field${errors.area ? ' invalid' : ''}`}
+          placeholder="Search deck, zone or cabin…"
+          value={locationQuery}
+          onChange={(e) => { setLocationQuery(e?.target?.value); setShowLocationDropdown(true); setField('area', e?.target?.value); clearError('area'); }}
+          onFocus={() => setShowLocationDropdown(true)}
+          onBlur={() => setTimeout(() => setShowLocationDropdown(false), 150)}
+        />
+        {showLocationDropdown && filteredLocations.length > 0 && (
+          <div className="alm-combo-menu">
+            {filteredLocations.map((loc) => (
+              <button key={loc.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleLocationSelect(loc)}>
+                <span className="alm-combo-name">{loc.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {errors.area && <div className="alm-err">{errors.area}</div>}
+    </>
+  );
 
   return (
     <ModalShell onClose={onClose} panelClassName="alm-panel">
@@ -270,17 +303,142 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
       </div>
 
       <div className="alm-body">
-        {/* Owner */}
+        {/* Owner + urgent */}
         <div className="alm-section">
-          <label className="alm-label">Owner <span className="alm-req">required</span></label>
-          <div className="alm-seg" role="tablist">
-            <button type="button" role="tab" aria-selected={isGuest} className={`alm-seg-btn${isGuest ? ' on' : ''}`} onClick={() => chooseOwnerType(OwnerType?.GUEST)}>
-              <Icon name="User" size={15} /> Guest
-            </button>
-            <button type="button" role="tab" aria-selected={!isGuest} className={`alm-seg-btn${!isGuest ? ' on' : ''}`} onClick={() => chooseOwnerType(OwnerType?.CREW)}>
-              <Icon name="Users" size={15} /> Crew
+          <div className="alm-ownerbar">
+            <div className="alm-seg" role="tablist">
+              <button type="button" role="tab" aria-selected={isGuest} className={`alm-seg-btn${isGuest ? ' on' : ''}`} onClick={() => chooseOwnerType(OwnerType?.GUEST)}>
+                <Icon name="User" size={15} /> Guest
+              </button>
+              <button type="button" role="tab" aria-selected={!isGuest} className={`alm-seg-btn${!isGuest ? ' on' : ''}`} onClick={() => chooseOwnerType(OwnerType?.CREW)}>
+                <Icon name="Users" size={15} /> Crew
+              </button>
+            </div>
+            <button
+              type="button"
+              className={`alm-urgent-toggle${isUrgent ? ' on' : ''}`}
+              aria-pressed={isUrgent}
+              onClick={() => setField('priority', isUrgent ? LaundryPriority?.NORMAL : LaundryPriority?.URGENT)}
+            >
+              <Icon name="Zap" size={13} /> Urgent
+              <span className={`alm-switch sm${isUrgent ? ' on' : ''}`} />
             </button>
           </div>
+        </div>
+
+        {/* Identity — guest */}
+        {isGuest ? (
+          <>
+            <div className="alm-section">
+              <label className="alm-label">Guest <span className="alm-req">required</span></label>
+              <div className="alm-combo">
+                <input
+                  type="text"
+                  className={`alm-field${errors.owner ? ' invalid' : ''}`}
+                  placeholder="Search guest or select Unknown…"
+                  value={guestSearchQuery}
+                  onChange={(e) => { setGuestSearchQuery(e?.target?.value); setShowGuestDropdown(true); }}
+                  onFocus={() => setShowGuestDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowGuestDropdown(false), 150)}
+                />
+                {showGuestDropdown && (
+                  <div className="alm-combo-menu">
+                    <button type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleGuestSelect('unknown')}>
+                      <span><span className="alm-combo-name">Unknown</span><span className="alm-combo-meta">Identify by colour + where it was found</span></span>
+                    </button>
+                    {getFilteredGuests()?.length > 0 ? getFilteredGuests()?.map((guest) => (
+                      <button key={guest?.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleGuestSelect(guest)}>
+                        <span style={{ minWidth: 0 }}>
+                          <span className="alm-combo-name">{guest?.firstName} {guest?.lastName}</span>
+                          {(guest?.cabinLocationLabel || guest?.cabinAllocated) && (
+                            <span className="alm-combo-meta">{guest?.cabinLocationLabel || guest?.cabinAllocated}</span>
+                          )}
+                        </span>
+                        <span className="alm-combo-active">Active</span>
+                      </button>
+                    )) : <div className="alm-combo-empty">No active guests found</div>}
+                  </div>
+                )}
+              </div>
+              {errors.owner && <div className="alm-err">{errors.owner}</div>}
+            </div>
+
+            {isUnknown ? (
+              <div className="alm-grid2">
+                <div>
+                  <label className="alm-label">Colour / item <span className="alm-req">required</span></label>
+                  <input className={`alm-field${errors.colour ? ' invalid' : ''}`} value={formData.colour}
+                    onChange={(e) => { setField('colour', e?.target?.value); clearError('colour'); }} placeholder="e.g. White polo shirt" />
+                  {errors.colour && <div className="alm-err">{errors.colour}</div>}
+                </div>
+                <div>{locationCombo('Area found', true)}</div>
+              </div>
+            ) : (
+              <div className="alm-section">{locationCombo('Cabin', false)}</div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="alm-section">
+              <label className="alm-label">Crew member <span className="alm-req">required</span></label>
+              <div className="alm-combo">
+                <input
+                  type="text"
+                  className={`alm-field${errors.owner ? ' invalid' : ''}`}
+                  placeholder="Search crew member…"
+                  value={crewSearchQuery}
+                  onChange={(e) => { setCrewSearchQuery(e?.target?.value); setShowCrewDropdown(true); }}
+                  onFocus={() => setShowCrewDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowCrewDropdown(false), 150)}
+                />
+                {showCrewDropdown && (
+                  <div className="alm-combo-menu">
+                    {getFilteredCrew()?.length > 0 ? getFilteredCrew()?.map((crew) => (
+                      <button key={crew?.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleCrewSelect(crew)}>
+                        <span style={{ minWidth: 0 }}>
+                          <span className="alm-combo-name">{crew?.fullName}</span>
+                          {crew?.roleTitle && <span className="alm-combo-meta">{crew?.roleTitle} · {crew?.department}</span>}
+                        </span>
+                        <span className="alm-combo-active">Active</span>
+                      </button>
+                    )) : <div className="alm-combo-empty">No active crew members found</div>}
+                  </div>
+                )}
+              </div>
+              {errors.owner && <div className="alm-err">{errors.owner}</div>}
+            </div>
+            <div className="alm-grid2">
+              <div>
+                <label className="alm-label">Laundry number <span className="alm-opt">optional</span></label>
+                <input className="alm-field" value={formData.laundryNumber} onChange={(e) => setField('laundryNumber', e?.target?.value)} placeholder="e.g. 14" />
+              </div>
+              <div>
+                <label className="alm-label">Colour <span className="alm-opt">optional</span></label>
+                <input className="alm-field" value={formData.colour} onChange={(e) => setField('colour', e?.target?.value)} placeholder="e.g. Navy" />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Description with dictation */}
+        <div className="alm-section">
+          <label className="alm-label">Description <span className="alm-req">required</span></label>
+          <div className="alm-desc">
+            <textarea
+              className={`alm-field${errors.description ? ' invalid' : ''}`}
+              value={formData?.description}
+              onChange={(e) => { setField('description', e?.target?.value); clearError('description'); }}
+              placeholder="Item + colour + instructions — type or tap the mic to dictate…"
+              rows={3}
+            />
+            {SpeechRec && (
+              <button type="button" className={`alm-mic${listening ? ' on' : ''}`} onClick={toggleMic} aria-label={listening ? 'Stop dictation' : 'Dictate description'}>
+                <Icon name={listening ? 'Square' : 'Mic'} size={16} />
+              </button>
+            )}
+          </div>
+          {listening && <div className="alm-mic-hint">Listening… speak now</div>}
+          {errors.description && <div className="alm-err">{errors.description}</div>}
         </div>
 
         {/* Photo (optional) */}
@@ -300,113 +458,6 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
             </button>
           )}
         </div>
-
-        {/* Description */}
-        <div className="alm-section">
-          <label className="alm-label">Description <span className="alm-req">required</span></label>
-          <textarea
-            className={`alm-field${errors.description ? ' invalid' : ''}`}
-            value={formData?.description}
-            onChange={(e) => { setFormData((prev) => ({ ...prev, description: e?.target?.value })); clearError('description'); }}
-            placeholder="Start with item + colour + instructions…"
-            rows={3}
-          />
-          {errors.description && <div className="alm-err">{errors.description}</div>}
-        </div>
-
-        {/* Guest / Crew picker */}
-        {isGuest ? (
-          <div className="alm-section">
-            <label className="alm-label">Guest <span className="alm-req">required</span></label>
-            <div className="alm-combo">
-              <input
-                type="text"
-                className={`alm-field${errors.owner ? ' invalid' : ''}`}
-                placeholder="Search guest or select Unknown…"
-                value={guestSearchQuery}
-                onChange={(e) => { setGuestSearchQuery(e?.target?.value); setShowGuestDropdown(true); }}
-                onFocus={() => setShowGuestDropdown(true)}
-                onBlur={() => setTimeout(() => setShowGuestDropdown(false), 150)}
-              />
-              {showGuestDropdown && (
-                <div className="alm-combo-menu">
-                  <button type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleGuestSelect('unknown')}>
-                    <span><span className="alm-combo-name">Unknown</span><span className="alm-combo-meta">Guest identity not specified</span></span>
-                  </button>
-                  {getFilteredGuests()?.length > 0 ? getFilteredGuests()?.map((guest) => (
-                    <button key={guest?.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleGuestSelect(guest)}>
-                      <span style={{ minWidth: 0 }}>
-                        <span className="alm-combo-name">{guest?.firstName} {guest?.lastName}</span>
-                        {(guest?.cabinLocationLabel || guest?.cabinAllocated) && (
-                          <span className="alm-combo-meta">{guest?.cabinLocationLabel || guest?.cabinAllocated}</span>
-                        )}
-                      </span>
-                      <span className="alm-combo-active">Active</span>
-                    </button>
-                  )) : <div className="alm-combo-empty">No active guests found</div>}
-                </div>
-              )}
-            </div>
-            {errors.owner && <div className="alm-err">{errors.owner}</div>}
-          </div>
-        ) : (
-          <div className="alm-section">
-            <label className="alm-label">Crew member <span className="alm-req">required</span></label>
-            <div className="alm-combo">
-              <input
-                type="text"
-                className={`alm-field${errors.owner ? ' invalid' : ''}`}
-                placeholder="Search crew member…"
-                value={crewSearchQuery}
-                onChange={(e) => { setCrewSearchQuery(e?.target?.value); setShowCrewDropdown(true); }}
-                onFocus={() => setShowCrewDropdown(true)}
-                onBlur={() => setTimeout(() => setShowCrewDropdown(false), 150)}
-              />
-              {showCrewDropdown && (
-                <div className="alm-combo-menu">
-                  {getFilteredCrew()?.length > 0 ? getFilteredCrew()?.map((crew) => (
-                    <button key={crew?.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleCrewSelect(crew)}>
-                      <span style={{ minWidth: 0 }}>
-                        <span className="alm-combo-name">{crew?.fullName}</span>
-                        {crew?.roleTitle && <span className="alm-combo-meta">{crew?.roleTitle} · {crew?.department}</span>}
-                      </span>
-                      <span className="alm-combo-active">Active</span>
-                    </button>
-                  )) : <div className="alm-combo-empty">No active crew members found</div>}
-                </div>
-              )}
-            </div>
-            {errors.owner && <div className="alm-err">{errors.owner}</div>}
-          </div>
-        )}
-
-        {/* Area / Location — searchable (guest only) */}
-        {isGuest && (
-          <div className="alm-section">
-            <label className="alm-label">Area / Location {formData?.ownerDisplayName === 'Unknown' ? <span className="alm-req">required</span> : <span className="alm-opt">optional</span>}</label>
-            <div className="alm-combo">
-              <input
-                type="text"
-                className={`alm-field${errors.area ? ' invalid' : ''}`}
-                placeholder="Search deck, zone or cabin…"
-                value={locationQuery}
-                onChange={(e) => { setLocationQuery(e?.target?.value); setShowLocationDropdown(true); setFormData((prev) => ({ ...prev, area: e?.target?.value })); clearError('area'); }}
-                onFocus={() => setShowLocationDropdown(true)}
-                onBlur={() => setTimeout(() => setShowLocationDropdown(false), 150)}
-              />
-              {showLocationDropdown && filteredLocations.length > 0 && (
-                <div className="alm-combo-menu">
-                  {filteredLocations.map((loc) => (
-                    <button key={loc.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleLocationSelect(loc)}>
-                      <span className="alm-combo-name">{loc.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {errors.area && <div className="alm-err">{errors.area}</div>}
-          </div>
-        )}
 
         {/* Tags */}
         <div className="alm-section">
@@ -439,18 +490,15 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
           </div>
         </div>
 
-        {/* Urgent */}
-        <div className="alm-urgent">
-          <div>
-            <div className="alm-urgent-title">Mark as urgent</div>
-            <div className="alm-urgent-sub">Priority handling required</div>
-          </div>
-          <button
-            type="button"
-            aria-pressed={isUrgent}
-            aria-label="Mark as urgent"
-            className={`alm-switch${isUrgent ? ' on' : ''}`}
-            onClick={() => setFormData((prev) => ({ ...prev, priority: isUrgent ? LaundryPriority?.NORMAL : LaundryPriority?.URGENT }))}
+        {/* Notes */}
+        <div className="alm-section" style={{ marginBottom: 0 }}>
+          <label className="alm-label">Notes <span className="alm-opt">optional</span></label>
+          <textarea
+            className="alm-field"
+            value={formData.notes}
+            onChange={(e) => setField('notes', e?.target?.value)}
+            placeholder="Anything the laundry team should know…"
+            rows={2}
           />
         </div>
       </div>
