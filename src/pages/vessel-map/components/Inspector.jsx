@@ -6,7 +6,7 @@
 // furnished-next-update rooms; Details is live.
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
-import { LAYERS, layerColor, layerLabel } from '../layers';
+import { LAYERS, layerColor, layerLabel, layerHoldsStock } from '../layers';
 import PinPayload from './PinPayload';
 import PinItems from './PinItems';
 import { uploadInteriorPhoto } from '../utils/photoUpload';
@@ -252,18 +252,24 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
         {shown.is_container && dangerActions}
         {!shown.is_container && tab === 'details' && (
           <>
-            <PinItems
-              hotspot={shown}
-              canManage={canManage}
-              tenantId={tenantId}
-              userId={user?.id}
-              scanSpaceId={scanSpaceId}
-              scanName={scanName}
-              containerTrail={containerTrail}
-              onNodeResolved={onNodeResolved}
-              placingItem={placingItem}
-              onPlaced={onPlaced}
-            />
+            {/* "What's inside" only for stock-bearing layers (Inventory, Safety). */}
+            {layerHoldsStock(shown.layer) && (
+              <PinItems
+                hotspot={shown}
+                canManage={canManage}
+                tenantId={tenantId}
+                userId={user?.id}
+                scanSpaceId={scanSpaceId}
+                scanName={scanName}
+                containerTrail={containerTrail}
+                onNodeResolved={onNodeResolved}
+                placingItem={placingItem}
+                onPlaced={onPlaced}
+              />
+            )}
+            {placingItem && !layerHoldsStock(shown.layer) && (
+              <p className="vm-pinitems-note">This pin type doesn’t hold stock — pick an <strong>Inventory</strong> or <strong>Safety</strong> pin.</p>
+            )}
             {/* Pin metadata — quiet, out of the way at the foot of the tab. */}
             <div className="vm-insp-meta">
               <span className="vm-insp-meta-item">Added {fmtDate(shown.created_at)}</span>
