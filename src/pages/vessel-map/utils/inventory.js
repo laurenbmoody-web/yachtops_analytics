@@ -190,13 +190,17 @@ export async function setQuantityHere(itemId, loc, qty) {
   return {};
 }
 
-// Reverse direction: every map pin whose photos carry a tag for this item.
-// Pins are few (tens per vessel) — fetch and sift client-side rather than
-// wrestling jsonb path filters.
+// Reverse direction: every map pin that holds this item — matched two ways and
+// merged: (a) the pin's photos carry a tag for the item, and (b) the item is
+// physically placed at the pin's location node (its stock_locations point at the
+// pin's location_node_id). (b) is what makes "show on map" work for stock placed
+// through the unified inventory/map path, not just photo-tagged items.
+// Pins are few (tens per vessel) — fetch and sift client-side.
 export async function findItemOnMap(tenantId, itemId) {
-  const [{ data: pins, error: pinsError }, { data: scans, error: scansError }] = await Promise.all([
-    supabase.from('scan_hotspots').select('id, label, scan_id, detail').eq('tenant_id', tenantId),
+  const [{ data: pins, error: pinsError }, { data: scans, error: scansError }, { data: item }] = await Promise.all([
+    supabase.from('scan_hotspots').select('id, label, scan_id, detail, location_node_id').eq('tenant_id', tenantId),
     supabase.from('vessel_scans').select('id, name').eq('tenant_id', tenantId).eq('status', 'ready'),
+    supabase.from('inventory_items').select('stock_locations').eq('id', itemId).single(),
   ]);
   if (pinsError || scansError) {
     const e = pinsError || scansError;
@@ -204,12 +208,20 @@ export async function findItemOnMap(tenantId, itemId) {
     return { error: e.message || 'Could not check the vessel map.' };
   }
   const scanName = Object.fromEntries((scans || []).map((s) => [s.id, s.name]));
+  // Node ids this item is physically placed at (any positive quantity).
+  const placedNodeIds = new Set(
+    normSls(item?.stock_locations)
+      .filter((l) => (l.vesselLocationId || l.locationId) && l.qty > 0)
+      .map((l) => l.vesselLocationId || l.locationId),
+  );
   const places = (pins || []).flatMap((h) => {
+    if (!scanName[h.scan_id]) return [];
     const spots = (h.detail?.photos || [])
       .flatMap((p) => p.tags || [])
       .filter((t) => t.item_id === itemId).length;
-    if (spots === 0 || !scanName[h.scan_id]) return [];
-    return [{ hotspotId: h.id, label: h.label, scanId: h.scan_id, scanName: scanName[h.scan_id], spots }];
+    const placed = h.location_node_id && placedNodeIds.has(h.location_node_id);
+    if (spots === 0 && !placed) return [];
+    return [{ hotspotId: h.id, label: h.label, scanId: h.scan_id, scanName: scanName[h.scan_id], spots, placed: !!placed }];
   });
   return { places };
 }

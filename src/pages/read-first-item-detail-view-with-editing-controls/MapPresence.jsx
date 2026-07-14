@@ -32,6 +32,7 @@ export default function MapPresence({ itemId }) {
           <span className="mpz-pin">{p.label}</span>
           <span className="mpz-scan">{p.scanName}</span>
           {p.spots > 1 && <span className="mpz-count">{p.spots} tagged spots</span>}
+          {p.placed && p.spots === 0 && <span className="mpz-count">stock here</span>}
           <button
             className="mpz-go"
             onClick={() => navigate(`/vessel/map?scan=${p.scanId}&pin=${p.hotspotId}`)}
