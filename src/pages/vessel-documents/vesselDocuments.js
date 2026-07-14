@@ -660,6 +660,31 @@ export async function fetchVesselDocExpirySummary({ tenantId = null } = {}) {
   return data || [];
 }
 
+// Crew certificate/document expiries for a vessel's active crew — same shape as
+// the vessel summary ({ id, name, expiry_date }), so the dashboard renewals
+// widget can show ship's papers and crew certs together. Name is
+// "Member — Document". RLS scopes reads to crew the caller may see (Command sees
+// all shared members; others see only their own), so this never over-exposes.
+export async function fetchCrewDocExpirySummary({ tenantId = null } = {}) {
+  if (!tenantId) return [];
+  const { data: members } = await supabase.from('tenant_members')
+    .select('user_id').eq('tenant_id', tenantId).eq('active', true);
+  const ids = [...new Set((members || []).map((m) => m.user_id).filter(Boolean))];
+  if (!ids.length) return [];
+  const docs = (await fetchCrewDocsForUsers(ids)).filter((d) =>
+    d.file_url && d.category !== CREW_DOC_EXCLUDE && !d.historic
+    && d.expiry_date && !isAdvisoryDocType(d.doc_type));
+  if (!docs.length) return [];
+  const uids = [...new Set(docs.map((d) => d.user_id))];
+  const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', uids);
+  const names = {}; (profs || []).forEach((p) => { names[p.id] = p.full_name; });
+  return docs.map((d) => ({
+    id: `crew:${d.id}`,
+    name: `${names[d.user_id] || 'Crew'} — ${getDocTypeLabel(d.doc_type) || d.title || 'Document'}`,
+    expiry_date: d.expiry_date,
+  }));
+}
+
 // Vessel documents that carry an expiry within `withinDays` (or already lapsed),
 // soonest first — powers the renewal reminders (bell + dashboard card). RLS
 // scopes the read to the caller's tenant(s); pass `tenantId` to narrow further.

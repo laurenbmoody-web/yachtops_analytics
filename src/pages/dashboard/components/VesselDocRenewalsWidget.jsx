@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { useTenant } from '../../../contexts/TenantContext';
-import { fetchVesselDocExpirySummary, getExpiryStatus, formatDocDate } from '../../vessel-documents/vesselDocuments';
+import { fetchVesselDocExpirySummary, fetchCrewDocExpirySummary, getExpiryStatus, formatDocDate } from '../../vessel-documents/vesselDocuments';
 
 // A compact slice of the vault's "compliance ledger": a three-up RAG summary
 // and the soonest-expiring documents that need attention. Mirrors the full
@@ -12,17 +12,30 @@ const RAIL = { expired: '#9A2B12', red: '#8A5A12', amber: '#8A5A12' };
 
 const VesselDocRenewalsWidget = () => {
   const navigate = useNavigate();
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, currentTenantMember } = useTenant();
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Renewals span ship's papers and crew certificates — a Command/Chief concern.
+  const tier = String(
+    currentTenantMember?.permission_tier
+    || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('cargo_tenant_member_role') : '')
+    || '',
+  ).toUpperCase();
+  const canView = tier === 'COMMAND' || tier === 'CHIEF';
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!activeTenantId) { setLoading(false); return; }
+      if (!activeTenantId || !canView) { setLoading(false); return; }
       try {
-        const rows = await fetchVesselDocExpirySummary({ tenantId: activeTenantId });
-        if (alive) setDocs(rows || []);
+        // Ship's papers + crew certs together (crew rows are RLS-scoped to what
+        // the viewer may see — all shared crew for Command, own docs otherwise).
+        const [vessel, crew] = await Promise.all([
+          fetchVesselDocExpirySummary({ tenantId: activeTenantId }),
+          fetchCrewDocExpirySummary({ tenantId: activeTenantId }),
+        ]);
+        if (alive) setDocs([...(vessel || []), ...(crew || [])]);
       } catch (err) {
         console.error('[VesselDocRenewalsWidget] error:', err);
       } finally {
@@ -30,7 +43,9 @@ const VesselDocRenewalsWidget = () => {
       }
     })();
     return () => { alive = false; };
-  }, [activeTenantId]);
+  }, [activeTenantId, canView]);
+
+  if (!canView) return null;
 
   const ranked = docs.map((d) => ({ ...d, st: getExpiryStatus(d.expiry_date) }));
   const expired = ranked.filter((d) => d.st?.level === 'expired');
