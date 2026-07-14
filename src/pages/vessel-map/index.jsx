@@ -57,7 +57,7 @@ const useIsDesktop = () => {
   return desktop;
 };
 
-export default function VesselMapPage() {
+export default function VesselMapPage({ embedded = false, placingItem: placingItemProp = null, onPlaced: onPlacedProp, onClose: onCloseProp } = {}) {
   const navigate = useNavigate();
   const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
@@ -95,6 +95,7 @@ export default function VesselMapPage() {
   // ?placeItem=&placeName= — arrived from an item's Location "Set location on the
   // map"; every pin then offers "Place <item> here". Cleared on placement / cancel.
   const [placingItem, setPlacingItem] = useState(() => {
+    if (placingItemProp) return placingItemProp;
     const q = new URLSearchParams(window.location.search);
     const id = q.get('placeItem');
     return id ? { id, name: q.get('placeName') || 'this item' } : null;
@@ -720,11 +721,14 @@ export default function VesselMapPage() {
   // The item was placed on a pin (or the crew cancelled) — leave placing mode and
   // return to the item they came from.
   const finishPlacing = useCallback((placed) => {
+    // Embedded in the item modal → hand control back to it; on the standalone
+    // page → clear placing mode and return to the item's page.
+    if (embedded) { if (placed) onPlacedProp?.(); onCloseProp?.(); return; }
     setPlacingItem((cur) => {
       if (placed && cur?.id) navigate(`/inventory/item/${cur.id}`);
       return null;
     });
-  }, [navigate]);
+  }, [embedded, onPlacedProp, onCloseProp, navigate]);
 
   const showViewer = signedUrl && !signError;
   const loadPct = viewer.status === 'loading' ? viewer.progress : null;
@@ -749,8 +753,8 @@ export default function VesselMapPage() {
 
   return (
     <>
-      <Header />
-      <div className="editorial-page pv-dashboard vm-page" style={{ '--vm-stage': VM_STAGE }}>
+      {!embedded && <Header />}
+      <div className={embedded ? 'vm-page vm-page-embedded' : 'editorial-page pv-dashboard vm-page'} style={{ '--vm-stage': VM_STAGE }}>
         <div className="vm-shell">
 
           <div className="vm-headblock">

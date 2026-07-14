@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Button from '../../../components/ui/Button';
 import Icon from '../../../components/AppIcon';
-import { saveItem, getFolderTree, updateItemStockLocations } from '../utils/inventoryStorage';
+import { saveItem, getFolderTree, updateItemStockLocations, getItemById } from '../utils/inventoryStorage';
 import InventoryFolderPicker from './InventoryFolderPicker';
+import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import { supabase } from '../../../lib/supabaseClient';
 
 import ModalShell from '../../../components/ui/ModalShell';
@@ -338,6 +339,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [duplicate, setDuplicate] = useState(null); // { item, matchedBy, payload } awaiting confirm
+  const [mapPicker, setMapPicker] = useState(null); // { id, name } — the map-pick modal is open for this saved item
   const [tagInput, setTagInput] = useState('');
   const [folderTree, setFolderTree] = useState({});
   const [showFolderPicker, setShowFolderPicker] = useState(false);
@@ -503,42 +505,36 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     return Object.keys(errs)?.length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e?.preventDefault();
-    if (!validate()) return;
-    setSaving(true);
-    try {
-      const stockLocations = locationRows
-        ?.filter(row => row?.vesselLocationId || row?.quantity > 0)
-        ?.map(row => {
-          const label = getVesselLocationLabel(row?.vesselLocationId) || row?.locationName || '';
-          return {
-            vesselLocationId: row?.vesselLocationId || '',
-            locationId: row?.vesselLocationId || '',
-            locationName: label,
-            location_name: label,
-            subLocation: label,
-            quantity: parseFloat(row?.quantity) || 0,
-            qty: parseFloat(row?.quantity) || 0,
-          };
-        });
+  // Build the save payload from the form (shared by save + "pick on map").
+  // Returns { payload } or { error } (the department-folder guard).
+  const buildPayload = () => {
+    const stockLocations = locationRows
+      ?.filter(row => row?.vesselLocationId || row?.quantity > 0)
+      ?.map(row => {
+        const label = getVesselLocationLabel(row?.vesselLocationId) || row?.locationName || '';
+        return {
+          vesselLocationId: row?.vesselLocationId || '',
+          locationId: row?.vesselLocationId || '',
+          locationName: label,
+          location_name: label,
+          subLocation: label,
+          quantity: parseFloat(row?.quantity) || 0,
+          qty: parseFloat(row?.quantity) || 0,
+        };
+      });
 
-      const totalQty = stockLocations?.reduce((sum, sl) => sum + (sl?.quantity || 0), 0);
-      let folderPath = formData?.inventoryFolderPath || [];
-      const location = folderPath?.[0] || '';
-      const subLocation = folderPath?.slice(1)?.join(' > ') || '';
+    const totalQty = stockLocations?.reduce((sum, sl) => sum + (sl?.quantity || 0), 0);
+    const folderPath = formData?.inventoryFolderPath || [];
+    const location = folderPath?.[0] || '';
+    const subLocation = folderPath?.slice(1)?.join(' > ') || '';
 
-      // ── Department-folder guard ───────────────────────────────────────────
-      // Items must never be saved directly into a department-level folder.
-      // A valid folder path must have at least 2 segments (department > subfolder).
-      if (location && !subLocation) {
-        setErrors({ submit: `Items cannot be saved directly in department folders. "${location}" is a top-level department folder. Please select a subfolder within it.` });
-        setSaving(false);
-        return;
-      }
-      // ─────────────────────────────────────────────────────────────────────
+    // Items must never be saved directly into a department-level folder.
+    if (location && !subLocation) {
+      return { error: `Items cannot be saved directly in department folders. "${location}" is a top-level department folder. Please select a subfolder within it.` };
+    }
 
-      const payload = {
+    return {
+      payload: {
         ...formData,
         location,
         subLocation,
@@ -550,7 +546,17 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
         unitCost: formData?.unitCost !== '' ? parseFloat(formData?.unitCost) : null,
         year: formData?.year !== '' ? parseInt(formData?.year, 10) : null,
         isAlcohol: formData?.isAlcohol ?? false,
-      };
+      },
+    };
+  };
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      const { payload, error } = buildPayload();
+      if (error) { setErrors({ submit: error }); setSaving(false); return; }
 
       // On CREATE, ask the storage layer to flag a same product (barcode/name)
       // so we can confirm before spawning a duplicate. Edits skip the check.
@@ -570,6 +576,43 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     } finally {
       setSaving(false);
     }
+  };
+
+  // "Set location on the map" — the item must exist first (a placement attaches
+  // to a real row), so save it, then open the map modal to pick a pin.
+  const pickOnMap = async () => {
+    if (!validate()) return;
+    const { payload, error } = buildPayload();
+    if (error) { setErrors({ submit: error }); return; }
+    setSaving(true);
+    try {
+      // Deliberate location set, not a create moment — save without the dedupe prompt.
+      const saved = await saveItem(payload, { force: true });
+      setSaving(false);
+      const id = saved?.id || formData?.id;
+      if (!saved || !id) { setErrors({ submit: 'Could not save the item before opening the map.' }); return; }
+      setFormData(prev => ({ ...prev, id })); // now an edit — later saves update, not insert
+      setMapPicker({ id, name: (formData?.name || '').trim() || 'this item' });
+    } catch (err) {
+      setSaving(false);
+      setErrors({ submit: err?.message || 'An error occurred.' });
+    }
+  };
+
+  // After a pin was picked, pull the item's stock locations back into the form so
+  // a later save doesn't clobber the placement just made on the map.
+  const syncLocationsFromServer = async (id) => {
+    try {
+      const fresh = await getItemById(id);
+      const sls = fresh?.stockLocations;
+      if (Array.isArray(sls) && sls.length) {
+        setLocationRows(sls.map(sl => ({
+          vesselLocationId: sl?.vesselLocationId || sl?.locationId || '',
+          quantity: sl?.qty ?? sl?.quantity ?? 0,
+          locationName: sl?.locationName || '',
+        })));
+      }
+    } catch (_) { /* best effort */ }
   };
 
   // Merge the form's placement into the matched item (sum per vessel location),
@@ -926,11 +969,21 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
 
           {/* ── Locations with Quantity Stepper ── */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-2">
               <label className="block text-sm font-medium text-foreground">
                 Locations
                 <span className="ml-1.5 text-xs font-normal text-muted-foreground">(physical storage onboard)</span>
               </label>
+              <button
+                type="button"
+                onClick={pickOnMap}
+                disabled={saving}
+                title="Save the item, then click its spot on the 3D vessel map"
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#E5E1D8] text-[#C65A1A] hover:bg-[#FBEFE9] transition-colors disabled:opacity-50"
+              >
+                <Icon name="MapPin" size={14} />
+                {saving ? 'Saving…' : 'Set on the map'}
+              </button>
             </div>
 
             <div className="space-y-2">
@@ -1133,6 +1186,15 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
             setPickingLocationRowIndex(null);
             setPickingDefaultLocation(false);
           }}
+        />
+      )}
+
+      {/* Pick the item's pin on the 3-D map, in a blurred-backdrop modal. */}
+      {mapPicker && (
+        <MapPickerModal
+          placingItem={mapPicker}
+          onPlaced={() => syncLocationsFromServer(mapPicker.id)}
+          onClose={() => setMapPicker(null)}
         />
       )}
 

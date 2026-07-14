@@ -7,6 +7,7 @@ import { getItemById } from '../inventory/utils/inventoryStorage';
 import { getCategoryL1ById, getCategoryL2ById, getCategoryL3ById, getCategoryL4ById } from '../inventory/utils/taxonomyStorage';
 
 import AddEditItemModal from '../inventory/components/AddEditItemModal';
+import MapPickerModal from '../vessel-map/components/MapPickerModal';
 import MapPresence from './MapPresence';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
 import { canViewCost, formatCurrency } from '../../utils/costPermissions';
@@ -34,6 +35,8 @@ const ReadFirstItemDetailView = () => {
   const [item, setItem] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapKey, setMapKey] = useState(0); // bump to refresh MapPresence after placing
   const [zoomedImage, setZoomedImage] = useState(false);
   const currentUser = getCurrentUser();
 
@@ -234,11 +237,11 @@ const ReadFirstItemDetailView = () => {
             </div>
 
             {/* On the vessel map — where this item is pinned, + set a new spot */}
-            <MapPresence itemId={itemId} />
+            <MapPresence key={mapKey} itemId={itemId} />
             {canEdit && (
               <button
                 type="button"
-                onClick={() => navigate(`/vessel/map?placeItem=${itemId}&placeName=${encodeURIComponent(item?.name || '')}`)}
+                onClick={() => setShowMapPicker(true)}
                 className="mt-2 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border border-[#E5E1D8] text-[#C65A1A] hover:bg-[#FBEFE9] transition-colors"
               >
                 <Icon name="MapPin" size={16} />
@@ -379,6 +382,14 @@ const ReadFirstItemDetailView = () => {
           defaultLocation={item?.stockLocations?.[0]?.locationName || ''}
           defaultSubLocation={item?.stockLocations?.[0]?.subLocation || ''}
           onClose={handleModalClose}
+        />
+      )}
+
+      {showMapPicker && (
+        <MapPickerModal
+          placingItem={{ id: itemId, name: item?.name || 'this item' }}
+          onPlaced={() => setMapKey((k) => k + 1)}
+          onClose={() => setShowMapPicker(false)}
         />
       )}
     </div>
