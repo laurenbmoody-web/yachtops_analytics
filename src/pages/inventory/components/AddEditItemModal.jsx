@@ -218,82 +218,38 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated }) => 
 };
 
 // ─── Location Picker (progressive drill-down) ─────────────────────────────────
+// Generic breadcrumb navigator over the ONE physical-location tree. Nests to any
+// depth by parent_id (deck > zone > space > sub-space > …), so it can reach — and
+// select — the vessel-map's pin nodes, letting inventory placement land on the
+// exact same vessel_locations row a pin uses. `level` is only a display hint now.
 const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose }) => {
-  const decks = vesselLocations?.filter(l => l?.level === 'deck') || [];
-  const zones = vesselLocations?.filter(l => l?.level === 'zone') || [];
-  const spaces = vesselLocations?.filter(l => l?.level === 'space') || [];
+  const nodes = vesselLocations || [];
+  const byId = new Map(nodes.map((n) => [n?.id, n]));
+  const childrenOf = (pid) => nodes.filter((n) => (n?.parent_id || null) === (pid || null));
 
-  const [selectedDeck, setSelectedDeck] = useState(null);
-  const [selectedZone, setSelectedZone] = useState(null);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    const loc = vesselLocations?.find(l => l?.id === selectedId);
-    if (!loc) return;
-    if (loc?.level === 'space') {
-      const zone = zones?.find(z => z?.id === loc?.parent_id);
-      if (zone) {
-        const deck = decks?.find(d => d?.id === zone?.parent_id);
-        setSelectedDeck(deck || null);
-        setSelectedZone(zone);
-      }
-    } else if (loc?.level === 'zone') {
-      const deck = decks?.find(d => d?.id === loc?.parent_id);
-      setSelectedDeck(deck || null);
-      setSelectedZone(loc);
-    } else if (loc?.level === 'deck') {
-      setSelectedDeck(loc);
-    }
-  }, [selectedId]);
-
-  const currentZones = selectedDeck ? zones?.filter(z => z?.parent_id === selectedDeck?.id) : [];
-  const currentSpaces = selectedZone ? spaces?.filter(s => s?.parent_id === selectedZone?.id) : [];
-
-  const buildLabel = (loc) => {
-    if (loc?.level === 'deck') return loc?.name;
-    if (loc?.level === 'zone') {
-      const deck = decks?.find(d => d?.id === loc?.parent_id);
-      return deck ? `${deck?.name} › ${loc?.name}` : loc?.name;
-    }
-    if (loc?.level === 'space') {
-      const zone = zones?.find(z => z?.id === loc?.parent_id);
-      const deck = zone ? decks?.find(d => d?.id === zone?.parent_id) : null;
-      if (deck && zone) return `${deck?.name} › ${zone?.name} › ${loc?.name}`;
-      if (zone) return `${zone?.name} › ${loc?.name}`;
-      return loc?.name;
-    }
-    return loc?.name;
+  // Root→node ancestor chain (cycle-guarded), and its "A › B › C" label.
+  const ancestorsOf = (id) => {
+    const chain = [];
+    const seen = new Set();
+    let cur = byId.get(id);
+    while (cur && !seen.has(cur.id)) { chain.unshift(cur); seen.add(cur.id); cur = cur.parent_id ? byId.get(cur.parent_id) : null; }
+    return chain;
   };
+  const pathLabel = (id) => ancestorsOf(id).map((n) => n?.name).join(' › ');
 
-  const handleSelectDeck = (deck) => {
-    const deckZones = zones?.filter(z => z?.parent_id === deck?.id);
-    if (deckZones?.length === 0) { onSelect({ id: deck?.id, label: deck?.name }); }
-    else { setSelectedDeck(deck); setSelectedZone(null); }
-  };
-
-  const handleSelectZone = (zone) => {
-    const zoneSpaces = spaces?.filter(s => s?.parent_id === zone?.id);
-    if (zoneSpaces?.length === 0) { onSelect({ id: zone?.id, label: buildLabel(zone) }); }
-    else { setSelectedZone(zone); }
-  };
-
-  const handleBack = () => {
-    if (selectedZone) setSelectedZone(null);
-    else if (selectedDeck) setSelectedDeck(null);
-  };
-
-  const level = selectedZone ? 'space' : selectedDeck ? 'zone' : 'deck';
-  const items = level === 'space' ? currentSpaces : level === 'zone' ? currentZones : decks;
-  const breadcrumb = selectedZone
-    ? `${selectedDeck?.name} › ${selectedZone?.name}`
-    : selectedDeck ? selectedDeck?.name : null;
+  // `path` = the container we've drilled into. Seed it from an existing selection
+  // so the picker opens showing the selected node's siblings.
+  const [path, setPath] = useState(() => (selectedId ? ancestorsOf(selectedId).slice(0, -1) : []));
+  const current = path[path.length - 1] || null;
+  const items = childrenOf(current?.id ?? null);
+  const iconFor = (n) => (n?.level === 'deck' ? 'Layers' : n?.level === 'zone' ? 'MapPin' : 'Box');
 
   return (
     <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl shadow-2xl w-full max-w-sm flex flex-col" panelStyle={{ maxHeight: '70vh' }}>
       <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
-          {(selectedDeck || selectedZone) && (
-            <button onClick={handleBack} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+          {path.length > 0 && (
+            <button onClick={() => setPath((p) => p.slice(0, -1))} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
               <Icon name="ChevronLeft" size={18} />
             </button>
           )}
@@ -304,51 +260,38 @@ const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose }) => {
         </button>
       </div>
 
-      {breadcrumb && (
-        <div className="px-5 py-2.5 bg-muted/40 border-b border-border shrink-0">
+      {current && (
+        <div className="px-5 py-2.5 bg-muted/40 border-b border-border shrink-0 flex items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground font-medium truncate">
-            <span className="text-foreground/60">📍</span>{' '}{breadcrumb}
+            <span className="text-foreground/60">📍</span>{' '}{pathLabel(current.id)}
           </p>
+          {/* Select the container itself (not only its leaves). */}
+          <button
+            onClick={() => onSelect({ id: current.id, label: pathLabel(current.id) })}
+            className="text-xs font-semibold text-primary hover:underline shrink-0"
+          >
+            Place here
+          </button>
         </div>
       )}
-
-      <div className="px-5 pt-3 pb-1 shrink-0">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          {level === 'deck' ? 'Deck / Area' : level === 'zone' ? 'Zone' : 'Space'}
-        </p>
-      </div>
 
       <div className="flex-1 overflow-y-auto pb-3">
         {items?.length === 0 ? (
           <div className="px-5 py-6 text-center">
-            <p className="text-sm text-muted-foreground">No locations found at this level.</p>
+            <p className="text-sm text-muted-foreground">{current ? 'Nothing nested here — use “Place here” above.' : 'No locations yet.'}</p>
           </div>
         ) : (
           items?.map((loc) => {
             const isSelected = loc?.id === selectedId;
-            const childCount = level === 'deck'
-              ? zones?.filter(z => z?.parent_id === loc?.id)?.length
-              : level === 'zone'
-              ? spaces?.filter(s => s?.parent_id === loc?.id)?.length
-              : 0;
+            const childCount = childrenOf(loc?.id)?.length || 0;
             return (
               <button
                 key={loc?.id}
-                onClick={() => {
-                  if (level === 'deck') handleSelectDeck(loc);
-                  else if (level === 'zone') handleSelectZone(loc);
-                  else onSelect({ id: loc?.id, label: buildLabel(loc) });
-                }}
+                onClick={() => (childCount > 0 ? setPath((p) => [...p, loc]) : onSelect({ id: loc?.id, label: pathLabel(loc?.id) }))}
                 className={`w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors ${isSelected ? 'bg-primary/10' : ''}`}
               >
-                <Icon
-                  name={level === 'deck' ? 'Layers' : level === 'zone' ? 'MapPin' : 'Box'}
-                  size={16}
-                  className={isSelected ? 'text-primary' : 'text-muted-foreground'}
-                />
-                <span className={`flex-1 text-sm font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}>
-                  {loc?.name}
-                </span>
+                <Icon name={iconFor(loc)} size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
+                <span className={`flex-1 text-sm font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}>{loc?.name}</span>
                 {childCount > 0 ? (
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <span className="text-xs">{childCount}</span>
