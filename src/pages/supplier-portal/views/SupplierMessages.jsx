@@ -4,7 +4,7 @@ import { useSupplier } from '../../../contexts/SupplierContext';
 import {
   fetchMessageThreads, getOrCreateThread, fetchMessages, sendSupplierMessage,
   markThreadReadSupplier, fetchClients, fetchClientOrders, draftQuoteFromMessage,
-  setThreadArchived, deleteThread,
+  setThreadArchived, deleteThread, fetchVesselLogos,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -217,6 +217,7 @@ const SupplierMessages = () => {
 
   const [threads, setThreads] = useState([]);
   const [names, setNames] = useState({});
+  const [logos, setLogos] = useState({});
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [activeOrder, setActiveOrder] = useState(null);
@@ -233,15 +234,17 @@ const SupplierMessages = () => {
   const taRef = useRef(null);
 
   const loadThreads = useCallback(async () => {
-    const [th, clients] = await Promise.all([
+    const [th, clients, logoMap] = await Promise.all([
       fetchMessageThreads(supplierId),
       fetchClients(supplierId).catch(() => []),
+      fetchVesselLogos().catch(() => ({})),
     ]);
     const map = {};
     for (const c of clients) if (c.tenant_id) map[c.tenant_id] = c.vessel_name || c.tenants?.name || null;
     for (const t of th) if (t.tenant_id && !map[t.tenant_id]) map[t.tenant_id] = t.tenants?.name || null;
     setThreads(th);
     setNames(map);
+    setLogos(logoMap || {});
     return th;
   }, [supplierId]);
 
@@ -327,6 +330,12 @@ const SupplierMessages = () => {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, activeId]);
 
   const nameFor = (t) => (t ? (names[t.tenant_id] || t.tenants?.name || 'Yacht client') : '');
+  // Vessel avatar — the uploaded logo when present, else a tinted monogram.
+  const boat = (tenantId, name, cls = '') => (
+    <span className={`msg-boat${cls ? ` ${cls}` : ''}${logos[tenantId] ? ' has-logo' : ''}`} style={logos[tenantId] ? undefined : { background: avatarGrad(tenantId) }}>
+      {logos[tenantId] ? <img src={logos[tenantId]} alt="" /> : initials(name)}
+    </span>
+  );
   const contact = activeOrder?.delivery_contact || '';
   const phone = activeOrder?.delivery_phone || '';
 
@@ -502,7 +511,7 @@ const SupplierMessages = () => {
                       <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                       </span>
-                      <span className="msg-boat" style={{ background: avatarGrad(g.tenantId) }}>{initials(g.name)}</span>
+                      {boat(g.tenantId, g.name)}
                       <span className="msg-grp-name">{g.name}</span>
                       <span className="msg-grp-meta">
                         {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
@@ -528,7 +537,7 @@ const SupplierMessages = () => {
             {activeThread ? (
               <>
                 <div className="msg-convo-head">
-                  <span className="msg-boat lg" style={{ background: avatarGrad(activeThread.tenant_id) }}>{initials(nameFor(activeThread))}</span>
+                  {boat(activeThread.tenant_id, nameFor(activeThread), 'lg')}
                   <div className="msg-convo-id">
                     <button type="button" className="msg-convo-name" onClick={() => navigate(`/supplier/clients/${activeThread.tenant_id}`)}>{nameFor(activeThread)}</button>
                     <div className="msg-convo-sub">
@@ -560,7 +569,9 @@ const SupplierMessages = () => {
                 <div className="msg-stream">
                   {rendered.length === 0 ? (
                     <div className="msg-blank">
-                      <div className="msg-blank-av" style={{ background: avatarGrad(activeThread.tenant_id) }}>{initials(nameFor(activeThread))}</div>
+                      <div className={`msg-blank-av${logos[activeThread.tenant_id] ? ' has-logo' : ''}`} style={logos[activeThread.tenant_id] ? undefined : { background: avatarGrad(activeThread.tenant_id) }}>
+                        {logos[activeThread.tenant_id] ? <img src={logos[activeThread.tenant_id]} alt="" /> : initials(nameFor(activeThread))}
+                      </div>
                       <div className="msg-blank-title">Say hello to {nameFor(activeThread)}</div>
                       <div className="msg-blank-sub">
                         {activeOrder
