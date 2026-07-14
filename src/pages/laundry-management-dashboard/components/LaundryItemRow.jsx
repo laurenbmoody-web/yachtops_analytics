@@ -21,9 +21,10 @@ const LaundryItemRow = ({ item, onUpdate }) => {
 
   const status = STATUS[item?.status] || { label: item?.status, cls: 'ready' };
   const kind = ownerKind(item?.ownerType);
+  const urgent = item?.priority === LaundryPriority?.URGENT;
 
   return (
-    <div className="lm-row">
+    <div className={`lm-row${urgent ? ' urgent' : ''}`}>
       {item?.photo ? (
         <img src={item.photo} alt={item?.description || 'Laundry item'} className="lm-thumb" />
       ) : (
