@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
-import { fetchMessageThreads, getOrCreateThread, fetchMessages, sendSupplierMessage, markThreadReadSupplier, fetchClients, fetchClientOrders } from '../utils/supplierStorage';
+import { fetchMessageThreads, getOrCreateThread, fetchMessages, sendSupplierMessage, markThreadReadSupplier, fetchClients, fetchClientOrders, draftQuoteFromMessage } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
 
@@ -57,6 +57,7 @@ const SupplierMessages = () => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState(null);
   const endRef = useRef(null);
   const taRef = useRef(null);
@@ -172,6 +173,22 @@ const SupplierMessages = () => {
   // Enter sends; Shift+Enter (or ⌘/Ctrl+Enter) inserts a new line.
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (fn) => { setDraft((d) => (d.trim() ? `${d.trim()} ${fn(activeOrder)}` : fn(activeOrder))); taRef.current?.focus(); };
+
+  // AI: turn the composer text (or the yacht's last message) into a priced quote.
+  const toQuote = async () => {
+    if (aiLoading) return;
+    const lastIn = [...messages].reverse().find((m) => m.sender_type === 'vessel')?.body;
+    const src = (draft.trim() || lastIn || '').trim();
+    if (!src) { setError('Type the request (or open one from the yacht) first, then turn it into a quote.'); return; }
+    setAiLoading(true);
+    setError(null);
+    try {
+      const res = await draftQuoteFromMessage(src, supplierId);
+      if (res?.quote_text) { setDraft(res.quote_text); taRef.current?.focus(); }
+      else setError('Couldn’t draft a quote from that — try rephrasing the request.');
+    } catch (e) { setError(e.message || 'Quote draft failed.'); }
+    finally { setAiLoading(false); }
+  };
 
   // Build a render list: date dividers + grouping flags (same sender ≤5 min).
   const rendered = useMemo(() => {
@@ -305,6 +322,9 @@ const SupplierMessages = () => {
                 </div>
 
                 <div className="msg-quick">
+                  <button type="button" className="msg-qchip msg-qchip-ai" onClick={toQuote} disabled={aiLoading} title="Turn the request into a priced quote using your catalogue">
+                    {aiLoading ? 'Drafting quote…' : '✨ Turn into a quote'}
+                  </button>
                   {QUICK.map((q) => (
                     <button key={q.label} type="button" className="msg-qchip" onClick={() => quick(q.text)}>{q.label}</button>
                   ))}

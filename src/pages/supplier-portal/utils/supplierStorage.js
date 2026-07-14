@@ -834,6 +834,15 @@ export const fetchMessages = async (threadId) => {
   return data ?? [];
 };
 
+// AI: turn a free-text request into a priced quote draft (message-to-quote
+// edge function). Returns { quote_text, items, currency }.
+export const draftQuoteFromMessage = async (text, supplierId) => {
+  const { data, error } = await supabase.functions.invoke('message-to-quote', { body: { text, supplierId } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
+
 // Total unread messages for the supplier — sum across threads. Drives the
 // Messages nav badge.
 export const fetchSupplierUnreadCount = async (supplierId) => {
