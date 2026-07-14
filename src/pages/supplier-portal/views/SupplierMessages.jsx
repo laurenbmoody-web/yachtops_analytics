@@ -85,19 +85,20 @@ const Menu = ({ label, value, options, onChange }) => {
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [open]);
-  const cur = options.find((o) => o.value === value);
   return (
     <div className={`msg-menu${open ? ' open' : ''}`} ref={ref}>
       <button type="button" className="msg-menu-btn" onClick={() => setOpen((o) => !o)}>
-        <span className="msg-menu-eyebrow">{label}</span>
-        <span className="msg-menu-val">{cur?.label}</span>
+        <span className="msg-menu-label">{label}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
       </button>
       {open && (
         <div className="msg-menu-pop" role="listbox">
           {options.map((o) => (
             <button key={o.value} type="button" role="option" aria-selected={o.value === value} className={`msg-menu-opt${o.value === value ? ' on' : ''}`} onClick={() => { onChange(o.value); setOpen(false); }}>
-              <span>{o.label}</span>
+              <span className="msg-menu-tick" aria-hidden="true">
+                {o.value === value && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+              </span>
+              <span className="msg-menu-opt-label">{o.label}</span>
               {o.count != null && <span className="msg-menu-c">{o.count}</span>}
             </button>
           ))}
@@ -484,7 +485,7 @@ const SupplierMessages = () => {
           {/* Command list */}
           <div className="msg-list-col">
             <div className="msg-toolbar">
-              <Menu label="Show" value={filter} options={FILTERS.map((f) => ({ ...f, count: counts[f.value] }))} onChange={setFilter} />
+              <Menu label="Filter" value={filter} options={FILTERS.map((f) => ({ ...f, count: counts[f.value] }))} onChange={setFilter} />
               <Menu label="Sort" value={sort} options={SORTS} onChange={setSort} />
               <div className="msg-search">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
@@ -538,11 +539,6 @@ const SupplierMessages = () => {
                   <div className="msg-convo-actions">
                     {phone && <a className="msg-ic" href={`tel:${phone}`} title={`Call ${contact || 'yacht'}`} aria-label="Call"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.94.36 1.86.68 2.75a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.33-1.33a2 2 0 0 1 2.11-.45c.89.32 1.81.55 2.75.68A2 2 0 0 1 22 16.92z" /></svg></a>}
                     <button type="button" className="msg-ic" title="View client profile" aria-label="View profile" onClick={() => navigate(`/supplier/clients/${activeThread.tenant_id}`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg></button>
-                    <button type="button" className="msg-ic" title={activeArchived ? 'Restore conversation' : 'Archive conversation'} aria-label="Archive" onClick={() => archiveThread(activeThread)}>
-                      {activeArchived
-                        ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v13h18V7" /><path d="M1 3h22v4H1z" /><path d="M12 12v6" /><path d="M9 15l3-3 3 3" /></svg>
-                        : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><path d="M10 12h4" /></svg>}
-                    </button>
                   </div>
                 </div>
 
