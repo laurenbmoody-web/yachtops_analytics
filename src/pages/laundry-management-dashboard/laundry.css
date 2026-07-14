@@ -17,7 +17,15 @@
 }
 .lm-wrap { max-width: 1180px; }
 
-/* ── header ────────────────────────────────────────────────── */
+/* ── header — canonical editorial meta strip + big serif headline ── */
+.lm-header { margin-bottom: 4px; }
+.lm-titlerow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px 32px;
+  flex-wrap: wrap;
+}
 .lm-head {
   display: flex;
   align-items: flex-end;
@@ -149,7 +157,7 @@
 .lm-dd-marker { width: 6px; height: 6px; border-radius: 999px; background: #C65A1A; flex: none; }
 .lm-dd-menu {
   position: absolute; top: calc(100% + 6px); right: 0; min-width: 220px;
-  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
   box-shadow: 0 22px 50px -22px rgba(28, 27, 58, 0.22); padding: 6px; z-index: 40;
 }
 .lm-dd-sec {
@@ -173,7 +181,7 @@
   display: flex;
   gap: 16px;
   padding: 18px 6px;
-  border-bottom: 1px solid #ECEAE3;
+  border-bottom: 1px solid #E5E7EB;
 }
 .lm-thumb {
   width: 64px; height: 64px; border-radius: 12px; flex: none; object-fit: cover;
@@ -245,7 +253,7 @@
    ════════════════════════════════════════════════════════════ */
 .alm-panel {
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   width: min(640px, calc(100vw - 32px));
@@ -284,38 +292,41 @@
 .alm-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .alm-choice {
   display: flex; flex-direction: column; align-items: center; gap: 12px;
-  padding: 30px 20px; background: #FFFFFF; border: 1px solid #ECEAE3;
+  padding: 30px 20px; background: #FFFFFF; border: 1px solid #E5E7EB;
   border-radius: 14px; cursor: pointer; transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
   font-family: inherit;
 }
 .alm-choice:hover { border-color: #C65A1A; background: #FEF9F5; box-shadow: 0 8px 22px -14px rgba(198, 90, 26, 0.4); }
 .alm-choice-ic { color: #C65A1A; }
-.alm-choice-label { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; }
+.alm-choice-label { font: 600 16px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 
 /* photo dropzone */
 .alm-drop {
-  width: 100%; padding: 44px 20px; background: #FAFAF8;
+  width: 100%; padding: 44px 20px; background: #F6F8FB;
   border: 1.5px dashed #D8DCE4; border-radius: 14px; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 12px;
   transition: border-color 0.14s, background 0.14s; font-family: inherit;
 }
 .alm-drop:hover { border-color: #C65A1A; background: #FEF9F5; }
 .alm-drop-ic { color: #8B8478; }
-.alm-drop-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; }
+.alm-drop-title { font: 600 15px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 .alm-drop-sub { font-size: 12.5px; color: #8B8478; }
 
 /* form fields */
 .alm-section { margin-bottom: 20px; }
 .alm-label {
-  display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
-  color: #1C1B3A; margin-bottom: 8px; font-family: 'Inter', system-ui, sans-serif;
-  text-transform: uppercase; letter-spacing: 0.06em;
+  display: block;
+  font: 700 10px 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 9px;
 }
 .alm-req { color: #C65A1A; font-weight: 700; }
-.alm-opt { color: #AEB4C2; font-weight: 600; text-transform: none; letter-spacing: 0; font-style: italic; }
+.alm-opt { color: #AEB4C2; font-weight: 600; text-transform: none; letter-spacing: 0.02em; font-style: italic; }
 .alm-field {
   width: 100%; font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif;
-  color: #1C1B3A; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 10px;
+  color: #1C1B3A; background: #F6F8FB; border: 1px solid #E5E7EB; border-radius: 10px;
   padding: 11px 13px; box-sizing: border-box; transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
 }
 .alm-field::placeholder { color: #8B8478; }
@@ -339,7 +350,7 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .alm-combo { position: relative; }
 .alm-combo-menu {
   position: absolute; top: calc(100% + 6px); left: 0; right: 0;
-  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
   box-shadow: 0 22px 50px -22px rgba(28, 27, 58, 0.22); padding: 6px;
   max-height: 260px; overflow-y: auto; z-index: 5;
 }
@@ -381,10 +392,10 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .alm-addtag { display: flex; gap: 8px; }
 .alm-addtag .alm-field { flex: 1; }
 
-/* urgent toggle */
+/* urgent toggle — hairline-separated row, no box */
 .alm-urgent {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 12px; padding: 14px 16px;
+  border-top: 1px solid #F0F1F5; padding: 18px 2px 2px; margin-top: 4px;
 }
 .alm-urgent-title { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .alm-urgent-sub { font-size: 12px; color: #8B8478; margin-top: 2px; }
@@ -419,10 +430,13 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .alm-btn.primary { background: #C65A1A; color: #fff; }
 .alm-btn.primary:hover { background: #B14E16; }
 .alm-btn.primary:disabled { opacity: 0.55; cursor: default; }
-.alm-btn.outline { background: #fff; color: #1C1B3A; border-color: #E5E7EB; }
-.alm-btn.outline:hover { border-color: #C9CED6; }
-.alm-step2-actions { display: flex; gap: 12px; margin-top: 18px; }
-.alm-step2-actions .alm-btn { flex: 1; justify-content: center; }
+/* "outline" is now a borderless ghost — only the primary action is a solid button */
+.alm-btn.outline { background: none; color: #6B7280; border-color: transparent; padding: 9px 12px; }
+.alm-btn.outline:hover { color: #1C1B3A; background: #F4F6FA; }
+.alm-btn.outline:disabled { opacity: 0.5; cursor: default; background: none; }
+.alm-btn.outline.accent { color: #C65A1A; }
+.alm-btn.outline.accent:hover { color: #B14E16; background: #FBEFE9; }
+.alm-step2-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
 
 @media (max-width: 720px) {
   .lm-page { padding: 20px 16px 60px; }

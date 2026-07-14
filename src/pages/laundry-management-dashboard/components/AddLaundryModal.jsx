@@ -449,7 +449,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
               <button type="button" className="alm-btn outline" onClick={() => setStep(1)}>
                 <Icon name="ChevronLeft" size={16} /> Back
               </button>
-              <button type="button" className="alm-btn outline" onClick={() => setStep(3)}>
+              <button type="button" className="alm-btn outline accent" onClick={() => setStep(3)}>
                 Skip photo <Icon name="ChevronRight" size={16} />
               </button>
             </div>

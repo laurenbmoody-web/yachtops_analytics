@@ -9,6 +9,7 @@ import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import ModalShell from '../../components/ui/ModalShell';
+import '../../styles/editorial.css';
 import './laundry.css';
 
 // ── Filters dropdown (Status + Owner facets in one menu) ──────────────────
@@ -211,36 +212,47 @@ const LaundryManagementDashboard = () => {
   const counts = getStatusCounts();
   const canReset = ['COMMAND', 'CHIEF'].includes(currentUser?.effectiveTier) || ['COMMAND', 'CHIEF'].includes(currentUser?.tier);
   const isFiltered = !!searchQuery || statusFilter !== 'All' || ownerFilter !== 'All';
+  const active = (counts.inProgress + counts.ready) > 0;
+  const totalItems = laundryItems?.length || 0;
 
   return (
     <>
       <Header />
       <div className="lm-page">
         <div className="lm-wrap">
-          {/* Header */}
-          <div className="lm-head">
-            <div>
-              <div className="lm-eyebrow">Housekeeping · Today</div>
-              <h1 className="lm-title">Laundry</h1>
-            </div>
-            <div className="lm-actions">
-              {canReset && (
-                <button type="button" className="lm-btn ghost" onClick={() => setShowResetModal(true)}>
-                  <Icon name="RotateCcw" size={16} /> Reset day
+          {/* Header — canonical Cargo editorial (meta strip + big serif headline) */}
+          <div className="lm-header">
+            <p className="editorial-meta">
+              <span className="dot">●</span>
+              <span>Housekeeping</span>
+              <span className="bar" />
+              <span className="muted">Today</span>
+              <span className="bar" />
+              <span className="muted">{totalItems} in the wash</span>
+            </p>
+            <div className="lm-titlerow">
+              <h1 className="editorial-greeting">
+                LAUNDRY<span className="period">,</span> <em>{active ? 'in motion' : 'all clear'}</em><span className="period">.</span>
+              </h1>
+              <div className="lm-actions">
+                {canReset && (
+                  <button type="button" className="lm-btn ghost" onClick={() => setShowResetModal(true)}>
+                    <Icon name="RotateCcw" size={16} /> Reset day
+                  </button>
+                )}
+                <button type="button" className="lm-btn ghost" onClick={() => navigate('/laundry-calendar-history-view')}>
+                  <Icon name="Calendar" size={16} /> History
                 </button>
-              )}
-              <button type="button" className="lm-btn ghost" onClick={() => navigate('/laundry-calendar-history-view')}>
-                <Icon name="Calendar" size={16} /> History
-              </button>
-              <button type="button" className="lm-btn primary" onClick={() => setShowAddModal(true)}>
-                <Icon name="Plus" size={16} /> Add laundry
-              </button>
+                <button type="button" className="lm-btn primary" onClick={() => setShowAddModal(true)}>
+                  <Icon name="Plus" size={16} /> Add laundry
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Meta bar — figures on a hairline, no box */}
           <div className="lm-meta">
-            <div className="lm-s"><b>{counts.inProgress}</b><span>In progress</span></div>
+            <div className={`lm-s${counts.inProgress > 0 ? ' attn' : ''}`}><b>{counts.inProgress}</b><span>In progress</span></div>
             <div className="lm-vr" />
             <div className="lm-s"><b>{counts.ready}</b><span>Ready to deliver</span></div>
             <div className="lm-vr" />
