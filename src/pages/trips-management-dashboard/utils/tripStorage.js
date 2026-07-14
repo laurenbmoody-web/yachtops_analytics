@@ -977,6 +977,15 @@ export const getActiveGuestsFromCurrentTrip = async () => {
     ?.map(g => g?.guestId) || [];
 };
 
+// Every guest on the active trip, regardless of the per-trip aboard toggle
+// (is_active_on_trip). The laundry guest picker offers everyone on the current
+// trip — a guest can have laundry logged whether or not they're marked aboard.
+export const getCurrentTripGuestIds = async () => {
+  const activeTrip = await getActiveTrip();
+  if (!activeTrip?.guests) return [];
+  return activeTrip.guests.map(g => g?.guestId).filter(Boolean);
+};
+
 // Toggle guest active status for a specific trip. Async post-A3.5 —
 // dual-writes to trip_guests (Supabase) and trip.guests[] (localStorage).
 // Lookup is by either id format for consistency with the other writers.

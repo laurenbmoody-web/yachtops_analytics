@@ -1,6 +1,6 @@
 import React from 'react';
 import Icon from '../../../components/AppIcon';
-import { LaundryStatus, LaundryPriority, updateLaundryStatus } from '../utils/laundryStorage';
+import { LaundryStatus, LaundryPriority, updateLaundryStatus, formatLaundryTag } from '../utils/laundryStorage';
 
 const STATUS = {
   [LaundryStatus?.IN_PROGRESS]: { label: 'In progress', cls: 'progress' },
@@ -44,7 +44,7 @@ const LaundryItemRow = ({ item, onUpdate }) => {
             </div>
             {item?.tags?.length > 0 && (
               <div className="lm-tags">
-                {item.tags.map((tag, i) => <span key={i} className="lm-tag-chip">{tag}</span>)}
+                {item.tags.map((tag, i) => <span key={i} className="lm-tag-chip">{formatLaundryTag(tag)}</span>)}
               </div>
             )}
           </div>

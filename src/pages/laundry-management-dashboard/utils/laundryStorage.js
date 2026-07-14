@@ -16,6 +16,15 @@ export const OwnerType = { GUEST: 'Guest', CREW: 'Crew' };
 export const LaundryStatus = { IN_PROGRESS: 'InProgress', READY_TO_DELIVER: 'ReadyToDeliver', DELIVERED: 'Delivered' };
 export const LaundryPriority = { NORMAL: 'Normal', URGENT: 'Urgent' };
 
+// Care tags — stored as compact enum values, shown as human labels. Custom
+// (free-text) tags fall through unchanged.
+export const availableLaundryTags = ['DryClean', 'HandWash', 'Iron', 'StainTreat', 'Delicate', 'Express'];
+export const LaundryTagLabels = {
+  DryClean: 'Dry clean', HandWash: 'Hand wash', Iron: 'Iron',
+  StainTreat: 'Stain treat', Delicate: 'Delicate', Express: 'Express',
+};
+export const formatLaundryTag = (t) => LaundryTagLabels[t] || t;
+
 // Active vessel for the signed-in user (same mechanism the locations store uses).
 const getTenantId = async () => {
   try {
@@ -87,6 +96,31 @@ export const loadAllLaundryItems = async () => {
   return (data || []).map(mapRow);
 };
 export const getAllLaundryItems = async () => loadAllLaundryItems();
+
+// Custom care tags this vessel has used before (tenant-scoped, deduped, minus
+// the built-in ones). Lets a typed tag like "No starch" come back as a
+// ready-to-tap pill on future items — reuse per tenant, without a new table.
+export const getKnownCustomTags = async () => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    .from('laundry_items')
+    .select('tags')
+    .eq('tenant_id', tenantId);
+  if (error) { console.error('[laundry] custom tags load failed', error); return []; }
+  const known = new Set(availableLaundryTags);
+  const seen = new Set();
+  const out = [];
+  for (const row of data || []) {
+    for (const t of (Array.isArray(row.tags) ? row.tags : [])) {
+      const v = (t || '').trim();
+      if (!v || known.has(v) || seen.has(v.toLowerCase())) continue;
+      seen.add(v.toLowerCase());
+      out.push(v);
+    }
+  }
+  return out.sort((a, b) => a.localeCompare(b));
+};
 
 // Today view: open items (not archived) + items delivered today (not archived).
 export const getTodayViewItems = async () => {

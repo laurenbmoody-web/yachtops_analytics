@@ -463,12 +463,12 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 /* tag pills */
 .alm-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .alm-tag {
-  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif;
-  background: #FFFFFF; color: #1C1B3A; border: 1px solid #E5E7EB;
-  border-radius: 999px; padding: 6px 14px; cursor: pointer;
-  transition: background 0.14s, border-color 0.14s, color 0.14s; font-family: inherit;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: #FFFFFF; color: #1C1B3A; border: 1px solid #ECECEE;
+  border-radius: 999px; padding: 8px 15px; cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
 }
-.alm-tag:hover { border-color: #C65A1A; }
+.alm-tag:hover { border-color: #C65A1A; color: #C65A1A; }
 .alm-tag.on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
 .alm-custom-chip {
   display: inline-flex; align-items: center; gap: 7px;
