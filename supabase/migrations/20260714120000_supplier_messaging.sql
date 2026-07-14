@@ -35,11 +35,15 @@ alter table public.supplier_message_threads enable row level security;
 alter table public.supplier_messages         enable row level security;
 
 -- Threads — the supplier owns theirs; tenant members can read their yacht's.
+-- (drop-before-create so the migration stays re-runnable if the pipeline
+-- replays it against a database that already has the objects.)
+drop policy if exists "supplier manage own threads" on public.supplier_message_threads;
 create policy "supplier manage own threads" on public.supplier_message_threads
   for all
   using (supplier_id = get_user_supplier_id())
   with check (supplier_id = get_user_supplier_id());
 
+drop policy if exists "tenant members read their threads" on public.supplier_message_threads;
 create policy "tenant members read their threads" on public.supplier_message_threads
   for select
   using (tenant_id in (
@@ -48,6 +52,7 @@ create policy "tenant members read their threads" on public.supplier_message_thr
   ));
 
 -- Messages — reachable via the thread's supplier ownership or tenant membership.
+drop policy if exists "supplier manage own messages" on public.supplier_messages;
 create policy "supplier manage own messages" on public.supplier_messages
   for all
   using (thread_id in (
@@ -57,6 +62,7 @@ create policy "supplier manage own messages" on public.supplier_messages
     select id from public.supplier_message_threads where supplier_id = get_user_supplier_id()
   ));
 
+drop policy if exists "tenant members read their messages" on public.supplier_messages;
 create policy "tenant members read their messages" on public.supplier_messages
   for select
   using (thread_id in (
@@ -66,6 +72,7 @@ create policy "tenant members read their messages" on public.supplier_messages
   ));
 
 -- Vessel-side reply (for when the crew inbox lands) — must send as 'vessel'.
+drop policy if exists "tenant members send messages" on public.supplier_messages;
 create policy "tenant members send messages" on public.supplier_messages
   for insert
   with check (
