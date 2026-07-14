@@ -107,7 +107,9 @@ const SupplierMessages = () => {
     fetchMessages(activeId).then(setMessages).catch((e) => setError(e.message));
     // Opening a thread reads it — clear the badge locally + on the server.
     setThreads((prev) => prev.map((t) => (t.id === activeId ? { ...t, supplier_unread_count: 0 } : t)));
-    markThreadReadSupplier(activeId).catch(() => {});
+    markThreadReadSupplier(activeId)
+      .then(() => { try { window.dispatchEvent(new Event('supplier-messages-read')); } catch { /* noop */ } })
+      .catch(() => {});
   }, [activeId]);
 
   // Realtime — new messages in the open thread, and inbox changes.
