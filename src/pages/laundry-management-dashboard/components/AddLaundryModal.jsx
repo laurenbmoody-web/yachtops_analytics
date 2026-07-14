@@ -2,17 +2,17 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import '../laundry.css';
 
-import { createLaundryItem, OwnerType, LaundryPriority } from '../utils/laundryStorage';
+import { createLaundryItem, OwnerType, LaundryPriority, availableLaundryTags, formatLaundryTag, getKnownCustomTags } from '../utils/laundryStorage';
 import { showToast } from '../../../utils/toast';
 import { getAllDecks, getAllZones, getAllSpaces } from '../../locations-management-settings/utils/locationsHierarchyStorage';
 import { loadGuests } from '../../guest-management-dashboard/utils/guestStorage';
-import { getActiveGuestsFromCurrentTrip } from '../../trips-management-dashboard/utils/tripStorage';
+import { getCurrentTripGuestIds } from '../../trips-management-dashboard/utils/tripStorage';
 import { loadUsers, UserStatus } from '../../../utils/authStorage';
 import { useTenant } from '../../../contexts/TenantContext';
 import { loadOnboardCrew } from '../utils/onboardCrew';
 import ModalShell from '../../../components/ui/ModalShell';
 
-const availableTags = ['DryClean', 'HandWash', 'Iron', 'StainTreat', 'Delicate', 'Express'];
+const availableTags = availableLaundryTags;
 const SpeechRec = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
 // Single-screen Add Laundry. Owner (segmented Guest/Crew, with Urgent far
@@ -45,6 +45,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
 
   const [photoPreview, setPhotoPreview] = useState(null);
   const [customTag, setCustomTag] = useState('');
+  const [knownCustomTags, setKnownCustomTags] = useState([]); // reused, tenant-scoped
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -69,10 +70,10 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   useEffect(() => {
     if (!isGuest) return;
     (async () => {
-      const activeGuestIds = await getActiveGuestsFromCurrentTrip();
+      const tripGuestIds = await getCurrentTripGuestIds();
       const allGuests = await loadGuests();
       const filtered = (allGuests || []).filter((g) => !g?.isDeleted);
-      setActiveGuests(filtered.filter((g) => activeGuestIds?.includes(g?.id)));
+      setActiveGuests(filtered.filter((g) => tripGuestIds?.includes(g?.id)));
     })();
   }, [isGuest]);
 
@@ -112,6 +113,13 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
         setLocations([]);
       }
     })();
+  }, []);
+
+  // Custom care tags this vessel has used before — offered as reusable pills.
+  useEffect(() => {
+    let cancelled = false;
+    getKnownCustomTags().then((tags) => { if (!cancelled) setKnownCustomTags(tags || []); }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   // Stop dictation if the modal unmounts.
@@ -286,7 +294,8 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     }
   };
 
-  const customTags = formData?.tags?.filter((t) => !availableTags?.includes(t)) || [];
+  // Just-typed custom tags not yet in the vessel's reusable set (those render as pills).
+  const customTags = formData?.tags?.filter((t) => !availableTags?.includes(t) && !knownCustomTags?.includes(t)) || [];
 
   // A plain JSX-returning helper (NOT a component) so typing doesn't remount
   // the input and drop focus. Only one location field is shown at a time.
@@ -413,9 +422,9 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
                             <span className="alm-combo-meta">{guest?.cabinLocationLabel || guest?.cabinAllocated}</span>
                           )}
                         </span>
-                        <span className="alm-combo-active">Active</span>
+                        <span className="alm-combo-active">On trip</span>
                       </button>
-                    )) : <div className="alm-combo-empty">No active guests found</div>}
+                    )) : <div className="alm-combo-empty">No guests on the active trip</div>}
                   </div>
                 )}
               </div>
@@ -483,8 +492,8 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
         <div className="alm-section">
           <label className="alm-label">Tags <span className="alm-opt">optional</span></label>
           <div className="alm-tags">
-            {availableTags?.map((tag) => (
-              <button key={tag} type="button" className={`alm-tag${formData?.tags?.includes(tag) ? ' on' : ''}`} onClick={() => handleToggleTag(tag)}>{tag}</button>
+            {[...availableTags, ...knownCustomTags]?.map((tag) => (
+              <button key={tag} type="button" className={`alm-tag${formData?.tags?.includes(tag) ? ' on' : ''}`} onClick={() => handleToggleTag(tag)}>{formatLaundryTag(tag)}</button>
             ))}
           </div>
           {customTags.length > 0 && (
