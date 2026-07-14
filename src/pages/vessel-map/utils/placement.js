@@ -129,11 +129,11 @@ export async function createItemAtNode({ tenantId, userId, name, qty, unit, pin,
   const stock = quantity > 0
     ? [{ vesselLocationId: pin.nodeId, locationId: pin.nodeId, locationName: pin.name || '', subLocation: pin.name || '', qty: quantity, quantity }]
     : [];
-  // Always file the item somewhere the inventory browse can see it — the folder
-  // dashboard groups by `location`, so an item with no category would vanish.
-  // Fall back to "Unfiled › Map" (two segments satisfy the department-folder guard).
-  const location = category?.location || 'Unfiled';
-  const subLocation = category?.sub_location || (category?.location ? null : 'Map');
+  // The item's inventory folder (department › subfolder) comes from the caller's
+  // folder picker — the same tree inventory files into. The folder browse groups
+  // by `location`, so this is what makes the item show up there.
+  const location = category?.location || null;
+  const subLocation = category?.sub_location || null;
   const { data, error } = await supabase
     .from('inventory_items')
     .insert({
