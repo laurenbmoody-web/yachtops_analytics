@@ -3608,8 +3608,8 @@
 #sp-root .msg-row { margin-top: 9px; }
 #sp-root .msg-row.grouped { margin-top: 2px; }
 
-#sp-root .msg-quick { display: flex; gap: 7px; flex-wrap: wrap; padding: 8px 14px 0; flex: none; }
-#sp-root .msg-qchip { font-size: 11.5px; font-weight: 600; border: 1px solid var(--line); background: var(--card); color: var(--muted-strong); border-radius: 999px; padding: 5px 11px; cursor: pointer; font-family: inherit; transition: border-color 0.12s, color 0.12s; }
+#sp-root .msg-quick { display: flex; gap: 9px; flex-wrap: wrap; padding: 14px 16px 10px; flex: none; }
+#sp-root .msg-qchip { font-size: 11.5px; font-weight: 600; border: 1px solid var(--line); background: var(--card); color: var(--muted-strong); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-family: inherit; transition: border-color 0.12s, color 0.12s; }
 #sp-root .msg-qchip:hover { border-color: var(--orange); color: var(--orange); }
 
 /* Messaging: unread + read receipts */
