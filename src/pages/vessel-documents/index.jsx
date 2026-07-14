@@ -490,8 +490,8 @@ export default function VesselDocuments() {
       <Header />
       <div className="vd-page">
         <div className="vd-wrap">
-          <button type="button" className="vd-back" onClick={() => navigate('/dashboard')}>
-            <Icon name="ChevronLeft" size={16} /> Back to Dashboard
+          <button type="button" className="vd-back" onClick={() => (cwd ? setCwd(null) : navigate('/dashboard'))}>
+            <Icon name="ChevronLeft" size={16} /> {cwd ? 'Back to Vessel Documents' : 'Back to Dashboard'}
           </button>
 
           <div className="vd-head">
