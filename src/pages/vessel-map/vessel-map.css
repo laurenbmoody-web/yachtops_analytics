@@ -1616,6 +1616,8 @@
 /* pin metadata — quiet footer, below What's inside */
 .vm-insp-meta { margin-top: 18px; padding-top: 12px; border-top: 1px solid #F0F1F5; display: flex; gap: 6px; flex-wrap: wrap;
   font-size: 11px; color: #AEB4C2; }
+/* No "What's inside" above → no divider, sits right under the tabs. */
+.vm-insp-meta-flush { margin-top: 2px; padding-top: 0; border-top: 0; }
 .vm-insp-meta-item { white-space: nowrap; }
 .vm-cupboard-create { color: #C65A1A; font-weight: 600; }
 .vm-cupboard-create:hover { background: #FBEFE9; }

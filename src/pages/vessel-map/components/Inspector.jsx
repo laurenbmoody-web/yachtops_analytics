@@ -270,8 +270,9 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
             {placingItem && !layerHoldsStock(shown.layer) && (
               <p className="vm-pinitems-note">This pin type doesn’t hold stock — pick an <strong>Inventory</strong> or <strong>Safety</strong> pin.</p>
             )}
-            {/* Pin metadata — quiet, out of the way at the foot of the tab. */}
-            <div className="vm-insp-meta">
+            {/* Pin metadata — quiet, out of the way at the foot of the tab. The
+                divider only makes sense when there's a "What's inside" above it. */}
+            <div className={`vm-insp-meta${layerHoldsStock(shown.layer) ? '' : ' vm-insp-meta-flush'}`}>
               <span className="vm-insp-meta-item">Added {fmtDate(shown.created_at)}</span>
               {creatorName && <span className="vm-insp-meta-item">by {creatorName}</span>}
             </div>
