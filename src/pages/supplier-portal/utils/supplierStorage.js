@@ -804,14 +804,17 @@ export const fetchMessageThreads = async (supplierId) => {
   return data ?? [];
 };
 
-// Find or open the (single) thread between this supplier and a yacht.
+// Find or open the thread between this supplier and a yacht for a given order
+// (or the general, order-less thread when orderId is null). Threads are keyed
+// per order so a vessel can hold several conversations at once.
 export const getOrCreateThread = async (supplierId, tenantId, orderId = null) => {
-  const { data: existing, error: selErr } = await supabase
+  let sel = supabase
     .from('supplier_message_threads')
     .select('*, tenants(id, name)')
     .eq('supplier_id', supplierId)
-    .eq('tenant_id', tenantId)
-    .maybeSingle();
+    .eq('tenant_id', tenantId);
+  sel = orderId ? sel.eq('order_id', orderId) : sel.is('order_id', null);
+  const { data: existing, error: selErr } = await sel.maybeSingle();
   if (selErr) throw selErr;
   if (existing) return existing;
 
@@ -822,6 +825,26 @@ export const getOrCreateThread = async (supplierId, tenantId, orderId = null) =>
     .single();
   if (error) throw error;
   return data;
+};
+
+// Archive / restore a thread — the inbox close-out. Archiving hides it from the
+// open list; any new message auto-reopens it (touch trigger clears archived_at).
+export const setThreadArchived = async (threadId, archived) => {
+  const { error } = await supabase
+    .from('supplier_message_threads')
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq('id', threadId);
+  if (error) throw error;
+};
+
+// Permanently delete a thread and its messages (cascade). Destructive — used by
+// the row's Delete action behind a confirm.
+export const deleteThread = async (threadId) => {
+  const { error } = await supabase
+    .from('supplier_message_threads')
+    .delete()
+    .eq('id', threadId);
+  if (error) throw error;
 };
 
 export const fetchMessages = async (threadId) => {
@@ -849,7 +872,8 @@ export const fetchSupplierUnreadCount = async (supplierId) => {
   const { data, error } = await supabase
     .from('supplier_message_threads')
     .select('supplier_unread_count')
-    .eq('supplier_id', supplierId);
+    .eq('supplier_id', supplierId)
+    .is('archived_at', null);
   if (error) throw error;
   return (data ?? []).reduce((s, t) => s + (t.supplier_unread_count || 0), 0);
 };
