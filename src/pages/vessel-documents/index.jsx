@@ -318,9 +318,14 @@ export default function VesselDocuments() {
     );
   };
 
-  // ── Crew Certification organise/filter ───────────────────────────────────
-  const inCrew = cwd === VIRT_CREW;
-  const crewDepts = inCrew
+  // ── Crew Documents virtual tree — four levels keyed off the cwd id ────────
+  //   virt:crew → groups · virt:crew:<g> → members · …:<uid> → buckets · …:<b> → files
+  const crewParts = (typeof cwd === 'string' && cwd.startsWith(VIRT_CREW)) ? cwd.split(':') : [];
+  const inCrewRoot = cwd === VIRT_CREW;                                   // Active/Former folders
+  const inCrewGroup = crewParts.length === 3 && crewParts[1] === 'crew';  // member folders
+  const inCrewMember = crewParts.length === 4 && crewParts[1] === 'crew'; // Certificates/Documents/Expired folders
+  const inCrewBucket = crewParts.length === 5 && crewParts[1] === 'crew'; // files
+  const crewDepts = inCrewGroup
     ? Array.from(new Set(items.map((i) => i.dept || '—'))).sort((a, b) => a.localeCompare(b))
     : [];
   const crewComparator = (mode) => (a, b) => {
@@ -330,15 +335,12 @@ export default function VesselDocuments() {
     if (mode === 'tenure') return (a.since || '9999').localeCompare(b.since || '9999') || byName;
     return byName;
   };
-  const crewRows = inCrew
+  const crewRows = inCrewGroup
     ? items
       .filter((i) => crewDept === 'all' || (i.dept || '—') === crewDept)
       .slice()
       .sort(crewComparator(crewSort))
     : [];
-  // Active crew up top; former crew (retained for the record) in their own group.
-  const activeCrewRows = crewRows.filter((f) => f.active !== false);
-  const formerCrewRows = crewRows.filter((f) => f.active === false);
 
   const renderCrewBar = () => (
     <div className="vd-crewbar">
@@ -364,9 +366,8 @@ export default function VesselDocuments() {
     </div>
   );
 
-  // ── Crew member's documents: filter by category, sort ─────────────────────
-  const inCrewMember = typeof cwd === 'string' && cwd.startsWith(`${VIRT_CREW}:`);
-  const crewDocCats = inCrewMember
+  // ── Crew member's documents (inside a bucket): filter by category, sort ────
+  const crewDocCats = inCrewBucket
     ? Array.from(new Map(files.map((f) => [f.cat, f.catLabel])).entries())
       .map(([id, label]) => ({ id, label }))
       .sort((a, b) => a.label.localeCompare(b.label))
@@ -384,25 +385,11 @@ export default function VesselDocuments() {
     const rank = (d) => (d.historic ? 3 : d.statusLevel === 'advisory' ? 2 : 1);
     return (rank(a) - rank(b)) || byExp || byName;
   };
-  const crewDocFiles = inCrewMember
+  const crewDocFiles = inCrewBucket
     ? files
       .filter((f) => crewDocCat === 'all' || f.cat === crewDocCat)
       .slice()
       .sort(crewDocComparator(crewDocSort))
-    : [];
-  // Group a member's docs into Certificates / Documents / Expired. Expired is
-  // status-based (cuts across both types); the other two split by category.
-  const CERT_CATS = new Set(['safety', 'medical', 'deck', 'engineering', 'interior', 'watersports', 'qualification', 'professional']);
-  const docBucket = (f) => {
-    if (f.historic || f.statusLevel === 'expired') return 'expired';
-    return CERT_CATS.has(f.cat) ? 'certificates' : 'documents';
-  };
-  const crewDocSections = inCrewMember
-    ? [
-      { key: 'certificates', label: 'Certificates', files: crewDocFiles.filter((f) => docBucket(f) === 'certificates') },
-      { key: 'documents', label: 'Documents', files: crewDocFiles.filter((f) => docBucket(f) === 'documents') },
-      { key: 'expired', label: 'Expired & historic', files: crewDocFiles.filter((f) => docBucket(f) === 'expired') },
-    ].filter((s) => s.files.length > 0)
     : [];
 
   const renderCrewDocBar = () => (
@@ -515,41 +502,31 @@ export default function VesselDocuments() {
                   </div>
                 )}
               </>
-            ) : inCrew && items.length > 0 ? (
+            ) : inCrewRoot && items.length > 0 ? (
+              // Active crew / Former crew folders
+              <div className="vd-idx">{items.map(renderFolder)}</div>
+            ) : inCrewGroup && items.length > 0 ? (
+              // One folder per crew member (with the organise / filter bar)
               <>
                 {renderCrewBar()}
-                {crewRows.length === 0 ? (
-                  <div className="vd-idx"><div className="vd-empty-inline">No crew in this department.</div></div>
-                ) : (
-                  <>
-                    {activeCrewRows.length > 0 && (
-                      <div className="vd-idx">
-                        <div className="vd-idx-head"><span className="t">Active crew</span><span className="c">{activeCrewRows.length}</span></div>
-                        {activeCrewRows.map(renderCrewFolder)}
-                      </div>
-                    )}
-                    {formerCrewRows.length > 0 && (
-                      <div className="vd-idx vd-idx-loose">
-                        <div className="vd-idx-head"><span className="t">Former crew</span><span className="c">{formerCrewRows.length}</span></div>
-                        {formerCrewRows.map(renderCrewFolder)}
-                      </div>
-                    )}
-                  </>
-                )}
+                <div className="vd-idx">
+                  {crewRows.length === 0
+                    ? <div className="vd-empty-inline">No crew in this department.</div>
+                    : crewRows.map(renderCrewFolder)}
+                </div>
               </>
             ) : inCrewMember && items.length > 0 ? (
+              // Certificates / Documents / Expired & historic folders
+              <div className="vd-idx">{items.map(renderFolder)}</div>
+            ) : inCrewBucket && items.length > 0 ? (
+              // The files inside one bucket
               <>
                 {renderCrewDocBar()}
-                {crewDocFiles.length === 0 ? (
-                  <div className="vd-idx"><div className="vd-empty-inline">No documents in this category.</div></div>
-                ) : (
-                  crewDocSections.map((sec) => (
-                    <div key={sec.key} className={`vd-idx${sec.key === 'expired' ? ' vd-idx-loose' : ''}`}>
-                      <div className="vd-idx-head"><span className="t">{sec.label}</span><span className="c">{sec.files.length}</span></div>
-                      {sec.files.map((f, i) => renderFile(f, i + 1))}
-                    </div>
-                  ))
-                )}
+                <div className="vd-idx">
+                  {crewDocFiles.length === 0
+                    ? <div className="vd-empty-inline">No documents in this category.</div>
+                    : crewDocFiles.map((f, i) => renderFile(f, i + 1))}
+                </div>
               </>
             ) : items.length === 0 ? (
               <div className="vd-empty">
