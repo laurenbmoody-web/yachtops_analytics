@@ -14,3 +14,9 @@ const BY_KEY = Object.fromEntries(LAYERS.map((l) => [l.key, l]));
 
 export const layerColor = (key) => (BY_KEY[key] || BY_KEY.general).color;
 export const layerLabel = (key) => (BY_KEY[key] || BY_KEY.general).label;
+
+// Which layers physically hold stock — i.e. get the "What's inside" panel and
+// can be an item's location. Inventory obviously; Safety too (a manifest of
+// safety equipment is useful). Defects / Job helper / General are annotations,
+// not storage, so they don't.
+export const layerHoldsStock = (key) => key === 'inventory' || key === 'safety';

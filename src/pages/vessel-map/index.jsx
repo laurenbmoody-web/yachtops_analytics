@@ -21,7 +21,7 @@ import OrientPanel from './components/OrientPanel';
 import PinPayload from './components/PinPayload';
 import PinItems from './components/PinItems';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
-import { LAYERS, layerColor, layerLabel } from './layers';
+import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
 import { refreshScanThumb } from './utils/scanThumb';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
@@ -1186,18 +1186,24 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                           <span className="vm-label">Added</span>
                           {fmtDate(selectedHotspot.created_at)}
                         </p>
-                        <PinItems
-                          hotspot={selectedHotspot}
-                          canManage={canPlaceHotspots}
-                          tenantId={activeTenantId}
-                          userId={user?.id}
-                          scanSpaceId={selectedScan?.space_id}
-                          scanName={selectedScan?.name}
-                          containerTrail={containerTrail}
-                          onNodeResolved={onNodeResolved}
-                          placingItem={placingItem}
-                          onPlaced={() => finishPlacing(true)}
-                        />
+                        {/* "What's inside" only for stock-bearing layers (Inventory, Safety). */}
+                        {layerHoldsStock(selectedHotspot.layer) && (
+                          <PinItems
+                            hotspot={selectedHotspot}
+                            canManage={canPlaceHotspots}
+                            tenantId={activeTenantId}
+                            userId={user?.id}
+                            scanSpaceId={selectedScan?.space_id}
+                            scanName={selectedScan?.name}
+                            containerTrail={containerTrail}
+                            onNodeResolved={onNodeResolved}
+                            placingItem={placingItem}
+                            onPlaced={() => finishPlacing(true)}
+                          />
+                        )}
+                        {placingItem && !layerHoldsStock(selectedHotspot.layer) && (
+                          <p className="vm-pinitems-note">This pin type doesn’t hold stock — pick an <strong>Inventory</strong> or <strong>Safety</strong> pin.</p>
+                        )}
                       </>
                     )}
                     {mobileTab !== 'details' && (
