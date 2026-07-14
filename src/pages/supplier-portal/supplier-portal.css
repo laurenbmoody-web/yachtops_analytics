@@ -3619,3 +3619,12 @@
 #sp-root .msg-thread.unread-row .msg-thread-prev { color: var(--fg); font-weight: 500; }
 #sp-root .msg-tick { margin-left: 5px; font-weight: 700; opacity: 0.85; }
 #sp-root .msg-tick.read { color: #BFE3D0; opacity: 1; }
+
+/* Messaging: designed empty-conversation state */
+#sp-root .msg-blank { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 30px; max-width: 360px; }
+#sp-root .msg-blank-av { width: 64px; height: 64px; border-radius: 50%; background: var(--bg-2); color: var(--navy-app); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; }
+#sp-root .msg-blank-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: var(--fg); line-height: 1.15; }
+#sp-root .msg-blank-sub { font-size: 13px; color: var(--muted-strong); line-height: 1.5; }
+#sp-root .msg-blank-sub b { color: var(--fg); }
+#sp-root .msg-blank-cta { margin-top: 6px; background: var(--orange); color: #fff; border: 0; border-radius: 10px; padding: 10px 20px; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.14s; }
+#sp-root .msg-blank-cta:hover { background: #B14E16; }

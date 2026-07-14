@@ -102,6 +102,8 @@ const SupplierMessages = () => {
 
   const activeThread = useMemo(() => threads.find((t) => t.id === activeId), [threads, activeId]);
   const totalUnread = useMemo(() => threads.reduce((s, t) => s + (t.id === activeId ? 0 : (t.supplier_unread_count || 0)), 0), [threads, activeId]);
+  const awaitingReply = useMemo(() => threads.filter((t) => t.last_sender_type === 'vessel').length, [threads]);
+  const lastActive = useMemo(() => threads.reduce((acc, t) => (t.last_message_at && (!acc || t.last_message_at > acc) ? t.last_message_at : acc), null), [threads]);
 
   useEffect(() => {
     if (!activeId) { setMessages([]); return; }
@@ -200,7 +202,9 @@ const SupplierMessages = () => {
           <p className="editorial-meta" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
             <span className="dot">●</span>
             <span>{threads.length} conversation{threads.length === 1 ? '' : 's'}</span>
-            {totalUnread > 0 && <><span className="bar" /><span className="muted" style={{ color: '#C65A1A' }}>{totalUnread} unread</span></>}
+            {awaitingReply > 0 && <><span className="bar" /><span className="muted" style={{ color: '#C65A1A' }}>{awaitingReply} awaiting your reply</span></>}
+            {totalUnread > 0 && <><span className="bar" /><span className="muted">{totalUnread} unread</span></>}
+            {lastActive && <><span className="bar" /><span className="muted">Last active {fmtWhen(lastActive)}</span></>}
           </p>
           <h1 className="editorial-greeting" style={{ fontSize: 46, letterSpacing: '-1px', margin: 0 }}>
             YACHT <em>messages</em>
@@ -232,7 +236,7 @@ const SupplierMessages = () => {
                         <span className="msg-thread-name">{nameFor(t)}</span>
                         <span className="msg-thread-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
                       </span>
-                      <span className="msg-thread-prev">{t.last_message_preview || 'No messages yet'}</span>
+                      <span className="msg-thread-prev">{t.last_message_preview ? `${t.last_sender_type === 'supplier' ? 'You: ' : ''}${t.last_message_preview}` : 'No messages yet'}</span>
                     </span>
                     {unread > 0 && <span className="msg-unread">{unread}</span>}
                   </button>
@@ -268,7 +272,18 @@ const SupplierMessages = () => {
 
                 <div className="msg-stream">
                   {rendered.length === 0 ? (
-                    <div className="msg-empty">Start the conversation — say hello or send your check-in.</div>
+                    <div className="msg-blank">
+                      <div className="msg-blank-av">{initials(nameFor(activeThread))}</div>
+                      <div className="msg-blank-title">Say hello to {nameFor(activeThread)}</div>
+                      <div className="msg-blank-sub">
+                        {activeOrder
+                          ? <>Last order <b>#{shortId(activeOrder.id)}</b> · {activeOrder.status} · {fmtMoney0(orderTotal(activeOrder), activeOrder.currency || 'EUR')}</>
+                          : 'Start the conversation — they’ll get it in their inbox.'}
+                      </div>
+                      <button type="button" className="msg-blank-cta" onClick={() => { const who = contact ? contact.trim().split(/\s+/)[0] : 'there'; setDraft(`Hi ${who} — just checking in on ${nameFor(activeThread)}. Anything I can help you provision for your next trip?`); taRef.current?.focus(); }}>
+                        Send a check-in
+                      </button>
+                    </div>
                   ) : rendered.map((r) => r.kind === 'divider' ? (
                     <div key={r.id} className="msg-daysep">{dayLabel(r.at)}</div>
                   ) : (
