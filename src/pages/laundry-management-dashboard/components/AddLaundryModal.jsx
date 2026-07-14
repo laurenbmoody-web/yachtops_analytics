@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
+import '../laundry.css';
 
 import { createLaundryItem, OwnerType, LaundryPriority } from '../utils/laundryStorage';
 import { showToast } from '../../../utils/toast';
@@ -403,424 +403,256 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     }
   };
   
+  const stepLabel = step === 1 ? 'Step 1 of 3 · Owner' : step === 2 ? 'Step 2 of 3 · Photo' : 'Step 3 of 3 · Details';
+  const customTags = formData?.tags?.filter((t) => !availableTags?.includes(t)) || [];
+
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <ModalShell onClose={onClose} panelClassName="alm-panel">
       {/* Header */}
-      <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
+      <div className="alm-head">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">Add Laundry</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {step === 1 && 'Step 1: Choose owner type'}
-            {step === 2 && 'Step 2: Take or upload photo'}
-            {step === 3 && 'Step 3: Add details'}
-          </p>
+          <div className="alm-eyebrow">{stepLabel}</div>
+          <h2 className="alm-title">Add laundry</h2>
         </div>
-        <button
-          onClick={onClose}
-          className="p-2 hover:bg-muted rounded-lg transition-smooth"
-        >
-          <Icon name="X" size={20} className="text-muted-foreground" />
-        </button>
+        <button className="alm-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
       </div>
-      
+
       {/* Content */}
-      <div className="p-6">
-        {/* Step 1: Owner Type Selection */}
+      <div className="alm-body">
+        {/* Step 1: Owner Type */}
         {step === 1 && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Who does this laundry belong to?</p>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => handleOwnerTypeSelect(OwnerType?.GUEST)}
-                className="p-8 border-2 border-border rounded-xl hover:border-primary hover:bg-primary/5 transition-smooth flex flex-col items-center gap-3"
-              >
-                <Icon name="User" size={48} className="text-primary" />
-                <span className="text-lg font-semibold text-foreground">Guest</span>
+          <>
+            <p className="alm-q">Who does this laundry belong to?</p>
+            <div className="alm-choices">
+              <button type="button" className="alm-choice" onClick={() => handleOwnerTypeSelect(OwnerType?.GUEST)}>
+                <Icon name="User" size={34} className="alm-choice-ic" />
+                <span className="alm-choice-label">Guest</span>
               </button>
-              <button
-                onClick={() => handleOwnerTypeSelect(OwnerType?.CREW)}
-                className="p-8 border-2 border-border rounded-xl hover:border-primary hover:bg-primary/5 transition-smooth flex flex-col items-center gap-3"
-              >
-                <Icon name="Users" size={48} className="text-primary" />
-                <span className="text-lg font-semibold text-foreground">Crew</span>
+              <button type="button" className="alm-choice" onClick={() => handleOwnerTypeSelect(OwnerType?.CREW)}>
+                <Icon name="Users" size={34} className="alm-choice-ic" />
+                <span className="alm-choice-label">Crew</span>
               </button>
             </div>
-          </div>
+          </>
         )}
-        
-        {/* Step 2: Photo Upload */}
+
+        {/* Step 2: Photo */}
         {step === 2 && (
-          <div className="space-y-4">
-            <div className="text-center">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef?.current?.click()}
-                className="w-full p-12 border-2 border-dashed border-border rounded-xl hover:border-primary hover:bg-primary/5 transition-smooth flex flex-col items-center gap-4"
-              >
-                <Icon name="Camera" size={64} className="text-muted-foreground" />
-                <div>
-                  <p className="text-lg font-semibold text-foreground">Take or Upload Photo</p>
-                  <p className="text-sm text-muted-foreground mt-1">Optional • Max 5MB</p>
-                </div>
+          <>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+            <button type="button" className="alm-drop" onClick={() => fileInputRef?.current?.click()}>
+              <Icon name="Camera" size={44} className="alm-drop-ic" />
+              <span className="alm-drop-title">Take or upload photo</span>
+              <span className="alm-drop-sub">Optional · Max 5MB</span>
+            </button>
+            <div className="alm-step2-actions">
+              <button type="button" className="alm-btn outline" onClick={() => setStep(1)}>
+                <Icon name="ChevronLeft" size={16} /> Back
+              </button>
+              <button type="button" className="alm-btn outline" onClick={() => setStep(3)}>
+                Skip photo <Icon name="ChevronRight" size={16} />
               </button>
             </div>
-            <div className="flex gap-3">
-              <Button
-                variant="ghost"
-                onClick={() => setStep(1)}
-                className="flex-1"
-              >
-                <Icon name="ChevronLeft" size={16} className="mr-2" />
-                Back
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setStep(3)}
-                className="flex-1"
-              >
-                Skip Photo
-                <Icon name="ChevronRight" size={16} className="ml-2" />
-              </Button>
-            </div>
-          </div>
+          </>
         )}
-        
-        {/* Step 3: Details Form */}
+
+        {/* Step 3: Details */}
         {step === 3 && (
-          <div className="space-y-6">
-            {/* Photo Preview */}
+          <>
             {photoPreview && (
-              <div className="relative">
-                <img
-                  src={photoPreview}
-                  alt="Laundry item preview"
-                  className="w-full h-48 object-cover rounded-lg"
-                />
-                <button
-                  onClick={handleRemovePhoto}
-                  className="absolute top-2 right-2 p-2 bg-error text-white rounded-lg hover:bg-error/90 transition-smooth"
-                >
-                  <Icon name="Trash2" size={16} />
-                </button>
+              <div className="alm-preview">
+                <img src={photoPreview} alt="Laundry item preview" />
+                <button type="button" onClick={handleRemovePhoto} aria-label="Remove photo"><Icon name="Trash2" size={15} /></button>
               </div>
             )}
-            
-            {/* Owner Type Badge */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Owner type:</span>
-              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                {formData?.ownerType}
-              </span>
+
+            <div className="alm-ownerrow">
+              <span className="alm-ownerrow-label">Owner type</span>
+              <span className="alm-owner-pill">{formData?.ownerType}</span>
             </div>
-            
-            {/* Description (Required) */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Description <span className="text-error">*</span>
-              </label>
+
+            {/* Description */}
+            <div className="alm-section">
+              <label className="alm-label">Description <span className="alm-req">required</span></label>
               <textarea
+                className="alm-field"
                 value={formData?.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, description: e?.target?.value }))}
                 placeholder="Start with item + colour + instructions…"
                 rows={3}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
-            
-            {/* Owner Name / Guest Selection */}
+
+            {/* Owner / Guest or Crew search */}
             {formData?.ownerType === OwnerType?.GUEST ? (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Guest *</label>
-                <div className="relative">
+              <div className="alm-section">
+                <label className="alm-label">Guest <span className="alm-req">required</span></label>
+                <div className="alm-combo">
                   <input
                     type="text"
-                    placeholder="Search guest or select Unknown..."
+                    className="alm-field"
+                    placeholder="Search guest or select Unknown…"
                     value={guestSearchQuery}
-                    onChange={(e) => {
-                      setGuestSearchQuery(e?.target?.value);
-                      setShowGuestDropdown(true);
-                    }}
+                    onChange={(e) => { setGuestSearchQuery(e?.target?.value); setShowGuestDropdown(true); }}
                     onFocus={() => setShowGuestDropdown(true)}
-                    className="w-full h-10 px-4 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
-                  
-                  {/* Dropdown */}
                   {showGuestDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
-                      {/* Unknown Option - Always at top */}
-                      <button
-                        type="button"
-                        onClick={() => handleGuestSelect('unknown')}
-                        className="w-full px-4 py-2 text-left hover:bg-muted transition-colors border-b border-border"
-                      >
-                        <div className="font-medium text-foreground">Unknown</div>
-                        <div className="text-xs text-muted-foreground">Guest identity not specified</div>
+                    <div className="alm-combo-menu">
+                      <button type="button" className="alm-combo-opt" onClick={() => handleGuestSelect('unknown')}>
+                        <span><span className="alm-combo-name">Unknown</span><span className="alm-combo-meta">Guest identity not specified</span></span>
                       </button>
-                      
-                      {/* Active Guests */}
-                      {getFilteredGuests()?.length > 0 ? (
-                        getFilteredGuests()?.map(guest => (
-                          <button
-                            key={guest?.id}
-                            type="button"
-                            onClick={() => handleGuestSelect(guest)}
-                            className="w-full px-4 py-2 text-left hover:bg-muted transition-colors"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="font-medium text-foreground">
-                                  {guest?.firstName} {guest?.lastName}
-                                </div>
-                                {(guest?.cabinLocationLabel || guest?.cabinAllocated) && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {guest?.cabinLocationLabel || guest?.cabinAllocated}
-                                  </div>
-                                )}
-                              </div>
-                              <span className="px-2 py-0.5 text-xs font-medium bg-green-500/20 text-green-700 dark:text-green-400 rounded-full">
-                                Active
-                              </span>
-                            </div>
+                      {getFilteredGuests()?.filter((g) => g?.id !== 'unknown')?.length > 0 ? (
+                        getFilteredGuests()?.filter((g) => g?.id !== 'unknown')?.map((guest) => (
+                          <button key={guest?.id} type="button" className="alm-combo-opt" onClick={() => handleGuestSelect(guest)}>
+                            <span style={{ minWidth: 0 }}>
+                              <span className="alm-combo-name">{guest?.firstName} {guest?.lastName}</span>
+                              {(guest?.cabinLocationLabel || guest?.cabinAllocated) && (
+                                <span className="alm-combo-meta">{guest?.cabinLocationLabel || guest?.cabinAllocated}</span>
+                              )}
+                            </span>
+                            <span className="alm-combo-active">Active</span>
                           </button>
                         ))
                       ) : (
-                        <div className="px-4 py-6 text-center text-muted-foreground">
-                          No active guests found
-                        </div>
+                        <div className="alm-combo-empty">No active guests found</div>
                       )}
                     </div>
                   )}
                 </div>
-                {formData?.ownerDisplayName && (
-                  <div className="text-sm text-muted-foreground">
-                    Selected: {formData?.ownerDisplayName}
-                  </div>
-                )}
+                {formData?.ownerDisplayName && <div className="alm-selected">Selected: {formData?.ownerDisplayName}</div>}
               </div>
             ) : (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Crew Member Name *</label>
-                <div className="relative">
+              <div className="alm-section">
+                <label className="alm-label">Crew member <span className="alm-req">required</span></label>
+                <div className="alm-combo">
                   <input
                     type="text"
-                    placeholder="Search crew member..."
+                    className="alm-field"
+                    placeholder="Search crew member…"
                     value={crewSearchQuery}
-                    onChange={(e) => {
-                      setCrewSearchQuery(e?.target?.value);
-                      setShowCrewDropdown(true);
-                    }}
+                    onChange={(e) => { setCrewSearchQuery(e?.target?.value); setShowCrewDropdown(true); }}
                     onFocus={() => setShowCrewDropdown(true)}
-                    className="w-full h-10 px-4 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
-                  
-                  {/* Crew Dropdown */}
                   {showCrewDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
-                      {getFilteredCrew()?.length > 0 ? (
-                        getFilteredCrew()?.map(crew => (
-                          <button
-                            key={crew?.id}
-                            type="button"
-                            onClick={() => handleCrewSelect(crew)}
-                            className="w-full px-4 py-2 text-left hover:bg-muted transition-colors"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="font-medium text-foreground">
-                                  {crew?.fullName}
-                                </div>
-                                {crew?.roleTitle && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {crew?.roleTitle} • {crew?.department}
-                                  </div>
-                                )}
-                              </div>
-                              <span className="px-2 py-0.5 text-xs font-medium bg-green-500/20 text-green-700 dark:text-green-400 rounded-full">
-                                Active
-                              </span>
-                            </div>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-4 py-6 text-center text-muted-foreground">
-                          No active crew members found
-                        </div>
+                    <div className="alm-combo-menu">
+                      {getFilteredCrew()?.length > 0 ? getFilteredCrew()?.map((crew) => (
+                        <button key={crew?.id} type="button" className="alm-combo-opt" onClick={() => handleCrewSelect(crew)}>
+                          <span style={{ minWidth: 0 }}>
+                            <span className="alm-combo-name">{crew?.fullName}</span>
+                            {crew?.roleTitle && <span className="alm-combo-meta">{crew?.roleTitle} · {crew?.department}</span>}
+                          </span>
+                          <span className="alm-combo-active">Active</span>
+                        </button>
+                      )) : (
+                        <div className="alm-combo-empty">No active crew members found</div>
                       )}
                     </div>
                   )}
                 </div>
-                {formData?.ownerName && (
-                  <div className="text-sm text-muted-foreground">
-                    Selected: {formData?.ownerName}
-                  </div>
-                )}
+                {formData?.ownerName && <div className="alm-selected">Selected: {formData?.ownerName}</div>}
               </div>
             )}
-            
-            {/* Area / Location - Dropdown from Locations Management */}
-            {/* Only show for Guest owner type */}
+
+            {/* Area / Location (Guest only) */}
             {formData?.ownerType === OwnerType?.GUEST && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Area / Location
-                </label>
-                <div className="space-y-3">
-                  {/* Deck Selection */}
-                  <select
-                    value={selectedDeck}
-                    onChange={(e) => setSelectedDeck(e?.target?.value)}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Select Deck</option>
-                    {decks?.map(deck => (
-                      <option key={deck?.id} value={deck?.id}>{deck?.name}</option>
-                    ))}
-                  </select>
-                  
-                  {/* Zone Selection */}
+              <div className="alm-section">
+                <label className="alm-label">Area / Location <span className="alm-opt">optional</span></label>
+                <div className="alm-stack">
+                  <div className="alm-select-wrap">
+                    <select className="alm-field" value={selectedDeck} onChange={(e) => setSelectedDeck(e?.target?.value)}>
+                      <option value="">Select deck</option>
+                      {decks?.map((deck) => <option key={deck?.id} value={deck?.id}>{deck?.name}</option>)}
+                    </select>
+                  </div>
                   {selectedDeck && (
-                    <select
-                      value={selectedZone}
-                      onChange={(e) => setSelectedZone(e?.target?.value)}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="">Select Zone</option>
-                      {zones?.map(zone => (
-                        <option key={zone?.id} value={zone?.id}>{zone?.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  
-                  {/* Space Selection */}
-                  {selectedZone && (
-                    <select
-                      value={selectedSpace}
-                      onChange={(e) => setSelectedSpace(e?.target?.value)}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="">Select Space</option>
-                      {spaces?.map(space => (
-                        <option key={space?.id} value={space?.id}>{space?.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  
-                  {/* Display selected location */}
-                  {formData?.area && (
-                    <div className="px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg text-sm text-foreground">
-                      <span className="font-medium">Selected: </span>{formData?.area}
+                    <div className="alm-select-wrap">
+                      <select className="alm-field" value={selectedZone} onChange={(e) => setSelectedZone(e?.target?.value)}>
+                        <option value="">Select zone</option>
+                        {zones?.map((zone) => <option key={zone?.id} value={zone?.id}>{zone?.name}</option>)}
+                      </select>
                     </div>
                   )}
+                  {selectedZone && (
+                    <div className="alm-select-wrap">
+                      <select className="alm-field" value={selectedSpace} onChange={(e) => setSelectedSpace(e?.target?.value)}>
+                        <option value="">Select space</option>
+                        {spaces?.map((space) => <option key={space?.id} value={space?.id}>{space?.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  {formData?.area && <div className="alm-loc"><b>Selected:</b> {formData?.area}</div>}
                 </div>
               </div>
             )}
-            
-            {/* Tags (Optional) */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Tags</label>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {availableTags?.map(tag => (
-                  <button
-                    key={tag}
-                    onClick={() => handleToggleTag(tag)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-smooth ${
-                      formData?.tags?.includes(tag)
-                        ? 'bg-primary text-white' :'bg-muted text-muted-foreground hover:bg-muted/80'
-                    }`}
-                  >
+
+            {/* Tags */}
+            <div className="alm-section">
+              <label className="alm-label">Tags <span className="alm-opt">optional</span></label>
+              <div className="alm-tags">
+                {availableTags?.map((tag) => (
+                  <button key={tag} type="button" className={`alm-tag${formData?.tags?.includes(tag) ? ' on' : ''}`} onClick={() => handleToggleTag(tag)}>
                     {tag}
                   </button>
                 ))}
               </div>
-              
-              {/* Custom Tags */}
-              {formData?.tags?.filter(t => !availableTags?.includes(t))?.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {formData?.tags?.filter(t => !availableTags?.includes(t))?.map(tag => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 bg-primary text-white rounded-full text-sm font-medium flex items-center gap-2"
-                    >
+              {customTags.length > 0 && (
+                <div className="alm-tags">
+                  {customTags.map((tag) => (
+                    <span key={tag} className="alm-custom-chip">
                       {tag}
-                      <button onClick={() => handleRemoveTag(tag)}>
-                        <Icon name="X" size={12} />
-                      </button>
+                      <button type="button" onClick={() => handleRemoveTag(tag)} aria-label={`Remove ${tag}`}><Icon name="X" size={12} /></button>
                     </span>
                   ))}
                 </div>
               )}
-              
-              {/* Add Custom Tag */}
-              <div className="flex gap-2">
+              <div className="alm-addtag">
                 <input
                   type="text"
+                  className="alm-field"
                   value={customTag}
                   onChange={(e) => setCustomTag(e?.target?.value)}
-                  onKeyPress={(e) => e?.key === 'Enter' && handleAddCustomTag()}
-                  placeholder="Add custom tag"
-                  className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  onKeyDown={(e) => { if (e?.key === 'Enter') { e.preventDefault(); handleAddCustomTag(); } }}
+                  placeholder="Add a custom tag"
                 />
-                <Button
-                  variant="outline"
-                  onClick={handleAddCustomTag}
-                  disabled={!customTag?.trim()}
-                >
-                  Add
-                </Button>
+                <button type="button" className="alm-btn outline" onClick={handleAddCustomTag} disabled={!customTag?.trim()}>Add</button>
               </div>
             </div>
-            
-            {/* Urgent Toggle */}
-            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+
+            {/* Urgent */}
+            <div className="alm-urgent">
               <div>
-                <p className="text-sm font-medium text-foreground">Mark as Urgent</p>
-                <p className="text-xs text-muted-foreground mt-1">Priority handling required</p>
+                <div className="alm-urgent-title">Mark as urgent</div>
+                <div className="alm-urgent-sub">Priority handling required</div>
               </div>
               <button
-                onClick={() => setFormData(prev => ({
+                type="button"
+                aria-pressed={formData?.priority === LaundryPriority?.URGENT}
+                aria-label="Mark as urgent"
+                className={`alm-switch${formData?.priority === LaundryPriority?.URGENT ? ' on' : ''}`}
+                onClick={() => setFormData((prev) => ({
                   ...prev,
-                  priority: prev?.priority === LaundryPriority?.URGENT
-                    ? LaundryPriority?.NORMAL
-                    : LaundryPriority?.URGENT
+                  priority: prev?.priority === LaundryPriority?.URGENT ? LaundryPriority?.NORMAL : LaundryPriority?.URGENT,
                 }))}
-                className={`relative w-12 h-6 rounded-full transition-smooth ${
-                  formData?.priority === LaundryPriority?.URGENT ? 'bg-error' : 'bg-border'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                    formData?.priority === LaundryPriority?.URGENT ? 'translate-x-6' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+              />
             </div>
-          </div>
+          </>
         )}
       </div>
-      
+
       {/* Footer */}
       {step === 3 && (
-        <div className="sticky bottom-0 bg-card border-t border-border px-6 py-4 flex items-center justify-between rounded-b-2xl">
-          <Button
-            variant="ghost"
-            onClick={() => setStep(2)}
-          >
-            <Icon name="ChevronLeft" size={16} className="mr-2" />
-            Back
-          </Button>
-          <Button
+        <div className="alm-foot">
+          <button type="button" className="alm-linkbtn" onClick={() => setStep(2)}>
+            <Icon name="ChevronLeft" size={16} /> Back
+          </button>
+          <button
+            type="button"
+            className="alm-btn primary"
             onClick={handleSubmit}
             disabled={isSubmitting || !formData?.description?.trim()}
-            loading={isSubmitting}
           >
-            Save Laundry Item
-          </Button>
+            {isSubmitting ? 'Saving…' : 'Save laundry item'}
+          </button>
         </div>
       )}
     </ModalShell>
