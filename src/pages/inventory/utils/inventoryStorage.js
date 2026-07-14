@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { logActivity, InventoryActions } from '../../../utils/activityStorage';
 import { normalizeUnit } from '../../../data/unitGroups';
+import { findExistingItem } from '../../../utils/itemIdentity';
 
 const getActiveTenantId = () =>
   localStorage.getItem('cargo_active_tenant_id') ||
@@ -530,10 +531,23 @@ export const getItemById = async (itemId) => {
   }
 };
 
-export const saveItem = async (itemData) => {
+// opts.dedupe (opt-in): on CREATE, look for a same product (barcode then name)
+// and return { duplicate: item } instead of inserting, so the caller can confirm
+// add-to-existing vs create-separate. opts.force skips that check. Existing
+// callers (bulk import etc.) pass nothing and keep inserting unconditionally.
+export const saveItem = async (itemData, { dedupe = false, force = false } = {}) => {
   try {
     const tenantId = getActiveTenantId();
     if (!tenantId) return false;
+
+    // Dedupe only on create, only when asked, and only until the user forces it.
+    if (dedupe && !force && !itemData?.id) {
+      const { item: existing, matchedBy } = await findExistingItem(tenantId, {
+        barcode: itemData?.barcode,
+        name: itemData?.name,
+      });
+      if (existing) return { duplicate: existing, matchedBy };
+    }
 
     // ── Department-folder guard ───────────────────────────────────────────────
     // Items must never be saved directly into a department-level folder.

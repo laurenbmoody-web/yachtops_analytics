@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Button from '../../../components/ui/Button';
 import Icon from '../../../components/AppIcon';
-import { saveItem, getFolderTree, createFolder } from '../utils/inventoryStorage';
+import { saveItem, getFolderTree, createFolder, updateItemStockLocations } from '../utils/inventoryStorage';
 import { supabase } from '../../../lib/supabaseClient';
 
 import ModalShell from '../../../components/ui/ModalShell';
@@ -577,6 +577,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [locationRows, setLocationRows] = useState([emptyLocationRow()]);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [duplicate, setDuplicate] = useState(null); // { item, matchedBy, payload } awaiting confirm
   const [tagInput, setTagInput] = useState('');
   const [folderTree, setFolderTree] = useState({});
   const [showFolderPicker, setShowFolderPicker] = useState(false);
@@ -791,12 +792,66 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
         isAlcohol: formData?.isAlcohol ?? false,
       };
 
-      const result = await saveItem(payload);
+      // On CREATE, ask the storage layer to flag a same product (barcode/name)
+      // so we can confirm before spawning a duplicate. Edits skip the check.
+      const result = await saveItem(payload, { dedupe: !isEdit });
+      if (result?.duplicate) {
+        setDuplicate({ item: result.duplicate, matchedBy: result.matchedBy, payload });
+        setSaving(false);
+        return;
+      }
       if (result) {
         onClose?.();
       } else {
         setErrors({ submit: 'Failed to save item. Please try again.' });
       }
+    } catch (err) {
+      setErrors({ submit: err?.message || 'An error occurred.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Merge the form's placement into the matched item (sum per vessel location),
+  // reusing the existing item's stock entries. Keys tolerate the historical
+  // qty/quantity + vesselLocationId/locationId variants.
+  const mergeStockInto = (existingRaw, additions) => {
+    const keyOf = (e) => e?.vesselLocationId || e?.locationId || e?.location_id || '';
+    const byNode = new Map();
+    const fold = (e) => {
+      const k = keyOf(e);
+      const add = Number(e?.qty ?? e?.quantity) || 0;
+      const cur = byNode.get(k);
+      const qty = (cur ? Number(cur.qty) || 0 : 0) + add;
+      byNode.set(k, { ...(cur || e), qty, quantity: qty });
+    };
+    (existingRaw || []).forEach(fold);
+    (additions || []).forEach(fold);
+    return Array.from(byNode.values());
+  };
+
+  const confirmAddToExisting = async () => {
+    if (!duplicate) return;
+    setSaving(true);
+    try {
+      const merged = mergeStockInto(duplicate.item?.stock_locations, duplicate.payload?.stockLocations);
+      const ok = await updateItemStockLocations(duplicate.item.id, merged);
+      if (ok) { setDuplicate(null); onClose?.(); }
+      else setErrors({ submit: 'Could not add stock to the existing item.' });
+    } catch (err) {
+      setErrors({ submit: err?.message || 'An error occurred.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmCreateSeparate = async () => {
+    if (!duplicate) return;
+    setSaving(true);
+    try {
+      const result = await saveItem(duplicate.payload, { force: true });
+      if (result) { setDuplicate(null); onClose?.(); }
+      else setErrors({ submit: 'Failed to save item. Please try again.' });
     } catch (err) {
       setErrors({ submit: err?.message || 'An error occurred.' });
     } finally {
@@ -1319,6 +1374,32 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
             setPickingDefaultLocation(false);
           }}
         />
+      )}
+
+      {/* Duplicate confirm — a same product already exists. Add this placement to
+          it, or keep them separate. */}
+      {duplicate && (
+        <ModalShell onClose={() => setDuplicate(null)} panelClassName="bg-card rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
+          <div className="px-6 py-5">
+            <h3 className="text-lg font-bold text-foreground mb-1">This looks like an existing item</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              <span className="font-semibold text-foreground">“{duplicate.item?.name}”</span> is already in inventory
+              {duplicate.matchedBy === 'barcode' ? ' (same barcode)' : ' (same name)'}. Add this location and quantity to it,
+              or create a separate item?
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={confirmAddToExisting} disabled={saving} className="w-full">
+                {saving ? 'Saving…' : 'Add to existing item'}
+              </Button>
+              <Button variant="outline" onClick={confirmCreateSeparate} disabled={saving} className="w-full">
+                Create a separate item
+              </Button>
+              <button type="button" onClick={() => setDuplicate(null)} disabled={saving} className="w-full py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Back
+              </button>
+            </div>
+          </div>
+        </ModalShell>
       )}
     </>
   );

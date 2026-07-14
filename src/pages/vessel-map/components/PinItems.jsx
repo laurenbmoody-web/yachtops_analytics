@@ -33,6 +33,7 @@ export default function PinItems({
   const [catResults, setCatResults] = useState([]);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
+  const [dup, setDup] = useState(null); // a same-named existing item awaiting confirm
   const [openItem, setOpenItem] = useState(null); // itemId shown in the quick-view drawer
   const debounce = useRef(null);
   const catDebounce = useRef(null);
@@ -45,7 +46,7 @@ export default function PinItems({
     .join(' › ') || (scanName || 'this pin');
 
   const resetAll = () => {
-    setMode(null); setQuery(''); setResults([]); setTransfer(null); setError(null);
+    setMode(null); setQuery(''); setResults([]); setTransfer(null); setError(null); setDup(null);
     setNewName(''); setNewQty(''); setNewCat(null); setCatPicking(false); setCatQuery(''); setCatResults([]);
   };
   useEffect(() => { setNodeId(hotspot?.location_node_id || null); resetAll(); }, [hotspot?.id]);
@@ -113,18 +114,33 @@ export default function PinItems({
     await load(nodeId);
   };
 
-  const createItem = async () => {
+  const createItem = async (force = false) => {
     const name = newName.trim();
     if (!name) return;
     setError(null);
     const nid = await ensureNode();
     if (!nid) return;
     setBusy('new');
-    const { item, error: e } = await createItemAtNode({ tenantId, userId, name, qty: newQty, pin: { nodeId: nid, name: pinName }, category: newCat });
+    const { item, existing, error: e } = await createItemAtNode({ tenantId, userId, name, qty: newQty, pin: { nodeId: nid, name: pinName }, category: newCat, force });
     setBusy(null);
     if (e) { setError(e); return; }
-    setMode(null); setNewName(''); setNewQty(''); setNewCat(null);
+    // A same-named item already exists — ask before spawning a duplicate.
+    if (existing) { setDup(existing); return; }
+    setMode(null); setNewName(''); setNewQty(''); setNewCat(null); setDup(null);
     if (item) await load(nid);
+  };
+
+  // "Add to existing" from the duplicate prompt — put the typed qty onto this
+  // pin against the item that already exists, instead of creating a new one.
+  const addToExisting = async () => {
+    if (!dup) return;
+    setBusy('new'); setError(null);
+    const addNew = Number(newQty) || 0;
+    const { error: e } = await placeStock(dup.id, { pin: { nodeId, name: pinName }, addNew, moves: [] });
+    setBusy(null);
+    if (e) { setError(e); return; }
+    setMode(null); setNewName(''); setNewQty(''); setNewCat(null); setDup(null);
+    await load(nodeId);
   };
 
   const removeItem = async (itemId) => {
@@ -268,12 +284,27 @@ export default function PinItems({
           ) : (
             <button className="vm-pinitems-cat-add" onClick={() => { setCatPicking(true); setCatQuery(''); setCatResults([]); }}>+ Choose a category</button>
           )}
-          <div className="vm-pinitems-new-row">
-            <input className="vm-check-input vm-pinitems-new-qty" type="number" min="0" placeholder="Qty" value={newQty} onChange={(e) => setNewQty(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createItem(); }} />
-            <button className="vm-btn-primary" onClick={createItem} disabled={!newName.trim() || busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add here'}</button>
-            <button className="vm-btn-ghost" onClick={() => { setMode(null); setNewName(''); setNewQty(''); setNewCat(null); setCatPicking(false); }}>Cancel</button>
-          </div>
-          <p className="vm-pinitems-new-hint">{newCat ? 'New stock, filed here in your chosen category.' : 'New stock received here; category optional.'}</p>
+          {dup ? (
+            <div className="vm-transfer">
+              <span className="vm-transfer-new">
+                <strong>“{dup.name}”</strong> already exists in inventory. Add {Number(newQty) || 0} here, or create a separate item?
+              </span>
+              <div className="vm-transfer-actions">
+                <button className="vm-btn-primary" onClick={addToExisting} disabled={busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add to existing'}</button>
+                <button className="vm-btn-ghost" onClick={() => createItem(true)} disabled={busy === 'new'}>Create new anyway</button>
+                <button className="vm-btn-ghost" onClick={() => setDup(null)}>Back</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="vm-pinitems-new-row">
+                <input className="vm-check-input vm-pinitems-new-qty" type="number" min="0" placeholder="Qty" value={newQty} onChange={(e) => setNewQty(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createItem(); }} />
+                <button className="vm-btn-primary" onClick={() => createItem()} disabled={!newName.trim() || busy === 'new'}>{busy === 'new' ? 'Adding…' : 'Add here'}</button>
+                <button className="vm-btn-ghost" onClick={() => { setMode(null); setNewName(''); setNewQty(''); setNewCat(null); setCatPicking(false); }}>Cancel</button>
+              </div>
+              <p className="vm-pinitems-new-hint">{newCat ? 'New stock, filed here in your chosen category.' : 'New stock received here; category optional.'}</p>
+            </>
+          )}
         </div>
       )}
 
