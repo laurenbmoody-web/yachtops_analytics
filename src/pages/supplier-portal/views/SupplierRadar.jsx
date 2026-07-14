@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { RefreshCw } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { fetchSupplierOrders, fetchClients } from '../utils/supplierStorage';
 import EmptyState from '../components/EmptyState';
@@ -44,7 +45,7 @@ const SupplierRadar = () => {
   const [drafts, setDrafts] = useState({});      // cardId -> edited text
   const [hidden, setHidden] = useState(() => loadHidden());
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!supplierId) return;
     setLoading(true);
     setError(null);
@@ -56,6 +57,8 @@ const SupplierRadar = () => {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [supplierId]);
+
+  useEffect(() => { load(); }, [load]);
 
   const cards = useMemo(() => {
     // Group orders by tenant
@@ -144,24 +147,32 @@ const SupplierRadar = () => {
 
   return (
     <div className="sp-page">
-      <div className="rdr-head">
+      <div className="sp-page-head">
         <div>
-          <div className="sp-eyebrow">Radar</div>
-          <h1 className="sp-page-title">Clients worth <em>a nudge</em></h1>
-          <p className="sp-page-sub">Reach out before they order. Each one comes with a draft check-in you can edit and send.</p>
+          <p className="editorial-meta" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+            <span className="dot">●</span>
+            <span>{counts.all} to nudge</span>
+            {shown.length > 0 && <><span className="bar" /><span className="muted">~{fmtMoney0(potential, shown[0].currency)} potential</span></>}
+            <span className="bar" />
+            <span className="muted">{counts.reorder} reorder due</span>
+            {counts.lapsing > 0 && <><span className="bar" /><span className="muted" style={{ color: 'var(--amber)' }}>{counts.lapsing} lapsing</span></>}
+          </p>
+          <h1 className="editorial-greeting" style={{ fontSize: 46, letterSpacing: '-1px', margin: 0 }}>
+            YOUR CLIENTS <em>radar</em>
+          </h1>
+          <p className="sp-page-sub" style={{ marginTop: 10 }}>Reach out before they order — each one comes with a draft check-in you can edit and send.</p>
         </div>
-        {shown.length > 0 && (
-          <div className="rdr-potential">
-            <div className="rdr-potential-n">~{fmtMoney0(potential, shown[0].currency)}</div>
-            <div className="rdr-potential-l">Potential today</div>
-          </div>
-        )}
       </div>
 
-      <div className="rdr-filters">
+      {/* Toolbar: signal filters · refresh */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <button className={`rdr-chip${filter === 'all' ? ' on' : ''}`} onClick={() => setFilter('all')}>All <span className="c">{counts.all}</span></button>
         <button className={`rdr-chip${filter === 'reorder' ? ' on' : ''}`} onClick={() => setFilter('reorder')}>Reorder due <span className="c">{counts.reorder}</span></button>
         <button className={`rdr-chip${filter === 'lapsing' ? ' on' : ''}`} onClick={() => setFilter('lapsing')}>Lapsing <span className="c">{counts.lapsing}</span></button>
+        <button type="button" onClick={load} title="Refresh" aria-label="Refresh"
+          style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 33, height: 33, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted-s)', cursor: 'pointer' }}>
+          <RefreshCw size={14} />
+        </button>
       </div>
 
       {shown.length === 0 ? (
