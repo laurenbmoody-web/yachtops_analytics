@@ -1127,8 +1127,7 @@ const SettingsPage = () => {
             <Group>
               <RowNav ext label="Terms of Service" desc="The agreement for using Cargo." onClick={() => window.open('/terms', '_blank', 'noopener')} />
               <RowNav ext label="Privacy Policy" desc="How we handle your data." onClick={() => window.open('/privacy', '_blank', 'noopener')} />
-              {/* Cookie page isn't published yet — mark Soon until it exists. */}
-              <RowSoon label="Cookie Policy" />
+              <RowNav ext label="Cookie Policy" desc="Cookies & storage — essential only." onClick={() => window.open('/privacy#cookies', '_blank', 'noopener')} />
             </Group>
           </>
         );
