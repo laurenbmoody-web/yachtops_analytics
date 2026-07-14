@@ -63,6 +63,7 @@ const SupplierMessages = () => {
   const [activeOrder, setActiveOrder] = useState(null);
   const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
+  const [listFilter, setListFilter] = useState('all'); // all | awaiting | unread
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -216,12 +217,26 @@ const SupplierMessages = () => {
     return out;
   }, [messages]);
 
+  const unreadThreadCount = useMemo(() => threads.filter((t) => t.id !== activeId && (t.supplier_unread_count || 0) > 0).length, [threads, activeId]);
+
   const visibleThreads = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return threads;
-    return threads.filter((t) => nameFor(t).toLowerCase().includes(q) || (t.last_message_preview || '').toLowerCase().includes(q));
+    let list = threads;
+    if (listFilter === 'awaiting') list = list.filter((t) => t.last_sender_type === 'vessel');
+    else if (listFilter === 'unread') list = list.filter((t) => t.id !== activeId && (t.supplier_unread_count || 0) > 0);
+    if (q) list = list.filter((t) => nameFor(t).toLowerCase().includes(q) || (t.last_message_preview || '').toLowerCase().includes(q));
+    // Awaiting → oldest first (work the queue); otherwise most-recent first.
+    return [...list].sort((a, b) => {
+      const ta = new Date(a.last_message_at || a.created_at).getTime();
+      const tb = new Date(b.last_message_at || b.created_at).getTime();
+      return listFilter === 'awaiting' ? ta - tb : tb - ta;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threads, search, names]);
+  }, [threads, search, listFilter, names, activeId]);
+
+  const emptyFilterMsg = listFilter === 'awaiting' ? 'No conversations awaiting your reply.'
+    : listFilter === 'unread' ? 'Nothing unread.'
+    : 'No matches.';
 
   return (
     <div className="sp-page">
@@ -262,15 +277,22 @@ const SupplierMessages = () => {
             <div className="msg-search">
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search conversations…" />
             </div>
+            <div className="msg-filters">
+              <button type="button" className={`msg-fchip${listFilter === 'all' ? ' on' : ''}`} onClick={() => setListFilter('all')}>All <span className="c">{threads.length}</span></button>
+              <button type="button" className={`msg-fchip${listFilter === 'awaiting' ? ' on' : ''}`} onClick={() => setListFilter('awaiting')}>Awaiting <span className="c">{awaitingReply}</span></button>
+              <button type="button" className={`msg-fchip${listFilter === 'unread' ? ' on' : ''}`} onClick={() => setListFilter('unread')}>Unread <span className="c">{unreadThreadCount}</span></button>
+            </div>
             <div className="msg-tlist">
               {visibleThreads.map((t) => {
                 const unread = t.id === activeId ? 0 : (t.supplier_unread_count || 0);
+                const waiting = t.last_sender_type === 'vessel';
                 return (
                   <button key={t.id} type="button" className={`msg-thread${t.id === activeId ? ' on' : ''}${unread > 0 ? ' unread-row' : ''}`} onClick={() => setActiveId(t.id)}>
                     <span className="msg-thread-av">{initials(nameFor(t))}</span>
                     <span className="msg-thread-main">
                       <span className="msg-thread-top">
                         <span className="msg-thread-name">{nameFor(t)}</span>
+                        {waiting && <span className="msg-await" title="Awaiting your reply">↩ {fmtAge(t.last_message_at)}</span>}
                         <span className="msg-thread-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
                       </span>
                       <span className="msg-thread-prev">{t.last_message_preview ? `${t.last_sender_type === 'supplier' ? 'You: ' : ''}${t.last_message_preview}` : 'No messages yet'}</span>
@@ -279,7 +301,7 @@ const SupplierMessages = () => {
                   </button>
                 );
               })}
-              {visibleThreads.length === 0 && <div className="msg-empty" style={{ padding: '24px 12px' }}>No matches.</div>}
+              {visibleThreads.length === 0 && <div className="msg-empty" style={{ padding: '24px 12px' }}>{emptyFilterMsg}</div>}
             </div>
           </div>
 

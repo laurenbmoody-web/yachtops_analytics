@@ -3633,3 +3633,13 @@
 #sp-root .msg-qchip-ai { border-color: var(--orange); color: var(--orange); background: var(--pill, #FBEFE9); font-weight: 700; }
 #sp-root .msg-qchip-ai:hover:not(:disabled) { background: var(--orange); color: #fff; }
 #sp-root .msg-qchip-ai:disabled { opacity: 0.7; cursor: default; }
+
+/* Messaging: multi-vessel triage — list filters + awaiting-reply pill */
+#sp-root .msg-filters { display: flex; gap: 6px; padding: 0 12px 10px; border-bottom: 1px solid var(--hair); flex: none; }
+#sp-root .msg-fchip { flex: 1; font-family: inherit; font-size: 11.5px; font-weight: 600; border: 1px solid var(--line); background: var(--card); color: var(--muted-strong); border-radius: 8px; padding: 5px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: border-color 0.12s, background 0.12s, color 0.12s; }
+#sp-root .msg-fchip:hover { border-color: var(--navy-app); }
+#sp-root .msg-fchip.on { background: var(--navy); color: var(--card); border-color: var(--navy); }
+#sp-root .msg-fchip .c { opacity: 0.6; }
+#sp-root .msg-fchip.on .c { opacity: 0.85; }
+#sp-root .msg-thread-name { flex: 1 1 auto; }
+#sp-root .msg-await { font-size: 10px; font-weight: 700; color: var(--amber); background: rgba(217,119,6,0.12); border-radius: 999px; padding: 1px 6px; flex: none; white-space: nowrap; }
