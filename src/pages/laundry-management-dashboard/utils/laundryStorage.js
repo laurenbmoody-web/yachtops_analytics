@@ -84,6 +84,64 @@ export const setLastLaundryDayKey = () => {};
 export const isNewDay = () => false;
 export const migrateLaundryItems = async () => 0;
 
+// ── activity log ─────────────────────────────────────────────────────────────
+// Append an event (who did what, when). Best-effort — never blocks the action.
+const ACTION_FOR_STATUS = {
+  [LaundryStatus.IN_PROGRESS]: 'reopened',
+  [LaundryStatus.READY_TO_DELIVER]: 'ready',
+  [LaundryStatus.DELIVERED]: 'delivered',
+};
+const logLaundryEvent = async (itemId, tenantId, action) => {
+  if (!itemId || !tenantId || !action) return;
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const u = getCurrentUser();
+    await supabase.from('laundry_item_events').insert({
+      tenant_id: tenantId, item_id: itemId, action,
+      actor_id: authData?.user?.id || null,
+      actor_name: u?.fullName || u?.name || 'Someone',
+    });
+  } catch (e) { /* non-fatal */ }
+};
+
+const mapEvent = (r) => ({ id: r.id, itemId: r.item_id, action: r.action, actorName: r.actor_name, actorId: r.actor_id, at: r.at });
+
+export const getLaundryEvents = async (itemId) => {
+  if (!itemId) return [];
+  const { data, error } = await supabase
+    .from('laundry_item_events')
+    .select('*')
+    .eq('item_id', itemId)
+    .order('at', { ascending: true });
+  if (error) { console.error('[laundry] events load failed', error); return []; }
+  return (data || []).map(mapEvent);
+};
+
+// Recent activity across the vessel, joined to the item, for the history page.
+export const getRecentLaundryActivity = async (limit = 200) => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    .from('laundry_item_events')
+    .select('*, laundry_items(description, owner_type, owner_name, owner_display_name, area, priority, photo, photos, colour, laundry_number)')
+    .eq('tenant_id', tenantId)
+    .order('at', { ascending: false })
+    .limit(limit);
+  if (error) { console.error('[laundry] activity load failed', error); return []; }
+  return (data || []).map((r) => ({
+    ...mapEvent(r),
+    item: r.laundry_items ? {
+      description: r.laundry_items.description,
+      ownerType: r.laundry_items.owner_type,
+      ownerName: r.laundry_items.owner_name,
+      area: r.laundry_items.area,
+      priority: r.laundry_items.priority,
+      photo: r.laundry_items.photo,
+      photos: r.laundry_items.photos,
+    } : null,
+  }));
+};
+
 // ── reads ────────────────────────────────────────────────────────────────────
 export const loadAllLaundryItems = async () => {
   const tenantId = await getTenantId();
@@ -239,6 +297,7 @@ export const createLaundryItem = async (itemData) => {
       meta: { ownerType: data.owner_type, ownerDisplayName: data.owner_display_name, priority: data.priority },
     });
   } catch (e) { console.error('Error logging activity:', e); }
+  logLaundryEvent(data.id, data.tenant_id, 'created');
 
   showToast('Laundry item added', 'success');
   return mapRow(data);
@@ -249,6 +308,7 @@ export const updateLaundryStatus = async (itemId, newStatus) => {
   if (newStatus === LaundryStatus.DELIVERED) patch.delivered_at = new Date().toISOString();
   const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', itemId).select('*').single();
   if (error) { console.error('[laundry] status update failed', error); showToast('Could not update status', 'error'); return null; }
+  logLaundryEvent(data.id, data.tenant_id, ACTION_FOR_STATUS[newStatus] || 'updated');
   if (newStatus === LaundryStatus.DELIVERED) {
     try {
       logActivity({
@@ -273,6 +333,7 @@ export const updateLaundryItem = async (itemId, updates) => {
   Object.entries(updates || {}).forEach(([k, v]) => { if (map[k]) patch[map[k]] = v; });
   const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', itemId).select('*').single();
   if (error) { console.error('[laundry] update failed', error); showToast('Could not update item', 'error'); return null; }
+  logLaundryEvent(data.id, data.tenant_id, 'edited');
   showToast('Laundry item updated', 'success');
   return mapRow(data);
 };
