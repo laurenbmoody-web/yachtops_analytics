@@ -263,7 +263,9 @@ export const updateLaundryStatus = async (itemId, newStatus) => {
 
 export const updateLaundryItem = async (itemId, updates) => {
   const map = {
-    ownerName: 'owner_name', ownerDisplayName: 'owner_display_name', area: 'area', areaLocationId: 'area_location_id',
+    ownerType: 'owner_type', ownerName: 'owner_name', ownerDisplayName: 'owner_display_name',
+    ownerGuestId: 'owner_guest_id', ownerCrewUserId: 'owner_crew_user_id',
+    area: 'area', areaLocationId: 'area_location_id',
     colour: 'colour', laundryNumber: 'laundry_number', photo: 'photo', photos: 'photos', description: 'description',
     priority: 'priority', status: 'status', tags: 'tags', notes: 'notes',
   };
