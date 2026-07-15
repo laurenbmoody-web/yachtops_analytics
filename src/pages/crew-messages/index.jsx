@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -20,6 +20,9 @@ const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).m
 const supplierName = (t) => t?.supplier_profiles?.name || 'Supplier';
 const supplierLogo = (t) => t?.supplier_profiles?.logo_url || null;
 const threadLabel = (t) => (t?.order_id ? `Order #${shortId(t.order_id)}` : 'General');
+// The provisioning board this conversation relates to (via the order's list), so
+// crew can jump from a chat straight to the board it's about.
+const threadBoard = (t) => t?.supplier_orders?.provisioning_lists || null;
 
 const AV_GRADS = [
   ['#3E5C76', '#1E3A5F'], ['#5B6B8C', '#39415C'], ['#6B7A99', '#454E68'],
@@ -106,6 +109,7 @@ const Menu = ({ label, value, options, onChange }) => {
 const CrewMessages = () => {
   const { activeTenantId } = useTenant();
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const threadParam = params.get('threadId');
 
   const [threads, setThreads] = useState([]);
@@ -401,7 +405,24 @@ const CrewMessages = () => {
                       {avatar(activeThread.supplier_id || activeThread.supplier_profiles?.id, supplierName(activeThread), supplierLogo(activeThread), 'lg')}
                       <div className="msg-convo-id">
                         <div className="msg-convo-name" style={{ cursor: 'default' }}>{supplierName(activeThread)}</div>
-                        <div className="msg-convo-sub"><span className="msg-convo-tag">{threadLabel(activeThread)}</span></div>
+                        <div className="msg-convo-sub">
+                          <span className="msg-convo-tag">{threadLabel(activeThread)}</span>
+                          {(() => {
+                            const board = threadBoard(activeThread);
+                            if (!board) return null;
+                            return (
+                              <button
+                                type="button"
+                                className="msg-convo-board"
+                                onClick={() => navigate(`/provisioning/${board.id}`)}
+                                title={`Open the ${board.title} board`}
+                              >
+                                <span className="msg-convo-board-ico" aria-hidden>▤</span>
+                                {board.title}
+                              </button>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
 
