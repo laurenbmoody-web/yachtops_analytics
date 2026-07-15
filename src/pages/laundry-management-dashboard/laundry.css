@@ -705,6 +705,20 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 /* extra photo thumbnails under the meta */
 .ldm-strip { display: flex; gap: 8px; flex-wrap: wrap; }
 .ldm-strip img { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; border: 1px solid #ECECEE; }
+/* timeline-led layout: facts chips + vertical activity timeline */
+.ldm-facts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.ldm-chip { display: inline-flex; align-items: center; gap: 6px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #F1F5F9; border: 1px solid #ECECEE; border-radius: 999px; padding: 5px 12px; }
+.ldm-chip svg { width: 12px; height: 12px; stroke: #8B8478; }
+.ldm-care { display: inline-flex; align-items: center; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #FFFFFF; background: #C65A1A; border-radius: 999px; padding: 5px 13px; }
+.ldm-tl { list-style: none; margin: 0; padding: 0; }
+.ldm-tl li { position: relative; padding: 0 0 16px 22px; }
+.ldm-tl li::before { content: ""; position: absolute; left: 4px; top: 14px; bottom: -2px; width: 2px; background: #EEF0F4; }
+.ldm-tl li:last-child { padding-bottom: 0; }
+.ldm-tl li:last-child::before { display: none; }
+.ldm-tl .td { position: absolute; left: 0; top: 3px; width: 10px; height: 10px; border-radius: 999px; box-shadow: 0 0 0 3px #FFF; }
+.ldm-tl .ta { font-size: 13px; color: #1C1B3A; font-weight: 600; }
+.ldm-tl .tm { font-size: 11.5px; color: #8B8478; margin-top: 1px; }
+
 /* activity log */
 .ldm-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .ldm-logrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #F3F4F8; }

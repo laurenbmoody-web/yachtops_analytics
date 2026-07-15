@@ -13,12 +13,8 @@ const STAT = {
   [LaundryStatus?.READY_TO_DELIVER]: { cls: 'ready', label: 'Ready to deliver' },
   [LaundryStatus?.DELIVERED]: { cls: 'deliv', label: 'Delivered' },
 };
-const STATUS_C = { prog: '#B7791F', ready: '#2F6E8F', deliv: '#2F7D5A' };
-const STEP_IDX = { [LaundryStatus?.IN_PROGRESS]: 1, [LaundryStatus?.READY_TO_DELIVER]: 2, [LaundryStatus?.DELIVERED]: 3 };
 const ownerKind = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : 'unknown'; };
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
-const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
-const fmtClock = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
 const photosOf = (it) => (Array.isArray(it?.photos) && it.photos.length ? it.photos : (it?.photo ? [it.photo] : []));
 
 const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
@@ -36,15 +32,7 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
   const st = STAT[item?.status] || STAT[LaundryStatus?.READY_TO_DELIVER];
   const urgent = item?.priority === LaundryPriority?.URGENT;
   const photos = photosOf(item);
-  const idx = STEP_IDX[item?.status] || 2;
-  const stepC = STATUS_C[st.cls] || '#2F6E8F';
   const avatarUrl = item?.avatarUrl;
-
-  const steps = [
-    { lbl: 'In progress', t: fmtClock(item?.createdAt) },
-    { lbl: 'Ready', t: '' },
-    { lbl: 'Delivered', t: fmtClock(item?.deliveredAt) },
-  ];
 
   const advance = async (newStatus) => {
     const updated = await updateLaundryStatus(item.id, newStatus);
@@ -73,47 +61,18 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
             <span className={`lr-av ${kind}`}>{avatarUrl ? <img src={avatarUrl} alt="" /> : (kind === 'unknown' ? '?' : initials(item?.ownerName))}</span>
             {kind === 'unknown' ? 'Unknown owner' : (item?.ownerName || '—')}
             <span style={{ opacity: 0.7 }}>· {kind[0].toUpperCase() + kind.slice(1)}</span>
-            {item?.area && <span style={{ opacity: 0.7 }}>· {item.area}</span>}
           </div>
         </div>
       </div>
 
       <div className="alm-body">
-        <div className="ldm-track" style={{ '--c': stepC }}>
-          {steps.map((s, i) => (
-            <div key={s.lbl} className={`ldm-node${i + 1 <= idx ? ' fill' : ''}`}>
-              <span className="ldm-dot" />
-              <span className="ldm-nlbl">{s.lbl}</span>
-              <span className="ldm-nt">{s.t}</span>
-            </div>
-          ))}
+        {/* facts — the quick where/what; the story lives in the timeline below */}
+        <div className="ldm-facts">
+          {item?.area && <span className="ldm-chip"><Icon name="MapPin" size={12} />{kind === 'unknown' ? 'Found: ' : ''}{item.area}</span>}
+          {(item?.laundryNumber || item?.colour) && <span className="ldm-chip"><Icon name="Hash" size={12} />{[item?.laundryNumber, item?.colour].filter(Boolean).join(' · ')}</span>}
+          {(item?.tags || []).map((t, i) => <span key={i} className="ldm-care">{formatLaundryTag(t)}</span>)}
+          {!item?.area && !item?.laundryNumber && !item?.colour && !(item?.tags || []).length && <span className="ldm-chip" style={{ color: '#AEB4C2' }}>No further details</span>}
         </div>
-
-        <div className="ldm-meta">
-          <div>
-            <span className="ldm-k">{kind === 'unknown' ? 'Found at' : 'Cabin'}</span>
-            <span className="ldm-v">{item?.area || '—'}</span>
-          </div>
-          <div>
-            <span className="ldm-k">Laundry no. &amp; colour</span>
-            <span className="ldm-v">{[item?.laundryNumber, item?.colour].filter(Boolean).join(' · ') || '—'}</span>
-          </div>
-          <div>
-            <span className="ldm-k">Added</span>
-            <span className="ldm-v">{fmtDateTime(item?.createdAt) || '—'}</span>
-          </div>
-          <div>
-            <span className="ldm-k">Delivered</span>
-            <span className="ldm-v">{item?.deliveredAt ? fmtDateTime(item.deliveredAt) : '—'}</span>
-          </div>
-        </div>
-
-        {item?.tags?.length > 0 && (
-          <div className="alm-section">
-            <label className="alm-label">Care</label>
-            <div className="alm-tags">{item.tags.map((t, i) => <span key={i} className="alm-tag on" style={{ cursor: 'default' }}>{formatLaundryTag(t)}</span>)}</div>
-          </div>
-        )}
 
         {item?.notes && (
           <div className="alm-section">
@@ -129,17 +88,18 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
           </div>
         )}
 
+        {/* activity timeline — the focus of this view */}
         <div className="alm-section" style={{ marginBottom: 0 }}>
           <label className="alm-label">Activity</label>
           {events.length === 0 ? (
             <div className="ldm-log-empty">No activity recorded yet.</div>
           ) : (
-            <ul className="ldm-log">
+            <ul className="ldm-tl">
               {events.map((e) => (
-                <li className="ldm-logrow" key={e.id}>
-                  <span className="ldm-logdot" style={{ background: EVENT_DOT[e.action] || '#8B8478' }} />
-                  <span className="ldm-logtext"><b>{EVENT_LABEL[e.action] || e.action}</b>{e.actorName ? <> by {e.actorName}</> : null}</span>
-                  <span className="ldm-logtime">{fmtEventTime(e.at)}</span>
+                <li key={e.id}>
+                  <span className="td" style={{ background: EVENT_DOT[e.action] || '#8B8478' }} />
+                  <div className="ta">{EVENT_LABEL[e.action] || e.action}</div>
+                  <div className="tm">{e.actorName ? `${e.actorName} · ` : ''}{fmtEventTime(e.at)}</div>
                 </li>
               ))}
             </ul>
