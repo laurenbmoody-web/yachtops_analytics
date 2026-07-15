@@ -9,6 +9,7 @@ import { loadAllTypes } from './utils/defectTypeTaxonomy';
 import ReportDefectModal from './components/ReportDefectModal';
 import ViewDefectModal from './components/ViewDefectModal';
 import SnagReportModal from './components/SnagReportModal';
+import CharterReadinessBanner from './components/CharterReadinessBanner';
 
 import ModalShell from '../../components/ui/ModalShell';
 const DefectsDashboard = () => {
@@ -401,6 +402,10 @@ const DefectsDashboard = () => {
         {/* Main Tab Content */}
         {activeTab === 'main' && (
           <>
+            <CharterReadinessBanner
+              defects={defects}
+              onOpenDefect={(id) => { setSelectedDefectId(id); setShowViewModal(true); }}
+            />
             {/* Top Widgets Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
