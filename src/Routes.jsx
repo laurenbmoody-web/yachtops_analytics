@@ -61,6 +61,7 @@ import { getCurrentUser } from './utils/authStorage';
 import { isDevMode } from './utils/devMode';
 
 import ProvisioningWorkspace from './pages/provisioning';
+import CrewMessages from './pages/crew-messages';
 import ProvisioningBoardDetail from './pages/provisioning/ProvisioningBoardDetail';
 // Phase 2 — vessel-side marketplace over supplier catalogues.
 import Marketplace from './pages/marketplace';
@@ -108,7 +109,6 @@ const SupplierRadar      = lazyWithRetry(() => import('./pages/supplier-portal/v
 const SupplierMessages   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierMessages'));
 const SupplierReturns    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierReturns'));
 const CertReviewConsole  = lazyWithRetry(() => import('./pages/cargo-console/CertReviewConsole'));
-const CrewMessages       = lazyWithRetry(() => import('./pages/crew-messages'));
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
