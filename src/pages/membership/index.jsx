@@ -40,7 +40,6 @@ const STATUS = {
   canceled: { label: 'Cancelled', bg: '#F0F1F5', fg: '#8B8478' },
 };
 
-const PERIOD_LABEL = (p) => (p === 'annual' ? '/year · billed annually' : '/month');
 // dd/mm/yyyy — Cargo date convention.
 const fmtDate = (d) => {
   if (!d) return '';
@@ -147,6 +146,10 @@ const Membership = () => {
   const tierInfo = plan.tier ? TIERS[plan.tier] : null;
   const st = STATUS[plan.status] || STATUS.trialing;
   const isPaid = !!(plan.tier && plan.status === 'active');
+  // Annual = 10 months (2 free), matching the /checkout calculation.
+  const isAnnual = plan.period === 'annual';
+  const displayPrice = tierInfo ? (isAnnual ? tierInfo.price * 10 : tierInfo.price) : 0;
+  const perLabel = isAnnual ? '/year' : '/month';
   // Portal "cancel at period end" keeps status active but flags the wind-down.
   const cancelling = !!(plan.cancelAtEnd && isPaid);
   const periodEndLabel = plan.periodEnd ? fmtDate(plan.periodEnd) : '';
@@ -209,9 +212,12 @@ const Membership = () => {
                   {tierInfo ? <>Cargo <span className="dash">·</span> {tierInfo.label}</> : <>Cargo <span className="dash">·</span> Free trial</>}
                 </div>
                 {tierInfo ? (
-                  <div className="mem-price">
-                    <strong>£{tierInfo.price}</strong><span className="per">{PERIOD_LABEL(plan.period)}</span>
-                  </div>
+                  <>
+                    <div className="mem-price">
+                      <strong>£{displayPrice.toLocaleString('en-GB')}</strong><span className="per">{perLabel}</span>
+                    </div>
+                    {isAnnual && <div className="mem-price-note">Two months free vs paying monthly</div>}
+                  </>
                 ) : (
                   <div className="mem-price"><span className="per">No paid plan yet.</span></div>
                 )}
