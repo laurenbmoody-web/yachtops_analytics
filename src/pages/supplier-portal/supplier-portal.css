@@ -3625,7 +3625,7 @@
 }
 #sp-root .msg-sw-fg.dragging { transition: background 0.12s, box-shadow 0.12s; }
 #sp-root .msg-sw-fg:hover:not(.on):not(.dragging) { background: #fff; }
-#sp-root .msg-sw-fg.on { background: var(--card); box-shadow: var(--sh2), inset 3px 0 0 var(--orange); cursor: default; }
+#sp-root .msg-sw-fg.on { background: var(--card); box-shadow: inset 3px 0 0 var(--orange); cursor: default; }
 #sp-root .msg-sw-fg.arch { opacity: 0.62; }
 
 /* Desktop hover-reveal — compact action cluster over the row's right edge.

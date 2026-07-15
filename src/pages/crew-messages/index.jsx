@@ -350,7 +350,6 @@ const CrewMessages = () => {
                               >
                                 <span className="msg-row-main">
                                   <span className="msg-row-top">
-                                    {unread > 0 && <span className="msg-row-dot" title="New message received" />}
                                     <span className="msg-row-label">{threadLabel(t)}</span>
                                     <span className="msg-row-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
                                   </span>
