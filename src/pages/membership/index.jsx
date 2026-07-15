@@ -206,7 +206,7 @@ const Membership = () => {
             <div className="mem-card-top">
               <div>
                 <div className="mem-plan-name">
-                  {tierInfo ? <>Cargo <span className="dash">—</span> {tierInfo.label}</> : 'Cargo — Free trial'}
+                  {tierInfo ? <>Cargo <span className="dash">·</span> {tierInfo.label}</> : <>Cargo <span className="dash">·</span> Free trial</>}
                 </div>
                 {tierInfo ? (
                   <div className="mem-price">
