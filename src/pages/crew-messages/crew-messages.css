@@ -23,7 +23,7 @@
   --sh3: 0 24px 50px -18px rgba(28, 27, 58, 0.22);
   height: calc(100vh - 64px);
   box-sizing: border-box;
-  padding: 74px 30px 22px;
+  padding: 20px 30px 22px;
   background: #F8FAFC;
   color: var(--fg);
   font-family: 'Inter', system-ui, sans-serif;
