@@ -137,7 +137,7 @@ async function findTenantBySubscription(subscriptionId) {
   return rows[0] || null;
 }
 
-async function createTenantRow(registration, session) {
+async function createTenantRow(registration, session, sub = null) {
   const payload = {
     name: registration.vessel_name,
     type: 'VESSEL',
@@ -158,6 +158,8 @@ async function createTenantRow(registration, session) {
     stripe_customer_id: session.customer,
     stripe_subscription_id: session.subscription,
     subscription_status: 'active',
+    current_period_end: periodEndIso(sub),
+    cancel_at_period_end: sub?.cancel_at_period_end || false,
     plan_tier: registration.pricing_tier,
     billing_period: session.metadata?.billing_period || 'monthly',
     // Locked design 2026-04-14: the checkout form asks "will you be the
@@ -390,7 +392,28 @@ async function inviteUser(email, fullName) {
   return { id: userId, created: true };
 }
 
-/* ─── Stripe API helper (for cancellation on duplicate) ───────────────── */
+/* ─── Stripe API helpers ──────────────────────────────────────────────── */
+
+// Unix-seconds → ISO string (Stripe periods are unix timestamps).
+const periodEndIso = (sub) =>
+  sub?.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+
+// Retrieve the full subscription so we can stamp current_period_end +
+// cancel_at_period_end at checkout time (the checkout.session object doesn't
+// carry them). Best-effort — returns null on any failure.
+async function fetchSubscription(subscriptionId) {
+  if (!subscriptionId || !STRIPE_SECRET_KEY) return null;
+  try {
+    const res = await fetch(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}`, 'Stripe-Version': '2024-11-20.acacia' },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error('[stripe] fetchSubscription failed:', err?.message || err);
+    return null;
+  }
+}
 
 async function cancelSubscription(subscriptionId) {
   if (!subscriptionId) return;
@@ -410,6 +433,10 @@ async function cancelSubscription(subscriptionId) {
 /* ─── Event handlers ──────────────────────────────────────────────────── */
 
 async function handleCheckoutCompleted(session) {
+  // Fetch the subscription so we can stamp the renewal date + pending-cancel
+  // flag immediately (the checkout.session object doesn't carry them).
+  const sub = await fetchSubscription(session.subscription);
+
   // Existing-tenant upgrade (free trial → paid) from /membership. No new tenant
   // is provisioned — we just stamp the chosen plan onto the tenant we already
   // have. This branch is taken only for sessions the upgrade function minted.
@@ -422,6 +449,8 @@ async function handleCheckoutCompleted(session) {
         stripe_customer_id: session.customer,
         stripe_subscription_id: session.subscription,
         subscription_status: 'active',
+        current_period_end: periodEndIso(sub),
+        cancel_at_period_end: sub?.cancel_at_period_end || false,
         plan_tier: session.metadata?.pricing_tier || null,
         billing_period: session.metadata?.billing_period || 'monthly',
       }),
@@ -533,7 +562,7 @@ async function handleCheckoutCompleted(session) {
 
   // 1. Create the tenant
   console.log(`[checkout] creating tenant for ${registration.vessel_name}`);
-  const tenant = await createTenantRow(registration, session);
+  const tenant = await createTenantRow(registration, session, sub);
   console.log(`[checkout] tenant ${tenant.id} created`);
 
   // 1b. Create the vessel row — non-fatal. If this fails, vessel-settings
@@ -583,7 +612,8 @@ async function handleSubscriptionDeleted(subscription) {
     {
       method: 'PATCH',
       headers: { 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ subscription_status: 'canceled' }),
+      // Fully cancelled now — clear the pending-cancel flag.
+      body: JSON.stringify({ subscription_status: 'canceled', cancel_at_period_end: false }),
     }
   );
   if (!res.ok) {
@@ -595,13 +625,19 @@ async function handleSubscriptionDeleted(subscription) {
 async function handleSubscriptionUpdated(subscription) {
   // Mirror Stripe's subscription status onto the tenant row. This catches
   // transitions to past_due, unpaid, etc. without us having to wire separate
-  // handlers for each.
+  // handlers for each — plus the renewal date and the pending-cancellation
+  // flag (portal "cancel at period end" keeps status='active' but sets
+  // cancel_at_period_end=true, so the UI can show "cancelling on <date>").
   const res = await supaRest(
     `tenants?stripe_subscription_id=eq.${encodeURIComponent(subscription.id)}`,
     {
       method: 'PATCH',
       headers: { 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ subscription_status: subscription.status }),
+      body: JSON.stringify({
+        subscription_status: subscription.status,
+        current_period_end: periodEndIso(subscription),
+        cancel_at_period_end: subscription.cancel_at_period_end || false,
+      }),
     }
   );
   if (!res.ok) {
@@ -650,6 +686,7 @@ exports.handler = async (event) => {
       case 'customer.subscription.deleted':
         await handleSubscriptionDeleted(stripeEvent.data.object);
         break;
+      case 'customer.subscription.created':
       case 'customer.subscription.updated':
         await handleSubscriptionUpdated(stripeEvent.data.object);
         break;

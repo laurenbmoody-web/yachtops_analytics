@@ -154,7 +154,7 @@ const SettingsPage = () => {
   const [tzOpen, setTzOpen] = useState(false);
   const [tzSearch, setTzSearch] = useState('');
   const [acct, setAcct] = useState({ name: '', email: '', avatarUrl: '', tenant: '' });
-  const [planInfo, setPlanInfo] = useState({ tier: null, status: null });
+  const [planInfo, setPlanInfo] = useState({ tier: null, status: null, cancelAtEnd: false });
   const [notifEmail, setNotifEmail] = useState('');
   const [savedNotifEmail, setSavedNotifEmail] = useState('');
   const [pendingReq, setPendingReq] = useState(null);
@@ -645,9 +645,9 @@ const SettingsPage = () => {
         }
         const tid = localStorage.getItem('cargo_active_tenant_id');
         if (tid) {
-          const { data: tn } = await supabase.from('tenants').select('name, plan_tier, subscription_status').eq('id', tid).single();
+          const { data: tn } = await supabase.from('tenants').select('name, plan_tier, subscription_status, cancel_at_period_end').eq('id', tid).single();
           if (tn?.name) tenant = tn.name;
-          if (!cancelled) setPlanInfo({ tier: tn?.plan_tier || null, status: tn?.subscription_status || null });
+          if (!cancelled) setPlanInfo({ tier: tn?.plan_tier || null, status: tn?.subscription_status || null, cancelAtEnd: tn?.cancel_at_period_end || false });
         }
         if (uid && tid) {
           const { data: ne } = await supabase.from('crew_notification_emails').select('email').eq('user_id', uid).eq('tenant_id', tid).maybeSingle();
@@ -682,6 +682,7 @@ const SettingsPage = () => {
   const PLAN_TIER_LABELS = { under_40m: 'Under 40m', '40_80m': '40 – 80m', over_80m: 'Over 80m' };
   const planTierLabel = planInfo.tier ? (PLAN_TIER_LABELS[planInfo.tier] || planInfo.tier) : '';
   const planChip = (() => {
+    if (planInfo.cancelAtEnd && planInfo.status === 'active') return { cls: 'warn', label: 'Cancelling' };
     switch (planInfo.status) {
       case 'active': return { cls: 'ok', label: 'Active' };
       case 'trialing': return { cls: 'ok', label: 'Trial' };

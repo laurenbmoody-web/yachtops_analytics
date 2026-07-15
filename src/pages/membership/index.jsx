@@ -56,7 +56,7 @@ const Membership = () => {
   const [loading, setLoading] = useState(true);
   const [noTenantAccess, setNoTenantAccess] = useState(false);
   const [tenantId, setTenantId] = useState(null);
-  const [plan, setPlan] = useState({ tier: null, period: 'monthly', status: null, vessel: '', joined: null });
+  const [plan, setPlan] = useState({ tier: null, period: 'monthly', status: null, vessel: '', joined: null, periodEnd: null, cancelAtEnd: false });
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalMsg, setPortalMsg] = useState('');
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -79,7 +79,7 @@ const Membership = () => {
       if (!tid) { setNoTenantAccess(true); setLoading(false); return; }
       setTenantId(tid);
       const { data } = await supabase.from('tenants')
-        .select('name, plan_tier, billing_period, subscription_status, created_at')
+        .select('name, plan_tier, billing_period, subscription_status, created_at, current_period_end, cancel_at_period_end')
         .eq('id', tid).maybeSingle();
       setPlan({
         tier: data?.plan_tier || null,
@@ -87,6 +87,8 @@ const Membership = () => {
         status: data?.subscription_status || null,
         vessel: data?.name || '',
         joined: data?.created_at || null,
+        periodEnd: data?.current_period_end || null,
+        cancelAtEnd: data?.cancel_at_period_end || false,
       });
     } catch (e) {
       console.error('[membership] load failed', e);
@@ -145,6 +147,11 @@ const Membership = () => {
   const tierInfo = plan.tier ? TIERS[plan.tier] : null;
   const st = STATUS[plan.status] || STATUS.trialing;
   const isPaid = !!(plan.tier && plan.status === 'active');
+  // Portal "cancel at period end" keeps status active but flags the wind-down.
+  const cancelling = !!(plan.cancelAtEnd && isPaid);
+  const periodEndLabel = plan.periodEnd ? fmtDate(plan.periodEnd) : '';
+  const CANCELLING_PILL = { label: 'Cancelling', bg: '#FBEFD9', fg: '#8A5A12' };
+  const cardPill = cancelling ? CANCELLING_PILL : st;
 
   if (loading) {
     return (
@@ -175,6 +182,9 @@ const Membership = () => {
           <span>{plan.vessel || 'This vessel'}</span>
           {plan.joined && <><span className="bar" /><span className="muted">Member since {fmtDate(plan.joined)}</span></>}
           {tierInfo && <><span className="bar" /><span className="muted">Billed {plan.period === 'annual' ? 'annually' : 'monthly'}</span></>}
+          {cancelling && periodEndLabel
+            ? <><span className="bar" /><span className="muted">Cancels {periodEndLabel}</span></>
+            : (isPaid && periodEndLabel && <><span className="bar" /><span className="muted">Renews {periodEndLabel}</span></>)}
         </p>
 
         {/* Headline — VESSEL, *Membership*. (plan detail lives in the card) */}
@@ -206,8 +216,14 @@ const Membership = () => {
                   <div className="mem-price"><span className="per">No paid plan yet.</span></div>
                 )}
               </div>
-              <span className="mem-status" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
+              <span className="mem-status" style={{ background: cardPill.bg, color: cardPill.fg }}>{cardPill.label}</span>
             </div>
+
+            {cancelling && (
+              <div className="mem-cancel-note">
+                Cancelling{periodEndLabel ? ` on ${periodEndLabel}` : ' at the end of your billing period'} — you keep full access until then. Reactivate any time from Manage billing.
+              </div>
+            )}
 
             <hr className="mem-card-hr" />
 
