@@ -1,23 +1,34 @@
-// Defects Storage - Persistent Defect Management
+// Defects data layer — Supabase-backed (was localStorage `cargo_defects_v1`).
+//
+// Every record lives in public.defects (tenant-scoped, RLS), so defects are
+// shared across the vessel, notifications reach other crew's devices, and a
+// fleet snag report / survey audit trail is possible. Comments live in
+// public.defect_comments; an immutable audit trail in public.defect_events.
+//
+// Identity is the real Supabase login/tenant model — NOT the localStorage user
+// cache. Callers pass an `actor` context resolved from useAuth()/useTenant():
+//   actor = { tenantId, userId, userName, tier, departmentId, departmentName }
+// Writes attribute to actor.userId (an auth uid), and every uid is stored beside
+// a denormalised *_name so display survives even when a uid can't be resolved.
+//
+// All functions are async (Promise-returning). Row shapes are mapped to the same
+// camelCase fields the existing UI already reads, so callers change only by
+// awaiting + passing `actor`.
 
-import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../../utils/authStorage';
+import { supabase } from '../../../lib/supabaseClient';
 import { logActivity, DefectActions } from '../../../utils/activityStorage';
 import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-management-settings/utils/locationsHierarchyStorage';
-import { notifyChiefsPendingDefect, notifyChiefsNewDefect, notifySenderAccepted, notifySenderDeclined } from './defectsNotifications';
-import { showToast } from '../../../utils/toast';
+import {
+  notifyChiefsPendingDefect,
+  notifyChiefsNewDefect,
+  notifySenderAccepted,
+  notifySenderDeclined,
+  notifyDefectAssigned,
+} from './defectsNotifications';
 
-const DEFECTS_STORAGE_KEY = 'cargo_defects_v1';
+// ── Enums (unchanged public API) ─────────────────────────────────────────────
+export const normalizeDept = (dept) => (dept || '')?.trim()?.toUpperCase();
 
-/**
- * Normalize department name for consistent comparison
- * @param {string} dept - Department name
- * @returns {string} Normalized uppercase trimmed department name
- */
-export const normalizeDept = (dept) => {
-  return (dept || '')?.trim()?.toUpperCase();
-};
-
-// Defect Status Enum
 export const DefectStatus = {
   PENDING_ACCEPTANCE: 'pending_acceptance',
   NEW: 'New',
@@ -27,1012 +38,537 @@ export const DefectStatus = {
   FIXED: 'Fixed',
   CLOSED: 'Closed',
   DECLINED: 'declined',
-  REOPENED: 'Reopened'
+  REOPENED: 'Reopened',
 };
 
-// Defect Priority Enum
-export const DefectPriority = {
-  LOW: 'Low',
-  MEDIUM: 'Medium',
-  HIGH: 'High',
-  CRITICAL: 'Critical'
-};
+export const DefectPriority = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical' };
 
-// Department Owner Enum
 export const DefectDepartment = {
-  INTERIOR: 'Interior',
-  DECK: 'Deck',
-  ENGINEERING: 'Engineering',
-  GALLEY: 'Galley',
-  MANAGEMENT: 'Management'
+  INTERIOR: 'Interior', DECK: 'Deck', ENGINEERING: 'Engineering', GALLEY: 'Galley', MANAGEMENT: 'Management',
 };
 
-/**
- * Load all defects from localStorage
- * @returns {Array} Array of defect objects
- */
-const loadAllDefects = () => {
-  try {
-    const stored = localStorage.getItem(DEFECTS_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-    return [];
-  } catch (error) {
-    console.error('Error loading defects:', error);
-    return [];
-  }
-};
+// ── Tier helpers (work off the actor.tier string, an auth/tenant permission tier)
+const isCommandTier = (t) => normalizeDept(t) === 'COMMAND';
+const isChiefTier = (t) => normalizeDept(t) === 'CHIEF';
+const isHODTier = (t) => normalizeDept(t) === 'HOD';
 
-/**
- * Save defects to localStorage
- * @param {Array} defects - Array of defect objects
- */
-const saveDefects = (defects) => {
-  try {
-    localStorage.setItem(DEFECTS_STORAGE_KEY, JSON.stringify(defects));
-  } catch (error) {
-    console.error('Error saving defects:', error);
-  }
-};
-
-/**
- * Build location path label from IDs
- * @param {string} deckId
- * @param {string} zoneId
- * @param {string} spaceId
- * @returns {string} "Deck > Zone > Space" or "Deck > Zone"
- */
+// ── Location label (legacy deck/zone/space hierarchy is still localStorage) ───
 export const buildLocationPathLabel = (deckId, zoneId, spaceId) => {
   const decks = getAllDecks(false);
-  const deck = decks?.find(d => d?.id === deckId);
-  
+  const deck = decks?.find((d) => d?.id === deckId);
   if (!deck) return '';
-  
   const zones = getZonesByDeck(deckId, false);
-  const zone = zones?.find(z => z?.id === zoneId);
-  
+  const zone = zones?.find((z) => z?.id === zoneId);
   if (!zone) return deck?.name;
-  
   if (!spaceId) return `${deck?.name} > ${zone?.name}`;
-  
   const spaces = getSpacesByZone(zoneId, false);
-  const space = spaces?.find(s => s?.id === spaceId);
-  
+  const space = spaces?.find((s) => s?.id === spaceId);
   if (!space) return `${deck?.name} > ${zone?.name}`;
-  
   return `${deck?.name} > ${zone?.name} > ${space?.name}`;
 };
 
-/**
- * Create a new defect
- * @param {Object} defectData - Defect data
- * @returns {Object} New defect object
- */
-export const createDefect = (defectData) => {
-  const currentUser = getCurrentUser();
-  const now = new Date()?.toISOString();
-  
-  let locationPathLabel = buildLocationPathLabel(
-    defectData?.locationDeckId,
-    defectData?.locationZoneId,
-    defectData?.locationSpaceId
-  );
-  
-  // CRITICAL: Use effectiveTier with normalization for role detection
-  const userTierRaw = currentUser?.effectiveTier || currentUser?.roleTier || currentUser?.permissionTier || currentUser?.tier || '';
-  const userTier = userTierRaw?.trim()?.toUpperCase();
-  
-  // Determine if pending acceptance is required based on role AND department
-  const isCommand = (userTier === 'COMMAND');
-  const isChief = (userTier === 'CHIEF');
-  const isHOD = (userTier === 'HOD');
-  const isCrew = (!isCommand && !isChief && !isHOD);
-  
-  // Normalize departments for consistent comparison
-  const targetDepartment = defectData?.departmentOwner || currentUser?.department;
-  const createdByDepartment = currentUser?.department;
-  
-  // Determine pending acceptance logic:
-  // COMMAND: Always creates open defects (no pending)
-  // CHIEF: Creates open for same dept, pending_acceptance for different dept
-  // HOD: Always creates open defects for own dept only
-  // CREW: Always creates pending_acceptance for own dept
-  let requiresPendingAcceptance = false;
-  let status = DefectStatus?.NEW;
+// ── Real tenant departments (id + name) for the target-department picker ──────
+export const fetchTenantDepartments = async (tenantId) => {
+  if (!tenantId) return [];
+  const { data, error } = await supabase?.rpc('get_tenant_departments', { p_tenant_id: tenantId });
+  if (!error && Array.isArray(data) && data.length) return data;
+  // Fallback: collect from tenant_members → departments (RLS-safe id list)
+  const { data: memberDepts } = await supabase
+    ?.from('tenant_members')?.select('department_id')?.eq('tenant_id', tenantId)?.not('department_id', 'is', null) || {};
+  const ids = [...new Set((memberDepts || []).map((m) => m?.department_id).filter(Boolean))];
+  if (!ids.length) return [];
+  const { data: rows } = await supabase?.from('departments')?.select('id, name')?.in('id', ids)?.order('name', { ascending: true }) || {};
+  return rows || [];
+};
+
+// Resolve the auth uids of everyone in a department (for team notify / assign).
+export const resolveDepartmentMemberIds = async (tenantId, departmentId) => {
+  if (!tenantId || !departmentId) return [];
+  const { data, error } = await supabase?.rpc('get_tenant_members_for_jobs', {
+    p_tenant_id: tenantId, p_department_id: departmentId,
+  });
+  if (error || !Array.isArray(data)) return [];
+  return data.map((m) => ({ userId: m?.user_id, tier: m?.permission_tier })).filter((m) => m.userId);
+};
+
+// ── Row mapping (snake_case DB row → camelCase the UI expects) ────────────────
+const fromRow = (r) => {
+  if (!r) return null;
+  return {
+    id: r.id,
+    seq: r.seq,
+    ref: r.seq != null ? `DEF-${String(r.seq).padStart(4, '0')}` : null,
+    title: r.title,
+    description: r.description || '',
+    priority: r.priority,
+    status: r.status,
+    departmentId: r.department_id,
+    departmentOwner: r.department_owner,
+    targetDepartment: r.department_owner,
+    reportedByUserId: r.reported_by,
+    reportedByName: r.reported_by_name,
+    createdByUserId: r.created_by,
+    createdByName: r.created_by_name,
+    createdByDepartment: r.created_by_department,
+    createdByTier: r.created_by_tier,
+    assigneeKind: r.assignee_kind,
+    assignedToUserId: r.assigned_to,
+    assignedToName: r.assigned_to_name,
+    assignedTeamDepartmentId: r.assigned_team_department_id,
+    assignedTeamName: r.assigned_team_name,
+    claimedByUserId: r.claimed_by,
+    claimedByName: r.claimed_by_name,
+    claimedAt: r.claimed_at,
+    pendingForDepartment: r.pending_for_department,
+    sentForAcceptance: r.sent_for_acceptance,
+    submittedByUserId: r.submitted_by,
+    submittedByName: r.submitted_by_name,
+    decidedByUserId: r.decided_by,
+    decidedAt: r.decided_at,
+    decisionNotes: r.decision_notes,
+    dueDate: r.due_date,
+    closedAt: r.closed_at,
+    closedByUserId: r.closed_by,
+    closedByName: r.closed_by_name,
+    closedNotes: r.closed_notes,
+    closedPhoto: r.closed_photo,
+    reopenedAt: r.reopened_at,
+    reopenedByUserId: r.reopened_by,
+    reopenedByName: r.reopened_by_name,
+    reopenedNotes: r.reopened_notes,
+    defectType: r.defect_type,
+    defectSubType: r.defect_sub_type,
+    affectsGuestAreas: r.affects_guest_areas,
+    safetyRelated: r.safety_related,
+    locationDeckId: r.location_deck_id,
+    locationZoneId: r.location_zone_id,
+    locationSpaceId: r.location_space_id,
+    locationPathLabel: r.location_path_label,
+    locationFreeText: r.location_free_text,
+    hotspotId: r.hotspot_id,
+    locationNodeId: r.location_node_id,
+    photos: Array.isArray(r.photos) ? r.photos : [],
+    isArchivedBySender: r.is_archived_by_sender,
+    archivedAt: r.archived_at,
+    deletedAt: r.deleted_at,
+    deletedByUserId: r.deleted_by,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+};
+
+// Write an audit-trail row (best-effort; never blocks the primary write).
+const logEvent = async (actor, defectId, type, summary, meta = {}) => {
+  if (!actor?.tenantId || !defectId) return;
+  await supabase?.from('defect_events')?.insert({
+    defect_id: defectId,
+    tenant_id: actor.tenantId,
+    type,
+    actor_id: actor.userId || null,
+    actor_name: actor.userName || null,
+    summary: summary || null,
+    meta,
+  });
+};
+
+// ── Create ───────────────────────────────────────────────────────────────────
+export const createDefect = async (defectData, actor) => {
+  if (!actor?.tenantId) throw new Error('No active vessel — cannot create a defect.');
+
+  const locationPathLabel = defectData?.locationPathLabel
+    || buildLocationPathLabel(defectData?.locationDeckId, defectData?.locationZoneId, defectData?.locationSpaceId);
+
+  const tier = normalizeDept(actor.tier);
+  const targetDeptName = defectData?.departmentOwner || actor.departmentName || null;
+  const createdByDept = actor.departmentName || null;
+
+  // Pending-acceptance gate (same rules as before, now on the actor's real tier):
+  //   COMMAND → open; CHIEF → open same-dept / pending cross-dept;
+  //   HOD → open (own dept); CREW → pending (own dept).
+  let requiresPending = false;
+  let status = DefectStatus.NEW;
   let pendingForDept = null;
-  
-  if (isCommand) {
-    // Command: always open, no pending
-    requiresPendingAcceptance = false;
-    status = DefectStatus?.NEW;
-  } else if (isChief) {
-    // Chief: check if cross-department
-    const isCrossDept = normalizeDept(targetDepartment) !== normalizeDept(createdByDepartment);
-    if (isCrossDept) {
-      requiresPendingAcceptance = true;
-      status = DefectStatus?.PENDING_ACCEPTANCE;
-      pendingForDept = normalizeDept(targetDepartment);
-    } else {
-      requiresPendingAcceptance = false;
-      status = DefectStatus?.NEW;
+  if (isCommandTier(tier)) {
+    requiresPending = false;
+  } else if (isChiefTier(tier)) {
+    if (normalizeDept(targetDeptName) !== normalizeDept(createdByDept)) {
+      requiresPending = true; status = DefectStatus.PENDING_ACCEPTANCE; pendingForDept = normalizeDept(targetDeptName);
     }
-  } else if (isHOD) {
-    // HOD: always open for own dept
-    requiresPendingAcceptance = false;
-    status = DefectStatus?.NEW;
-  } else if (isCrew) {
-    // Crew: always pending for own dept
-    requiresPendingAcceptance = true;
-    status = DefectStatus?.PENDING_ACCEPTANCE;
-    pendingForDept = normalizeDept(createdByDepartment);
+  } else if (isHODTier(tier)) {
+    requiresPending = false;
+  } else {
+    requiresPending = true; status = DefectStatus.PENDING_ACCEPTANCE; pendingForDept = normalizeDept(createdByDept);
   }
-  
-  const newDefect = {
-    id: crypto.randomUUID(),
+
+  // Resolve the target department id (needed to notify its chiefs / assign a team).
+  let targetDeptId = defectData?.departmentId || null;
+  if (!targetDeptId && targetDeptName) {
+    const depts = await fetchTenantDepartments(actor.tenantId);
+    targetDeptId = depts.find((d) => normalizeDept(d?.name) === normalizeDept(targetDeptName))?.id || null;
+  }
+
+  const assignedTo = defectData?.assignedToUserId || null;
+
+  const insertRow = {
+    tenant_id: actor.tenantId,
     title: defectData?.title?.trim(),
     description: defectData?.description?.trim() || '',
-    departmentOwner: targetDepartment,
-    targetDepartment: targetDepartment,
-    priority: defectData?.priority || DefectPriority?.MEDIUM,
-    status: status,
-    dueDate: defectData?.dueDate || null,
-    assignedToUserId: defectData?.assignedToUserId || null,
-    reportedByUserId: currentUser?.id,
-    reportedByName: currentUser?.fullName || currentUser?.name,
-    createdByUserId: currentUser?.id,
-    createdByName: currentUser?.fullName || currentUser?.name,
-    createdByDepartment: createdByDepartment,
-    createdByTier: userTier,
-    submittedByUserId: requiresPendingAcceptance ? currentUser?.id : null,
-    submittedByName: requiresPendingAcceptance ? (currentUser?.fullName || currentUser?.name) : null,
-    pendingForDepartment: pendingForDept,
-    sentForAcceptance: requiresPendingAcceptance,
-    decidedByUserId: null,
-    decidedAt: null,
-    decisionNotes: null,
-    createdAt: now,
-    updatedAt: now,
-    closedAt: null,
-    photos: defectData?.photos || [],
-    locationDeckId: defectData?.locationDeckId,
-    locationZoneId: defectData?.locationZoneId,
-    locationSpaceId: defectData?.locationSpaceId || null,
-    locationPathLabel: locationPathLabel,
-    locationFreeText: defectData?.locationFreeText || '',
-    defectType: defectData?.defectType || null,
-    defectSubType: defectData?.defectSubType || null,
-    defectTypeCustom: defectData?.defectTypeCustom || false,
-    defectSubTypeCustom: defectData?.defectSubTypeCustom || false,
-    affectsGuestAreas: defectData?.affectsGuestAreas || false,
-    safetyRelated: defectData?.safetyRelated || false,
-    comments: [],
-    activityLog: [],
-    isArchivedBySender: false,
-    archivedAt: null,
-    deletedAt: null,
-    deletedByUserId: null
+    priority: defectData?.priority || DefectPriority.MEDIUM,
+    status,
+    department_id: targetDeptId,
+    department_owner: targetDeptName,
+    reported_by: actor.userId || null,
+    reported_by_name: actor.userName || null,
+    created_by: actor.userId || null,
+    created_by_name: actor.userName || null,
+    created_by_department: createdByDept,
+    created_by_tier: tier,
+    assignee_kind: assignedTo ? 'user' : 'unassigned',
+    assigned_to: assignedTo,
+    assigned_to_name: defectData?.assignedToName || null,
+    submitted_by: requiresPending ? actor.userId || null : null,
+    submitted_by_name: requiresPending ? actor.userName || null : null,
+    pending_for_department: pendingForDept,
+    sent_for_acceptance: requiresPending,
+    due_date: defectData?.dueDate || null,
+    defect_type: defectData?.defectType || null,
+    defect_sub_type: defectData?.defectSubType || null,
+    affects_guest_areas: !!defectData?.affectsGuestAreas,
+    safety_related: !!defectData?.safetyRelated,
+    location_deck_id: defectData?.locationDeckId || null,
+    location_zone_id: defectData?.locationZoneId || null,
+    location_space_id: defectData?.locationSpaceId || null,
+    location_path_label: locationPathLabel || null,
+    location_free_text: defectData?.locationFreeText || '',
+    hotspot_id: defectData?.hotspotId || null,
+    location_node_id: defectData?.locationNodeId || null,
+    photos: Array.isArray(defectData?.photos) ? defectData.photos : [],
   };
-  
-  const defects = loadAllDefects();
-  defects?.push(newDefect);
-  saveDefects(defects);
-  
-  // Log activity
-  logActivity({
-    module: 'defects',
-    action: requiresPendingAcceptance ? 'DEFECT_PENDING_ACCEPTANCE' : DefectActions?.DEFECT_CREATED,
-    entityType: 'defect',
-    entityId: newDefect?.id,
-    departmentScope: normalizeDept(newDefect?.departmentOwner),
-    summary: requiresPendingAcceptance 
-      ? `Defect awaiting acceptance: ${newDefect?.title}`
-      : `Created defect: ${newDefect?.title}`,
-    meta: {
-      priority: newDefect?.priority,
-      location: locationPathLabel
-    }
+
+  const { data, error } = await supabase?.from('defects')?.insert(insertRow)?.select('*')?.single();
+  if (error) throw error;
+  const defect = fromRow(data);
+
+  await logEvent(actor, defect.id, 'created', requiresPending ? `Awaiting acceptance: ${defect.title}` : `Logged: ${defect.title}`, {
+    priority: defect.priority, location: locationPathLabel,
   });
-  
-  // Send notifications based on creation rules
-  if (requiresPendingAcceptance) {
-    // Crew or Chief cross-dept: notify chiefs of target department for pending acceptance
-    notifyChiefsPendingDefect(pendingForDept, newDefect?.title, newDefect?.id);
-    
-    // Show post-submit popover for pending acceptance
-    const targetDeptName = targetDepartment;
-    showToast(`Sent to ${targetDeptName} Chief for acceptance`, 'info');
+
+  // Activity feed (legacy) — best-effort.
+  try {
+    logActivity({
+      module: 'defects',
+      action: requiresPending ? 'DEFECT_PENDING_ACCEPTANCE' : DefectActions?.DEFECT_CREATED,
+      entityType: 'defect', entityId: defect.id,
+      departmentScope: normalizeDept(defect.departmentOwner),
+      summary: requiresPending ? `Defect awaiting acceptance: ${defect.title}` : `Created defect: ${defect.title}`,
+      meta: { priority: defect.priority, location: locationPathLabel },
+    });
+  } catch { /* non-fatal */ }
+
+  // Cross-device notifications.
+  if (requiresPending) {
+    await notifyChiefsPendingDefect(actor, targetDeptId, defect.title, defect.id);
   } else {
-    // Command/Chief/HOD: notify chiefs of target department about new defect
-    notifyChiefsNewDefect(normalizeDept(targetDepartment), newDefect?.title, newDefect?.id);
-    
-    // Show standard submit confirmation
-    showToast('Defect submitted', 'success');
+    await notifyChiefsNewDefect(actor, targetDeptId, defect.title, defect.id);
+    if (assignedTo) await notifyDefectAssigned(actor, [assignedTo], defect.title, defect.id, defect.dueDate);
   }
-  
-  return newDefect;
+
+  return defect;
 };
 
-/**
- * Get all defects with permission filtering
- * @param {Object} user - Current user
- * @returns {Array} Filtered defects
- */
-export const getAllDefects = (user = null) => {
-  const currentUser = user || getCurrentUser();
-  const allDefects = loadAllDefects();
-  
-  if (!currentUser) return [];
-  
-  // Command: see all
-  if (hasCommandAccess(currentUser)) {
-    return allDefects;
-  }
-  
-  const userDept = normalizeDept(currentUser?.department);
-  
-  // Chief/HOD: see defects where departmentOwner matches OR reportedBy matches
-  if (hasChiefAccess(currentUser) || hasHODAccess(currentUser)) {
-    return allDefects?.filter(defect => {
-      const defectDept = normalizeDept(defect?.departmentOwner);
-      return defectDept === userDept || defect?.reportedByUserId === currentUser?.id;
+// ── Reads ─────────────────────────────────────────────────────────────────────
+// Returns ALL defects for the tenant (RLS scopes to the tenant). Permission /
+// department scoping for the UI is applied by the caller, as before.
+export const getAllDefects = async (actor) => {
+  if (!actor?.tenantId) return [];
+  const { data, error } = await supabase
+    ?.from('defects')?.select('*')?.eq('tenant_id', actor.tenantId)?.order('created_at', { ascending: false });
+  if (error) { console.warn('[defects] getAllDefects', error); return []; }
+  return (data || []).map(fromRow);
+};
+
+export const getDefectById = async (defectId, actor) => {
+  if (!defectId) return null;
+  let q = supabase?.from('defects')?.select('*')?.eq('id', defectId);
+  if (actor?.tenantId) q = q?.eq('tenant_id', actor.tenantId);
+  const { data, error } = await q?.maybeSingle();
+  if (error) { console.warn('[defects] getDefectById', error); return null; }
+  return fromRow(data);
+};
+
+// Comments + events for a single defect (detail view).
+export const getDefectComments = async (defectId) => {
+  if (!defectId) return [];
+  const { data, error } = await supabase
+    ?.from('defect_comments')?.select('*')?.eq('defect_id', defectId)?.order('created_at', { ascending: true });
+  if (error) return [];
+  return (data || []).map((c) => ({ id: c.id, userId: c.user_id, userName: c.user_name, text: c.body, createdAt: c.created_at }));
+};
+
+export const getDefectEvents = async (defectId) => {
+  if (!defectId) return [];
+  const { data, error } = await supabase
+    ?.from('defect_events')?.select('*')?.eq('defect_id', defectId)?.order('created_at', { ascending: false });
+  if (error) return [];
+  return data || [];
+};
+
+// ── Generic update ────────────────────────────────────────────────────────────
+const UPDATE_FIELD_MAP = {
+  title: 'title', description: 'description', priority: 'priority', status: 'status',
+  dueDate: 'due_date', departmentOwner: 'department_owner', departmentId: 'department_id',
+  assignedToUserId: 'assigned_to', assignedToName: 'assigned_to_name', assigneeKind: 'assignee_kind',
+  defectType: 'defect_type', defectSubType: 'defect_sub_type',
+  affectsGuestAreas: 'affects_guest_areas', safetyRelated: 'safety_related',
+  locationPathLabel: 'location_path_label', locationFreeText: 'location_free_text',
+  hotspotId: 'hotspot_id', locationNodeId: 'location_node_id',
+};
+
+export const updateDefect = async (defectId, updates, actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+
+  const patch = {};
+  Object.entries(updates || {}).forEach(([k, v]) => {
+    if (UPDATE_FIELD_MAP[k]) patch[UPDATE_FIELD_MAP[k]] = v;
+  });
+  if (updates?.status === DefectStatus.CLOSED && !before.closedAt) patch.closed_at = new Date().toISOString();
+
+  const { data, error } = await supabase
+    ?.from('defects')?.update(patch)?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] updateDefect', error); return null; }
+  const after = fromRow(data);
+
+  if (updates?.status && updates.status !== before.status) {
+    await logEvent(actor, defectId, 'status_changed', `Status ${before.status} → ${updates.status}`, {
+      statusFrom: before.status, statusTo: updates.status,
     });
   }
-  
-  // Crew: see defects they reported OR their department's defects (read-only)
-  return allDefects?.filter(defect => {
-    const defectDept = normalizeDept(defect?.departmentOwner);
-    return defect?.reportedByUserId === currentUser?.id || defectDept === userDept;
+  if (updates?.assignedToUserId && updates.assignedToUserId !== before.assignedToUserId) {
+    await logEvent(actor, defectId, 'assigned', `Assigned to ${updates.assignedToName || 'crew'}`, { assignedTo: updates.assignedToUserId });
+    await notifyDefectAssigned(actor, [updates.assignedToUserId], after.title, defectId, after.dueDate);
+  }
+  return after;
+};
+
+// ── Comments / photos ─────────────────────────────────────────────────────────
+export const addDefectComment = async (defectId, text, actor) => {
+  if (!defectId || !text?.trim() || !actor?.tenantId) return null;
+  const { error } = await supabase?.from('defect_comments')?.insert({
+    defect_id: defectId, tenant_id: actor.tenantId, user_id: actor.userId || null,
+    user_name: actor.userName || null, body: text.trim(),
+  });
+  if (error) { console.warn('[defects] addDefectComment', error); return null; }
+  await supabase?.from('defects')?.update({ updated_at: new Date().toISOString() })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId);
+  await logEvent(actor, defectId, 'comment', 'Added a comment');
+  return getDefectById(defectId, actor);
+};
+
+export const addDefectPhoto = async (defectId, photoDataUrlOrPath, actor) => {
+  if (!defectId || !photoDataUrlOrPath || !actor?.tenantId) return null;
+  const current = await getDefectById(defectId, actor);
+  if (!current) return null;
+  // Store the raw data-url/path string so the carousel (which renders
+  // photos[i] directly as an <img src>) works for every photo.
+  const photos = [...(current.photos || []), photoDataUrlOrPath];
+  const { error } = await supabase?.from('defects')?.update({ photos })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId);
+  if (error) { console.warn('[defects] addDefectPhoto', error); return null; }
+  await logEvent(actor, defectId, 'photo', 'Added a photo');
+  return getDefectById(defectId, actor);
+};
+
+// ── Acceptance flow ────────────────────────────────────────────────────────────
+export const getPendingDefectsForChief = async (actor) => {
+  if (!actor?.tenantId) return [];
+  const tier = normalizeDept(actor.tier);
+  if (tier !== 'CHIEF' && tier !== 'COMMAND') return [];
+  const all = await getAllDefects(actor);
+  const dept = normalizeDept(actor.departmentName);
+  return all.filter((d) => {
+    if (d.status !== DefectStatus.PENDING_ACCEPTANCE) return false;
+    if (tier === 'COMMAND') return true;
+    return normalizeDept(d.pendingForDepartment) === dept;
   });
 };
 
-/**
- * Get defect by ID
- * @param {string} defectId
- * @returns {Object|null}
- */
-export const getDefectById = (defectId) => {
-  const defects = loadAllDefects();
-  return defects?.find(d => d?.id === defectId) || null;
+export const acceptDefect = async (defectId, notes = '', actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+  const { data, error } = await supabase?.from('defects')?.update({
+    status: DefectStatus.NEW, decided_by: actor.userId || null, decided_at: new Date().toISOString(),
+    decision_notes: notes || null, pending_for_department: null,
+  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] acceptDefect', error); return null; }
+  await logEvent(actor, defectId, 'accepted', `Accepted: ${before.title}`, { notes });
+  if (before.createdByUserId) await notifySenderAccepted(actor, before.createdByUserId, before.title, defectId);
+  return fromRow(data);
 };
 
-/**
- * Update defect
- * @param {string} defectId
- * @param {Object} updates
- * @returns {Object|null} Updated defect
- */
-export const updateDefect = (defectId, updates) => {
-  const defects = loadAllDefects();
-  const index = defects?.findIndex(d => d?.id === defectId);
-  
-  if (index === -1) return null;
-  
-  const oldDefect = defects?.[index];
-  const now = new Date()?.toISOString();
-  
-  // Rebuild location path if location changed
-  let locationPathLabel = oldDefect?.locationPathLabel;
-  if (updates?.locationDeckId || updates?.locationZoneId || updates?.locationSpaceId) {
-    locationPathLabel = buildLocationPathLabel(
-      updates?.locationDeckId || oldDefect?.locationDeckId,
-      updates?.locationZoneId || oldDefect?.locationZoneId,
-      updates?.locationSpaceId || oldDefect?.locationSpaceId
-    );
+export const declineDefect = async (defectId, reason, actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+  const { data, error } = await supabase?.from('defects')?.update({
+    status: DefectStatus.DECLINED, decided_by: actor.userId || null, decided_at: new Date().toISOString(),
+    decision_notes: reason || null, pending_for_department: null,
+  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] declineDefect', error); return null; }
+  await logEvent(actor, defectId, 'declined', `Declined: ${before.title}`, { reason });
+  if (before.createdByUserId) await notifySenderDeclined(actor, before.createdByUserId, before.title, defectId, reason);
+  return fromRow(data);
+};
+
+export const deletePendingDefect = async (defectId, actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before || before.createdByUserId !== actor.userId || before.status !== DefectStatus.PENDING_ACCEPTANCE) return null;
+  const { error } = await supabase?.from('defects')?.delete()?.eq('id', defectId)?.eq('tenant_id', actor.tenantId);
+  if (error) { console.warn('[defects] deletePendingDefect', error); return null; }
+  return { id: defectId, deleted: true };
+};
+
+export const archiveDeclinedDefect = async (defectId, actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before || before.createdByUserId !== actor.userId || before.status !== DefectStatus.DECLINED) return null;
+  const { data, error } = await supabase?.from('defects')?.update({
+    is_archived_by_sender: true, archived_at: new Date().toISOString(),
+  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] archiveDeclinedDefect', error); return null; }
+  return fromRow(data);
+};
+
+export const getSentByYouDefects = async (actor) => {
+  if (!actor?.tenantId || !actor?.userId) return [];
+  const all = await getAllDefects(actor);
+  return all.filter((d) => d.createdByUserId === actor.userId
+    && (d.status === DefectStatus.PENDING_ACCEPTANCE || d.status === DefectStatus.DECLINED));
+};
+
+// ── Close / reopen ──────────────────────────────────────────────────────────
+export const closeDefectWithNotes = async (defectId, closeNotes, closePhoto = null, actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+  const { data, error } = await supabase?.from('defects')?.update({
+    status: DefectStatus.CLOSED, closed_at: new Date().toISOString(),
+    closed_by: actor.userId || null, closed_by_name: actor.userName || null,
+    closed_notes: closeNotes || null, closed_photo: closePhoto || null,
+  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] closeDefect', error); return null; }
+  await logEvent(actor, defectId, 'closed', `Closed: ${before.title}`, { hasPhoto: !!closePhoto });
+  return fromRow(data);
+};
+
+export const reopenDefect = async (defectId, reopenNotes, actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+  const { data, error } = await supabase?.from('defects')?.update({
+    status: DefectStatus.REOPENED, reopened_at: new Date().toISOString(),
+    reopened_by: actor.userId || null, reopened_by_name: actor.userName || null,
+    reopened_notes: reopenNotes || null,
+  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] reopenDefect', error); return null; }
+  await logEvent(actor, defectId, 'reopened', `Re-opened: ${before.title}`, { notes: reopenNotes });
+  return fromRow(data);
+};
+
+// ── Count helpers (pure — computed over an already-loaded list) ───────────────
+const scopeToDept = (defects, actor) => {
+  if (isCommandTier(actor?.tier)) return defects;
+  const dept = normalizeDept(actor?.departmentName);
+  return (defects || []).filter((d) => normalizeDept(d?.departmentOwner) === dept);
+};
+export const getOpenDefectsCount = (defects, actor) =>
+  scopeToDept(defects, actor).filter((d) => d?.status !== DefectStatus.CLOSED).length;
+export const getOverdueDefectsCount = (defects, actor) => {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return scopeToDept(defects, actor).filter((d) => d?.status !== DefectStatus.CLOSED && d?.dueDate && new Date(d.dueDate) < today).length;
+};
+export const getCriticalDefectsCount = (defects, actor) =>
+  scopeToDept(defects, actor).filter((d) => d?.priority === DefectPriority.CRITICAL && d?.status !== DefectStatus.CLOSED).length;
+
+// ── Permission helpers (accept the actor ctx { tier, departmentName }) ────────
+const ctxTier = (u) => normalizeDept(u?.tier || u?.effectiveTier || u?.roleTier || u?.permissionTier);
+const ctxDept = (u) => normalizeDept(u?.departmentName || u?.department);
+export const canEditDefect = (u, defect) => {
+  if (!u || !defect) return false;
+  if (ctxTier(u) === 'COMMAND') return true;
+  const t = ctxTier(u);
+  return (t === 'CHIEF' || t === 'HOD') && ctxDept(u) === normalizeDept(defect?.departmentOwner);
+};
+export const canAssignDefect = (u, defect) => canEditDefect(u, defect);
+export const canChangeDefectStatus = (u, defect) => canEditDefect(u, defect);
+export const canCloseDefect = (u, defect) => canEditDefect(u, defect);
+export const canAddCommentOrPhoto = () => true;
+
+// ── One-time migration: legacy per-browser defects → the shared DB ────────────
+// The old store was localStorage['cargo_defects_v1'] (per browser). On first load
+// after this ships, any defects found there are inserted into public.defects for
+// the active tenant, then the key is cleared so it never re-imports. Legacy user
+// ids were localStorage ids (not auth uids), so uids are dropped and only the
+// denormalised *_name text is carried across — display survives, attribution is
+// best-effort.
+const LEGACY_KEY = 'cargo_defects_v1';
+
+export const importLegacyDefects = async (actor) => {
+  if (!actor?.tenantId || typeof window === 'undefined') return;
+  let legacy = [];
+  try {
+    const raw = window.localStorage?.getItem(LEGACY_KEY);
+    if (!raw) return;
+    legacy = JSON.parse(raw) || [];
+  } catch { return; }
+  if (!Array.isArray(legacy) || legacy.length === 0) {
+    try { window.localStorage?.removeItem(LEGACY_KEY); } catch { /* ignore */ }
+    return;
   }
-  
-  const updatedDefect = {
-    ...oldDefect,
-    ...updates,
-    locationPathLabel,
-    updatedAt: now,
-    closedAt: updates?.status === DefectStatus?.CLOSED ? now : oldDefect?.closedAt
-  };
-  
-  defects[index] = updatedDefect;
-  saveDefects(defects);
-  
-  // Log activity for status changes
-  if (updates?.status && updates?.status !== oldDefect?.status) {
-    logActivity({
-      module: 'defects',
-      action: DefectActions?.DEFECT_STATUS_CHANGED,
-      entityType: 'defect',
-      entityId: defectId,
-      departmentScope: updatedDefect?.departmentOwner?.toUpperCase(),
-      summary: `Changed defect status from ${oldDefect?.status} to ${updates?.status}`,
-      meta: {
-        statusFrom: oldDefect?.status,
-        statusTo: updates?.status
-      }
-    });
-    
-    if (updates?.status === DefectStatus?.CLOSED) {
-      logActivity({
-        module: 'defects',
-        action: DefectActions?.DEFECT_CLOSED,
-        entityType: 'defect',
-        entityId: defectId,
-        departmentScope: updatedDefect?.departmentOwner?.toUpperCase(),
-        summary: `Closed defect: ${updatedDefect?.title}`,
-        meta: {}
-      });
-    }
+
+  const rows = legacy
+    .filter((d) => d && d.status !== 'deleted' && d.title)
+    .map((d) => ({
+      tenant_id: actor.tenantId,
+      title: String(d.title).trim(),
+      description: d.description || '',
+      priority: d.priority || DefectPriority.MEDIUM,
+      status: d.status || DefectStatus.NEW,
+      department_owner: d.departmentOwner || d.targetDepartment || null,
+      reported_by_name: d.reportedByName || d.createdByName || null,
+      created_by_name: d.createdByName || d.reportedByName || null,
+      created_by_department: d.createdByDepartment || null,
+      created_by_tier: d.createdByTier || null,
+      assignee_kind: d.assignedToUserId ? 'user' : 'unassigned',
+      assigned_to_name: d.assignedToName || null,
+      pending_for_department: d.pendingForDepartment || null,
+      sent_for_acceptance: !!d.sentForAcceptance,
+      submitted_by_name: d.submittedByName || null,
+      decision_notes: d.decisionNotes || null,
+      due_date: d.dueDate || null,
+      closed_notes: d.closedNotes || null,
+      closed_by_name: d.closedByName || null,
+      closed_photo: d.closedPhoto || null,
+      reopened_notes: d.reopenedNotes || null,
+      reopened_by_name: d.reopenedByName || null,
+      defect_type: d.defectType || null,
+      defect_sub_type: d.defectSubType || null,
+      affects_guest_areas: !!d.affectsGuestAreas,
+      safety_related: !!d.safetyRelated,
+      location_deck_id: d.locationDeckId || null,
+      location_zone_id: d.locationZoneId || null,
+      location_space_id: d.locationSpaceId || null,
+      location_path_label: d.locationPathLabel || null,
+      location_free_text: d.locationFreeText || '',
+      photos: Array.isArray(d.photos) ? d.photos : [],
+      is_archived_by_sender: !!d.isArchivedBySender,
+      created_at: d.createdAt || undefined,
+    }));
+
+  if (rows.length) {
+    const { error } = await supabase?.from('defects')?.insert(rows);
+    if (error) { console.warn('[defects] legacy import failed — leaving localStorage intact', error); return; }
   }
-  
-  // Log activity for assignment
-  if (updates?.assignedToUserId && updates?.assignedToUserId !== oldDefect?.assignedToUserId) {
-    logActivity({
-      module: 'defects',
-      action: DefectActions?.DEFECT_ASSIGNED,
-      entityType: 'defect',
-      entityId: defectId,
-      departmentScope: updatedDefect?.departmentOwner?.toUpperCase(),
-      summary: `Assigned defect: ${updatedDefect?.title}`,
-      meta: {
-        assignedTo: updates?.assignedToUserId
-      }
-    });
-  }
-  
-  return updatedDefect;
-};
-
-/**
- * Add comment to defect
- * @param {string} defectId
- * @param {string} text
- * @returns {Object|null} Updated defect
- */
-export const addDefectComment = (defectId, text) => {
-  const currentUser = getCurrentUser();
-  const defects = loadAllDefects();
-  const index = defects?.findIndex(d => d?.id === defectId);
-  
-  if (index === -1) return null;
-  
-  const comment = {
-    id: crypto.randomUUID(),
-    userId: currentUser?.id,
-    userName: currentUser?.fullName || currentUser?.name,
-    text: text?.trim(),
-    createdAt: new Date()?.toISOString()
-  };
-  
-  defects[index].comments = [...(defects?.[index]?.comments || []), comment];
-  defects[index].updatedAt = new Date()?.toISOString();
-  
-  saveDefects(defects);
-  
-  // Log activity
-  logActivity({
-    module: 'defects',
-    action: DefectActions?.DEFECT_COMMENT_ADDED,
-    entityType: 'defect',
-    entityId: defectId,
-    departmentScope: defects?.[index]?.departmentOwner?.toUpperCase(),
-    summary: `Added comment to defect: ${defects?.[index]?.title}`,
-    meta: {}
-  });
-  
-  return defects?.[index];
-};
-
-/**
- * Add photo to defect
- * @param {string} defectId
- * @param {string} photoDataUrl
- * @returns {Object|null} Updated defect
- */
-export const addDefectPhoto = (defectId, photoDataUrl) => {
-  const defects = loadAllDefects();
-  const index = defects?.findIndex(d => d?.id === defectId);
-  
-  if (index === -1) return null;
-  
-  const photo = {
-    id: crypto.randomUUID(),
-    dataUrl: photoDataUrl,
-    uploadedAt: new Date()?.toISOString()
-  };
-  
-  defects[index].photos = [...(defects?.[index]?.photos || []), photo];
-  defects[index].updatedAt = new Date()?.toISOString();
-  
-  saveDefects(defects);
-  
-  // Log activity
-  logActivity({
-    module: 'defects',
-    action: DefectActions?.DEFECT_PHOTO_ADDED,
-    entityType: 'defect',
-    entityId: defectId,
-    departmentScope: defects?.[index]?.departmentOwner?.toUpperCase(),
-    summary: `Added photo to defect: ${defects?.[index]?.title}`,
-    meta: {}
-  });
-  
-  return defects?.[index];
-};
-
-/**
- * Get open defects count (for dashboard widget)
- * @param {Object} user - Current user for scoping
- * @returns {number}
- */
-export const getOpenDefectsCount = (user = null) => {
-  const currentUser = user || getCurrentUser();
-  const defects = getAllDefects(currentUser);
-  
-  // Apply department scoping
-  let scopedDefects = defects;
-  if (!hasCommandAccess(currentUser)) {
-    const userDept = normalizeDept(currentUser?.department);
-    scopedDefects = defects?.filter(d => {
-      const defectDept = normalizeDept(d?.departmentOwner);
-      return defectDept === userDept;
-    });
-  }
-  
-  return scopedDefects?.filter(d => 
-    d?.status !== DefectStatus?.CLOSED
-  )?.length || 0;
-};
-
-/**
- * Get overdue defects count (for dashboard widget)
- * @param {Object} user - Current user for scoping
- * @returns {number}
- */
-export const getOverdueDefectsCount = (user = null) => {
-  const currentUser = user || getCurrentUser();
-  const defects = getAllDefects(currentUser);
-  const today = new Date();
-  today?.setHours(0, 0, 0, 0);
-  
-  // Apply department scoping
-  let scopedDefects = defects;
-  if (!hasCommandAccess(currentUser)) {
-    const userDept = normalizeDept(currentUser?.department);
-    scopedDefects = defects?.filter(d => {
-      const defectDept = normalizeDept(d?.departmentOwner);
-      return defectDept === userDept;
-    });
-  }
-  
-  return scopedDefects?.filter(d => {
-    if (d?.status === DefectStatus?.CLOSED || !d?.dueDate) return false;
-    const dueDate = new Date(d?.dueDate);
-    return dueDate < today;
-  })?.length || 0;
-};
-
-/**
- * Get critical defects count (for dashboard widget)
- * @param {Object} user - Current user for scoping
- * @returns {number}
- */
-export const getCriticalDefectsCount = (user = null) => {
-  const currentUser = user || getCurrentUser();
-  const defects = getAllDefects(currentUser);
-  
-  // Apply department scoping
-  let scopedDefects = defects;
-  if (!hasCommandAccess(currentUser)) {
-    const userDept = normalizeDept(currentUser?.department);
-    scopedDefects = defects?.filter(d => {
-      const defectDept = normalizeDept(d?.departmentOwner);
-      return defectDept === userDept;
-    });
-  }
-  
-  return scopedDefects?.filter(d => 
-    d?.priority === DefectPriority?.CRITICAL && d?.status !== DefectStatus?.CLOSED
-  )?.length || 0;
-};
-
-/**
- * Check if user can edit defect
- * @param {Object} user
- * @param {Object} defect
- * @returns {boolean}
- */
-export const canEditDefect = (user, defect) => {
-  if (!user || !defect) return false;
-  
-  // Command: can edit all
-  if (hasCommandAccess(user)) return true;
-  
-  const userDept = normalizeDept(user?.department);
-  const defectDept = normalizeDept(defect?.departmentOwner);
-  
-  // Chief/HOD: can edit defects in their department
-  if ((hasChiefAccess(user) || hasHODAccess(user)) && userDept === defectDept) {
-    return true;
-  }
-  
-  // Crew: cannot edit
-  return false;
-};
-
-/**
- * Check if user can assign defect
- * @param {Object} user
- * @param {Object} defect
- * @returns {boolean}
- */
-export const canAssignDefect = (user, defect) => {
-  if (!user || !defect) return false;
-  
-  // Command: can assign all
-  if (hasCommandAccess(user)) return true;
-  
-  const userDept = normalizeDept(user?.department);
-  const defectDept = normalizeDept(defect?.departmentOwner);
-  
-  // Chief/HOD: can assign defects in their department
-  if ((hasChiefAccess(user) || hasHODAccess(user)) && userDept === defectDept) {
-    return true;
-  }
-  
-  return false;
-};
-
-/**
- * Check if user can change defect status
- * @param {Object} user
- * @param {Object} defect
- * @returns {boolean}
- */
-export const canChangeDefectStatus = (user, defect) => {
-  if (!user || !defect) return false;
-  
-  // Command: can change all
-  if (hasCommandAccess(user)) return true;
-  
-  const userDept = normalizeDept(user?.department);
-  const defectDept = normalizeDept(defect?.departmentOwner);
-  
-  // Chief/HOD: can change status in their department
-  if ((hasChiefAccess(user) || hasHODAccess(user)) && userDept === defectDept) {
-    return true;
-  }
-  
-  return false;
-};
-
-/**
- * Check if user can close defect
- * @param {Object} user
- * @param {Object} defect
- * @returns {boolean}
- */
-export const canCloseDefect = (user, defect) => {
-  return canChangeDefectStatus(user, defect);
-};
-
-/**
- * Check if user can add comments/photos
- * @param {Object} user
- * @param {Object} defect
- * @returns {boolean}
- */
-export const canAddCommentOrPhoto = (user, defect) => {
-  // All users can add comments/photos to defects they can see
-  return true;
-};
-function addComment(...args) {
-  return null;
-}
-
-export { addComment };
-function addPhoto(...args) {
-  return null;
-}
-
-export { addPhoto };
-
-/**
- * Get pending defects for Chief acceptance
- * @param {Object} user - Current user
- * @returns {Array} Pending defects for user's department
- */
-export const getPendingDefectsForChief = (user = null) => {
-  const currentUser = user || getCurrentUser();
-  if (!currentUser) return [];
-  
-  // Use effectiveTier for proper role detection
-  const userTierRaw = currentUser?.effectiveTier || currentUser?.roleTier || currentUser?.permissionTier || currentUser?.tier || '';
-  const userTier = userTierRaw?.trim()?.toUpperCase();
-  
-  // Only Chiefs and Command can see pending acceptance queue
-  if (userTier !== 'CHIEF' && userTier !== 'COMMAND') {
-    return [];
-  }
-  
-  const allDefects = loadAllDefects();
-  const userDept = normalizeDept(currentUser?.department);
-  
-  return allDefects?.filter(defect => {
-    if (defect?.status !== DefectStatus?.PENDING_ACCEPTANCE) return false;
-    const pendingDept = normalizeDept(defect?.pendingForDepartment);
-    
-    // Command can see all pending
-    if (userTier === 'COMMAND') return true;
-    
-    // Chief can see pending for their department
-    return pendingDept === userDept;
-  });
-};
-
-/**
- * Accept defect (Chief only)
- * @param {string} defectId
- * @param {string} notes - Optional acceptance notes
- * @returns {Object|null} Updated defect
- */
-export const acceptDefect = (defectId, notes = '') => {
-  const currentUser = getCurrentUser();
-  const defects = loadAllDefects();
-  const defectIndex = defects?.findIndex(d => d?.id === defectId);
-  
-  if (defectIndex === -1) return null;
-  
-  const defect = defects?.[defectIndex];
-  const now = new Date()?.toISOString();
-  
-  // Update defect status
-  defects[defectIndex] = {
-    ...defect,
-    status: DefectStatus?.NEW,
-    decidedByUserId: currentUser?.id,
-    decidedAt: now,
-    decisionNotes: notes || null,
-    pendingForDepartment: null,
-    updatedAt: now
-  };
-  
-  saveDefects(defects);
-  
-  // Log activity
-  logActivity({
-    module: 'defects',
-    action: 'DEFECT_ACCEPTED',
-    entityType: 'defect',
-    entityId: defectId,
-    departmentScope: normalizeDept(defect?.departmentOwner),
-    summary: `Accepted defect: ${defect?.title}`,
-    meta: {
-      acceptedBy: currentUser?.fullName || currentUser?.name,
-      notes: notes
-    }
-  });
-  
-  // Notify sender
-  if (defect?.createdByUserId) {
-    notifySenderAccepted(
-      defect?.createdByUserId,
-      defect?.title,
-      defect?.id,
-      currentUser?.department
-    );
-  }
-  
-  return defects?.[defectIndex];
-};
-
-/**
- * Decline defect (Chief only)
- * @param {string} defectId
- * @param {string} reason - Decline reason (required)
- * @returns {Object|null} Updated defect
- */
-export const declineDefect = (defectId, reason) => {
-  const currentUser = getCurrentUser();
-  const defects = loadAllDefects();
-  const defectIndex = defects?.findIndex(d => d?.id === defectId);
-  
-  if (defectIndex === -1) return null;
-  
-  const defect = defects?.[defectIndex];
-  const now = new Date()?.toISOString();
-  
-  // Update defect status
-  defects[defectIndex] = {
-    ...defect,
-    status: DefectStatus?.DECLINED,
-    decidedByUserId: currentUser?.id,
-    decidedAt: now,
-    decisionNotes: reason,
-    pendingForDepartment: null,
-    updatedAt: now
-  };
-  
-  saveDefects(defects);
-  
-  // Log activity
-  logActivity({
-    module: 'defects',
-    action: 'DEFECT_DECLINED',
-    entityType: 'defect',
-    entityId: defectId,
-    departmentScope: normalizeDept(defect?.departmentOwner),
-    summary: `Declined defect: ${defect?.title}`,
-    meta: {
-      declinedBy: currentUser?.fullName || currentUser?.name,
-      reason: reason
-    }
-  });
-  
-  // Notify sender
-  if (defect?.createdByUserId) {
-    notifySenderDeclined(
-      defect?.createdByUserId,
-      defect?.title,
-      defect?.id,
-      currentUser?.department,
-      reason
-    );
-  }
-  
-  return defects?.[defectIndex];
-};
-
-/**
- * Delete pending defect request (sender only)
- * @param {string} defectId
- * @returns {Object|null} Updated defect
- */
-export const deletePendingDefect = (defectId) => {
-  const currentUser = getCurrentUser();
-  const defects = loadAllDefects();
-  const defectIndex = defects?.findIndex(d => d?.id === defectId);
-  
-  if (defectIndex === -1) return null;
-  
-  const defect = defects?.[defectIndex];
-  
-  // Only allow deletion if user is creator and status is pending_acceptance
-  if (defect?.createdByUserId !== currentUser?.id || defect?.status !== DefectStatus?.PENDING_ACCEPTANCE) {
-    return null;
-  }
-  
-  const now = new Date()?.toISOString();
-  
-  // Mark as deleted
-  defects[defectIndex] = {
-    ...defect,
-    status: 'deleted',
-    deletedAt: now,
-    deletedByUserId: currentUser?.id,
-    updatedAt: now
-  };
-  
-  saveDefects(defects);
-  
-  // Log activity
-  logActivity({
-    module: 'defects',
-    action: 'DEFECT_DELETED',
-    entityType: 'defect',
-    entityId: defectId,
-    departmentScope: normalizeDept(defect?.departmentOwner),
-    summary: `Deleted pending defect: ${defect?.title}`
-  });
-  
-  return defects?.[defectIndex];
-};
-
-/**
- * Archive declined defect (sender only)
- * @param {string} defectId
- * @returns {Object|null} Updated defect
- */
-export const archiveDeclinedDefect = (defectId) => {
-  const currentUser = getCurrentUser();
-  const defects = loadAllDefects();
-  const defectIndex = defects?.findIndex(d => d?.id === defectId);
-  
-  if (defectIndex === -1) return null;
-  
-  const defect = defects?.[defectIndex];
-  
-  // Only allow archiving if user is creator and status is declined
-  if (defect?.createdByUserId !== currentUser?.id || defect?.status !== DefectStatus?.DECLINED) {
-    return null;
-  }
-  
-  const now = new Date()?.toISOString();
-  
-  // Mark as archived
-  defects[defectIndex] = {
-    ...defect,
-    isArchivedBySender: true,
-    archivedAt: now,
-    updatedAt: now
-  };
-  
-  saveDefects(defects);
-  
-  return defects?.[defectIndex];
-};
-
-/**
- * Get "Sent by you" defects (for tracking cross-dept submissions)
- * @param {Object} user - Current user
- * @returns {Array} Filtered defects
- */
-export const getSentByYouDefects = (user = null) => {
-  const currentUser = user || getCurrentUser();
-  const allDefects = loadAllDefects();
-  
-  if (!currentUser) return [];
-  
-  // Only visible to Command, Chief, HOD
-  if (!hasCommandAccess(currentUser) && !hasChiefAccess(currentUser) && !hasHODAccess(currentUser)) {
-    return [];
-  }
-  
-  return allDefects?.filter(defect => {
-    // Must be created by current user
-    if (defect?.createdByUserId !== currentUser?.id) return false;
-    
-    // Exclude deleted defects
-    if (defect?.status === 'deleted') return false;
-    
-    // Include defects with these statuses
-    if (
-      defect?.status === DefectStatus?.PENDING_ACCEPTANCE ||
-      defect?.status === DefectStatus?.DECLINED
-    ) {
-      return true;
-    }
-    
-    return false;
-  });
-};
-
-/**
- * Append history entry to defect
- * @param {string} defectId
- * @param {Object} historyEntry - { type, message, userId, userName, at, meta }
- * @returns {Object|null} Updated defect
- */
-export const appendHistoryEntry = (defectId, historyEntry) => {
-  const defects = loadAllDefects();
-  const index = defects?.findIndex(d => d?.id === defectId);
-  
-  if (index === -1) return null;
-  
-  const entry = {
-    id: crypto.randomUUID(),
-    type: historyEntry?.type,
-    message: historyEntry?.message,
-    userId: historyEntry?.userId,
-    userName: historyEntry?.userName,
-    at: historyEntry?.at || new Date()?.toISOString(),
-    meta: historyEntry?.meta || {}
-  };
-  
-  defects[index].history = [...(defects?.[index]?.history || []), entry];
-  saveDefects(defects);
-  
-  return defects?.[index];
-};
-
-/**
- * Close defect with required notes and optional photo
- * @param {string} defectId
- * @param {string} closeNotes - Required close-out notes
- * @param {string|null} closePhoto - Optional close-out photo data URL
- * @returns {Object|null} Updated defect
- */
-export const closeDefectWithNotes = (defectId, closeNotes, closePhoto = null) => {
-  const currentUser = getCurrentUser();
-  const defects = loadAllDefects();
-  const index = defects?.findIndex(d => d?.id === defectId);
-  
-  if (index === -1) return null;
-  
-  const oldDefect = defects?.[index];
-  const now = new Date()?.toISOString();
-  
-  const updatedDefect = {
-    ...oldDefect,
-    status: DefectStatus?.CLOSED,
-    closedAt: now,
-    closedByUserId: currentUser?.id,
-    closedByName: currentUser?.fullName || currentUser?.name,
-    closedNotes: closeNotes,
-    closedPhoto: closePhoto,
-    updatedAt: now
-  };
-  
-  defects[index] = updatedDefect;
-  saveDefects(defects);
-  
-  // Append history entry
-  appendHistoryEntry(defectId, {
-    type: 'closed',
-    message: 'Closed',
-    userId: currentUser?.id,
-    userName: currentUser?.fullName || currentUser?.name,
-    at: now,
-    meta: {
-      notes: closeNotes,
-      hasPhoto: !!closePhoto
-    }
-  });
-  
-  // Log activity
-  logActivity({
-    module: 'defects',
-    action: DefectActions?.DEFECT_CLOSED,
-    entityType: 'defect',
-    entityId: defectId,
-    departmentScope: updatedDefect?.departmentOwner?.toUpperCase(),
-    summary: `Closed defect: ${updatedDefect?.title}`,
-    meta: {
-      closedBy: currentUser?.fullName || currentUser?.name
-    }
-  });
-  
-  return updatedDefect;
-};
-
-/**
- * Re-open a closed defect with required notes
- * @param {string} defectId
- * @param {string} reopenNotes - Required re-open notes
- * @returns {Object|null} Updated defect
- */
-export const reopenDefect = (defectId, reopenNotes) => {
-  const currentUser = getCurrentUser();
-  const defects = loadAllDefects();
-  const index = defects?.findIndex(d => d?.id === defectId);
-  
-  if (index === -1) return null;
-  
-  const oldDefect = defects?.[index];
-  const now = new Date()?.toISOString();
-  
-  const updatedDefect = {
-    ...oldDefect,
-    status: DefectStatus?.REOPENED,
-    reopenedAt: now,
-    reopenedByUserId: currentUser?.id,
-    reopenedByName: currentUser?.fullName || currentUser?.name,
-    reopenedNotes: reopenNotes,
-    updatedAt: now
-  };
-  
-  defects[index] = updatedDefect;
-  saveDefects(defects);
-  
-  // Append history entry
-  appendHistoryEntry(defectId, {
-    type: 'reopened',
-    message: 'Re-opened defect',
-    userId: currentUser?.id,
-    userName: currentUser?.fullName || currentUser?.name,
-    at: now,
-    meta: {
-      notes: reopenNotes
-    }
-  });
-  
-  // Log activity
-  logActivity({
-    module: 'defects',
-    action: 'DEFECT_REOPENED',
-    entityType: 'defect',
-    entityId: defectId,
-    departmentScope: updatedDefect?.departmentOwner?.toUpperCase(),
-    summary: `Re-opened defect: ${updatedDefect?.title}`,
-    meta: {
-      reopenedBy: currentUser?.fullName || currentUser?.name
-    }
-  });
-  
-  return updatedDefect;
+  try { window.localStorage?.removeItem(LEGACY_KEY); } catch { /* ignore */ }
 };

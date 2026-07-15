@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { createDefect, DefectPriority, DefectDepartment, normalizeDept } from '../utils/defectsStorage';
+import { useDefectActor } from '../utils/useDefectActor';
 import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-management-settings/utils/locationsHierarchyStorage';
 import { showToast } from '../../../utils/toast';
 import { loadAllTypes, getSubtypesForType, addCustomType, addCustomSubtype, canAddCustom } from '../utils/defectTypeTaxonomy';
@@ -9,19 +10,22 @@ import { loadAllTypes, getSubtypesForType, addCustomType, addCustomSubtype, canA
 import ModalShell from '../../../components/ui/ModalShell';
 const ReportDefectModal = ({ onClose, onSuccess }) => {
   const currentUser = getCurrentUser();
-  
-  // SINGLE ROLE RESOLVER - Use ONLY this for all role checks in this modal
-  const roleTierRaw = currentUser?.effectiveTier || currentUser?.roleTier || currentUser?.permissionTier || currentUser?.tier || '';
-  const RESOLVED_ROLE = roleTierRaw?.trim()?.toUpperCase();
-  
+  const actor = useDefectActor();
+
+  // SINGLE ROLE RESOLVER — use the real login/tenant tier (falls back to the
+  // legacy cache only if the tenant tier isn't resolved yet).
+  const RESOLVED_ROLE = (actor?.tier
+    || currentUser?.effectiveTier || currentUser?.roleTier || currentUser?.permissionTier || currentUser?.tier || '')
+    ?.toString()?.trim()?.toUpperCase();
+
   // Department selection logic - ONLY based on RESOLVED_ROLE
   const canChooseDept = (RESOLVED_ROLE === 'COMMAND' || RESOLVED_ROLE === 'CHIEF');
   const isLockedToDept = !canChooseDept;
-  
+
   const fileInputRef = useRef(null);
-  
+
   // Normalize user's department for consistent matching
-  const userDepartmentNormalized = normalizeDept(currentUser?.department || '');
+  const userDepartmentNormalized = normalizeDept(actor?.departmentName || currentUser?.department || '');
   
   // Find matching department from DefectDepartment enum
   const getMatchingDepartment = () => {
@@ -63,9 +67,9 @@ const ReportDefectModal = ({ onClose, onSuccess }) => {
   const [customSubtypeInput, setCustomSubtypeInput] = useState('');
   const canAddCustomTypes = canAddCustom(currentUser);
   
-  // Set default department AFTER component mounts and currentUser is available
+  // Set default department AFTER the user's department resolves.
   useEffect(() => {
-    if (currentUser?.department) {
+    if (userDepartmentNormalized) {
       const defaultDept = getMatchingDepartment();
       if (defaultDept) {
         setFormData(prev => ({
@@ -74,7 +78,7 @@ const ReportDefectModal = ({ onClose, onSuccess }) => {
         }));
       }
     }
-  }, [currentUser?.department]);
+  }, [userDepartmentNormalized]);
   
   useEffect(() => {
     const allDecks = getAllDecks(false);
@@ -290,7 +294,7 @@ const ReportDefectModal = ({ onClose, onSuccess }) => {
         defectSubTypeCustom: subtypeObj?.isCustom || false
       };
       
-      createDefect(defectData);
+      await createDefect(defectData, actor);
       showToast('Defect reported successfully', 'success');
       onSuccess?.();
     } catch (error) {

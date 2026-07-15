@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
-import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
-import { getAllDefects, DefectStatus, DefectPriority, DefectDepartment, getOpenDefectsCount, getOverdueDefectsCount, getCriticalDefectsCount, getPendingDefectsForChief, acceptDefect, declineDefect, getSentByYouDefects, deletePendingDefect, archiveDeclinedDefect, normalizeDept } from './utils/defectsStorage';
+import { hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
+import { getAllDefects, DefectStatus, DefectPriority, DefectDepartment, getOpenDefectsCount, getOverdueDefectsCount, getCriticalDefectsCount, getPendingDefectsForChief, acceptDefect, declineDefect, getSentByYouDefects, deletePendingDefect, archiveDeclinedDefect, normalizeDept, importLegacyDefects } from './utils/defectsStorage';
+import { useDefectActor } from './utils/useDefectActor';
 import { loadAllTypes } from './utils/defectTypeTaxonomy';
 import ReportDefectModal from './components/ReportDefectModal';
 import ViewDefectModal from './components/ViewDefectModal';
@@ -12,11 +13,10 @@ import ModalShell from '../../components/ui/ModalShell';
 const DefectsDashboard = () => {
   const navigate = useNavigate();
   const { defectId } = useParams();
-  const currentUser = getCurrentUser();
-  
-  // Use effectiveTier for role detection
-  const userTierRaw = currentUser?.effectiveTier || currentUser?.roleTier || currentUser?.permissionTier || currentUser?.tier || '';
-  const userTier = userTierRaw?.trim()?.toUpperCase();
+  const currentUser = useDefectActor();
+
+  // Real login/tenant tier for role detection.
+  const userTier = (currentUser?.tier || '')?.toString()?.trim()?.toUpperCase();
   
   const [defects, setDefects] = useState([]);
   const [pendingDefects, setPendingDefects] = useState([]);
@@ -44,9 +44,14 @@ const DefectsDashboard = () => {
   const [criticalCount, setCriticalCount] = useState(0);
   
   // Load defects
-  const loadDefects = () => {
-    const allDefects = getAllDefects(currentUser);
-    
+  const loadDefects = async () => {
+    if (!currentUser?.tenantId) return;
+
+    // One-time migration of any legacy per-browser defects into the shared DB.
+    await importLegacyDefects(currentUser);
+
+    const allDefects = await getAllDefects(currentUser);
+
     // Apply department scoping for non-Command users
     let scopedDefects = allDefects;
     if (!hasCommandAccess(currentUser)) {
@@ -56,40 +61,40 @@ const DefectsDashboard = () => {
         return defectDept === userDept;
       });
     }
-    
+
     // Filter out pending_acceptance and deleted defects from main list
-    const activeDefects = scopedDefects?.filter(d => 
-      d?.status !== DefectStatus?.PENDING_ACCEPTANCE && 
+    const activeDefects = scopedDefects?.filter(d =>
+      d?.status !== DefectStatus?.PENDING_ACCEPTANCE &&
       d?.status !== 'deleted'
     );
     setDefects(activeDefects);
-    
+
     // Load pending defects for Chiefs (with proper role detection)
     if (userTier === 'CHIEF' || userTier === 'COMMAND') {
-      const pending = getPendingDefectsForChief(currentUser);
+      const pending = await getPendingDefectsForChief(currentUser);
       setPendingDefects(pending);
-      
-      // Load sent by you defects
-      const sentByYou = getSentByYouDefects(currentUser);
+
+      const sentByYou = await getSentByYouDefects(currentUser);
       setSentByYouDefects(sentByYou);
     } else {
       setPendingDefects([]);
       setSentByYouDefects([]);
     }
-    
-    // Update counts with department scoping
-    setOpenCount(getOpenDefectsCount(currentUser));
-    setOverdueCount(getOverdueDefectsCount(currentUser));
-    setCriticalCount(getCriticalDefectsCount(currentUser));
-    
+
+    // Counts (department-scoped) computed over the loaded list.
+    setOpenCount(getOpenDefectsCount(allDefects, currentUser));
+    setOverdueCount(getOverdueDefectsCount(allDefects, currentUser));
+    setCriticalCount(getCriticalDefectsCount(allDefects, currentUser));
+
     // Load available types from taxonomy
     const types = loadAllTypes();
     setAvailableTypes(types);
   };
-  
+
   useEffect(() => {
     loadDefects();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.tenantId, userTier]);
   
   // Handle defectId from URL
   useEffect(() => {
@@ -166,33 +171,33 @@ const DefectsDashboard = () => {
     loadDefects();
   };
   
-  const handleAcceptDefect = (defectId) => {
-    acceptDefect(defectId, '');
+  const handleAcceptDefect = async (id) => {
+    await acceptDefect(id, '', currentUser);
     setAcceptDeclineModal(null);
     setDeclineReason('');
     loadDefects();
   };
-  
-  const handleDeclineDefect = (defectId) => {
+
+  const handleDeclineDefect = async (id) => {
     if (!declineReason?.trim()) {
       alert('Please provide a reason for declining');
       return;
     }
-    declineDefect(defectId, declineReason);
+    await declineDefect(id, declineReason, currentUser);
     setAcceptDeclineModal(null);
     setDeclineReason('');
     loadDefects();
   };
-  
-  const handleDeletePendingDefect = (defectId) => {
+
+  const handleDeletePendingDefect = async (id) => {
     if (confirm('Delete this pending defect request?')) {
-      deletePendingDefect(defectId);
+      await deletePendingDefect(id, currentUser);
       loadDefects();
     }
   };
-  
-  const handleArchiveDeclinedDefect = (defectId) => {
-    archiveDeclinedDefect(defectId);
+
+  const handleArchiveDeclinedDefect = async (id) => {
+    await archiveDeclinedDefect(id, currentUser);
     loadDefects();
   };
   
