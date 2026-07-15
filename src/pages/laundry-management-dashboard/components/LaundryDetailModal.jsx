@@ -16,6 +16,9 @@ const STAT = {
 const ownerKind = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : 'unknown'; };
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
+const fmtClock = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
+const STATUS_C = { prog: '#B7791F', ready: '#2F6E8F', deliv: '#2F7D5A' };
+const STEP_IDX = { [LaundryStatus?.IN_PROGRESS]: 1, [LaundryStatus?.READY_TO_DELIVER]: 2, [LaundryStatus?.DELIVERED]: 3 };
 const photosOf = (it) => (Array.isArray(it?.photos) && it.photos.length ? it.photos : (it?.photo ? [it.photo] : []));
 
 const readAsDataUrl = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onloadend = () => res(r.result); r.onerror = () => rej(new Error('read')); r.readAsDataURL(file); });
@@ -100,54 +103,72 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated }) => {
 
   const knownTags = [...new Set([...availableLaundryTags, ...((mode === 'edit' ? form?.tags : item?.tags) || [])])];
 
+  const idx = STEP_IDX[item?.status] || 2;
+  const stepC = STATUS_C[st.cls] || '#2F6E8F';
+  const steps = [
+    { lbl: 'In progress', t: fmtClock(item?.createdAt) },
+    { lbl: 'Ready', t: '' },
+    { lbl: 'Delivered', t: fmtClock(item?.deliveredAt) },
+  ];
+
   return (
     <ModalShell onClose={onClose} panelClassName="alm-panel">
-      <div className="alm-head" style={{ textAlign: 'left', background: '#FFFFFF' }}>
-        <div>
-          <div className="alm-eyebrow">Housekeeping · <span className={`lc-stat ${st.cls}`} style={{ verticalAlign: 'middle' }}>{st.label}</span></div>
-          <h2 className="alm-title" style={{ textTransform: 'none', fontSize: 26, letterSpacing: 0 }}>{item?.description || 'Laundry item'}</h2>
-        </div>
-        <button className="alm-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
-      </div>
-
-      <div className="alm-body">
-        {mode === 'view' ? (
-          <>
-            {photos.length > 0 && (
-              <div className="ldm-photos">
-                {photos.map((src, i) => <span className="ldm-photo" key={i}><img src={src} alt={`Photo ${i + 1}`} /></span>)}
+      {mode === 'view' ? (
+        <>
+          {/* hero */}
+          <div className="ldm-hero">
+            {photos[0]
+              ? <img src={photos[0]} alt={item?.description || 'Laundry item'} />
+              : <span className="ldm-hero-ph"><Icon name="Shirt" size={64} /></span>}
+            <div className="ldm-scrim" />
+            <div className="ldm-hero-top">
+              <span className={`ldm-hpill ${st.cls}`}><span className="d" />{st.label}</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {urgent && <span className="ldm-hflag"><Icon name="Zap" size={12} /> Urgent</span>}
+                <button className="ldm-hx" onClick={onClose} aria-label="Close"><Icon name="X" size={16} /></button>
               </div>
-            )}
+            </div>
+            <div className="ldm-hero-btm">
+              <div className="ldm-htitle">{item?.description || 'Laundry item'}</div>
+              <div className="ldm-howner">
+                <span className={`lr-av ${kind}`}>{kind === 'unknown' ? '?' : initials(item?.ownerName)}</span>
+                {kind === 'unknown' ? 'Unknown owner' : (item?.ownerName || '—')}
+                <span style={{ opacity: 0.7 }}>· {kind[0].toUpperCase() + kind.slice(1)}</span>
+                {item?.area && <span style={{ opacity: 0.7 }}>· {item.area}</span>}
+              </div>
+            </div>
+          </div>
 
+          <div className="alm-body">
+            {/* status stepper */}
+            <div className="ldm-track" style={{ '--c': stepC }}>
+              {steps.map((s, i) => (
+                <div key={s.lbl} className={`ldm-node${i + 1 <= idx ? ' fill' : ''}`}>
+                  <span className="ldm-dot" />
+                  <span className="ldm-nlbl">{s.lbl}</span>
+                  <span className="ldm-nt">{s.t}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* meta */}
             <div className="ldm-meta">
               <div>
-                <span className="ldm-k">Owner</span>
-                <span className="ldm-v ldm-owner"><span className={`lr-av ${kind}`}>{kind === 'unknown' ? '?' : initials(item?.ownerName)}</span>{kind === 'unknown' ? 'Unknown' : (item?.ownerName || '—')} <span style={{ color: '#AEB4C2', fontSize: 12 }}>· {kind[0].toUpperCase() + kind.slice(1)}</span></span>
-              </div>
-              <div>
-                <span className="ldm-k">{kind === 'unknown' ? 'Found' : 'Cabin'}</span>
+                <span className="ldm-k">{kind === 'unknown' ? 'Found at' : 'Cabin'}</span>
                 <span className="ldm-v">{item?.area || '—'}</span>
               </div>
-              {(item?.laundryNumber || item?.colour) && (
-                <div>
-                  <span className="ldm-k">Laundry no. &amp; colour</span>
-                  <span className="ldm-v">{[item?.laundryNumber, item?.colour].filter(Boolean).join(' · ') || '—'}</span>
-                </div>
-              )}
               <div>
-                <span className="ldm-k">Priority</span>
-                <span className="ldm-v">{urgent ? <span style={{ color: '#C24632', fontWeight: 700 }}>Urgent</span> : 'Normal'}</span>
+                <span className="ldm-k">Laundry no. &amp; colour</span>
+                <span className="ldm-v">{[item?.laundryNumber, item?.colour].filter(Boolean).join(' · ') || '—'}</span>
               </div>
               <div>
                 <span className="ldm-k">Added</span>
                 <span className="ldm-v">{fmtDateTime(item?.createdAt) || '—'}</span>
               </div>
-              {item?.deliveredAt && (
-                <div>
-                  <span className="ldm-k">Delivered</span>
-                  <span className="ldm-v">{fmtDateTime(item?.deliveredAt)}</span>
-                </div>
-              )}
+              <div>
+                <span className="ldm-k">Delivered</span>
+                <span className="ldm-v">{item?.deliveredAt ? fmtDateTime(item.deliveredAt) : '—'}</span>
+              </div>
             </div>
 
             {item?.tags?.length > 0 && (
@@ -158,14 +179,30 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated }) => {
             )}
 
             {item?.notes && (
-              <div className="alm-section" style={{ marginBottom: 0 }}>
+              <div className="alm-section">
                 <label className="alm-label">Notes</label>
                 <div className="ldm-notes">{item.notes}</div>
               </div>
             )}
-          </>
-        ) : (
-          <>
+
+            {photos.length > 1 && (
+              <div className="alm-section" style={{ marginBottom: 0 }}>
+                <label className="alm-label">Photos <span className="alm-opt">{photos.length}</span></label>
+                <div className="ldm-strip">{photos.map((src, i) => <img key={i} src={src} alt={`Photo ${i + 1}`} />)}</div>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="alm-head" style={{ textAlign: 'left', background: '#FFFFFF' }}>
+            <div>
+              <div className="alm-eyebrow">Housekeeping</div>
+              <h2 className="alm-title" style={{ textTransform: 'none', fontSize: 24, letterSpacing: 0 }}>Edit item</h2>
+            </div>
+            <button className="alm-x" onClick={() => setMode('view')} aria-label="Close edit"><Icon name="X" size={18} /></button>
+          </div>
+          <div className="alm-body">
             <div className="alm-section">
               <label className="alm-label">Description <span className="alm-req">required</span></label>
               <textarea className="alm-field" rows={3} value={form.description} onChange={(e) => setField('description', e.target.value)} />
@@ -225,9 +262,9 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated }) => {
                 </button>
               </div>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
 
       <div className="alm-foot" style={{ justifyContent: 'space-between' }}>
         {mode === 'view' ? (

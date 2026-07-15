@@ -19,6 +19,12 @@
 
 /* ── header — canonical editorial meta strip + big serif headline ── */
 .lm-header { margin-bottom: 4px; }
+.lm-back {
+  display: inline-flex; align-items: center; gap: 6px; background: none; border: none;
+  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6E6B85; cursor: pointer;
+  padding: 2px 0; margin-bottom: 12px; transition: color 0.14s;
+}
+.lm-back:hover { color: #C65A1A; }
 .lm-titlerow {
   display: flex;
   align-items: center;
@@ -627,7 +633,7 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; margin-top: 22px; }
 .lc-card { background: #FFFFFF; border: 1px solid #EEF0F4; border-radius: 16px; overflow: hidden; transition: box-shadow 0.16s, transform 0.16s; display: flex; flex-direction: column; }
 .lc-card:hover { box-shadow: 0 20px 44px -26px rgba(28, 27, 58, 0.42); transform: translateY(-2px); }
-.lc-card.urg { border-top: 3px solid #C24632; }
+.lc-card.urg { border-left: 3px solid #C24632; }
 .lc-head { display: flex; align-items: center; gap: 14px; padding: 18px 18px 15px; border-bottom: 1px solid #F3F4F8; }
 .lc-ring { --p: 0; --rc: #2F7D5A; width: 46px; height: 46px; border-radius: 999px; flex: none; display: grid; place-items: center; position: relative; background: conic-gradient(var(--rc) calc(var(--p) * 1%), #E7E9EF 0); }
 .lc-ring::after { content: ""; width: 34px; height: 34px; border-radius: 999px; background: #FFF; }
@@ -659,16 +665,45 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lc-act:hover { color: #B14E16; }
 .lc-act svg { width: 14px; height: 14px; }
 
-/* ── item detail / edit modal (view layout; edit reuses alm-*) ── */
-.ldm-photos { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-.ldm-photo { width: 88px; height: 88px; border-radius: 12px; overflow: hidden; border: 1px solid #ECECEE; background: #EDEAE2; display: grid; place-items: center; flex: none; }
-.ldm-photo img { width: 100%; height: 100%; object-fit: cover; }
-.ldm-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 15px 22px; margin-bottom: 20px; }
+/* ── item detail modal — designed view (edit mode reuses alm-*) ── */
+/* hero banner */
+.ldm-hero { position: relative; height: 184px; border-radius: 22px 22px 0 0; overflow: hidden; background: linear-gradient(135deg, #2A2F52, #1C1B3A); flex: none; }
+.ldm-hero > img { width: 100%; height: 100%; object-fit: cover; }
+.ldm-hero-ph { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,0.16); }
+.ldm-hero-ph svg { width: 64px; height: 64px; }
+.ldm-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(28,27,58,0.15) 0%, rgba(28,27,58,0) 34%, rgba(28,27,58,0.82) 100%); }
+.ldm-hero-top { position: absolute; top: 14px; left: 16px; right: 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; z-index: 2; }
+.ldm-hpill { display: inline-flex; align-items: center; gap: 6px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #1C1B3A; background: rgba(255,255,255,0.92); border-radius: 999px; padding: 5px 11px; backdrop-filter: blur(4px); }
+.ldm-hpill .d { width: 7px; height: 7px; border-radius: 999px; }
+.ldm-hpill.prog .d { background: #B7791F; } .ldm-hpill.ready .d { background: #2F6E8F; } .ldm-hpill.deliv .d { background: #2F7D5A; }
+.ldm-hflag { display: inline-flex; align-items: center; gap: 5px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #FFF; background: #C24632; border-radius: 999px; padding: 5px 11px; }
+.ldm-hflag svg { width: 12px; height: 12px; }
+.ldm-hx { width: 30px; height: 30px; border-radius: 999px; border: none; background: rgba(255,255,255,0.92); color: #1C1B3A; display: grid; place-items: center; cursor: pointer; }
+.ldm-hero-btm { position: absolute; left: 20px; right: 20px; bottom: 15px; z-index: 2; }
+.ldm-htitle { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 27px; line-height: 1.05; color: #FFFFFF; }
+.ldm-howner { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: rgba(255,255,255,0.88); }
+
+/* status stepper */
+.ldm-track { display: grid; grid-template-columns: repeat(3, 1fr); margin: 2px 0 22px; }
+.ldm-node { display: flex; flex-direction: column; align-items: center; gap: 7px; position: relative; text-align: center; }
+.ldm-node::before { content: ""; position: absolute; top: 6px; left: -50%; width: 100%; height: 2px; background: #E7E9EF; z-index: 0; }
+.ldm-node:first-child::before { display: none; }
+.ldm-node.fill::before { background: var(--c); }
+.ldm-dot { width: 14px; height: 14px; border-radius: 999px; background: #DFE2E9; z-index: 1; box-shadow: 0 0 0 3px #FFF; }
+.ldm-node.fill .ldm-dot { background: var(--c); }
+.ldm-nlbl { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #9A93A0; }
+.ldm-node.fill .ldm-nlbl { color: #1C1B3A; }
+.ldm-nt { font-size: 10.5px; color: #AEB4C2; font-variant-numeric: tabular-nums; min-height: 13px; }
+
+/* meta rows */
+.ldm-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 22px; margin-bottom: 20px; padding-top: 20px; border-top: 1px solid #F0F1F5; }
 .ldm-meta > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ldm-k { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #9A93A0; }
 .ldm-v { font-size: 14px; color: #1C1B3A; }
-.ldm-owner { display: flex; align-items: center; gap: 8px; }
 .ldm-notes { background: #F8FAFC; border: 1px solid #ECECEE; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; line-height: 1.5; color: #4B4A66; white-space: pre-wrap; }
+/* extra photo thumbnails under the meta */
+.ldm-strip { display: flex; gap: 8px; flex-wrap: wrap; }
+.ldm-strip img { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; border: 1px solid #ECECEE; }
 @media (max-width: 520px) { .ldm-meta { grid-template-columns: 1fr; } }
 
 @media (max-width: 860px) { .lmk { flex-wrap: wrap; } .lmk-cell { flex: 1 1 50%; } .lmk-cell:nth-child(3) { flex-basis: 100%; border-left: none; border-top: 1px solid #EEF0F4; } }

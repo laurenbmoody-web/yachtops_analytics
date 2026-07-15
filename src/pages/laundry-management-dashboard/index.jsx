@@ -302,6 +302,9 @@ const LaundryManagementDashboard = () => {
         <div className="lm-wrap">
           {/* Header — canonical Cargo editorial (meta strip + big serif headline) */}
           <div className="lm-header">
+            <button type="button" className="lm-back" onClick={() => navigate('/dashboard')}>
+              <Icon name="ArrowLeft" size={16} /> Back to dashboard
+            </button>
             <p className="editorial-meta">
               <span className="dot">●</span>
               <span>Housekeeping</span>
