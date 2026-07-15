@@ -911,6 +911,19 @@ export const sendSupplierMessage = async (threadId, body) => {
   return data;
 };
 
+// Send a structured quote the vessel can Accept (adds the lines to the order).
+// quote = { items:[{name,qty,unit,unit_price,currency,matched}], currency, total }
+export const sendSupplierQuote = async (threadId, body, quote) => {
+  const { data: auth } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('supplier_messages')
+    .insert({ thread_id: threadId, sender_type: 'supplier', sender_user_id: auth?.user?.id ?? null, body, kind: 'quote', quote, quote_status: 'pending' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
 // ─── Email Aliases ───────────────────────────────────────────────────────────
 
 export const fetchAliases = async (supplierId) => {

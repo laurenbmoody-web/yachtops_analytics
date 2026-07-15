@@ -60,10 +60,10 @@ Deno.serve(async (req: Request) => {
 
 RULES
 1. Return ONLY valid JSON — no markdown, no prose, no code fences.
-2. Extract each item the client is asking for, with a sensible quantity and unit.
-3. Match each item to the supplier's catalogue when there's a clear match, and use that catalogue price (unit_price). If there's no clear match, set unit_price to null and matched to false (still include the item).
+2. Extract each item the client is asking for. Use the EXACT quantity and size/unit the client stated (e.g. "5 × Mascarpone 250g" → qty 5, unit "250g tub"). Only fall back to the catalogue's unit when the client didn't specify one.
+3. Match each item to the supplier's catalogue when there's a clear match, and use that catalogue price (unit_price). If there's no clear match, set unit_price to null and matched to false (still include the item). If the closest catalogue match is a different pack/size than the client asked for, still quote it but keep the client's stated size in the name and note the pack difference in quote_text rather than silently changing their quantity.
 4. Prices are per unit in ${currency}. Compute nothing the client didn't ask for.
-5. Write quote_text as a warm, concise message a supplier would send: a one-line intro, a bulleted list of "qty × unit name — line total" (omit line total when unpriced), a total for the priced items, and a friendly close inviting confirmation or changes. Note any unpriced items need confirming.
+5. Write quote_text as a warm, concise message a supplier would send: a one-line intro, a bulleted list of "qty × unit name — line total" (omit line total when unpriced), a total for the priced items, and a friendly close inviting confirmation or changes. Note any unpriced items or pack-size differences that need confirming — but don't re-ask for a size the client already gave.
 
 JSON schema:
 {
