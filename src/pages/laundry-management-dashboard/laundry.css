@@ -274,18 +274,18 @@
 /* Atelier head — centred serif display over a soft terracotta wash */
 .alm-head {
   position: sticky; top: 0; z-index: 3;
-  padding: 30px 34px 22px; border-bottom: 1px solid #F0F1F5;
+  padding: 28px 34px 22px; border-bottom: 1px solid #F0F1F5;
   text-align: center; border-radius: 22px 22px 0 0;
   background:
     radial-gradient(130% 100% at 50% 0, #FBEFE9, transparent 68%),
     #FFFFFF;
 }
-.alm-eyebrow {
-  font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.22em;
-  text-transform: uppercase; color: #C65A1A;
+.alm-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400;
+  font-size: 34px; line-height: 1.05; letter-spacing: 0.5px; margin: 0;
+  text-transform: uppercase; color: #1C1B3A;
 }
-.alm-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400; font-size: 34px; line-height: 1.05; letter-spacing: 0.2px; margin-top: 9px; }
-.alm-subtitle { margin-top: 7px; font-size: 13.5px; color: #6E6B85; }
+.alm-title em { font-style: italic; color: #C65A1A; }
 .alm-x {
   position: absolute; top: 18px; right: 18px; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
@@ -352,11 +352,11 @@
 
 /* ── Atelier voice hero — the primary, easiest way to describe an item ── */
 .alm-voice {
-  text-align: center; padding: 30px 20px; border-radius: 20px;
+  text-align: center; padding: 22px 20px; border-radius: 18px;
   background: linear-gradient(180deg, #FBEFE9, #F8FAFC); border: 1px solid #ECECEE;
 }
 .alm-voice-mic {
-  position: relative; width: 86px; height: 86px; border-radius: 999px; border: none; cursor: pointer;
+  position: relative; width: 72px; height: 72px; border-radius: 999px; border: none; cursor: pointer;
   margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #FFFFFF;
   background: radial-gradient(120% 120% at 30% 20%, #E07C43, #C65A1A);
   box-shadow: 0 18px 40px -12px rgba(198, 90, 26, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.35);
@@ -367,7 +367,7 @@
 .alm-voice.live .alm-voice-rg { animation: alm-rg 1.7s ease-out infinite; }
 .alm-voice.live .alm-voice-rg.b { animation-delay: 0.55s; }
 @keyframes alm-rg { 0% { opacity: 0.45; transform: scale(1); } 100% { opacity: 0; transform: scale(2); } }
-.alm-voice-title { margin: 16px 0 0; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 19px; color: #1C1B3A; }
+.alm-voice-title { margin: 13px 0 0; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 18px; color: #1C1B3A; }
 .alm-voice-eg { margin: 5px 0 0; font-size: 12.5px; color: #6E6B85; font-style: italic; }
 .alm-voice-or {
   margin-top: 14px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A;
