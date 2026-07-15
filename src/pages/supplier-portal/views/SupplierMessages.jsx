@@ -512,6 +512,7 @@ const SupplierMessages = () => {
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                       </span>
                       {boat(g.tenantId, g.name)}
+                      {g.unread > 0 && <span className="msg-grp-dot" title={`${g.unread} new message${g.unread === 1 ? '' : 's'} received`} />}
                       <span className="msg-grp-name">{g.name}</span>
                       <span className="msg-grp-meta">
                         {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}

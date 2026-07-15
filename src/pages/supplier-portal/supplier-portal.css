@@ -597,6 +597,8 @@
 .sp-ym.m3 { background: linear-gradient(135deg, #4E9B6F, #2F7A4D); }
 .sp-ym.m4 { background: linear-gradient(135deg, #D99940, #9A5B14); }
 .sp-ym.m5 { background: linear-gradient(135deg, #7B5AA6, #5A3B85); }
+.sp-ym.has-logo { background: #fff; border: 1px solid var(--line); overflow: hidden; }
+.sp-ym.has-logo img { width: 100%; height: 100%; object-fit: contain; padding: 4px; display: block; }
 
 .sp-ym-cell {
   display: flex; align-items: center; gap: 12px;
@@ -3305,6 +3307,8 @@
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 17px; letter-spacing: 0.02em;
 }
+#sp-root .scd-mono.has-logo { background: #fff; border: 1px solid var(--line); overflow: hidden; }
+#sp-root .scd-mono.has-logo img { width: 100%; height: 100%; object-fit: contain; padding: 8px; display: block; }
 #sp-root .scd-head-main { flex: 1 1 auto; min-width: 0; }
 #sp-root .scd-eyebrow {
   font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
@@ -3590,6 +3594,7 @@
 #sp-root .msg-boat img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; display: block; padding: 3px; }
 #sp-root .msg-blank-av.has-logo { background: #fff; overflow: hidden; border: 1px solid var(--line); }
 #sp-root .msg-blank-av img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; display: block; padding: 8px; }
+#sp-root .msg-grp-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 3px var(--pill); }
 #sp-root .msg-grp-name { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 18px; line-height: 1; color: var(--fg); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #sp-root .msg-grp-meta { display: flex; align-items: center; gap: 8px; flex: none; }
 #sp-root .msg-grp-wait { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--amber); }
