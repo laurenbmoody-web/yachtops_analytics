@@ -394,9 +394,16 @@ async function inviteUser(email, fullName) {
 
 /* ─── Stripe API helpers ──────────────────────────────────────────────── */
 
-// Unix-seconds → ISO string (Stripe periods are unix timestamps).
-const periodEndIso = (sub) =>
-  sub?.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+// Unix-seconds → ISO string for the current billing period end. Stripe moved
+// current_period_end off the top-level Subscription onto its items in recent
+// API versions (2025-03+/dahlia), so read whichever is present. When a sub has
+// multiple items we take the latest period end (they normally share one).
+const periodEndIso = (sub) => {
+  const items = sub?.items?.data || [];
+  const fromItems = items.reduce((m, it) => Math.max(m, it?.current_period_end || 0), 0);
+  const unix = sub?.current_period_end || fromItems || 0;
+  return unix ? new Date(unix * 1000).toISOString() : null;
+};
 
 // Retrieve the full subscription so we can stamp current_period_end +
 // cancel_at_period_end at checkout time (the checkout.session object doesn't
