@@ -3694,6 +3694,50 @@
 #sp-root .msg-tick { margin-left: 5px; font-weight: 700; opacity: 0.85; }
 #sp-root .msg-tick.read { color: #BFE3D0; opacity: 1; }
 
+/* ── WhatsApp-style bubble: reply · reactions · delete · swipe ────────────── */
+#sp-root .msg-row { position: relative; align-items: flex-end; gap: 6px; }
+#sp-root .msg-swipe-hint { display: none; }
+#sp-root .msg-bubble-wrap { position: relative; display: inline-flex; flex-direction: column; max-width: 74%; touch-action: pan-y; transition: transform 0.12s ease-out; }
+#sp-root .msg-row.me .msg-bubble-wrap { align-items: flex-end; }
+#sp-root .msg-bubble-wrap .msg-bubble { max-width: 100%; }
+#sp-root .msg-body { display: block; }
+
+#sp-root .msg-reply-quote { display: flex; flex-direction: column; gap: 1px; text-align: left; width: 100%; border: 0; border-left: 3px solid currentColor; background: rgba(15, 23, 42, 0.06); border-radius: 6px; padding: 4px 9px; margin-bottom: 5px; cursor: pointer; font-family: inherit; }
+#sp-root .msg-row.me .msg-reply-quote { background: rgba(255, 255, 255, 0.2); }
+#sp-root .msg-reply-quote-label { font-size: 10.5px; font-weight: 700; opacity: 0.92; }
+#sp-root .msg-reply-quote-snip { font-size: 11.5px; opacity: 0.82; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
+
+#sp-root .msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: -7px; padding: 0 4px; position: relative; z-index: 1; }
+#sp-root .msg-row.me .msg-reactions { justify-content: flex-end; }
+#sp-root .msg-reaction { display: inline-flex; align-items: center; gap: 3px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; font-size: 11.5px; cursor: pointer; box-shadow: var(--sh1); line-height: 1.5; }
+#sp-root .msg-reaction.mine { border-color: var(--orange); background: var(--pill); }
+#sp-root .msg-reaction-n { font-weight: 700; color: var(--muted-strong); font-size: 10px; }
+
+#sp-root .msg-deleted { font-style: italic; color: var(--muted); font-size: 12.5px; }
+#sp-root .msg-row.is-deleted .msg-bubble { background: var(--ground); box-shadow: none; border: 1px dashed var(--line); }
+#sp-root .msg-row.me.is-deleted .msg-bubble { color: var(--muted); border-bottom-right-radius: 16px; }
+#sp-root .msg-row.them.is-deleted .msg-bubble { border-bottom-left-radius: 16px; }
+
+#sp-root .msg-actions { display: flex; align-items: center; gap: 3px; opacity: 0; transition: opacity 0.12s; align-self: center; }
+#sp-root .msg-row:hover .msg-actions { opacity: 1; }
+#sp-root .msg-act { width: 27px; height: 27px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; color: var(--muted-strong); box-shadow: var(--sh1); padding: 0; transition: border-color 0.12s, color 0.12s; }
+#sp-root .msg-act:hover { border-color: var(--orange); color: var(--orange); }
+#sp-root .msg-act-del:hover { border-color: var(--red); color: var(--red); }
+#sp-root .msg-act-react { position: relative; display: flex; }
+#sp-root .msg-react-pop { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 7px; box-shadow: var(--sh3); z-index: 6; }
+#sp-root .msg-react-opt { border: 0; background: none; font-size: 18px; cursor: pointer; line-height: 1; padding: 2px 3px; border-radius: 50%; transition: transform 0.1s; }
+#sp-root .msg-react-opt:hover { transform: scale(1.3); }
+
+#sp-root .msg-flash .msg-bubble { animation: spflash 1.2s ease; }
+@keyframes spflash { 0%, 100% { box-shadow: var(--sh1); } 25% { box-shadow: 0 0 0 3px var(--pill); } }
+
+#sp-root .msg-replybar { display: flex; align-items: center; gap: 10px; background: var(--ground); border-left: 3px solid var(--orange); border-radius: 8px; padding: 7px 11px; margin: 0 2px 9px; }
+#sp-root .msg-replybar-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+#sp-root .msg-replybar-label { font-size: 11px; font-weight: 700; color: var(--orange); }
+#sp-root .msg-replybar-snip { font-size: 12px; color: var(--muted-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sp-root .msg-replybar-x { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 13px; padding: 4px 6px; border-radius: 6px; }
+#sp-root .msg-replybar-x:hover { color: var(--fg); background: var(--bg-2); }
+
 /* Empty conversation */
 #sp-root .msg-blank { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 30px; max-width: 360px; }
 #sp-root .msg-blank-av { width: 64px; height: 64px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; box-shadow: var(--sh1); }

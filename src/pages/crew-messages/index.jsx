@@ -5,8 +5,9 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import {
   fetchVesselThreads, fetchThreadMessages, sendVesselMessage, markThreadReadVessel,
-  markThreadNotificationsRead, acceptQuote, declineQuote,
+  markThreadNotificationsRead, acceptQuote, declineQuote, reactToMessage, deleteMessage,
 } from './storage';
+import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
 
 // Crew (vessel) side of supplier messaging — mirrors the supplier command list:
@@ -23,6 +24,15 @@ const threadLabel = (t) => (t?.order_id ? `Order #${shortId(t.order_id)}` : 'Gen
 // The provisioning board this conversation relates to (via the order's list), so
 // crew can jump from a chat straight to the board it's about.
 const threadBoard = (t) => t?.supplier_orders?.provisioning_lists || null;
+
+// Optimistic mirror of react_to_message: one reaction per user — tapping the
+// same emoji clears it, a different emoji replaces it.
+const toggleReaction = (reactions, emoji, uid) => {
+  const arr = Array.isArray(reactions) ? reactions : [];
+  const hadSame = arr.some((r) => r.uid === uid && r.emoji === emoji);
+  const without = arr.filter((r) => r.uid !== uid);
+  return hadSame ? without : [...without, { emoji, by: 'vessel', uid, at: new Date().toISOString() }];
+};
 
 const AV_GRADS = [
   ['#3E5C76', '#1E3A5F'], ['#5B6B8C', '#39415C'], ['#6B7A99', '#454E68'],
@@ -124,9 +134,13 @@ const CrewMessages = () => {
   const [sending, setSending] = useState(false);
   const [quoteBusy, setQuoteBusy] = useState(null);
   const [error, setError] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
+  const [myUid, setMyUid] = useState(null);
   const endRef = useRef(null);
   const streamRef = useRef(null);
   const taRef = useRef(null);
+
+  useEffect(() => { supabase.auth.getUser().then(({ data }) => setMyUid(data?.user?.id ?? null)); }, []);
 
   const load = useCallback(async () => {
     if (!activeTenantId) return [];
@@ -151,6 +165,7 @@ const CrewMessages = () => {
   const activeThread = useMemo(() => threads.find((t) => t.id === activeId), [threads, activeId]);
 
   useEffect(() => {
+    setReplyTo(null);
     if (!activeId) { setMessages([]); return; }
     fetchThreadMessages(activeId).then(setMessages).catch((e) => setError(e.message));
     setThreads((prev) => prev.map((t) => (t.id === activeId ? { ...t, vessel_unread_count: 0 } : t)));
@@ -168,6 +183,10 @@ const CrewMessages = () => {
         const msg = payload.new;
         setMessages((m) => (m.some((x) => x.id === msg.id) ? m : [...m, msg]));
         if (msg.sender_type === 'supplier') markThreadReadVessel(activeId).catch(() => {});
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'supplier_messages', filter: `thread_id=eq.${activeId}` }, (payload) => {
+        const msg = payload.new;
+        setMessages((m) => m.map((x) => (x.id === msg.id ? { ...x, ...msg } : x)));
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -196,15 +215,31 @@ const CrewMessages = () => {
     if (!body || !activeId || sending) return;
     setSending(true);
     try {
-      const msg = await sendVesselMessage(activeId, body);
+      const msg = await sendVesselMessage(activeId, body, replyTo?.id ?? null);
       setMessages((m) => [...m, msg]);
       setDraft('');
+      setReplyTo(null);
       load();
     } catch (e) { setError(e.message); }
     finally { setSending(false); }
   };
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (text) => { setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text)); taRef.current?.focus(); };
+
+  const startReply = (m) => { setReplyTo(m); taRef.current?.focus(); };
+  const doReact = async (id, emoji) => {
+    setMessages((m) => m.map((x) => (x.id === id ? { ...x, reactions: toggleReaction(x.reactions, emoji, myUid) } : x)));
+    try { await reactToMessage(id, emoji); } catch (e) { setError(e.message); fetchThreadMessages(activeId).then(setMessages).catch(() => {}); }
+  };
+  const doDelete = async (id) => {
+    if (!window.confirm('Delete this message for everyone?')) return;
+    try { await deleteMessage(id); setMessages((m) => m.map((x) => (x.id === id ? { ...x, deleted_at: new Date().toISOString() } : x))); }
+    catch (e) { setError(e.message); }
+  };
+  const jumpTo = (id) => {
+    const el = document.getElementById(`msg-${id}`);
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('msg-flash'); setTimeout(() => el.classList.remove('msg-flash'), 1200); }
+  };
 
   const resolveQuote = async (id, accept) => {
     if (quoteBusy) return;
@@ -477,13 +512,26 @@ const CrewMessages = () => {
                             </div>
                           );
                         }
+                        const src = m.reply_to_id ? messages.find((x) => x.id === m.reply_to_id) : null;
+                        const repliedMsg = src ? {
+                          label: src.sender_type === 'vessel' ? 'You' : supplierName(activeThread),
+                          snippet: src.deleted_at ? 'Message deleted' : (src.kind === 'quote' ? 'Quote' : String(src.body || '').slice(0, 90)),
+                        } : null;
                         return (
-                          <div key={m.id} className={`msg-row ${m.sender_type === 'vessel' ? 'me' : 'them'}${r.grouped ? ' grouped' : ''}`}>
-                            <div className="msg-bubble">
-                              {m.body}
-                              <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
-                            </div>
-                          </div>
+                          <MessageBubble
+                            key={m.id}
+                            m={m}
+                            grouped={r.grouped}
+                            mine={m.sender_type === 'vessel'}
+                            time={fmtClock(m.created_at)}
+                            tick={tick}
+                            repliedMsg={repliedMsg}
+                            myUid={myUid}
+                            onReply={startReply}
+                            onReact={doReact}
+                            onDelete={doDelete}
+                            onJumpTo={jumpTo}
+                          />
                         );
                       })}
                       <div ref={endRef} />
@@ -495,6 +543,15 @@ const CrewMessages = () => {
                           <button key={q} type="button" className="msg-qchip" onClick={() => quick(q)}>{q}</button>
                         ))}
                       </div>
+                      {replyTo && (
+                        <div className="msg-replybar">
+                          <div className="msg-replybar-body">
+                            <span className="msg-replybar-label">Replying to {replyTo.sender_type === 'vessel' ? 'yourself' : supplierName(activeThread)}</span>
+                            <span className="msg-replybar-snip">{replyTo.deleted_at ? 'Message deleted' : (replyTo.kind === 'quote' ? 'Quote' : String(replyTo.body || '').slice(0, 120))}</span>
+                          </div>
+                          <button type="button" className="msg-replybar-x" onClick={() => setReplyTo(null)} aria-label="Cancel reply">✕</button>
+                        </div>
+                      )}
                       <div className="msg-composer">
                         <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} placeholder={`Reply to ${supplierName(activeThread)}…  (Enter to send · Shift+Enter for a new line)`} rows={2} />
                         <button type="button" className="msg-send" disabled={!draft.trim() || sending} onClick={send}>{sending ? 'Sending…' : 'Send'}</button>

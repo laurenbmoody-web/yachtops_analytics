@@ -27,16 +27,29 @@ export const fetchThreadMessages = async (threadId) => {
   return data ?? [];
 };
 
-// Send a message from the vessel side.
-export const sendVesselMessage = async (threadId, body) => {
+// Send a message from the vessel side. Pass replyToId to quote another message.
+export const sendVesselMessage = async (threadId, body, replyToId = null) => {
   const { data: auth } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('supplier_messages')
-    .insert({ thread_id: threadId, sender_type: 'vessel', sender_user_id: auth?.user?.id ?? null, body })
+    .insert({ thread_id: threadId, sender_type: 'vessel', sender_user_id: auth?.user?.id ?? null, body, reply_to_id: replyToId })
     .select()
     .single();
   if (error) throw error;
   return data;
+};
+
+// Toggle an emoji reaction on a message (one per user). Returns the new array.
+export const reactToMessage = async (messageId, emoji) => {
+  const { data, error } = await supabase.rpc('react_to_message', { p_message_id: messageId, p_emoji: emoji });
+  if (error) throw error;
+  return data;
+};
+
+// Delete one of your own messages for everyone (soft delete).
+export const deleteMessage = async (messageId) => {
+  const { error } = await supabase.rpc('delete_supplier_message', { p_message_id: messageId });
+  if (error) throw error;
 };
 
 // Clear this vessel's unread + move its read cursor (via SECURITY DEFINER RPC).

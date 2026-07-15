@@ -899,16 +899,29 @@ export const markThreadReadSupplier = async (threadId) => {
   if (error) throw error;
 };
 
-// Send a message from the supplier side.
-export const sendSupplierMessage = async (threadId, body) => {
+// Send a message from the supplier side. Pass replyToId to quote a message.
+export const sendSupplierMessage = async (threadId, body, replyToId = null) => {
   const { data: auth } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('supplier_messages')
-    .insert({ thread_id: threadId, sender_type: 'supplier', sender_user_id: auth?.user?.id ?? null, body })
+    .insert({ thread_id: threadId, sender_type: 'supplier', sender_user_id: auth?.user?.id ?? null, body, reply_to_id: replyToId })
     .select()
     .single();
   if (error) throw error;
   return data;
+};
+
+// Toggle an emoji reaction on a message (one per user). Returns the new array.
+export const reactToMessage = async (messageId, emoji) => {
+  const { data, error } = await supabase.rpc('react_to_message', { p_message_id: messageId, p_emoji: emoji });
+  if (error) throw error;
+  return data;
+};
+
+// Delete one of your own messages for everyone (soft delete).
+export const deleteMessage = async (messageId) => {
+  const { error } = await supabase.rpc('delete_supplier_message', { p_message_id: messageId });
+  if (error) throw error;
 };
 
 // Send a structured quote the vessel can Accept (adds the lines to the order).
