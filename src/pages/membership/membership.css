@@ -145,6 +145,17 @@
 .mem-price strong { font-size: 24px; font-weight: 800; }
 .mem-price .per { color: #8B8478; font-size: 14px; }
 
+.mem-cancel-note {
+  margin-top: 14px;
+  background: #FBEFD9;
+  border: 1px solid #F0DCB0;
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #8A5A12;
+}
+
 .mem-card-hr { height: 1px; background: #F0F1F5; border: none; margin: 24px 0; }
 
 .mem-caps {
