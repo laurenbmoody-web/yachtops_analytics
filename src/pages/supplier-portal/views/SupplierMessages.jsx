@@ -231,6 +231,7 @@ const SupplierMessages = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState(null);
   const endRef = useRef(null);
+  const streamRef = useRef(null);
   const taRef = useRef(null);
 
   const loadThreads = useCallback(async () => {
@@ -327,7 +328,9 @@ const SupplierMessages = () => {
     return () => { cancelled = true; };
   }, [supplierId, activeThread?.tenant_id, activeThread?.order_id]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, activeId]);
+  // Scroll the message stream itself (not the page) to the latest — using
+  // scrollIntoView here would scroll the whole portal, clipping the header + composer.
+  useEffect(() => { const el = streamRef.current; if (el) el.scrollTop = el.scrollHeight; }, [messages, activeId]);
 
   const nameFor = (t) => (t ? (names[t.tenant_id] || t.tenants?.name || 'Yacht client') : '');
   // Vessel avatar — the uploaded logo when present, else a tinted monogram.
@@ -567,7 +570,7 @@ const SupplierMessages = () => {
                   </div>
                 )}
 
-                <div className="msg-stream">
+                <div className="msg-stream" ref={streamRef}>
                   {rendered.length === 0 ? (
                     <div className="msg-blank">
                       <div className={`msg-blank-av${logos[activeThread.tenant_id] ? ' has-logo' : ''}`} style={logos[activeThread.tenant_id] ? undefined : { background: avatarGrad(activeThread.tenant_id) }}>
