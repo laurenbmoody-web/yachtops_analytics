@@ -329,11 +329,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   return (
     <ModalShell onClose={onClose} panelClassName="alm-panel">
       <div className="alm-head">
-        <div>
-          <div className="alm-eyebrow">Housekeeping · Today</div>
-          <h2 className="alm-title">Add laundry</h2>
-          <p className="alm-subtitle">A moment to log it — just say it out loud.</p>
-        </div>
+        <h2 className="alm-title">LAUNDRY, <em>Log</em>.</h2>
         <button className="alm-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
       </div>
 
@@ -372,10 +368,10 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
               aria-label={SpeechRec ? (listening ? 'Stop dictation' : 'Dictate description') : 'Write description'}
             >
               <span className="alm-voice-rg" /><span className="alm-voice-rg b" />
-              <Icon name={SpeechRec ? (listening ? 'Square' : 'Mic') : 'Pencil'} size={32} />
+              <Icon name={SpeechRec ? (listening ? 'Square' : 'Mic') : 'Pencil'} size={28} />
             </button>
             <h3 className="alm-voice-title">{listening ? 'Listening…' : (SpeechRec ? 'Tap and describe it' : 'Describe the item')}</h3>
-            <p className="alm-voice-eg">“Ivory linen shirt, wine mark on the cuff — hand wash”</p>
+            <p className="alm-voice-eg">“Men’s white linen shirt, size M, wine stain front left”</p>
             {SpeechRec && !descOpen && !formData?.description && (
               <button type="button" className="alm-voice-or" onClick={() => setDescOpen(true)}>or write it</button>
             )}
