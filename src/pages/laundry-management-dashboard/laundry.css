@@ -15,7 +15,7 @@
   color: #1C1B3A;
   box-sizing: border-box;
 }
-.lm-wrap { max-width: 1180px; }
+.lm-wrap { max-width: none; width: 100%; }
 
 /* ── header — canonical editorial meta strip + big serif headline ── */
 .lm-header { margin-bottom: 4px; }
