@@ -32,6 +32,7 @@ import {
 } from './utils/provisioningStorage';
 import { BOARD_TYPES, TRIP_TYPE_TO_BOARD_TYPE } from './data/templates';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchVesselUnreadCount } from '../crew-messages/storage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { showToast } from '../../utils/toast';
 import {
@@ -388,6 +389,20 @@ const ProvisioningWorkspace = () => {
   const [searchParams] = useSearchParams();
   const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
+  const [msgUnread, setMsgUnread] = useState(0);
+
+  // Unread supplier messages for this vessel — badge on the Messages action.
+  useEffect(() => {
+    if (!activeTenantId) return;
+    let live = true;
+    const refresh = () => fetchVesselUnreadCount(activeTenantId).then((n) => { if (live) setMsgUnread(n); }).catch(() => {});
+    refresh();
+    const ch = supabase
+      .channel(`pv-msg-unread-${activeTenantId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'supplier_message_threads', filter: `tenant_id=eq.${activeTenantId}` }, refresh)
+      .subscribe();
+    return () => { live = false; supabase.removeChannel(ch); };
+  }, [activeTenantId]);
 
   // Data
   const [lists, setLists] = useState([]);
@@ -1093,6 +1108,21 @@ const ProvisioningWorkspace = () => {
             >
               <Icon name="Store" className="w-4 h-4" />
               <span className="pv-btn-label">Marketplace</span>
+            </button>
+            <button
+              onClick={() => navigate('/messages')}
+              className="pv-btn pv-btn-secondary pv-btn-expand"
+              aria-label={msgUnread > 0 ? `Supplier messages — ${msgUnread} unread` : 'Supplier messages'}
+              title="Supplier messages"
+              style={{ position: 'relative' }}
+            >
+              <Icon name="MessageSquare" className="w-4 h-4" />
+              <span className="pv-btn-label">Messages</span>
+              {msgUnread > 0 && (
+                <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 9, background: '#C65A1A', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', boxShadow: '0 1px 2px rgba(28,27,58,0.2)' }}>
+                  {msgUnread > 99 ? '99+' : msgUnread}
+                </span>
+              )}
             </button>
           </div>
         </div>
