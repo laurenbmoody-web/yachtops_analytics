@@ -1,0 +1,24 @@
+/* Charter-readiness gate banner. Prefix: crg- */
+.crg { font-family: 'Inter', system-ui, sans-serif; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; border: 1px solid; }
+.crg-ready { background: #E9F3EC; border-color: #CBE6D6; }
+.crg-blocked { background: #FBEEEA; border-color: #F1CFC6; }
+.crg-head { display: flex; align-items: center; gap: 12px; }
+.crg-icon { flex: none; width: 34px; height: 34px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.crg-ready .crg-icon { background: #2E7D5A; color: #fff; }
+.crg-blocked .crg-icon { background: #A32D2D; color: #fff; }
+.crg-headtext { min-width: 0; }
+.crg-title { font-size: 14.5px; font-weight: 700; }
+.crg-ready .crg-title { color: #1F5E42; }
+.crg-blocked .crg-title { color: #8A2622; }
+.crg-sub { font-size: 12.5px; color: #6B7280; margin-top: 1px; }
+
+.crg-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.crg-blocker { width: 100%; display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #F1CFC6;
+  border-radius: 10px; padding: 9px 11px; cursor: pointer; font-family: inherit; text-align: left; }
+.crg-blocker:hover { border-color: #C65A1A; }
+.crg-dot { flex: none; width: 8px; height: 8px; border-radius: 999px; }
+.crg-Critical { background: #A32D2D; }
+.crg-High { background: #B9761A; }
+.crg-b-title { font-size: 13px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crg-b-loc { flex: 1; min-width: 0; font-size: 12px; color: #8B8478; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crg-b-open { flex: none; font-size: 12px; font-weight: 600; color: #C65A1A; }

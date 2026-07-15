@@ -23,6 +23,7 @@ export default function QuickAddDefectModal({ onClose, onSuccess }) {
   const [form, setForm] = useState({
     title: '', priority: DefectPriority.MEDIUM, description: '', photo: null,
     deptId: '', assign: 'unassigned', userId: '', locationFreeText: '',
+    affectsGuestAreas: false, safetyRelated: false,
   });
 
   useEffect(() => {
@@ -67,6 +68,8 @@ export default function QuickAddDefectModal({ onClose, onSuccess }) {
         assignedTeamName: form.assign === 'team' ? dName : null,
         locationFreeText: form.locationFreeText,
         locationPathLabel: form.locationFreeText || null,
+        affectsGuestAreas: form.affectsGuestAreas,
+        safetyRelated: form.safetyRelated,
         photos: form.photo ? [form.photo] : [],
       }, actor);
       showToast('Defect logged', 'success');
@@ -139,6 +142,15 @@ export default function QuickAddDefectModal({ onClose, onSuccess }) {
           <label className="qad-lbl">Location<span className="opt">optional</span></label>
           <input className="qad-input" value={form.locationFreeText}
             onChange={(e) => setForm({ ...form, locationFreeText: e.target.value })} placeholder="e.g. Owner's cabin · aft bulkhead" />
+        </div>
+
+        <div className="qad-field">
+          <label className="qad-lbl">Flags</label>
+          <div className="qad-seg">
+            <button type="button" className={form.affectsGuestAreas ? 'on' : ''} onClick={() => setForm({ ...form, affectsGuestAreas: !form.affectsGuestAreas })}>Guest area</button>
+            <button type="button" className={form.safetyRelated ? 'on' : ''} onClick={() => setForm({ ...form, safetyRelated: !form.safetyRelated })}>Safety-related</button>
+          </div>
+          <p className="qad-hint">Guest-area High/Critical defects block charter readiness.</p>
         </div>
 
         <div className="qad-field">

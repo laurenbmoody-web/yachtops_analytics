@@ -52,7 +52,7 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
   const [newComment, setNewComment] = useState('');
   const [departments, setDepartments] = useState([]);
   const [crew, setCrew] = useState([]);
-  const [form, setForm] = useState({ title: '', priority: DefectPriority.MEDIUM, description: '', photo: null, deptId: '', assign: 'unassigned', userId: '' });
+  const [form, setForm] = useState({ title: '', priority: DefectPriority.MEDIUM, description: '', photo: null, deptId: '', assign: 'unassigned', userId: '', affectsGuestAreas: false, safetyRelated: false });
 
   const locationLabel = useMemo(() => {
     const trail = (containerTrail || []).map((c) => c?.name || c).filter(Boolean);
@@ -125,6 +125,8 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
       hotspotId: hotspot.id,
       locationNodeId: hotspot.location_node_id || null,
       locationPathLabel: locationLabel,
+      affectsGuestAreas: form.affectsGuestAreas,
+      safetyRelated: form.safetyRelated,
       photos: form.photo ? [form.photo] : [],
     }, actor);
     if (created) { setDefect(created); setComments([]); setMode('view'); onChanged?.(); }
@@ -233,6 +235,14 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
               <button type="button" className="vmd-photo-btn" onClick={() => fileRef.current?.click()}>＋ Add a photo</button>
             )}
             <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onPickPhoto} />
+          </div>
+
+          <div className="vmd-field">
+            <label className="vmd-lbl">Flags</label>
+            <div className="vmd-seg">
+              <button type="button" className={form.affectsGuestAreas ? 'on' : ''} onClick={() => setForm({ ...form, affectsGuestAreas: !form.affectsGuestAreas })}>Guest area</button>
+              <button type="button" className={form.safetyRelated ? 'on' : ''} onClick={() => setForm({ ...form, safetyRelated: !form.safetyRelated })}>Safety-related</button>
+            </div>
           </div>
 
           <div className="vmd-field">
