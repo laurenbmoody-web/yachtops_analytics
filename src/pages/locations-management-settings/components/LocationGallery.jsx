@@ -14,6 +14,7 @@ import {
   reorderLocations,
 } from '../utils/locationsHierarchyStorage';
 import AddScanModal from './AddScanModal';
+import ConfigureDecksModal from './ConfigureDecksModal';
 import ScanMotif from './ScanMotif';
 import DeckPlanView from './DeckPlanView';
 import '../location-gallery.css';
@@ -86,6 +87,7 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [dragId, setDragId] = useState(null);
   const [addScanSpace, setAddScanSpace] = useState(null);
+  const [showDecks, setShowDecks] = useState(false);
   const rootRef = useRef(null);
   const dataRef = useRef(null);
   const initedRef = useRef(false);
@@ -362,7 +364,7 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
                 <button className={view === 'static' ? 'on' : ''} aria-selected={view === 'static'} onClick={() => setViewPersist('static')}><GridIcon />Static</button>
                 <button className={view === 'plan' ? 'on' : ''} aria-selected={view === 'plan'} onClick={() => setViewPersist('plan')}><PlanIcon />Plan</button>
               </div>
-              <button className="lg-btn-primary" onClick={() => startEdit('new-deck')}>＋ New deck</button>
+              <button className="lg-btn-primary" onClick={() => setShowDecks(true)}>Configure decks</button>
             </div>
           </div>
 
@@ -480,6 +482,14 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
           space={addScanSpace}
           onClose={() => setAddScanSpace(null)}
           onComplete={() => load()}
+        />
+      )}
+
+      {showDecks && (
+        <ConfigureDecksModal
+          decks={data?.decks || []}
+          onChanged={load}
+          onClose={() => setShowDecks(false)}
         />
       )}
     </div>
