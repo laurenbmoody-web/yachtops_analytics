@@ -1,21 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
-import { fetchClients } from '../utils/supplierStorage';
+import { fetchClients, fetchVesselLogos } from '../utils/supplierStorage';
 import EmptyState from '../components/EmptyState';
 
 const SupplierClients = () => {
   const { supplier } = useSupplier();
   const navigate = useNavigate();
   const [clients, setClients] = useState([]);
+  const [logos, setLogos] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!supplier?.id) return;
     setLoading(true);
-    fetchClients(supplier.id)
-      .then(setClients)
+    Promise.all([fetchClients(supplier.id), fetchVesselLogos().catch(() => ({}))])
+      .then(([cs, logoMap]) => { setClients(cs); setLogos(logoMap || {}); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [supplier?.id]);
@@ -45,19 +46,21 @@ const SupplierClients = () => {
           {clients.map(c => {
             const tenant = c.tenants;
             const vesselName = c.vessel_name ?? tenant?.name ?? 'Unknown vessel';
+            const tid = c.tenant_id ?? tenant?.id;
+            const logo = tid ? logos[tid] : null;
             return (
               <div
                 key={c.id}
                 className="sp-cc"
-                role={c.tenants?.id ? 'button' : undefined}
-                tabIndex={c.tenants?.id ? 0 : undefined}
-                style={c.tenants?.id ? { cursor: 'pointer' } : undefined}
-                onClick={c.tenants?.id ? () => navigate(`/supplier/clients/${c.tenants.id}`) : undefined}
-                onKeyDown={c.tenants?.id ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/supplier/clients/${c.tenants.id}`); } } : undefined}
+                role={tid ? 'button' : undefined}
+                tabIndex={tid ? 0 : undefined}
+                style={tid ? { cursor: 'pointer' } : undefined}
+                onClick={tid ? () => navigate(`/supplier/clients/${tid}`) : undefined}
+                onKeyDown={tid ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/supplier/clients/${tid}`); } } : undefined}
               >
                 <div className="sp-cc-head">
-                  <div className="sp-ym m2" style={{ width: 40, height: 40, borderRadius: 11, fontSize: 12 }}>
-                    {vesselName.slice(0, 3).toUpperCase()}
+                  <div className={`sp-ym m2${logo ? ' has-logo' : ''}`} style={{ width: 40, height: 40, borderRadius: 11, fontSize: 12 }}>
+                    {logo ? <img src={logo} alt="" /> : vesselName.slice(0, 3).toUpperCase()}
                   </div>
                   <div>
                     <h3>{vesselName}</h3>

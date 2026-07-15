@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
-import { fetchClientProfile, fetchClientOrders, fetchClientInvoices, fetchMySupplierReviews } from '../utils/supplierStorage';
+import { fetchClientProfile, fetchClientOrders, fetchClientInvoices, fetchMySupplierReviews, fetchVesselLogos } from '../utils/supplierStorage';
 import EmptyState from '../components/EmptyState';
 
 // One yacht client, rebuilt as an account page: value + health KPIs, a spend
@@ -43,6 +43,7 @@ const SupplierClientDetail = () => {
   const [orders, setOrders] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [logo, setLogo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -55,8 +56,9 @@ const SupplierClientDetail = () => {
       fetchClientOrders(supplier.id, tenantId),
       fetchClientInvoices(supplier.id, tenantId).catch(() => []),
       fetchMySupplierReviews().catch(() => []),
+      fetchVesselLogos().catch(() => ({})),
     ])
-      .then(([p, o, inv, rev]) => { setProfile(p); setOrders(o || []); setInvoices(inv || []); setReviews(rev || []); })
+      .then(([p, o, inv, rev, logoMap]) => { setProfile(p); setOrders(o || []); setInvoices(inv || []); setReviews(rev || []); setLogo((logoMap || {})[tenantId] || null); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [supplier?.id, tenantId]);
@@ -181,7 +183,7 @@ const SupplierClientDetail = () => {
 
       {/* Header */}
       <header className="scd-head">
-        <div className="scd-mono">{initialsOf(vesselName)}</div>
+        <div className={`scd-mono${logo ? ' has-logo' : ''}`}>{logo ? <img src={logo} alt="" /> : initialsOf(vesselName)}</div>
         <div className="scd-head-main">
           <div className="scd-eyebrow">Yacht client</div>
           <h1 className="scd-title">{vesselName}</h1>
