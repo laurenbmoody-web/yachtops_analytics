@@ -21,10 +21,10 @@ const aggregate = (reactions, myUid) => {
 
 const MessageBubble = ({
   m, grouped, mine, time, tick, repliedMsg, myUid,
-  onReply, onReact, onDelete, onJumpTo,
+  onReply, onReact, onDelete, onEdit, onJumpTo,
 }) => {
   const [dx, setDx] = useState(0);
-  const [picker, setPicker] = useState(false);
+  const [menu, setMenu] = useState(false);
   const drag = useRef(null);
 
   const deleted = !!m.deleted_at;
@@ -64,11 +64,9 @@ const MessageBubble = ({
   return (
     <div
       id={`msg-${m.id}`}
-      className={`msg-row ${mine ? 'me' : 'them'}${grouped ? ' grouped' : ''}${deleted ? ' is-deleted' : ''}`}
-      onMouseLeave={() => setPicker(false)}
+      className={`msg-row ${mine ? 'me' : 'them'}${grouped ? ' grouped' : ''}${deleted ? ' is-deleted' : ''}${menu ? ' menu-open' : ''}`}
+      onMouseLeave={() => setMenu(false)}
     >
-      <span className="msg-swipe-hint" aria-hidden>↩</span>
-
       <div
         className="msg-bubble-wrap"
         style={dx ? { transform: `translateX(${dx}px)` } : undefined}
@@ -82,6 +80,9 @@ const MessageBubble = ({
             <span className="msg-deleted">🚫 This message was deleted</span>
           ) : (
             <>
+              <button type="button" className="msg-caret" title="Message options" onClick={() => setMenu((o) => !o)} aria-label="Message options">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+              </button>
               {m.reply_to_id && repliedMsg && (
                 <button type="button" className="msg-reply-quote" onClick={() => onJumpTo(m.reply_to_id)}>
                   <span className="msg-reply-quote-label">{repliedMsg.label}</span>
@@ -89,10 +90,23 @@ const MessageBubble = ({
                 </button>
               )}
               <span className="msg-body">{m.body}</span>
-              <span className="msg-time">{time}{tick}</span>
+              <span className="msg-time">{m.edited_at && <span className="msg-edited">edited</span>}{time}{tick}</span>
             </>
           )}
         </div>
+
+        {!deleted && menu && (
+          <div className="msg-menu-pop" onPointerDown={(e) => e.stopPropagation()}>
+            <div className="msg-menu-emojis">
+              {REACTION_EMOJIS.map((emoji) => (
+                <button key={emoji} type="button" className="msg-menu-emoji" onClick={() => { onReact(m.id, emoji); setMenu(false); }}>{emoji}</button>
+              ))}
+            </div>
+            <button type="button" className="msg-menu-item" onClick={() => { onReply(m); setMenu(false); }}>Reply</button>
+            {mine && m.kind !== 'quote' && <button type="button" className="msg-menu-item" onClick={() => { onEdit(m); setMenu(false); }}>Edit</button>}
+            {mine && <button type="button" className="msg-menu-item del" onClick={() => { onDelete(m.id); setMenu(false); }}>Delete</button>}
+          </div>
+        )}
 
         {reactionList.length > 0 && (
           <div className="msg-reactions">
@@ -110,23 +124,6 @@ const MessageBubble = ({
           </div>
         )}
       </div>
-
-      {!deleted && (
-        <div className="msg-actions">
-          <button type="button" className="msg-act" title="Reply" onClick={() => onReply(m)}>↩</button>
-          <div className="msg-act-react">
-            <button type="button" className="msg-act" title="React" onClick={() => setPicker((p) => !p)}>🙂</button>
-            {picker && (
-              <div className="msg-react-pop">
-                {REACTION_EMOJIS.map((emoji) => (
-                  <button key={emoji} type="button" className="msg-react-opt" onClick={() => { onReact(m.id, emoji); setPicker(false); }}>{emoji}</button>
-                ))}
-              </div>
-            )}
-          </div>
-          {mine && <button type="button" className="msg-act msg-act-del" title="Delete" onClick={() => onDelete(m.id)}>🗑</button>}
-        </div>
-      )}
     </div>
   );
 };

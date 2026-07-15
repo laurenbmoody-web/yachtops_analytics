@@ -246,16 +246,25 @@
 .cm-page .msg-row.me.is-deleted .msg-bubble { color: var(--muted); border-bottom-right-radius: 16px; }
 .cm-page .msg-row.them.is-deleted .msg-bubble { border-bottom-left-radius: 16px; }
 
-/* Hover action cluster */
-.cm-page .msg-actions { display: flex; align-items: center; gap: 3px; opacity: 0; transition: opacity 0.12s; align-self: center; }
-.cm-page .msg-row:hover .msg-actions { opacity: 1; }
-.cm-page .msg-act { width: 27px; height: 27px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; color: var(--muted-strong); box-shadow: var(--sh1); padding: 0; transition: border-color 0.12s, color 0.12s; }
-.cm-page .msg-act:hover { border-color: var(--orange); color: var(--orange); }
-.cm-page .msg-act-del:hover { border-color: var(--red); color: var(--red); }
-.cm-page .msg-act-react { position: relative; display: flex; }
-.cm-page .msg-react-pop { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 7px; box-shadow: var(--sh3); z-index: 6; }
-.cm-page .msg-react-opt { border: 0; background: none; font-size: 18px; cursor: pointer; line-height: 1; padding: 2px 3px; border-radius: 50%; transition: transform 0.1s; }
-.cm-page .msg-react-opt:hover { transform: scale(1.3); }
+/* Hover caret → options dropdown (reply · react · edit · delete) */
+.cm-page .msg-caret { position: absolute; top: 3px; right: 4px; width: 22px; height: 20px; border: 0; border-radius: 6px; background: rgba(28, 27, 58, 0.06); color: var(--muted-strong); display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.12s, background 0.12s; padding: 0; }
+.cm-page .msg-row.me .msg-caret { background: rgba(255, 255, 255, 0.22); color: #fff; }
+.cm-page .msg-row:hover .msg-caret, .cm-page .msg-row.menu-open .msg-caret { opacity: 1; }
+.cm-page .msg-caret:hover { background: rgba(28, 27, 58, 0.14); }
+.cm-page .msg-row.me .msg-caret:hover { background: rgba(255, 255, 255, 0.34); }
+
+.cm-page .msg-menu-pop { position: absolute; top: 26px; z-index: 20; min-width: 168px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--sh3); padding: 5px; display: flex; flex-direction: column; gap: 1px; }
+.cm-page .msg-row.me .msg-menu-pop { right: 0; }
+.cm-page .msg-row.them .msg-menu-pop { left: 0; }
+.cm-page .msg-menu-emojis { display: flex; gap: 2px; padding: 3px 2px 6px; border-bottom: 1px solid var(--hair); margin-bottom: 4px; }
+.cm-page .msg-menu-emoji { flex: 1; border: 0; background: none; font-size: 19px; cursor: pointer; line-height: 1; padding: 3px 0; border-radius: 8px; transition: transform 0.1s, background 0.1s; }
+.cm-page .msg-menu-emoji:hover { transform: scale(1.25); background: var(--bg-2); }
+.cm-page .msg-menu-item { text-align: left; border: 0; background: none; font-family: inherit; font-size: 13px; font-weight: 500; color: var(--fg); padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.cm-page .msg-menu-item:hover { background: var(--bg-2); }
+.cm-page .msg-menu-item.del { color: var(--red); }
+.cm-page .msg-menu-item.del:hover { background: #FEF2F2; }
+
+.cm-page .msg-edited { opacity: 0.72; margin-right: 5px; }
 
 /* Jump-to-reply flash */
 .cm-page .msg-flash .msg-bubble { animation: cmflash 1.2s ease; }

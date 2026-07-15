@@ -52,6 +52,12 @@ export const deleteMessage = async (messageId) => {
   if (error) throw error;
 };
 
+// Edit the text of one of your own messages.
+export const editMessage = async (messageId, body) => {
+  const { error } = await supabase.rpc('edit_supplier_message', { p_message_id: messageId, p_body: body });
+  if (error) throw error;
+};
+
 // Clear this vessel's unread + move its read cursor (via SECURITY DEFINER RPC).
 export const markThreadReadVessel = async (threadId) => {
   const { error } = await supabase.rpc('mark_thread_read_vessel', { p_thread_id: threadId });

@@ -5,7 +5,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import {
   fetchVesselThreads, fetchThreadMessages, sendVesselMessage, markThreadReadVessel,
-  markThreadNotificationsRead, acceptQuote, declineQuote, reactToMessage, deleteMessage,
+  markThreadNotificationsRead, acceptQuote, declineQuote, reactToMessage, deleteMessage, editMessage,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -135,6 +135,7 @@ const CrewMessages = () => {
   const [quoteBusy, setQuoteBusy] = useState(null);
   const [error, setError] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [myUid, setMyUid] = useState(null);
   const endRef = useRef(null);
   const streamRef = useRef(null);
@@ -165,7 +166,7 @@ const CrewMessages = () => {
   const activeThread = useMemo(() => threads.find((t) => t.id === activeId), [threads, activeId]);
 
   useEffect(() => {
-    setReplyTo(null);
+    setReplyTo(null); setEditing(null); setDraft('');
     if (!activeId) { setMessages([]); return; }
     fetchThreadMessages(activeId).then(setMessages).catch((e) => setError(e.message));
     setThreads((prev) => prev.map((t) => (t.id === activeId ? { ...t, vessel_unread_count: 0 } : t)));
@@ -215,18 +216,26 @@ const CrewMessages = () => {
     if (!body || !activeId || sending) return;
     setSending(true);
     try {
-      const msg = await sendVesselMessage(activeId, body, replyTo?.id ?? null);
-      setMessages((m) => [...m, msg]);
+      if (editing) {
+        await editMessage(editing.id, body);
+        setMessages((m) => m.map((x) => (x.id === editing.id ? { ...x, body, edited_at: new Date().toISOString() } : x)));
+        setEditing(null);
+      } else {
+        const msg = await sendVesselMessage(activeId, body, replyTo?.id ?? null);
+        setMessages((m) => [...m, msg]);
+        setReplyTo(null);
+        load();
+      }
       setDraft('');
-      setReplyTo(null);
-      load();
     } catch (e) { setError(e.message); }
     finally { setSending(false); }
   };
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (text) => { setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text)); taRef.current?.focus(); };
 
-  const startReply = (m) => { setReplyTo(m); taRef.current?.focus(); };
+  const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
+  const startEdit = (m) => { setReplyTo(null); setEditing(m); setDraft(m.body || ''); taRef.current?.focus(); };
+  const cancelEdit = () => { setEditing(null); setDraft(''); };
   const doReact = async (id, emoji) => {
     setMessages((m) => m.map((x) => (x.id === id ? { ...x, reactions: toggleReaction(x.reactions, emoji, myUid) } : x)));
     try { await reactToMessage(id, emoji); } catch (e) { setError(e.message); fetchThreadMessages(activeId).then(setMessages).catch(() => {}); }
@@ -530,6 +539,7 @@ const CrewMessages = () => {
                             onReply={startReply}
                             onReact={doReact}
                             onDelete={doDelete}
+                            onEdit={startEdit}
                             onJumpTo={jumpTo}
                           />
                         );
@@ -543,7 +553,15 @@ const CrewMessages = () => {
                           <button key={q} type="button" className="msg-qchip" onClick={() => quick(q)}>{q}</button>
                         ))}
                       </div>
-                      {replyTo && (
+                      {editing ? (
+                        <div className="msg-replybar is-edit">
+                          <div className="msg-replybar-body">
+                            <span className="msg-replybar-label">Editing message</span>
+                            <span className="msg-replybar-snip">{String(editing.body || '').slice(0, 120)}</span>
+                          </div>
+                          <button type="button" className="msg-replybar-x" onClick={cancelEdit} aria-label="Cancel edit">✕</button>
+                        </div>
+                      ) : replyTo && (
                         <div className="msg-replybar">
                           <div className="msg-replybar-body">
                             <span className="msg-replybar-label">Replying to {replyTo.sender_type === 'vessel' ? 'yourself' : supplierName(activeThread)}</span>
