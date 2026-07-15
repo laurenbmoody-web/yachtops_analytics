@@ -285,7 +285,7 @@
   font-size: 34px; line-height: 1.05; letter-spacing: 0.5px; margin: 0;
   text-transform: uppercase; color: #1C1B3A;
 }
-.alm-title em { font-style: italic; color: #C65A1A; }
+.alm-title em { font-style: italic; color: #C65A1A; text-transform: none; }
 .alm-x {
   position: absolute; top: 18px; right: 18px; flex: none;
   display: inline-flex; align-items: center; justify-content: center;

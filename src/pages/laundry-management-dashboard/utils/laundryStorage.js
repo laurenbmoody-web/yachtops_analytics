@@ -18,7 +18,7 @@ export const LaundryPriority = { NORMAL: 'Normal', URGENT: 'Urgent' };
 
 // Care tags — stored as compact enum values, shown as human labels. Custom
 // (free-text) tags fall through unchanged.
-export const availableLaundryTags = ['DryClean', 'HandWash', 'Iron', 'StainTreat', 'Delicate', 'Express'];
+export const availableLaundryTags = ['DryClean', 'HandWash', 'StainTreat', 'Delicate', 'Express'];
 export const LaundryTagLabels = {
   DryClean: 'Dry clean', HandWash: 'Hand wash', Iron: 'Iron',
   StainTreat: 'Stain treat', Delicate: 'Delicate', Express: 'Express',
@@ -57,6 +57,7 @@ const mapRow = (r) => ({
   colour: r.colour || '',
   laundryNumber: r.laundry_number || '',
   photo: r.photo || '',
+  photos: Array.isArray(r.photos) && r.photos.length ? r.photos : (r.photo ? [r.photo] : []),
   description: r.description || '',
   priority: r.priority || LaundryPriority.NORMAL,
   status: r.status,
@@ -212,7 +213,8 @@ export const createLaundryItem = async (itemData) => {
     area_location_id: itemData?.areaLocationId || null,
     colour: itemData?.colour || '',
     laundry_number: itemData?.laundryNumber || '',
-    photo: itemData?.photo || '',
+    photos: Array.isArray(itemData?.photos) ? itemData.photos : (itemData?.photo ? [itemData.photo] : []),
+    photo: (Array.isArray(itemData?.photos) ? itemData.photos[0] : itemData?.photo) || '',
     description: itemData?.description || '',
     priority: itemData?.priority || LaundryPriority.NORMAL,
     status: LaundryStatus.IN_PROGRESS,
@@ -262,7 +264,7 @@ export const updateLaundryStatus = async (itemId, newStatus) => {
 export const updateLaundryItem = async (itemId, updates) => {
   const map = {
     ownerName: 'owner_name', ownerDisplayName: 'owner_display_name', area: 'area', areaLocationId: 'area_location_id',
-    colour: 'colour', laundryNumber: 'laundry_number', photo: 'photo', description: 'description',
+    colour: 'colour', laundryNumber: 'laundry_number', photo: 'photo', photos: 'photos', description: 'description',
     priority: 'priority', status: 'status', tags: 'tags', notes: 'notes',
   };
   const patch = { updated_at: new Date().toISOString() };

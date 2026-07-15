@@ -15,6 +15,15 @@ import ModalShell from '../../../components/ui/ModalShell';
 const availableTags = availableLaundryTags;
 const SpeechRec = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
+// Guest cabins arrive as a full location path (e.g. "Main Deck > Forward >
+// Cabin 101"); the laundry only needs the leaf ("Cabin 101"). The linked
+// location id is kept separately, so trimming the label doesn't break it.
+const cabinLeaf = (label) => {
+  if (!label) return '';
+  const parts = String(label).split(/\s*[>›→]\s*/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : String(label);
+};
+
 // Single-screen Add Laundry. Owner (segmented Guest/Crew, with Urgent far
 // right) → identity fields → description (type or dictate) → photo → tags +
 // notes. Guest: name + cabin, or Unknown + colour + area found. Crew: name +
@@ -28,7 +37,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
 
   const [formData, setFormData] = useState({
     ownerType: OwnerType?.GUEST,
-    photo: '',
+    photos: [],
     description: '',
     ownerName: '',
     ownerGuestId: null,
@@ -43,7 +52,6 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     priority: LaundryPriority?.NORMAL,
   });
 
-  const [photoPreview, setPhotoPreview] = useState(null);
   const [customTag, setCustomTag] = useState('');
   const [knownCustomTags, setKnownCustomTags] = useState([]); // reused, tenant-scoped
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -155,12 +163,13 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
       setGuestSearchQuery('Unknown'); setLocationQuery('');
     } else {
       const name = `${guest?.firstName} ${guest?.lastName}`.trim();
+      const cabin = cabinLeaf(guest?.cabinLocationLabel || guest?.cabinAllocated || '');
       setFormData((prev) => ({
         ...prev, ownerGuestId: guest?.id, ownerDisplayName: name, ownerName: name,
-        area: guest?.cabinLocationLabel || guest?.cabinAllocated || '', areaLocationId: guest?.cabinLocationId || null,
+        area: cabin, areaLocationId: guest?.cabinLocationId || null,
       }));
       setGuestSearchQuery(name);
-      setLocationQuery(guest?.cabinLocationLabel || guest?.cabinAllocated || '');
+      setLocationQuery(cabin);
     }
     setShowGuestDropdown(false); clearError('owner');
   };
@@ -212,27 +221,30 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     img.src = dataUrl;
   });
 
-  const handlePhotoUpload = (e) => {
-    const file = e?.target?.files?.[0];
-    if (!file) return;
-    if (!file?.type?.startsWith('image/')) { showToast('Please select an image file', 'error'); return; }
-    if (file?.size > 5 * 1024 * 1024) { showToast('Image size must be less than 5MB', 'error'); return; }
+  const readAsDataUrl = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = async () => {
+    reader.onloadend = () => resolve(reader?.result);
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.readAsDataURL(file);
+  });
+
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e?.target?.files || []);
+    if (fileInputRef?.current) fileInputRef.current.value = ''; // allow re-capturing the same shot
+    for (const file of files) {
+      if (!file?.type?.startsWith('image/')) { showToast('Please select an image file', 'error'); continue; }
+      if (file?.size > 5 * 1024 * 1024) { showToast('Image size must be less than 5MB', 'error'); continue; }
       try {
-        const compressed = await compressImageForStorage(reader?.result);
-        setPhotoPreview(compressed); setField('photo', compressed);
+        const dataUrl = await readAsDataUrl(file);
+        const compressed = await compressImageForStorage(dataUrl);
+        setFormData((prev) => ({ ...prev, photos: [...(prev.photos || []), compressed] }));
       } catch (err) {
         console.error('Error processing image:', err);
         showToast('Failed to process image. Please try a smaller file.', 'error');
       }
-    };
-    reader?.readAsDataURL(file);
+    }
   };
-  const handleRemovePhoto = () => {
-    setPhotoPreview(null); setField('photo', '');
-    if (fileInputRef?.current) fileInputRef.current.value = '';
-  };
+  const handleRemovePhoto = (idx) => setFormData((prev) => ({ ...prev, photos: (prev.photos || []).filter((_, i) => i !== idx) }));
 
   const handleToggleTag = (tag) => setFormData((prev) => ({
     ...prev, tags: prev?.tags?.includes(tag) ? prev?.tags?.filter((t) => t !== tag) : [...prev?.tags, tag],
@@ -276,7 +288,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
         areaLocationId: formData?.areaLocationId,
         colour: formData?.colour,
         laundryNumber: formData?.laundryNumber,
-        photo: formData?.photo,
+        photos: formData?.photos,
         description: formData?.description,
         priority: formData?.priority,
         tags: formData?.tags,
@@ -329,7 +341,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   return (
     <ModalShell onClose={onClose} panelClassName="alm-panel">
       <div className="alm-head">
-        <h2 className="alm-title">LAUNDRY, <em>Log</em>.</h2>
+        <h2 className="alm-title">LAUNDRY, <em>log</em>.</h2>
         <button className="alm-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
       </div>
 
@@ -415,7 +427,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
                         <span style={{ minWidth: 0 }}>
                           <span className="alm-combo-name">{guest?.firstName} {guest?.lastName}</span>
                           {(guest?.cabinLocationLabel || guest?.cabinAllocated) && (
-                            <span className="alm-combo-meta">{guest?.cabinLocationLabel || guest?.cabinAllocated}</span>
+                            <span className="alm-combo-meta">{cabinLeaf(guest?.cabinLocationLabel || guest?.cabinAllocated)}</span>
                           )}
                         </span>
                         <span className="alm-combo-active">On trip</span>
@@ -530,18 +542,17 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
         {/* Photos */}
         <div className="alm-section" style={{ marginBottom: 0 }}>
           <label className="alm-label">Photos <span className="alm-opt">optional</span></label>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" multiple onChange={handlePhotoUpload} className="hidden" />
           <div className="alm-photos">
-            {photoPreview ? (
-              <div className="alm-thumb">
-                <img src={photoPreview} alt="Laundry item" />
-                <button type="button" className="alm-thumb-x" onClick={handleRemovePhoto} aria-label="Remove photo"><Icon name="X" size={12} /></button>
+            {(formData.photos || []).map((src, idx) => (
+              <div className="alm-thumb" key={idx}>
+                <img src={src} alt={`Laundry item ${idx + 1}`} />
+                <button type="button" className="alm-thumb-x" onClick={() => handleRemovePhoto(idx)} aria-label="Remove photo"><Icon name="X" size={12} /></button>
               </div>
-            ) : (
-              <button type="button" className="alm-add" onClick={() => fileInputRef?.current?.click()}>
-                <Icon name="Plus" size={18} /> Add
-              </button>
-            )}
+            ))}
+            <button type="button" className="alm-add" onClick={() => fileInputRef?.current?.click()}>
+              <Icon name="Camera" size={18} /> {(formData.photos || []).length ? 'More' : 'Photo'}
+            </button>
           </div>
         </div>
       </div>
