@@ -132,18 +132,25 @@
   flex-shrink: 0;
 }
 
+/* Option E — tier as a quiet tracked-caps label above a price-forward number. */
 .mem-plan-name {
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-  line-height: 1.2;
-  color: #1C1B3A;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #8B8478;
 }
-.mem-plan-name .dash { color: #C9C6BD; font-weight: 400; margin: 0 2px; }
-.mem-price { margin-top: 6px; font-size: 15px; color: #1C1B3A; }
-.mem-price strong { font-size: 24px; font-weight: 800; }
-.mem-price .per { color: #8B8478; font-size: 14px; }
+.mem-plan-name .dash { color: #AEB4C2; margin: 0 2px; }
+.mem-price {
+  margin-top: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.mem-price strong { font-size: 30px; font-weight: 600; letter-spacing: -0.6px; color: #1C1B3A; }
+.mem-price .per { color: #8B8478; font-size: 14px; font-weight: 400; }
 
 .mem-cancel-note {
   margin-top: 14px;
