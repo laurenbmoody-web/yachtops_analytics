@@ -924,6 +924,12 @@ export const deleteMessage = async (messageId) => {
   if (error) throw error;
 };
 
+// Edit the text of one of your own messages.
+export const editMessage = async (messageId, body) => {
+  const { error } = await supabase.rpc('edit_supplier_message', { p_message_id: messageId, p_body: body });
+  if (error) throw error;
+};
+
 // Send a structured quote the vessel can Accept (adds the lines to the order).
 // quote = { items:[{name,qty,unit,unit_price,currency,matched}], currency, total }
 export const sendSupplierQuote = async (threadId, body, quote) => {
