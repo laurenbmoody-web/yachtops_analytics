@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from '../../../components/ui/Button';
 import Icon from '../../../components/AppIcon';
-import { updateDefect, addComment, DefectStatus, DefectPriority } from '../utils/defectsStorage';
+import { updateDefect, addDefectComment, getDefectComments, DefectStatus, DefectPriority } from '../utils/defectsStorage';
 import {
   canEditDefect,
   canAssignDefect,
@@ -14,7 +14,8 @@ import { format } from 'date-fns';
 import Select from '../../../components/ui/Select';
 
 import ModalShell from '../../../components/ui/ModalShell';
-const DefectDetailModal = ({ defect, currentUser, teamMembers, onClose, onDefectUpdated }) => {
+const DefectDetailModal = ({ defect, currentUser, actor, teamMembers, onClose, onDefectUpdated }) => {
+  const ctx = actor || currentUser;
   const [activeTab, setActiveTab] = useState('details');
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,7 +23,17 @@ const DefectDetailModal = ({ defect, currentUser, teamMembers, onClose, onDefect
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  
+  const [comments, setComments] = useState([]);
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const rows = await getDefectComments(defect?.id);
+      if (live) setComments(rows || []);
+    })();
+    return () => { live = false; };
+  }, [defect?.id]);
+
   const canEdit = canEditDefect(currentUser, defect);
   const canAssign = canAssignDefect(currentUser, defect);
   const canChangeStatus = canChangeDefectStatus(currentUser, defect);
@@ -32,45 +43,48 @@ const DefectDetailModal = ({ defect, currentUser, teamMembers, onClose, onDefect
   
   const handleAddComment = async () => {
     if (!newComment?.trim() || !canComment) return;
-    
+
     setIsSubmitting(true);
-    const updated = addComment(defect?.id, newComment);
+    const updated = await addDefectComment(defect?.id, newComment, ctx);
     if (updated) {
       setNewComment('');
-      onDefectUpdated();
+      const rows = await getDefectComments(defect?.id);
+      setComments(rows || []);
+      onDefectUpdated?.();
     }
     setIsSubmitting(false);
   };
-  
-  const handleStatusChange = (newStatus) => {
+
+  const handleStatusChange = async (newStatus) => {
     if (!canChangeStatus) return;
-    
-    const updated = updateDefect(defect?.id, { status: newStatus });
+
+    const updated = await updateDefect(defect?.id, { status: newStatus }, ctx);
     if (updated) {
-      onDefectUpdated();
+      onDefectUpdated?.();
     }
   };
-  
-  const handleAssign = (userId) => {
+
+  const handleAssign = async (userId) => {
     if (!canAssign) return;
-    
+
     const user = teamMembers?.find(u => u?.id === userId);
-    const updated = updateDefect(defect?.id, {
-      assignedToUserId: userId,
-      assignedToName: user?.name || user?.fullName || 'Unknown'
-    });
+    const updated = await updateDefect(defect?.id, {
+      assignedToUserId: userId || null,
+      assignedToName: user?.name || user?.fullName || null,
+      assigneeKind: userId ? 'user' : 'unassigned',
+    }, ctx);
     if (updated) {
       setShowAssignModal(false);
-      onDefectUpdated();
+      onDefectUpdated?.();
     }
   };
-  
-  const handleClose = () => {
+
+  const handleClose = async () => {
     if (!canClose) return;
-    
-    const updated = updateDefect(defect?.id, { status: DefectStatus?.CLOSED });
+
+    const updated = await updateDefect(defect?.id, { status: DefectStatus?.CLOSED }, ctx);
     if (updated) {
-      onDefectUpdated();
+      onDefectUpdated?.();
     }
   };
   
@@ -214,7 +228,7 @@ const DefectDetailModal = ({ defect, currentUser, teamMembers, onClose, onDefect
             activeTab === 'comments' ?'border-primary text-primary' :'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          Comments ({defect?.comments?.length || 0})
+          Comments ({comments?.length || 0})
         </button>
         <button
           onClick={() => setActiveTab('activity')}
@@ -319,14 +333,14 @@ const DefectDetailModal = ({ defect, currentUser, teamMembers, onClose, onDefect
         {activeTab === 'comments' && (
           <div className="space-y-4">
             {/* Comments List */}
-            {defect?.comments?.length === 0 ? (
+            {comments?.length === 0 ? (
               <div className="text-center py-8">
                 <Icon name="MessageSquare" size={32} className="text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No comments yet</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {defect?.comments?.map(comment => (
+                {comments?.map(comment => (
                   <div key={comment?.id} className="border border-border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-medium text-foreground">{comment?.userName}</p>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Icon from '../../../components/AppIcon';
-import { getCurrentUser } from '../../../utils/authStorage';
 import { getDefectById, DefectStatus, DefectPriority } from '../utils/defectsStorage';
+import { useDefectActor } from '../utils/useDefectActor';
 import { canEditDefect, canCloseDefect } from '../utils/defectPermissions';
 import { format } from 'date-fns';
 import DefectDetailModal from './DefectDetailModal';
@@ -12,13 +12,30 @@ import { showToast } from '../../../utils/toast';
 
 import ModalShell from '../../../components/ui/ModalShell';
 const ViewDefectModal = ({ defectId, onClose, onUpdate }) => {
-  const currentUser = getCurrentUser();
-  const defect = getDefectById(defectId);
+  const currentUser = useDefectActor();
+  const [defect, setDefect] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  
+
+  const reload = useCallback(async () => {
+    const d = await getDefectById(defectId, currentUser);
+    setDefect(d);
+    setLoading(false);
+  }, [defectId, currentUser]);
+
+  useEffect(() => { setLoading(true); reload(); }, [reload]);
+
+  if (loading) {
+    return (
+      <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl shadow-xl max-w-2xl w-full p-6">
+        <p className="text-muted-foreground">Loading defect…</p>
+      </ModalShell>
+    );
+  }
+
   if (!defect) {
     return (
       <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl shadow-xl max-w-2xl w-full p-6">
@@ -32,7 +49,7 @@ const ViewDefectModal = ({ defectId, onClose, onUpdate }) => {
       </ModalShell>
     );
   }
-  
+
   const canEdit = canEditDefect(currentUser, defect);
   const canClose = canCloseDefect(currentUser, defect) && defect?.status !== 'Closed';
   const isClosed = defect?.status === 'Closed';
@@ -115,6 +132,7 @@ const ViewDefectModal = ({ defectId, onClose, onUpdate }) => {
   
   const handleEditClose = () => {
     setShowEditModal(false);
+    reload();
     onUpdate?.();
   };
   
@@ -128,10 +146,11 @@ const ViewDefectModal = ({ defectId, onClose, onUpdate }) => {
   
   const handleCloseConfirm = async (closeData) => {
     try {
-      const result = closeDefectWithNotes(
+      const result = await closeDefectWithNotes(
         defectId,
         closeData?.closeNotes,
-        closeData?.closePhoto
+        closeData?.closePhoto,
+        currentUser
       );
       
       if (result) {
@@ -157,9 +176,10 @@ const ViewDefectModal = ({ defectId, onClose, onUpdate }) => {
   
   const handleReopenConfirm = async (reopenData) => {
     try {
-      const result = reopenDefect(
+      const result = await reopenDefect(
         defectId,
-        reopenData?.reopenNotes
+        reopenData?.reopenNotes,
+        currentUser
       );
       
       if (result) {
@@ -180,9 +200,10 @@ const ViewDefectModal = ({ defectId, onClose, onUpdate }) => {
       <DefectDetailModal
         defect={defect}
         currentUser={currentUser}
+        actor={currentUser}
         teamMembers={[]}
         onClose={handleEditClose}
-        onDefectUpdated={onUpdate}
+        onDefectUpdated={() => { reload(); onUpdate?.(); }}
       />
     );
   }
