@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 
 // Shared WhatsApp-style message bubble for both the crew and supplier inboxes.
 // Renders the reply quote, the body (or a deleted placeholder), emoji reactions,
-// a hover action cluster (reply · react · delete), and swipe-to-reply. Styling
+// a hover caret menu (react · reply · copy · edit · delete), and swipe-to-reply. Styling
 // comes from each page's own scope (.cm-page / #sp-root) so the same markup
 // picks up the warm or cool palette.
 
@@ -103,6 +103,9 @@ const MessageBubble = ({
               ))}
             </div>
             <button type="button" className="msg-menu-item" onClick={() => { onReply(m); setMenu(false); }}>Reply</button>
+            {m.body && (
+              <button type="button" className="msg-menu-item" onClick={() => { try { navigator.clipboard?.writeText(m.body); } catch { /* noop */ } setMenu(false); }}>Copy</button>
+            )}
             {mine && m.kind !== 'quote' && <button type="button" className="msg-menu-item" onClick={() => { onEdit(m); setMenu(false); }}>Edit</button>}
             {mine && <button type="button" className="msg-menu-item del" onClick={() => { onDelete(m.id); setMenu(false); }}>Delete</button>}
           </div>
