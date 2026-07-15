@@ -41,6 +41,14 @@ const STATUS = {
 };
 
 const PERIOD_LABEL = (p) => (p === 'annual' ? '/year · billed annually' : '/month');
+// dd/mm/yyyy — Cargo date convention.
+const fmtDate = (d) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+};
 
 const Membership = () => {
   const navigate = useNavigate();
@@ -48,7 +56,7 @@ const Membership = () => {
   const [loading, setLoading] = useState(true);
   const [noTenantAccess, setNoTenantAccess] = useState(false);
   const [tenantId, setTenantId] = useState(null);
-  const [plan, setPlan] = useState({ tier: null, period: 'monthly', status: null, vessel: '' });
+  const [plan, setPlan] = useState({ tier: null, period: 'monthly', status: null, vessel: '', joined: null });
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalMsg, setPortalMsg] = useState('');
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -71,13 +79,14 @@ const Membership = () => {
       if (!tid) { setNoTenantAccess(true); setLoading(false); return; }
       setTenantId(tid);
       const { data } = await supabase.from('tenants')
-        .select('name, plan_tier, billing_period, subscription_status')
+        .select('name, plan_tier, billing_period, subscription_status, created_at')
         .eq('id', tid).maybeSingle();
       setPlan({
         tier: data?.plan_tier || null,
         period: data?.billing_period || 'monthly',
         status: data?.subscription_status || null,
         vessel: data?.name || '',
+        joined: data?.created_at || null,
       });
     } catch (e) {
       console.error('[membership] load failed', e);
@@ -160,16 +169,17 @@ const Membership = () => {
       <div className="mem-page">
         <button type="button" className="mem-back" onClick={() => navigate('/settings')}>Back to settings</button>
 
-        {/* Eyebrow meta — vessel · billing · status */}
+        {/* Eyebrow meta — vessel · member since · billing cadence */}
         <p className="mem-meta">
-          <span>{plan.vessel || 'Membership'}</span>
+          <span className="dot">●</span>
+          <span>{plan.vessel || 'This vessel'}</span>
+          {plan.joined && <><span className="bar" /><span className="muted">Member since {fmtDate(plan.joined)}</span></>}
           {tierInfo && <><span className="bar" /><span className="muted">Billed {plan.period === 'annual' ? 'annually' : 'monthly'}</span></>}
-          <span className="bar" /><span className="muted">{st.label}</span>
         </p>
 
-        {/* Headline — CARGO, *40 – 80m*. */}
+        {/* Headline — VESSEL, *Membership*. (plan detail lives in the card) */}
         <h1 className="mem-headline">
-          Cargo<span className="comma">,</span> <em>{tierInfo ? tierInfo.label : 'free trial'}</em>
+          Vessel<span className="comma">,</span> <em>Membership</em>
         </h1>
 
         {banner && (
@@ -184,27 +194,20 @@ const Membership = () => {
           {/* ── Plan card — the active subscription, shown "selected" ── */}
           <div className={`mem-card${isPaid ? ' is-current' : ''}`}>
             <div className="mem-card-top">
-              {isPaid ? (
-                <span className="mem-selected">
-                  <span className="mem-check"><Icon name="Check" size={13} /></span>
-                  <span className="mem-selected-txt">Current plan</span>
-                </span>
-              ) : (
-                <span className="mem-selected-txt">{tierInfo ? 'Current plan' : 'Your trial'}</span>
-              )}
+              <div>
+                <div className="mem-plan-name">
+                  {tierInfo ? <>Cargo <span className="dash">—</span> {tierInfo.label}</> : 'Cargo — Free trial'}
+                </div>
+                {tierInfo ? (
+                  <div className="mem-price">
+                    <strong>£{tierInfo.price}</strong><span className="per">{PERIOD_LABEL(plan.period)}</span>
+                  </div>
+                ) : (
+                  <div className="mem-price"><span className="per">No paid plan yet.</span></div>
+                )}
+              </div>
               <span className="mem-status" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
             </div>
-
-            <div className="mem-plan-name">
-              {tierInfo ? <>Cargo <span className="dash">—</span> {tierInfo.label}</> : 'Cargo — Free trial'}
-            </div>
-            {tierInfo ? (
-              <div className="mem-price">
-                <strong>£{tierInfo.price}</strong><span className="per">{PERIOD_LABEL(plan.period)}</span>
-              </div>
-            ) : (
-              <div className="mem-price"><span className="per">No paid plan yet.</span></div>
-            )}
 
             <hr className="mem-card-hr" />
 
