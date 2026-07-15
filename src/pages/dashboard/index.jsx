@@ -25,7 +25,7 @@ import InventoryHealthWidget from './components/InventoryHealthWidget';
 import VesselDocRenewalsWidget from './components/VesselDocRenewalsWidget';
 import QuickActionsCenter from './components/QuickActionsCenter';
 import LaundryLogWidget from './components/LaundryLogWidget';
-import ReportDefectModal from '../defects/components/ReportDefectModal';
+import QuickAddDefectModal from '../defects/components/QuickAddDefectModal';
 import ComprehensiveJobModal from '../team-jobs-management/components/ComprehensiveJobModal';
 import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
@@ -895,8 +895,7 @@ const Dashboard = () => {
 
         {/* Modals */}
         {showReportDefectModal && (
-          <ReportDefectModal
-            isOpen={showReportDefectModal}
+          <QuickAddDefectModal
             onClose={() => setShowReportDefectModal(false)}
             onSuccess={() => setShowReportDefectModal(false)}
           />
