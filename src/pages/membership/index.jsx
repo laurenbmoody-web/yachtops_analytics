@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getMyContext } from '../../utils/authHelpers';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
+import './membership.css';
 
 // ─── Plan reference data ─────────────────────────────────────────────────────
 // Pricing is by vessel length. Every crew member and app user is included —
@@ -39,8 +40,6 @@ const STATUS = {
   canceled: { label: 'Cancelled', bg: '#F0F1F5', fg: '#8B8478' },
 };
 
-const caps = { fontSize: 9, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#8B8478' };
-const hair = { height: 1, background: '#F0F1F5', border: 'none', margin: '30px 0' };
 const PERIOD_LABEL = (p) => (p === 'annual' ? '/year · billed annually' : '/month');
 
 const Membership = () => {
@@ -158,143 +157,137 @@ const Membership = () => {
   return (
     <>
       <Header />
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 24px 64px', fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <button type="button" onClick={() => navigate('/settings')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#8B8478', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 18 }}>
-          <Icon name="ChevronLeft" size={16} /> Back to Settings
-        </button>
+      <div className="mem-page">
+        <button type="button" className="mem-back" onClick={() => navigate('/settings')}>Back to settings</button>
 
-        <div style={caps}>{plan.vessel || 'Membership'}</div>
-        <h1 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 40, color: '#1C1B3A', margin: '6px 0 0', lineHeight: 1.05, letterSpacing: '-0.5px' }}>
-          {tierInfo ? <>Cargo <span style={{ color: '#AEB4C2' }}>—</span> <em style={{ fontStyle: 'italic', color: '#C65A1A' }}>{tierInfo.label}</em></> : <>Cargo <em style={{ fontStyle: 'italic', color: '#C65A1A' }}>free trial</em></>}
+        {/* Eyebrow meta — vessel · billing · status */}
+        <p className="mem-meta">
+          <span>{plan.vessel || 'Membership'}</span>
+          {tierInfo && <><span className="bar" /><span className="muted">Billed {plan.period === 'annual' ? 'annually' : 'monthly'}</span></>}
+          <span className="bar" /><span className="muted">{st.label}</span>
+        </p>
+
+        {/* Headline — CARGO, *40 – 80m*. */}
+        <h1 className="mem-headline">
+          Cargo<span className="comma">,</span> <em>{tierInfo ? tierInfo.label : 'free trial'}</em>
         </h1>
 
         {banner && (
-          <div style={{
-            marginTop: 16, borderRadius: 12, padding: '12px 15px', fontSize: 13.5, lineHeight: 1.5,
+          <div className="mem-banner" style={{
             background: banner.tone === 'ok' ? '#E7F2EA' : '#FBEFD9',
             border: `1px solid ${banner.tone === 'ok' ? '#CDE6D5' : '#F0DCB0'}`,
             color: banner.tone === 'ok' ? '#2F6B43' : '#8A5A12',
           }}>{banner.text}</div>
         )}
 
-        {/* Price + status — editorial line, no box */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', marginTop: 14 }}>
-          {tierInfo ? (
-            <div style={{ fontSize: 17, color: '#1C1B3A' }}>
-              <strong style={{ fontSize: 22 }}>£{tierInfo.price}</strong>
-              <span style={{ color: '#8B8478', fontSize: 15 }}>{PERIOD_LABEL(plan.period)}</span>
+        <div className="mem-grid">
+          {/* ── Plan card — the active subscription, shown "selected" ── */}
+          <div className={`mem-card${isPaid ? ' is-current' : ''}`}>
+            <div className="mem-card-top">
+              {isPaid ? (
+                <span className="mem-selected">
+                  <span className="mem-check"><Icon name="Check" size={13} /></span>
+                  <span className="mem-selected-txt">Current plan</span>
+                </span>
+              ) : (
+                <span className="mem-selected-txt">{tierInfo ? 'Current plan' : 'Your trial'}</span>
+              )}
+              <span className="mem-status" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
             </div>
-          ) : (
-            <div style={{ fontSize: 15, color: '#8B8478' }}>No paid plan yet.</div>
-          )}
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: 999, background: st.bg, color: st.fg }}>{st.label}</span>
-        </div>
 
-        <hr style={hair} />
-
-        {/* What's included — editorial two-column list */}
-        <div style={{ ...caps, marginBottom: 16 }}>What’s included</div>
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '11px 24px' }}>
-          {INCLUDED.map((f) => (
-            <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, color: '#4B4B63', lineHeight: 1.45 }}>
-              <span style={{ color: '#3F7A52', flex: '0 0 auto', marginTop: 1 }}><Icon name="Check" size={15} /></span>{f}
-            </li>
-          ))}
-          {tierInfo && (
-            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, color: '#4B4B63', lineHeight: 1.45 }}>
-              <span style={{ color: '#3F7A52', flex: '0 0 auto', marginTop: 1 }}><Icon name="Check" size={15} /></span>{SUPPORT[plan.tier]}
-            </li>
-          )}
-        </ul>
-
-        <hr style={hair} />
-
-        {/* Choose a plan — vessel admin, not yet on a paid plan. Editorial:
-            no display box; the tier tiles are selection controls. */}
-        {isVesselAdmin && !isPaid && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <div style={caps}>{plan.tier ? 'Change your plan' : 'Choose your plan'}</div>
-              {/* Monthly / annual toggle */}
-              <div style={{ display: 'inline-flex', background: '#F6F5F2', border: '1px solid #ECEAE3', borderRadius: 999, padding: 3 }}>
-                {[['monthly', 'Monthly'], ['annual', 'Annual']].map(([v, l]) => (
-                  <button key={v} type="button" onClick={() => setSelPeriod(v)}
-                    style={{ fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer', borderRadius: 999, padding: '5px 14px',
-                      background: selPeriod === v ? '#fff' : 'transparent', color: selPeriod === v ? '#1C1B3A' : '#8B8478',
-                      boxShadow: selPeriod === v ? '0 1px 2px rgba(28,27,58,0.12)' : 'none' }}>{l}</button>
-                ))}
+            <div className="mem-plan-name">
+              {tierInfo ? <>Cargo <span className="dash">—</span> {tierInfo.label}</> : 'Cargo — Free trial'}
+            </div>
+            {tierInfo ? (
+              <div className="mem-price">
+                <strong>£{tierInfo.price}</strong><span className="per">{PERIOD_LABEL(plan.period)}</span>
               </div>
-            </div>
-            <p style={{ fontSize: 13, color: '#8B8478', margin: '8px 0 16px', lineHeight: 1.5 }}>
-              Every crew member and app user is included — no per-seat fees. Pricing is by vessel length.
-            </p>
+            ) : (
+              <div className="mem-price"><span className="per">No paid plan yet.</span></div>
+            )}
 
-            <div style={{ display: 'grid', gap: 10 }}>
-              {Object.entries(TIERS).map(([key, t]) => {
-                const on = selTier === key;
-                return (
-                  <button key={key} type="button" onClick={() => setSelTier(key)}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textAlign: 'left', cursor: 'pointer',
-                      border: `1.5px solid ${on ? '#C65A1A' : '#ECEAE3'}`, background: on ? '#FBEFE9' : '#fff', borderRadius: 12, padding: '13px 15px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ width: 18, height: 18, borderRadius: 999, flex: 'none', border: `2px solid ${on ? '#C65A1A' : '#CBC9C0'}`, display: 'grid', placeItems: 'center' }}>
-                        {on && <span style={{ width: 8, height: 8, borderRadius: 999, background: '#C65A1A' }} />}
+            <hr className="mem-card-hr" />
+
+            <div className="mem-caps">What’s included</div>
+            <ul className="mem-inc">
+              {INCLUDED.map((f) => (
+                <li key={f}><span className="tick"><Icon name="Check" size={15} /></span>{f}</li>
+              ))}
+              {tierInfo && (
+                <li><span className="tick"><Icon name="Check" size={15} /></span>{SUPPORT[plan.tier]}</li>
+              )}
+            </ul>
+          </div>
+
+          {/* ── Choose a plan — vessel admin, not yet on a paid plan ── */}
+          {isVesselAdmin && !isPaid && (
+            <div className="mem-card">
+              <div className="mem-choose-head">
+                <div className="mem-caps">{plan.tier ? 'Change your plan' : 'Choose your plan'}</div>
+                <div className="mem-toggle">
+                  {[['monthly', 'Monthly'], ['annual', 'Annual']].map(([v, l]) => (
+                    <button key={v} type="button" className={selPeriod === v ? 'on' : ''} onClick={() => setSelPeriod(v)}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <p className="mem-sec-desc" style={{ margin: '8px 0 4px' }}>
+                Every crew member and app user is included — no per-seat fees. Pricing is by vessel length.
+              </p>
+              <div className="mem-tiers">
+                {Object.entries(TIERS).map(([key, t]) => {
+                  const on = selTier === key;
+                  return (
+                    <button key={key} type="button" className={`mem-tier${on ? ' on' : ''}`} onClick={() => setSelTier(key)}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span className="mem-tier-radio">{on && <i />}</span>
+                        <span>
+                          <span className="mem-tier-name">Cargo — {t.label}</span>
+                          <span className="mem-tier-sub">{SUPPORT[key]}</span>
+                        </span>
                       </span>
-                      <span>
-                        <span style={{ display: 'block', fontSize: 14.5, fontWeight: 700, color: '#1C1B3A' }}>Cargo — {t.label}</span>
-                        <span style={{ display: 'block', fontSize: 12, color: '#8B8478', marginTop: 1 }}>{SUPPORT[key]}</span>
-                      </span>
-                    </span>
-                    <span style={{ flex: 'none', textAlign: 'right' }}>
-                      <span style={{ fontSize: 16, fontWeight: 700, color: '#1C1B3A' }}>£{t.price}</span>
-                      <span style={{ fontSize: 12, color: '#8B8478' }}>/mo</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button type="button" onClick={startUpgrade} disabled={upgradeBusy}
-              style={{ marginTop: 16, width: '100%', fontSize: 14.5, fontWeight: 600, color: '#fff', background: '#C65A1A', border: 'none', borderRadius: 10, padding: '12px 16px', cursor: upgradeBusy ? 'default' : 'pointer', opacity: upgradeBusy ? 0.7 : 1 }}>
-              {upgradeBusy ? 'Starting secure checkout…' : `Continue to payment${selPeriod === 'annual' ? ' · billed annually' : ''}`}
-            </button>
-            <p style={{ fontSize: 12, color: '#AEB4C2', textAlign: 'center', margin: '10px 0 0', lineHeight: 1.5 }}>
-              Secure checkout powered by Stripe. Cancel anytime. The exact total (incl. any annual discount) is shown before you pay.
-            </p>
-          </>
-        )}
-
-        {/* Billing management — admin on a paid plan. On trial the chooser above
-            is the action, so there's nothing to manage yet. */}
-        {isVesselAdmin && isPaid && (
-          <>
-            <div style={{ ...caps, marginBottom: 6 }}>Billing</div>
-            <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, margin: '0 0 18px', maxWidth: 520 }}>
-              Manage your payment method, download invoices, and cancel — all in Cargo’s secure billing, powered by Stripe.
-            </p>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button type="button" onClick={() => openPortal(null)} disabled={portalBusy}
-                style={{ fontSize: 14, fontWeight: 600, color: '#fff', background: '#C65A1A', border: 'none', borderRadius: 10, padding: '11px 18px', cursor: portalBusy ? 'default' : 'pointer' }}>
-                {portalBusy ? 'Opening…' : 'Manage billing'}
+                      <span className="mem-tier-price"><b>£{t.price}</b><span>/mo</span></span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button type="button" className="mem-checkout-btn" onClick={startUpgrade} disabled={upgradeBusy}>
+                {upgradeBusy ? 'Starting secure checkout…' : `Continue to payment${selPeriod === 'annual' ? ' · billed annually' : ''}`}
               </button>
-              <button type="button" onClick={() => setCancelOpen(true)} disabled={portalBusy}
-                style={{ fontSize: 14, fontWeight: 600, color: '#9A2B12', background: '#fff', border: '1px solid #E8E6DF', borderRadius: 10, padding: '11px 18px', cursor: portalBusy ? 'default' : 'pointer' }}>
-                Cancel membership
-              </button>
+              <p className="mem-secure">
+                Secure checkout powered by Stripe. Cancel anytime. The exact total (incl. any annual discount) is shown before you pay.
+              </p>
             </div>
-            {portalMsg && <p style={{ fontSize: 13, color: '#8B8478', marginTop: 14, lineHeight: 1.5, maxWidth: 520 }}>{portalMsg}</p>}
-          </>
-        )}
+          )}
 
-        {/* Crew — billing is the admin's concern; reassure they're covered. */}
-        {!isVesselAdmin && (
-          <>
-            <div style={{ ...caps, marginBottom: 6 }}>Billing</div>
-            <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, margin: 0, maxWidth: 560 }}>
-              Billing is managed by your vessel’s admin. You have full access as part of the vessel’s plan — every crew member and app user is included, with no per-seat fees.
-            </p>
-          </>
-        )}
+          {/* ── Billing — admin on a paid plan ── */}
+          {isVesselAdmin && isPaid && (
+            <div className="mem-card">
+              <div className="mem-caps">Billing</div>
+              <p className="mem-sec-desc">
+                Manage your payment method, download invoices, and cancel — all in Cargo’s secure billing, powered by Stripe.
+              </p>
+              <div className="mem-actions">
+                <button type="button" className="mem-btn mem-btn-primary" onClick={() => openPortal(null)} disabled={portalBusy}>
+                  {portalBusy ? 'Opening…' : 'Manage billing'}
+                </button>
+                <button type="button" className="mem-btn mem-btn-ghost" onClick={() => setCancelOpen(true)} disabled={portalBusy}>
+                  Cancel membership
+                </button>
+              </div>
+              {portalMsg && <p className="mem-note">{portalMsg}</p>}
+            </div>
+          )}
+
+          {/* ── Crew — billing managed by admin ── */}
+          {!isVesselAdmin && (
+            <div className="mem-card">
+              <div className="mem-caps">Billing</div>
+              <p className="mem-sec-desc" style={{ margin: '6px 0 0' }}>
+                Billing is managed by your vessel’s admin. You have full access as part of the vessel’s plan — every crew member and app user is included, with no per-seat fees.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Cancel — step-through confirmation, then Stripe's cancel flow */}
