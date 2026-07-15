@@ -8,6 +8,7 @@ import { useDefectActor } from './utils/useDefectActor';
 import { loadAllTypes } from './utils/defectTypeTaxonomy';
 import ReportDefectModal from './components/ReportDefectModal';
 import ViewDefectModal from './components/ViewDefectModal';
+import SnagReportModal from './components/SnagReportModal';
 
 import ModalShell from '../../components/ui/ModalShell';
 const DefectsDashboard = () => {
@@ -27,6 +28,7 @@ const DefectsDashboard = () => {
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showSnag, setShowSnag] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedDefectId, setSelectedDefectId] = useState(null);
   const [activeTab, setActiveTab] = useState('main');
@@ -286,6 +288,13 @@ const DefectsDashboard = () => {
                   )}
                 </button>
               )}
+              <button
+                onClick={() => setShowSnag(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-card border border-border text-foreground rounded-lg hover:bg-muted transition-smooth"
+              >
+                <Icon name="FileText" size={20} />
+                Snag report
+              </button>
               <button
                 onClick={() => setShowReportModal(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-smooth"
@@ -735,6 +744,8 @@ const DefectsDashboard = () => {
           onUpdate={loadDefects}
         />
       )}
+      {/* Snag report / work-list + export */}
+      {showSnag && <SnagReportModal onClose={() => setShowSnag(false)} />}
       {/* Accept/Decline Modal */}
       {showAcceptDeclineModal && selectedPendingDefect && (
         <ModalShell onClose={() => {

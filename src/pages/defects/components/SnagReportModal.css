@@ -1,0 +1,43 @@
+/* Snag report / work-list modal. Prefix: snag- */
+.snag { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; width: 100%; max-width: 1040px;
+  background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,.32);
+  display: flex; flex-direction: column; max-height: 90vh; }
+.snag-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #ECEAE3; }
+.snag-head .eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #8B8478; margin: 0 0 4px; }
+.snag-head h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 0; }
+.snag-head p { font-size: 12.5px; color: #8B8478; margin: 4px 0 0; }
+.snag-exports { display: flex; gap: 8px; flex: none; }
+.snag-btn { font-family: inherit; font-size: 12.5px; font-weight: 600; border-radius: 9px; padding: 8px 12px; cursor: pointer; border: 1px solid #ECEAE3; background: #fff; color: #1C1B3A; display: inline-flex; align-items: center; gap: 6px; }
+.snag-btn.solid { background: #1C1B3A; color: #fff; border-color: #1C1B3A; }
+.snag-x { width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; color: #6B7280; font-size: 18px; cursor: pointer; }
+
+.snag-controls { padding: 12px 20px 0; display: flex; flex-direction: column; gap: 10px; }
+.snag-search { width: 100%; font-family: inherit; font-size: 13px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 10px; outline: none; }
+.snag-search:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.snag-filters { display: flex; flex-wrap: wrap; gap: 7px; }
+.snag-fpill { font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 999px; border: 1px solid #ECEAE3; background: #fff; color: #6B7280; cursor: pointer; }
+.snag-fpill.on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.snag-fpill .c { opacity: .7; margin-left: 5px; font-variant-numeric: tabular-nums; }
+
+.snag-scroll { overflow: auto; margin: 12px 20px 4px; border: 1px solid #ECEAE3; border-radius: 12px; }
+table.snag-t { width: 100%; border-collapse: collapse; min-width: 760px; font-size: 13px; }
+table.snag-t thead th { position: sticky; top: 0; background: #fff; text-align: left; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; padding: 11px 12px; border-bottom: 1px solid #ECEAE3; white-space: nowrap; }
+table.snag-t tbody td { padding: 11px 12px; border-bottom: 1px solid #F0F1F5; vertical-align: middle; }
+table.snag-t tbody tr:last-child td { border-bottom: 0; }
+table.snag-t tbody tr:hover { background: #FCF7F3; }
+.snag-ref { font-variant-numeric: tabular-nums; color: #AEB4C2; font-weight: 600; font-size: 12px; white-space: nowrap; }
+.snag-def { font-weight: 600; color: #1C1B3A; }
+.snag-loc { font-size: 12px; color: #8B8478; margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+.snag-fly { color: #C65A1A; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.snag-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.snag-chip .cd { width: 6px; height: 6px; border-radius: 999px; }
+.p-Critical { background: #F7E7E5; color: #A32D2D; } .p-Critical .cd { background: #A32D2D; }
+.p-High { background: #F7EEDD; color: #B9761A; } .p-High .cd { background: #B9761A; }
+.p-Medium { background: #FBEFE9; color: #C65A1A; } .p-Medium .cd { background: #C65A1A; }
+.p-Low { background: #F4F2EC; color: #8B8478; } .p-Low .cd { background: #AEB4C2; }
+.snag-status { background: #F0F1F5; color: #6B7280; }
+.snag-owner { font-size: 12.5px; color: #1C1B3A; }
+.snag-owner.none { color: #AEB4C2; }
+.snag-due { font-variant-numeric: tabular-nums; color: #3A3960; white-space: nowrap; }
+.snag-empty { padding: 40px; text-align: center; color: #8B8478; font-size: 13px; }
+.snag-foot { padding: 10px 20px 14px; font-size: 11.5px; color: #AEB4C2; }
