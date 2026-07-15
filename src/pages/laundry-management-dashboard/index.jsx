@@ -8,6 +8,7 @@ import CabinView from './components/CabinView';
 import LaundryDetailModal from './components/LaundryDetailModal';
 import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay } from './utils/laundryStorage';
 import { turnaroundStats, fmtDur } from './utils/laundryStats';
+import { enrichWithAvatars } from './utils/laundryAvatars';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
@@ -119,7 +120,7 @@ function MiniSpark({ values }) {
   return (
     <svg className="lmk-spark" viewBox={`0 0 120 ${H}`} preserveAspectRatio="none" aria-hidden="true">
       <path d={`M${line} L116,${H} L4,${H} Z`} fill="#2F7D5A" fillOpacity="0.12" />
-      <path d={`M${line}`} fill="none" stroke="#2F7D5A" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <path className="lmk-line" d={`M${line}`} pathLength="1" fill="none" stroke="#2F7D5A" strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -142,6 +143,7 @@ const LaundryManagementDashboard = () => {
   const [showResetModal, setShowResetModal] = useState(false);
   const [allItems, setAllItems] = useState([]);
   const [detailItem, setDetailItem] = useState(null);
+  const [editItem, setEditItem] = useState(null);
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('laundryViewMode') === 'cabin' ? 'cabin' : 'list'; } catch { return 'list'; }
   });
@@ -160,14 +162,7 @@ const LaundryManagementDashboard = () => {
 
   useEffect(() => { setGuests(loadGuests() || []); }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { openItems, deliveredToday } = await getTodayViewItems();
-      if (!cancelled) setLaundryItems([...openItems, ...deliveredToday]);
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  useEffect(() => { loadLaundryItems(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   useEffect(() => {
     if (!tripId) { setTrip(null); return undefined; }
@@ -229,7 +224,8 @@ const LaundryManagementDashboard = () => {
 
   const loadLaundryItems = async () => {
     const [{ openItems, deliveredToday }, all] = await Promise.all([getTodayViewItems(), loadAllLaundryItems()]);
-    setLaundryItems([...openItems, ...deliveredToday]);
+    const today = await enrichWithAvatars([...openItems, ...deliveredToday]);
+    setLaundryItems(today);
     setAllItems(all);
   };
 
@@ -241,7 +237,8 @@ const LaundryManagementDashboard = () => {
     loadLaundryItems();
   };
 
-  const handleAddSuccess = () => { setShowAddModal(false); loadLaundryItems(); };
+  const handleAddSuccess = () => { setShowAddModal(false); setEditItem(null); loadLaundryItems(); };
+  const openEdit = (it) => { setDetailItem(null); setEditItem(it); };
   const confirmResetDay = async () => { if (await manualResetDay()) await loadLaundryItems(); setShowResetModal(false); };
 
   const getStatusCounts = () => {
@@ -437,12 +434,12 @@ const LaundryManagementDashboard = () => {
         </div>
       </div>
 
-      {showAddModal && (
-        <AddLaundryModal onClose={() => setShowAddModal(false)} onSuccess={handleAddSuccess} />
+      {(showAddModal || editItem) && (
+        <AddLaundryModal editItem={editItem} onClose={() => { setShowAddModal(false); setEditItem(null); }} onSuccess={handleAddSuccess} />
       )}
 
       {detailItem && (
-        <LaundryDetailModal item={detailItem} onClose={() => setDetailItem(null)} onUpdated={loadLaundryItems} />
+        <LaundryDetailModal item={detailItem} onClose={() => setDetailItem(null)} onUpdated={loadLaundryItems} onEdit={openEdit} />
       )}
 
       {showResetModal && (

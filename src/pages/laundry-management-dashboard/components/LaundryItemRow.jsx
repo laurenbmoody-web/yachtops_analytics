@@ -58,7 +58,7 @@ const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
           {urgent && <span className="lr-flag"><Icon name="Zap" size={11} /> Urgent</span>}
         </div>
         <div className="lr-sub">
-          <span className="lr-who"><span className={`lr-av ${kind}`}>{avInitials}</span>{kind === 'unknown' ? 'Unknown' : (item?.ownerName || 'Unassigned')}</span>
+          <span className="lr-who"><span className={`lr-av ${kind}`}>{item?.avatarUrl ? <img src={item.avatarUrl} alt="" /> : avInitials}</span>{kind === 'unknown' ? 'Unknown' : (item?.ownerName || 'Unassigned')}</span>
           {item?.area && (<><span className="sep">·</span><b>{item.area}</b></>)}
           {item?.laundryNumber && (<><span className="sep">·</span><span>No. {item.laundryNumber}</span></>)}
           {item?.colour && (<><span className="sep">·</span><span>{item.colour}</span></>)}

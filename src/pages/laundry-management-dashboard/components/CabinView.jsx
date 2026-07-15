@@ -32,8 +32,9 @@ function buildGroups(items) {
     const ready = list.filter((i) => i?.status === LaundryStatus?.READY_TO_DELIVER).length;
     const urgent = list.filter((i) => i?.priority === LaundryPriority?.URGENT && i?.status !== LaundryStatus?.DELIVERED).length;
     const kind = ownerKind(list[0]?.ownerType);
+    const avatarUrl = list.find((i) => i?.avatarUrl)?.avatarUrl || null;
     list.sort((a, b) => statusRank(a?.status) - statusRank(b?.status));
-    groups.push({ key, found, owners, kind, list, total, delivered, ready, urgent });
+    groups.push({ key, found, owners, kind, avatarUrl, list, total, delivered, ready, urgent });
   }
   // Attention first (urgent, then still-open), fully-returned cabins last, found bucket last of all.
   groups.sort((a, b) => {
@@ -58,7 +59,7 @@ const CabinCard = ({ g, onBulkDeliver, onOpen }) => {
         <div className="lc-id">
           <div className="lc-name">{g.key}</div>
           <div className="lc-occ">
-            <span className={`lr-av ${g.kind}`}>{g.found ? '?' : initials(g.owners[0] || '')}</span>
+            <span className={`lr-av ${g.kind}`}>{g.avatarUrl ? <img src={g.avatarUrl} alt="" /> : (g.found ? '?' : initials(g.owners[0] || ''))}</span>
             {g.found ? 'No owner assigned' : (g.owners.join(', ') || '—')}
           </div>
         </div>

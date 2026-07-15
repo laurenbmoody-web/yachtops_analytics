@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import '../laundry.css';
 
-import { createLaundryItem, OwnerType, LaundryPriority, availableLaundryTags, formatLaundryTag, getKnownCustomTags } from '../utils/laundryStorage';
+import { createLaundryItem, updateLaundryItem, OwnerType, LaundryPriority, availableLaundryTags, formatLaundryTag, getKnownCustomTags } from '../utils/laundryStorage';
 import { showToast } from '../../../utils/toast';
 import { getAllDecks, getAllZones, getAllSpaces } from '../../locations-management-settings/utils/locationsHierarchyStorage';
 import { loadGuests } from '../../guest-management-dashboard/utils/guestStorage';
@@ -28,14 +28,30 @@ const cabinLeaf = (label) => {
 // right) → identity fields → description (type or dictate) → photo → tags +
 // notes. Guest: name + cabin, or Unknown + colour + area found. Crew: name +
 // laundry number (± colour).
-const AddLaundryModal = ({ onClose, onSuccess }) => {
+const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
+  const isEdit = !!editItem;
   const { activeTenantId } = useTenant();
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
   const [listening, setListening] = useState(false);
   const [descOpen, setDescOpen] = useState(false); // reveal the transcript field
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => (editItem ? {
+    ownerType: editItem.ownerType === 'crew' ? OwnerType?.CREW : OwnerType?.GUEST,
+    photos: Array.isArray(editItem.photos) && editItem.photos.length ? [...editItem.photos] : (editItem.photo ? [editItem.photo] : []),
+    description: editItem.description || '',
+    ownerName: editItem.ownerName || '',
+    ownerGuestId: editItem.ownerGuestId || null,
+    ownerCrewUserId: editItem.ownerCrewUserId || null,
+    ownerDisplayName: editItem.ownerDisplayName || '',
+    area: editItem.area || '',
+    areaLocationId: editItem.areaLocationId || null,
+    colour: editItem.colour || '',
+    laundryNumber: editItem.laundryNumber || '',
+    notes: editItem.notes || '',
+    tags: [...(editItem.tags || [])],
+    priority: editItem.priority || LaundryPriority?.NORMAL,
+  } : {
     ownerType: OwnerType?.GUEST,
     photos: [],
     description: '',
@@ -50,7 +66,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     notes: '',
     tags: [],
     priority: LaundryPriority?.NORMAL,
-  });
+  }));
 
   const [customTag, setCustomTag] = useState('');
   const [knownCustomTags, setKnownCustomTags] = useState([]); // reused, tenant-scoped
@@ -58,14 +74,14 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   const [errors, setErrors] = useState({});
 
   const [activeGuests, setActiveGuests] = useState([]);
-  const [guestSearchQuery, setGuestSearchQuery] = useState('');
+  const [guestSearchQuery, setGuestSearchQuery] = useState(() => (editItem && editItem.ownerType !== 'crew' ? (editItem.ownerDisplayName || editItem.ownerName || '') : ''));
   const [showGuestDropdown, setShowGuestDropdown] = useState(false);
   const [activeCrew, setActiveCrew] = useState([]);
-  const [crewSearchQuery, setCrewSearchQuery] = useState('');
+  const [crewSearchQuery, setCrewSearchQuery] = useState(() => (editItem && editItem.ownerType === 'crew' ? (editItem.ownerName || '') : ''));
   const [showCrewDropdown, setShowCrewDropdown] = useState(false);
 
   const [locations, setLocations] = useState([]);
-  const [locationQuery, setLocationQuery] = useState('');
+  const [locationQuery, setLocationQuery] = useState(() => (editItem ? (editItem.area || '') : ''));
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
 
   const isGuest = formData?.ownerType === OwnerType?.GUEST;
@@ -278,8 +294,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
     if (Object.keys(next).length) { setErrors(next); return; }
     setIsSubmitting(true);
     try {
-      const newItem = await createLaundryItem({
-        ownerType: formData?.ownerType,
+      const payload = {
         ownerName: formData?.ownerName,
         ownerGuestId: formData?.ownerGuestId,
         ownerCrewUserId: formData?.ownerCrewUserId,
@@ -293,8 +308,22 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
         priority: formData?.priority,
         tags: formData?.tags,
         notes: formData?.notes,
-      });
-      onSuccess?.(newItem);
+      };
+      let saved;
+      if (isEdit) {
+        const normalizedOwner = !isGuest ? 'crew' : (isUnknown ? 'unknown' : 'guest');
+        saved = await updateLaundryItem(editItem.id, {
+          ...payload,
+          ownerType: normalizedOwner,
+          photo: (formData?.photos || [])[0] || '',
+          // clear the opposite owner link when the type changed
+          ownerGuestId: isGuest ? formData?.ownerGuestId : null,
+          ownerCrewUserId: !isGuest ? formData?.ownerCrewUserId : null,
+        });
+      } else {
+        saved = await createLaundryItem({ ...payload, ownerType: formData?.ownerType });
+      }
+      onSuccess?.(saved);
       onClose?.();
     } catch (error) {
       console.error('Error creating laundry item:', error);
@@ -341,7 +370,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   return (
     <ModalShell onClose={onClose} panelClassName="alm-panel">
       <div className="alm-head">
-        <h2 className="alm-title">LAUNDRY, <em>log</em></h2>
+        <h2 className="alm-title">LAUNDRY, <em>{isEdit ? 'edit' : 'log'}</em></h2>
         <button className="alm-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
       </div>
 
@@ -560,7 +589,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
       <div className="alm-foot">
         <button type="button" className="alm-linkbtn" onClick={onClose}>Cancel</button>
         <button type="button" className="alm-btn primary" onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? 'Adding…' : 'Add to the wash'}
+          {isSubmitting ? 'Saving…' : (isEdit ? 'Save changes' : 'Add to the wash')}
         </button>
       </div>
     </ModalShell>
