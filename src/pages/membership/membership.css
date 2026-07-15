@@ -4,9 +4,9 @@
    SaaS billing surfaces present the active plan. */
 
 .mem-page {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 30px 48px 88px;
+  max-width: none;
+  margin: 0;
+  padding: 30px 40px 88px;
   font-family: 'Inter', system-ui, sans-serif;
 }
 
@@ -59,6 +59,7 @@
   color: #1C1B3A;
   margin: 0 0 12px;
 }
+.mem-meta .dot { color: #C65A1A; margin-right: 7px; font-size: 11px; }
 .mem-meta .muted { color: #695880; }
 .mem-meta .bar {
   display: inline-block;
@@ -115,27 +116,10 @@
 
 .mem-card-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
-}
-.mem-selected { display: inline-flex; align-items: center; gap: 9px; }
-.mem-check {
-  width: 22px; height: 22px;
-  border-radius: 999px;
-  background: #C65A1A;
-  color: #fff;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-.mem-selected-txt {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: #C65A1A;
+  margin-bottom: 2px;
 }
 .mem-status {
   font-size: 10px;
@@ -145,18 +129,21 @@
   padding: 4px 11px;
   border-radius: 999px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .mem-plan-name {
-  font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 30px;
-  line-height: 1.1;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  line-height: 1.2;
   color: #1C1B3A;
 }
-.mem-plan-name .dash { color: #AEB4C2; }
-.mem-price { margin-top: 8px; font-size: 16px; color: #1C1B3A; }
-.mem-price strong { font-size: 26px; font-weight: 700; }
-.mem-price .per { color: #8B8478; font-size: 15px; }
+.mem-plan-name .dash { color: #C9C6BD; font-weight: 400; margin: 0 2px; }
+.mem-price { margin-top: 6px; font-size: 15px; color: #1C1B3A; }
+.mem-price strong { font-size: 24px; font-weight: 800; }
+.mem-price .per { color: #8B8478; font-size: 14px; }
 
 .mem-card-hr { height: 1px; background: #F0F1F5; border: none; margin: 24px 0; }
 
