@@ -410,6 +410,30 @@ async function cancelSubscription(subscriptionId) {
 /* ─── Event handlers ──────────────────────────────────────────────────── */
 
 async function handleCheckoutCompleted(session) {
+  // Existing-tenant upgrade (free trial → paid) from /membership. No new tenant
+  // is provisioned — we just stamp the chosen plan onto the tenant we already
+  // have. This branch is taken only for sessions the upgrade function minted.
+  if (session.metadata?.upgrade === '1' && session.metadata?.tenant_id) {
+    const tId = session.metadata.tenant_id;
+    const res = await supaRest(`tenants?id=eq.${encodeURIComponent(tId)}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        stripe_customer_id: session.customer,
+        stripe_subscription_id: session.subscription,
+        subscription_status: 'active',
+        plan_tier: session.metadata?.pricing_tier || null,
+        billing_period: session.metadata?.billing_period || 'monthly',
+      }),
+    });
+    if (!res.ok) {
+      const b = await res.text();
+      throw new Error(`[checkout] upgrade patch failed for tenant ${tId}: ${res.status} ${b.slice(0, 200)}`);
+    }
+    console.log(`[checkout] upgraded tenant ${tId} → ${session.metadata?.pricing_tier} (${session.metadata?.billing_period})`);
+    return;
+  }
+
   const registrationId =
     session.client_reference_id || session.metadata?.vessel_registration_id;
   if (!registrationId) {

@@ -52,6 +52,18 @@ const Membership = () => {
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalMsg, setPortalMsg] = useState('');
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [selTier, setSelTier] = useState('under_40m');
+  const [selPeriod, setSelPeriod] = useState('monthly');
+  const [upgradeBusy, setUpgradeBusy] = useState(false);
+  const [banner, setBanner] = useState(null); // { tone, text }
+
+  // Returning from Stripe checkout (success / cancel).
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('upgraded') === '1') setBanner({ tone: 'ok', text: 'Payment received — your plan is being activated. It’ll show as Active here in a moment.' });
+    else if (p.get('cancelled') === '1') setBanner({ tone: 'warn', text: 'Checkout cancelled — no charge was made. You can pick a plan whenever you’re ready.' });
+    if (p.get('upgraded') || p.get('cancelled')) window.history.replaceState({}, '', window.location.pathname);
+  }, []);
 
   useEffect(() => { (async () => {
     try {
@@ -97,8 +109,33 @@ const Membership = () => {
     }
   };
 
+  // Start a Stripe Checkout to move this vessel onto a paid plan.
+  const startUpgrade = async () => {
+    if (upgradeBusy) return;
+    setUpgradeBusy(true); setPortalMsg('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/create-upgrade-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token || ''}` },
+        body: JSON.stringify({ tenant_id: tenantId, tier: selTier, billing_period: selPeriod }),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.error === 'already_active') { setBanner({ tone: 'warn', text: 'You’re already on a paid plan — use Manage billing to change it.' }); return; }
+      if (!res.ok || !data?.url) throw new Error(data?.error || 'failed');
+      window.location.href = data.url;
+    } catch (e) {
+      console.warn('[membership] upgrade failed', e);
+      setBanner({ tone: 'warn', text: 'Couldn’t start the upgrade just now — please try again.' });
+    } finally {
+      setUpgradeBusy(false);
+    }
+  };
+
   const tierInfo = plan.tier ? TIERS[plan.tier] : null;
   const st = STATUS[plan.status] || STATUS.trialing;
+  const isPaid = !!(plan.tier && plan.status === 'active');
 
   if (loading) {
     return (
@@ -129,6 +166,15 @@ const Membership = () => {
         <h1 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 32, color: '#1C1B3A', margin: '4px 0 24px', lineHeight: 1.1 }}>
           Your <em style={{ color: '#C65A1A' }}>plan</em>.
         </h1>
+
+        {banner && (
+          <div style={{
+            marginBottom: 18, borderRadius: 12, padding: '12px 15px', fontSize: 13.5, lineHeight: 1.5,
+            background: banner.tone === 'ok' ? '#E7F2EA' : '#FBEFD9',
+            border: `1px solid ${banner.tone === 'ok' ? '#CDE6D5' : '#F0DCB0'}`,
+            color: banner.tone === 'ok' ? '#2F6B43' : '#8A5A12',
+          }}>{banner.text}</div>
+        )}
 
         {/* Plan card — visible to everyone on the vessel */}
         <div style={{ ...card, marginBottom: 18 }}>
@@ -166,8 +212,63 @@ const Membership = () => {
           </ul>
         </div>
 
-        {/* Billing — vessel admin only */}
-        {isVesselAdmin ? (
+        {/* Choose a plan — vessel admin, not yet on a paid plan */}
+        {isVesselAdmin && !isPaid && (
+          <div style={{ ...card, marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div style={caps}>{plan.tier ? 'Change your plan' : 'Choose your plan'}</div>
+              {/* Monthly / annual toggle */}
+              <div style={{ display: 'inline-flex', background: '#F6F5F2', border: '1px solid #ECEAE3', borderRadius: 999, padding: 3 }}>
+                {[['monthly', 'Monthly'], ['annual', 'Annual']].map(([v, l]) => (
+                  <button key={v} type="button" onClick={() => setSelPeriod(v)}
+                    style={{ fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer', borderRadius: 999, padding: '5px 14px',
+                      background: selPeriod === v ? '#fff' : 'transparent', color: selPeriod === v ? '#1C1B3A' : '#8B8478',
+                      boxShadow: selPeriod === v ? '0 1px 2px rgba(28,27,58,0.12)' : 'none' }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <p style={{ fontSize: 13, color: '#8B8478', margin: '8px 0 16px', lineHeight: 1.5 }}>
+              Every crew member and app user is included — no per-seat fees. Pricing is by vessel length.
+            </p>
+
+            <div style={{ display: 'grid', gap: 10 }}>
+              {Object.entries(TIERS).map(([key, t]) => {
+                const on = selTier === key;
+                return (
+                  <button key={key} type="button" onClick={() => setSelTier(key)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textAlign: 'left', cursor: 'pointer',
+                      border: `1.5px solid ${on ? '#C65A1A' : '#ECEAE3'}`, background: on ? '#FBEFE9' : '#fff', borderRadius: 12, padding: '13px 15px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ width: 18, height: 18, borderRadius: 999, flex: 'none', border: `2px solid ${on ? '#C65A1A' : '#CBC9C0'}`, display: 'grid', placeItems: 'center' }}>
+                        {on && <span style={{ width: 8, height: 8, borderRadius: 999, background: '#C65A1A' }} />}
+                      </span>
+                      <span>
+                        <span style={{ display: 'block', fontSize: 14.5, fontWeight: 700, color: '#1C1B3A' }}>Cargo — {t.label}</span>
+                        <span style={{ display: 'block', fontSize: 12, color: '#8B8478', marginTop: 1 }}>{SUPPORT[key]}</span>
+                      </span>
+                    </span>
+                    <span style={{ flex: 'none', textAlign: 'right' }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: '#1C1B3A' }}>£{t.price}</span>
+                      <span style={{ fontSize: 12, color: '#8B8478' }}>/mo</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button type="button" onClick={startUpgrade} disabled={upgradeBusy}
+              style={{ marginTop: 16, width: '100%', fontSize: 14.5, fontWeight: 600, color: '#fff', background: '#C65A1A', border: 'none', borderRadius: 10, padding: '12px 16px', cursor: upgradeBusy ? 'default' : 'pointer', opacity: upgradeBusy ? 0.7 : 1 }}>
+              {upgradeBusy ? 'Starting secure checkout…' : `Continue to payment${selPeriod === 'annual' ? ' · billed annually' : ''}`}
+            </button>
+            <p style={{ fontSize: 12, color: '#AEB4C2', textAlign: 'center', margin: '10px 0 0', lineHeight: 1.5 }}>
+              Secure checkout powered by Stripe. Cancel anytime. The exact total (incl. any annual discount) is shown before you pay.
+            </p>
+          </div>
+        )}
+
+        {/* Billing management — admin on a paid plan. On trial the chooser above
+            is the action, so there's nothing to manage yet. */}
+        {isVesselAdmin && isPaid ? (
           <div style={card}>
             <div style={{ ...caps, marginBottom: 4 }}>Billing</div>
             <p style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6, margin: '0 0 16px' }}>
@@ -185,13 +286,13 @@ const Membership = () => {
             </div>
             {portalMsg && <p style={{ fontSize: 13, color: '#8B8478', marginTop: 12, lineHeight: 1.5 }}>{portalMsg}</p>}
           </div>
-        ) : (
+        ) : !isVesselAdmin ? (
           <div style={{ ...card, background: '#FAFAF8' }}>
             <div style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6 }}>
               Billing is managed by your vessel’s admin. You have full access as part of the vessel’s plan — every crew member and app user is included.
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Cancel — step-through confirmation, then Stripe's cancel flow */}
