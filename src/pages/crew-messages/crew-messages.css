@@ -1,11 +1,11 @@
 /* Crew supplier-messages — mirrors the supplier command-list, warm editorial palette. */
 .cm-page {
   --card: #FFFFFF;
-  --line: #ECEAE3;
+  --line: #E7EAF0;
   --hair: #F0F1F5;
-  --ground: #F6F5F2;
-  --bg: #FCFBF8;
-  --bg-2: #F1F0EC;
+  --ground: #F1F5F9;
+  --bg: #F8FAFC;
+  --bg-2: #EDF1F6;
   --fg: #1C1B3A;
   --navy: #1C1B3A;
   --navy-app: #3B4A6B;
@@ -24,7 +24,7 @@
   height: calc(100vh - 64px);
   box-sizing: border-box;
   padding: 74px 30px 22px;
-  background: #FCFBF8;
+  background: #F8FAFC;
   color: var(--fg);
   font-family: 'Inter', system-ui, sans-serif;
   display: flex;
