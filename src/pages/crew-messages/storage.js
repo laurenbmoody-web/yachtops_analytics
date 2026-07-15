@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabaseClient';
 export const fetchVesselThreads = async (tenantId) => {
   const { data, error } = await supabase
     .from('supplier_message_threads')
-    .select('*, supplier_profiles(id, name, logo_url)')
+    .select('*, supplier_profiles(id, name, logo_url), supplier_orders(id, list_id, provisioning_lists(id, title))')
     .eq('tenant_id', tenantId)
     .order('last_message_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
