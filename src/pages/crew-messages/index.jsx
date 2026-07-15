@@ -8,15 +8,23 @@ import {
 } from './storage';
 import './crew-messages.css';
 
-// Crew (vessel) side of supplier messaging — read + reply to your suppliers.
-// Two panes: your supplier conversations on the left, the thread + composer on
-// the right. Built in the Cargo editorial system (navy / terracotta / serif).
+// Crew (vessel) side of supplier messaging — mirrors the supplier command list:
+// suppliers group their conversations (one per order + a general one); Filter /
+// Sort dropdowns triage; the open conversation lifts out of a recessed list onto
+// a white card. Read + reply to your suppliers.
 
 const shortId = (id) => (id ? String(id).slice(0, 8).toUpperCase() : '—');
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 const supplierName = (t) => t?.supplier_profiles?.name || 'Supplier';
 const supplierLogo = (t) => t?.supplier_profiles?.logo_url || null;
 const threadLabel = (t) => (t?.order_id ? `Order #${shortId(t.order_id)}` : 'General');
+
+const AV_GRADS = [
+  ['#3E5C76', '#1E3A5F'], ['#5B6B8C', '#39415C'], ['#6B7A99', '#454E68'],
+  ['#2F6E8F', '#20405C'], ['#4B5D8A', '#2A2F52'], ['#527A8A', '#2E4A57'],
+];
+const hashId = (s = '') => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
+const avatarGrad = (id) => { const [a, b] = AV_GRADS[hashId(String(id)) % AV_GRADS.length]; return `linear-gradient(140deg, ${a}, ${b})`; };
 
 const fmtClock = (d) => (d ? new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
 const fmtWhen = (d) => {
@@ -26,11 +34,71 @@ const fmtWhen = (d) => {
   if (days === 1) return 'Yesterday';
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 };
+const fmtAge = (d) => {
+  if (!d) return '';
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
+};
 const dayLabel = (d) => {
   const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86400000);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   return new Date(d).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
+};
+
+// Crew quick-replies — useful openers for talking to a supplier.
+const QUICK = [
+  'Any update on this?',
+  'Confirmed, thank you 🙏',
+  'Can we adjust the delivery time?',
+];
+
+const FILTERS = [
+  { value: 'open', label: 'Open' },
+  { value: 'awaiting', label: 'Awaiting reply' },
+  { value: 'unread', label: 'Unread' },
+  { value: 'archived', label: 'Archived' },
+];
+const SORTS = [
+  { value: 'oldest', label: 'Oldest waiting' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'supplier', label: 'Supplier A–Z' },
+];
+
+// ── Dropdown ──────────────────────────────────────────────────────────────
+const Menu = ({ label, value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  return (
+    <div className={`msg-menu${open ? ' open' : ''}`} ref={ref}>
+      <button type="button" className="msg-menu-btn" onClick={() => setOpen((o) => !o)}>
+        <span className="msg-menu-label">{label}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <div className="msg-menu-pop" role="listbox">
+          {options.map((o) => (
+            <button key={o.value} type="button" role="option" aria-selected={o.value === value} className={`msg-menu-opt${o.value === value ? ' on' : ''}`} onClick={() => { onChange(o.value); setOpen(false); }}>
+              <span className="msg-menu-tick" aria-hidden="true">
+                {o.value === value && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+              </span>
+              <span className="msg-menu-opt-label">{o.label}</span>
+              {o.count != null && <span className="msg-menu-c">{o.count}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const CrewMessages = () => {
@@ -42,6 +110,10 @@ const CrewMessages = () => {
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('open');
+  const [sort, setSort] = useState('oldest');
+  const [collapsed, setCollapsed] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
@@ -61,7 +133,6 @@ const CrewMessages = () => {
     load().catch((e) => setError(e.message)).finally(() => setLoading(false));
   }, [activeTenantId, load]);
 
-  // Deep link ?threadId, else open the most recent.
   useEffect(() => {
     if (activeId || !threads.length) return;
     setActiveId(threadParam && threads.some((t) => t.id === threadParam) ? threadParam : threads[0].id);
@@ -78,7 +149,6 @@ const CrewMessages = () => {
     markThreadReadVessel(activeId).catch(() => {});
   }, [activeId]);
 
-  // Realtime — new messages in the open thread.
   useEffect(() => {
     if (!activeId) return;
     const ch = supabase
@@ -92,7 +162,6 @@ const CrewMessages = () => {
     return () => { supabase.removeChannel(ch); };
   }, [activeId]);
 
-  // Realtime — inbox changes for this vessel.
   useEffect(() => {
     if (!activeTenantId) return;
     const ch = supabase
@@ -106,8 +175,10 @@ const CrewMessages = () => {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, activeId]);
 
-  const totalUnread = useMemo(() => threads.reduce((s, t) => s + (t.id === activeId ? 0 : (t.vessel_unread_count || 0)), 0), [threads, activeId]);
-  const awaiting = useMemo(() => threads.filter((t) => t.last_sender_type === 'supplier').length, [threads]);
+  const totalUnread = useMemo(() => threads.reduce((s, t) => s + (t.id === activeId || t.archived_at ? 0 : (t.vessel_unread_count || 0)), 0), [threads, activeId]);
+  const awaiting = useMemo(() => threads.filter((t) => !t.archived_at && t.last_sender_type === 'supplier'), [threads]);
+  const awaitingReply = awaiting.length;
+  const oldestWaiting = useMemo(() => awaiting.reduce((acc, t) => (t.last_message_at && (!acc || t.last_message_at < acc) ? t.last_message_at : acc), null), [awaiting]);
 
   const send = async () => {
     const body = draft.trim();
@@ -122,8 +193,8 @@ const CrewMessages = () => {
     finally { setSending(false); }
   };
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
+  const quick = (text) => { setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text)); taRef.current?.focus(); };
 
-  // Render list: date dividers + grouping (same sender ≤5 min).
   const rendered = useMemo(() => {
     const out = [];
     let lastDay = null, lastSender = null, lastTime = 0;
@@ -138,14 +209,68 @@ const CrewMessages = () => {
     return out;
   }, [messages]);
 
-  const avatar = (t, cls = '') => {
-    const logo = supplierLogo(t);
-    return (
-      <span className={`cm-av${cls ? ` ${cls}` : ''}${logo ? ' has-logo' : ''}`}>
-        {logo ? <img src={logo} alt="" /> : initials(supplierName(t))}
-      </span>
-    );
-  };
+  const counts = useMemo(() => {
+    const nonArch = threads.filter((t) => !t.archived_at);
+    return {
+      open: nonArch.length,
+      awaiting: awaitingReply,
+      unread: nonArch.filter((t) => t.id !== activeId && (t.vessel_unread_count || 0) > 0).length,
+      archived: threads.filter((t) => t.archived_at).length,
+    };
+  }, [threads, awaitingReply, activeId]);
+
+  // Filter → search → group by supplier → sort.
+  const groups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const pass = (t) => {
+      if (filter === 'archived') { if (!t.archived_at) return false; }
+      else if (t.archived_at) return false;
+      if (filter === 'awaiting' && t.last_sender_type !== 'supplier') return false;
+      if (filter === 'unread' && !(t.id !== activeId && (t.vessel_unread_count || 0) > 0)) return false;
+      if (q && !(supplierName(t).toLowerCase().includes(q) || (t.last_message_preview || '').toLowerCase().includes(q))) return false;
+      return true;
+    };
+    const bySupplier = new Map();
+    for (const t of threads) {
+      if (!pass(t)) continue;
+      const key = t.supplier_id || t.supplier_profiles?.id || 'unknown';
+      if (!bySupplier.has(key)) bySupplier.set(key, []);
+      bySupplier.get(key).push(t);
+    }
+    const out = [];
+    for (const [supplierId, list] of bySupplier) {
+      list.sort((a, b) => new Date(b.last_message_at || b.created_at) - new Date(a.last_message_at || a.created_at));
+      const unread = list.reduce((s, t) => s + (t.id === activeId ? 0 : (t.vessel_unread_count || 0)), 0);
+      const waitList = list.filter((t) => t.last_sender_type === 'supplier');
+      const oldest = waitList.reduce((acc, t) => (t.last_message_at && (!acc || t.last_message_at < acc) ? t.last_message_at : acc), null);
+      const lastAt = list.reduce((acc, t) => { const v = t.last_message_at || t.created_at; return !acc || v > acc ? v : acc; }, null);
+      out.push({ supplierId, name: supplierName(list[0]), logo: supplierLogo(list[0]), threads: list, unread, awaiting: waitList.length, oldest, lastAt });
+    }
+    out.sort((a, b) => {
+      if (sort === 'supplier') return a.name.localeCompare(b.name);
+      if (sort === 'newest') return new Date(b.lastAt || 0) - new Date(a.lastAt || 0);
+      const ao = a.oldest ? new Date(a.oldest).getTime() : Infinity;
+      const bo = b.oldest ? new Date(b.oldest).getTime() : Infinity;
+      if (ao !== bo) return ao - bo;
+      return new Date(b.lastAt || 0) - new Date(a.lastAt || 0);
+    });
+    return out;
+  }, [threads, filter, sort, search, activeId]);
+
+  const totalVisible = useMemo(() => groups.reduce((s, g) => s + g.threads.length, 0), [groups]);
+  const toggleGroup = (id) => setCollapsed((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const emptyMsg = filter === 'awaiting' ? 'Nothing awaiting your reply.'
+    : filter === 'unread' ? 'Nothing unread.'
+    : filter === 'archived' ? 'No archived conversations.'
+    : search.trim() ? 'No matches.'
+    : 'No conversations yet.';
+
+  const avatar = (id, name, logo, cls = '') => (
+    <span className={`msg-boat${cls ? ` ${cls}` : ''}${logo ? ' has-logo' : ''}`} style={logo ? undefined : { background: avatarGrad(id) }}>
+      {logo ? <img src={logo} alt="" /> : initials(name)}
+    </span>
+  );
 
   return (
     <>
@@ -155,84 +280,134 @@ const CrewMessages = () => {
           <div className="cm-head">
             <p className="editorial-meta" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
               <span className="dot">●</span>
-              {awaiting > 0 ? (
+              {awaitingReply > 0 ? (
                 <>
-                  <span style={{ color: '#C65A1A', fontWeight: 600 }}>{awaiting} awaiting your reply</span>
+                  <span style={{ color: '#C65A1A', fontWeight: 600 }}>{awaitingReply} awaiting your reply</span>
+                  {oldestWaiting && <><span className="bar" /><span className="muted">oldest {fmtAge(oldestWaiting)} ago</span></>}
                   {totalUnread > 0 && <><span className="bar" /><span className="muted">{totalUnread} unread</span></>}
                 </>
               ) : (
                 <>
                   <span>All caught up</span>
-                  <span className="bar" /><span className="muted">{threads.length} conversation{threads.length === 1 ? '' : 's'}</span>
+                  <span className="bar" /><span className="muted">{counts.open} conversation{counts.open === 1 ? '' : 's'}</span>
+                  {totalUnread > 0 && <><span className="bar" /><span className="muted">{totalUnread} unread</span></>}
                 </>
               )}
             </p>
-            <h1 className="editorial-greeting cm-title">SUPPLIER <em>messages</em></h1>
+            <h1 className="editorial-greeting cm-title">SUPPLIER<span className="period">,</span> <em>messages</em></h1>
           </div>
 
           {error && <div className="cm-error">{error}</div>}
 
           {loading ? (
-            <div className="cm-empty" style={{ padding: '60px 0' }}>Loading messages…</div>
+            <div style={{ textAlign: 'center', padding: '60px 0', color: '#8B8478', fontSize: 13 }}>Loading messages…</div>
           ) : threads.length === 0 ? (
             <div className="cm-blank-page">
               <div className="cm-blank-ico">💬</div>
-              <div className="cm-blank-title">No supplier messages yet</div>
-              <div className="cm-blank-sub">When a supplier messages your vessel, the conversation will appear here for the crew to answer.</div>
+              <div className="cm-blank-t">No supplier messages yet</div>
+              <div className="cm-blank-s">When a supplier messages your vessel, the conversation appears here for the crew to answer.</div>
             </div>
           ) : (
-            <div className="cm-shell">
-              <div className="cm-list">
-                {threads.map((t) => {
-                  const unread = t.id === activeId ? 0 : (t.vessel_unread_count || 0);
-                  return (
-                    <button key={t.id} type="button" className={`cm-row${t.id === activeId ? ' on' : ''}`} onClick={() => setActiveId(t.id)}>
-                      {avatar(t)}
-                      <span className="cm-row-main">
-                        <span className="cm-row-top">
-                          {unread > 0 && <span className="cm-dot" />}
-                          <span className="cm-row-name">{supplierName(t)}</span>
-                          <span className="cm-row-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
-                        </span>
-                        <span className="cm-row-label">{threadLabel(t)}</span>
-                        <span className={`cm-row-prev${unread > 0 ? ' unread' : ''}`}>
-                          {t.last_message_preview ? `${t.last_sender_type === 'vessel' ? 'You: ' : ''}${t.last_message_preview}` : 'No messages yet'}
-                        </span>
-                      </span>
-                      {unread > 0 && <span className="cm-row-un">{unread}</span>}
-                    </button>
-                  );
-                })}
+            <div className="msg-shell">
+              {/* Command list */}
+              <div className="msg-list-col">
+                <div className="msg-toolbar">
+                  <Menu label="Filter" value={filter} options={FILTERS.map((f) => ({ ...f, count: counts[f.value] }))} onChange={setFilter} />
+                  <Menu label="Sort" value={sort} options={SORTS} onChange={setSort} />
+                  <div className="msg-search">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                    <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" />
+                  </div>
+                </div>
+
+                <div className="msg-list">
+                  {groups.map((g) => {
+                    const isCollapsed = collapsed.has(g.supplierId);
+                    return (
+                      <div key={g.supplierId} className="msg-grp">
+                        <button type="button" className="msg-grp-head" onClick={() => toggleGroup(g.supplierId)}>
+                          <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                          </span>
+                          {avatar(g.supplierId, g.name, g.logo)}
+                          {g.unread > 0 && <span className="msg-grp-dot" title={`${g.unread} new message${g.unread === 1 ? '' : 's'} received`} />}
+                          <span className="msg-grp-name">{g.name}</span>
+                          <span className="msg-grp-meta">
+                            {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
+                            {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : <span className="msg-grp-count">{g.threads.length}</span>}
+                          </span>
+                        </button>
+                        {!isCollapsed && g.threads.map((t) => {
+                          const unread = t.id === activeId ? 0 : (t.vessel_unread_count || 0);
+                          const waiting = t.last_sender_type === 'supplier';
+                          return (
+                            <div key={t.id} className="msg-sw">
+                              <div
+                                className={`msg-sw-fg${t.id === activeId ? ' on' : ''}${unread > 0 ? ' unread' : ''}${t.archived_at ? ' arch' : ''}`}
+                                role="button" tabIndex={0}
+                                onClick={() => setActiveId(t.id)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveId(t.id); } }}
+                              >
+                                <span className="msg-row-main">
+                                  <span className="msg-row-top">
+                                    {unread > 0 && <span className="msg-row-dot" title="New message received" />}
+                                    <span className="msg-row-label">{threadLabel(t)}</span>
+                                    <span className="msg-row-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
+                                  </span>
+                                  <span className="msg-row-prev">
+                                    {t.last_message_preview ? `${t.last_sender_type === 'vessel' ? 'You: ' : ''}${t.last_message_preview}` : 'No messages yet'}
+                                  </span>
+                                </span>
+                                {unread > 0 && <span className="msg-row-un">{unread}</span>}
+                                {waiting && unread === 0 && <span className="msg-row-wait" title="Awaiting your reply">{fmtAge(t.last_message_at)}</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                  {totalVisible === 0 && <div className="msg-empty" style={{ padding: '28px 14px' }}>{emptyMsg}</div>}
+                </div>
               </div>
 
-              <div className="cm-convo">
+              {/* Conversation */}
+              <div className="msg-convo">
                 {activeThread ? (
                   <>
-                    <div className="cm-convo-head">
-                      {avatar(activeThread, 'lg')}
-                      <div className="cm-convo-id">
-                        <div className="cm-convo-name">{supplierName(activeThread)}</div>
-                        <div className="cm-convo-sub">{threadLabel(activeThread)}</div>
+                    <div className="msg-convo-head">
+                      {avatar(activeThread.supplier_id || activeThread.supplier_profiles?.id, supplierName(activeThread), supplierLogo(activeThread), 'lg')}
+                      <div className="msg-convo-id">
+                        <div className="msg-convo-name" style={{ cursor: 'default' }}>{supplierName(activeThread)}</div>
+                        <div className="msg-convo-sub"><span className="msg-convo-tag">{threadLabel(activeThread)}</span></div>
                       </div>
                     </div>
 
-                    <div className="cm-stream">
+                    <div className="msg-stream">
                       {rendered.length === 0 ? (
-                        <div className="cm-blank">
-                          {avatar(activeThread, 'xl')}
-                          <div className="cm-blank-title">Message {supplierName(activeThread)}</div>
-                          <div className="cm-blank-sub">Ask a question, confirm an order, or reply — they’ll get it straight away.</div>
+                        <div className="msg-blank">
+                          {(() => {
+                            const id = activeThread.supplier_id || activeThread.supplier_profiles?.id;
+                            const logo = supplierLogo(activeThread);
+                            return (
+                              <div className={`msg-blank-av${logo ? ' has-logo' : ''}`} style={logo ? undefined : { background: avatarGrad(id) }}>
+                                {logo ? <img src={logo} alt="" /> : initials(supplierName(activeThread))}
+                              </div>
+                            );
+                          })()}
+                          <div className="msg-blank-title">Message {supplierName(activeThread)}</div>
+                          <div className="msg-blank-sub">Ask a question, confirm an order, or reply — they’ll get it straight away.</div>
                         </div>
                       ) : rendered.map((r) => r.kind === 'divider' ? (
-                        <div key={r.id} className="cm-daysep"><span>{dayLabel(r.at)}</span></div>
+                        <div key={r.id} className="msg-daysep"><span>{dayLabel(r.at)}</span></div>
                       ) : (
-                        <div key={r.msg.id} className={`cm-mrow ${r.msg.sender_type === 'vessel' ? 'me' : 'them'}${r.grouped ? ' grouped' : ''}`}>
-                          <div className="cm-bubble">
+                        <div key={r.msg.id} className={`msg-row ${r.msg.sender_type === 'vessel' ? 'me' : 'them'}${r.grouped ? ' grouped' : ''}`}>
+                          <div className="msg-bubble">
                             {r.msg.body}
-                            <span className="cm-time">
+                            <span className="msg-time">
                               {fmtClock(r.msg.created_at)}
                               {r.msg.sender_type === 'vessel' && (
-                                <span className={`cm-tick${activeThread?.supplier_last_read_at && new Date(activeThread.supplier_last_read_at) >= new Date(r.msg.created_at) ? ' read' : ''}`}>
+                                <span className={`msg-tick${activeThread?.supplier_last_read_at && new Date(activeThread.supplier_last_read_at) >= new Date(r.msg.created_at) ? ' read' : ''}`}>
                                   {activeThread?.supplier_last_read_at && new Date(activeThread.supplier_last_read_at) >= new Date(r.msg.created_at) ? '✓✓' : '✓'}
                                 </span>
                               )}
@@ -243,13 +418,20 @@ const CrewMessages = () => {
                       <div ref={endRef} />
                     </div>
 
-                    <div className="cm-composer">
-                      <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} placeholder={`Reply to ${supplierName(activeThread)}…  (Enter to send · Shift+Enter for a new line)`} rows={2} />
-                      <button type="button" className="cm-send" disabled={!draft.trim() || sending} onClick={send}>{sending ? 'Sending…' : 'Send'}</button>
+                    <div className="msg-foot">
+                      <div className="msg-quick">
+                        {QUICK.map((q) => (
+                          <button key={q} type="button" className="msg-qchip" onClick={() => quick(q)}>{q}</button>
+                        ))}
+                      </div>
+                      <div className="msg-composer">
+                        <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} placeholder={`Reply to ${supplierName(activeThread)}…  (Enter to send · Shift+Enter for a new line)`} rows={2} />
+                        <button type="button" className="msg-send" disabled={!draft.trim() || sending} onClick={send}>{sending ? 'Sending…' : 'Send'}</button>
+                      </div>
                     </div>
                   </>
                 ) : (
-                  <div className="cm-empty" style={{ margin: 'auto' }}>Pick a conversation on the left.</div>
+                  <div className="msg-empty" style={{ margin: 'auto' }}>Pick a conversation on the left.</div>
                 )}
               </div>
             </div>
