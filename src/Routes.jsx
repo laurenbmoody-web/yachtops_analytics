@@ -108,6 +108,7 @@ const SupplierRadar      = lazyWithRetry(() => import('./pages/supplier-portal/v
 const SupplierMessages   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierMessages'));
 const SupplierReturns    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierReturns'));
 const CertReviewConsole  = lazyWithRetry(() => import('./pages/cargo-console/CertReviewConsole'));
+const CrewMessages       = lazyWithRetry(() => import('./pages/crew-messages'));
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
@@ -1402,6 +1403,7 @@ const Routes = () => {
 
         {/* Provisioning Routes */}
         <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><CrewMessages /></ProtectedRoute>} />
         {/* Phase 2 — marketplace. Static segment declared before
             /provisioning/:id so 'marketplace' is never read as a board id. */}
         <Route path="/provisioning/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
