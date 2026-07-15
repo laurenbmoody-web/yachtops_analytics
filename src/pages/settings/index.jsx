@@ -154,6 +154,7 @@ const SettingsPage = () => {
   const [tzOpen, setTzOpen] = useState(false);
   const [tzSearch, setTzSearch] = useState('');
   const [acct, setAcct] = useState({ name: '', email: '', avatarUrl: '', tenant: '' });
+  const [planInfo, setPlanInfo] = useState({ tier: null, status: null });
   const [notifEmail, setNotifEmail] = useState('');
   const [savedNotifEmail, setSavedNotifEmail] = useState('');
   const [pendingReq, setPendingReq] = useState(null);
@@ -643,7 +644,11 @@ const SettingsPage = () => {
           if (p) { name = p.full_name || name; avatarUrl = p.avatar_url || avatarUrl; }
         }
         const tid = localStorage.getItem('cargo_active_tenant_id');
-        if (tid) { const { data: tn } = await supabase.from('tenants').select('name').eq('id', tid).single(); if (tn?.name) tenant = tn.name; }
+        if (tid) {
+          const { data: tn } = await supabase.from('tenants').select('name, plan_tier, subscription_status').eq('id', tid).single();
+          if (tn?.name) tenant = tn.name;
+          if (!cancelled) setPlanInfo({ tier: tn?.plan_tier || null, status: tn?.subscription_status || null });
+        }
         if (uid && tid) {
           const { data: ne } = await supabase.from('crew_notification_emails').select('email').eq('user_id', uid).eq('tenant_id', tid).maybeSingle();
           if (!cancelled && ne?.email) { setNotifEmail(ne.email); setSavedNotifEmail(ne.email); }
@@ -670,6 +675,23 @@ const SettingsPage = () => {
     ''
   ).toUpperCase().trim();
   const currentTierLabel = currentTierRaw ? getTierDisplayName(currentTierRaw) : '';
+
+  // The "Current plan" row shows the vessel's actual billing plan (by length),
+  // not the viewer's permission tier. Source of truth: tenants.plan_tier /
+  // subscription_status (mirrored from Stripe by the webhook).
+  const PLAN_TIER_LABELS = { under_40m: 'Under 40m', '40_80m': '40 – 80m', over_80m: 'Over 80m' };
+  const planTierLabel = planInfo.tier ? (PLAN_TIER_LABELS[planInfo.tier] || planInfo.tier) : '';
+  const planChip = (() => {
+    switch (planInfo.status) {
+      case 'active': return { cls: 'ok', label: 'Active' };
+      case 'trialing': return { cls: 'ok', label: 'Trial' };
+      case 'past_due':
+      case 'incomplete':
+      case 'incomplete_expired': return { cls: 'warn', label: 'Payment due' };
+      case 'canceled': return { cls: 'off', label: 'Cancelled' };
+      default: return { cls: 'ok', label: 'Active' };
+    }
+  })();
 
   const timezones = [
     { value: 'UTC', label: 'UTC — Coordinated Universal Time', offset: '+00:00' },
@@ -1041,7 +1063,7 @@ const SettingsPage = () => {
             <p className="set-hsub">Your plan and billing.</p>
             <Group>
               {activeTenantId ? (
-                <RowNav label="Current plan" desc={currentTierLabel ? `Cargo — ${currentTierLabel} seat` : 'Cargo — active membership'} chip={<span className="set-chip ok">Active</span>} onClick={() => navigate('/membership')} />
+                <RowNav label="Current plan" desc={planTierLabel ? `Cargo — ${planTierLabel}` : 'Cargo — active membership'} chip={<span className={`set-chip ${planChip.cls}`}>{planChip.label}</span>} onClick={() => navigate('/membership')} />
               ) : (
                 <div className="set-r">
                   <RMain label="Current plan" desc="You’re not on a vessel — your account and personal record travel with you until you join one." />
