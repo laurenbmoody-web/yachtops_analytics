@@ -9,6 +9,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from '../layers';
 import PinPayload from './PinPayload';
 import PinItems from './PinItems';
+import DefectPin from './DefectPin';
 import { uploadInteriorPhoto } from '../utils/photoUpload';
 
 // The container's "inside" — prompt to photograph the interior, then (next
@@ -270,9 +271,19 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
             {placingItem && !layerHoldsStock(shown.layer) && (
               <p className="vm-pinitems-note">This pin type doesn’t hold stock — pick an <strong>Inventory</strong> or <strong>Safety</strong> pin.</p>
             )}
+            {/* Defect pins get the actionable defect drawer. */}
+            {shown.layer === 'defect' && !placingItem && (
+              <DefectPin
+                hotspot={shown}
+                canManage={canManage}
+                scanName={scanName}
+                containerTrail={containerTrail}
+                onChanged={onDetailSaved}
+              />
+            )}
             {/* Pin metadata — quiet, out of the way at the foot of the tab. The
-                divider only makes sense when there's a "What's inside" above it. */}
-            <div className={`vm-insp-meta${layerHoldsStock(shown.layer) ? '' : ' vm-insp-meta-flush'}`}>
+                divider only makes sense when there's real content above it. */}
+            <div className={`vm-insp-meta${(layerHoldsStock(shown.layer) || shown.layer === 'defect') ? '' : ' vm-insp-meta-flush'}`}>
               <span className="vm-insp-meta-item">Added {fmtDate(shown.created_at)}</span>
               {creatorName && <span className="vm-insp-meta-item">by {creatorName}</span>}
             </div>
