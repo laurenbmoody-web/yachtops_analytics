@@ -819,6 +819,7 @@ const Header = () => {
                       {
                         label: 'Operations',
                         items: [
+                          { show: true, icon: 'MessageSquare', label: 'Supplier Messages', path: '/messages', onClick: () => handleNavigation('/messages', 'Supplier Messages') },
                           { show: isCommandRole, icon: 'UserCheck', label: 'Guest Management', path: '/guest-management-dashboard', onClick: () => handleNavigation('/guest-management-dashboard', 'Guest Management') },
                           { show: isCommandRole || isChiefRole || isHODRole, icon: 'Calendar', label: 'Trips', path: '/trips-management-dashboard', onClick: () => handleNavigation('/trips-management-dashboard', 'Trips') },
                           { show: isCommandRole || isChiefRole || isHODRole, icon: 'Heart', label: 'Preferences', path: '/preferences', onClick: () => handleNavigation('/preferences', 'Preferences') },

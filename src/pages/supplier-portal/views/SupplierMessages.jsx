@@ -181,7 +181,8 @@ const ThreadRow = ({ t, active, onSelect, onArchive, onDelete, onContact }) => {
       >
         <span className="msg-row-main">
           <span className="msg-row-top">
-            <span className={`msg-row-label${waiting ? ' await' : ''}${unread > 0 ? ' unrd' : ''}`}>{threadLabel(t)}</span>
+            {unread > 0 && <span className="msg-row-dot" title="New message received" />}
+            <span className={`msg-row-label${waiting ? ' await' : ''}`}>{threadLabel(t)}</span>
             <span className="msg-row-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
           </span>
           <span className="msg-row-prev">
