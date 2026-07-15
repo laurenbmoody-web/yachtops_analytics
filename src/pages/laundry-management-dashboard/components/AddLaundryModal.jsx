@@ -341,7 +341,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   return (
     <ModalShell onClose={onClose} panelClassName="alm-panel">
       <div className="alm-head">
-        <h2 className="alm-title">LAUNDRY, <em>log</em>.</h2>
+        <h2 className="alm-title">LAUNDRY, <em>log</em></h2>
         <button className="alm-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
       </div>
 
