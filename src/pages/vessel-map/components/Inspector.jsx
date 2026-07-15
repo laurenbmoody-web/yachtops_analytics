@@ -2,8 +2,8 @@
 // variant keeps its floating card). Slides in over 240ms ease-out on pin
 // selection, slides away on deselect/Escape. Every pin carries the same
 // four rooms — Details / Notes / List / Photos — regardless of layer:
-// payloads live on pins, not on the rail. Notes/List/Photos ship as
-// furnished-next-update rooms; Details is live.
+// payloads live on pins, not on the rail. All four are live: Details here,
+// Notes / List / Photos in PinPayload (notes, checklist, photo gallery).
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from '../layers';
