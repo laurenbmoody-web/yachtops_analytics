@@ -3723,3 +3723,36 @@
   #sp-root .msg-list-col { max-height: 300px; }
   #sp-root .msg-convo { height: 62vh; }
 }
+
+/* ── Message quotes (structured, acceptable) ─────────────────────────────── */
+#sp-root .msg-quotecard { max-width: 84%; min-width: 244px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 10px; box-shadow: var(--sh1); }
+#sp-root .msg-qc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+#sp-root .msg-qc-badge { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--orange); }
+#sp-root .msg-qc-status { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; }
+#sp-root .msg-qc-status.pending { background: #FBEFD9; color: #8A5A12; }
+#sp-root .msg-qc-status.accepted { background: #E7F2EA; color: #2F6B43; }
+#sp-root .msg-qc-status.declined { background: var(--bg-2); color: var(--muted-strong); }
+#sp-root .msg-qc-items { display: flex; flex-direction: column; gap: 6px; }
+#sp-root .msg-qc-item { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
+#sp-root .msg-qc-name { color: var(--fg); min-width: 0; }
+#sp-root .msg-qc-price { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; flex: none; }
+#sp-root .msg-qc-total { display: flex; align-items: baseline; justify-content: space-between; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line); font-size: 13.5px; font-weight: 700; color: var(--fg); }
+#sp-root .msg-qc-note { font-size: 12px; color: var(--muted-strong); line-height: 1.45; margin-top: 9px; white-space: pre-wrap; }
+#sp-root .msg-qc-actions { display: flex; gap: 8px; margin-top: 12px; }
+#sp-root .msg-qc-accept { flex: 1; background: var(--orange); color: #fff; border: 0; border-radius: 9px; padding: 9px 12px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+#sp-root .msg-qc-accept:disabled { opacity: 0.6; cursor: default; }
+#sp-root .msg-qc-decline { background: var(--card); color: var(--muted-strong); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+#sp-root .msg-qc-decline:hover { border-color: var(--red); color: var(--red); }
+#sp-root .msg-quotecard .msg-time { display: block; margin-top: 6px; }
+
+#sp-root .msg-sysnote { display: flex; justify-content: center; margin: 12px 0; }
+#sp-root .msg-sysnote span { font-size: 11.5px; color: var(--muted-strong); background: var(--bg-2); border-radius: 999px; padding: 5px 13px; }
+
+#sp-root .msg-qreview { border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: var(--sh1); padding: 12px 14px; margin-bottom: 11px; }
+#sp-root .msg-qreview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+#sp-root .msg-qreview-x { background: none; border: 0; color: var(--muted); font-size: 13px; cursor: pointer; }
+#sp-root .msg-qreview-actions { display: flex; gap: 8px; margin-top: 12px; }
+#sp-root .msg-qreview-send { flex: 1; background: var(--orange); color: #fff; border: 0; border-radius: 9px; padding: 9px 12px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+#sp-root .msg-qreview-send:disabled { opacity: 0.6; cursor: default; }
+#sp-root .msg-qreview-cancel { background: var(--card); color: var(--muted-strong); border: 1px solid var(--line); border-radius: 9px; padding: 9px 14px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+#sp-root .msg-qreview-hint { font-size: 11px; color: var(--muted); margin-top: 8px; text-align: center; }

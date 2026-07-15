@@ -5,7 +5,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import {
   fetchVesselThreads, fetchThreadMessages, sendVesselMessage, markThreadReadVessel,
-  markThreadNotificationsRead,
+  markThreadNotificationsRead, acceptQuote, declineQuote,
 } from './storage';
 import './crew-messages.css';
 
@@ -15,6 +15,7 @@ import './crew-messages.css';
 // a white card. Read + reply to your suppliers.
 
 const shortId = (id) => (id ? String(id).slice(0, 8).toUpperCase() : '—');
+const fmtMoney0 = (a, cur = 'EUR') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur || 'EUR', maximumFractionDigits: 0 }).format(a || 0);
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 const supplierName = (t) => t?.supplier_profiles?.name || 'Supplier';
 const supplierLogo = (t) => t?.supplier_profiles?.logo_url || null;
@@ -117,6 +118,7 @@ const CrewMessages = () => {
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [quoteBusy, setQuoteBusy] = useState(null);
   const [error, setError] = useState(null);
   const endRef = useRef(null);
   const streamRef = useRef(null);
@@ -199,6 +201,22 @@ const CrewMessages = () => {
   };
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (text) => { setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text)); taRef.current?.focus(); };
+
+  const resolveQuote = async (id, accept) => {
+    if (quoteBusy) return;
+    setQuoteBusy(id);
+    setError(null);
+    try {
+      if (accept) await acceptQuote(id); else await declineQuote(id);
+      const msgs = await fetchThreadMessages(activeId);
+      setMessages(msgs);
+      load();
+    } catch (e) {
+      setError(e.message?.includes('no_order')
+        ? 'This conversation isn’t linked to an order yet — start from an order to add items.'
+        : (e.message || 'Couldn’t update the quote.'));
+    } finally { setQuoteBusy(null); }
+  };
 
   const rendered = useMemo(() => {
     const out = [];
@@ -402,23 +420,51 @@ const CrewMessages = () => {
                           <div className="msg-blank-title">Message {supplierName(activeThread)}</div>
                           <div className="msg-blank-sub">Ask a question, confirm an order, or reply — they’ll get it straight away.</div>
                         </div>
-                      ) : rendered.map((r) => r.kind === 'divider' ? (
-                        <div key={r.id} className="msg-daysep"><span>{dayLabel(r.at)}</span></div>
-                      ) : (
-                        <div key={r.msg.id} className={`msg-row ${r.msg.sender_type === 'vessel' ? 'me' : 'them'}${r.grouped ? ' grouped' : ''}`}>
-                          <div className="msg-bubble">
-                            {r.msg.body}
-                            <span className="msg-time">
-                              {fmtClock(r.msg.created_at)}
-                              {r.msg.sender_type === 'vessel' && (
-                                <span className={`msg-tick${activeThread?.supplier_last_read_at && new Date(activeThread.supplier_last_read_at) >= new Date(r.msg.created_at) ? ' read' : ''}`}>
-                                  {activeThread?.supplier_last_read_at && new Date(activeThread.supplier_last_read_at) >= new Date(r.msg.created_at) ? '✓✓' : '✓'}
-                                </span>
-                              )}
-                            </span>
+                      ) : rendered.map((r) => {
+                        if (r.kind === 'divider') return <div key={r.id} className="msg-daysep"><span>{dayLabel(r.at)}</span></div>;
+                        const m = r.msg;
+                        const read = activeThread?.supplier_last_read_at && new Date(activeThread.supplier_last_read_at) >= new Date(m.created_at);
+                        const tick = m.sender_type === 'vessel' ? <span className={`msg-tick${read ? ' read' : ''}`}>{read ? '✓✓' : '✓'}</span> : null;
+                        if (m.kind === 'system') return <div key={m.id} className="msg-sysnote"><span>{m.body}</span></div>;
+                        if (m.kind === 'quote') {
+                          const q = m.quote || {};
+                          const items = Array.isArray(q.items) ? q.items : [];
+                          const status = m.quote_status || 'pending';
+                          return (
+                            <div key={m.id} className={`msg-row ${m.sender_type === 'vessel' ? 'me' : 'them'}`}>
+                              <div className="msg-quotecard">
+                                <div className="msg-qc-head"><span className="msg-qc-badge">✦ Quote</span><span className={`msg-qc-status ${status}`}>{status}</span></div>
+                                <div className="msg-qc-items">
+                                  {items.map((it, i) => (
+                                    <div key={i} className="msg-qc-item">
+                                      <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>
+                                      <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || q.currency) : '—'}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney0(q.total, q.currency)}</span></div>}
+                                {m.body && <div className="msg-qc-note">{m.body}</div>}
+                                {status === 'pending' && m.sender_type === 'supplier' ? (
+                                  <div className="msg-qc-actions">
+                                    <button type="button" className="msg-qc-decline" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, false)}>Decline</button>
+                                    <button type="button" className="msg-qc-accept" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, true)}>{quoteBusy === m.id ? 'Adding…' : 'Accept & add to order'}</button>
+                                  </div>
+                                ) : (
+                                  <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={m.id} className={`msg-row ${m.sender_type === 'vessel' ? 'me' : 'them'}${r.grouped ? ' grouped' : ''}`}>
+                            <div className="msg-bubble">
+                              {m.body}
+                              <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       <div ref={endRef} />
                     </div>
 

@@ -45,6 +45,20 @@ export const markThreadReadVessel = async (threadId) => {
   if (error) throw error;
 };
 
+// Accept a supplier quote — adds its line items to the order (RPC, gated to
+// vessel members). Returns the order id.
+export const acceptQuote = async (messageId) => {
+  const { data, error } = await supabase.rpc('accept_supplier_quote', { p_message_id: messageId });
+  if (error) throw error;
+  return data;
+};
+
+// Decline a supplier quote.
+export const declineQuote = async (messageId) => {
+  const { error } = await supabase.rpc('decline_supplier_quote', { p_message_id: messageId });
+  if (error) throw error;
+};
+
 // Clear any bell notifications for this thread once the crew opens it, so the
 // header badge and the inbox stay in sync with the conversation's read state.
 export const markThreadNotificationsRead = async (threadId) => {
