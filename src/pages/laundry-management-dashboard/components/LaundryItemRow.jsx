@@ -24,8 +24,9 @@ const fmtAgo = (iso) => {
   return `${Math.floor(hrs / 24)} d ago`;
 };
 
-const LaundryItemRow = ({ item, onUpdate }) => {
-  const handleStatusUpdate = async (newStatus) => {
+const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
+  const handleStatusUpdate = async (e, newStatus) => {
+    e?.stopPropagation?.();
     await updateLaundryStatus(item?.id, newStatus);
     onUpdate?.();
   };
@@ -37,7 +38,13 @@ const LaundryItemRow = ({ item, onUpdate }) => {
   const avInitials = kind === 'unknown' ? '?' : initials(item?.ownerName || item?.ownerDisplayName);
 
   return (
-    <div className={`lr-row ${step.cls}${urgent ? ' urgent' : ''}`}>
+    <div
+      className={`lr-row ${step.cls}${urgent ? ' urgent' : ''}`}
+      role="button" tabIndex={0}
+      onClick={() => onOpen?.(item)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen?.(item); } }}
+      style={{ cursor: onOpen ? 'pointer' : undefined }}
+    >
       {/* photo */}
       <span className="lr-thumb">
         {photos[0] ? <img src={photos[0]} alt={item?.description || 'Laundry item'} /> : <Icon name="Shirt" size={24} className="lr-ph-ic" />}
@@ -75,12 +82,12 @@ const LaundryItemRow = ({ item, onUpdate }) => {
         </div>
         <span className="lr-when">{item?.status === LaundryStatus?.DELIVERED ? fmtAgo(item?.deliveredAt) : fmtAgo(item?.createdAt)}</span>
         {item?.status === LaundryStatus?.IN_PROGRESS && (
-          <button type="button" className="lr-act go" onClick={() => handleStatusUpdate(LaundryStatus?.READY_TO_DELIVER)}>
+          <button type="button" className="lr-act go" onClick={(e) => handleStatusUpdate(e, LaundryStatus?.READY_TO_DELIVER)}>
             <Icon name="Check" size={14} /> Mark ready
           </button>
         )}
         {item?.status === LaundryStatus?.READY_TO_DELIVER && (
-          <button type="button" className="lr-act go" onClick={() => handleStatusUpdate(LaundryStatus?.DELIVERED)}>
+          <button type="button" className="lr-act go" onClick={(e) => handleStatusUpdate(e, LaundryStatus?.DELIVERED)}>
             <Icon name="ArrowRight" size={14} /> Deliver
           </button>
         )}

@@ -5,6 +5,7 @@ import Header from '../../components/navigation/Header';
 import AddLaundryModal from './components/AddLaundryModal';
 import LaundryItemRow from './components/LaundryItemRow';
 import CabinView from './components/CabinView';
+import LaundryDetailModal from './components/LaundryDetailModal';
 import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay } from './utils/laundryStorage';
 import { turnaroundStats, fmtDur } from './utils/laundryStats';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
@@ -135,10 +136,12 @@ const LaundryManagementDashboard = () => {
   const [tripId, setTripId] = useState(null);
   const [ownerFilter, setOwnerFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [urgentOnly, setUrgentOnly] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
   const [trip, setTrip] = useState(null);
   const [showResetModal, setShowResetModal] = useState(false);
   const [allItems, setAllItems] = useState([]);
+  const [detailItem, setDetailItem] = useState(null);
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('laundryViewMode') === 'cabin' ? 'cabin' : 'list'; } catch { return 'list'; }
   });
@@ -192,6 +195,9 @@ const LaundryManagementDashboard = () => {
       };
       filtered = filtered?.filter((item) => item?.status === statusMap?.[statusFilter]);
     }
+    if (urgentOnly) {
+      filtered = filtered?.filter((item) => item?.priority === LaundryPriority?.URGENT && item?.status !== LaundryStatus?.DELIVERED);
+    }
     if (ownerFilter !== 'All') {
       filtered = filtered?.filter((item) => item?.ownerType?.toLowerCase() === ownerFilter?.toLowerCase());
     }
@@ -219,7 +225,7 @@ const LaundryManagementDashboard = () => {
       return sortBy === 'oldest' ? ts(a) - ts(b) : ts(b) - ts(a);
     });
     setFilteredItems(filtered);
-  }, [laundryItems, statusFilter, ownerFilter, searchQuery, sortBy, tripId, trip]);
+  }, [laundryItems, statusFilter, ownerFilter, urgentOnly, searchQuery, sortBy, tripId, trip]);
 
   const loadLaundryItems = async () => {
     const [{ openItems, deliveredToday }, all] = await Promise.all([getTodayViewItems(), loadAllLaundryItems()]);
@@ -264,7 +270,13 @@ const LaundryManagementDashboard = () => {
 
   const counts = getStatusCounts();
   const canReset = ['COMMAND', 'CHIEF'].includes(currentUser?.effectiveTier) || ['COMMAND', 'CHIEF'].includes(currentUser?.tier);
-  const isFiltered = !!searchQuery || statusFilter !== 'All' || ownerFilter !== 'All';
+  const isFiltered = !!searchQuery || statusFilter !== 'All' || ownerFilter !== 'All' || urgentOnly;
+
+  // KPI cells act as filter shortcuts.
+  const kpiToday = () => { setStatusFilter('All'); setUrgentOnly(false); };
+  const kpiTurnaround = () => { setUrgentOnly(false); setStatusFilter((s) => (s === 'Delivered' ? 'All' : 'Delivered')); };
+  const kpiAttention = () => { setStatusFilter('All'); setUrgentOnly((u) => !u); };
+  const turnActive = statusFilter === 'Delivered' && !urgentOnly;
   const active = (counts.inProgress + counts.ready) > 0;
   const totalItems = laundryItems?.length || 0;
 
@@ -320,7 +332,7 @@ const LaundryManagementDashboard = () => {
 
           {/* KPI strip — Today lifecycle bar · turnaround · attention */}
           <div className="lmk">
-            <div className="lmk-cell">
+            <button type="button" className="lmk-cell" onClick={kpiToday} title="Show everything today">
               <span className="lmk-l">Today</span>
               <span className="lmk-num">{totalToday}</span>
               <div className="lmk-bar">
@@ -330,9 +342,9 @@ const LaundryManagementDashboard = () => {
                 {totalToday === 0 && <i style={{ flex: 1, background: '#E7E9EF' }} />}
               </div>
               <span className="lmk-sub">{counts.inProgress} washing · {counts.ready} ready · {counts.delivered} delivered</span>
-            </div>
+            </button>
 
-            <div className="lmk-cell">
+            <button type="button" className={`lmk-cell${turnActive ? ' active' : ''}`} onClick={kpiTurnaround} title="Show delivered">
               <span className="lmk-l">Avg turnaround</span>
               <div className="lmk-row">
                 <span className="lmk-num sm">{fmtDur(ta.avg)}</span>
@@ -343,9 +355,9 @@ const LaundryManagementDashboard = () => {
                 )}
               </div>
               {ta.hasAny ? <MiniSpark values={ta.spark} /> : <span className="lmk-sub">No deliveries yet</span>}
-            </div>
+            </button>
 
-            <div className="lmk-cell">
+            <button type="button" className={`lmk-cell${urgentOnly ? ' active' : ''}`} onClick={kpiAttention} title="Show urgent">
               <span className="lmk-l">Needs attention</span>
               <div className="lmk-row">
                 <span className={`lmk-num${urgentList.length ? ' red' : ''}`}>{urgentList.length}</span>
@@ -354,7 +366,7 @@ const LaundryManagementDashboard = () => {
               <span className="lmk-sub">
                 {urgentList.length === 0 ? 'all calm' : <>oldest <b style={{ color: '#1C1B3A' }}>{urgAgeStr}</b>{oldestUrg?.name ? ` — ${oldestUrg.name}` : ''}</>}
               </span>
-            </div>
+            </button>
           </div>
 
           {tripId && (
@@ -400,7 +412,7 @@ const LaundryManagementDashboard = () => {
               </div>
             </div>
           ) : viewMode === 'cabin' ? (
-            <CabinView items={filteredItems} onBulkDeliver={handleBulkDeliver} />
+            <CabinView items={filteredItems} onBulkDeliver={handleBulkDeliver} onOpen={setDetailItem} />
           ) : (
             <div className="lm-list">
               {groups.length > 1 ? (
@@ -408,13 +420,13 @@ const LaundryManagementDashboard = () => {
                   <div key={g.key} className="lm-group">
                     <div className="lm-group-h">{g.label}<span className="lm-group-n">{g.items.length}</span></div>
                     {g.items.map((item) => (
-                      <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} />
+                      <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} onOpen={setDetailItem} />
                     ))}
                   </div>
                 ))
               ) : (
                 filteredItems?.map((item) => (
-                  <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} />
+                  <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} onOpen={setDetailItem} />
                 ))
               )}
             </div>
@@ -424,6 +436,10 @@ const LaundryManagementDashboard = () => {
 
       {showAddModal && (
         <AddLaundryModal onClose={() => setShowAddModal(false)} onSuccess={handleAddSuccess} />
+      )}
+
+      {detailItem && (
+        <LaundryDetailModal item={detailItem} onClose={() => setDetailItem(null)} onUpdated={loadLaundryItems} />
       )}
 
       {showResetModal && (
