@@ -4,7 +4,9 @@ import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import AddLaundryModal from './components/AddLaundryModal';
 import LaundryItemRow from './components/LaundryItemRow';
-import { LaundryStatus, getTodayViewItems, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay } from './utils/laundryStorage';
+import CabinView from './components/CabinView';
+import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay } from './utils/laundryStorage';
+import { turnaroundStats, fmtDur } from './utils/laundryStats';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
@@ -88,6 +90,39 @@ function SortMenu({ value, onChange }) {
   );
 }
 
+// List / By cabin toggle
+function ViewToggle({ view, onChange }) {
+  return (
+    <div className="lm-seg" role="tablist" aria-label="View">
+      <button type="button" role="tab" aria-selected={view === 'list'} className={view === 'list' ? 'on' : ''} onClick={() => onChange('list')}>
+        <Icon name="List" size={15} /> List
+      </button>
+      <button type="button" role="tab" aria-selected={view === 'cabin'} className={view === 'cabin' ? 'on' : ''} onClick={() => onChange('cabin')}>
+        <Icon name="LayoutGrid" size={15} /> By cabin
+      </button>
+    </div>
+  );
+}
+
+// Tiny turnaround sparkline (nulls carried forward; higher time sits higher).
+function MiniSpark({ values }) {
+  const known = values.filter((v) => v != null);
+  if (known.length < 2) return null;
+  let last = known[0];
+  const filled = values.map((v) => { if (v != null) { last = v; return v; } return last; });
+  const min = Math.min(...filled); const max = Math.max(...filled);
+  const span = max - min || 1;
+  const H = 22; const top = 3; const bot = 19; const x = (i) => 4 + (i / (values.length - 1)) * 112;
+  const y = (v) => top + (1 - (v - min) / span) * (bot - top);
+  const line = filled.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' L');
+  return (
+    <svg className="lmk-spark" viewBox={`0 0 120 ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      <path d={`M${line} L116,${H} L4,${H} Z`} fill="#2F7D5A" fillOpacity="0.12" />
+      <path d={`M${line}`} fill="none" stroke="#2F7D5A" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
 const LaundryManagementDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -103,6 +138,11 @@ const LaundryManagementDashboard = () => {
   const [sortBy, setSortBy] = useState('newest');
   const [trip, setTrip] = useState(null);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [allItems, setAllItems] = useState([]);
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('laundryViewMode') === 'cabin' ? 'cabin' : 'list'; } catch { return 'list'; }
+  });
+  const changeView = (v) => { setViewMode(v); try { localStorage.setItem('laundryViewMode', v); } catch { /* noop */ } };
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -182,8 +222,17 @@ const LaundryManagementDashboard = () => {
   }, [laundryItems, statusFilter, ownerFilter, searchQuery, sortBy, tripId, trip]);
 
   const loadLaundryItems = async () => {
-    const { openItems, deliveredToday } = await getTodayViewItems();
+    const [{ openItems, deliveredToday }, all] = await Promise.all([getTodayViewItems(), loadAllLaundryItems()]);
     setLaundryItems([...openItems, ...deliveredToday]);
+    setAllItems(all);
+  };
+
+  // Keep the turnaround stats fed alongside the today view.
+  useEffect(() => { loadAllLaundryItems().then(setAllItems).catch(() => {}); }, []);
+
+  const handleBulkDeliver = async (readyItems) => {
+    await Promise.all((readyItems || []).map((i) => updateLaundryStatus(i.id, LaundryStatus?.DELIVERED)));
+    loadLaundryItems();
   };
 
   const handleAddSuccess = () => { setShowAddModal(false); loadLaundryItems(); };
@@ -218,6 +267,14 @@ const LaundryManagementDashboard = () => {
   const isFiltered = !!searchQuery || statusFilter !== 'All' || ownerFilter !== 'All';
   const active = (counts.inProgress + counts.ready) > 0;
   const totalItems = laundryItems?.length || 0;
+
+  // KPI strip
+  const totalToday = counts.inProgress + counts.ready + counts.delivered;
+  const urgentList = (laundryItems || []).filter((i) => i?.priority === LaundryPriority?.URGENT && i?.status !== LaundryStatus?.DELIVERED);
+  const oldestUrg = urgentList.reduce((a, i) => { const t = new Date(i?.createdAt || 0).getTime(); return !a || t < a.t ? { t, name: i?.ownerName } : a; }, null);
+  const urgAge = oldestUrg ? Math.max(0, Math.floor((Date.now() - oldestUrg.t) / 60000)) : 0;
+  const urgAgeStr = urgAge < 60 ? `${urgAge}m` : `${Math.floor(urgAge / 60)}h ${urgAge % 60}m`;
+  const ta = turnaroundStats(allItems);
 
   // Status groups (workflow order) for the list, populated from the filtered set.
   const groups = [
@@ -261,22 +318,53 @@ const LaundryManagementDashboard = () => {
             </div>
           </div>
 
-          {/* Meta bar — figures on a hairline, no box */}
-          <div className="lm-meta">
-            <div className={`lm-s${counts.inProgress > 0 ? ' attn' : ''}`}><b>{counts.inProgress}</b><span>In progress</span></div>
-            <div className="lm-vr" />
-            <div className="lm-s"><b>{counts.ready}</b><span>Ready to deliver</span></div>
-            <div className="lm-vr" />
-            <div className="lm-s"><b>{counts.delivered}</b><span>Delivered today</span></div>
-            {tripId && (
-              <div className="lm-trip">
-                Trip filter
-                <button type="button" onClick={() => navigate('/laundry-management-dashboard')} aria-label="Clear trip filter">
-                  <Icon name="X" size={13} />
-                </button>
+          {/* KPI strip — Today lifecycle bar · turnaround · attention */}
+          <div className="lmk">
+            <div className="lmk-cell">
+              <span className="lmk-l">Today</span>
+              <span className="lmk-num">{totalToday}</span>
+              <div className="lmk-bar">
+                {counts.inProgress > 0 && <i style={{ flex: counts.inProgress, background: '#B7791F' }} />}
+                {counts.ready > 0 && <i style={{ flex: counts.ready, background: '#2F6E8F' }} />}
+                {counts.delivered > 0 && <i style={{ flex: counts.delivered, background: '#2F7D5A' }} />}
+                {totalToday === 0 && <i style={{ flex: 1, background: '#E7E9EF' }} />}
               </div>
-            )}
+              <span className="lmk-sub">{counts.inProgress} washing · {counts.ready} ready · {counts.delivered} delivered</span>
+            </div>
+
+            <div className="lmk-cell">
+              <span className="lmk-l">Avg turnaround</span>
+              <div className="lmk-row">
+                <span className="lmk-num sm">{fmtDur(ta.avg)}</span>
+                {ta.delta != null && ta.delta !== 0 && (
+                  <span className="lmk-trend" style={ta.delta > 0 ? { color: '#C24632', background: '#FBECE8' } : undefined}>
+                    <Icon name={ta.delta > 0 ? 'ArrowUp' : 'ArrowDown'} size={10} />{Math.abs(ta.delta)}m
+                  </span>
+                )}
+              </div>
+              {ta.hasAny ? <MiniSpark values={ta.spark} /> : <span className="lmk-sub">No deliveries yet</span>}
+            </div>
+
+            <div className="lmk-cell">
+              <span className="lmk-l">Needs attention</span>
+              <div className="lmk-row">
+                <span className={`lmk-num${urgentList.length ? ' red' : ''}`}>{urgentList.length}</span>
+                {urgentList.length > 0 && <span className="lmk-pulse" />}
+              </div>
+              <span className="lmk-sub">
+                {urgentList.length === 0 ? 'all calm' : <>oldest <b style={{ color: '#1C1B3A' }}>{urgAgeStr}</b>{oldestUrg?.name ? ` — ${oldestUrg.name}` : ''}</>}
+              </span>
+            </div>
           </div>
+
+          {tripId && (
+            <div className="lm-trip" style={{ marginLeft: 0, marginBottom: 16, alignSelf: 'flex-start' }}>
+              Trip filter
+              <button type="button" onClick={() => navigate('/laundry-management-dashboard')} aria-label="Clear trip filter">
+                <Icon name="X" size={13} />
+              </button>
+            </div>
+          )}
 
           {/* Toolbar */}
           <div className="lm-tools">
@@ -292,11 +380,12 @@ const LaundryManagementDashboard = () => {
             </label>
             <FiltersMenu status={statusFilter} setStatus={setStatusFilter} owner={ownerFilter} setOwner={setOwnerFilter} />
             <SortMenu value={sortBy} onChange={setSortBy} />
+            <ViewToggle view={viewMode} onChange={changeView} />
           </div>
 
-          {/* List — grouped by status when viewing everything */}
-          <div className="lm-list">
-            {filteredItems?.length === 0 ? (
+          {/* Views — List (status-grouped) or By cabin (cards) */}
+          {filteredItems?.length === 0 ? (
+            <div className="lm-list">
               <div className="lm-empty" role="status">
                 <Icon name="Package" size={44} className="lm-empty-ic" />
                 <div className="lm-empty-title">{isFiltered ? 'No matches' : 'Nothing in the wash'}</div>
@@ -309,21 +398,27 @@ const LaundryManagementDashboard = () => {
                   </button>
                 )}
               </div>
-            ) : groups.length > 1 ? (
-              groups.map((g) => (
-                <div key={g.key} className="lm-group">
-                  <div className="lm-group-h">{g.label}<span className="lm-group-n">{g.items.length}</span></div>
-                  {g.items.map((item) => (
-                    <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} />
-                  ))}
-                </div>
-              ))
-            ) : (
-              filteredItems?.map((item) => (
-                <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} />
-              ))
-            )}
-          </div>
+            </div>
+          ) : viewMode === 'cabin' ? (
+            <CabinView items={filteredItems} onBulkDeliver={handleBulkDeliver} />
+          ) : (
+            <div className="lm-list">
+              {groups.length > 1 ? (
+                groups.map((g) => (
+                  <div key={g.key} className="lm-group">
+                    <div className="lm-group-h">{g.label}<span className="lm-group-n">{g.items.length}</span></div>
+                    {g.items.map((item) => (
+                      <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} />
+                    ))}
+                  </div>
+                ))
+              ) : (
+                filteredItems?.map((item) => (
+                  <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} />
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
 
