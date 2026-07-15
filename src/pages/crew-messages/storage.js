@@ -45,6 +45,21 @@ export const markThreadReadVessel = async (threadId) => {
   if (error) throw error;
 };
 
+// Clear any bell notifications for this thread once the crew opens it, so the
+// header badge and the inbox stay in sync with the conversation's read state.
+export const markThreadNotificationsRead = async (threadId) => {
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth?.user?.id;
+  if (!uid) return;
+  await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('user_id', uid)
+    .eq('type', 'supplier_message')
+    .eq('action_url', `/messages?threadId=${threadId}`)
+    .eq('read', false);
+};
+
 // Total unread for the vessel — drives the nav badge.
 export const fetchVesselUnreadCount = async (tenantId) => {
   const { data, error } = await supabase

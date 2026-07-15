@@ -5,6 +5,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import {
   fetchVesselThreads, fetchThreadMessages, sendVesselMessage, markThreadReadVessel,
+  markThreadNotificationsRead,
 } from './storage';
 import './crew-messages.css';
 
@@ -147,6 +148,9 @@ const CrewMessages = () => {
     fetchThreadMessages(activeId).then(setMessages).catch((e) => setError(e.message));
     setThreads((prev) => prev.map((t) => (t.id === activeId ? { ...t, vessel_unread_count: 0 } : t)));
     markThreadReadVessel(activeId).catch(() => {});
+    markThreadNotificationsRead(activeId)
+      .then(() => { try { window.dispatchEvent(new Event('notifications-read')); } catch { /* noop */ } })
+      .catch(() => {});
   }, [activeId]);
 
   useEffect(() => {
