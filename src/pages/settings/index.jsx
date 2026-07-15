@@ -144,7 +144,7 @@ const NAV = [
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const { session, loading: authLoading } = useAuth();
+  const { session, loading: authLoading, isVesselAdmin } = useAuth();
   const { activeTenantId } = useTenant();
   const currentUser = getCurrentUser();
 
@@ -1048,8 +1048,10 @@ const SettingsPage = () => {
                   <span className="set-chip off">Inactive · no vessel</span>
                 </div>
               )}
-              {/* Billing is the subscription owner’s concern — Command on an active vessel only. */}
-              {activeTenantId && hasCommandAccess(currentUser) && (
+              {/* Billing is the subscription owner’s concern — only the vessel
+                  admin (tenants.current_admin_user_id): the person who signed the
+                  vessel up as admin, or whoever it was transferred to. */}
+              {activeTenantId && isVesselAdmin && (
                 <RowNav label="Billing" desc="Manage payment and invoices." onClick={() => navigate('/membership')} />
               )}
               {/* The setup guide lives on the vessel dashboard — nothing to restore without one. */}
