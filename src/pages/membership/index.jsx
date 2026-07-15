@@ -39,8 +39,9 @@ const STATUS = {
   canceled: { label: 'Cancelled', bg: '#F0F1F5', fg: '#8B8478' },
 };
 
-const card = { background: '#fff', border: '1px solid #ECEAE3', borderRadius: 16, padding: '24px 26px' };
 const caps = { fontSize: 9, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#8B8478' };
+const hair = { height: 1, background: '#F0F1F5', border: 'none', margin: '30px 0' };
+const PERIOD_LABEL = (p) => (p === 'annual' ? '/year · billed annually' : '/month');
 
 const Membership = () => {
   const navigate = useNavigate();
@@ -162,59 +163,56 @@ const Membership = () => {
           <Icon name="ChevronLeft" size={16} /> Back to Settings
         </button>
 
-        <div style={caps}>Membership</div>
-        <h1 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 32, color: '#1C1B3A', margin: '4px 0 24px', lineHeight: 1.1 }}>
-          Your <em style={{ color: '#C65A1A' }}>plan</em>.
+        <div style={caps}>{plan.vessel || 'Membership'}</div>
+        <h1 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 40, color: '#1C1B3A', margin: '6px 0 0', lineHeight: 1.05, letterSpacing: '-0.5px' }}>
+          {tierInfo ? <>Cargo <span style={{ color: '#AEB4C2' }}>—</span> <em style={{ fontStyle: 'italic', color: '#C65A1A' }}>{tierInfo.label}</em></> : <>Cargo <em style={{ fontStyle: 'italic', color: '#C65A1A' }}>free trial</em></>}
         </h1>
 
         {banner && (
           <div style={{
-            marginBottom: 18, borderRadius: 12, padding: '12px 15px', fontSize: 13.5, lineHeight: 1.5,
+            marginTop: 16, borderRadius: 12, padding: '12px 15px', fontSize: 13.5, lineHeight: 1.5,
             background: banner.tone === 'ok' ? '#E7F2EA' : '#FBEFD9',
             border: `1px solid ${banner.tone === 'ok' ? '#CDE6D5' : '#F0DCB0'}`,
             color: banner.tone === 'ok' ? '#2F6B43' : '#8A5A12',
           }}>{banner.text}</div>
         )}
 
-        {/* Plan card — visible to everyone on the vessel */}
-        <div style={{ ...card, marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            <div>
-              <div style={caps}>{plan.vessel || 'This vessel'}</div>
-              <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 26, color: '#1C1B3A', marginTop: 4 }}>
-                {tierInfo ? `Cargo — ${tierInfo.label}` : 'Cargo — Free trial'}
-              </div>
-              {tierInfo ? (
-                <div style={{ fontSize: 15, color: '#1C1B3A', marginTop: 6 }}>
-                  <strong>£{tierInfo.price}</strong><span style={{ color: '#8B8478' }}>/month{plan.period === 'annual' ? ' · billed annually' : ''}</span>
-                </div>
-              ) : (
-                <div style={{ fontSize: 14, color: '#8B8478', marginTop: 6 }}>No paid plan yet.</div>
-              )}
+        {/* Price + status — editorial line, no box */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', marginTop: 14 }}>
+          {tierInfo ? (
+            <div style={{ fontSize: 17, color: '#1C1B3A' }}>
+              <strong style={{ fontSize: 22 }}>£{tierInfo.price}</strong>
+              <span style={{ color: '#8B8478', fontSize: 15 }}>{PERIOD_LABEL(plan.period)}</span>
             </div>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 999, background: st.bg, color: st.fg }}>{st.label}</span>
-          </div>
-
-          <div style={{ height: 1, background: '#F0F1F5', margin: '20px 0' }} />
-
-          <div style={{ ...caps, marginBottom: 12 }}>What’s included</div>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 9 }}>
-            {INCLUDED.map((f) => (
-              <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, color: '#4B4B63' }}>
-                <span style={{ color: '#3F7A52', flex: '0 0 auto', marginTop: 1 }}><Icon name="Check" size={15} /></span>{f}
-              </li>
-            ))}
-            {tierInfo && (
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, color: '#4B4B63' }}>
-                <span style={{ color: '#3F7A52', flex: '0 0 auto', marginTop: 1 }}><Icon name="Check" size={15} /></span>{SUPPORT[plan.tier]}
-              </li>
-            )}
-          </ul>
+          ) : (
+            <div style={{ fontSize: 15, color: '#8B8478' }}>No paid plan yet.</div>
+          )}
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: 999, background: st.bg, color: st.fg }}>{st.label}</span>
         </div>
 
-        {/* Choose a plan — vessel admin, not yet on a paid plan */}
+        <hr style={hair} />
+
+        {/* What's included — editorial two-column list */}
+        <div style={{ ...caps, marginBottom: 16 }}>What’s included</div>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '11px 24px' }}>
+          {INCLUDED.map((f) => (
+            <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, color: '#4B4B63', lineHeight: 1.45 }}>
+              <span style={{ color: '#3F7A52', flex: '0 0 auto', marginTop: 1 }}><Icon name="Check" size={15} /></span>{f}
+            </li>
+          ))}
+          {tierInfo && (
+            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, color: '#4B4B63', lineHeight: 1.45 }}>
+              <span style={{ color: '#3F7A52', flex: '0 0 auto', marginTop: 1 }}><Icon name="Check" size={15} /></span>{SUPPORT[plan.tier]}
+            </li>
+          )}
+        </ul>
+
+        <hr style={hair} />
+
+        {/* Choose a plan — vessel admin, not yet on a paid plan. Editorial:
+            no display box; the tier tiles are selection controls. */}
         {isVesselAdmin && !isPaid && (
-          <div style={{ ...card, marginBottom: 18 }}>
+          <>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
               <div style={caps}>{plan.tier ? 'Change your plan' : 'Choose your plan'}</div>
               {/* Monthly / annual toggle */}
@@ -263,36 +261,40 @@ const Membership = () => {
             <p style={{ fontSize: 12, color: '#AEB4C2', textAlign: 'center', margin: '10px 0 0', lineHeight: 1.5 }}>
               Secure checkout powered by Stripe. Cancel anytime. The exact total (incl. any annual discount) is shown before you pay.
             </p>
-          </div>
+          </>
         )}
 
         {/* Billing management — admin on a paid plan. On trial the chooser above
             is the action, so there's nothing to manage yet. */}
-        {isVesselAdmin && isPaid ? (
-          <div style={card}>
-            <div style={{ ...caps, marginBottom: 4 }}>Billing</div>
-            <p style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6, margin: '0 0 16px' }}>
-              Manage your payment method, download invoices, and cancel — all in Cargo’s secure billing (powered by Stripe).
+        {isVesselAdmin && isPaid && (
+          <>
+            <div style={{ ...caps, marginBottom: 6 }}>Billing</div>
+            <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, margin: '0 0 18px', maxWidth: 520 }}>
+              Manage your payment method, download invoices, and cancel — all in Cargo’s secure billing, powered by Stripe.
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button type="button" onClick={() => openPortal(null)} disabled={portalBusy}
-                style={{ fontSize: 14, fontWeight: 600, color: '#fff', background: '#C65A1A', border: 'none', borderRadius: 10, padding: '10px 16px', cursor: 'pointer' }}>
+                style={{ fontSize: 14, fontWeight: 600, color: '#fff', background: '#C65A1A', border: 'none', borderRadius: 10, padding: '11px 18px', cursor: portalBusy ? 'default' : 'pointer' }}>
                 {portalBusy ? 'Opening…' : 'Manage billing'}
               </button>
               <button type="button" onClick={() => setCancelOpen(true)} disabled={portalBusy}
-                style={{ fontSize: 14, fontWeight: 600, color: '#9A2B12', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 16px', cursor: 'pointer' }}>
+                style={{ fontSize: 14, fontWeight: 600, color: '#9A2B12', background: '#fff', border: '1px solid #E8E6DF', borderRadius: 10, padding: '11px 18px', cursor: portalBusy ? 'default' : 'pointer' }}>
                 Cancel membership
               </button>
             </div>
-            {portalMsg && <p style={{ fontSize: 13, color: '#8B8478', marginTop: 12, lineHeight: 1.5 }}>{portalMsg}</p>}
-          </div>
-        ) : !isVesselAdmin ? (
-          <div style={{ ...card, background: '#FAFAF8' }}>
-            <div style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6 }}>
-              Billing is managed by your vessel’s admin. You have full access as part of the vessel’s plan — every crew member and app user is included.
-            </div>
-          </div>
-        ) : null}
+            {portalMsg && <p style={{ fontSize: 13, color: '#8B8478', marginTop: 14, lineHeight: 1.5, maxWidth: 520 }}>{portalMsg}</p>}
+          </>
+        )}
+
+        {/* Crew — billing is the admin's concern; reassure they're covered. */}
+        {!isVesselAdmin && (
+          <>
+            <div style={{ ...caps, marginBottom: 6 }}>Billing</div>
+            <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, margin: 0, maxWidth: 560 }}>
+              Billing is managed by your vessel’s admin. You have full access as part of the vessel’s plan — every crew member and app user is included, with no per-seat fees.
+            </p>
+          </>
+        )}
       </div>
 
       {/* Cancel — step-through confirmation, then Stripe's cancel flow */}
