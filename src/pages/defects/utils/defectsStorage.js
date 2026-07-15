@@ -208,6 +208,10 @@ export const createDefect = async (defectData, actor) => {
   }
 
   const assignedTo = defectData?.assignedToUserId || null;
+  // Assignment: a named person, the whole department team (first to claim owns
+  // it), or unassigned.
+  const kind = defectData?.assigneeKind || (assignedTo ? 'user' : 'unassigned');
+  const teamDeptId = kind === 'team' ? (defectData?.assignedTeamDepartmentId || targetDeptId) : null;
 
   const insertRow = {
     tenant_id: actor.tenantId,
@@ -223,9 +227,11 @@ export const createDefect = async (defectData, actor) => {
     created_by_name: actor.userName || null,
     created_by_department: createdByDept,
     created_by_tier: tier,
-    assignee_kind: assignedTo ? 'user' : 'unassigned',
-    assigned_to: assignedTo,
-    assigned_to_name: defectData?.assignedToName || null,
+    assignee_kind: kind,
+    assigned_to: kind === 'user' ? assignedTo : null,
+    assigned_to_name: kind === 'user' ? (defectData?.assignedToName || null) : null,
+    assigned_team_department_id: teamDeptId,
+    assigned_team_name: kind === 'team' ? (defectData?.assignedTeamName || targetDeptName) : null,
     submitted_by: requiresPending ? actor.userId || null : null,
     submitted_by_name: requiresPending ? actor.userName || null : null,
     pending_for_department: pendingForDept,
@@ -270,10 +276,73 @@ export const createDefect = async (defectData, actor) => {
     await notifyChiefsPendingDefect(actor, targetDeptId, defect.title, defect.id);
   } else {
     await notifyChiefsNewDefect(actor, targetDeptId, defect.title, defect.id);
-    if (assignedTo) await notifyDefectAssigned(actor, [assignedTo], defect.title, defect.id, defect.dueDate);
+    if (kind === 'user' && assignedTo) {
+      await notifyDefectAssigned(actor, [assignedTo], defect.title, defect.id, defect.dueDate);
+    } else if (kind === 'team' && teamDeptId) {
+      const members = await resolveDepartmentMemberIds(actor.tenantId, teamDeptId);
+      await notifyDefectAssigned(actor, members.map((m) => m.userId), defect.title, defect.id, defect.dueDate);
+    }
   }
 
   return defect;
+};
+
+// Fetch the active (non-closed) defect linked to a map pin, if any.
+export const getDefectByHotspot = async (hotspotId, actor) => {
+  if (!hotspotId || !actor?.tenantId) return null;
+  const { data, error } = await supabase
+    ?.from('defects')?.select('*')
+    ?.eq('tenant_id', actor.tenantId)?.eq('hotspot_id', hotspotId)
+    ?.neq('status', DefectStatus.CLOSED)
+    ?.order('created_at', { ascending: false })?.limit(1);
+  if (error) { console.warn('[defects] getDefectByHotspot', error); return null; }
+  return data && data.length ? fromRow(data[0]) : null;
+};
+
+// Assign a defect to a named person or a whole team, notifying recipients.
+export const assignDefect = async (defectId, assignment, actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const kind = assignment?.kind || 'unassigned';
+  const patch = {
+    assignee_kind: kind,
+    assigned_to: kind === 'user' ? (assignment?.userId || null) : null,
+    assigned_to_name: kind === 'user' ? (assignment?.userName || null) : null,
+    assigned_team_department_id: kind === 'team' ? (assignment?.teamDepartmentId || null) : null,
+    assigned_team_name: kind === 'team' ? (assignment?.teamName || null) : null,
+    claimed_by: null, claimed_by_name: null, claimed_at: null,
+  };
+  const { data, error } = await supabase
+    ?.from('defects')?.update(patch)?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] assignDefect', error); return null; }
+  const after = fromRow(data);
+  if (kind === 'user' && assignment?.userId) {
+    await logEvent(actor, defectId, 'assigned', `Assigned to ${assignment?.userName || 'crew'}`);
+    await notifyDefectAssigned(actor, [assignment.userId], after.title, defectId, after.dueDate);
+  } else if (kind === 'team' && assignment?.teamDepartmentId) {
+    await logEvent(actor, defectId, 'assigned', `Assigned to ${assignment?.teamName || 'the team'}`);
+    const members = await resolveDepartmentMemberIds(actor.tenantId, assignment.teamDepartmentId);
+    await notifyDefectAssigned(actor, members.map((m) => m.userId), after.title, defectId, after.dueDate);
+  }
+  return after;
+};
+
+// Team claim — first crew member to accept a team defect owns it.
+export const claimDefect = async (defectId, actor) => {
+  if (!defectId || !actor?.tenantId || !actor?.userId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+  const { data, error } = await supabase?.from('defects')?.update({
+    assignee_kind: 'user',
+    assigned_to: actor.userId,
+    assigned_to_name: actor.userName || null,
+    claimed_by: actor.userId,
+    claimed_by_name: actor.userName || null,
+    claimed_at: new Date().toISOString(),
+    status: before.status === DefectStatus.NEW ? DefectStatus.ASSIGNED : before.status,
+  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] claimDefect', error); return null; }
+  await logEvent(actor, defectId, 'claimed', `${actor.userName || 'A crew member'} claimed it`);
+  return fromRow(data);
 };
 
 // ── Reads ─────────────────────────────────────────────────────────────────────

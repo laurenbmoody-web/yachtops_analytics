@@ -1,0 +1,96 @@
+/* Defect pin drawer — lives inside the (light) map inspector. Editorial palette
+   with semantic status/priority colours, matching the approved mock. */
+.vmd { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+
+.vmd-empty { display: flex; flex-direction: column; gap: 4px; padding: 14px; border: 1px dashed #E3B9A3;
+  border-radius: 12px; background: #FCF6F2; }
+.vmd-empty-t { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+.vmd-empty-s { font-size: 12px; color: #8B8478; line-height: 1.45; }
+.vmd-empty-btn { margin-top: 8px; align-self: flex-start; }
+
+/* form */
+.vmd-form { display: flex; flex-direction: column; gap: 12px; }
+.vmd-field { display: flex; flex-direction: column; gap: 5px; }
+.vmd-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.vmd-lbl .req { color: #C65A1A; margin-left: 5px; text-transform: lowercase; letter-spacing: .3px; }
+.vmd-input, .vmd-select, .vmd-textarea {
+  width: 100%; font-family: inherit; font-size: 13px; color: #1C1B3A; background: #FAFAF8;
+  border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 10px; outline: none; }
+.vmd-input:focus, .vmd-select:focus, .vmd-textarea:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.vmd-textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+.vmd-row { display: flex; gap: 8px; }
+.vmd-row > * { flex: 1; }
+
+.vmd-seg { display: flex; gap: 6px; }
+.vmd-seg button { flex: 1; font-family: inherit; font-size: 12px; font-weight: 600; padding: 7px 8px;
+  border-radius: 999px; border: 1px solid #E8E6DF; background: #fff; color: #6B7280; cursor: pointer; }
+.vmd-seg button.on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+
+.vmd-photo-btn { display: flex; align-items: center; justify-content: center; gap: 7px; height: 96px;
+  border: 1.5px dashed #E8E6DF; border-radius: 10px; background: #FAFAF8; color: #8B8478; font-size: 12.5px;
+  cursor: pointer; width: 100%; }
+.vmd-photo-btn:hover { border-color: #C65A1A; color: #C65A1A; }
+.vmd-photo-preview { position: relative; }
+.vmd-photo-preview img { width: 100%; height: 120px; object-fit: cover; border-radius: 10px; display: block; }
+.vmd-photo-x { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 999px; border: 0;
+  background: rgba(28,27,58,.6); color: #fff; cursor: pointer; }
+
+.vmd-form-actions { display: flex; gap: 8px; margin-top: 2px; }
+
+/* view card */
+.vmd-card { display: flex; flex-direction: column; gap: 14px; }
+.vmd-hero { position: relative; border-radius: 12px; overflow: hidden; }
+.vmd-hero img { width: 100%; height: 150px; object-fit: cover; display: block; }
+.vmd-hero-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+
+.vmd-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.vmd-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.vmd-chip .cd { width: 6px; height: 6px; border-radius: 999px; }
+.vmd-chip.dept { background: #F4F2EC; color: #6B7280; }
+.p-critical { background: #F7E7E5; color: #A32D2D; } .p-critical .cd { background: #A32D2D; }
+.p-high { background: #F7EEDD; color: #B9761A; } .p-high .cd { background: #B9761A; }
+.p-medium { background: #FBEFE9; color: #C65A1A; } .p-medium .cd { background: #C65A1A; }
+.p-low { background: #F4F2EC; color: #8B8478; } .p-low .cd { background: #AEB4C2; }
+.s-open { background: #E5EDF2; color: #3E6B89; } .s-open .cd { background: #3E6B89; }
+.s-pending { background: #F7EEDD; color: #B9761A; } .s-pending .cd { background: #B9761A; }
+.s-progress { background: #E5EDF2; color: #3E6B89; } .s-progress .cd { background: #3E6B89; }
+.s-fixed { background: #E4F1EA; color: #2E7D5A; } .s-fixed .cd { background: #2E7D5A; }
+.s-closed { background: #F0F1F5; color: #8B8478; } .s-closed .cd { background: #AEB4C2; }
+.s-declined { background: #F7E7E5; color: #A32D2D; } .s-declined .cd { background: #A32D2D; }
+
+.vmd-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 19px; line-height: 1.15; margin: 0; }
+.vmd-desc { font-size: 13px; line-height: 1.55; color: #3A3960; margin: 0; }
+
+.vmd-block { border-top: 1px solid #F0F1F5; padding-top: 12px; }
+.vmd-block-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0 0 8px; }
+
+.vmd-assignee { display: flex; align-items: center; gap: 10px; }
+.vmd-avatar { flex: none; width: 34px; height: 34px; border-radius: 999px; background: linear-gradient(135deg,#C65A1A,#8a3d12);
+  color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+.vmd-avatar.team { background: linear-gradient(135deg,#3E6B89,#274a5f); }
+.vmd-avatar.none { background: #F4F2EC; color: #AEB4C2; border: 1px dashed #E8E6DF; }
+.vmd-assignee-who { flex: 1; min-width: 0; }
+.vmd-assignee-n { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+.vmd-assignee-r { font-size: 11.5px; color: #8B8478; }
+
+.vmd-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.vmd-meta .k { font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: #8B8478; }
+.vmd-meta .v { font-size: 12.5px; color: #1C1B3A; font-variant-numeric: tabular-nums; margin-top: 1px; }
+
+/* comments */
+.vmd-comment { border-top: 1px solid #F0F1F5; padding: 9px 0; }
+.vmd-comment:first-of-type { border-top: 0; }
+.vmd-comment-h { display: flex; justify-content: space-between; margin-bottom: 2px; }
+.vmd-comment-n { font-size: 12px; font-weight: 600; color: #1C1B3A; }
+.vmd-comment-t { font-size: 11px; color: #AEB4C2; }
+.vmd-comment-b { font-size: 12.5px; color: #3A3960; line-height: 1.45; white-space: pre-wrap; }
+.vmd-comment-empty { font-size: 12px; color: #AEB4C2; }
+.vmd-comment-add { display: flex; gap: 8px; margin-top: 8px; }
+.vmd-comment-add .vmd-input { flex: 1; }
+
+.vmd-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.vmd-link { background: none; border: 0; padding: 0; font-family: inherit; font-size: 12px; font-weight: 600;
+  color: #C65A1A; cursor: pointer; align-self: flex-start; }
+.vmd-err { font-size: 12px; color: #A32D2D; margin: 0; }
+.vmd-loading { font-size: 12.5px; color: #8B8478; padding: 8px 0; }
