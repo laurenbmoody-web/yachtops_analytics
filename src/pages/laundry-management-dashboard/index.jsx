@@ -119,8 +119,8 @@ function MiniSpark({ values }) {
   const line = filled.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' L');
   return (
     <svg className="lmk-spark" viewBox={`0 0 120 ${H}`} preserveAspectRatio="none" aria-hidden="true">
-      <path d={`M${line} L116,${H} L4,${H} Z`} fill="#2F7D5A" fillOpacity="0.12" />
-      <path className="lmk-line" d={`M${line}`} pathLength="1" fill="none" stroke="#2F7D5A" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <path d={`M${line} L116,${H} L4,${H} Z`} fill="#2F7D5A" fillOpacity="0.10" />
+      <path d={`M${line}`} fill="none" stroke="#2F7D5A" strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
