@@ -3644,6 +3644,8 @@
   #sp-root .msg-sw:hover .msg-row-when,
   #sp-root .msg-sw:hover .msg-row-un,
   #sp-root .msg-sw:hover .msg-row-wait { opacity: 0; transition: opacity 0.12s; }
+  /* Keep the preview clear of the hover action icons — truncate before them. */
+  #sp-root .msg-sw:hover .msg-row-prev { padding-right: 72px; }
 }
 
 #sp-root .msg-row-main { grid-column: 1; min-width: 0; display: contents; }

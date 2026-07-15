@@ -119,6 +119,7 @@ const CrewMessages = () => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const endRef = useRef(null);
+  const streamRef = useRef(null);
   const taRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -177,7 +178,7 @@ const CrewMessages = () => {
     return () => { supabase.removeChannel(ch); };
   }, [activeTenantId, load]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, activeId]);
+  useEffect(() => { const el = streamRef.current; if (el) el.scrollTop = el.scrollHeight; }, [messages, activeId]);
 
   const totalUnread = useMemo(() => threads.reduce((s, t) => s + (t.id === activeId || t.archived_at ? 0 : (t.vessel_unread_count || 0)), 0), [threads, activeId]);
   const awaiting = useMemo(() => threads.filter((t) => !t.archived_at && t.last_sender_type === 'supplier'), [threads]);
@@ -386,7 +387,7 @@ const CrewMessages = () => {
                       </div>
                     </div>
 
-                    <div className="msg-stream">
+                    <div className="msg-stream" ref={streamRef}>
                       {rendered.length === 0 ? (
                         <div className="msg-blank">
                           {(() => {
