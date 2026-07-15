@@ -1,254 +1,130 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
-import Button from '../../components/ui/Button';
 import Header from '../../components/navigation/Header';
-import LaundryItemRow from '../laundry-management-dashboard/components/LaundryItemRow';
-import {
-  getLaundryItemsByDeliveredDate,
-  getDeliveredDates,
-  LaundryStatus
-} from '../laundry-management-dashboard/utils/laundryStorage';
+import { getRecentLaundryActivity } from '../laundry-management-dashboard/utils/laundryStorage';
+import '../../styles/editorial.css';
+import '../laundry-management-dashboard/laundry.css';
 
-const LaundryCalendarHistoryView = () => {
+const EVENT_LABEL = { created: 'Added', ready: 'Marked ready', delivered: 'Delivered', reopened: 'Reopened', edited: 'Edited', updated: 'Updated' };
+const EVENT_DOT = { created: '#B7791F', ready: '#2F6E8F', delivered: '#2F7D5A', reopened: '#8B8478', edited: '#8B8478', updated: '#8B8478' };
+const ownerKind = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : 'unknown'; };
+const fmtClock = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
+const dayKey = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const dayLabel = (iso) => {
+  const d = new Date(iso);
+  const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+};
+
+const LaundryHistoryView = () => {
   const navigate = useNavigate();
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [laundryItems, setLaundryItems] = useState([]);
-  const [availableDates, setAvailableDates] = useState([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  
-  useEffect(() => {
-    loadAvailableDates();
-  }, []);
-  
-  useEffect(() => {
-    loadLaundryForDate();
-  }, [selectedDate]);
-  
-  const loadAvailableDates = async () => {
-    const dates = await getDeliveredDates();
-    setAvailableDates(dates);
-  };
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all'); // all | delivered
 
-  const loadLaundryForDate = async () => {
-    const dateKey = selectedDate?.toISOString()?.split('T')?.[0];
-    const items = await getLaundryItemsByDeliveredDate(dateKey);
-    setLaundryItems(items);
-  };
-  
-  const getDaysInMonth = (date) => {
-    const year = date?.getFullYear();
-    const month = date?.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay?.getDate();
-    const startingDayOfWeek = firstDay?.getDay();
-    
-    return { daysInMonth, startingDayOfWeek, year, month };
-  };
-  
-  const isDateAvailable = (date) => {
-    const dateStr = date?.toISOString()?.split('T')?.[0];
-    return availableDates?.includes(dateStr);
-  };
-  
-  const isSelectedDate = (date) => {
-    return date?.toDateString() === selectedDate?.toDateString();
-  };
-  
-  const handleDateClick = (date) => {
-    setSelectedDate(date);
-  };
-  
-  const handlePrevMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
-  };
-  
-  const handleNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-  };
-  
-  const handleToday = () => {
-    const today = new Date();
-    setCurrentMonth(today);
-    setSelectedDate(today);
-  };
-  
-  const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentMonth);
-  const monthName = currentMonth?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  
-  const getStatusCounts = () => {
-    // History view shows delivered items only
-    return {
-      inProgress: 0,
-      ready: 0,
-      delivered: laundryItems?.filter(item => item?.status === LaundryStatus?.DELIVERED)?.length,
-      total: laundryItems?.length
-    };
-  };
-  
-  const counts = getStatusCounts();
-  
+  useEffect(() => {
+    let cancelled = false;
+    getRecentLaundryActivity(300)
+      .then((rows) => { if (!cancelled) setEvents(rows); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const shown = useMemo(() => (filter === 'delivered' ? events.filter((e) => e.action === 'delivered') : events), [events, filter]);
+
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const e of shown) {
+      const k = dayKey(e.at);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(e);
+    }
+    return [...map.entries()].map(([k, list]) => ({ k, label: dayLabel(list[0].at), list }));
+  }, [shown]);
+
+  const photoOf = (it) => (Array.isArray(it?.photos) && it.photos.length ? it.photos[0] : (it?.photo || null));
+
   return (
-    <div className="min-h-screen bg-background transition-colors duration-300">
+    <>
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Laundry History</h1>
-              <p className="text-sm text-muted-foreground mt-1">Browse delivered laundry by date</p>
+      <div className="lm-page">
+        <div className="lm-wrap">
+          <button type="button" className="lm-back" onClick={() => navigate('/laundry-management-dashboard')}>
+            <Icon name="ArrowLeft" size={16} /> Back to laundry
+          </button>
+
+          <div className="lm-header">
+            <p className="editorial-meta">
+              <span className="dot">●</span>
+              <span>Housekeeping</span>
+              <span className="bar" />
+              <span className="muted">Activity log</span>
+              <span className="bar" />
+              <span className="muted">{events.length} event{events.length === 1 ? '' : 's'}</span>
+            </p>
+            <div className="lm-titlerow">
+              <h1 className="editorial-greeting">
+                LAUNDRY<span className="period">,</span> <em>history</em><span className="period">.</span>
+              </h1>
+              <div className="lm-seg" role="tablist" aria-label="Filter" style={{ marginLeft: 'auto' }}>
+                <button type="button" className={filter === 'all' ? 'on' : ''} onClick={() => setFilter('all')}>All activity</button>
+                <button type="button" className={filter === 'delivered' ? 'on' : ''} onClick={() => setFilter('delivered')}>Delivered</button>
+              </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/laundry')}
-              iconName="ArrowLeft"
-            >
-              Back to Today
-            </Button>
           </div>
+
+          {loading ? (
+            <div className="lm-empty" role="status" style={{ paddingTop: 40 }}>
+              <div className="lm-empty-sub">Loading activity…</div>
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="lm-empty" role="status">
+              <Icon name="Clock" size={44} className="lm-empty-ic" />
+              <div className="lm-empty-title">No activity yet</div>
+              <div className="lm-empty-sub">Every add, status change and edit will appear here — who did it and when.</div>
+            </div>
+          ) : (
+            <div className="hist-feed">
+              {groups.map((g) => (
+                <div key={g.k} className="hist-day">
+                  <div className="hist-dayhead">{g.label}<span className="hist-daycount">{g.list.length}</span></div>
+                  {g.list.map((e) => {
+                    const it = e.item || {};
+                    const kind = ownerKind(it.ownerType);
+                    const src = photoOf(it);
+                    return (
+                      <div className="hist-row" key={e.id}>
+                        <span className="hist-thumb">
+                          {src ? <img src={src} alt="" /> : <Icon name="Shirt" size={20} className="lr-ph-ic" />}
+                        </span>
+                        <div className="hist-main">
+                          <div className="hist-desc">{it.description || 'Laundry item'}</div>
+                          <div className="hist-sub">
+                            {kind === 'unknown' ? 'Unknown' : (it.ownerName || '—')}
+                            {it.area && <> · {it.area}</>}
+                          </div>
+                        </div>
+                        <div className="hist-act">
+                          <span className="hist-dot" style={{ background: EVENT_DOT[e.action] || '#8B8478' }} />
+                          <span className="hist-actlbl">{EVENT_LABEL[e.action] || e.action}</span>
+                          {e.actorName && <span className="hist-actby">by {e.actorName}</span>}
+                        </div>
+                        <span className="hist-time">{fmtClock(e.at)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Calendar Panel */}
-          <div className="lg:col-span-1">
-            <div className="bg-card border border-border rounded-xl p-6">
-              {/* Calendar Header */}
-              <div className="flex items-center justify-between mb-4">
-                <button
-                  onClick={handlePrevMonth}
-                  className="p-2 hover:bg-muted rounded-lg transition-smooth"
-                >
-                  <Icon name="ChevronLeft" size={20} className="text-foreground" />
-                </button>
-                <h3 className="text-lg font-semibold text-foreground">{monthName}</h3>
-                <button
-                  onClick={handleNextMonth}
-                  className="p-2 hover:bg-muted rounded-lg transition-smooth"
-                >
-                  <Icon name="ChevronRight" size={20} className="text-foreground" />
-                </button>
-              </div>
-              
-              <button
-                onClick={handleToday}
-                className="w-full mb-4 px-3 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition-smooth"
-              >
-                Go to Today
-              </button>
-              
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {/* Day Headers */}
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S']?.map((day, index) => (
-                  <div key={index} className="text-center text-xs font-medium text-muted-foreground py-2">
-                    {day}
-                  </div>
-                ))}
-                
-                {/* Empty cells for days before month starts */}
-                {Array.from({ length: startingDayOfWeek })?.map((_, index) => (
-                  <div key={`empty-${index}`} className="aspect-square" />
-                ))}
-                
-                {/* Calendar days */}
-                {Array.from({ length: daysInMonth })?.map((_, index) => {
-                  const day = index + 1;
-                  const date = new Date(year, month, day);
-                  const hasData = isDateAvailable(date);
-                  const isSelected = isSelectedDate(date);
-                  const isToday = date?.toDateString() === new Date()?.toDateString();
-                  
-                  return (
-                    <button
-                      key={day}
-                      onClick={() => handleDateClick(date)}
-                      className={`aspect-square rounded-lg text-sm font-medium transition-smooth relative ${
-                        isSelected
-                          ? 'bg-primary text-white'
-                          : hasData
-                          ? 'bg-muted text-foreground hover:bg-muted/80 cursor-pointer'
-                          : 'text-muted-foreground hover:bg-muted/50 cursor-pointer'
-                      } ${
-                        isToday && !isSelected ? 'ring-2 ring-primary ring-offset-2' : ''
-                      }`}
-                    >
-                      {day}
-                      {hasData && !isSelected && (
-                        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              
-              {/* Legend */}
-              <div className="mt-4 pt-4 border-t border-border space-y-2">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <div className="w-3 h-3 bg-primary rounded-full" />
-                  <span>Has laundry records</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <div className="w-3 h-3 border-2 border-primary rounded-full" />
-                  <span>Today</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Items Panel */}
-          <div className="lg:col-span-2">
-            {/* Selected Date Header */}
-            <div className="bg-card border border-border rounded-xl p-6 mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-foreground">
-                    {selectedDate?.toLocaleDateString('en-GB', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {counts?.total} item{counts?.total !== 1 ? 's' : ''} delivered
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-success">{counts?.delivered}</p>
-                    <p className="text-xs text-muted-foreground">Delivered</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Items List */}
-            <div className="space-y-3">
-              {laundryItems?.length === 0 ? (
-                <div className="bg-card border border-border rounded-xl p-12 text-center">
-                  <Icon name="Calendar" size={48} className="text-muted-foreground mx-auto mb-4" />
-                  <p className="text-lg font-semibold text-foreground">No delivered items for this date</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Select a date with delivered items from the calendar
-                  </p>
-                </div>
-              ) : (
-                laundryItems?.map(item => (
-                  <LaundryItemRow
-                    key={item?.id}
-                    item={item}
-                    onUpdate={() => {}} // Read-only in history view
-                  />
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </>
   );
 };
 
-export default LaundryCalendarHistoryView;
+export default LaundryHistoryView;

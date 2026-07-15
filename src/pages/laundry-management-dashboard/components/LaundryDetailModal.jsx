@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
-import { LaundryStatus, LaundryPriority, formatLaundryTag, updateLaundryStatus } from '../utils/laundryStorage';
+import { LaundryStatus, LaundryPriority, formatLaundryTag, updateLaundryStatus, getLaundryEvents } from '../utils/laundryStorage';
 import '../laundry.css';
+
+const EVENT_LABEL = { created: 'Added', ready: 'Marked ready', delivered: 'Delivered', reopened: 'Reopened', edited: 'Edited', updated: 'Updated' };
+const EVENT_DOT = { created: '#B7791F', ready: '#2F6E8F', delivered: '#2F7D5A', reopened: '#8B8478', edited: '#8B8478', updated: '#8B8478' };
+const fmtEventTime = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
 const STAT = {
   [LaundryStatus?.IN_PROGRESS]: { cls: 'prog', label: 'In progress' },
@@ -19,7 +23,14 @@ const photosOf = (it) => (Array.isArray(it?.photos) && it.photos.length ? it.pho
 
 const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
   const [item, setItem] = useState(initial);
+  const [events, setEvents] = useState([]);
   useEffect(() => { setItem(initial); }, [initial]);
+
+  const loadEvents = React.useCallback(() => {
+    if (!initial?.id) return;
+    getLaundryEvents(initial.id).then(setEvents).catch(() => {});
+  }, [initial?.id]);
+  useEffect(() => { loadEvents(); }, [loadEvents]);
 
   const kind = ownerKind(item?.ownerType);
   const st = STAT[item?.status] || STAT[LaundryStatus?.READY_TO_DELIVER];
@@ -38,6 +49,7 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
   const advance = async (newStatus) => {
     const updated = await updateLaundryStatus(item.id, newStatus);
     if (updated) setItem({ ...updated, avatarUrl });
+    loadEvents();
     onUpdated?.();
   };
 
@@ -111,11 +123,28 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
         )}
 
         {photos.length > 1 && (
-          <div className="alm-section" style={{ marginBottom: 0 }}>
+          <div className="alm-section">
             <label className="alm-label">Photos <span className="alm-opt">{photos.length}</span></label>
             <div className="ldm-strip">{photos.map((src, i) => <img key={i} src={src} alt={`Photo ${i + 1}`} />)}</div>
           </div>
         )}
+
+        <div className="alm-section" style={{ marginBottom: 0 }}>
+          <label className="alm-label">Activity</label>
+          {events.length === 0 ? (
+            <div className="ldm-log-empty">No activity recorded yet.</div>
+          ) : (
+            <ul className="ldm-log">
+              {events.map((e) => (
+                <li className="ldm-logrow" key={e.id}>
+                  <span className="ldm-logdot" style={{ background: EVENT_DOT[e.action] || '#8B8478' }} />
+                  <span className="ldm-logtext"><b>{EVENT_LABEL[e.action] || e.action}</b>{e.actorName ? <> by {e.actorName}</> : null}</span>
+                  <span className="ldm-logtime">{fmtEventTime(e.at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       <div className="alm-foot" style={{ justifyContent: 'space-between' }}>
