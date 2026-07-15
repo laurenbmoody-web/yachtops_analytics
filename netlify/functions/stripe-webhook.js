@@ -29,6 +29,33 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.netlify.app';
 
+// Map a Stripe price back to our plan_tier + billing_period so a plan change
+// (upgrade/downgrade) syncs onto the tenant. Primary match is the configured
+// price IDs (same six env vars as the checkout functions); the amount fallback
+// covers ad-hoc/test prices that use our list amounts. Amounts are in pence:
+// monthly 179/279/399, annual = ×10 (two months free).
+const PRICE_IDS = {
+  under_40m: { monthly: process.env.STRIPE_PRICE_UNDER_40M_MONTHLY || '', annual: process.env.STRIPE_PRICE_UNDER_40M_ANNUAL || '' },
+  '40_80m':  { monthly: process.env.STRIPE_PRICE_40_80M_MONTHLY || '',  annual: process.env.STRIPE_PRICE_40_80M_ANNUAL || '' },
+  over_80m:  { monthly: process.env.STRIPE_PRICE_OVER_80M_MONTHLY || '', annual: process.env.STRIPE_PRICE_OVER_80M_ANNUAL || '' },
+};
+const AMOUNT_TIER = { 17900: 'under_40m', 27900: '40_80m', 39900: 'over_80m', 179000: 'under_40m', 279000: '40_80m', 399000: 'over_80m' };
+
+function planFromSubscription(subscription) {
+  const price = subscription?.items?.data?.[0]?.price;
+  if (!price) return null;
+  // 1. Exact configured price ID.
+  for (const [tier, map] of Object.entries(PRICE_IDS)) {
+    for (const [period, pid] of Object.entries(map)) {
+      if (pid && pid === price.id) return { tier, period };
+    }
+  }
+  // 2. Fallback: recurring interval + list amount.
+  const period = price.recurring?.interval === 'year' ? 'annual' : 'monthly';
+  const tier = AMOUNT_TIER[price.unit_amount] || null;
+  return tier ? { tier, period } : null;
+}
+
 /* ─── Stripe signature verification (no SDK) ──────────────────────────── */
 
 function verifyStripeSignature(rawBody, signatureHeader, secret) {
@@ -635,16 +662,28 @@ async function handleSubscriptionUpdated(subscription) {
   // handlers for each — plus the renewal date and the pending-cancellation
   // flag (portal "cancel at period end" keeps status='active' but sets
   // cancel_at_period_end=true, so the UI can show "cancelling on <date>").
+  const patch = {
+    subscription_status: subscription.status,
+    current_period_end: periodEndIso(subscription),
+    cancel_at_period_end: subscription.cancel_at_period_end || false,
+  };
+  // Sync the plan too when the subscription's price maps to a known tier —
+  // catches upgrades/downgrades. Leave plan_tier untouched if unmappable so a
+  // custom/ad-hoc price never blanks it.
+  const plan = planFromSubscription(subscription);
+  if (plan) {
+    patch.plan_tier = plan.tier;
+    patch.billing_period = plan.period;
+  } else {
+    console.log(`[subscription.updated] price on ${subscription.id} did not map to a known tier — leaving plan_tier unchanged`);
+  }
+
   const res = await supaRest(
     `tenants?stripe_subscription_id=eq.${encodeURIComponent(subscription.id)}`,
     {
       method: 'PATCH',
       headers: { 'Prefer': 'return=minimal' },
-      body: JSON.stringify({
-        subscription_status: subscription.status,
-        current_period_end: periodEndIso(subscription),
-        cancel_at_period_end: subscription.cancel_at_period_end || false,
-      }),
+      body: JSON.stringify(patch),
     }
   );
   if (!res.ok) {
