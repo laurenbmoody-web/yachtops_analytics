@@ -405,10 +405,12 @@ const UPDATE_FIELD_MAP = {
   title: 'title', description: 'description', priority: 'priority', status: 'status',
   dueDate: 'due_date', departmentOwner: 'department_owner', departmentId: 'department_id',
   assignedToUserId: 'assigned_to', assignedToName: 'assigned_to_name', assigneeKind: 'assignee_kind',
+  assignedTeamDepartmentId: 'assigned_team_department_id', assignedTeamName: 'assigned_team_name',
   defectType: 'defect_type', defectSubType: 'defect_sub_type',
   affectsGuestAreas: 'affects_guest_areas', safetyRelated: 'safety_related',
   locationPathLabel: 'location_path_label', locationFreeText: 'location_free_text',
   hotspotId: 'hotspot_id', locationNodeId: 'location_node_id',
+  photos: 'photos', notifyUsers: 'notify_user_ids',
   contractorName: 'contractor_name', contractorDetails: 'contractor_details', scheduledFixAt: 'scheduled_fix_at',
 };
 const EDIT_FIELDS = ['title', 'description', 'priority', 'dueDate', 'departmentOwner', 'contractorName', 'contractorDetails', 'scheduledFixAt'];
