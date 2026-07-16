@@ -40,11 +40,12 @@ import {
   addDays,
 } from 'date-fns';
 import useDismissable from '../ui/useDismissable';
+import { weekStartsOn } from '../../utils/dateFormat';
 import './editorial-date-picker.css';
 
 const DISPLAY_FORMAT = 'dd/MM/yyyy';
 const ISO_FORMAT     = 'yyyy-MM-dd';
-const WEEK_STARTS_ON = 1;  // Monday — matches UK/SA convention
+// Week start follows the user's Regional setting (Mon default, or Sun).
 
 // "Only one calendar open at a time" — each picker broadcasts on open and any
 // other open picker closes. A document-level event (not DOM bubbling) so it
@@ -309,17 +310,18 @@ const EditorialDatePicker = ({
   };
 
   // Grid data ──────────────────────────────────────────────────────────────
+  const weekStart = weekStartsOn();
   const gridDays = useMemo(() => {
-    const start = startOfWeek(startOfMonth(viewMonth), { weekStartsOn: WEEK_STARTS_ON });
-    const end   = endOfWeek(endOfMonth(viewMonth),     { weekStartsOn: WEEK_STARTS_ON });
+    const start = startOfWeek(startOfMonth(viewMonth), { weekStartsOn: weekStart });
+    const end   = endOfWeek(endOfMonth(viewMonth),     { weekStartsOn: weekStart });
     return eachDayOfInterval({ start, end });
-  }, [viewMonth]);
+  }, [viewMonth, weekStart]);
 
   const weekdayLabels = useMemo(() => {
     // 'EEEEE' is the single-character weekday in date-fns ('M', 'T', ...).
-    const ref = startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON });
+    const ref = startOfWeek(new Date(), { weekStartsOn: weekStart });
     return Array.from({ length: 7 }, (_, i) => format(addDays(ref, i), 'EEEEE'));
-  }, []);
+  }, [weekStart]);
 
   return (
     <div className="edp" ref={wrapperRef}>

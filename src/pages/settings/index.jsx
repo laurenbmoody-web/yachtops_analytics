@@ -1164,8 +1164,6 @@ const SettingsPage = () => {
                   </div>
                 </div>
               )}
-              <RowSeg label="Date format" value={prefs.dateFormat} onChange={(v) => setPref('dateFormat', v)}
-                options={[{ v: 'dmy', l: 'DD/MM/YYYY' }, { v: 'mdy', l: 'MM/DD/YYYY' }]} />
               <RowToggle label="24-hour time" desc="Show 15:42 rather than 3:42 PM." on={prefs.hour24} onChange={() => toggle('hour24')} />
               <RowSeg label="Units" value={prefs.units} onChange={(v) => setPref('units', v)}
                 options={[{ v: 'metric', l: 'Metric' }, { v: 'imperial', l: 'Imperial' }]} />
