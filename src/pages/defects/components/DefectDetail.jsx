@@ -11,7 +11,9 @@ import EditorialDatePicker from '../../../components/editorial/EditorialDatePick
 import ContractorPicker from './ContractorPicker';
 import DefectLogForm from './DefectLogForm';
 import OrderPartsModal from './OrderPartsModal';
+import DefectDocModal from './DefectDocModal';
 import { fetchDefectRequisitions } from '../utils/defectRequisition';
+import { fetchDefectDocuments, deleteDefectDocument, costSummary } from '../utils/defectDocuments';
 import { useDefectActor } from '../utils/useDefectActor';
 import {
   DefectStatus, REPAIR_STAGE_ORDER, REPAIR_STAGE_LABELS,
@@ -40,6 +42,13 @@ const fmtTime = (iso) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 };
+const SYM = { EUR: '€', USD: '$', GBP: '£' };
+const money = (amount, currency) => {
+  if (amount == null) return '—';
+  const n = Number(amount);
+  const s = (SYM[currency] || `${currency || ''} `);
+  return `${n < 0 ? '-' : ''}${s}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 export default function DefectDetail({ defect, onChanged, onClose, mapHref, locationLabel }) {
   const actor = useDefectActor();
@@ -54,15 +63,18 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const [fix, setFix] = useState(null);
   const [reqs, setReqs] = useState([]);
   const [orderingParts, setOrderingParts] = useState(false);
+  const [docs, setDocs] = useState([]);
+  const [docModalKind, setDocModalKind] = useState(null);
 
   const reload = useCallback(async () => {
     if (!defect?.id) return;
-    const [c, e, r] = await Promise.all([
-      getDefectComments(defect.id), getDefectEvents(defect.id), fetchDefectRequisitions(defect.id),
+    const [c, e, r, d] = await Promise.all([
+      getDefectComments(defect.id), getDefectEvents(defect.id), fetchDefectRequisitions(defect.id), fetchDefectDocuments(defect.id),
     ]);
     setComments(c || []);
     setEvents(e || []);
     setReqs(r || []);
+    setDocs(d || []);
   }, [defect?.id]);
 
   useEffect(() => { reload(); }, [reload, defect?.updatedAt]);
@@ -323,6 +335,50 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             ) : (
               <p className="dd-fix-empty">No repair scheduled or contractor arranged yet.</p>
             )}
+
+            {!fixEditing && (() => {
+              const cost = costSummary(docs);
+              return (
+                <div className="dd-docs">
+                  {(cost.quote || cost.invoice) && (
+                    <div className="dd-cost">
+                      <div className="dd-cost-cell"><span className="k">Quoted</span><span className="v">{cost.quote ? money(cost.quote.amount, cost.quote.currency) : '—'}</span></div>
+                      <div className="dd-cost-cell"><span className="k">Invoiced</span><span className="v">{cost.invoice ? money(cost.invoice.amount, cost.invoice.currency) : '—'}</span></div>
+                      {cost.variance != null && (
+                        <div className="dd-cost-cell"><span className="k">Variance</span>
+                          <span className={`v ${cost.variance > 0 ? 'over' : 'under'}`}>{cost.variance > 0 ? '+' : ''}{money(cost.variance, (cost.invoice || cost.quote)?.currency)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {docs.length > 0 && (
+                    <div className="dd-doclist">
+                      {docs.map((d) => (
+                        <div className="dd-doc" key={d.id}>
+                          <span className={`dd-doc-badge k-${d.kind}`}>{d.kind}</span>
+                          <a className="dd-doc-name" href={d.url || undefined} target="_blank" rel="noreferrer" title={d.file_name}>
+                            <Icon name="Paperclip" size={12} /> {d.file_name || 'document'}
+                          </a>
+                          {d.amount != null && <span className="dd-doc-amt">{money(d.amount, d.currency)}</span>}
+                          {canManage && !isClosed && (
+                            <button type="button" className="dd-doc-x" aria-label="Remove"
+                              onClick={async () => { await deleteDefectDocument(d); await reload(); }}><Icon name="X" size={13} /></button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {canManage && !isClosed && (
+                    <div className="dd-doc-actions">
+                      <button type="button" className="dd-edit-btn small" onClick={() => setDocModalKind('quote')}><Icon name="Plus" size={12} /> Quote</button>
+                      <button type="button" className="dd-edit-btn small" onClick={() => setDocModalKind('invoice')}><Icon name="Plus" size={12} /> Invoice</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Parts — raise a provisioning requisition to fix this defect */}
@@ -447,6 +503,15 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
           defect={defect}
           onClose={() => setOrderingParts(false)}
           onCreated={async () => { setOrderingParts(false); await reload(); }}
+        />
+      )}
+
+      {docModalKind && (
+        <DefectDocModal
+          defect={defect}
+          kind={docModalKind}
+          onClose={() => setDocModalKind(null)}
+          onDone={async () => { setDocModalKind(null); await reload(); }}
         />
       )}
     </div>
