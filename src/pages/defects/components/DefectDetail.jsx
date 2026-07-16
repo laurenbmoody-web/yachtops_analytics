@@ -70,6 +70,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const [docs, setDocs] = useState([]);
   const [docModalKind, setDocModalKind] = useState(null);
   const [planningMaint, setPlanningMaint] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [warrantyCtx, setWarrantyCtx] = useState([]);
   const [quoteSettings, setQuoteSettings] = useState({ approverTier: 'HOD', threshold: 1000 });
 
@@ -286,7 +287,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
 
           {/* Repair & contractor — arranged after the defect's logged, so it's
               edited in place on the view. Contact fields mirror the directory. */}
-          <div className="dd-fix">
+          <div className="dd-fix dd-block">
             <div className="dd-fix-head">
               <p className="dd-lbl" style={{ margin: 0 }}>Repair &amp; contractor</p>
               {canManage && !isClosed && !fixEditing && (
@@ -484,7 +485,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
           </div>
 
           {/* Parts — raise a provisioning requisition to fix this defect */}
-          <div className="dd-parts">
+          <div className="dd-parts dd-block">
             <div className="dd-fix-head">
               <p className="dd-lbl" style={{ margin: 0 }}>Parts</p>
               {canManage && !isClosed && (
@@ -510,7 +511,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
           </div>
 
           {/* Planned maintenance — turn a recurring fault into preventive upkeep */}
-          <div className="dd-maint">
+          <div className="dd-maint dd-block">
             <div className="dd-fix-head">
               <p className="dd-lbl" style={{ margin: 0 }}>Planned maintenance</p>
               {canManage && !isClosed && !defect.promotedJobId && (
@@ -530,8 +531,8 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             )}
           </div>
 
-          <div>
-            <p className="dd-lbl">Comments</p>
+          <div className="dd-block">
+            <p className="dd-lbl">Comments{comments.length ? ` · ${comments.length}` : ''}</p>
             {comments.length === 0 ? <p className="dd-comment-empty">No comments yet.</p> : comments.map((c) => (
               <div className="dd-comment" key={c.id}>
                 <div className="dd-comment-h"><span className="dd-comment-n">{c.userName || 'Crew'}</span><span className="dd-comment-w">{fmt(c.createdAt)}</span></div>
@@ -594,10 +595,16 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             {defect.notifyUsers?.length > 0 && <div className="dd-row"><span className="k">Also notified</span><span className="v">{defect.notifyUsers.map((n) => n.name).filter(Boolean).join(', ')}</span></div>}
           </div>
 
-          {/* activity */}
-          <div>
-            <p className="dd-lbl">Activity</p>
-            {events.length === 0 ? <p className="dd-comment-empty">No activity yet.</p> : (
+          {/* activity — collapsible; the rail stays calm, one line when closed */}
+          <div className="dd-activity">
+            <button type="button" className="dd-collapse-h" onClick={() => setActivityOpen((v) => !v)} aria-expanded={activityOpen}>
+              <span className="dd-lbl" style={{ margin: 0 }}>Activity{events.length ? ` · ${events.length}` : ''}</span>
+              <Icon name={activityOpen ? 'ChevronUp' : 'ChevronDown'} size={15} />
+            </button>
+            {!activityOpen && events.length > 0 && (
+              <div className="dd-activity-peek">{events[0].summary || events[0].type} · {fmt(events[0].created_at)}</div>
+            )}
+            {activityOpen && (events.length === 0 ? <p className="dd-comment-empty">No activity yet.</p> : (
               <ul className="dd-tl">
                 {events.map((ev) => (
                   <li key={ev.id} className={ev.type === 'created' ? 'hot' : GOOD_EVENTS.has(ev.type) ? 'good' : ''}>
@@ -607,7 +614,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                   </li>
                 ))}
               </ul>
-            )}
+            ))}
           </div>
 
           {err && <p className="dd-err">{err}</p>}
