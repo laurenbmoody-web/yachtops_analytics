@@ -26,6 +26,14 @@ export const weekStartsOn = () => {
   try { return localStorage.getItem('first_day') === 'sun' ? 0 : 1; } catch { return 1; }
 };
 
+/** Short weekday header labels ordered by the user's first-day setting,
+ *  e.g. ['Mon',…,'Sun'] or ['Sun',…,'Sat']. */
+export const weekdayLabelsShort = () => {
+  const base = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const s = weekStartsOn();
+  return Array.from({ length: 7 }, (_, i) => base[(i + s) % 7]);
+};
+
 if (typeof window !== 'undefined') {
   const refresh = () => { _datePref = _readDate(); _timePref = _read24(); };
   window.addEventListener('cargo:prefs-changed', refresh);

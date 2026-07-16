@@ -1,6 +1,7 @@
 import React from 'react';
 import Icon from '../../../components/AppIcon';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, startOfWeek, endOfWeek } from 'date-fns';
+import { weekStartsOn, weekdayLabelsShort } from '../../../utils/dateFormat';
 
 // Editorial calendar: days are coloured by MCA service type (icon + letter, never
 // colour alone) with a small verification mark (check = captain-signed, clock =
@@ -16,10 +17,11 @@ const TYPE_META = {
 const SeaTimeCalendar = ({ currentMonth, onMonthChange, onDateSelect, calendarData }) => {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const wkStart = weekStartsOn();
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: wkStart });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: wkStart });
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dayNames = weekdayLabelsShort();
 
   const vMark = (status) => {
     if (status === 'VERIFIED') return <Icon name="Check" size={11} style={{ color: 'var(--d-sage-deep)' }} className="stt-day-vmark" />;
