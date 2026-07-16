@@ -12,6 +12,8 @@ import ContractorPicker from './ContractorPicker';
 import DefectLogForm from './DefectLogForm';
 import OrderPartsModal from './OrderPartsModal';
 import DefectDocModal from './DefectDocModal';
+import PlanMaintenanceModal from './PlanMaintenanceModal';
+import { RECURRENCE_LABEL } from '../utils/defectMaintenance';
 import { fetchDefectRequisitions } from '../utils/defectRequisition';
 import { fetchDefectDocuments, deleteDefectDocument, costSummary } from '../utils/defectDocuments';
 import { useDefectActor } from '../utils/useDefectActor';
@@ -67,6 +69,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const [orderingParts, setOrderingParts] = useState(false);
   const [docs, setDocs] = useState([]);
   const [docModalKind, setDocModalKind] = useState(null);
+  const [planningMaint, setPlanningMaint] = useState(false);
   const [warrantyCtx, setWarrantyCtx] = useState([]);
   const [quoteSettings, setQuoteSettings] = useState({ approverTier: 'HOD', threshold: 1000 });
 
@@ -259,6 +262,9 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                       </button>
                     </React.Fragment>
                   ))}. Check before paying for re-work.
+                  {canManage && !isClosed && !defect.promotedJobId && (
+                    <> <button type="button" className="dd-warn-link" onClick={() => setPlanningMaint(true)}>Plan maintenance to prevent this</button></>
+                  )}
                 </div>
               </div>
             </div>
@@ -503,6 +509,27 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             )}
           </div>
 
+          {/* Planned maintenance — turn a recurring fault into preventive upkeep */}
+          <div className="dd-maint">
+            <div className="dd-fix-head">
+              <p className="dd-lbl" style={{ margin: 0 }}>Planned maintenance</p>
+              {canManage && !isClosed && !defect.promotedJobId && (
+                <button className="dd-edit-btn small" onClick={() => setPlanningMaint(true)}>
+                  <Icon name="CalendarPlus" size={12} /> Plan maintenance
+                </button>
+              )}
+            </div>
+            {defect.promotedJobId ? (
+              <button type="button" className="dd-req" onClick={() => { onClose?.(); navigate('/team-jobs-management'); }}>
+                <Icon name="Wrench" size={14} />
+                <span className="t">Scheduled on the job board</span>
+                <Icon name="ArrowUpRight" size={13} />
+              </button>
+            ) : (
+              <p className="dd-fix-empty">Not scheduled as recurring maintenance.</p>
+            )}
+          </div>
+
           <div>
             <p className="dd-lbl">Comments</p>
             {comments.length === 0 ? <p className="dd-comment-empty">No comments yet.</p> : comments.map((c) => (
@@ -599,6 +626,14 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
           defect={defect}
           onClose={() => setOrderingParts(false)}
           onCreated={async () => { setOrderingParts(false); await reload(); }}
+        />
+      )}
+
+      {planningMaint && (
+        <PlanMaintenanceModal
+          defect={defect}
+          onClose={() => setPlanningMaint(false)}
+          onDone={async () => { setPlanningMaint(false); await onChanged?.(); await reload(); }}
         />
       )}
 
