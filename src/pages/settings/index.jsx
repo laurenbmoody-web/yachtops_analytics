@@ -61,7 +61,7 @@ const Caps = ({ children }) => <div className="set-caps">{children}</div>;
 // terracotta italic accent (the app's WORD, *qualifier* voice), muted subline.
 const SectionHead = ({ eyebrow, title, sub }) => (
   <div className="set-head">
-    <p className="set-eyebrow"><span className="dot">●</span>{eyebrow}</p>
+    {eyebrow && <p className="set-eyebrow"><span className="dot">●</span>{eyebrow}</p>}
     <h2 className="set-h">{title}</h2>
     {sub && <p className="set-hsub">{sub}</p>}
   </div>
@@ -761,7 +761,7 @@ const SettingsPage = () => {
       case 'account':
         return (
           <>
-            <SectionHead eyebrow="Account" title={<>Who <em>you are</em></>} sub="Your identity, sign-in and the keys that keep it yours." />
+            <SectionHead title={<>Account, <em>security</em></>} sub="Your identity, sign-in and the keys that keep it yours." />
             <Group>
               <RowNav label="Profile" desc="Name, photo, personal details, documents." ext onClick={() => navigate('/my-profile')} />
             </Group>
@@ -1020,7 +1020,7 @@ const SettingsPage = () => {
       case 'privacy':
         return (
           <>
-            <SectionHead eyebrow="Privacy &amp; data" title={<>Your data, <em>your rules</em></>} sub="See exactly who can see what — and take a copy with you when you leave." />
+            <SectionHead title={<>Privacy, <em>data</em></>} sub="See exactly who can see what — and take a copy with you when you leave." />
 
             {activeTenantId ? (
               <>
@@ -1094,7 +1094,7 @@ const SettingsPage = () => {
       case 'membership':
         return (
           <>
-            <SectionHead eyebrow="Membership" title={<>Your <em>plan</em></>} sub="What your vessel's on, what it includes, and the billing behind it." />
+            <SectionHead title={<>Membership, <em>billing</em></>} sub="What your vessel's on, what it includes, and the billing behind it." />
             <Group>
               {activeTenantId ? (
                 <RowNav label="Current plan" desc={planTierLabel ? `Cargo — ${planTierLabel}` : 'Cargo — active membership'} chip={<span className={`set-chip ${planChip.cls}`}>{planChip.label}</span>} onClick={() => navigate('/membership')} />
@@ -1124,7 +1124,7 @@ const SettingsPage = () => {
       case 'notifications':
         return (
           <>
-            <SectionHead eyebrow="Notifications" title={<>What reaches <em>you</em></>} sub="Choose which alerts reach you, on the bell and by email." />
+            <SectionHead title={<>Notifications, <em>alerts</em></>} sub="Choose which alerts reach you, on the bell and by email." />
             <Group>
               {/* One source of truth: the per-category controls live on your
                   profile's Notifications tab (bell + email columns in
@@ -1149,7 +1149,7 @@ const SettingsPage = () => {
       case 'regional':
         return (
           <>
-            <SectionHead eyebrow="Regional" title={<>Time, dates &amp; <em>format</em></>} sub="How Cargo reads on your device — down to the clock and the calendar." />
+            <SectionHead title={<>Regional, <em>format</em></>} sub="How Cargo reads on your device — down to the clock and the calendar." />
             <Group>
               <button type="button" className="set-r" onClick={() => setTzOpen(o => !o)}>
                 <RMain label="Time zone" />
@@ -1184,7 +1184,7 @@ const SettingsPage = () => {
       case 'accessibility':
         return (
           <>
-            <SectionHead eyebrow="Accessibility" title={<>Easier to <em>use</em></>} sub="Reading, motion and focus — tuned to how you work best." />
+            <SectionHead title={<>Accessibility, <em>comfort</em></>} sub="Reading, motion and focus — tuned to how you work best." />
             <Caps>Reading</Caps>
             <Group>
               <RowSeg
@@ -1231,7 +1231,7 @@ const SettingsPage = () => {
       case 'legal':
         return (
           <>
-            <SectionHead eyebrow="Legal" title={<>The <em>fine print</em></>} sub="Terms, privacy and cookies — the agreements behind Cargo." />
+            <SectionHead title={<>Legal, <em>terms</em></>} sub="Terms, privacy and cookies — the agreements behind Cargo." />
             <Group>
               <RowNav ext label="Terms of Service" desc="The agreement for using Cargo." onClick={() => window.open('/terms', '_blank', 'noopener')} />
               <RowNav ext label="Privacy Policy" desc="How we handle your data." onClick={() => window.open('/privacy', '_blank', 'noopener')} />
@@ -1243,7 +1243,7 @@ const SettingsPage = () => {
       case 'help':
         return (
           <>
-            <SectionHead eyebrow="Help &amp; support" title={<>Need a <em>hand?</em></>} sub="Guides, a direct line to the Cargo team, and your version." />
+            <SectionHead title={<>Help, <em>support</em></>} sub="Guides, a direct line to the Cargo team, and your version." />
             <Group>
               <RowNav ext label="FAQ" desc="Answers to common questions." onClick={() => window.open('/faq', '_blank', 'noopener')} />
               <RowNav label="Contact support" desc="Message the Cargo team — we’ll reply to you directly." onClick={() => { setSupportSent(false); setSupportMsg(''); setSupportErr(''); setSupportOpen(true); }} />
