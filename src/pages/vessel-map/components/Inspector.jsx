@@ -188,13 +188,19 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
         <button className="vm-side-close" onClick={onClose} aria-label="Close inspector">×</button>
         {canManage ? (
           <>
-            <input
-              className="vm-input vm-name-input"
-              value={nameDraft}
-              placeholder="Name this pin"
-              autoFocus={autoFocusName}
-              onChange={(e) => { setNameDraft(e.target.value); onRename?.(shown.id, e.target.value); }}
-            />
+            {shown.layer === 'defect' ? (
+              // Defect pins aren't titled here — the name is the defect's title
+              // (set in the defect panel), or just "Defect" until one is logged.
+              <h2 className="vm-insp-title">{shown.label || 'Defect'}</h2>
+            ) : (
+              <input
+                className="vm-input vm-name-input"
+                value={nameDraft}
+                placeholder="Name this pin"
+                autoFocus={autoFocusName}
+                onChange={(e) => { setNameDraft(e.target.value); onRename?.(shown.id, e.target.value); }}
+              />
+            )}
             <div className="vm-swatch-row" role="radiogroup" aria-label="Category">
               {LAYERS.map((l) => {
                 const on = (shown.layer || 'general') === l.key;
@@ -315,6 +321,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
           scanName={scanName}
           containerTrail={containerTrail}
           onChanged={() => { setDefectReload((v) => v + 1); onDetailSaved?.(); }}
+          onTitled={(title) => { if (title) onRename?.(shown.id, title); }}
           onClose={() => setDefectModalOpen(false)}
         />
       )}

@@ -6,6 +6,7 @@
 // so a logged/assigned defect notifies the crew cross-device.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Icon from '../../../components/AppIcon';
 import { useDefectActor } from '../../defects/utils/useDefectActor';
 import {
   DefectStatus, DefectPriority,
@@ -38,7 +39,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function DefectPin({ hotspot, canManage, scanName, containerTrail, onChanged }) {
+export default function DefectPin({ hotspot, canManage, scanName, containerTrail, onChanged, onTitled, onCancel }) {
   const actor = useDefectActor();
   const navigate = useNavigate();
   const fileRef = useRef(null);
@@ -46,13 +47,12 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
   const [loading, setLoading] = useState(true);
   const [defect, setDefect] = useState(null);
   const [comments, setComments] = useState([]);
-  const [mode, setMode] = useState('view'); // view | log
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [newComment, setNewComment] = useState('');
   const [departments, setDepartments] = useState([]);
   const [crew, setCrew] = useState([]);
-  const [form, setForm] = useState({ title: '', priority: DefectPriority.MEDIUM, description: '', photo: null, deptId: '', assign: 'unassigned', userId: '', affectsGuestAreas: false, safetyRelated: false });
+  const [form, setForm] = useState({ title: '', priority: DefectPriority.MEDIUM, description: '', photos: [], deptId: '', assign: 'unassigned', userId: '', affectsGuestAreas: false, safetyRelated: false });
 
   const locationLabel = useMemo(() => {
     const trail = (containerTrail || []).map((c) => c?.name || c).filter(Boolean);
@@ -70,9 +70,9 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
 
   useEffect(() => { loadForPin(); }, [loadForPin]);
 
-  // Pickers for the log form.
+  // Pickers for the log form (loaded while there's no defect yet).
   useEffect(() => {
-    if (mode !== 'log' || !actor?.tenantId) return;
+    if (defect || loading || !actor?.tenantId) return;
     let live = true;
     (async () => {
       const [depts, cr] = await Promise.all([fetchTenantDepartments(actor.tenantId), fetchTenantCrew(actor.tenantId)]);
@@ -82,7 +82,7 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
       setForm((f) => ({ ...f, deptId: f.deptId || actor.departmentId || (depts?.[0]?.id || '') }));
     })();
     return () => { live = false; };
-  }, [mode, actor?.tenantId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [defect, loading, actor?.tenantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refetchById = async (id) => {
     const d = await getDefectById(id, actor);
@@ -92,15 +92,24 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
   };
 
   const deptName = (id) => departments.find((d) => d?.id === id)?.name || null;
-  const crewInDept = crew.filter((c) => !form.deptId || (c?.department || '').toLowerCase() === (deptName(form.deptId) || '').toLowerCase());
+  // Show all crew (the picker sorts the chosen department's people to the top so
+  // you can always assign someone, even cross-department).
+  const dName = deptName(form.deptId);
+  const crewOptions = [...crew].sort((a, b) => {
+    const ai = (a?.department || '').toLowerCase() === (dName || '').toLowerCase() ? 0 : 1;
+    const bi = (b?.department || '').toLowerCase() === (dName || '').toLowerCase() ? 0 : 1;
+    return ai - bi || (a?.fullName || '').localeCompare(b?.fullName || '');
+  });
 
   const onPickPhoto = (e) => {
-    const file = e?.target?.files?.[0];
+    const files = Array.from(e?.target?.files || []);
     e.target.value = '';
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setForm((f) => ({ ...f, photo: reader.result }));
-    reader.readAsDataURL(file);
+    if (!files.length) return;
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => setForm((f) => ({ ...f, photos: [...f.photos, reader.result] }));
+      reader.readAsDataURL(file);
+    });
   };
 
   const guardBusy = async (fn) => {
@@ -112,7 +121,6 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
 
   const handleLog = () => guardBusy(async () => {
     if (!form.title.trim()) { setErr('Give the defect a title.'); return; }
-    const dName = deptName(form.deptId);
     const picked = crew.find((c) => c?.id === form.userId);
     const created = await createDefect({
       title: form.title, description: form.description, priority: form.priority,
@@ -127,9 +135,9 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
       locationPathLabel: locationLabel,
       affectsGuestAreas: form.affectsGuestAreas,
       safetyRelated: form.safetyRelated,
-      photos: form.photo ? [form.photo] : [],
+      photos: form.photos,
     }, actor);
-    if (created) { setDefect(created); setComments([]); setMode('view'); onChanged?.(); }
+    if (created) { setDefect(created); setComments([]); onTitled?.(created.title); onChanged?.(); }
   });
 
   const handleStatus = (status) => guardBusy(async () => { await updateDefect(defect.id, { status }, actor); await refetchById(defect.id); });
@@ -160,23 +168,13 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
 
   if (loading) return <div className="vmd"><p className="vmd-loading">Loading defect…</p></div>;
 
-  // ── Log form / empty state ─────────────────────────────────────────────────
+  // ── Log form ───────────────────────────────────────────────────────────────
   if (!defect) {
-    if (mode !== 'log') {
-      return (
-        <div className="vmd">
-          <div className="vmd-empty">
-            <span className="vmd-empty-t">No defect logged here</span>
-            <span className="vmd-empty-s">Log one on this pin — photo, priority and who owns it. It notifies the crew and is tracked through to fixed.</span>
-            {canManage ? (
-              <button className="vm-btn-primary vmd-empty-btn" onClick={() => setMode('log')}>Log a defect here</button>
-            ) : (
-              <button className="vm-btn-primary vmd-empty-btn" onClick={() => setMode('log')}>Report a defect here</button>
-            )}
-          </div>
-        </div>
-      );
-    }
+    const ASSIGN = [
+      { k: 'unassigned', icon: 'Ban', title: 'No one' },
+      { k: 'team', icon: 'Users', title: 'Whole team' },
+      { k: 'user', icon: 'User', title: 'A person' },
+    ];
     return (
       <div className="vmd">
         <form className="vmd-form" onSubmit={(e) => { e.preventDefault(); handleLog(); }}>
@@ -203,46 +201,61 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
             </div>
           </div>
 
-          <div className="vmd-field">
-            <label className="vmd-lbl">Assign to</label>
-            <div className="vmd-seg">
-              {['unassigned', 'team', 'user'].map((k) => (
-                <button type="button" key={k} className={form.assign === k ? 'on' : ''}
-                  onClick={() => setForm({ ...form, assign: k })}>
-                  {k === 'unassigned' ? 'No one' : k === 'team' ? 'Whole team' : 'A person'}
+          {/* Assign + flags share one row of compact icon buttons. */}
+          <div className="vmd-af">
+            <div className="vmd-af-group">
+              <label className="vmd-lbl">Assign</label>
+              <div className="vmd-iconset">
+                {ASSIGN.map((a) => (
+                  <button type="button" key={a.k} title={a.title} aria-label={a.title}
+                    className={`vmd-iconbtn${form.assign === a.k ? ' on' : ''}`}
+                    onClick={() => setForm({ ...form, assign: a.k })}>
+                    <Icon name={a.icon} size={16} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="vmd-af-group">
+              <label className="vmd-lbl">Flags</label>
+              <div className="vmd-iconset">
+                <button type="button" title="Affects guest areas" aria-label="Affects guest areas"
+                  className={`vmd-iconbtn${form.affectsGuestAreas ? ' on' : ''}`}
+                  onClick={() => setForm({ ...form, affectsGuestAreas: !form.affectsGuestAreas })}>
+                  <Icon name="Sofa" size={16} />
                 </button>
+                <button type="button" title="Safety-related" aria-label="Safety-related"
+                  className={`vmd-iconbtn${form.safetyRelated ? ' on' : ''}`}
+                  onClick={() => setForm({ ...form, safetyRelated: !form.safetyRelated })}>
+                  <Icon name="ShieldAlert" size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {form.assign === 'user' && (
+            <select className="vmd-select" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
+              <option value="">Select crew…</option>
+              {crewOptions.map((c) => <option key={c.id} value={c.id}>{c.fullName}{c.department ? ` · ${c.department}` : ''}</option>)}
+            </select>
+          )}
+          {form.assign === 'team' && (
+            <p className="vmd-comment-empty">Everyone in {dName || 'the department'} is notified — first to accept owns it.</p>
+          )}
+
+          <div className="vmd-field">
+            <label className="vmd-lbl">Photos<span className="req" style={{ color: '#AEB4C2' }}>optional</span></label>
+            <div className="vmd-photostrip">
+              <button type="button" className="vmd-photo-add" onClick={() => fileRef.current?.click()} title="Add photos">
+                <Icon name="Plus" size={18} />
+              </button>
+              {form.photos.map((p, i) => (
+                <div className="vmd-photo-thumb" key={i}>
+                  <img src={p} alt={`Defect ${i + 1}`} />
+                  <button type="button" className="vmd-photo-x" onClick={() => setForm((f) => ({ ...f, photos: f.photos.filter((_, j) => j !== i) }))}>×</button>
+                </div>
               ))}
             </div>
-            {form.assign === 'user' && (
-              <select className="vmd-select" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} style={{ marginTop: 8 }}>
-                <option value="">Select crew…</option>
-                {crewInDept.map((c) => <option key={c.id} value={c.id}>{c.fullName}</option>)}
-              </select>
-            )}
-            {form.assign === 'team' && (
-              <p className="vmd-comment-empty" style={{ marginTop: 6 }}>Everyone in {deptName(form.deptId) || 'the department'} is notified — first to accept owns it.</p>
-            )}
-          </div>
-
-          <div className="vmd-field">
-            <label className="vmd-lbl">Photo<span className="req" style={{ color: '#AEB4C2' }}>optional</span></label>
-            {form.photo ? (
-              <div className="vmd-photo-preview">
-                <img src={form.photo} alt="Defect" />
-                <button type="button" className="vmd-photo-x" onClick={() => setForm({ ...form, photo: null })}>×</button>
-              </div>
-            ) : (
-              <button type="button" className="vmd-photo-btn" onClick={() => fileRef.current?.click()}>＋ Add a photo</button>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onPickPhoto} />
-          </div>
-
-          <div className="vmd-field">
-            <label className="vmd-lbl">Flags</label>
-            <div className="vmd-seg">
-              <button type="button" className={form.affectsGuestAreas ? 'on' : ''} onClick={() => setForm({ ...form, affectsGuestAreas: !form.affectsGuestAreas })}>Guest area</button>
-              <button type="button" className={form.safetyRelated ? 'on' : ''} onClick={() => setForm({ ...form, safetyRelated: !form.safetyRelated })}>Safety-related</button>
-            </div>
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={onPickPhoto} />
           </div>
 
           <div className="vmd-field">
@@ -253,7 +266,7 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
 
           {err && <p className="vmd-err">{err}</p>}
           <div className="vmd-form-actions">
-            <button type="button" className="vm-btn-ghost" onClick={() => setMode('view')} disabled={busy}>Cancel</button>
+            {onCancel && <button type="button" className="vm-btn-ghost" onClick={onCancel} disabled={busy}>Cancel</button>}
             <button type="submit" className="vm-btn-primary" disabled={busy} style={{ flex: 1 }}>{busy ? 'Logging…' : 'Log & notify'}</button>
           </div>
         </form>

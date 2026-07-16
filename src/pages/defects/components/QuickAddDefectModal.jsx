@@ -40,7 +40,13 @@ export default function QuickAddDefectModal({ onClose, onSuccess }) {
   }, [actor?.tenantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const deptName = (id) => departments.find((d) => d?.id === id)?.name || null;
-  const crewInDept = crew.filter((c) => !form.deptId || (c?.department || '').toLowerCase() === (deptName(form.deptId) || '').toLowerCase());
+  const dName = deptName(form.deptId);
+  // Show all crew (chosen department first) so assignment always has options.
+  const crewOptions = [...crew].sort((a, b) => {
+    const ai = (a?.department || '').toLowerCase() === (dName || '').toLowerCase() ? 0 : 1;
+    const bi = (b?.department || '').toLowerCase() === (dName || '').toLowerCase() ? 0 : 1;
+    return ai - bi || (a?.fullName || '').localeCompare(b?.fullName || '');
+  });
 
   const onPickPhoto = (e) => {
     const file = e?.target?.files?.[0];
@@ -130,7 +136,7 @@ export default function QuickAddDefectModal({ onClose, onSuccess }) {
           {form.assign === 'user' && (
             <select className="qad-select" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} style={{ marginTop: 8 }}>
               <option value="">Select crew…</option>
-              {crewInDept.map((c) => <option key={c.id} value={c.id}>{c.fullName}</option>)}
+              {crewOptions.map((c) => <option key={c.id} value={c.id}>{c.fullName}{c.department ? ` · ${c.department}` : ''}</option>)}
             </select>
           )}
           {form.assign === 'team' && (
