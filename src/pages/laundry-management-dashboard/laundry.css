@@ -934,6 +934,7 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-pm:last-child { border-bottom: none; }
 .lb-pm b { color: #1C1B3A; }
 .lb-export { display: inline-flex; align-items: center; gap: 6px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; background: #FFFFFF; border: 1px solid #F0DDD2; border-radius: 9px; padding: 7px 12px; cursor: pointer; }
+.lb-exports { display: flex; gap: 8px; flex: none; }
 .lb-export:hover { background: #FBEFE9; }
 .lb-export svg { width: 14px; height: 14px; stroke: currentColor; }
 .lb-hero-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }

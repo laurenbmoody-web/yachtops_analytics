@@ -8,6 +8,7 @@ import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboa
 import { resolveLaundryPhotos } from '../laundry-management-dashboard/utils/laundryPhotos';
 import { buildLogbook, initials } from '../laundry-management-dashboard/utils/laundryLogbook';
 import { downloadLaundryCsv } from '../laundry-management-dashboard/utils/laundryExport';
+import { openTripReport } from '../laundry-management-dashboard/utils/laundryReport';
 import LaundryDetailModal from '../laundry-management-dashboard/components/LaundryDetailModal';
 import { LaundryStatus } from '../laundry-management-dashboard/utils/laundryStorage';
 import '../../styles/editorial.css';
@@ -130,9 +131,14 @@ const Detail = ({ p, onExport, onOpenItem }) => {
             <div className="lb-nm">{title}</div>
           </div>
           {(p.items || []).length > 0 && (
-            <button type="button" className="lb-export" onClick={() => onExport(p)}>
-              <Icon name="Download" size={14} /> Export
-            </button>
+            <div className="lb-exports">
+              <button type="button" className="lb-export" onClick={() => openTripReport(p)}>
+                <Icon name="Printer" size={14} /> Report
+              </button>
+              <button type="button" className="lb-export" onClick={() => onExport(p)}>
+                <Icon name="Download" size={14} /> CSV
+              </button>
+            </div>
           )}
         </div>
 
