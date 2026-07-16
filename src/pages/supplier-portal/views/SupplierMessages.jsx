@@ -831,21 +831,27 @@ const SupplierMessages = () => {
                         <button type="button" className="msg-qreview-x" onClick={() => setPendingQuote(null)} aria-label="Discard">✕</button>
                       </div>
                       <div className="msg-qc-items">
-                        {pendingQuote.items.map((it, i) => (
-                          <div key={i} className="msg-qc-item">
-                            <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>
-                            {it.unit_price != null ? (
-                              <span className="msg-qc-price">{fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || pendingQuote.currency)}</span>
-                            ) : (
-                              <span className="msg-qc-pricein">
-                                <input type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00"
-                                  value={it._priceInput ?? ''}
-                                  onChange={(e) => setPendingPrice(i, e.target.value)} />
-                                <span className="msg-qc-cur">{(it.currency || pendingQuote.currency || 'EUR')} /unit</span>
-                              </span>
-                            )}
-                          </div>
-                        ))}
+                        {pendingQuote.items.map((it, i) => {
+                          // Bespoke lines (no catalogue match) stay editable in the
+                          // review so a typed price can always be corrected; matched
+                          // catalogue lines show their price as static text.
+                          const editable = it.matched === false;
+                          return (
+                            <div key={i} className="msg-qc-item">
+                              <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>
+                              {editable ? (
+                                <span className="msg-qc-pricein">
+                                  <input type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00"
+                                    value={it._priceInput ?? (it.unit_price != null ? String(it.unit_price) : '')}
+                                    onChange={(e) => setPendingPrice(i, e.target.value)} />
+                                  <span className="msg-qc-cur">{(it.currency || pendingQuote.currency || 'EUR')} /unit</span>
+                                </span>
+                              ) : (
+                                <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || pendingQuote.currency) : '—'}</span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                       {pendingQuote.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney0(pendingQuote.total, pendingQuote.currency)}</span></div>}
                       <div className="msg-qreview-actions">
