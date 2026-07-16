@@ -493,12 +493,29 @@ const SupplierMessages = () => {
     finally { setSending(false); }
   };
 
+  // Let the supplier type a price into an unpriced line while reviewing the
+  // draft, before sending — recomputes the total live.
+  const setPendingPrice = (i, value) => {
+    setPendingQuote((pq) => {
+      if (!pq) return pq;
+      const v = String(value).replace(/[^\d.]/g, '');
+      const items = pq.items.map((it, idx) => {
+        if (idx !== i) return it;
+        const p = v === '' ? null : Number(v);
+        return { ...it, unit_price: (v === '' || Number.isNaN(p)) ? null : p, _priceInput: v };
+      });
+      const total = items.reduce((s, it) => s + (it.unit_price != null ? Number(it.unit_price) * (Number(it.qty) || 1) : 0), 0);
+      return { ...pq, items, total };
+    });
+  };
+
   // Send the reviewed quote as a structured, acceptable message.
   const sendQuote = async () => {
     if (!pendingQuote || !activeId || sending) return;
     setSending(true);
     try {
-      const q = { items: pendingQuote.items, currency: pendingQuote.currency, total: pendingQuote.total };
+      const items = pendingQuote.items.map(({ _priceInput, ...it }) => it);
+      const q = { items, currency: pendingQuote.currency, total: pendingQuote.total };
       const msg = await sendSupplierQuote(activeId, pendingQuote.text, q);
       setMessages((m) => [...m, msg]);
       setPendingQuote(null);
@@ -650,7 +667,6 @@ const SupplierMessages = () => {
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                       </span>
                       {boat(g.tenantId, g.name)}
-                      {g.unread > 0 && <span className="msg-grp-dot" title={`${g.unread} new message${g.unread === 1 ? '' : 's'} received`} />}
                       <span className="msg-grp-name">{g.name}</span>
                       <span className="msg-grp-meta">
                         {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
@@ -818,7 +834,16 @@ const SupplierMessages = () => {
                         {pendingQuote.items.map((it, i) => (
                           <div key={i} className="msg-qc-item">
                             <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>
-                            <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || pendingQuote.currency) : '—'}</span>
+                            {it.unit_price != null ? (
+                              <span className="msg-qc-price">{fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || pendingQuote.currency)}</span>
+                            ) : (
+                              <span className="msg-qc-pricein">
+                                <input type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00"
+                                  value={it._priceInput ?? ''}
+                                  onChange={(e) => setPendingPrice(i, e.target.value)} />
+                                <span className="msg-qc-cur">{(it.currency || pendingQuote.currency || 'EUR')} /unit</span>
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>
