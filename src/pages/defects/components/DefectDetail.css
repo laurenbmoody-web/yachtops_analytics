@@ -111,10 +111,20 @@
 .dd-contractor .cn { font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 .dd-contractor .cd { font-size: 12px; color: #6B7280; margin-top: 3px; line-height: 1.45; white-space: pre-wrap; }
 .dd-contractor .cs { font-size: 12px; color: #6B7280; font-weight: 500; margin-top: 6px; }
-/* Due date — the deadline, so it leads the card with emphasis. */
-.dd-due { display: inline-flex; align-items: baseline; gap: 7px; background: #FBEFE9; border-radius: 999px; padding: 4px 12px; }
-.dd-due-k { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #C65A1A; }
-.dd-due-v { font-size: 14px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
+/* Scheduled-for — leads the repair card. */
+.dd-sched { display: inline-flex; align-items: center; gap: 6px; background: #FBEFE9; border-radius: 999px; padding: 4px 12px;
+  font-size: 12.5px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
+.dd-sched svg { color: #C65A1A; }
+/* Contractor contact row (mirrors directory fields). */
+.dd-contact { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.dd-contact .cc { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #3A3960; text-decoration: none; }
+a.dd-contact .cc, .dd-contact a.cc { color: #3E6B89; }
+.dd-contact a.cc:hover { color: #C65A1A; }
+.dd-contact .cc svg { color: #AEB4C2; }
+/* schedule range (two pickers) */
+.dd-daterange { display: flex; align-items: center; gap: 8px; }
+.dd-daterange > .edp { flex: 1; min-width: 0; }
+.dd-daterange-sep { color: #AEB4C2; flex: none; }
 
 .dd-cn-link { margin-left: auto; background: none; border: 0; padding: 0; font-family: inherit; font-size: 11px; font-weight: 600;
   color: #C65A1A; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }

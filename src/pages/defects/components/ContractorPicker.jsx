@@ -10,7 +10,7 @@ import { fetchVendors, createVendor } from '../../provisioning/utils/provisionin
 // Vendor types you'd actually book to fix a defect — sorted to the top.
 const FIXER_TYPES = new Set(['Contractor', 'Service Provider']);
 
-export default function ContractorPicker({ value = '', supplierId = null, onChange, tenantId }) {
+export default function ContractorPicker({ value = '', supplierId = null, onChange, tenantId, draftEmail = '', draftPhone = '', draftContact = '' }) {
   const wrapRef = useRef(null);
   const [vendors, setVendors] = useState([]);
   const [query, setQuery] = useState(value || '');
@@ -48,20 +48,28 @@ export default function ContractorPicker({ value = '', supplierId = null, onChan
 
   const exactExists = q && vendors.some((v) => (v.name || '').trim().toLowerCase() === q);
 
-  const pick = (v) => { onChange?.({ supplierId: v.id, name: v.name }); setQuery(v.name); setOpen(false); };
+  // Picking a directory vendor pulls its contact details through so the fields
+  // below auto-fill. Typing a fresh name clears the link (free text).
+  const pick = (v) => {
+    onChange?.({ supplierId: v.id, name: v.name, email: v.contact_email || '', phone: v.contact_phone || '' });
+    setQuery(v.name); setOpen(false);
+  };
   const onType = (t) => { setQuery(t); setErr(''); setOpen(true); onChange?.({ supplierId: null, name: t }); };
 
   const addToDirectory = async () => {
     const name = query.trim();
     if (!name || !tenantId) return;
     setAdding(true); setErr('');
+    // Capture whatever contact detail the crew already typed on the defect, so
+    // the new directory record is populated, not a bare name.
     const { data, error } = await createVendor({
       name, vendor_type: 'Contractor', categories: [], subcategories: [], tenant_id: tenantId,
+      contact_email: draftEmail?.trim() || null, contact_phone: draftPhone?.trim() || null,
     });
     setAdding(false);
     if (error || !data) { setErr('Could not add to the directory.'); return; }
     setVendors((vs) => [...vs, data]);
-    onChange?.({ supplierId: data.id, name: data.name });
+    onChange?.({ supplierId: data.id, name: data.name, email: data.contact_email || draftEmail || '', phone: data.contact_phone || draftPhone || '' });
     setQuery(data.name);
     setOpen(false);
   };
