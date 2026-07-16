@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { formatTime } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
@@ -9,7 +10,7 @@ import '../laundry-management-dashboard/laundry.css';
 const EVENT_LABEL = { created: 'Added', ready: 'Marked ready', delivered: 'Delivered', reopened: 'Reopened', edited: 'Edited', updated: 'Updated' };
 const EVENT_DOT = { created: '#B7791F', ready: '#2F6E8F', delivered: '#2F7D5A', reopened: '#8B8478', edited: '#8B8478', updated: '#8B8478' };
 const ownerKind = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : 'unknown'; };
-const fmtClock = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
+const fmtClock = (iso) => (iso ? formatTime(iso) : '');
 const dayKey = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dayLabel = (iso) => {
   const d = new Date(iso);

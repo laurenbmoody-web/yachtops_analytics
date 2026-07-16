@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { formatTime } from '../../../utils/dateFormat';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import {
@@ -31,7 +32,7 @@ const orderTotal = (o) => (o.supplier_order_items ?? []).reduce((s, i) => s + it
 const fmtMoney0 = (a, cur = 'EUR') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(a || 0);
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 const shortId = (id) => (id ? String(id).slice(0, 8).toUpperCase() : '—');
-const fmtClock = (d) => (d ? new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
+const fmtClock = (d) => (d ? formatTime(d) : '');
 const fmtWhen = (d) => {
   if (!d) return '';
   const dt = new Date(d);

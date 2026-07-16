@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatTime } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 
@@ -116,11 +117,6 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
     return date?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const formatTime = (dateStr) => {
-    const date = new Date(dateStr);
-    return date?.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (

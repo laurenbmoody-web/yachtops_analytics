@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { formatTime } from '../../utils/dateFormat';
 import { supabase } from '../../lib/supabaseClient';
 import Icon from '../../components/AppIcon';
 import '../provisioning/provisioning-dashboard.css';
@@ -313,7 +314,7 @@ export default function ProvisioningApprovalSettings({ tenantId }) {
           {/* ── Footer ───────────────────────────────────────────────── */}
           <div className="pv-approval-foot">
             {savedAt && !isDirty && (
-              <span className="pv-edit-modal-saved">Saved {savedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="pv-edit-modal-saved">Saved {formatTime(savedAt)}</span>
             )}
             <div className="pv-edit-modal-actions">
               <button

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatTime } from '../../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
@@ -9,15 +10,6 @@ import { getDocTypeLabel } from '../../crew-profile/documentTypes';
 
 const getActiveTenantId = () => localStorage.getItem('cargo_active_tenant_id') || null;
 
-const formatTime = (isoString) => {
-  if (!isoString) return '';
-  try {
-    const d = new Date(isoString);
-    return d?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-  } catch {
-    return '';
-  }
-};
 
 const getTodayLocalRange = () => {
   const now = new Date();

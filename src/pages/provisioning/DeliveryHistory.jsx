@@ -14,6 +14,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { formatTime } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -39,7 +40,7 @@ const fmtDate = (iso) => {
 const fmtTime = (iso) => {
   if (!iso) return '';
   try {
-    return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return formatTime(iso);
   } catch { return ''; }
 };
 

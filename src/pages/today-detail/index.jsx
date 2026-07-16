@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatTime } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
@@ -19,12 +20,6 @@ const getTodayLocalRange = () => {
   };
 };
 
-const formatTime = (isoString) => {
-  if (!isoString) return '';
-  try {
-    return new Date(isoString)?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-  } catch { return ''; }
-};
 
 const ACTION_ICON_MAP = {
   JOB_CREATED: { icon: 'Plus', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950' },
