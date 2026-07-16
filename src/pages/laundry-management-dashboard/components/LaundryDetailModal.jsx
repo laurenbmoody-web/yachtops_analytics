@@ -37,7 +37,8 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
 
   const advance = async (newStatus) => {
     const updated = await updateLaundryStatus(item.id, newStatus);
-    if (updated) setItem({ ...updated, avatarUrl });
+    // keep the already-signed photo URLs + avatar (status change doesn't touch them)
+    if (updated) setItem({ ...updated, photos: item.photos, photo: item.photo, avatarUrl });
     loadEvents();
     onUpdated?.();
   };
