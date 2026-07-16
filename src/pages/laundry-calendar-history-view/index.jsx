@@ -139,19 +139,28 @@ const Detail = ({ p, onExport, onOpenItem }) => {
         <div className="lb-info">
           <div className="lb-i">
             <span className="lb-il">Avg turnaround</span>
-            <div className="lb-clock">
-              <svg viewBox="0 0 100 100" aria-label={`Average turnaround ${p.avg}`}>
-                <circle cx="50" cy="50" r="40" fill="#FDFCFA" stroke="#ECECEE" strokeWidth="2" />
-                <g stroke="#CFCFD6" strokeWidth="2" strokeLinecap="round">
-                  <line x1="50" y1="13" x2="50" y2="19" /><line x1="87" y1="50" x2="81" y2="50" /><line x1="50" y1="87" x2="50" y2="81" /><line x1="13" y1="50" x2="19" y2="50" />
-                </g>
-                {hands && <>
-                  <line x1="50" y1="50" x2={hands.hx} y2={hands.hy} stroke="#1C1B3A" strokeWidth="3.2" strokeLinecap="round" />
-                  <line x1="50" y1="50" x2={hands.mx} y2={hands.my} stroke="#C65A1A" strokeWidth="2.6" strokeLinecap="round" />
-                </>}
-                <circle cx="50" cy="50" r="3.4" fill="#C65A1A" />
-              </svg>
-              <div><div className="lb-cv tnum">{p.avg}</div><div className="lb-cu">{hands ? 'per piece' : 'no data yet'}</div></div>
+            <div className="lb-clockwrap">
+              <div className="lb-clock">
+                <svg viewBox="0 0 100 100" aria-label={`Average turnaround ${p.avg}`}>
+                  <circle cx="50" cy="50" r="40" fill="#FDFCFA" stroke="#ECECEE" strokeWidth="2" />
+                  <g stroke="#CFCFD6" strokeWidth="2" strokeLinecap="round">
+                    <line x1="50" y1="13" x2="50" y2="19" /><line x1="87" y1="50" x2="81" y2="50" /><line x1="50" y1="87" x2="50" y2="81" /><line x1="13" y1="50" x2="19" y2="50" />
+                  </g>
+                  {hands && <>
+                    <line x1="50" y1="50" x2={hands.hx} y2={hands.hy} stroke="#1C1B3A" strokeWidth="3.2" strokeLinecap="round" />
+                    <line x1="50" y1="50" x2={hands.mx} y2={hands.my} stroke="#C65A1A" strokeWidth="2.6" strokeLinecap="round" />
+                  </>}
+                  <circle cx="50" cy="50" r="3.4" fill="#C65A1A" />
+                </svg>
+                <div><div className="lb-cv tnum">{p.avg}</div><div className="lb-cu">{hands ? 'overall' : 'no data yet'}</div></div>
+              </div>
+              {(p.carePace || []).length > 1 && (
+                <div className="lb-pace">
+                  {p.carePace.slice(0, 4).map((c, i) => (
+                    <div className="lb-pace-r" key={i}><span className="lb-pace-l">{c.label}</span><b className="tnum">{c.avg}</b></div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
