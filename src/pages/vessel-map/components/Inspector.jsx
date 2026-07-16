@@ -9,7 +9,8 @@ import { supabase } from '../../../lib/supabaseClient';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from '../layers';
 import PinPayload from './PinPayload';
 import PinItems from './PinItems';
-import DefectPin from './DefectPin';
+import DefectPinSummary from './DefectPinSummary';
+import DefectModal from './DefectModal';
 import { uploadInteriorPhoto } from '../utils/photoUpload';
 
 // The container's "inside" — prompt to photograph the interior, then (next
@@ -107,6 +108,8 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [defectModalOpen, setDefectModalOpen] = useState(false);
+  const [defectReload, setDefectReload] = useState(0);
   const closeTimer = useRef(null);
 
   useEffect(() => {
@@ -127,6 +130,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
     setTab('details');
     setConfirming(false);
     setDeleteError(null);
+    setDefectModalOpen(false);
   }, [hotspot?.id]);
 
   // Name is edited locally and written through on each keystroke, so the field
@@ -230,7 +234,8 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
         )}
       </div>
 
-      {!shown.is_container && (
+      {/* Defect pins carry everything in the defect panel — no Notes/List/Photos tabs. */}
+      {!shown.is_container && shown.layer !== 'defect' && (
         <div className="vm-insp-tabs" role="tablist">
           {TABS.map((t) => (
             <button
@@ -271,14 +276,12 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
             {placingItem && !layerHoldsStock(shown.layer) && (
               <p className="vm-pinitems-note">This pin type doesn’t hold stock — pick an <strong>Inventory</strong> or <strong>Safety</strong> pin.</p>
             )}
-            {/* Defect pins get the actionable defect drawer. */}
+            {/* Defect pins: a compact summary here; the full defect opens wide. */}
             {shown.layer === 'defect' && !placingItem && (
-              <DefectPin
+              <DefectPinSummary
                 hotspot={shown}
-                canManage={canManage}
-                scanName={scanName}
-                containerTrail={containerTrail}
-                onChanged={onDetailSaved}
+                reloadToken={defectReload}
+                onOpen={() => setDefectModalOpen(true)}
               />
             )}
             {/* Pin metadata — quiet, out of the way at the foot of the tab. The
@@ -304,6 +307,17 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
           />
         )}
       </div>
+
+      {defectModalOpen && shown.layer === 'defect' && (
+        <DefectModal
+          hotspot={shown}
+          canManage={canManage}
+          scanName={scanName}
+          containerTrail={containerTrail}
+          onChanged={() => { setDefectReload((v) => v + 1); onDetailSaved?.(); }}
+          onClose={() => setDefectModalOpen(false)}
+        />
+      )}
     </aside>
   );
 }
