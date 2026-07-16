@@ -3,13 +3,15 @@
 // Previously localStorage; now shared across the crew. Every export is async.
 // Reads fetch the vessel's items and filter client-side (a vessel's laundry is
 // a small set); writes go straight to Supabase. `archived_at` replaces the old
-// client "reset day" flag. Photos are compressed base64 in a text column for
-// now (a Storage bucket is a future optimisation).
+// client "reset day" flag. Photos live in the private `laundry-photos` Storage
+// bucket — rows store object paths, resolved to signed URLs on read (legacy
+// base64 photos still pass through).
 
 import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { logActivity } from '../../../utils/activityStorage';
 import { showToast } from '../../../utils/toast';
+import { uploadLaundryPhotos, resolveLaundryPhotos } from './laundryPhotos';
 
 // Owner / status / priority enums (unchanged — values match stored strings).
 export const OwnerType = { GUEST: 'Guest', CREW: 'Crew' };
@@ -189,7 +191,13 @@ export const getTodayViewItems = async () => {
     && (i.status === LaundryStatus.IN_PROGRESS || i.status === LaundryStatus.READY_TO_DELIVER));
   const deliveredToday = items.filter((i) => !i.isArchivedFromToday
     && i.status === LaundryStatus.DELIVERED && localDateKey(i.deliveredAt) === todayKey);
-  return { openItems, deliveredToday };
+  // Resolve photo paths → signed URLs for the items actually shown.
+  const resolved = await resolveLaundryPhotos([...openItems, ...deliveredToday]);
+  const byId = new Map(resolved.map((i) => [i.id, i]));
+  return {
+    openItems: openItems.map((i) => byId.get(i.id) || i),
+    deliveredToday: deliveredToday.map((i) => byId.get(i.id) || i),
+  };
 };
 
 const isDeliveredToday = (i) => {
@@ -260,6 +268,10 @@ export const createLaundryItem = async (itemData) => {
   const { data: authData } = await supabase.auth.getUser();
   const currentUser = getCurrentUser();
 
+  // Upload any freshly-captured photos (data URLs) to the bucket first.
+  const rawPhotos = Array.isArray(itemData?.photos) ? itemData.photos : (itemData?.photo ? [itemData.photo] : []);
+  const storedPhotos = await uploadLaundryPhotos(tenantId, rawPhotos);
+
   const payload = {
     tenant_id: tenantId,
     owner_type: normalized,
@@ -271,8 +283,8 @@ export const createLaundryItem = async (itemData) => {
     area_location_id: itemData?.areaLocationId || null,
     colour: itemData?.colour || '',
     laundry_number: itemData?.laundryNumber || '',
-    photos: Array.isArray(itemData?.photos) ? itemData.photos : (itemData?.photo ? [itemData.photo] : []),
-    photo: (Array.isArray(itemData?.photos) ? itemData.photos[0] : itemData?.photo) || '',
+    photos: storedPhotos,
+    photo: storedPhotos[0] || '',
     description: itemData?.description || '',
     priority: itemData?.priority || LaundryPriority.NORMAL,
     status: LaundryStatus.IN_PROGRESS,
@@ -329,8 +341,15 @@ export const updateLaundryItem = async (itemId, updates) => {
     colour: 'colour', laundryNumber: 'laundry_number', photo: 'photo', photos: 'photos', description: 'description',
     priority: 'priority', status: 'status', tags: 'tags', notes: 'notes',
   };
+  // Photos edited → upload any new data URLs to the bucket before saving.
+  let up = updates || {};
+  if (Object.prototype.hasOwnProperty.call(up, 'photos')) {
+    const tid = await getTenantId();
+    const stored = await uploadLaundryPhotos(tid, up.photos || []);
+    up = { ...up, photos: stored, photo: stored[0] || '' };
+  }
   const patch = { updated_at: new Date().toISOString() };
-  Object.entries(updates || {}).forEach(([k, v]) => { if (map[k]) patch[map[k]] = v; });
+  Object.entries(up).forEach(([k, v]) => { if (map[k]) patch[map[k]] = v; });
   const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', itemId).select('*').single();
   if (error) { console.error('[laundry] update failed', error); showToast('Could not update item', 'error'); return null; }
   logLaundryEvent(data.id, data.tenant_id, 'edited');
