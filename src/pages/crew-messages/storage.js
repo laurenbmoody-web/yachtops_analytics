@@ -84,9 +84,9 @@ export const acceptQuote = async (messageId) => {
   return data;
 };
 
-// Decline a supplier quote.
-export const declineQuote = async (messageId) => {
-  const { error } = await supabase.rpc('decline_supplier_quote', { p_message_id: messageId });
+// Decline a supplier quote, optionally with a reason the supplier sees.
+export const declineQuote = async (messageId, reason = null) => {
+  const { error } = await supabase.rpc('decline_supplier_quote', { p_message_id: messageId, p_reason: reason });
   if (error) throw error;
 };
 

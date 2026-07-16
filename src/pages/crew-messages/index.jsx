@@ -233,6 +233,8 @@ const CrewMessages = () => {
   const [error, setError] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [declining, setDeclining] = useState(null);   // quote message id being declined
+  const [declineReason, setDeclineReason] = useState('');
   const [myUid, setMyUid] = useState(null);
   const endRef = useRef(null);
   const streamRef = useRef(null);
@@ -356,12 +358,13 @@ const CrewMessages = () => {
     if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('msg-flash'); setTimeout(() => el.classList.remove('msg-flash'), 1200); }
   };
 
-  const resolveQuote = async (id, accept) => {
+  const resolveQuote = async (id, accept, reason = null) => {
     if (quoteBusy) return;
     setQuoteBusy(id);
     setError(null);
     try {
-      if (accept) await acceptQuote(id); else await declineQuote(id);
+      if (accept) await acceptQuote(id); else await declineQuote(id, reason);
+      setDeclining(null); setDeclineReason('');
       const msgs = await fetchThreadMessages(activeId);
       setMessages(msgs);
       load();
@@ -629,12 +632,33 @@ const CrewMessages = () => {
                                 {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney(q.total, q.currency)}</span></div>}
                                 {m.body && <div className="msg-qc-note">{m.body}</div>}
                                 {status === 'pending' && m.sender_type === 'supplier' ? (
-                                  <div className="msg-qc-actions">
-                                    <button type="button" className="msg-qc-decline" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, false)}>Decline</button>
-                                    <button type="button" className="msg-qc-accept" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, true)}>{quoteBusy === m.id ? 'Adding…' : 'Accept & add to order'}</button>
-                                  </div>
+                                  declining === m.id ? (
+                                    <div className="msg-qc-decline-form">
+                                      <input
+                                        type="text" autoFocus className="msg-qc-reason"
+                                        placeholder="Reason (optional) — e.g. too pricey, wrong item"
+                                        value={declineReason}
+                                        onChange={(e) => setDeclineReason(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') resolveQuote(m.id, false, declineReason); if (e.key === 'Escape') { setDeclining(null); setDeclineReason(''); } }}
+                                      />
+                                      <div className="msg-qc-actions">
+                                        <button type="button" className="msg-qc-decline" disabled={quoteBusy === m.id} onClick={() => { setDeclining(null); setDeclineReason(''); }}>Cancel</button>
+                                        <button type="button" className="msg-qc-decline-go" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, false, declineReason)}>{quoteBusy === m.id ? 'Declining…' : 'Send decline'}</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="msg-qc-actions">
+                                      <button type="button" className="msg-qc-decline" disabled={quoteBusy === m.id} onClick={() => { setDeclining(m.id); setDeclineReason(''); }}>Decline</button>
+                                      <button type="button" className="msg-qc-accept" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, true)}>{quoteBusy === m.id ? 'Adding…' : 'Accept & add to order'}</button>
+                                    </div>
+                                  )
                                 ) : (
-                                  <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
+                                  <>
+                                    {status === 'declined' && m.quote_decline_reason && (
+                                      <div className="msg-qc-reason-note">Declined: {m.quote_decline_reason}</div>
+                                    )}
+                                    <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
+                                  </>
                                 )}
                               </div>
                             </div>

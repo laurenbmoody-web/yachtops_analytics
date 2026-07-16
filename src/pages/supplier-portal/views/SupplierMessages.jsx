@@ -853,9 +853,14 @@ const SupplierMessages = () => {
                               )
                             )}
                             {m.sender_type === 'supplier' && status === 'declined' && (
-                              <div className="msg-qc-actions">
-                                <button type="button" className="msg-qc-accept" onClick={() => requote(m)}>Revise &amp; re-quote</button>
-                              </div>
+                              <>
+                                {m.quote_decline_reason && (
+                                  <div className="msg-qc-reason-note">Declined: {m.quote_decline_reason}</div>
+                                )}
+                                <div className="msg-qc-actions">
+                                  <button type="button" className="msg-qc-accept" onClick={() => requote(m)}>Revise &amp; re-quote</button>
+                                </div>
+                              </>
                             )}
                             <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
                           </div>
