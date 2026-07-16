@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import ProvisioningApprovalSettings from './ProvisioningApprovalSettings';
+import VesselProfileStack from './VesselProfileStack';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import { FLAG_STATES } from '../../data/flagStates';
@@ -17,22 +18,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { logActivity } from '../../utils/activityStorage';
 import '../../styles/editorial.css';
 import './vessel-hub.css';
-
-// Field-label hover/focus tooltip. Pure CSS (not the native `title`, which is
-// slow and unreliable), so it works the same in view mode and edit mode.
-function InfoHint({ text }) {
-  return (
-    <span tabIndex={0} className="relative inline-flex items-center group align-middle outline-none">
-      <Icon name="Info" size={13} className="text-muted-foreground cursor-help" />
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 hidden w-64 -translate-x-1/2 rounded-md bg-foreground px-3 py-2 text-xs font-normal normal-case leading-snug text-background shadow-lg group-hover:block group-focus:block"
-      >
-        {text}
-      </span>
-    </span>
-  );
-}
 
 const VesselSettings = () => {
   const navigate = useNavigate();
@@ -105,6 +90,10 @@ const VesselSettings = () => {
     hor_management_company_name: '',
     hor_management_company_email: '',
 
+    // Defects & repairs
+    defect_quote_approver_tier: 'HOD',
+    defect_quote_signoff_threshold: 1000,
+
     // Compliance & Structure
     ism_applicable: false,
     isps_applicable: false,
@@ -121,35 +110,6 @@ const VesselSettings = () => {
   
   // Store last loaded data for Cancel functionality
   const lastLoadedVessel = useRef(null);
-
-  // Vessel type options
-  const vesselTypeOptions = [
-    { value: 'Motor Yacht', label: 'Motor Yacht' },
-    { value: 'Sailing Yacht', label: 'Sailing Yacht' },
-    { value: 'Catamaran', label: 'Catamaran' },
-    { value: 'Explorer', label: 'Explorer' },
-    { value: 'Sport Yacht', label: 'Sport Yacht' },
-    { value: 'Superyacht', label: 'Superyacht' }
-  ];
-
-  const commercialStatusOptions = [
-    { value: 'Private', label: 'Private' },
-    { value: 'Commercial', label: 'Commercial' },
-    { value: 'Charter', label: 'Charter' },
-    { value: 'Dual', label: 'Dual' }
-  ];
-
-  const areaOfOperationOptions = [
-    { value: 'Coastal', label: 'Coastal' },
-    { value: 'Near Coastal', label: 'Near Coastal' },
-    { value: 'Unlimited', label: 'Unlimited' }
-  ];
-
-  // Hour the daily rota grid begins / the 24h slot window is anchored to.
-  const dayStartHourOptions = Array.from({ length: 24 }, (_, h) => ({
-    value: String(h),
-    label: `${String(h).padStart(2, '0')}:00`,
-  }));
 
   // departments_in_use stores department UUIDs, so the toggle options must
   // be keyed by id (not name). Source from the shared departments table.
@@ -358,154 +318,47 @@ const VesselSettings = () => {
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setFormState(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  // Coerce a single field to the shape the vessels column expects.
+  const NUM_FLOAT = ['loa_m', 'propulsion_kw', 'defect_quote_signoff_threshold'];
+  const NUM_INT = ['gt', 'year_built', 'year_refit', 'typical_guest_count', 'typical_crew_count'];
+  const coerceForDb = (field, v) => {
+    if (NUM_FLOAT.includes(field)) return (v === '' || v == null) ? null : parseFloat(v);
+    if (NUM_INT.includes(field)) return (v === '' || v == null) ? null : parseInt(v, 10);
+    if (field === 'operational_day_start_hour') return Math.min(23, Math.max(0, parseInt(v ?? 6, 10) || 0));
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'string') return v.trim() || null;
+    return v ?? null;
   };
 
-
-  const handleDepartmentToggle = (dept) => {
-    setFormState(prev => {
-      const currentDepts = prev?.departments_in_use || [];
-      const isSelected = currentDepts?.includes(dept);
-      const newDepts = isSelected
-        ? currentDepts?.filter(d => d !== dept)
-        : [...currentDepts, dept];
-      return { ...prev, departments_in_use: newDepts };
-    });
-  };
-
-  const handleSave = async () => {
-    if (isSavingRef.current) {
-      console.log('[VESSEL SETTINGS] Save already in progress, ignoring duplicate call');
-      return;
-    }
-
-    isSavingRef.current = true;
-    setSaving(true);
+  // Inline per-field save: optimistic local update, single-column upsert,
+  // revert on failure. Keeps onboarding_status in sync with the required set.
+  const saveField = async (field, rawValue) => {
+    const prev = formState?.[field];
+    const next = { ...formState, [field]: rawValue };
+    setFormState(next);
     setSaveError('');
-
     try {
-      console.log('[VESSEL SETTINGS] Starting save...');
-
-      if (!tenantId) {
-        setSaveError('No tenant ID available');
-        setSaving(false);
-        isSavingRef.current = false;
-        return;
-      }
-
-      // Prepare payload
-      const payload = {
-        tenant_id: tenantId,
-        vessel_type_label: formState?.vessel_type_label || null,
-        flag: formState?.flag || null,
-        port_of_registry: formState?.port_of_registry || null,
-        imo_number: formState?.imo_number || null,
-        official_number: formState?.official_number || null,
-        call_sign: formState?.call_sign?.trim() || null,
-        class_notation: formState?.class_notation?.trim() || null,
-        company_name: formState?.company_name || null,
-        company_address: formState?.company_address || null,
-        company_email: formState?.company_email?.trim() || null,
-        company_phone: formState?.company_phone?.trim() || null,
-        company_country: formState?.company_country?.trim() || null,
-        company_postcode: formState?.company_postcode?.trim() || null,
-        logo_url: formState?.logo_url || null,
-        loa_m: formState?.loa_m ? parseFloat(formState?.loa_m) : null,
-        propulsion_kw: formState?.propulsion_kw ? parseFloat(formState?.propulsion_kw) : null,
-        main_engine_type: formState?.main_engine_type?.trim() || null,
-        gt: formState?.gt ? parseInt(formState?.gt, 10) : null,
-        year_built: formState?.year_built ? parseInt(formState?.year_built, 10) : null,
-        year_refit: formState?.year_refit ? parseInt(formState?.year_refit, 10) : null,
-        commercial_status: formState?.commercial_status || null,
-        certified_commercial: formState?.certified_commercial || false,
-        area_of_operation: formState?.area_of_operation || null,
-        operating_regions: formState?.operating_regions || null,
-        seasonal_pattern: formState?.seasonal_pattern || null,
-        typical_guest_count: formState?.typical_guest_count ? parseInt(formState?.typical_guest_count, 10) : null,
-        typical_crew_count: formState?.typical_crew_count ? parseInt(formState?.typical_crew_count, 10) : null,
-        operational_day_start_hour: Math.min(23, Math.max(0, parseInt(formState?.operational_day_start_hour ?? 6, 10) || 0)),
-        hor_day_basis: formState?.hor_day_basis === 'operational' ? 'operational' : 'calendar',
-        hor_confirmation_mode: formState?.hor_confirmation_mode === 'trust' ? 'trust' : 'require',
-        hor_approver_tier: ['COMMAND', 'CHIEF', 'HOD'].includes(formState?.hor_approver_tier) ? formState?.hor_approver_tier : 'CHIEF',
-        defect_quote_approver_tier: ['COMMAND', 'CHIEF', 'HOD'].includes(formState?.defect_quote_approver_tier) ? formState?.defect_quote_approver_tier : 'HOD',
-        defect_quote_signoff_threshold: Math.max(0, parseFloat(formState?.defect_quote_signoff_threshold ?? 1000) || 0),
-        hor_management_company_name: formState?.hor_management_company_name?.trim() || null,
-        hor_management_company_email: formState?.hor_management_company_email?.trim() || null,
-        ism_applicable: formState?.ism_applicable || false,
-        isps_applicable: formState?.isps_applicable || false,
-        departments_in_use: formState?.departments_in_use || [],
-        bonded_stores_enabled: formState?.bonded_stores_enabled || false,
-        multi_location_storage: formState?.multi_location_storage || false,
-        hero_image_url: formState?.hero_image_url || null,
-        use_custom_hero: formState?.use_custom_hero || false
-      };
-
-      // Check if required fields are filled for onboarding completion
-      const requiredFieldsFilled = 
-        payload?.vessel_type_label &&
-        payload?.flag &&
-        payload?.port_of_registry &&
-        (payload?.gt || payload?.loa_m);
-
-      if (requiredFieldsFilled) {
-        payload.onboarding_status = 'READY';
-        payload.setup_completed_at = new Date().toISOString();
-      } else {
-        payload.onboarding_status = 'SETUP_REQUIRED';
-      }
-
-      console.log('[VESSEL UPSERT SENT]', payload);
-
-      const { data, error } = await supabase
-        ?.from('vessels')
-        ?.upsert(payload, { onConflict: 'tenant_id' })
-        ?.select()
-        ?.single();
-
+      if (!tenantId) return false;
+      const payload = { tenant_id: tenantId, [field]: coerceForDb(field, rawValue) };
+      const ready = next.vessel_type_label && next.flag && next.port_of_registry && (next.gt || next.loa_m);
+      payload.onboarding_status = ready ? 'READY' : 'SETUP_REQUIRED';
+      if (ready && !vesselData?.setup_completed_at) payload.setup_completed_at = new Date().toISOString();
+      const { error } = await supabase?.from('vessels')?.upsert(payload, { onConflict: 'tenant_id' });
       if (error) {
-        console.error('[VESSEL UPSERT FAILED]', error);
-        setSaveError(`Save failed: ${error?.message || 'Unknown error'}`);
-        setSaving(false);
-        isSavingRef.current = false;
-        return;
+        console.error('[VESSEL SAVE FIELD]', field, error);
+        setFormState(p => ({ ...p, [field]: prev }));
+        return false;
       }
-
-      console.log('[VESSEL UPSERT OK]', data);
-      setVesselData(data);
-      lastLoadedVessel.current = { ...formState };
-      setViewMode(true);
-
-      // Log to activity feed
-      logActivity({
-        module: 'vessel_settings',
-        action: 'VESSEL_SETTINGS_UPDATED',
-        entityType: 'vessel',
-        entityId: tenantId,
-        summary: 'Vessel settings updated',
-        meta: { vesselType: payload?.vessel_type_label, flag: payload?.flag }
-      });
-
-      setSaving(false);
-      isSavingRef.current = false;
+      setVesselData(vd => ({ ...(vd || {}), [field]: coerceForDb(field, rawValue), onboarding_status: payload.onboarding_status }));
+      return true;
     } catch (err) {
-      console.error('[VESSEL SETTINGS] Save exception:', err);
-      setSaveError(`Unexpected error: ${err?.message || 'Something went wrong'}`);
-      setSaving(false);
-      isSavingRef.current = false;
+      console.error('[VESSEL SAVE FIELD] exception', err);
+      setFormState(p => ({ ...p, [field]: prev }));
+      return false;
     }
   };
 
-  const handleCancel = () => {
-    if (lastLoadedVessel.current) {
-      setFormState({ ...lastLoadedVessel.current });
-    }
-    setViewMode(true);
-    setSaveError('');
-  };
 
   // Hero image upload state
   const [uploadingHero, setUploadingHero] = useState(false);
@@ -653,80 +506,6 @@ const VesselSettings = () => {
     }
   };
 
-  const handleToggleCustomHero = async (enabled) => {
-    if (!canEdit) return;
-
-    try {
-      setFormState(prev => ({ ...prev, use_custom_hero: enabled }));
-
-      // Save to database immediately
-      const { error: updateError } = await supabase
-        ?.from('vessels')
-        ?.upsert({
-          tenant_id: tenantId,
-          use_custom_hero: enabled
-        }, { onConflict: 'tenant_id' });
-
-      if (updateError) {
-        console.error('[TOGGLE HERO ERROR]', updateError);
-        setSaveError(`Failed to toggle: ${updateError?.message || 'Unknown error'}`);
-        // Revert on error
-        setFormState(prev => ({ ...prev, use_custom_hero: !enabled }));
-      } else {
-        await loadVesselSettings();
-      }
-    } catch (err) {
-      console.error('[TOGGLE HERO EXCEPTION]', err);
-      setSaveError(`Unexpected error: ${err?.message || 'Something went wrong'}`);
-    }
-  };
-
-  const handleToggleFeedbackWidget = async (enabled) => {
-    if (!canEdit) return;
-    try {
-      setFormState(prev => ({ ...prev, feedback_widget_enabled: enabled }));
-      const { error: updateError } = await supabase
-        ?.from('vessels')
-        ?.upsert({ tenant_id: tenantId, feedback_widget_enabled: enabled }, { onConflict: 'tenant_id' });
-      if (updateError) {
-        setSaveError(`Failed to toggle: ${updateError?.message || 'Unknown error'}`);
-        setFormState(prev => ({ ...prev, feedback_widget_enabled: !enabled }));
-      } else {
-        await loadVesselSettings();
-      }
-    } catch (err) {
-      setSaveError(`Unexpected error: ${err?.message || 'Something went wrong'}`);
-    }
-  };
-
-  const handleRevertToBlueprint = async () => {
-    if (!canEdit) return;
-
-    try {
-      setFormState(prev => ({ ...prev, use_custom_hero: false }));
-
-      // Save to database immediately
-      const { error: updateError } = await supabase
-        ?.from('vessels')
-        ?.upsert({
-          tenant_id: tenantId,
-          use_custom_hero: false
-        }, { onConflict: 'tenant_id' });
-
-      if (updateError) {
-        console.error('[REVERT HERO ERROR]', updateError);
-        setSaveError(`Failed to revert: ${updateError?.message || 'Unknown error'}`);
-        // Revert on error
-        setFormState(prev => ({ ...prev, use_custom_hero: true }));
-      } else {
-        await loadVesselSettings();
-      }
-    } catch (err) {
-      console.error('[REVERT HERO EXCEPTION]', err);
-      setSaveError(`Unexpected error: ${err?.message || 'Something went wrong'}`);
-    }
-  };
-
   const sections = [
     { id: 'vessel-profile', label: 'Vessel Profile', icon: 'Ship' },
     { id: 'location-management', label: 'Location Management', icon: 'MapPin' },
@@ -737,672 +516,24 @@ const VesselSettings = () => {
   const renderContent = () => {
     if (activeSection === 'vessel-profile') {
       return (
-        <div className="space-y-6">
-          {/* Permission Banner */}
-          {!canEdit && (
-            <div className="vh-banner warn">
-              <AlertCircle className="ic" size={18} />
-              <div><span className="vh-banner-t">View-only</span> — only Command can edit vessel settings.</div>
-            </div>
-          )}
-
-          {/* Error Display */}
-          {saveError && (
-            <div className="vh-banner err">
-              <AlertCircle className="ic" size={18} />
-              <div><span className="vh-banner-t">Something went wrong</span> — {saveError}</div>
-            </div>
-          )}
-
-          {/* Edit/Save/Cancel Controls — the masthead already names the section */}
-          {canEdit && (
-            <div className="vh-editbar">
-              {viewMode ? (
-                <button type="button" className="vh-btn vh-btn-primary" onClick={() => setViewMode(false)}>Edit</button>
-              ) : (
-                <>
-                  <button type="button" className="vh-btn" onClick={handleCancel} disabled={saving}>Cancel</button>
-                  <button type="button" className="vh-btn vh-btn-primary" onClick={handleSave} disabled={saving}>
-                    {saving ? 'Saving…' : 'Save'}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-sm text-muted-foreground">Loading vessel settings...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {/* Dashboard Hero Image Section */}
-              <div className="vh-sec">
-                <h3 className="vh-sec-h">Dashboard Hero Image</h3>
-                
-                {/* Current Hero Preview */}
-                <div className="mb-4">
-                  <label className="vh-lbl">Current Hero Image</label>
-                  <div className="vh-frame" style={{ maxWidth: '600px' }}>
-                    {formState?.use_custom_hero && formState?.hero_image_url ? (
-                      <img
-                        src={formState?.hero_image_url}
-                        alt="Custom vessel hero"
-                        style={{
-                          width: '100%',
-                          height: 'auto',
-                          display: 'block'
-                        }}
-                        onError={(e) => {
-                          console.error('[HERO IMAGE LOAD ERROR]');
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <img
-                        src="/assets/images/yacht_blueprint-1770460015354.png"
-                        alt="Default yacht blueprint"
-                        style={{
-                          width: '100%',
-                          height: 'auto',
-                          display: 'block'
-                        }}
-                      />
-                    )}
-                  </div>
-                  <p className="vh-hint">
-                    {formState?.use_custom_hero && formState?.hero_image_url
-                      ? 'Showing custom vessel image' :'Showing default Cargo blueprint'}
-                  </p>
-                </div>
-
-                {/* Upload Button */}
-                {canEdit && (
-                  <div className="mb-4">
-                    <input
-                      ref={heroFileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handleHeroImageUpload}
-                      style={{ display: 'none' }}
-                    />
-                    <Button
-                      onClick={() => heroFileInputRef?.current?.click()}
-                      disabled={uploadingHero}
-                      variant="outline"
-                    >
-                      <Upload size={16} className="mr-2" />
-                      {uploadingHero ? 'Uploading...' : 'Upload Vessel Image'}
-                    </Button>
-                    <p className="vh-hint">
-                      Accepts JPEG, PNG, or WebP. Max 5MB.
-                    </p>
-                    {heroUploadError && (
-                      <p className="text-xs text-red-600 mt-2">{heroUploadError}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Toggle Switch */}
-                {canEdit && formState?.hero_image_url && (
-                  <div className="mb-4">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <Checkbox
-                        checked={formState?.use_custom_hero}
-                        onCheckedChange={handleToggleCustomHero}
-                      />
-                      <span className="text-sm font-medium text-foreground">
-                        Use my vessel image on dashboard
-                      </span>
-                    </label>
-                  </div>
-                )}
-
-                {/* Revert Button */}
-                {canEdit && formState?.hero_image_url && formState?.use_custom_hero && (
-                  <div>
-                    <Button
-                      onClick={handleRevertToBlueprint}
-                      variant="outline"
-                    >
-                      Revert to Cargo Blueprint
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Beta feedback widget */}
-              <div className="vh-sec">
-                <h3 className="vh-sec-h">Feedback button</h3>
-                <p className="vh-sec-sub">
-                  Shows a small “Feedback” tab on every page so crew can send a note or voice memo
-                  straight to the Cargo team. Helpful while the app is new — switch it off any time.
-                </p>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <Checkbox
-                    checked={formState?.feedback_widget_enabled !== false}
-                    onCheckedChange={handleToggleFeedbackWidget}
-                    disabled={!canEdit}
-                  />
-                  <span className="text-sm font-medium text-foreground">
-                    Show the feedback button on this vessel
-                  </span>
-                </label>
-              </div>
-
-              {/* Vessel Identity */}
-              <div className="vh-sec">
-                <h3 className="vh-sec-h">Vessel Identity</h3>
-                <div className="vh-grid">
-                  <div>
-                    <label className="vh-lbl">Vessel Type *</label>
-                    <Select
-                      value={formState?.vessel_type_label}
-                      onChange={(value) => handleInputChange('vessel_type_label', value)}
-                      options={vesselTypeOptions}
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Flag *</label>
-                    <Select
-                      value={formState?.flag}
-                      onChange={(value) => handleInputChange('flag', value)}
-                      options={FLAG_STATES.map((f) => ({ label: f.name, value: f.name }))}
-                      searchable
-                      placeholder="Select flag state"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Port of Registry *</label>
-                    <Input
-                      value={formState?.port_of_registry}
-                      onChange={(e) => handleInputChange('port_of_registry', e?.target?.value)}
-                      placeholder="e.g., George Town"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">IMO Number</label>
-                    <Input
-                      value={formState?.imo_number}
-                      onChange={(e) => handleInputChange('imo_number', e?.target?.value)}
-                      placeholder="e.g., IMO 1234567"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Official Number</label>
-                    <Input
-                      value={formState?.official_number}
-                      onChange={(e) => handleInputChange('official_number', e?.target?.value)}
-                      placeholder="e.g., 123456"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Call Sign</label>
-                    <Input
-                      value={formState?.call_sign}
-                      onChange={(e) => handleInputChange('call_sign', e?.target?.value)}
-                      placeholder="e.g., ZGCY2 — shown on the crew list"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Class / Notation</label>
-                    <Input
-                      value={formState?.class_notation}
-                      onChange={(e) => handleInputChange('class_notation', e?.target?.value)}
-                      placeholder="e.g., 100A1 SSC Yacht Mono"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">LOA (meters) *</label>
-                    <Input
-                      type="number"
-                      value={formState?.loa_m}
-                      onChange={(e) => handleInputChange('loa_m', e?.target?.value)}
-                      placeholder="e.g., 50.5"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Gross Tonnage (GT) *</label>
-                    <Input
-                      type="number"
-                      value={formState?.gt}
-                      onChange={(e) => handleInputChange('gt', e?.target?.value)}
-                      placeholder="e.g., 500"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Propulsion power (kW)</label>
-                    <Input
-                      type="number"
-                      value={formState?.propulsion_kw || ''}
-                      onChange={(e) => handleInputChange('propulsion_kw', e?.target?.value)}
-                      placeholder="e.g., 2400 — for engineer sea-service testimonials"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Type of Main Engine</label>
-                    <Input
-                      value={formState?.main_engine_type || ''}
-                      onChange={(e) => handleInputChange('main_engine_type', e?.target?.value)}
-                      placeholder="e.g., 2 x MTU 16V 2000 M96 — for sea-service testimonials"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Year Built</label>
-                    <Input
-                      type="number"
-                      value={formState?.year_built}
-                      onChange={(e) => handleInputChange('year_built', e?.target?.value)}
-                      placeholder="e.g., 2015"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Year Refit</label>
-                    <Input
-                      type="number"
-                      value={formState?.year_refit}
-                      onChange={(e) => handleInputChange('year_refit', e?.target?.value)}
-                      placeholder="e.g., 2020"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Employer details — fills crew-contract templates ({{company_name}} / {{company_address}}). */}
-              <div className="vh-sec">
-                <h3 className="vh-sec-h">Employer Details</h3>
-                <p className="vh-sec-sub">
-                  The owning / employing entity as it should appear on crew contracts. The captain’s name is filled
-                  automatically from whoever holds the Captain role.
-                </p>
-                <div className="vh-grid">
-                  <div>
-                    <label className="vh-lbl">Company / Owner Name</label>
-                    <Input
-                      value={formState?.company_name}
-                      onChange={(e) => handleInputChange('company_name', e?.target?.value)}
-                      placeholder="Registered owning / employing entity"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div className="md:row-span-2">
-                    <label className="vh-lbl">Company Address</label>
-                    <textarea
-                      value={formState?.company_address || ''}
-                      onChange={(e) => handleInputChange('company_address', e?.target?.value)}
-                      disabled={viewMode || !canEdit}
-                      rows={5}
-                      className="flex w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed resize-y"
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Logo</label>
-                    <p className="vh-hint" style={{ marginTop: 0, marginBottom: 8 }}>
-                      PNG or JPEG. Added to the page header of contracts generated from AI-rebuilt templates.
-                    </p>
-                    <div className="flex items-center gap-3">
-                      {formState?.logo_url ? (
-                        <img
-                          src={formState.logo_url}
-                          alt="Company logo"
-                          className="h-12 max-w-[160px] object-contain rounded border border-border bg-white p-1"
-                        />
-                      ) : (
-                        <div className="h-12 w-[160px] rounded border border-dashed border-border flex items-center justify-center text-xs text-muted-foreground">
-                          No logo
-                        </div>
-                      )}
-                      {!viewMode && canEdit && (
-                        <div className="flex flex-col gap-1">
-                          <input
-                            ref={logoFileInputRef}
-                            type="file"
-                            accept="image/png,image/jpeg"
-                            className="hidden"
-                            onChange={handleLogoUpload}
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => logoFileInputRef?.current?.click()}
-                            disabled={uploadingLogo}
-                          >
-                            {uploadingLogo ? 'Uploading…' : formState?.logo_url ? 'Replace' : 'Upload'}
-                          </Button>
-                          {formState?.logo_url && (
-                            <button
-                              type="button"
-                              onClick={handleRemoveLogo}
-                              className="text-xs text-muted-foreground hover:text-foreground"
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    {logoUploadError && <p className="text-xs text-red-600 mt-1">{logoUploadError}</p>}
-                  </div>
-                  {/* Company contact — fills Part 1 of the Nautilus sea-service testimonial. */}
-                  <div>
-                    <label className="vh-lbl">Company Email</label>
-                    <Input
-                      value={formState?.company_email || ''}
-                      onChange={(e) => handleInputChange('company_email', e?.target?.value)}
-                      placeholder="Official company / yacht email"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Company Phone</label>
-                    <Input
-                      value={formState?.company_phone || ''}
-                      onChange={(e) => handleInputChange('company_phone', e?.target?.value)}
-                      placeholder="e.g. +44 …"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Post Code</label>
-                    <Input
-                      value={formState?.company_postcode || ''}
-                      onChange={(e) => handleInputChange('company_postcode', e?.target?.value)}
-                      placeholder="ZIP / post code"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Country</label>
-                    <Input
-                      value={formState?.company_country || ''}
-                      onChange={(e) => handleInputChange('company_country', e?.target?.value)}
-                      placeholder="Country of the company / owner"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Operational Profile */}
-              <div className="vh-sec">
-                <h3 className="vh-sec-h">Operational Profile</h3>
-                <div className="vh-grid">
-                  <div>
-                    <label className="vh-lbl">Commercial Status</label>
-                    <Select
-                      value={formState?.commercial_status}
-                      onChange={(value) => handleInputChange('commercial_status', value)}
-                      options={commercialStatusOptions}
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 pt-6">
-                    <Checkbox
-                      checked={formState?.certified_commercial}
-                      onCheckedChange={(checked) => handleInputChange('certified_commercial', checked)}
-                      disabled={viewMode || !canEdit}
-                    />
-                    <label className="text-sm text-foreground">Certified Commercial</label>
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Area of Operation</label>
-                    <Select
-                      value={formState?.area_of_operation}
-                      onChange={(value) => handleInputChange('area_of_operation', value)}
-                      options={areaOfOperationOptions}
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Operating Regions</label>
-                    <Input
-                      value={formState?.operating_regions}
-                      onChange={(e) => handleInputChange('operating_regions', e?.target?.value)}
-                      placeholder="e.g., Mediterranean, Caribbean"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Seasonal Pattern</label>
-                    <Input
-                      value={formState?.seasonal_pattern}
-                      onChange={(e) => handleInputChange('seasonal_pattern', e?.target?.value)}
-                      placeholder="e.g., Summer Med, Winter Caribbean"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Typical Guest Count</label>
-                    <Input
-                      type="number"
-                      value={formState?.typical_guest_count}
-                      onChange={(e) => handleInputChange('typical_guest_count', e?.target?.value)}
-                      placeholder="e.g., 12"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl">Typical Crew Count</label>
-                    <Input
-                      type="number"
-                      value={formState?.typical_crew_count}
-                      onChange={(e) => handleInputChange('typical_crew_count', e?.target?.value)}
-                      placeholder="e.g., 15"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Rota & HOR */}
-              <div className="vh-sec">
-                <h3 className="vh-sec-h">Rota &amp; HOR</h3>
-                <p className="vh-sec-sub">The rota day-start, and how MLC rest is recorded, confirmed and signed off.</p>
-                <div className="vh-grid">
-                  <div>
-                    <label className="vh-lbl vh-lbl-hint">
-                      Rota Day Start
-                      <InfoHint text="The hour your operational day begins. The rota grid starts here, and — when HOR Day Basis is set to Operational — each 24-hour rest period is measured from this time." />
-                    </label>
-                    <Select
-                      value={String(formState?.operational_day_start_hour ?? 6)}
-                      onChange={(value) => handleInputChange('operational_day_start_hour', value)}
-                      options={dayStartHourOptions}
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl vh-lbl-hint">
-                      HOR Day Basis
-                      <InfoHint text="How each 24-hour window for the '10h rest' rule is measured. Calendar = midnight to midnight (the standard IMO/ILO sheet). Operational = a 24-hour day starting at your Rota Day Start, which avoids false breaches when an overnight rest is split by midnight. The basis is printed on the record." />
-                    </label>
-                    <Select
-                      value={formState?.hor_day_basis || 'calendar'}
-                      onChange={(value) => handleInputChange('hor_day_basis', value)}
-                      options={[
-                        { value: 'calendar', label: 'Calendar day (00:00–24:00)' },
-                        { value: 'operational', label: `Operational day (from ${String(formState?.operational_day_start_hour ?? 6).padStart(2, '0')}:00)` },
-                      ]}
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl vh-lbl-hint">
-                      Hours-of-Rest Confirmation
-                      <InfoHint text="What happens when a crew member submits their month of hours. Require approval = an approver must sign it off before it's confirmed. Trust crew = it's confirmed automatically on submit." />
-                    </label>
-                    <Select
-                      value={formState?.hor_confirmation_mode || 'require'}
-                      onChange={(value) => handleInputChange('hor_confirmation_mode', value)}
-                      options={[
-                        { value: 'require', label: 'Require approval' },
-                        { value: 'trust', label: 'Trust crew (auto-confirm)' },
-                      ]}
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl vh-lbl-hint">
-                      HOR Approver Role
-                      <InfoHint text="The lowest rank that can approve HOR months and sign off breaches — equal or higher ranks always can too. 'Command only' restricts it to Command; 'Chief & above' adds Chiefs; 'HOD & above' also lets Heads of Department." />
-                    </label>
-                    <Select
-                      value={formState?.hor_approver_tier || 'CHIEF'}
-                      onChange={(value) => handleInputChange('hor_approver_tier', value)}
-                      options={[
-                        { value: 'COMMAND', label: 'Command only' },
-                        { value: 'CHIEF', label: 'Chief & above' },
-                        { value: 'HOD', label: 'HOD & above' },
-                      ]}
-                      disabled={viewMode || !canEdit || formState?.hor_confirmation_mode === 'trust'}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl vh-lbl-hint">
-                      Management Company
-                      <InfoHint text="The management company / shore office (DPA) that receives the signed Hours of Rest pack at month-end. The name is used in the email greeting." />
-                    </label>
-                    <Input
-                      value={formState?.hor_management_company_name}
-                      onChange={(e) => handleInputChange('hor_management_company_name', e?.target?.value)}
-                      placeholder="e.g., Acme Yacht Management"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl vh-lbl-hint">
-                      Management Company Email
-                      <InfoHint text="Recipient address for the end-of-month signed Hours of Rest export. The 'Send to management' action on the month-end hub emails the pack here." />
-                    </label>
-                    <Input
-                      type="email"
-                      value={formState?.hor_management_company_email}
-                      onChange={(e) => handleInputChange('hor_management_company_email', e?.target?.value)}
-                      placeholder="e.g., compliance@management.com"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Defects & Repairs */}
-              <div className="vh-sec">
-                <h3 className="vh-sec-h">Defects & Repairs</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="vh-lbl vh-lbl-hint">
-                      Repair Quote Sign-off
-                      <InfoHint text="The lowest rank that can sign off a repair quote's spend — equal or higher ranks always can too. 'HOD & above' lets Heads of Department, Chiefs and Command approve; 'Chief & above' restricts to Chiefs and Command; 'Command only' to the Captain." />
-                    </label>
-                    <Select
-                      value={formState?.defect_quote_approver_tier || 'HOD'}
-                      onChange={(value) => handleInputChange('defect_quote_approver_tier', value)}
-                      options={[
-                        { value: 'COMMAND', label: 'Command only' },
-                        { value: 'CHIEF', label: 'Chief & above' },
-                        { value: 'HOD', label: 'HOD & above' },
-                      ]}
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                  <div>
-                    <label className="vh-lbl vh-lbl-hint">
-                      Sign-off Threshold
-                      <InfoHint text="A repair quote at or above this amount automatically requires sign-off before the repair can be scheduled. Crew can also request sign-off manually for any quote." />
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="50"
-                      value={formState?.defect_quote_signoff_threshold ?? 1000}
-                      onChange={(e) => handleInputChange('defect_quote_signoff_threshold', e?.target?.value)}
-                      placeholder="1000"
-                      disabled={viewMode || !canEdit}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Compliance & Structure */}
-              <div className="vh-sec">
-                <h3 className="vh-sec-h">Compliance & Structure</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={formState?.ism_applicable}
-                      onCheckedChange={(checked) => handleInputChange('ism_applicable', checked)}
-                      disabled={viewMode || !canEdit}
-                    />
-                    <label className="text-sm text-foreground">ISM Code Applicable</label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={formState?.isps_applicable}
-                      onCheckedChange={(checked) => handleInputChange('isps_applicable', checked)}
-                      disabled={viewMode || !canEdit}
-                    />
-                    <label className="text-sm text-foreground">ISPS Code Applicable</label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cargo Configuration */}
-              <div className="vh-sec">
-                <h3 className="vh-sec-h">Cargo Configuration</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="vh-lbl">Departments in Use</label>
-                    <div className="vh-pills">
-                      {departmentOptions?.map(dept => (
-                        <button
-                          key={dept?.value}
-                          type="button"
-                          onClick={() => !viewMode && canEdit && handleDepartmentToggle(dept?.value)}
-                          disabled={viewMode || !canEdit}
-                          className={`vh-pill${formState?.departments_in_use?.includes(dept?.value) ? ' on' : ''}`}
-                        >
-                          {dept?.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={formState?.bonded_stores_enabled}
-                      onCheckedChange={(checked) => handleInputChange('bonded_stores_enabled', checked)}
-                      disabled={viewMode || !canEdit}
-                    />
-                    <label className="text-sm text-foreground">Bonded Stores Enabled</label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={formState?.multi_location_storage}
-                      onCheckedChange={(checked) => handleInputChange('multi_location_storage', checked)}
-                      disabled={viewMode || !canEdit}
-                    />
-                    <label className="text-sm text-foreground">Multi-Location Storage</label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <VesselProfileStack
+          vesselData={vesselData}
+          formState={formState}
+          canEdit={canEdit}
+          departmentOptions={departmentOptions}
+          saveField={saveField}
+          saveError={saveError}
+          logoInputRef={logoFileInputRef}
+          onLogoChange={handleLogoUpload}
+          uploadingLogo={uploadingLogo}
+          logoUploadError={logoUploadError}
+          onRemoveLogo={handleRemoveLogo}
+          heroInputRef={heroFileInputRef}
+          onHeroChange={handleHeroImageUpload}
+          uploadingHero={uploadingHero}
+          heroUploadError={heroUploadError}
+          onRevertHero={() => saveField('use_custom_hero', false)}
+        />
       );
     } else if (activeSection === 'location-management') {
       return (
@@ -1456,19 +587,22 @@ const VesselSettings = () => {
         <button className="vh-back" onClick={() => navigate('/dashboard')}>
           <Icon name="ChevronLeft" size={16} /> Back to Dashboard
         </button>
-        {/* Editorial masthead — site-standard meta strip + uppercase serif greeting */}
-        <div className="vh-mast">
-          {activeSection === 'location-management' && locStats && (
-            <div className="editorial-meta">
-              <span className="dot">•</span>
-              <span>Scanned {locStats.scanned}/{locStats.total}</span>
-              <span className="bar" /><span>{locStats.decks} Decks</span>
-              <span className="bar" /><span>{locStats.zones} Zones</span>
-              <span className="bar" /><span>{locStats.total} Spaces</span>
-            </div>
-          )}
-          <h1 className="editorial-greeting vh-greeting">{titleLead ? <>{titleLead}<span className="period">,</span> </> : null}<em>{titleAccent}</em><span className="period">.</span></h1>
-        </div>
+        {/* Editorial masthead — hidden for vessel-profile, which brings its own
+            vessel-name header via VesselProfileStack. */}
+        {activeSection !== 'vessel-profile' && (
+          <div className="vh-mast">
+            {activeSection === 'location-management' && locStats && (
+              <div className="editorial-meta">
+                <span className="dot">•</span>
+                <span>Scanned {locStats.scanned}/{locStats.total}</span>
+                <span className="bar" /><span>{locStats.decks} Decks</span>
+                <span className="bar" /><span>{locStats.zones} Zones</span>
+                <span className="bar" /><span>{locStats.total} Spaces</span>
+              </div>
+            )}
+            <h1 className="editorial-greeting vh-greeting">{titleLead ? <>{titleLead}<span className="period">,</span> </> : null}<em>{titleAccent}</em><span className="period">.</span></h1>
+          </div>
+        )}
 
         {/* Hub Layout — boxless editorial rail + content */}
         <div className="vh-layout">
