@@ -381,3 +381,13 @@
 .cm-page .msg-lightbox { position: fixed; inset: 0; z-index: 9999; background: rgba(20,18,30,0.86); display: grid; place-items: center; padding: 24px; }
 .cm-page .msg-lightbox img { max-width: 92vw; max-height: 88vh; border-radius: 8px; box-shadow: 0 24px 60px -16px rgba(0,0,0,0.6); }
 .cm-page .msg-lightbox-x { position: absolute; top: 18px; right: 22px; width: 40px; height: 40px; border-radius: 999px; border: 0; background: rgba(255,255,255,0.16); color: #fff; font-size: 18px; cursor: pointer; }
+
+/* ── Over-limit order sign-off banner ────────────────────────────────────── */
+.cm-page .msg-signoff { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 16px; background: #FBEFE9; border-bottom: 1px solid #F0E0D6; }
+.cm-page .msg-signoff-txt { font-size: 12.5px; color: #8A4A1E; font-weight: 600; flex: 1; min-width: 220px; }
+.cm-page .msg-signoff-actions { display: flex; gap: 8px; }
+.cm-page .msg-signoff-approve { background: var(--orange); color: #fff; border: 0; border-radius: 9px; padding: 7px 14px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+.cm-page .msg-signoff-approve:disabled { opacity: 0.6; cursor: default; }
+.cm-page .msg-signoff-decline { background: var(--card); color: var(--muted-strong); border: 1px solid var(--line); border-radius: 9px; padding: 7px 12px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+.cm-page .msg-signoff-decline:hover { border-color: var(--red); color: var(--red); }
+.cm-page .msg-signoff-wait { font-size: 11.5px; color: var(--muted); font-style: italic; }

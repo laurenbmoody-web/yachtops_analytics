@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabaseClient';
 export const fetchVesselThreads = async (tenantId) => {
   const { data, error } = await supabase
     .from('supplier_message_threads')
-    .select('*, supplier_profiles(id, name, logo_url), supplier_orders(id, list_id, provisioning_lists(id, title))')
+    .select('*, supplier_profiles(id, name, logo_url), supplier_orders(id, list_id, status, approval_status, provisioning_lists(id, title))')
     .eq('tenant_id', tenantId)
     .order('last_message_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
@@ -101,6 +101,30 @@ export const acceptQuote = async (messageId) => {
 // Decline a supplier quote, optionally with a reason the supplier sees.
 export const declineQuote = async (messageId, reason = null) => {
   const { error } = await supabase.rpc('decline_supplier_quote', { p_message_id: messageId, p_reason: reason });
+  if (error) throw error;
+};
+
+// Per-vessel spend sign-off config (shared with Defects). Drives whether a
+// chat-accepted order needs approval + who may sign it off.
+export const fetchOrderApprovalSettings = async (tenantId) => {
+  const fallback = { approverTier: 'HOD', threshold: 1000 };
+  if (!tenantId) return fallback;
+  const { data, error } = await supabase
+    .from('vessels')
+    .select('defect_quote_approver_tier, defect_quote_signoff_threshold')
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (error || !data) return fallback;
+  return {
+    approverTier: data.defect_quote_approver_tier || 'HOD',
+    threshold: data.defect_quote_signoff_threshold != null ? Number(data.defect_quote_signoff_threshold) : 1000,
+  };
+};
+
+// Sign off (or decline) a chat-accepted order that's pending approval. Tier is
+// enforced server-side.
+export const decideOrderApproval = async (orderId, approved, note = null) => {
+  const { error } = await supabase.rpc('decide_supplier_order_approval', { p_order_id: orderId, p_approved: approved, p_note: note });
   if (error) throw error;
 };
 

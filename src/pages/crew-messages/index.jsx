@@ -3,11 +3,13 @@ import {formatTime, dateLocale } from '../../utils/dateFormat';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import { useTenant } from '../../contexts/TenantContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import {
   fetchVesselThreads, fetchThreadMessages, sendVesselMessage, markThreadReadVessel,
   markThreadNotificationsRead, acceptQuote, declineQuote, reactToMessage, deleteMessage, editMessage,
   setThreadArchived, deleteThread, uploadMessageAttachment,
+  fetchOrderApprovalSettings, decideOrderApproval,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -32,6 +34,9 @@ const threadLabel = (t) => (t?.order_id ? `Order #${shortId(t.order_id)}` : 'Gen
 // The provisioning board this conversation relates to (via the order's list), so
 // crew can jump from a chat straight to the board it's about.
 const threadBoard = (t) => t?.supplier_orders?.provisioning_lists || null;
+// Spend sign-off tiers (shared with Defects) — higher rank may always approve.
+const TIER_RANK = { COMMAND: 4, CHIEF: 3, HOD: 2, CREW: 1 };
+const threadOrder = (t) => t?.supplier_orders || null;
 // Quote validity (per the supplier's expiry window, stamped on the message).
 const quoteExpired = (m) => !!m?.quote_expires_at && new Date(m.quote_expires_at).getTime() < Date.now();
 const fmtDmy = (d) => (d ? new Date(d).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
@@ -218,6 +223,8 @@ const CrewThreadRow = ({ t, active, onSelect, onArchive, onDelete }) => {
 
 const CrewMessages = () => {
   const { activeTenantId } = useTenant();
+  const { tenantRole } = useAuth();
+  const userTier = (tenantRole || '').toUpperCase();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const threadParam = params.get('threadId');
@@ -240,8 +247,16 @@ const CrewMessages = () => {
   const [declineReason, setDeclineReason] = useState('');
   const [attachments, setAttachments] = useState([]); // pending upload descriptors
   const [uploading, setUploading] = useState(false);
+  const [approverTier, setApproverTier] = useState('HOD');
   const [myUid, setMyUid] = useState(null);
   const fileRef = useRef(null);
+
+  // Who may sign off an over-threshold chat order (shared with Defects config).
+  useEffect(() => {
+    if (!activeTenantId) return;
+    fetchOrderApprovalSettings(activeTenantId).then((s) => setApproverTier(s.approverTier)).catch(() => {});
+  }, [activeTenantId]);
+  const canSignOff = (TIER_RANK[userTier] || 0) >= (TIER_RANK[approverTier] || 2);
   const endRef = useRef(null);
   const streamRef = useRef(null);
   const taRef = useRef(null);
@@ -396,6 +411,21 @@ const CrewMessages = () => {
         ? 'This conversation isn’t linked to an order yet — start from an order to add items.'
         : (e.message || 'Couldn’t update the quote.'));
     } finally { setQuoteBusy(null); }
+  };
+
+  // Sign off (or decline) an over-threshold chat order that's pending approval.
+  const [signBusy, setSignBusy] = useState(false);
+  const signOffOrder = async (orderId, approved) => {
+    if (signBusy || !orderId) return;
+    if (!approved && !window.confirm('Decline this order? It won’t be placed with the supplier.')) return;
+    setSignBusy(true); setError(null);
+    try {
+      await decideOrderApproval(orderId, approved);
+      const msgs = await fetchThreadMessages(activeId);
+      setMessages(msgs);
+      await load();
+    } catch (e) { setError(e.message || 'Couldn’t update the sign-off.'); }
+    finally { setSignBusy(false); }
   };
 
   // Archive / restore a conversation (optimistic, then persist via RPC).
@@ -614,6 +644,26 @@ const CrewMessages = () => {
                         </div>
                       </div>
                     </div>
+
+                    {(() => {
+                      const ord = threadOrder(activeThread);
+                      if (ord?.approval_status !== 'pending') return null;
+                      return (
+                        <div className="msg-signoff">
+                          <span className="msg-signoff-txt">
+                            ⏱ This order is over the vessel spend limit — it needs {approverTier} sign-off before it’s placed.
+                          </span>
+                          {canSignOff ? (
+                            <span className="msg-signoff-actions">
+                              <button type="button" className="msg-signoff-decline" disabled={signBusy} onClick={() => signOffOrder(ord.id, false)}>Decline</button>
+                              <button type="button" className="msg-signoff-approve" disabled={signBusy} onClick={() => signOffOrder(ord.id, true)}>{signBusy ? 'Signing…' : 'Approve & place'}</button>
+                            </span>
+                          ) : (
+                            <span className="msg-signoff-wait">Awaiting {approverTier} sign-off</span>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <div className="msg-stream" ref={streamRef}>
                       {rendered.length === 0 ? (
