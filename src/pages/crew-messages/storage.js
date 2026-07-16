@@ -27,16 +27,30 @@ export const fetchThreadMessages = async (threadId) => {
   return data ?? [];
 };
 
-// Send a message from the vessel side. Pass replyToId to quote another message.
-export const sendVesselMessage = async (threadId, body, replyToId = null) => {
+// Send a message from the vessel side. Pass replyToId to quote another message,
+// and attachments (array of {url,name,type,size}) for photos / dockets.
+export const sendVesselMessage = async (threadId, body, replyToId = null, attachments = []) => {
   const { data: auth } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('supplier_messages')
-    .insert({ thread_id: threadId, sender_type: 'vessel', sender_user_id: auth?.user?.id ?? null, body, reply_to_id: replyToId })
+    .insert({ thread_id: threadId, sender_type: 'vessel', sender_user_id: auth?.user?.id ?? null, body, reply_to_id: replyToId, attachments })
     .select()
     .single();
   if (error) throw error;
   return data;
+};
+
+// Upload a chat attachment to the public message-attachments bucket, keyed by
+// thread. Returns the descriptor to store on the message.
+export const uploadMessageAttachment = async (threadId, file) => {
+  const ext = (file.name?.split('.').pop() || 'bin').toLowerCase();
+  const path = `${threadId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from('message-attachments')
+    .upload(path, file, { contentType: file.type || 'application/octet-stream', cacheControl: '3600', upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from('message-attachments').getPublicUrl(path);
+  return { url: data.publicUrl, name: file.name, type: file.type || '', size: file.size, path };
 };
 
 // Toggle an emoji reaction on a message (one per user). Returns the new array.

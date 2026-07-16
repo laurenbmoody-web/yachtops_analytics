@@ -25,9 +25,12 @@ const MessageBubble = ({
 }) => {
   const [dx, setDx] = useState(0);
   const [menu, setMenu] = useState(false);
+  const [lightbox, setLightbox] = useState(null);
   const drag = useRef(null);
 
   const deleted = !!m.deleted_at;
+  const attachments = Array.isArray(m.attachments) ? m.attachments : [];
+  const isImage = (a) => (a?.type || '').startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(a?.url || '');
   const reactions = useMemo(() => aggregate(m.reactions, myUid), [m.reactions, myUid]);
   const reactionList = Object.entries(reactions);
 
@@ -89,7 +92,23 @@ const MessageBubble = ({
                   <span className="msg-reply-quote-snip">{repliedMsg.snippet}</span>
                 </button>
               )}
-              <span className="msg-body">{m.body}</span>
+              {attachments.length > 0 && (
+                <div className={`msg-attach${attachments.length > 1 ? ' multi' : ''}`}>
+                  {attachments.map((a, i) => (
+                    isImage(a) ? (
+                      <button key={i} type="button" className="msg-attach-img" onClick={() => setLightbox(a.url)} title={a.name || 'Photo'}>
+                        <img src={a.url} alt={a.name || 'Photo'} loading="lazy" />
+                      </button>
+                    ) : (
+                      <a key={i} className="msg-attach-file" href={a.url} target="_blank" rel="noopener noreferrer" title={a.name || 'File'}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>
+                        <span className="msg-attach-name">{a.name || 'Attachment'}</span>
+                      </a>
+                    )
+                  ))}
+                </div>
+              )}
+              {m.body && <span className="msg-body">{m.body}</span>}
               <span className="msg-time">{m.edited_at && <span className="msg-edited">edited</span>}{time}{tick}</span>
             </>
           )}
@@ -127,6 +146,13 @@ const MessageBubble = ({
           </div>
         )}
       </div>
+
+      {lightbox && (
+        <div className="msg-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-modal="true">
+          <button type="button" className="msg-lightbox-x" aria-label="Close" onClick={() => setLightbox(null)}>✕</button>
+          <img src={lightbox} alt="" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </div>
   );
 };
