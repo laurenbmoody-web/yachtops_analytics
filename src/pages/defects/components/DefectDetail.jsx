@@ -31,6 +31,7 @@ const STATUS_META = {
   InProgress: { cls: 'dd-s-progress', label: 'In progress' }, WaitingParts: { cls: 'dd-s-progress', label: 'Waiting parts' },
   Fixed: { cls: 'dd-s-fixed', label: 'Fixed' }, Closed: { cls: 'dd-s-closed', label: 'Closed' }, declined: { cls: 'dd-s-declined', label: 'Declined' },
 };
+const REPAIR_STAGE_SHORT = { contacted: 'Contacted', quoting: 'Quoting', quoted: 'Quoted', scheduled: 'Scheduled', in_progress: 'In progress', completed: 'Done' };
 const WORKFLOW = [DefectStatus.NEW, DefectStatus.ASSIGNED, DefectStatus.IN_PROGRESS, DefectStatus.WAITING_PARTS, DefectStatus.FIXED];
 const GOOD_EVENTS = new Set(['accepted', 'claimed', 'closed', 'fixed']);
 const initials = (name) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || '?';
@@ -290,18 +291,29 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
               )}
             </div>
 
-            {/* stage stepper — the traceable works progression */}
+            {/* stage stepper — click a step to move the repair along */}
             <div className="dd-stage">
-              <div className="dd-stage-track" role="group" aria-label="Repair stage">
-                {REPAIR_STAGE_ORDER.map((s, i) => (
-                  <button key={s} type="button" disabled={!canManage || isClosed || busy}
-                    className={`dd-stage-seg${i <= stageIdx ? ' done' : ''}${defect.repairStage === s ? ' cur' : ''}`}
-                    title={REPAIR_STAGE_LABELS[s]} aria-label={`Set stage: ${REPAIR_STAGE_LABELS[s]}`}
-                    aria-current={defect.repairStage === s ? 'step' : undefined}
-                    onClick={() => setStage(s)} />
-                ))}
+              <div className="dd-stage-head">
+                <span className="dd-stage-lbl">Repair progress</span>
+                {canManage && !isClosed
+                  ? <span className="dd-stage-hint"><Icon name="MousePointerClick" size={11} /> tap a step to update</span>
+                  : <span className="dd-stage-now-txt">{REPAIR_STAGE_LABELS[defect.repairStage] || 'Not started'}</span>}
               </div>
-              <div className="dd-stage-now">{REPAIR_STAGE_LABELS[defect.repairStage] || 'Not started'}</div>
+              <div className="dd-stage-steps" role="group" aria-label="Repair stage">
+                {REPAIR_STAGE_ORDER.map((s, i) => {
+                  const done = stageIdx >= 0 && i <= stageIdx;
+                  const cur = defect.repairStage === s;
+                  return (
+                    <button key={s} type="button" disabled={!canManage || isClosed || busy}
+                      className={`dd-stage-step${done ? ' done' : ''}${cur ? ' cur' : ''}`}
+                      title={`Set stage: ${REPAIR_STAGE_LABELS[s]}`} aria-label={`Set stage: ${REPAIR_STAGE_LABELS[s]}`}
+                      aria-current={cur ? 'step' : undefined} onClick={() => setStage(s)}>
+                      <span className="dd-stage-dot">{done ? <Icon name="Check" size={10} /> : i + 1}</span>
+                      <span className="dd-stage-name">{REPAIR_STAGE_SHORT[s]}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {fixEditing ? (
