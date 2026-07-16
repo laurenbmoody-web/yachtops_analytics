@@ -3,10 +3,12 @@ import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
-import { getCurrentUser, hasCommandAccess, hasChiefAccess, getTierDisplayName } from '../../utils/authStorage';
+import { getCurrentUser, clearCurrentUser, hasCommandAccess, hasChiefAccess, getTierDisplayName } from '../../utils/authStorage';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
+import { applyReduceMotion, applyTextSize } from '../../utils/a11y';
 import JSZip from 'jszip';
 import './settings.css';
 
@@ -17,6 +19,7 @@ const PREF_DEFAULTS = {
   quietHours: false, digest: 'off',
   dateFormat: 'dmy', hour24: false, units: 'metric', firstDay: 'mon',
   analytics: true,
+  reduceMotion: false, textSize: 'default',
 };
 // name → [localStorage key, type]. Channel/task/trip keys reuse the existing
 // ones so nothing already saved is lost.
@@ -35,6 +38,8 @@ const PREF_KEY = {
   units: ['units', 'str'],
   firstDay: ['first_day', 'str'],
   analytics: ['analytics_opt_in', 'bool'],
+  reduceMotion: ['a11y_reduce_motion', 'bool'],
+  textSize: ['a11y_text_size', 'str'],
 };
 const readPref = (name) => {
   const [k, t] = PREF_KEY[name];
@@ -135,7 +140,9 @@ const NAV = [
   ] },
   { grp: 'Preferences', items: [
     { id: 'notifications', label: 'Notifications', icon: 'Bell' },
+    { id: 'appearance', label: 'Appearance', icon: 'Sun' },
     { id: 'regional', label: 'Regional', icon: 'Globe' },
+    { id: 'accessibility', label: 'Accessibility', icon: 'Eye' },
   ] },
   { grp: 'Support', items: [
     { id: 'legal', label: 'Legal', icon: 'FileText' },
@@ -146,8 +153,15 @@ const NAV = [
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading, isVesselAdmin } = useAuth();
+  const { themePref, setThemeMode } = useTheme();
   const { activeTenantId } = useTenant();
   const currentUser = getCurrentUser();
+
+  const handleSignOut = async () => {
+    try { await supabase?.auth?.signOut(); } catch { /* ignore — clear + redirect regardless */ }
+    clearCurrentUser();
+    navigate('/login-authentication');
+  };
 
   const [activeSection, setActiveSection] = useState('account');
   const [prefs, setPrefs] = useState(() => Object.fromEntries(Object.keys(PREF_DEFAULTS).map(n => [n, readPref(n)])));
@@ -983,6 +997,14 @@ const SettingsPage = () => {
               )}
             </Group>
             </>)}
+
+            <Caps>Session</Caps>
+            <Group>
+              <div className="set-r">
+                <RMain label="Sign out" desc="Sign out of Cargo on this device." />
+                <button className="set-btn" onClick={handleSignOut}>Sign out</button>
+              </div>
+            </Group>
           </>
         );
 
@@ -1150,6 +1172,46 @@ const SettingsPage = () => {
               <RowToggle label="24-hour time" desc="Show 15:42 rather than 3:42 PM." on={prefs.hour24} onChange={() => toggle('hour24')} />
               <RowSeg label="First day of week" value={prefs.firstDay} onChange={(v) => setPref('firstDay', v)}
                 options={[{ v: 'mon', l: 'Mon' }, { v: 'sun', l: 'Sun' }]} />
+            </Group>
+          </>
+        );
+
+      case 'appearance':
+        return (
+          <>
+            <h2 className="set-h">Appearance</h2>
+            <p className="set-hsub">How Cargo looks on this device.</p>
+            <Group>
+              <RowSeg
+                label="Theme"
+                desc="Follow your device, or force light or dark."
+                value={themePref === 'night' ? 'dark' : themePref === 'day' ? 'light' : 'system'}
+                onChange={(v) => setThemeMode(v === 'dark' ? 'night' : v === 'light' ? 'day' : 'system')}
+                options={[{ v: 'light', l: 'Light' }, { v: 'dark', l: 'Dark' }, { v: 'system', l: 'System' }]}
+              />
+            </Group>
+          </>
+        );
+
+      case 'accessibility':
+        return (
+          <>
+            <h2 className="set-h">Accessibility</h2>
+            <p className="set-hsub">Make Cargo easier to read and move through.</p>
+            <Group>
+              <RowToggle
+                label="Reduce motion"
+                desc="Turn off animations and transitions across the app."
+                on={prefs.reduceMotion}
+                onChange={() => { const v = !prefs.reduceMotion; setPref('reduceMotion', v); applyReduceMotion(v); }}
+              />
+              <RowSeg
+                label="Text size"
+                desc="Enlarge text across most of the app."
+                value={prefs.textSize}
+                onChange={(v) => { setPref('textSize', v); applyTextSize(v); }}
+                options={[{ v: 'default', l: 'Default' }, { v: 'large', l: 'Large' }]}
+              />
             </Group>
           </>
         );
