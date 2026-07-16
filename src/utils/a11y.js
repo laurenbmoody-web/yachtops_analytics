@@ -20,8 +20,12 @@ export const applyReduceMotion = (on) => {
 export const applyTextSize = (size) => {
   const root = document.documentElement;
   if (!root) return;
-  root.style.fontSize = size === 'large' ? '112.5%' : '';
-  root.setAttribute('data-text-size', size === 'large' ? 'large' : 'default');
+  const large = size === 'large';
+  // Zoom scales EVERYTHING — including the app's many inline-pixel font sizes,
+  // which a root font-size change would miss. So "Large" genuinely enlarges the
+  // whole UI, not just the rem/Tailwind text.
+  root.style.zoom = large ? '1.12' : '';
+  root.setAttribute('data-text-size', large ? 'large' : 'default');
 };
 
 export const initA11y = () => {
