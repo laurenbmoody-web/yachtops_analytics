@@ -60,6 +60,8 @@ const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
           <span className="lr-desc">{item?.description || 'No description'}</span>
           {urgent && <span className="lr-flag"><Icon name="Zap" size={11} /> Urgent</span>}
           {overdue && <span className="lr-overdue"><Icon name="Clock" size={11} /> Overdue</span>}
+          {item?.flag === 'damaged' && <span className="lr-cond dmg"><Icon name="AlertTriangle" size={11} /> Damaged</span>}
+          {item?.flag === 'missing' && <span className="lr-cond mis"><Icon name="HelpCircle" size={11} /> Missing</span>}
         </div>
         <div className="lr-sub">
           <span className="lr-who"><span className={`lr-av ${kind}`}>{item?.avatarUrl ? <img src={item.avatarUrl} alt="" /> : avInitials}</span>{kind === 'unknown' ? 'Unknown' : (item?.ownerName || 'Unassigned')}</span>
@@ -67,6 +69,7 @@ const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
           {item?.laundryNumber && (<><span className="sep">·</span><span>No. {item.laundryNumber}</span></>)}
           {item?.colour && (<><span className="sep">·</span><span>{item.colour}</span></>)}
           {item?.neededBy && !overdue && notDelivered && (<><span className="sep">·</span><span className="lr-due">due {fmtDue(item.neededBy)}</span></>)}
+          {item?.serviceLocation === 'shore' && (<><span className="sep">·</span><span className="lr-shore"><Icon name="Anchor" size={11} /> Ashore</span></>)}
         </div>
         {item?.tags?.length > 0 && (
           <div className="lr-tags">

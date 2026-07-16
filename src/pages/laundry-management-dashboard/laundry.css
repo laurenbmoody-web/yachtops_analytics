@@ -639,6 +639,11 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lr-flag { display: inline-flex; align-items: center; gap: 4px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #C24632; background: #FBECE8; border-radius: 999px; padding: 2px 8px; flex: none; }
 .lr-overdue { display: inline-flex; align-items: center; gap: 4px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #FFFFFF; background: #C24632; border-radius: 999px; padding: 2px 8px; flex: none; }
 .lr-due { color: #B7791F; font-weight: 600; }
+.lr-cond { display: inline-flex; align-items: center; gap: 4px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; flex: none; }
+.lr-cond.dmg { color: #C24632; background: #FBECE8; }
+.lr-cond.mis { color: #B7791F; background: #FBF1DF; }
+.lr-shore { display: inline-flex; align-items: center; gap: 4px; color: #2F6E8F; font-weight: 600; }
+.lr-shore svg { stroke: currentColor; }
 .lr-sub { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 12.5px; color: #6E6B85; flex-wrap: wrap; }
 .lr-who { display: inline-flex; align-items: center; gap: 7px; }
 .lr-av { width: 20px; height: 20px; aspect-ratio: 1; border-radius: 999px; overflow: hidden; display: grid; place-items: center; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; color: #FFF; flex: none; }
@@ -738,6 +743,26 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .ldm-k { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #9A93A0; }
 .ldm-v { font-size: 14px; color: #1C1B3A; }
 .ldm-notes { background: #F8FAFC; border: 1px solid #ECECEE; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; line-height: 1.5; color: #4B4A66; white-space: pre-wrap; }
+
+/* condition + handling controls */
+.ldm-flags { display: flex; gap: 8px; }
+.ldm-flagbtn { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; background: #FFFFFF; border: 1px solid #E8E6DF; border-radius: 10px; padding: 8px 13px; cursor: pointer; transition: 0.14s; }
+.ldm-flagbtn:hover { border-color: #D6D8E0; color: #1C1B3A; }
+.ldm-flagbtn svg { stroke: currentColor; }
+.ldm-flagbtn.dmg.on { background: #FBECE8; border-color: #E4B8AC; color: #C24632; }
+.ldm-flagbtn.mis.on { background: #FBF1DF; border-color: #E4CE9E; color: #B7791F; }
+.ldm-flagnote { display: flex; gap: 8px; margin-top: 10px; }
+.ldm-flagnote .alm-field { flex: 1; }
+.ldm-sendbtn { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #2F6E8F; background: #FFFFFF; border: 1px solid #CFE0E9; border-radius: 10px; padding: 8px 13px; cursor: pointer; }
+.ldm-sendbtn:hover { background: #E9F1F5; }
+.ldm-sendbtn svg { stroke: currentColor; }
+.ldm-shore { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #E9F1F5; border: 1px solid #CFE0E9; border-radius: 12px; padding: 11px 14px; }
+.ldm-shore-txt { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #2A5A73; min-width: 0; }
+.ldm-shore-txt svg { stroke: #2F6E8F; flex: none; }
+.ldm-shore-txt b { color: #1C1B3A; }
+.ldm-shore-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ldm-shore-form .alm-field { flex: 1 1 160px; }
+.ldm-shore-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 /* extra photo thumbnails under the meta */
 .ldm-strip { display: flex; gap: 8px; flex-wrap: wrap; }
 .ldm-strip img { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; border: 1px solid #ECECEE; }

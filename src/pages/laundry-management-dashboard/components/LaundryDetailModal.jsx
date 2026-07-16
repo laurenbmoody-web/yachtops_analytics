@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
-import { LaundryStatus, LaundryPriority, formatLaundryTag, updateLaundryStatus, getLaundryEvents } from '../utils/laundryStorage';
+import { LaundryStatus, LaundryPriority, formatLaundryTag, updateLaundryStatus, updateLaundryItem, getLaundryEvents } from '../utils/laundryStorage';
 import '../laundry.css';
 
 const EVENT_LABEL = { created: 'Added', ready: 'Marked ready', delivered: 'Delivered', reopened: 'Reopened', edited: 'Edited', updated: 'Updated' };
@@ -21,7 +21,12 @@ const photosOf = (it) => (Array.isArray(it?.photos) && it.photos.length ? it.pho
 const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
   const [item, setItem] = useState(initial);
   const [events, setEvents] = useState([]);
+  const [flagNoteDraft, setFlagNoteDraft] = useState(initial?.flagNote || '');
+  const [shoreOpen, setShoreOpen] = useState(false);
+  const [vendorDraft, setVendorDraft] = useState(initial?.vendor || '');
+  const [backDraft, setBackDraft] = useState(initial?.expectedBack || '');
   useEffect(() => { setItem(initial); }, [initial]);
+  useEffect(() => { setFlagNoteDraft(initial?.flagNote || ''); setVendorDraft(initial?.vendor || ''); setBackDraft(initial?.expectedBack || ''); setShoreOpen(false); }, [initial?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadEvents = React.useCallback(() => {
     if (!initial?.id) return;
@@ -42,6 +47,18 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
     loadEvents();
     onUpdated?.();
   };
+
+  // apply an edit (flag / handling) and keep the signed photos + avatar
+  const patch = async (fields) => {
+    const updated = await updateLaundryItem(item.id, fields);
+    if (updated) setItem({ ...updated, photos: item.photos, photo: item.photo, avatarUrl });
+    loadEvents();
+    onUpdated?.();
+  };
+  const toggleFlag = (f) => patch(item?.flag === f ? { flag: null, flagNote: '' } : { flag: f });
+  const sendAshore = () => { patch({ serviceLocation: 'shore', vendor: vendorDraft.trim(), expectedBack: backDraft || null, sentAt: new Date().toISOString() }); setShoreOpen(false); };
+  const markOnboard = () => patch({ serviceLocation: 'onboard', sentAt: null, expectedBack: null });
+  const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
 
   return (
     <ModalShell onClose={onClose} panelClassName="alm-panel">
@@ -74,6 +91,46 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
           {(item?.laundryNumber || item?.colour) && <span className="ldm-chip"><Icon name="Hash" size={12} />{[item?.laundryNumber, item?.colour].filter(Boolean).join(' · ')}</span>}
           {(item?.tags || []).map((t, i) => <span key={i} className="ldm-care">{formatLaundryTag(t)}</span>)}
           {!item?.area && !item?.laundryNumber && !item?.colour && !(item?.tags || []).length && <span className="ldm-chip" style={{ color: '#AEB4C2' }}>No further details</span>}
+        </div>
+
+        {/* condition — damaged / missing */}
+        <div className="alm-section">
+          <label className="alm-label">Condition</label>
+          <div className="ldm-flags">
+            <button type="button" className={`ldm-flagbtn dmg${item?.flag === 'damaged' ? ' on' : ''}`} onClick={() => toggleFlag('damaged')}><Icon name="AlertTriangle" size={14} /> Damaged</button>
+            <button type="button" className={`ldm-flagbtn mis${item?.flag === 'missing' ? ' on' : ''}`} onClick={() => toggleFlag('missing')}><Icon name="HelpCircle" size={14} /> Missing</button>
+          </div>
+          {item?.flag && (
+            <div className="ldm-flagnote">
+              <input className="alm-field" placeholder={item.flag === 'missing' ? 'Where was it last seen?' : 'What’s the damage?'} value={flagNoteDraft} onChange={(e) => setFlagNoteDraft(e.target.value)} />
+              <button type="button" className="alm-btn outline" onClick={() => patch({ flagNote: flagNoteDraft })}>Save</button>
+            </div>
+          )}
+        </div>
+
+        {/* handling — sent ashore to a vendor */}
+        <div className="alm-section">
+          <label className="alm-label">Handling</label>
+          {item?.serviceLocation === 'shore' ? (
+            <div className="ldm-shore on">
+              <div className="ldm-shore-txt">
+                <Icon name="Anchor" size={14} />
+                <span>Out at <b>{item?.vendor || 'shore laundry'}</b>{item?.expectedBack ? ` · back ${fmtDate(item.expectedBack)}` : ''}{item?.sentAt ? ` · sent ${fmtDate(item.sentAt)}` : ''}</span>
+              </div>
+              <button type="button" className="alm-btn outline" onClick={markOnboard}>Back onboard</button>
+            </div>
+          ) : shoreOpen ? (
+            <div className="ldm-shore-form">
+              <input className="alm-field" placeholder="Vendor / dry cleaner" value={vendorDraft} onChange={(e) => setVendorDraft(e.target.value)} />
+              <input type="date" className="alm-field" value={backDraft || ''} onChange={(e) => setBackDraft(e.target.value)} />
+              <div className="ldm-shore-actions">
+                <button type="button" className="alm-linkbtn" onClick={() => setShoreOpen(false)}>Cancel</button>
+                <button type="button" className="alm-btn primary" onClick={sendAshore}>Send ashore</button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="ldm-sendbtn" onClick={() => setShoreOpen(true)}><Icon name="Anchor" size={14} /> Send ashore</button>
+          )}
         </div>
 
         {item?.notes && (
