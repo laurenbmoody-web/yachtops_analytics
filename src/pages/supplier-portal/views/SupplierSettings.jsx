@@ -1077,6 +1077,7 @@ const StorefrontPreview = ({ supplier, form, certs }) => {
 const StorefrontSection = ({ supplier, onSaved }) => {
   const [form, setForm] = useState({
     lead_time_days:     supplier.lead_time_days ?? '',
+    quote_validity_days: supplier.quote_validity_days ?? 7,
     order_cutoff:       (supplier.order_cutoff || '').slice(0, 5), // 'HH:MM'
     min_order_value:    supplier.min_order_value ?? '',
     min_order_currency: supplier.min_order_currency || 'EUR',
@@ -1144,6 +1145,9 @@ const StorefrontSection = ({ supplier, onSaved }) => {
         contact_email:      form.contact_email?.trim() || null,
         contact_phone:      form.contact_phone?.trim() || null,
       });
+      // Quote validity isn't part of the storefront RPC — save it directly on
+      // the profile (own-profile update is allowed).
+      await updateSupplierProfile(supplier.id, { quote_validity_days: Number(form.quote_validity_days) || 7 });
       // Queue an AI first-pass review for any cert with a document that isn't
       // yet verified — the edge function is idempotent per document, so it's
       // safe to fire for all of them. Don't block the save on it.
@@ -1180,6 +1184,10 @@ const StorefrontSection = ({ supplier, onSaved }) => {
         <div>
           <label style={lbl}>Standard lead time (days)</label>
           <input type="number" min="0" value={form.lead_time_days} onChange={e => set('lead_time_days', e.target.value)} placeholder="e.g. 2" style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Quotes valid for (days)</label>
+          <input type="number" min="1" value={form.quote_validity_days} onChange={e => set('quote_validity_days', e.target.value)} placeholder="7" style={inp} />
         </div>
         <div>
           <label style={lbl}>Standard order cut-off</label>
