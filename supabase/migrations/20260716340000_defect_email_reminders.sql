@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 20260716310000_defect_email_reminders.sql
+-- 20260716340000_defect_email_reminders.sql
 --
 -- WHAT: Email layer for High/Critical defect reminders (in-app already ships in
 --       defects_run_daily_reminders). Adds:

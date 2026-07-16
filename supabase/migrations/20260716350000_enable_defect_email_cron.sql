@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 20260716320000_enable_defect_email_cron.sql
+-- 20260716350000_enable_defect_email_cron.sql
 --
 -- Daily High/Critical defect email run. Fires at 07:35 UTC (after the in-app
 -- defects-daily-reminders pass at 07:30) and POSTs to the defect-reminders edge
