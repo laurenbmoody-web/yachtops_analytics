@@ -66,6 +66,13 @@ const mapRow = (r) => ({
   tags: Array.isArray(r.tags) ? r.tags : [],
   notes: r.notes || '',
   tripId: r.trip_id || null,
+  neededBy: r.needed_by || null,
+  flag: r.flag || null,
+  flagNote: r.flag_note || '',
+  serviceLocation: r.service_location || 'onboard',
+  vendor: r.vendor || '',
+  sentAt: r.sent_at || null,
+  expectedBack: r.expected_back || null,
 });
 
 // ── date helpers ─────────────────────────────────────────────────────────────
@@ -319,6 +326,7 @@ export const createLaundryItem = async (itemData) => {
     tags: itemData?.tags || [],
     notes: itemData?.notes || '',
     trip_id: itemData?.tripId || null,
+    needed_by: itemData?.neededBy || null,
     created_by: authData?.user?.id || null,
     created_by_name: currentUser?.fullName || currentUser?.name || 'Unknown User',
   };
@@ -368,6 +376,8 @@ export const updateLaundryItem = async (itemId, updates) => {
     area: 'area', areaLocationId: 'area_location_id',
     colour: 'colour', laundryNumber: 'laundry_number', photo: 'photo', photos: 'photos', description: 'description',
     priority: 'priority', status: 'status', tags: 'tags', notes: 'notes',
+    neededBy: 'needed_by', flag: 'flag', flagNote: 'flag_note',
+    serviceLocation: 'service_location', vendor: 'vendor', sentAt: 'sent_at', expectedBack: 'expected_back',
   };
   // Photos edited → upload any new data URLs to the bucket before saving.
   let up = updates || {};
