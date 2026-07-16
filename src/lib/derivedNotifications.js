@@ -18,11 +18,45 @@ import { getDocTypeLabel } from '../pages/crew-profile/documentTypes';
 import { fetchExpiringVesselDocuments } from '../pages/vessel-documents/vesselDocuments';
 import { supabase } from './supabaseClient';
 
+// Laundry signals that don't need their own rows: pieces past their needed-by
+// (overdue) and pieces flagged missing / damaged. RLS scopes to the tenant.
+async function fetchLaundryNotifications() {
+  try {
+    const { data } = await supabase
+      .from('laundry_items')
+      .select('id, description, owner_name, area, status, needed_by, flag')
+      .is('archived_at', null)
+      .neq('status', 'Delivered')
+      .limit(200);
+    const now = Date.now();
+    const rows = [];
+    const mk = (it, type, title, message, severity, at) => rows.push({
+      id: `${type}:${it.id}`, type, title, message, severity,
+      actionUrl: '/laundry-management-dashboard', isRead: false,
+      createdAt: at || new Date().toISOString(), _source: 'derived',
+    });
+    for (const it of data || []) {
+      const who = it.owner_name && it.owner_name !== 'Unknown' ? ` — ${it.owner_name}` : '';
+      const item = it.description || 'Laundry item';
+      if (it.flag === 'missing') mk(it, 'LAUNDRY_MISSING', 'Laundry missing', `${item}${who} flagged missing`, 'urgent');
+      else if (it.flag === 'damaged') mk(it, 'LAUNDRY_DAMAGED', 'Laundry damaged', `${item}${who} flagged damaged`, 'warn');
+      if (it.needed_by && new Date(it.needed_by).getTime() < now) {
+        mk(it, 'LAUNDRY_OVERDUE', 'Laundry overdue', `${item}${who}${it.area ? ` (${it.area})` : ''} is past its needed-by`, 'urgent', it.needed_by);
+      }
+    }
+    return rows;
+  } catch (e) {
+    console.warn('[derivedNotifications] laundry fetch failed:', e?.message);
+    return [];
+  }
+}
+
 // Surface docs expiring within 90 days OR already expired. Returns
 // rows in the same shape NotificationsDrawer expects. Respects the viewer's
 // document-expiry notification preference (off → returns nothing).
 export async function fetchDerivedNotifications(userId = null) {
   let allowVesselDocs = true;
+  const laundry = await fetchLaundryNotifications();
   try {
     let allowCrewDocs = true;
     if (userId) {
@@ -34,7 +68,7 @@ export async function fetchDerivedNotifications(userId = null) {
       if (pref && pref.notify_document_expiry === false) allowCrewDocs = false;
       if (pref && pref.notify_vessel_docs === false) allowVesselDocs = false;
     }
-    if (!allowCrewDocs && !allowVesselDocs) return [];
+    if (!allowCrewDocs && !allowVesselDocs) return laundry;
     const docs = allowCrewDocs ? await fetchExpiringDocuments(90) : [];
     const out = (docs || []).map((d) => {
       const s = getExpiryStatus(d.expiry_date);
@@ -105,9 +139,9 @@ export async function fetchDerivedNotifications(userId = null) {
       console.warn('[derivedNotifications] vessel doc expiry fetch failed:', e?.message);
     }
 
-    return out;
+    return [...out, ...laundry];
   } catch (err) {
     console.warn('[derivedNotifications] doc expiry fetch failed:', err?.message);
-    return [];
+    return laundry;
   }
 }
