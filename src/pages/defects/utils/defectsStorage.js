@@ -348,6 +348,29 @@ export const getDefectByHotspot = async (hotspotId, actor) => {
   return data && data.length ? fromRow(data[0]) : null;
 };
 
+// Per-hotspot open-defect load for the map's fault heat overlay. One query for
+// the whole scan → { [hotspotId]: { count, maxPriority } }. "Open" = not closed
+// and not declined; pending-acceptance still counts as an open fault.
+const HEAT_PRIORITY_RANK = { Low: 1, Medium: 2, High: 3, Critical: 4 };
+export const getDefectHeatByHotspots = async (hotspotIds, actor) => {
+  const ids = [...new Set((hotspotIds || []).filter(Boolean))];
+  if (!ids.length || !actor?.tenantId) return {};
+  const { data, error } = (await supabase
+    ?.from('defects')?.select('hotspot_id, priority, status')
+    ?.eq('tenant_id', actor.tenantId)?.in('hotspot_id', ids)
+    ?.neq('status', DefectStatus.CLOSED)) || {};
+  if (error) { console.warn('[defects] getDefectHeatByHotspots', error); return {}; }
+  const heat = {};
+  for (const r of data || []) {
+    if (r.status === DefectStatus.DECLINED) continue;
+    const h = heat[r.hotspot_id] || (heat[r.hotspot_id] = { count: 0, maxRank: 0, maxPriority: 'Low' });
+    h.count += 1;
+    const rank = HEAT_PRIORITY_RANK[r.priority] || 1;
+    if (rank > h.maxRank) { h.maxRank = rank; h.maxPriority = r.priority || 'Low'; }
+  }
+  return heat;
+};
+
 // Assign a defect to a named person or a whole team, notifying recipients.
 // Prior repairs at this defect's location that are still under warranty — a
 // possible warranty claim if the fault has recurred. Excludes this defect.
