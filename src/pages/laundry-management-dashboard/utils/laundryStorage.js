@@ -11,7 +11,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { logActivity } from '../../../utils/activityStorage';
 import { showToast } from '../../../utils/toast';
-import { uploadLaundryPhotos, resolveLaundryPhotos } from './laundryPhotos';
+import { uploadLaundryPhotos, resolveLaundryPhotos, deleteLaundryPhotos, isStoredPath } from './laundryPhotos';
 
 // Owner / status / priority enums (unchanged — values match stored strings).
 export const OwnerType = { GUEST: 'Guest', CREW: 'Crew' };
@@ -98,10 +98,19 @@ const logLaundryEvent = async (itemId, tenantId, action) => {
   try {
     const { data: authData } = await supabase.auth.getUser();
     const u = getCurrentUser();
+    const meta = authData?.user?.user_metadata || {};
+    let actorName = u?.fullName || u?.name || meta.full_name || meta.name || meta.fullName;
+    if (!actorName && authData?.user?.id) {
+      try {
+        const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', authData.user.id).single();
+        actorName = prof?.full_name;
+      } catch (e) { /* ignore */ }
+    }
+    actorName = actorName || authData?.user?.email || 'Someone';
     await supabase.from('laundry_item_events').insert({
       tenant_id: tenantId, item_id: itemId, action,
       actor_id: authData?.user?.id || null,
-      actor_name: u?.fullName || u?.name || 'Someone',
+      actor_name: actorName,
     });
   } catch (e) { /* non-fatal */ }
 };
@@ -346,6 +355,13 @@ export const updateLaundryItem = async (itemId, updates) => {
   if (Object.prototype.hasOwnProperty.call(up, 'photos')) {
     const tid = await getTenantId();
     const stored = await uploadLaundryPhotos(tid, up.photos || []);
+    // orphan cleanup — remove files that were dropped in this edit
+    try {
+      const { data: prev } = await supabase.from('laundry_items').select('photos').eq('id', itemId).single();
+      const oldPaths = (Array.isArray(prev?.photos) ? prev.photos : []).filter(isStoredPath);
+      const removed = oldPaths.filter((p) => !stored.includes(p));
+      if (removed.length) deleteLaundryPhotos(removed);
+    } catch (e) { /* non-fatal */ }
     up = { ...up, photos: stored, photo: stored[0] || '' };
   }
   const patch = { updated_at: new Date().toISOString() };
