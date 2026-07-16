@@ -58,6 +58,18 @@ export const editMessage = async (messageId, body) => {
   if (error) throw error;
 };
 
+// Archive / restore a conversation (vessel side, via SECURITY DEFINER RPC).
+export const setThreadArchived = async (threadId, archived) => {
+  const { error } = await supabase.rpc('set_thread_archived_vessel', { p_thread_id: threadId, p_archived: archived });
+  if (error) throw error;
+};
+
+// Delete a conversation for both sides (vessel side, via SECURITY DEFINER RPC).
+export const deleteThread = async (threadId) => {
+  const { error } = await supabase.rpc('delete_thread_vessel', { p_thread_id: threadId });
+  if (error) throw error;
+};
+
 // Clear this vessel's unread + move its read cursor (via SECURITY DEFINER RPC).
 export const markThreadReadVessel = async (threadId) => {
   const { error } = await supabase.rpc('mark_thread_read_vessel', { p_thread_id: threadId });
