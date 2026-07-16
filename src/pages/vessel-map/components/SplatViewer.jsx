@@ -271,7 +271,8 @@ export default function SplatViewer({
 
       for (const pin of spriteGroup.children) {
         const d = pin.position.distanceTo(camera.position);
-        pin.scale.setScalar(d * fovScale * PIN_VIEW_FRACTION * (pin.userData.isPending ? 1.25 : 1));
+        const heatScale = pin.userData.hotspot?.heatScale || 1;
+        pin.scale.setScalar(d * fovScale * PIN_VIEW_FRACTION * heatScale * (pin.userData.isPending ? 1.25 : 1));
 
         if (!pin.userData.isPending) {
           // Chips toggle their pins with a 150ms fade, not a pop. A pin
