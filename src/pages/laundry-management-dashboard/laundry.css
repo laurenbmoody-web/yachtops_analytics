@@ -323,6 +323,16 @@
 .alm-field.invalid:focus { box-shadow: 0 0 0 3px rgba(192, 73, 46, 0.14); }
 .alm-err { margin-top: 7px; font-size: 12px; color: #A32D2D; }
 
+/* guest laundry preferences pulled onto the form */
+.alm-pref { display: flex; gap: 11px; margin-top: 12px; padding: 12px 14px; background: #FBEFE9; border: 1px solid #F0DDD2; border-radius: 12px; }
+.alm-pref-ic { width: 26px; height: 26px; border-radius: 8px; background: #FFFFFF; border: 1px solid #F0DDD2; display: grid; place-items: center; flex: none; }
+.alm-pref-ic svg { stroke: #C65A1A; }
+.alm-pref-body { min-width: 0; }
+.alm-pref-h { display: block; font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #B14E16; margin-bottom: 8px; }
+.alm-pref-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.alm-pref-pill { font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #FFFFFF; border: 1px solid #F0DDD2; border-radius: 999px; padding: 5px 11px; }
+.alm-pref-pill.hi { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+
 /* compact photo dropzone */
 .alm-drop.compact { flex-direction: row; padding: 16px 18px; gap: 12px; justify-content: flex-start; }
 .alm-drop.compact .alm-drop-sub { margin-left: auto; }
@@ -605,7 +615,7 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lr-flag { display: inline-flex; align-items: center; gap: 4px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #C24632; background: #FBECE8; border-radius: 999px; padding: 2px 8px; flex: none; }
 .lr-sub { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 12.5px; color: #6E6B85; flex-wrap: wrap; }
 .lr-who { display: inline-flex; align-items: center; gap: 7px; }
-.lr-av { width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; color: #FFF; flex: none; }
+.lr-av { width: 20px; height: 20px; aspect-ratio: 1; border-radius: 999px; overflow: hidden; display: grid; place-items: center; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; color: #FFF; flex: none; }
 .lr-av.guest { background: linear-gradient(140deg, #3E5C76, #243B54); }
 .lr-av.crew { background: linear-gradient(140deg, #6B5E86, #403453); }
 .lr-av.unk { background: linear-gradient(140deg, #8A8FA0, #5C6072); }
