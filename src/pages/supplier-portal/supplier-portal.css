@@ -3575,11 +3575,21 @@
 
 /* Vessel group */
 #sp-root .msg-grp { padding-top: 4px; }
+#sp-root .msg-grp-headrow { display: flex; align-items: center; }
+#sp-root .msg-grp-headrow .msg-grp-head { flex: 1; min-width: 0; }
 #sp-root .msg-grp-head {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
   background: none; border: 0; font-family: inherit; cursor: pointer;
   padding: 12px 16px 8px;
 }
+#sp-root .msg-grp-new {
+  flex: none; width: 28px; height: 28px; margin-right: 12px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--card); color: var(--muted-strong);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  opacity: 0; transition: opacity 0.12s, border-color 0.12s, color 0.12s;
+}
+#sp-root .msg-grp-headrow:hover .msg-grp-new { opacity: 1; }
+#sp-root .msg-grp-new:hover { border-color: var(--orange); color: var(--orange); }
 #sp-root .msg-grp-chev { color: var(--faint); display: flex; transition: transform 0.15s; }
 #sp-root .msg-grp-chev.c { transform: rotate(-90deg); }
 #sp-root .msg-boat {

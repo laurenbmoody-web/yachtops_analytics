@@ -559,6 +559,18 @@ const SupplierMessages = () => {
   };
   const contactThread = (t) => navigate(`/supplier/clients/${t.tenant_id}`);
 
+  // Start (or surface) the vessel's general thread so a fresh chat can begin —
+  // the empty general is hidden from the list until it has messages.
+  const startNewChat = async (g) => {
+    setCollapsed((prev) => { const n = new Set(prev); n.delete(g.tenantId); return n; });
+    try {
+      const thread = g.general || (await getOrCreateThread(supplierId, g.tenantId, null));
+      if (!g.general) await loadThreads();
+      setActiveId(thread.id);
+      requestAnimationFrame(() => taRef.current?.focus());
+    } catch (e) { setError(e.message); }
+  };
+
   const rendered = useMemo(() => {
     const out = [];
     let lastDay = null, lastSender = null, lastTime = 0;
@@ -577,7 +589,7 @@ const SupplierMessages = () => {
   const counts = useMemo(() => {
     const nonArch = threads.filter((t) => !t.archived_at);
     return {
-      open: nonArch.length,
+      open: nonArch.filter((t) => t.last_message_at || t.id === activeId).length,
       awaiting: awaitingReply,
       unread: nonArch.filter((t) => t.id !== activeId && (t.supplier_unread_count || 0) > 0).length,
       archived: threads.filter((t) => t.archived_at).length,
@@ -604,11 +616,15 @@ const SupplierMessages = () => {
     const out = [];
     for (const [tenantId, list] of byTenant) {
       list.sort((a, b) => new Date(b.last_message_at || b.created_at) - new Date(a.last_message_at || a.created_at));
-      const unread = list.reduce((s, t) => s + (t.id === activeId ? 0 : (t.supplier_unread_count || 0)), 0);
-      const waitList = list.filter((t) => t.last_sender_type === 'vessel');
+      // Keep the order-less "general" thread for the start-a-chat action even
+      // when empty; only SHOW threads with messages (or the open one).
+      const general = list.find((t) => !t.order_id) || null;
+      const visible = list.filter((t) => t.last_message_at || t.id === activeId);
+      const unread = visible.reduce((s, t) => s + (t.id === activeId ? 0 : (t.supplier_unread_count || 0)), 0);
+      const waitList = visible.filter((t) => t.last_sender_type === 'vessel');
       const oldest = waitList.reduce((acc, t) => (t.last_message_at && (!acc || t.last_message_at < acc) ? t.last_message_at : acc), null);
       const lastAt = list.reduce((acc, t) => { const v = t.last_message_at || t.created_at; return !acc || v > acc ? v : acc; }, null);
-      out.push({ tenantId, name: names[tenantId] || list[0]?.tenants?.name || 'Yacht client', threads: list, unread, awaiting: waitList.length, oldest, lastAt });
+      out.push({ tenantId, name: names[tenantId] || list[0]?.tenants?.name || 'Yacht client', threads: visible, general, unread, awaiting: waitList.length, oldest, lastAt });
     }
     out.sort((a, b) => {
       if (sort === 'vessel') return a.name.localeCompare(b.name);
@@ -683,17 +699,22 @@ const SupplierMessages = () => {
                 const isCollapsed = collapsed.has(g.tenantId);
                 return (
                   <div key={g.tenantId} className="msg-grp">
-                    <button type="button" className="msg-grp-head" onClick={() => toggleGroup(g.tenantId)}>
-                      <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-                      </span>
-                      {boat(g.tenantId, g.name)}
-                      <span className="msg-grp-name">{g.name}</span>
-                      <span className="msg-grp-meta">
-                        {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
-                        {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : <span className="msg-grp-count">{g.threads.length}</span>}
-                      </span>
-                    </button>
+                    <div className="msg-grp-headrow">
+                      <button type="button" className="msg-grp-head" onClick={() => toggleGroup(g.tenantId)}>
+                        <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                        </span>
+                        {boat(g.tenantId, g.name)}
+                        <span className="msg-grp-name">{g.name}</span>
+                        <span className="msg-grp-meta">
+                          {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
+                          {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : g.threads.length > 0 && <span className="msg-grp-count">{g.threads.length}</span>}
+                        </span>
+                      </button>
+                      <button type="button" className="msg-grp-new" title={`New chat with ${g.name}`} aria-label="Start a new chat" onClick={() => startNewChat(g)}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                      </button>
+                    </div>
                     {!isCollapsed && g.threads.map((t) => (
                       <ThreadRow
                         key={t.id} t={t} active={t.id === activeId}
