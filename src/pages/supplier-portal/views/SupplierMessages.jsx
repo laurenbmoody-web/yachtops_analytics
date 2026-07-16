@@ -6,7 +6,7 @@ import {
   fetchMessageThreads, getOrCreateThread, fetchMessages, sendSupplierMessage,
   markThreadReadSupplier, fetchClients, fetchClientOrders, draftQuoteFromMessage,
   setThreadArchived, deleteThread, fetchVesselLogos, sendSupplierQuote,
-  reactToMessage, deleteMessage, editMessage,
+  reactToMessage, deleteMessage, editMessage, createCatalogueItem,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -245,6 +245,8 @@ const SupplierMessages = () => {
   const [replyTo, setReplyTo] = useState(null);
   const [editing, setEditing] = useState(null);
   const [myUid, setMyUid] = useState(null);
+  const [savedCat, setSavedCat] = useState(() => new Set()); // quote items saved to catalogue
+  const [savingCat, setSavingCat] = useState(null);
   const endRef = useRef(null);
   const streamRef = useRef(null);
   const taRef = useRef(null);
@@ -419,6 +421,24 @@ const SupplierMessages = () => {
       } else setError('Couldn’t draft a quote from that — try rephrasing the request.');
     } catch (e) { setError(e.message || 'Quote draft failed.'); }
     finally { setAiLoading(false); }
+  };
+
+  // Save a bespoke (non-catalogue) quote line to the supplier's catalogue so
+  // next time it's a known product — a price left null can be filled in later.
+  const saveToCatalogue = async (key, it) => {
+    if (savingCat) return;
+    setSavingCat(key);
+    setError(null);
+    try {
+      await createCatalogueItem(supplierId, {
+        name: it.name,
+        unit: it.unit || null,
+        unit_price: it.unit_price != null ? Number(it.unit_price) : null,
+        currency: it.currency || 'EUR',
+      });
+      setSavedCat((s) => new Set(s).add(key));
+    } catch (e) { setError(e.message || 'Couldn’t save to catalogue.'); }
+    finally { setSavingCat(null); }
   };
 
   // Send the reviewed quote as a structured, acceptable message.
@@ -664,12 +684,21 @@ const SupplierMessages = () => {
                           <div className="msg-quotecard">
                             <div className="msg-qc-head"><span className="msg-qc-badge">✦ Quote</span><span className={`msg-qc-status ${status}`}>{status}</span></div>
                             <div className="msg-qc-items">
-                              {items.map((it, i) => (
-                                <div key={i} className="msg-qc-item">
-                                  <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>
-                                  <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || q.currency) : '—'}</span>
-                                </div>
-                              ))}
+                              {items.map((it, i) => {
+                                const k = `${m.id}:${i}`;
+                                const bespoke = m.sender_type === 'supplier' && it.matched === false;
+                                return (
+                                  <div key={i} className="msg-qc-item">
+                                    <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>
+                                    <span className="msg-qc-right">
+                                      <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || q.currency) : '—'}</span>
+                                      {bespoke && (savedCat.has(k)
+                                        ? <span className="msg-qc-saved">✓ In catalogue</span>
+                                        : <button type="button" className="msg-qc-save" disabled={savingCat === k} onClick={() => saveToCatalogue(k, { ...it, currency: it.currency || q.currency })}>{savingCat === k ? 'Saving…' : '+ Save to catalogue'}</button>)}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                             {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney0(q.total, q.currency)}</span></div>}
                             {m.body && <div className="msg-qc-note">{m.body}</div>}
