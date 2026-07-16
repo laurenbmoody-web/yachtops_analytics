@@ -6,7 +6,7 @@ import {
   fetchMessageThreads, getOrCreateThread, fetchMessages, sendSupplierMessage,
   markThreadReadSupplier, fetchClients, fetchClientOrders, draftQuoteFromMessage,
   setThreadArchived, deleteThread, fetchVesselLogos, sendSupplierQuote,
-  reactToMessage, deleteMessage, editMessage, createCatalogueItem,
+  reactToMessage, deleteMessage, editMessage, createCatalogueItem, repriceQuote,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -247,6 +247,8 @@ const SupplierMessages = () => {
   const [myUid, setMyUid] = useState(null);
   const [savedCat, setSavedCat] = useState(() => new Set()); // quote items saved to catalogue
   const [savingCat, setSavingCat] = useState(null);
+  const [pricing, setPricing] = useState(null);     // quote message id being repriced
+  const [priceDraft, setPriceDraft] = useState({}); // { itemIndex: 'value' }
   const endRef = useRef(null);
   const streamRef = useRef(null);
   const taRef = useRef(null);
@@ -439,6 +441,40 @@ const SupplierMessages = () => {
       setSavedCat((s) => new Set(s).add(key));
     } catch (e) { setError(e.message || 'Couldn’t save to catalogue.'); }
     finally { setSavingCat(null); }
+  };
+
+  // Add prices to an already-sent, still-pending quote (the bespoke items you
+  // couldn't price up front), then re-send it in place.
+  const startPricing = (m) => {
+    const items = Array.isArray(m.quote?.items) ? m.quote.items : [];
+    const d = {};
+    items.forEach((it, i) => { if (it.unit_price == null) d[i] = ''; });
+    setPriceDraft(d);
+    setPricing(m.id);
+  };
+  const cancelPricing = () => { setPricing(null); setPriceDraft({}); };
+  const sendPrices = async (m) => {
+    if (sending) return;
+    const q = m.quote || {};
+    const items = (Array.isArray(q.items) ? q.items : []).map((it, i) => {
+      const raw = priceDraft[i];
+      if (raw != null && String(raw).trim() !== '') {
+        const p = Number(raw);
+        if (!Number.isNaN(p)) return { ...it, unit_price: p };
+      }
+      return it;
+    });
+    const total = items.reduce((s, it) => s + (it.unit_price != null ? Number(it.unit_price) * (Number(it.qty) || 1) : 0), 0);
+    const quote = { ...q, items, total };
+    setSending(true);
+    setError(null);
+    try {
+      await repriceQuote(m.id, quote);
+      setMessages((ms) => ms.map((x) => (x.id === m.id ? { ...x, quote, edited_at: new Date().toISOString() } : x)));
+      cancelPricing();
+      loadThreads();
+    } catch (e) { setError(e.message || 'Couldn’t update the quote.'); }
+    finally { setSending(false); }
   };
 
   // Send the reviewed quote as a structured, acceptable message.
@@ -687,12 +723,22 @@ const SupplierMessages = () => {
                               {items.map((it, i) => {
                                 const k = `${m.id}:${i}`;
                                 const bespoke = m.sender_type === 'supplier' && it.matched === false;
+                                const priceHere = pricing === m.id && it.unit_price == null;
                                 return (
                                   <div key={i} className="msg-qc-item">
                                     <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>
                                     <span className="msg-qc-right">
-                                      <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || q.currency) : '—'}</span>
-                                      {bespoke && (savedCat.has(k)
+                                      {priceHere ? (
+                                        <span className="msg-qc-pricein">
+                                          <input type="number" min="0" step="0.01" inputMode="decimal" autoFocus={i === Object.keys(priceDraft).map(Number).sort((a, b) => a - b)[0]}
+                                            value={priceDraft[i] ?? ''} placeholder="0.00"
+                                            onChange={(e) => setPriceDraft((d) => ({ ...d, [i]: e.target.value }))} />
+                                          <span className="msg-qc-cur">{(it.currency || q.currency || 'EUR')} /unit</span>
+                                        </span>
+                                      ) : (
+                                        <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || q.currency) : '—'}</span>
+                                      )}
+                                      {bespoke && !priceHere && (savedCat.has(k)
                                         ? <span className="msg-qc-saved">✓ In catalogue</span>
                                         : <button type="button" className="msg-qc-save" disabled={savingCat === k} onClick={() => saveToCatalogue(k, { ...it, currency: it.currency || q.currency })}>{savingCat === k ? 'Saving…' : '+ Save to catalogue'}</button>)}
                                     </span>
@@ -702,6 +748,18 @@ const SupplierMessages = () => {
                             </div>
                             {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney0(q.total, q.currency)}</span></div>}
                             {m.body && <div className="msg-qc-note">{m.body}</div>}
+                            {m.sender_type === 'supplier' && status === 'pending' && items.some((it) => it.unit_price == null) && (
+                              pricing === m.id ? (
+                                <div className="msg-qc-actions">
+                                  <button type="button" className="msg-qc-decline" onClick={cancelPricing}>Cancel</button>
+                                  <button type="button" className="msg-qc-accept" disabled={sending} onClick={() => sendPrices(m)}>{sending ? 'Sending…' : 'Send updated quote'}</button>
+                                </div>
+                              ) : (
+                                <div className="msg-qc-actions">
+                                  <button type="button" className="msg-qc-accept" onClick={() => startPricing(m)}>Add prices</button>
+                                </div>
+                              )
+                            )}
                             <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
                           </div>
                         </div>

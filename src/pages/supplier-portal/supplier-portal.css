@@ -3796,6 +3796,10 @@
 #sp-root .msg-qc-save:hover:not(:disabled) { background: var(--orange); color: #fff; }
 #sp-root .msg-qc-save:disabled { opacity: 0.6; cursor: default; }
 #sp-root .msg-qc-saved { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--green); white-space: nowrap; }
+#sp-root .msg-qc-pricein { display: inline-flex; align-items: center; gap: 5px; }
+#sp-root .msg-qc-pricein input { width: 74px; text-align: right; font-family: inherit; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--fg); background: var(--card); border: 1px solid var(--orange); border-radius: 8px; padding: 3px 7px; box-shadow: 0 0 0 3px var(--pill); }
+#sp-root .msg-qc-pricein input:focus { outline: none; }
+#sp-root .msg-qc-cur { font-size: 9.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 #sp-root .msg-qc-total { display: flex; align-items: baseline; justify-content: space-between; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line); font-size: 13.5px; font-weight: 700; color: var(--fg); }
 #sp-root .msg-qc-note { font-size: 12px; color: var(--muted-strong); line-height: 1.45; margin-top: 9px; white-space: pre-wrap; }
 #sp-root .msg-qc-actions { display: flex; gap: 8px; margin-top: 12px; }
