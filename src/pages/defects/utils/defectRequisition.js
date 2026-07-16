@@ -39,6 +39,9 @@ export const createDefectRequisition = async (defect, items, actor) => {
   await upsertItems(lines.map((i) => ({
     list_id: list.id,
     name: i.name.trim(),
+    // The column default 'pending' is no longer a valid status — set the initial
+    // board-line lifecycle state explicitly so the CHECK constraint is satisfied.
+    status: 'draft',
     quantity_ordered: Number(i.qty) > 0 ? Number(i.qty) : 1,
     unit: i.unit?.trim() || null,
     department: defect.departmentOwner || null,
