@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import VmdSelect from '../../vessel-map/components/VmdSelect';
+import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
 import DefectLogForm from './DefectLogForm';
 import { useDefectActor } from '../utils/useDefectActor';
 import {
@@ -164,7 +165,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
         {canManage && !isClosed && !editing && (
           <button className="dd-edit-btn" onClick={() => { setErr(''); setEditing(true); }}><Icon name="Edit3" size={13} /> Edit</button>
         )}
-        {onClose && <button className="dd-x" onClick={onClose} aria-label="Close">×</button>}
+        {onClose && <button className="dd-x" onClick={onClose} aria-label="Close"><Icon name="X" size={16} /></button>}
       </div>
 
       {editing && (
@@ -217,12 +218,12 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
               <div className="dd-fixform">
                 <div className="dd-row2">
                   <div className="dd-field">
-                    <label className="dd-field-lbl">Due date</label>
-                    <input type="date" className="dd-input" value={fix.dueDate || ''} onChange={(e) => setFix({ ...fix, dueDate: e.target.value })} />
+                    <label className="dd-field-lbl">Being fixed on</label>
+                    <EditorialDatePicker value={fix.scheduledFixAt || ''} onChange={(v) => setFix({ ...fix, scheduledFixAt: v })} placeholder="dd/mm/yyyy" ariaLabel="Being fixed on" />
                   </div>
                   <div className="dd-field">
-                    <label className="dd-field-lbl">Being fixed on</label>
-                    <input type="date" className="dd-input" value={fix.scheduledFixAt || ''} onChange={(e) => setFix({ ...fix, scheduledFixAt: e.target.value })} />
+                    <label className="dd-field-lbl">Due date</label>
+                    <EditorialDatePicker value={fix.dueDate || ''} onChange={(v) => setFix({ ...fix, dueDate: v })} placeholder="dd/mm/yyyy" ariaLabel="Due date" />
                   </div>
                 </div>
                 <div className="dd-field">
@@ -240,10 +241,12 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
               </div>
             ) : (defect.contractorName || defect.contractorDetails || defect.scheduledFixAt || defect.dueDate) ? (
               <div className="dd-contractor">
+                {defect.dueDate && (
+                  <div className="dd-due"><span className="dd-due-k">Due</span><span className="dd-due-v">{fmt(defect.dueDate)}</span></div>
+                )}
+                {defect.scheduledFixAt && <div className="cs">Being fixed on {fmt(defect.scheduledFixAt)}</div>}
                 {defect.contractorName && <div className="cn"><Icon name="Wrench" size={14} /> {defect.contractorName}</div>}
                 {defect.contractorDetails && <div className="cd">{defect.contractorDetails}</div>}
-                {defect.scheduledFixAt && <div className="cs">Booked in for {fmt(defect.scheduledFixAt)}</div>}
-                {defect.dueDate && <div className="cs" style={{ color: '#6B7280' }}>Due {fmt(defect.dueDate)}</div>}
               </div>
             ) : (
               <p className="dd-fix-empty">No contractor or fix date arranged yet.</p>
