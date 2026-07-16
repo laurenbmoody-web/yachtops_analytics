@@ -130,8 +130,9 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
     setTab('details');
     setConfirming(false);
     setDeleteError(null);
-    setDefectModalOpen(false);
-  }, [hotspot?.id]);
+    // Selecting a defect pin opens its full panel straight away.
+    setDefectModalOpen(hotspot?.layer === 'defect');
+  }, [hotspot?.id, hotspot?.layer]);
 
   // Name is edited locally and written through on each keystroke, so the field
   // never round-trips through parent state and the caret can't jump.

@@ -35,6 +35,39 @@
 .vmd-iconbtn:hover { border-color: #C9C4B8; color: #1C1B3A; }
 .vmd-iconbtn.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
 
+/* Title + priority-dots row. */
+.vmd-title-row { display: flex; align-items: center; gap: 10px; }
+.vmd-title-row .vmd-input { flex: 1; }
+.vmd-prio { display: flex; align-items: center; gap: 6px; flex: none; }
+.vmd-prio-dot { width: 18px; height: 18px; border-radius: 999px; border: 2px solid #D9D5CB; background: transparent; padding: 0; cursor: pointer; transition: box-shadow .12s, background .12s; }
+.vmd-prio-dot.p-Low { border-color: #C3C7D0; }
+.vmd-prio-dot.p-Medium { border-color: #E3A981; }
+.vmd-prio-dot.p-High { border-color: #DCB877; }
+.vmd-prio-dot.p-Critical { border-color: #D69B95; }
+.vmd-prio-dot.p-Low.on { background: #AEB4C2; box-shadow: 0 0 0 3px rgba(174,180,194,.25); }
+.vmd-prio-dot.p-Medium.on { background: #C65A1A; box-shadow: 0 0 0 3px #FBEFE9; }
+.vmd-prio-dot.p-High.on { background: #B9761A; box-shadow: 0 0 0 3px #F7EEDD; }
+.vmd-prio-dot.p-Critical.on { background: #A32D2D; box-shadow: 0 0 0 3px #F7E7E5; }
+
+/* Department + assign icons on one row. */
+.vmd-deptrow { display: flex; align-items: flex-end; gap: 14px; }
+
+/* Flag icon buttons that expand to their label on hover (provisioning pattern). */
+.vmd-flagset { display: flex; gap: 8px; }
+.vmd-flagbtn { display: inline-flex; align-items: center; height: 34px; padding: 0 9px; border: 1px solid #E8E6DF; border-radius: 9px; background: #fff; color: #8B8478; cursor: pointer; }
+.vmd-flagbtn:hover:not(.on) { border-color: #C9C4B8; color: #1C1B3A; }
+.vmd-flagbtn.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
+.vmd-flag-label { display: inline-block; max-width: 0; opacity: 0; margin-left: 0; overflow: hidden; white-space: nowrap;
+  font-size: 12px; font-weight: 600; transition: max-width .2s ease, opacity .16s ease, margin-left .2s ease; }
+.vmd-flagbtn:hover .vmd-flag-label, .vmd-flagbtn:focus-visible .vmd-flag-label { max-width: 140px; opacity: 1; margin-left: 7px; }
+
+/* Also-notify chips. */
+.vmd-notify-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #1C1B3A;
+  background: #F4F2EC; border-radius: 999px; padding: 4px 6px 4px 11px; }
+.vmd-notify-chip button { border: 0; background: #DAD5CB; color: #1C1B3A; border-radius: 999px; width: 16px; height: 16px;
+  font-size: 11px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.vmd-notify-chip button:hover { background: #C65A1A; color: #fff; }
+
 /* Multi-photo scrollable strip; + tile first. */
 .vmd-photostrip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .vmd-photo-add { flex: none; width: 72px; height: 72px; display: inline-flex; align-items: center; justify-content: center;

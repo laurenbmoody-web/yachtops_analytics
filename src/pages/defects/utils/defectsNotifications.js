@@ -74,6 +74,17 @@ export const notifyDefectAssigned = async (actor, userIds, defectTitle, defectId
   });
 };
 
+// "Also notify" watchers added at log time (e.g. a HOD or the Captain) — FYI.
+export const notifyDefectWatchers = async (actor, userIds, defectTitle, defectId) => {
+  await notifyMany(userIds, actor?.userId, {
+    type: DEFECT_NOTIFICATION_TYPES.DEFECT_NEW_LOGGED,
+    title: 'Defect logged — for your awareness',
+    message: defectTitle,
+    actionUrl: `/defects/${defectId}`,
+    severity: SEVERITY.INFO,
+  });
+};
+
 export const notifySenderAccepted = async (actor, senderId, defectTitle, defectId) => {
   if (!senderId) return;
   await sendDbNotification(senderId, {
