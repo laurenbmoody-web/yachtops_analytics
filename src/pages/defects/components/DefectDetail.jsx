@@ -10,6 +10,8 @@ import VmdSelect from '../../vessel-map/components/VmdSelect';
 import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
 import ContractorPicker from './ContractorPicker';
 import DefectLogForm from './DefectLogForm';
+import OrderPartsModal from './OrderPartsModal';
+import { fetchDefectRequisitions } from '../utils/defectRequisition';
 import { useDefectActor } from '../utils/useDefectActor';
 import {
   DefectStatus,
@@ -50,12 +52,17 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const [editing, setEditing] = useState(false);
   const [fixEditing, setFixEditing] = useState(false);
   const [fix, setFix] = useState(null);
+  const [reqs, setReqs] = useState([]);
+  const [orderingParts, setOrderingParts] = useState(false);
 
   const reload = useCallback(async () => {
     if (!defect?.id) return;
-    const [c, e] = await Promise.all([getDefectComments(defect.id), getDefectEvents(defect.id)]);
+    const [c, e, r] = await Promise.all([
+      getDefectComments(defect.id), getDefectEvents(defect.id), fetchDefectRequisitions(defect.id),
+    ]);
     setComments(c || []);
     setEvents(e || []);
+    setReqs(r || []);
   }, [defect?.id]);
 
   useEffect(() => { reload(); }, [reload, defect?.updatedAt]);
@@ -270,6 +277,32 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             )}
           </div>
 
+          {/* Parts — raise a provisioning requisition to fix this defect */}
+          <div className="dd-parts">
+            <div className="dd-fix-head">
+              <p className="dd-lbl" style={{ margin: 0 }}>Parts</p>
+              {canManage && !isClosed && (
+                <button className="dd-edit-btn small" onClick={() => setOrderingParts(true)}>
+                  <Icon name="ShoppingCart" size={12} /> Order parts
+                </button>
+              )}
+            </div>
+            {reqs.length === 0 ? (
+              <p className="dd-fix-empty">No parts on order for this defect.</p>
+            ) : (
+              <div className="dd-reqs">
+                {reqs.map((r) => (
+                  <button key={r.id} type="button" className="dd-req" onClick={() => { onClose?.(); navigate(`/provisioning/${r.id}`); }}>
+                    <Icon name="ClipboardList" size={14} />
+                    <span className="t">{r.title}</span>
+                    <span className="s">{String(r.status || 'draft').replace(/_/g, ' ')}</span>
+                    <Icon name="ArrowUpRight" size={13} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div>
             <p className="dd-lbl">Comments</p>
             {comments.length === 0 ? <p className="dd-comment-empty">No comments yet.</p> : comments.map((c) => (
@@ -359,6 +392,14 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
           </div>
         </div>
       </div>
+      )}
+
+      {orderingParts && (
+        <OrderPartsModal
+          defect={defect}
+          onClose={() => setOrderingParts(false)}
+          onCreated={async () => { setOrderingParts(false); await reload(); }}
+        />
       )}
     </div>
   );
