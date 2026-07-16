@@ -16,6 +16,7 @@ import {
   assignDefect, claimDefect, fetchTenantDepartments,
 } from '../../defects/utils/defectsStorage';
 import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
+import VmdSelect from './VmdSelect';
 import './DefectPin.css';
 
 const PRIORITY_CLASS = { Critical: 'p-critical', High: 'p-high', Medium: 'p-medium', Low: 'p-low' };
@@ -92,14 +93,13 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
   };
 
   const deptName = (id) => departments.find((d) => d?.id === id)?.name || null;
-  // Show all crew (the picker sorts the chosen department's people to the top so
-  // you can always assign someone, even cross-department).
   const dName = deptName(form.deptId);
-  const crewOptions = [...crew].sort((a, b) => {
-    const ai = (a?.department || '').toLowerCase() === (dName || '').toLowerCase() ? 0 : 1;
-    const bi = (b?.department || '').toLowerCase() === (dName || '').toLowerCase() ? 0 : 1;
-    return ai - bi || (a?.fullName || '').localeCompare(b?.fullName || '');
-  });
+  // The assignee comes from the chosen department; use "Also notify" for anyone
+  // else (e.g. CC the Chief Stew on an Engineering defect).
+  const crewForAssignee = form.deptId
+    ? crew.filter((c) => (c?.department || '').toLowerCase() === (dName || '').toLowerCase())
+        .sort((a, b) => (a?.fullName || '').localeCompare(b?.fullName || ''))
+    : [];
 
   // "Also notify" — anyone on the vessel (so a stew can CC the Chief Stew on an
   // Engineering defect). Excludes the assignee and anyone already added.
@@ -196,7 +196,10 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
         <form className="vmd-form" onSubmit={(e) => { e.preventDefault(); handleLog(); }}>
           {/* Title + priority on one row. */}
           <div className="vmd-field">
-            <label className="vmd-lbl">Title<span className="req">required</span></label>
+            <div className="vmd-lbl-row">
+              <label className="vmd-lbl">Title<span className="req">required</span></label>
+              <label className="vmd-lbl">Priority</label>
+            </div>
             <div className="vmd-title-row">
               <input className="vmd-input" value={form.title} autoFocus
                 onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Cracked porthole seal" />
@@ -213,13 +216,15 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
 
           {/* Department + assign icons on one row. */}
           <div className="vmd-deptrow">
-            <div className="vmd-field" style={{ flex: 1 }}>
+            <div className="vmd-field" style={{ flex: 1, minWidth: 0 }}>
               <label className="vmd-lbl">Department</label>
-              <select className="vmd-select" value={form.deptId}
-                onChange={(e) => setForm({ ...form, deptId: e.target.value, userId: '' })}>
-                <option value="">—</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+              <VmdSelect
+                value={form.deptId}
+                onChange={(v) => setForm({ ...form, deptId: v, userId: '' })}
+                options={departments.map((d) => ({ value: d.id, label: d.name }))}
+                placeholder="Choose department…"
+                ariaLabel="Department"
+              />
             </div>
             <div className="vmd-af-group">
               <label className="vmd-lbl">Assign</label>
@@ -236,10 +241,14 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
           </div>
 
           {form.assign === 'user' && (
-            <select className="vmd-select" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
-              <option value="">Select crew…</option>
-              {crewOptions.map((c) => <option key={c.id} value={c.id}>{c.fullName}{c.department ? ` · ${c.department}` : ''}</option>)}
-            </select>
+            <VmdSelect
+              value={form.userId}
+              onChange={(v) => setForm({ ...form, userId: v })}
+              options={crewForAssignee.map((c) => ({ value: c.id, label: c.fullName }))}
+              placeholder={form.deptId ? 'Select crew…' : 'Choose a department first'}
+              emptyText={form.deptId ? `No crew in ${dName || 'this department'}` : 'Choose a department first'}
+              ariaLabel="Assign to crew member"
+            />
           )}
           {form.assign === 'team' && (
             <p className="vmd-comment-empty">Everyone in {dName || 'the department'} is notified — first to accept owns it.</p>
@@ -252,15 +261,19 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
               <div className="vmd-chips">
                 {form.notify.map((n) => (
                   <span className="vmd-notify-chip" key={n.id}>{n.name}
-                    <button type="button" onClick={() => removeNotify(n.id)} aria-label={`Remove ${n.name}`}>×</button>
+                    <button type="button" onClick={() => removeNotify(n.id)} aria-label={`Remove ${n.name}`}><Icon name="X" size={11} /></button>
                   </span>
                 ))}
               </div>
             )}
-            <select className="vmd-select" value="" onChange={(e) => { if (e.target.value) addNotify(e.target.value); e.target.value = ''; }}>
-              <option value="">Add someone to notify…</option>
-              {notifyCandidates.map((c) => <option key={c.id} value={c.id}>{c.fullName}{c.department ? ` · ${c.department}` : ''}</option>)}
-            </select>
+            <VmdSelect
+              value=""
+              onChange={(v) => { if (v) addNotify(v); }}
+              options={notifyCandidates.map((c) => ({ value: c.id, label: `${c.fullName}${c.department ? ` · ${c.department}` : ''}` }))}
+              placeholder="Add someone to notify…"
+              emptyText="Everyone's already added"
+              ariaLabel="Add someone to notify"
+            />
           </div>
 
           {/* Flags — icon buttons that expand to their label on hover. */}

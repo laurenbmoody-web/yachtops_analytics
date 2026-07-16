@@ -35,7 +35,30 @@
 .vmd-iconbtn:hover { border-color: #C9C4B8; color: #1C1B3A; }
 .vmd-iconbtn.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
 
+/* Editorial dropdown (VmdSelect) — replaces native <select>. */
+.vmd-ddl { position: relative; }
+.vmd-ddl-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-family: inherit; font-size: 13px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E8E6DF;
+  border-radius: 9px; padding: 9px 11px; cursor: pointer; text-align: left; }
+.vmd-ddl-trigger:hover { border-color: #C9C4B8; }
+.vmd-ddl-trigger:focus-visible { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.vmd-ddl.disabled .vmd-ddl-trigger { opacity: .6; cursor: default; }
+.vmd-ddl-ph { color: #AEB4C2; }
+.vmd-ddl-chev { color: #8B8478; flex: none; }
+.vmd-ddl-menu { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50; background: #fff;
+  border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 16px 40px -12px rgba(28,27,58,.28);
+  padding: 5px; max-height: 244px; overflow-y: auto; }
+.vmd-ddl-opt { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-family: inherit; font-size: 13px; color: #1C1B3A; background: none; border: 0; border-radius: 8px;
+  padding: 8px 9px; cursor: pointer; text-align: left; }
+.vmd-ddl-opt:hover { background: #FBEFE9; }
+.vmd-ddl-opt.on { color: #C65A1A; font-weight: 600; }
+.vmd-ddl-opt .lucide, .vmd-ddl-opt svg { color: #C65A1A; flex: none; }
+.vmd-ddl-empty { padding: 12px 10px; font-size: 12.5px; color: #AEB4C2; text-align: center; }
+
 /* Title + priority-dots row. */
+.vmd-lbl-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
+.vmd-lbl-row .vmd-lbl { margin-bottom: 0; }
 .vmd-title-row { display: flex; align-items: center; gap: 10px; }
 .vmd-title-row .vmd-input { flex: 1; }
 .vmd-prio { display: flex; align-items: center; gap: 6px; flex: none; }
@@ -141,7 +164,7 @@
 /* Wide modal — the defect opens across the app, not the narrow inspector. */
 .vmd-modal { width: 100%; max-width: 720px; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,.32); display: flex; flex-direction: column; max-height: 90vh; }
-.vmd-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #ECEAE3; }
+.vmd-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 20px 11px; border-bottom: 1px solid #ECEAE3; }
 .vmd-modal-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #8B8478; margin: 0 0 3px; }
 .vmd-modal-head h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 21px; margin: 0; }
 .vmd-modal-x { flex: none; width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; color: #6B7280; font-size: 18px; cursor: pointer; }
