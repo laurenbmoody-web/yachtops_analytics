@@ -95,3 +95,25 @@
 .dd-actions { display: flex; flex-direction: column; gap: 8px; }
 .dd-err { font-size: 12px; color: #A32D2D; margin: 0; }
 .dd-loading { padding: 30px; text-align: center; color: #8B8478; font-size: 13px; }
+
+/* edit affordance + contractor card */
+.dd-edit-btn { background: none; border: 1px solid #ECEAE3; border-radius: 8px; padding: 6px 11px; font-family: inherit;
+  font-size: 12.5px; font-weight: 600; color: #1C1B3A; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.dd-edit-btn:hover { border-color: #C65A1A; color: #C65A1A; }
+.dd-contractor { border: 1px solid #ECEAE3; border-radius: 11px; padding: 11px 12px; background: #FAFAF8; }
+.dd-contractor .cn { font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 6px; }
+.dd-contractor .cd { font-size: 12px; color: #6B7280; margin-top: 3px; line-height: 1.45; white-space: pre-wrap; }
+.dd-contractor .cs { font-size: 12px; color: #C65A1A; font-weight: 600; margin-top: 5px; }
+
+/* edit form */
+.dd-edit { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.dd-field { display: flex; flex-direction: column; gap: 5px; }
+.dd-field-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.dd-input, .dd-textarea { width: 100%; font-family: inherit; font-size: 13px; color: #1C1B3A; background: #FAFAF8;
+  border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 11px; outline: none; }
+.dd-input:focus, .dd-textarea:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.dd-textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+.dd-row2 { display: flex; gap: 12px; flex-wrap: wrap; }
+.dd-row2 > * { flex: 1; min-width: 160px; }
+.dd-edit-actions { display: flex; gap: 8px; padding-top: 4px; }
+.dd-sub { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 4px 0 -4px; }

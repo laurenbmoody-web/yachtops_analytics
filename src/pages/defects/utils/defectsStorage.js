@@ -128,6 +128,9 @@ const fromRow = (r) => {
     decidedAt: r.decided_at,
     decisionNotes: r.decision_notes,
     dueDate: r.due_date,
+    contractorName: r.contractor_name,
+    contractorDetails: r.contractor_details,
+    scheduledFixAt: r.scheduled_fix_at,
     closedAt: r.closed_at,
     closedByUserId: r.closed_by,
     closedByName: r.closed_by_name,
@@ -406,7 +409,9 @@ const UPDATE_FIELD_MAP = {
   affectsGuestAreas: 'affects_guest_areas', safetyRelated: 'safety_related',
   locationPathLabel: 'location_path_label', locationFreeText: 'location_free_text',
   hotspotId: 'hotspot_id', locationNodeId: 'location_node_id',
+  contractorName: 'contractor_name', contractorDetails: 'contractor_details', scheduledFixAt: 'scheduled_fix_at',
 };
+const EDIT_FIELDS = ['title', 'description', 'priority', 'dueDate', 'departmentOwner', 'contractorName', 'contractorDetails', 'scheduledFixAt'];
 
 export const updateDefect = async (defectId, updates, actor) => {
   if (!defectId || !actor?.tenantId) return null;
@@ -432,6 +437,13 @@ export const updateDefect = async (defectId, updates, actor) => {
   if (updates?.assignedToUserId && updates.assignedToUserId !== before.assignedToUserId) {
     await logEvent(actor, defectId, 'assigned', `Assigned to ${updates.assignedToName || 'crew'}`, { assignedTo: updates.assignedToUserId });
     await notifyDefectAssigned(actor, [updates.assignedToUserId], after.title, defectId, after.dueDate);
+  }
+  // Content edit (title/priority/dates/contractor/etc.) — one audit entry.
+  if (EDIT_FIELDS.some((f) => f in (updates || {}))) {
+    const bits = [];
+    if (updates.contractorName && updates.contractorName !== before.contractorName) bits.push(`contractor ${updates.contractorName}`);
+    if (updates.scheduledFixAt && updates.scheduledFixAt !== before.scheduledFixAt) bits.push('fix scheduled');
+    await logEvent(actor, defectId, 'edited', bits.length ? `Updated — ${bits.join(', ')}` : 'Updated the defect');
   }
   return after;
 };
