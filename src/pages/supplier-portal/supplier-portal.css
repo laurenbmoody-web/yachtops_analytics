@@ -3791,6 +3791,11 @@
 #sp-root .msg-qc-item { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
 #sp-root .msg-qc-name { color: var(--fg); min-width: 0; }
 #sp-root .msg-qc-price { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; flex: none; }
+#sp-root .msg-qc-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; }
+#sp-root .msg-qc-save { border: 1px solid var(--orange); background: var(--pill); color: var(--orange); font-family: inherit; font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 2px 9px; cursor: pointer; white-space: nowrap; transition: background 0.12s, color 0.12s; }
+#sp-root .msg-qc-save:hover:not(:disabled) { background: var(--orange); color: #fff; }
+#sp-root .msg-qc-save:disabled { opacity: 0.6; cursor: default; }
+#sp-root .msg-qc-saved { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--green); white-space: nowrap; }
 #sp-root .msg-qc-total { display: flex; align-items: baseline; justify-content: space-between; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line); font-size: 13.5px; font-weight: 700; color: var(--fg); }
 #sp-root .msg-qc-note { font-size: 12px; color: var(--muted-strong); line-height: 1.45; margin-top: 9px; white-space: pre-wrap; }
 #sp-root .msg-qc-actions { display: flex; gap: 8px; margin-top: 12px; }
