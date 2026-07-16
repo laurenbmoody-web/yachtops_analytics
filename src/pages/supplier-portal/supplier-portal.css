@@ -3817,6 +3817,7 @@
 #sp-root .msg-qc-accept:disabled { opacity: 0.6; cursor: default; }
 #sp-root .msg-qc-decline { background: var(--card); color: var(--muted-strong); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
 #sp-root .msg-qc-decline:hover { border-color: var(--red); color: var(--red); }
+#sp-root .msg-qc-reason-note { margin-top: 8px; font-size: 12px; color: var(--muted-strong); font-style: italic; }
 #sp-root .msg-quotecard .msg-time { display: block; margin-top: 6px; }
 
 #sp-root .msg-sysnote { display: flex; justify-content: center; margin: 12px 0; }
