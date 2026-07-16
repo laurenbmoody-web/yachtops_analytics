@@ -1191,8 +1191,8 @@ const ProvisioningWorkspace = () => {
             Orders
           </button>
           <button onClick={() => navigate('/provisioning/suppliers')} className="pv-toolbar-link">
-            <Icon name="Users" className="w-4 h-4" />
-            Suppliers
+            <Icon name="BookUser" className="w-4 h-4" />
+            Directory
           </button>
           <button
             onClick={() => setShowArchived(v => !v)}
