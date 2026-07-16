@@ -240,6 +240,15 @@ const CrewMessages = () => {
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (text) => { setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text)); taRef.current?.focus(); };
 
+  // Open (surface) the supplier's general thread to start a fresh chat — the
+  // empty general is hidden from the list until it has messages.
+  const startNewChat = (g) => {
+    if (!g?.general) return;
+    setCollapsed((prev) => { const n = new Set(prev); n.delete(g.supplierId); return n; });
+    setActiveId(g.general.id);
+    requestAnimationFrame(() => taRef.current?.focus());
+  };
+
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
   const startEdit = (m) => { setReplyTo(null); setEditing(m); setDraft(m.body || ''); taRef.current?.focus(); };
   const cancelEdit = () => { setEditing(null); setDraft(''); };
@@ -290,7 +299,7 @@ const CrewMessages = () => {
   const counts = useMemo(() => {
     const nonArch = threads.filter((t) => !t.archived_at);
     return {
-      open: nonArch.length,
+      open: nonArch.filter((t) => t.last_message_at || t.id === activeId).length,
       awaiting: awaitingReply,
       unread: nonArch.filter((t) => t.id !== activeId && (t.vessel_unread_count || 0) > 0).length,
       archived: threads.filter((t) => t.archived_at).length,
@@ -318,11 +327,16 @@ const CrewMessages = () => {
     const out = [];
     for (const [supplierId, list] of bySupplier) {
       list.sort((a, b) => new Date(b.last_message_at || b.created_at) - new Date(a.last_message_at || a.created_at));
-      const unread = list.reduce((s, t) => s + (t.id === activeId ? 0 : (t.vessel_unread_count || 0)), 0);
-      const waitList = list.filter((t) => t.last_sender_type === 'supplier');
+      // Keep the order-less "general" thread for the start-a-chat action even
+      // when empty; only SHOW threads that have messages (or the open one), so
+      // empty order/general threads don't clutter the list.
+      const general = list.find((t) => !t.order_id) || null;
+      const visible = list.filter((t) => t.last_message_at || t.id === activeId);
+      const unread = visible.reduce((s, t) => s + (t.id === activeId ? 0 : (t.vessel_unread_count || 0)), 0);
+      const waitList = visible.filter((t) => t.last_sender_type === 'supplier');
       const oldest = waitList.reduce((acc, t) => (t.last_message_at && (!acc || t.last_message_at < acc) ? t.last_message_at : acc), null);
       const lastAt = list.reduce((acc, t) => { const v = t.last_message_at || t.created_at; return !acc || v > acc ? v : acc; }, null);
-      out.push({ supplierId, name: supplierName(list[0]), logo: supplierLogo(list[0]), threads: list, unread, awaiting: waitList.length, oldest, lastAt });
+      out.push({ supplierId, name: supplierName(list[0]), logo: supplierLogo(list[0]), threads: visible, general, unread, awaiting: waitList.length, oldest, lastAt });
     }
     out.sort((a, b) => {
       if (sort === 'supplier') return a.name.localeCompare(b.name);
@@ -403,17 +417,24 @@ const CrewMessages = () => {
                     const isCollapsed = collapsed.has(g.supplierId);
                     return (
                       <div key={g.supplierId} className="msg-grp">
-                        <button type="button" className="msg-grp-head" onClick={() => toggleGroup(g.supplierId)}>
-                          <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-                          </span>
-                          {avatar(g.supplierId, g.name, g.logo)}
-                          <span className="msg-grp-name">{g.name}</span>
-                          <span className="msg-grp-meta">
-                            {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
-                            {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : <span className="msg-grp-count">{g.threads.length}</span>}
-                          </span>
-                        </button>
+                        <div className="msg-grp-headrow">
+                          <button type="button" className="msg-grp-head" onClick={() => toggleGroup(g.supplierId)}>
+                            <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                            </span>
+                            {avatar(g.supplierId, g.name, g.logo)}
+                            <span className="msg-grp-name">{g.name}</span>
+                            <span className="msg-grp-meta">
+                              {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
+                              {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : g.threads.length > 0 && <span className="msg-grp-count">{g.threads.length}</span>}
+                            </span>
+                          </button>
+                          {g.general && (
+                            <button type="button" className="msg-grp-new" title={`New chat with ${g.name}`} aria-label="Start a new chat" onClick={() => startNewChat(g)}>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                            </button>
+                          )}
+                        </div>
                         {!isCollapsed && g.threads.map((t) => {
                           const unread = t.id === activeId ? 0 : (t.vessel_unread_count || 0);
                           const waiting = t.last_sender_type === 'supplier';
