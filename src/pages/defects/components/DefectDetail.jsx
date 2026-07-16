@@ -270,7 +270,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
               </div>
             </div>
           )}
-          {photos.length > 0 ? (
+          {photos.length > 0 && (
             <div className="dd-gallery">
               {photos.slice(0, 3).map((p, i) => (
                 <div className="dd-ph" key={i} onClick={() => window.open(p, '_blank')}>
@@ -279,11 +279,11 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="dd-noph">No photos on this defect</div>
           )}
 
-          {defect.description && <p className="dd-desc">{defect.description}</p>}
+          {defect.description
+            ? <p className="dd-desc">{defect.description}</p>
+            : (photos.length === 0 && <p className="dd-empty-note">No photos or notes on this defect.</p>)}
 
           {/* Repair & contractor — arranged after the defect's logged, so it's
               edited in place on the view. Contact fields mirror the directory. */}
@@ -484,52 +484,35 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             )}
           </div>
 
-          {/* Parts — raise a provisioning requisition to fix this defect */}
-          <div className="dd-parts dd-block">
-            <div className="dd-fix-head">
-              <p className="dd-lbl" style={{ margin: 0 }}>Parts</p>
+          {/* Follow-ups — parts orders + preventive maintenance as quiet actions,
+              only surfaced when there's something to do or something to show. */}
+          {((canManage && !isClosed) || reqs.length > 0 || defect.promotedJobId) && (
+            <div className="dd-followups dd-block">
               {canManage && !isClosed && (
-                <button className="dd-edit-btn small" onClick={() => setOrderingParts(true)}>
-                  <Icon name="ShoppingCart" size={12} /> Order parts
+                <div className="dd-followups-actions">
+                  <button className="dd-chip-action" onClick={() => setOrderingParts(true)}><Icon name="ShoppingCart" size={13} /> Order parts</button>
+                  {!defect.promotedJobId && (
+                    <button className="dd-chip-action" onClick={() => setPlanningMaint(true)}><Icon name="CalendarPlus" size={13} /> Plan maintenance</button>
+                  )}
+                </div>
+              )}
+              {reqs.map((r) => (
+                <button key={r.id} type="button" className="dd-req" onClick={() => { onClose?.(); navigate(`/provisioning/${r.id}`); }}>
+                  <Icon name="ClipboardList" size={14} />
+                  <span className="t">{r.title}</span>
+                  <span className="s">{String(r.status || 'draft').replace(/_/g, ' ')}</span>
+                  <Icon name="ArrowUpRight" size={13} />
+                </button>
+              ))}
+              {defect.promotedJobId && (
+                <button type="button" className="dd-req" onClick={() => { onClose?.(); navigate('/team-jobs-management'); }}>
+                  <Icon name="Wrench" size={14} />
+                  <span className="t">Scheduled maintenance on the job board</span>
+                  <Icon name="ArrowUpRight" size={13} />
                 </button>
               )}
             </div>
-            {reqs.length === 0 ? (
-              <p className="dd-fix-empty">No parts on order for this defect.</p>
-            ) : (
-              <div className="dd-reqs">
-                {reqs.map((r) => (
-                  <button key={r.id} type="button" className="dd-req" onClick={() => { onClose?.(); navigate(`/provisioning/${r.id}`); }}>
-                    <Icon name="ClipboardList" size={14} />
-                    <span className="t">{r.title}</span>
-                    <span className="s">{String(r.status || 'draft').replace(/_/g, ' ')}</span>
-                    <Icon name="ArrowUpRight" size={13} />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Planned maintenance — turn a recurring fault into preventive upkeep */}
-          <div className="dd-maint dd-block">
-            <div className="dd-fix-head">
-              <p className="dd-lbl" style={{ margin: 0 }}>Planned maintenance</p>
-              {canManage && !isClosed && !defect.promotedJobId && (
-                <button className="dd-edit-btn small" onClick={() => setPlanningMaint(true)}>
-                  <Icon name="CalendarPlus" size={12} /> Plan maintenance
-                </button>
-              )}
-            </div>
-            {defect.promotedJobId ? (
-              <button type="button" className="dd-req" onClick={() => { onClose?.(); navigate('/team-jobs-management'); }}>
-                <Icon name="Wrench" size={14} />
-                <span className="t">Scheduled on the job board</span>
-                <Icon name="ArrowUpRight" size={13} />
-              </button>
-            ) : (
-              <p className="dd-fix-empty">Not scheduled as recurring maintenance.</p>
-            )}
-          </div>
+          )}
 
           <div className="dd-block">
             <p className="dd-lbl">Comments{comments.length ? ` · ${comments.length}` : ''}</p>
