@@ -5,7 +5,6 @@ import Icon from '../AppIcon';
 import Image from '../AppImage';
 import LogoSpinner from '../LogoSpinner';
 import AcceptAdminBanner from './AcceptAdminBanner';
-import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { useBasket } from '../../contexts/BasketContext';
@@ -84,7 +83,6 @@ const AvatarMenuItem = ({ icon, label, onClick, danger, active }) => {
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
   const { user: authUser, session } = useAuth();
   const { noVesselAccess } = useTenant();
   // Between vessels: strip vessel-only chrome (inbox, admin menu) down to the
@@ -704,19 +702,6 @@ const Header = () => {
             aria-label="Settings"
           >
             <Icon name="Settings" size={20} color="var(--color-foreground)" />
-          </button>
-
-          <button
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === 'night' ? 'day' : 'night'} mode`}
-            title="Theme Toggle"
-          >
-            <Icon
-              name={theme === 'night' ? 'Moon' : 'Sun'}
-              size={20}
-              color="var(--color-foreground)"
-            />
           </button>
 
           <div className="w-px h-6 bg-border mx-1" />

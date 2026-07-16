@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 
 const ThemeContext = createContext();
 
@@ -10,48 +10,27 @@ export const useTheme = () => {
   return context;
 };
 
-// The applied theme when the user follows their device.
-const systemTheme = () =>
-  (typeof window !== 'undefined' && window.matchMedia &&
-   window.matchMedia('(prefers-color-scheme: dark)').matches)
-    ? 'night'
-    : 'day';
-
+// ── Light-locked ────────────────────────────────────────────────────────────
+// Cargo is a light-first editorial product. Dark mode is parked until the whole
+// app is styled in light (so there's a locked light reference to build dark
+// from). Until then the app renders 'day' everywhere — the toggle/setter are
+// kept as no-ops so existing consumers of useTheme() don't break; they simply
+// always get the light variant (navy logo, light map, etc.).
 export const ThemeProvider = ({ children }) => {
-  // themePref is the user's CHOICE — 'day' | 'night' | 'system'. The applied
-  // theme (data-theme) is 'day'/'night'; 'system' resolves to the device's.
-  const [themePref, setThemePref] = useState(() => localStorage.getItem('yacht-ops-theme') || 'night');
-  const [resolved, setResolved] = useState(() => (
-    (localStorage.getItem('yacht-ops-theme') || 'night') === 'system'
-      ? systemTheme()
-      : (localStorage.getItem('yacht-ops-theme') || 'night')
-  ));
-
   useEffect(() => {
-    localStorage.setItem('yacht-ops-theme', themePref);
-    setResolved(themePref === 'system' ? systemTheme() : themePref);
-  }, [themePref]);
+    document.documentElement?.setAttribute('data-theme', 'day');
+    try { localStorage.setItem('yacht-ops-theme', 'day'); } catch { /* noop */ }
+  }, []);
 
-  useEffect(() => {
-    document.documentElement?.setAttribute('data-theme', resolved);
-  }, [resolved]);
-
-  // When following the device, re-resolve live as the OS theme flips.
-  useEffect(() => {
-    if (themePref !== 'system' || !window.matchMedia) return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = () => setResolved(systemTheme());
-    mq.addEventListener?.('change', onChange);
-    return () => mq.removeEventListener?.('change', onChange);
-  }, [themePref]);
-
-  // Header toggle: flip the applied theme and pin it explicitly (leaves 'system').
-  const toggleTheme = () => setThemePref(resolved === 'night' ? 'day' : 'night');
-  // Settings: choose 'day' | 'night' | 'system'.
-  const setThemeMode = (mode) => setThemePref(mode);
+  const value = {
+    theme: 'day',
+    themePref: 'day',
+    toggleTheme: () => {},
+    setThemeMode: () => {},
+  };
 
   return (
-    <ThemeContext.Provider value={{ theme: resolved, themePref, toggleTheme, setThemeMode }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

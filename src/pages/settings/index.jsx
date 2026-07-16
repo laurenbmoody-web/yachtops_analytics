@@ -5,7 +5,6 @@ import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import { getCurrentUser, clearCurrentUser, hasCommandAccess, hasChiefAccess, getTierDisplayName } from '../../utils/authStorage';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import { applyReduceMotion, applyTextSize } from '../../utils/a11y';
@@ -140,7 +139,6 @@ const NAV = [
   ] },
   { grp: 'Preferences', items: [
     { id: 'notifications', label: 'Notifications', icon: 'Bell' },
-    { id: 'appearance', label: 'Appearance', icon: 'Sun' },
     { id: 'regional', label: 'Regional', icon: 'Globe' },
     { id: 'accessibility', label: 'Accessibility', icon: 'Eye' },
   ] },
@@ -153,7 +151,6 @@ const NAV = [
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading, isVesselAdmin } = useAuth();
-  const { themePref, setThemeMode } = useTheme();
   const { activeTenantId } = useTenant();
   const currentUser = getCurrentUser();
 
@@ -1172,23 +1169,6 @@ const SettingsPage = () => {
               <RowToggle label="24-hour time" desc="Show 15:42 rather than 3:42 PM." on={prefs.hour24} onChange={() => toggle('hour24')} />
               <RowSeg label="First day of week" value={prefs.firstDay} onChange={(v) => setPref('firstDay', v)}
                 options={[{ v: 'mon', l: 'Mon' }, { v: 'sun', l: 'Sun' }]} />
-            </Group>
-          </>
-        );
-
-      case 'appearance':
-        return (
-          <>
-            <h2 className="set-h">Appearance</h2>
-            <p className="set-hsub">How Cargo looks on this device.</p>
-            <Group>
-              <RowSeg
-                label="Theme"
-                desc="Follow your device, or force light or dark."
-                value={themePref === 'night' ? 'dark' : themePref === 'day' ? 'light' : 'system'}
-                onChange={(v) => setThemeMode(v === 'dark' ? 'night' : v === 'light' ? 'day' : 'system')}
-                options={[{ v: 'light', l: 'Light' }, { v: 'dark', l: 'Dark' }, { v: 'system', l: 'System' }]}
-              />
             </Group>
           </>
         );
