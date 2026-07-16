@@ -77,25 +77,33 @@ const Chapter = ({ p, active, onClick }) => {
   );
 };
 
+const icFor = (l) => ({ Guest: 'User', Guests: 'Users', Crew: 'Users', Member: 'Users', Members: 'Users', Cabin: 'DoorOpen', Cabins: 'DoorOpen', Area: 'LayoutGrid', Areas: 'LayoutGrid', Period: 'Route', Periods: 'Route' }[l] || 'Circle');
+
 const Detail = ({ p, onExport }) => {
   const [open, setOpen] = useState(null);
-  useEffect(() => { setOpen(null); }, [p?.id]);
+  const [openDay, setOpenDay] = useState(null);
+  useEffect(() => { setOpen(null); setOpenDay(p?.days?.[0]?.key || null); }, [p?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!p) return null;
-  // eyebrow / title / subtitle — kept distinct so nothing is repeated
-  const tag = p.type === 'voyage' ? 'Voyage' : p.type === 'offcharter' ? 'Off-charter' : 'Crew ledger';
+  // eyebrow only where the title needs context (off-charter → a bare month)
+  const tag = p.type === 'offcharter' ? 'Off-charter' : null;
   const title = p.type === 'voyage' ? <>{p.name} <em>voyage</em></> : p.type === 'offcharter' ? p.dates : p.name;
   const sub = p.type === 'voyage' ? [p.dates, p.hero].filter(Boolean).join(' · ')
-    : p.type === 'offcharter' ? p.hero
-      : [p.dates, p.hero].filter(Boolean).join(' · ');
-  const peopleLbl = p.type === 'crew' ? 'Crew — every period' : p.type === 'offcharter' ? 'Crew & vessel — this period' : 'Per guest & crew — this voyage';
+    : p.type === 'offcharter' ? p.hero : null; // crew: no subtitle
+  const peopleLbl = p.type === 'crew' ? 'Crew — every period' : p.type === 'offcharter' ? 'Crew & vessel — this period' : 'Per guest — this voyage';
+  const metrics = [
+    { ic: 'Shirt', v: p.cleaned, l: 'Cleaned' },
+    { ic: 'Clock', v: p.avg, l: 'Avg turnaround' },
+    { ic: icFor(p.kpiA[1]), v: p.kpiA[0], l: p.kpiA[1] },
+    { ic: icFor(p.kpiB[1]), v: p.kpiB[0], l: p.kpiB[1] },
+  ];
   return (
     <div className="lb-trip">
       <div className={`lb-hero ${p.type}`}>
         <div className="lb-hero-row">
           <div>
-            <div className={`lb-tag ${p.type}`}>{tag}</div>
+            {tag && <div className={`lb-tag ${p.type}`}>{tag}</div>}
             <div className="lb-nm">{title}</div>
-            <div className="lb-dt">{sub}</div>
+            {sub && <div className="lb-dt">{sub}</div>}
           </div>
           {(p.items || []).length > 0 && (
             <button type="button" className="lb-export" onClick={() => onExport(p)}>
@@ -104,10 +112,13 @@ const Detail = ({ p, onExport }) => {
           )}
         </div>
         <div className="lb-kpis">
-          <div className="lb-k"><b className="tnum">{p.cleaned}</b><span>Items cleaned</span></div>
-          <div className="lb-k"><b className="tnum">{p.avg}</b><span>Avg turnaround</span></div>
-          <div className="lb-k"><b className="tnum">{p.kpiA[0]}</b><span>{p.kpiA[1]}</span></div>
-          <div className="lb-k"><b>{p.kpiB[0]}</b><span>{p.kpiB[1]}</span></div>
+          {metrics.map((k, i) => (
+            <div className="lb-k" key={i}>
+              <span className="lb-k-ic"><Icon name={k.ic} size={15} /></span>
+              <b className="tnum">{k.v}</b>
+              <span className="lb-k-l">{k.l}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -147,21 +158,33 @@ const Detail = ({ p, onExport }) => {
         </div>
       ) : (
         <div className="lb-sec">
-          <span className="lb-sl">Returned — day by day</span>
+          <span className="lb-sl">Returned — day by day<span className="lb-sl-hint">{p.days.length} day{p.days.length === 1 ? '' : 's'} · tap to open</span></span>
           {p.days.length === 0 ? <div className="lb-dos-sub">Nothing delivered in this period yet.</div>
-            : p.days.map((d) => (
-              <div className="lb-rday" key={d.key}>
-                <div className="lb-rh">{d.label}<span className="rule" />{d.items.length} returned</div>
-                {d.items.map((it, i) => (
-                  <div className="lb-ri" key={i}>
-                    <span className="lb-th"><Icon name="Shirt" size={15} /></span>
-                    <span className="lb-ri-nm">{it.desc}{it.sub ? <span className="lb-ri-sub"> · {it.sub}</span> : null}</span>
-                    <span className="lb-ri-tag">Returned</span>
-                    <span className="lb-ri-t">{it.time}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
+            : p.days.map((d) => {
+              const dOpen = openDay === d.key;
+              return (
+                <div className={`lb-rday${dOpen ? ' open' : ''}`} key={d.key}>
+                  <button type="button" className="lb-rh" onClick={() => setOpenDay(dOpen ? null : d.key)} aria-expanded={dOpen}>
+                    <Icon name="ChevronRight" size={14} className="lb-rh-chev" />
+                    <span className="lb-rh-d">{d.label}</span>
+                    <span className="rule" />
+                    <span className="lb-rh-ct">{d.items.length} returned</span>
+                  </button>
+                  {dOpen && (
+                    <div className="lb-rday-items">
+                      {d.items.map((it, i) => (
+                        <div className="lb-ri" key={i}>
+                          <span className="lb-th"><Icon name="Shirt" size={15} /></span>
+                          <span className="lb-ri-nm">{it.desc}{it.sub ? <span className="lb-ri-sub"> · {it.sub}</span> : null}</span>
+                          <span className="lb-ri-tag">Returned</span>
+                          <span className="lb-ri-t">{it.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
         </div>
       )}
     </div>
