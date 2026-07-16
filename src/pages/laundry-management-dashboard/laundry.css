@@ -936,6 +936,22 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-arch-empty { padding: 26px 14px; text-align: center; color: #AEB4C2; font-size: 13px; }
 @media (max-width: 820px) { .lb-cols, .lb-cal-cols { grid-template-columns: 1fr; } }
 
+/* ── history search + filter ── */
+.hist-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+.hist-tools .lm-search { flex: 1 1 260px; max-width: 360px; }
+.hist-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.hist-chip { font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; background: #FFFFFF; border: 1px solid #E8E6DF; border-radius: 999px; padding: 6px 12px; cursor: pointer; transition: 0.14s; }
+.hist-chip:hover { border-color: #D9C7BB; color: #1C1B3A; }
+.hist-chip.on { background: #1C1B3A; border-color: #1C1B3A; color: #FFFFFF; }
+.hist-chip-sep { width: 1px; height: 16px; background: #E0E2EA; margin: 0 4px; }
+.hist-results { margin-top: 18px; background: #FFFFFF; border: 1px solid #EEF0F4; border-radius: 18px; overflow: hidden; }
+.hist-results-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #F3F4F8; }
+.hist-results-n { font-size: 12.5px; color: #6E6B85; }
+.hist-results-n b { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; margin-right: 4px; }
+.hist-results-clear { font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; background: none; border: none; cursor: pointer; }
+.hist-results-clear:hover { text-decoration: underline; }
+.hist-results-list { padding: 6px 16px; }
+
 /* ── history page (activity feed) ── */
 .hist-feed { margin-top: 20px; }
 .hist-day { margin-bottom: 26px; }
