@@ -26,8 +26,8 @@ export default function DefectDocModal({ defect, kind = 'quote', onClose, onDone
     if (!file) { setErr('Choose a file to attach.'); return; }
     setBusy(true); setErr('');
     try {
-      await uploadDefectDocument({ defect, file, kind, amount, currency, actor });
-      onDone?.();
+      const row = await uploadDefectDocument({ defect, file, kind, amount, currency, actor });
+      onDone?.(row);
     } catch (e) {
       setErr(e?.message || 'Could not attach the file.');
     } finally {

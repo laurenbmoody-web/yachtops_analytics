@@ -16,11 +16,11 @@ import { fetchDefectRequisitions } from '../utils/defectRequisition';
 import { fetchDefectDocuments, deleteDefectDocument, costSummary } from '../utils/defectDocuments';
 import { useDefectActor } from '../utils/useDefectActor';
 import {
-  DefectStatus, REPAIR_STAGE_ORDER, REPAIR_STAGE_LABELS,
+  DefectStatus, REPAIR_STAGE_ORDER, REPAIR_STAGE_LABELS, QUOTE_APPROVAL_THRESHOLD,
   getDefectComments, getDefectEvents,
   updateDefect, addDefectComment, acceptDefect, declineDefect,
   closeDefectWithNotes, reopenDefect, assignDefect, claimDefect, canEditDefect,
-  fetchWarrantyContext,
+  fetchWarrantyContext, requestQuoteApproval, decideQuoteApproval, canApproveQuote,
 } from '../utils/defectsStorage';
 import './DefectDetail.css';
 
@@ -182,8 +182,20 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const warrantyActive = defect.warrantyUntil && defect.warrantyUntil >= new Date().toISOString().slice(0, 10);
   const hasRepairInfo = defect.contractorName || defect.contractorDetails || defect.scheduledFixAt
     || defect.contractorEmail || defect.contractorPhone || defect.warrantyUntil;
-  const setStage = (v) => guard(() => updateDefect(defect.id, { repairStage: v }, actor))();
+  const SCHEDULED_IDX = REPAIR_STAGE_ORDER.indexOf('scheduled');
+  const approvalPending = defect.quoteApprovalStatus === 'pending';
+  const canApprove = canApproveQuote(actor);
+  const setStage = (v) => {
+    if (REPAIR_STAGE_ORDER.indexOf(v) >= SCHEDULED_IDX && approvalPending) {
+      setErr("Quote is awaiting sign-off — can't schedule the repair yet.");
+      return;
+    }
+    guard(() => updateDefect(defect.id, { repairStage: v }, actor))();
+  };
   const stageIdx = REPAIR_STAGE_ORDER.indexOf(defect.repairStage);
+  const reqApproval = guard(() => requestQuoteApproval(defect.id, actor));
+  const approveQuote = guard(() => decideQuoteApproval(defect.id, true, null, actor));
+  const declineQuote = guard(async () => { const n = window.prompt('Reason for declining (optional)?'); if (n === null) return; await decideQuoteApproval(defect.id, false, n, actor); });
 
   const photos = defect.photos || [];
   const openMap = () => { if (mapHref) { onClose?.(); navigate(mapHref); } };
@@ -415,6 +427,35 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                 </div>
               );
             })()}
+
+            {/* Quote sign-off — a Captain/HOD authorises the spend before scheduling */}
+            {!fixEditing && (
+              <div className="dd-approval">
+                {approvalPending ? (
+                  <div className="dd-appr-box pending">
+                    <div className="dd-appr-h"><Icon name="Clock" size={13} /> Quote awaiting sign-off</div>
+                    {canApprove ? (
+                      <div className="dd-appr-actions">
+                        <button type="button" className="dd-btn primary" disabled={busy} onClick={approveQuote}>Approve</button>
+                        <button type="button" className="dd-btn ghost" disabled={busy} onClick={declineQuote}>Decline</button>
+                      </div>
+                    ) : <span className="dd-appr-sub">A Captain / HOD needs to authorise this spend before it can be scheduled.</span>}
+                  </div>
+                ) : defect.quoteApprovalStatus === 'approved' ? (
+                  <div className="dd-appr-box approved">
+                    <Icon name="BadgeCheck" size={13} /> Quote signed off{defect.quoteApprovedByName ? ` by ${defect.quoteApprovedByName}` : ''}{defect.quoteApprovedAt ? ` · ${fmt(defect.quoteApprovedAt)}` : ''}
+                  </div>
+                ) : defect.quoteApprovalStatus === 'declined' ? (
+                  <div className="dd-appr-box declined">
+                    <div className="dd-appr-h"><Icon name="XCircle" size={13} /> Quote declined{defect.quoteApprovedByName ? ` by ${defect.quoteApprovedByName}` : ''}</div>
+                    {defect.quoteApprovalNote && <span className="dd-appr-sub">{defect.quoteApprovalNote}</span>}
+                    {canManage && !isClosed && <button type="button" className="dd-edit-btn small" onClick={reqApproval}><Icon name="RotateCcw" size={12} /> Request again</button>}
+                  </div>
+                ) : (canManage && !isClosed && costSummary(docs).quote) ? (
+                  <button type="button" className="dd-edit-btn small" onClick={reqApproval}><Icon name="ShieldQuestion" size={12} /> Request sign-off</button>
+                ) : null}
+              </div>
+            )}
           </div>
 
           {/* Parts — raise a provisioning requisition to fix this defect */}
@@ -547,7 +588,16 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
           defect={defect}
           kind={docModalKind}
           onClose={() => setDocModalKind(null)}
-          onDone={async () => { setDocModalKind(null); await reload(); }}
+          onDone={async (row) => {
+            setDocModalKind(null);
+            // A high-value quote auto-triggers a Captain/HOD sign-off request.
+            if (row?.kind === 'quote' && row?.amount != null && Number(row.amount) >= QUOTE_APPROVAL_THRESHOLD
+                && !defect.quoteApprovalStatus) {
+              await requestQuoteApproval(defect.id, actor, money(row.amount, row.currency));
+              await onChanged?.();
+            }
+            await reload();
+          }}
         />
       )}
     </div>

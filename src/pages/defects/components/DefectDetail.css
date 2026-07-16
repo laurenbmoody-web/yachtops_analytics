@@ -197,6 +197,19 @@ a.dd-contact .cc, .dd-contact a.cc { color: #3E6B89; }
 .dd-doc-x:hover { color: #A32D2D; border-color: #E3B9A3; }
 .dd-doc-actions { display: flex; gap: 6px; }
 
+/* quote sign-off panel */
+.dd-approval { margin-top: 10px; }
+.dd-appr-box { border-radius: 11px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.dd-appr-box.pending { background: #F7EEDD; border: 1px solid #EAD9B4; }
+.dd-appr-box.approved { background: #E4F1EA; border: 1px solid #CDE7D8; color: #2E7D5A; flex-direction: row; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.dd-appr-box.declined { background: #F7E7E5; border: 1px solid #EACFCC; }
+.dd-appr-h { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: #7A5A18; }
+.dd-appr-box.declined .dd-appr-h { color: #A32D2D; }
+.dd-appr-sub { font-size: 12px; color: #8a6b2f; line-height: 1.4; }
+.dd-appr-box.declined .dd-appr-sub { color: #9a4b46; }
+.dd-appr-actions { display: flex; gap: 8px; }
+.dd-appr-actions .dd-btn { flex: 1; }
+
 /* parts requisitions raised from the defect */
 .dd-reqs { display: flex; flex-direction: column; gap: 6px; }
 .dd-req { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: #FAFAF8; border: 1px solid #ECEAE3;
