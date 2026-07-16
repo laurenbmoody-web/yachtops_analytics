@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Button from '../../../components/ui/Button';
 
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek, parseISO, isWithinInterval, startOfDay, differenceInDays } from 'date-fns';
+import { weekStartsOn, weekdayLabelsShort } from '../../../utils/dateFormat';
 import EditEventModal from './EditEventModal';
 
 const MonthView = ({ currentMonth, onMonthChange, selectedDate, onDateSelect, events }) => {
@@ -15,11 +16,12 @@ const MonthView = ({ currentMonth, onMonthChange, selectedDate, onDateSelect, ev
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const wkStart = weekStartsOn();
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: wkStart });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: wkStart });
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dayNames = weekdayLabelsShort();
 
   // Fixed neutral surface color palette (surface-1 to surface-5)
   const SURFACE_COLORS = [
