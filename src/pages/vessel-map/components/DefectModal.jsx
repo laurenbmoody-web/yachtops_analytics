@@ -1,6 +1,6 @@
-// The defect opens in a wide modal across the app — there's a lot on a defect
-// (log form, owner, comments, lifecycle) and the narrow map inspector cramps it.
-// Hosts the full DefectPin experience with room to breathe.
+// Wide modal hosting the defect across the app. Bare shell — DefectPin owns the
+// content (the log form when empty, the two-column DefectDetail once logged), so
+// there's no duplicate header.
 import React from 'react';
 import ModalShell from '../../../components/ui/ModalShell';
 import DefectPin from './DefectPin';
@@ -9,14 +9,8 @@ import './DefectPin.css';
 export default function DefectModal({ hotspot, canManage, scanName, containerTrail, onChanged, onTitled, onClose }) {
   return (
     <ModalShell onClose={onClose} panelClassName="vmd-modal">
-      <div className="vmd-modal-head">
-        <div>
-          <p className="vmd-modal-eyebrow">Defect · {scanName || 'Vessel map'}</p>
-          <h3>{hotspot?.label || 'Defect'}</h3>
-        </div>
-        <button className="vmd-modal-x" onClick={onClose} aria-label="Close">×</button>
-      </div>
-      <div className="vmd-modal-body">
+      <button className="vmd-xfloat" onClick={onClose} aria-label="Close">×</button>
+      <div className="vmd-scroll">
         <DefectPin
           hotspot={hotspot}
           canManage={canManage}

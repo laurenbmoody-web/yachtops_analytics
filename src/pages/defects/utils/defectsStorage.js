@@ -293,6 +293,15 @@ export const createDefect = async (defectData, actor) => {
   return defect;
 };
 
+// Resolve the scan a hotspot belongs to — for building a "View on map" deep link
+// (/vessel/map?scan=<scanId>&pin=<hotspotId>).
+export const getHotspotScanId = async (hotspotId) => {
+  if (!hotspotId) return null;
+  const { data, error } = await supabase?.from('scan_hotspots')?.select('scan_id')?.eq('id', hotspotId)?.maybeSingle();
+  if (error) { console.warn('[defects] getHotspotScanId', error); return null; }
+  return data?.scan_id || null;
+};
+
 // Fetch the active (non-closed) defect linked to a map pin, if any.
 export const getDefectByHotspot = async (hotspotId, actor) => {
   if (!hotspotId || !actor?.tenantId) return null;
