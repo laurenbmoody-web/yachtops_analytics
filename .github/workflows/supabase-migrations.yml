@@ -37,7 +37,12 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned (not `latest`) on purpose: `latest` queries the GitHub
+          # releases API on every run to resolve the newest version, which
+          # intermittently fails with "rate limit exceeded" and blocks the
+          # migration apply. A fixed version downloads directly — bump when a
+          # newer CLI is needed.
+          version: 2.109.1
 
       - name: Link project
         run: supabase link --project-ref "$PROJECT_ID"
