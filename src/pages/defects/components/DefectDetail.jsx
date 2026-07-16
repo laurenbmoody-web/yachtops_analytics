@@ -7,13 +7,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import VmdSelect from '../../vessel-map/components/VmdSelect';
+import DefectLogForm from './DefectLogForm';
 import { useDefectActor } from '../utils/useDefectActor';
 import {
-  DefectStatus, DefectPriority,
+  DefectStatus,
   getDefectComments, getDefectEvents,
   updateDefect, addDefectComment, acceptDefect, declineDefect,
   closeDefectWithNotes, reopenDefect, assignDefect, claimDefect, canEditDefect,
-  fetchTenantDepartments,
 } from '../utils/defectsStorage';
 import './DefectDetail.css';
 
@@ -46,8 +46,8 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [editing, setEditing] = useState(false);
-  const [edit, setEdit] = useState(null);
-  const [departments, setDepartments] = useState([]);
+  const [fixEditing, setFixEditing] = useState(false);
+  const [fix, setFix] = useState(null);
 
   const reload = useCallback(async () => {
     if (!defect?.id) return;
@@ -96,27 +96,55 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const doAssignTeam = guard(() => assignDefect(defect.id, { kind: 'team', teamDepartmentId: defect.departmentId, teamName: defect.departmentOwner }, actor));
   const addComment = guard(async () => { if (!newComment.trim()) return; await addDefectComment(defect.id, newComment, actor); setNewComment(''); });
 
-  const startEdit = async () => {
-    setEdit({
-      title: defect.title || '', priority: defect.priority || 'Medium',
-      departmentId: defect.departmentId || '', departmentOwner: defect.departmentOwner || '',
-      dueDate: defect.dueDate || '', scheduledFixAt: defect.scheduledFixAt || '',
-      contractorName: defect.contractorName || '', contractorDetails: defect.contractorDetails || '',
-      description: defect.description || '',
-    });
-    setEditing(true);
-    if (!departments.length && actor?.tenantId) setDepartments((await fetchTenantDepartments(actor.tenantId)) || []);
+  // Core-record edit reuses the shared log form, so it carries every add-modal
+  // affordance (photos, priority, assign, notify, flags). Contractor + scheduling
+  // is arranged *after* logging, so it lives on the view, not in here.
+  const onMap = !!defect.hotspotId;
+  const editInitial = {
+    title: defect.title || '', priority: defect.priority || 'Medium', description: defect.description || '',
+    photos: defect.photos || [], deptId: defect.departmentId || '', assign: defect.assigneeKind || 'unassigned',
+    userId: defect.assignedToUserId || '', affectsGuestAreas: !!defect.affectsGuestAreas, safetyRelated: !!defect.safetyRelated,
+    notify: defect.notifyUsers || [],
+    ...(onMap ? {} : { locationFreeText: defect.locationFreeText || defect.locationPathLabel || '' }),
   };
-  const saveEdit = guard(async () => {
-    if (!edit.title.trim()) { setErr('Give the defect a title.'); throw new Error('Give the defect a title.'); }
-    const dName = departments.find((d) => d.id === edit.departmentId)?.name || edit.departmentOwner || null;
+  const saveEdit = async (payload) => {
+    if (busy) return;
+    setBusy(true); setErr('');
+    try {
+      const updated = await updateDefect(defect.id, {
+        title: payload.title, priority: payload.priority, description: payload.description,
+        departmentId: payload.departmentId || null, departmentOwner: payload.departmentOwner || null,
+        assigneeKind: payload.assigneeKind,
+        assignedToUserId: payload.assigneeKind === 'user' ? payload.assignedToUserId : null,
+        assignedToName: payload.assigneeKind === 'user' ? payload.assignedToName : null,
+        assignedTeamDepartmentId: payload.assigneeKind === 'team' ? payload.assignedTeamDepartmentId : null,
+        assignedTeamName: payload.assigneeKind === 'team' ? payload.assignedTeamName : null,
+        affectsGuestAreas: payload.affectsGuestAreas, safetyRelated: payload.safetyRelated,
+        photos: payload.photos, notifyUsers: payload.notifyUsers,
+        ...(onMap ? {} : { locationFreeText: payload.locationFreeText || null, locationPathLabel: payload.locationPathLabel || null }),
+      }, actor);
+      if (!updated) throw new Error('Could not save your changes.');
+      setEditing(false);
+      await onChanged?.();
+      await reload();
+    } catch (e) {
+      setErr(e?.message || 'Could not save your changes.');
+      throw e; // keep the form open
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startFix = () => setFix({
+    dueDate: defect.dueDate || '', scheduledFixAt: defect.scheduledFixAt || '',
+    contractorName: defect.contractorName || '', contractorDetails: defect.contractorDetails || '',
+  });
+  const saveFix = guard(async () => {
     await updateDefect(defect.id, {
-      title: edit.title, priority: edit.priority, description: edit.description,
-      departmentId: edit.departmentId || null, departmentOwner: dName,
-      dueDate: edit.dueDate || null, scheduledFixAt: edit.scheduledFixAt || null,
-      contractorName: edit.contractorName || null, contractorDetails: edit.contractorDetails || null,
+      dueDate: fix.dueDate || null, scheduledFixAt: fix.scheduledFixAt || null,
+      contractorName: fix.contractorName || null, contractorDetails: fix.contractorDetails || null,
     }, actor);
-    setEditing(false);
+    setFixEditing(false);
   });
 
   const photos = defect.photos || [];
@@ -134,59 +162,22 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
         <span className="dd-ref">{defect.ref}</span>
         <span className="spring" />
         {canManage && !isClosed && !editing && (
-          <button className="dd-edit-btn" onClick={startEdit}><Icon name="Edit3" size={13} /> Edit</button>
+          <button className="dd-edit-btn" onClick={() => { setErr(''); setEditing(true); }}><Icon name="Edit3" size={13} /> Edit</button>
         )}
         {onClose && <button className="dd-x" onClick={onClose} aria-label="Close">×</button>}
       </div>
 
       {editing && (
-        <div className="dd-edit">
-          <div className="dd-field">
-            <label className="dd-field-lbl">Title</label>
-            <input className="dd-input" value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} autoFocus />
-          </div>
-          <div className="dd-row2">
-            <div className="dd-field">
-              <label className="dd-field-lbl">Priority</label>
-              <VmdSelect value={edit.priority} onChange={(v) => setEdit({ ...edit, priority: v })}
-                options={Object.values(DefectPriority).map((p) => ({ value: p, label: p }))} ariaLabel="Priority" />
-            </div>
-            <div className="dd-field">
-              <label className="dd-field-lbl">Department</label>
-              <VmdSelect value={edit.departmentId} onChange={(v) => setEdit({ ...edit, departmentId: v })}
-                options={departments.map((d) => ({ value: d.id, label: d.name }))} placeholder={edit.departmentOwner || 'Choose…'} ariaLabel="Department" />
-            </div>
-          </div>
-          <div className="dd-field">
-            <label className="dd-field-lbl">Description / notes</label>
-            <textarea className="dd-textarea" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} placeholder="What's wrong, any detail the engineer needs…" />
-          </div>
-
-          <p className="dd-sub">Fix &amp; contractor</p>
-          <div className="dd-row2">
-            <div className="dd-field">
-              <label className="dd-field-lbl">Due date</label>
-              <input type="date" className="dd-input" value={edit.dueDate || ''} onChange={(e) => setEdit({ ...edit, dueDate: e.target.value })} />
-            </div>
-            <div className="dd-field">
-              <label className="dd-field-lbl">Being fixed on</label>
-              <input type="date" className="dd-input" value={edit.scheduledFixAt || ''} onChange={(e) => setEdit({ ...edit, scheduledFixAt: e.target.value })} />
-            </div>
-          </div>
-          <div className="dd-field">
-            <label className="dd-field-lbl">Contractor</label>
-            <input className="dd-input" value={edit.contractorName} onChange={(e) => setEdit({ ...edit, contractorName: e.target.value })} placeholder="e.g. Riva Marine Joinery" />
-          </div>
-          <div className="dd-field">
-            <label className="dd-field-lbl">Contractor details</label>
-            <textarea className="dd-textarea" value={edit.contractorDetails} onChange={(e) => setEdit({ ...edit, contractorDetails: e.target.value })} placeholder="Contact, quote ref, scope of works…" />
-          </div>
-
-          {err && <p className="dd-err">{err}</p>}
-          <div className="dd-edit-actions">
-            <button className="dd-btn ghost" disabled={busy} onClick={() => { setEditing(false); setErr(''); }}>Cancel</button>
-            <button className="dd-btn primary" disabled={busy} onClick={saveEdit} style={{ flex: 1 }}>{busy ? 'Saving…' : 'Save changes'}</button>
-          </div>
+        <div className="dd-editwrap">
+          {err && <p className="dd-err" style={{ padding: '10px 22px 0' }}>{err}</p>}
+          <DefectLogForm
+            initial={editInitial}
+            showLocation={!onMap}
+            submitLabel="Save changes"
+            busyLabel="Saving…"
+            onSubmit={saveEdit}
+            onCancel={() => { setEditing(false); setErr(''); }}
+          />
         </div>
       )}
 
@@ -209,13 +200,55 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
 
           {defect.description && <p className="dd-desc">{defect.description}</p>}
 
-          {(defect.contractorName || defect.contractorDetails) && (
-            <div className="dd-contractor">
-              <div className="cn"><Icon name="Wrench" size={14} /> {defect.contractorName || 'Contractor'}</div>
-              {defect.contractorDetails && <div className="cd">{defect.contractorDetails}</div>}
-              {defect.scheduledFixAt && <div className="cs">Booked in for {fmt(defect.scheduledFixAt)}</div>}
+          {/* Fix & contractor — arranged after the defect's logged, so it's edited
+              in place on the view rather than in the core-record form. */}
+          <div className="dd-fix">
+            <div className="dd-fix-head">
+              <p className="dd-lbl" style={{ margin: 0 }}>Fix &amp; contractor</p>
+              {canManage && !isClosed && !fixEditing && (
+                <button className="dd-edit-btn small" onClick={() => { startFix(); setFixEditing(true); }}>
+                  <Icon name={defect.contractorName || defect.scheduledFixAt ? 'Edit3' : 'Plus'} size={12} />
+                  {defect.contractorName || defect.scheduledFixAt ? 'Edit' : 'Arrange'}
+                </button>
+              )}
             </div>
-          )}
+
+            {fixEditing ? (
+              <div className="dd-fixform">
+                <div className="dd-row2">
+                  <div className="dd-field">
+                    <label className="dd-field-lbl">Due date</label>
+                    <input type="date" className="dd-input" value={fix.dueDate || ''} onChange={(e) => setFix({ ...fix, dueDate: e.target.value })} />
+                  </div>
+                  <div className="dd-field">
+                    <label className="dd-field-lbl">Being fixed on</label>
+                    <input type="date" className="dd-input" value={fix.scheduledFixAt || ''} onChange={(e) => setFix({ ...fix, scheduledFixAt: e.target.value })} />
+                  </div>
+                </div>
+                <div className="dd-field">
+                  <label className="dd-field-lbl">Contractor</label>
+                  <input className="dd-input" value={fix.contractorName} onChange={(e) => setFix({ ...fix, contractorName: e.target.value })} placeholder="e.g. Riva Marine Joinery" />
+                </div>
+                <div className="dd-field">
+                  <label className="dd-field-lbl">Contractor details</label>
+                  <textarea className="dd-textarea" value={fix.contractorDetails} onChange={(e) => setFix({ ...fix, contractorDetails: e.target.value })} placeholder="Contact, quote ref, scope of works…" />
+                </div>
+                <div className="dd-edit-actions">
+                  <button className="dd-btn ghost" disabled={busy} onClick={() => { setFixEditing(false); setErr(''); }}>Cancel</button>
+                  <button className="dd-btn primary" disabled={busy} onClick={saveFix} style={{ flex: 1 }}>{busy ? 'Saving…' : 'Save'}</button>
+                </div>
+              </div>
+            ) : (defect.contractorName || defect.contractorDetails || defect.scheduledFixAt || defect.dueDate) ? (
+              <div className="dd-contractor">
+                {defect.contractorName && <div className="cn"><Icon name="Wrench" size={14} /> {defect.contractorName}</div>}
+                {defect.contractorDetails && <div className="cd">{defect.contractorDetails}</div>}
+                {defect.scheduledFixAt && <div className="cs">Booked in for {fmt(defect.scheduledFixAt)}</div>}
+                {defect.dueDate && <div className="cs" style={{ color: '#6B7280' }}>Due {fmt(defect.dueDate)}</div>}
+              </div>
+            ) : (
+              <p className="dd-fix-empty">No contractor or fix date arranged yet.</p>
+            )}
+          </div>
 
           <div>
             <p className="dd-lbl">Comments</p>
@@ -277,8 +310,6 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             <div className="dd-row"><span className="k">Reported by</span><span className="v">{defect.reportedByName || '—'}</span></div>
             <div className="dd-row"><span className="k">Logged</span><span className="v">{fmt(defect.createdAt)}</span></div>
             {defect.dueDate && <div className="dd-row"><span className="k">Due</span><span className="v">{fmt(defect.dueDate)}</span></div>}
-            {defect.scheduledFixAt && <div className="dd-row"><span className="k">Being fixed</span><span className="v" style={{ color: '#C65A1A' }}>{fmt(defect.scheduledFixAt)}</span></div>}
-            {defect.contractorName && <div className="dd-row"><span className="k">Contractor</span><span className="v" title={defect.contractorName}>{defect.contractorName}</span></div>}
             <div className="dd-row"><span className="k">Location</span><span className="v" title={loc}>{loc}</span></div>
             {defect.notifyUsers?.length > 0 && <div className="dd-row"><span className="k">Also notified</span><span className="v">{defect.notifyUsers.map((n) => n.name).filter(Boolean).join(', ')}</span></div>}
           </div>

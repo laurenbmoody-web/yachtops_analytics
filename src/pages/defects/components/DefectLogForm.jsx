@@ -21,18 +21,19 @@ const PRIORITIES = [
   { k: 'High', title: 'High' }, { k: 'Critical', title: 'Critical' },
 ];
 
-export default function DefectLogForm({ onSubmit, onCancel, submitLabel = 'Log & notify', showLocation = false }) {
+export default function DefectLogForm({ onSubmit, onCancel, submitLabel = 'Log & notify', busyLabel = 'Logging…', showLocation = false, initial = null }) {
   const actor = useDefectActor();
   const fileRef = useRef(null);
   const [departments, setDepartments] = useState([]);
   const [crew, setCrew] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     title: '', priority: DefectPriority.MEDIUM, description: '', photos: [],
     deptId: '', assign: 'unassigned', userId: '', affectsGuestAreas: false, safetyRelated: false,
     notify: [], locationFreeText: '',
-  });
+    ...(initial || {}),
+  }));
 
   useEffect(() => {
     if (!actor?.tenantId) return undefined;
@@ -205,7 +206,7 @@ export default function DefectLogForm({ onSubmit, onCancel, submitLabel = 'Log &
       {err && <p className="vmd-err">{err}</p>}
       <div className="vmd-form-actions">
         {onCancel && <button type="button" className="vm-btn-ghost" onClick={onCancel} disabled={busy}>Cancel</button>}
-        <button type="submit" className="vm-btn-primary" disabled={busy} style={{ flex: 1 }}>{busy ? 'Logging…' : submitLabel}</button>
+        <button type="submit" className="vm-btn-primary" disabled={busy} style={{ flex: 1 }}>{busy ? busyLabel : submitLabel}</button>
       </div>
     </form>
   );
