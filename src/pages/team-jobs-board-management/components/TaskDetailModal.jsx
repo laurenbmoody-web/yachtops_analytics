@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -88,7 +89,7 @@ const TaskDetailModal = ({ task, onClose, onComplete, onUpdate, currentUser, use
                 </div>
                 <div className="flex items-center gap-1">
                   <Icon name="Calendar" size={14} />
-                  <span>Due: {new Date(task.dueDate)?.toLocaleDateString('en-GB')} {task?.dueTime}</span>
+                  <span>Due: {new Date(task.dueDate)?.toLocaleDateString(dateLocale())} {task?.dueTime}</span>
                 </div>
                 <div className={`px-2 py-1 rounded text-xs font-medium ${
                   task?.priority === 'high' ? 'bg-error/10 text-error' :

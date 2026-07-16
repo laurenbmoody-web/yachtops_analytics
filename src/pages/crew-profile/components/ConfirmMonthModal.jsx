@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { Checkbox } from '../../../components/ui/Checkbox';
@@ -50,7 +51,7 @@ const ConfirmMonthModal = ({ isOpen, onClose, month, onConfirm }) => {
     onClose();
   };
 
-  const monthDisplay = month?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthDisplay = month?.toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' });
 
   return (
     <>

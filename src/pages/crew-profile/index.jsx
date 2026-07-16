@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
@@ -205,7 +206,7 @@ const SpiceField = ({ value, disabled, onChange }) => {
 // the Preferences section can cross-reference the SAME record (single source).
 const allergiesReadText = (f) => {
   const conf = f?.allergiesConfirmedAt
-    ? ` (confirmed ${new Date(f.allergiesConfirmedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})`
+    ? ` (confirmed ${new Date(f.allergiesConfirmedAt).toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short', year: 'numeric' })})`
     : '';
   switch (f?.allergiesStatus) {
     case 'no_known': return `No known allergies${conf}`;
@@ -1377,7 +1378,7 @@ const canEdit = (() => {
     const headlineQualifier = crewMember?.lastName || 'Profile';
     const tierLabel = crewMember?.effectiveTier ? getTierDisplayName(crewMember?.effectiveTier) : null;
     const sinceLabel = crewMember?.startDate
-      ? new Date(crewMember?.startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+      ? new Date(crewMember?.startDate).toLocaleDateString(dateLocale(), { month: 'short', year: 'numeric' })
       : null;
     const completion = computeProfileCompletion({ formData, crewMember, docs: crewDocs });
     // Profile-completion ring drawn around the avatar (r=52 in a 112 viewBox).
@@ -1550,7 +1551,7 @@ const canEdit = (() => {
       ? [
           passportDoc.document_number ? `••${String(passportDoc.document_number).slice(-4)}` : 'On file',
           passportDoc.expiry_date
-            ? `expires ${new Date(`${String(passportDoc.expiry_date).slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+            ? `expires ${new Date(`${String(passportDoc.expiry_date).slice(0, 10)}T00:00:00`).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}`
             : null,
         ].filter(Boolean).join(' · ')
       : '';
@@ -1654,7 +1655,7 @@ const canEdit = (() => {
               <div className={`cp-static${formData?.dateOfBirth ? '' : ' cp-empty'}`}>
                 {formData?.dateOfBirth ? (
                   <>
-                    {new Date(`${String(formData.dateOfBirth).slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    {new Date(`${String(formData.dateOfBirth).slice(0, 10)}T00:00:00`).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     {dob_age != null && <span className="cp-age-inline">Age {dob_age}</span>}
                   </>
                 ) : '—'}
@@ -1922,7 +1923,7 @@ const canEdit = (() => {
             />
           ) : (
             <div className={`cp-static${v ? '' : ' cp-empty'}`}>
-              {v ? new Date(v).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Not verified'}
+              {v ? new Date(v).toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short', year: 'numeric' }) : 'Not verified'}
               {stale && <span className="cp-stale-flag">⚠ please reverify</span>}
             </div>
           )}
@@ -2505,7 +2506,7 @@ const canEdit = (() => {
       if (!raw) return '';
       const d = new Date(raw);
       if (Number.isNaN(d.getTime())) return '';
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+      return d.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long' });
     })();
 
     const handleSurpriseMe = () => {
@@ -2729,7 +2730,7 @@ const canEdit = (() => {
     );
   };
 
-  const monthLabelFor = (d) => d?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthLabelFor = (d) => d?.toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' });
 
   // Crew submits their own month — opens the sign-off modal; the actual submit
   // runs on confirm, carrying the captured drawn signature + audit trail. In
@@ -2990,7 +2991,7 @@ const canEdit = (() => {
     };
 
     const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(horCurrentMonth);
-    const monthName = horCurrentMonth?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    const monthName = horCurrentMonth?.toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' });
     const calendarData = horData?.calendarData || [];
 
     // Editorial KPI tile tones + month-level aggregates. Presentation only —
@@ -3021,7 +3022,7 @@ const canEdit = (() => {
     // month's last calendar day (todayStr >= last day of the viewed month).
     const lastDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
     const monthComplete = todayStr >= lastDayStr;
-    const monthEndLabel = new Date(year, month, daysInMonth).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const monthEndLabel = new Date(year, month, daysInMonth).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
 
     // Get month status
     const monthStatus = getMonthStatus(crewId, year, month);
@@ -3092,7 +3093,7 @@ const canEdit = (() => {
       
       // Confirm deletion
       const confirmed = window.confirm(
-        `Are you sure you want to delete all work entries for ${new Date(selectedCalendarDate?.date)?.toLocaleDateString('en-GB', {
+        `Are you sure you want to delete all work entries for ${new Date(selectedCalendarDate?.date)?.toLocaleDateString(dateLocale(), {
           day: 'numeric',
           month: 'long',
           year: 'numeric'
@@ -3357,7 +3358,7 @@ const canEdit = (() => {
                 </div>
                 <p className="cp-review-sub">
                   Submitted by {dbMonthStatus?.submit_signed_name || crewMember?.fullName || 'crew'}
-                  {dbMonthStatus?.submitted_at ? ` on ${new Date(dbMonthStatus.submitted_at).toLocaleDateString('en-GB')}` : ''}
+                  {dbMonthStatus?.submitted_at ? ` on ${new Date(dbMonthStatus.submitted_at).toLocaleDateString(dateLocale())}` : ''}
                   {' '}· {monthCompliantPct}% compliant · {breachDayCount} breach day{breachDayCount === 1 ? '' : 's'}.
                 </p>
                 {/* Whole month at a glance — a compliance heat strip: bar height

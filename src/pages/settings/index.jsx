@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
@@ -92,7 +93,7 @@ const VisRow = ({ label, who, whoLabel }) => (
 );
 // "Added 13/07/2026" for a passkey/factor timestamp; empty on a bad date.
 const fmtFactorDate = (iso) => {
-  try { return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+  try { return new Date(iso).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }); }
   catch { return ''; }
 };
 // "Chrome on macOS" from a user-agent string; best-effort, never throws.
@@ -123,7 +124,7 @@ const relTime = (iso) => {
   if (hr < 24) return `${hr}h ago`;
   const d = Math.floor(hr / 24);
   if (d < 30) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const NAV = [
@@ -1144,6 +1145,8 @@ const SettingsPage = () => {
                   </div>
                 </div>
               )}
+              <RowSeg label="Date format" desc="How dates read across Cargo." value={prefs.dateFormat} onChange={(v) => setPref('dateFormat', v)}
+                options={[{ v: 'dmy', l: 'DD/MM/YYYY' }, { v: 'mdy', l: 'MM/DD/YYYY' }]} />
               <RowToggle label="24-hour time" desc="Show 15:42 rather than 3:42 PM." on={prefs.hour24} onChange={() => toggle('hour24')} />
               <RowSeg label="First day of week" value={prefs.firstDay} onChange={(v) => setPref('firstDay', v)}
                 options={[{ v: 'mon', l: 'Mon' }, { v: 'sun', l: 'Sun' }]} />

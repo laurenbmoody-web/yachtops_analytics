@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { Check } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import CrewWeekMatrix from '../crew-rota/CrewWeekMatrix';
@@ -29,7 +30,7 @@ function buildRange(start, end) {
 }
 function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
 function fmtDayLabel(s) {
-  try { return parseLocal(s).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
+  try { return parseLocal(s).toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric', month: 'short' }); }
   catch { return s; }
 }
 

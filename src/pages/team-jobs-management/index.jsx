@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -1836,7 +1837,7 @@ const TeamJobsManagement = () => {
           <div className="flex items-center gap-1 mt-1.5">
             <Icon name="Calendar" size={12} className="text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              {new Date(item?.dueDate)?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+              {new Date(item?.dueDate)?.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' })}
             </span>
           </div>
         )}

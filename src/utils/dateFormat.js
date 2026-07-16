@@ -42,24 +42,45 @@ if (typeof window !== 'undefined') {
   });
 }
 
-/** ISO 'yyyy-mm-dd' (or any Date-parseable value) → 'dd/mm/yyyy'. */
+/** Locale that matches the date-order preference — 'en-GB' (dd/mm) or
+ *  'en-US' (mm/dd). Pass to toLocaleDateString so a display keeps its chosen
+ *  option set (numeric, short-month, weekday…) while the order follows the pref. */
+export const dateLocale = () => (datePref() === 'mdy' ? 'en-US' : 'en-GB');
+
+/** The order the masked date inputs use — for placeholders. */
+export const datePlaceholder = () => (datePref() === 'mdy' ? 'mm/dd/yyyy' : 'dd/mm/yyyy');
+
+/** date-fns display/parse pattern matching the date-order preference. */
+export const dateFnsFormat = () => (datePref() === 'mdy' ? 'MM/dd/yyyy' : 'dd/MM/yyyy');
+
+/** ISO 'yyyy-mm-dd' (or any Date-parseable value) → masked local order
+ *  ('dd/mm/yyyy' or 'mm/dd/yyyy' per the date pref). */
 export const isoToUK = (iso) => {
   if (!iso) return '';
   const s = String(iso).slice(0, 10);
+  let yyyy, mm, dd;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  if (m) { yyyy = m[1]; mm = m[2]; dd = m[3]; }
+  else {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    yyyy = String(d.getFullYear());
+    mm = String(d.getMonth() + 1).padStart(2, '0');
+    dd = String(d.getDate()).padStart(2, '0');
+  }
+  return datePref() === 'mdy' ? `${mm}/${dd}/${yyyy}` : `${dd}/${mm}/${yyyy}`;
 };
 
-/** 'dd/mm/yyyy' → ISO 'yyyy-mm-dd' ('' if incomplete/invalid). */
+/** Masked local order ('dd/mm/yyyy' or 'mm/dd/yyyy' per pref) → ISO
+ *  'yyyy-mm-dd' ('' if incomplete/invalid). Parsing follows the same pref so
+ *  typing in the user's own order round-trips correctly. */
 export const ukToISO = (uk) => {
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(uk || '').trim());
   if (!m) return '';
-  const dd = m[1].padStart(2, '0');
-  const mm = m[2].padStart(2, '0');
   const yyyy = m[3];
+  // First/second field are day/month in DMY, month/day in MDY.
+  const dd = (datePref() === 'mdy' ? m[2] : m[1]).padStart(2, '0');
+  const mm = (datePref() === 'mdy' ? m[1] : m[2]).padStart(2, '0');
   const day = Number(dd);
   const mon = Number(mm);
   if (mon < 1 || mon > 12 || day < 1 || day > 31) return '';
@@ -71,17 +92,15 @@ export const formatDate = (value) => {
   if (!value) return '';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return '';
-  const locale = datePref() === 'mdy' ? 'en-US' : 'en-GB';
-  return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-/** Any date value → 'dd Mon yyyy' (month name order follows the date pref). */
+/** Any date value → 'dd Mon yyyy' (month/day order follows the date pref). */
 export const formatDateLong = (value) => {
   if (!value) return '';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return '';
-  const locale = datePref() === 'mdy' ? 'en-US' : 'en-GB';
-  return d.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 /** Any date value → 'HH:MM' (24h) or 'H:MM am/pm' (12h) per the time pref. */

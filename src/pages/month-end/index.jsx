@@ -10,6 +10,7 @@
 // confirmation, timesheets, certificates, petty cash, inventory).
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import Header from '../../components/navigation/Header';
@@ -67,8 +68,8 @@ export default function MonthEnd() {
   const [cursor, setCursor] = useState(() => new Date());
   const year = cursor.getFullYear();
   const jsMonth = cursor.getMonth();
-  const monthLabel = cursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  const monthName = cursor.toLocaleDateString('en-GB', { month: 'long' });
+  const monthLabel = cursor.toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' });
+  const monthName = cursor.toLocaleDateString(dateLocale(), { month: 'long' });
   const packCount = PLACEHOLDERS.length + 1; // placeholders + the live HOR item
   const liveCount = 1;                        // only Hours of Rest is wired today
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { getComplianceStatus, getMonthCalendarData, detectBreaches } from '../utils/horStorage';
@@ -57,7 +58,7 @@ const CrewHORDrawer = ({ isOpen, onClose, crew, currentMonth, onMonthChange, onN
   };
 
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(localMonth);
-  const monthName = localMonth?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthName = localMonth?.toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' });
 
   return (
     <>

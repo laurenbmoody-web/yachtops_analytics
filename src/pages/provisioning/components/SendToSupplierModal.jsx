@@ -10,6 +10,7 @@
 // an iteration baseline (cream-warm group headers, navy actions).
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import DateInput from '../../../components/ui/DateInput';
@@ -232,7 +233,7 @@ const SendToSupplierModal = ({
     const dt = new Date(`${d}T00:00:00`);
     return Number.isNaN(dt.getTime())
       ? d
-      : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      : dt.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
   };
   const requestedDeliveryLine = (deliveryPort.trim() && deliveryDate.trim())
     ? `Requested delivery: ${fmtReqDate(deliveryDate)} at ${deliveryPort.trim()}. Please confirm or propose alternatives.`

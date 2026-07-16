@@ -13,6 +13,7 @@
 // The drawer's form body is built in Phase 6 (AddVendorForm).
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
 import { useAuth } from '../../../contexts/AuthContext';

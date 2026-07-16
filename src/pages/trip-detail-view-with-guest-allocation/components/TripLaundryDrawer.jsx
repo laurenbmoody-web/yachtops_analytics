@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import useDismissable from '../../../components/ui/useDismissable';
@@ -121,7 +122,7 @@ const TripLaundryDrawer = ({ isOpen, onClose, trip }) => {
     const start = new Date(trip?.startDate);
     const end = new Date(trip?.endDate);
     const options = { month: 'short', day: 'numeric', year: 'numeric' };
-    return `${start?.toLocaleDateString('en-GB', options)} – ${end?.toLocaleDateString('en-GB', options)}`;
+    return `${start?.toLocaleDateString(dateLocale(), options)} – ${end?.toLocaleDateString(dateLocale(), options)}`;
   };
 
   const getTripGuests = () => {

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { Truck, RefreshCw } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { fetchDeliveries } from '../utils/supplierStorage';
 import StatusBadge from '../components/StatusBadge';
 import EmptyState from '../components/EmptyState';
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '—';
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric', month: 'short' }) : '—';
 
 const SupplierDeliveries = () => {
   const { supplier } = useSupplier();

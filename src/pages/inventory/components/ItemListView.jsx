@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import { getCategoryL1ById, getCategoryL2ById } from '../utils/taxonomyStorage';
@@ -116,7 +117,7 @@ const formatExpiryDate = (dateStr) => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d?.getTime())) return '—';
-    return d?.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+    return d?.toLocaleDateString(dateLocale(), { year: 'numeric', month: 'short', day: 'numeric' });
   } catch {
     return '—';
   }

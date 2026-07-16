@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
@@ -354,7 +355,7 @@ const ReadFirstItemDetailView = () => {
                   <div>
                     <p className="text-gray-500">Created</p>
                     <p className="text-gray-900 font-medium">
-                      {new Date(item?.createdAt)?.toLocaleDateString('en-GB')}
+                      {new Date(item?.createdAt)?.toLocaleDateString(dateLocale())}
                     </p>
                   </div>
                 )}
@@ -362,7 +363,7 @@ const ReadFirstItemDetailView = () => {
                   <div>
                     <p className="text-gray-500">Last Updated</p>
                     <p className="text-gray-900 font-medium">
-                      {new Date(item?.updatedAt)?.toLocaleDateString('en-GB')}
+                      {new Date(item?.updatedAt)?.toLocaleDateString(dateLocale())}
                     </p>
                   </div>
                 )}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { fetchInvoiceSignedUrl } from '../utils/provisioningStorage';
 
 // ── OrderCard ──────────────────────────────────────────────────────────────
@@ -126,7 +127,7 @@ export default function OrderCard({
             {order.delivery_date && (
               <>
                 <span className="cargo-order-card-meta-divider" aria-hidden="true" />
-                <span>{new Date(order.delivery_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                <span>{new Date(order.delivery_date).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })}</span>
               </>
             )}
             {order.delivery_port && (
@@ -205,7 +206,7 @@ export default function OrderCard({
         )}
         {order.sent_at && (
           <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-muted)', letterSpacing: '0.04em' }}>
-            Sent {new Date(order.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            Sent {new Date(order.sent_at).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })}
           </span>
         )}
       </div>

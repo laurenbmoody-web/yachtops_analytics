@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
@@ -252,7 +253,7 @@ const TeamJobsBoardManagement = () => {
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Icon name="Calendar" size={12} />
-                        <span>{new Date(card?.dueDate)?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}</span>
+                        <span>{new Date(card?.dueDate)?.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' })}</span>
                       </div>
                     </div>
 

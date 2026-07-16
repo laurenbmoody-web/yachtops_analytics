@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { supabase } from '../../../lib/supabaseClient';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -748,7 +749,7 @@ const CreateProvisioningListModal = ({
                   <option value="">No trip linked</option>
                   {trips.map(t => (
                     <option key={t.id} value={t.id}>
-                      {t.name}{t.startDate ? ` — ${new Date(t.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                      {t.name}{t.startDate ? ` — ${new Date(t.startDate).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
                     </option>
                   ))}
                 </select>

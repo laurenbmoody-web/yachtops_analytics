@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 
 import { crewMembers } from '../data/mockData';
@@ -106,7 +107,7 @@ const BoardView = ({
           <span className="text-xs text-muted-foreground">
             {new Date(item?.dueDate)?.toISOString()?.split('T')?.[0] === todayStr ? 'Today' :
              new Date(item?.dueDate)?.toISOString()?.split('T')?.[0] === tomorrowStr ? 'Tomorrow' :
-             new Date(item?.dueDate)?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+             new Date(item?.dueDate)?.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' })}
           </span>
         </div>
       </div>

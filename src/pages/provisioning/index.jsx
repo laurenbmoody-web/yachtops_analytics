@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -154,7 +155,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, userDept, onCreated, onCancel
   };
 
   const tripDateRange = selectedTrip?.startDate && selectedTrip?.endDate
-    ? `${new Date(selectedTrip.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(selectedTrip.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+    ? `${new Date(selectedTrip.startDate).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })} – ${new Date(selectedTrip.endDate).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })}`
     : null;
 
   // ── Render sub-picker (overlaid inside the card) ─────────────────────────
@@ -580,7 +581,7 @@ const ProvisioningWorkspace = () => {
       .then(d => {
         if (d?.rates) {
           setSummaryFxRates({ GBP: 1, USD: d.rates.USD || 1.27, EUR: d.rates.EUR || 1.17 });
-          const ts = d.date ? new Date(d.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+          const ts = d.date ? new Date(d.date).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }) : '';
           setSummaryFxLabel(ts ? `Rates as of ${ts}` : '');
         }
       })
@@ -1232,7 +1233,7 @@ const ProvisioningWorkspace = () => {
                       <span className="pv-archived-name">{l.title}</span>
                       <span className="pv-archived-meta">
                         {(l.board_type || 'Board')}
-                        {l.archived_at ? ` · archived ${new Date(l.archived_at).toLocaleDateString('en-GB')}` : ''}
+                        {l.archived_at ? ` · archived ${new Date(l.archived_at).toLocaleDateString(dateLocale())}` : ''}
                       </span>
                     </button>
                     <button

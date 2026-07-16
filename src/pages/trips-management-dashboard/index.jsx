@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
@@ -302,7 +303,7 @@ const TripsManagementDashboard = () => {
     const end = new Date(endDate);
     const startOptions = { month: 'short', day: 'numeric' };
     const endOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-    return `${start?.toLocaleDateString('en-GB', startOptions)} — ${end?.toLocaleDateString('en-GB', endOptions)}`;
+    return `${start?.toLocaleDateString(dateLocale(), startOptions)} — ${end?.toLocaleDateString(dateLocale(), endOptions)}`;
   };
 
   // Calculate derived metrics
@@ -359,7 +360,7 @@ const TripsManagementDashboard = () => {
   const formatBadgeDate = (date) => {
     if (!date) return null;
     const day = date?.getDate();
-    const month = date?.toLocaleDateString('en-GB', { month: 'short' })?.toUpperCase();
+    const month = date?.toLocaleDateString(dateLocale(), { month: 'short' })?.toUpperCase();
     return { day, month };
   };
   

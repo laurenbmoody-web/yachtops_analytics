@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
@@ -50,7 +51,7 @@ const VesselHORDashboard = ({ currentMonth, onMonthChange, viewerTier }) => {
 
   const year = currentMonth?.getFullYear();
   const jsMonth = currentMonth?.getMonth();
-  const monthName = currentMonth?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthName = currentMonth?.toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' });
 
   const approverTier = settings?.approverTier || 'COMMAND';
   const canApprove = viewerTier === 'COMMAND' || viewerTier === approverTier;

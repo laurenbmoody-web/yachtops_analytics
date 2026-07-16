@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import {
   createShareLink, fetchShareLinks, revokeShareLink,
@@ -73,7 +74,7 @@ const ShareLinkRow = ({ share, onRevoke }) => {
   const copy = () => navigator.clipboard?.writeText(url).then(() => {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   });
-  const d = (iso) => new Date(iso).toLocaleDateString('en-GB');
+  const d = (iso) => new Date(iso).toLocaleDateString(dateLocale());
 
   return (
     <div className="shm-link-row">

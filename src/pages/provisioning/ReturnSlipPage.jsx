@@ -16,6 +16,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -237,7 +238,7 @@ export default function ReturnSlipPage() {
         }
 
         const rawDate = first.return_requested_at ? new Date(first.return_requested_at) : new Date();
-        setSlipDate(rawDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
+        setSlipDate(rawDate.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long', year: 'numeric' }));
 
         const lastGen = rows
           .map(r => r.return_slip_generated_at)
@@ -712,7 +713,7 @@ export default function ReturnSlipPage() {
                 <img src={supplierConfirmed.signature} alt="Supplier signature" className="di-slip-sig-img" />
                 <p className="di-slip-sig-label">Supplier acknowledgement</p>
                 <p className="di-slip-sig-sub">
-                  {[supplierConfirmed.name, supplierConfirmed.at.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })].filter(Boolean).join(' · ')}
+                  {[supplierConfirmed.name, supplierConfirmed.at.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long', year: 'numeric' })].filter(Boolean).join(' · ')}
                 </p>
               </>
             ) : (
@@ -732,7 +733,7 @@ export default function ReturnSlipPage() {
               <CheckIcon />
               <span>
                 This return has been confirmed by <strong>{supplierConfirmed.name}</strong> on{' '}
-                {supplierConfirmed.at.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.
+                {supplierConfirmed.at.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long', year: 'numeric' })}.
                 The slip is now read-only.
               </span>
             </div>
@@ -854,8 +855,8 @@ export default function ReturnSlipPage() {
                         {supplierOrdersForPicker.map((o) => {
                           const shortId = o.id.slice(0, 8).toUpperCase();
                           const dateLabel = o.delivery_date
-                            ? new Date(o.delivery_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                            : new Date(o.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                            ? new Date(o.delivery_date).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
+                            : new Date(o.created_at).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
                           return (
                             <option key={o.id} value={o.id}>
                               Order #{shortId} · {dateLabel} · {o.item_count} item{o.item_count === 1 ? '' : 's'}{o.status === 'confirmed' ? ' · confirmed' : ''}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { formatTime } from '../../utils/dateFormat';
+import {formatTime, dateLocale } from '../../utils/dateFormat';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import { useTenant } from '../../contexts/TenantContext';
@@ -48,7 +48,7 @@ const fmtWhen = (d) => {
   const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
   if (days === 0) return fmtClock(d);
   if (days === 1) return 'Yesterday';
-  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  return new Date(d).toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short' });
 };
 const fmtAge = (d) => {
   if (!d) return '';
@@ -62,7 +62,7 @@ const dayLabel = (d) => {
   const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86400000);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
-  return new Date(d).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
+  return new Date(d).toLocaleDateString(dateLocale(), { weekday: 'long', day: '2-digit', month: 'long' });
 };
 
 // Crew quick-replies — useful openers for talking to a supplier.

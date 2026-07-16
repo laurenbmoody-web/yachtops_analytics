@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import { getCurrentUser, getAllUsers } from '../../../utils/authStorage';
 import { getDefectById, updateDefect, addDefectComment, addDefectPhoto, canEditDefect, canAssignDefect, canChangeDefectStatus, canCloseDefect, DefectStatus, DefectPriority } from '../utils/defectsStorage';
@@ -158,7 +159,7 @@ const DefectDetailView = ({ defect: initialDefect, onClose, onUpdate }) => {
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date?.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return date?.toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
   
   const getAssignedUserName = (userId) => {

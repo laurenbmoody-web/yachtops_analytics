@@ -8,6 +8,7 @@
 // directory on next load.
 
 import React, { useEffect, useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
 import { fetchArchivedVendors, restoreVendor } from '../utils/provisioningStorage';
@@ -24,7 +25,7 @@ const formatArchivedAt = (iso) => {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 const ArchivedVendorsView = () => {

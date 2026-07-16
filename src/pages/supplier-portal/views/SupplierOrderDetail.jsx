@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { formatTime } from '../../../utils/dateFormat';
+import {formatTime, dateLocale } from '../../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem, markVesselApprovedSeen, supplierRequestLineReopen } from '../utils/supplierStorage';
 import { fetchReturnTasksByOrderId, fetchReturnTasksCountForOrder, acknowledgeSupplierReturnTask, completeSupplierReturnTask } from '../utils/supplierReturnTasks';
@@ -75,7 +75,7 @@ const safeDate = (d) => {
 // "Thursday"
 const fmtWeekday = (d) => {
   const dt = safeDate(d);
-  return dt ? dt.toLocaleDateString('en-GB', { weekday: 'long' }) : null;
+  return dt ? dt.toLocaleDateString(dateLocale(), { weekday: 'long' }) : null;
 };
 
 // "7"
@@ -87,14 +87,14 @@ const fmtDay = (d) => {
 // "May"
 const fmtMonth = (d) => {
   const dt = safeDate(d);
-  return dt ? dt.toLocaleDateString('en-GB', { month: 'short' }) : null;
+  return dt ? dt.toLocaleDateString(dateLocale(), { month: 'short' }) : null;
 };
 
 // "25 Apr · 09:14"
 const fmtTimestamp = (d) => {
   const dt = safeDate(d);
   if (!dt) return null;
-  const date = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const date = dt.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
   const time = formatTime(dt);
   return `${date} · ${time}`;
 };
@@ -691,7 +691,7 @@ const Timeline = ({ order, items }) => {
     // Future delivery step shows the planned date (dd/mm/yyyy) when we have one.
     if (TIMELINE_STEPS[idx].key === 'delivered' && order.delivery_date) {
       const dt = safeDate(order.delivery_date);
-      return dt ? dt.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+      return dt ? dt.toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
     }
     return '—';
   };
@@ -1740,7 +1740,7 @@ const YachtClientCard = ({ order }) => {
   const sizeM = order.yacht_size_m;
   const homePort = order.yacht_home_port;
   const since = safeDate(order.client_since);
-  const sinceLabel = since ? since.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : null;
+  const sinceLabel = since ? since.toLocaleDateString(dateLocale(), { month: 'short', year: 'numeric' }) : null;
 
   const specParts = [
     sizeM ? `${sizeM}m` : null,

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { showToast } from '../../../utils/toast';
@@ -36,7 +37,7 @@ const LockMonthModal = ({ isOpen, onClose, month, onLock }) => {
     }
   };
 
-  const monthDisplay = month?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthDisplay = month?.toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' });
 
   return (
     <>

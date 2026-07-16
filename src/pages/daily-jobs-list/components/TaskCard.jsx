@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 
@@ -25,7 +26,7 @@ const TaskCard = ({ task, userId, isChiefStew, getCrewMember, onComplete }) => {
 
     if (dueDateStr === todayStr) return { text: 'Today', color: 'text-red-600' };
     if (dueDateStr === tomorrowStr) return { text: 'Tomorrow', color: 'text-amber-600' };
-    return { text: dueDate?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }), color: 'text-muted-foreground' };
+    return { text: dueDate?.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' }), color: 'text-muted-foreground' };
   };
 
   const dueIndicator = getDueIndicator();

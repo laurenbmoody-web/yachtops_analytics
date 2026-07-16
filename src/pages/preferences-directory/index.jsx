@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -210,7 +211,7 @@ const PreferencesDirectory = () => {
     if (diffDays < 7) return `Updated ${diffDays} days ago`;
     if (diffDays < 30) return `Updated ${Math.floor(diffDays / 7)} weeks ago`;
     
-    return `Updated ${date?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    return `Updated ${date?.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric', year: 'numeric' })}`;
   };
 
   // Filter guests based on search and filters

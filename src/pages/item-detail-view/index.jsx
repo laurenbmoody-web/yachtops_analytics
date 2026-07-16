@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
@@ -335,13 +336,13 @@ const ItemDetailView = () => {
                 {item?.createdAt && (
                   <div>
                     <span className="font-medium">Created:</span>{' '}
-                    {new Date(item?.createdAt)?.toLocaleDateString('en-GB')}
+                    {new Date(item?.createdAt)?.toLocaleDateString(dateLocale())}
                   </div>
                 )}
                 {item?.updatedAt && (
                   <div>
                     <span className="font-medium">Updated:</span>{' '}
-                    {new Date(item?.updatedAt)?.toLocaleDateString('en-GB')}
+                    {new Date(item?.updatedAt)?.toLocaleDateString(dateLocale())}
                   </div>
                 )}
               </div>
