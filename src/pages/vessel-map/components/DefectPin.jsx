@@ -52,7 +52,7 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
   const [newComment, setNewComment] = useState('');
   const [departments, setDepartments] = useState([]);
   const [crew, setCrew] = useState([]);
-  const [form, setForm] = useState({ title: '', priority: DefectPriority.MEDIUM, description: '', photos: [], deptId: '', assign: 'unassigned', userId: '', affectsGuestAreas: false, safetyRelated: false });
+  const [form, setForm] = useState({ title: '', priority: DefectPriority.MEDIUM, description: '', photos: [], deptId: '', assign: 'unassigned', userId: '', affectsGuestAreas: false, safetyRelated: false, notify: [] });
 
   const locationLabel = useMemo(() => {
     const trail = (containerTrail || []).map((c) => c?.name || c).filter(Boolean);
@@ -101,6 +101,17 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
     return ai - bi || (a?.fullName || '').localeCompare(b?.fullName || '');
   });
 
+  // "Also notify" — anyone on the vessel (so a stew can CC the Chief Stew on an
+  // Engineering defect). Excludes the assignee and anyone already added.
+  const notifyCandidates = crew
+    .filter((c) => c?.id !== form.userId && !form.notify.some((n) => n.id === c.id))
+    .sort((a, b) => (a?.fullName || '').localeCompare(b?.fullName || ''));
+  const addNotify = (id) => {
+    const c = crew.find((x) => x?.id === id);
+    if (c) setForm((f) => ({ ...f, notify: [...f.notify, { id: c.id, name: c.fullName }] }));
+  };
+  const removeNotify = (id) => setForm((f) => ({ ...f, notify: f.notify.filter((n) => n.id !== id) }));
+
   const onPickPhoto = (e) => {
     const files = Array.from(e?.target?.files || []);
     e.target.value = '';
@@ -136,6 +147,7 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
       affectsGuestAreas: form.affectsGuestAreas,
       safetyRelated: form.safetyRelated,
       photos: form.photos,
+      notifyUsers: form.notify,
     }, actor);
     if (created) { setDefect(created); setComments([]); onTitled?.(created.title); onChanged?.(); }
   });
@@ -175,23 +187,33 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
       { k: 'team', icon: 'Users', title: 'Whole team' },
       { k: 'user', icon: 'User', title: 'A person' },
     ];
+    const PRIORITIES = [
+      { k: 'Low', title: 'Low' }, { k: 'Medium', title: 'Medium' },
+      { k: 'High', title: 'High' }, { k: 'Critical', title: 'Critical' },
+    ];
     return (
       <div className="vmd">
         <form className="vmd-form" onSubmit={(e) => { e.preventDefault(); handleLog(); }}>
+          {/* Title + priority on one row. */}
           <div className="vmd-field">
             <label className="vmd-lbl">Title<span className="req">required</span></label>
-            <input className="vmd-input" value={form.title} autoFocus
-              onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Cracked porthole seal" />
+            <div className="vmd-title-row">
+              <input className="vmd-input" value={form.title} autoFocus
+                onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Cracked porthole seal" />
+              <div className="vmd-prio" role="radiogroup" aria-label="Priority">
+                {PRIORITIES.map((p) => (
+                  <button type="button" key={p.k} role="radio" aria-checked={form.priority === p.k}
+                    title={`${p.title} priority`} aria-label={`${p.title} priority`}
+                    className={`vmd-prio-dot p-${p.k}${form.priority === p.k ? ' on' : ''}`}
+                    onClick={() => setForm({ ...form, priority: p.k })} />
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="vmd-row">
-            <div className="vmd-field">
-              <label className="vmd-lbl">Priority</label>
-              <select className="vmd-select" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                {Object.values(DefectPriority).map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div className="vmd-field">
+          {/* Department + assign icons on one row. */}
+          <div className="vmd-deptrow">
+            <div className="vmd-field" style={{ flex: 1 }}>
               <label className="vmd-lbl">Department</label>
               <select className="vmd-select" value={form.deptId}
                 onChange={(e) => setForm({ ...form, deptId: e.target.value, userId: '' })}>
@@ -199,10 +221,6 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
                 {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
-          </div>
-
-          {/* Assign + flags share one row of compact icon buttons. */}
-          <div className="vmd-af">
             <div className="vmd-af-group">
               <label className="vmd-lbl">Assign</label>
               <div className="vmd-iconset">
@@ -213,21 +231,6 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
                     <Icon name={a.icon} size={16} />
                   </button>
                 ))}
-              </div>
-            </div>
-            <div className="vmd-af-group">
-              <label className="vmd-lbl">Flags</label>
-              <div className="vmd-iconset">
-                <button type="button" title="Affects guest areas" aria-label="Affects guest areas"
-                  className={`vmd-iconbtn${form.affectsGuestAreas ? ' on' : ''}`}
-                  onClick={() => setForm({ ...form, affectsGuestAreas: !form.affectsGuestAreas })}>
-                  <Icon name="Sofa" size={16} />
-                </button>
-                <button type="button" title="Safety-related" aria-label="Safety-related"
-                  className={`vmd-iconbtn${form.safetyRelated ? ' on' : ''}`}
-                  onClick={() => setForm({ ...form, safetyRelated: !form.safetyRelated })}>
-                  <Icon name="ShieldAlert" size={16} />
-                </button>
               </div>
             </div>
           </div>
@@ -241,6 +244,41 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
           {form.assign === 'team' && (
             <p className="vmd-comment-empty">Everyone in {dName || 'the department'} is notified — first to accept owns it.</p>
           )}
+
+          {/* Also notify — anyone on the vessel (e.g. CC the Chief Stew). */}
+          <div className="vmd-field">
+            <label className="vmd-lbl">Also notify<span className="req" style={{ color: '#AEB4C2' }}>optional</span></label>
+            {form.notify.length > 0 && (
+              <div className="vmd-chips">
+                {form.notify.map((n) => (
+                  <span className="vmd-notify-chip" key={n.id}>{n.name}
+                    <button type="button" onClick={() => removeNotify(n.id)} aria-label={`Remove ${n.name}`}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <select className="vmd-select" value="" onChange={(e) => { if (e.target.value) addNotify(e.target.value); e.target.value = ''; }}>
+              <option value="">Add someone to notify…</option>
+              {notifyCandidates.map((c) => <option key={c.id} value={c.id}>{c.fullName}{c.department ? ` · ${c.department}` : ''}</option>)}
+            </select>
+          </div>
+
+          {/* Flags — icon buttons that expand to their label on hover. */}
+          <div className="vmd-field">
+            <label className="vmd-lbl">Flags</label>
+            <div className="vmd-flagset">
+              <button type="button" title="Affects guest areas" aria-label="Affects guest areas"
+                className={`vmd-flagbtn${form.affectsGuestAreas ? ' on' : ''}`}
+                onClick={() => setForm({ ...form, affectsGuestAreas: !form.affectsGuestAreas })}>
+                <Icon name="Sofa" size={16} /><span className="vmd-flag-label">Guest area</span>
+              </button>
+              <button type="button" title="Safety-related" aria-label="Safety-related"
+                className={`vmd-flagbtn${form.safetyRelated ? ' on' : ''}`}
+                onClick={() => setForm({ ...form, safetyRelated: !form.safetyRelated })}>
+                <Icon name="ShieldAlert" size={16} /><span className="vmd-flag-label">Safety-related</span>
+              </button>
+            </div>
+          </div>
 
           <div className="vmd-field">
             <label className="vmd-lbl">Photos<span className="req" style={{ color: '#AEB4C2' }}>optional</span></label>

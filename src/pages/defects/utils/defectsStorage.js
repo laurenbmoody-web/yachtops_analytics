@@ -24,6 +24,7 @@ import {
   notifySenderAccepted,
   notifySenderDeclined,
   notifyDefectAssigned,
+  notifyDefectWatchers,
 } from './defectsNotifications';
 
 // ── Enums (unchanged public API) ─────────────────────────────────────────────
@@ -148,6 +149,7 @@ const fromRow = (r) => {
     hotspotId: r.hotspot_id,
     locationNodeId: r.location_node_id,
     photos: Array.isArray(r.photos) ? r.photos : [],
+    notifyUsers: Array.isArray(r.notify_user_ids) ? r.notify_user_ids : [],
     isArchivedBySender: r.is_archived_by_sender,
     archivedAt: r.archived_at,
     deletedAt: r.deleted_at,
@@ -249,6 +251,7 @@ export const createDefect = async (defectData, actor) => {
     hotspot_id: defectData?.hotspotId || null,
     location_node_id: defectData?.locationNodeId || null,
     photos: Array.isArray(defectData?.photos) ? defectData.photos : [],
+    notify_user_ids: Array.isArray(defectData?.notifyUsers) ? defectData.notifyUsers : [],
   };
 
   const { data, error } = await supabase?.from('defects')?.insert(insertRow)?.select('*')?.single();
@@ -282,6 +285,9 @@ export const createDefect = async (defectData, actor) => {
       const members = await resolveDepartmentMemberIds(actor.tenantId, teamDeptId);
       await notifyDefectAssigned(actor, members.map((m) => m.userId), defect.title, defect.id, defect.dueDate);
     }
+    // Extra "also notify" watchers (e.g. the Chief Stew on an Engineering defect).
+    const watchers = (insertRow.notify_user_ids || []).map((w) => w?.id).filter(Boolean);
+    if (watchers.length) await notifyDefectWatchers(actor, watchers, defect.title, defect.id);
   }
 
   return defect;
