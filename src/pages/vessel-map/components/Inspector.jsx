@@ -11,6 +11,8 @@ import PinPayload from './PinPayload';
 import PinItems from './PinItems';
 import DefectPinSummary from './DefectPinSummary';
 import DefectModal from './DefectModal';
+import { useDefectActor } from '../../defects/utils/useDefectActor';
+import { getDefectByHotspot } from '../../defects/utils/defectsStorage';
 import { uploadInteriorPhoto } from '../utils/photoUpload';
 
 // The container's "inside" — prompt to photograph the interior, then (next
@@ -110,7 +112,23 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
   const [deleteError, setDeleteError] = useState(null);
   const [defectModalOpen, setDefectModalOpen] = useState(false);
   const [defectReload, setDefectReload] = useState(0);
+  const [pinHasDefect, setPinHasDefect] = useState(false);
+  const defectActor = useDefectActor();
   const closeTimer = useRef(null);
+
+  // Does this defect pin already carry a logged defect? If so, lock down the
+  // pin-editing controls (layer / container) so the defect link can't be lost.
+  useEffect(() => {
+    let live = true;
+    setPinHasDefect(false);
+    if (hotspot?.layer === 'defect' && hotspot?.id && defectActor?.tenantId) {
+      (async () => {
+        const d = await getDefectByHotspot(hotspot.id, defectActor);
+        if (live) setPinHasDefect(!!d);
+      })();
+    }
+    return () => { live = false; };
+  }, [hotspot?.id, hotspot?.layer, defectActor?.tenantId, defectReload]);
 
   useEffect(() => {
     if (hotspot) {
@@ -159,6 +177,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
   const dangerActions = canManage && (
     <div className="vm-insp-danger">
       {deleteError && <p className="vm-insp-error">{deleteError}</p>}
+      {confirming && pinHasDefect && <p className="vm-insp-note">The defect stays in Defects — only the map pin is removed.</p>}
       <div className="vm-insp-actions-row">
         {!shown.parent_id && (
           <button className="vm-btn-ghost vm-insp-adjust" onClick={() => onAdjust?.(shown)}>
@@ -202,32 +221,43 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
                 onChange={(e) => { setNameDraft(e.target.value); onRename?.(shown.id, e.target.value); }}
               />
             )}
-            <div className="vm-swatch-row" role="radiogroup" aria-label="Category">
-              {LAYERS.map((l) => {
-                const on = (shown.layer || 'general') === l.key;
-                return (
-                  <button
-                    key={l.key}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    title={l.label}
-                    className={`vm-swatch${on ? ' on' : ''}`}
-                    style={{ background: l.color, color: l.color }}
-                    onClick={() => onRelayer?.(shown.id, l.key)}
-                  />
-                );
-              })}
-              <span className="vm-swatch-name">{layerLabel(shown.layer)}</span>
-            </div>
-            <label className={`vm-ct${shown.is_container ? ' on' : ''}`}>
-              <input type="checkbox" checked={!!shown.is_container} onChange={(e) => onToggleContainer?.(shown.id, e.target.checked)} />
-              <span className="vm-ct-switch" aria-hidden="true" />
-              <span className="vm-ct-text">
-                <span className="vm-ct-title">Other pins live inside this one</span>
-                <span className="vm-ct-sub">{shown.is_container ? 'Opens a photo of the inside where you place pins' : 'Off — just this one pin, nothing inside it'}</span>
+            {shown.layer === 'defect' && pinHasDefect ? (
+              // A defect is logged on this pin — lock the type/container controls
+              // so the defect link can't be changed away by accident.
+              <span className="vm-pill vm-pill-static" style={{ marginTop: 4 }}>
+                <span className="vm-pill-dot" style={{ background: layerColor('defect') }} />
+                Defect pin · locked
               </span>
-            </label>
+            ) : (
+              <>
+                <div className="vm-swatch-row" role="radiogroup" aria-label="Category">
+                  {LAYERS.map((l) => {
+                    const on = (shown.layer || 'general') === l.key;
+                    return (
+                      <button
+                        key={l.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        title={l.label}
+                        className={`vm-swatch${on ? ' on' : ''}`}
+                        style={{ background: l.color, color: l.color }}
+                        onClick={() => onRelayer?.(shown.id, l.key)}
+                      />
+                    );
+                  })}
+                  <span className="vm-swatch-name">{layerLabel(shown.layer)}</span>
+                </div>
+                <label className={`vm-ct${shown.is_container ? ' on' : ''}`}>
+                  <input type="checkbox" checked={!!shown.is_container} onChange={(e) => onToggleContainer?.(shown.id, e.target.checked)} />
+                  <span className="vm-ct-switch" aria-hidden="true" />
+                  <span className="vm-ct-text">
+                    <span className="vm-ct-title">Other pins live inside this one</span>
+                    <span className="vm-ct-sub">{shown.is_container ? 'Opens a photo of the inside where you place pins' : 'Off — just this one pin, nothing inside it'}</span>
+                  </span>
+                </label>
+              </>
+            )}
           </>
         ) : (
           <>

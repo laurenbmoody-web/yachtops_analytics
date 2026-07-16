@@ -632,6 +632,12 @@
     border-radius: 8px;
     padding: 8px 12px;
   }
+  .vm-insp-note {
+    margin: 0 0 8px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: #8B8478;
+  }
   .vm-insp-confirm { display: flex; gap: 8px; }
   .vm-insp-delete {
     background: none;
