@@ -1207,7 +1207,7 @@ const SettingsPage = () => {
               />
               <RowSeg
                 label="Text size"
-                desc="Enlarge text across most of the app."
+                desc="Scale everything up for easier reading."
                 value={prefs.textSize}
                 onChange={(v) => { setPref('textSize', v); applyTextSize(v); }}
                 options={[{ v: 'default', l: 'Default' }, { v: 'large', l: 'Large' }]}
