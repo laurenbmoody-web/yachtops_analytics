@@ -11,6 +11,7 @@ import { loadUsers, UserStatus } from '../../../utils/authStorage';
 import { useTenant } from '../../../contexts/TenantContext';
 import { loadOnboardCrew } from '../utils/onboardCrew';
 import { getGuestLaundryNotes } from '../utils/laundryPrefs';
+import { readCareLabel } from '../utils/careLabel';
 import ModalShell from '../../../components/ui/ModalShell';
 
 const availableTags = availableLaundryTags;
@@ -81,6 +82,23 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
   const [knownCustomTags, setKnownCustomTags] = useState([]); // reused, tenant-scoped
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const careInputRef = useRef(null);
+  const [careBusy, setCareBusy] = useState(false);
+  const [careResult, setCareResult] = useState(null);
+  const [careError, setCareError] = useState('');
+
+  const onCareFile = async (e) => {
+    const file = e?.target?.files?.[0];
+    if (e?.target) e.target.value = '';
+    if (!file) return;
+    setCareBusy(true); setCareError(''); setCareResult(null);
+    try { setCareResult(await readCareLabel(file)); }
+    catch (err) { setCareError(err?.message || 'Could not read the label.'); }
+    finally { setCareBusy(false); }
+  };
+  const applyCareTags = () => {
+    setFormData((prev) => ({ ...prev, tags: [...new Set([...(prev.tags || []), ...((careResult?.tags) || [])])] }));
+  };
 
   const [activeGuests, setActiveGuests] = useState([]);
   const [guestSearchQuery, setGuestSearchQuery] = useState(() => (editItem && editItem.ownerType !== 'crew' ? (editItem.ownerDisplayName || editItem.ownerName || '') : ''));
@@ -559,6 +577,32 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
             </div>
           </>
         )}
+
+        {/* Care-label assistant */}
+        <div className="alm-section">
+          <label className="alm-label">Care label <span className="alm-opt">AI assist</span></label>
+          <input ref={careInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onCareFile} />
+          <button type="button" className="alm-carebtn" onClick={() => careInputRef.current?.click()} disabled={careBusy}>
+            <Icon name="ScanLine" size={15} /> {careBusy ? 'Reading the label…' : 'Snap the care label'}
+          </button>
+          {careError && <div className="alm-err">{careError}</div>}
+          {careResult && (
+            <div className="alm-care-res">
+              {careResult.summary && <div className="alm-care-sum">{careResult.summary}</div>}
+              {careResult.warnings.length > 0 && (
+                <ul className="alm-care-warn">{careResult.warnings.map((w, i) => <li key={i}><Icon name="AlertTriangle" size={12} /> {w}</li>)}</ul>
+              )}
+              {careResult.instructions.length > 0 && (
+                <ul className="alm-care-list">{careResult.instructions.map((w, i) => <li key={i}>{w}</li>)}</ul>
+              )}
+              {careResult.tags.length > 0 && (
+                <button type="button" className="alm-btn outline" onClick={applyCareTags}>
+                  <Icon name="Plus" size={13} /> Add {careResult.tags.map(formatLaundryTag).join(', ')}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Tags */}
         <div className="alm-section">
