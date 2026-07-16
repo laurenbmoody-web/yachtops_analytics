@@ -143,7 +143,9 @@
 .cm-page .msg-sw-fg.dragging { transition: background 0.12s, box-shadow 0.12s; }
 .cm-page .msg-sw-fg:hover:not(.on):not(.dragging) { background: #fff; }
 .cm-page .msg-sw-fg.on { background: var(--card); box-shadow: inset 3px 0 0 var(--orange); cursor: default; }
-.cm-page .msg-sw-fg.arch { opacity: 0.62; }
+/* Archived: fade the contents, not the row — the row background must stay
+   opaque so the swipe action rail behind it never bleeds through. */
+.cm-page .msg-sw-fg.arch > * { opacity: 0.55; }
 
 /* Desktop hover-reveal — compact action cluster over the row's right edge.
    Mouse users never need to know to drag; touch users still swipe. */
