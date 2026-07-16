@@ -26,3 +26,27 @@ export async function enrichWithAvatars(items) {
     avatarUrl: i.ownerGuestId ? (gMap[i.ownerGuestId] || null) : (i.ownerCrewUserId ? (cMap[i.ownerCrewUserId] || null) : null),
   }));
 }
+
+// Attach the crew member who took each piece to "delivered": handledById /
+// handledByName (from the delivery-credits map) + handlerAvatarUrl (profiles).
+export async function attachHandlers(items, credits) {
+  const list = items || [];
+  const withCredit = list.map((i) => {
+    const c = credits?.[i.id];
+    return c ? { ...i, handledById: c.actorId, handledByName: c.actorName } : i;
+  });
+  const ids = [...new Set(withCredit.filter((i) => i.handledById).map((i) => i.handledById))];
+  if (!ids.length) return withCredit;
+  const map = {};
+  try {
+    const { data } = await supabase.from('profiles').select('id, avatar_url, full_name').in('id', ids);
+    (data || []).forEach((r) => { map[r.id] = { avatar: r.avatar_url || null, name: r.full_name || null }; });
+  } catch (e) {
+    return withCredit;
+  }
+  return withCredit.map((i) => (i.handledById ? {
+    ...i,
+    handlerAvatarUrl: map[i.handledById]?.avatar || null,
+    handledByName: i.handledByName || map[i.handledById]?.name || null,
+  } : i));
+}

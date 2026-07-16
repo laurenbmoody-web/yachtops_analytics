@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
-import { loadAllLaundryItems } from '../laundry-management-dashboard/utils/laundryStorage';
+import { loadAllLaundryItems, getDeliveryCredits } from '../laundry-management-dashboard/utils/laundryStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
-import { enrichWithAvatars } from '../laundry-management-dashboard/utils/laundryAvatars';
+import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
 import { buildLogbook, initials } from '../laundry-management-dashboard/utils/laundryLogbook';
 import { downloadLaundryCsv } from '../laundry-management-dashboard/utils/laundryExport';
 import { LaundryStatus } from '../laundry-management-dashboard/utils/laundryStorage';
@@ -77,6 +77,15 @@ const Chapter = ({ p, active, onClick }) => {
   );
 };
 
+// clock hand endpoints for an average duration in minutes (12h face, up = 12)
+const clockHands = (min) => {
+  if (min == null || !isFinite(min)) return null;
+  const pt = (ang, L) => [(50 + L * Math.sin(ang * Math.PI / 180)).toFixed(1), (50 - L * Math.cos(ang * Math.PI / 180)).toFixed(1)];
+  const [mx, my] = pt((min % 60) / 60 * 360, 30);
+  const [hx, hy] = pt(((min / 60) % 12) / 12 * 360, 20);
+  return { mx, my, hx, hy };
+};
+
 const Detail = ({ p, onExport }) => {
   const [open, setOpen] = useState(null);
   const [openDay, setOpenDay] = useState(null);
@@ -88,12 +97,9 @@ const Detail = ({ p, onExport }) => {
     : p.type === 'offcharter' ? ['Off-charter', 'No guests aboard'] : [];
   const title = p.type === 'offcharter' ? p.dates : p.name; // voyage → bare trip name
   const peopleLbl = p.type === 'crew' ? 'Crew — every period' : p.type === 'offcharter' ? 'Crew & vessel — this period' : 'Per guest — this voyage';
-  const metrics = [
-    { v: p.cleaned, l: 'Cleaned' },
-    { v: p.avg, l: 'Avg turnaround' },
-    { v: p.kpiA[0], l: p.kpiA[1] },
-    { v: p.kpiB[0], l: p.kpiB[1] },
-  ];
+  const hands = clockHands(p.avgMin);
+  const care = p.care || { bars: [], other: null };
+  const careMax = care.bars[0]?.count || 1;
   return (
     <div className="lb-trip">
       <div className="lb-hero">
@@ -118,13 +124,56 @@ const Detail = ({ p, onExport }) => {
             </button>
           )}
         </div>
-        <div className="lb-figs">
-          {metrics.map((k, i) => (
-            <div className={`lb-fig${i === 0 ? ' lede' : ''}`} key={i}>
-              <b className="tnum">{k.v}</b>
-              <span className="lb-fig-l">{k.l}</span>
+
+        <div className="lb-info">
+          <div className="lb-i">
+            <span className="lb-il">Avg turnaround</span>
+            <div className="lb-clock">
+              <svg viewBox="0 0 100 100" aria-label={`Average turnaround ${p.avg}`}>
+                <circle cx="50" cy="50" r="40" fill="#FDFCFA" stroke="#ECECEE" strokeWidth="2" />
+                <g stroke="#CFCFD6" strokeWidth="2" strokeLinecap="round">
+                  <line x1="50" y1="13" x2="50" y2="19" /><line x1="87" y1="50" x2="81" y2="50" /><line x1="50" y1="87" x2="50" y2="81" /><line x1="13" y1="50" x2="19" y2="50" />
+                </g>
+                {hands && <>
+                  <line x1="50" y1="50" x2={hands.hx} y2={hands.hy} stroke="#1C1B3A" strokeWidth="3.2" strokeLinecap="round" />
+                  <line x1="50" y1="50" x2={hands.mx} y2={hands.my} stroke="#C65A1A" strokeWidth="2.6" strokeLinecap="round" />
+                </>}
+                <circle cx="50" cy="50" r="3.4" fill="#C65A1A" />
+              </svg>
+              <div><div className="lb-cv tnum">{p.avg}</div><div className="lb-cu">{hands ? 'per piece' : 'no data yet'}</div></div>
             </div>
-          ))}
+          </div>
+
+          {(p.team || []).length > 0 && (
+            <div className="lb-i grow">
+              <span className="lb-il">Interior team · who handled it</span>
+              <div className="lb-team">
+                {p.team.slice(0, 4).map((m) => (
+                  <div className="lb-mem" key={m.key}>
+                    <span className={`lr-av ${m.avatarUrl ? '' : 'crew'} lb-mav`}>{m.avatarUrl ? <img src={m.avatarUrl} alt="" /> : initials(m.name)}</span>
+                    <span className="lb-mn">{m.name}</span>
+                    <span className="lb-mc tnum">{m.count}<small>pcs</small></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {care.bars.length > 0 && (
+            <div className="lb-i grow">
+              <span className="lb-il">By care type</span>
+              <div className="lb-plot">
+                {care.bars.map((c, i) => (
+                  <div className={`lb-col${c.other ? ' other' : ''}`} key={i}>
+                    <span className="lb-cvv tnum">{c.count}</span>
+                    <span className="lb-trk"><span className="lb-fill" style={{ height: `${Math.max(8, Math.round((c.count / careMax) * 100))}%` }} /></span>
+                  </div>
+                ))}
+              </div>
+              <div className="lb-xrow">{care.bars.map((c, i) => <span key={i}>{c.label}</span>)}</div>
+              {care.other && <div className="lb-chint"><b>Other</b> · {care.other.names.join(', ')}</div>}
+            </div>
+          )}
         </div>
       </div>
 
@@ -285,8 +334,8 @@ const LaundryHistoryView = () => {
     let cancelled = false;
     (async () => {
       try {
-        const [raw, trips] = await Promise.all([loadAllLaundryItems(), loadTrips().catch(() => [])]);
-        const enriched = await enrichWithAvatars(raw);
+        const [raw, trips, credits] = await Promise.all([loadAllLaundryItems(), loadTrips().catch(() => []), getDeliveryCredits().catch(() => ({}))]);
+        const enriched = await attachHandlers(await enrichWithAvatars(raw), credits);
         if (cancelled) return;
         const b = buildLogbook(trips, enriched, new Date());
         setBook(b); setItems(enriched);

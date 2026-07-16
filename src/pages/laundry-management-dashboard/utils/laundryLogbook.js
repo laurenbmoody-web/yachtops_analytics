@@ -5,7 +5,7 @@
 // The history page loads this per-vessel; it never streams "every item" into a
 // live view — periods are computed once and rendered on demand.
 
-import { LaundryStatus, LaundryPriority } from './laundryStorage';
+import { LaundryStatus, LaundryPriority, LaundryTagLabels } from './laundryStorage';
 
 const MIN = 60000;
 const pad = (n) => String(n).padStart(2, '0');
@@ -78,6 +78,38 @@ function summarise(items) {
   return { total: items.length, cleaned: delivered, avg: fmtDur(avgTurnaround(items)), cabins };
 }
 
+// interior team — who took each delivered piece to "delivered", ranked by count
+function teamFrom(items) {
+  const map = new Map();
+  for (const it of items) {
+    if (it.status !== LaundryStatus.DELIVERED) continue;
+    const key = it.handledById || it.handledByName;
+    if (!key) continue;
+    if (!map.has(key)) map.set(key, { key, name: it.handledByName || 'Crew', avatarUrl: it.handlerAvatarUrl || null, count: 0 });
+    const m = map.get(key);
+    m.count += 1;
+    if (!m.avatarUrl && it.handlerAvatarUrl) m.avatarUrl = it.handlerAvatarUrl;
+  }
+  return [...map.values()].sort((a, b) => b.count - a.count);
+}
+
+// care-type tally → top 5 + hatched "Other" (never more than six bars)
+function careFrom(items) {
+  const map = new Map();
+  for (const it of items) {
+    for (const t of (it.tags || [])) {
+      const label = LaundryTagLabels[t] || t;
+      if (label) map.set(label, (map.get(label) || 0) + 1);
+    }
+  }
+  const all = [...map.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count);
+  if (all.length <= 6) return { bars: all, other: null };
+  const top = all.slice(0, 5);
+  const rest = all.slice(5);
+  const other = { count: rest.reduce((s, x) => s + x.count, 0), names: rest.map((x) => x.label) };
+  return { bars: [...top, { label: 'Other', count: other.count, other: true }], other };
+}
+
 export function buildLogbook(trips, items, now = new Date()) {
   const good = (trips || []).filter((t) => t && !t.isDeleted && t.startDate && t.endDate)
     .map((t) => ({ id: t.id || t.supabaseId, name: t.name || 'Voyage', start: dateOnly(t.startDate), end: dateOnly(t.endDate) }))
@@ -108,6 +140,7 @@ export function buildLogbook(trips, items, now = new Date()) {
       id: `v-${t.id}`, type: 'voyage', name: t.name, dates: `${dmy(t.start)} – ${dmy(t.end)}`,
       hero: `${live ? 'In progress' : 'Completed'}${guests ? ` · ${guests} guest${guests === 1 ? '' : 's'}` : ''}`,
       live, ...s, kpiA: [String(guests || 0), guests === 1 ? 'Guest' : 'Guests'], kpiB: [String(s.cabins), s.cabins === 1 ? 'Cabin' : 'Cabins'],
+      avgMin: avgTurnaround(its), team: teamFrom(its), care: careFrom(its),
       people: peopleFrom(its), days: daysFrom(its), items: its, sortAt: its.reduce((a, i) => { const v = i.deliveredAt || i.createdAt; return !a || v > a ? v : a; }, null),
     });
   }
@@ -120,6 +153,7 @@ export function buildLogbook(trips, items, now = new Date()) {
       id: `o-${mk}`, type: 'offcharter', name: 'Off-charter', dates: monthLabel(d0),
       hero: 'No guests aboard · crew & vessel linens',
       live: false, ...s, kpiA: [String(crewN || 0), crewN === 1 ? 'Crew' : 'Crew'], kpiB: [String(s.cabins), s.cabins === 1 ? 'Area' : 'Areas'],
+      avgMin: avgTurnaround(its), team: teamFrom(its), care: careFrom(its),
       people: peopleFrom(its), days: daysFrom(its), items: its, sortAt: its.reduce((a, i) => { const v = i.deliveredAt || i.createdAt; return !a || v > a ? v : a; }, null),
     });
   }
@@ -143,6 +177,7 @@ export function buildLogbook(trips, items, now = new Date()) {
     id: 'crew', type: 'crew', name: 'Crew', dates: 'Every voyage & off-charter',
     hero: 'Trip-independent · all crew laundry',
     ...crewS, kpiA: [String(crewPeople.length), crewPeople.length === 1 ? 'Member' : 'Members'], kpiB: [String(byPeriod.length), byPeriod.length === 1 ? 'Period' : 'Periods'],
+    avgMin: avgTurnaround(crewItems), team: teamFrom(crewItems), care: careFrom(crewItems),
     people: crewPeople, byPeriod, items: crewItems,
   } : null;
 
