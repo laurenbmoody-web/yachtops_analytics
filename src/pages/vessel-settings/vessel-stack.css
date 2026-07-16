@@ -21,7 +21,9 @@
 @media(prefers-reduced-motion:reduce){.vstack *{animation:none!important;transition:none!important}}
 
 /* header */
-.vs-head{display:flex;align-items:center;gap:15px;margin-bottom:18px}
+.vs-head{display:flex;flex-direction:row;align-items:center;justify-content:flex-start !important;gap:15px;margin-bottom:18px}
+.vs-head > *{margin-left:0 !important;margin-right:0 !important}
+.vs-htitle{flex:0 1 auto;min-width:0;text-align:left}
 .vs-logo{position:relative;flex:none;width:54px;height:54px;border-radius:14px;background:var(--vs-surface);
   border:1px solid var(--vs-hair);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
   overflow:hidden;cursor:pointer;box-shadow:var(--vs-sh1);padding:6px;transition:border-color .16s,box-shadow .16s}
