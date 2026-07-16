@@ -17,3 +17,28 @@ body {
   font-family: inherit;
   margin: unset;
 }
+
+/* ── Accessibility: reduced motion ──────────────────────────────────────────
+   Applied when the user turns on "Reduce motion" (Settings → Accessibility;
+   sets data-reduce-motion="true" on <html>), and also honoured automatically
+   when the OS asks for reduced motion — unless the user explicitly turned it
+   off. Near-instant durations rather than 0 so transitionend/animationend
+   handlers still fire. */
+:root[data-reduce-motion="true"] *,
+:root[data-reduce-motion="true"] *::before,
+:root[data-reduce-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduce-motion="true"]) *,
+  :root:not([data-reduce-motion="true"]) *::before,
+  :root:not([data-reduce-motion="true"]) *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
