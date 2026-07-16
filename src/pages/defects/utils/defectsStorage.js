@@ -21,6 +21,9 @@ import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-ma
 import {
   notifyChiefsPendingDefect,
   notifyChiefsNewDefect,
+  notifyChiefsQuoteApproval,
+  notifyRequesterApprovalDecision,
+  emailAssignmentIfHighPriority,
   notifySenderAccepted,
   notifySenderDeclined,
   notifyDefectAssigned,
@@ -43,6 +46,22 @@ export const DefectStatus = {
 };
 
 export const DefectPriority = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical' };
+
+// Repair works stage — the external-contractor progression, distinct from the
+// internal defect status. Ordered; app-validated (column is free text).
+export const RepairStage = {
+  NOT_STARTED: 'not_started', CONTACTED: 'contacted', QUOTING: 'quoting',
+  QUOTED: 'quoted', SCHEDULED: 'scheduled', IN_PROGRESS: 'in_progress', COMPLETED: 'completed',
+};
+export const REPAIR_STAGE_ORDER = ['contacted', 'quoting', 'quoted', 'scheduled', 'in_progress', 'completed'];
+export const REPAIR_STAGE_LABELS = {
+  not_started: 'Not started', contacted: 'Contractor contacted', quoting: 'Awaiting quote',
+  quoted: 'Quote received', scheduled: 'Scheduled', in_progress: 'In progress', completed: 'Complete',
+};
+// A quote at/above this (in the quote's own currency) auto-requires a Captain/HOD
+// sign-off before the repair can be scheduled.
+export const QUOTE_APPROVAL_THRESHOLD = 1000;
+export const QuoteApproval = { PENDING: 'pending', APPROVED: 'approved', DECLINED: 'declined' };
 
 export const DefectDepartment = {
   INTERIOR: 'Interior', DECK: 'Deck', ENGINEERING: 'Engineering', GALLEY: 'Galley', MANAGEMENT: 'Management',
@@ -130,6 +149,18 @@ const fromRow = (r) => {
     dueDate: r.due_date,
     contractorName: r.contractor_name,
     contractorDetails: r.contractor_details,
+    contractorSupplierId: r.contractor_supplier_id,
+    contractorContactName: r.contractor_contact_name,
+    contractorEmail: r.contractor_email,
+    contractorPhone: r.contractor_phone,
+    scheduledEndAt: r.scheduled_end_at,
+    repairStage: r.repair_stage,
+    warrantyUntil: r.warranty_until,
+    quoteApprovalStatus: r.quote_approval_status,
+    quoteApprovedByName: r.quote_approved_by_name,
+    quoteApprovedAt: r.quote_approved_at,
+    quoteApprovalNote: r.quote_approval_note,
+    promotedJobId: r.promoted_job_id,
     scheduledFixAt: r.scheduled_fix_at,
     closedAt: r.closed_at,
     closedByUserId: r.closed_by,
@@ -317,7 +348,105 @@ export const getDefectByHotspot = async (hotspotId, actor) => {
   return data && data.length ? fromRow(data[0]) : null;
 };
 
+// Per-hotspot open-defect load for the map's fault heat overlay. One query for
+// the whole scan → { [hotspotId]: { count, maxPriority } }. "Open" = not closed
+// and not declined; pending-acceptance still counts as an open fault.
+const HEAT_PRIORITY_RANK = { Low: 1, Medium: 2, High: 3, Critical: 4 };
+export const getDefectHeatByHotspots = async (hotspotIds, actor) => {
+  const ids = [...new Set((hotspotIds || []).filter(Boolean))];
+  if (!ids.length || !actor?.tenantId) return {};
+  const { data, error } = (await supabase
+    ?.from('defects')?.select('hotspot_id, priority, status')
+    ?.eq('tenant_id', actor.tenantId)?.in('hotspot_id', ids)
+    ?.neq('status', DefectStatus.CLOSED)) || {};
+  if (error) { console.warn('[defects] getDefectHeatByHotspots', error); return {}; }
+  const heat = {};
+  for (const r of data || []) {
+    if (r.status === DefectStatus.DECLINED) continue;
+    const h = heat[r.hotspot_id] || (heat[r.hotspot_id] = { count: 0, maxRank: 0, maxPriority: 'Low' });
+    h.count += 1;
+    const rank = HEAT_PRIORITY_RANK[r.priority] || 1;
+    if (rank > h.maxRank) { h.maxRank = rank; h.maxPriority = r.priority || 'Low'; }
+  }
+  return heat;
+};
+
 // Assign a defect to a named person or a whole team, notifying recipients.
+// Prior repairs at this defect's location that are still under warranty — a
+// possible warranty claim if the fault has recurred. Excludes this defect.
+export const fetchWarrantyContext = async (defect, actor) => {
+  if (!defect?.locationNodeId || !actor?.tenantId) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = (await supabase
+    ?.from('defects')
+    ?.select('id, seq, title, warranty_until, contractor_name')
+    ?.eq('tenant_id', actor.tenantId)
+    ?.eq('location_node_id', defect.locationNodeId)
+    ?.gte('warranty_until', today)
+    ?.neq('id', defect.id)
+    ?.order('warranty_until', { ascending: false })) || {};
+  if (error) { console.warn('[defects] fetchWarrantyContext', error); return []; }
+  return (data || []).map((r) => ({
+    id: r.id, ref: r.seq != null ? `DEF-${String(r.seq).padStart(4, '0')}` : '',
+    title: r.title, warrantyUntil: r.warranty_until, contractorName: r.contractor_name,
+  }));
+};
+
+// Who can sign off a repair quote is configurable per vessel
+// (vessels.defect_quote_approver_tier, default 'HOD' = HOD & above). Hierarchical:
+// an equal-or-higher tier than the required one may approve.
+const TIER_RANK = { COMMAND: 4, CHIEF: 3, HOD: 2, CREW: 1 };
+export const canApproveQuote = (actor, approverTier = 'HOD') =>
+  (TIER_RANK[normalizeDept(actor?.tier)] || 0) >= (TIER_RANK[normalizeDept(approverTier)] || 2);
+
+// Per-vessel sign-off config (approver tier + auto-request threshold).
+export const fetchDefectQuoteSettings = async (tenantId) => {
+  const fallback = { approverTier: 'HOD', threshold: QUOTE_APPROVAL_THRESHOLD };
+  if (!tenantId) return fallback;
+  const { data, error } = (await supabase
+    ?.from('vessels')?.select('defect_quote_approver_tier, defect_quote_signoff_threshold')
+    ?.eq('tenant_id', tenantId)?.maybeSingle()) || {};
+  if (error || !data) return fallback;
+  return {
+    approverTier: data.defect_quote_approver_tier || 'HOD',
+    threshold: data.defect_quote_signoff_threshold != null ? Number(data.defect_quote_signoff_threshold) : QUOTE_APPROVAL_THRESHOLD,
+  };
+};
+
+// Ask a Captain/HOD to sign off the repair quote before it's scheduled.
+export const requestQuoteApproval = async (defectId, actor, amountLabel = null) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+  const { data, error } = await supabase
+    ?.from('defects')?.update({
+      quote_approval_status: 'pending',
+      quote_approved_by: null, quote_approved_by_name: null, quote_approved_at: null, quote_approval_note: null,
+    })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] requestQuoteApproval', error); return null; }
+  await logEvent(actor, defectId, 'approval_requested', `Quote sign-off requested${amountLabel ? ` (${amountLabel})` : ''}`);
+  await notifyChiefsQuoteApproval(actor, before.departmentId, before.title, defectId, amountLabel);
+  return fromRow(data);
+};
+
+// Approve/decline the quote. Authority is enforced server-side by the RPC
+// (tier vs vessels.defect_quote_approver_tier); the client gate just hides the
+// buttons. Event + notifications are written here after the decision lands.
+export const decideQuoteApproval = async (defectId, approved, note, actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+  const { data, error } = (await supabase?.rpc('defect_decide_quote_approval', {
+    p_defect_id: defectId, p_approved: approved, p_note: note || null,
+  })) || {};
+  if (error || !data) { console.warn('[defects] decideQuoteApproval', error); return null; }
+  await logEvent(actor, defectId, 'approval_decided',
+    `${approved ? 'Quote approved' : 'Quote declined'}${note ? ` — ${note}` : ''}`);
+  const recipients = [...new Set([before.reportedByUserId, before.assignedToUserId].filter(Boolean))];
+  await Promise.all(recipients.map((uid) => notifyRequesterApprovalDecision(actor, uid, before.title, defectId, approved)));
+  return fromRow(Array.isArray(data) ? data[0] : data);
+};
+
 export const assignDefect = async (defectId, assignment, actor) => {
   if (!defectId || !actor?.tenantId) return null;
   const kind = assignment?.kind || 'unassigned';
@@ -336,10 +465,13 @@ export const assignDefect = async (defectId, assignment, actor) => {
   if (kind === 'user' && assignment?.userId) {
     await logEvent(actor, defectId, 'assigned', `Assigned to ${assignment?.userName || 'crew'}`);
     await notifyDefectAssigned(actor, [assignment.userId], after.title, defectId, after.dueDate);
+    await emailAssignmentIfHighPriority(defectId, [assignment.userId], after.priority, after.title);
   } else if (kind === 'team' && assignment?.teamDepartmentId) {
     await logEvent(actor, defectId, 'assigned', `Assigned to ${assignment?.teamName || 'the team'}`);
     const members = await resolveDepartmentMemberIds(actor.tenantId, assignment.teamDepartmentId);
-    await notifyDefectAssigned(actor, members.map((m) => m.userId), after.title, defectId, after.dueDate);
+    const ids = members.map((m) => m.userId);
+    await notifyDefectAssigned(actor, ids, after.title, defectId, after.dueDate);
+    await emailAssignmentIfHighPriority(defectId, ids, after.priority, after.title);
   }
   return after;
 };
@@ -405,11 +537,16 @@ const UPDATE_FIELD_MAP = {
   title: 'title', description: 'description', priority: 'priority', status: 'status',
   dueDate: 'due_date', departmentOwner: 'department_owner', departmentId: 'department_id',
   assignedToUserId: 'assigned_to', assignedToName: 'assigned_to_name', assigneeKind: 'assignee_kind',
+  assignedTeamDepartmentId: 'assigned_team_department_id', assignedTeamName: 'assigned_team_name',
   defectType: 'defect_type', defectSubType: 'defect_sub_type',
   affectsGuestAreas: 'affects_guest_areas', safetyRelated: 'safety_related',
   locationPathLabel: 'location_path_label', locationFreeText: 'location_free_text',
   hotspotId: 'hotspot_id', locationNodeId: 'location_node_id',
+  photos: 'photos', notifyUsers: 'notify_user_ids',
   contractorName: 'contractor_name', contractorDetails: 'contractor_details', scheduledFixAt: 'scheduled_fix_at',
+  contractorSupplierId: 'contractor_supplier_id', scheduledEndAt: 'scheduled_end_at',
+  contractorContactName: 'contractor_contact_name', contractorEmail: 'contractor_email', contractorPhone: 'contractor_phone',
+  repairStage: 'repair_stage', warrantyUntil: 'warranty_until',
 };
 const EDIT_FIELDS = ['title', 'description', 'priority', 'dueDate', 'departmentOwner', 'contractorName', 'contractorDetails', 'scheduledFixAt'];
 
@@ -437,6 +574,12 @@ export const updateDefect = async (defectId, updates, actor) => {
   if (updates?.assignedToUserId && updates.assignedToUserId !== before.assignedToUserId) {
     await logEvent(actor, defectId, 'assigned', `Assigned to ${updates.assignedToName || 'crew'}`, { assignedTo: updates.assignedToUserId });
     await notifyDefectAssigned(actor, [updates.assignedToUserId], after.title, defectId, after.dueDate);
+    await emailAssignmentIfHighPriority(defectId, [updates.assignedToUserId], after.priority, after.title);
+  }
+  if (updates?.repairStage && updates.repairStage !== before.repairStage) {
+    await logEvent(actor, defectId, 'repair_stage', `Repair: ${REPAIR_STAGE_LABELS[updates.repairStage] || updates.repairStage}`, {
+      stageFrom: before.repairStage || null, stageTo: updates.repairStage,
+    });
   }
   // Content edit (title/priority/dates/contractor/etc.) — one audit entry.
   if (EDIT_FIELDS.some((f) => f in (updates || {}))) {

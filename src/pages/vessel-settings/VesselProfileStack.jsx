@@ -324,6 +324,14 @@ export default function VesselProfileStack(props) {
       ],
     },
     {
+      id: 'defect', title: 'Defects & repairs', sub: 'Who signs off repair-quote spend',
+      icon: ico(<path d="M14.7 6.3a4 4 0 01-5.6 5.6L4 17l3 3 5.1-5.1a4 4 0 005.6-5.6l-2.5 2.5-2.4-.6-.6-2.4 2.5-2.5z" />),
+      fields: [
+        { field: 'defect_quote_approver_tier', label: 'Repair quote sign-off', type: 'select', opts: [{ value: 'COMMAND', label: 'Command only' }, { value: 'CHIEF', label: 'Chief & above' }, { value: 'HOD', label: 'HOD & above' }], info: 'The lowest rank that can sign off a repair quote’s spend — equal or higher ranks always can too. HOD & above lets Heads of Department, Chiefs and Command approve.' },
+        { field: 'defect_quote_signoff_threshold', label: 'Sign-off threshold', type: 'num', placeholder: 'e.g. 1000', info: 'A repair quote at or above this amount automatically requires sign-off before the repair can be scheduled. Crew can also request sign-off manually for any quote.' },
+      ],
+    },
+    {
       id: 'comp', title: 'Compliance', sub: 'Certification & the safety / security regime', cosmetic: true,
       icon: ico(<><path d="M12 3l7 4v5c0 4.5-3 8.5-7 9-4-.5-7-4.5-7-9V7z" /><path d="M9 12l2 2 4-4" /></>),
       toggles: [

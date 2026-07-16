@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 import {
   fetchVesselThreads, fetchThreadMessages, sendVesselMessage, markThreadReadVessel,
   markThreadNotificationsRead, acceptQuote, declineQuote, reactToMessage, deleteMessage, editMessage,
+  setThreadArchived, deleteThread,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -123,6 +124,95 @@ const Menu = ({ label, value, options, onChange }) => {
   );
 };
 
+// ── Swipeable / hover-revealed thread row (Archive + Delete) ───────────────
+const SW_LEFT = 132;  // Archive + Delete
+const clampSw = (v) => Math.max(-SW_LEFT, Math.min(0, v));
+
+const CrewThreadRow = ({ t, active, onSelect, onArchive, onDelete }) => {
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef(null);
+  const unread = active ? 0 : (t.vessel_unread_count || 0);
+  const waiting = t.last_sender_type === 'supplier';
+  const archived = !!t.archived_at;
+
+  // Close this row when any other row opens.
+  useEffect(() => {
+    const h = (e) => { if (e.detail !== t.id) { setDx(0); setDragging(false); } };
+    document.addEventListener('sw-open', h);
+    return () => document.removeEventListener('sw-open', h);
+  }, [t.id]);
+
+  const down = (e) => {
+    if (e.button != null && e.button > 0) return;
+    drag.current = { x: e.clientX, base: dx, cur: dx, moved: false };
+    setDragging(true);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
+  };
+  const move = (e) => {
+    if (!drag.current) return;
+    const delta = e.clientX - drag.current.x;
+    if (Math.abs(delta) > 4) drag.current.moved = true;
+    drag.current.cur = clampSw(drag.current.base + delta);
+    setDx(drag.current.cur);
+  };
+  const up = () => {
+    const d = drag.current;
+    drag.current = null;
+    setDragging(false);
+    if (!d) return;
+    if (!d.moved) { setDx(0); onSelect(); return; }
+    if (d.cur <= -SW_LEFT * 0.5) { setDx(-SW_LEFT); document.dispatchEvent(new CustomEvent('sw-open', { detail: t.id })); }
+    else setDx(0);
+  };
+  const reset = () => setDx(0);
+
+  const fgStyle = dx !== 0 ? { transform: `translateX(${dx}px)`, transition: dragging ? 'none' : undefined } : undefined;
+
+  return (
+    <div className={`msg-sw${dx < 0 ? ' open-l' : ''}`}>
+      <div className="msg-sw-actions left" aria-hidden={dx >= 0}>
+        <button type="button" className="msg-sw-btn archive" onClick={() => { reset(); onArchive(t); }}>
+          {archived ? <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v13h18V7" /><path d="M1 3h22v4H1z" /><path d="M12 12v6" /><path d="M9 15l3-3 3 3" /></svg>Restore</> : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><path d="M10 12h4" /></svg>Archive</>}
+        </button>
+        <button type="button" className="msg-sw-btn del" onClick={() => { reset(); onDelete(t); }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" /></svg>Delete
+        </button>
+      </div>
+      <div
+        className={`msg-sw-fg${active ? ' on' : ''}${unread > 0 ? ' unread' : ''}${archived ? ' arch' : ''}${dragging ? ' dragging' : ''}`}
+        style={fgStyle}
+        role="button" tabIndex={0}
+        onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } }}
+      >
+        <span className="msg-row-main">
+          <span className="msg-row-top">
+            <span className="msg-row-label">{threadLabel(t)}</span>
+            <span className="msg-row-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
+          </span>
+          <span className="msg-row-prev">
+            {t.last_message_preview ? `${t.last_sender_type === 'vessel' ? 'You: ' : ''}${t.last_message_preview}` : 'No messages yet'}
+          </span>
+        </span>
+        {unread > 0 && <span className="msg-row-un">{unread}</span>}
+        {waiting && unread === 0 && <span className="msg-row-wait" title="Awaiting your reply">{fmtAge(t.last_message_at)}</span>}
+      </div>
+      {/* Desktop hover-reveal — the same actions without needing to drag. */}
+      <div className="msg-sw-hover">
+        <button type="button" className="msg-hbtn" title={archived ? 'Restore' : 'Archive'} aria-label={archived ? 'Restore' : 'Archive'} onClick={() => { reset(); onArchive(t); }}>
+          {archived
+            ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v13h18V7" /><path d="M1 3h22v4H1z" /><path d="M12 12v6" /><path d="M9 15l3-3 3 3" /></svg>
+            : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><path d="M10 12h4" /></svg>}
+        </button>
+        <button type="button" className="msg-hbtn del" title="Delete" aria-label="Delete" onClick={() => { reset(); onDelete(t); }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" /></svg>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const CrewMessages = () => {
   const { activeTenantId } = useTenant();
   const [params, setParams] = useSearchParams();
@@ -143,6 +233,8 @@ const CrewMessages = () => {
   const [error, setError] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [declining, setDeclining] = useState(null);   // quote message id being declined
+  const [declineReason, setDeclineReason] = useState('');
   const [myUid, setMyUid] = useState(null);
   const endRef = useRef(null);
   const streamRef = useRef(null);
@@ -240,6 +332,15 @@ const CrewMessages = () => {
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (text) => { setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text)); taRef.current?.focus(); };
 
+  // Open (surface) the supplier's general thread to start a fresh chat — the
+  // empty general is hidden from the list until it has messages.
+  const startNewChat = (g) => {
+    if (!g?.general) return;
+    setCollapsed((prev) => { const n = new Set(prev); n.delete(g.supplierId); return n; });
+    setActiveId(g.general.id);
+    requestAnimationFrame(() => taRef.current?.focus());
+  };
+
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
   const startEdit = (m) => { setReplyTo(null); setEditing(m); setDraft(m.body || ''); taRef.current?.focus(); };
   const cancelEdit = () => { setEditing(null); setDraft(''); };
@@ -257,12 +358,13 @@ const CrewMessages = () => {
     if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('msg-flash'); setTimeout(() => el.classList.remove('msg-flash'), 1200); }
   };
 
-  const resolveQuote = async (id, accept) => {
+  const resolveQuote = async (id, accept, reason = null) => {
     if (quoteBusy) return;
     setQuoteBusy(id);
     setError(null);
     try {
-      if (accept) await acceptQuote(id); else await declineQuote(id);
+      if (accept) await acceptQuote(id); else await declineQuote(id, reason);
+      setDeclining(null); setDeclineReason('');
       const msgs = await fetchThreadMessages(activeId);
       setMessages(msgs);
       load();
@@ -271,6 +373,24 @@ const CrewMessages = () => {
         ? 'This conversation isn’t linked to an order yet — start from an order to add items.'
         : (e.message || 'Couldn’t update the quote.'));
     } finally { setQuoteBusy(null); }
+  };
+
+  // Archive / restore a conversation (optimistic, then persist via RPC).
+  const archiveThread = async (t) => {
+    const next = !t.archived_at;
+    setThreads((prev) => prev.map((x) => (x.id === t.id ? { ...x, archived_at: next ? new Date().toISOString() : null } : x)));
+    if (next && t.id === activeId) setActiveId(null);
+    try { await setThreadArchived(t.id, next); await load(); }
+    catch (e) { setError(e.message || 'Couldn’t archive that conversation.'); load(); }
+  };
+
+  // Delete a conversation for both sides — confirm first, it removes messages.
+  const removeThread = async (t) => {
+    if (!window.confirm(`Delete this conversation with ${supplierName(t)}? This removes it for you and the supplier.`)) return;
+    setThreads((prev) => prev.filter((x) => x.id !== t.id));
+    if (t.id === activeId) setActiveId(null);
+    try { await deleteThread(t.id); await load(); }
+    catch (e) { setError(e.message || 'Couldn’t delete that conversation.'); load(); }
   };
 
   const rendered = useMemo(() => {
@@ -290,7 +410,7 @@ const CrewMessages = () => {
   const counts = useMemo(() => {
     const nonArch = threads.filter((t) => !t.archived_at);
     return {
-      open: nonArch.length,
+      open: nonArch.filter((t) => t.last_message_at || t.id === activeId).length,
       awaiting: awaitingReply,
       unread: nonArch.filter((t) => t.id !== activeId && (t.vessel_unread_count || 0) > 0).length,
       archived: threads.filter((t) => t.archived_at).length,
@@ -318,11 +438,16 @@ const CrewMessages = () => {
     const out = [];
     for (const [supplierId, list] of bySupplier) {
       list.sort((a, b) => new Date(b.last_message_at || b.created_at) - new Date(a.last_message_at || a.created_at));
-      const unread = list.reduce((s, t) => s + (t.id === activeId ? 0 : (t.vessel_unread_count || 0)), 0);
-      const waitList = list.filter((t) => t.last_sender_type === 'supplier');
+      // Keep the order-less "general" thread for the start-a-chat action even
+      // when empty; only SHOW threads that have messages (or the open one), so
+      // empty order/general threads don't clutter the list.
+      const general = list.find((t) => !t.order_id) || null;
+      const visible = list.filter((t) => t.last_message_at || t.id === activeId);
+      const unread = visible.reduce((s, t) => s + (t.id === activeId ? 0 : (t.vessel_unread_count || 0)), 0);
+      const waitList = visible.filter((t) => t.last_sender_type === 'supplier');
       const oldest = waitList.reduce((acc, t) => (t.last_message_at && (!acc || t.last_message_at < acc) ? t.last_message_at : acc), null);
       const lastAt = list.reduce((acc, t) => { const v = t.last_message_at || t.created_at; return !acc || v > acc ? v : acc; }, null);
-      out.push({ supplierId, name: supplierName(list[0]), logo: supplierLogo(list[0]), threads: list, unread, awaiting: waitList.length, oldest, lastAt });
+      out.push({ supplierId, name: supplierName(list[0]), logo: supplierLogo(list[0]), threads: visible, general, unread, awaiting: waitList.length, oldest, lastAt });
     }
     out.sort((a, b) => {
       if (sort === 'supplier') return a.name.localeCompare(b.name);
@@ -403,43 +528,34 @@ const CrewMessages = () => {
                     const isCollapsed = collapsed.has(g.supplierId);
                     return (
                       <div key={g.supplierId} className="msg-grp">
-                        <button type="button" className="msg-grp-head" onClick={() => toggleGroup(g.supplierId)}>
-                          <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-                          </span>
-                          {avatar(g.supplierId, g.name, g.logo)}
-                          <span className="msg-grp-name">{g.name}</span>
-                          <span className="msg-grp-meta">
-                            {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
-                            {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : <span className="msg-grp-count">{g.threads.length}</span>}
-                          </span>
-                        </button>
-                        {!isCollapsed && g.threads.map((t) => {
-                          const unread = t.id === activeId ? 0 : (t.vessel_unread_count || 0);
-                          const waiting = t.last_sender_type === 'supplier';
-                          return (
-                            <div key={t.id} className="msg-sw">
-                              <div
-                                className={`msg-sw-fg${t.id === activeId ? ' on' : ''}${unread > 0 ? ' unread' : ''}${t.archived_at ? ' arch' : ''}`}
-                                role="button" tabIndex={0}
-                                onClick={() => setActiveId(t.id)}
-                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveId(t.id); } }}
-                              >
-                                <span className="msg-row-main">
-                                  <span className="msg-row-top">
-                                    <span className="msg-row-label">{threadLabel(t)}</span>
-                                    <span className="msg-row-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
-                                  </span>
-                                  <span className="msg-row-prev">
-                                    {t.last_message_preview ? `${t.last_sender_type === 'vessel' ? 'You: ' : ''}${t.last_message_preview}` : 'No messages yet'}
-                                  </span>
-                                </span>
-                                {unread > 0 && <span className="msg-row-un">{unread}</span>}
-                                {waiting && unread === 0 && <span className="msg-row-wait" title="Awaiting your reply">{fmtAge(t.last_message_at)}</span>}
-                              </div>
-                            </div>
-                          );
-                        })}
+                        <div className="msg-grp-headrow">
+                          <button type="button" className="msg-grp-head" onClick={() => toggleGroup(g.supplierId)}>
+                            <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                            </span>
+                            {avatar(g.supplierId, g.name, g.logo)}
+                            <span className="msg-grp-name">{g.name}</span>
+                            <span className="msg-grp-meta">
+                              {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
+                              {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : g.threads.length > 0 && <span className="msg-grp-count">{g.threads.length}</span>}
+                            </span>
+                          </button>
+                          {g.general && (
+                            <button type="button" className="msg-grp-new" title={`New chat with ${g.name}`} aria-label="Start a new chat" onClick={() => startNewChat(g)}>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                            </button>
+                          )}
+                        </div>
+                        {!isCollapsed && g.threads.map((t) => (
+                          <CrewThreadRow
+                            key={t.id}
+                            t={t}
+                            active={t.id === activeId}
+                            onSelect={() => setActiveId(t.id)}
+                            onArchive={archiveThread}
+                            onDelete={removeThread}
+                          />
+                        ))}
                       </div>
                     );
                   })}
@@ -516,12 +632,33 @@ const CrewMessages = () => {
                                 {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney(q.total, q.currency)}</span></div>}
                                 {m.body && <div className="msg-qc-note">{m.body}</div>}
                                 {status === 'pending' && m.sender_type === 'supplier' ? (
-                                  <div className="msg-qc-actions">
-                                    <button type="button" className="msg-qc-decline" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, false)}>Decline</button>
-                                    <button type="button" className="msg-qc-accept" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, true)}>{quoteBusy === m.id ? 'Adding…' : 'Accept & add to order'}</button>
-                                  </div>
+                                  declining === m.id ? (
+                                    <div className="msg-qc-decline-form">
+                                      <input
+                                        type="text" autoFocus className="msg-qc-reason"
+                                        placeholder="Reason (optional) — e.g. too pricey, wrong item"
+                                        value={declineReason}
+                                        onChange={(e) => setDeclineReason(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') resolveQuote(m.id, false, declineReason); if (e.key === 'Escape') { setDeclining(null); setDeclineReason(''); } }}
+                                      />
+                                      <div className="msg-qc-actions">
+                                        <button type="button" className="msg-qc-decline" disabled={quoteBusy === m.id} onClick={() => { setDeclining(null); setDeclineReason(''); }}>Cancel</button>
+                                        <button type="button" className="msg-qc-decline-go" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, false, declineReason)}>{quoteBusy === m.id ? 'Declining…' : 'Send decline'}</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="msg-qc-actions">
+                                      <button type="button" className="msg-qc-decline" disabled={quoteBusy === m.id} onClick={() => { setDeclining(m.id); setDeclineReason(''); }}>Decline</button>
+                                      <button type="button" className="msg-qc-accept" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, true)}>{quoteBusy === m.id ? 'Adding…' : 'Accept & add to order'}</button>
+                                    </div>
+                                  )
                                 ) : (
-                                  <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
+                                  <>
+                                    {status === 'declined' && m.quote_decline_reason && (
+                                      <div className="msg-qc-reason-note">Declined: {m.quote_decline_reason}</div>
+                                    )}
+                                    <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
+                                  </>
                                 )}
                               </div>
                             </div>

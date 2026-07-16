@@ -90,6 +90,10 @@ const VesselSettings = () => {
     hor_management_company_name: '',
     hor_management_company_email: '',
 
+    // Defects & repairs
+    defect_quote_approver_tier: 'HOD',
+    defect_quote_signoff_threshold: 1000,
+
     // Compliance & Structure
     ism_applicable: false,
     isps_applicable: false,
@@ -193,6 +197,8 @@ const VesselSettings = () => {
         hor_day_basis: vesselData?.hor_day_basis || 'calendar',
         hor_confirmation_mode: vesselData?.hor_confirmation_mode || 'require',
         hor_approver_tier: vesselData?.hor_approver_tier || 'CHIEF',
+        defect_quote_approver_tier: vesselData?.defect_quote_approver_tier || 'HOD',
+        defect_quote_signoff_threshold: vesselData?.defect_quote_signoff_threshold ?? 1000,
         hor_management_company_name: vesselData?.hor_management_company_name || '',
         hor_management_company_email: vesselData?.hor_management_company_email || '',
         ism_applicable: vesselData?.ism_applicable || false,
@@ -313,7 +319,7 @@ const VesselSettings = () => {
   };
 
   // Coerce a single field to the shape the vessels column expects.
-  const NUM_FLOAT = ['loa_m', 'propulsion_kw'];
+  const NUM_FLOAT = ['loa_m', 'propulsion_kw', 'defect_quote_signoff_threshold'];
   const NUM_INT = ['gt', 'year_built', 'year_refit', 'typical_guest_count', 'typical_crew_count'];
   const coerceForDb = (field, v) => {
     if (NUM_FLOAT.includes(field)) return (v === '' || v == null) ? null : parseFloat(v);

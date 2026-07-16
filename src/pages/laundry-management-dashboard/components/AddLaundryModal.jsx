@@ -10,6 +10,7 @@ import { getCurrentTripGuestIds } from '../../trips-management-dashboard/utils/t
 import { loadUsers, UserStatus } from '../../../utils/authStorage';
 import { useTenant } from '../../../contexts/TenantContext';
 import { loadOnboardCrew } from '../utils/onboardCrew';
+import { getGuestLaundryNotes } from '../utils/laundryPrefs';
 import ModalShell from '../../../components/ui/ModalShell';
 
 const availableTags = availableLaundryTags;
@@ -84,9 +85,21 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
   const [locationQuery, setLocationQuery] = useState(() => (editItem ? (editItem.area || '') : ''));
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
 
+  const [guestNotes, setGuestNotes] = useState([]);
+
   const isGuest = formData?.ownerType === OwnerType?.GUEST;
   const isUnknown = formData?.ownerDisplayName === 'Unknown';
   const isUrgent = formData?.priority === LaundryPriority?.URGENT;
+
+  // Pull the picked guest's laundry-relevant preferences so the crew see them
+  // (sensitive detergent, dry-clean only, hang not fold…) before logging.
+  useEffect(() => {
+    const gid = isGuest && !isUnknown ? formData?.ownerGuestId : null;
+    if (!gid) { setGuestNotes([]); return undefined; }
+    let cancelled = false;
+    getGuestLaundryNotes(gid).then((n) => { if (!cancelled) setGuestNotes(n); }).catch(() => { if (!cancelled) setGuestNotes([]); });
+    return () => { cancelled = true; };
+  }, [isGuest, isUnknown, formData?.ownerGuestId]);
 
   const clearError = (key) => setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
   const setField = (key, value) => setFormData((prev) => ({ ...prev, [key]: value }));
@@ -466,6 +479,19 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
                 )}
               </div>
               {errors.owner && <div className="alm-err">{errors.owner}</div>}
+              {guestNotes.length > 0 && (
+                <div className="alm-pref" role="note">
+                  <span className="alm-pref-ic"><Icon name="Sparkles" size={14} /></span>
+                  <div className="alm-pref-body">
+                    <span className="alm-pref-h">Laundry preferences on file</span>
+                    <div className="alm-pref-list">
+                      {guestNotes.map((n, i) => (
+                        <span key={i} className={`alm-pref-pill${n.priority === 'high' ? ' hi' : ''}`}>{n.text}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {isUnknown ? (

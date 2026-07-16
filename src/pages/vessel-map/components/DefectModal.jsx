@@ -3,13 +3,14 @@
 // there's no duplicate header.
 import React from 'react';
 import ModalShell from '../../../components/ui/ModalShell';
+import Icon from '../../../components/AppIcon';
 import DefectPin from './DefectPin';
 import './DefectPin.css';
 
 export default function DefectModal({ hotspot, canManage, scanName, containerTrail, onChanged, onTitled, onClose }) {
   return (
     <ModalShell onClose={onClose} panelClassName="vmd-modal">
-      <button className="vmd-xfloat" onClick={onClose} aria-label="Close">×</button>
+      <button className="vmd-xfloat" onClick={onClose} aria-label="Close"><Icon name="X" size={16} /></button>
       <div className="vmd-scroll">
         <DefectPin
           hotspot={hotspot}

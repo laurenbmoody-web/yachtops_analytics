@@ -324,6 +324,9 @@ const SupplierMessages = () => {
 
   useEffect(() => {
     setReplyTo(null); setEditing(null); setDraft('');
+    // A half-made quote belongs to the thread it was drafted in — never let it
+    // follow the supplier into another conversation.
+    setPendingQuote(null); setPricing(null); setPriceDraft({});
     if (!activeId) { setMessages([]); return; }
     fetchMessages(activeId).then(setMessages).catch((e) => setError(e.message));
     setThreads((prev) => prev.map((t) => (t.id === activeId ? { ...t, supplier_unread_count: 0 } : t)));
@@ -432,6 +435,18 @@ const SupplierMessages = () => {
 
   const toQuote = async () => {
     if (aiLoading) return;
+    // If the latest request has already been quoted and that quote is still
+    // waiting on the yacht, don't spin up a second (empty) draft for the same
+    // thing — that's the confusing "the quote box came back" case. Point the
+    // supplier at the sent quote instead.
+    if (!draft.trim()) {
+      const lastVesselIdx = (() => { for (let i = messages.length - 1; i >= 0; i--) if (messages[i].sender_type === 'vessel') return i; return -1; })();
+      const openQuoteAfter = messages.some((m, i) => i > lastVesselIdx && m.kind === 'quote' && !m.deleted_at && (m.quote_status || 'pending') === 'pending');
+      if (openQuoteAfter) {
+        setError('You’ve already sent a quote for this — it’s waiting on the yacht. Use “Add prices” on that quote if you need to change it.');
+        return;
+      }
+    }
     const lastIn = [...messages].reverse().find((m) => m.sender_type === 'vessel')?.body;
     const src = (draft.trim() || lastIn || '').trim();
     if (!src) { setError('Type the request (or open one from the yacht) first, then turn it into a quote.'); return; }
@@ -502,6 +517,16 @@ const SupplierMessages = () => {
     finally { setSending(false); }
   };
 
+  // Reopen a declined quote as a fresh, fully-editable draft so the supplier can
+  // revise (usually the price) and re-send. The declined one stays as history.
+  const requote = (m) => {
+    const q = m.quote || {};
+    const items = (Array.isArray(q.items) ? q.items : []).map(({ _priceInput, ...it }) => ({ ...it }));
+    const total = items.reduce((s, it) => s + (it.unit_price != null ? Number(it.unit_price) * (Number(it.qty) || 1) : 0), 0);
+    setPendingQuote({ text: 'Thanks for coming back to us — here’s a revised quote:', items, currency: q.currency || 'EUR', total, requote: true });
+    taRef.current?.focus?.();
+  };
+
   // Let the supplier type a price into an unpriced line while reviewing the
   // draft, before sending — recomputes the total live.
   const setPendingPrice = (i, value) => {
@@ -529,7 +554,10 @@ const SupplierMessages = () => {
       const q = { items, currency: pendingQuote.currency, total: pendingQuote.total };
       const msg = await sendSupplierQuote(activeId, text, q);
       setMessages((m) => [...m, msg]);
+      // Fully close the draft: clear the review card AND the composer text it was
+      // drafted from, so nothing re-drafts the same request into a new box.
       setPendingQuote(null);
+      setDraft('');
       loadThreads();
     } catch (e) { setError(e.message); }
     finally { setSending(false); }
@@ -549,6 +577,18 @@ const SupplierMessages = () => {
   };
   const contactThread = (t) => navigate(`/supplier/clients/${t.tenant_id}`);
 
+  // Start (or surface) the vessel's general thread so a fresh chat can begin —
+  // the empty general is hidden from the list until it has messages.
+  const startNewChat = async (g) => {
+    setCollapsed((prev) => { const n = new Set(prev); n.delete(g.tenantId); return n; });
+    try {
+      const thread = g.general || (await getOrCreateThread(supplierId, g.tenantId, null));
+      if (!g.general) await loadThreads();
+      setActiveId(thread.id);
+      requestAnimationFrame(() => taRef.current?.focus());
+    } catch (e) { setError(e.message); }
+  };
+
   const rendered = useMemo(() => {
     const out = [];
     let lastDay = null, lastSender = null, lastTime = 0;
@@ -567,7 +607,7 @@ const SupplierMessages = () => {
   const counts = useMemo(() => {
     const nonArch = threads.filter((t) => !t.archived_at);
     return {
-      open: nonArch.length,
+      open: nonArch.filter((t) => t.last_message_at || t.id === activeId).length,
       awaiting: awaitingReply,
       unread: nonArch.filter((t) => t.id !== activeId && (t.supplier_unread_count || 0) > 0).length,
       archived: threads.filter((t) => t.archived_at).length,
@@ -594,11 +634,15 @@ const SupplierMessages = () => {
     const out = [];
     for (const [tenantId, list] of byTenant) {
       list.sort((a, b) => new Date(b.last_message_at || b.created_at) - new Date(a.last_message_at || a.created_at));
-      const unread = list.reduce((s, t) => s + (t.id === activeId ? 0 : (t.supplier_unread_count || 0)), 0);
-      const waitList = list.filter((t) => t.last_sender_type === 'vessel');
+      // Keep the order-less "general" thread for the start-a-chat action even
+      // when empty; only SHOW threads with messages (or the open one).
+      const general = list.find((t) => !t.order_id) || null;
+      const visible = list.filter((t) => t.last_message_at || t.id === activeId);
+      const unread = visible.reduce((s, t) => s + (t.id === activeId ? 0 : (t.supplier_unread_count || 0)), 0);
+      const waitList = visible.filter((t) => t.last_sender_type === 'vessel');
       const oldest = waitList.reduce((acc, t) => (t.last_message_at && (!acc || t.last_message_at < acc) ? t.last_message_at : acc), null);
       const lastAt = list.reduce((acc, t) => { const v = t.last_message_at || t.created_at; return !acc || v > acc ? v : acc; }, null);
-      out.push({ tenantId, name: names[tenantId] || list[0]?.tenants?.name || 'Yacht client', threads: list, unread, awaiting: waitList.length, oldest, lastAt });
+      out.push({ tenantId, name: names[tenantId] || list[0]?.tenants?.name || 'Yacht client', threads: visible, general, unread, awaiting: waitList.length, oldest, lastAt });
     }
     out.sort((a, b) => {
       if (sort === 'vessel') return a.name.localeCompare(b.name);
@@ -673,17 +717,22 @@ const SupplierMessages = () => {
                 const isCollapsed = collapsed.has(g.tenantId);
                 return (
                   <div key={g.tenantId} className="msg-grp">
-                    <button type="button" className="msg-grp-head" onClick={() => toggleGroup(g.tenantId)}>
-                      <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-                      </span>
-                      {boat(g.tenantId, g.name)}
-                      <span className="msg-grp-name">{g.name}</span>
-                      <span className="msg-grp-meta">
-                        {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
-                        {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : <span className="msg-grp-count">{g.threads.length}</span>}
-                      </span>
-                    </button>
+                    <div className="msg-grp-headrow">
+                      <button type="button" className="msg-grp-head" onClick={() => toggleGroup(g.tenantId)}>
+                        <span className={`msg-grp-chev${isCollapsed ? ' c' : ''}`}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                        </span>
+                        {boat(g.tenantId, g.name)}
+                        <span className="msg-grp-name">{g.name}</span>
+                        <span className="msg-grp-meta">
+                          {g.awaiting > 0 && g.oldest && <span className="msg-grp-wait">{fmtAge(g.oldest)}</span>}
+                          {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : g.threads.length > 0 && <span className="msg-grp-count">{g.threads.length}</span>}
+                        </span>
+                      </button>
+                      <button type="button" className="msg-grp-new" title={`New chat with ${g.name}`} aria-label="Start a new chat" onClick={() => startNewChat(g)}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                      </button>
+                    </div>
                     {!isCollapsed && g.threads.map((t) => (
                       <ThreadRow
                         key={t.id} t={t} active={t.id === activeId}
@@ -803,6 +852,16 @@ const SupplierMessages = () => {
                                 </div>
                               )
                             )}
+                            {m.sender_type === 'supplier' && status === 'declined' && (
+                              <>
+                                {m.quote_decline_reason && (
+                                  <div className="msg-qc-reason-note">Declined: {m.quote_decline_reason}</div>
+                                )}
+                                <div className="msg-qc-actions">
+                                  <button type="button" className="msg-qc-accept" onClick={() => requote(m)}>Revise &amp; re-quote</button>
+                                </div>
+                              </>
+                            )}
                             <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
                           </div>
                         </div>
@@ -843,10 +902,10 @@ const SupplierMessages = () => {
                       </div>
                       <div className="msg-qc-items">
                         {pendingQuote.items.map((it, i) => {
-                          // Bespoke lines (no catalogue match) stay editable in the
-                          // review so a typed price can always be corrected; matched
-                          // catalogue lines show their price as static text.
-                          const editable = it.matched === false;
+                          // Bespoke lines (no catalogue match) stay editable so a typed
+                          // price can always be corrected; on a re-quote every line is
+                          // editable so the supplier can revise catalogue prices too.
+                          const editable = pendingQuote.requote || it.matched === false;
                           return (
                             <div key={i} className="msg-qc-item">
                               <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>

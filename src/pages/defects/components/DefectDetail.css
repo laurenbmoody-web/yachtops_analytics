@@ -9,7 +9,8 @@
 .dd-head .dd-chips { display: flex; gap: 6px; }
 .dd-head .dd-ref { font-size: 11px; font-weight: 600; color: #AEB4C2; font-variant-numeric: tabular-nums; }
 .dd-head .spring { flex: 1; }
-.dd-x { width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; color: #6B7280; font-size: 18px; cursor: pointer; flex: none; }
+.dd-x { width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; color: #6B7280; font-size: 20px; line-height: 1; cursor: pointer; flex: none; display: flex; align-items: center; justify-content: center; padding: 0; }
+.dd-x:hover { color: #1C1B3A; }
 
 .dd-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .dd-chip .cd { width: 6px; height: 6px; border-radius: 999px; }
@@ -24,6 +25,22 @@
 .dd-s-closed { background: #F0F1F5; color: #8B8478; } .dd-s-closed .cd { background: #AEB4C2; }
 .dd-s-declined { background: #F7E7E5; color: #A32D2D; } .dd-s-declined .cd { background: #A32D2D; }
 .dd-c-dept { background: #F4F2EC; color: #6B7280; }
+.dd-chip-warranty { background: #E4F1EA; color: #2E7D5A; gap: 4px; }
+
+/* warranty recurrence banner */
+.dd-warn-banner { display: flex; gap: 10px; align-items: flex-start; padding: 11px 13px; border-radius: 12px;
+  background: #F7EEDD; border: 1px solid #EAD9B4; color: #7A5A18; }
+.dd-warn-banner > svg { color: #B9761A; flex: none; margin-top: 1px; }
+.dd-warn-banner .t { font-size: 12.5px; font-weight: 700; color: #7A5A18; }
+.dd-warn-banner .s { font-size: 12px; color: #8a6b2f; line-height: 1.45; margin-top: 1px; }
+.dd-warn-link { background: none; border: 0; padding: 0; font-family: inherit; font-size: 12px; font-weight: 700;
+  color: #B9761A; cursor: pointer; text-decoration: underline; }
+.dd-warn-link:hover { color: #8a5a12; }
+/* warranty line in the repair card */
+.dd-warranty { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; font-weight: 600; color: #8B8478; }
+.dd-warranty svg { color: #AEB4C2; }
+.dd-warranty.active { color: #2E7D5A; }
+.dd-warranty.active svg { color: #2E7D5A; }
 
 .dd-cols { display: grid; grid-template-columns: 1.55fr 1fr; }
 @media (max-width: 760px) { .dd-cols { grid-template-columns: 1fr; } }
@@ -100,10 +117,125 @@
 .dd-edit-btn { background: none; border: 1px solid #ECEAE3; border-radius: 8px; padding: 6px 11px; font-family: inherit;
   font-size: 12.5px; font-weight: 600; color: #1C1B3A; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .dd-edit-btn:hover { border-color: #C65A1A; color: #C65A1A; }
+.dd-edit-btn.small { padding: 4px 9px; font-size: 11.5px; }
+
+/* fix & contractor — inline-editable section on the view */
+.dd-fix-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+
+/* repair stage stepper — a clickable, labelled control (not a passive bar) */
+.dd-stage { margin: 2px 0 14px; }
+.dd-stage-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.dd-stage-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.dd-stage-hint { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: #C65A1A; }
+.dd-stage-now-txt { font-size: 12px; font-weight: 600; color: #1C1B3A; }
+.dd-stage-steps { display: flex; gap: 2px; overflow-x: auto; padding-bottom: 2px; }
+.dd-stage-step { flex: 1 1 0; min-width: 52px; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  background: none; border: 0; padding: 4px 2px 6px; cursor: pointer; position: relative; }
+.dd-stage-step:disabled { cursor: default; }
+/* connector line between steps */
+.dd-stage-step::before { content: ""; position: absolute; top: 13px; left: -50%; width: 100%; height: 2px; background: #ECEAE3; z-index: 0; }
+.dd-stage-step:first-child::before { display: none; }
+.dd-stage-step.done::before { background: #C65A1A; }
+.dd-stage-dot { position: relative; z-index: 1; width: 22px; height: 22px; border-radius: 999px; background: #fff; border: 2px solid #E3DFD6;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #AEB4C2; transition: all .14s; }
+.dd-stage-step.done .dd-stage-dot { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.dd-stage-step.cur .dd-stage-dot { border-color: #C65A1A; color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.dd-stage-step.cur.done .dd-stage-dot { color: #fff; }
+.dd-stage-step:not(:disabled):hover .dd-stage-dot { border-color: #C65A1A; }
+.dd-stage-name { font-size: 9.5px; font-weight: 600; line-height: 1.2; text-align: center; color: #8B8478; }
+.dd-stage-step.cur .dd-stage-name { color: #1C1B3A; font-weight: 700; }
+.dd-stage-step.done .dd-stage-name { color: #6B5A4A; }
+.dd-fixform { display: flex; flex-direction: column; gap: 12px; }
+.dd-fix-empty { font-size: 12px; color: #AEB4C2; margin: 0; }
 .dd-contractor { border: 1px solid #ECEAE3; border-radius: 11px; padding: 11px 12px; background: #FAFAF8; }
-.dd-contractor .cn { font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 6px; }
+.dd-contractor .cn { font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 .dd-contractor .cd { font-size: 12px; color: #6B7280; margin-top: 3px; line-height: 1.45; white-space: pre-wrap; }
-.dd-contractor .cs { font-size: 12px; color: #C65A1A; font-weight: 600; margin-top: 5px; }
+.dd-contractor .cs { font-size: 12px; color: #6B7280; font-weight: 500; margin-top: 6px; }
+/* Scheduled-for — leads the repair card. */
+.dd-sched { display: inline-flex; align-items: center; gap: 6px; background: #FBEFE9; border-radius: 999px; padding: 4px 12px;
+  font-size: 12.5px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
+.dd-sched svg { color: #C65A1A; }
+/* Contractor contact row (mirrors directory fields). */
+.dd-contact { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.dd-contact .cc { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #3A3960; text-decoration: none; }
+a.dd-contact .cc, .dd-contact a.cc { color: #3E6B89; }
+.dd-contact a.cc:hover { color: #C65A1A; }
+.dd-contact .cc svg { color: #AEB4C2; }
+/* schedule range (two pickers) */
+.dd-daterange { display: flex; align-items: center; gap: 8px; }
+.dd-daterange > .edp { flex: 1; min-width: 0; }
+.dd-daterange-sep { color: #AEB4C2; flex: none; }
+
+.dd-cn-link { margin-left: auto; background: none; border: 0; padding: 0; font-family: inherit; font-size: 11px; font-weight: 600;
+  color: #C65A1A; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+.dd-cn-link:hover { color: #B14E16; }
+
+/* contractor picker (directory-linked combobox) */
+.dd-cpick { position: relative; }
+.dd-cpick-field { position: relative; }
+.dd-cpick-field .dd-input { padding-right: 30px; }
+.dd-cpick-linked { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: #2E7D5A; display: flex; }
+.dd-cpick-pop { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid #ECEAE3;
+  border-radius: 11px; box-shadow: 0 18px 40px -14px rgba(28,27,58,.3); padding: 5px; max-height: 240px; overflow-y: auto; }
+.dd-cpick-opt { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: none; border: 0;
+  font-family: inherit; text-align: left; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.dd-cpick-opt:hover { background: #FAFAF8; }
+.dd-cpick-opt .nm { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
+.dd-cpick-opt .ty { font-size: 10px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: #AEB4C2; flex: none; }
+.dd-cpick-add { width: 100%; display: flex; align-items: center; gap: 6px; background: none; border: 0; border-top: 1px solid #F0F1F5;
+  margin-top: 4px; padding: 9px 10px; font-family: inherit; font-size: 12px; color: #C65A1A; cursor: pointer; border-radius: 0 0 8px 8px; }
+.dd-cpick-add:hover { background: #FBEFE9; }
+.dd-cpick-add b { font-weight: 600; }
+
+/* documents (quote/invoice) + cost variance on the repair record */
+.dd-docs { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.dd-cost { display: flex; gap: 8px; }
+.dd-cost-cell { flex: 1; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 10px; padding: 7px 10px; display: flex; flex-direction: column; gap: 1px; }
+.dd-cost-cell .k { font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: #8B8478; }
+.dd-cost-cell .v { font-size: 13px; font-weight: 700; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.dd-cost-cell .v.over { color: #A32D2D; }
+.dd-cost-cell .v.under { color: #2E7D5A; }
+.dd-doclist { display: flex; flex-direction: column; gap: 5px; }
+.dd-doc { display: flex; align-items: center; gap: 8px; }
+.dd-doc-badge { flex: none; font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; border-radius: 999px; padding: 3px 8px; }
+.dd-doc-badge.k-quote { background: #E5EDF2; color: #3E6B89; }
+.dd-doc-badge.k-invoice { background: #E4F1EA; color: #2E7D5A; }
+.dd-doc-badge.k-other { background: #F0F1F5; color: #8B8478; }
+.dd-doc-name { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #3E6B89;
+  text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-doc-name:hover { color: #C65A1A; }
+.dd-doc-name svg { color: #AEB4C2; flex: none; }
+.dd-doc-amt { flex: none; font-size: 12px; font-weight: 700; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.dd-doc-x { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 1px solid #ECEAE3; background: #fff; color: #AEB4C2;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.dd-doc-x:hover { color: #A32D2D; border-color: #E3B9A3; }
+.dd-doc-actions { display: flex; gap: 6px; }
+
+/* quote sign-off panel */
+.dd-approval { margin-top: 10px; }
+.dd-appr-box { border-radius: 11px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.dd-appr-box.pending { background: #F7EEDD; border: 1px solid #EAD9B4; }
+.dd-appr-box.approved { background: #E4F1EA; border: 1px solid #CDE7D8; color: #2E7D5A; flex-direction: row; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.dd-appr-box.declined { background: #F7E7E5; border: 1px solid #EACFCC; }
+.dd-appr-h { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: #7A5A18; }
+.dd-appr-box.declined .dd-appr-h { color: #A32D2D; }
+.dd-appr-sub { font-size: 12px; color: #8a6b2f; line-height: 1.4; }
+.dd-appr-box.declined .dd-appr-sub { color: #9a4b46; }
+.dd-appr-actions { display: flex; gap: 8px; }
+.dd-appr-actions .dd-btn { flex: 1; }
+
+/* parts requisitions raised from the defect */
+.dd-reqs { display: flex; flex-direction: column; gap: 6px; }
+.dd-req { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: #FAFAF8; border: 1px solid #ECEAE3;
+  border-radius: 10px; padding: 9px 11px; font-family: inherit; cursor: pointer; color: #1C1B3A; }
+.dd-req:hover { border-color: #C65A1A; }
+.dd-req .t { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-req .s { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; color: #6B7280;
+  background: #F0F1F5; border-radius: 999px; padding: 3px 8px; }
+.dd-req > svg:last-child { color: #AEB4C2; flex: none; }
+
+/* core-record edit reuses the shared log form; centre it like the map's log view */
+.dd-editwrap { width: 100%; max-width: 640px; margin: 0 auto; padding: 18px 22px 22px; }
 
 /* edit form */
 .dd-edit { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
