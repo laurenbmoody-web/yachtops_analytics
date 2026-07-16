@@ -7,7 +7,7 @@ import {
   markThreadReadSupplier, fetchClients, fetchClientOrders, draftQuoteFromMessage,
   setThreadArchived, deleteThread, fetchVesselLogos, sendSupplierQuote,
   reactToMessage, deleteMessage, editMessage, createCatalogueItem, repriceQuote,
-  uploadMessageAttachment,
+  uploadMessageAttachment, updateOrderStatus,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -94,7 +94,7 @@ const avatarGrad = (id) => { const [a, b] = AV_GRADS[hashId(String(id)) % AV_GRA
 // Domain quick-replies — prefill the composer with a useful opener.
 const QUICK = [
   { label: 'Confirm delivery', text: (o) => `Confirming your delivery${o?.delivery_date ? ` for ${new Date(o.delivery_date).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}${o?.delivery_time ? ` at ${String(o.delivery_time).slice(0, 5)}` : ''} — does that still work for you?` },
-  { label: 'On our way 🚚', text: () => `We're on our way with your delivery 🚚 — I'll message when we're close.` },
+  { label: 'On our way 🚚', status: 'out_for_delivery', text: () => `We're on our way with your delivery 🚚 — I'll message when we're close.` },
   { label: 'Substitution', text: () => `Quick one — an item's short today and I can swap in a close match. Want me to sort that for you?` },
 ];
 
@@ -420,6 +420,23 @@ const SupplierMessages = () => {
   };
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (fn) => { setDraft((d) => (d.trim() ? `${d.trim()} ${fn(activeOrder)}` : fn(activeOrder))); taRef.current?.focus(); };
+
+  // A status quick-action (e.g. "On our way") moves the order's status AND posts
+  // the message in one go, so the yacht sees the update and the order's stage
+  // actually advances (with its timestamp stamped) — not just a chat line.
+  const deliveryAction = async (q) => {
+    if (sending) return;
+    if (!activeOrder?.id) { quick(q.text); return; }  // no order to advance — fall back to a template
+    setSending(true); setError(null);
+    try {
+      const updated = await updateOrderStatus(activeOrder.id, q.status);
+      setActiveOrder(updated);
+      const msg = await sendSupplierMessage(activeId, q.text(activeOrder), null, []);
+      setMessages((m) => [...m, msg]);
+      loadThreads();
+    } catch (e) { setError(e.message || 'Couldn’t update the order status.'); }
+    finally { setSending(false); }
+  };
 
   // Upload picked photos/dockets, staged as pending attachments for the next send.
   const onPickFiles = async (e) => {
@@ -960,7 +977,9 @@ const SupplierMessages = () => {
                       {aiLoading ? 'Drafting quote…' : '✨ Turn into a quote'}
                     </button>
                     {QUICK.map((q) => (
-                      <button key={q.label} type="button" className="msg-qchip" onClick={() => quick(q.text)}>{q.label}</button>
+                      q.status
+                        ? <button key={q.label} type="button" className="msg-qchip msg-qchip-status" disabled={sending} title={activeOrder ? `Marks order #${shortId(activeOrder.id)} out for delivery` : undefined} onClick={() => deliveryAction(q)}>{q.label}</button>
+                        : <button key={q.label} type="button" className="msg-qchip" onClick={() => quick(q.text)}>{q.label}</button>
                     ))}
                   </div>
                   {editing ? (
