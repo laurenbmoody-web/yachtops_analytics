@@ -932,8 +932,8 @@ export const editMessage = async (messageId, body) => {
 
 // Add prices to a quote already sent (still pending) and re-send it — updates
 // the quote in place. quote = { items, currency, total }.
-export const repriceQuote = async (messageId, quote) => {
-  const { error } = await supabase.rpc('reprice_supplier_quote', { p_message_id: messageId, p_quote: quote });
+export const repriceQuote = async (messageId, quote, body = null) => {
+  const { error } = await supabase.rpc('reprice_supplier_quote', { p_message_id: messageId, p_quote: quote, p_body: body });
   if (error) throw error;
 };
 

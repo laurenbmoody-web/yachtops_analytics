@@ -12,6 +12,20 @@ import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
 import MessageBubble from '../../../components/messaging/MessageBubble';
 
+// When a quote is fully priced, strip the "unpriced / not in catalogue"
+// caveats from the supplier's message so the note matches the (now priced) card.
+const cleanPricedBody = (body, allPriced) => {
+  if (!allPriced || !body) return body;
+  let b = String(body)
+    .replace(/\s*[—–-]\s*unpriced[^\n]*/gi, '')          // "— unpriced (see note below)"
+    .replace(/\s*\(see note below\)/gi, '')
+    .replace(/^.*\bunfortunately\b[\s\S]*?(?:\n\s*\n|$)/gim, '') // the "Unfortunately … catalogue" paragraph
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return b || 'Updated with pricing — ready to accept whenever you are.';
+};
+
 // Optimistic mirror of react_to_message: one reaction per user.
 const toggleReaction = (reactions, emoji, uid) => {
   const arr = Array.isArray(reactions) ? reactions : [];
@@ -466,11 +480,13 @@ const SupplierMessages = () => {
     });
     const total = items.reduce((s, it) => s + (it.unit_price != null ? Number(it.unit_price) * (Number(it.qty) || 1) : 0), 0);
     const quote = { ...q, items, total };
+    const allPriced = items.every((it) => it.unit_price != null);
+    const newBody = cleanPricedBody(m.body, allPriced);
     setSending(true);
     setError(null);
     try {
-      await repriceQuote(m.id, quote);
-      setMessages((ms) => ms.map((x) => (x.id === m.id ? { ...x, quote, edited_at: new Date().toISOString() } : x)));
+      await repriceQuote(m.id, quote, newBody !== m.body ? newBody : null);
+      setMessages((ms) => ms.map((x) => (x.id === m.id ? { ...x, quote, body: newBody, edited_at: new Date().toISOString() } : x)));
       cancelPricing();
       loadThreads();
     } catch (e) { setError(e.message || 'Couldn’t update the quote.'); }
