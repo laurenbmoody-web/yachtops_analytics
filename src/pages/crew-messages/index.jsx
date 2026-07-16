@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 import {
   fetchVesselThreads, fetchThreadMessages, sendVesselMessage, markThreadReadVessel,
   markThreadNotificationsRead, acceptQuote, declineQuote, reactToMessage, deleteMessage, editMessage,
-  setThreadArchived, deleteThread,
+  setThreadArchived, deleteThread, uploadMessageAttachment,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -235,7 +235,10 @@ const CrewMessages = () => {
   const [editing, setEditing] = useState(null);
   const [declining, setDeclining] = useState(null);   // quote message id being declined
   const [declineReason, setDeclineReason] = useState('');
+  const [attachments, setAttachments] = useState([]); // pending upload descriptors
+  const [uploading, setUploading] = useState(false);
   const [myUid, setMyUid] = useState(null);
+  const fileRef = useRef(null);
   const endRef = useRef(null);
   const streamRef = useRef(null);
   const taRef = useRef(null);
@@ -312,7 +315,7 @@ const CrewMessages = () => {
 
   const send = async () => {
     const body = draft.trim();
-    if (!body || !activeId || sending) return;
+    if ((!body && !attachments.length) || !activeId || sending) return;
     setSending(true);
     try {
       if (editing) {
@@ -320,15 +323,32 @@ const CrewMessages = () => {
         setMessages((m) => m.map((x) => (x.id === editing.id ? { ...x, body, edited_at: new Date().toISOString() } : x)));
         setEditing(null);
       } else {
-        const msg = await sendVesselMessage(activeId, body, replyTo?.id ?? null);
+        const msg = await sendVesselMessage(activeId, body, replyTo?.id ?? null, attachments);
         setMessages((m) => [...m, msg]);
         setReplyTo(null);
+        setAttachments([]);
         load();
       }
       setDraft('');
     } catch (e) { setError(e.message); }
     finally { setSending(false); }
   };
+
+  // Upload picked photos/dockets, staged as pending attachments for the next send.
+  const onPickFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (fileRef.current) fileRef.current.value = '';
+    if (!files.length || !activeId) return;
+    setUploading(true); setError(null);
+    try {
+      const up = [];
+      for (const f of files) up.push(await uploadMessageAttachment(activeId, f));
+      setAttachments((a) => [...a, ...up]);
+    } catch (err) { setError(err.message || 'Couldn’t upload that file.'); }
+    finally { setUploading(false); }
+  };
+  const removeAttachment = (i) => setAttachments((a) => a.filter((_, idx) => idx !== i));
+
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (text) => { setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text)); taRef.current?.focus(); };
 
@@ -713,9 +733,27 @@ const CrewMessages = () => {
                           <button type="button" className="msg-replybar-x" onClick={() => setReplyTo(null)} aria-label="Cancel reply">✕</button>
                         </div>
                       )}
+                      {(attachments.length > 0 || uploading) && (
+                        <div className="msg-attach-tray">
+                          {attachments.map((a, i) => (
+                            <span key={i} className="msg-attach-chip">
+                              {(a.type || '').startsWith('image/')
+                                ? <img src={a.url} alt="" />
+                                : <span className="msg-attach-chip-file">📄</span>}
+                              <span className="msg-attach-chip-name">{a.name}</span>
+                              <button type="button" onClick={() => removeAttachment(i)} aria-label="Remove">✕</button>
+                            </span>
+                          ))}
+                          {uploading && <span className="msg-attach-chip loading">Uploading…</span>}
+                        </div>
+                      )}
                       <div className="msg-composer">
+                        <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple hidden onChange={onPickFiles} />
+                        <button type="button" className="msg-attach-btn" title="Attach a photo or file" aria-label="Attach" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                        </button>
                         <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} placeholder={`Reply to ${supplierName(activeThread)}…  (Enter to send · Shift+Enter for a new line)`} rows={2} />
-                        <button type="button" className="msg-send" disabled={!draft.trim() || sending} onClick={send}>{sending ? 'Sending…' : 'Send'}</button>
+                        <button type="button" className="msg-send" disabled={(!draft.trim() && !attachments.length) || sending} onClick={send}>{sending ? 'Sending…' : 'Send'}</button>
                       </div>
                     </div>
                   </>

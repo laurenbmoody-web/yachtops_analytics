@@ -7,6 +7,7 @@ import {
   markThreadReadSupplier, fetchClients, fetchClientOrders, draftQuoteFromMessage,
   setThreadArchived, deleteThread, fetchVesselLogos, sendSupplierQuote,
   reactToMessage, deleteMessage, editMessage, createCatalogueItem, repriceQuote,
+  uploadMessageAttachment,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -272,9 +273,12 @@ const SupplierMessages = () => {
   const [savingCat, setSavingCat] = useState(null);
   const [pricing, setPricing] = useState(null);     // quote message id being repriced
   const [priceDraft, setPriceDraft] = useState({}); // { itemIndex: 'value' }
+  const [attachments, setAttachments] = useState([]); // pending upload descriptors
+  const [uploading, setUploading] = useState(false);
   const endRef = useRef(null);
   const streamRef = useRef(null);
   const taRef = useRef(null);
+  const fileRef = useRef(null);
 
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setMyUid(data?.user?.id ?? null)); }, []);
 
@@ -326,7 +330,7 @@ const SupplierMessages = () => {
     setReplyTo(null); setEditing(null); setDraft('');
     // A half-made quote belongs to the thread it was drafted in — never let it
     // follow the supplier into another conversation.
-    setPendingQuote(null); setPricing(null); setPriceDraft({});
+    setPendingQuote(null); setPricing(null); setPriceDraft({}); setAttachments([]);
     if (!activeId) { setMessages([]); return; }
     fetchMessages(activeId).then(setMessages).catch((e) => setError(e.message));
     setThreads((prev) => prev.map((t) => (t.id === activeId ? { ...t, supplier_unread_count: 0 } : t)));
@@ -396,7 +400,7 @@ const SupplierMessages = () => {
 
   const send = async () => {
     const body = draft.trim();
-    if (!body || !activeId || sending) return;
+    if ((!body && !attachments.length) || !activeId || sending) return;
     setSending(true);
     try {
       if (editing) {
@@ -404,9 +408,10 @@ const SupplierMessages = () => {
         setMessages((m) => m.map((x) => (x.id === editing.id ? { ...x, body, edited_at: new Date().toISOString() } : x)));
         setEditing(null);
       } else {
-        const msg = await sendSupplierMessage(activeId, body, replyTo?.id ?? null);
+        const msg = await sendSupplierMessage(activeId, body, replyTo?.id ?? null, attachments);
         setMessages((m) => [...m, msg]);
         setReplyTo(null);
+        setAttachments([]);
         loadThreads();
       }
       setDraft('');
@@ -415,6 +420,21 @@ const SupplierMessages = () => {
   };
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (fn) => { setDraft((d) => (d.trim() ? `${d.trim()} ${fn(activeOrder)}` : fn(activeOrder))); taRef.current?.focus(); };
+
+  // Upload picked photos/dockets, staged as pending attachments for the next send.
+  const onPickFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (fileRef.current) fileRef.current.value = '';
+    if (!files.length || !activeId) return;
+    setUploading(true); setError(null);
+    try {
+      const up = [];
+      for (const f of files) up.push(await uploadMessageAttachment(activeId, f));
+      setAttachments((a) => [...a, ...up]);
+    } catch (err) { setError(err.message || 'Couldn’t upload that file.'); }
+    finally { setUploading(false); }
+  };
+  const removeAttachment = (i) => setAttachments((a) => a.filter((_, idx) => idx !== i));
 
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
   const startEdit = (m) => { setReplyTo(null); setEditing(m); setDraft(m.body || ''); taRef.current?.focus(); };
@@ -960,9 +980,27 @@ const SupplierMessages = () => {
                       <button type="button" className="msg-replybar-x" onClick={() => setReplyTo(null)} aria-label="Cancel reply">✕</button>
                     </div>
                   )}
+                  {(attachments.length > 0 || uploading) && (
+                    <div className="msg-attach-tray">
+                      {attachments.map((a, i) => (
+                        <span key={i} className="msg-attach-chip">
+                          {(a.type || '').startsWith('image/')
+                            ? <img src={a.url} alt="" />
+                            : <span className="msg-attach-chip-file">📄</span>}
+                          <span className="msg-attach-chip-name">{a.name}</span>
+                          <button type="button" onClick={() => removeAttachment(i)} aria-label="Remove">✕</button>
+                        </span>
+                      ))}
+                      {uploading && <span className="msg-attach-chip loading">Uploading…</span>}
+                    </div>
+                  )}
                   <div className="msg-composer">
+                    <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple hidden onChange={onPickFiles} />
+                    <button type="button" className="msg-attach-btn" title="Attach a photo or file" aria-label="Attach" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                    </button>
                     <textarea ref={taRef} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} placeholder={`Reply to ${nameFor(activeThread)}…  (Enter to send · Shift+Enter for a new line)`} rows={2} />
-                    <button type="button" className="msg-send" disabled={!draft.trim() || sending} onClick={send}>{sending ? 'Sending…' : 'Send'}</button>
+                    <button type="button" className="msg-send" disabled={(!draft.trim() && !attachments.length) || sending} onClick={send}>{sending ? 'Sending…' : 'Send'}</button>
                   </div>
                 </div>
               </>
