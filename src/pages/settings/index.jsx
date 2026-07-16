@@ -1095,45 +1095,25 @@ const SettingsPage = () => {
         return (
           <>
             <h2 className="set-h">Notifications</h2>
-            <p className="set-hsub">Choose what reaches you, how, and when.</p>
-            <Caps>Channels</Caps>
+            <p className="set-hsub">Choose which alerts reach you, on the bell and by email.</p>
             <Group>
-              <RowToggle label="Email" desc="Receive notifications by email." on={prefs.emailNotifications} onChange={() => toggle('emailNotifications')} />
-              <RowToggle label="Push" desc="In-browser push notifications." on={prefs.pushNotifications} onChange={() => toggle('pushNotifications')} />
+              {/* One source of truth: the per-category controls live on your
+                  profile's Notifications tab (bell + email columns in
+                  notification_preferences, which the reminder emails honour).
+                  Settings routes there rather than keeping a second, drifting
+                  set of toggles. */}
+              <RowNav
+                ext
+                label="Notification preferences"
+                desc="Turn each type on or off for the bell and by email — Hours of Rest, rota, provisioning, documents and sea-time — and set your quiet hours."
+                onClick={() => navigate('/my-profile?tab=notifications')}
+              />
             </Group>
-            {/* Category toggles are all vessel-operational — only meaningful aboard. */}
-            {activeTenantId ? (
-              <>
-                <Caps>By category</Caps>
-                <Group>
-                  <RowToggle label="Jobs & tasks" on={prefs.catJobs} onChange={() => toggle('catJobs')} />
-                  <RowToggle label="Hours of Rest" on={prefs.catHor} onChange={() => toggle('catHor')} />
-                  <RowToggle label="Provisioning approvals" on={prefs.catProvisioning} onChange={() => toggle('catProvisioning')} />
-                  <RowToggle label="Trips & guests" on={prefs.catTrips} onChange={() => toggle('catTrips')} />
-                  <RowToggle label="Defects" on={prefs.catDefects} onChange={() => toggle('catDefects')} />
-                </Group>
-              </>
-            ) : (
-              <>
-                <Caps>By category</Caps>
-                <Group>
-                  <div className="set-r">
-                    <RMain label="Vessel notifications" desc="Rota, Hours of Rest, provisioning, trips and defects resume when you join a vessel." />
-                    <span className="set-chip off">Paused</span>
-                  </div>
-                </Group>
-              </>
+            {!activeTenantId && (
+              <p className="set-hsub" style={{ marginTop: 10 }}>
+                Off a vessel, only your portable alerts — document expiry and sea-time — apply. Vessel alerts resume when you join one.
+              </p>
             )}
-            <Caps>Timing</Caps>
-            <Group>
-              <div className="set-r">
-                <RMain label="Quiet hours" desc="Hold non-urgent alerts overnight." />
-                <span className="set-r-val">22:00 – 07:00</span>
-                <Switch on={prefs.quietHours} onChange={() => toggle('quietHours')} label="Quiet hours" />
-              </div>
-              <RowSeg label="Digest" desc="A summary instead of live pings." value={prefs.digest} onChange={(v) => setPref('digest', v)}
-                options={[{ v: 'off', l: 'Off' }, { v: 'daily', l: 'Daily' }, { v: 'weekly', l: 'Weekly' }]} />
-            </Group>
           </>
         );
 
@@ -1165,8 +1145,6 @@ const SettingsPage = () => {
                 </div>
               )}
               <RowToggle label="24-hour time" desc="Show 15:42 rather than 3:42 PM." on={prefs.hour24} onChange={() => toggle('hour24')} />
-              <RowSeg label="Units" value={prefs.units} onChange={(v) => setPref('units', v)}
-                options={[{ v: 'metric', l: 'Metric' }, { v: 'imperial', l: 'Imperial' }]} />
               <RowSeg label="First day of week" value={prefs.firstDay} onChange={(v) => setPref('firstDay', v)}
                 options={[{ v: 'mon', l: 'Mon' }, { v: 'sun', l: 'Sun' }]} />
             </Group>
