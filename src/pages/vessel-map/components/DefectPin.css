@@ -167,15 +167,20 @@
 .vmd-err { font-size: 12px; color: #A32D2D; margin: 0; }
 .vmd-loading { font-size: 12.5px; color: #8B8478; padding: 8px 0; }
 
-/* Wide modal — the defect opens across the app, not the narrow inspector. */
-.vmd-modal { width: 100%; max-width: 720px; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
-  box-shadow: 0 24px 60px -16px rgba(28,27,58,.32); display: flex; flex-direction: column; max-height: 90vh; }
-.vmd-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 20px 11px; border-bottom: 1px solid #ECEAE3; }
+/* Wide modal — the defect opens across the app, not the narrow inspector.
+   Bare shell: the log form and the two-column detail own their own layout. */
+.vmd-modal { position: relative; width: 100%; max-width: 880px; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,.32); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
+.vmd-xfloat { position: absolute; top: 12px; right: 12px; z-index: 5; width: 30px; height: 30px; border-radius: 999px; border: 0;
+  background: rgba(244,242,236,.9); color: #6B7280; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.vmd-xfloat:hover { color: #1C1B3A; }
+.vmd-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 .vmd-modal-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #8B8478; margin: 0 0 3px; }
-.vmd-modal-head h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 21px; margin: 0; }
-.vmd-modal-x { flex: none; width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; color: #6B7280; font-size: 18px; cursor: pointer; }
-.vmd-modal-body { padding: 20px; overflow-y: auto; }
-.vmd-modal-body .vmd { max-width: 640px; margin: 0 auto; }
+
+/* Log form: narrower, centred, with its own header. */
+.vmd-formwrap { max-width: 640px; margin: 0 auto; padding: 20px 22px 22px; }
+.vmd-form-head { margin-bottom: 16px; }
+.vmd-form-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 0; }
 
 /* Compact inspector summary (launches the wide modal). */
 .vmd-summary { display: flex; flex-direction: column; gap: 10px; }
