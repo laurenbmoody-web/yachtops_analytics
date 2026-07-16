@@ -16,6 +16,8 @@ export const DEFECT_NOTIFICATION_TYPES = {
   DEFECT_ACCEPTED: 'DEFECT_ACCEPTED',
   DEFECT_DECLINED: 'DEFECT_DECLINED',
   DEFECT_ASSIGNED: 'DEFECT_ASSIGNED',
+  QUOTE_APPROVAL_REQUESTED: 'DEFECT_QUOTE_APPROVAL_REQUESTED',
+  QUOTE_APPROVAL_DECIDED: 'DEFECT_QUOTE_APPROVAL_DECIDED',
 };
 
 export const SEVERITY = { INFO: 'info', WARN: 'warn', URGENT: 'urgent' };
@@ -60,6 +62,30 @@ export const notifyChiefsNewDefect = async (actor, departmentId, defectTitle, de
     message: defectTitle,
     actionUrl: `/defects/${defectId}`,
     severity: SEVERITY.INFO,
+  });
+};
+
+// A repair quote needs a Captain/HOD sign-off — notify the department's chiefs.
+export const notifyChiefsQuoteApproval = async (actor, departmentId, defectTitle, defectId, amountLabel) => {
+  const chiefs = await chiefsOfDepartment(actor?.tenantId, departmentId);
+  await notifyMany(chiefs, actor?.userId, {
+    type: DEFECT_NOTIFICATION_TYPES.QUOTE_APPROVAL_REQUESTED,
+    title: 'Repair quote needs sign-off',
+    message: amountLabel ? `${defectTitle} — ${amountLabel}` : defectTitle,
+    actionUrl: `/defects/${defectId}`,
+    severity: SEVERITY.WARN,
+  });
+};
+
+// Tell whoever requested sign-off what the Captain/HOD decided.
+export const notifyRequesterApprovalDecision = async (actor, requesterId, defectTitle, defectId, approved) => {
+  if (!requesterId) return;
+  await sendDbNotification(requesterId, {
+    type: DEFECT_NOTIFICATION_TYPES.QUOTE_APPROVAL_DECIDED,
+    title: approved ? 'Repair quote approved' : 'Repair quote declined',
+    message: defectTitle,
+    actionUrl: `/defects/${defectId}`,
+    severity: approved ? SEVERITY.INFO : SEVERITY.WARN,
   });
 };
 

@@ -21,6 +21,8 @@ import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-ma
 import {
   notifyChiefsPendingDefect,
   notifyChiefsNewDefect,
+  notifyChiefsQuoteApproval,
+  notifyRequesterApprovalDecision,
   notifySenderAccepted,
   notifySenderDeclined,
   notifyDefectAssigned,
@@ -55,6 +57,10 @@ export const REPAIR_STAGE_LABELS = {
   not_started: 'Not started', contacted: 'Contractor contacted', quoting: 'Awaiting quote',
   quoted: 'Quote received', scheduled: 'Scheduled', in_progress: 'In progress', completed: 'Complete',
 };
+// A quote at/above this (in the quote's own currency) auto-requires a Captain/HOD
+// sign-off before the repair can be scheduled.
+export const QUOTE_APPROVAL_THRESHOLD = 1000;
+export const QuoteApproval = { PENDING: 'pending', APPROVED: 'approved', DECLINED: 'declined' };
 
 export const DefectDepartment = {
   INTERIOR: 'Interior', DECK: 'Deck', ENGINEERING: 'Engineering', GALLEY: 'Galley', MANAGEMENT: 'Management',
@@ -149,6 +155,10 @@ const fromRow = (r) => {
     scheduledEndAt: r.scheduled_end_at,
     repairStage: r.repair_stage,
     warrantyUntil: r.warranty_until,
+    quoteApprovalStatus: r.quote_approval_status,
+    quoteApprovedByName: r.quote_approved_by_name,
+    quoteApprovedAt: r.quote_approved_at,
+    quoteApprovalNote: r.quote_approval_note,
     scheduledFixAt: r.scheduled_fix_at,
     closedAt: r.closed_at,
     closedByUserId: r.closed_by,
@@ -355,6 +365,47 @@ export const fetchWarrantyContext = async (defect, actor) => {
     id: r.id, ref: r.seq != null ? `DEF-${String(r.seq).padStart(4, '0')}` : '',
     title: r.title, warrantyUntil: r.warranty_until, contractorName: r.contractor_name,
   }));
+};
+
+// Captain / HOD / Chief can sign off a repair quote's spend.
+export const canApproveQuote = (actor) =>
+  isCommandTier(actor?.tier) || isChiefTier(actor?.tier) || isHODTier(actor?.tier);
+
+// Ask a Captain/HOD to sign off the repair quote before it's scheduled.
+export const requestQuoteApproval = async (defectId, actor, amountLabel = null) => {
+  if (!defectId || !actor?.tenantId) return null;
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+  const { data, error } = await supabase
+    ?.from('defects')?.update({
+      quote_approval_status: 'pending',
+      quote_approved_by: null, quote_approved_by_name: null, quote_approved_at: null, quote_approval_note: null,
+    })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] requestQuoteApproval', error); return null; }
+  await logEvent(actor, defectId, 'approval_requested', `Quote sign-off requested${amountLabel ? ` (${amountLabel})` : ''}`);
+  await notifyChiefsQuoteApproval(actor, before.departmentId, before.title, defectId, amountLabel);
+  return fromRow(data);
+};
+
+// A Captain/HOD approves or declines the quote.
+export const decideQuoteApproval = async (defectId, approved, note, actor) => {
+  if (!defectId || !actor?.tenantId) return null;
+  if (!canApproveQuote(actor)) { console.warn('[defects] decideQuoteApproval — not permitted'); return null; }
+  const before = await getDefectById(defectId, actor);
+  if (!before) return null;
+  const status = approved ? 'approved' : 'declined';
+  const { data, error } = await supabase
+    ?.from('defects')?.update({
+      quote_approval_status: status,
+      quote_approved_by: actor.userId || null, quote_approved_by_name: actor.userName || null,
+      quote_approved_at: new Date().toISOString(), quote_approval_note: note || null,
+    })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  if (error) { console.warn('[defects] decideQuoteApproval', error); return null; }
+  await logEvent(actor, defectId, 'approval_decided',
+    `${approved ? 'Quote approved' : 'Quote declined'}${note ? ` — ${note}` : ''}`);
+  const recipients = [...new Set([before.reportedByUserId, before.assignedToUserId].filter(Boolean))];
+  await Promise.all(recipients.map((uid) => notifyRequesterApprovalDecision(actor, uid, before.title, defectId, approved)));
+  return fromRow(data);
 };
 
 export const assignDefect = async (defectId, assignment, actor) => {
