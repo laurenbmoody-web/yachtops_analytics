@@ -367,9 +367,26 @@ export const fetchWarrantyContext = async (defect, actor) => {
   }));
 };
 
-// Captain / HOD / Chief can sign off a repair quote's spend.
-export const canApproveQuote = (actor) =>
-  isCommandTier(actor?.tier) || isChiefTier(actor?.tier) || isHODTier(actor?.tier);
+// Who can sign off a repair quote is configurable per vessel
+// (vessels.defect_quote_approver_tier, default 'HOD' = HOD & above). Hierarchical:
+// an equal-or-higher tier than the required one may approve.
+const TIER_RANK = { COMMAND: 4, CHIEF: 3, HOD: 2, CREW: 1 };
+export const canApproveQuote = (actor, approverTier = 'HOD') =>
+  (TIER_RANK[normalizeDept(actor?.tier)] || 0) >= (TIER_RANK[normalizeDept(approverTier)] || 2);
+
+// Per-vessel sign-off config (approver tier + auto-request threshold).
+export const fetchDefectQuoteSettings = async (tenantId) => {
+  const fallback = { approverTier: 'HOD', threshold: QUOTE_APPROVAL_THRESHOLD };
+  if (!tenantId) return fallback;
+  const { data, error } = (await supabase
+    ?.from('vessels')?.select('defect_quote_approver_tier, defect_quote_signoff_threshold')
+    ?.eq('tenant_id', tenantId)?.maybeSingle()) || {};
+  if (error || !data) return fallback;
+  return {
+    approverTier: data.defect_quote_approver_tier || 'HOD',
+    threshold: data.defect_quote_signoff_threshold != null ? Number(data.defect_quote_signoff_threshold) : QUOTE_APPROVAL_THRESHOLD,
+  };
+};
 
 // Ask a Captain/HOD to sign off the repair quote before it's scheduled.
 export const requestQuoteApproval = async (defectId, actor, amountLabel = null) => {
@@ -387,25 +404,22 @@ export const requestQuoteApproval = async (defectId, actor, amountLabel = null) 
   return fromRow(data);
 };
 
-// A Captain/HOD approves or declines the quote.
+// Approve/decline the quote. Authority is enforced server-side by the RPC
+// (tier vs vessels.defect_quote_approver_tier); the client gate just hides the
+// buttons. Event + notifications are written here after the decision lands.
 export const decideQuoteApproval = async (defectId, approved, note, actor) => {
   if (!defectId || !actor?.tenantId) return null;
-  if (!canApproveQuote(actor)) { console.warn('[defects] decideQuoteApproval — not permitted'); return null; }
   const before = await getDefectById(defectId, actor);
   if (!before) return null;
-  const status = approved ? 'approved' : 'declined';
-  const { data, error } = await supabase
-    ?.from('defects')?.update({
-      quote_approval_status: status,
-      quote_approved_by: actor.userId || null, quote_approved_by_name: actor.userName || null,
-      quote_approved_at: new Date().toISOString(), quote_approval_note: note || null,
-    })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
-  if (error) { console.warn('[defects] decideQuoteApproval', error); return null; }
+  const { data, error } = (await supabase?.rpc('defect_decide_quote_approval', {
+    p_defect_id: defectId, p_approved: approved, p_note: note || null,
+  })) || {};
+  if (error || !data) { console.warn('[defects] decideQuoteApproval', error); return null; }
   await logEvent(actor, defectId, 'approval_decided',
     `${approved ? 'Quote approved' : 'Quote declined'}${note ? ` — ${note}` : ''}`);
   const recipients = [...new Set([before.reportedByUserId, before.assignedToUserId].filter(Boolean))];
   await Promise.all(recipients.map((uid) => notifyRequesterApprovalDecision(actor, uid, before.title, defectId, approved)));
-  return fromRow(data);
+  return fromRow(Array.isArray(data) ? data[0] : data);
 };
 
 export const assignDefect = async (defectId, assignment, actor) => {

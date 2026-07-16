@@ -16,11 +16,11 @@ import { fetchDefectRequisitions } from '../utils/defectRequisition';
 import { fetchDefectDocuments, deleteDefectDocument, costSummary } from '../utils/defectDocuments';
 import { useDefectActor } from '../utils/useDefectActor';
 import {
-  DefectStatus, REPAIR_STAGE_ORDER, REPAIR_STAGE_LABELS, QUOTE_APPROVAL_THRESHOLD,
+  DefectStatus, REPAIR_STAGE_ORDER, REPAIR_STAGE_LABELS,
   getDefectComments, getDefectEvents,
   updateDefect, addDefectComment, acceptDefect, declineDefect,
   closeDefectWithNotes, reopenDefect, assignDefect, claimDefect, canEditDefect,
-  fetchWarrantyContext, requestQuoteApproval, decideQuoteApproval, canApproveQuote,
+  fetchWarrantyContext, requestQuoteApproval, decideQuoteApproval, canApproveQuote, fetchDefectQuoteSettings,
 } from '../utils/defectsStorage';
 import './DefectDetail.css';
 
@@ -67,6 +67,13 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const [docs, setDocs] = useState([]);
   const [docModalKind, setDocModalKind] = useState(null);
   const [warrantyCtx, setWarrantyCtx] = useState([]);
+  const [quoteSettings, setQuoteSettings] = useState({ approverTier: 'HOD', threshold: 1000 });
+
+  useEffect(() => {
+    let live = true;
+    if (actor?.tenantId) fetchDefectQuoteSettings(actor.tenantId).then((s) => { if (live) setQuoteSettings(s); });
+    return () => { live = false; };
+  }, [actor?.tenantId]);
 
   const reload = useCallback(async () => {
     if (!defect?.id) return;
@@ -184,7 +191,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
     || defect.contractorEmail || defect.contractorPhone || defect.warrantyUntil;
   const SCHEDULED_IDX = REPAIR_STAGE_ORDER.indexOf('scheduled');
   const approvalPending = defect.quoteApprovalStatus === 'pending';
-  const canApprove = canApproveQuote(actor);
+  const canApprove = canApproveQuote(actor, quoteSettings.approverTier);
   const setStage = (v) => {
     if (REPAIR_STAGE_ORDER.indexOf(v) >= SCHEDULED_IDX && approvalPending) {
       setErr("Quote is awaiting sign-off — can't schedule the repair yet.");
@@ -591,7 +598,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
           onDone={async (row) => {
             setDocModalKind(null);
             // A high-value quote auto-triggers a Captain/HOD sign-off request.
-            if (row?.kind === 'quote' && row?.amount != null && Number(row.amount) >= QUOTE_APPROVAL_THRESHOLD
+            if (row?.kind === 'quote' && row?.amount != null && Number(row.amount) >= quoteSettings.threshold
                 && !defect.quoteApprovalStatus) {
               await requestQuoteApproval(defect.id, actor, money(row.amount, row.currency));
               await onChanged?.();

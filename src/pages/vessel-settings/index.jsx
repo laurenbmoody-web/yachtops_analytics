@@ -237,6 +237,8 @@ const VesselSettings = () => {
         hor_day_basis: vesselData?.hor_day_basis || 'calendar',
         hor_confirmation_mode: vesselData?.hor_confirmation_mode || 'require',
         hor_approver_tier: vesselData?.hor_approver_tier || 'CHIEF',
+        defect_quote_approver_tier: vesselData?.defect_quote_approver_tier || 'HOD',
+        defect_quote_signoff_threshold: vesselData?.defect_quote_signoff_threshold ?? 1000,
         hor_management_company_name: vesselData?.hor_management_company_name || '',
         hor_management_company_email: vesselData?.hor_management_company_email || '',
         ism_applicable: vesselData?.ism_applicable || false,
@@ -429,6 +431,8 @@ const VesselSettings = () => {
         hor_day_basis: formState?.hor_day_basis === 'operational' ? 'operational' : 'calendar',
         hor_confirmation_mode: formState?.hor_confirmation_mode === 'trust' ? 'trust' : 'require',
         hor_approver_tier: ['COMMAND', 'CHIEF', 'HOD'].includes(formState?.hor_approver_tier) ? formState?.hor_approver_tier : 'CHIEF',
+        defect_quote_approver_tier: ['COMMAND', 'CHIEF', 'HOD'].includes(formState?.defect_quote_approver_tier) ? formState?.defect_quote_approver_tier : 'HOD',
+        defect_quote_signoff_threshold: Math.max(0, parseFloat(formState?.defect_quote_signoff_threshold ?? 1000) || 0),
         hor_management_company_name: formState?.hor_management_company_name?.trim() || null,
         hor_management_company_email: formState?.hor_management_company_email?.trim() || null,
         ism_applicable: formState?.ism_applicable || false,
@@ -1291,6 +1295,44 @@ const VesselSettings = () => {
                       value={formState?.hor_management_company_email}
                       onChange={(e) => handleInputChange('hor_management_company_email', e?.target?.value)}
                       placeholder="e.g., compliance@management.com"
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Defects & Repairs */}
+              <div className="vh-sec">
+                <h3 className="vh-sec-h">Defects & Repairs</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="vh-lbl vh-lbl-hint">
+                      Repair Quote Sign-off
+                      <InfoHint text="The lowest rank that can sign off a repair quote's spend — equal or higher ranks always can too. 'HOD & above' lets Heads of Department, Chiefs and Command approve; 'Chief & above' restricts to Chiefs and Command; 'Command only' to the Captain." />
+                    </label>
+                    <Select
+                      value={formState?.defect_quote_approver_tier || 'HOD'}
+                      onChange={(value) => handleInputChange('defect_quote_approver_tier', value)}
+                      options={[
+                        { value: 'COMMAND', label: 'Command only' },
+                        { value: 'CHIEF', label: 'Chief & above' },
+                        { value: 'HOD', label: 'HOD & above' },
+                      ]}
+                      disabled={viewMode || !canEdit}
+                    />
+                  </div>
+                  <div>
+                    <label className="vh-lbl vh-lbl-hint">
+                      Sign-off Threshold
+                      <InfoHint text="A repair quote at or above this amount automatically requires sign-off before the repair can be scheduled. Crew can also request sign-off manually for any quote." />
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={formState?.defect_quote_signoff_threshold ?? 1000}
+                      onChange={(e) => handleInputChange('defect_quote_signoff_threshold', e?.target?.value)}
+                      placeholder="1000"
                       disabled={viewMode || !canEdit}
                     />
                   </div>
