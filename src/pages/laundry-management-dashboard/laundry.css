@@ -753,17 +753,28 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; margin-top: 5px; color: #1C1B3A; }
 .lb-nm em { font-style: italic; color: #C65A1A; }
 .lb-dt { font-size: 12.5px; color: #6E6B85; margin-top: 3px; }
-.lb-kpis { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 18px; border: 1px solid #EEF0F4; border-radius: 14px; overflow: hidden; background: #FFFFFF; }
-.lb-k { display: flex; flex-direction: column; gap: 9px; padding: 14px 16px; border-left: 1px solid #EEF0F4; }
-.lb-k:first-child { border-left: none; }
-.lb-k-ic { width: 27px; height: 27px; border-radius: 8px; background: #F6F5F2; display: grid; place-items: center; }
-.lb-k-ic svg { width: 15px; height: 15px; stroke: #8B8478; }
-.lb-k b { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; display: block; line-height: 1; color: #1C1B3A; }
-.lb-k-l { font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.07em; text-transform: uppercase; color: #6E6B85; }
+/* metabar — small tracked-caps strip above the trip title */
+.lb-meta { display: flex; align-items: center; gap: 10px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: #8B8478; margin-bottom: 10px; }
+.lb-meta-dot { width: 7px; height: 7px; border-radius: 999px; flex: none; }
+.lb-meta-dot.live { background: #2F7D5A; box-shadow: 0 0 0 3px #E7F2EC; }
+.lb-meta-dot.done { background: #B4B9C6; }
+.lb-meta-sep { width: 1px; height: 10px; background: #D8DAE2; flex: none; }
+
+/* editorial figures row — no box, no icons; hairline-separated, one lede stat */
+.lb-figs { display: flex; align-items: flex-end; margin-top: 20px; padding-top: 18px; border-top: 1px solid #ECECEE; }
+.lb-fig { padding: 0 26px; position: relative; }
+.lb-fig:first-child { padding-left: 0; }
+.lb-fig:last-child { padding-right: 0; }
+.lb-fig + .lb-fig::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 2px; width: 1px; background: #EEF0F4; }
+.lb-fig b { font-family: 'DM Serif Display', Georgia, serif; font-size: 27px; line-height: 0.95; color: #1C1B3A; display: block; }
+.lb-fig.lede b { font-size: 40px; }
+.lb-fig-l { display: block; margin-top: 9px; font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: #8B8478; }
+.lb-fig.lede .lb-fig-l { color: #C65A1A; }
 @media (max-width: 560px) {
-  .lb-kpis { grid-template-columns: repeat(2, 1fr); }
-  .lb-k:nth-child(odd) { border-left: none; }
-  .lb-k:nth-child(n+3) { border-top: 1px solid #EEF0F4; }
+  .lb-figs { flex-wrap: wrap; row-gap: 16px; }
+  .lb-fig { padding: 0 20px; }
+  .lb-fig:nth-child(2n+1) { padding-left: 0; }
+  .lb-fig:nth-child(2n+1)::before { display: none; }
 }
 .lb-sec { padding: 18px 22px; border-bottom: 1px solid #EEF0F4; }
 .lb-sec:last-child { border-bottom: none; }

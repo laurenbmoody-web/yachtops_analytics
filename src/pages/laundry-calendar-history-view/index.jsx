@@ -77,33 +77,40 @@ const Chapter = ({ p, active, onClick }) => {
   );
 };
 
-const icFor = (l) => ({ Guest: 'User', Guests: 'Users', Crew: 'Users', Member: 'Users', Members: 'Users', Cabin: 'DoorOpen', Cabins: 'DoorOpen', Area: 'LayoutGrid', Areas: 'LayoutGrid', Period: 'Route', Periods: 'Route' }[l] || 'Circle');
-
 const Detail = ({ p, onExport }) => {
   const [open, setOpen] = useState(null);
   const [openDay, setOpenDay] = useState(null);
   useEffect(() => { setOpen(null); setOpenDay(p?.days?.[0]?.key || null); }, [p?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!p) return null;
-  // eyebrow only where the title needs context (off-charter → a bare month)
-  const tag = p.type === 'offcharter' ? 'Off-charter' : null;
-  const title = p.type === 'voyage' ? <>{p.name} <em>voyage</em></> : p.type === 'offcharter' ? p.dates : p.name;
-  const sub = p.type === 'voyage' ? [p.dates, p.hero].filter(Boolean).join(' · ')
-    : p.type === 'offcharter' ? p.hero : null; // crew: no subtitle
+  // metabar sits above the title: status · dates · guests (voyage); category · descriptor (off-charter); crew has none
+  const meta = p.type === 'voyage'
+    ? [p.live ? 'In progress' : 'Completed', p.dates, `${p.kpiA[0]} ${p.kpiA[1].toLowerCase()}`]
+    : p.type === 'offcharter' ? ['Off-charter', 'No guests aboard'] : [];
+  const title = p.type === 'offcharter' ? p.dates : p.name; // voyage → bare trip name
   const peopleLbl = p.type === 'crew' ? 'Crew — every period' : p.type === 'offcharter' ? 'Crew & vessel — this period' : 'Per guest — this voyage';
   const metrics = [
-    { ic: 'Shirt', v: p.cleaned, l: 'Cleaned' },
-    { ic: 'Clock', v: p.avg, l: 'Avg turnaround' },
-    { ic: icFor(p.kpiA[1]), v: p.kpiA[0], l: p.kpiA[1] },
-    { ic: icFor(p.kpiB[1]), v: p.kpiB[0], l: p.kpiB[1] },
+    { v: p.cleaned, l: 'Cleaned' },
+    { v: p.avg, l: 'Avg turnaround' },
+    { v: p.kpiA[0], l: p.kpiA[1] },
+    { v: p.kpiB[0], l: p.kpiB[1] },
   ];
   return (
     <div className="lb-trip">
-      <div className={`lb-hero ${p.type}`}>
+      <div className="lb-hero">
         <div className="lb-hero-row">
           <div>
-            {tag && <div className={`lb-tag ${p.type}`}>{tag}</div>}
+            {meta.length > 0 && (
+              <div className="lb-meta">
+                {p.type === 'voyage' && <span className={`lb-meta-dot ${p.live ? 'live' : 'done'}`} />}
+                {meta.map((m, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && <span className="lb-meta-sep" />}
+                    <span>{m}</span>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
             <div className="lb-nm">{title}</div>
-            {sub && <div className="lb-dt">{sub}</div>}
           </div>
           {(p.items || []).length > 0 && (
             <button type="button" className="lb-export" onClick={() => onExport(p)}>
@@ -111,12 +118,11 @@ const Detail = ({ p, onExport }) => {
             </button>
           )}
         </div>
-        <div className="lb-kpis">
+        <div className="lb-figs">
           {metrics.map((k, i) => (
-            <div className="lb-k" key={i}>
-              <span className="lb-k-ic"><Icon name={k.ic} size={15} /></span>
+            <div className={`lb-fig${i === 0 ? ' lede' : ''}`} key={i}>
               <b className="tnum">{k.v}</b>
-              <span className="lb-k-l">{k.l}</span>
+              <span className="lb-fig-l">{k.l}</span>
             </div>
           ))}
         </div>
