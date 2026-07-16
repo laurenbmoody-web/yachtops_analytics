@@ -502,6 +502,16 @@ const SupplierMessages = () => {
     finally { setSending(false); }
   };
 
+  // Reopen a declined quote as a fresh, fully-editable draft so the supplier can
+  // revise (usually the price) and re-send. The declined one stays as history.
+  const requote = (m) => {
+    const q = m.quote || {};
+    const items = (Array.isArray(q.items) ? q.items : []).map(({ _priceInput, ...it }) => ({ ...it }));
+    const total = items.reduce((s, it) => s + (it.unit_price != null ? Number(it.unit_price) * (Number(it.qty) || 1) : 0), 0);
+    setPendingQuote({ text: 'Thanks for coming back to us — here’s a revised quote:', items, currency: q.currency || 'EUR', total, requote: true });
+    taRef.current?.focus?.();
+  };
+
   // Let the supplier type a price into an unpriced line while reviewing the
   // draft, before sending — recomputes the total live.
   const setPendingPrice = (i, value) => {
@@ -803,6 +813,11 @@ const SupplierMessages = () => {
                                 </div>
                               )
                             )}
+                            {m.sender_type === 'supplier' && status === 'declined' && (
+                              <div className="msg-qc-actions">
+                                <button type="button" className="msg-qc-accept" onClick={() => requote(m)}>Revise &amp; re-quote</button>
+                              </div>
+                            )}
                             <span className="msg-time">{fmtClock(m.created_at)}{tick}</span>
                           </div>
                         </div>
@@ -843,10 +858,10 @@ const SupplierMessages = () => {
                       </div>
                       <div className="msg-qc-items">
                         {pendingQuote.items.map((it, i) => {
-                          // Bespoke lines (no catalogue match) stay editable in the
-                          // review so a typed price can always be corrected; matched
-                          // catalogue lines show their price as static text.
-                          const editable = it.matched === false;
+                          // Bespoke lines (no catalogue match) stay editable so a typed
+                          // price can always be corrected; on a re-quote every line is
+                          // editable so the supplier can revise catalogue prices too.
+                          const editable = pendingQuote.requote || it.matched === false;
                           return (
                             <div key={i} className="msg-qc-item">
                               <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>
