@@ -1,0 +1,32 @@
+/* Attach quote/invoice modal — editorial, portaled via ModalShell. Prefix: ddoc- */
+.ddoc { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; width: 100%; max-width: 460px; background: #fff;
+  border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,.32); display: flex; flex-direction: column; }
+.ddoc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px 12px; border-bottom: 1px solid #ECEAE3; }
+.ddoc-head h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 20px; margin: 2px 0 0; }
+.ddoc-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0; }
+.ddoc-x { width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; color: #6B7280; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex: none; }
+.ddoc-x:hover { color: #1C1B3A; }
+
+.ddoc-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 14px; }
+.ddoc-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: 110px;
+  border: 1.5px dashed #E8E6DF; border-radius: 12px; background: #FAFAF8; color: #8B8478; font-size: 13px; cursor: pointer; width: 100%; padding: 0 14px; }
+.ddoc-drop:hover { border-color: #C65A1A; color: #C65A1A; }
+.ddoc-drop.has { border-style: solid; border-color: #2E7D5A; color: #2E7D5A; background: #F1F8F4; }
+.ddoc-drop span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ddoc-money { display: flex; gap: 10px; }
+.ddoc-field { display: flex; flex-direction: column; gap: 5px; }
+.ddoc-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.ddoc-lbl .opt { color: #AEB4C2; margin-left: 5px; text-transform: lowercase; letter-spacing: .3px; }
+.ddoc-input { width: 100%; font-family: inherit; font-size: 13px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E8E6DF;
+  border-radius: 9px; padding: 9px 10px; outline: none; }
+.ddoc-input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+
+.ddoc-err { font-size: 12px; color: #A32D2D; margin: 0 18px; }
+.ddoc-foot { display: flex; gap: 8px; padding: 14px 18px; border-top: 1px solid #ECEAE3; }
+.ddoc-btn { font-family: inherit; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 10px 14px; cursor: pointer; border: 1px solid transparent; }
+.ddoc-btn.primary { background: #C65A1A; color: #fff; flex: 1; }
+.ddoc-btn.primary:hover { background: #B14E16; }
+.ddoc-btn.primary:disabled { opacity: .5; cursor: default; }
+.ddoc-btn.ghost { background: #fff; border-color: #ECEAE3; color: #1C1B3A; }
