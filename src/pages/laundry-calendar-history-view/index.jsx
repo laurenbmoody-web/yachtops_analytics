@@ -109,6 +109,8 @@ const Detail = ({ p, onExport, onOpenItem }) => {
   const hands = clockHands(p.avgMin);
   const care = p.care || { bars: [], other: null };
   const careMax = care.bars[0]?.count || 1;
+  const [careOpen, setCareOpen] = useState(false);
+  useEffect(() => { setCareOpen(false); }, [p?.id]);
   return (
     <div className="lb-trip">
       <div className="lb-hero">
@@ -173,14 +175,35 @@ const Detail = ({ p, onExport, onOpenItem }) => {
               <span className="lb-il">By care type</span>
               <div className="lb-plot">
                 {care.bars.map((c, i) => (
-                  <div className={`lb-col${c.other ? ' other' : ''}`} key={i}>
+                  <div
+                    className={`lb-col${c.other ? ' other' : ''}`}
+                    key={i}
+                    onClick={c.other ? () => setCareOpen((o) => !o) : undefined}
+                    role={c.other ? 'button' : undefined}
+                    tabIndex={c.other ? 0 : undefined}
+                    onKeyDown={c.other ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCareOpen((o) => !o); } } : undefined}
+                  >
                     <span className="lb-cvv tnum">{c.count}</span>
                     <span className="lb-trk"><span className="lb-fill" style={{ height: `${Math.max(8, Math.round((c.count / careMax) * 100))}%` }} /></span>
                   </div>
                 ))}
               </div>
               <div className="lb-xrow">{care.bars.map((c, i) => <span key={i}>{c.label}</span>)}</div>
-              {care.other && <div className="lb-chint"><b>Other</b> · {care.other.names.join(', ')}</div>}
+              {care.other && (
+                <>
+                  <button type="button" className={`lb-chint btn${careOpen ? ' open' : ''}`} onClick={() => setCareOpen((o) => !o)} aria-expanded={careOpen}>
+                    <Icon name="ChevronRight" size={12} className="lb-chint-chev" />
+                    <span><b>Other</b> · {care.other.count} across {care.other.items.length} type{care.other.items.length === 1 ? '' : 's'}</span>
+                  </button>
+                  {careOpen && (
+                    <div className="lb-other-list">
+                      {care.other.items.map((o, i) => (
+                        <div className="lb-other-row" key={i}><span>{o.label}</span><b className="tnum">{o.count}</b></div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

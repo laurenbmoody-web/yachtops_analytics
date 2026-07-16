@@ -106,7 +106,7 @@ function careFrom(items) {
   if (all.length <= 6) return { bars: all, other: null };
   const top = all.slice(0, 5);
   const rest = all.slice(5);
-  const other = { count: rest.reduce((s, x) => s + x.count, 0), names: rest.map((x) => x.label) };
+  const other = { count: rest.reduce((s, x) => s + x.count, 0), items: rest };
   return { bars: [...top, { label: 'Other', count: other.count, other: true }], other };
 }
 
