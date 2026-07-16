@@ -1084,6 +1084,7 @@ const VesselAdminRoute = ({ children, allowedTiers = ['COMMAND', 'CHIEF'] }) => 
 // My Profile redirect component with profile creation
 const MyProfileRedirect = () => {
   const { session, loading: authLoading } = useAuth();
+  const location = useLocation();
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
   
   useEffect(() => {
@@ -1144,8 +1145,10 @@ const MyProfileRedirect = () => {
     return <Navigate to="/login-authentication" replace />;
   }
   
-  // Redirect to profile page with real user ID (works even when activeTenantId is null)
-  return <Navigate to={`/profile/${userId}`} replace />;
+  // Redirect to profile page with real user ID (works even when activeTenantId
+  // is null). Preserve the query string so deep links like
+  // /my-profile?tab=notifications land on the right tab.
+  return <Navigate to={`/profile/${userId}${location.search}`} replace />;
 };
 
 const Routes = () => {
