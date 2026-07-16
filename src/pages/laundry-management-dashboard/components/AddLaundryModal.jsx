@@ -86,6 +86,7 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
   const [careBusy, setCareBusy] = useState(false);
   const [careResult, setCareResult] = useState(null);
   const [careError, setCareError] = useState('');
+  const [addedCount, setAddedCount] = useState(0);
 
   const onCareFile = async (e) => {
     const file = e?.target?.files?.[0];
@@ -328,7 +329,7 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
     return next;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (another = false) => {
     const next = validate();
     if (Object.keys(next).length) { setErrors(next); return; }
     setIsSubmitting(true);
@@ -364,7 +365,15 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
         saved = await createLaundryItem({ ...payload, ownerType: formData?.ownerType });
       }
       onSuccess?.(saved);
-      onClose?.();
+      if (another && !isEdit) {
+        // keep the shared details (owner, cabin, needed-by, notes, priority);
+        // blank only the per-item fields so the next piece is quick to log
+        setAddedCount((c) => c + 1);
+        setFormData((prev) => ({ ...prev, description: '', colour: '', tags: [], photos: [] }));
+        setCareResult(null); setCareError(''); setErrors({});
+      } else {
+        onClose?.();
+      }
     } catch (error) {
       console.error('Error creating laundry item:', error);
       showToast(error?.message === 'QUOTA_EXCEEDED'
@@ -672,10 +681,18 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
       </div>
 
       <div className="alm-foot">
-        <button type="button" className="alm-linkbtn" onClick={onClose}>Cancel</button>
-        <button type="button" className="alm-btn primary" onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : (isEdit ? 'Save changes' : 'Add to the wash')}
-        </button>
+        <button type="button" className="alm-linkbtn" onClick={onClose}>{addedCount > 0 ? 'Done' : 'Cancel'}</button>
+        <div className="alm-foot-actions">
+          {addedCount > 0 && <span className="alm-added">{addedCount} added</span>}
+          {!isEdit && (
+            <button type="button" className="alm-btn outline" onClick={() => handleSubmit(true)} disabled={isSubmitting}>
+              <Icon name="Plus" size={14} /> Save &amp; add another
+            </button>
+          )}
+          <button type="button" className="alm-btn primary" onClick={() => handleSubmit(false)} disabled={isSubmitting}>
+            {isSubmitting ? 'Saving…' : (isEdit ? 'Save changes' : (addedCount > 0 ? 'Add & finish' : 'Add to the wash'))}
+          </button>
+        </div>
       </div>
     </ModalShell>
   );
