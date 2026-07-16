@@ -17,7 +17,13 @@ import './crew-messages.css';
 // a white card. Read + reply to your suppliers.
 
 const shortId = (id) => (id ? String(id).slice(0, 8).toUpperCase() : '—');
-const fmtMoney0 = (a, cur = 'EUR') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur || 'EUR', maximumFractionDigits: 0 }).format(a || 0);
+// Whole amounts show clean (€60); non-whole show cents (€89.90) so quote
+// totals reflect typed prices exactly rather than rounding to the nearest euro.
+const fmtMoney = (a, cur = 'EUR') => {
+  const n = Number(a) || 0;
+  const dp = Number.isInteger(n) ? 0 : 2;
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur || 'EUR', minimumFractionDigits: dp, maximumFractionDigits: dp }).format(n);
+};
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 const supplierName = (t) => t?.supplier_profiles?.name || 'Supplier';
 const supplierLogo = (t) => t?.supplier_profiles?.logo_url || null;
@@ -503,11 +509,11 @@ const CrewMessages = () => {
                                   {items.map((it, i) => (
                                     <div key={i} className="msg-qc-item">
                                       <span className="msg-qc-name">{it.qty}× {it.name}{it.unit ? ` (${it.unit})` : ''}</span>
-                                      <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || q.currency) : '—'}</span>
+                                      <span className="msg-qc-price">{it.unit_price != null ? fmtMoney(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || q.currency) : '—'}</span>
                                     </div>
                                   ))}
                                 </div>
-                                {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney0(q.total, q.currency)}</span></div>}
+                                {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney(q.total, q.currency)}</span></div>}
                                 {m.body && <div className="msg-qc-note">{m.body}</div>}
                                 {status === 'pending' && m.sender_type === 'supplier' ? (
                                   <div className="msg-qc-actions">

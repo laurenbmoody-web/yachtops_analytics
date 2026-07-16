@@ -43,7 +43,13 @@ const toggleReaction = (reactions, emoji, uid) => {
 
 const itemPrice = (i) => i.agreed_price ?? i.quoted_price ?? i.estimated_price ?? i.unit_price ?? 0;
 const orderTotal = (o) => (o.supplier_order_items ?? []).reduce((s, i) => s + itemPrice(i) * (i.quantity ?? 1), 0);
-const fmtMoney0 = (a, cur = 'EUR') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(a || 0);
+// Whole amounts show clean (€60); non-whole show cents (€89.90) so typed
+// prices total exactly rather than rounding to the nearest euro.
+const fmtMoney = (a, cur = 'EUR') => {
+  const n = Number(a) || 0;
+  const dp = Number.isInteger(n) ? 0 : 2;
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur || 'EUR', minimumFractionDigits: dp, maximumFractionDigits: dp }).format(n);
+};
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 const shortId = (id) => (id ? String(id).slice(0, 8).toUpperCase() : '—');
 const fmtClock = (d) => (d ? formatTime(d) : '');
@@ -716,7 +722,7 @@ const SupplierMessages = () => {
                 {activeOrder && (
                   <div className="msg-ctx">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
-                    <span>{activeThread.order_id ? 'This order' : 'Latest order'} <b>#{shortId(activeOrder.id)}</b> · <span style={{ textTransform: 'capitalize' }}>{activeOrder.status}</span> · {fmtMoney0(orderTotal(activeOrder), activeOrder.currency || 'EUR')}</span>
+                    <span>{activeThread.order_id ? 'This order' : 'Latest order'} <b>#{shortId(activeOrder.id)}</b> · <span style={{ textTransform: 'capitalize' }}>{activeOrder.status}</span> · {fmtMoney(orderTotal(activeOrder), activeOrder.currency || 'EUR')}</span>
                     <button type="button" className="msg-ctx-go" onClick={() => navigate(`/supplier/orders/${activeOrder.id}`)}>View order →</button>
                   </div>
                 )}
@@ -730,7 +736,7 @@ const SupplierMessages = () => {
                       <div className="msg-blank-title">Say hello to {nameFor(activeThread)}</div>
                       <div className="msg-blank-sub">
                         {activeOrder
-                          ? <>Last order <b>#{shortId(activeOrder.id)}</b> · {activeOrder.status} · {fmtMoney0(orderTotal(activeOrder), activeOrder.currency || 'EUR')}</>
+                          ? <>Last order <b>#{shortId(activeOrder.id)}</b> · {activeOrder.status} · {fmtMoney(orderTotal(activeOrder), activeOrder.currency || 'EUR')}</>
                           : 'Start the conversation — they’ll get it in their inbox.'}
                       </div>
                       <button type="button" className="msg-blank-cta" onClick={() => { const who = contact ? contact.trim().split(/\s+/)[0] : 'there'; setDraft(`Hi ${who} — just checking in on ${nameFor(activeThread)}. Anything I can help you provision for your next trip?`); taRef.current?.focus(); }}>
@@ -768,7 +774,7 @@ const SupplierMessages = () => {
                                           <span className="msg-qc-cur">{(it.currency || q.currency || 'EUR')} /unit</span>
                                         </span>
                                       ) : (
-                                        <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || q.currency) : '—'}</span>
+                                        <span className="msg-qc-price">{it.unit_price != null ? fmtMoney(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || q.currency) : '—'}</span>
                                       )}
                                       {bespoke && !priceHere && (savedCat.has(k)
                                         ? <span className="msg-qc-saved">✓ In catalogue</span>
@@ -778,7 +784,7 @@ const SupplierMessages = () => {
                                 );
                               })}
                             </div>
-                            {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney0(q.total, q.currency)}</span></div>}
+                            {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney(q.total, q.currency)}</span></div>}
                             {m.body && <div className="msg-qc-note">{m.body}</div>}
                             {m.sender_type === 'supplier' && status === 'pending' && items.some((it) => it.unit_price == null) && (
                               pricing === m.id ? (
@@ -847,13 +853,13 @@ const SupplierMessages = () => {
                                   <span className="msg-qc-cur">{(it.currency || pendingQuote.currency || 'EUR')} /unit</span>
                                 </span>
                               ) : (
-                                <span className="msg-qc-price">{it.unit_price != null ? fmtMoney0(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || pendingQuote.currency) : '—'}</span>
+                                <span className="msg-qc-price">{it.unit_price != null ? fmtMoney(Number(it.unit_price) * (Number(it.qty) || 1), it.currency || pendingQuote.currency) : '—'}</span>
                               )}
                             </div>
                           );
                         })}
                       </div>
-                      {pendingQuote.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney0(pendingQuote.total, pendingQuote.currency)}</span></div>}
+                      {pendingQuote.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney(pendingQuote.total, pendingQuote.currency)}</span></div>}
                       <div className="msg-qreview-actions">
                         <button type="button" className="msg-qreview-cancel" onClick={() => setPendingQuote(null)}>Discard</button>
                         <button type="button" className="msg-qreview-send" onClick={sendQuote} disabled={sending}>{sending ? 'Sending…' : 'Send quote'}</button>
