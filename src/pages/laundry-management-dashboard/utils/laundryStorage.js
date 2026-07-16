@@ -153,6 +153,25 @@ export const getRecentLaundryActivity = async (limit = 200) => {
   }));
 };
 
+// Who took each piece to "delivered" (the final step) — item_id → {actorId, actorName}.
+// Latest delivered event wins if a piece was re-opened and re-delivered.
+export const getDeliveryCredits = async () => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return {};
+  const { data, error } = await supabase
+    .from('laundry_item_events')
+    .select('item_id, actor_id, actor_name, at')
+    .eq('tenant_id', tenantId)
+    .eq('action', 'delivered')
+    .order('at', { ascending: false });
+  if (error) { console.error('[laundry] delivery credits failed', error); return {}; }
+  const map = {};
+  for (const r of data || []) {
+    if (!map[r.item_id]) map[r.item_id] = { actorId: r.actor_id || null, actorName: r.actor_name || null };
+  }
+  return map;
+};
+
 // ── reads ────────────────────────────────────────────────────────────────────
 export const loadAllLaundryItems = async () => {
   const tenantId = await getTenantId();
