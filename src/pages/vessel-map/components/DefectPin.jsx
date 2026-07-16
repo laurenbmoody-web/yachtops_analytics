@@ -198,7 +198,7 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
           <div className="vmd-field">
             <div className="vmd-lbl-row">
               <label className="vmd-lbl">Title<span className="req">required</span></label>
-              <label className="vmd-lbl">Priority</label>
+              <span className="vmd-lbl">Priority · <span className={`vmd-prio-name p-${form.priority}`}>{form.priority}</span></span>
             </div>
             <div className="vmd-title-row">
               <input className="vmd-input" value={form.title} autoFocus
@@ -360,12 +360,9 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
         <span className={`vmd-chip ${pCls}`}><span className="cd" />{defect.priority}</span>
         <span className={`vmd-chip ${sMeta.cls}`}><span className="cd" />{sMeta.label}</span>
         {defect.departmentOwner && <span className="vmd-chip dept">{defect.departmentOwner}</span>}
+        {defect.ref && <span className="vmd-ref-tag">{defect.ref}</span>}
       </div>
 
-      <div>
-        <p className="vmd-title">{defect.title}</p>
-        {defect.ref && <span className="vmd-comment-t">{defect.ref}</span>}
-      </div>
       {defect.description && <p className="vmd-desc">{defect.description}</p>}
 
       {/* Assignee */}
@@ -403,11 +400,13 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
       {canWork && !isClosed && !isPending && (
         <div className="vmd-block">
           <p className="vmd-block-lbl">Status</p>
-          <select className="vmd-select" value={WORKFLOW.includes(defect.status) ? defect.status : ''} disabled={busy}
-            onChange={(e) => handleStatus(e.target.value)}>
-            {!WORKFLOW.includes(defect.status) && <option value="">{STATUS_META[defect.status]?.label || defect.status}</option>}
-            {WORKFLOW.map((s) => <option key={s} value={s}>{STATUS_META[s]?.label || s}</option>)}
-          </select>
+          <VmdSelect
+            value={defect.status}
+            onChange={(v) => handleStatus(v)}
+            options={(WORKFLOW.includes(defect.status) ? WORKFLOW : [defect.status, ...WORKFLOW])
+              .map((s) => ({ value: s, label: STATUS_META[s]?.label || s }))}
+            ariaLabel="Defect status"
+          />
         </div>
       )}
 
@@ -418,6 +417,12 @@ export default function DefectPin({ hotspot, canManage, scanName, containerTrail
           <div><div className="k">Logged</div><div className="v">{fmtDate(defect.createdAt)}</div></div>
           {defect.dueDate && <div><div className="k">Due</div><div className="v">{fmtDate(defect.dueDate)}</div></div>}
           <div><div className="k">Location</div><div className="v" style={{ fontVariantNumeric: 'normal' }}>{locationLabel || '—'}</div></div>
+          {defect.notifyUsers?.length > 0 && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className="k">Also notified</div>
+              <div className="v" style={{ fontVariantNumeric: 'normal' }}>{defect.notifyUsers.map((n) => n.name).filter(Boolean).join(', ')}</div>
+            </div>
+          )}
         </div>
       </div>
 

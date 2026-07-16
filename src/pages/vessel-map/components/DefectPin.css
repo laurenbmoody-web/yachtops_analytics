@@ -61,6 +61,12 @@
 .vmd-lbl-row .vmd-lbl { margin-bottom: 0; }
 .vmd-title-row { display: flex; align-items: center; gap: 10px; }
 .vmd-title-row .vmd-input { flex: 1; }
+.vmd-prio-name { letter-spacing: .4px; }
+.vmd-prio-name.p-Low { color: #8B8478; }
+.vmd-prio-name.p-Medium { color: #C65A1A; }
+.vmd-prio-name.p-High { color: #B9761A; }
+.vmd-prio-name.p-Critical { color: #A32D2D; }
+.vmd-ref-tag { align-self: center; font-size: 11px; font-weight: 600; color: #AEB4C2; font-variant-numeric: tabular-nums; }
 .vmd-prio { display: flex; align-items: center; gap: 6px; flex: none; }
 .vmd-prio-dot { width: 18px; height: 18px; border-radius: 999px; border: 2px solid #D9D5CB; background: transparent; padding: 0; cursor: pointer; transition: box-shadow .12s, background .12s; }
 .vmd-prio-dot.p-Low { border-color: #C3C7D0; }
