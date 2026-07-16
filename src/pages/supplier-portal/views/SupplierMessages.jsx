@@ -324,6 +324,9 @@ const SupplierMessages = () => {
 
   useEffect(() => {
     setReplyTo(null); setEditing(null); setDraft('');
+    // A half-made quote belongs to the thread it was drafted in — never let it
+    // follow the supplier into another conversation.
+    setPendingQuote(null); setPricing(null); setPriceDraft({});
     if (!activeId) { setMessages([]); return; }
     fetchMessages(activeId).then(setMessages).catch((e) => setError(e.message));
     setThreads((prev) => prev.map((t) => (t.id === activeId ? { ...t, supplier_unread_count: 0 } : t)));
@@ -432,6 +435,18 @@ const SupplierMessages = () => {
 
   const toQuote = async () => {
     if (aiLoading) return;
+    // If the latest request has already been quoted and that quote is still
+    // waiting on the yacht, don't spin up a second (empty) draft for the same
+    // thing — that's the confusing "the quote box came back" case. Point the
+    // supplier at the sent quote instead.
+    if (!draft.trim()) {
+      const lastVesselIdx = (() => { for (let i = messages.length - 1; i >= 0; i--) if (messages[i].sender_type === 'vessel') return i; return -1; })();
+      const openQuoteAfter = messages.some((m, i) => i > lastVesselIdx && m.kind === 'quote' && !m.deleted_at && (m.quote_status || 'pending') === 'pending');
+      if (openQuoteAfter) {
+        setError('You’ve already sent a quote for this — it’s waiting on the yacht. Use “Add prices” on that quote if you need to change it.');
+        return;
+      }
+    }
     const lastIn = [...messages].reverse().find((m) => m.sender_type === 'vessel')?.body;
     const src = (draft.trim() || lastIn || '').trim();
     if (!src) { setError('Type the request (or open one from the yacht) first, then turn it into a quote.'); return; }
@@ -539,7 +554,10 @@ const SupplierMessages = () => {
       const q = { items, currency: pendingQuote.currency, total: pendingQuote.total };
       const msg = await sendSupplierQuote(activeId, text, q);
       setMessages((m) => [...m, msg]);
+      // Fully close the draft: clear the review card AND the composer text it was
+      // drafted from, so nothing re-drafts the same request into a new box.
       setPendingQuote(null);
+      setDraft('');
       loadThreads();
     } catch (e) { setError(e.message); }
     finally { setSending(false); }
