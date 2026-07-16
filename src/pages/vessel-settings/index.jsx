@@ -736,46 +736,33 @@ const VesselSettings = () => {
         <div className="space-y-6">
           {/* Permission Banner */}
           {!canEdit && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-              <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">View-only access</p>
-                <p className="text-xs text-yellow-700 mt-1">Only COMMAND can edit vessel settings</p>
-              </div>
+            <div className="vh-banner warn">
+              <AlertCircle className="ic" size={18} />
+              <div><span className="vh-banner-t">View-only</span> — only Command can edit vessel settings.</div>
             </div>
           )}
 
           {/* Error Display */}
           {saveError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-              <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
-              <div>
-                <p className="text-sm font-medium text-red-800">Error</p>
-                <p className="text-xs text-red-700 mt-1">{saveError}</p>
-              </div>
+            <div className="vh-banner err">
+              <AlertCircle className="ic" size={18} />
+              <div><span className="vh-banner-t">Something went wrong</span> — {saveError}</div>
             </div>
           )}
 
-          {/* Edit/Save/Cancel Controls */}
+          {/* Edit/Save/Cancel Controls — the masthead already names the section */}
           {canEdit && (
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-foreground">Vessel Profile</h2>
-              <div className="flex gap-2">
-                {viewMode ? (
-                  <Button onClick={() => setViewMode(false)} iconName="Edit2">
-                    Edit
-                  </Button>
-                ) : (
-                  <>
-                    <Button variant="outline" onClick={handleCancel} disabled={saving}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSave} disabled={saving}>
-                      {saving ? 'Saving...' : 'Save'}
-                    </Button>
-                  </>
-                )}
-              </div>
+            <div className="vh-editbar">
+              {viewMode ? (
+                <button type="button" className="vh-btn vh-btn-primary" onClick={() => setViewMode(false)}>Edit</button>
+              ) : (
+                <>
+                  <button type="button" className="vh-btn" onClick={handleCancel} disabled={saving}>Cancel</button>
+                  <button type="button" className="vh-btn vh-btn-primary" onClick={handleSave} disabled={saving}>
+                    {saving ? 'Saving…' : 'Save'}
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -789,13 +776,13 @@ const VesselSettings = () => {
           ) : (
             <div className="space-y-8">
               {/* Dashboard Hero Image Section */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-medium text-foreground mb-4">Dashboard Hero Image</h3>
+              <div className="vh-sec">
+                <h3 className="vh-sec-h">Dashboard Hero Image</h3>
                 
                 {/* Current Hero Preview */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-foreground mb-2">Current Hero Image</label>
-                  <div className="border border-border rounded-lg overflow-hidden" style={{ maxWidth: '600px' }}>
+                  <label className="vh-lbl">Current Hero Image</label>
+                  <div className="vh-frame" style={{ maxWidth: '600px' }}>
                     {formState?.use_custom_hero && formState?.hero_image_url ? (
                       <img
                         src={formState?.hero_image_url}
@@ -822,7 +809,7 @@ const VesselSettings = () => {
                       />
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="vh-hint">
                     {formState?.use_custom_hero && formState?.hero_image_url
                       ? 'Showing custom vessel image' :'Showing default Cargo blueprint'}
                   </p>
@@ -846,7 +833,7 @@ const VesselSettings = () => {
                       <Upload size={16} className="mr-2" />
                       {uploadingHero ? 'Uploading...' : 'Upload Vessel Image'}
                     </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="vh-hint">
                       Accepts JPEG, PNG, or WebP. Max 5MB.
                     </p>
                     {heroUploadError && (
@@ -884,9 +871,9 @@ const VesselSettings = () => {
               </div>
 
               {/* Beta feedback widget */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-medium text-foreground mb-1">Feedback button</h3>
-                <p className="text-sm text-muted-foreground mb-4">
+              <div className="vh-sec">
+                <h3 className="vh-sec-h">Feedback button</h3>
+                <p className="vh-sec-sub">
                   Shows a small “Feedback” tab on every page so crew can send a note or voice memo
                   straight to the Cargo team. Helpful while the app is new — switch it off any time.
                 </p>
@@ -903,11 +890,11 @@ const VesselSettings = () => {
               </div>
 
               {/* Vessel Identity */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-medium text-foreground mb-4">Vessel Identity</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="vh-sec">
+                <h3 className="vh-sec-h">Vessel Identity</h3>
+                <div className="vh-grid">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Vessel Type *</label>
+                    <label className="vh-lbl">Vessel Type *</label>
                     <Select
                       value={formState?.vessel_type_label}
                       onChange={(value) => handleInputChange('vessel_type_label', value)}
@@ -916,7 +903,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Flag *</label>
+                    <label className="vh-lbl">Flag *</label>
                     <Select
                       value={formState?.flag}
                       onChange={(value) => handleInputChange('flag', value)}
@@ -927,7 +914,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Port of Registry *</label>
+                    <label className="vh-lbl">Port of Registry *</label>
                     <Input
                       value={formState?.port_of_registry}
                       onChange={(e) => handleInputChange('port_of_registry', e?.target?.value)}
@@ -936,7 +923,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">IMO Number</label>
+                    <label className="vh-lbl">IMO Number</label>
                     <Input
                       value={formState?.imo_number}
                       onChange={(e) => handleInputChange('imo_number', e?.target?.value)}
@@ -945,7 +932,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Official Number</label>
+                    <label className="vh-lbl">Official Number</label>
                     <Input
                       value={formState?.official_number}
                       onChange={(e) => handleInputChange('official_number', e?.target?.value)}
@@ -954,7 +941,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Call Sign</label>
+                    <label className="vh-lbl">Call Sign</label>
                     <Input
                       value={formState?.call_sign}
                       onChange={(e) => handleInputChange('call_sign', e?.target?.value)}
@@ -963,7 +950,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Class / Notation</label>
+                    <label className="vh-lbl">Class / Notation</label>
                     <Input
                       value={formState?.class_notation}
                       onChange={(e) => handleInputChange('class_notation', e?.target?.value)}
@@ -972,7 +959,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">LOA (meters) *</label>
+                    <label className="vh-lbl">LOA (meters) *</label>
                     <Input
                       type="number"
                       value={formState?.loa_m}
@@ -982,7 +969,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Gross Tonnage (GT) *</label>
+                    <label className="vh-lbl">Gross Tonnage (GT) *</label>
                     <Input
                       type="number"
                       value={formState?.gt}
@@ -992,7 +979,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Propulsion power (kW)</label>
+                    <label className="vh-lbl">Propulsion power (kW)</label>
                     <Input
                       type="number"
                       value={formState?.propulsion_kw || ''}
@@ -1002,7 +989,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Type of Main Engine</label>
+                    <label className="vh-lbl">Type of Main Engine</label>
                     <Input
                       value={formState?.main_engine_type || ''}
                       onChange={(e) => handleInputChange('main_engine_type', e?.target?.value)}
@@ -1011,7 +998,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Year Built</label>
+                    <label className="vh-lbl">Year Built</label>
                     <Input
                       type="number"
                       value={formState?.year_built}
@@ -1021,7 +1008,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Year Refit</label>
+                    <label className="vh-lbl">Year Refit</label>
                     <Input
                       type="number"
                       value={formState?.year_refit}
@@ -1034,15 +1021,15 @@ const VesselSettings = () => {
               </div>
 
               {/* Employer details — fills crew-contract templates ({{company_name}} / {{company_address}}). */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-medium text-foreground mb-1">Employer Details</h3>
-                <p className="text-sm text-muted-foreground mb-4">
+              <div className="vh-sec">
+                <h3 className="vh-sec-h">Employer Details</h3>
+                <p className="vh-sec-sub">
                   The owning / employing entity as it should appear on crew contracts. The captain’s name is filled
                   automatically from whoever holds the Captain role.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="vh-grid">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Company / Owner Name</label>
+                    <label className="vh-lbl">Company / Owner Name</label>
                     <Input
                       value={formState?.company_name}
                       onChange={(e) => handleInputChange('company_name', e?.target?.value)}
@@ -1051,7 +1038,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div className="md:row-span-2">
-                    <label className="block text-sm font-medium text-foreground mb-1">Company Address</label>
+                    <label className="vh-lbl">Company Address</label>
                     <textarea
                       value={formState?.company_address || ''}
                       onChange={(e) => handleInputChange('company_address', e?.target?.value)}
@@ -1061,8 +1048,8 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Logo</label>
-                    <p className="text-xs text-muted-foreground mb-2">
+                    <label className="vh-lbl">Logo</label>
+                    <p className="vh-hint" style={{ marginTop: 0, marginBottom: 8 }}>
                       PNG or JPEG. Added to the page header of contracts generated from AI-rebuilt templates.
                     </p>
                     <div className="flex items-center gap-3">
@@ -1110,7 +1097,7 @@ const VesselSettings = () => {
                   </div>
                   {/* Company contact — fills Part 1 of the Nautilus sea-service testimonial. */}
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Company Email</label>
+                    <label className="vh-lbl">Company Email</label>
                     <Input
                       value={formState?.company_email || ''}
                       onChange={(e) => handleInputChange('company_email', e?.target?.value)}
@@ -1119,7 +1106,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Company Phone</label>
+                    <label className="vh-lbl">Company Phone</label>
                     <Input
                       value={formState?.company_phone || ''}
                       onChange={(e) => handleInputChange('company_phone', e?.target?.value)}
@@ -1128,7 +1115,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Post Code</label>
+                    <label className="vh-lbl">Post Code</label>
                     <Input
                       value={formState?.company_postcode || ''}
                       onChange={(e) => handleInputChange('company_postcode', e?.target?.value)}
@@ -1137,7 +1124,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Country</label>
+                    <label className="vh-lbl">Country</label>
                     <Input
                       value={formState?.company_country || ''}
                       onChange={(e) => handleInputChange('company_country', e?.target?.value)}
@@ -1149,11 +1136,11 @@ const VesselSettings = () => {
               </div>
 
               {/* Operational Profile */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-medium text-foreground mb-4">Operational Profile</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="vh-sec">
+                <h3 className="vh-sec-h">Operational Profile</h3>
+                <div className="vh-grid">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Commercial Status</label>
+                    <label className="vh-lbl">Commercial Status</label>
                     <Select
                       value={formState?.commercial_status}
                       onChange={(value) => handleInputChange('commercial_status', value)}
@@ -1170,7 +1157,7 @@ const VesselSettings = () => {
                     <label className="text-sm text-foreground">Certified Commercial</label>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Area of Operation</label>
+                    <label className="vh-lbl">Area of Operation</label>
                     <Select
                       value={formState?.area_of_operation}
                       onChange={(value) => handleInputChange('area_of_operation', value)}
@@ -1179,7 +1166,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Operating Regions</label>
+                    <label className="vh-lbl">Operating Regions</label>
                     <Input
                       value={formState?.operating_regions}
                       onChange={(e) => handleInputChange('operating_regions', e?.target?.value)}
@@ -1188,7 +1175,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Seasonal Pattern</label>
+                    <label className="vh-lbl">Seasonal Pattern</label>
                     <Input
                       value={formState?.seasonal_pattern}
                       onChange={(e) => handleInputChange('seasonal_pattern', e?.target?.value)}
@@ -1197,7 +1184,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Typical Guest Count</label>
+                    <label className="vh-lbl">Typical Guest Count</label>
                     <Input
                       type="number"
                       value={formState?.typical_guest_count}
@@ -1207,7 +1194,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Typical Crew Count</label>
+                    <label className="vh-lbl">Typical Crew Count</label>
                     <Input
                       type="number"
                       value={formState?.typical_crew_count}
@@ -1220,12 +1207,12 @@ const VesselSettings = () => {
               </div>
 
               {/* Rota & HOR */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-medium text-foreground mb-1">Rota &amp; HOR</h3>
-                <p className="text-sm text-muted-foreground mb-4">The rota day-start, and how MLC rest is recorded, confirmed and signed off.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="vh-sec">
+                <h3 className="vh-sec-h">Rota &amp; HOR</h3>
+                <p className="vh-sec-sub">The rota day-start, and how MLC rest is recorded, confirmed and signed off.</p>
+                <div className="vh-grid">
                   <div>
-                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                    <label className="vh-lbl vh-lbl-hint">
                       Rota Day Start
                       <InfoHint text="The hour your operational day begins. The rota grid starts here, and — when HOR Day Basis is set to Operational — each 24-hour rest period is measured from this time." />
                     </label>
@@ -1237,7 +1224,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                    <label className="vh-lbl vh-lbl-hint">
                       HOR Day Basis
                       <InfoHint text="How each 24-hour window for the '10h rest' rule is measured. Calendar = midnight to midnight (the standard IMO/ILO sheet). Operational = a 24-hour day starting at your Rota Day Start, which avoids false breaches when an overnight rest is split by midnight. The basis is printed on the record." />
                     </label>
@@ -1252,7 +1239,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                    <label className="vh-lbl vh-lbl-hint">
                       Hours-of-Rest Confirmation
                       <InfoHint text="What happens when a crew member submits their month of hours. Require approval = an approver must sign it off before it's confirmed. Trust crew = it's confirmed automatically on submit." />
                     </label>
@@ -1267,7 +1254,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                    <label className="vh-lbl vh-lbl-hint">
                       HOR Approver Role
                       <InfoHint text="The lowest rank that can approve HOR months and sign off breaches — equal or higher ranks always can too. 'Command only' restricts it to Command; 'Chief & above' adds Chiefs; 'HOD & above' also lets Heads of Department." />
                     </label>
@@ -1283,7 +1270,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                    <label className="vh-lbl vh-lbl-hint">
                       Management Company
                       <InfoHint text="The management company / shore office (DPA) that receives the signed Hours of Rest pack at month-end. The name is used in the email greeting." />
                     </label>
@@ -1295,7 +1282,7 @@ const VesselSettings = () => {
                     />
                   </div>
                   <div>
-                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                    <label className="vh-lbl vh-lbl-hint">
                       Management Company Email
                       <InfoHint text="Recipient address for the end-of-month signed Hours of Rest export. The 'Send to management' action on the month-end hub emails the pack here." />
                     </label>
@@ -1311,8 +1298,8 @@ const VesselSettings = () => {
               </div>
 
               {/* Compliance & Structure */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-medium text-foreground mb-4">Compliance & Structure</h3>
+              <div className="vh-sec">
+                <h3 className="vh-sec-h">Compliance & Structure</h3>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -1334,22 +1321,19 @@ const VesselSettings = () => {
               </div>
 
               {/* Cargo Configuration */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-medium text-foreground mb-4">Cargo Configuration</h3>
+              <div className="vh-sec">
+                <h3 className="vh-sec-h">Cargo Configuration</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">Departments in Use</label>
-                    <div className="flex flex-wrap gap-2">
+                    <label className="vh-lbl">Departments in Use</label>
+                    <div className="vh-pills">
                       {departmentOptions?.map(dept => (
                         <button
                           key={dept?.value}
                           type="button"
                           onClick={() => !viewMode && canEdit && handleDepartmentToggle(dept?.value)}
                           disabled={viewMode || !canEdit}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-smooth ${
-                            formState?.departments_in_use?.includes(dept?.value)
-                              ? 'bg-primary text-white' :'bg-muted text-muted-foreground hover:bg-muted/80'
-                          } ${(viewMode || !canEdit) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+                          className={`vh-pill${formState?.departments_in_use?.includes(dept?.value) ? ' on' : ''}`}
                         >
                           {dept?.label}
                         </button>
@@ -1391,12 +1375,9 @@ const VesselSettings = () => {
       return (
         <div>
           {!canEdit && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3 mb-6">
-              <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">View-only access</p>
-                <p className="text-xs text-yellow-700 mt-1">Only COMMAND can edit roles</p>
-              </div>
+            <div className="vh-banner warn" style={{ marginBottom: 22 }}>
+              <AlertCircle className="ic" size={18} />
+              <div><span className="vh-banner-t">View-only</span> — only Command can edit roles.</div>
             </div>
           )}
           <RoleManagement />
