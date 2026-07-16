@@ -23,6 +23,8 @@ declare const Deno: {
   env: { get: (key: string) => string | undefined };
 };
 
+import { withinQuietHours, QuietPrefs } from '../_shared/quietHours.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -189,11 +191,13 @@ Deno.serve(async (req: Request) => {
     // Email recipients = those who keep this category's Email channel on (missing
     // prefs row = on). The In-app bell goes to everyone (gated in the DB trigger).
     const subPrefs = await supaGet(
-      `notification_preferences?user_id=in.(${recipientIds.join(',')})&select=user_id,email_rota_submissions`,
+      `notification_preferences?user_id=in.(${recipientIds.join(',')})&select=user_id,email_rota_submissions,quiet_enabled,quiet_from,quiet_to,quiet_tz`,
     ) || [];
+    // Hold the email if the recipient turned this category's Email channel off,
+    // OR they're currently inside their quiet window (the bell still fires).
     const emailOff = new Set(
-      (subPrefs as { user_id: string; email_rota_submissions: boolean }[])
-        .filter((p) => p.email_rota_submissions === false)
+      (subPrefs as Array<{ user_id: string; email_rota_submissions: boolean } & QuietPrefs>)
+        .filter((p) => p.email_rota_submissions === false || withinQuietHours(p))
         .map((p) => p.user_id),
     );
     const emailIds = recipientIds.filter((id) => !emailOff.has(id));

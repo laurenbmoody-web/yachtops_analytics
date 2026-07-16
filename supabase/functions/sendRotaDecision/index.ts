@@ -25,6 +25,8 @@ declare const Deno: {
   env: { get: (key: string) => string | undefined };
 };
 
+import { withinQuietHours } from '../_shared/quietHours.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -140,9 +142,12 @@ Deno.serve(async (req: Request) => {
     const ctx = item.source_context || {};
     // Honour the recipient's Email toggle for this category (default on when no
     // prefs row exists). The In-app bell is gated separately in the DB trigger.
-    const prefs = await supaRest(`notification_preferences?user_id=eq.${item.submitter_id}&select=email_rota_decisions&limit=1`);
-    if (prefs && prefs[0] && prefs[0].email_rota_decisions === false) {
-      return new Response(JSON.stringify({ ok: true, noop: 'email off for category' }), {
+    const prefs = await supaRest(`notification_preferences?user_id=eq.${item.submitter_id}&select=email_rota_decisions,quiet_enabled,quiet_from,quiet_to,quiet_tz&limit=1`);
+    const pr = prefs && prefs[0];
+    // Hold the email if the category's Email channel is off, or the recipient
+    // is in their quiet window (the in-app bell still fires via the DB trigger).
+    if (pr && (pr.email_rota_decisions === false || withinQuietHours(pr))) {
+      return new Response(JSON.stringify({ ok: true, noop: 'email off or quiet hours' }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

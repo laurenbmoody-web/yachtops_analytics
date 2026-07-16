@@ -22,6 +22,8 @@ declare const Deno: {
   env: { get: (key: string) => string | undefined };
 };
 
+import { withinQuietHours, QuietPrefs } from '../_shared/quietHours.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -206,11 +208,13 @@ Deno.serve(async (req: Request) => {
     //     gated separately in the DB trigger.
     if (RESEND_API_KEY) {
       const prefs = await supaGet(
-        `notification_preferences?user_id=in.(${recipientIds.join(',')})&select=user_id,email_seatime`,
+        `notification_preferences?user_id=in.(${recipientIds.join(',')})&select=user_id,email_seatime,quiet_enabled,quiet_from,quiet_to,quiet_tz`,
       ) || [];
+      // Hold the email when the category is off OR the recipient is in their
+      // quiet window (the in-app bell above already fired).
       const emailOff = new Set(
-        (prefs as { user_id: string; email_seatime: boolean }[])
-          .filter((p) => p.email_seatime === false)
+        (prefs as Array<{ user_id: string; email_seatime: boolean } & QuietPrefs>)
+          .filter((p) => p.email_seatime === false || withinQuietHours(p))
           .map((p) => p.user_id),
       );
       const emailIds = recipientIds.filter((id) => !emailOff.has(id));
