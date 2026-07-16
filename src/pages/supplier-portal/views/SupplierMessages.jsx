@@ -57,6 +57,7 @@ const fmtMoney = (a, cur = 'EUR') => {
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 const shortId = (id) => (id ? String(id).slice(0, 8).toUpperCase() : '—');
 const fmtClock = (d) => (d ? formatTime(d) : '');
+const fmtExpiry = (d) => (d ? new Date(d).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
 const fmtWhen = (d) => {
   if (!d) return '';
   const dt = new Date(d);
@@ -877,6 +878,11 @@ const SupplierMessages = () => {
                             </div>
                             {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney(q.total, q.currency)}</span></div>}
                             {m.body && <div className="msg-qc-note">{m.body}</div>}
+                            {status === 'pending' && m.quote_expires_at && (
+                              new Date(m.quote_expires_at).getTime() < Date.now()
+                                ? <div className="msg-qc-expired">⏱ Expired {fmtExpiry(m.quote_expires_at)} — revise &amp; re-send to renew</div>
+                                : <div className="msg-qc-valid">Valid until {fmtExpiry(m.quote_expires_at)}</div>
+                            )}
                             {m.sender_type === 'supplier' && status === 'pending' && items.some((it) => it.unit_price == null) && (
                               pricing === m.id ? (
                                 <div className="msg-qc-actions">

@@ -32,6 +32,9 @@ const threadLabel = (t) => (t?.order_id ? `Order #${shortId(t.order_id)}` : 'Gen
 // The provisioning board this conversation relates to (via the order's list), so
 // crew can jump from a chat straight to the board it's about.
 const threadBoard = (t) => t?.supplier_orders?.provisioning_lists || null;
+// Quote validity (per the supplier's expiry window, stamped on the message).
+const quoteExpired = (m) => !!m?.quote_expires_at && new Date(m.quote_expires_at).getTime() < Date.now();
+const fmtDmy = (d) => (d ? new Date(d).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
 
 // Optimistic mirror of react_to_message: one reaction per user — tapping the
 // same emoji clears it, a different emoji replaces it.
@@ -651,7 +654,12 @@ const CrewMessages = () => {
                                 </div>
                                 {q.total > 0 && <div className="msg-qc-total"><span>Total</span><span>{fmtMoney(q.total, q.currency)}</span></div>}
                                 {m.body && <div className="msg-qc-note">{m.body}</div>}
-                                {status === 'pending' && m.sender_type === 'supplier' ? (
+                                {status === 'pending' && m.quote_expires_at && (
+                                  quoteExpired(m)
+                                    ? <div className="msg-qc-expired">⏱ Expired {fmtDmy(m.quote_expires_at)} — ask {supplierName(activeThread)} to re-quote</div>
+                                    : <div className="msg-qc-valid">Valid until {fmtDmy(m.quote_expires_at)}</div>
+                                )}
+                                {status === 'pending' && m.sender_type === 'supplier' && !quoteExpired(m) ? (
                                   declining === m.id ? (
                                     <div className="msg-qc-decline-form">
                                       <input
