@@ -160,6 +160,7 @@ const fromRow = (r) => {
     quoteApprovedByName: r.quote_approved_by_name,
     quoteApprovedAt: r.quote_approved_at,
     quoteApprovalNote: r.quote_approval_note,
+    promotedJobId: r.promoted_job_id,
     scheduledFixAt: r.scheduled_fix_at,
     closedAt: r.closed_at,
     closedByUserId: r.closed_by,
