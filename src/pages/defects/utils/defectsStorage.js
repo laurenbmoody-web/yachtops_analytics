@@ -44,6 +44,18 @@ export const DefectStatus = {
 
 export const DefectPriority = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical' };
 
+// Repair works stage — the external-contractor progression, distinct from the
+// internal defect status. Ordered; app-validated (column is free text).
+export const RepairStage = {
+  NOT_STARTED: 'not_started', CONTACTED: 'contacted', QUOTING: 'quoting',
+  QUOTED: 'quoted', SCHEDULED: 'scheduled', IN_PROGRESS: 'in_progress', COMPLETED: 'completed',
+};
+export const REPAIR_STAGE_ORDER = ['contacted', 'quoting', 'quoted', 'scheduled', 'in_progress', 'completed'];
+export const REPAIR_STAGE_LABELS = {
+  not_started: 'Not started', contacted: 'Contractor contacted', quoting: 'Awaiting quote',
+  quoted: 'Quote received', scheduled: 'Scheduled', in_progress: 'In progress', completed: 'Complete',
+};
+
 export const DefectDepartment = {
   INTERIOR: 'Interior', DECK: 'Deck', ENGINEERING: 'Engineering', GALLEY: 'Galley', MANAGEMENT: 'Management',
 };
@@ -135,6 +147,7 @@ const fromRow = (r) => {
     contractorEmail: r.contractor_email,
     contractorPhone: r.contractor_phone,
     scheduledEndAt: r.scheduled_end_at,
+    repairStage: r.repair_stage,
     scheduledFixAt: r.scheduled_fix_at,
     closedAt: r.closed_at,
     closedByUserId: r.closed_by,
@@ -419,6 +432,7 @@ const UPDATE_FIELD_MAP = {
   contractorName: 'contractor_name', contractorDetails: 'contractor_details', scheduledFixAt: 'scheduled_fix_at',
   contractorSupplierId: 'contractor_supplier_id', scheduledEndAt: 'scheduled_end_at',
   contractorContactName: 'contractor_contact_name', contractorEmail: 'contractor_email', contractorPhone: 'contractor_phone',
+  repairStage: 'repair_stage',
 };
 const EDIT_FIELDS = ['title', 'description', 'priority', 'dueDate', 'departmentOwner', 'contractorName', 'contractorDetails', 'scheduledFixAt'];
 
@@ -446,6 +460,11 @@ export const updateDefect = async (defectId, updates, actor) => {
   if (updates?.assignedToUserId && updates.assignedToUserId !== before.assignedToUserId) {
     await logEvent(actor, defectId, 'assigned', `Assigned to ${updates.assignedToName || 'crew'}`, { assignedTo: updates.assignedToUserId });
     await notifyDefectAssigned(actor, [updates.assignedToUserId], after.title, defectId, after.dueDate);
+  }
+  if (updates?.repairStage && updates.repairStage !== before.repairStage) {
+    await logEvent(actor, defectId, 'repair_stage', `Repair: ${REPAIR_STAGE_LABELS[updates.repairStage] || updates.repairStage}`, {
+      stageFrom: before.repairStage || null, stageTo: updates.repairStage,
+    });
   }
   // Content edit (title/priority/dates/contractor/etc.) — one audit entry.
   if (EDIT_FIELDS.some((f) => f in (updates || {}))) {

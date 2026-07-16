@@ -14,7 +14,7 @@ import OrderPartsModal from './OrderPartsModal';
 import { fetchDefectRequisitions } from '../utils/defectRequisition';
 import { useDefectActor } from '../utils/useDefectActor';
 import {
-  DefectStatus,
+  DefectStatus, REPAIR_STAGE_ORDER, REPAIR_STAGE_LABELS,
   getDefectComments, getDefectEvents,
   updateDefect, addDefectComment, acceptDefect, declineDefect,
   closeDefectWithNotes, reopenDefect, assignDefect, claimDefect, canEditDefect,
@@ -163,6 +163,8 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   });
   const hasRepairInfo = defect.contractorName || defect.contractorDetails || defect.scheduledFixAt
     || defect.contractorEmail || defect.contractorPhone;
+  const setStage = (v) => guard(() => updateDefect(defect.id, { repairStage: v }, actor))();
+  const stageIdx = REPAIR_STAGE_ORDER.indexOf(defect.repairStage);
 
   const photos = defect.photos || [];
   const openMap = () => { if (mapHref) { onClose?.(); navigate(mapHref); } };
@@ -228,6 +230,20 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                   {hasRepairInfo ? 'Edit' : 'Arrange'}
                 </button>
               )}
+            </div>
+
+            {/* stage stepper — the traceable works progression */}
+            <div className="dd-stage">
+              <div className="dd-stage-track" role="group" aria-label="Repair stage">
+                {REPAIR_STAGE_ORDER.map((s, i) => (
+                  <button key={s} type="button" disabled={!canManage || isClosed || busy}
+                    className={`dd-stage-seg${i <= stageIdx ? ' done' : ''}${defect.repairStage === s ? ' cur' : ''}`}
+                    title={REPAIR_STAGE_LABELS[s]} aria-label={`Set stage: ${REPAIR_STAGE_LABELS[s]}`}
+                    aria-current={defect.repairStage === s ? 'step' : undefined}
+                    onClick={() => setStage(s)} />
+                ))}
+              </div>
+              <div className="dd-stage-now">{REPAIR_STAGE_LABELS[defect.repairStage] || 'Not started'}</div>
             </div>
 
             {fixEditing ? (
