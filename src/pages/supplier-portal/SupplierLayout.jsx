@@ -9,7 +9,7 @@ import SupplierAvatarMenu from './components/SupplierAvatarMenu';
 import { useTier, hasClientPermission } from '../../contexts/SupplierPermissionContext';
 import { useSupplier } from '../../contexts/SupplierContext';
 import { fetchUnactionedReturnsCount } from './utils/supplierReturnTasks';
-import { fetchVesselRevisedCount, fetchVesselRevisedLines, fetchVesselApprovedOrders, fetchSupplierUnreadCount } from './utils/supplierStorage';
+import { fetchVesselRevisedCount, fetchVesselRevisedLines, fetchVesselApprovedOrders, fetchSupplierUnreadCount, fetchMessageThreads } from './utils/supplierStorage';
 import { supabase } from '../../lib/supabaseClient';
 import './supplier-portal.css';
 
@@ -62,6 +62,7 @@ const SupplierLayout = () => {
   const [bellOpen, setBellOpen] = useState(false);
   const [revisedLines, setRevisedLines] = useState([]);
   const [approvedOrders, setApprovedOrders] = useState([]);
+  const [unreadThreads, setUnreadThreads] = useState([]);
   // Count of unactioned ('sent') return tasks for the /supplier/returns
   // nav badge. 'sent' is the unread state — naturally cleared when the
   // supplier clicks Acknowledge. Re-fetches on mount, window focus, and
@@ -144,11 +145,12 @@ const SupplierLayout = () => {
   useEffect(() => {
     if (!bellOpen) return undefined;
     let cancelled = false;
-    Promise.all([fetchVesselRevisedLines(), fetchVesselApprovedOrders()])
-      .then(([rev, app]) => {
+    Promise.all([fetchVesselRevisedLines(), fetchVesselApprovedOrders(), fetchMessageThreads(supplier.id).catch(() => [])])
+      .then(([rev, app, threads]) => {
         if (cancelled) return;
         setRevisedLines(rev);
         setApprovedOrders(app);
+        setUnreadThreads((threads || []).filter((t) => (t.supplier_unread_count || 0) > 0 && !t.archived_at));
       })
       .catch((e) => console.error('[SupplierLayout bell dropdown]', e));
     return () => { cancelled = true; };
@@ -173,6 +175,10 @@ const SupplierLayout = () => {
     setBellOpen(false);
     if (line?.order_id) navigate(`/supplier/orders/${line.order_id}`);
   };
+
+  // The bell lights for reopened lines, approved orders AND unread messages
+  // (which includes quote accepted / declined — those post a message).
+  const bellTotal = revisedCount + messagesCount;
 
   const visibleGroups = NAV_GROUPS
     .map((group) => ({
@@ -251,30 +257,48 @@ const SupplierLayout = () => {
             <div ref={bellRef} style={{ position: 'relative' }}>
               <button
                 type="button"
-                className={`sp-icon-btn sp-bell-btn${revisedCount > 0 ? ' has-badge' : ''}`}
-                aria-label={revisedCount > 0
-                  ? `${revisedCount} line${revisedCount === 1 ? '' : 's'} reopened by vessel — review required`
-                  : 'Notifications'}
+                className={`sp-icon-btn sp-bell-btn${bellTotal > 0 ? ' has-badge' : ''}`}
+                aria-label={bellTotal > 0 ? `${bellTotal} notification${bellTotal === 1 ? '' : 's'}` : 'Notifications'}
                 aria-haspopup="true"
                 aria-expanded={bellOpen}
                 onClick={() => setBellOpen((v) => !v)}
               >
                 <Bell />
-                {revisedCount > 0 && (
-                  <span className="sp-bell-badge" aria-hidden="true">{revisedCount > 9 ? '9+' : revisedCount}</span>
+                {bellTotal > 0 && (
+                  <span className="sp-bell-badge" aria-hidden="true">{bellTotal > 9 ? '9+' : bellTotal}</span>
                 )}
               </button>
               {bellOpen && (
                 <div className="sp-bell-panel" role="dialog" aria-label="Notifications">
                   <div className="sp-bell-panel-head">
                     <span className="sp-bell-panel-eyebrow">Notifications</span>
-                    {revisedCount > 0 && (
-                      <span className="sp-bell-panel-count">{revisedCount} waiting</span>
+                    {bellTotal > 0 && (
+                      <span className="sp-bell-panel-count">{bellTotal} waiting</span>
                     )}
                   </div>
-                  {revisedLines.length === 0 && approvedOrders.length === 0 ? (
+                  {unreadThreads.length > 0 && (
+                    <ul className="sp-bell-panel-list">
+                      {unreadThreads.map((t) => (
+                        <li key={`msg-${t.id}`}>
+                          <button
+                            type="button"
+                            className="sp-bell-panel-item"
+                            onClick={() => { setBellOpen(false); navigate(`/supplier/messages?threadId=${t.id}`); }}
+                          >
+                            <span className="sp-bell-panel-item-dot" />
+                            <span className="sp-bell-panel-item-body">
+                              <span className="sp-bell-panel-item-name">{t.last_message_preview || 'New message'}</span>
+                              <span className="sp-bell-panel-item-meta">Tap to open the conversation</span>
+                            </span>
+                            <span className="sp-bell-panel-item-tag">Message</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {revisedLines.length === 0 && approvedOrders.length === 0 && unreadThreads.length === 0 ? (
                     <div className="sp-bell-panel-empty">
-                      No new notifications. You'll see vessel-reopened lines + vessel-approved orders here.
+                      No new notifications. You'll see new messages, vessel-reopened lines + vessel-approved orders here.
                     </div>
                   ) : (
                     <ul className="sp-bell-panel-list">
