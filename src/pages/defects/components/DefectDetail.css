@@ -137,6 +137,16 @@
 .dd-cpick-add:hover { background: #FBEFE9; }
 .dd-cpick-add b { font-weight: 600; }
 
+/* parts requisitions raised from the defect */
+.dd-reqs { display: flex; flex-direction: column; gap: 6px; }
+.dd-req { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: #FAFAF8; border: 1px solid #ECEAE3;
+  border-radius: 10px; padding: 9px 11px; font-family: inherit; cursor: pointer; color: #1C1B3A; }
+.dd-req:hover { border-color: #C65A1A; }
+.dd-req .t { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-req .s { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; color: #6B7280;
+  background: #F0F1F5; border-radius: 999px; padding: 3px 8px; }
+.dd-req > svg:last-child { color: #AEB4C2; flex: none; }
+
 /* core-record edit reuses the shared log form; centre it like the map's log view */
 .dd-editwrap { width: 100%; max-width: 640px; margin: 0 auto; padding: 18px 22px 22px; }
 

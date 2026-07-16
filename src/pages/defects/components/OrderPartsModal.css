@@ -1,0 +1,47 @@
+/* Order parts modal — editorial, portaled via ModalShell. Prefix: op- */
+.op { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; width: 100%; max-width: 520px; background: #fff;
+  border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,.32);
+  display: flex; flex-direction: column; max-height: 88vh; }
+.op-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px 12px; border-bottom: 1px solid #ECEAE3; }
+.op-head h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 20px; margin: 2px 0 0; line-height: 1.15; }
+.op-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0; }
+.op-x { width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; color: #6B7280; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex: none; }
+.op-x:hover { color: #1C1B3A; }
+
+.op-vendor { display: flex; align-items: center; gap: 6px; margin: 12px 18px 0; padding: 8px 11px; border-radius: 9px;
+  background: #FBEFE9; color: #C65A1A; font-size: 12px; }
+.op-vendor b { font-weight: 600; }
+
+.op-body { padding: 12px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.op-line { display: flex; align-items: center; gap: 7px; }
+.op-namewrap { position: relative; flex: 1; min-width: 0; }
+.op-input { width: 100%; font-family: inherit; font-size: 13px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E8E6DF;
+  border-radius: 9px; padding: 9px 10px; outline: none; }
+.op-input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.op-input.qty { flex: none; width: 56px; text-align: center; }
+.op-input.unit { flex: none; width: 70px; }
+.op-rm { flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid #ECEAE3; background: #fff; color: #AEB4C2;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.op-rm:hover { color: #A32D2D; border-color: #E3B9A3; }
+
+.op-sugg { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid #ECEAE3;
+  border-radius: 10px; box-shadow: 0 16px 36px -12px rgba(28,27,58,.28); padding: 5px; max-height: 200px; overflow-y: auto; }
+.op-sugg-opt { width: 100%; display: flex; align-items: baseline; gap: 8px; background: none; border: 0; font-family: inherit;
+  text-align: left; padding: 7px 9px; border-radius: 7px; cursor: pointer; }
+.op-sugg-opt:hover { background: #FAFAF8; }
+.op-sugg-opt .nm { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
+.op-sugg-opt .br { font-size: 11px; color: #AEB4C2; }
+
+.op-add { align-self: flex-start; margin-top: 2px; background: none; border: 1px dashed #E3DFD6; border-radius: 9px;
+  padding: 7px 12px; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; }
+.op-add:hover { border-color: #C65A1A; color: #C65A1A; }
+
+.op-err { font-size: 12px; color: #A32D2D; margin: 0 18px; }
+.op-foot { display: flex; gap: 8px; padding: 14px 18px; border-top: 1px solid #ECEAE3; margin-top: 4px; }
+.op-btn { font-family: inherit; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 10px 14px; cursor: pointer; border: 1px solid transparent; }
+.op-btn.primary { background: #C65A1A; color: #fff; flex: 1; }
+.op-btn.primary:hover { background: #B14E16; }
+.op-btn.primary:disabled { opacity: .5; cursor: default; }
+.op-btn.ghost { background: #fff; border-color: #ECEAE3; color: #1C1B3A; }
