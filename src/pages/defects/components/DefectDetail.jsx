@@ -145,18 +145,24 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   };
 
   const startFix = () => setFix({
-    dueDate: defect.dueDate || '', scheduledFixAt: defect.scheduledFixAt || '',
+    scheduledFixAt: defect.scheduledFixAt || '', scheduledEndAt: defect.scheduledEndAt || '',
     contractorName: defect.contractorName || '', contractorDetails: defect.contractorDetails || '',
     contractorSupplierId: defect.contractorSupplierId || null,
+    contractorContactName: defect.contractorContactName || '',
+    contractorEmail: defect.contractorEmail || '', contractorPhone: defect.contractorPhone || '',
   });
   const saveFix = guard(async () => {
     await updateDefect(defect.id, {
-      dueDate: fix.dueDate || null, scheduledFixAt: fix.scheduledFixAt || null,
+      scheduledFixAt: fix.scheduledFixAt || null, scheduledEndAt: fix.scheduledEndAt || null,
       contractorName: fix.contractorName || null, contractorDetails: fix.contractorDetails || null,
       contractorSupplierId: fix.contractorSupplierId || null,
+      contractorContactName: fix.contractorContactName || null,
+      contractorEmail: fix.contractorEmail || null, contractorPhone: fix.contractorPhone || null,
     }, actor);
     setFixEditing(false);
   });
+  const hasRepairInfo = defect.contractorName || defect.contractorDetails || defect.scheduledFixAt
+    || defect.contractorEmail || defect.contractorPhone;
 
   const photos = defect.photos || [];
   const openMap = () => { if (mapHref) { onClose?.(); navigate(mapHref); } };
@@ -211,29 +217,27 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
 
           {defect.description && <p className="dd-desc">{defect.description}</p>}
 
-          {/* Fix & contractor — arranged after the defect's logged, so it's edited
-              in place on the view rather than in the core-record form. */}
+          {/* Repair & contractor — arranged after the defect's logged, so it's
+              edited in place on the view. Contact fields mirror the directory. */}
           <div className="dd-fix">
             <div className="dd-fix-head">
-              <p className="dd-lbl" style={{ margin: 0 }}>Fix &amp; contractor</p>
+              <p className="dd-lbl" style={{ margin: 0 }}>Repair &amp; contractor</p>
               {canManage && !isClosed && !fixEditing && (
                 <button className="dd-edit-btn small" onClick={() => { startFix(); setFixEditing(true); }}>
-                  <Icon name={defect.contractorName || defect.scheduledFixAt ? 'Edit3' : 'Plus'} size={12} />
-                  {defect.contractorName || defect.scheduledFixAt ? 'Edit' : 'Arrange'}
+                  <Icon name={hasRepairInfo ? 'Edit3' : 'Plus'} size={12} />
+                  {hasRepairInfo ? 'Edit' : 'Arrange'}
                 </button>
               )}
             </div>
 
             {fixEditing ? (
               <div className="dd-fixform">
-                <div className="dd-row2">
-                  <div className="dd-field">
-                    <label className="dd-field-lbl">Being fixed on</label>
-                    <EditorialDatePicker value={fix.scheduledFixAt || ''} onChange={(v) => setFix({ ...fix, scheduledFixAt: v })} placeholder="dd/mm/yyyy" ariaLabel="Being fixed on" />
-                  </div>
-                  <div className="dd-field">
-                    <label className="dd-field-lbl">Due date</label>
-                    <EditorialDatePicker value={fix.dueDate || ''} onChange={(v) => setFix({ ...fix, dueDate: v })} placeholder="dd/mm/yyyy" ariaLabel="Due date" />
+                <div className="dd-field">
+                  <label className="dd-field-lbl">Scheduled for</label>
+                  <div className="dd-daterange">
+                    <EditorialDatePicker value={fix.scheduledFixAt || ''} onChange={(v) => setFix({ ...fix, scheduledFixAt: v })} placeholder="from" ariaLabel="Scheduled from" rangeStart={fix.scheduledEndAt || ''} />
+                    <span className="dd-daterange-sep">→</span>
+                    <EditorialDatePicker value={fix.scheduledEndAt || ''} onChange={(v) => setFix({ ...fix, scheduledEndAt: v })} placeholder="to (optional)" ariaLabel="Scheduled to" rangeStart={fix.scheduledFixAt || ''} />
                   </div>
                 </div>
                 <div className="dd-field">
@@ -242,24 +246,45 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                     value={fix.contractorName}
                     supplierId={fix.contractorSupplierId}
                     tenantId={actor?.tenantId}
-                    onChange={({ supplierId, name }) => setFix({ ...fix, contractorSupplierId: supplierId, contractorName: name })}
+                    draftEmail={fix.contractorEmail}
+                    draftPhone={fix.contractorPhone}
+                    draftContact={fix.contractorContactName}
+                    onChange={({ supplierId, name, email, phone }) => setFix((f) => ({
+                      ...f, contractorSupplierId: supplierId, contractorName: name,
+                      // pull directory contact through, but never clobber a value the crew already typed
+                      contractorEmail: email !== undefined && (email || !f.contractorEmail) ? (email || '') : f.contractorEmail,
+                      contractorPhone: phone !== undefined && (phone || !f.contractorPhone) ? (phone || '') : f.contractorPhone,
+                    }))}
                   />
                 </div>
+                <div className="dd-row2">
+                  <div className="dd-field">
+                    <label className="dd-field-lbl">Contact name</label>
+                    <input className="dd-input" value={fix.contractorContactName} onChange={(e) => setFix({ ...fix, contractorContactName: e.target.value })} placeholder="Who to ask for" />
+                  </div>
+                  <div className="dd-field">
+                    <label className="dd-field-lbl">Phone</label>
+                    <input className="dd-input" value={fix.contractorPhone} onChange={(e) => setFix({ ...fix, contractorPhone: e.target.value })} placeholder="+…" />
+                  </div>
+                </div>
                 <div className="dd-field">
-                  <label className="dd-field-lbl">Contractor details</label>
-                  <textarea className="dd-textarea" value={fix.contractorDetails} onChange={(e) => setFix({ ...fix, contractorDetails: e.target.value })} placeholder="Contact, quote ref, scope of works…" />
+                  <label className="dd-field-lbl">Email</label>
+                  <input className="dd-input" type="email" value={fix.contractorEmail} onChange={(e) => setFix({ ...fix, contractorEmail: e.target.value })} placeholder="name@firm.com" />
+                </div>
+                <div className="dd-field">
+                  <label className="dd-field-lbl">Scope / notes</label>
+                  <textarea className="dd-textarea" value={fix.contractorDetails} onChange={(e) => setFix({ ...fix, contractorDetails: e.target.value })} placeholder="Quote ref, scope of works, access notes…" />
                 </div>
                 <div className="dd-edit-actions">
                   <button className="dd-btn ghost" disabled={busy} onClick={() => { setFixEditing(false); setErr(''); }}>Cancel</button>
                   <button className="dd-btn primary" disabled={busy} onClick={saveFix} style={{ flex: 1 }}>{busy ? 'Saving…' : 'Save'}</button>
                 </div>
               </div>
-            ) : (defect.contractorName || defect.contractorDetails || defect.scheduledFixAt || defect.dueDate) ? (
+            ) : hasRepairInfo ? (
               <div className="dd-contractor">
-                {defect.dueDate && (
-                  <div className="dd-due"><span className="dd-due-k">Due</span><span className="dd-due-v">{fmt(defect.dueDate)}</span></div>
+                {defect.scheduledFixAt && (
+                  <div className="dd-sched"><Icon name="CalendarClock" size={13} /> Scheduled for {fmt(defect.scheduledFixAt)}{defect.scheduledEndAt ? ` – ${fmt(defect.scheduledEndAt)}` : ''}</div>
                 )}
-                {defect.scheduledFixAt && <div className="cs">Being fixed on {fmt(defect.scheduledFixAt)}</div>}
                 {defect.contractorName && (
                   <div className="cn">
                     <Icon name="Wrench" size={14} /> {defect.contractorName}
@@ -270,10 +295,17 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                     )}
                   </div>
                 )}
+                {(defect.contractorContactName || defect.contractorEmail || defect.contractorPhone) && (
+                  <div className="dd-contact">
+                    {defect.contractorContactName && <span className="cc"><Icon name="User" size={12} /> {defect.contractorContactName}</span>}
+                    {defect.contractorPhone && <a className="cc" href={`tel:${defect.contractorPhone}`}><Icon name="Phone" size={12} /> {defect.contractorPhone}</a>}
+                    {defect.contractorEmail && <a className="cc" href={`mailto:${defect.contractorEmail}`}><Icon name="Mail" size={12} /> {defect.contractorEmail}</a>}
+                  </div>
+                )}
                 {defect.contractorDetails && <div className="cd">{defect.contractorDetails}</div>}
               </div>
             ) : (
-              <p className="dd-fix-empty">No contractor or fix date arranged yet.</p>
+              <p className="dd-fix-empty">No repair scheduled or contractor arranged yet.</p>
             )}
           </div>
 
@@ -362,7 +394,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             <div className="dd-row"><span className="k">Department</span><span className="v">{defect.departmentOwner || '—'}</span></div>
             <div className="dd-row"><span className="k">Reported by</span><span className="v">{defect.reportedByName || '—'}</span></div>
             <div className="dd-row"><span className="k">Logged</span><span className="v">{fmt(defect.createdAt)}</span></div>
-            {defect.dueDate && <div className="dd-row"><span className="k">Due</span><span className="v">{fmt(defect.dueDate)}</span></div>}
+            {defect.scheduledFixAt && <div className="dd-row"><span className="k">Scheduled</span><span className="v">{fmt(defect.scheduledFixAt)}{defect.scheduledEndAt ? `–${fmt(defect.scheduledEndAt)}` : ''}</span></div>}
             <div className="dd-row"><span className="k">Location</span><span className="v" title={loc}>{loc}</span></div>
             {defect.notifyUsers?.length > 0 && <div className="dd-row"><span className="k">Also notified</span><span className="v">{defect.notifyUsers.map((n) => n.name).filter(Boolean).join(', ')}</span></div>}
           </div>
