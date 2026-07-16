@@ -23,6 +23,7 @@ import {
   notifyChiefsNewDefect,
   notifyChiefsQuoteApproval,
   notifyRequesterApprovalDecision,
+  emailAssignmentIfHighPriority,
   notifySenderAccepted,
   notifySenderDeclined,
   notifyDefectAssigned,
@@ -440,10 +441,13 @@ export const assignDefect = async (defectId, assignment, actor) => {
   if (kind === 'user' && assignment?.userId) {
     await logEvent(actor, defectId, 'assigned', `Assigned to ${assignment?.userName || 'crew'}`);
     await notifyDefectAssigned(actor, [assignment.userId], after.title, defectId, after.dueDate);
+    await emailAssignmentIfHighPriority(defectId, [assignment.userId], after.priority, after.title);
   } else if (kind === 'team' && assignment?.teamDepartmentId) {
     await logEvent(actor, defectId, 'assigned', `Assigned to ${assignment?.teamName || 'the team'}`);
     const members = await resolveDepartmentMemberIds(actor.tenantId, assignment.teamDepartmentId);
-    await notifyDefectAssigned(actor, members.map((m) => m.userId), after.title, defectId, after.dueDate);
+    const ids = members.map((m) => m.userId);
+    await notifyDefectAssigned(actor, ids, after.title, defectId, after.dueDate);
+    await emailAssignmentIfHighPriority(defectId, ids, after.priority, after.title);
   }
   return after;
 };
@@ -546,6 +550,7 @@ export const updateDefect = async (defectId, updates, actor) => {
   if (updates?.assignedToUserId && updates.assignedToUserId !== before.assignedToUserId) {
     await logEvent(actor, defectId, 'assigned', `Assigned to ${updates.assignedToName || 'crew'}`, { assignedTo: updates.assignedToUserId });
     await notifyDefectAssigned(actor, [updates.assignedToUserId], after.title, defectId, after.dueDate);
+    await emailAssignmentIfHighPriority(defectId, [updates.assignedToUserId], after.priority, after.title);
   }
   if (updates?.repairStage && updates.repairStage !== before.repairStage) {
     await logEvent(actor, defectId, 'repair_stage', `Repair: ${REPAIR_STAGE_LABELS[updates.repairStage] || updates.repairStage}`, {

@@ -65,6 +65,18 @@ export const notifyChiefsNewDefect = async (actor, departmentId, defectTitle, de
   });
 };
 
+// High/Critical defects also go out by email (the edge function resolves each
+// user's address + honours their email opt-out). Best-effort — never blocks the
+// in-app path. Low/Medium stay bell-only.
+export const emailAssignmentIfHighPriority = async (defectId, userIds, priority, title) => {
+  if (!['High', 'Critical'].includes(priority) || !(userIds || []).filter(Boolean).length) return;
+  try {
+    await supabase.functions.invoke('defect-reminders', {
+      body: { mode: 'assignment', defectId, userIds: [...new Set(userIds.filter(Boolean))], title, priority },
+    });
+  } catch { /* email is best-effort */ }
+};
+
 // A repair quote needs a Captain/HOD sign-off — notify the department's chiefs.
 export const notifyChiefsQuoteApproval = async (actor, departmentId, defectTitle, defectId, amountLabel) => {
   const chiefs = await chiefsOfDepartment(actor?.tenantId, departmentId);
