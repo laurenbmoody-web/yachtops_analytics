@@ -7,7 +7,7 @@ import { getCurrentUser, clearCurrentUser, hasCommandAccess, hasChiefAccess, get
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
-import { applyReduceMotion, applyTextSize } from '../../utils/a11y';
+import { applyReduceMotion, applyTextSize, applyFocusRings, applyUnderlineLinks, applyReduceTransparency } from '../../utils/a11y';
 import JSZip from 'jszip';
 import './settings.css';
 
@@ -19,6 +19,7 @@ const PREF_DEFAULTS = {
   dateFormat: 'dmy', hour24: false, units: 'metric', firstDay: 'mon',
   analytics: true,
   reduceMotion: false, textSize: 'default',
+  focusRings: false, underlineLinks: false, reduceTransparency: false,
 };
 // name → [localStorage key, type]. Channel/task/trip keys reuse the existing
 // ones so nothing already saved is lost.
@@ -39,6 +40,9 @@ const PREF_KEY = {
   analytics: ['analytics_opt_in', 'bool'],
   reduceMotion: ['a11y_reduce_motion', 'bool'],
   textSize: ['a11y_text_size', 'str'],
+  focusRings: ['a11y_focus_rings', 'bool'],
+  underlineLinks: ['a11y_underline_links', 'bool'],
+  reduceTransparency: ['a11y_reduce_transparency', 'bool'],
 };
 const readPref = (name) => {
   const [k, t] = PREF_KEY[name];
@@ -1178,13 +1182,8 @@ const SettingsPage = () => {
           <>
             <h2 className="set-h">Accessibility</h2>
             <p className="set-hsub">Make Cargo easier to read and move through.</p>
+            <Caps>Reading</Caps>
             <Group>
-              <RowToggle
-                label="Reduce motion"
-                desc="Turn off animations and transitions across the app."
-                on={prefs.reduceMotion}
-                onChange={() => { const v = !prefs.reduceMotion; setPref('reduceMotion', v); applyReduceMotion(v); }}
-              />
               <RowSeg
                 label="Text size"
                 desc="Scale everything up for easier reading."
@@ -1192,7 +1191,37 @@ const SettingsPage = () => {
                 onChange={(v) => { setPref('textSize', v); applyTextSize(v); }}
                 options={[{ v: 'default', l: 'Default' }, { v: 'large', l: 'Large' }]}
               />
+              <RowToggle
+                label="Underline links"
+                desc="Show links with an underline, not colour alone."
+                on={prefs.underlineLinks}
+                onChange={() => { const v = !prefs.underlineLinks; setPref('underlineLinks', v); applyUnderlineLinks(v); }}
+              />
+              <RowToggle
+                label="Reduce transparency"
+                desc="Turn off background blur and glassy panels for clearer contrast."
+                on={prefs.reduceTransparency}
+                onChange={() => { const v = !prefs.reduceTransparency; setPref('reduceTransparency', v); applyReduceTransparency(v); }}
+              />
             </Group>
+            <Caps>Motion & focus</Caps>
+            <Group>
+              <RowToggle
+                label="Reduce motion"
+                desc="Turn off animations and transitions across the app."
+                on={prefs.reduceMotion}
+                onChange={() => { const v = !prefs.reduceMotion; setPref('reduceMotion', v); applyReduceMotion(v); }}
+              />
+              <RowToggle
+                label="Always show focus outline"
+                desc="A clear ring on whatever you’ve tabbed to — for keyboard navigation."
+                on={prefs.focusRings}
+                onChange={() => { const v = !prefs.focusRings; setPref('focusRings', v); applyFocusRings(v); }}
+              />
+            </Group>
+            <p className="set-hsub" style={{ marginTop: 14 }}>
+              A high-contrast “sunlight” mode — darker text and stronger borders for reading on deck in glare — is planned alongside the app’s theming work.
+            </p>
           </>
         );
 

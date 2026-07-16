@@ -42,3 +42,29 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Accessibility: focus rings, underlined links, reduced transparency ──────
+   Each keyed off a data attribute set from Settings → Accessibility
+   (utils/a11y.js). Kept as opt-in so nothing changes by default. */
+
+/* Always-visible keyboard focus ring — the app suppresses outlines widely, so
+   this restores a strong, consistent indicator for keyboard/switch users. */
+:root[data-focus-rings="true"] :focus-visible {
+  outline: 3px solid #C65A1A !important;
+  outline-offset: 2px !important;
+  border-radius: 3px;
+}
+
+/* Underline all links so they aren't signalled by colour alone. */
+:root[data-underline-links="true"] a {
+  text-decoration: underline !important;
+  text-underline-offset: 2px;
+}
+
+/* Reduce transparency — drop background blur and glassy translucency. */
+:root[data-reduce-transparency="true"] *,
+:root[data-reduce-transparency="true"] *::before,
+:root[data-reduce-transparency="true"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
