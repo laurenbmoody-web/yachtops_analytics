@@ -14,6 +14,12 @@ import { getGuestLaundryNotes } from '../utils/laundryPrefs';
 import ModalShell from '../../../components/ui/ModalShell';
 
 const availableTags = availableLaundryTags;
+// ISO timestamp ↔ <input type="datetime-local"> value (local time, no seconds)
+const isoToLocalInput = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso); const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
 const SpeechRec = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
 // Guest cabins arrive as a full location path (e.g. "Main Deck > Forward >
@@ -52,6 +58,7 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
     notes: editItem.notes || '',
     tags: [...(editItem.tags || [])],
     priority: editItem.priority || LaundryPriority?.NORMAL,
+    neededBy: isoToLocalInput(editItem.neededBy),
   } : {
     ownerType: OwnerType?.GUEST,
     photos: [],
@@ -67,6 +74,7 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
     notes: '',
     tags: [],
     priority: LaundryPriority?.NORMAL,
+    neededBy: '',
   }));
 
   const [customTag, setCustomTag] = useState('');
@@ -321,6 +329,7 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
         priority: formData?.priority,
         tags: formData?.tags,
         notes: formData?.notes,
+        neededBy: formData?.neededBy ? new Date(formData.neededBy).toISOString() : null,
       };
       let saved;
       if (isEdit) {
@@ -580,6 +589,12 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
             />
             <button type="button" className="alm-btn outline" onClick={handleAddCustomTag} disabled={!customTag?.trim()}>Add</button>
           </div>
+        </div>
+
+        {/* Needed by */}
+        <div className="alm-section">
+          <label className="alm-label">Needed back by <span className="alm-opt">optional</span></label>
+          <input type="datetime-local" className="alm-field" value={formData.neededBy || ''} onChange={(e) => setField('neededBy', e?.target?.value)} />
         </div>
 
         {/* Notes */}

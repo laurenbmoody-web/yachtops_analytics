@@ -35,6 +35,7 @@ const AddBagModal = ({ onClose, onSuccess }) => {
   const [activeCrew, setActiveCrew] = useState([]);
 
   const [urgent, setUrgent] = useState(false);
+  const [neededBy, setNeededBy] = useState('');
   const [bagNote, setBagNote] = useState('');
   const [rows, setRows] = useState(() => [blankRow(), blankRow()]);
   const [knownCustomTags, setKnownCustomTags] = useState([]);
@@ -140,6 +141,7 @@ const AddBagModal = ({ onClose, onSuccess }) => {
         areaLocationId,
         priority: urgent ? LaundryPriority?.URGENT : LaundryPriority?.NORMAL,
         notes: bagNote,
+        neededBy: neededBy ? new Date(neededBy).toISOString() : null,
         photos: [],
         laundryNumber: '',
       };
@@ -281,6 +283,12 @@ const AddBagModal = ({ onClose, onSuccess }) => {
           </div>
 
           <button type="button" className="alb-addrow" onClick={addRow}><Icon name="Plus" size={15} /> Add another item</button>
+        </div>
+
+        {/* needed by (whole bag) */}
+        <div className="alm-section">
+          <label className="alm-label">Needed back by <span className="alm-opt">optional</span></label>
+          <input type="datetime-local" className="alm-field" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} />
         </div>
 
         {/* bag note */}

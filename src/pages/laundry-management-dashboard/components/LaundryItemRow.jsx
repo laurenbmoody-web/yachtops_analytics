@@ -23,6 +23,7 @@ const fmtAgo = (iso) => {
   if (hrs < 24) return `${hrs} h ago`;
   return `${Math.floor(hrs / 24)} d ago`;
 };
+const fmtDue = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
 const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
   const handleStatusUpdate = async (e, newStatus) => {
@@ -34,6 +35,8 @@ const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
   const step = STEP[item?.status] || STEP[LaundryStatus?.READY_TO_DELIVER];
   const kind = ownerKind(item?.ownerType);
   const urgent = item?.priority === LaundryPriority?.URGENT;
+  const notDelivered = item?.status !== LaundryStatus?.DELIVERED;
+  const overdue = item?.neededBy && notDelivered && new Date(item.neededBy) < new Date();
   const photos = Array.isArray(item?.photos) && item.photos.length ? item.photos : (item?.photo ? [item.photo] : []);
   const avInitials = kind === 'unknown' ? '?' : initials(item?.ownerName || item?.ownerDisplayName);
 
@@ -56,12 +59,14 @@ const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
         <div className="lr-top">
           <span className="lr-desc">{item?.description || 'No description'}</span>
           {urgent && <span className="lr-flag"><Icon name="Zap" size={11} /> Urgent</span>}
+          {overdue && <span className="lr-overdue"><Icon name="Clock" size={11} /> Overdue</span>}
         </div>
         <div className="lr-sub">
           <span className="lr-who"><span className={`lr-av ${kind}`}>{item?.avatarUrl ? <img src={item.avatarUrl} alt="" /> : avInitials}</span>{kind === 'unknown' ? 'Unknown' : (item?.ownerName || 'Unassigned')}</span>
           {item?.area && (<><span className="sep">·</span><b>{item.area}</b></>)}
           {item?.laundryNumber && (<><span className="sep">·</span><span>No. {item.laundryNumber}</span></>)}
           {item?.colour && (<><span className="sep">·</span><span>{item.colour}</span></>)}
+          {item?.neededBy && !overdue && notDelivered && (<><span className="sep">·</span><span className="lr-due">due {fmtDue(item.neededBy)}</span></>)}
         </div>
         {item?.tags?.length > 0 && (
           <div className="lr-tags">
