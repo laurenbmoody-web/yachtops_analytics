@@ -371,6 +371,9 @@ const LaundryHistoryView = () => {
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [calSel, setCalSel] = useState(() => dayKeyOf(new Date()));
   const [detailItem, setDetailItem] = useState(null);
+  const [q, setQ] = useState('');
+  const [fOwner, setFOwner] = useState('all'); // all | guest | crew
+  const [fStatus, setFStatus] = useState('all'); // all | progress | ready | delivered
 
   // open a piece in the read view — sign its photos first so the hero renders
   const openItem = async (it) => {
@@ -416,6 +419,23 @@ const LaundryHistoryView = () => {
     .sort((a, b) => new Date(b.deliveredAt) - new Date(a.deliveredAt)), [items, calSel]);
   const todayKey = dayKeyOf(new Date());
 
+  // search / filter across every logged piece (independent of the period views)
+  const searchActive = !!q.trim() || fOwner !== 'all' || fStatus !== 'all';
+  const STFILT = { progress: LaundryStatus?.IN_PROGRESS, ready: LaundryStatus?.READY_TO_DELIVER, delivered: LaundryStatus?.DELIVERED };
+  const results = useMemo(() => {
+    if (!searchActive) return [];
+    const needle = q.trim().toLowerCase();
+    return items
+      .filter((it) => {
+        if (fOwner !== 'all' && ownerKindC(it.ownerType) !== fOwner) return false;
+        if (fStatus !== 'all' && it.status !== STFILT[fStatus]) return false;
+        if (!needle) return true;
+        const hay = `${it.description || ''} ${it.ownerName || ''} ${it.area || ''} ${(it.tags || []).join(' ')} ${it.colour || ''}`.toLowerCase();
+        return hay.includes(needle);
+      })
+      .sort((a, b) => new Date(b.deliveredAt || b.createdAt) - new Date(a.deliveredAt || a.createdAt));
+  }, [items, q, fOwner, fStatus, searchActive]);
+
   return (
     <>
       <Header />
@@ -442,6 +462,25 @@ const LaundryHistoryView = () => {
             </div>
           </div>
 
+          {book.hasAny && (
+            <div className="hist-tools">
+              <label className="lm-search">
+                <Icon name="Search" size={16} className="lm-search-ic" />
+                <input type="text" placeholder="Search items, guest, cabin, care…" value={q} onChange={(e) => setQ(e.target.value)} />
+                {q && <button type="button" className="lm-search-x" onClick={() => setQ('')} aria-label="Clear search"><Icon name="X" size={14} /></button>}
+              </label>
+              <div className="hist-chips">
+                {[['all', 'Everyone'], ['guest', 'Guests'], ['crew', 'Crew']].map(([v, l]) => (
+                  <button key={v} type="button" className={`hist-chip${fOwner === v ? ' on' : ''}`} onClick={() => setFOwner(v)}>{l}</button>
+                ))}
+                <span className="hist-chip-sep" />
+                {[['all', 'Any status'], ['progress', 'Washing'], ['ready', 'Ready'], ['delivered', 'Returned']].map(([v, l]) => (
+                  <button key={v} type="button" className={`hist-chip${fStatus === v ? ' on' : ''}`} onClick={() => setFStatus(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="lm-empty" role="status" style={{ paddingTop: 40 }}><div className="lm-empty-sub">Loading the logbook…</div></div>
           ) : !book.hasAny ? (
@@ -449,6 +488,20 @@ const LaundryHistoryView = () => {
               <Icon name="BookOpen" size={44} className="lm-empty-ic" />
               <div className="lm-empty-title">Nothing logged yet</div>
               <div className="lm-empty-sub">As laundry is cleaned it’s filed here by voyage and off-charter period — who, what and when.</div>
+            </div>
+          ) : searchActive ? (
+            <div className="hist-results">
+              <div className="hist-results-h">
+                <span className="hist-results-n"><b className="tnum">{results.length}</b> {results.length === 1 ? 'match' : 'matches'}</span>
+                <button type="button" className="hist-results-clear" onClick={() => { setQ(''); setFOwner('all'); setFStatus('all'); }}>Clear search</button>
+              </div>
+              {results.length === 0 ? (
+                <div className="lm-empty" role="status" style={{ paddingTop: 30 }}><div className="lm-empty-sub">No pieces match that.</div></div>
+              ) : (
+                <div className="hist-results-list">
+                  {results.map((it) => <ItemLine key={it.id} it={it} onOpen={openItem} />)}
+                </div>
+              )}
             </div>
           ) : view === 'calendar' ? (
             <Calendar
