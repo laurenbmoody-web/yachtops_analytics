@@ -100,16 +100,14 @@ const DefectsDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.tenantId, userTier]);
 
-  // Handle defectId from URL
+  // Handle defectId from URL — open it (the view modal fetches by id, so it works
+  // for any defect, not only those in the current filtered list).
   useEffect(() => {
     if (defectId) {
-      const defect = defects?.find(d => d?.id === defectId);
-      if (defect) {
-        setSelectedDefectId(defectId);
-        setShowViewModal(true);
-      }
+      setSelectedDefectId(defectId);
+      setShowViewModal(true);
     }
-  }, [defectId, defects]);
+  }, [defectId]);
 
   // Filter defects
   useEffect(() => {
@@ -144,7 +142,11 @@ const DefectsDashboard = () => {
   }, [defects, searchQuery, statusFilter, departmentFilter, typeFilter]);
 
   const openDefect = (id) => { setSelectedDefectId(id); setShowViewModal(true); };
-  const handleCloseViewModal = () => { setShowViewModal(false); setSelectedDefectId(null); loadDefects(); };
+  const handleCloseViewModal = () => {
+    setShowViewModal(false); setSelectedDefectId(null);
+    if (defectId) navigate('/defects', { replace: true });
+    loadDefects();
+  };
   const handleReportSuccess = () => { setShowReportModal(false); loadDefects(); };
 
   const handleAcceptDefect = async (id) => {
