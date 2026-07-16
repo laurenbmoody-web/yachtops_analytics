@@ -614,9 +614,12 @@ const SettingsPage = () => {
     const [k, t] = PREF_KEY[name];
     localStorage.setItem(k, t === 'bool' ? String(val) : val);
     setPrefs(p => ({ ...p, [name]: val }));
+    // Let cached formatters (dateFormat.js) and any live surface pick up the
+    // new Regional/notification preference immediately.
+    try { window.dispatchEvent(new Event('cargo:prefs-changed')); } catch { /* noop */ }
   };
   const toggle = (name) => setPref(name, !prefs[name]);
-  const setTz = (v) => { localStorage.setItem('userTimezone', v); setTimezone(v); setTzOpen(false); };
+  const setTz = (v) => { localStorage.setItem('userTimezone', v); setTimezone(v); setTzOpen(false); try { window.dispatchEvent(new Event('cargo:prefs-changed')); } catch { /* noop */ } };
 
   // Editorial token re-skin while mounted.
   useEffect(() => {

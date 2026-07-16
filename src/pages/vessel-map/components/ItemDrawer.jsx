@@ -9,6 +9,7 @@
 // map's job — you step them up/down on the pins — so the drawer shows "Where
 // it is" read-only to avoid two places fighting over total_qty.
 import React, { useEffect, useRef, useState } from 'react';
+import { formatTime } from '../../../utils/dateFormat';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { getItemById, saveItem } from '../../inventory/utils/inventoryStorage';
@@ -30,7 +31,7 @@ const fmtDate = (v) => {
 const fmtDateTime = (v) => {
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return '';
-  const t = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const t = formatTime(d);
   return `${fmtDate(v)} · ${t}`;
 };
 const dotClass = (action = '') => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { formatTime } from '../../utils/dateFormat';
 import { formatDistanceToNow } from 'date-fns';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
@@ -4983,7 +4984,7 @@ const SUPPLIER_MIRROR_FIELD = {
                     let absTime = '';
                     try {
                       relTime = formatDistanceToNow(entry.date, { addSuffix: true });
-                      absTime = entry.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + entry.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                      absTime = entry.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + formatTime(entry.date);
                     } catch { absTime = ''; }
                     const isExpanded = expandedHistory === entry.key;
                     // Only show the chevron / make the row clickable

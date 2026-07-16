@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { formatTime } from '../../utils/dateFormat';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import { useTenant } from '../../contexts/TenantContext';
@@ -41,7 +42,7 @@ const AV_GRADS = [
 const hashId = (s = '') => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
 const avatarGrad = (id) => { const [a, b] = AV_GRADS[hashId(String(id)) % AV_GRADS.length]; return `linear-gradient(140deg, ${a}, ${b})`; };
 
-const fmtClock = (d) => (d ? new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
+const fmtClock = (d) => (d ? formatTime(d) : '');
 const fmtWhen = (d) => {
   if (!d) return '';
   const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);

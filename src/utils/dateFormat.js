@@ -1,5 +1,38 @@
-// Centralised European date formatting + parsing (dd/mm/yyyy).
+// Centralised date/time formatting + parsing.
 // Storage/transport stays ISO (yyyy-mm-dd); only display/entry is localised.
+//
+// Display respects the user's Regional settings (Settings → Regional):
+//   date_format  'dmy' (default, dd/mm/yyyy) | 'mdy' (mm/dd/yyyy)
+//   time_24h     'true' → 24-hour clock, else 12-hour with am/pm
+//   first_day    'mon' (default) | 'sun'
+// These are read from localStorage and cached; the cache refreshes when the
+// settings page dispatches 'cargo:prefs-changed' or another tab writes them.
+// NOTE: date ENTRY (isoToUK/ukToISO masked inputs) stays dd/mm/yyyy regardless,
+// so changing the display format never breaks date typing.
+
+let _datePref = null;
+let _timePref = null;
+const _readDate = () => {
+  try { return localStorage.getItem('date_format') || 'dmy'; } catch { return 'dmy'; }
+};
+const _read24 = () => {
+  try { return localStorage.getItem('time_24h') === 'true'; } catch { return false; }
+};
+const datePref = () => (_datePref == null ? (_datePref = _readDate()) : _datePref);
+const is24h = () => (_timePref == null ? (_timePref = _read24()) : _timePref);
+
+/** 0 = Sunday, 1 = Monday (default) — for calendars/week grids. */
+export const weekStartsOn = () => {
+  try { return localStorage.getItem('first_day') === 'sun' ? 0 : 1; } catch { return 1; }
+};
+
+if (typeof window !== 'undefined') {
+  const refresh = () => { _datePref = _readDate(); _timePref = _read24(); };
+  window.addEventListener('cargo:prefs-changed', refresh);
+  window.addEventListener('storage', (e) => {
+    if (!e || e.key == null || e.key === 'date_format' || e.key === 'time_24h') refresh();
+  });
+}
 
 /** ISO 'yyyy-mm-dd' (or any Date-parseable value) → 'dd/mm/yyyy'. */
 export const isoToUK = (iso) => {
@@ -25,18 +58,36 @@ export const ukToISO = (uk) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-/** Any date value → 'dd/mm/yyyy' (en-GB). Empty/invalid → ''. */
+/** Any date value → 'dd/mm/yyyy' (or 'mm/dd/yyyy' if the user chose MDY). */
 export const formatDate = (value) => {
   if (!value) return '';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const locale = datePref() === 'mdy' ? 'en-US' : 'en-GB';
+  return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-/** Any date value → 'dd Mon yyyy' (en-GB). Empty/invalid → ''. */
+/** Any date value → 'dd Mon yyyy' (month name order follows the date pref). */
 export const formatDateLong = (value) => {
   if (!value) return '';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const locale = datePref() === 'mdy' ? 'en-US' : 'en-GB';
+  return d.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+/** Any date value → 'HH:MM' (24h) or 'H:MM am/pm' (12h) per the time pref. */
+export const formatTime = (value) => {
+  if (value == null || value === '') return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: !is24h() });
+};
+
+/** Date + time, e.g. 'dd/mm/yyyy · 15:42'. Empty/invalid → ''. */
+export const formatDateTime = (value) => {
+  const date = formatDate(value);
+  const time = formatTime(value);
+  if (!date) return '';
+  return time ? `${date} · ${time}` : date;
 };

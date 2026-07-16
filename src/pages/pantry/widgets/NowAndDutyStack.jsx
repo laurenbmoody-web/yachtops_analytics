@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatTime } from '../../../utils/dateFormat';
 import { useInteriorDuty } from '../hooks/useInteriorDuty';
 
 function LiveClock() {
@@ -7,7 +8,7 @@ function LiveClock() {
     const t = setInterval(() => setTime(new Date()), 30000);
     return () => clearInterval(t);
   }, []);
-  return time.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return formatTime(time);
 }
 
 /**
