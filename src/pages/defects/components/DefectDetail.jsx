@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import VmdSelect from '../../vessel-map/components/VmdSelect';
 import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
+import ContractorPicker from './ContractorPicker';
 import DefectLogForm from './DefectLogForm';
 import { useDefectActor } from '../utils/useDefectActor';
 import {
@@ -139,11 +140,13 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const startFix = () => setFix({
     dueDate: defect.dueDate || '', scheduledFixAt: defect.scheduledFixAt || '',
     contractorName: defect.contractorName || '', contractorDetails: defect.contractorDetails || '',
+    contractorSupplierId: defect.contractorSupplierId || null,
   });
   const saveFix = guard(async () => {
     await updateDefect(defect.id, {
       dueDate: fix.dueDate || null, scheduledFixAt: fix.scheduledFixAt || null,
       contractorName: fix.contractorName || null, contractorDetails: fix.contractorDetails || null,
+      contractorSupplierId: fix.contractorSupplierId || null,
     }, actor);
     setFixEditing(false);
   });
@@ -228,7 +231,12 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                 </div>
                 <div className="dd-field">
                   <label className="dd-field-lbl">Contractor</label>
-                  <input className="dd-input" value={fix.contractorName} onChange={(e) => setFix({ ...fix, contractorName: e.target.value })} placeholder="e.g. Riva Marine Joinery" />
+                  <ContractorPicker
+                    value={fix.contractorName}
+                    supplierId={fix.contractorSupplierId}
+                    tenantId={actor?.tenantId}
+                    onChange={({ supplierId, name }) => setFix({ ...fix, contractorSupplierId: supplierId, contractorName: name })}
+                  />
                 </div>
                 <div className="dd-field">
                   <label className="dd-field-lbl">Contractor details</label>
@@ -245,7 +253,16 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                   <div className="dd-due"><span className="dd-due-k">Due</span><span className="dd-due-v">{fmt(defect.dueDate)}</span></div>
                 )}
                 {defect.scheduledFixAt && <div className="cs">Being fixed on {fmt(defect.scheduledFixAt)}</div>}
-                {defect.contractorName && <div className="cn"><Icon name="Wrench" size={14} /> {defect.contractorName}</div>}
+                {defect.contractorName && (
+                  <div className="cn">
+                    <Icon name="Wrench" size={14} /> {defect.contractorName}
+                    {defect.contractorSupplierId && (
+                      <button type="button" className="dd-cn-link" onClick={() => { onClose?.(); navigate(`/provisioning/suppliers/${defect.contractorSupplierId}`); }}>
+                        In directory <Icon name="ArrowUpRight" size={12} />
+                      </button>
+                    )}
+                  </div>
+                )}
                 {defect.contractorDetails && <div className="cd">{defect.contractorDetails}</div>}
               </div>
             ) : (
