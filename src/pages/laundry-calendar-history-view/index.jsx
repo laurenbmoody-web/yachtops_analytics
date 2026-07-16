@@ -5,8 +5,10 @@ import Header from '../../components/navigation/Header';
 import { loadAllLaundryItems, getDeliveryCredits } from '../laundry-management-dashboard/utils/laundryStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
+import { resolveLaundryPhotos } from '../laundry-management-dashboard/utils/laundryPhotos';
 import { buildLogbook, initials } from '../laundry-management-dashboard/utils/laundryLogbook';
 import { downloadLaundryCsv } from '../laundry-management-dashboard/utils/laundryExport';
+import LaundryDetailModal from '../laundry-management-dashboard/components/LaundryDetailModal';
 import { LaundryStatus } from '../laundry-management-dashboard/utils/laundryStorage';
 import '../../styles/editorial.css';
 import '../laundry-management-dashboard/laundry.css';
@@ -28,14 +30,21 @@ const STATUS_TAG = {
 };
 
 // one returned/actioned item line, reused in the logbook + calendar
-const ItemLine = ({ it, hideOwner }) => {
+const ItemLine = ({ it, hideOwner, onOpen }) => {
   const st = STATUS_TAG[it.status] || { t: 'Logged', c: '' };
   const parts = [];
   if (!hideOwner) parts.push(ownerKindC(it.ownerType) === 'unknown' ? 'Unknown' : it.ownerName);
   parts.push(it.area, (it.tags || [])[0]);
   const sub = parts.filter(Boolean).join(' · ');
+  const clickable = typeof onOpen === 'function';
   return (
-    <div className="lb-ri">
+    <div
+      className={`lb-ri${clickable ? ' click' : ''}`}
+      onClick={clickable ? () => onOpen(it) : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(it); } } : undefined}
+    >
       <span className="lb-th"><Icon name="Shirt" size={15} /></span>
       <span className="lb-ri-nm">{it.description || 'Laundry item'}{sub ? <span className="lb-ri-sub"> · {sub}</span> : null}</span>
       <span className={`lb-ri-tag ${st.c}`}>{st.t}</span>
@@ -86,7 +95,7 @@ const clockHands = (min) => {
   return { mx, my, hx, hy };
 };
 
-const Detail = ({ p, onExport }) => {
+const Detail = ({ p, onExport, onOpenItem }) => {
   const [open, setOpen] = useState(null);
   const [openDay, setOpenDay] = useState(null);
   useEffect(() => { setOpen(null); setOpenDay(p?.days?.[0]?.key || null); }, [p?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -195,7 +204,7 @@ const Detail = ({ p, onExport }) => {
               </button>
               {isOpen && (
                 <div className="lb-dos-items">
-                  {its.map((it, i) => <ItemLine key={it.id || it.supabaseId || i} it={it} hideOwner />)}
+                  {its.map((it, i) => <ItemLine key={it.id || it.supabaseId || i} it={it} hideOwner onOpen={onOpenItem} />)}
                 </div>
               )}
             </div>
@@ -246,7 +255,7 @@ const Detail = ({ p, onExport }) => {
   );
 };
 
-const Calendar = ({ month, setMonth, sel, setSel, deliveredByDay, dayItems, todayKey, onExport }) => {
+const Calendar = ({ month, setMonth, sel, setSel, deliveredByDay, dayItems, todayKey, onExport, onOpenItem }) => {
   const y = month.getFullYear();
   const m = month.getMonth();
   const first = new Date(y, m, 1);
@@ -310,7 +319,7 @@ const Calendar = ({ month, setMonth, sel, setSel, deliveredByDay, dayItems, toda
                   <span className="lb-pg-nm">{g.name}</span>
                   <span className="lb-pg-ct tnum">{g.items.length}</span>
                 </div>
-                {g.items.map((it, i) => <ItemLine key={it.id || i} it={it} hideOwner />)}
+                {g.items.map((it, i) => <ItemLine key={it.id || i} it={it} hideOwner onOpen={onOpenItem} />)}
               </div>
             ))}
           </div>
@@ -329,6 +338,14 @@ const LaundryHistoryView = () => {
   const [view, setView] = useState('logbook'); // logbook | calendar
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [calSel, setCalSel] = useState(() => dayKeyOf(new Date()));
+  const [detailItem, setDetailItem] = useState(null);
+
+  // open a piece in the read view — sign its photos first so the hero renders
+  const openItem = async (it) => {
+    if (!it) return;
+    try { const [resolved] = await resolveLaundryPhotos([it]); setDetailItem(resolved || it); }
+    catch { setDetailItem(it); }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -406,6 +423,7 @@ const LaundryHistoryView = () => {
               month={calMonth} setMonth={setCalMonth} sel={calSel} setSel={setCalSel}
               deliveredByDay={deliveredByDay} dayItems={dayItems} todayKey={todayKey}
               onExport={() => downloadLaundryCsv(dayItems, `laundry-${calSel}`)}
+              onOpenItem={openItem}
             />
           ) : (
             <div className="lb-cols">
@@ -416,11 +434,12 @@ const LaundryHistoryView = () => {
                 {past.length > 0 && <div className="lb-lbl">Timeline</div>}
                 {past.map((p) => <Chapter key={p.id} p={p} active={selId === p.id} onClick={() => setSelId(p.id)} />)}
               </div>
-              <Detail p={selected} onExport={onExport} />
+              <Detail p={selected} onExport={onExport} onOpenItem={openItem} />
             </div>
           )}
         </div>
       </div>
+      {detailItem && <LaundryDetailModal item={detailItem} onClose={() => setDetailItem(null)} />}
     </>
   );
 };
