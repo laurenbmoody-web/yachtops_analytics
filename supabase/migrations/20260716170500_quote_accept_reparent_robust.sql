@@ -11,6 +11,8 @@
 --    outcome; if the thread bookkeeping ever fails, the accept still commits.
 --
 -- Replaces accept_supplier_quote from 20260716163000.
+-- (Re-triggering CI: the prior run failed installing the Supabase CLI on a
+--  GitHub API rate limit, before any SQL ran — this migration is unchanged.)
 
 create or replace function public.accept_supplier_quote(p_message_id uuid)
 returns uuid
