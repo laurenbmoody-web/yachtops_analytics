@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import AddLaundryModal from './components/AddLaundryModal';
+import AddBagModal from './components/AddBagModal';
 import LaundryItemRow from './components/LaundryItemRow';
 import CabinView from './components/CabinView';
 import LaundryDetailModal from './components/LaundryDetailModal';
@@ -133,6 +134,7 @@ const LaundryManagementDashboard = () => {
   const [filteredItems, setFilteredItems] = useState([]);
   const [, setGuests] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBagModal, setShowBagModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [tripId, setTripId] = useState(null);
   const [ownerFilter, setOwnerFilter] = useState('All');
@@ -323,6 +325,9 @@ const LaundryManagementDashboard = () => {
                 <button type="button" className="lm-btn ghost" onClick={() => navigate('/laundry-calendar-history-view')}>
                   <Icon name="Calendar" size={16} /> History
                 </button>
+                <button type="button" className="lm-btn ghost" onClick={() => setShowBagModal(true)}>
+                  <Icon name="Package" size={16} /> Add bag
+                </button>
                 <button type="button" className="lm-btn primary" onClick={() => setShowAddModal(true)}>
                   <Icon name="Plus" size={16} /> Add laundry
                 </button>
@@ -436,6 +441,9 @@ const LaundryManagementDashboard = () => {
 
       {(showAddModal || editItem) && (
         <AddLaundryModal editItem={editItem} onClose={() => { setShowAddModal(false); setEditItem(null); }} onSuccess={handleAddSuccess} />
+      )}
+      {showBagModal && (
+        <AddBagModal onClose={() => setShowBagModal(false)} onSuccess={() => { setShowBagModal(false); loadLaundryItems(); }} />
       )}
 
       {detailItem && (
