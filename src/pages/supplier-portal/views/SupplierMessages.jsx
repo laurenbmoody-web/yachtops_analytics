@@ -12,18 +12,21 @@ import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
 import MessageBubble from '../../../components/messaging/MessageBubble';
 
-// When a quote is fully priced, strip the "unpriced / not in catalogue"
-// caveats from the supplier's message so the note matches the (now priced) card.
+// When a quote is fully priced, strip the "to-confirm price" caveats from the
+// supplier's message so the note matches the (now priced) card.
 const cleanPricedBody = (body, allPriced) => {
   if (!allPriced || !body) return body;
   let b = String(body)
-    .replace(/\s*[—–-]\s*unpriced[^\n]*/gi, '')          // "— unpriced (see note below)"
-    .replace(/\s*\(see note below\)/gi, '')
+    .replace(/\s*[—–-]\s*unpriced[^\n]*/gi, '')                  // "— unpriced (see note below)"
+    .replace(/\s*[—–-]\s*price\s*TBC\b[^\n]*/gi, '')             // "— price TBC"
+    .replace(/\s*\((?:see note below|price\s*TBC)\)/gi, '')      // "(see note below)" / "(price TBC)"
     .replace(/^.*\bunfortunately\b[\s\S]*?(?:\n\s*\n|$)/gim, '') // the "Unfortunately … catalogue" paragraph
+    .replace(/[^.!?\n]*\bconfirm\b[^.!?\n]*\bprice\b[^.!?\n]*[.!?]\s*/gi, '') // "I'll confirm the price … shortly."
+    .replace(/[^.!?\n]*\bprice\b[^.!?\n]*\bconfirm\b[^.!?\n]*[.!?]\s*/gi, '') // "the price to confirm …"
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  return b || 'Updated with pricing — ready to accept whenever you are.';
+  return b || 'Here’s your quote — ready to accept whenever you are.';
 };
 
 // Optimistic mirror of react_to_message: one reaction per user.
@@ -521,8 +524,10 @@ const SupplierMessages = () => {
     setSending(true);
     try {
       const items = pendingQuote.items.map(({ _priceInput, ...it }) => it);
+      const allPriced = items.every((it) => it.unit_price != null);
+      const text = cleanPricedBody(pendingQuote.text, allPriced);
       const q = { items, currency: pendingQuote.currency, total: pendingQuote.total };
-      const msg = await sendSupplierQuote(activeId, pendingQuote.text, q);
+      const msg = await sendSupplierQuote(activeId, text, q);
       setMessages((m) => [...m, msg]);
       setPendingQuote(null);
       loadThreads();
@@ -864,7 +869,11 @@ const SupplierMessages = () => {
                         <button type="button" className="msg-qreview-cancel" onClick={() => setPendingQuote(null)}>Discard</button>
                         <button type="button" className="msg-qreview-send" onClick={sendQuote} disabled={sending}>{sending ? 'Sending…' : 'Send quote'}</button>
                       </div>
-                      <div className="msg-qreview-hint">The yacht can accept this to add the items to the order.</div>
+                      <div className="msg-qreview-hint">
+                        {pendingQuote.items.some((it) => it.unit_price == null)
+                          ? 'Leave a price blank to send now and confirm it later, or type it in above. The yacht can accept once it’s priced.'
+                          : 'The yacht can accept this to add the items to the order.'}
+                      </div>
                     </div>
                   )}
                   <div className="msg-quick">
