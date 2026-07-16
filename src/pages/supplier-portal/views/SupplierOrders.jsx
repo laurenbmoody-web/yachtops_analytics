@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { RefreshCw, ArrowRight, AlertTriangle, Search, Zap, Flag, Download, MessageSquare, SlidersHorizontal, ArrowUpDown, Check, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
@@ -29,7 +30,7 @@ const OPEN_STATUSES = new Set([
   'dispatched', 'out_for_delivery',
 ]);
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 const fmtTime = (t) => (t ? String(t).slice(0, 5) : null);
 const fmtAmt  = (a, cur = 'EUR') => (a == null ? '—' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a));
 const fmtMoney0 = (a, cur = 'EUR') => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(a || 0);

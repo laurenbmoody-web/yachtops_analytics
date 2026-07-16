@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
 import SmartSuggestionsPanel from './SmartSuggestionsPanel';
@@ -957,7 +958,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
             const depts = Array.isArray(order.departments) ? order.departments.filter(Boolean) : [];
             const orderDate = order.sent_at || order.created_at;
             const formattedDate = orderDate
-              ? new Date(orderDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+              ? new Date(orderDate).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
               : '';
             const isApplying = applyingPastId === order.id;
             const itemCount = Number(order.item_count) || 0;
@@ -1100,7 +1101,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
             const depts = Array.isArray(fav.departments) ? fav.departments.filter(Boolean) : [];
             const orderDate = fav.sent_at || fav.created_at;
             const formattedDate = orderDate
-              ? new Date(orderDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+              ? new Date(orderDate).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
               : '';
             const isApplying = applyingFavId === fav.id;
             return (
@@ -1259,7 +1260,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                         const key = histKey(h);
                         const isChecked = checkedItems.has(key);
                         const lastDate = h.last_ordered_date
-                          ? new Date(h.last_ordered_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
+                          ? new Date(h.last_ordered_date).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: '2-digit' })
                           : null;
                         return (
                           <div key={key} className="flex items-start gap-2 py-1.5 px-1 rounded-lg transition-colors bd-row-hover">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
@@ -114,7 +115,7 @@ const ViewProfileModal = ({ isOpen, onClose, userId, canSeeEmail = false }) => {
                 {profile?.date_of_birth && (
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Date of Birth</label>
-                    <p className="text-sm text-foreground">{new Date(profile?.date_of_birth)?.toLocaleDateString('en-GB')}</p>
+                    <p className="text-sm text-foreground">{new Date(profile?.date_of_birth)?.toLocaleDateString(dateLocale())}</p>
                   </div>
                 )}
                 {profile?.nationality && (

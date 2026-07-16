@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { supabase } from '../../lib/supabaseClient';
 import SignaturePad from '../../components/SignaturePad';
 
@@ -216,7 +217,7 @@ export default function ReturnConfirmPage() {
           <p style={{ margin: 0, fontSize: 14, color: '#047857', lineHeight: 1.6 }}>
             This return has already been confirmed by{' '}
             <strong>{confirmedBy}</strong> on{' '}
-            {confirmedAt?.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {confirmedAt?.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
@@ -11,7 +12,7 @@ const EXPORT_MEAL_ORDER = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Late Night'
 const formatDate = (dateStr) => {
   if (!dateStr) return null;
   try {
-    return new Date(dateStr)?.toLocaleDateString('en-GB', {
+    return new Date(dateStr)?.toLocaleDateString(dateLocale(), {
       day: 'numeric', month: 'long', year: 'numeric'
     });
   } catch {

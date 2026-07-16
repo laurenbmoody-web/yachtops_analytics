@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { showToast } from '../../../utils/toast';
@@ -24,7 +25,7 @@ const RequestCorrectionModal = ({ isOpen, onClose, crew, currentMonth }) => {
   };
 
   const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(selectedMonth);
-  const monthName = selectedMonth?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthName = selectedMonth?.toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' });
 
   const handleDateToggle = (day) => {
     const dateStr = new Date(year, month, day)?.toISOString()?.split('T')?.[0];

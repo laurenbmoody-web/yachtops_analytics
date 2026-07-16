@@ -14,7 +14,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { formatTime } from '../../utils/dateFormat';
+import {formatTime, dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -33,7 +33,7 @@ import './delivery-history.css';
 const fmtDate = (iso) => {
   if (!iso) return '—';
   try {
-    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(iso).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
   } catch { return '—'; }
 };
 
@@ -455,7 +455,7 @@ export default function DeliveryHistory() {
     const COLS = ['Date', 'Time', 'Supplier', 'Type', 'Item Name', 'Original Name', 'Qty', 'Unit', 'Unit Price', 'Total Price', 'Currency', 'Claim Status', 'Received By'];
     const rows = [COLS];
     for (const entry of filtered) {
-      const date      = entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-GB') : '';
+      const date      = entry.created_at ? new Date(entry.created_at).toLocaleDateString(dateLocale()) : '';
       const time      = fmtTime(entry.created_at);
       const supplier  = entry.supplier_name || 'Manual receive';
       const type      = SOURCE_CFG[entry.source_type]?.label || entry.source_type || '';

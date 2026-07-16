@@ -14,6 +14,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -48,13 +49,13 @@ const fmtDate = (iso) => {
   if (!iso) return '—';
   try {
     return new Date(typeof iso === 'string' && iso.length === 10 ? iso + 'T12:00:00' : iso)
-      .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
   } catch { return String(iso); }
 };
 
 const fmtDateShort = (iso) => {
   if (!iso) return '—';
-  try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+  try { return new Date(iso).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }); }
   catch { return '—'; }
 };
 

@@ -9,12 +9,13 @@
 // across the portal.
 
 import React, { useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 const fmtDate = (iso) => {
   if (!iso) return '—';
   try {
-    return new Date(iso).toLocaleDateString('en-GB', {
+    return new Date(iso).toLocaleDateString(dateLocale(), {
       day: 'numeric', month: 'short', year: 'numeric',
     });
   } catch { return String(iso); }

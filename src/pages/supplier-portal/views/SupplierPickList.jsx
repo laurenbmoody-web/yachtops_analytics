@@ -12,6 +12,7 @@
 // scan button hides and tapping does the job.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ScanBarcode, PackageCheck, Check } from 'lucide-react';
 import {
@@ -220,7 +221,7 @@ const SupplierPickList = () => {
       </div>
 
       <div className="spk-meta">
-        Deliver <b>{order?.delivery_date ? new Date(order.delivery_date).toLocaleDateString('en-GB') : 'TBC'}</b>
+        Deliver <b>{order?.delivery_date ? new Date(order.delivery_date).toLocaleDateString(dateLocale()) : 'TBC'}</b>
         {order?.delivery_time ? <> at <b>{String(order.delivery_time).slice(0, 5)}</b></> : null}
         {order?.delivery_port ? <> · <b>{order.delivery_port}</b></> : null}
       </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { fetchClientProfile, fetchClientOrders, fetchClientInvoices, fetchMySupplierReviews, fetchVesselLogos } from '../utils/supplierStorage';
@@ -12,8 +13,8 @@ import EmptyState from '../components/EmptyState';
 
 const itemPrice = (i) => i.agreed_price ?? i.quoted_price ?? i.estimated_price ?? i.unit_price ?? 0;
 const orderTotal = (o) => (o.supplier_order_items ?? []).reduce((s, i) => s + itemPrice(i) * (i.quantity ?? 1), 0);
-const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
-const fmtDay = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—');
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
+const fmtDay = (d) => (d ? new Date(d).toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short' }) : '—');
 // en-GB → symbol on the left, comma thousands (€1,531 / £1,531 / $1,531).
 const fmtMoney0 = (a, cur = 'EUR') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(a || 0);
 const shortId = (id) => (id ? String(id).slice(0, 8).toUpperCase() : '—');
@@ -107,7 +108,7 @@ const SupplierClientDetail = () => {
     const buckets = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-      buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('en-GB', { month: 'short' }), value: 0 });
+      buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString(dateLocale(), { month: 'short' }), value: 0 });
     }
     const bidx = Object.fromEntries(buckets.map((b, i) => [b.key, i]));
     for (const o of orders) {

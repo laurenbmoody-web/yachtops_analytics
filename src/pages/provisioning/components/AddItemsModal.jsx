@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import {
@@ -701,7 +702,7 @@ export default function AddItemsModal({
                             <span className="pv-wizard-item-count">{itemCount} item{itemCount === 1 ? '' : 's'}</span>
                           </span>
                           <span className="pv-wizard-board-row-meta">
-                            {order.sent_at ? new Date(order.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                            {order.sent_at ? new Date(order.sent_at).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                           </span>
                         </span>
                         <button

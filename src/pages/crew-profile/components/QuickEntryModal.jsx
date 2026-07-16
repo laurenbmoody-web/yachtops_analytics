@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -68,7 +69,7 @@ const QuickEntryModal = ({ isOpen, onClose, onSave, initialDate, crewId }) => {
   };
 
   const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentMonth);
-  const monthName = currentMonth?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthName = currentMonth?.toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' });
 
   const handleDateClick = (date) => {
     const dateStr = date?.toISOString()?.split('T')?.[0];

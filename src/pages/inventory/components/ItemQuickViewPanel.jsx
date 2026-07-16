@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import useDismissable from '../../../components/ui/useDismissable';
 import { formatBoughtIn } from '../../../data/unitGroups';
@@ -56,7 +57,7 @@ const ItemQuickViewPanel = ({ item, onClose, vesselLocations = [] }) => {
     try {
       const d = new Date(dateStr);
       if (isNaN(d?.getTime())) return dateStr;
-      return d?.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+      return d?.toLocaleDateString(dateLocale(), { year: 'numeric', month: 'long', day: 'numeric' });
     } catch {
       return dateStr;
     }

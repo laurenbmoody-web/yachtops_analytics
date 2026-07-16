@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { formatTime } from '../../utils/dateFormat';
+import {formatTime, dateLocale } from '../../utils/dateFormat';
 import { formatDistanceToNow } from 'date-fns';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
@@ -359,7 +359,7 @@ const EditBoardModal = ({ list, supplierManaged = false, onSaved, onClose }) => 
     if (hrs < 24) return `${hrs}h ago`;
     const days = Math.floor(hrs / 24);
     if (days < 7) return `${days}d ago`;
-    return then.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return then.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
   })();
 
   return (
@@ -457,7 +457,7 @@ const EditBoardModal = ({ list, supplierManaged = false, onSaved, onClose }) => 
               .map(t => {
                 const name = t.title || t.name || 'Trip';
                 const type = t.tripType ? ` · ${t.tripType}` : '';
-                const start = t.startDate ? ` · ${new Date(t.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '';
+                const start = t.startDate ? ` · ${new Date(t.startDate).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })}` : '';
                 return (
                   <option key={t.supabaseId} value={t.supabaseId}>{name}{type}{start}</option>
                 );
@@ -3000,7 +3000,7 @@ const SUPPLIER_MIRROR_FIELD = {
     if (!iso) return null;
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase();
+    return d.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }).toUpperCase();
   };
   const tripStart = formatRangeDate(trip?.startDate);
   const tripEnd = formatRangeDate(trip?.endDate);
@@ -4726,7 +4726,7 @@ const SUPPLIER_MIRROR_FIELD = {
                 const chipBg = isCargo ? 'rgba(55,138,221,0.12)' : 'rgba(30,158,117,0.12)';
                 const chipFg = isCargo ? '#185FA5' : '#0F6E56';
                 const metaParts = [
-                  receivedAt ? new Date(receivedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null,
+                  receivedAt ? new Date(receivedAt).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : null,
                   receivedByName ? `Received by ${receivedByName}` : null,
                   `${batchItems.length} item${batchItems.length !== 1 ? 's' : ''}`,
                   batchTotalStr,
@@ -4858,7 +4858,7 @@ const SUPPLIER_MIRROR_FIELD = {
                     const dateBatches = batchesByDate[dateKey];
                     const dt = new Date(dateKey + 'T12:00:00');
                     const dayNum  = dt.getDate();
-                    const monthAb = dt.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
+                    const monthAb = dt.toLocaleDateString(dateLocale(), { month: 'short' }).toUpperCase();
                     const isLastDate = dateIdx === sortedDates.length - 1;
                     return (
                       <React.Fragment key={dateKey}>
@@ -4984,7 +4984,7 @@ const SUPPLIER_MIRROR_FIELD = {
                     let absTime = '';
                     try {
                       relTime = formatDistanceToNow(entry.date, { addSuffix: true });
-                      absTime = entry.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + formatTime(entry.date);
+                      absTime = entry.date.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }) + ', ' + formatTime(entry.date);
                     } catch { absTime = ''; }
                     const isExpanded = expandedHistory === entry.key;
                     // Only show the chevron / make the row clickable

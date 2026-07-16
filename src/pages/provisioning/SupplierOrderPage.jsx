@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import EditorialMetaStrip from '../../components/editorial/EditorialMetaStrip';
@@ -73,7 +74,7 @@ const flagEmoji = (iso) => {
 
 const fmtDateShort = (iso) => {
   if (!iso) return null;
-  try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+  try { return new Date(iso).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }); }
   catch { return null; }
 };
 
@@ -88,7 +89,7 @@ const fmtRelative = (iso) => {
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     if (days < 30) return `${days}d ago`;
-    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return new Date(iso).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
   } catch { return ''; }
 };
 

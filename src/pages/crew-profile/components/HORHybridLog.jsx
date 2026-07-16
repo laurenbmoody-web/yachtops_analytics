@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
@@ -56,7 +57,7 @@ const toneForRest = (rest, isOff) => {
 };
 const dayLabel = (dateStr) => {
   const [y, m, d] = String(dateStr).split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+  return new Date(y, m - 1, d).toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric' });
 };
 
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];

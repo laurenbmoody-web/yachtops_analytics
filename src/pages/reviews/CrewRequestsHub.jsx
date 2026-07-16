@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import Icon from '../../components/AppIcon';
 import './crew-requests-hub.css';
 
@@ -53,7 +54,7 @@ const timeAgo = (iso) => {
   if (hr < 24) return `${hr}h ago`;
   const d = Math.floor(hr / 24);
   if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const fmtWhen = (iso) => {
@@ -66,7 +67,7 @@ const fmtWhen = (iso) => {
 
 const fmtDate = (iso) => {
   try {
-    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return new Date(iso).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
   } catch { return ''; }
 };
 

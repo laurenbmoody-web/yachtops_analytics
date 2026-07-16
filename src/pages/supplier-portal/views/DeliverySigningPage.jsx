@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import SignaturePad from '../../../components/SignaturePad';
@@ -79,7 +80,7 @@ const DeliveryFacts = ({ order }) => {
     try {
       const d = new Date(iso);
       if (isNaN(d.getTime())) return iso;
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      return d.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
     } catch { return iso; }
   };
   const fmtTime = (t) => (t ? String(t).slice(0, 5) : null);
@@ -274,7 +275,7 @@ export default function DeliverySigningPage() {
           <p style={{ margin: 0, fontSize: 14, color: '#047857', lineHeight: 1.6 }}>
             This delivery has already been signed by{' '}
             <strong>{order.crew_signer_name || 'the crew'}</strong>
-            {order.crew_signed_at ? <> on {new Date(order.crew_signed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</> : null}.
+            {order.crew_signed_at ? <> on {new Date(order.crew_signed_at).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long', year: 'numeric' })}</> : null}.
           </p>
         </div>
       </div>

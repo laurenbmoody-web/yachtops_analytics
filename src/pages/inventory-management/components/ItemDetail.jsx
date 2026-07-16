@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
@@ -197,7 +198,7 @@ const ItemDetail = () => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date?.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   return (

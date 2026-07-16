@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { RefreshCw } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { fetchInvoices } from '../utils/supplierStorage';
@@ -12,7 +13,7 @@ const TABS = [
   { key: 'overdue', label: 'Overdue' },
 ];
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
 const fmtAmt  = (a, cur = 'EUR') => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur, minimumFractionDigits: 0 }).format(a ?? 0);
 
 const SupplierInvoices = () => {

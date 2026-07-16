@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { formatTime } from '../../../utils/dateFormat';
+import {formatTime, dateLocale } from '../../../utils/dateFormat';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import {
@@ -39,7 +39,7 @@ const fmtWhen = (d) => {
   const days = Math.floor((Date.now() - dt.getTime()) / 86400000);
   if (days === 0) return fmtClock(d);
   if (days === 1) return 'Yesterday';
-  return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  return dt.toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short' });
 };
 const fmtAge = (d) => {
   if (!d) return '';
@@ -54,7 +54,7 @@ const dayLabel = (d) => {
   const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(dt).setHours(0, 0, 0, 0)) / 86400000);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
-  return dt.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
+  return dt.toLocaleDateString(dateLocale(), { weekday: 'long', day: '2-digit', month: 'long' });
 };
 const threadLabel = (t) => (t.order_id ? `Order #${shortId(t.order_id)}` : 'General');
 
@@ -69,7 +69,7 @@ const avatarGrad = (id) => { const [a, b] = AV_GRADS[hashId(String(id)) % AV_GRA
 
 // Domain quick-replies — prefill the composer with a useful opener.
 const QUICK = [
-  { label: 'Confirm delivery', text: (o) => `Confirming your delivery${o?.delivery_date ? ` for ${new Date(o.delivery_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}${o?.delivery_time ? ` at ${String(o.delivery_time).slice(0, 5)}` : ''} — does that still work for you?` },
+  { label: 'Confirm delivery', text: (o) => `Confirming your delivery${o?.delivery_date ? ` for ${new Date(o.delivery_date).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}${o?.delivery_time ? ` at ${String(o.delivery_time).slice(0, 5)}` : ''} — does that still work for you?` },
   { label: 'On our way 🚚', text: () => `We're on our way with your delivery 🚚 — I'll message when we're close.` },
   { label: 'Substitution', text: () => `Quick one — an item's short today and I can swap in a close match. Want me to sort that for you?` },
 ];

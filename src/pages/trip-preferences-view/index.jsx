@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
@@ -132,7 +133,7 @@ const TripPreferencesView = () => {
 
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
-    return date?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date?.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const getPriorityColor = (priority) => {

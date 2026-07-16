@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useParams } from 'react-router-dom';
 import { fetchOrderByToken, updateOrderItemStatus, confirmSupplierOrder } from './utils/provisioningStorage';
 import Icon from '../../components/AppIcon';
@@ -190,7 +191,7 @@ const SupplierConfirmOrder = () => {
         <div className="bg-green-50 border-b border-green-200 px-4 py-3 text-center">
           <p className="text-sm font-semibold text-green-700">
             <Icon name="CheckCircle" size={14} className="inline mr-1.5 mb-0.5" />
-            This order was confirmed{order.confirmed_at ? ` on ${new Date(order.confirmed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+            This order was confirmed{order.confirmed_at ? ` on ${new Date(order.confirmed_at).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
           </p>
         </div>
       )}
@@ -216,7 +217,7 @@ const SupplierConfirmOrder = () => {
                 <p className="text-sm text-slate-500 mt-0.5">To: {order.supplier_name}</p>
               )}
               <p className="text-xs text-slate-400 mt-1">
-                Sent {order.sent_at ? new Date(order.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                Sent {order.sent_at ? new Date(order.sent_at).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
               </p>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${

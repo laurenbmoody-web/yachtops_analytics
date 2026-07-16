@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -162,7 +163,7 @@ const DefectsDashboard = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString)?.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return new Date(dateString)?.toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
   const isOverdue = (defect) => {
     if (!defect?.dueDate || defect?.status === DefectStatus?.CLOSED) return false;

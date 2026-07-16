@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -164,7 +165,7 @@ const PendingInvitesSection = ({ refreshTrigger, canInvite, onInviteClick }) => 
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date?.toLocaleDateString('en-GB', {
+    return date?.toLocaleDateString(dateLocale(), {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

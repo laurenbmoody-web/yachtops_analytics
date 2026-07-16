@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Save, Plus, Trash2, Mail, RefreshCw, UserPlus, X, Crown, Shield, Clock, Zap, Paperclip, Check, FileText } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
@@ -978,7 +979,7 @@ const TimeField = ({ value, onChange }) => {
 const certExpiry = (d) => {
   if (!d) return { expired: false, soon: false, label: null };
   const days = Math.ceil((new Date(d) - new Date()) / 86400000);
-  const label = new Date(d).toLocaleDateString('en-GB');
+  const label = new Date(d).toLocaleDateString(dateLocale());
   return { expired: days < 0, soon: days >= 0 && days <= 30, days, label };
 };
 

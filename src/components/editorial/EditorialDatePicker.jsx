@@ -40,7 +40,7 @@ import {
   addDays,
 } from 'date-fns';
 import useDismissable from '../ui/useDismissable';
-import { weekStartsOn } from '../../utils/dateFormat';
+import { weekStartsOn, dateFnsFormat } from '../../utils/dateFormat';
 import './editorial-date-picker.css';
 
 const DISPLAY_FORMAT = 'dd/MM/yyyy';
@@ -95,7 +95,9 @@ const EditorialDatePicker = ({
   placeholder = 'Pick a date',
   ariaLabel,
   disabled = false,
-  displayFormat = DISPLAY_FORMAT,
+  // Display/parse order follows the user's Date-format setting (dd/MM default,
+  // or MM/dd for US crew). Re-read each render so a change applies live.
+  displayFormat = dateFnsFormat(),
   // Optional: the OTHER end of a date range (ISO). When set, the calendar tints
   // the days between it and the selected/hovered day (rust range fill), so the
   // continuation from the start date is visible. Off by default — no rangeStart,

@@ -15,6 +15,7 @@
 // Night mode (The Dark Market) is a theme toggle, not a fourth view.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, ClipboardList, Search, X, ChevronRight, MapPin,
@@ -269,7 +270,6 @@ const SortMenu = ({ sortBy, setSortBy }) => {
     </div>
   );
 };
-
 
 // ─────────────────────────────────────────────────────────────────────
 // ii · The Aisles / all-items — one product card.

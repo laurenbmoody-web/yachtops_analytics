@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { supabase } from '../../../lib/supabaseClient';
 import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/utils/tripStorage';
 import {
@@ -581,7 +582,7 @@ export default function PastActivityPicker({
 
   const fmtDate = (iso) => {
     if (!iso) return '';
-    try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+    try { return new Date(iso).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }); }
     catch { return ''; }
   };
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { Zap, Check } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
@@ -143,7 +144,7 @@ const fmtRelative = (iso) => {
     if (days < 30) return `${days}d ago`;
     const months = Math.floor(days / 30);
     if (months < 12) return `${months}mo ago`;
-    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(iso).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
   } catch { return ''; }
 };
 const daysAgo = (iso) => {

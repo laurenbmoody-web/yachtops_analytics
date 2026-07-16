@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
 import { showToast } from '../../utils/toast';
@@ -37,7 +38,7 @@ const StatusBadge = ({ status }) => {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmtDate = (iso) => {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 const fmtCost = (val) => {

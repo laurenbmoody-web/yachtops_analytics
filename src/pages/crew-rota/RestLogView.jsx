@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { Download } from 'lucide-react';
 import RotaBreachReasonModal from './RotaBreachReasonModal';
 import { MLC_DAILY_REST_MIN } from './restHours';
@@ -188,7 +189,7 @@ export default function RestLogView({
           name: m.name,
           role: m.role,
           date: c.date,
-          dateLabel: parseLocal(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+          dateLabel: parseLocal(c.date).toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric', month: 'short' }),
           breachLabel: labels.join(' + '),
           breachTypes: types,
         });
@@ -217,7 +218,7 @@ export default function RestLogView({
           name: m.name,
           role: m.role,
           date: c.date,
-          dateLabel: parseLocal(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+          dateLabel: parseLocal(c.date).toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric', month: 'short' }),
           breachLabel: labels.join(' + '),
           breachTypes: types,
           reason: rec?.note_text || null,

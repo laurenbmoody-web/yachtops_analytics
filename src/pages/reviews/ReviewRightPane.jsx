@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { supabase } from '../../lib/supabaseClient';
 import RotaWorkspace from '../crew-rota/RotaWorkspace';
 import { fmtDateRange } from './reviewFormat';
@@ -30,7 +31,7 @@ function timeAgo(iso) {
   if (hr < 24) return `${hr}h ago`;
   const d = Math.floor(hr / 24);
   if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return new Date(iso).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
 }
 
 export default function ReviewRightPane({ item, onToast, onResolved }) {

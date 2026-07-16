@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
@@ -1287,7 +1288,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
   // Format expiry date — check both camelCase and snake_case field names
   const rawExpiry = item?.expiryDate || item?.expiry_date || null;
   const expiryLabel = rawExpiry ? (() => {
-    try { return new Date(rawExpiry)?.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return rawExpiry; }
+    try { return new Date(rawExpiry)?.toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return rawExpiry; }
   })() : null;
 
   const accentColor = item?.color || null;
@@ -1528,7 +1529,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
   // Format expiry date — check both camelCase and snake_case field names
   const rawExpiry = item?.expiryDate || item?.expiry_date || null;
   const expiryLabel = rawExpiry ? (() => {
-    try { return new Date(rawExpiry)?.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return rawExpiry; }
+    try { return new Date(rawExpiry)?.toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return rawExpiry; }
   })() : null;
 
   return (

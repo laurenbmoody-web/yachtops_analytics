@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import './hor-review-modal.css';
@@ -151,7 +152,7 @@ export default function HorReviewModal({
               {!managementEmail
                 ? <>Set a management email in <button type="button" className="hrm-inline" onClick={onOpenSettings}>Vessel Settings</button> to send the record.</>
                 : sentRecord
-                  ? <>Sent to management on {sentRecord.sent_at ? new Date(sentRecord.sent_at).toLocaleDateString('en-GB') : ''}{sentRecord.send_count > 1 ? ` · ${sentRecord.send_count}×` : ''}</>
+                  ? <>Sent to management on {sentRecord.sent_at ? new Date(sentRecord.sent_at).toLocaleDateString(dateLocale()) : ''}{sentRecord.send_count > 1 ? ` · ${sentRecord.send_count}×` : ''}</>
                   : <>Record of HoR for {monthName} · sends to {managementName || managementEmail}</>}
             </div>
             <button type="button" className="hrm-send-btn" disabled={exporting || !managementEmail} onClick={onSend}>

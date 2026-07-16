@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import { Check, X, FileText, ExternalLink, ChevronLeft, ShieldCheck, RotateCcw } from 'lucide-react';
 import Header from '../../components/navigation/Header';
@@ -31,7 +32,7 @@ const fmtDate = (d) => {
   if (!d) return null;
   const dt = new Date(d);
   if (isNaN(dt)) return d;
-  return dt.toLocaleDateString('en-GB'); // dd/mm/yyyy
+  return dt.toLocaleDateString(dateLocale()); // dd/mm/yyyy
 };
 
 const verdictPill = (v) => {

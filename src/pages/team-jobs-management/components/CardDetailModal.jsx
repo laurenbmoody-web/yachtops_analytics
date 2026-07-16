@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 
@@ -696,7 +697,7 @@ const CardDetailModal = ({
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  {new Date(card?.dueDate)?.toLocaleDateString('en-GB')}
+                  {new Date(card?.dueDate)?.toLocaleDateString(dateLocale())}
                 </p>
               )}
             </div>
