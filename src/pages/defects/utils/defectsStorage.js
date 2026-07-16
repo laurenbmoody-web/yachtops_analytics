@@ -148,6 +148,7 @@ const fromRow = (r) => {
     contractorPhone: r.contractor_phone,
     scheduledEndAt: r.scheduled_end_at,
     repairStage: r.repair_stage,
+    warrantyUntil: r.warranty_until,
     scheduledFixAt: r.scheduled_fix_at,
     closedAt: r.closed_at,
     closedByUserId: r.closed_by,
@@ -336,6 +337,26 @@ export const getDefectByHotspot = async (hotspotId, actor) => {
 };
 
 // Assign a defect to a named person or a whole team, notifying recipients.
+// Prior repairs at this defect's location that are still under warranty — a
+// possible warranty claim if the fault has recurred. Excludes this defect.
+export const fetchWarrantyContext = async (defect, actor) => {
+  if (!defect?.locationNodeId || !actor?.tenantId) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = (await supabase
+    ?.from('defects')
+    ?.select('id, seq, title, warranty_until, contractor_name')
+    ?.eq('tenant_id', actor.tenantId)
+    ?.eq('location_node_id', defect.locationNodeId)
+    ?.gte('warranty_until', today)
+    ?.neq('id', defect.id)
+    ?.order('warranty_until', { ascending: false })) || {};
+  if (error) { console.warn('[defects] fetchWarrantyContext', error); return []; }
+  return (data || []).map((r) => ({
+    id: r.id, ref: r.seq != null ? `DEF-${String(r.seq).padStart(4, '0')}` : '',
+    title: r.title, warrantyUntil: r.warranty_until, contractorName: r.contractor_name,
+  }));
+};
+
 export const assignDefect = async (defectId, assignment, actor) => {
   if (!defectId || !actor?.tenantId) return null;
   const kind = assignment?.kind || 'unassigned';
@@ -432,7 +453,7 @@ const UPDATE_FIELD_MAP = {
   contractorName: 'contractor_name', contractorDetails: 'contractor_details', scheduledFixAt: 'scheduled_fix_at',
   contractorSupplierId: 'contractor_supplier_id', scheduledEndAt: 'scheduled_end_at',
   contractorContactName: 'contractor_contact_name', contractorEmail: 'contractor_email', contractorPhone: 'contractor_phone',
-  repairStage: 'repair_stage',
+  repairStage: 'repair_stage', warrantyUntil: 'warranty_until',
 };
 const EDIT_FIELDS = ['title', 'description', 'priority', 'dueDate', 'departmentOwner', 'contractorName', 'contractorDetails', 'scheduledFixAt'];
 

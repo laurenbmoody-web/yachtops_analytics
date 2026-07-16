@@ -25,6 +25,22 @@
 .dd-s-closed { background: #F0F1F5; color: #8B8478; } .dd-s-closed .cd { background: #AEB4C2; }
 .dd-s-declined { background: #F7E7E5; color: #A32D2D; } .dd-s-declined .cd { background: #A32D2D; }
 .dd-c-dept { background: #F4F2EC; color: #6B7280; }
+.dd-chip-warranty { background: #E4F1EA; color: #2E7D5A; gap: 4px; }
+
+/* warranty recurrence banner */
+.dd-warn-banner { display: flex; gap: 10px; align-items: flex-start; padding: 11px 13px; border-radius: 12px;
+  background: #F7EEDD; border: 1px solid #EAD9B4; color: #7A5A18; }
+.dd-warn-banner > svg { color: #B9761A; flex: none; margin-top: 1px; }
+.dd-warn-banner .t { font-size: 12.5px; font-weight: 700; color: #7A5A18; }
+.dd-warn-banner .s { font-size: 12px; color: #8a6b2f; line-height: 1.45; margin-top: 1px; }
+.dd-warn-link { background: none; border: 0; padding: 0; font-family: inherit; font-size: 12px; font-weight: 700;
+  color: #B9761A; cursor: pointer; text-decoration: underline; }
+.dd-warn-link:hover { color: #8a5a12; }
+/* warranty line in the repair card */
+.dd-warranty { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; font-weight: 600; color: #8B8478; }
+.dd-warranty svg { color: #AEB4C2; }
+.dd-warranty.active { color: #2E7D5A; }
+.dd-warranty.active svg { color: #2E7D5A; }
 
 .dd-cols { display: grid; grid-template-columns: 1.55fr 1fr; }
 @media (max-width: 760px) { .dd-cols { grid-template-columns: 1fr; } }

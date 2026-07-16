@@ -20,6 +20,7 @@ import {
   getDefectComments, getDefectEvents,
   updateDefect, addDefectComment, acceptDefect, declineDefect,
   closeDefectWithNotes, reopenDefect, assignDefect, claimDefect, canEditDefect,
+  fetchWarrantyContext,
 } from '../utils/defectsStorage';
 import './DefectDetail.css';
 
@@ -65,17 +66,20 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const [orderingParts, setOrderingParts] = useState(false);
   const [docs, setDocs] = useState([]);
   const [docModalKind, setDocModalKind] = useState(null);
+  const [warrantyCtx, setWarrantyCtx] = useState([]);
 
   const reload = useCallback(async () => {
     if (!defect?.id) return;
-    const [c, e, r, d] = await Promise.all([
+    const [c, e, r, d, w] = await Promise.all([
       getDefectComments(defect.id), getDefectEvents(defect.id), fetchDefectRequisitions(defect.id), fetchDefectDocuments(defect.id),
+      fetchWarrantyContext(defect, actor),
     ]);
     setComments(c || []);
     setEvents(e || []);
     setReqs(r || []);
     setDocs(d || []);
-  }, [defect?.id]);
+    setWarrantyCtx(w || []);
+  }, [defect?.id, defect?.locationNodeId, actor]);
 
   useEffect(() => { reload(); }, [reload, defect?.updatedAt]);
 
@@ -162,6 +166,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
     contractorSupplierId: defect.contractorSupplierId || null,
     contractorContactName: defect.contractorContactName || '',
     contractorEmail: defect.contractorEmail || '', contractorPhone: defect.contractorPhone || '',
+    warrantyUntil: defect.warrantyUntil || '',
   });
   const saveFix = guard(async () => {
     await updateDefect(defect.id, {
@@ -170,11 +175,13 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
       contractorSupplierId: fix.contractorSupplierId || null,
       contractorContactName: fix.contractorContactName || null,
       contractorEmail: fix.contractorEmail || null, contractorPhone: fix.contractorPhone || null,
+      warrantyUntil: fix.warrantyUntil || null,
     }, actor);
     setFixEditing(false);
   });
+  const warrantyActive = defect.warrantyUntil && defect.warrantyUntil >= new Date().toISOString().slice(0, 10);
   const hasRepairInfo = defect.contractorName || defect.contractorDetails || defect.scheduledFixAt
-    || defect.contractorEmail || defect.contractorPhone;
+    || defect.contractorEmail || defect.contractorPhone || defect.warrantyUntil;
   const setStage = (v) => guard(() => updateDefect(defect.id, { repairStage: v }, actor))();
   const stageIdx = REPAIR_STAGE_ORDER.indexOf(defect.repairStage);
 
@@ -189,6 +196,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
         <div className="dd-chips">
           <span className={`dd-chip ${PRIORITY_CLASS[defect.priority] || 'dd-p-Medium'}`}><span className="cd" />{defect.priority}</span>
           <span className={`dd-chip ${sMeta.cls}`}><span className="cd" />{sMeta.label}</span>
+          {warrantyActive && <span className="dd-chip dd-chip-warranty"><Icon name="ShieldCheck" size={11} /> Under warranty</span>}
         </div>
         <span className="dd-ref">{defect.ref}</span>
         <span className="spring" />
@@ -216,6 +224,25 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
       <div className="dd-cols">
         {/* left — the record */}
         <div className="dd-main">
+          {warrantyCtx.length > 0 && (
+            <div className="dd-warn-banner">
+              <Icon name="ShieldAlert" size={16} />
+              <div>
+                <div className="t">Possible warranty claim</div>
+                <div className="s">
+                  A prior repair here is still under warranty —{' '}
+                  {warrantyCtx.slice(0, 3).map((w, i) => (
+                    <React.Fragment key={w.id}>
+                      {i > 0 && ', '}
+                      <button type="button" className="dd-warn-link" onClick={() => navigate(`/defects/${w.id}`)}>
+                        {w.ref || 'defect'}{w.contractorName ? ` (${w.contractorName})` : ''} to {fmt(w.warrantyUntil)}
+                      </button>
+                    </React.Fragment>
+                  ))}. Check before paying for re-work.
+                </div>
+              </div>
+            </div>
+          )}
           {photos.length > 0 ? (
             <div className="dd-gallery">
               {photos.slice(0, 3).map((p, i) => (
@@ -303,6 +330,10 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                   <label className="dd-field-lbl">Scope / notes</label>
                   <textarea className="dd-textarea" value={fix.contractorDetails} onChange={(e) => setFix({ ...fix, contractorDetails: e.target.value })} placeholder="Quote ref, scope of works, access notes…" />
                 </div>
+                <div className="dd-field">
+                  <label className="dd-field-lbl">Warranty until<span style={{ color: '#AEB4C2', fontWeight: 400, marginLeft: 5 }}>if guaranteed</span></label>
+                  <EditorialDatePicker value={fix.warrantyUntil || ''} onChange={(v) => setFix({ ...fix, warrantyUntil: v })} placeholder="dd/mm/yyyy" ariaLabel="Warranty until" />
+                </div>
                 <div className="dd-edit-actions">
                   <button className="dd-btn ghost" disabled={busy} onClick={() => { setFixEditing(false); setErr(''); }}>Cancel</button>
                   <button className="dd-btn primary" disabled={busy} onClick={saveFix} style={{ flex: 1 }}>{busy ? 'Saving…' : 'Save'}</button>
@@ -331,6 +362,11 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
                   </div>
                 )}
                 {defect.contractorDetails && <div className="cd">{defect.contractorDetails}</div>}
+                {defect.warrantyUntil && (
+                  <div className={`dd-warranty${warrantyActive ? ' active' : ''}`}>
+                    <Icon name="ShieldCheck" size={13} /> {warrantyActive ? 'Under warranty until' : 'Warranty expired'} {fmt(defect.warrantyUntil)}
+                  </div>
+                )}
               </div>
             ) : (
               <p className="dd-fix-empty">No repair scheduled or contractor arranged yet.</p>
