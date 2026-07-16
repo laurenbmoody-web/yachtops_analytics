@@ -1,6 +1,12 @@
 // ============================================================
-// Suppliers Directory — Sprint 9c.3 Phase 5
+// Directory (vendors / suppliers) — Sprint 9c.3 Phase 5
 // ============================================================
+//
+// TODO (flow overhaul, later): this page's flow needs a bigger
+// rework — the add/edit drawer, filtering, and how vendors link
+// out to orders/contracts/defects should be rethought as one
+// journey. Route path stays /provisioning/suppliers for now to
+// avoid breaking deep links; the surface is presented as "Directory".
 //
 // Replaces the legacy ProvisioningSuppliers list. Reads the
 // consolidated supplier_profiles table via the vendor helper layer
@@ -626,7 +632,7 @@ const SuppliersDirectoryPage = () => {
               )}
             </div>
             <button type="button" className="sd-dir-add" onClick={openAdd}>
-              + ADD SUPPLIER
+              + ADD VENDOR
             </button>
           </div>
 
@@ -664,9 +670,9 @@ const SuppliersDirectoryPage = () => {
             </div>
           ) : vendors.length === 0 ? (
             <div className="sd-dir-empty">
-              <h3>No suppliers yet</h3>
+              <h3>No vendors yet</h3>
               <p>Add your first supplier, service provider or broker to get started.</p>
-              <button type="button" className="sd-dir-add" onClick={openAdd}>+ ADD SUPPLIER</button>
+              <button type="button" className="sd-dir-add" onClick={openAdd}>+ ADD VENDOR</button>
             </div>
           ) : visible.length === 0 ? (
             <div className="sd-dir-empty">
@@ -690,7 +696,7 @@ const SuppliersDirectoryPage = () => {
               )}
 
               <div className="sd-dir-section-title">
-                {favourites.length > 0 ? 'All suppliers' : 'Suppliers'}
+                {favourites.length > 0 ? 'All vendors' : 'Vendors'}
                 <span className="period">.</span>
                 <span className="count">{rest.length}</span>
               </div>
@@ -710,7 +716,7 @@ const SuppliersDirectoryPage = () => {
               className="sd-dir-archive-link"
               onClick={() => navigate('/provisioning/suppliers/archive')}
             >
-              View archived suppliers  ›
+              View archived vendors  ›
             </button>
           </div>
         </div>
