@@ -72,8 +72,12 @@ body.settings-editorial {
 
 /* ── Content ───────────────────────────────────────────────────────────────*/
 .settings-page .set-content { min-width: 0; }
-.settings-page .set-h { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 24px; line-height: 1.05; letter-spacing: -0.01em; color: #1C1B3A; margin: 0; }
-.settings-page .set-hsub { font-size: 13.5px; color: #6F7396; margin: 6px 0 0; line-height: 1.45; }
+.settings-page .set-head { margin-bottom: 20px; }
+.settings-page .set-eyebrow { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #8B8478; margin: 0 0 10px; }
+.settings-page .set-eyebrow .dot { color: #C65A1A; font-size: 9px; line-height: 1; }
+.settings-page .set-h { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400; font-size: 32px; line-height: 1.0; letter-spacing: -0.01em; text-transform: uppercase; color: #1C1B3A; margin: 0; }
+.settings-page .set-h em { font-style: italic; font-weight: 400; color: #C65A1A; text-transform: none; }
+.settings-page .set-hsub { font-size: 14px; color: #6F7396; margin: 11px 0 0; line-height: 1.5; max-width: 58ch; }
 .settings-page .set-caps { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #A7A296; margin: 26px 4px 9px; }
 
 /* Grouped inset card + rows */
