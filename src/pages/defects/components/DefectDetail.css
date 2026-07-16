@@ -108,9 +108,13 @@
 .dd-fixform { display: flex; flex-direction: column; gap: 12px; }
 .dd-fix-empty { font-size: 12px; color: #AEB4C2; margin: 0; }
 .dd-contractor { border: 1px solid #ECEAE3; border-radius: 11px; padding: 11px 12px; background: #FAFAF8; }
-.dd-contractor .cn { font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 6px; }
+.dd-contractor .cn { font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 .dd-contractor .cd { font-size: 12px; color: #6B7280; margin-top: 3px; line-height: 1.45; white-space: pre-wrap; }
-.dd-contractor .cs { font-size: 12px; color: #C65A1A; font-weight: 600; margin-top: 5px; }
+.dd-contractor .cs { font-size: 12px; color: #6B7280; font-weight: 500; margin-top: 6px; }
+/* Due date — the deadline, so it leads the card with emphasis. */
+.dd-due { display: inline-flex; align-items: baseline; gap: 7px; background: #FBEFE9; border-radius: 999px; padding: 4px 12px; }
+.dd-due-k { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #C65A1A; }
+.dd-due-v { font-size: 14px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
 
 /* core-record edit reuses the shared log form; centre it like the map's log view */
 .dd-editwrap { width: 100%; max-width: 640px; margin: 0 auto; padding: 18px 22px 22px; }
