@@ -28,9 +28,28 @@ export const applyTextSize = (size) => {
   root.setAttribute('data-text-size', large ? 'large' : 'default');
 };
 
+// Boolean flags → a data attribute the global CSS keys off (see styles/index.css).
+// On → set "true"; off → remove, so the default state adds no attribute.
+const setFlag = (attr, on) => {
+  const root = document.documentElement;
+  if (!root) return;
+  if (on) root.setAttribute(attr, 'true');
+  else root.removeAttribute(attr);
+};
+
+// Always-visible keyboard focus ring (the app suppresses outlines widely).
+export const applyFocusRings = (on) => setFlag('data-focus-rings', on);
+// Underline every link, so links aren't signalled by colour alone.
+export const applyUnderlineLinks = (on) => setFlag('data-underline-links', on);
+// Drop background blur / translucency for readability.
+export const applyReduceTransparency = (on) => setFlag('data-reduce-transparency', on);
+
 export const initA11y = () => {
   try {
     applyReduceMotion(localStorage.getItem('a11y_reduce_motion') === 'true');
     applyTextSize(localStorage.getItem('a11y_text_size') || 'default');
+    applyFocusRings(localStorage.getItem('a11y_focus_rings') === 'true');
+    applyUnderlineLinks(localStorage.getItem('a11y_underline_links') === 'true');
+    applyReduceTransparency(localStorage.getItem('a11y_reduce_transparency') === 'true');
   } catch { /* localStorage unavailable — defaults are fine */ }
 };
