@@ -116,6 +116,27 @@
 .dd-due-k { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #C65A1A; }
 .dd-due-v { font-size: 14px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
 
+.dd-cn-link { margin-left: auto; background: none; border: 0; padding: 0; font-family: inherit; font-size: 11px; font-weight: 600;
+  color: #C65A1A; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+.dd-cn-link:hover { color: #B14E16; }
+
+/* contractor picker (directory-linked combobox) */
+.dd-cpick { position: relative; }
+.dd-cpick-field { position: relative; }
+.dd-cpick-field .dd-input { padding-right: 30px; }
+.dd-cpick-linked { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: #2E7D5A; display: flex; }
+.dd-cpick-pop { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid #ECEAE3;
+  border-radius: 11px; box-shadow: 0 18px 40px -14px rgba(28,27,58,.3); padding: 5px; max-height: 240px; overflow-y: auto; }
+.dd-cpick-opt { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: none; border: 0;
+  font-family: inherit; text-align: left; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.dd-cpick-opt:hover { background: #FAFAF8; }
+.dd-cpick-opt .nm { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
+.dd-cpick-opt .ty { font-size: 10px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: #AEB4C2; flex: none; }
+.dd-cpick-add { width: 100%; display: flex; align-items: center; gap: 6px; background: none; border: 0; border-top: 1px solid #F0F1F5;
+  margin-top: 4px; padding: 9px 10px; font-family: inherit; font-size: 12px; color: #C65A1A; cursor: pointer; border-radius: 0 0 8px 8px; }
+.dd-cpick-add:hover { background: #FBEFE9; }
+.dd-cpick-add b { font-weight: 600; }
+
 /* core-record edit reuses the shared log form; centre it like the map's log view */
 .dd-editwrap { width: 100%; max-width: 640px; margin: 0 auto; padding: 18px 22px 22px; }
 

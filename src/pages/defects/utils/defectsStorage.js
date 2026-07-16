@@ -130,6 +130,7 @@ const fromRow = (r) => {
     dueDate: r.due_date,
     contractorName: r.contractor_name,
     contractorDetails: r.contractor_details,
+    contractorSupplierId: r.contractor_supplier_id,
     scheduledFixAt: r.scheduled_fix_at,
     closedAt: r.closed_at,
     closedByUserId: r.closed_by,
@@ -412,6 +413,7 @@ const UPDATE_FIELD_MAP = {
   hotspotId: 'hotspot_id', locationNodeId: 'location_node_id',
   photos: 'photos', notifyUsers: 'notify_user_ids',
   contractorName: 'contractor_name', contractorDetails: 'contractor_details', scheduledFixAt: 'scheduled_fix_at',
+  contractorSupplierId: 'contractor_supplier_id',
 };
 const EDIT_FIELDS = ['title', 'description', 'priority', 'dueDate', 'departmentOwner', 'contractorName', 'contractorDetails', 'scheduledFixAt'];
 
