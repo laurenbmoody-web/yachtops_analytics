@@ -738,7 +738,7 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-ch:hover { border-color: #D6D8E0; }
 .lb-ch.on { border-color: #1C1B3A; box-shadow: 0 10px 24px -16px rgba(28, 27, 58, 0.4); }
 .lb-ch.off { background: #FAFBFD; }
-.lb-ch.crew { background: linear-gradient(120deg, #FCF3EE, #FFFFFF); border-color: #F0DDD2; }
+.lb-ch.crew { background: #FFFFFF; border-color: #E7DACF; }
 .lb-ch-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; display: flex; align-items: center; gap: 7px; color: #1C1B3A; }
 .lb-ch-nm svg { width: 14px; height: 14px; stroke: #8B8478; }
 .lb-ch.crew .lb-ch-nm svg { stroke: #C65A1A; }
@@ -747,10 +747,7 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-ct { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #F8FAFC; border: 1px solid #ECECEE; border-radius: 999px; padding: 2px 9px; }
 .lb-live { font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #2F7D5A; background: #E7F2EC; border-radius: 999px; padding: 2px 8px; }
 .lb-trip { background: #FFFFFF; border: 1px solid #EEF0F4; border-radius: 18px; overflow: hidden; }
-.lb-hero { padding: 20px 22px; border-bottom: 1px solid #EEF0F4; }
-.lb-hero.voyage { background: radial-gradient(120% 130% at 100% 0, #F7ECE4, transparent 60%); }
-.lb-hero.offcharter { background: radial-gradient(120% 130% at 100% 0, #EAF0F4, transparent 60%); }
-.lb-hero.crew { background: radial-gradient(120% 130% at 100% 0, #F7ECE4, transparent 55%); }
+.lb-hero { padding: 20px 22px; border-bottom: 1px solid #EEF0F4; background: #FFFFFF; }
 .lb-tag { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #C65A1A; }
 .lb-tag.offcharter { color: #2F6E8F; }
 .lb-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; margin-top: 5px; color: #1C1B3A; }
@@ -762,15 +759,23 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-sec { padding: 18px 22px; border-bottom: 1px solid #EEF0F4; }
 .lb-sec:last-child { border-bottom: none; }
 .lb-sl { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.13em; text-transform: uppercase; color: #9A93A0; margin-bottom: 12px; display: block; }
-.lb-dos { display: flex; align-items: center; gap: 14px; padding: 11px 0; border-bottom: 1px solid #F3F4F8; }
-.lb-dos:last-child { border-bottom: none; }
-.lb-dos .lr-av { width: 38px; height: 38px; font-size: 12px; }
+.lb-sl-hint { font: 500 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: #AEB4C2; margin-left: 8px; }
+.lb-dos-wrap { border-bottom: 1px solid #F3F4F8; }
+.lb-dos-wrap:last-child { border-bottom: none; }
+.lb-dos { display: flex; align-items: center; gap: 14px; width: 100%; padding: 11px 0; background: none; border: none; text-align: left; font-family: inherit; color: inherit; cursor: pointer; border-radius: 10px; transition: background 0.14s; }
+.lb-dos:hover { background: #FAFBFD; }
+.lb-dos:hover .lb-dos-nm { color: #C65A1A; }
+.lb-dos .lr-av { width: 38px; height: 38px; font-size: 12px; margin-left: 4px; }
 .lb-dos-main { flex: 1; min-width: 0; }
-.lb-dos-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; }
+.lb-dos-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; transition: color 0.14s; }
 .lb-dos-sub { font-size: 11.5px; color: #6E6B85; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-dos-ct { text-align: right; flex: none; }
 .lb-dos-ct b { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #1C1B3A; }
 .lb-dos-ct span { display: block; font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #6E6B85; }
+.lb-dos-chev { stroke: #C7CBD6; flex: none; margin-right: 4px; transition: transform 0.18s ease; }
+.lb-dos-wrap.open .lb-dos-chev { transform: rotate(180deg); stroke: #C65A1A; }
+.lb-dos-items { padding: 2px 8px 12px 56px; }
+.lb-dos-items .lb-ri { padding: 6px 0; }
 .lb-rday { margin-bottom: 16px; }
 .lb-rh { display: flex; align-items: center; gap: 9px; font: 700 10.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #6E6B85; margin-bottom: 9px; }
 .lb-rh .rule { flex: 1; height: 1px; background: #EEF0F4; }
@@ -780,7 +785,18 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-ri-nm { font-size: 13.5px; font-weight: 500; flex: 1; color: #1C1B3A; }
 .lb-ri-sub { font-size: 11px; color: #6E6B85; font-weight: 400; }
 .lb-ri-tag { font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #2F7D5A; background: #E7F2EC; border-radius: 999px; padding: 2px 8px; flex: none; }
+.lb-ri-tag.ready { color: #2F6E8F; background: #E9F1F5; }
+.lb-ri-tag.wash { color: #B7791F; background: #FBF1DF; }
 .lb-ri-t { font-size: 11px; color: #AEB4C2; width: 48px; text-align: right; flex: none; }
+
+/* calendar — a day grouped by person */
+.lb-pg { padding: 6px 0 10px; border-bottom: 1px solid #F3F4F8; }
+.lb-pg:last-child { border-bottom: none; }
+.lb-pg-h { display: flex; align-items: center; gap: 10px; padding: 4px 0 6px; }
+.lb-pg-h .lr-av { width: 30px; height: 30px; font-size: 10.5px; flex: none; }
+.lb-pg-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 15px; color: #1C1B3A; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-pg-ct { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6E6B85; background: #F8FAFC; border: 1px solid #ECECEE; border-radius: 999px; padding: 1px 9px; flex: none; }
+.lb-pg .lb-ri { padding: 6px 0 6px 40px; }
 .lb-pm { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F3F4F8; font-size: 12.5px; color: #6E6B85; }
 .lb-pm:last-child { border-bottom: none; }
 .lb-pm b { color: #1C1B3A; }

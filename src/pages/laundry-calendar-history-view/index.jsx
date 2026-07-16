@@ -20,6 +20,49 @@ const AvatarChip = ({ p }) => (
   </span>
 );
 
+const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
+const STATUS_TAG = {
+  [LaundryStatus.DELIVERED]: { t: 'Returned', c: 'ok' },
+  [LaundryStatus.READY_TO_DELIVER]: { t: 'Ready', c: 'ready' },
+  [LaundryStatus.IN_PROGRESS]: { t: 'Washing', c: 'wash' },
+};
+
+// one returned/actioned item line, reused in the logbook + calendar
+const ItemLine = ({ it, hideOwner }) => {
+  const st = STATUS_TAG[it.status] || { t: 'Logged', c: '' };
+  const parts = [];
+  if (!hideOwner) parts.push(ownerKindC(it.ownerType) === 'unknown' ? 'Unknown' : it.ownerName);
+  parts.push(it.area, (it.tags || [])[0]);
+  const sub = parts.filter(Boolean).join(' · ');
+  return (
+    <div className="lb-ri">
+      <span className="lb-th"><Icon name="Shirt" size={15} /></span>
+      <span className="lb-ri-nm">{it.description || 'Laundry item'}{sub ? <span className="lb-ri-sub"> · {sub}</span> : null}</span>
+      <span className={`lb-ri-tag ${st.c}`}>{st.t}</span>
+      <span className="lb-ri-t">{clock(it.deliveredAt || it.createdAt)}</span>
+    </div>
+  );
+};
+
+// group a day's items by the person (guest / crew) who owns them, so a day
+// reads person-by-person instead of one long time-sorted list
+function groupByPerson(items) {
+  const map = new Map();
+  for (const it of items) {
+    const kind = ownerKindC(it.ownerType);
+    const key = kind === 'guest' ? (it.ownerGuestId || it.ownerName || 'guest')
+      : kind === 'crew' ? (it.ownerCrewUserId || it.ownerName || 'crew') : 'unknown';
+    if (!map.has(key)) {
+      map.set(key, { key, kind, name: kind === 'unknown' ? 'Found & unclaimed' : (it.ownerName || 'Unassigned'), avatarUrl: it.avatarUrl || null, items: [] });
+    }
+    const g = map.get(key);
+    g.items.push(it);
+    if (!g.avatarUrl && it.avatarUrl) g.avatarUrl = it.avatarUrl;
+  }
+  const rank = { guest: 0, crew: 1, unknown: 2 };
+  return [...map.values()].sort((a, b) => (rank[a.kind] - rank[b.kind]) || b.items.length - a.items.length);
+}
+
 const Chapter = ({ p, active, onClick }) => {
   const icon = p.type === 'voyage' ? 'Ship' : p.type === 'offcharter' ? 'Anchor' : 'Users';
   return (
@@ -35,8 +78,15 @@ const Chapter = ({ p, active, onClick }) => {
 };
 
 const Detail = ({ p, onExport }) => {
+  const [open, setOpen] = useState(null);
+  useEffect(() => { setOpen(null); }, [p?.id]);
   if (!p) return null;
+  // eyebrow / title / subtitle — kept distinct so nothing is repeated
   const tag = p.type === 'voyage' ? 'Voyage' : p.type === 'offcharter' ? 'Off-charter' : 'Crew ledger';
+  const title = p.type === 'voyage' ? <>{p.name} <em>voyage</em></> : p.type === 'offcharter' ? p.dates : p.name;
+  const sub = p.type === 'voyage' ? [p.dates, p.hero].filter(Boolean).join(' · ')
+    : p.type === 'offcharter' ? p.hero
+      : [p.dates, p.hero].filter(Boolean).join(' · ');
   const peopleLbl = p.type === 'crew' ? 'Crew — every period' : p.type === 'offcharter' ? 'Crew & vessel — this period' : 'Per guest & crew — this voyage';
   return (
     <div className="lb-trip">
@@ -44,8 +94,8 @@ const Detail = ({ p, onExport }) => {
         <div className="lb-hero-row">
           <div>
             <div className={`lb-tag ${p.type}`}>{tag}</div>
-            <div className="lb-nm">{p.type === 'voyage' ? <>{p.name} <em>voyage</em></> : p.name}</div>
-            <div className="lb-dt">{p.dates}{p.hero ? ` · ${p.hero}` : ''}</div>
+            <div className="lb-nm">{title}</div>
+            <div className="lb-dt">{sub}</div>
           </div>
           {(p.items || []).length > 0 && (
             <button type="button" className="lb-export" onClick={() => onExport(p)}>
@@ -62,17 +112,29 @@ const Detail = ({ p, onExport }) => {
       </div>
 
       <div className="lb-sec">
-        <span className="lb-sl">{peopleLbl}</span>
-        {p.people.map((per) => (
-          <div className="lb-dos" key={per.key}>
-            <AvatarChip p={per} />
-            <div className="lb-dos-main">
-              <div className="lb-dos-nm">{per.name}</div>
-              <div className="lb-dos-sub">{per.sub || '—'}</div>
+        <span className="lb-sl">{peopleLbl}<span className="lb-sl-hint">tap a name to see their items</span></span>
+        {p.people.map((per) => {
+          const isOpen = open === per.key;
+          const its = (per.items || []).slice().sort((a, b) => new Date(b.deliveredAt || b.createdAt) - new Date(a.deliveredAt || a.createdAt));
+          return (
+            <div className={`lb-dos-wrap${isOpen ? ' open' : ''}`} key={per.key}>
+              <button type="button" className="lb-dos" onClick={() => setOpen(isOpen ? null : per.key)} aria-expanded={isOpen}>
+                <AvatarChip p={per} />
+                <div className="lb-dos-main">
+                  <div className="lb-dos-nm">{per.name}</div>
+                  <div className="lb-dos-sub">{per.sub || '—'}</div>
+                </div>
+                <div className="lb-dos-ct"><b className="tnum">{per.count}</b><span>pieces</span></div>
+                <Icon name="ChevronDown" size={16} className="lb-dos-chev" />
+              </button>
+              {isOpen && (
+                <div className="lb-dos-items">
+                  {its.map((it, i) => <ItemLine key={it.id || it.supabaseId || i} it={it} hideOwner />)}
+                </div>
+              )}
             </div>
-            <div className="lb-dos-ct"><b className="tnum">{per.count}</b><span>pieces</span></div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {p.type === 'crew' ? (
@@ -161,12 +223,16 @@ const Calendar = ({ month, setMonth, sel, setSel, deliveredByDay, dayItems, toda
           <div className="lb-arch-empty">Nothing returned on this day.</div>
         ) : (
           <div className="lb-arch-list">
-            {dayItems.map((it) => (
-              <div className="lb-ri" key={it.id}>
-                <span className="lb-th"><Icon name="Shirt" size={15} /></span>
-                <span className="lb-ri-nm">{it.description || 'Laundry item'}<span className="lb-ri-sub"> · {[ownerKindC(it.ownerType) === 'unknown' ? 'Unknown' : it.ownerName, it.area, (it.tags || [])[0]].filter(Boolean).join(' · ')}</span></span>
-                <span className="lb-ri-tag">Returned</span>
-                <span className="lb-ri-t">{it.deliveredAt ? new Date(it.deliveredAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+            {groupByPerson(dayItems).map((g) => (
+              <div className="lb-pg" key={g.key}>
+                <div className="lb-pg-h">
+                  <span className={`lr-av ${g.kind === 'guest' ? 'guest' : g.kind === 'crew' ? 'crew' : 'unk'}`}>
+                    {g.avatarUrl ? <img src={g.avatarUrl} alt="" /> : (g.kind === 'unknown' ? '?' : initials(g.name))}
+                  </span>
+                  <span className="lb-pg-nm">{g.name}</span>
+                  <span className="lb-pg-ct tnum">{g.items.length}</span>
+                </div>
+                {g.items.map((it, i) => <ItemLine key={it.id || i} it={it} hideOwner />)}
               </div>
             ))}
           </div>
