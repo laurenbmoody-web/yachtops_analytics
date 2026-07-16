@@ -583,7 +583,7 @@ const VesselSettings = () => {
   return (
     <div className="vh-page min-h-screen">
       <Header />
-      <div className="w-full px-8 py-6" style={{ paddingTop: 28, maxWidth: 1560, margin: '0 auto' }}>
+      <div className="w-full" style={{ padding: '26px 40px 72px' }}>
         <button className="vh-back" onClick={() => navigate('/dashboard')}>
           <Icon name="ChevronLeft" size={16} /> Back to Dashboard
         </button>
@@ -604,34 +604,23 @@ const VesselSettings = () => {
           </div>
         )}
 
-        {/* Hub Layout — boxless editorial rail + content */}
+        {/* Hub Layout — Settings-style rail (plain grouped nav) + content */}
         <div className="vh-layout">
-          <nav className={`vh-nav${navCollapsed ? ' collapsed' : ''}`} aria-label="Vessel Hub sections">
-            <div className="vh-nav-top">
-              <span className="vh-nav-grp">Vessel</span>
-              <button
-                className="vh-collapse"
-                onClick={toggleNav}
-                aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'}
-                title={navCollapsed ? 'Expand' : 'Collapse'}
-              >
-                <Icon name={navCollapsed ? 'ChevronRight' : 'ChevronLeft'} size={16} />
-              </button>
-            </div>
-            <div className="vh-nav-list">
+          <aside className="vh-rail" aria-label="Vessel sections">
+            <nav>
+              <div className="vh-rail-grp">Vessel</div>
               {sections?.map(section => (
                 <button
                   key={section?.id}
                   onClick={() => setActiveSection(section?.id)}
-                  className={`vh-nav-it${activeSection === section?.id ? ' active' : ''}`}
-                  title={navCollapsed ? section?.label : undefined}
+                  className={`vh-rail-it${activeSection === section?.id ? ' active' : ''}`}
                 >
-                  <span className="ico"><Icon name={section?.icon} size={18} /></span>
-                  <span className="lbl">{section?.label}</span>
+                  <Icon name={section?.icon} size={17} color={activeSection === section?.id ? '#C65A1A' : '#8B8478'} />
+                  <span>{section?.label}</span>
                 </button>
               ))}
-            </div>
-          </nav>
+            </nav>
+          </aside>
 
           <div className="vh-content">
             {renderContent()}
