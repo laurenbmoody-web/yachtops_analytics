@@ -1257,6 +1257,7 @@ const Routes = () => {
         
         {/* Defects Routes */}
         <Route path="/defects" element={<ProtectedRoute><DefectsDashboard /></ProtectedRoute>} />
+        <Route path="/defects/:defectId" element={<ProtectedRoute><DefectsDashboard /></ProtectedRoute>} />
         
         {/* Laundry Routes */}
         <Route path="/laundry-management-dashboard" element={<ProtectedRoute><LaundryManagementDashboard /></ProtectedRoute>} />
