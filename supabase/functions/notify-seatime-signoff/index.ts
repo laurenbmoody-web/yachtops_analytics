@@ -19,6 +19,8 @@ declare const Deno: {
   env: { get: (key: string) => string | undefined };
 };
 
+import { withinQuietHours, QuietPrefs } from '../_shared/quietHours.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -153,8 +155,11 @@ Deno.serve(async (req: Request) => {
     // (2) Courtesy email (best-effort) — unless the seafarer turned this
     //     category's Email channel off (missing prefs row = on). The bell above
     //     is unaffected; it's gated separately in the DB trigger.
-    const stPrefs = await supaGet(`notification_preferences?user_id=eq.${seafarerId}&select=email_seatime&limit=1`) as { email_seatime: boolean }[] | null;
-    const emailAllowed = !(stPrefs && stPrefs[0] && stPrefs[0].email_seatime === false);
+    const stPrefs = await supaGet(`notification_preferences?user_id=eq.${seafarerId}&select=email_seatime,quiet_enabled,quiet_from,quiet_to,quiet_tz&limit=1`) as Array<{ email_seatime: boolean } & QuietPrefs> | null;
+    const stp = stPrefs && stPrefs[0];
+    // Email held when the category is off OR the recipient is in quiet hours
+    // (the in-app bell is written separately, so nothing is lost).
+    const emailAllowed = !(stp && (stp.email_seatime === false || withinQuietHours(stp)));
     if (RESEND_API_KEY && emailAllowed) {
       const email = await resolveEmail(seafarerId);
       if (email) {
