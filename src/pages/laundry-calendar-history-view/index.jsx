@@ -101,7 +101,8 @@ const clockHands = (min) => {
 const Detail = ({ p, onExport, onOpenItem, vessel }) => {
   const [open, setOpen] = useState(null);
   const [openDay, setOpenDay] = useState(null);
-  useEffect(() => { setOpen(null); setOpenDay(p?.days?.[0]?.key || null); }, [p?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [showAll, setShowAll] = useState(false); // expand a person's item list past the first few
+  useEffect(() => { setOpen(null); setShowAll(false); setOpenDay(p?.days?.[0]?.key || null); }, [p?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!p) return null;
   // metabar sits above the title: status · dates · guests (voyage); category · descriptor (off-charter); crew has none
   const meta = p.type === 'voyage'
@@ -233,7 +234,7 @@ const Detail = ({ p, onExport, onOpenItem, vessel }) => {
           const its = (per.items || []).slice().sort((a, b) => new Date(b.deliveredAt || b.createdAt) - new Date(a.deliveredAt || a.createdAt));
           return (
             <div className={`lb-dos-wrap${isOpen ? ' open' : ''}`} key={per.key}>
-              <button type="button" className="lb-dos" onClick={() => setOpen(isOpen ? null : per.key)} aria-expanded={isOpen}>
+              <button type="button" className="lb-dos" onClick={() => { setOpen(isOpen ? null : per.key); setShowAll(false); }} aria-expanded={isOpen}>
                 <AvatarChip p={per} />
                 <div className="lb-dos-main">
                   <div className="lb-dos-nm">{per.name}</div>
@@ -244,7 +245,13 @@ const Detail = ({ p, onExport, onOpenItem, vessel }) => {
               </button>
               {isOpen && (
                 <div className="lb-dos-items">
-                  {its.map((it, i) => <ItemLine key={it.id || it.supabaseId || i} it={it} hideOwner onOpen={onOpenItem} />)}
+                  {(showAll ? its : its.slice(0, 5)).map((it, i) => <ItemLine key={it.id || it.supabaseId || i} it={it} hideOwner onOpen={onOpenItem} />)}
+                  {its.length > 5 && (
+                    <button type="button" className="lb-seeall" onClick={() => setShowAll((s) => !s)}>
+                      {showAll ? 'Show fewer' : `View all ${its.length} items`}
+                      <Icon name={showAll ? 'ChevronUp' : 'ChevronDown'} size={13} />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -252,15 +259,7 @@ const Detail = ({ p, onExport, onOpenItem, vessel }) => {
         })}
       </div>
 
-      {p.type === 'crew' ? (
-        <div className="lb-sec">
-          <span className="lb-sl">Where it happened</span>
-          {(p.byPeriod || []).length === 0 ? <div className="lb-dos-sub">No crew laundry recorded yet.</div>
-            : p.byPeriod.map((b, i) => (
-              <div className="lb-pm" key={i}><span>{b.label}</span><b className="tnum">{b.n} pieces</b></div>
-            ))}
-        </div>
-      ) : (
+      {p.type === 'crew' ? null : (
         <div className="lb-sec">
           <span className="lb-sl">Returned — day by day<span className="lb-sl-hint">{p.days.length} day{p.days.length === 1 ? '' : 's'} · tap to open</span></span>
           {p.days.length === 0 ? <div className="lb-dos-sub">Nothing delivered in this period yet.</div>

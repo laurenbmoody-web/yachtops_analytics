@@ -968,6 +968,13 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-dos-wrap.open .lb-dos-chev { transform: rotate(180deg); stroke: #C65A1A; }
 .lb-dos-items { padding: 2px 8px 12px 56px; }
 .lb-dos-items .lb-ri { padding: 6px 0; }
+.lb-seeall {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 6px 12px;
+  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 999px; cursor: pointer;
+  font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; transition: 0.14s;
+}
+.lb-seeall:hover { border-color: #C65A1A; background: #FBEFE9; }
+.lb-seeall svg { stroke: #C65A1A; }
 .lb-rday { border-bottom: 1px solid #F3F4F8; }
 .lb-rday:last-child { border-bottom: none; }
 .lb-rh { display: flex; align-items: center; gap: 9px; width: 100%; background: none; border: none; text-align: left; cursor: pointer; padding: 11px 0; font-family: inherit; transition: opacity 0.14s; }
@@ -1000,9 +1007,6 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-pg-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 15px; color: #1C1B3A; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-pg-ct { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6E6B85; background: #F8FAFC; border: 1px solid #ECECEE; border-radius: 999px; padding: 1px 9px; flex: none; }
 .lb-pg .lb-ri { padding: 6px 0 6px 40px; }
-.lb-pm { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F3F4F8; font-size: 12.5px; color: #6E6B85; }
-.lb-pm:last-child { border-bottom: none; }
-.lb-pm b { color: #1C1B3A; }
 .lb-export { display: inline-flex; align-items: center; gap: 6px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; background: #FFFFFF; border: 1px solid #F0DDD2; border-radius: 9px; padding: 7px 12px; cursor: pointer; }
 .lb-exports { display: flex; gap: 8px; flex: none; }
 .lb-export:hover { background: #FBEFE9; }
