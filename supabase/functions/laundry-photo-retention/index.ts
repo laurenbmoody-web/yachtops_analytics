@@ -44,6 +44,15 @@ Deno.serve(async (req: Request) => {
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
   const nowIso = new Date().toISOString();
 
+  // Dry run: report exactly what WOULD be purged, delete nothing. Trigger with
+  // ?dryRun=1 or a JSON body { "dryRun": true } — the safe way to preview a
+  // policy before letting the daily cron act on it.
+  const url = new URL(req.url);
+  let dryRun = url.searchParams.get('dryRun') === '1' || url.searchParams.get('dryRun') === 'true';
+  if (!dryRun && req.method === 'POST') {
+    try { const body = await req.json(); if (body && body.dryRun) dryRun = true; } catch { /* no/empty body */ }
+  }
+
   const { data: vessels, error: vErr } = await sb
     .from('vessels')
     .select('tenant_id, laundry_photo_retention_days')
@@ -52,6 +61,7 @@ Deno.serve(async (req: Request) => {
 
   let filesDeleted = 0;
   let itemsCleared = 0;
+  const perVessel: Array<{ tenant_id: string; days: number; items: number; files: number }> = [];
 
   for (const v of vessels || []) {
     const days = Number(v.laundry_photo_retention_days);
@@ -66,24 +76,33 @@ Deno.serve(async (req: Request) => {
       .or(`delivered_at.lt.${cutoff},and(delivered_at.is.null,created_at.lt.${cutoff})`)
       .limit(2000);
 
+    let vItems = 0;
+    let vFiles = 0;
     for (const it of items || []) {
       const photos = Array.isArray(it.photos) ? it.photos : (it.photo ? [it.photo] : []);
       if (!photos.length && !it.photo) {
-        // nothing stored — still stamp so it's skipped next run
-        await sb.from('laundry_items').update({ photos_expired_at: nowIso }).eq('id', it.id);
+        // nothing stored — still stamp so it's skipped next run (skipped on dry run)
+        if (!dryRun) await sb.from('laundry_items').update({ photos_expired_at: nowIso }).eq('id', it.id);
         continue;
       }
       const paths = [...new Set(photos.map(pathOf).filter((p): p is string => !!p))];
       if (paths.length) {
-        const { error } = await sb.storage.from(BUCKET).remove(paths);
-        if (!error) filesDeleted += paths.length;
+        if (!dryRun) {
+          const { error } = await sb.storage.from(BUCKET).remove(paths);
+          if (!error) filesDeleted += paths.length;
+        } else {
+          filesDeleted += paths.length;
+        }
+        vFiles += paths.length;
       }
-      await sb.from('laundry_items').update({ photos: [], photo: '', photos_expired_at: nowIso }).eq('id', it.id);
+      if (!dryRun) await sb.from('laundry_items').update({ photos: [], photo: '', photos_expired_at: nowIso }).eq('id', it.id);
       itemsCleared += 1;
+      vItems += 1;
     }
+    if (vItems || vFiles) perVessel.push({ tenant_id: v.tenant_id, days, items: vItems, files: vFiles });
   }
 
-  return new Response(JSON.stringify({ ok: true, filesDeleted, itemsCleared, ranAt: nowIso }), {
+  return new Response(JSON.stringify({ ok: true, dryRun, filesDeleted, itemsCleared, perVessel, ranAt: nowIso }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 });
