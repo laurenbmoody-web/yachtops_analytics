@@ -100,7 +100,7 @@ Deno.serve(async (req: Request) => {
   let sent = 0;
   let pruned = 0;
   for (const [tid, msg] of targets) {
-    let q = sb.from('push_subscriptions').select('endpoint, p256dh, auth');
+    let q = sb.from('push_subscriptions').select('endpoint, p256dh, auth').eq('topic', 'laundry');
     if (tid) q = q.eq('tenant_id', tid);
     const { data: subs } = await q;
     for (const s of subs || []) {

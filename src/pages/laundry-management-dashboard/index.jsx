@@ -8,8 +8,6 @@ import CabinView from './components/CabinView';
 import LaundryDetailModal from './components/LaundryDetailModal';
 import { FilterMenu, SortMenu } from './components/LaundryFilters';
 import { subscribeOffline, pendingOfflineItems, drainOfflineLaundry } from './utils/laundryOfflineQueue';
-import { pushSupported, isPushEnabled, enablePush, disablePush } from './utils/pushSetup';
-import { showToast } from '../../utils/toast';
 import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay } from './utils/laundryStorage';
 import { turnaroundStats, fmtDur } from './utils/laundryStats';
 import { enrichWithAvatars } from './utils/laundryAvatars';
@@ -201,32 +199,6 @@ const LaundryManagementDashboard = () => {
     return () => { unsub(); window.removeEventListener('online', sync); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Phone alerts (web push) — per device. Foundation: enrol/subscribe here;
-  // delivery is wired server-side once the VAPID secret is set.
-  const [alertsOn, setAlertsOn] = useState(false);
-  const [alertsBusy, setAlertsBusy] = useState(false);
-  useEffect(() => { if (pushSupported()) isPushEnabled().then(setAlertsOn).catch(() => {}); }, []);
-  const toggleAlerts = async () => {
-    if (alertsBusy) return;
-    setAlertsBusy(true);
-    try {
-      if (alertsOn) {
-        await disablePush();
-        setAlertsOn(false);
-        showToast('Phone alerts turned off for this device', 'info');
-      } else {
-        const r = await enablePush();
-        if (r.ok) { setAlertsOn(true); showToast('Phone alerts on for this device', 'success'); }
-        else if (r.reason === 'denied') showToast('Notifications are blocked — enable them in your browser settings', 'error');
-        else if (r.reason === 'unsupported') showToast('This device doesn’t support push. On iPhone, add the app to your Home Screen first.', 'error');
-        else if (r.reason === 'no_session') showToast('Couldn’t confirm your vessel — try again once signed in', 'error');
-        else if (r.reason !== 'dismissed') showToast('Couldn’t enable alerts. Please try again.', 'error');
-      }
-    } finally {
-      setAlertsBusy(false);
-    }
-  };
-
   const handleBulkDeliver = async (readyItems) => {
     await Promise.all((readyItems || []).map((i) => updateLaundryStatus(i.id, LaundryStatus?.DELIVERED)));
     loadLaundryItems();
@@ -314,11 +286,6 @@ const LaundryManagementDashboard = () => {
                 {canReset && (
                   <button type="button" className="lm-btn ghost" onClick={() => setShowResetModal(true)}>
                     <Icon name="RotateCcw" size={16} /> Reset day
-                  </button>
-                )}
-                {pushSupported() && (
-                  <button type="button" className={`lm-btn ghost${alertsOn ? ' on' : ''}`} onClick={toggleAlerts} disabled={alertsBusy} title={alertsOn ? 'Phone alerts on (this device)' : 'Get laundry alerts on this device'}>
-                    <Icon name={alertsOn ? 'Bell' : 'BellOff'} size={16} /> {alertsOn ? 'Alerts on' : 'Alerts'}
                   </button>
                 )}
                 <button type="button" className="lm-btn ghost" onClick={() => navigate('/laundry-calendar-history-view')}>
