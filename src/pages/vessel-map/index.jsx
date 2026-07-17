@@ -753,25 +753,24 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     return null;
   };
 
-  // Closing a defect from the map: glide the 3D view to its pin and grab a
-  // "Location when fixed" snapshot, then store it (+ the pin position) on the
-  // defect so the record keeps where it was, even after the pin drops off.
+  // Closing a defect from the map: grab a clean "Location when fixed" snapshot
+  // and store it (+ the pin position) on the defect, so the record keeps where
+  // it was even after the pin drops off. Selecting the pin already glided the
+  // camera to centre on it, so we capture the CURRENT (settled, correctly
+  // sorted) view — no second camera move, which would blank the splat mid
+  // re-sort — with every pin hidden.
   const captureDefectLocation = useCallback(async (defectId) => {
     const api = viewerApiRef.current;
     const pin = selectedHotspot;
-    if (!api?.captureFrame || !pin?.position || !activeTenantId || !defectId) return;
+    if (!api?.captureFrame || !activeTenantId || !defectId) return;
     try {
-      // Glide the view to centre on the pin (gradual, so the splat re-sorts),
-      // then capture with every pin hidden for a clean, centred shot.
-      api.glideTo?.(pin.position);
-      await new Promise((r) => setTimeout(r, 520));
       const blob = await api.captureFrame({ width: 512, quality: 0.72, hidePins: true });
       if (!blob) return;
       const path = `${activeTenantId}/defect-locations/${defectId}-${crypto.randomUUID().slice(0, 8)}.jpg`;
       const { error: upErr } = await supabase.storage.from('vessel-scans')
         .upload(path, blob, { contentType: 'image/jpeg', cacheControl: '3600' });
       if (upErr) { console.error('[vessel-map] defect location upload', upErr); return; }
-      await updateDefect(defectId, { locationSnapshotPath: path, pinPosition: pin.position }, defectActor);
+      await updateDefect(defectId, { locationSnapshotPath: path, pinPosition: pin?.position || null }, defectActor);
     } catch (e) {
       console.error('[vessel-map] defect location capture', e);
     }
