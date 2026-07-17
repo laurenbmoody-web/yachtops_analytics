@@ -59,11 +59,19 @@ export const fetchAddableCrew = async (threadId) => {
   return data ?? [];
 };
 
-// Full detail for one participant's contact card (crew or supplier).
+// Full detail for one participant's messaging profile (crew or supplier).
 export const fetchPersonCard = async (threadId, userId) => {
   const { data, error } = await supabase.rpc('fetch_thread_person_card', { p_thread_id: threadId, p_user_id: userId });
   if (error) throw error;
   return data || null;
+};
+
+// Save MY own messaging profile (about + work phone). Owner-scoped upsert.
+export const saveMyMessagingProfile = async (userId, { about, work_phone }) => {
+  const { error } = await supabase
+    .from('messaging_profiles')
+    .upsert({ user_id: userId, about: about?.trim() || null, work_phone: work_phone?.trim() || null, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+  if (error) throw error;
 };
 
 // Add / remove a person on a thread (group). Party 'crew' for a tenant member.

@@ -11,6 +11,7 @@ import {
   setThreadArchived, deleteThread, uploadMessageAttachment,
   fetchOrderApprovalSettings, decideOrderApproval, getOrCreateDmThread,
   fetchThreadsPeople, fetchAddableCrew, addThreadParticipant, removeThreadParticipant, fetchPersonCard,
+  saveMyMessagingProfile,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -268,6 +269,11 @@ const CrewMessages = () => {
   const [peopleBusy, setPeopleBusy] = useState(false);
   const [cardPerson, setCardPerson] = useState(null);           // participant whose card is open
   const [cardDetail, setCardDetail] = useState(null);           // fetched card detail
+  const [profileModal, setProfileModal] = useState(null);       // { person, detail } messaging profile
+  const [profEditing, setProfEditing] = useState(false);
+  const [profAbout, setProfAbout] = useState('');
+  const [profPhone, setProfPhone] = useState('');
+  const [profSaving, setProfSaving] = useState(false);
   const [approverTier, setApproverTier] = useState('HOD');
   const [myUid, setMyUid] = useState(null);
   const fileRef = useRef(null);
@@ -462,6 +468,26 @@ const CrewMessages = () => {
     setCardPerson(p); setCardDetail(null);
     try { setCardDetail(await fetchPersonCard(activeId, p.user_id)); }
     catch (e) { setError(e.message); }
+  };
+  // "View profile" — the fuller messaging profile (not the HR record).
+  const openProfile = () => {
+    if (!cardPerson || !cardDetail) return;
+    setProfileModal({ person: cardPerson, detail: cardDetail });
+    setProfEditing(false);
+    setProfAbout(cardDetail.about || '');
+    setProfPhone(cardDetail.phone || '');
+    setCardPerson(null);
+  };
+  const saveProfile = async () => {
+    if (profSaving || !myUid) return;
+    setProfSaving(true); setError(null);
+    try {
+      await saveMyMessagingProfile(myUid, { about: profAbout, work_phone: profPhone });
+      const fresh = await fetchPersonCard(activeId, profileModal.person.user_id);
+      setProfileModal((m) => (m ? { ...m, detail: fresh } : m));
+      setProfEditing(false);
+    } catch (e) { setError(e.message); }
+    finally { setProfSaving(false); }
   };
 
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
@@ -853,9 +879,7 @@ const CrewMessages = () => {
                                         <div className="msg-card-row"><span className="msg-card-v muted">No contact details on file</span></div>
                                       )}
                                     </div>
-                                    {cardDetail.party === 'crew' && cardPerson.user_id && (
-                                      <button type="button" className="msg-card-profile" onClick={() => navigate(`/profile/${cardPerson.user_id}`)}>View full profile →</button>
-                                    )}
+                                    <button type="button" className="msg-card-profile" onClick={openProfile}>View profile →</button>
                                     {cardDetail.party === 'crew' && cardPerson.user_id !== myUid && (
                                       <button type="button" className="msg-card-remove" disabled={peopleBusy} onClick={() => removeCrew(cardPerson.user_id)}>Remove from chat</button>
                                     )}
@@ -867,6 +891,56 @@ const CrewMessages = () => {
                         );
                       })()}
                     </div>
+
+                    {profileModal && (() => {
+                      const d = profileModal.detail || {};
+                      const isMe = profileModal.person.user_id === myUid;
+                      return (
+                        <div className="msg-profile-overlay" onClick={() => setProfileModal(null)}>
+                          <div className="msg-profile" role="dialog" aria-label="Messaging profile" onClick={(e) => e.stopPropagation()}>
+                            <button type="button" className="msg-profile-x" onClick={() => setProfileModal(null)} aria-label="Close">×</button>
+                            <div className="msg-profile-hero">
+                              {d.avatar_url
+                                ? <img className="msg-face xl" src={d.avatar_url} alt="" />
+                                : <span className="msg-face xl" style={{ backgroundImage: faceGrad({ party: d.party, user_id: profileModal.person.user_id }) }}>{initials(d.name)}</span>}
+                              <div className="msg-profile-name">{d.name}{isMe ? ' (you)' : ''}</div>
+                              <div className="msg-profile-sub">
+                                <span className={`msg-card-badge ${d.party}`}>{d.party === 'supplier' ? 'Supplier' : 'Crew'}</span>
+                                {(d.position || d.tier || d.role) && <span className="msg-card-role">{(d.position || d.tier || d.role || '').toString().toLowerCase()}</span>}
+                              </div>
+                            </div>
+
+                            {profEditing ? (
+                              <div className="msg-profile-edit">
+                                <label className="msg-profile-lab">About</label>
+                                <input className="msg-profile-in" value={profAbout} maxLength={80} placeholder="e.g. Back Mon — covering AM orders" onChange={(e) => setProfAbout(e.target.value)} />
+                                <label className="msg-profile-lab">Work phone</label>
+                                <input className="msg-profile-in" value={profPhone} placeholder="+44 …" onChange={(e) => setProfPhone(e.target.value)} />
+                                <div className="msg-profile-editrow">
+                                  <button type="button" className="msg-card-remove" style={{ marginTop: 0 }} disabled={profSaving} onClick={() => setProfEditing(false)}>Cancel</button>
+                                  <button type="button" className="msg-card-profile" style={{ marginTop: 0 }} disabled={profSaving} onClick={saveProfile}>{profSaving ? 'Saving…' : 'Save'}</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                {d.about && <div className="msg-profile-about">“{d.about}”</div>}
+                                <div className="msg-card-rows">
+                                  {d.party === 'supplier'
+                                    ? <div className="msg-card-row"><span className="msg-card-k">Company</span><span className="msg-card-v">{supplierName(activeThread)}</span></div>
+                                    : d.department ? <div className="msg-card-row"><span className="msg-card-k">Department</span><span className="msg-card-v">{d.department}</span></div> : null}
+                                  {d.email ? <a className="msg-card-row link" href={`mailto:${d.email}`}><span className="msg-card-k">Email</span><span className="msg-card-v">{d.email}</span></a> : null}
+                                  {d.phone ? <a className="msg-card-row link" href={`tel:${d.phone}`}><span className="msg-card-k">Work phone</span><span className="msg-card-v">{d.phone}</span></a> : null}
+                                  {!d.email && !d.phone && <div className="msg-card-row"><span className="msg-card-v muted">No contact details yet</span></div>}
+                                </div>
+                                {isMe && (
+                                  <button type="button" className="msg-card-profile" onClick={() => { setProfEditing(true); setProfAbout(d.about || ''); setProfPhone(d.phone || ''); }}>Edit my profile</button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {(() => {
                       const ord = threadOrder(activeThread);
