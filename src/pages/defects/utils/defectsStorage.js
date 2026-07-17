@@ -353,19 +353,22 @@ export const getDefectByHotspot = async (hotspotId, actor) => {
 };
 
 
-// Batch: severity + status for the active (non-closed) defects behind a set of
-// map pins, keyed by hotspot_id. Used to style pins (e.g. pulse Critical/High)
-// without a round-trip per pin.
+// Batch: the most-recent defect behind a set of map pins, keyed by hotspot_id.
+// Includes closed ones (status is returned) so the map can BOTH pulse
+// Critical/High active defects AND drop closed defects off the map. Ordered
+// newest-first, so a pin re-used for a new defect reflects the new one.
 export const fetchDefectMetaByHotspots = async (hotspotIds, tenantId) => {
   const ids = (hotspotIds || []).filter(Boolean);
   if (!ids.length || !tenantId) return {};
   const { data, error } = await supabase
-    ?.from('defects')?.select('hotspot_id, priority, status')
+    ?.from('defects')?.select('hotspot_id, priority, status, created_at')
     ?.eq('tenant_id', tenantId)?.in('hotspot_id', ids)
-    ?.is('deleted_at', null)?.neq('status', DefectStatus.CLOSED);
+    ?.is('deleted_at', null)?.order('created_at', { ascending: false });
   if (error) { console.warn('[defects] fetchDefectMetaByHotspots', error); return {}; }
   const map = {};
-  for (const r of data || []) map[r.hotspot_id] = { priority: r.priority, status: r.status };
+  for (const r of data || []) {
+    if (!map[r.hotspot_id]) map[r.hotspot_id] = { priority: r.priority, status: r.status };
+  }
   return map;
 };
 

@@ -25,7 +25,7 @@ import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
 import Icon from '../../components/AppIcon';
 import { refreshScanThumb } from './utils/scanThumb';
-import { fetchDefectMetaByHotspots, DefectPriority, updateDefect } from '../defects/utils/defectsStorage';
+import { fetchDefectMetaByHotspots, DefectPriority, DefectStatus, updateDefect } from '../defects/utils/defectsStorage';
 import { useDefectActor } from '../defects/utils/useDefectActor';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
@@ -363,11 +363,21 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     return () => { cancelled = true; };
   }, [defectHotspotKey, activeTenantId, defectReload]);
 
+  // A completed (Closed) defect drops off the map — its pin hides but the
+  // hotspot row stays for history. Everything else always renders.
+  const isClosedDefectPin = useCallback(
+    (h) => h.layer === 'defect' && defectMeta[h.id]?.status === DefectStatus.CLOSED,
+    [defectMeta]
+  );
+
   const layerCounts = useMemo(() => {
     const counts = {};
-    for (const h of topHotspots) counts[h.layer] = (counts[h.layer] || 0) + 1;
+    for (const h of topHotspots) {
+      if (isClosedDefectPin(h)) continue; // don't count pins that have dropped off
+      counts[h.layer] = (counts[h.layer] || 0) + 1;
+    }
     return counts;
-  }, [topHotspots]);
+  }, [topHotspots, isClosedDefectPin]);
 
   // All top-level pins go to the viewer; layer visibility is a fade, not a
   // filter (chips toggle their pins with a 150ms fade, not a pop). While
@@ -376,6 +386,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   const allHotspots = useMemo(
     () => topHotspots
       .filter((h) => !placingItem || layerHoldsStock(h.layer))
+      .filter((h) => !isClosedDefectPin(h)) // completed defects drop off the map
       .map((h) => {
         const priority = h.layer === 'defect' ? defectMeta[h.id]?.priority : null;
         return {
@@ -386,7 +397,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
           severityPulse: priority === DefectPriority.CRITICAL || priority === DefectPriority.HIGH,
         };
       }),
-    [topHotspots, placingItem, defectMeta]
+    [topHotspots, placingItem, defectMeta, isClosedDefectPin]
   );
 
   // The opened-container path, resolved live from hotspots (so labels/photo
