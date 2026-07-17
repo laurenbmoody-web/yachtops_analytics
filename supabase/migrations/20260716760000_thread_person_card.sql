@@ -63,7 +63,9 @@ end $$;
 
 grant execute on function public.fetch_thread_person_card(uuid, uuid) to authenticated;
 
--- Add department to the addable-crew picker so it can group by it.
+-- Add department to the addable-crew picker so it can group by it. The return
+-- type gains a column, which create-or-replace can't do (42P13) — drop first.
+drop function if exists public.fetch_addable_crew_for_thread(uuid);
 create or replace function public.fetch_addable_crew_for_thread(p_thread_id uuid)
 returns table (user_id uuid, name text, tier text, department text)
 language plpgsql
