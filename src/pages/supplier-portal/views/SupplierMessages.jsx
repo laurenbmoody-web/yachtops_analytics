@@ -491,7 +491,20 @@ const SupplierMessages = () => {
     setAiLoading(true);
     setError(null);
     try {
-      const res = await draftQuoteFromMessage(src, supplierId);
+      // Give the AI the recent conversation + last quote so a short follow-up
+      // ("add another 20") resolves to the right item and updated quantity.
+      const history = messages
+        .filter((m) => !m.deleted_at && m.kind !== 'system')
+        .slice(-8)
+        .map((m) => ({
+          from: m.sender_type === 'supplier' ? 'you' : 'yacht',
+          text: m.kind === 'quote'
+            ? `[quote] ${(m.quote?.items || []).map((it) => `${it.qty}× ${it.name}`).join(', ')}`
+            : (m.body || ''),
+        }));
+      const lastQuote = [...messages].reverse().find((m) => m.kind === 'quote' && !m.deleted_at);
+      const lastItems = (lastQuote?.quote?.items || []).map((it) => ({ name: it.name, qty: it.qty, unit: it.unit, unit_price: it.unit_price }));
+      const res = await draftQuoteFromMessage(src, supplierId, { history, lastItems });
       const items = Array.isArray(res?.items) ? res.items : [];
       if (res?.quote_text) {
         const total = items.reduce((s, i) => s + (i.unit_price != null ? Number(i.unit_price) * (Number(i.qty) || 1) : 0), 0);
