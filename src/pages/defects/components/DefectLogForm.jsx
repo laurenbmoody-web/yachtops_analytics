@@ -217,7 +217,7 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
             )}
           </div>
           {willPin ? (
-            <div className="vmd-pinnote"><Icon name="MapPin" size={14} /> You'll drop the pin on the map once you log — finish the rest first.</div>
+            <div className="vmd-pinnote"><Icon name="MapPin" size={14} /> Location set on the map — opens after you log.</div>
           ) : decks.length > 0 ? (
             <div className="vmd-row">
               <VmdSelect value={form.locationDeckId} ariaLabel="Deck" placeholder="Deck"
