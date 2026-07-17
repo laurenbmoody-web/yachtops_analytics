@@ -829,7 +829,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   {scans.map((s) => (
                     <button
                       key={s.id}
-                      className={`vm-pill${s.id === selectedScanId ? ' vm-pill-selected' : ''}`}
+                      className={`vm-room-tab${s.id === selectedScanId ? ' on' : ''}`}
                       onClick={() => setSelectedScanId(s.id)}
                     >
                       {s.name}
