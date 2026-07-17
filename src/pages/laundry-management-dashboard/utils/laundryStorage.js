@@ -369,8 +369,13 @@ export const createLaundryItem = async (itemData) => {
   const { data, error } = await supabase.from('laundry_items').insert(payload).select('*').single();
   if (error) {
     console.error('[laundry] create failed', error);
-    showToast('Failed to add laundry item. Please try again.', 'error');
-    throw error;
+    // Offline / server-unreachable: don't toast a failure — the caller queues it.
+    const offlineish = (typeof navigator !== 'undefined' && navigator.onLine === false)
+      || /fetch|network|Failed to fetch|timeout/i.test(error.message || '');
+    if (!offlineish) showToast('Failed to add laundry item. Please try again.', 'error');
+    const e = new Error(error.message || 'create failed');
+    e.code = offlineish ? 'OFFLINE' : 'CREATE_FAILED';
+    throw e;
   }
 
   try {

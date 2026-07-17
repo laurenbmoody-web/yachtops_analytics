@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import '../laundry.css';
 
 import { createLaundryItem, updateLaundryItem, OwnerType, LaundryPriority, availableLaundryTags, formatLaundryTag, getKnownCustomTags } from '../utils/laundryStorage';
+import { isLaundryOffline, enqueueOfflineLaundry } from '../utils/laundryOfflineQueue';
 import { showToast } from '../../../utils/toast';
 import { getAllDecks, getAllZones, getAllSpaces } from '../../locations-management-settings/utils/locationsHierarchyStorage';
 import { loadGuests } from '../../guest-management-dashboard/utils/guestStorage';
@@ -390,7 +391,18 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
           ownerCrewUserId: isCrew ? formData?.ownerCrewUserId : null,
         });
       } else {
-        saved = await createLaundryItem({ ...payload, ownerType: formData?.ownerType });
+        const createData = { ...payload, ownerType: formData?.ownerType };
+        if (isLaundryOffline()) {
+          saved = await enqueueOfflineLaundry(createData);
+        } else {
+          try {
+            saved = await createLaundryItem(createData);
+          } catch (err) {
+            // connected wifi but no uplink (common at sea): queue rather than fail
+            if (err?.code === 'OFFLINE') saved = await enqueueOfflineLaundry(createData);
+            else throw err;
+          }
+        }
       }
       if (another && !isEdit) {
         // keep the shared details (owner, cabin, needed-by, notes, priority);
