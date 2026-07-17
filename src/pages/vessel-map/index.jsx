@@ -20,6 +20,7 @@ import InteriorView from './components/InteriorView';
 import PinPayload from './components/PinPayload';
 import PinItems from './components/PinItems';
 import RoomPicker from './components/RoomPicker';
+import DefectModal from './components/DefectModal';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
 import Icon from '../../components/AppIcon';
@@ -332,6 +333,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   // Severity/status of the active defect behind each defect pin — so Critical /
   // High pins can pulse. Batched, keyed by hotspot_id; refetched when pins change.
   const [defectMeta, setDefectMeta] = useState({});
+  const [defectReload, setDefectReload] = useState(0); // bumped when a defect is edited
   const defectHotspotKey = useMemo(
     () => topHotspots.filter((h) => h.layer === 'defect').map((h) => h.id).sort().join(','),
     [topHotspots]
@@ -345,7 +347,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
       if (!cancelled) setDefectMeta(meta);
     })();
     return () => { cancelled = true; };
-  }, [defectHotspotKey, activeTenantId]);
+  }, [defectHotspotKey, activeTenantId, defectReload]);
 
   const layerCounts = useMemo(() => {
     const counts = {};
@@ -975,9 +977,10 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                     where scans are set up) — off the daily map view. The viewer
                     still applies each scan's saved rotation via liveRotation. */}
 
-                {/* ≥1024px: the inspector replaces the floating card. */}
+                {/* Defect pins skip the inspector drawer and open their view
+                    modal directly (below). Everything else uses the inspector. */}
                 <Inspector
-                  hotspot={selectedHotspot}
+                  hotspot={selectedHotspot?.layer === 'defect' ? null : selectedHotspot}
                   creatorName={selectedHotspot?.created_by ? creatorNames[selectedHotspot.created_by] : null}
                   canManage={canPlaceHotspots}
                   user={user}
@@ -1003,6 +1006,22 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   autoFocusName={justCreatedId === selectedHotspot?.id}
                   raised={!!openContainer}
                 />
+
+                {/* Defect pin → open its view modal directly (no drawer). Pin
+                    management (reposition / remove) lives in the modal's ⋯ menu. */}
+                {selectedHotspot?.layer === 'defect' && (
+                  <DefectModal
+                    hotspot={selectedHotspot}
+                    canManage={canPlaceHotspots}
+                    scanName={selectedScan?.name}
+                    containerTrail={containerTrail}
+                    onChanged={() => { setDefectReload((v) => v + 1); onDetailSaved?.(); }}
+                    onTitled={(title) => { if (title) renameHotspot(selectedHotspot.id, title); }}
+                    onAdjust={() => startAdjust(selectedHotspot)}
+                    onDelete={() => deleteHotspot(selectedHotspot.id)}
+                    onClose={closeInspector}
+                  />
+                )}
 
                 {/* Filters now live in the top bar above the map, so the stage
                     stays clear for the tool rail. */}
@@ -1107,7 +1126,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   </div>
                 )}
 
-                {selectedHotspot && (
+                {selectedHotspot && selectedHotspot.layer !== 'defect' && (
                   <aside className="vm-side-panel">
                     <button className="vm-side-close" onClick={closeInspector} aria-label="Close">×</button>
                     {canPlaceHotspots ? (
