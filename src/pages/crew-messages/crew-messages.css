@@ -261,6 +261,14 @@
 .cmsg-page .msg-card-badge.crew { color: #fff; background: var(--navy-app); }
 .cmsg-page .msg-card-badge.supplier { color: #fff; background: var(--orange); }
 .cmsg-page .msg-card-role { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+/* Status line on the card (inline-editable on your own). */
+.cmsg-page .msg-card-status { display: block; width: 100%; text-align: left; margin-top: 12px; font-size: 12.5px; font-style: italic; color: var(--muted-strong); background: none; border: 0; font-family: inherit; }
+.cmsg-page .msg-card-status.own { cursor: pointer; display: flex; align-items: center; gap: 6px; border-radius: 8px; padding: 6px 8px; margin-left: -8px; margin-right: -8px; }
+.cmsg-page .msg-card-status.own:hover { background: var(--ground); }
+.cmsg-page .msg-card-status.own.empty { color: var(--muted); font-style: normal; }
+.cmsg-page .msg-card-status-pen { margin-left: auto; font-size: 11px; color: var(--faint); font-style: normal; }
+.cmsg-page .msg-card-status.own:hover .msg-card-status-pen { color: var(--orange); }
+.cmsg-page .msg-card-status-in { width: 100%; box-sizing: border-box; margin-top: 12px; border: 1px solid var(--orange); border-radius: 8px; padding: 7px 9px; font-family: inherit; font-size: 12.5px; color: var(--navy); background: #FAFAF8; box-shadow: 0 0 0 3px var(--pill); outline: none; }
 .cmsg-page .msg-card-rows { display: flex; flex-direction: column; margin-top: 14px; }
 .cmsg-page .msg-card-row { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--hair); text-decoration: none; }
 .cmsg-page .msg-card-row:first-child { border-top: 0; }

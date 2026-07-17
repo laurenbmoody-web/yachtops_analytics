@@ -274,6 +274,9 @@ const CrewMessages = () => {
   const [profAbout, setProfAbout] = useState('');
   const [profPhone, setProfPhone] = useState('');
   const [profSaving, setProfSaving] = useState(false);
+  const [statusEditing, setStatusEditing] = useState(false);    // inline status edit on own card
+  const [statusDraft, setStatusDraft] = useState('');
+  const [statusSaving, setStatusSaving] = useState(false);
   const [approverTier, setApproverTier] = useState('HOD');
   const [myUid, setMyUid] = useState(null);
   const fileRef = useRef(null);
@@ -465,7 +468,7 @@ const CrewMessages = () => {
     if (!activeId) return;
     setPeopleOpen(false);
     if (cardPerson?.user_id === p.user_id) { setCardPerson(null); return; }
-    setCardPerson(p); setCardDetail(null);
+    setCardPerson(p); setCardDetail(null); setStatusEditing(false);
     try { setCardDetail(await fetchPersonCard(activeId, p.user_id)); }
     catch (e) { setError(e.message); }
   };
@@ -488,6 +491,18 @@ const CrewMessages = () => {
       setProfEditing(false);
     } catch (e) { setError(e.message); }
     finally { setProfSaving(false); }
+  };
+  // Inline status edit straight on your own contact card (keeps the work phone).
+  const saveStatus = async () => {
+    if (statusSaving || !myUid || !cardDetail) return;
+    setStatusSaving(true); setError(null);
+    try {
+      await saveMyMessagingProfile(myUid, { about: statusDraft, work_phone: cardDetail.phone });
+      const fresh = await fetchPersonCard(activeId, cardPerson.user_id);
+      setCardDetail(fresh);
+      setStatusEditing(false);
+    } catch (e) { setError(e.message); }
+    finally { setStatusSaving(false); }
   };
 
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
@@ -865,6 +880,26 @@ const CrewMessages = () => {
                                         </div>
                                       </div>
                                     </div>
+                                    {cardPerson.user_id === myUid ? (
+                                      statusEditing ? (
+                                        <input
+                                          className="msg-card-status-in" autoFocus maxLength={80}
+                                          value={statusDraft}
+                                          placeholder="Set your status…"
+                                          disabled={statusSaving}
+                                          onChange={(e) => setStatusDraft(e.target.value)}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') saveStatus(); if (e.key === 'Escape') setStatusEditing(false); }}
+                                          onBlur={saveStatus}
+                                        />
+                                      ) : (
+                                        <button type="button" className={`msg-card-status own${cardDetail.about ? '' : ' empty'}`} onClick={() => { setStatusDraft(cardDetail.about || ''); setStatusEditing(true); }}>
+                                          {cardDetail.about ? `“${cardDetail.about}”` : 'Set your status…'}
+                                          <span className="msg-card-status-pen" aria-hidden>✎</span>
+                                        </button>
+                                      )
+                                    ) : (
+                                      cardDetail.about ? <div className="msg-card-status">“{cardDetail.about}”</div> : null
+                                    )}
                                     <div className="msg-card-rows">
                                       {cardDetail.department && (
                                         <div className="msg-card-row"><span className="msg-card-k">Department</span><span className="msg-card-v">{cardDetail.department}</span></div>
@@ -912,7 +947,7 @@ const CrewMessages = () => {
 
                             {profEditing ? (
                               <div className="msg-profile-edit">
-                                <label className="msg-profile-lab">About</label>
+                                <label className="msg-profile-lab">Status</label>
                                 <input className="msg-profile-in" value={profAbout} maxLength={80} placeholder={d.party === 'supplier' ? 'e.g. Back Mon — covering AM orders' : 'e.g. On charter · best reached after watch'} onChange={(e) => setProfAbout(e.target.value)} />
                                 <label className="msg-profile-lab">Work phone</label>
                                 <input className="msg-profile-in" value={profPhone} placeholder="+44 …" onChange={(e) => setProfPhone(e.target.value)} />
