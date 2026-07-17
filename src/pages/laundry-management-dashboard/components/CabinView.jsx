@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { LaundryStatus, LaundryPriority, formatLaundryTag } from '../utils/laundryStorage';
 
@@ -45,6 +45,47 @@ function buildGroups(items) {
 const CabinCard = ({ g, onBulkDeliver, onOpen, onAdvance }) => {
   const pct = g.total ? Math.round((g.delivered / g.total) * 100) : 0;
   const allDone = g.delivered === g.total;
+  const [openDelivered, setOpenDelivered] = useState(false);
+  const active = g.list.filter((i) => i?.status !== LaundryStatus?.DELIVERED);
+  const delivered = g.list.filter((i) => i?.status === LaundryStatus?.DELIVERED);
+
+  const renderItem = (it) => {
+    const photos = Array.isArray(it?.photos) && it.photos.length ? it.photos : (it?.photo ? [it.photo] : []);
+    const urgent = it?.priority === LaundryPriority?.URGENT && it?.status !== LaundryStatus?.DELIVERED;
+    const bits = [];
+    if (urgent) bits.push(<span key="u" className="u">Urgent</span>);
+    (it?.tags || []).slice(0, 2).forEach((t, i) => bits.push(<span key={`t${i}`}>{formatLaundryTag(t)}</span>));
+    if (it?.laundryNumber) bits.push(<span key="n">No. {it.laundryNumber}</span>);
+    return (
+      <div className="lc-ci" key={it?.id} role="button" tabIndex={0} style={{ cursor: onOpen ? 'pointer' : undefined }}
+        onClick={() => onOpen?.(it)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen?.(it); } }}>
+        <span className="lc-ph">
+          {photos[0] ? <img src={photos[0]} alt="" /> : <Icon name="Shirt" size={17} className="lr-ph-ic" />}
+        </span>
+        <div className="lc-ci-main">
+          <div className="lc-ci-desc">{it?.description || 'No description'}</div>
+          <div className="lc-ci-meta">{bits.reduce((acc, el, i) => (i ? [...acc, <span key={`s${i}`} style={{ color: '#AEB4C2' }}>·</span>, el] : [el]), [])}</div>
+        </div>
+        <div className="lc-ci-right">
+          {it?.status === LaundryStatus?.IN_PROGRESS && (
+            <button type="button" className="lc-qa" onClick={(e) => { e.stopPropagation(); onAdvance?.(it, LaundryStatus?.READY_TO_DELIVER); }}>
+              <Icon name="Check" size={12} /> Mark ready
+            </button>
+          )}
+          {it?.status === LaundryStatus?.READY_TO_DELIVER && (
+            <button type="button" className="lc-qa go" onClick={(e) => { e.stopPropagation(); onAdvance?.(it, LaundryStatus?.DELIVERED); }}>
+              <Icon name="ArrowRight" size={12} /> Deliver
+            </button>
+          )}
+          {it?.status === LaundryStatus?.DELIVERED && (
+            <span className="lc-done"><Icon name="Check" size={12} /> Delivered</span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={`lc-card${g.urgent ? ' urg' : ''}`}>
       <div className="lc-head">
@@ -63,51 +104,22 @@ const CabinCard = ({ g, onBulkDeliver, onOpen, onAdvance }) => {
           : <span className="lc-badge">{g.total} item{g.total === 1 ? '' : 's'}</span>}
       </div>
 
-      <div className="lc-items">
-        {g.list.map((it) => {
-          const photos = Array.isArray(it?.photos) && it.photos.length ? it.photos : (it?.photo ? [it.photo] : []);
-          const urgent = it?.priority === LaundryPriority?.URGENT && it?.status !== LaundryStatus?.DELIVERED;
-          const bits = [];
-          if (urgent) bits.push(<span key="u" className="u">Urgent</span>);
-          (it?.tags || []).slice(0, 2).forEach((t, i) => bits.push(<span key={`t${i}`}>{formatLaundryTag(t)}</span>));
-          if (it?.laundryNumber) bits.push(<span key="n">No. {it.laundryNumber}</span>);
-          return (
-            <div className="lc-ci" key={it?.id} role="button" tabIndex={0} style={{ cursor: onOpen ? 'pointer' : undefined }}
-              onClick={() => onOpen?.(it)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen?.(it); } }}>
-              <span className="lc-ph">
-                {photos[0] ? <img src={photos[0]} alt="" /> : <Icon name="Shirt" size={17} className="lr-ph-ic" />}
-              </span>
-              <div className="lc-ci-main">
-                <div className="lc-ci-desc">{it?.description || 'No description'}</div>
-                <div className="lc-ci-meta">{bits.reduce((acc, el, i) => (i ? [...acc, <span key={`s${i}`} style={{ color: '#AEB4C2' }}>·</span>, el] : [el]), [])}</div>
-              </div>
-              <div className="lc-ci-right">
-                {it?.status === LaundryStatus?.IN_PROGRESS && (
-                  <button type="button" className="lc-qa" onClick={(e) => { e.stopPropagation(); onAdvance?.(it, LaundryStatus?.READY_TO_DELIVER); }}>
-                    <Icon name="Check" size={12} /> Mark ready
-                  </button>
-                )}
-                {it?.status === LaundryStatus?.READY_TO_DELIVER && (
-                  <button type="button" className="lc-qa go" onClick={(e) => { e.stopPropagation(); onAdvance?.(it, LaundryStatus?.DELIVERED); }}>
-                    <Icon name="ArrowRight" size={12} /> Deliver
-                  </button>
-                )}
-                {it?.status === LaundryStatus?.DELIVERED && (
-                  <span className="lc-done"><Icon name="Check" size={12} /> Delivered</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {(active.length > 0 || openDelivered) && (
+        <div className="lc-items">
+          {active.map(renderItem)}
+          {openDelivered && delivered.map(renderItem)}
+        </div>
+      )}
 
       <div className="lc-foot">
-        <span className="lc-sum">
-          {allDone
-            ? <>All returned <b>✓</b></>
-            : <><b>{g.total}</b> item{g.total === 1 ? '' : 's'}{g.ready > 0 && <> · <b>{g.ready}</b> ready</>}</>}
-        </span>
+        {delivered.length > 0 ? (
+          <button type="button" className={`lc-delsum${openDelivered ? ' open' : ''}`} onClick={() => setOpenDelivered((o) => !o)} aria-expanded={openDelivered}>
+            <Icon name="ChevronRight" size={13} className="lc-delsum-chev" />
+            <b className="tnum">{g.delivered}/{g.total}</b> delivered
+          </button>
+        ) : (
+          <span className="lc-sum"><b>{g.total}</b> item{g.total === 1 ? '' : 's'}{g.ready > 0 && <> · <b>{g.ready}</b> ready</>}</span>
+        )}
         {g.ready > 0 && (
           <button type="button" className="lc-act" onClick={(e) => { e.stopPropagation(); onBulkDeliver(g.list.filter((i) => i?.status === LaundryStatus?.READY_TO_DELIVER)); }}>
             Deliver ready <Icon name="ArrowRight" size={14} />

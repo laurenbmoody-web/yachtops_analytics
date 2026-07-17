@@ -193,6 +193,10 @@
 .lm-group-deliver { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.04em; text-transform: none; color: #C65A1A; background: #FFFFFF; border: 1px solid #F0DDD2; border-radius: 999px; padding: 5px 12px; cursor: pointer; align-self: center; transition: 0.14s; }
 .lm-group-deliver:hover { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
 .lm-group-deliver svg { stroke: currentColor; }
+.lm-group-h.as-btn { width: 100%; background: none; border: none; cursor: pointer; text-align: left; font-family: inherit; }
+.lm-group-h.as-btn:hover .lm-group-t { color: #6E6B85; }
+.lm-group-chev { stroke: #AEB4C2; transition: transform 0.18s ease; flex: none; align-self: center; }
+.lm-group-chev.open { transform: rotate(90deg); stroke: #C65A1A; }
 .lm-row {
   display: flex;
   gap: 16px;
@@ -700,6 +704,11 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lc-ci-right { display: flex; align-items: center; justify-content: flex-end; flex: none; }
 .lc-done { display: inline-flex; align-items: center; gap: 4px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.03em; color: #2F7D5A; }
 .lc-done svg { stroke: currentColor; }
+.lc-delsum { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; padding: 0; cursor: pointer; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6E6B85; }
+.lc-delsum b { color: #2F7D5A; font-weight: 700; margin-right: 2px; }
+.lc-delsum:hover { color: #1C1B3A; }
+.lc-delsum-chev { stroke: #AEB4C2; transition: transform 0.18s ease; flex: none; }
+.lc-delsum.open .lc-delsum-chev { transform: rotate(90deg); stroke: #2F7D5A; }
 .lc-qa { display: inline-flex; align-items: center; gap: 4px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.03em; color: #1C1B3A; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px; padding: 4px 10px; cursor: pointer; transition: 0.13s; }
 .lc-qa:hover { border-color: #C65A1A; color: #C65A1A; background: #FBEFE9; }
 .lc-qa.go { color: #FFFFFF; background: #C65A1A; border-color: #C65A1A; }
