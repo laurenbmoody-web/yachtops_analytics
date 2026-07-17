@@ -33,6 +33,7 @@ const POLL_MS = 30_000;
 export function useInboxCount() {
   const [rotaCount, setRotaCount] = useState(0);
   const [provisioningCount, setProvisioningCount] = useState(0);
+  const [orderSignoffCount, setOrderSignoffCount] = useState(0);
   const [crewRequestCount, setCrewRequestCount] = useState(0);
   const { user } = useAuth();
   const { currentTenantMember, activeTenantId } = useTenant();
@@ -105,6 +106,22 @@ export function useInboxCount() {
     };
   }, [user?.id]);
 
+  // Order sign-offs — chat-accepted orders over the spend limit awaiting this
+  // user's approval. Counts as a Review (not a notification). Tier gating is
+  // enforced by the RPC, so it returns nothing unless the viewer can sign off.
+  useEffect(() => {
+    if (!tenantId) { setOrderSignoffCount(0); return undefined; }
+    let cancelled = false;
+    const fetchCount = async () => {
+      const { data, error } = await supabase.rpc('fetch_pending_order_approvals', { p_tenant_id: tenantId });
+      if (cancelled) return;
+      setOrderSignoffCount(error ? 0 : (data || []).length);
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [tenantId]);
+
   // Crew requests — pending notification_email_requests the viewer can action
   // (RLS returns the viewer's own + any they COMMAND; .neq drops their own, so
   // what's counted is exactly the reviewer set). Table may be pre-migration.
@@ -133,5 +150,5 @@ export function useInboxCount() {
     return () => { cancelled = true; clearInterval(id); };
   }, [user?.id]);
 
-  return rotaCount + provisioningCount + crewRequestCount + seatime.items.length;
+  return rotaCount + provisioningCount + orderSignoffCount + crewRequestCount + seatime.items.length;
 }
