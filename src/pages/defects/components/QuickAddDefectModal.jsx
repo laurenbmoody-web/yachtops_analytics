@@ -3,6 +3,7 @@
 // shortcut.
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import { showToast } from '../../../utils/toast';
 import { useDefectActor } from '../utils/useDefectActor';
@@ -31,7 +32,9 @@ export default function QuickAddDefectModal({ onClose, onSuccess }) {
       </div>
       <div className="qad-body">
         <button type="button" className="qad-map" onClick={() => navigate('/vessel/map')}>
-          📍 <span>Prefer to pin it on the map? <b>Open the vessel map →</b></span>
+          <Icon name="MapPin" size={15} className="qad-map-pin" />
+          <span>Pin it straight on the map</span>
+          <Icon name="ArrowRight" size={14} className="qad-map-arr" />
         </button>
         <DefectLogForm onSubmit={handleSubmit} onCancel={onClose} showLocation />
       </div>
