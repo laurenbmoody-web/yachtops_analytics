@@ -960,6 +960,8 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-dos .lr-av { width: 38px; height: 38px; font-size: 12px; margin-left: 4px; }
 .lb-dos-main { flex: 1; min-width: 0; }
 .lb-dos-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; transition: color 0.14s; }
+.lb-idtag { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.03em; color: #6E6B85; background: #F6F5F2; border: 1px solid #ECEAE3; border-radius: 999px; padding: 2px 8px; margin-left: 9px; vertical-align: middle; }
+.lb-idpin { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(28,27,58,0.18); margin-left: 6px; vertical-align: middle; }
 .lb-dos-sub { font-size: 11.5px; color: #6E6B85; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-dos-ct { text-align: right; flex: none; }
 .lb-dos-ct b { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #1C1B3A; }

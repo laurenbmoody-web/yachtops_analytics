@@ -45,10 +45,15 @@ function peopleFrom(items) {
         : (first.ownerName || 'Unassigned');
     const areas = [...new Set(p.items.map((i) => i.area).filter(Boolean))];
     const last = p.items.reduce((a, i) => { const t = i.deliveredAt || i.createdAt; return !a || t > a ? t : a; }, null);
+    // The per-person identifier: cabin (guest) or laundry number (crew) sits in
+    // `area`; `colour` is the peg/pin colour. Take the most-used of each.
+    const tally = (vals) => { const m = {}; vals.forEach((v) => { m[v] = (m[v] || 0) + 1; }); return Object.keys(m).sort((a, b) => m[b] - m[a])[0] || ''; };
+    p.area = areas[0] || '';
+    p.colour = tally(p.items.map((i) => i.colour).filter(Boolean));
     p.avatarUrl = p.items.find((i) => i.avatarUrl)?.avatarUrl || null;
     p.count = p.items.length;
     p.delivered = p.items.filter((i) => i.status === LaundryStatus.DELIVERED).length;
-    p.sub = [areas[0], last ? `last ${dmy(last)}, ${clock(last)}` : null].filter(Boolean).join(' · ');
+    p.sub = last ? `last ${dmy(last)}, ${clock(last)}` : '';
     out.push(p);
   }
   const rank = { guest: 0, crew: 1, vessel: 2, unknown: 3 };
