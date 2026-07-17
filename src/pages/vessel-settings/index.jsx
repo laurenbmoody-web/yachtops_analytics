@@ -573,7 +573,7 @@ const VesselSettings = () => {
             className={`vh-rail-it${activeSection === section?.id ? ' active' : ''}`}
             title={navCollapsed ? section?.label : undefined}
           >
-            <Icon name={section?.icon} size={17} color={activeSection === section?.id ? '#C65A1A' : '#8B8478'} />
+            <Icon name={section?.icon} size={18} color={activeSection === section?.id ? '#C65A1A' : '#8B8478'} />
             <span>{section?.label}</span>
           </button>
         ))}

@@ -65,8 +65,8 @@ body.settings-editorial {
 .settings-page .set-nav-grp.first { padding-top: 2px; }
 .settings-page .set-nav-grp.first { padding-top: 2px; }
 .settings-page .set-nav-it {
-  display: flex; align-items: center; gap: 11px; width: 100%; padding: 8px 10px; border-radius: 9px;
-  border: 0; background: none; font: inherit; font-size: 13.5px; font-weight: 500; color: #5A5470;
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 9px;
+  border: 0; background: none; font-family: 'Manrope', 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 500; color: #695880;
   cursor: pointer; text-align: left; transition: background 0.12s ease, color 0.12s ease;
 }
 .settings-page .set-nav-it span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; }
