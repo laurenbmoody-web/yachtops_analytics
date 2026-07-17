@@ -114,6 +114,9 @@
 .vmd-pinlink svg { flex: 0 0 auto; }
 .vmd-pinlink:hover:not(:disabled) { color: #B14E16; }
 .vmd-pinlink:disabled { opacity: .5; cursor: default; }
+/* Note shown when "Set on map" is chosen — the pin is dropped after logging. */
+.vmd-pinnote { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #6B7280; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 9px; padding: 9px 11px; line-height: 1.4; }
+.vmd-pinnote svg { flex: 0 0 auto; color: #C65A1A; }
 
 /* view card */
 .vmd-card { display: flex; flex-direction: column; gap: 14px; }
