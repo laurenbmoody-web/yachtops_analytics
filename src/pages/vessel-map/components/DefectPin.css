@@ -189,6 +189,17 @@
 .vmd-form-head { margin-bottom: 16px; }
 .vmd-form-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 0; }
 
+/* ── Uniform typeface across the whole log form ────────────────────────────
+   A global base rule (`span, button, input, textarea, select { 'Plus Jakarta
+   Sans' }`) leaks a rounded font onto every bare span/button, so field headers
+   rendered as <label> (Inter) ended up beside headers rendered as <span>
+   (Plus Jakarta Sans) — two different typefaces in one form. Pin the form and
+   its header chrome to the editorial Inter so every field header reads the
+   same and every field value reads the same. The serif title is re-asserted. */
+.vmd-formwrap, .vmd-formwrap *,
+.vmd-form, .vmd-form * { font-family: 'Inter', system-ui, sans-serif; }
+.vmd-form-title { font-family: 'DM Serif Display', Georgia, serif; }
+
 /* Compact inspector summary (launches the wide modal). */
 .vmd-summary { display: flex; flex-direction: column; gap: 10px; }
 .vmd-open-btn { align-self: flex-start; }

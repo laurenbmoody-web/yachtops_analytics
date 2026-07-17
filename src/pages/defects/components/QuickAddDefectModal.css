@@ -2,6 +2,11 @@
 .qad { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; width: 100%; max-width: 580px;
   background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,.32);
   display: flex; flex-direction: column; max-height: 88vh; }
+/* Override the global `span, button, input { 'Plus Jakarta Sans' }` base rule so
+   every header and value in the modal shares one editorial typeface (Inter);
+   the serif title is re-asserted just below. */
+.qad * { font-family: 'Inter', system-ui, sans-serif; }
+.qad-head h3 { font-family: 'DM Serif Display', Georgia, serif; }
 .qad-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 22px; border-bottom: 1px solid #ECEAE3; }
 .qad-head h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 0; }
 .qad-viewall { background: none; border: 0; padding: 0; font-family: inherit; font-size: 12px; font-weight: 600; color: #C65A1A; cursor: pointer; white-space: nowrap; }
