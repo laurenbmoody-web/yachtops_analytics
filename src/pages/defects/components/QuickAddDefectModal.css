@@ -1,13 +1,13 @@
 /* Quick-add defect modal — editorial, portaled via ModalShell. Prefix: qad- */
-.qad { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; width: 100%; max-width: 500px;
+.qad { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; width: 100%; max-width: 580px;
   background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,.32);
   display: flex; flex-direction: column; max-height: 88vh; }
-.qad-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #ECEAE3; }
-.qad-head h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 20px; margin: 0; }
+.qad-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 22px; border-bottom: 1px solid #ECEAE3; }
+.qad-head h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 0; }
 .qad-viewall { background: none; border: 0; padding: 0; font-family: inherit; font-size: 12px; font-weight: 600; color: #C65A1A; cursor: pointer; white-space: nowrap; }
 .qad-x { width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; color: #6B7280; font-size: 18px; cursor: pointer; }
 
-.qad-body { padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.qad-body { padding: 18px 22px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
 .qad-field { display: flex; flex-direction: column; gap: 5px; }
 .qad-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .qad-lbl .req { color: #C65A1A; margin-left: 5px; text-transform: lowercase; letter-spacing: .3px; }
