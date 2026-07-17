@@ -515,9 +515,9 @@ const SupplierMessages = () => {
           const dt = new Date(); dt.setHours(Number(hh), Number(mm), 0, 0);
           etaISO = dt.toISOString();
         }
-        label = `🚚 Out for delivery${delivEta ? ` · ETA ${delivEta}` : ''}`;
+        label = `Out for delivery${delivEta ? ` · ETA ${delivEta}` : ''}`;
       } else {
-        label = '✅ Delivered';
+        label = 'Delivered';
       }
       if (activeOrder?.id) {
         const updated = await setOrderDelivery(activeOrder.id, status, etaISO);
@@ -1107,7 +1107,6 @@ const SupplierMessages = () => {
                       )}
                     </div>
                     {phone && <a className="msg-ic" href={`tel:${phone}`} title={`Call ${contact || 'yacht'}`} aria-label="Call"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.94.36 1.86.68 2.75a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.33-1.33a2 2 0 0 1 2.11-.45c.89.32 1.81.55 2.75.68A2 2 0 0 1 22 16.92z" /></svg></a>}
-                    <button type="button" className="msg-ic" title="View client profile" aria-label="View profile" onClick={() => navigate(`/supplier/clients/${activeThread.tenant_id}`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg></button>
                   </div>
                 </div>
 
@@ -1337,13 +1336,10 @@ const SupplierMessages = () => {
                   )}
                   <div className="msg-quick">
                     <button type="button" className="msg-qchip msg-qchip-ai" onClick={toQuote} disabled={aiLoading} title="Turn the request into a priced quote using your catalogue">
-                      {aiLoading ? 'Drafting quote…' : '✨ Turn into a quote'}
+                      {aiLoading ? 'Drafting quote…' : 'Turn into a quote'}
                     </button>
                     <div className="msg-tpl">
-                      <button type="button" className="msg-qchip" onClick={() => setTplOpen((o) => !o)} title="Insert a saved reply">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, verticalAlign: '-1px' }}><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
-                        Saved replies
-                      </button>
+                      <button type="button" className="msg-qchip" onClick={() => setTplOpen((o) => !o)} title="Insert a saved reply">Saved replies</button>
                       {tplOpen && (
                         <div className="msg-tpl-menu" role="menu">
                           <div className="msg-assign-head">Saved replies</div>
@@ -1362,20 +1358,20 @@ const SupplierMessages = () => {
                       )}
                     </div>
                     <div className="msg-tpl">
-                      <button type="button" className="msg-qchip msg-qchip-status" onClick={() => setDelivOpen((o) => !o)} title="Post a delivery update">🚚 Delivery</button>
+                      <button type="button" className="msg-qchip msg-qchip-status" onClick={() => setDelivOpen((o) => !o)} title="Post a delivery status update">Delivery status</button>
                       {delivOpen && (
                         <div className="msg-tpl-menu" role="menu" style={{ width: 240 }}>
-                          <div className="msg-assign-head">Delivery update</div>
+                          <div className="msg-assign-head">Post a delivery status</div>
                           <div className="msg-deliv-eta">
                             <label className="msg-profile-lab" style={{ marginTop: 0 }}>ETA (optional)</label>
                             <input type="time" className="msg-profile-in" value={delivEta} onChange={(e) => setDelivEta(e.target.value)} />
                           </div>
                           <button type="button" className="msg-tpl-insert" disabled={delivBusy} onClick={() => postDelivery('out_for_delivery')}>
-                            <span className="msg-tpl-label">🚚 Out for delivery{delivEta ? ` · ETA ${delivEta}` : ''}</span>
+                            <span className="msg-tpl-label">Out for delivery{delivEta ? ` · ETA ${delivEta}` : ''}</span>
                             <span className="msg-tpl-body">Marks the order out for delivery{activeOrder ? '' : ' (no order linked — posts a note only)'}.</span>
                           </button>
                           <button type="button" className="msg-tpl-insert" disabled={delivBusy} onClick={() => postDelivery('received')}>
-                            <span className="msg-tpl-label">✅ Delivered</span>
+                            <span className="msg-tpl-label">Delivered</span>
                             <span className="msg-tpl-body">Marks the order delivered.</span>
                           </button>
                         </div>
