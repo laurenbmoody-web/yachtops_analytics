@@ -1489,3 +1489,25 @@
 }
 .rv-cr-decline:hover { background: #FBF3F1; }
 .rv-cr-decline:disabled { opacity: 0.6; cursor: default; }
+
+/* Order sign-off pane — plainer than the editorial board-approval pane:
+   no big italic serif, tighter item layout. */
+.ord-signoff .ord-rp-note { border-left-color: #C65A1A; margin-bottom: 22px; padding: 8px 0 8px 16px; }
+.ord-signoff .ord-rp-note-body {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 13.5px;
+  line-height: 1.55;
+  font-weight: 500;
+  color: var(--d-muted);
+}
+.ord-signoff .ord-rp-section-h {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+}
+.ord-signoff .ord-rp-section-h span { display: none; }
+.ord-signoff .ord-rp-title { font-size: 30px; }

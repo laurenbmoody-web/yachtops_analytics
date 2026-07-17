@@ -324,7 +324,18 @@ const CrewMessages = () => {
     return () => { supabase.removeChannel(ch); };
   }, [activeTenantId, load]);
 
-  useEffect(() => { const el = streamRef.current; if (el) el.scrollTop = el.scrollHeight; }, [messages, activeId]);
+  // Pin the stream to the newest message on open + on new messages. Scroll now,
+  // on the next paint, and once more after layout settles (avatars/attachments
+  // can push content down after the first pass).
+  useEffect(() => {
+    const el = streamRef.current;
+    if (!el) return undefined;
+    const toBottom = () => { el.scrollTop = el.scrollHeight; };
+    toBottom();
+    const raf = requestAnimationFrame(toBottom);
+    const t = setTimeout(toBottom, 80);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+  }, [messages, activeId]);
 
   const totalUnread = useMemo(() => threads.reduce((s, t) => s + (t.id === activeId || t.archived_at ? 0 : (t.vessel_unread_count || 0)), 0), [threads, activeId]);
   const awaiting = useMemo(() => threads.filter((t) => !t.archived_at && t.last_sender_type === 'supplier'), [threads]);

@@ -76,7 +76,7 @@ export default function OrderSignoffRightPane({ request, onResolved, onToast }) 
   };
 
   return (
-    <div className="pv-dashboard ord-rp">
+    <div className="pv-dashboard ord-rp ord-signoff">
       <header className="ord-rp-head">
         <div className="ord-rp-head-top">
           <div className="ord-rp-eyebrow">SUPPLY · ORDER SIGN-OFF</div>

@@ -387,7 +387,15 @@ const SupplierMessages = () => {
 
   // Scroll the message stream itself (not the page) to the latest — using
   // scrollIntoView here would scroll the whole portal, clipping the header + composer.
-  useEffect(() => { const el = streamRef.current; if (el) el.scrollTop = el.scrollHeight; }, [messages, activeId]);
+  useEffect(() => {
+    const el = streamRef.current;
+    if (!el) return undefined;
+    const toBottom = () => { el.scrollTop = el.scrollHeight; };
+    toBottom();
+    const raf = requestAnimationFrame(toBottom);
+    const t = setTimeout(toBottom, 80);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+  }, [messages, activeId]);
 
   const nameFor = (t) => (t ? (names[t.tenant_id] || t.tenants?.name || 'Yacht client') : '');
   // Vessel avatar — the uploaded logo when present, else a tinted monogram.
