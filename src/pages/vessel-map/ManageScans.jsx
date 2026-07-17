@@ -346,6 +346,25 @@ export default function ManageScans() {
     loadAll();
   };
 
+  // Re-straighten an already-uploaded scan in place (no re-upload) — seeds the
+  // orient step from its current rotation. This is where straightening lives
+  // now; the daily map view no longer carries the button.
+  const straightenExisting = async (s) => {
+    setUploadError(null);
+    const { data: signed, error: signError } = await supabase.storage
+      .from('vessel-scans').createSignedUrl(s.storage_path, 3600);
+    if (signError) console.error('[manage-scans] straighten sign error:', signError);
+    setUploadedScan(s);
+    setOrientDraft({
+      x: Number(s.splat_rotation?.x) || 0,
+      y: Number(s.splat_rotation?.y) || 0,
+      z: Number(s.splat_rotation?.z) || 0,
+    });
+    setOrientError(null);
+    setOrientUrl(signed?.signedUrl || null);
+    setStep('orient');
+  };
+
   // ── Per-row actions ──────────────────────────────────────────────────────
   const editValue = (s, field) => rowEdits[s.id]?.[field] ?? s[field] ?? '';
   const setEdit = (id, field, value) =>
@@ -723,6 +742,7 @@ export default function ManageScans() {
                       <button className="vmc-action" onClick={() => pickReplacement(active)}>
                         {incomplete ? 'Upload file' : 'Replace file'}
                       </button>
+                      <button className="vmc-action" onClick={() => straightenExisting(active)} disabled={incomplete}>Straighten</button>
                       <button className="vmc-action vmc-action-danger" onClick={() => { setDeleteError(null); setDeleteTarget(active); }}>Delete</button>
                     </div>
                   )}

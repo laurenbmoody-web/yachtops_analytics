@@ -116,6 +116,11 @@
 .vm-roompick-search { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 8px 11px;
   border: 1px solid #E8E6DF; border-radius: 9px; background: #FAFAF8; transition: border-color .12s, box-shadow .12s; }
 .vm-roompick-search:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+/* When the a11y focus ring is on, wrap the whole rounded field — not the inner
+   text box, which drew a boxy outline. Scoped high enough to beat the global. */
+:root[data-focus-rings="true"] .vm-roompick-search input:focus-visible { outline: none !important; }
+:root[data-focus-rings="true"] .vm-roompick-search:focus-within {
+  outline: 3px solid #C65A1A; outline-offset: 2px; border-radius: 9px; }
 .vm-roompick-search > svg { color: #AEB4C2; flex: none; }
 .vm-roompick-search input { flex: 1; border: 0; outline: none; background: none; font-family: inherit;
   font-size: 13.5px; color: #1C1B3A; }

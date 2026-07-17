@@ -17,7 +17,6 @@ import SplatViewer from './components/SplatViewer';
 import ToolRail from './components/ToolRail';
 import Inspector from './components/Inspector';
 import InteriorView from './components/InteriorView';
-import OrientPanel from './components/OrientPanel';
 import PinPayload from './components/PinPayload';
 import PinItems from './components/PinItems';
 import RoomPicker from './components/RoomPicker';
@@ -92,10 +91,8 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   const [adjusting, setAdjusting] = useState(null); // pin being repositioned
   const [adjustError, setAdjustError] = useState(null);
   const [adjustSaving, setAdjustSaving] = useState(false);
-  const [orientDraft, setOrientDraft] = useState(null); // {x,y,z} radians while orienting
-  const [orientError, setOrientError] = useState(null);
-  const [orientSaving, setOrientSaving] = useState(false);
-  const viewerApiRef = useRef(null); // SplatViewer API — poster capture on orient save
+  const orientDraft = null; // straightening moved to Manage scans; kept for the render guards below
+  const viewerApiRef = useRef(null); // SplatViewer API — poster capture for thumbnails
   // ?pin= deep link (from inventory's "On the vessel map"), consumed once.
   const pendingPinRef = useRef(new URLSearchParams(window.location.search).get('pin'));
   // ?placeItem=&placeName= — arrived from an item's Location "Set location on the
@@ -665,44 +662,9 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   }, [immersive]);
 
   // ── Orient scan (COMMAND/CHIEF): rotate-90° per axis, live re-frame, save.
-  // Tuning orientation by SQL stops today. Controls live in OrientPanel
-  // (shared with the manage surface's post-upload step).
-  const baseRotation = selectedScan?.splat_rotation || { x: 0, y: 0, z: 0 };
-  const liveRotation = orientDraft ?? baseRotation;
-  const saveOrientation = async () => {
-    if (!orientDraft || orientSaving) return;
-    setOrientSaving(true);
-    setOrientError(null);
-    // Capture the approved frame first — any orient save refreshes the
-    // poster so manage-list thumbnails never drift from the canonical view.
-    let thumbBlob = null;
-    try {
-      thumbBlob = await viewerApiRef.current?.captureFrame?.();
-    } catch (err) {
-      console.error('[vessel-map] thumb capture error:', err);
-    }
-    const { error } = await supabase
-      .from('vessel_scans')
-      .update({ splat_rotation: orientDraft })
-      .in('id', [selectedScan.id]);
-    setOrientSaving(false);
-    if (error) {
-      console.error('[vessel-map] orientation save error:', error);
-      setOrientError(error.message || 'Could not save the orientation.');
-      return;
-    }
-    const newThumbPath = thumbBlob
-      ? await refreshScanThumb({ scan: selectedScan, tenantId: activeTenantId, blob: thumbBlob })
-      : null;
-    setScans((prev) => prev.map((s) => (s.id === selectedScan.id
-      ? { ...s, splat_rotation: orientDraft, ...(newThumbPath ? { thumb_path: newThumbPath } : {}) }
-      : s)));
-    setOrientDraft(null);
-  };
-  const cancelOrientation = () => {
-    setOrientDraft(null);
-    setOrientError(null);
-  };
+  // The viewer applies each scan's saved rotation. Straightening a scan now
+  // lives on the Manage scans surface, not the daily map.
+  const liveRotation = selectedScan?.splat_rotation || { x: 0, y: 0, z: 0 };
 
   // Returns an error message on failure (inspector shows it), null on success.
   const deleteHotspot = async (id) => {
@@ -973,35 +935,9 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   </div>
                 )}
 
-                {/* Orient scan (COMMAND/CHIEF, desktop): rotate-90° per axis,
-                    live re-frame, save writes the row. */}
-                {canPlaceHotspots && viewer.status === 'ready' && (
-                  orientDraft === null ? (
-                    <button
-                      className="vm-orient-open"
-                      title="Fix a scan that loads tilted or on its side"
-                      onClick={() => {
-                        setOrientError(null);
-                        setOrientDraft({
-                          x: Number(baseRotation.x) || 0,
-                          y: Number(baseRotation.y) || 0,
-                          z: Number(baseRotation.z) || 0,
-                        });
-                      }}
-                    >
-                      Straighten scan
-                    </button>
-                  ) : (
-                    <OrientPanel
-                      value={liveRotation}
-                      onChange={(next) => { setOrientError(null); setOrientDraft(next); }}
-                      onSave={saveOrientation}
-                      onCancel={cancelOrientation}
-                      saving={orientSaving}
-                      error={orientError}
-                    />
-                  )
-                )}
+                {/* Straightening a scan now lives in Manage scans (per-scan,
+                    where scans are set up) — off the daily map view. The viewer
+                    still applies each scan's saved rotation via liveRotation. */}
 
                 {/* ≥1024px: the inspector replaces the floating card. */}
                 <Inspector
