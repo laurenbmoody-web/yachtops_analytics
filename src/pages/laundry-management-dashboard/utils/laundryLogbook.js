@@ -15,7 +15,7 @@ const monthLabel = (d) => d.toLocaleDateString('en-GB', { month: 'long', year: '
 const dmy = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
 const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
 const dateOnly = (iso) => { const d = new Date(iso); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
-const kindOf = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : k === 'vessel' ? 'vessel' : 'unknown'; };
+const kindOf = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : (k === 'vessel' || k === 'other') ? 'vessel' : 'unknown'; };
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 export const fmtDur = (m) => { if (m == null || !isFinite(m)) return '—'; const h = Math.floor(m / 60); const mm = Math.round(m % 60); return h ? `${h}h ${mm}m` : `${mm}m`; };
 
@@ -41,7 +41,7 @@ function peopleFrom(items) {
   for (const p of map.values()) {
     const first = p.items[0];
     p.name = p.kind === 'unknown' ? 'Found & unclaimed'
-      : p.kind === 'vessel' ? 'Vessel linens'
+      : p.kind === 'vessel' ? 'Vessel & other'
         : (first.ownerName || 'Unassigned');
     const areas = [...new Set(p.items.map((i) => i.area).filter(Boolean))];
     const last = p.items.reduce((a, i) => { const t = i.deliveredAt || i.createdAt; return !a || t > a ? t : a; }, null);

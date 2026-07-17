@@ -11,7 +11,7 @@ const STEP = {
 
 const ownerKind = (t) => {
   const k = (t || 'unknown').toLowerCase();
-  return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : 'unknown';
+  return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : k === 'other' ? 'other' : 'unknown';
 };
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 const fmtAgo = (iso) => {
@@ -38,7 +38,7 @@ const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
   const notDelivered = item?.status !== LaundryStatus?.DELIVERED;
   const overdue = item?.neededBy && notDelivered && new Date(item.neededBy) < new Date();
   const photos = Array.isArray(item?.photos) && item.photos.length ? item.photos : (item?.photo ? [item.photo] : []);
-  const avInitials = kind === 'unknown' ? '?' : initials(item?.ownerName || item?.ownerDisplayName);
+  const avInitials = kind === 'unknown' ? '?' : kind === 'other' ? '' : initials(item?.ownerName || item?.ownerDisplayName);
 
   return (
     <div
@@ -64,7 +64,7 @@ const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
           {item?.flag === 'missing' && <span className="lr-cond mis"><Icon name="HelpCircle" size={11} /> Missing</span>}
         </div>
         <div className="lr-sub">
-          <span className="lr-who"><span className={`lr-av ${kind}`}>{item?.avatarUrl ? <img src={item.avatarUrl} alt="" /> : avInitials}</span>{kind === 'unknown' ? 'Unknown' : (item?.ownerName || 'Unassigned')}</span>
+          <span className="lr-who"><span className={`lr-av ${kind}`}>{item?.avatarUrl ? <img src={item.avatarUrl} alt="" /> : (kind === 'other' ? <Icon name="Package" size={13} /> : avInitials)}</span>{kind === 'unknown' ? 'Unknown' : kind === 'other' ? 'Other' : (item?.ownerName || 'Unassigned')}</span>
           {item?.area && (<><span className="sep">·</span><b>{item.area}</b></>)}
           {item?.laundryNumber && (<><span className="sep">·</span><span>No. {item.laundryNumber}</span></>)}
           {item?.colour && (<><span className="sep">·</span><span>{item.colour}</span></>)}

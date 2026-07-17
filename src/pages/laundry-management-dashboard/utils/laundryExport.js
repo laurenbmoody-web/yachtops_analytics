@@ -8,7 +8,7 @@ const STATUS_LABEL = {
   [LaundryStatus.READY_TO_DELIVER]: 'Ready to deliver',
   [LaundryStatus.DELIVERED]: 'Delivered',
 };
-const kindLabel = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'Guest' : k === 'crew' ? 'Crew' : k === 'vessel' ? 'Vessel' : 'Unknown'; };
+const kindLabel = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'Guest' : k === 'crew' ? 'Crew' : (k === 'vessel' || k === 'other') ? 'Other' : 'Unknown'; };
 const dt = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 const turnMin = (i) => (i.status === LaundryStatus.DELIVERED && i.deliveredAt && i.createdAt
   ? Math.max(0, Math.round((new Date(i.deliveredAt) - new Date(i.createdAt)) / 60000)) : '');

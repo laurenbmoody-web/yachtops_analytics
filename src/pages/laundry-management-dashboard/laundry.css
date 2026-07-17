@@ -696,6 +696,8 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lr-av.guest { background: linear-gradient(140deg, #3E5C76, #243B54); }
 .lr-av.crew { background: linear-gradient(140deg, #6B5E86, #403453); }
 .lr-av.unk { background: linear-gradient(140deg, #8A8FA0, #5C6072); }
+.lr-av.other { background: linear-gradient(140deg, #6E8B7A, #3F5A4A); }
+.lr-av.other svg { stroke: #FFFFFF; }
 .lr-av img { width: 100%; height: 100%; object-fit: cover; border-radius: 999px; display: block; }
 .lr-sub .sep { color: #AEB4C2; }
 .lr-sub b { color: #1C1B3A; font-weight: 600; }
