@@ -17,6 +17,20 @@ export const fetchVesselThreads = async (tenantId) => {
   return data ?? [];
 };
 
+// Open (or reuse) the caller's own 1:1 thread with a supplier contact. Crew can
+// no longer read a shared vessel thread — this stamps the caller as a
+// participant so the new private RLS admits them. contactId null → the RPC
+// picks the supplier's owner/primary contact with a login.
+export const getOrCreateDmThread = async (supplierId, tenantId, contactId = null) => {
+  const { data, error } = await supabase.rpc('get_or_create_dm_thread', {
+    p_supplier_id: supplierId,
+    p_tenant_id: tenantId,
+    p_contact_id: contactId,
+  });
+  if (error) throw error;
+  return data;
+};
+
 export const fetchThreadMessages = async (threadId) => {
   const { data, error } = await supabase
     .from('supplier_messages')
