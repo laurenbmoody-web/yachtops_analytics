@@ -96,6 +96,9 @@
   .vm-topbar-manage { display: inline-flex; margin-left: auto; }
 }
 
+/* Fullscreen hides the top bar — float the same controls on the stage. */
+.vm-fs-controls { position: absolute; top: 16px; left: 16px; z-index: 30; display: flex; align-items: center; gap: 12px; }
+
 /* Room selector — a compact searchable dropdown (scales to any room count) */
 .vm-roompick { position: relative; }
 .vm-roompick-btn { display: inline-flex; align-items: center; gap: 9px; min-width: 220px; max-width: 340px;
@@ -112,15 +115,17 @@
   background: #fff; border: 1px solid #ECEAE3; border-radius: 13px; overflow: hidden;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); }
 /* rounded field, editorial focus halo (no square browser outline) */
-.vm-roompick-search { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 8px 11px;
-  border: 1px solid #E8E6DF; border-radius: 9px; background: #FAFAF8; transition: border-color .12s, box-shadow .12s; }
-.vm-roompick-search:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
-/* Kill the boxy a11y outline on the inner text box — the rounded field border +
-   halo above is the focus indicator. Scoped high enough to beat the global rule. */
-:root[data-focus-rings="true"] .vm-roompick-search input:focus-visible { outline: none !important; }
+/* Plain search line — no box, just an icon + input over a hairline. */
+.vm-roompick-search { display: flex; align-items: center; gap: 8px; padding: 11px 12px; border-bottom: 1px solid #F0F1F5; }
 .vm-roompick-search > svg { color: #AEB4C2; flex: none; }
-.vm-roompick-search input { flex: 1; border: 0; outline: none; background: none; font-family: inherit;
+.vm-roompick-search input { flex: 1; border: 0; background: none; font-family: inherit;
   font-size: 13.5px; color: #1C1B3A; }
+/* Kill every focus outline/box on the input, from any source (incl. the a11y
+   ring). Specificity (0,3,1) beats the global :focus-visible rule (0,3,0). */
+.vm-roompick .vm-roompick-search input,
+.vm-roompick .vm-roompick-search input:focus,
+.vm-roompick .vm-roompick-search input:focus-visible {
+  outline: none !important; box-shadow: none !important; border: 0 !important; }
 .vm-roompick-search input::placeholder { color: #AEB4C2; }
 
 .vm-roompick-list { max-height: 320px; overflow-y: auto; padding: 0 6px 6px; }
@@ -177,7 +182,7 @@
 /* ── Layers control — one button → a popover of layers (icon · count · toggle) ─ */
 .vm-layers { position: relative; }
 .vm-layers-btn { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; border: 1px solid #E8E6DF;
-  background: #FAFAF8; color: #1C1B3A; font-size: 12px; font-weight: 600; padding: 7px 12px; cursor: pointer; font-family: inherit; }
+  background: #fff; color: #1C1B3A; font-size: 12px; font-weight: 600; padding: 7px 12px; cursor: pointer; font-family: inherit; }
 .vm-layers-btn:hover, .vm-layers-btn.open { border-color: #C65A1A; }
 .vm-layers-btn > svg { color: #8B8478; }
 .vm-layers-n { font-size: 10.5px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }

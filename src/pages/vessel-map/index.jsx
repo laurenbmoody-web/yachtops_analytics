@@ -898,6 +898,17 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   interior={!!openContainer}
                 />
 
+                {/* Fullscreen hides the top bar, so float the room picker +
+                    filters onto the stage while immersive. */}
+                {immersive && (
+                  <div className="vm-fs-controls">
+                    {scans.length > 1 && (
+                      <RoomPicker scans={scans} selectedScanId={selectedScanId} onSelect={setSelectedScanId} />
+                    )}
+                    <div className="vm-topbar-filters">{layersControl('')}</div>
+                  </div>
+                )}
+
                 {placingItem && (
                   <div className="vm-placing-bar">
                     <span className="vm-placing-text">Placing <strong>{placingItem.name}</strong> — tap a pin, then set how many are here.</span>
