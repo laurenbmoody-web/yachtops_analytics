@@ -1047,6 +1047,19 @@ body.crew-profile-editorial {
   border-radius: 14px;
 }
 
+/* Collapsible left rail */
+.crew-profile-page .cp-navgrid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+@media (min-width: 1024px) { .crew-profile-page .cp-navgrid { grid-template-columns: 250px 1fr; } .crew-profile-page .cp-navgrid.collapsed { grid-template-columns: 64px 1fr; } }
+.crew-profile-page .cp-rail-top { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 4px; }
+.crew-profile-page .cp-rail-collapse { background: none; border: 0; cursor: pointer; color: #AEB4C2; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; flex: none; }
+.crew-profile-page .cp-rail-collapse:hover { color: #C65A1A; background: #F6F7FA; }
+.crew-profile-page .cp-rail-box.collapsed { padding: 10px 8px; }
+.crew-profile-page .cp-rail-box.collapsed .cp-rail-top { justify-content: center; padding: 2px 0 4px; }
+.crew-profile-page .cp-rail-box.collapsed .cp-rail-top .cp-nav-grp { display: none; }
+.crew-profile-page .cp-rail-box.collapsed .cp-nav-grp { display: none; }
+.crew-profile-page .cp-rail-box.collapsed .cp-nav-it { justify-content: center; padding: 9px 0; }
+.crew-profile-page .cp-rail-box.collapsed .cp-nav-it span { display: none; }
+
 /* Grouped left rail (Option C): items under quiet section labels, active
    row in terracotta on a soft tint. Icons inherit the row's currentColor. */
 .crew-profile-page .cp-nav-grp {

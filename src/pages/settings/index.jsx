@@ -174,6 +174,14 @@ const SettingsPage = () => {
   };
 
   const [activeSection, setActiveSection] = useState('account');
+  const [navCollapsed, setNavCollapsed] = useState(() => {
+    try { return localStorage.getItem('set-nav-collapsed') === '1'; } catch { return false; }
+  });
+  const toggleNav = () => setNavCollapsed((c) => {
+    const next = !c;
+    try { localStorage.setItem('set-nav-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
+    return next;
+  });
   const [prefs, setPrefs] = useState(() => Object.fromEntries(Object.keys(PREF_DEFAULTS).map(n => [n, readPref(n)])));
   const [timezone, setTimezone] = useState(localStorage.getItem('userTimezone') || 'UTC');
   const [tzOpen, setTzOpen] = useState(false);
@@ -1289,15 +1297,21 @@ const SettingsPage = () => {
           >
             <Icon name="ChevronLeft" size={16} /> {activeTenantId ? 'Back to Dashboard' : 'Back'}
           </button>
-          <div className="set-layout">
-            {/* Rail */}
-            <aside className="set-rail">
+          <div className={`set-layout${navCollapsed ? ' collapsed' : ''}`}>
+            {/* Rail — boxed grouped nav (crew-profile flatcard style), collapsible */}
+            <aside className={`set-rail${navCollapsed ? ' collapsed' : ''}`}>
+              <div className="set-rail-top">
+                <span className="set-nav-grp first">Menu</span>
+                <button className="set-rail-collapse" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'}>
+                  <Icon name={navCollapsed ? 'ChevronRight' : 'ChevronLeft'} size={16} />
+                </button>
+              </div>
               <nav>
                 {NAV.map((group, gi) => (
                   <React.Fragment key={group.grp}>
                     <div className={`set-nav-grp${gi === 0 ? ' first' : ''}`}>{group.grp}</div>
                     {group.items.map(item => (
-                      <button key={item.id} className={`set-nav-it${activeSection === item.id ? ' active' : ''}`} onClick={() => setActiveSection(item.id)}>
+                      <button key={item.id} className={`set-nav-it${activeSection === item.id ? ' active' : ''}`} onClick={() => setActiveSection(item.id)} title={navCollapsed ? item.label : undefined}>
                         <Icon name={item.icon} size={17} color={activeSection === item.id ? '#C65A1A' : '#8B8478'} />
                         <span>{item.label}</span>
                       </button>
@@ -1309,7 +1323,7 @@ const SettingsPage = () => {
                     <div className="set-nav-grp">Vessel</div>
                     {/* One entry that jumps straight to the vessel settings page,
                         which hosts its own sections (profile, locations, roles…). */}
-                    <button className="set-nav-it" onClick={() => navigate('/settings/vessel')}>
+                    <button className="set-nav-it" onClick={() => navigate('/settings/vessel')} title={navCollapsed ? 'Vessel settings' : undefined}>
                       <Icon name="Ship" size={17} color="#8B8478" />
                       <span>Vessel settings</span>
                       <Icon name="ArrowUpRight" size={14} className="set-ext" />

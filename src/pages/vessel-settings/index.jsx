@@ -561,16 +561,22 @@ const VesselSettings = () => {
   const titleAccent = titleWords.pop();
   const titleLead = titleWords.join(' ');
 
-  // Settings-style rail (plain grouped nav) — shared by every section.
+  // Boxed grouped rail (mirrors the crew-profile flatcard), collapsible.
   const railNav = (
-    <aside className="vh-rail" aria-label="Vessel sections">
+    <aside className={`vh-rail${navCollapsed ? ' collapsed' : ''}`} aria-label="Vessel sections">
+      <div className="vh-rail-top">
+        <span className="vh-rail-grp">Vessel</span>
+        <button className="vh-rail-collapse" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'}>
+          <Icon name={navCollapsed ? 'ChevronRight' : 'ChevronLeft'} size={16} />
+        </button>
+      </div>
       <nav>
-        <div className="vh-rail-grp">Vessel</div>
         {sections?.map(section => (
           <button
             key={section?.id}
             onClick={() => setActiveSection(section?.id)}
             className={`vh-rail-it${activeSection === section?.id ? ' active' : ''}`}
+            title={navCollapsed ? section?.label : undefined}
           >
             <Icon name={section?.icon} size={17} color={activeSection === section?.id ? '#C65A1A' : '#8B8478'} />
             <span>{section?.label}</span>
@@ -592,6 +598,7 @@ const VesselSettings = () => {
              rail + deck grid — mirroring the crew profile layout. */
           <VesselProfileStack
             rail={railNav}
+            navCollapsed={navCollapsed}
             vesselData={vesselData}
             formState={formState}
             canEdit={canEdit}
@@ -625,7 +632,7 @@ const VesselSettings = () => {
               <h1 className="editorial-greeting vh-greeting">{titleLead ? <>{titleLead}<span className="period">,</span> </> : null}<em>{titleAccent}</em><span className="period">.</span></h1>
             </div>
 
-            <div className="vh-layout">
+            <div className={`vh-layout${navCollapsed ? ' collapsed' : ''}`}>
               {railNav}
               <div className="vh-content">
                 {renderContent()}

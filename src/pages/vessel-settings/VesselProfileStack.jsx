@@ -244,7 +244,7 @@ function DeptPills({ cfg, value, options, canEdit, onSave, toast }) {
 /* ── the deck ── */
 export default function VesselProfileStack(props) {
   const {
-    rail,
+    rail, navCollapsed,
     vesselData, formState, canEdit, departmentOptions, saveField,
     logoInputRef, onLogoChange, uploadingLogo, logoUploadError, onRemoveLogo,
     heroInputRef, onHeroChange, uploadingHero, heroUploadError, onRevertHero,
@@ -453,7 +453,7 @@ export default function VesselProfileStack(props) {
       )}
 
       {/* rail + deck grid (hero above spans full width, like the crew profile) */}
-      <div className="vs-grid">
+      <div className={`vs-grid${navCollapsed ? ' collapsed' : ''}`}>
         {rail}
         <div className="vs-deck">
         {cards.map((c) => {

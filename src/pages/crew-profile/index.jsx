@@ -243,6 +243,14 @@ const CrewProfile = () => {
   const handleAddCertificate = (grade) => { setDocPreset({ docType: 'coc', grade }); setActiveSection('documents'); };
   const handleAddDocument = (docType) => { setDocPreset({ docType }); setActiveSection('documents'); };
   const [isEditing, setIsEditing] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(() => {
+    try { return localStorage.getItem('cp-nav-collapsed') === '1'; } catch { return false; }
+  });
+  const toggleNav = () => setNavCollapsed((c) => {
+    const next = !c;
+    try { localStorage.setItem('cp-nav-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
+    return next;
+  });
   const [formData, setFormData] = useState({});
   const [sameAsEmergency, setSameAsEmergency] = useState(false);
   const [showSecondEmergency, setShowSecondEmergency] = useState(false);
@@ -4448,11 +4456,16 @@ const canEdit = (() => {
           {renderHeader()}
 
           {/* Main Layout: Left Navigation + Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-6">
-            {/* Left Navigation — grouped editorial rail (flat, no 3D edge).
-                self-start so the rail hugs its own content instead of
-                stretching to the (much taller) content column. */}
-            <div className="cp-flatcard p-3 self-start">
+          <div className={`cp-navgrid${navCollapsed ? ' collapsed' : ''}`}>
+            {/* Left Navigation — grouped editorial rail (flat, no 3D edge),
+                collapsible. self-start so the rail hugs its own content. */}
+            <div className={`cp-flatcard p-3 self-start cp-rail-box${navCollapsed ? ' collapsed' : ''}`}>
+              <div className="cp-rail-top">
+                <span className="cp-nav-grp first">Menu</span>
+                <button type="button" className="cp-rail-collapse" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'}>
+                  <Icon name={navCollapsed ? 'ChevronRight' : 'ChevronLeft'} size={16} />
+                </button>
+              </div>
               <nav>
                 {navGroups.map((group, gi) => {
                   // Drop a group entirely when none of its sections are visible
@@ -4474,6 +4487,7 @@ const canEdit = (() => {
                             setIsEditing(false);
                           }}
                           className={`cp-nav-it${isActive ? ' active' : ''}`}
+                          title={navCollapsed ? section.label : undefined}
                         >
                           <Icon name={section.icon} size={18} />
                           <span className="leading-tight break-words">{section.label}</span>
