@@ -36,7 +36,7 @@ const cabinLeaf = (label) => {
 // right) → identity fields → description (type or dictate) → photo → tags +
 // notes. Guest: name + cabin, or Unknown + colour + area found. Crew: name +
 // laundry number (± colour).
-const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
+const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   const isEdit = !!editItem;
   const { activeTenantId } = useTenant();
   const fileInputRef = useRef(null);
@@ -364,14 +364,16 @@ const AddLaundryModal = ({ onClose, onSuccess, editItem }) => {
       } else {
         saved = await createLaundryItem({ ...payload, ownerType: formData?.ownerType });
       }
-      onSuccess?.(saved);
       if (another && !isEdit) {
         // keep the shared details (owner, cabin, needed-by, notes, priority);
-        // blank only the per-item fields so the next piece is quick to log
+        // blank only the per-item fields so the next piece is quick to log.
+        // Refresh the list without closing the modal (onSuccess would unmount it).
         setAddedCount((c) => c + 1);
         setFormData((prev) => ({ ...prev, description: '', colour: '', tags: [], photos: [] }));
         setCareResult(null); setCareError(''); setErrors({});
+        onSaved?.(saved);
       } else {
+        onSuccess?.(saved);
         onClose?.();
       }
     } catch (error) {
