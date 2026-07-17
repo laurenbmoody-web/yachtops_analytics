@@ -753,6 +753,28 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     return null;
   };
 
+  // Closing a defect from the map: glide the 3D view to its pin and grab a
+  // "Location when fixed" snapshot, then store it (+ the pin position) on the
+  // defect so the record keeps where it was, even after the pin drops off.
+  const captureDefectLocation = useCallback(async (defectId) => {
+    const api = viewerApiRef.current;
+    const pin = selectedHotspot;
+    if (!api?.captureFrame || !pin?.position || !activeTenantId || !defectId) return;
+    try {
+      api.glideTo?.(pin.position);
+      await new Promise((r) => setTimeout(r, 520)); // let the target glide settle
+      const blob = await api.captureFrame({ width: 512, quality: 0.72 });
+      if (!blob) return;
+      const path = `${activeTenantId}/defect-locations/${defectId}-${crypto.randomUUID().slice(0, 8)}.jpg`;
+      const { error: upErr } = await supabase.storage.from('vessel-scans')
+        .upload(path, blob, { contentType: 'image/jpeg', cacheControl: '3600' });
+      if (upErr) { console.error('[vessel-map] defect location upload', upErr); return; }
+      await updateDefect(defectId, { locationSnapshotPath: path, pinPosition: pin.position }, defectActor);
+    } catch (e) {
+      console.error('[vessel-map] defect location capture', e);
+    }
+  }, [selectedHotspot, activeTenantId, defectActor]);
+
   // ── Render ──────────────────────────────────────────────────────────────
   // Payload writes report fresh detail back — hotspots and the open
   // selection both track it.
@@ -1082,6 +1104,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                     containerTrail={containerTrail}
                     onChanged={() => { setDefectReload((v) => v + 1); onDetailSaved?.(); }}
                     onTitled={(title) => { if (title) renameHotspot(selectedHotspot.id, title); }}
+                    onClosed={captureDefectLocation}
                     onAdjust={() => startAdjust(selectedHotspot)}
                     onDelete={() => deleteHotspot(selectedHotspot.id)}
                     onClose={closeInspector}

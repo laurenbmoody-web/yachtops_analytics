@@ -17,6 +17,7 @@ import { RECURRENCE_LABEL } from '../utils/defectMaintenance';
 import { fetchDefectRequisitions } from '../utils/defectRequisition';
 import { fetchDefectDocuments, deleteDefectDocument, costSummary } from '../utils/defectDocuments';
 import { useDefectActor } from '../utils/useDefectActor';
+import { supabase } from '../../../lib/supabaseClient';
 import {
   DefectStatus, REPAIR_STAGE_ORDER, REPAIR_STAGE_LABELS,
   getDefectComments, getDefectEvents,
@@ -54,7 +55,7 @@ const money = (amount, currency) => {
   return `${n < 0 ? '-' : ''}${s}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-export default function DefectDetail({ defect, onChanged, onClose, mapHref, locationLabel, onEditingChange }) {
+export default function DefectDetail({ defect, onChanged, onClose, mapHref, locationLabel, onEditingChange, onClosed }) {
   const actor = useDefectActor();
   const navigate = useNavigate();
   const [comments, setComments] = useState([]);
@@ -66,6 +67,19 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   // Let a host (the map modal) narrow itself to form-width while editing, so the
   // edit form isn't marooned in the wide detail layout.
   useEffect(() => { onEditingChange?.(editing); }, [editing, onEditingChange]);
+  // "Location when fixed" — a captured image of the pin's 3D spot, taken when
+  // the defect was closed from the map. Signed on demand.
+  const [locShotUrl, setLocShotUrl] = useState(null);
+  useEffect(() => {
+    const p = defect.locationSnapshotPath;
+    if (!p) { setLocShotUrl(null); return undefined; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.storage.from('vessel-scans').createSignedUrl(p, 3600);
+      if (!cancelled) setLocShotUrl(data?.signedUrl || null);
+    })();
+    return () => { cancelled = true; };
+  }, [defect.locationSnapshotPath]);
   const [fixEditing, setFixEditing] = useState(false);
   const [fix, setFix] = useState(null);
   const [reqs, setReqs] = useState([]);
@@ -129,11 +143,11 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
     catch (e) { setErr(e?.message || 'Something went wrong.'); }
     finally { setBusy(false); }
   };
-  const setStatus = (v) => guard(() => updateDefect(defect.id, { status: v }, actor))();
+  const setStatus = (v) => guard(async () => { await updateDefect(defect.id, { status: v }, actor); if (v === DefectStatus.CLOSED) onClosed?.(defect.id); })();
   const doClaim = guard(() => claimDefect(defect.id, actor));
   const doAccept = guard(() => acceptDefect(defect.id, '', actor));
   const doDecline = guard(async () => { const r = window.prompt('Reason for declining?'); if (r == null) return; await declineDefect(defect.id, r, actor); });
-  const doClose = guard(async () => { const n = window.prompt('Close-out notes (what was done)?'); if (n == null) return; await closeDefectWithNotes(defect.id, n, null, actor); });
+  const doClose = guard(async () => { const n = window.prompt('Close-out notes (what was done)?'); if (n == null) return; await closeDefectWithNotes(defect.id, n, null, actor); onClosed?.(defect.id); });
   const doReopen = guard(async () => { const n = window.prompt('Why re-open?'); if (n == null) return; await reopenDefect(defect.id, n, actor); });
   const doAssignTeam = guard(() => assignDefect(defect.id, { kind: 'team', teamDepartmentId: defect.departmentId, teamName: defect.departmentOwner }, actor));
   const addComment = guard(async () => { if (!newComment.trim()) return; await addDefectComment(defect.id, newComment, actor); setNewComment(''); });
@@ -262,6 +276,17 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
       <div className={`dd-cols${railOpen ? '' : ' dd-rail-shut'}`}>
         {/* left — the record */}
         <div className="dd-main">
+          {locShotUrl && (
+            <div className="dd-locshot">
+              <button type="button" className="dd-locshot-img" onClick={() => window.open(locShotUrl, '_blank')} title="Open full size">
+                <img src={locShotUrl} alt="Location when fixed" />
+              </button>
+              <div className="dd-locshot-meta">
+                <span className="dd-locshot-lbl"><Icon name="MapPin" size={12} /> Location when fixed</span>
+                {locationLabel && <span className="dd-locshot-place">{locationLabel}</span>}
+              </div>
+            </div>
+          )}
           {warrantyCtx.length > 0 && (
             <div className="dd-warn-banner">
               <Icon name="ShieldAlert" size={16} />
