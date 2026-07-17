@@ -9,6 +9,7 @@ import VmdSelect from '../../vessel-map/components/VmdSelect';
 import { useDefectActor } from '../utils/useDefectActor';
 import { DefectPriority, fetchTenantDepartments } from '../utils/defectsStorage';
 import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
+import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-management-settings/utils/locationsHierarchyStorage';
 import '../../vessel-map/components/DefectPin.css';
 
 const ASSIGN = [
@@ -32,10 +33,15 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
   // primary button becomes "Log & pin on map" so the map only opens once the
   // whole form is filled, never mid-form.
   const [willPin, setWillPin] = useState(false);
+  // Location hierarchy (deck → zone → space) the crew set up in Locations
+  // Management — a structured picker instead of free-typing the location.
+  const [decks, setDecks] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [spaces, setSpaces] = useState([]);
   const [form, setForm] = useState(() => ({
     title: '', priority: DefectPriority.MEDIUM, description: '', photos: [],
     deptId: '', assign: 'unassigned', userId: '', affectsGuestAreas: false, safetyRelated: false,
-    notify: [], locationFreeText: '',
+    notify: [], locationFreeText: '', locationDeckId: '', locationZoneId: '', locationSpaceId: '',
     ...(initial || {}),
   }));
 
@@ -51,6 +57,28 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
     })();
     return () => { live = false; };
   }, [actor?.tenantId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load the deck list (for the structured location picker) when it's in use.
+  useEffect(() => {
+    if (!showLocation) return undefined;
+    let live = true;
+    (async () => { const d = await getAllDecks(false); if (live) setDecks(d || []); })();
+    return () => { live = false; };
+  }, [showLocation]);
+
+  useEffect(() => {
+    if (!form.locationDeckId) { setZones([]); return undefined; }
+    let live = true;
+    (async () => { const z = await getZonesByDeck(form.locationDeckId, false); if (live) setZones(z || []); })();
+    return () => { live = false; };
+  }, [form.locationDeckId]);
+
+  useEffect(() => {
+    if (!form.locationZoneId) { setSpaces([]); return undefined; }
+    let live = true;
+    (async () => { const s = await getSpacesByZone(form.locationZoneId, false); if (live) setSpaces(s || []); })();
+    return () => { live = false; };
+  }, [form.locationZoneId]);
 
   const deptName = (id) => departments.find((d) => d?.id === id)?.name || null;
   const dName = deptName(form.deptId);
@@ -81,7 +109,17 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
       assignedTeamName: form.assign === 'team' ? dName : null,
       affectsGuestAreas: form.affectsGuestAreas, safetyRelated: form.safetyRelated,
       photos: form.photos, notifyUsers: form.notify,
-      ...(showLocation ? { locationFreeText: form.locationFreeText, locationPathLabel: form.locationFreeText || null } : {}),
+      ...(showLocation ? {
+        locationDeckId: form.locationDeckId || null,
+        locationZoneId: form.locationZoneId || null,
+        locationSpaceId: form.locationSpaceId || null,
+        locationFreeText: form.locationFreeText || '',
+        locationPathLabel: [
+          decks.find((d) => d.id === form.locationDeckId)?.name,
+          zones.find((z) => z.id === form.locationZoneId)?.name,
+          spaces.find((s) => s.id === form.locationSpaceId)?.name,
+        ].filter(Boolean).join(' › ') || form.locationFreeText || null,
+      } : {}),
     };
   };
 
@@ -174,15 +212,27 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
             <label className="vmd-lbl">Location<span className="req" style={{ color: '#AEB4C2' }}>optional</span></label>
             {onSubmitAndPin && (
               <button type="button" className="vmd-pinlink" onClick={() => setWillPin((v) => !v)}>
-                <Icon name={willPin ? 'Keyboard' : 'MapPin'} size={13} /> {willPin ? 'Type it instead' : 'Set on map'}
+                <Icon name={willPin ? 'List' : 'MapPin'} size={13} /> {willPin ? 'Choose from list' : 'Set on map'}
               </button>
             )}
           </div>
           {willPin ? (
             <div className="vmd-pinnote"><Icon name="MapPin" size={14} /> You'll drop the pin on the map once you log — finish the rest first.</div>
+          ) : decks.length > 0 ? (
+            <div className="vmd-row">
+              <VmdSelect value={form.locationDeckId} ariaLabel="Deck" placeholder="Deck"
+                options={decks.map((d) => ({ value: d.id, label: d.name }))}
+                onChange={(v) => setForm({ ...form, locationDeckId: v, locationZoneId: '', locationSpaceId: '' })} />
+              <VmdSelect value={form.locationZoneId} ariaLabel="Zone" placeholder="Zone" emptyText="No zones" disabled={!form.locationDeckId}
+                options={zones.map((z) => ({ value: z.id, label: z.name }))}
+                onChange={(v) => setForm({ ...form, locationZoneId: v, locationSpaceId: '' })} />
+              <VmdSelect value={form.locationSpaceId} ariaLabel="Space" placeholder="Space" emptyText="No spaces" disabled={!form.locationZoneId}
+                options={spaces.map((s) => ({ value: s.id, label: s.name }))}
+                onChange={(v) => setForm({ ...form, locationSpaceId: v })} />
+            </div>
           ) : (
             <input className="vmd-input" value={form.locationFreeText}
-              onChange={(e) => setForm({ ...form, locationFreeText: e.target.value })} placeholder="e.g. Owner's cabin · aft bulkhead" />
+              onChange={(e) => setForm({ ...form, locationFreeText: e.target.value })} placeholder="e.g. Owner's cabin" />
           )}
         </div>
       )}
