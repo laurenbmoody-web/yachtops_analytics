@@ -346,6 +346,18 @@
 .cm-page .msg-qc-decline-go:disabled { opacity: 0.6; cursor: default; }
 .cm-page .msg-qc-reason-note { margin-top: 8px; font-size: 12px; color: var(--muted-strong); font-style: italic; }
 .cm-page .msg-qc-valid { margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+
+/* Order picker — choose new order or an existing open one to add the quote to. */
+.cm-page .msg-qc-orderpick { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.cm-page .msg-qc-orderpick-title { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.cm-page .msg-qc-order-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; width: 100%; box-sizing: border-box; background: #FAFAF8; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font-family: inherit; cursor: pointer; }
+.cm-page .msg-qc-order-opt:hover { border-color: var(--orange); box-shadow: 0 0 0 3px #FAECE7; }
+.cm-page .msg-qc-order-opt:disabled { opacity: 0.6; cursor: default; }
+.cm-page .msg-qc-order-opt.new { border-style: dashed; }
+.cm-page .msg-qc-order-main { font-weight: 600; font-size: 12.5px; color: var(--navy); }
+.cm-page .msg-qc-order-sub { font-size: 11px; color: var(--muted); }
+.cm-page .msg-qc-order-cancel { align-self: flex-start; margin-top: 2px; background: none; border: 0; color: var(--muted-strong); font-family: inherit; font-size: 12px; padding: 4px 2px; cursor: pointer; }
+.cm-page .msg-qc-order-cancel:hover { color: var(--navy); }
 .cm-page .msg-qc-expired { margin-top: 8px; font-size: 12px; color: var(--red); font-weight: 600; }
 .cm-page .msg-quotecard .msg-time { display: block; margin-top: 6px; }
 
