@@ -720,7 +720,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
           <div className="alm-photos">
             {(formData.photos || []).map((src, idx) => (
               <div className="alm-thumb" key={idx}>
-                <img src={src} alt={`Laundry item ${idx + 1}`} />
+                <img src={src} alt={`Laundry item ${idx + 1}`} decoding="async" />
                 <button type="button" className="alm-thumb-x" onClick={() => handleRemovePhoto(idx)} aria-label="Remove photo"><Icon name="X" size={12} /></button>
               </div>
             ))}

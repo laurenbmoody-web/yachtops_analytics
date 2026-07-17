@@ -20,7 +20,7 @@ const ownerKindC = (t) => { const k = (t || 'unknown').toLowerCase(); return k =
 
 const AvatarChip = ({ p }) => (
   <span className={`lr-av ${p.kind === 'guest' ? 'guest' : p.kind === 'crew' ? 'crew' : 'unk'}`}>
-    {p.avatarUrl ? <img src={p.avatarUrl} alt="" /> : (p.kind === 'unknown' ? '?' : initials(p.name))}
+    {p.avatarUrl ? <img src={p.avatarUrl} alt="" loading="lazy" decoding="async" /> : (p.kind === 'unknown' ? '?' : initials(p.name))}
   </span>
 );
 
@@ -177,7 +177,7 @@ const Detail = ({ p, onExport, onOpenItem }) => {
               <div className="lb-team">
                 {p.team.slice(0, 4).map((m) => (
                   <div className="lb-mem" key={m.key}>
-                    <span className={`lr-av ${m.avatarUrl ? '' : 'crew'} lb-mav`}>{m.avatarUrl ? <img src={m.avatarUrl} alt="" /> : initials(m.name)}</span>
+                    <span className={`lr-av ${m.avatarUrl ? '' : 'crew'} lb-mav`}>{m.avatarUrl ? <img src={m.avatarUrl} alt="" loading="lazy" decoding="async" /> : initials(m.name)}</span>
                     <span className="lb-mn">{m.name}</span>
                     <span className="lb-mc tnum">{m.count}<small>pcs</small></span>
                   </div>
@@ -353,7 +353,7 @@ const Calendar = ({ month, setMonth, sel, setSel, deliveredByDay, dayItems, toda
               <div className="lb-pg" key={g.key}>
                 <div className="lb-pg-h">
                   <span className={`lr-av ${g.kind === 'guest' ? 'guest' : g.kind === 'crew' ? 'crew' : 'unk'}`}>
-                    {g.avatarUrl ? <img src={g.avatarUrl} alt="" /> : (g.kind === 'unknown' ? '?' : initials(g.name))}
+                    {g.avatarUrl ? <img src={g.avatarUrl} alt="" loading="lazy" decoding="async" /> : (g.kind === 'unknown' ? '?' : initials(g.name))}
                   </span>
                   <span className="lb-pg-nm">{g.name}</span>
                   <span className="lb-pg-ct tnum">{g.items.length}</span>
