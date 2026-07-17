@@ -11,6 +11,7 @@ import {
   fetchThreadContacts, assignThreadContact, fetchPersonCard, saveMyMessagingProfile,
   fetchAddableSupplier, addThreadParticipant, removeThreadParticipant,
   fetchReplyTemplates, createReplyTemplate, deleteReplyTemplate,
+  setOrderDelivery, postSystemMessage,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -105,7 +106,6 @@ const faceGrad = (p) => (p?.party === 'supplier' ? supGrad(p.user_id) : avatarGr
 // Domain quick-replies — prefill the composer with a useful opener.
 const QUICK = [
   { label: 'Confirm delivery', text: (o) => `Confirming your delivery${o?.delivery_date ? ` for ${new Date(o.delivery_date).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}${o?.delivery_time ? ` at ${String(o.delivery_time).slice(0, 5)}` : ''} — does that still work for you?` },
-  { label: 'On our way 🚚', status: 'out_for_delivery', text: () => `We're on our way with your delivery 🚚 — I'll message when we're close.` },
   { label: 'Substitution', text: () => `Quick one — an item's short today and I can swap in a close match. Want me to sort that for you?` },
 ];
 
@@ -498,18 +498,37 @@ const SupplierMessages = () => {
   // A status quick-action (e.g. "On our way") moves the order's status AND posts
   // the message in one go, so the yacht sees the update and the order's stage
   // actually advances (with its timestamp stamped) — not just a chat line.
-  const deliveryAction = async (q) => {
-    if (sending) return;
-    if (!activeOrder?.id) { quick(q.text); return; }  // no order to advance — fall back to a template
-    setSending(true); setError(null);
+  // Delivery status pill — sets the order status (+ optional ETA) and posts a
+  // system pill both sides see.
+  const [delivOpen, setDelivOpen] = useState(false);
+  const [delivEta, setDelivEta] = useState('');
+  const [delivBusy, setDelivBusy] = useState(false);
+  const postDelivery = async (status) => {
+    if (delivBusy || !activeId) return;
+    setDelivBusy(true); setError(null);
     try {
-      const updated = await updateOrderStatus(activeOrder.id, q.status);
-      setActiveOrder(updated);
-      const msg = await sendSupplierMessage(activeId, q.text(activeOrder), null, []);
+      let etaISO = null;
+      let label;
+      if (status === 'out_for_delivery') {
+        if (delivEta) {
+          const [hh, mm] = delivEta.split(':');
+          const dt = new Date(); dt.setHours(Number(hh), Number(mm), 0, 0);
+          etaISO = dt.toISOString();
+        }
+        label = `🚚 Out for delivery${delivEta ? ` · ETA ${delivEta}` : ''}`;
+      } else {
+        label = '✅ Delivered';
+      }
+      if (activeOrder?.id) {
+        const updated = await setOrderDelivery(activeOrder.id, status, etaISO);
+        setActiveOrder(updated);
+      }
+      const msg = await postSystemMessage(activeId, label);
       setMessages((m) => [...m, msg]);
+      setDelivOpen(false); setDelivEta('');
       loadThreads();
-    } catch (e) { setError(e.message || 'Couldn’t update the order status.'); }
-    finally { setSending(false); }
+    } catch (e) { setError(e.message || 'Couldn’t post the delivery update.'); }
+    finally { setDelivBusy(false); }
   };
 
   // Upload picked photos/dockets, staged as pending attachments for the next send.
@@ -1342,10 +1361,28 @@ const SupplierMessages = () => {
                         </div>
                       )}
                     </div>
+                    <div className="msg-tpl">
+                      <button type="button" className="msg-qchip msg-qchip-status" onClick={() => setDelivOpen((o) => !o)} title="Post a delivery update">🚚 Delivery</button>
+                      {delivOpen && (
+                        <div className="msg-tpl-menu" role="menu" style={{ width: 240 }}>
+                          <div className="msg-assign-head">Delivery update</div>
+                          <div className="msg-deliv-eta">
+                            <label className="msg-profile-lab" style={{ marginTop: 0 }}>ETA (optional)</label>
+                            <input type="time" className="msg-profile-in" value={delivEta} onChange={(e) => setDelivEta(e.target.value)} />
+                          </div>
+                          <button type="button" className="msg-tpl-insert" disabled={delivBusy} onClick={() => postDelivery('out_for_delivery')}>
+                            <span className="msg-tpl-label">🚚 Out for delivery{delivEta ? ` · ETA ${delivEta}` : ''}</span>
+                            <span className="msg-tpl-body">Marks the order out for delivery{activeOrder ? '' : ' (no order linked — posts a note only)'}.</span>
+                          </button>
+                          <button type="button" className="msg-tpl-insert" disabled={delivBusy} onClick={() => postDelivery('received')}>
+                            <span className="msg-tpl-label">✅ Delivered</span>
+                            <span className="msg-tpl-body">Marks the order delivered.</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     {QUICK.map((q) => (
-                      q.status
-                        ? <button key={q.label} type="button" className="msg-qchip msg-qchip-status" disabled={sending} title={activeOrder ? `Marks order #${shortId(activeOrder.id)} out for delivery` : undefined} onClick={() => deliveryAction(q)}>{q.label}</button>
-                        : <button key={q.label} type="button" className="msg-qchip" onClick={() => quick(q.text)}>{q.label}</button>
+                      <button key={q.label} type="button" className="msg-qchip" onClick={() => quick(q.text)}>{q.label}</button>
                     ))}
                   </div>
                   {editing ? (

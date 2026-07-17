@@ -230,6 +230,34 @@ export const updateOrderStatus = async (orderId, status) => {
   return data;
 };
 
+// Set a delivery status + optional ETA on the order (used by the in-thread
+// delivery pill). etaISO null clears it.
+export const setOrderDelivery = async (orderId, status, etaISO) => {
+  const patch = { status, delivery_eta: etaISO || null };
+  const stampCol = STATUS_STAMP[status];
+  if (stampCol) patch[stampCol] = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .update(patch)
+    .eq('id', orderId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Post a system line into a thread (renders as a centred pill both sides).
+export const postSystemMessage = async (threadId, body) => {
+  const { data: auth } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('supplier_messages')
+    .insert({ thread_id: threadId, sender_type: 'supplier', sender_user_id: auth?.user?.id ?? null, body, kind: 'system' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
 export const updateOrderItem = async (itemId, updates) => {
   const { data, error } = await supabase
     .from('supplier_order_items')
