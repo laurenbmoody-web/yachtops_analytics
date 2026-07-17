@@ -70,7 +70,9 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const [docs, setDocs] = useState([]);
   const [docModalKind, setDocModalKind] = useState(null);
   const [planningMaint, setPlanningMaint] = useState(false);
-  const [activityOpen, setActivityOpen] = useState(false);
+  const [workTab, setWorkTab] = useState('repair'); // left-pane tab: repair | parts | activity
+  const [railOpen, setRailOpen] = useState(true);    // right control rail collapse
+  const [moreFacts, setMoreFacts] = useState(false); // reveal secondary facts in the rail
   const [warrantyCtx, setWarrantyCtx] = useState([]);
   const [quoteSettings, setQuoteSettings] = useState({ approverTier: 'HOD', threshold: 1000 });
 
@@ -245,7 +247,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
       )}
 
       {!editing && (
-      <div className="dd-cols">
+      <div className={`dd-cols${railOpen ? '' : ' dd-rail-shut'}`}>
         {/* left — the record */}
         <div className="dd-main">
           {warrantyCtx.length > 0 && (
@@ -285,18 +287,25 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             ? <p className="dd-desc">{defect.description}</p>
             : (photos.length === 0 && <p className="dd-empty-note">No photos or notes on this defect.</p>)}
 
+          {/* work tabs — one job on screen at a time */}
+          <div className="dd-wtabs" role="tablist">
+            <button type="button" className={`dd-wtab${workTab === 'repair' ? ' on' : ''}`} onClick={() => setWorkTab('repair')}>Repair</button>
+            <button type="button" className={`dd-wtab${workTab === 'parts' ? ' on' : ''}`} onClick={() => setWorkTab('parts')}>Parts &amp; maintenance</button>
+            <button type="button" className={`dd-wtab${workTab === 'activity' ? ' on' : ''}`} onClick={() => setWorkTab('activity')}>Activity{events.length ? ` · ${events.length}` : ''}</button>
+          </div>
+
+          {workTab === 'repair' && (
+          <div className="dd-wpane">
           {/* Repair & contractor — arranged after the defect's logged, so it's
               edited in place on the view. Contact fields mirror the directory. */}
-          <div className="dd-fix dd-block">
-            <div className="dd-fix-head">
-              <p className="dd-lbl" style={{ margin: 0 }}>Repair &amp; contractor</p>
-              {canManage && !isClosed && !fixEditing && (
+          <div className="dd-fix">
+            {canManage && !isClosed && !fixEditing && (
+              <div className="dd-fix-head" style={{ justifyContent: 'flex-end' }}>
                 <button className="dd-edit-btn small" onClick={() => { startFix(); setFixEditing(true); }}>
-                  <Icon name={hasRepairInfo ? 'Edit3' : 'Plus'} size={12} />
-                  {hasRepairInfo ? 'Edit' : 'Arrange'}
+                  <Icon name={hasRepairInfo ? 'Edit3' : 'Plus'} size={12} /> {hasRepairInfo ? 'Edit repair' : 'Arrange repair'}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* stage stepper — click a step to move the repair along */}
             <div className="dd-stage">
@@ -483,130 +492,151 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
               </div>
             )}
           </div>
-
-          {/* Follow-ups — parts orders + preventive maintenance as quiet actions,
-              only surfaced when there's something to do or something to show. */}
-          {((canManage && !isClosed) || reqs.length > 0 || defect.promotedJobId) && (
-            <div className="dd-followups dd-block">
-              {canManage && !isClosed && (
-                <div className="dd-followups-actions">
-                  <button className="dd-chip-action" onClick={() => setOrderingParts(true)}><Icon name="ShoppingCart" size={13} /> Order parts</button>
-                  {!defect.promotedJobId && (
-                    <button className="dd-chip-action" onClick={() => setPlanningMaint(true)}><Icon name="CalendarPlus" size={13} /> Plan maintenance</button>
-                  )}
-                </div>
-              )}
-              {reqs.map((r) => (
-                <button key={r.id} type="button" className="dd-req" onClick={() => { onClose?.(); navigate(`/provisioning/${r.id}`); }}>
-                  <Icon name="ClipboardList" size={14} />
-                  <span className="t">{r.title}</span>
-                  <span className="s">{String(r.status || 'draft').replace(/_/g, ' ')}</span>
-                  <Icon name="ArrowUpRight" size={13} />
-                </button>
-              ))}
-              {defect.promotedJobId && (
-                <button type="button" className="dd-req" onClick={() => { onClose?.(); navigate('/team-jobs-management'); }}>
-                  <Icon name="Wrench" size={14} />
-                  <span className="t">Scheduled maintenance on the job board</span>
-                  <Icon name="ArrowUpRight" size={13} />
-                </button>
-              )}
-            </div>
+          </div>
           )}
 
-          <div className="dd-block">
-            <p className="dd-lbl">Comments{comments.length ? ` · ${comments.length}` : ''}</p>
-            {comments.length === 0 ? <p className="dd-comment-empty">No comments yet.</p> : comments.map((c) => (
-              <div className="dd-comment" key={c.id}>
-                <div className="dd-comment-h"><span className="dd-comment-n">{c.userName || 'Crew'}</span><span className="dd-comment-w">{fmt(c.createdAt)}</span></div>
-                <div className="dd-comment-b">{c.text}</div>
+          {workTab === 'parts' && (
+          <div className="dd-wpane">
+            {((canManage && !isClosed) || reqs.length > 0 || defect.promotedJobId) ? (
+              <div className="dd-followups">
+                {canManage && !isClosed && (
+                  <div className="dd-followups-actions">
+                    <button className="dd-chip-action" onClick={() => setOrderingParts(true)}><Icon name="ShoppingCart" size={13} /> Order parts</button>
+                    {!defect.promotedJobId && (
+                      <button className="dd-chip-action" onClick={() => setPlanningMaint(true)}><Icon name="CalendarPlus" size={13} /> Plan maintenance</button>
+                    )}
+                  </div>
+                )}
+                {reqs.map((r) => (
+                  <button key={r.id} type="button" className="dd-req" onClick={() => { onClose?.(); navigate(`/provisioning/${r.id}`); }}>
+                    <Icon name="ClipboardList" size={14} />
+                    <span className="t">{r.title}</span>
+                    <span className="s">{String(r.status || 'draft').replace(/_/g, ' ')}</span>
+                    <Icon name="ArrowUpRight" size={13} />
+                  </button>
+                ))}
+                {defect.promotedJobId && (
+                  <button type="button" className="dd-req" onClick={() => { onClose?.(); navigate('/team-jobs-management'); }}>
+                    <Icon name="Wrench" size={14} />
+                    <span className="t">Scheduled maintenance on the job board</span>
+                    <Icon name="ArrowUpRight" size={13} />
+                  </button>
+                )}
               </div>
-            ))}
-            <div className="dd-comment-add">
-              <input value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment…"
-                onKeyDown={(e) => { if (e.key === 'Enter') addComment(); }} />
-              <button className="dd-btn ghost" disabled={busy || !newComment.trim()} onClick={addComment}>Post</button>
+            ) : <p className="dd-fix-empty">Nothing ordered or scheduled for this defect.</p>}
+          </div>
+          )}
+
+          {workTab === 'activity' && (
+          <div className="dd-wpane">
+            <div>
+              <p className="dd-lbl">Activity{events.length ? ` · ${events.length}` : ''}</p>
+              {events.length === 0 ? <p className="dd-comment-empty">No activity yet.</p> : (
+                <ul className="dd-tl">
+                  {events.map((ev) => (
+                    <li key={ev.id} className={ev.type === 'created' ? 'hot' : GOOD_EVENTS.has(ev.type) ? 'good' : ''}>
+                      <span className="n" />
+                      <div className="t">{ev.summary || ev.type}{ev.actor_name ? ` · ${ev.actor_name}` : ''}</div>
+                      <div className="when">{fmt(ev.created_at)} · {fmtTime(ev.created_at)}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <p className="dd-lbl">Comments{comments.length ? ` · ${comments.length}` : ''}</p>
+              {comments.length === 0 ? <p className="dd-comment-empty">No comments yet.</p> : comments.map((c) => (
+                <div className="dd-comment" key={c.id}>
+                  <div className="dd-comment-h"><span className="dd-comment-n">{c.userName || 'Crew'}</span><span className="dd-comment-w">{fmt(c.createdAt)}</span></div>
+                  <div className="dd-comment-b">{c.text}</div>
+                </div>
+              ))}
+              <div className="dd-comment-add">
+                <input value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment…"
+                  onKeyDown={(e) => { if (e.key === 'Enter') addComment(); }} />
+                <button className="dd-btn ghost" disabled={busy || !newComment.trim()} onClick={addComment}>Post</button>
+              </div>
             </div>
           </div>
+          )}
         </div>
 
-        {/* right — the control rail */}
+        {/* right — control rail, collapsible to a slim status + owner strip */}
         <div className="dd-rail">
-          {mapHref && defect.hotspotId && (
-            <button className="dd-btn map block" onClick={openMap}><Icon name="MapPin" size={15} /> View on map</button>
-          )}
-
-          {isPending && canManage ? (
-            <div>
-              <p className="dd-lbl">Awaiting your acceptance</p>
-              <div className="dd-actions">
-                <button className="dd-btn primary block" disabled={busy} onClick={doAccept}>Accept</button>
-                <button className="dd-btn ghost block" disabled={busy} onClick={doDecline}>Decline</button>
-              </div>
+          {railOpen ? (
+          <>
+            <div className="dd-rail-top">
+              <button type="button" className="dd-rail-collapse" onClick={() => setRailOpen(false)} title="Collapse details" aria-label="Collapse details"><Icon name="PanelRightClose" size={16} /></button>
             </div>
-          ) : (
-            canWork && !isClosed && (
-              <div>
-                <p className="dd-lbl">Status</p>
-                <VmdSelect value={defect.status} onChange={setStatus} ariaLabel="Defect status"
-                  options={(WORKFLOW.includes(defect.status) ? WORKFLOW : [defect.status, ...WORKFLOW]).map((s) => ({ value: s, label: STATUS_META[s]?.label || s }))} />
-              </div>
-            )
-          )}
 
-          {/* owner */}
-          <div>
-            <p className="dd-lbl">Owner</p>
-            <div className="dd-owner-card">
-              <span className={`dd-avatar ${avCls}`}>{avCls === 'none' ? '?' : initials(defect.assigneeKind === 'team' ? ownerName : defect.assignedToName)}</span>
-              <div className="dd-owner-who"><div className="dd-owner-n">{ownerName}</div><div className="dd-owner-r">{ownerRole}</div></div>
-            </div>
-            <div className="dd-actions" style={{ marginTop: 8 }}>
-              {teamUnclaimed && actor.userId && !isClosed && <button className="dd-btn primary block" disabled={busy} onClick={doClaim}>Claim &amp; start</button>}
-              {canManage && !isClosed && defect.assigneeKind !== 'team' && <button className="dd-btn ghost block" disabled={busy} onClick={doAssignTeam}>Assign whole team</button>}
-            </div>
-          </div>
-
-          {/* facts */}
-          <div className="dd-panel">
-            <div className="dd-row"><span className="k">Priority</span><span className={`v${defect.priority === 'Critical' ? ' crit' : ''}`}>{defect.priority}</span></div>
-            <div className="dd-row"><span className="k">Department</span><span className="v">{defect.departmentOwner || '—'}</span></div>
-            <div className="dd-row"><span className="k">Reported by</span><span className="v">{defect.reportedByName || '—'}</span></div>
-            <div className="dd-row"><span className="k">Logged</span><span className="v">{fmt(defect.createdAt)}</span></div>
-            {defect.scheduledFixAt && <div className="dd-row"><span className="k">Scheduled</span><span className="v">{fmt(defect.scheduledFixAt)}{defect.scheduledEndAt ? `–${fmt(defect.scheduledEndAt)}` : ''}</span></div>}
-            <div className="dd-row"><span className="k">Location</span><span className="v" title={loc}>{loc}</span></div>
-            {defect.notifyUsers?.length > 0 && <div className="dd-row"><span className="k">Also notified</span><span className="v">{defect.notifyUsers.map((n) => n.name).filter(Boolean).join(', ')}</span></div>}
-          </div>
-
-          {/* activity — collapsible; the rail stays calm, one line when closed */}
-          <div className="dd-activity">
-            <button type="button" className="dd-collapse-h" onClick={() => setActivityOpen((v) => !v)} aria-expanded={activityOpen}>
-              <span className="dd-lbl" style={{ margin: 0 }}>Activity{events.length ? ` · ${events.length}` : ''}</span>
-              <Icon name={activityOpen ? 'ChevronUp' : 'ChevronDown'} size={15} />
-            </button>
-            {!activityOpen && events.length > 0 && (
-              <div className="dd-activity-peek">{events[0].summary || events[0].type} · {fmt(events[0].created_at)}</div>
+            {mapHref && defect.hotspotId && (
+              <button className="dd-btn map block" onClick={openMap}><Icon name="MapPin" size={15} /> View on map</button>
             )}
-            {activityOpen && (events.length === 0 ? <p className="dd-comment-empty">No activity yet.</p> : (
-              <ul className="dd-tl">
-                {events.map((ev) => (
-                  <li key={ev.id} className={ev.type === 'created' ? 'hot' : GOOD_EVENTS.has(ev.type) ? 'good' : ''}>
-                    <span className="n" />
-                    <div className="t">{ev.summary || ev.type}{ev.actor_name ? ` · ${ev.actor_name}` : ''}</div>
-                    <div className="when">{fmt(ev.created_at)} · {fmtTime(ev.created_at)}</div>
-                  </li>
-                ))}
-              </ul>
-            ))}
-          </div>
 
-          {err && <p className="dd-err">{err}</p>}
+            {isPending && canManage ? (
+              <div>
+                <p className="dd-lbl">Awaiting your acceptance</p>
+                <div className="dd-actions">
+                  <button className="dd-btn primary block" disabled={busy} onClick={doAccept}>Accept</button>
+                  <button className="dd-btn ghost block" disabled={busy} onClick={doDecline}>Decline</button>
+                </div>
+              </div>
+            ) : (
+              canWork && !isClosed && (
+                <div>
+                  <p className="dd-lbl">Status</p>
+                  <VmdSelect value={defect.status} onChange={setStatus} ariaLabel="Defect status"
+                    options={(WORKFLOW.includes(defect.status) ? WORKFLOW : [defect.status, ...WORKFLOW]).map((s) => ({ value: s, label: STATUS_META[s]?.label || s }))} />
+                </div>
+              )
+            )}
 
-          <div className="dd-actions">
-            {canManage && !isClosed && <button className="dd-btn ghost block" disabled={busy} onClick={doClose}>Mark fixed &amp; close</button>}
-            {canManage && isClosed && <button className="dd-btn ghost block" disabled={busy} onClick={doReopen}>Re-open</button>}
-            <button className="dd-btn ghost block" onClick={() => navigate(`/defects/${defect.id}`)}>Open in Defects ↗</button>
-          </div>
+            {/* owner */}
+            <div>
+              <p className="dd-lbl">Owner</p>
+              <div className="dd-owner-card">
+                <span className={`dd-avatar ${avCls}`}>{avCls === 'none' ? '?' : initials(defect.assigneeKind === 'team' ? ownerName : defect.assignedToName)}</span>
+                <div className="dd-owner-who"><div className="dd-owner-n">{ownerName}</div><div className="dd-owner-r">{ownerRole}</div></div>
+              </div>
+              <div className="dd-actions" style={{ marginTop: 8 }}>
+                {teamUnclaimed && actor.userId && !isClosed && <button className="dd-btn primary block" disabled={busy} onClick={doClaim}>Claim &amp; start</button>}
+                {canManage && !isClosed && defect.assigneeKind !== 'team' && <button className="dd-btn ghost block" disabled={busy} onClick={doAssignTeam}>Assign whole team</button>}
+              </div>
+            </div>
+
+            {/* facts — essentials always; the rest behind a toggle */}
+            <div className="dd-panel">
+              <div className="dd-row"><span className="k">Priority</span><span className={`v${defect.priority === 'Critical' ? ' crit' : ''}`}>{defect.priority}</span></div>
+              <div className="dd-row"><span className="k">Department</span><span className="v">{defect.departmentOwner || '—'}</span></div>
+              <div className="dd-row"><span className="k">Location</span><span className="v" title={loc}>{loc}</span></div>
+              {moreFacts && (
+                <>
+                  {defect.scheduledFixAt && <div className="dd-row"><span className="k">Scheduled</span><span className="v">{fmt(defect.scheduledFixAt)}{defect.scheduledEndAt ? `–${fmt(defect.scheduledEndAt)}` : ''}</span></div>}
+                  <div className="dd-row"><span className="k">Reported by</span><span className="v">{defect.reportedByName || '—'}</span></div>
+                  <div className="dd-row"><span className="k">Logged</span><span className="v">{fmt(defect.createdAt)}</span></div>
+                  {defect.notifyUsers?.length > 0 && <div className="dd-row"><span className="k">Also notified</span><span className="v">{defect.notifyUsers.map((n) => n.name).filter(Boolean).join(', ')}</span></div>}
+                </>
+              )}
+              <button type="button" className="dd-more-toggle" onClick={() => setMoreFacts((v) => !v)}>
+                {moreFacts ? 'Less' : 'More details'} <Icon name={moreFacts ? 'ChevronUp' : 'ChevronDown'} size={13} />
+              </button>
+            </div>
+
+            {err && <p className="dd-err">{err}</p>}
+
+            <div className="dd-actions">
+              {canManage && !isClosed && <button className="dd-btn ghost block" disabled={busy} onClick={doClose}>Mark fixed &amp; close</button>}
+              {canManage && isClosed && <button className="dd-btn ghost block" disabled={busy} onClick={doReopen}>Re-open</button>}
+              <button className="dd-btn ghost block" onClick={() => navigate(`/defects/${defect.id}`)}>Open in Defects ↗</button>
+            </div>
+          </>
+          ) : (
+            <div className="dd-rail-mini">
+              <button type="button" className="dd-rail-collapse" onClick={() => setRailOpen(true)} title="Show details" aria-label="Show details"><Icon name="PanelRightOpen" size={16} /></button>
+              <span className={`dd-chip ${sMeta.cls} dd-mini-status`} title={`Status: ${sMeta.label}`}><span className="cd" /></span>
+              <span className={`dd-avatar ${avCls} dd-mini-av`} title={ownerName}>{avCls === 'none' ? '?' : initials(defect.assigneeKind === 'team' ? ownerName : defect.assignedToName)}</span>
+            </div>
+          )}
         </div>
       </div>
       )}
