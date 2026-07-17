@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
-import { loadAllLaundryItems, getDeliveryCredits } from '../laundry-management-dashboard/utils/laundryStorage';
+import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays } from '../laundry-management-dashboard/utils/laundryStorage';
+import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
 import { resolveLaundryPhotos } from '../laundry-management-dashboard/utils/laundryPhotos';
@@ -380,6 +381,10 @@ const LaundryHistoryView = () => {
   const [q, setQ] = useState('');
   const [fOwner, setFOwner] = useState('all'); // all | guest | crew
   const [fStatus, setFStatus] = useState('all'); // all | progress | ready | delivered
+  const [retention, setRetention] = useState(null);
+  const canManage = useMemo(() => { const t = (getCurrentUser()?.effectiveTier || getCurrentUser()?.tier || '').toUpperCase(); return t === 'COMMAND' || t === 'CHIEF'; }, []);
+  useEffect(() => { if (canManage) getPhotoRetentionDays().then(setRetention).catch(() => {}); }, [canManage]);
+  const saveRetention = async (v) => { setRetention(v); await setPhotoRetentionDays(v); };
 
   // open a piece in the read view — sign its photos first so the hero renders
   const openItem = async (it) => {
@@ -484,6 +489,18 @@ const LaundryHistoryView = () => {
                   <button key={v} type="button" className={`hist-chip${fStatus === v ? ' on' : ''}`} onClick={() => setFStatus(v)}>{l}</button>
                 ))}
               </div>
+              {canManage && (
+                <label className="hist-retain" title="How long delivered-laundry photos are kept before housekeeping clears them">
+                  <Icon name="ImageOff" size={14} />
+                  <span>Keep photos</span>
+                  <select value={retention == null ? '' : String(retention)} onChange={(e) => saveRetention(e.target.value === '' ? null : Number(e.target.value))}>
+                    <option value="">Forever</option>
+                    <option value="90">90 days</option>
+                    <option value="180">6 months</option>
+                    <option value="365">1 year</option>
+                  </select>
+                </label>
+              )}
             </div>
           )}
 
