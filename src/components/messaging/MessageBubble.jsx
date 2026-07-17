@@ -20,7 +20,7 @@ const aggregate = (reactions, myUid) => {
 };
 
 const MessageBubble = ({
-  m, grouped, mine, time, tick, repliedMsg, myUid,
+  m, grouped, mine, time, tick, repliedMsg, myUid, senderLabel,
   onReply, onReact, onDelete, onEdit, onJumpTo,
 }) => {
   const [dx, setDx] = useState(0);
@@ -79,6 +79,7 @@ const MessageBubble = ({
         onPointerCancel={endDrag}
       >
         <div className="msg-bubble">
+          {senderLabel && !deleted && <span className="msg-sender">{senderLabel}</span>}
           {deleted ? (
             <span className="msg-deleted">🚫 This message was deleted</span>
           ) : (

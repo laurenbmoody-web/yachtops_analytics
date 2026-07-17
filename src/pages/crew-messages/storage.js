@@ -31,6 +31,27 @@ export const getOrCreateDmThread = async (supplierId, tenantId, contactId = null
   return data;
 };
 
+// Per-thread assigned contact + participant roster (names + roles) for every
+// thread I'm in. Powers the inbox row labels and per-message sender names.
+export const fetchThreadsPeople = async () => {
+  const { data, error } = await supabase.rpc('fetch_my_threads_people');
+  if (error) throw error;
+  return data ?? [];
+};
+
+// The supplier's people, for the "assign to" picker on a thread.
+export const fetchThreadContacts = async (threadId) => {
+  const { data, error } = await supabase.rpc('fetch_supplier_contacts_for_thread', { p_thread_id: threadId });
+  if (error) throw error;
+  return data ?? [];
+};
+
+// Assign (or clear, with null) the supplier contact this thread is directed to.
+export const assignThreadContact = async (threadId, contactId) => {
+  const { error } = await supabase.rpc('assign_thread_contact', { p_thread_id: threadId, p_contact_id: contactId });
+  if (error) throw error;
+};
+
 export const fetchThreadMessages = async (threadId) => {
   const { data, error } = await supabase
     .from('supplier_messages')
