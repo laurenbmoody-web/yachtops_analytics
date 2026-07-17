@@ -16,52 +16,14 @@ import ModalShell from '../../components/ui/ModalShell';
 import '../../styles/editorial.css';
 import './laundry.css';
 
-// ── Filters dropdown (Status + Owner facets in one menu) ──────────────────
-function FiltersMenu({ status, setStatus, owner, setOwner }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
-  }, [open]);
-  const active = status !== 'All' || owner !== 'All';
-  const Row = (val, cur, set) => (
-    <button key={val} type="button" className={`lm-dd-opt${val === cur ? ' sel' : ''}`} onClick={() => set(val)}>
-      <span>{val}</span>{val === cur && <Icon name="Check" size={15} className="lm-ck" />}
-    </button>
-  );
-  return (
-    <div className={`lm-dd${open ? ' open' : ''}`} ref={ref}>
-      <button type="button" className="lm-dd-btn" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
-        <Icon name="SlidersHorizontal" size={15} className="lm-dd-ic" />
-        <span>Filters</span>
-        {active && <span className="lm-dd-marker" aria-hidden="true" />}
-        <Icon name="ChevronDown" size={14} className="lm-dd-ch" />
-      </button>
-      {open && (
-        <div className="lm-dd-menu" role="listbox">
-          <div className="lm-dd-sec">Status</div>
-          {['All', 'In Progress', 'Ready', 'Delivered'].map((v) => Row(v, status, setStatus))}
-          <div className="lm-dd-div" />
-          <div className="lm-dd-sec">Owner</div>
-          {['All', 'Guest', 'Crew', 'Unknown'].map((v) => Row(v, owner, setOwner))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 const SORTS = [
   { val: 'newest', label: 'Newest first' },
   { val: 'oldest', label: 'Oldest first' },
   { val: 'owner', label: 'Owner A–Z' },
 ];
 
-function SortMenu({ value, onChange }) {
+// ── A real select-style dropdown: shows a label + the chosen value ──────────
+function Select({ label, value, options, onChange, align = 'left' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -72,17 +34,19 @@ function SortMenu({ value, onChange }) {
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
   }, [open]);
+  const current = options.find((o) => o.val === value) || options[0];
+  const changed = value !== options[0]?.val;
   return (
-    <div className={`lm-dd${open ? ' open' : ''}`} ref={ref}>
-      <button type="button" className="lm-dd-btn" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
-        <Icon name="ArrowUpDown" size={15} className="lm-dd-ic" />
-        <span>Sort</span>
-        <Icon name="ChevronDown" size={14} className="lm-dd-ch" />
+    <div className={`lm-sel${open ? ' open' : ''}`} ref={ref}>
+      <button type="button" className={`lm-sel-btn${changed ? ' on' : ''}`} onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
+        <span className="lm-sel-lbl">{label}</span>
+        <span className="lm-sel-val">{current?.label}</span>
+        <Icon name="ChevronDown" size={14} className="lm-sel-ch" />
       </button>
       {open && (
-        <div className="lm-dd-menu" role="listbox">
-          {SORTS.map((o) => (
-            <button key={o.val} type="button" className={`lm-dd-opt${o.val === value ? ' sel' : ''}`} onClick={() => { onChange(o.val); setOpen(false); }}>
+        <div className="lm-sel-menu" role="listbox" style={align === 'right' ? { right: 0 } : { left: 0 }}>
+          {options.map((o) => (
+            <button key={o.val} type="button" className={`lm-sel-opt${o.val === value ? ' sel' : ''}`} onClick={() => { onChange(o.val); setOpen(false); }} role="option" aria-selected={o.val === value}>
               <span>{o.label}</span>{o.val === value && <Icon name="Check" size={15} className="lm-ck" />}
             </button>
           ))}
@@ -91,6 +55,9 @@ function SortMenu({ value, onChange }) {
     </div>
   );
 }
+
+const STATUS_OPTS = [{ val: 'All', label: 'All statuses' }, { val: 'In Progress', label: 'In progress' }, { val: 'Ready', label: 'Ready' }, { val: 'Delivered', label: 'Delivered' }];
+const OWNER_OPTS = [{ val: 'All', label: 'Everyone' }, { val: 'Guest', label: 'Guests' }, { val: 'Crew', label: 'Crew' }, { val: 'Unknown', label: 'Unknown' }];
 
 // List / By cabin toggle
 function ViewToggle({ view, onChange }) {
@@ -392,8 +359,9 @@ const LaundryManagementDashboard = () => {
                 aria-label="Search laundry"
               />
             </label>
-            <FiltersMenu status={statusFilter} setStatus={setStatusFilter} owner={ownerFilter} setOwner={setOwnerFilter} />
-            <SortMenu value={sortBy} onChange={setSortBy} />
+            <Select label="Status" value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTS} />
+            <Select label="Owner" value={ownerFilter} onChange={setOwnerFilter} options={OWNER_OPTS} />
+            <Select label="Sort" value={sortBy} onChange={setSortBy} options={SORTS} align="right" />
             <ViewToggle view={viewMode} onChange={changeView} />
           </div>
 
