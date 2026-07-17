@@ -21,11 +21,12 @@ const QuickActionsCenter = ({ onAddInventory, onLogDelivery, onReportDefect, onC
               w-[72px] h-[72px] rounded-full
               flex items-center justify-center
               bg-card ${tint}
-              border-[1.5px] border-foreground border-b-[4px]
-              shadow-sm
-              transition-all duration-[250ms] ease-out
-              hover:bg-foreground hover:text-card hover:border-foreground
-              hover:shadow-lg hover:-translate-y-0.5
+              border shadow-sm
+              transition-all duration-200 ease-out
+              hover:-translate-y-0.5 hover:shadow-lg
+              ${tint === 'ce-qa-orange'
+                ? 'border-[#EED9CB] hover:bg-[#FBEFE9] hover:border-[#C65A1A]'
+                : 'border-[#E6E4DD] hover:bg-[#F2F3F7] hover:border-[#1C1B3A]'}
             `}
           >
             <Icon className="w-7 h-7" />

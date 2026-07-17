@@ -9,10 +9,6 @@ import { Department, UserStatus, getTierDisplayName, hasCommandAccess, getCurren
 import { getStatusLabel, CREW_STATUSES } from '../../utils/crewStatus';
 import InviteCrewModal from './components/InviteCrewModal';
 import PendingInvitesSection from './components/PendingInvitesSection';
-import EditCrewModal from './components/EditCrewModal';
-import ViewProfileModal from './components/ViewProfileModal';
-import EditAssignmentModal from './components/EditAssignmentModal';
-import EditEmploymentModal from './components/EditEmploymentModal';
 import StatusChangeModal from './components/StatusChangeModal';
 import CrewMovements from './components/CrewMovements';
 import GuestBookExportModal from './components/GuestBookExportModal';
@@ -152,12 +148,6 @@ const CrewManagement = () => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showGuestBook, setShowGuestBook] = useState(false);
   const [showCrewList, setShowCrewList] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingMember, setEditingMember] = useState(null);
-  const [showViewProfileModal, setShowViewProfileModal] = useState(false);
-  const [showEditAssignmentModal, setShowEditAssignmentModal] = useState(false);
-  const [viewingUserId, setViewingUserId] = useState(null);
-  const [editingAssignmentMember, setEditingAssignmentMember] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({ column: null, direction: null }); // null, 'asc', or 'desc'
   const [inviteRefreshTrigger, setInviteRefreshTrigger] = useState(0);
@@ -166,8 +156,6 @@ const CrewManagement = () => {
   const [timedOut, setTimedOut] = useState(false);
   const [error, setError] = useState(null);
   const timeoutRef = useRef(null);
-  const [showEditEmploymentModal, setShowEditEmploymentModal] = useState(false);
-  const [editingEmploymentMember, setEditingEmploymentMember] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   // Roster presentation: gallery (default) · console · hierarchy · calendar.
   const [rosterView, setRosterView] = useState('gallery');
@@ -616,49 +604,6 @@ const CrewManagement = () => {
     });
   };
 
-  const handleEditSuccess = () => {
-    // Reload users
-    fetchCrewData();
-    // Log crew update to activity feed
-    logActivity({
-      module: 'crew',
-      action: 'CREW_UPDATED',
-      entityType: 'crew_member',
-      entityId: editingMember?.id || null,
-      summary: `Crew member updated: ${editingMember?.fullName || ''}`,
-      meta: { memberName: editingMember?.fullName }
-    });
-  };
-
-  const handleEditClick = (user) => {
-    setEditingMember(user);
-    setShowEditModal(true);
-  };
-
-  const handleViewProfileClick = (user) => {
-    setViewingUserId(user?.id);
-    setShowViewProfileModal(true);
-  };
-
-  const handleEditAssignmentClick = (user) => {
-    setEditingAssignmentMember(user);
-    setShowEditAssignmentModal(true);
-  };
-
-  const handleEditAssignmentSuccess = () => {
-    // Reload users
-    fetchCrewData();
-  };
-
-  const handleEditEmploymentClick = (user) => {
-    setEditingEmploymentMember(user);
-    setShowEditEmploymentModal(true);
-  };
-
-  const handleEditEmploymentSuccess = () => {
-    // Reload users
-    fetchCrewData();
-  };
 
   const loadPendingInvites = async () => {
     if (!currentUser?.id) return;
@@ -1024,73 +969,6 @@ const CrewManagement = () => {
         <Icon name="AlertTriangle" size={12} />
         {label}
       </button>
-    );
-  };
-
-  const renderCrewRow = (user) => {
-    const isAway = user?.status && user?.status !== 'active' && user?.status !== 'invited';
-    const ret = returnByUser[user?.user_id];
-    const since = user?.start_date || user?.joined_at;
-    const ten = tenure(since);
-    return (
-      <tr key={user?.id}>
-        <td>
-          <div className="cm-person">
-            <span className="cm-av">{initials(user?.fullName)}</span>
-            <div style={{ minWidth: 0 }}>
-              <div className="cm-name">{user?.fullName}</div>
-              {canSeeEmails && <div className="cm-sub">{user?.email}</div>}
-            </div>
-          </div>
-        </td>
-        <td className="cm-cell-ink">{user?.roleTitle}</td>
-        <td><span className="cm-pill cm-pill-perm">{getEffectiveTierDisplay(user)}</span></td>
-        <td>
-          <div className="cm-tenure">{fmtDate(since)}</div>
-          {ten && <div className="cm-sub">{ten}</div>}
-        </td>
-        <td>
-          {hasEditPermission ? (
-            <button
-              className="cm-pill cm-pill-status"
-              onClick={() => setStatusChangeTarget({ userId: user?.id, currentStatus: user?.status, name: user?.fullName })}
-            >
-              <span className={`cm-dot s-${user?.status || 'unknown'}`} />
-              {getStatusLabel(user?.status)}
-              <Icon name="ChevronDown" size={11} className="cm-status-badge" />
-            </button>
-          ) : (
-            <span className="cm-pill cm-pill-status">
-              <span className={`cm-dot s-${user?.status || 'unknown'}`} />
-              {getStatusLabel(user?.status)}
-            </span>
-          )}
-          {isAway && ret && <div className="cm-sub is-accent">Back {fmtDate(ret.date)}</div>}
-        </td>
-        <td>{renderCompliance(user)}</td>
-        <td>
-          <div className="cm-acts">
-            <button className="cm-iconbtn" onClick={() => navigate(`/profile/${user?.id}`)} title="View profile">
-              <Icon name="Eye" size={16} />
-            </button>
-            {hasEditPermission && !showArchived && (
-              <>
-                <button className="cm-iconbtn" onClick={() => handleEditEmploymentClick(user)} title="Edit employment">
-                  <Icon name="Edit" size={16} />
-                </button>
-                <button className="cm-iconbtn" onClick={() => handleArchiveCrew(user?.id)} title="Archive">
-                  <Icon name="Archive" size={16} />
-                </button>
-              </>
-            )}
-            {showArchived && hasEditPermission && (
-              <button className="cm-iconbtn" onClick={() => handleRestoreCrew(user?.id)} title="Restore">
-                <Icon name="RotateCcw" size={16} />
-              </button>
-            )}
-          </div>
-        </td>
-      </tr>
     );
   };
 
@@ -2348,34 +2226,6 @@ const CrewManagement = () => {
         memberName={statusChangeTarget?.name}
         currentStatus={statusChangeTarget?.currentStatus}
         saving={statusChangeSaving}
-      />
-      {/* Edit Crew Modal */}
-      <EditCrewModal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        member={editingMember}
-        onSuccess={handleEditSuccess}
-      />
-      {/* View Profile Modal */}
-      <ViewProfileModal
-        isOpen={showViewProfileModal}
-        onClose={() => setShowViewProfileModal(false)}
-        userId={viewingUserId}
-        canSeeEmail={canSeeEmails}
-      />
-      {/* Edit Assignment Modal */}
-      <EditAssignmentModal
-        isOpen={showEditAssignmentModal}
-        onClose={() => setShowEditAssignmentModal(false)}
-        member={editingAssignmentMember}
-        onSuccess={handleEditAssignmentSuccess}
-      />
-      {/* Edit Employment Modal */}
-      <EditEmploymentModal
-        isOpen={showEditEmploymentModal}
-        onClose={() => setShowEditEmploymentModal(false)}
-        member={editingEmploymentMember}
-        onSuccess={handleEditEmploymentSuccess}
       />
     </div>
   );
