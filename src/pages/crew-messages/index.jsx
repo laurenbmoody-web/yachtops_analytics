@@ -55,8 +55,17 @@ const AV_GRADS = [
   ['#3E5C76', '#1E3A5F'], ['#5B6B8C', '#39415C'], ['#6B7A99', '#454E68'],
   ['#2F6E8F', '#20405C'], ['#4B5D8A', '#2A2F52'], ['#527A8A', '#2E4A57'],
 ];
+// Warm palette for supplier faces — distinguishes them from crew (cool navy)
+// by colour instead of a dashed ring.
+const SUP_GRADS = [
+  ['#C65A1A', '#8A3D10'], ['#D2802E', '#A85E1E'], ['#B8551E', '#7C3410'],
+  ['#CE6A2A', '#96481A'], ['#BE6733', '#8A4418'],
+];
 const hashId = (s = '') => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
 const avatarGrad = (id) => { const [a, b] = AV_GRADS[hashId(String(id)) % AV_GRADS.length]; return `linear-gradient(140deg, ${a}, ${b})`; };
+const supGrad = (id) => { const [a, b] = SUP_GRADS[hashId(String(id)) % SUP_GRADS.length]; return `linear-gradient(140deg, ${a}, ${b})`; };
+// A person's avatar gradient — warm for supplier, cool for crew.
+const faceGrad = (p) => (p?.party === 'supplier' ? supGrad(p.user_id) : avatarGrad(p.user_id));
 
 const fmtClock = (d) => (d ? formatTime(d) : '');
 const fmtWhen = (d) => {
@@ -741,7 +750,7 @@ const CrewMessages = () => {
                           const nm = p.name || (p.party === 'crew' ? 'Crew' : 'Supplier');
                           const role = p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'sales'} · supplier`;
                           return (
-                            <span key={p.user_id} className={`msg-face${p.party === 'supplier' ? ' sup' : ''}`} style={{ backgroundImage: avatarGrad(p.user_id) }} title={`${nm}${p.user_id === myUid ? ' (you)' : ''} — ${role}`}>
+                            <span key={p.user_id} className="msg-face" style={{ backgroundImage: faceGrad(p) }} title={`${nm}${p.user_id === myUid ? ' (you)' : ''} — ${role}`}>
                               {initials(nm)}
                               {p.party === 'crew' && p.user_id !== myUid && (
                                 <button type="button" className="msg-face-x" disabled={peopleBusy} title={`Remove ${nm}`} aria-label={`Remove ${nm}`} onClick={(e) => { e.stopPropagation(); removeCrew(p.user_id); }}>×</button>
@@ -763,7 +772,7 @@ const CrewMessages = () => {
                                   const nm = p.name || (p.party === 'crew' ? 'Crew' : 'Supplier');
                                   return (
                                     <div key={p.user_id} className="msg-people-row">
-                                      <span className="msg-face sm" style={{ backgroundImage: avatarGrad(p.user_id) }} aria-hidden>{initials(nm)}</span>
+                                      <span className="msg-face sm" style={{ backgroundImage: faceGrad(p) }} aria-hidden>{initials(nm)}</span>
                                       <span className="msg-people-info">
                                         <span className="msg-assign-name">{nm + (p.user_id === myUid ? ' (you)' : '')}</span>
                                         <span className="msg-assign-role">{p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'sales'} · supplier`}</span>

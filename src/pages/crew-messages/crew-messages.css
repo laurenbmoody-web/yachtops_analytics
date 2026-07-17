@@ -204,14 +204,17 @@
 
 /* People — an overlapping avatar pile; hover a face for the name, "+" to add. */
 .cmsg-page .msg-people { position: relative; margin-left: auto; flex: none; }
+/* Condensed by default; the pile fans out when you hover it. */
 .cmsg-page .msg-facepile { display: flex; align-items: center; }
-.cmsg-page .msg-facepile .msg-face:not(:first-child) { margin-left: -8px; }
-.cmsg-page .msg-facepile .msg-face.add { margin-left: 5px; }
-.cmsg-page .msg-face { position: relative; flex: none; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--card); background-size: cover; color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; display: inline-flex; align-items: center; justify-content: center; text-transform: uppercase; box-shadow: var(--sh1); transition: transform 0.1s; }
+.cmsg-page .msg-facepile .msg-face { transition: margin-left 0.16s ease, transform 0.1s; }
+.cmsg-page .msg-facepile .msg-face:not(:first-child) { margin-left: -15px; }
+.cmsg-page .msg-facepile .msg-face.add { margin-left: -2px; }
+.cmsg-page .msg-facepile:hover .msg-face:not(:first-child) { margin-left: -3px; }
+.cmsg-page .msg-facepile:hover .msg-face.add { margin-left: 6px; }
+.cmsg-page .msg-face { position: relative; flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--card); background-size: cover; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; display: inline-flex; align-items: center; justify-content: center; text-transform: uppercase; box-shadow: var(--sh1); }
 .cmsg-page .msg-facepile .msg-face:hover { z-index: 3; transform: translateY(-1px); }
-.cmsg-page .msg-face.sup { border-style: dashed; }
-.cmsg-page .msg-face.more { background: var(--bg-2); background-image: none !important; color: var(--muted-strong); font-size: 10px; cursor: pointer; }
-.cmsg-page .msg-face.add { background: #fff; background-image: none !important; color: var(--orange); border: 1.5px dashed var(--orange); font-size: 17px; font-weight: 500; line-height: 1; cursor: pointer; }
+.cmsg-page .msg-face.more { background: var(--bg-2); background-image: none !important; color: var(--muted-strong); font-size: 9.5px; cursor: pointer; }
+.cmsg-page .msg-face.add { background: #fff; background-image: none !important; color: var(--orange); border: 1.5px solid var(--orange); font-size: 16px; font-weight: 500; line-height: 1; cursor: pointer; }
 .cmsg-page .msg-face.add:hover { background: var(--pill); }
 .cmsg-page .msg-face-x { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--card); background: var(--red); color: #fff; font-size: 11px; line-height: 1; padding: 0; display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 2; }
 .cmsg-page .msg-face:hover .msg-face-x { display: inline-flex; }
