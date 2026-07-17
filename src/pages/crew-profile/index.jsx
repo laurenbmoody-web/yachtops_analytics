@@ -33,6 +33,7 @@ import { uploadDocumentFile, saveCrewDocument } from './utils/crewDocuments';
 import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
+import { pushSupported, isPushEnabled, enablePush, disablePush } from '../laundry-management-dashboard/utils/pushSetup';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, calculateLatestLongestStretch, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
 import { fetchWorkEntriesForMonth } from './utils/horWorkEntries';
 import { fetchRotaBaselineForMonth } from './utils/horBaseline';
@@ -293,6 +294,33 @@ const CrewProfile = () => {
   const [permSaving, setPermSaving] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState(null);   // null until loaded
   const [notifSavingKey, setNotifSavingKey] = useState(null);
+  // Laundry phone-alerts (web push) — per device, enrolled from here.
+  const [laundryPush, setLaundryPush] = useState({ supported: false, on: false, busy: false });
+  useEffect(() => {
+    if (activeSection !== 'notifications') return;
+    if (!pushSupported()) { setLaundryPush((s) => ({ ...s, supported: false })); return; }
+    isPushEnabled().then((on) => setLaundryPush((s) => ({ ...s, supported: true, on }))).catch(() => {});
+  }, [activeSection]);
+  const toggleLaundryPush = async () => {
+    if (laundryPush.busy) return;
+    setLaundryPush((s) => ({ ...s, busy: true }));
+    try {
+      if (laundryPush.on) {
+        await disablePush();
+        setLaundryPush((s) => ({ ...s, on: false }));
+        showToast('Laundry alerts off for this device', 'info');
+      } else {
+        const r = await enablePush();
+        if (r.ok) { setLaundryPush((s) => ({ ...s, on: true })); showToast('Laundry alerts on for this device', 'success'); }
+        else if (r.reason === 'denied') showToast('Notifications are blocked — enable them in your browser settings', 'error');
+        else if (r.reason === 'unsupported') showToast('This device doesn’t support push. On iPhone, add Cargo to your Home Screen first.', 'error');
+        else if (r.reason === 'no_session') showToast('Couldn’t confirm your vessel — try again once signed in', 'error');
+        else if (r.reason !== 'dismissed') showToast('Couldn’t enable alerts. Please try again.', 'error');
+      }
+    } finally {
+      setLaundryPush((s) => ({ ...s, busy: false }));
+    }
+  };
   const [capPopOpen, setCapPopOpen] = useState(false);  // "what <class> can do" popover
   // Contract / employment section
   const [empLoaded, setEmpLoaded] = useState(false);
@@ -3827,6 +3855,23 @@ const canEdit = (() => {
             ))}
           </div>
         ))}
+        {activeTenantId && laundryPush.supported && (isSenior || (crewMember?.department || '').toLowerCase().includes('interior')) && (
+          <div className="s2-block">
+            <div className="s2-grp">Laundry</div>
+            <div className="s2-row">
+              <div className="s2-main">
+                <div className="s2-label">Laundry alerts on this phone</div>
+                <div className="s2-desc">
+                  A push notification to this device when laundry is overdue or flagged. Set per device
+                  {typeof navigator !== 'undefined' && /iPhone|iPad/i.test(navigator.userAgent) ? ' — add Cargo to your Home Screen first.' : '.'}
+                </div>
+              </div>
+              <div className="s2-cbs">
+                {renderSwitch(laundryPush.on, toggleLaundryPush, { disabled: laundryPush.busy, busy: laundryPush.busy })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
