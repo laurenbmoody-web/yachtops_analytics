@@ -1300,12 +1300,7 @@ const SettingsPage = () => {
           <div className={`set-layout${navCollapsed ? ' collapsed' : ''}`}>
             {/* Rail — boxed grouped nav (crew-profile flatcard style), collapsible */}
             <aside className={`set-rail${navCollapsed ? ' collapsed' : ''}`}>
-              <div className="set-rail-top">
-                <span className="set-nav-grp first">Menu</span>
-                <button className="set-rail-collapse" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'}>
-                  <Icon name={navCollapsed ? 'ChevronRight' : 'ChevronLeft'} size={16} />
-                </button>
-              </div>
+              <button type="button" className="set-rail-edge" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'} />
               <nav>
                 {NAV.map((group, gi) => (
                   <React.Fragment key={group.grp}>
