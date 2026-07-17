@@ -269,7 +269,9 @@
 .cmsg-page .msg-card-v.muted { color: var(--muted); }
 .cmsg-page a.msg-card-row.link .msg-card-v { color: var(--orange); }
 .cmsg-page a.msg-card-row.link:hover .msg-card-v { text-decoration: underline; }
-.cmsg-page .msg-card-remove { width: 100%; margin-top: 14px; background: none; border: 1px solid var(--line); border-radius: 9px; padding: 8px; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted-strong); cursor: pointer; }
+.cmsg-page .msg-card-profile { width: 100%; margin-top: 14px; background: var(--orange); border: 0; border-radius: 9px; padding: 9px; font-family: inherit; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; }
+.cmsg-page .msg-card-profile:hover { background: #B14E16; }
+.cmsg-page .msg-card-remove { width: 100%; margin-top: 8px; background: none; border: 1px solid var(--line); border-radius: 9px; padding: 8px; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted-strong); cursor: pointer; }
 .cmsg-page .msg-card-remove:hover { color: var(--red); border-color: var(--red); }
 .cmsg-page .msg-card-remove:disabled { opacity: 0.5; cursor: default; }
 .cmsg-page .msg-assign-empty { font-size: 11.5px; color: var(--muted); padding: 8px 9px; }

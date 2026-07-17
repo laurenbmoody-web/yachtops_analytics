@@ -835,7 +835,7 @@ const CrewMessages = () => {
                                         <div className="msg-card-name">{cardDetail.name}{cardPerson.user_id === myUid ? ' (you)' : ''}</div>
                                         <div className="msg-card-badges">
                                           <span className={`msg-card-badge ${cardDetail.party}`}>{cardDetail.party === 'supplier' ? 'Supplier' : 'Crew'}</span>
-                                          {(cardDetail.tier || cardDetail.role) && <span className="msg-card-role">{(cardDetail.tier || cardDetail.role || '').toString().toLowerCase()}</span>}
+                                          {(cardDetail.position || cardDetail.tier || cardDetail.role) && <span className="msg-card-role">{(cardDetail.position || cardDetail.tier || cardDetail.role || '').toString().toLowerCase()}</span>}
                                         </div>
                                       </div>
                                     </div>
@@ -853,6 +853,9 @@ const CrewMessages = () => {
                                         <div className="msg-card-row"><span className="msg-card-v muted">No contact details on file</span></div>
                                       )}
                                     </div>
+                                    {cardDetail.party === 'crew' && cardPerson.user_id && (
+                                      <button type="button" className="msg-card-profile" onClick={() => navigate(`/profile/${cardPerson.user_id}`)}>View full profile →</button>
+                                    )}
                                     {cardDetail.party === 'crew' && cardPerson.user_id !== myUid && (
                                       <button type="button" className="msg-card-remove" disabled={peopleBusy} onClick={() => removeCrew(cardPerson.user_id)}>Remove from chat</button>
                                     )}
