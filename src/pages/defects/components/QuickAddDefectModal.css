@@ -29,14 +29,6 @@
 .qad-seg button.on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
 .qad-hint { font-size: 11.5px; color: #8B8478; margin: 4px 0 0; line-height: 1.4; }
 
-.qad-map { display: flex; align-items: center; gap: 9px; padding: 10px 13px; border: 1px solid #ECEAE3;
-  border-radius: 10px; background: #FAFAF8; font-family: inherit; font-size: 12.5px; font-weight: 500; color: #1C1B3A;
-  cursor: pointer; text-align: left; width: 100%; transition: background .12s ease, border-color .12s ease; }
-.qad-map:hover { background: #F6F5F2; border-color: #E3DFD6; }
-.qad-map span { flex: 1; }
-.qad-map-pin { flex: 0 0 auto; color: #C65A1A; }
-.qad-map-arr { flex: 0 0 auto; color: #AEB4C2; transition: color .12s ease, transform .12s ease; }
-.qad-map:hover .qad-map-arr { color: #C65A1A; transform: translateX(2px); }
 
 .qad-photo-btn { display: flex; align-items: center; justify-content: center; gap: 7px; height: 84px; border: 1.5px dashed #E8E6DF;
   border-radius: 10px; background: #FAFAF8; color: #8B8478; font-size: 12.5px; cursor: pointer; width: 100%; }

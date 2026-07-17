@@ -21,7 +21,7 @@ const PRIORITIES = [
   { k: 'High', title: 'High' }, { k: 'Critical', title: 'Critical' },
 ];
 
-export default function DefectLogForm({ onSubmit, onCancel, submitLabel = 'Log & notify', busyLabel = 'Logging…', showLocation = false, initial = null }) {
+export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCancel, submitLabel = 'Log & notify', busyLabel = 'Logging…', showLocation = false, initial = null }) {
   const actor = useDefectActor();
   const fileRef = useRef(null);
   const [departments, setDepartments] = useState([]);
@@ -65,30 +65,35 @@ export default function DefectLogForm({ onSubmit, onCancel, submitLabel = 'Log &
     files.forEach((file) => { const r = new FileReader(); r.onloadend = () => setForm((f) => ({ ...f, photos: [...f.photos, r.result] })); r.readAsDataURL(file); });
   };
 
-  const submit = async (e) => {
-    e?.preventDefault();
+  const buildPayload = () => {
+    const picked = crew.find((c) => c?.id === form.userId);
+    return {
+      title: form.title, description: form.description, priority: form.priority,
+      departmentId: form.deptId || null, departmentOwner: dName,
+      assigneeKind: form.assign,
+      assignedToUserId: form.assign === 'user' ? form.userId : null,
+      assignedToName: form.assign === 'user' ? (picked?.fullName || null) : null,
+      assignedTeamDepartmentId: form.assign === 'team' ? form.deptId : null,
+      assignedTeamName: form.assign === 'team' ? dName : null,
+      affectsGuestAreas: form.affectsGuestAreas, safetyRelated: form.safetyRelated,
+      photos: form.photos, notifyUsers: form.notify,
+      ...(showLocation ? { locationFreeText: form.locationFreeText, locationPathLabel: form.locationFreeText || null } : {}),
+    };
+  };
+
+  const runSubmit = async (handler) => {
     if (!form.title.trim()) { setErr('Give the defect a title.'); return; }
     setBusy(true); setErr('');
     try {
-      const picked = crew.find((c) => c?.id === form.userId);
-      await onSubmit({
-        title: form.title, description: form.description, priority: form.priority,
-        departmentId: form.deptId || null, departmentOwner: dName,
-        assigneeKind: form.assign,
-        assignedToUserId: form.assign === 'user' ? form.userId : null,
-        assignedToName: form.assign === 'user' ? (picked?.fullName || null) : null,
-        assignedTeamDepartmentId: form.assign === 'team' ? form.deptId : null,
-        assignedTeamName: form.assign === 'team' ? dName : null,
-        affectsGuestAreas: form.affectsGuestAreas, safetyRelated: form.safetyRelated,
-        photos: form.photos, notifyUsers: form.notify,
-        ...(showLocation ? { locationFreeText: form.locationFreeText, locationPathLabel: form.locationFreeText || null } : {}),
-      });
+      await handler(buildPayload());
     } catch (e2) {
       setErr(e2?.message || 'Failed to log the defect.');
     } finally {
       setBusy(false);
     }
   };
+
+  const submit = (e) => { e?.preventDefault(); runSubmit(onSubmit); };
 
   return (
     <form className="vmd-form" onSubmit={submit}>
@@ -207,6 +212,11 @@ export default function DefectLogForm({ onSubmit, onCancel, submitLabel = 'Log &
       <div className="vmd-form-actions">
         {onCancel && <button type="button" className="vm-btn-ghost" onClick={onCancel} disabled={busy}>Cancel</button>}
         <button type="submit" className="vm-btn-primary" disabled={busy} style={{ flex: 1 }}>{busy ? busyLabel : submitLabel}</button>
+        {onSubmitAndPin && (
+          <button type="button" className="vm-btn-ghost vmd-pinbtn" disabled={busy} onClick={() => runSubmit(onSubmitAndPin)}>
+            <Icon name="MapPin" size={15} /> Log &amp; pin on map
+          </button>
+        )}
       </div>
     </form>
   );
