@@ -24,6 +24,7 @@ import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
 import Icon from '../../components/AppIcon';
 import { refreshScanThumb } from './utils/scanThumb';
+import { fetchDefectMetaByHotspots, DefectPriority } from '../defects/utils/defectsStorage';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
 import './vessel-map.css';
@@ -328,6 +329,24 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   // interior photo (parent_id set) and are handled by the interior view.
   const topHotspots = useMemo(() => hotspots.filter((h) => !h.parent_id), [hotspots]);
 
+  // Severity/status of the active defect behind each defect pin — so Critical /
+  // High pins can pulse. Batched, keyed by hotspot_id; refetched when pins change.
+  const [defectMeta, setDefectMeta] = useState({});
+  const defectHotspotKey = useMemo(
+    () => topHotspots.filter((h) => h.layer === 'defect').map((h) => h.id).sort().join(','),
+    [topHotspots]
+  );
+  useEffect(() => {
+    const ids = defectHotspotKey ? defectHotspotKey.split(',') : [];
+    if (!ids.length || !activeTenantId) { setDefectMeta({}); return undefined; }
+    let cancelled = false;
+    (async () => {
+      const meta = await fetchDefectMetaByHotspots(ids, activeTenantId);
+      if (!cancelled) setDefectMeta(meta);
+    })();
+    return () => { cancelled = true; };
+  }, [defectHotspotKey, activeTenantId]);
+
   const layerCounts = useMemo(() => {
     const counts = {};
     for (const h of topHotspots) counts[h.layer] = (counts[h.layer] || 0) + 1;
@@ -341,8 +360,17 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   const allHotspots = useMemo(
     () => topHotspots
       .filter((h) => !placingItem || layerHoldsStock(h.layer))
-      .map((h) => ({ ...h, color: h.color || layerColor(h.layer), isContainer: !!h.is_container })),
-    [topHotspots, placingItem]
+      .map((h) => {
+        const priority = h.layer === 'defect' ? defectMeta[h.id]?.priority : null;
+        return {
+          ...h,
+          color: h.color || layerColor(h.layer),
+          isContainer: !!h.is_container,
+          // A serious, still-open defect pulses to draw the eye.
+          severityPulse: priority === DefectPriority.CRITICAL || priority === DefectPriority.HIGH,
+        };
+      }),
+    [topHotspots, placingItem, defectMeta]
   );
 
   // The opened-container path, resolved live from hotspots (so labels/photo
