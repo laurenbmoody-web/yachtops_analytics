@@ -435,7 +435,7 @@ const LaundryManagementDashboard = () => {
       </div>
 
       {(showAddModal || editItem) && (
-        <AddLaundryModal editItem={editItem} onClose={() => { setShowAddModal(false); setEditItem(null); }} onSuccess={handleAddSuccess} />
+        <AddLaundryModal editItem={editItem} onClose={() => { setShowAddModal(false); setEditItem(null); }} onSuccess={handleAddSuccess} onSaved={() => loadLaundryItems()} />
       )}
 
       {detailItem && (
