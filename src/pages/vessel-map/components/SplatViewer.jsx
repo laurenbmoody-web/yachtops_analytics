@@ -565,8 +565,17 @@ export default function SplatViewer({
       // Poster frame: render synchronously then read the canvas in the same
       // task — no preserveDrawingBuffer needed, no per-frame cost. Downscaled
       // to a ~480px JPEG for the manage list.
-      captureFrame: ({ width = 480, quality = 0.75 } = {}) => {
+      // `hidePins` blanks all pins/rings for one synchronous capture (a clean
+      // location shot), then restores — pin visibility is instant, so this
+      // doesn't disturb the splat's depth sort (a camera *move* would, which is
+      // why the defect snapshot glides the target over frames rather than
+      // jumping, then captures here).
+      captureFrame: ({ width = 480, quality = 0.75, hidePins = false } = {}) => {
+        const pinObjs = [spriteGroup, pulseGroup, steadyRing, pulseRing];
+        const vis = hidePins ? pinObjs.map((o) => o.visible) : null;
+        if (hidePins) pinObjs.forEach((o) => { o.visible = false; });
         renderer.render(scene, camera);
+        if (hidePins) pinObjs.forEach((o, i) => { o.visible = vis[i]; });
         const src = renderer.domElement;
         if (!src.width || !src.height) return Promise.resolve(null);
         const w = Math.min(width, src.width);
@@ -576,38 +585,6 @@ export default function SplatViewer({
         off.height = h;
         off.getContext('2d').drawImage(src, 0, 0, w, h);
         return new Promise((resolve) => off.toBlob(resolve, 'image/jpeg', quality));
-      },
-      // A clean "location" frame: momentarily frame the camera on a point and
-      // hide ALL pins/rings, capture, then restore the user's view in the same
-      // synchronous pass (no visible flicker). Used for a defect's fixed-location
-      // snapshot so it's centred on the spot and free of other pins.
-      captureAtPin: (pos, opts = {}) => {
-        const target = new THREE.Vector3(pos.x, pos.y, pos.z);
-        if (targetBox) targetBox.clampPoint(target, target);
-        // Save state
-        const sCam = camera.position.clone();
-        const sTgt = controls.target.clone();
-        const sQuat = camera.quaternion.clone();
-        const vis = [spriteGroup, pulseGroup, steadyRing, pulseRing].map((o) => o.visible);
-        // Frame: look at the spot from a room-appropriate distance along the
-        // current view direction.
-        const dir = camera.position.clone().sub(controls.target);
-        let dist = dir.length() * 0.5;
-        if (targetBox) dist = targetBox.getSize(new THREE.Vector3()).length() * 0.32;
-        dir.normalize();
-        if (!Number.isFinite(dist) || dist <= 0) dist = 1;
-        camera.position.copy(target).addScaledVector(dir, dist);
-        camera.lookAt(target);
-        camera.updateMatrixWorld();
-        [spriteGroup, pulseGroup, steadyRing, pulseRing].forEach((o) => { o.visible = false; });
-        const blob = glRef.current.captureFrame(opts); // synchronous render + pixel read
-        // Restore
-        camera.position.copy(sCam);
-        camera.quaternion.copy(sQuat);
-        controls.target.copy(sTgt);
-        camera.updateMatrixWorld();
-        [spriteGroup, pulseGroup, steadyRing, pulseRing].forEach((o, i) => { o.visible = vis[i]; });
-        return blob;
       },
     };
     if (apiRef) apiRef.current = glRef.current;
