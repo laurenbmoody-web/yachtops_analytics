@@ -883,6 +883,21 @@ export const fetchPersonCard = async (threadId, userId) => {
   return data || null;
 };
 
+// Supplier teammates who can be added to this thread (not already in).
+export const fetchAddableSupplier = async (threadId) => {
+  const { data, error } = await supabase.rpc('fetch_addable_supplier_for_thread', { p_thread_id: threadId });
+  if (error) throw error;
+  return data ?? [];
+};
+export const addThreadParticipant = async (threadId, userId, party = 'supplier') => {
+  const { error } = await supabase.rpc('add_thread_participant', { p_thread: threadId, p_user_id: userId, p_party: party });
+  if (error) throw error;
+};
+export const removeThreadParticipant = async (threadId, userId) => {
+  const { error } = await supabase.rpc('remove_thread_participant', { p_thread: threadId, p_user_id: userId });
+  if (error) throw error;
+};
+
 // Save MY own messaging profile (about + work phone).
 export const saveMyMessagingProfile = async (userId, { about, work_phone }) => {
   const { error } = await supabase
