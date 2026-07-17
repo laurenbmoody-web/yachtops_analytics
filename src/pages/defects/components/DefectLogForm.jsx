@@ -28,6 +28,10 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
   const [crew, setCrew] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  // When set, the location will be dropped as a map pin *after* logging — the
+  // primary button becomes "Log & pin on map" so the map only opens once the
+  // whole form is filled, never mid-form.
+  const [willPin, setWillPin] = useState(false);
   const [form, setForm] = useState(() => ({
     title: '', priority: DefectPriority.MEDIUM, description: '', photos: [],
     deptId: '', assign: 'unassigned', userId: '', affectsGuestAreas: false, safetyRelated: false,
@@ -93,7 +97,7 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
     }
   };
 
-  const submit = (e) => { e?.preventDefault(); runSubmit(onSubmit); };
+  const submit = (e) => { e?.preventDefault(); runSubmit(willPin && onSubmitAndPin ? onSubmitAndPin : onSubmit); };
 
   return (
     <form className="vmd-form" onSubmit={submit}>
@@ -169,13 +173,17 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
           <div className="vmd-lbl-row">
             <label className="vmd-lbl">Location<span className="req" style={{ color: '#AEB4C2' }}>optional</span></label>
             {onSubmitAndPin && (
-              <button type="button" className="vmd-pinlink" disabled={busy} onClick={() => runSubmit(onSubmitAndPin)} title="Log the defect, then drop a pin on the map">
-                <Icon name="MapPin" size={13} /> Set on map
+              <button type="button" className="vmd-pinlink" onClick={() => setWillPin((v) => !v)}>
+                <Icon name={willPin ? 'Keyboard' : 'MapPin'} size={13} /> {willPin ? 'Type it instead' : 'Set on map'}
               </button>
             )}
           </div>
-          <input className="vmd-input" value={form.locationFreeText}
-            onChange={(e) => setForm({ ...form, locationFreeText: e.target.value })} placeholder="Type it here, or set it on the map →" />
+          {willPin ? (
+            <div className="vmd-pinnote"><Icon name="MapPin" size={14} /> You'll drop the pin on the map once you log — finish the rest first.</div>
+          ) : (
+            <input className="vmd-input" value={form.locationFreeText}
+              onChange={(e) => setForm({ ...form, locationFreeText: e.target.value })} placeholder="e.g. Owner's cabin · aft bulkhead" />
+          )}
         </div>
       )}
 
@@ -218,7 +226,7 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
       {err && <p className="vmd-err">{err}</p>}
       <div className="vmd-form-actions">
         {onCancel && <button type="button" className="vm-btn-ghost" onClick={onCancel} disabled={busy}>Cancel</button>}
-        <button type="submit" className="vm-btn-primary" disabled={busy} style={{ flex: 1 }}>{busy ? busyLabel : submitLabel}</button>
+        <button type="submit" className="vm-btn-primary" disabled={busy} style={{ flex: 1 }}>{busy ? busyLabel : (willPin && onSubmitAndPin ? 'Log & pin on map' : submitLabel)}</button>
       </div>
     </form>
   );

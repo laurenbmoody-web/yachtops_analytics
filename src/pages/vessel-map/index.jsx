@@ -117,8 +117,10 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     return id ? { id, title: q.get('placeDefectTitle') || 'this defect' } : null;
   });
   const isDesktop = useIsDesktop();
-  // Dropping a defect pin uses the same click-to-drop placement as adding a pin.
-  const placementMode = mode === 'pin' || !!placingDefect;
+  const placementMode = mode === 'pin';
+  // The defect pin dropped in this placement session (null until dropped) — lets
+  // the crew reposition it and confirm, rather than closing on the first tap.
+  const [placedPin, setPlacedPin] = useState(null);
 
   const [spaceLinks, setSpaceLinks] = useState([]); // doorway links [{id,a,b,aPos,bPos}]
   const [spaceNames, setSpaceNames] = useState({}); // space_id → room name (for doors to un-scanned rooms)
@@ -483,7 +485,10 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     if (placingDefect) {
       const locationPathLabel = [selectedScan?.name, ...containerTrail.map((c) => c?.label || c?.name)].filter(Boolean).join(' · ') || selectedScan?.name || null;
       await updateDefect(placingDefect.id, { hotspotId: data.id, locationPathLabel }, defectActor);
-      finishPlacingDefect(true);
+      // Keep the picker open on a "reposition / done" step instead of closing on
+      // the first tap; don't select it (that would open the defect modal).
+      setPlacedPin(data);
+      setMode('navigate');
       return;
     }
     setSelectedHotspot(data);
@@ -495,6 +500,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   const finishPlacingDefect = useCallback((placed) => {
     if (embedded) { if (placed) onPlacedProp?.(); onCloseProp?.(); return; }
     setPlacingDefect(null);
+    setPlacedPin(null);
     setMode('navigate');
   }, [embedded, onPlacedProp, onCloseProp]);
 
@@ -974,10 +980,23 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   </div>
                 )}
 
-                {placingDefect && (
+                {placingDefect && !adjusting && (
                   <div className="vm-placing-bar">
-                    <span className="vm-placing-text">Pinning <strong>{placingDefect.title}</strong> — pick the space, then tap a spot to drop the pin.</span>
-                    <button className="vm-placing-cancel" onClick={() => finishPlacingDefect(false)}>Cancel</button>
+                    {!placedPin ? (
+                      <>
+                        <span className="vm-placing-text">
+                          Pinning <strong>{placingDefect.title}</strong> — {mode === 'pin' ? 'tap the spot to drop the pin.' : 'move to the right space, then drop the pin.'}
+                        </span>
+                        {mode !== 'pin' && <button className="vm-placing-drop" onClick={() => setMode('pin')}>Drop pin</button>}
+                        <button className="vm-placing-cancel" onClick={() => finishPlacingDefect(false)}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="vm-placing-text">Pin dropped for <strong>{placingDefect.title}</strong> — reposition it, or you're done.</span>
+                        <button className="vm-placing-drop" onClick={() => startAdjust(hotspots.find((h) => h.id === placedPin.id) || placedPin)}>Reposition</button>
+                        <button className="vm-placing-done" onClick={() => finishPlacingDefect(true)}>Done</button>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -1044,7 +1063,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
 
                 {/* Defect pin → open its view modal directly (no drawer). Pin
                     management (reposition / remove) lives in the modal's ⋯ menu. */}
-                {selectedHotspot?.layer === 'defect' && (
+                {selectedHotspot?.layer === 'defect' && !placingDefect && (
                   <DefectModal
                     hotspot={selectedHotspot}
                     canManage={canPlaceHotspots}

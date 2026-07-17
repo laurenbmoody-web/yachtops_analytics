@@ -1722,6 +1722,13 @@
 .vm-placing-cancel { flex: none; background: rgba(255,255,255,0.14); border: 0; color: #fff; border-radius: 999px;
   padding: 5px 12px; font-family: inherit; font-size: 12px; cursor: pointer; }
 .vm-placing-cancel:hover { background: rgba(255,255,255,0.24); }
+/* Drop pin / Reposition — terracotta; Done — solid confirm. */
+.vm-placing-drop, .vm-placing-done { flex: none; border: 0; border-radius: 999px; padding: 5px 13px;
+  font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.vm-placing-drop { background: #C65A1A; color: #fff; }
+.vm-placing-drop:hover { background: #B14E16; }
+.vm-placing-done { background: #fff; color: #1C1B3A; }
+.vm-placing-done:hover { background: #F0F1F5; }
 .vm-pinitems-new { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .vm-pinitems-new-row { display: flex; align-items: center; gap: 8px; }
 .vm-pinitems-new-qty { width: 64px; flex: none; height: 38px; padding: 0 10px; }
