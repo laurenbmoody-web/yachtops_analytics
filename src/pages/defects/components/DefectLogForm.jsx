@@ -166,9 +166,16 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
 
       {showLocation && (
         <div className="vmd-field">
-          <label className="vmd-lbl">Location<span className="req" style={{ color: '#AEB4C2' }}>optional</span></label>
+          <div className="vmd-lbl-row">
+            <label className="vmd-lbl">Location<span className="req" style={{ color: '#AEB4C2' }}>optional</span></label>
+            {onSubmitAndPin && (
+              <button type="button" className="vmd-pinlink" disabled={busy} onClick={() => runSubmit(onSubmitAndPin)} title="Log the defect, then drop a pin on the map">
+                <Icon name="MapPin" size={13} /> Set on map
+              </button>
+            )}
+          </div>
           <input className="vmd-input" value={form.locationFreeText}
-            onChange={(e) => setForm({ ...form, locationFreeText: e.target.value })} placeholder="e.g. Owner's cabin · aft bulkhead" />
+            onChange={(e) => setForm({ ...form, locationFreeText: e.target.value })} placeholder="Type it here, or set it on the map →" />
         </div>
       )}
 
@@ -212,11 +219,6 @@ export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCance
       <div className="vmd-form-actions">
         {onCancel && <button type="button" className="vm-btn-ghost" onClick={onCancel} disabled={busy}>Cancel</button>}
         <button type="submit" className="vm-btn-primary" disabled={busy} style={{ flex: 1 }}>{busy ? busyLabel : submitLabel}</button>
-        {onSubmitAndPin && (
-          <button type="button" className="vm-btn-ghost vmd-pinbtn" disabled={busy} onClick={() => runSubmit(onSubmitAndPin)}>
-            <Icon name="MapPin" size={15} /> Log &amp; pin on map
-          </button>
-        )}
       </div>
     </form>
   );

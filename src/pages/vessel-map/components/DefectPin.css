@@ -108,10 +108,12 @@
   background: #1C1B3A; color: #fff; font-size: 13px; line-height: 1; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 
 .vmd-form-actions { display: flex; gap: 8px; margin-top: 2px; }
-/* Secondary "Log & pin on map" — ghost with a terracotta pin accent. */
-.vmd-pinbtn { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; color: #C65A1A; border-color: #E3B9A3; }
-.vmd-pinbtn svg { flex: 0 0 auto; }
-.vmd-pinbtn:hover:not(:disabled) { background: #FBEFE9; border-color: #C65A1A; }
+/* "Set on map" — subtle terracotta link beside the Location label; logs the
+   defect then opens the map picker to drop the pin. */
+.vmd-pinlink { display: inline-flex; align-items: center; gap: 5px; background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 600; color: #C65A1A; }
+.vmd-pinlink svg { flex: 0 0 auto; }
+.vmd-pinlink:hover:not(:disabled) { color: #B14E16; }
+.vmd-pinlink:disabled { opacity: .5; cursor: default; }
 
 /* view card */
 .vmd-card { display: flex; flex-direction: column; gap: 14px; }
