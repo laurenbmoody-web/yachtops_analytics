@@ -3860,7 +3860,7 @@ const canEdit = (() => {
             <div className="s2-grp">Laundry</div>
             <div className="s2-row">
               <div className="s2-main">
-                <div className="s2-label">Laundry alerts on this phone</div>
+                <div className="s2-label">Laundry alerts on this device</div>
                 <div className="s2-desc">
                   A push notification to this device when laundry is overdue or flagged. Set per device
                   {typeof navigator !== 'undefined' && /iPhone|iPad/i.test(navigator.userAgent) ? ' — add Cargo to your Home Screen first.' : '.'}
