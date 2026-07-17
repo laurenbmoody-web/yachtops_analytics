@@ -51,10 +51,12 @@
 .dd-rail { position: relative; padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; background: #FAFAF8; min-width: 0; overflow: hidden; }
 .dd-rail-shut .dd-rail { padding: 12px 6px; }
 
-/* the divider edge is the collapse control — turns terracotta on hover, no icon */
-.dd-rail-edge { position: absolute; top: 0; left: 0; bottom: 0; width: 14px; border: 0; border-left: 3px solid transparent;
-  background: transparent; cursor: pointer; padding: 0; z-index: 3; transition: border-color .15s ease; }
-.dd-rail-edge:hover { border-left-color: #C65A1A; }
+/* the divider edge is the collapse control — a slim terracotta grip on hover, no icon */
+.dd-rail-edge { position: absolute; top: 0; left: 0; bottom: 0; width: 14px; border: 0;
+  background: transparent; cursor: pointer; padding: 0; z-index: 3; }
+.dd-rail-edge::after { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 2px; height: 34px; border-radius: 999px; background: transparent; transition: background .15s ease, height .15s ease; }
+.dd-rail-edge:hover::after { background: #C65A1A; height: 52px; }
 .dd-rail-shut .dd-rail-edge { width: 100%; }
 @media (max-width: 760px) { .dd-rail-edge { display: none; } }
 
@@ -197,13 +199,15 @@
 .dd-fixform { display: flex; flex-direction: column; gap: 12px; }
 .dd-fix-empty { font-size: 12px; color: #AEB4C2; margin: 0; }
 .dd-contractor { border: 1px solid #ECEAE3; border-radius: 11px; padding: 11px 12px; background: #FAFAF8; }
-.dd-contractor .cn { font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.dd-contractor .cn { font-size: 13px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .dd-contractor .cd { font-size: 12px; color: #6B7280; margin-top: 3px; line-height: 1.45; white-space: pre-wrap; }
 .dd-contractor .cs { font-size: 12px; color: #6B7280; font-weight: 500; margin-top: 6px; }
-/* Scheduled-for — leads the repair card. */
-.dd-sched { display: inline-flex; align-items: center; gap: 6px; background: #FBEFE9; border-radius: 999px; padding: 4px 12px;
-  font-size: 12.5px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
-.dd-sched svg { color: #C65A1A; }
+/* Scheduled-for — leads the repair card. Flush-left so its icon/text line up
+   with the contractor rows below (no pill inset). */
+.dd-sched { display: flex; align-items: center; gap: 8px; padding: 0; margin-bottom: 2px;
+  font-size: 13px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
+.dd-sched svg { color: #C65A1A; flex: none; }
+.dd-contractor .cn > svg:first-child { flex: none; }
 /* Contractor contact row (mirrors directory fields). */
 .dd-contact { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
 .dd-contact .cc { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #3A3960; text-decoration: none; }
