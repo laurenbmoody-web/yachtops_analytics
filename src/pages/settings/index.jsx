@@ -1307,7 +1307,7 @@ const SettingsPage = () => {
                     <div className={`set-nav-grp${gi === 0 ? ' first' : ''}`}>{group.grp}</div>
                     {group.items.map(item => (
                       <button key={item.id} className={`set-nav-it${activeSection === item.id ? ' active' : ''}`} onClick={() => setActiveSection(item.id)} title={navCollapsed ? item.label : undefined}>
-                        <Icon name={item.icon} size={17} color={activeSection === item.id ? '#C65A1A' : '#8B8478'} />
+                        <Icon name={item.icon} size={18} color={activeSection === item.id ? '#C65A1A' : '#8B8478'} />
                         <span>{item.label}</span>
                       </button>
                     ))}
@@ -1319,7 +1319,7 @@ const SettingsPage = () => {
                     {/* One entry that jumps straight to the vessel settings page,
                         which hosts its own sections (profile, locations, roles…). */}
                     <button className="set-nav-it" onClick={() => navigate('/settings/vessel')} title={navCollapsed ? 'Vessel settings' : undefined}>
-                      <Icon name="Ship" size={17} color="#8B8478" />
+                      <Icon name="Ship" size={18} color="#8B8478" />
                       <span>Vessel settings</span>
                       <Icon name="ArrowUpRight" size={14} className="set-ext" />
                     </button>
