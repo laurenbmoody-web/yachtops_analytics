@@ -741,6 +741,9 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lc-ci-desc { font-size: 13.5px; font-weight: 500; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lc-ci-meta { font-size: 11.5px; color: #6E6B85; margin-top: 2px; display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
 .lc-ci-meta .u { color: #C24632; font-weight: 700; }
+.lc-ci-meta .ov, .lc-ci-meta .mis { color: #C24632; font-weight: 700; }
+.lc-ci-meta .dmg { color: #B7791F; font-weight: 700; }
+.lc-ci-meta .ash { color: #2F6E8F; font-weight: 700; }
 .lc-stat { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 999px; padding: 3px 9px; flex: none; }
 .lc-stat.prog { color: #B7791F; background: #FBF3E2; }
 .lc-stat.ready { color: #2F6E8F; background: #E9F1F5; }

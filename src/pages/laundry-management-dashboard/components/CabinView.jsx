@@ -51,9 +51,15 @@ const CabinCard = ({ g, onBulkDeliver, onOpen, onAdvance }) => {
 
   const renderItem = (it) => {
     const photos = Array.isArray(it?.photos) && it.photos.length ? it.photos : (it?.photo ? [it.photo] : []);
-    const urgent = it?.priority === LaundryPriority?.URGENT && it?.status !== LaundryStatus?.DELIVERED;
+    const notDelivered = it?.status !== LaundryStatus?.DELIVERED;
+    const urgent = it?.priority === LaundryPriority?.URGENT && notDelivered;
+    const overdue = it?.neededBy && notDelivered && new Date(it.neededBy) < new Date();
     const bits = [];
     if (urgent) bits.push(<span key="u" className="u">Urgent</span>);
+    if (overdue) bits.push(<span key="ov" className="ov">Overdue</span>);
+    if (it?.flag === 'missing') bits.push(<span key="mis" className="mis">Missing</span>);
+    if (it?.flag === 'damaged') bits.push(<span key="dmg" className="dmg">Damaged</span>);
+    if (it?.serviceLocation === 'shore') bits.push(<span key="ash" className="ash">Ashore</span>);
     (it?.tags || []).slice(0, 2).forEach((t, i) => bits.push(<span key={`t${i}`}>{formatLaundryTag(t)}</span>));
     if (it?.laundryNumber) bits.push(<span key="n">No. {it.laundryNumber}</span>);
     return (

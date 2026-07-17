@@ -22,6 +22,13 @@ const SORTS = [
   { val: 'owner', label: 'Owner A–Z' },
 ];
 
+// "Needs attention" = anything open that's urgent, overdue, or flagged.
+const isAttentionItem = (i) => i?.status !== LaundryStatus?.DELIVERED && (
+  i?.priority === LaundryPriority?.URGENT
+  || (i?.neededBy && new Date(i.neededBy).getTime() < Date.now())
+  || i?.flag === 'missing' || i?.flag === 'damaged'
+);
+
 const useMenu = () => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -37,9 +44,9 @@ const useMenu = () => {
 };
 
 // ── One "Filters" button — Status + Owner as selects inside a popover ──────
-function FiltersMenu({ status, setStatus, owner, setOwner }) {
+function FiltersMenu({ status, setStatus, owner, setOwner, handling, setHandling }) {
   const [open, setOpen, ref] = useMenu();
-  const active = (status !== 'All' ? 1 : 0) + (owner !== 'All' ? 1 : 0);
+  const active = (status !== 'All' ? 1 : 0) + (owner !== 'All' ? 1 : 0) + (handling !== 'All' ? 1 : 0);
   return (
     <div className="lmf" ref={ref}>
       <button type="button" className={`lmf-btn${open ? ' open' : ''}${active ? ' on' : ''}`} onClick={() => setOpen((o) => !o)}>
@@ -69,6 +76,16 @@ function FiltersMenu({ status, setStatus, owner, setOwner }) {
                 <option value="Guest">Guests</option>
                 <option value="Crew">Crew</option>
                 <option value="Unknown">Unknown</option>
+              </select>
+            </div>
+          </div>
+          <div className="lmf-group">
+            <span className="lmf-label">Handling</span>
+            <div className="lmf-select">
+              <select value={handling} onChange={(e) => setHandling(e.target.value)}>
+                <option value="All">Anywhere</option>
+                <option value="onboard">Onboard</option>
+                <option value="shore">Ashore</option>
               </select>
             </div>
           </div>
@@ -146,7 +163,8 @@ const LaundryManagementDashboard = () => {
   const [tripId, setTripId] = useState(null);
   const [ownerFilter, setOwnerFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [urgentOnly, setUrgentOnly] = useState(false);
+  const [attentionOnly, setAttentionOnly] = useState(false);
+  const [handlingFilter, setHandlingFilter] = useState('All');
   const [sortBy, setSortBy] = useState('newest');
   const [trip, setTrip] = useState(null);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -200,11 +218,14 @@ const LaundryManagementDashboard = () => {
       };
       filtered = filtered?.filter((item) => item?.status === statusMap?.[statusFilter]);
     }
-    if (urgentOnly) {
-      filtered = filtered?.filter((item) => item?.priority === LaundryPriority?.URGENT && item?.status !== LaundryStatus?.DELIVERED);
+    if (attentionOnly) {
+      filtered = filtered?.filter(isAttentionItem);
     }
     if (ownerFilter !== 'All') {
       filtered = filtered?.filter((item) => item?.ownerType?.toLowerCase() === ownerFilter?.toLowerCase());
+    }
+    if (handlingFilter !== 'All') {
+      filtered = filtered?.filter((item) => (handlingFilter === 'shore' ? item?.serviceLocation === 'shore' : item?.serviceLocation !== 'shore'));
     }
     if (searchQuery?.trim()) {
       const query = searchQuery?.toLowerCase();
@@ -230,7 +251,7 @@ const LaundryManagementDashboard = () => {
       return sortBy === 'oldest' ? ts(a) - ts(b) : ts(b) - ts(a);
     });
     setFilteredItems(filtered);
-  }, [laundryItems, statusFilter, ownerFilter, urgentOnly, searchQuery, sortBy, tripId, trip]);
+  }, [laundryItems, statusFilter, ownerFilter, attentionOnly, handlingFilter, searchQuery, sortBy, tripId, trip]);
 
   const loadLaundryItems = async () => {
     const [{ openItems, deliveredToday }, all] = await Promise.all([getTodayViewItems(), loadAllLaundryItems()]);
@@ -278,20 +299,20 @@ const LaundryManagementDashboard = () => {
 
   const counts = getStatusCounts();
   const canReset = ['COMMAND', 'CHIEF'].includes(currentUser?.effectiveTier) || ['COMMAND', 'CHIEF'].includes(currentUser?.tier);
-  const isFiltered = !!searchQuery || statusFilter !== 'All' || ownerFilter !== 'All' || urgentOnly;
+  const isFiltered = !!searchQuery || statusFilter !== 'All' || ownerFilter !== 'All' || handlingFilter !== 'All' || attentionOnly;
 
   // KPI cells act as filter shortcuts.
-  const kpiToday = () => { setStatusFilter('All'); setUrgentOnly(false); };
-  const kpiTurnaround = () => { setUrgentOnly(false); setStatusFilter((s) => (s === 'Delivered' ? 'All' : 'Delivered')); };
-  const kpiAttention = () => { setStatusFilter('All'); setUrgentOnly((u) => !u); };
-  const turnActive = statusFilter === 'Delivered' && !urgentOnly;
+  const kpiToday = () => { setStatusFilter('All'); setAttentionOnly(false); };
+  const kpiTurnaround = () => { setAttentionOnly(false); setStatusFilter((s) => (s === 'Delivered' ? 'All' : 'Delivered')); };
+  const kpiAttention = () => { setStatusFilter('All'); setAttentionOnly((u) => !u); };
+  const turnActive = statusFilter === 'Delivered' && !attentionOnly;
   const active = (counts.inProgress + counts.ready) > 0;
   const totalItems = laundryItems?.length || 0;
 
   // KPI strip
   const totalToday = counts.inProgress + counts.ready + counts.delivered;
-  const urgentList = (laundryItems || []).filter((i) => i?.priority === LaundryPriority?.URGENT && i?.status !== LaundryStatus?.DELIVERED);
-  const oldestUrg = urgentList.reduce((a, i) => { const t = new Date(i?.createdAt || 0).getTime(); return !a || t < a.t ? { t, name: i?.ownerName } : a; }, null);
+  const attentionList = (laundryItems || []).filter(isAttentionItem);
+  const oldestUrg = attentionList.reduce((a, i) => { const t = new Date(i?.createdAt || 0).getTime(); return !a || t < a.t ? { t, name: i?.ownerName } : a; }, null);
   const urgAge = oldestUrg ? Math.max(0, Math.floor((Date.now() - oldestUrg.t) / 60000)) : 0;
   const urgAgeStr = urgAge < 60 ? `${urgAge}m` : `${Math.floor(urgAge / 60)}h ${urgAge % 60}m`;
   const ta = turnaroundStats(allItems);
@@ -368,14 +389,14 @@ const LaundryManagementDashboard = () => {
               {ta.hasAny ? <MiniSpark values={ta.spark} /> : <span className="lmk-sub">No deliveries yet</span>}
             </button>
 
-            <button type="button" className={`lmk-cell${urgentOnly ? ' active' : ''}`} onClick={kpiAttention} title="Show urgent">
+            <button type="button" className={`lmk-cell${attentionOnly ? ' active' : ''}`} onClick={kpiAttention} title="Urgent, overdue or flagged">
               <span className="lmk-l">Needs attention</span>
               <div className="lmk-row">
-                <span className={`lmk-num${urgentList.length ? ' red' : ''}`}>{urgentList.length}</span>
-                {urgentList.length > 0 && <span className="lmk-pulse" />}
+                <span className={`lmk-num${attentionList.length ? ' red' : ''}`}>{attentionList.length}</span>
+                {attentionList.length > 0 && <span className="lmk-pulse" />}
               </div>
               <span className="lmk-sub">
-                {urgentList.length === 0 ? 'all calm' : <>oldest <b style={{ color: '#1C1B3A' }}>{urgAgeStr}</b>{oldestUrg?.name ? ` — ${oldestUrg.name}` : ''}</>}
+                {attentionList.length === 0 ? 'all calm' : <>oldest <b style={{ color: '#1C1B3A' }}>{urgAgeStr}</b>{oldestUrg?.name ? ` — ${oldestUrg.name}` : ''}</>}
               </span>
             </button>
           </div>
@@ -401,7 +422,7 @@ const LaundryManagementDashboard = () => {
                 aria-label="Search laundry"
               />
             </label>
-            <FiltersMenu status={statusFilter} setStatus={setStatusFilter} owner={ownerFilter} setOwner={setOwnerFilter} />
+            <FiltersMenu status={statusFilter} setStatus={setStatusFilter} owner={ownerFilter} setOwner={setOwnerFilter} handling={handlingFilter} setHandling={setHandlingFilter} />
             <SortMenu value={sortBy} onChange={setSortBy} />
             <ViewToggle view={viewMode} onChange={changeView} />
           </div>
