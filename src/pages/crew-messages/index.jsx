@@ -913,7 +913,7 @@ const CrewMessages = () => {
                             {profEditing ? (
                               <div className="msg-profile-edit">
                                 <label className="msg-profile-lab">About</label>
-                                <input className="msg-profile-in" value={profAbout} maxLength={80} placeholder="e.g. Back Mon — covering AM orders" onChange={(e) => setProfAbout(e.target.value)} />
+                                <input className="msg-profile-in" value={profAbout} maxLength={80} placeholder={d.party === 'supplier' ? 'e.g. Back Mon — covering AM orders' : 'e.g. On charter · best reached after watch'} onChange={(e) => setProfAbout(e.target.value)} />
                                 <label className="msg-profile-lab">Work phone</label>
                                 <input className="msg-profile-in" value={profPhone} placeholder="+44 …" onChange={(e) => setProfPhone(e.target.value)} />
                                 <div className="msg-profile-editrow">

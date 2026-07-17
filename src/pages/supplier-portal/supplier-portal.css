@@ -3705,6 +3705,53 @@
 #sp-root .msg-time { display: block; font-size: 10px; margin-top: 3px; opacity: 0.72; text-align: right; }
 #sp-root .msg-sender { display: block; font-size: 10.5px; font-weight: 700; color: var(--orange); margin-bottom: 2px; }
 
+/* People face-pile + messaging profile (mirrors the crew inbox). */
+#sp-root .msg-people { position: relative; }
+#sp-root .msg-facepile { display: flex; align-items: center; }
+#sp-root .msg-facepile .msg-face { transition: margin-left 0.16s ease, transform 0.1s; }
+#sp-root .msg-facepile .msg-face:not(:first-child) { margin-left: -15px; }
+#sp-root .msg-facepile:hover .msg-face:not(:first-child) { margin-left: -3px; }
+#sp-root .msg-facepile .msg-face:hover { z-index: 3; transform: translateY(-1px); }
+#sp-root .msg-face { position: relative; flex: none; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid var(--card); background-color: transparent; background-size: cover; color: #fff; font-family: inherit; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; text-transform: uppercase; box-shadow: var(--sh1); cursor: pointer; }
+#sp-root .msg-face.lg { width: 48px; height: 48px; font-size: 15px; cursor: default; }
+#sp-root .msg-face.xl { width: 76px; height: 76px; font-size: 24px; cursor: default; }
+#sp-root img.msg-face { object-fit: cover; }
+
+#sp-root .msg-card { position: absolute; top: calc(100% + 8px); right: 0; z-index: 41; width: 292px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 60px -16px rgba(12,14,20,0.4); padding: 16px; }
+#sp-root .msg-card-close { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: 0; background: none; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
+#sp-root .msg-card-loading { font-size: 12.5px; color: var(--muted); padding: 12px 2px; }
+#sp-root .msg-card-top { display: flex; align-items: center; gap: 12px; }
+#sp-root .msg-card-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: var(--fg); line-height: 1.15; }
+#sp-root .msg-card-badges { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+#sp-root .msg-card-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; color: #fff; }
+#sp-root .msg-card-badge.crew { background: var(--navy-app); }
+#sp-root .msg-card-badge.supplier { background: var(--orange); }
+#sp-root .msg-card-role { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+#sp-root .msg-card-rows { display: flex; flex-direction: column; margin-top: 14px; }
+#sp-root .msg-card-row { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); text-decoration: none; }
+#sp-root .msg-card-row:first-child { border-top: 0; }
+#sp-root .msg-card-k { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+#sp-root .msg-card-v { font-size: 12.5px; color: var(--fg); overflow-wrap: anywhere; }
+#sp-root .msg-card-v.muted { color: var(--muted); }
+#sp-root a.msg-card-row.link .msg-card-v { color: var(--orange); }
+#sp-root .msg-card-profile { width: 100%; margin-top: 14px; background: var(--orange); border: 0; border-radius: 9px; padding: 9px; font-family: inherit; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; }
+#sp-root .msg-card-profile:hover { background: #B14E16; }
+#sp-root .msg-card-remove { width: 100%; margin-top: 8px; background: none; border: 1px solid var(--line); border-radius: 9px; padding: 8px; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+
+#sp-root .msg-profile-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(12,14,20,0.34); display: flex; align-items: center; justify-content: center; padding: 20px; }
+#sp-root .msg-profile { position: relative; width: 340px; max-width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(12,14,20,0.5); padding: 24px 20px 20px; }
+#sp-root .msg-profile-x { position: absolute; top: 10px; right: 12px; width: 26px; height: 26px; border: 0; background: none; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; border-radius: 7px; }
+#sp-root .msg-profile-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+#sp-root .msg-profile-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: var(--fg); line-height: 1.1; }
+#sp-root .msg-profile-sub { display: flex; align-items: center; gap: 7px; }
+#sp-root .msg-profile-about { margin: 14px 0 2px; text-align: center; font-size: 13px; font-style: italic; color: var(--muted); }
+#sp-root .msg-profile-edit { margin-top: 16px; display: flex; flex-direction: column; gap: 4px; }
+#sp-root .msg-profile-lab { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
+#sp-root .msg-profile-in { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font-family: inherit; font-size: 13px; color: var(--fg); background: var(--ground); }
+#sp-root .msg-profile-in:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--pill); }
+#sp-root .msg-profile-editrow { display: flex; gap: 8px; margin-top: 14px; }
+#sp-root .msg-profile-editrow > * { flex: 1; }
+
 /* "Handled by" — the supplier assigns which colleague owns a conversation. */
 #sp-root .msg-assign { position: relative; }
 #sp-root .msg-assign-btn { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--ground); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; cursor: pointer; }

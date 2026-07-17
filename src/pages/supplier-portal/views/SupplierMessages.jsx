@@ -8,7 +8,7 @@ import {
   setThreadArchived, deleteThread, fetchVesselLogos, sendSupplierQuote,
   reactToMessage, deleteMessage, editMessage, createCatalogueItem, repriceQuote,
   uploadMessageAttachment, updateOrderStatus, fetchThreadsPeople,
-  fetchThreadContacts, assignThreadContact,
+  fetchThreadContacts, assignThreadContact, fetchPersonCard, saveMyMessagingProfile,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -90,8 +90,15 @@ const AV_GRADS = [
   ['#3E5C76', '#1E3A5F'], ['#5B6B8C', '#39415C'], ['#6B7A99', '#454E68'],
   ['#2F6E8F', '#20405C'], ['#4B5D8A', '#2A2F52'], ['#527A8A', '#2E4A57'],
 ];
+const SUP_GRADS = [
+  ['#C65A1A', '#8A3D10'], ['#D2802E', '#A85E1E'], ['#B8551E', '#7C3410'],
+  ['#CE6A2A', '#96481A'], ['#BE6733', '#8A4418'],
+];
 const hashId = (s = '') => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
 const avatarGrad = (id) => { const [a, b] = AV_GRADS[hashId(String(id)) % AV_GRADS.length]; return `linear-gradient(140deg, ${a}, ${b})`; };
+const supGrad = (id) => { const [a, b] = SUP_GRADS[hashId(String(id)) % SUP_GRADS.length]; return `linear-gradient(140deg, ${a}, ${b})`; };
+// Warm for supplier people, cool for crew.
+const faceGrad = (p) => (p?.party === 'supplier' ? supGrad(p.user_id) : avatarGrad(p.user_id));
 
 // Domain quick-replies — prefill the composer with a useful opener.
 const QUICK = [
@@ -276,6 +283,13 @@ const SupplierMessages = () => {
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignContacts, setAssignContacts] = useState([]);
   const [assignBusy, setAssignBusy] = useState(false);
+  const [cardPerson, setCardPerson] = useState(null);
+  const [cardDetail, setCardDetail] = useState(null);
+  const [profileModal, setProfileModal] = useState(null);
+  const [profEditing, setProfEditing] = useState(false);
+  const [profAbout, setProfAbout] = useState('');
+  const [profPhone, setProfPhone] = useState('');
+  const [profSaving, setProfSaving] = useState(false);
   const [savedCat, setSavedCat] = useState(() => new Set()); // quote items saved to catalogue
   const [savingCat, setSavingCat] = useState(null);
   const [pricing, setPricing] = useState(null);     // quote message id being repriced
@@ -687,6 +701,34 @@ const SupplierMessages = () => {
     finally { setAssignBusy(false); }
   };
 
+  // Contact card + messaging profile (mirrors the crew side).
+  const openCard = async (p) => {
+    if (!activeId) return;
+    if (cardPerson?.user_id === p.user_id) { setCardPerson(null); return; }
+    setCardPerson(p); setCardDetail(null);
+    try { setCardDetail(await fetchPersonCard(activeId, p.user_id)); }
+    catch (e) { setError(e.message); }
+  };
+  const openProfile = () => {
+    if (!cardPerson || !cardDetail) return;
+    setProfileModal({ person: cardPerson, detail: cardDetail });
+    setProfEditing(false);
+    setProfAbout(cardDetail.about || '');
+    setProfPhone(cardDetail.phone || '');
+    setCardPerson(null);
+  };
+  const saveProfile = async () => {
+    if (profSaving || !myUid) return;
+    setProfSaving(true); setError(null);
+    try {
+      await saveMyMessagingProfile(myUid, { about: profAbout, work_phone: profPhone });
+      const fresh = await fetchPersonCard(activeId, profileModal.person.user_id);
+      setProfileModal((m) => (m ? { ...m, detail: fresh } : m));
+      setProfEditing(false);
+    } catch (e) { setError(e.message); }
+    finally { setProfSaving(false); }
+  };
+
   const rendered = useMemo(() => {
     const out = [];
     let lastDay = null, lastSender = null, lastUser = null, lastTime = 0;
@@ -883,10 +925,94 @@ const SupplierMessages = () => {
                     </div>
                   </div>
                   <div className="msg-convo-actions">
+                    <div className="msg-people">
+                      <div className="msg-facepile">
+                        {(peopleByThread[activeId] || []).slice(0, 12).map((p) => {
+                          const nm = p.name || (p.party === 'crew' ? 'Crew' : 'Supplier');
+                          const role = p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'sales'} · supplier`;
+                          return (
+                            <button key={p.user_id} type="button" className="msg-face" style={{ backgroundImage: faceGrad(p) }} title={`${nm}${p.user_id === myUid ? ' (you)' : ''} — ${role}`} onClick={() => openCard(p)}>{initials(nm)}</button>
+                          );
+                        })}
+                      </div>
+                      {cardPerson && (
+                        <div className="msg-card" role="dialog" aria-label="Contact card">
+                          <button type="button" className="msg-card-close" onClick={() => setCardPerson(null)} aria-label="Close">×</button>
+                          {!cardDetail ? <div className="msg-card-loading">Loading…</div> : (
+                            <>
+                              <div className="msg-card-top">
+                                {cardDetail.avatar_url
+                                  ? <img className="msg-face lg" src={cardDetail.avatar_url} alt="" />
+                                  : <span className="msg-face lg" style={{ backgroundImage: faceGrad({ party: cardDetail.party, user_id: cardPerson.user_id }) }}>{initials(cardDetail.name)}</span>}
+                                <div className="msg-card-idblock">
+                                  <div className="msg-card-name">{cardDetail.name}{cardPerson.user_id === myUid ? ' (you)' : ''}</div>
+                                  <div className="msg-card-badges">
+                                    <span className={`msg-card-badge ${cardDetail.party}`}>{cardDetail.party === 'supplier' ? 'Supplier' : 'Crew'}</span>
+                                    {(cardDetail.position || cardDetail.tier || cardDetail.role) && <span className="msg-card-role">{(cardDetail.position || cardDetail.tier || cardDetail.role || '').toString().toLowerCase()}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="msg-card-rows">
+                                {cardDetail.department && <div className="msg-card-row"><span className="msg-card-k">Department</span><span className="msg-card-v">{cardDetail.department}</span></div>}
+                                {cardDetail.email ? <a className="msg-card-row link" href={`mailto:${cardDetail.email}`}><span className="msg-card-k">Email</span><span className="msg-card-v">{cardDetail.email}</span></a> : null}
+                                {cardDetail.phone ? <a className="msg-card-row link" href={`tel:${cardDetail.phone}`}><span className="msg-card-k">Phone</span><span className="msg-card-v">{cardDetail.phone}</span></a> : null}
+                                {!cardDetail.email && !cardDetail.phone && !cardDetail.department && <div className="msg-card-row"><span className="msg-card-v muted">No contact details yet</span></div>}
+                              </div>
+                              <button type="button" className="msg-card-profile" onClick={openProfile}>View profile →</button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     {phone && <a className="msg-ic" href={`tel:${phone}`} title={`Call ${contact || 'yacht'}`} aria-label="Call"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.94.36 1.86.68 2.75a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.33-1.33a2 2 0 0 1 2.11-.45c.89.32 1.81.55 2.75.68A2 2 0 0 1 22 16.92z" /></svg></a>}
                     <button type="button" className="msg-ic" title="View client profile" aria-label="View profile" onClick={() => navigate(`/supplier/clients/${activeThread.tenant_id}`)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg></button>
                   </div>
                 </div>
+
+                {profileModal && (() => {
+                  const d = profileModal.detail || {};
+                  const isMe = profileModal.person.user_id === myUid;
+                  return (
+                    <div className="msg-profile-overlay" onClick={() => setProfileModal(null)}>
+                      <div className="msg-profile" role="dialog" aria-label="Messaging profile" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" className="msg-profile-x" onClick={() => setProfileModal(null)} aria-label="Close">×</button>
+                        <div className="msg-profile-hero">
+                          {d.avatar_url
+                            ? <img className="msg-face xl" src={d.avatar_url} alt="" />
+                            : <span className="msg-face xl" style={{ backgroundImage: faceGrad({ party: d.party, user_id: profileModal.person.user_id }) }}>{initials(d.name)}</span>}
+                          <div className="msg-profile-name">{d.name}{isMe ? ' (you)' : ''}</div>
+                          <div className="msg-profile-sub">
+                            <span className={`msg-card-badge ${d.party}`}>{d.party === 'supplier' ? 'Supplier' : 'Crew'}</span>
+                            {(d.position || d.tier || d.role) && <span className="msg-card-role">{(d.position || d.tier || d.role || '').toString().toLowerCase()}</span>}
+                          </div>
+                        </div>
+                        {profEditing ? (
+                          <div className="msg-profile-edit">
+                            <label className="msg-profile-lab">About</label>
+                            <input className="msg-profile-in" value={profAbout} maxLength={80} placeholder={d.party === 'supplier' ? 'e.g. Back Mon — covering AM orders' : 'e.g. On charter · best reached after watch'} onChange={(e) => setProfAbout(e.target.value)} />
+                            <label className="msg-profile-lab">Work phone</label>
+                            <input className="msg-profile-in" value={profPhone} placeholder="+44 …" onChange={(e) => setProfPhone(e.target.value)} />
+                            <div className="msg-profile-editrow">
+                              <button type="button" className="msg-card-remove" style={{ marginTop: 0 }} disabled={profSaving} onClick={() => setProfEditing(false)}>Cancel</button>
+                              <button type="button" className="msg-card-profile" style={{ marginTop: 0 }} disabled={profSaving} onClick={saveProfile}>{profSaving ? 'Saving…' : 'Save'}</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {d.about && <div className="msg-profile-about">“{d.about}”</div>}
+                            <div className="msg-card-rows">
+                              {d.party === 'crew' && d.department ? <div className="msg-card-row"><span className="msg-card-k">Department</span><span className="msg-card-v">{d.department}</span></div> : null}
+                              {d.email ? <a className="msg-card-row link" href={`mailto:${d.email}`}><span className="msg-card-k">Email</span><span className="msg-card-v">{d.email}</span></a> : null}
+                              {d.phone ? <a className="msg-card-row link" href={`tel:${d.phone}`}><span className="msg-card-k">Work phone</span><span className="msg-card-v">{d.phone}</span></a> : null}
+                              {!d.email && !d.phone && <div className="msg-card-row"><span className="msg-card-v muted">No contact details yet</span></div>}
+                            </div>
+                            {isMe && <button type="button" className="msg-card-profile" onClick={() => { setProfEditing(true); setProfAbout(d.about || ''); setProfPhone(d.phone || ''); }}>Edit my profile</button>}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {activeArchived && (
                   <div className="msg-arch-banner">

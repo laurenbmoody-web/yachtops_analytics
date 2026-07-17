@@ -876,6 +876,21 @@ export const assignThreadContact = async (threadId, contactId) => {
   if (error) throw error;
 };
 
+// One participant's messaging profile (crew or supplier).
+export const fetchPersonCard = async (threadId, userId) => {
+  const { data, error } = await supabase.rpc('fetch_thread_person_card', { p_thread_id: threadId, p_user_id: userId });
+  if (error) throw error;
+  return data || null;
+};
+
+// Save MY own messaging profile (about + work phone).
+export const saveMyMessagingProfile = async (userId, { about, work_phone }) => {
+  const { error } = await supabase
+    .from('messaging_profiles')
+    .upsert({ user_id: userId, about: about?.trim() || null, work_phone: work_phone?.trim() || null, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+  if (error) throw error;
+};
+
 export const fetchMessages = async (threadId) => {
   const { data, error } = await supabase
     .from('supplier_messages')
