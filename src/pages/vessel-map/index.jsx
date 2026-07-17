@@ -24,7 +24,8 @@ import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
 import Icon from '../../components/AppIcon';
 import { refreshScanThumb } from './utils/scanThumb';
-import { fetchDefectMetaByHotspots, DefectPriority } from '../defects/utils/defectsStorage';
+import { fetchDefectMetaByHotspots, DefectPriority, updateDefect } from '../defects/utils/defectsStorage';
+import { useDefectActor } from '../defects/utils/useDefectActor';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
 import './vessel-map.css';
@@ -62,7 +63,7 @@ const useIsDesktop = () => {
   return desktop;
 };
 
-export default function VesselMapPage({ embedded = false, placingItem: placingItemProp = null, onPlaced: onPlacedProp, onClose: onCloseProp } = {}) {
+export default function VesselMapPage({ embedded = false, placingItem: placingItemProp = null, placingDefect: placingDefectProp = null, onPlaced: onPlacedProp, onClose: onCloseProp } = {}) {
   const navigate = useNavigate();
   const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
@@ -104,8 +105,19 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     const id = q.get('placeItem');
     return id ? { id, name: q.get('placeName') || 'this item' } : null;
   });
+  // ?placeDefect=&placeDefectTitle= — arrived from the dashboard quick-add
+  // "Log & pin on map": navigate to the space, then tap to drop the pin, which
+  // links the already-logged defect to it. Cleared on placement / cancel.
+  const defectActor = useDefectActor();
+  const [placingDefect, setPlacingDefect] = useState(() => {
+    if (placingDefectProp) return placingDefectProp;
+    const q = new URLSearchParams(window.location.search);
+    const id = q.get('placeDefect');
+    return id ? { id, title: q.get('placeDefectTitle') || 'this defect' } : null;
+  });
   const isDesktop = useIsDesktop();
-  const placementMode = mode === 'pin';
+  // Dropping a defect pin uses the same click-to-drop placement as adding a pin.
+  const placementMode = mode === 'pin' || !!placingDefect;
 
   const [spaceLinks, setSpaceLinks] = useState([]); // doorway links [{id,a,b,aPos,bPos}]
   const [spaceNames, setSpaceNames] = useState({}); // space_id → room name (for doors to un-scanned rooms)
@@ -441,13 +453,15 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   // an unnamed pin is discarded when the inspector closes (see closeInspector).
   const createDraftPin = async (pos) => {
     if (!pos || !selectedScan) return;
-    const layer = 'general';
+    // Placing a defect from the dashboard quick-add: drop a defect pin and link
+    // the already-logged defect to it, rather than opening a blank pin editor.
+    const layer = placingDefect ? 'defect' : 'general';
     const { data, error } = await supabase
       .from('scan_hotspots')
       .insert({
         scan_id: selectedScan.id,
         tenant_id: activeTenantId,
-        label: '',
+        label: placingDefect ? placingDefect.title : '',
         layer,
         color: layerColor(layer),
         position: pos,
@@ -464,9 +478,23 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
       const name = user?.user_metadata?.full_name || user?.email;
       if (name) setCreatorNames((prev) => ({ ...prev, [data.created_by]: name }));
     }
+    if (placingDefect) {
+      const locationPathLabel = [selectedScan?.name, ...containerTrail.map((c) => c?.label || c?.name)].filter(Boolean).join(' · ') || selectedScan?.name || null;
+      await updateDefect(placingDefect.id, { hotspotId: data.id, locationPathLabel }, defectActor);
+      finishPlacingDefect(true);
+      return;
+    }
     setSelectedHotspot(data);
     setJustCreatedId(data.id);
   };
+
+  // Leave defect-placement mode. Embedded (dashboard picker) hands control back
+  // to the quick-add; standalone clears the mode.
+  const finishPlacingDefect = useCallback((placed) => {
+    if (embedded) { if (placed) onPlacedProp?.(); onCloseProp?.(); return; }
+    setPlacingDefect(null);
+    setMode('navigate');
+  }, [embedded, onPlacedProp, onCloseProp]);
 
   // ── Container interiors ─────────────────────────────────────────────────
   // Open a container's inside (its photo + child pins). Nested containers push
@@ -941,6 +969,13 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   <div className="vm-placing-bar">
                     <span className="vm-placing-text">Placing <strong>{placingItem.name}</strong> — tap a pin, then set how many are here.</span>
                     <button className="vm-placing-cancel" onClick={() => finishPlacing(false)}>Cancel</button>
+                  </div>
+                )}
+
+                {placingDefect && (
+                  <div className="vm-placing-bar">
+                    <span className="vm-placing-text">Pinning <strong>{placingDefect.title}</strong> — pick the space, then tap a spot to drop the pin.</span>
+                    <button className="vm-placing-cancel" onClick={() => finishPlacingDefect(false)}>Cancel</button>
                   </div>
                 )}
 

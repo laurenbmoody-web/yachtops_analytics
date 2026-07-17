@@ -8,7 +8,7 @@ const VesselMapPage = React.lazy(() => import('../index'));
 // The vessel map in a blurred-backdrop modal, for picking an item's pin without
 // leaving the item form. `placingItem` = { id, name }. onPlaced fires when the
 // item was linked to a pin; onClose closes the modal either way.
-export default function MapPickerModal({ placingItem, onPlaced, onClose }) {
+export default function MapPickerModal({ placingItem, placingDefect, onPlaced, onClose }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', onKey);
@@ -22,7 +22,7 @@ export default function MapPickerModal({ placingItem, onPlaced, onClose }) {
       <div className="vm-picker-panel" role="dialog" aria-modal="true" aria-label="Pick a location on the map">
         <button className="vm-picker-close" onClick={onClose} aria-label="Close map">×</button>
         <Suspense fallback={<div className="vm-picker-loading">Loading map…</div>}>
-          <VesselMapPage embedded placingItem={placingItem} onPlaced={onPlaced} onClose={onClose} />
+          <VesselMapPage embedded placingItem={placingItem} placingDefect={placingDefect} onPlaced={onPlaced} onClose={onClose} />
         </Suspense>
       </div>
     </div>,

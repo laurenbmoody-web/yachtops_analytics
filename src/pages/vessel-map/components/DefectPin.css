@@ -108,6 +108,10 @@
   background: #1C1B3A; color: #fff; font-size: 13px; line-height: 1; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 
 .vmd-form-actions { display: flex; gap: 8px; margin-top: 2px; }
+/* Secondary "Log & pin on map" — ghost with a terracotta pin accent. */
+.vmd-pinbtn { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; color: #C65A1A; border-color: #E3B9A3; }
+.vmd-pinbtn svg { flex: 0 0 auto; }
+.vmd-pinbtn:hover:not(:disabled) { background: #FBEFE9; border-color: #C65A1A; }
 
 /* view card */
 .vmd-card { display: flex; flex-direction: column; gap: 14px; }
