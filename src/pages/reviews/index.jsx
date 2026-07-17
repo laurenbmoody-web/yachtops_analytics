@@ -13,7 +13,9 @@ import ResolvedDetail from './ResolvedDetail';
 import InboxSidebar from './InboxSidebar';
 import OrdersReviewPanel from './OrdersReviewPanel';
 import OrderApprovalRightPane from './OrderApprovalRightPane';
+import OrderSignoffRightPane from './OrderSignoffRightPane';
 import { useProvisioningApprovals } from './useProvisioningApprovals';
+import { useOrderApprovals } from './useOrderApprovals';
 import { useCrewRequests } from './useCrewRequests';
 import CrewRequestsHub from './CrewRequestsHub';
 import SeaTimeReviewPanel from './SeaTimeReviewPanel';
@@ -64,6 +66,9 @@ export default function ReviewsPage() {
   // the page level (not inside OrdersReviewPanel) so the badge stays
   // accurate while the user is sitting on the rotas queue.
   const provisioningApprovals = useProvisioningApprovals();
+  // Chat-order sign-offs share the "Orders, to approve" queue.
+  const orderApprovals = useOrderApprovals();
+  const ordersCount = provisioningApprovals.items.length + orderApprovals.items.length;
 
   // Crew requests (currently notification-email changes) awaiting a COMMAND
   // decision. Loaded at page level so the sidebar badge stays accurate from
@@ -258,7 +263,7 @@ export default function ReviewsPage() {
       <>
         <Header />
         <div className={`rv-page${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
-          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
+          <InboxSidebar activeCategory="seatime" counts={{ rotas: subtitleCount, orders: ordersCount, seatime: seatimeCount, crewRequests: crewRequests.items.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
           <SeaTimeReviewPanel items={stItems} loading={stLoading} selectedId={stSelected?.id} onSelect={stSelect} eyebrow={eyebrow} />
           <section className="rv-rightpane-col" aria-label="Sign-off detail">
             {stSelected ? (
@@ -304,7 +309,7 @@ export default function ReviewsPage() {
       <>
         <Header />
         <div className={`rv-page rv-hub${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
-          <InboxSidebar activeCategory="crew-requests" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crItems.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
+          <InboxSidebar activeCategory="crew-requests" counts={{ rotas: subtitleCount, orders: ordersCount, seatime: seatimeCount, crewRequests: crItems.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
           <CrewRequestsHub
             items={crItems}
             loading={crewRequests.loading}
@@ -329,12 +334,14 @@ export default function ReviewsPage() {
     // links from the bell notification (?selected=<request_id>) drop
     // the approver straight onto the right pane.
     const ordersSelectedId = searchParams.get('selected');
-    const ordersItems = provisioningApprovals.items;
+    // Board approvals + chat-order sign-offs in one queue, newest first.
+    const ordersItems = [...provisioningApprovals.items, ...orderApprovals.items]
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     const ordersSelected = ordersItems.find(i => i.id === ordersSelectedId) || ordersItems[0] || null;
     const handleOrdersSelect = (id) => setSearchParams({ selected: id });
     const handleOrdersResolved = async () => {
-      // Refetch + clear the selection if the resolved item disappears.
-      await provisioningApprovals.refetch();
+      // Refetch both sources + clear the selection if the resolved item disappears.
+      await Promise.all([provisioningApprovals.refetch(), orderApprovals.refetch()]);
       setSearchParams({}, { replace: true });
     };
     const ordersToast = (msg, opts) => showToast(msg, opts);
@@ -342,21 +349,30 @@ export default function ReviewsPage() {
       <>
         <Header />
         <div className={`rv-page${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
-          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: ordersItems.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
+          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: ordersCount, seatime: seatimeCount, crewRequests: crewRequests.items.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
           <OrdersReviewPanel
             items={ordersItems}
-            loading={provisioningApprovals.loading}
+            loading={provisioningApprovals.loading || orderApprovals.loading}
             selectedId={ordersSelected?.id}
             onSelect={handleOrdersSelect}
           />
           <section className="rv-rightpane-col" aria-label="Approval detail">
             {ordersSelected ? (
-              <OrderApprovalRightPane
-                key={ordersSelected.id}
-                request={ordersSelected}
-                onResolved={handleOrdersResolved}
-                onToast={ordersToast}
-              />
+              ordersSelected.kind === 'order' ? (
+                <OrderSignoffRightPane
+                  key={ordersSelected.id}
+                  request={ordersSelected}
+                  onResolved={handleOrdersResolved}
+                  onToast={ordersToast}
+                />
+              ) : (
+                <OrderApprovalRightPane
+                  key={ordersSelected.id}
+                  request={ordersSelected}
+                  onResolved={handleOrdersResolved}
+                  onToast={ordersToast}
+                />
+              )
             ) : (
               <div className="rv-rp-blank" role="status">
                 <Icon name="Check" size={36} color="#8B8478" className="rv-rp-blank-icon" />
@@ -384,7 +400,7 @@ export default function ReviewsPage() {
     <>
       <Header />
       <div className={`rv-page${sidebarCollapsed ? ' rv-collapsed' : ''}`}>
-        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length, seatime: seatimeCount, crewRequests: crewRequests.items.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
+        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount, orders: ordersCount, seatime: seatimeCount, crewRequests: crewRequests.items.length }} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
 
         {/* Middle — list strip */}
         <section className="rv-liststrip" aria-label="Rota submissions">
