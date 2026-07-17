@@ -854,6 +854,14 @@ export const fetchVesselLogos = async () => {
   return map;
 };
 
+// Per-thread participant roster (names + roles) for every thread I'm in, so the
+// supplier inbox can name each crew sender in a group conversation.
+export const fetchThreadsPeople = async () => {
+  const { data, error } = await supabase.rpc('fetch_my_threads_people');
+  if (error) throw error;
+  return data ?? [];
+};
+
 export const fetchMessages = async (threadId) => {
   const { data, error } = await supabase
     .from('supplier_messages')

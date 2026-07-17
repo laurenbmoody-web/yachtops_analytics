@@ -10,6 +10,7 @@ import {
   markThreadNotificationsRead, acceptQuote, declineQuote, fetchAddableOrders, reactToMessage, deleteMessage, editMessage,
   setThreadArchived, deleteThread, uploadMessageAttachment,
   fetchOrderApprovalSettings, decideOrderApproval, getOrCreateDmThread,
+  fetchThreadsPeople, fetchThreadContacts, assignThreadContact,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -136,7 +137,7 @@ const Menu = ({ label, value, options, onChange }) => {
 const SW_LEFT = 132;  // Archive + Delete
 const clampSw = (v) => Math.max(-SW_LEFT, Math.min(0, v));
 
-const CrewThreadRow = ({ t, active, onSelect, onArchive, onDelete }) => {
+const CrewThreadRow = ({ t, active, onSelect, onArchive, onDelete, label }) => {
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const drag = useRef(null);
@@ -196,7 +197,7 @@ const CrewThreadRow = ({ t, active, onSelect, onArchive, onDelete }) => {
       >
         <span className="msg-row-main">
           <span className="msg-row-top">
-            <span className="msg-row-label">{threadLabel(t)}</span>
+            <span className="msg-row-label">{label || threadLabel(t)}</span>
             <span className="msg-row-when">{fmtWhen(t.last_message_at || t.created_at)}</span>
           </span>
           <span className="msg-row-prev">
@@ -250,6 +251,11 @@ const CrewMessages = () => {
   const [attachments, setAttachments] = useState([]); // pending upload descriptors
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);   // opening a new DM thread
+  const [assignedByThread, setAssignedByThread] = useState({}); // thread_id → assigned contact
+  const [peopleByThread, setPeopleByThread] = useState({});     // thread_id → participant roster
+  const [assignOpen, setAssignOpen] = useState(false);          // assign-picker open
+  const [assignContacts, setAssignContacts] = useState([]);     // supplier people to assign
+  const [assignBusy, setAssignBusy] = useState(false);
   const [approverTier, setApproverTier] = useState('HOD');
   const [myUid, setMyUid] = useState(null);
   const fileRef = useRef(null);
@@ -270,6 +276,11 @@ const CrewMessages = () => {
     if (!activeTenantId) return [];
     const th = await fetchVesselThreads(activeTenantId);
     setThreads(th);
+    fetchThreadsPeople().then((rows) => {
+      const a = {}, p = {};
+      for (const r of rows) { a[r.thread_id] = r.assigned; p[r.thread_id] = r.people || []; }
+      setAssignedByThread(a); setPeopleByThread(p);
+    }).catch(() => {});
     return th;
   }, [activeTenantId]);
 
@@ -401,6 +412,29 @@ const CrewMessages = () => {
     finally { setStarting(false); }
   };
 
+  // Assign the open thread to a specific person at the supplier (or clear it).
+  const openAssign = async () => {
+    if (!activeId) return;
+    const next = !assignOpen;
+    setAssignOpen(next);
+    if (next) {
+      try { setAssignContacts(await fetchThreadContacts(activeId)); }
+      catch (e) { setError(e.message); }
+    }
+  };
+  const doAssign = async (contactId) => {
+    if (!activeId || assignBusy) return;
+    setAssignBusy(true); setError(null);
+    try {
+      await assignThreadContact(activeId, contactId);
+      setAssignOpen(false);
+      const msgs = await fetchThreadMessages(activeId);
+      setMessages(msgs);
+      await load();
+    } catch (e) { setError(e.message); }
+    finally { setAssignBusy(false); }
+  };
+
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
   const startEdit = (m) => { setReplyTo(null); setEditing(m); setDraft(m.body || ''); taRef.current?.focus(); };
   const cancelEdit = () => { setEditing(null); setDraft(''); };
@@ -487,17 +521,25 @@ const CrewMessages = () => {
 
   const rendered = useMemo(() => {
     const out = [];
-    let lastDay = null, lastSender = null, lastTime = 0;
+    let lastDay = null, lastSender = null, lastUser = null, lastTime = 0;
     for (const msg of messages) {
       const t = new Date(msg.created_at).getTime();
       const dk = new Date(msg.created_at).toDateString();
-      if (dk !== lastDay) { out.push({ kind: 'divider', id: `d${dk}`, at: msg.created_at }); lastSender = null; }
-      const grouped = msg.sender_type === lastSender && (t - lastTime) < 5 * 60000 && dk === lastDay;
+      if (dk !== lastDay) { out.push({ kind: 'divider', id: `d${dk}`, at: msg.created_at }); lastSender = null; lastUser = null; }
+      // Group only consecutive messages from the SAME person (in a group chat
+      // two crew both send as 'vessel' — don't merge their bubbles).
+      const grouped = msg.sender_type === lastSender && msg.sender_user_id === lastUser && (t - lastTime) < 5 * 60000 && dk === lastDay;
       out.push({ kind: 'msg', msg, grouped });
-      lastDay = dk; lastSender = msg.sender_type; lastTime = t;
+      lastDay = dk; lastSender = msg.sender_type; lastUser = msg.sender_user_id; lastTime = t;
     }
     return out;
   }, [messages]);
+
+  // Roster of the open thread → name each sender (only worth showing in a group,
+  // where "who wrote this" isn't obvious). >2 participants = a group.
+  const roster = peopleByThread[activeId] || [];
+  const isGroup = roster.length > 2;
+  const nameForUid = (uid) => roster.find((p) => p.user_id === uid)?.name || null;
 
   const counts = useMemo(() => {
     const nonArch = threads.filter((t) => !t.archived_at);
@@ -641,6 +683,7 @@ const CrewMessages = () => {
                             key={t.id}
                             t={t}
                             active={t.id === activeId}
+                            label={assignedByThread[t.id]?.name}
                             onSelect={() => setActiveId(t.id)}
                             onArchive={archiveThread}
                             onDelete={removeThread}
@@ -662,7 +705,25 @@ const CrewMessages = () => {
                       <div className="msg-convo-id">
                         <div className="msg-convo-name" style={{ cursor: 'default' }}>{supplierName(activeThread)}</div>
                         <div className="msg-convo-sub">
-                          <span className="msg-convo-tag">{threadLabel(activeThread)}</span>
+                          <div className="msg-assign">
+                            <button type="button" className={`msg-assign-btn${assignedByThread[activeId] ? ' set' : ''}`} onClick={openAssign} title="Assign this conversation to a person at the supplier">
+                              {assignedByThread[activeId]?.name || 'Assign to…'}
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                            </button>
+                            {assignOpen && (
+                              <div className="msg-assign-menu" role="menu">
+                                <div className="msg-assign-head">Direct to…</div>
+                                {assignContacts.map((c) => (
+                                  <button key={c.contact_id} type="button" className={`msg-assign-opt${assignedByThread[activeId]?.contact_id === c.contact_id ? ' on' : ''}`} disabled={assignBusy} onClick={() => doAssign(c.contact_id)} role="menuitem">
+                                    <span className="msg-assign-name">{c.name}</span>
+                                    <span className="msg-assign-role">{c.role}{c.has_login ? '' : ' · no login'}</span>
+                                  </button>
+                                ))}
+                                {!assignContacts.length && <div className="msg-assign-empty">No contacts on file for this supplier</div>}
+                                {assignedByThread[activeId] && <button type="button" className="msg-assign-clear" disabled={assignBusy} onClick={() => doAssign(null)} role="menuitem">Clear assignment</button>}
+                              </div>
+                            )}
+                          </div>
                           {(() => {
                             const board = threadBoard(activeThread);
                             if (!board) return null;
@@ -799,16 +860,21 @@ const CrewMessages = () => {
                           label: src.sender_type === 'vessel' ? 'You' : supplierName(activeThread),
                           snippet: src.deleted_at ? 'Message deleted' : (src.kind === 'quote' ? 'Quote' : String(src.body || '').slice(0, 90)),
                         } : null;
+                        const mineMsg = m.sender_user_id ? m.sender_user_id === myUid : m.sender_type === 'vessel';
+                        const senderLabel = (isGroup && !mineMsg && !r.grouped && m.kind !== 'system')
+                          ? (nameForUid(m.sender_user_id) || (m.sender_type === 'vessel' ? 'Crew' : supplierName(activeThread)))
+                          : null;
                         return (
                           <MessageBubble
                             key={m.id}
                             m={m}
                             grouped={r.grouped}
-                            mine={m.sender_type === 'vessel'}
+                            mine={mineMsg}
                             time={fmtClock(m.created_at)}
                             tick={tick}
                             repliedMsg={repliedMsg}
                             myUid={myUid}
+                            senderLabel={senderLabel}
                             onReply={startReply}
                             onReact={doReact}
                             onDelete={doDelete}

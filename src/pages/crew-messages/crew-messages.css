@@ -194,6 +194,27 @@
 .cm-page .msg-convo-name:hover { color: var(--orange); }
 .cm-page .msg-convo-sub { font-size: 11.5px; color: var(--muted-strong); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
 .cm-page .msg-convo-tag { font-size: 9px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); background: var(--bg-2); border-radius: 999px; padding: 2px 8px; }
+
+/* Assign-to-person control (thread directed at a specific supplier contact). */
+.cm-page .msg-assign { position: relative; }
+.cm-page .msg-assign-btn { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px; font-weight: 600; color: var(--muted-strong); background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; cursor: pointer; }
+.cm-page .msg-assign-btn.set { color: #fff; background: var(--orange); border-color: var(--orange); }
+.cm-page .msg-assign-btn:hover { border-color: var(--orange); }
+.cm-page .msg-assign-btn.set:hover { background: #B14E16; }
+.cm-page .msg-assign-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 208px; background: #fff; border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 6px; }
+.cm-page .msg-assign-head { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); padding: 6px 8px 4px; }
+.cm-page .msg-assign-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 7px 9px; font-family: inherit; cursor: pointer; }
+.cm-page .msg-assign-opt:hover { background: var(--bg-2); }
+.cm-page .msg-assign-opt.on { background: var(--pill); }
+.cm-page .msg-assign-opt:disabled { opacity: 0.55; cursor: default; }
+.cm-page .msg-assign-name { font-size: 12.5px; font-weight: 600; color: var(--navy); }
+.cm-page .msg-assign-role { font-size: 10.5px; color: var(--muted); text-transform: capitalize; }
+.cm-page .msg-assign-empty { font-size: 11.5px; color: var(--muted); padding: 8px 9px; }
+.cm-page .msg-assign-clear { width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); margin-top: 4px; padding: 8px 9px 5px; font-family: inherit; font-size: 11.5px; color: var(--muted-strong); cursor: pointer; }
+.cm-page .msg-assign-clear:hover { color: var(--navy); }
+
+/* Sender name above a bubble in group conversations. */
+.cm-page .msg-sender { display: block; font-size: 10.5px; font-weight: 700; color: var(--orange); margin-bottom: 2px; }
 .cm-page .msg-convo-board {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: 'Inter', system-ui, sans-serif;

@@ -7,7 +7,7 @@ import {
   markThreadReadSupplier, fetchClients, fetchClientOrders, draftQuoteFromMessage,
   setThreadArchived, deleteThread, fetchVesselLogos, sendSupplierQuote,
   reactToMessage, deleteMessage, editMessage, createCatalogueItem, repriceQuote,
-  uploadMessageAttachment, updateOrderStatus,
+  uploadMessageAttachment, updateOrderStatus, fetchThreadsPeople,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -270,6 +270,7 @@ const SupplierMessages = () => {
   const [replyTo, setReplyTo] = useState(null);
   const [editing, setEditing] = useState(null);
   const [myUid, setMyUid] = useState(null);
+  const [peopleByThread, setPeopleByThread] = useState({}); // thread_id → participant roster
   const [savedCat, setSavedCat] = useState(() => new Set()); // quote items saved to catalogue
   const [savingCat, setSavingCat] = useState(null);
   const [pricing, setPricing] = useState(null);     // quote message id being repriced
@@ -295,6 +296,11 @@ const SupplierMessages = () => {
     setThreads(th);
     setNames(map);
     setLogos(logoMap || {});
+    fetchThreadsPeople().then((rows) => {
+      const p = {};
+      for (const r of rows) p[r.thread_id] = r.people || [];
+      setPeopleByThread(p);
+    }).catch(() => {});
     return th;
   }, [supplierId]);
 
@@ -656,17 +662,22 @@ const SupplierMessages = () => {
 
   const rendered = useMemo(() => {
     const out = [];
-    let lastDay = null, lastSender = null, lastTime = 0;
+    let lastDay = null, lastSender = null, lastUser = null, lastTime = 0;
     for (const msg of messages) {
       const t = new Date(msg.created_at).getTime();
       const dk = new Date(msg.created_at).toDateString();
-      if (dk !== lastDay) { out.push({ kind: 'divider', id: `d${dk}`, at: msg.created_at }); lastSender = null; }
-      const grouped = msg.sender_type === lastSender && (t - lastTime) < 5 * 60000 && dk === lastDay;
+      if (dk !== lastDay) { out.push({ kind: 'divider', id: `d${dk}`, at: msg.created_at }); lastSender = null; lastUser = null; }
+      const grouped = msg.sender_type === lastSender && msg.sender_user_id === lastUser && (t - lastTime) < 5 * 60000 && dk === lastDay;
       out.push({ kind: 'msg', msg, grouped });
-      lastDay = dk; lastSender = msg.sender_type; lastTime = t;
+      lastDay = dk; lastSender = msg.sender_type; lastUser = msg.sender_user_id; lastTime = t;
     }
     return out;
   }, [messages]);
+
+  // Roster of the open thread → name each crew sender in a group conversation.
+  const roster = peopleByThread[activeId] || [];
+  const isGroup = roster.length > 2;
+  const nameForUid = (uid) => roster.find((p) => p.user_id === uid)?.name || null;
 
   // Counts for the filter dropdown.
   const counts = useMemo(() => {
@@ -944,16 +955,21 @@ const SupplierMessages = () => {
                       label: src.sender_type === 'supplier' ? 'You' : nameFor(activeThread),
                       snippet: src.deleted_at ? 'Message deleted' : (src.kind === 'quote' ? 'Quote' : String(src.body || '').slice(0, 90)),
                     } : null;
+                    const mineMsg = m.sender_user_id ? m.sender_user_id === myUid : m.sender_type === 'supplier';
+                    const senderLabel = (isGroup && !mineMsg && !r.grouped && m.kind !== 'system')
+                      ? (nameForUid(m.sender_user_id) || (m.sender_type === 'supplier' ? 'Supplier' : nameFor(activeThread)))
+                      : null;
                     return (
                       <MessageBubble
                         key={m.id}
                         m={m}
                         grouped={r.grouped}
-                        mine={m.sender_type === 'supplier'}
+                        mine={mineMsg}
                         time={fmtClock(m.created_at)}
                         tick={tick}
                         repliedMsg={repliedMsg}
                         myUid={myUid}
+                        senderLabel={senderLabel}
                         onReply={startReply}
                         onReact={doReact}
                         onDelete={doDelete}

@@ -3703,6 +3703,7 @@
 #sp-root .msg-row.them .msg-bubble { background: var(--card); color: var(--fg); border-bottom-left-radius: 5px; box-shadow: var(--sh1); }
 #sp-root .msg-row.me .msg-bubble { background: var(--orange); color: #fff; border-bottom-right-radius: 5px; box-shadow: 0 3px 10px -3px rgba(198, 90, 26, 0.5); }
 #sp-root .msg-time { display: block; font-size: 10px; margin-top: 3px; opacity: 0.72; text-align: right; }
+#sp-root .msg-sender { display: block; font-size: 10.5px; font-weight: 700; color: var(--orange); margin-bottom: 2px; }
 #sp-root .msg-tick { margin-left: 5px; font-weight: 700; opacity: 0.85; }
 #sp-root .msg-tick.read { color: #BFE3D0; opacity: 1; }
 
