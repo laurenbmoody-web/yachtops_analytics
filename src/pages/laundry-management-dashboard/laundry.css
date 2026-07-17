@@ -1037,11 +1037,6 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 /* ── history search + filter ── */
 .hist-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
 .hist-tools .lm-search { flex: 1 1 260px; max-width: 360px; }
-.hist-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.hist-chip { font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; background: #FFFFFF; border: 1px solid #E8E6DF; border-radius: 999px; padding: 6px 12px; cursor: pointer; transition: 0.14s; }
-.hist-chip:hover { border-color: #D9C7BB; color: #1C1B3A; }
-.hist-chip.on { background: #1C1B3A; border-color: #1C1B3A; color: #FFFFFF; }
-.hist-chip-sep { width: 1px; height: 16px; background: #E0E2EA; margin: 0 4px; }
 .hist-retain { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6E6B85; }
 .hist-retain svg { stroke: #AEB4C2; flex: none; }
 .hist-retain select { appearance: none; -webkit-appearance: none; height: 34px; padding: 0 28px 0 11px; cursor: pointer; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; border: 1px solid #E5E7EB; border-radius: 9px; background-color: #FFFFFF; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23695880' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 9px center; background-size: 13px; }

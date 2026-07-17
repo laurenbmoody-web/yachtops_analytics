@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
@@ -6,6 +6,7 @@ import AddLaundryModal from './components/AddLaundryModal';
 import LaundryItemRow from './components/LaundryItemRow';
 import CabinView from './components/CabinView';
 import LaundryDetailModal from './components/LaundryDetailModal';
+import { FilterMenu, SortMenu } from './components/LaundryFilters';
 import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay } from './utils/laundryStorage';
 import { turnaroundStats, fmtDur } from './utils/laundryStats';
 import { enrichWithAvatars } from './utils/laundryAvatars';
@@ -30,95 +31,6 @@ const isAttentionItem = (i) => i?.status !== LaundryStatus?.DELIVERED && (
   || (i?.neededBy && new Date(i.neededBy).getTime() < Date.now())
   || i?.flag === 'missing' || i?.flag === 'damaged'
 );
-
-const useMenu = () => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
-  }, [open]);
-  return [open, setOpen, ref];
-};
-
-// ── One "Filters" button — Status + Owner as selects inside a popover ──────
-function FiltersMenu({ status, setStatus, owner, setOwner, handling, setHandling }) {
-  const [open, setOpen, ref] = useMenu();
-  const active = (status !== 'All' ? 1 : 0) + (owner !== 'All' ? 1 : 0) + (handling !== 'All' ? 1 : 0);
-  return (
-    <div className="lmf" ref={ref}>
-      <button type="button" className={`lmf-btn${open ? ' open' : ''}${active ? ' on' : ''}`} onClick={() => setOpen((o) => !o)}>
-        <Icon name="SlidersHorizontal" size={14} />
-        <span>Filters</span>
-        {active > 0 && <span className="lmf-badge">{active}</span>}
-        <Icon name="ChevronDown" size={14} className="chev" />
-      </button>
-      {open && (
-        <div className="lmf-pop">
-          <div className="lmf-group">
-            <span className="lmf-label">Status</span>
-            <div className="lmf-select">
-              <select value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="All">All statuses</option>
-                <option value="In Progress">In progress</option>
-                <option value="Ready">Ready</option>
-                <option value="Delivered">Delivered</option>
-              </select>
-            </div>
-          </div>
-          <div className="lmf-group">
-            <span className="lmf-label">Owner</span>
-            <div className="lmf-select">
-              <select value={owner} onChange={(e) => setOwner(e.target.value)}>
-                <option value="All">Everyone</option>
-                <option value="Guest">Guests</option>
-                <option value="Crew">Crew</option>
-                <option value="Unknown">Unknown</option>
-              </select>
-            </div>
-          </div>
-          <div className="lmf-group">
-            <span className="lmf-label">Handling</span>
-            <div className="lmf-select">
-              <select value={handling} onChange={(e) => setHandling(e.target.value)}>
-                <option value="All">Anywhere</option>
-                <option value="onboard">Onboard</option>
-                <option value="shore">Ashore</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── One "Sort" button — the choice shows as a tick inside ──────────────────
-function SortMenu({ value, onChange }) {
-  const [open, setOpen, ref] = useMenu();
-  return (
-    <div className="lmf" ref={ref}>
-      <button type="button" className={`lmf-btn${open ? ' open' : ''}${value !== 'newest' ? ' on' : ''}`} onClick={() => setOpen((o) => !o)}>
-        <Icon name="ArrowUpDown" size={14} />
-        <span>Sort</span>
-        <Icon name="ChevronDown" size={14} className="chev" />
-      </button>
-      {open && (
-        <div className="lmf-pop lmf-sortpop">
-          {SORTS.map((o) => (
-            <button key={o.val} type="button" className={`lmf-sortopt${o.val === value ? ' sel' : ''}`} onClick={() => { onChange(o.val); setOpen(false); }}>
-              <span>{o.label}</span>{o.val === value && <Icon name="Check" size={15} />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // List / By cabin toggle
 function ViewToggle({ view, onChange }) {
@@ -434,8 +346,15 @@ const LaundryManagementDashboard = () => {
                 aria-label="Search laundry"
               />
             </label>
-            <FiltersMenu status={statusFilter} setStatus={setStatusFilter} owner={ownerFilter} setOwner={setOwnerFilter} handling={handlingFilter} setHandling={setHandlingFilter} />
-            <SortMenu value={sortBy} onChange={setSortBy} />
+            <FilterMenu groups={[
+              { key: 'status', label: 'Status', value: statusFilter, onChange: setStatusFilter, neutral: 'All', options: [
+                { value: 'All', label: 'All statuses' }, { value: 'In Progress', label: 'In progress' }, { value: 'Ready', label: 'Ready' }, { value: 'Delivered', label: 'Delivered' }] },
+              { key: 'owner', label: 'Owner', value: ownerFilter, onChange: setOwnerFilter, neutral: 'All', options: [
+                { value: 'All', label: 'Everyone' }, { value: 'Guest', label: 'Guests' }, { value: 'Crew', label: 'Crew' }, { value: 'Unknown', label: 'Unknown' }] },
+              { key: 'handling', label: 'Handling', value: handlingFilter, onChange: setHandlingFilter, neutral: 'All', options: [
+                { value: 'All', label: 'Anywhere' }, { value: 'onboard', label: 'Onboard' }, { value: 'shore', label: 'Ashore' }] },
+            ]} />
+            <SortMenu value={sortBy} onChange={setSortBy} options={SORTS} />
             <ViewToggle view={viewMode} onChange={changeView} />
           </div>
 
