@@ -244,6 +244,7 @@ function DeptPills({ cfg, value, options, canEdit, onSave, toast }) {
 /* ── the deck ── */
 export default function VesselProfileStack(props) {
   const {
+    rail,
     vesselData, formState, canEdit, departmentOptions, saveField,
     logoInputRef, onLogoChange, uploadingLogo, logoUploadError, onRemoveLogo,
     heroInputRef, onHeroChange, uploadingHero, heroUploadError, onRevertHero,
@@ -451,8 +452,10 @@ export default function VesselProfileStack(props) {
         <div className="vs-banner err"><AlertCircle size={18} /><div><b>Something went wrong</b> — {saveError}</div></div>
       )}
 
-      {/* deck */}
-      <div className="vs-deck">
+      {/* rail + deck grid (hero above spans full width, like the crew profile) */}
+      <div className="vs-grid">
+        {rail}
+        <div className="vs-deck">
         {cards.map((c) => {
           const miss = (c.fields || []).filter((f) => isData(f.type) && (formState?.[f.field] === '' || formState?.[f.field] == null)).length;
           const isOpen = !!openCards[c.id];
@@ -508,6 +511,7 @@ export default function VesselProfileStack(props) {
               </div>
             </div>
           </div></div>
+        </div>
         </div>
       </div>
 
