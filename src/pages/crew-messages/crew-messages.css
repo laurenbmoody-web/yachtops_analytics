@@ -274,6 +274,24 @@
 .cmsg-page .msg-card-remove { width: 100%; margin-top: 8px; background: none; border: 1px solid var(--line); border-radius: 9px; padding: 8px; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted-strong); cursor: pointer; }
 .cmsg-page .msg-card-remove:hover { color: var(--red); border-color: var(--red); }
 .cmsg-page .msg-card-remove:disabled { opacity: 0.5; cursor: default; }
+
+/* Messaging profile — a light WhatsApp-style identity (not the HR record). */
+.cmsg-page .msg-profile-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(28,27,58,0.28); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.cmsg-page .msg-profile { position: relative; width: 340px; max-width: 100%; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.4); padding: 24px 20px 20px; }
+.cmsg-page .msg-profile-x { position: absolute; top: 10px; right: 12px; width: 26px; height: 26px; border: 0; background: none; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; border-radius: 7px; }
+.cmsg-page .msg-profile-x:hover { color: var(--navy); background: var(--ground); }
+.cmsg-page .msg-profile-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.cmsg-page .msg-face.xl { width: 76px; height: 76px; border-width: 2px; font-size: 24px; cursor: default; }
+.cmsg-page .msg-profile-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: var(--navy); line-height: 1.1; }
+.cmsg-page .msg-profile-sub { display: flex; align-items: center; gap: 7px; }
+.cmsg-page .msg-profile-about { margin: 14px 0 2px; text-align: center; font-size: 13px; font-style: italic; color: var(--muted-strong); }
+.cmsg-page .msg-profile .msg-card-rows { margin-top: 14px; }
+.cmsg-page .msg-profile-edit { margin-top: 16px; display: flex; flex-direction: column; gap: 4px; }
+.cmsg-page .msg-profile-lab { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
+.cmsg-page .msg-profile-in { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font-family: inherit; font-size: 13px; color: var(--navy); background: #FAFAF8; }
+.cmsg-page .msg-profile-in:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--pill); }
+.cmsg-page .msg-profile-editrow { display: flex; gap: 8px; margin-top: 14px; }
+.cmsg-page .msg-profile-editrow > * { flex: 1; }
 .cmsg-page .msg-assign-empty { font-size: 11.5px; color: var(--muted); padding: 8px 9px; }
 .cmsg-page .msg-convo-board {
   display: inline-flex; align-items: center; gap: 5px;
