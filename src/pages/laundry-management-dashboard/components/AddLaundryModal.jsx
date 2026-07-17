@@ -685,14 +685,14 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
       <div className="alm-foot">
         <button type="button" className="alm-linkbtn" onClick={onClose}>{addedCount > 0 ? 'Done' : 'Cancel'}</button>
         <div className="alm-foot-actions">
-          {addedCount > 0 && <span className="alm-added">{addedCount} added</span>}
+          {addedCount > 0 && <span className="alm-added">{addedCount} in bag</span>}
           {!isEdit && (
             <button type="button" className="alm-btn outline" onClick={() => handleSubmit(true)} disabled={isSubmitting}>
-              <Icon name="Plus" size={14} /> Save &amp; add another
+              <Icon name="Package" size={14} /> Save &amp; next in bag
             </button>
           )}
           <button type="button" className="alm-btn primary" onClick={() => handleSubmit(false)} disabled={isSubmitting}>
-            {isSubmitting ? 'Saving…' : (isEdit ? 'Save changes' : (addedCount > 0 ? 'Add & finish' : 'Add to the wash'))}
+            {isSubmitting ? 'Saving…' : (isEdit ? 'Save changes' : (addedCount > 0 ? 'Finish bag' : 'Add to the wash'))}
           </button>
         </div>
       </div>
