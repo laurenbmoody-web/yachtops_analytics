@@ -52,6 +52,23 @@ export const assignThreadContact = async (threadId, contactId) => {
   if (error) throw error;
 };
 
+// Crew members who could be added to this thread (tenant crew not already in).
+export const fetchAddableCrew = async (threadId) => {
+  const { data, error } = await supabase.rpc('fetch_addable_crew_for_thread', { p_thread_id: threadId });
+  if (error) throw error;
+  return data ?? [];
+};
+
+// Add / remove a person on a thread (group). Party 'crew' for a tenant member.
+export const addThreadParticipant = async (threadId, userId, party = 'crew') => {
+  const { error } = await supabase.rpc('add_thread_participant', { p_thread: threadId, p_user_id: userId, p_party: party });
+  if (error) throw error;
+};
+export const removeThreadParticipant = async (threadId, userId) => {
+  const { error } = await supabase.rpc('remove_thread_participant', { p_thread: threadId, p_user_id: userId });
+  if (error) throw error;
+};
+
 export const fetchThreadMessages = async (threadId) => {
   const { data, error } = await supabase
     .from('supplier_messages')

@@ -10,7 +10,7 @@ import {
   markThreadNotificationsRead, acceptQuote, declineQuote, fetchAddableOrders, reactToMessage, deleteMessage, editMessage,
   setThreadArchived, deleteThread, uploadMessageAttachment,
   fetchOrderApprovalSettings, decideOrderApproval, getOrCreateDmThread,
-  fetchThreadsPeople,
+  fetchThreadsPeople, fetchAddableCrew, addThreadParticipant, removeThreadParticipant,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -253,6 +253,9 @@ const CrewMessages = () => {
   const [starting, setStarting] = useState(false);   // opening a new DM thread
   const [assignedByThread, setAssignedByThread] = useState({}); // thread_id → assigned contact (read-only; the supplier assigns)
   const [peopleByThread, setPeopleByThread] = useState({});     // thread_id → participant roster
+  const [peopleOpen, setPeopleOpen] = useState(false);          // people panel open
+  const [addableCrew, setAddableCrew] = useState([]);           // crew who can be added
+  const [peopleBusy, setPeopleBusy] = useState(false);
   const [approverTier, setApproverTier] = useState('HOD');
   const [myUid, setMyUid] = useState(null);
   const fileRef = useRef(null);
@@ -407,6 +410,34 @@ const CrewMessages = () => {
       requestAnimationFrame(() => taRef.current?.focus());
     } catch (e) { setError(e.message); }
     finally { setStarting(false); }
+  };
+
+  // Group people — pull another crew member into (or out of) the conversation.
+  const openPeople = async () => {
+    if (!activeId) return;
+    const next = !peopleOpen;
+    setPeopleOpen(next);
+    if (next) { try { setAddableCrew(await fetchAddableCrew(activeId)); } catch (e) { setError(e.message); } }
+  };
+  const addCrew = async (userId) => {
+    if (!activeId || peopleBusy) return;
+    setPeopleBusy(true); setError(null);
+    try {
+      await addThreadParticipant(activeId, userId, 'crew');
+      await load();
+      setAddableCrew(await fetchAddableCrew(activeId));
+    } catch (e) { setError(e.message); }
+    finally { setPeopleBusy(false); }
+  };
+  const removeCrew = async (userId) => {
+    if (!activeId || peopleBusy) return;
+    setPeopleBusy(true); setError(null);
+    try {
+      await removeThreadParticipant(activeId, userId);
+      await load();
+      if (peopleOpen) setAddableCrew(await fetchAddableCrew(activeId));
+    } catch (e) { setError(e.message); }
+    finally { setPeopleBusy(false); }
   };
 
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
@@ -700,6 +731,36 @@ const CrewMessages = () => {
                             );
                           })()}
                         </div>
+                      </div>
+                      <div className="msg-people">
+                        <button type="button" className="msg-people-btn" onClick={openPeople} title="People in this conversation" aria-label="People in this conversation">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                          <span className="msg-people-n">{peopleByThread[activeId]?.length || 1}</span>
+                        </button>
+                        {peopleOpen && (
+                          <div className="msg-people-menu" role="menu">
+                            <div className="msg-assign-head">In this chat</div>
+                            {(peopleByThread[activeId] || []).map((p) => (
+                              <div key={p.user_id} className="msg-people-row">
+                                <span className="msg-people-info">
+                                  <span className="msg-assign-name">{(p.name || (p.party === 'crew' ? 'Crew' : 'Supplier')) + (p.user_id === myUid ? ' (you)' : '')}</span>
+                                  <span className="msg-assign-role">{p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'supplier'} · supplier`}</span>
+                                </span>
+                                {p.party === 'crew' && p.user_id !== myUid && (
+                                  <button type="button" className="msg-people-x" disabled={peopleBusy} title="Remove from chat" aria-label="Remove from chat" onClick={() => removeCrew(p.user_id)}>×</button>
+                                )}
+                              </div>
+                            ))}
+                            <div className="msg-assign-head">Add crew</div>
+                            {addableCrew.map((c) => (
+                              <button key={c.user_id} type="button" className="msg-assign-opt" disabled={peopleBusy} onClick={() => addCrew(c.user_id)} role="menuitem">
+                                <span className="msg-assign-name">{c.name}</span>
+                                <span className="msg-assign-role">{(c.tier || '').toLowerCase()}</span>
+                              </button>
+                            ))}
+                            {!addableCrew.length && <div className="msg-assign-empty">Everyone’s already in</div>}
+                          </div>
+                        )}
                       </div>
                     </div>
 
