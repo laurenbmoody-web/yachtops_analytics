@@ -145,7 +145,7 @@ export async function openTripReport(period, vessel) {
     ${letterhead(vessel)}
     <div class="titlerow">
       <div class="titleblock">
-        <h1>${esc(period.name)}${period.type === 'voyage' ? ' — voyage' : ''}</h1>
+        <h1>${esc(period.name)}</h1>
         <div class="dates">${esc(period.dates)}${period.hero ? ` · ${esc(period.hero)}` : ''}</div>
       </div>
       <div class="summary">
