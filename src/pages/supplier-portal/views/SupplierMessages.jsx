@@ -9,6 +9,7 @@ import {
   reactToMessage, deleteMessage, editMessage, createCatalogueItem, repriceQuote,
   uploadMessageAttachment, updateOrderStatus, fetchThreadsPeople,
   fetchThreadContacts, assignThreadContact, fetchPersonCard, saveMyMessagingProfile,
+  fetchAddableSupplier, addThreadParticipant, removeThreadParticipant,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -293,6 +294,10 @@ const SupplierMessages = () => {
   const [statusEditing, setStatusEditing] = useState(false);
   const [statusDraft, setStatusDraft] = useState('');
   const [statusSaving, setStatusSaving] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const [addable, setAddable] = useState([]);
+  const [addSearch, setAddSearch] = useState('');
+  const [peopleBusy, setPeopleBusy] = useState(false);
   const [savedCat, setSavedCat] = useState(() => new Set()); // quote items saved to catalogue
   const [savingCat, setSavingCat] = useState(null);
   const [pricing, setPricing] = useState(null);     // quote message id being repriced
@@ -723,6 +728,35 @@ const SupplierMessages = () => {
     } catch (e) { setError(e.message); }
     finally { setStatusSaving(false); }
   };
+  // Add / remove one of MY OWN team on the thread.
+  const openPeople = async () => {
+    if (!activeId) return;
+    setCardPerson(null);
+    const next = !peopleOpen; setPeopleOpen(next); setAddSearch('');
+    if (next) { try { setAddable(await fetchAddableSupplier(activeId)); } catch (e) { setError(e.message); } }
+  };
+  const addColleague = async (userId) => {
+    if (!activeId || peopleBusy) return;
+    setPeopleBusy(true); setError(null);
+    try {
+      await addThreadParticipant(activeId, userId, 'supplier');
+      await loadThreads();
+      fetchMessages(activeId).then(setMessages).catch(() => {});
+      setAddable(await fetchAddableSupplier(activeId));
+    } catch (e) { setError(e.message); }
+    finally { setPeopleBusy(false); }
+  };
+  const removeColleague = async (userId) => {
+    if (!activeId || peopleBusy) return;
+    setPeopleBusy(true); setError(null);
+    try {
+      await removeThreadParticipant(activeId, userId);
+      setCardPerson(null);
+      await loadThreads();
+      fetchMessages(activeId).then(setMessages).catch(() => {});
+    } catch (e) { setError(e.message); }
+    finally { setPeopleBusy(false); }
+  };
   const openProfile = () => {
     if (!cardPerson || !cardDetail) return;
     setProfileModal({ person: cardPerson, detail: cardDetail });
@@ -945,10 +979,43 @@ const SupplierMessages = () => {
                           const nm = p.name || (p.party === 'crew' ? 'Crew' : 'Supplier');
                           const role = p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'sales'} · supplier`;
                           return (
-                            <button key={p.user_id} type="button" className="msg-face" style={{ backgroundImage: faceGrad(p) }} title={`${nm}${p.user_id === myUid ? ' (you)' : ''} — ${role}`} onClick={() => openCard(p)}>{initials(nm)}</button>
+                            <button key={p.user_id} type="button" className="msg-face" style={{ backgroundImage: faceGrad(p) }} title={`${nm}${p.user_id === myUid ? ' (you)' : ''} — ${role}`} onClick={() => openCard(p)}>
+                              {initials(nm)}
+                              {p.party === 'supplier' && p.user_id !== myUid && (
+                                <span className="msg-face-x" role="button" tabIndex={0} title={`Remove ${nm}`} aria-label={`Remove ${nm}`} onClick={(e) => { e.stopPropagation(); removeColleague(p.user_id); }}>
+                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                                </span>
+                              )}
+                            </button>
                           );
                         })}
+                        <button type="button" className="msg-face add" onClick={openPeople} title="Add a colleague to this chat" aria-label="Add a colleague">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                        </button>
                       </div>
+                      {peopleOpen && (() => {
+                        const q = addSearch.trim().toLowerCase();
+                        const list = addable.filter((c) => !q || (c.name || '').toLowerCase().includes(q));
+                        return (
+                          <div className="msg-people-menu" role="menu">
+                            <div className="msg-add-search">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+                              <input type="text" placeholder="Search your team…" value={addSearch} onChange={(e) => setAddSearch(e.target.value)} autoFocus />
+                            </div>
+                            <div className="msg-assign-head">Add a colleague</div>
+                            {list.map((c) => (
+                              <button key={c.user_id} type="button" className="msg-assign-opt" disabled={peopleBusy} onClick={() => addColleague(c.user_id)} role="menuitem">
+                                <span className="msg-face sm" style={{ backgroundImage: supGrad(c.user_id) }} aria-hidden>{initials(c.name)}</span>
+                                <span className="msg-people-info">
+                                  <span className="msg-assign-name">{c.name}</span>
+                                  <span className="msg-assign-role">{(c.role || '').toLowerCase()}</span>
+                                </span>
+                              </button>
+                            ))}
+                            {!list.length && <div className="msg-assign-empty">{addable.length ? 'No matches' : 'Everyone’s already in'}</div>}
+                          </div>
+                        );
+                      })()}
                       {cardPerson && (
                         <div className="msg-card" role="dialog" aria-label="Contact card">
                           <button type="button" className="msg-card-close" onClick={() => setCardPerson(null)} aria-label="Close">×</button>
