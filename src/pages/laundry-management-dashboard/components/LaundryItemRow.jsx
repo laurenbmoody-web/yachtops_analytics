@@ -50,7 +50,7 @@ const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
     >
       {/* photo */}
       <span className="lr-thumb">
-        {photos[0] ? <img src={photos[0]} alt={item?.description || 'Laundry item'} /> : <Icon name="Shirt" size={24} className="lr-ph-ic" />}
+        {photos[0] ? <img src={photos[0]} alt={item?.description || 'Laundry item'} loading="lazy" decoding="async" /> : <Icon name="Shirt" size={24} className="lr-ph-ic" />}
         {photos.length > 1 && <span className="lr-cnt">{photos.length}</span>}
       </span>
 
@@ -64,7 +64,7 @@ const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
           {item?.flag === 'missing' && <span className="lr-cond mis"><Icon name="HelpCircle" size={11} /> Missing</span>}
         </div>
         <div className="lr-sub">
-          <span className="lr-who"><span className={`lr-av ${kind}`}>{item?.avatarUrl ? <img src={item.avatarUrl} alt="" /> : (kind === 'other' ? <Icon name="Package" size={13} /> : avInitials)}</span>{kind === 'unknown' ? 'Unknown' : kind === 'other' ? 'Other' : (item?.ownerName || 'Unassigned')}</span>
+          <span className="lr-who"><span className={`lr-av ${kind}`}>{item?.avatarUrl ? <img src={item.avatarUrl} alt="" loading="lazy" decoding="async" /> : (kind === 'other' ? <Icon name="Package" size={13} /> : avInitials)}</span>{kind === 'unknown' ? 'Unknown' : kind === 'other' ? 'Other' : (item?.ownerName || 'Unassigned')}</span>
           {item?.area && (<><span className="sep">·</span><b>{item.area}</b></>)}
           {item?.laundryNumber && (<><span className="sep">·</span><span>No. {item.laundryNumber}</span></>)}
           {item?.colour && (<><span className="sep">·</span><span>{item.colour}</span></>)}

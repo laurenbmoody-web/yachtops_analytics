@@ -67,7 +67,7 @@ const CabinCard = ({ g, onBulkDeliver, onOpen, onAdvance }) => {
         onClick={() => onOpen?.(it)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen?.(it); } }}>
         <span className="lc-ph">
-          {photos[0] ? <img src={photos[0]} alt="" /> : <Icon name="Shirt" size={17} className="lr-ph-ic" />}
+          {photos[0] ? <img src={photos[0]} alt="" loading="lazy" decoding="async" /> : <Icon name="Shirt" size={17} className="lr-ph-ic" />}
         </span>
         <div className="lc-ci-main">
           <div className="lc-ci-desc">{it?.description || 'No description'}</div>
@@ -101,7 +101,7 @@ const CabinCard = ({ g, onBulkDeliver, onOpen, onAdvance }) => {
         <div className="lc-id">
           <div className="lc-name">{g.key}</div>
           <div className="lc-occ">
-            <span className={`lr-av ${g.kind}`}>{g.avatarUrl ? <img src={g.avatarUrl} alt="" /> : (g.found ? '?' : initials(g.owners[0] || ''))}</span>
+            <span className={`lr-av ${g.kind}`}>{g.avatarUrl ? <img src={g.avatarUrl} alt="" loading="lazy" decoding="async" /> : (g.found ? '?' : initials(g.owners[0] || ''))}</span>
             {g.found ? 'No owner assigned' : (g.owners.join(', ') || '—')}
           </div>
         </div>

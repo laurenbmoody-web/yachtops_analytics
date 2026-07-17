@@ -64,7 +64,7 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
     <ModalShell onClose={onClose} panelClassName="alm-panel">
       <div className="ldm-hero">
         {photos[0]
-          ? <img src={photos[0]} alt={item?.description || 'Laundry item'} />
+          ? <img src={photos[0]} alt={item?.description || 'Laundry item'} decoding="async" />
           : <span className="ldm-hero-ph"><Icon name="Shirt" size={64} /></span>}
         <div className="ldm-scrim" />
         <div className="ldm-hero-top">
@@ -77,7 +77,7 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
         <div className="ldm-hero-btm">
           <div className="ldm-htitle">{item?.description || 'Laundry item'}</div>
           <div className="ldm-howner">
-            <span className={`lr-av ${kind}`}>{avatarUrl ? <img src={avatarUrl} alt="" /> : (kind === 'unknown' ? '?' : initials(item?.ownerName))}</span>
+            <span className={`lr-av ${kind}`}>{avatarUrl ? <img src={avatarUrl} alt="" loading="lazy" decoding="async" /> : (kind === 'unknown' ? '?' : initials(item?.ownerName))}</span>
             {kind === 'unknown' ? 'Unknown owner' : (item?.ownerName || '—')}
             <span style={{ opacity: 0.7 }}>· {kind[0].toUpperCase() + kind.slice(1)}</span>
           </div>
@@ -143,7 +143,7 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
         {photos.length > 1 && (
           <div className="alm-section">
             <label className="alm-label">Photos <span className="alm-opt">{photos.length}</span></label>
-            <div className="ldm-strip">{photos.map((src, i) => <img key={i} src={src} alt={`Photo ${i + 1}`} />)}</div>
+            <div className="ldm-strip">{photos.map((src, i) => <img key={i} src={src} alt={`Photo ${i + 1}`} loading="lazy" decoding="async" />)}</div>
           </div>
         )}
 
