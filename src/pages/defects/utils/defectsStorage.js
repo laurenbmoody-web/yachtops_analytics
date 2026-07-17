@@ -349,6 +349,22 @@ export const getDefectByHotspot = async (hotspotId, actor) => {
 };
 
 
+// Batch: severity + status for the active (non-closed) defects behind a set of
+// map pins, keyed by hotspot_id. Used to style pins (e.g. pulse Critical/High)
+// without a round-trip per pin.
+export const fetchDefectMetaByHotspots = async (hotspotIds, tenantId) => {
+  const ids = (hotspotIds || []).filter(Boolean);
+  if (!ids.length || !tenantId) return {};
+  const { data, error } = await supabase
+    ?.from('defects')?.select('hotspot_id, priority, status')
+    ?.eq('tenant_id', tenantId)?.in('hotspot_id', ids)
+    ?.is('deleted_at', null)?.neq('status', DefectStatus.CLOSED);
+  if (error) { console.warn('[defects] fetchDefectMetaByHotspots', error); return {}; }
+  const map = {};
+  for (const r of data || []) map[r.hotspot_id] = { priority: r.priority, status: r.status };
+  return map;
+};
+
 // Assign a defect to a named person or a whole team, notifying recipients.
 // Prior repairs at this defect's location that are still under warranty — a
 // possible warranty claim if the fault has recurred. Excludes this defect.

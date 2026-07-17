@@ -24,6 +24,7 @@ const CLICK_SLOP_PX = 6;   // pointer travel under this = click, over = orbit dr
 const FADE_MS = 150;       // layer-toggle pin fade
 const GLIDE_MS = 400;      // camera target glide on selection
 const PULSE_MS = 600;      // selection ring pulse, once
+const SEVERITY_PULSE_MS = 1600; // high-severity defect pin — a looping radar ping
 
 const toVec3 = (v, fallback) => new THREE.Vector3(
   Number(v?.x ?? fallback.x), Number(v?.y ?? fallback.y), Number(v?.z ?? fallback.z)
@@ -276,6 +277,11 @@ export default function SplatViewer({
     scene.add(spriteGroup);
     let pendingPin = null;
 
+    // Looping alert rings for high-severity defect pins — kept in their own
+    // group so the pin-sizing loop and the raycaster never touch them.
+    const pulseGroup = new THREE.Group();
+    scene.add(pulseGroup);
+
     // Selection treatment: steady ring + one expanding ghost on select.
     const steadyRing = makeRing();
     const pulseRing = makeRing();
@@ -347,6 +353,21 @@ export default function SplatViewer({
         }
       }
 
+      // High-severity defect pins ping continuously (radar sweep), unless the
+      // defect layer is hidden. Synchronised phase across all of them.
+      const defectShown = !visible || visible.includes('defect');
+      const pPhase = (now % SEVERITY_PULSE_MS) / SEVERITY_PULSE_MS;
+      const pEase = easeOutCubic(pPhase);
+      for (const ring of pulseGroup.children) {
+        if (!defectShown) { ring.visible = false; continue; }
+        ring.visible = true;
+        ring.position.copy(ring.userData.pulsePos);
+        const d = ring.position.distanceTo(camera.position);
+        const base = d * fovScale * PIN_VIEW_FRACTION;
+        ring.scale.setScalar(base * (1.4 + 1.6 * pEase));
+        ring.material.opacity = 0.65 * (1 - pPhase);
+      }
+
       const sel = (hotspotsRef.current || []).find((h) => h.id === selectedRef.current);
       steadyRing.visible = !!sel;
       if (sel) {
@@ -414,12 +435,24 @@ export default function SplatViewer({
         spriteGroup.remove(child);
         child.material.dispose();
       }
+      for (const child of [...pulseGroup.children]) {
+        pulseGroup.remove(child);
+        child.material.dispose();
+      }
       for (const h of hotspotsRef.current || []) {
         const pin = makePin(h.color, h.isContainer, h.layer);
         pin.position.set(Number(h.position?.x) || 0, Number(h.position?.y) || 0, Number(h.position?.z) || 0);
         pin.userData.hotspot = h;
         pin.userData.shown = true;
         spriteGroup.add(pin);
+        // High-severity defect → an alert ring that pings in pinPass.
+        if (h.severityPulse) {
+          const ring = makeRing();
+          ring.visible = true;
+          ring.material.color.set(h.color || '#A32D2D');
+          ring.userData.pulsePos = pin.position.clone();
+          pulseGroup.add(ring);
+        }
       }
       if (pendingRef.current) {
         pendingPin = makePin(pendingColorRef.current);
