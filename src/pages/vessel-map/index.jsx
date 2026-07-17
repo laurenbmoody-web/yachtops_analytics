@@ -825,9 +825,19 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
 
           {!scansLoading && scans.length > 0 && (
             <>
-              {scans.length > 1 && (
-                <div className="vm-scan-row">
-                  <RoomPicker scans={scans} selectedScanId={selectedScanId} onSelect={setSelectedScanId} />
+              {(scans.length > 1 || canPlaceHotspots) && (
+                <div className="vm-topbar-row">
+                  {scans.length > 1 && (
+                    <RoomPicker scans={scans} selectedScanId={selectedScanId} onSelect={setSelectedScanId} />
+                  )}
+                  {canPlaceHotspots && (
+                    <button
+                      className="vm-btn-ghost vm-topbar-manage"
+                      onClick={() => navigate('/settings/vessel?section=location-management')}
+                    >
+                      Manage scans
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -993,13 +1003,6 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   )
                 )}
 
-                {/* Back-of-house — quiet, near the scan chrome. */}
-                {canPlaceHotspots && (
-                  <button className="vm-manage-link" onClick={() => navigate('/settings/vessel?section=location-management')}>
-                    Manage scans
-                  </button>
-                )}
-
                 {/* ≥1024px: the inspector replaces the floating card. */}
                 <Inspector
                   hotspot={selectedHotspot}
@@ -1029,20 +1032,9 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   raised={!!openContainer}
                 />
 
-                {/* ≥1024px: breadcrumb + layer chips float on the dark stage,
-                    light-on-dark. Below that the cream toolbar above carries
-                    them — the shipped layout, now the mobile variant. */}
+                {/* ≥1024px: the layer chips float on the dark stage. The room
+                    name + title live above the map, so no breadcrumb here. */}
                 <div className="vm-stage-overlay">
-                  <p className="vm-ov-breadcrumb">
-                    <span className="dot">●</span>
-                    <span>Vessel Map</span>
-                    {selectedScan && (
-                      <>
-                        <span className="sep">·</span>
-                        <em>{selectedScan.name}</em>
-                      </>
-                    )}
-                  </p>
                   <div className="vm-ov-chips">{layersControl('vm-chip-dark')}</div>
                 </div>
 
