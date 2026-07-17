@@ -47,7 +47,7 @@ function buildGroups(items) {
   return groups;
 }
 
-const CabinCard = ({ g, onBulkDeliver, onOpen }) => {
+const CabinCard = ({ g, onBulkDeliver, onOpen, onAdvance }) => {
   const pct = g.total ? Math.round((g.delivered / g.total) * 100) : 0;
   const allDone = g.delivered === g.total;
   return (
@@ -88,7 +88,19 @@ const CabinCard = ({ g, onBulkDeliver, onOpen }) => {
                 <div className="lc-ci-desc">{it?.description || 'No description'}</div>
                 <div className="lc-ci-meta">{bits.reduce((acc, el, i) => (i ? [...acc, <span key={`s${i}`} style={{ color: '#AEB4C2' }}>·</span>, el] : [el]), [])}</div>
               </div>
-              <span className={`lc-stat ${st.cls}`}>{st.label}</span>
+              <div className="lc-ci-right">
+                <span className={`lc-stat ${st.cls}`}>{st.label}</span>
+                {it?.status === LaundryStatus?.IN_PROGRESS && (
+                  <button type="button" className="lc-qa" onClick={(e) => { e.stopPropagation(); onAdvance?.(it, LaundryStatus?.READY_TO_DELIVER); }}>
+                    <Icon name="Check" size={12} /> Ready
+                  </button>
+                )}
+                {it?.status === LaundryStatus?.READY_TO_DELIVER && (
+                  <button type="button" className="lc-qa go" onClick={(e) => { e.stopPropagation(); onAdvance?.(it, LaundryStatus?.DELIVERED); }}>
+                    <Icon name="ArrowRight" size={12} /> Deliver
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
@@ -110,11 +122,11 @@ const CabinCard = ({ g, onBulkDeliver, onOpen }) => {
   );
 };
 
-const CabinView = ({ items, onBulkDeliver, onOpen }) => {
+const CabinView = ({ items, onBulkDeliver, onOpen, onAdvance }) => {
   const groups = useMemo(() => buildGroups(items), [items]);
   return (
     <div className="lc-cards">
-      {groups.map((g) => <CabinCard key={g.key} g={g} onBulkDeliver={onBulkDeliver} onOpen={onOpen} />)}
+      {groups.map((g) => <CabinCard key={g.key} g={g} onBulkDeliver={onBulkDeliver} onOpen={onOpen} onAdvance={onAdvance} />)}
     </div>
   );
 };

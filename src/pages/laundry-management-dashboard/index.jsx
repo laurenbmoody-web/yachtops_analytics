@@ -238,6 +238,7 @@ const LaundryManagementDashboard = () => {
   };
 
   const handleAddSuccess = () => { setShowAddModal(false); setEditItem(null); loadLaundryItems(); };
+  const handleAdvance = async (item, status) => { await updateLaundryStatus(item.id, status); loadLaundryItems(); };
   const openEdit = (it) => { setDetailItem(null); setEditItem(it); };
   const confirmResetDay = async () => { if (await manualResetDay()) await loadLaundryItems(); setShowResetModal(false); };
 
@@ -412,7 +413,7 @@ const LaundryManagementDashboard = () => {
               </div>
             </div>
           ) : viewMode === 'cabin' ? (
-            <CabinView items={filteredItems} onBulkDeliver={handleBulkDeliver} onOpen={setDetailItem} />
+            <CabinView items={filteredItems} onBulkDeliver={handleBulkDeliver} onOpen={setDetailItem} onAdvance={handleAdvance} />
           ) : (
             <div className="lm-list">
               {groups.length > 1 ? (
