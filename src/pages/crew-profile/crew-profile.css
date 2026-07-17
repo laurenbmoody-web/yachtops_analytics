@@ -1051,9 +1051,8 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-navgrid { display: grid; grid-template-columns: 1fr; gap: 24px; }
 @media (min-width: 1024px) { .crew-profile-page .cp-navgrid { grid-template-columns: 250px 1fr; } .crew-profile-page .cp-navgrid.collapsed { grid-template-columns: 64px 1fr; } }
 .crew-profile-page .cp-rail-box { position: relative; }
-.crew-profile-page .cp-rail-edge { position: absolute; top: 0; right: -1px; bottom: 0; width: 14px; border: 0; background: transparent; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 2; }
-.crew-profile-page .cp-rail-edge::before { content: ''; width: 3px; height: 30px; border-radius: 3px; background: #E6E8EF; transition: background .15s ease, height .15s ease; }
-.crew-profile-page .cp-rail-edge:hover::before { background: #C65A1A; height: 48px; }
+.crew-profile-page .cp-rail-edge { position: absolute; top: 0; right: 0; bottom: 0; width: 16px; border: 0; border-right: 3px solid transparent; border-radius: 0 14px 14px 0; background: transparent; cursor: pointer; padding: 0; z-index: 2; transition: border-color .15s ease; }
+.crew-profile-page .cp-rail-edge:hover { border-right-color: #C65A1A; }
 .crew-profile-page .cp-rail-box.collapsed { padding: 10px 8px; }
 .crew-profile-page .cp-rail-box.collapsed .cp-nav-grp { display: none; }
 .crew-profile-page .cp-rail-box.collapsed .cp-nav-it { justify-content: center; padding: 9px 0; }
