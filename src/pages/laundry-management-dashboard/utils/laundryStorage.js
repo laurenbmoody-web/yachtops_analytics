@@ -196,6 +196,24 @@ export const setPhotoRetentionDays = async (days) => {
   return true;
 };
 
+// Vessel identity for report letterheads (name, company, flag, port, IMO, logo).
+export const getVesselBranding = async () => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return null;
+  const { data } = await supabase.from('vessels')
+    .select('name, company_name, flag, port_of_registry, imo_number, logo_url')
+    .eq('tenant_id', tenantId).maybeSingle();
+  if (!data) return null;
+  return {
+    name: data.name || '',
+    company: data.company_name || '',
+    flag: data.flag || '',
+    port: data.port_of_registry || '',
+    imo: data.imo_number || '',
+    logoUrl: data.logo_url || '',
+  };
+};
+
 // ── reads ────────────────────────────────────────────────────────────────────
 export const loadAllLaundryItems = async () => {
   const tenantId = await getTenantId();

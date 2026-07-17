@@ -1,6 +1,7 @@
 // Printable end-of-charter laundry report — opens a clean, self-contained
 // page and triggers the browser print dialog (Save as PDF). Built from a
-// logbook period so it mirrors what's on screen.
+// logbook period so it mirrors what's on screen, on a branded vessel
+// letterhead (name / company / flag / port / IMO / logo) when available.
 
 import { LaundryStatus, LaundryPriority, formatLaundryTag } from './laundryStorage';
 
@@ -29,7 +30,27 @@ function personBlock(p) {
   </section>`;
 }
 
-export function openTripReport(period) {
+// Branded letterhead — logo (or a serif monogram fallback) + vessel identity.
+function letterhead(v) {
+  if (!v || !(v.name || v.company)) {
+    return '<div class="eyebrow">Laundry report</div>';
+  }
+  const meta = [v.flag, v.port, v.imo ? `IMO ${v.imo}` : ''].filter(Boolean).join('  ·  ');
+  const mark = v.logoUrl
+    ? `<img class="lh-logo" src="${esc(v.logoUrl)}" alt="" crossorigin="anonymous" onerror="this.style.display='none'" />`
+    : `<span class="lh-mono">${esc((v.name || v.company || '?').trim().charAt(0).toUpperCase())}</span>`;
+  return `<div class="lh">
+    ${mark}
+    <div class="lh-id">
+      <div class="lh-name">${esc(v.name || v.company)}</div>
+      ${v.company && v.name ? `<div class="lh-co">${esc(v.company)}</div>` : ''}
+      ${meta ? `<div class="lh-meta">${esc(meta)}</div>` : ''}
+    </div>
+    <div class="lh-tag">Laundry report</div>
+  </div>`;
+}
+
+export function openTripReport(period, vessel) {
   if (!period) return;
   const people = period.people || [];
   const care = (period.care?.bars || []).map((b) => `${esc(b.label)} ${b.count}`).join(' · ');
@@ -39,16 +60,26 @@ export function openTripReport(period) {
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1C1B3A; margin: 0; padding: 40px 46px; }
+    /* Letterhead */
+    .lh { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; margin-bottom: 20px; border-bottom: 2px solid #1C1B3A; }
+    .lh-logo { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; flex: none; }
+    .lh-mono { width: 52px; height: 52px; border-radius: 8px; flex: none; display: flex; align-items: center; justify-content: center;
+      background: #FBEFE9; color: #C65A1A; font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; }
+    .lh-id { flex: 1; min-width: 0; }
+    .lh-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; line-height: 1.05; }
+    .lh-co { font-size: 12px; color: #6E6B85; margin-top: 2px; }
+    .lh-meta { font: 700 8.5px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #8B8478; margin-top: 5px; }
+    .lh-tag { font: 700 9px system-ui; letter-spacing: 0.14em; text-transform: uppercase; color: #C65A1A; align-self: flex-start; padding-top: 3px; }
     .eyebrow { font: 700 10px system-ui; letter-spacing: 0.14em; text-transform: uppercase; color: #C65A1A; }
-    h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 30px; margin: 4px 0 2px; }
+    h1 { font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 30px; margin: 4px 0 2px; }
     .dates { color: #6E6B85; font-size: 13px; margin-bottom: 18px; }
     .summary { display: flex; gap: 30px; border-top: 1px solid #ECECEE; border-bottom: 1px solid #ECECEE; padding: 14px 0; margin-bottom: 8px; }
-    .summary b { font-family: Georgia, serif; font-size: 22px; display: block; }
+    .summary b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; display: block; }
     .summary span { font: 700 8.5px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #6E6B85; }
     .care { font-size: 12px; color: #6E6B85; margin: 10px 0 22px; }
     .person { margin-bottom: 22px; break-inside: avoid; }
     .ph { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2px solid #1C1B3A; padding-bottom: 5px; margin-bottom: 4px; }
-    .ph h3 { font-family: Georgia, serif; font-weight: 400; font-size: 17px; margin: 0; }
+    .ph h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 17px; margin: 0; }
     .pc { font: 700 10px system-ui; letter-spacing: 0.06em; text-transform: uppercase; color: #6E6B85; }
     table { width: 100%; border-collapse: collapse; }
     td { padding: 6px 8px 6px 0; font-size: 12.5px; vertical-align: top; border-bottom: 1px solid #F0F1F5; }
@@ -57,10 +88,10 @@ export function openTripReport(period) {
     td.s { width: 12%; }
     td.t { width: 12%; text-align: right; color: #6E6B85; font-variant-numeric: tabular-nums; }
     .fl { color: #C24632; font-weight: 700; }
-    .foot { margin-top: 26px; padding-top: 12px; border-top: 1px solid #ECECEE; font-size: 11px; color: #AEB4C2; }
+    .foot { margin-top: 26px; padding-top: 12px; border-top: 1px solid #ECECEE; font-size: 11px; color: #AEB4C2; display: flex; justify-content: space-between; }
     @media print { body { padding: 20px; } }
   </style></head><body>
-    <div class="eyebrow">Laundry report</div>
+    ${letterhead(vessel)}
     <h1>${esc(period.name)}${period.type === 'voyage' ? ' — voyage' : ''}</h1>
     <div class="dates">${esc(period.dates)}${period.hero ? ` · ${esc(period.hero)}` : ''}</div>
     <div class="summary">
@@ -71,7 +102,7 @@ export function openTripReport(period) {
     </div>
     ${care ? `<div class="care"><b>By care type:</b> ${care}</div>` : '<div class="care"></div>'}
     ${people.map(personBlock).join('')}
-    <div class="foot">Generated ${dmy(new Date().toISOString())} · Cargo</div>
+    <div class="foot"><span>${esc(vessel?.name || vessel?.company || 'Cargo')} · Laundry record</span><span>Generated ${dmy(new Date().toISOString())} · Cargo</span></div>
   </body></html>`;
   w.document.write(html);
   w.document.close();
