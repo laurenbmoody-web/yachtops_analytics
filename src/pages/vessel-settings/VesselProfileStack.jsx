@@ -259,6 +259,16 @@ export default function VesselProfileStack(props) {
     toastTimer.current = setTimeout(() => setToast(null), 1800);
   };
 
+  // Completion dropdown, opened from the % badge on the avatar ring.
+  const [popOpen, setPopOpen] = useState(false);
+  const popRef = useRef(null);
+  useEffect(() => {
+    if (!popOpen) return undefined;
+    const h = (e) => { if (popRef.current && !popRef.current.contains(e.target)) setPopOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [popOpen]);
+
   const dayStart = String(formState?.operational_day_start_hour ?? 6).padStart(2, '0');
   const cards = useMemo(() => ([
     {
@@ -349,17 +359,18 @@ export default function VesselProfileStack(props) {
   const missing = dataFields.filter((f) => { const v = formState?.[f.field]; return v === '' || v == null; });
   const reqMissing = missing.filter((f) => f.req).length;
   const pct = total ? Math.round((filled / total) * 100) : 100;
-  const CIRC = 113.1;
+  const complete = missing.length === 0;
+  const RING_C = 2 * Math.PI * 52;
+  const ringOffset = RING_C * (1 - filled / (total || 1));
 
   const toggleCard = (id) => setOpenCards((o) => ({ ...o, [id]: !o[id] }));
 
-  const jump = () => {
-    const target = missing.find((f) => f.req) || missing[0];
-    if (!target) return;
-    const card = cards.find((c) => (c.fields || []).some((f) => f.field === target.field));
+  const jumpTo = (field) => {
+    setPopOpen(false);
+    const card = cards.find((c) => (c.fields || []).some((f) => f.field === field));
     if (card) setOpenCards((o) => ({ ...o, [card.id]: true }));
     setTimeout(() => {
-      const el = document.getElementById(`vs-f-${target.field}`);
+      const el = document.getElementById(`vs-f-${field}`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         el.closest('.vs-card')?.classList.add('flash');
@@ -370,34 +381,65 @@ export default function VesselProfileStack(props) {
 
   const name = vesselData?.name || 'Your vessel';
   const flag = formState?.flag;
+  const vType = formState?.vessel_type_label;
   const active = vesselData?.onboarding_status === 'READY';
 
   return (
     <div className="vstack">
-      {/* header */}
-      <div className="vs-head">
-        <button type="button" className={`vs-logo${canEdit ? '' : ' ro'}`} title={canEdit ? 'Change vessel logo' : name}
-          onClick={() => canEdit && logoInputRef?.current?.click()} disabled={!canEdit}>
-          {formState?.logo_url ? (
-            <img src={formState.logo_url} alt={`${name} logo`} />
-          ) : (
-            <>
-              <svg className="vs-ymk" viewBox="0 0 62 22" fill="currentColor" aria-hidden="true"><path d="M2 15 L40 15 C48 15 53 13 60 9 L52 8 L40 8 L40 5 C40 4 39 4 38 4 L27 4 C26 4 25 4 25 5 L24 8 L12 8 L12 6 L7 6 L7 8 L2 8 Z" /></svg>
-              <span className="vs-wm">LOGO</span>
-            </>
+      {/* hero — avatar completion ring + editorial headline (mirrors the crew profile) */}
+      <div className="vs-hero">
+        <div className="vs-avatar-col" ref={popRef}>
+          <div className="vs-avatar-ring">
+            <svg className="vs-avatar-ring-svg" viewBox="0 0 112 112" aria-hidden="true">
+              <circle className="track" cx="56" cy="56" r="52" />
+              <circle className={`fill${complete ? ' is-complete' : ''}`} cx="56" cy="56" r="52" transform="rotate(-90 56 56)" strokeDasharray={RING_C} strokeDashoffset={ringOffset} />
+            </svg>
+            <button type="button" className="vs-avatar-photo" onClick={() => canEdit && logoInputRef?.current?.click()} disabled={!canEdit} title={canEdit ? 'Change vessel logo' : name}>
+              {formState?.logo_url ? (
+                <img src={formState.logo_url} alt={`${name} logo`} />
+              ) : (
+                <svg className="vs-ymk" viewBox="0 0 62 22" fill="currentColor" aria-hidden="true"><path d="M2 15 L40 15 C48 15 53 13 60 9 L52 8 L40 8 L40 5 C40 4 39 4 38 4 L27 4 C26 4 25 4 25 5 L24 8 L12 8 L12 6 L7 6 L7 8 L2 8 Z" /></svg>
+              )}
+              {canEdit && <span className="vs-up">{uploadingLogo ? <span className="vs-spin" /> : <Camera size={18} />}</span>}
+            </button>
+            <input ref={logoInputRef} type="file" accept="image/png,image/jpeg" onChange={onLogoChange} style={{ display: 'none' }} />
+            {complete ? (
+              <span className="vs-avatar-pct is-complete" title="Record complete">✓</span>
+            ) : (
+              <button type="button" className={`vs-avatar-pct vs-avatar-pct-btn${popOpen ? ' is-open' : ''}`} onClick={() => setPopOpen((v) => !v)} aria-expanded={popOpen} title={`${pct}% complete — ${missing.length} to finish`}>{pct}%</button>
+            )}
+          </div>
+          {canEdit && <p className="vs-avatar-cap">Click to upload logo</p>}
+
+          {popOpen && !complete && missing.length > 0 && (
+            <div className="vs-completion-pop">
+              <div className="head"><span className="pct">{pct}% complete</span><span className="rem">{missing.length} to finish</span></div>
+              <ul>
+                {missing.map((m) => (
+                  <li key={m.field}>
+                    <button type="button" onClick={() => jumpTo(m.field)}>
+                      <span className="dot" /><span className="lbl">{m.label}</span><span className="go">›</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-          {canEdit && <span className="vs-up">{uploadingLogo ? <span className="vs-spin" /> : <Camera size={17} />}</span>}
-        </button>
-        <input ref={logoInputRef} type="file" accept="image/png,image/jpeg" onChange={onLogoChange} style={{ display: 'none' }} />
-        <div className="vs-htitle">
-          <h1>{name}</h1>
-          <div className="vs-meta">
-            {formState?.vessel_type_label && <span>{formState.vessel_type_label}</span>}
-            {formState?.vessel_type_label && flag && <span className="vs-sep" />}
-            {flag && <span>{flagEmoji(flag) && <span className="vs-flag">{flagEmoji(flag)} </span>}{flag}</span>}
-            {(formState?.commercial_status) && <><span className="vs-sep" /><span>{formState.commercial_status}</span></>}
-            <span className="vs-sep" />
-            <span className="vs-status"><span className="vs-dot" style={active ? undefined : { background: 'var(--vs-faint)' }} />{active ? 'Active' : 'Setup in progress'}</span>
+        </div>
+
+        <div className="vs-hero-title">
+          <div className="editorial-meta">
+            <span className="dot">•</span>
+            {flag && <span>{flagEmoji(flag) && `${flagEmoji(flag)} `}{flag}</span>}
+            {flag && formState?.commercial_status && <span className="bar" />}
+            {formState?.commercial_status && <span className="muted">{formState.commercial_status}</span>}
+            {formState?.year_built && <><span className="bar" /><span className="muted">Since {formState.year_built}</span></>}
+          </div>
+          <h1 className="editorial-greeting vs-greeting">
+            {vType ? <>{name}<span className="period">,</span>{' '}<em>{vType}</em><span className="period">.</span></> : <>{name}<span className="period">.</span></>}
+          </h1>
+          <div className="vs-status-row">
+            <span className={`vs-status-pill${active ? '' : ' setup'}`}><span className="d" />{active ? 'Active' : 'Setup in progress'}</span>
           </div>
         </div>
       </div>
@@ -408,23 +450,6 @@ export default function VesselProfileStack(props) {
       {saveError && (
         <div className="vs-banner err"><AlertCircle size={18} /><div><b>Something went wrong</b> — {saveError}</div></div>
       )}
-
-      {/* completeness */}
-      <div className={`vs-cstrip${missing.length === 0 ? ' done' : ''}`}>
-        <div className="vs-ring">
-          <svg width="44" height="44" viewBox="0 0 44 44">
-            <circle cx="22" cy="22" r="18" fill="none" stroke="var(--vs-hair)" strokeWidth="4" />
-            <circle className="rc" cx="22" cy="22" r="18" fill="none" stroke="var(--vs-good)" strokeWidth="4" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - filled / (total || 1))} />
-          </svg>
-          <div className="rv">{pct}%</div>
-        </div>
-        <div className="ct">
-          <div className="a">Record completeness</div>
-          <div className="b">{missing.length ? <><b>{missing.length}</b> field{missing.length > 1 ? 's' : ''} left{reqMissing ? ` · ${reqMissing} required` : ''} before everything auto-fills.</> : 'Everything the documents need is on file.'}</div>
-        </div>
-        {canEdit && missing.length > 0 && <button type="button" className="vs-jump" onClick={jump}>Fix what’s missing</button>}
-        <div className="vs-donemsg"><Check size={16} strokeWidth={2.4} />Everything auto-fills</div>
-      </div>
 
       {/* deck */}
       <div className="vs-deck">
