@@ -29,10 +29,37 @@ const toVec3 = (v, fallback) => new THREE.Vector3(
   Number(v?.x ?? fallback.x), Number(v?.y ?? fallback.y), Number(v?.z ?? fallback.z)
 );
 
-// Circular disc texture for pin sprites, cached per colour.
+// Per-layer glyph paths (lucide 24×24 viewBox, stroked white on the pin) so a
+// pin reads by SHAPE, not colour alone — the same icons the Layers popover uses.
+const LAYER_GLYPH = {
+  inventory: ['M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z', 'm3.3 7 8.7 5 8.7-5', 'M12 22V12'],
+  defect: ['m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z', 'M12 9v4', 'M12 17h.01'],
+  safety: ['M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z', 'm9 12 2 2 4-4'],
+  job_helper: ['M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16', 'M4 7h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z'],
+  general: ['M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0Z', 'M15 10a3 3 0 1 0-6 0 3 3 0 0 0 6 0Z'],
+};
+
+// Stroke the layer glyph centred in a `size`×`size` canvas.
+const drawGlyph = (ctx, glyph, size) => {
+  const paths = LAYER_GLYPH[glyph];
+  if (!paths) return;
+  const scale = (size * 0.42) / 24; // ~27px glyph box inside a 64px pin
+  ctx.save();
+  ctx.translate(size / 2 - 12 * scale, size / 2 - 12 * scale);
+  ctx.scale(scale, scale);
+  ctx.lineWidth = 2.1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.96)';
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  for (const d of paths) ctx.stroke(new Path2D(d));
+  ctx.restore();
+};
+
+// Circular disc texture for pin sprites, cached per colour + glyph.
 const discTextureCache = new Map();
-const discTexture = (color) => {
-  if (discTextureCache.has(color)) return discTextureCache.get(color);
+const discTexture = (color, glyph) => {
+  const key = `${color}|${glyph || ''}`;
+  if (discTextureCache.has(key)) return discTextureCache.get(key);
   const size = 64;
   const canvas = document.createElement('canvas');
   canvas.width = size; canvas.height = size;
@@ -44,17 +71,19 @@ const discTexture = (color) => {
   ctx.lineWidth = 5;
   ctx.strokeStyle = 'rgba(255,255,255,0.95)';
   ctx.stroke();
+  drawGlyph(ctx, glyph, size);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  discTextureCache.set(color, tex);
+  discTextureCache.set(key, tex);
   return tex;
 };
 
 // Rounded-square texture for container pins (they hold other pins), cached
-// per colour. Same footprint as the disc so the per-frame sizing is shared.
+// per colour + glyph. Same footprint as the disc so per-frame sizing is shared.
 const squareTextureCache = new Map();
-const squareTexture = (color) => {
-  if (squareTextureCache.has(color)) return squareTextureCache.get(color);
+const squareTexture = (color, glyph) => {
+  const key = `${color}|${glyph || ''}`;
+  if (squareTextureCache.has(key)) return squareTextureCache.get(key);
   const size = 64;
   const canvas = document.createElement('canvas');
   canvas.width = size; canvas.height = size;
@@ -67,9 +96,10 @@ const squareTexture = (color) => {
   ctx.lineWidth = 5;
   ctx.strokeStyle = 'rgba(255,255,255,0.95)';
   ctx.stroke();
+  drawGlyph(ctx, glyph, size);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  squareTextureCache.set(color, tex);
+  squareTextureCache.set(key, tex);
   return tex;
 };
 
@@ -91,9 +121,9 @@ const ringTexture = () => {
   return ringTextureCached;
 };
 
-const makePin = (color, container = false) => {
+const makePin = (color, container = false, glyph = null) => {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: container ? squareTexture(color) : discTexture(color),
+    map: container ? squareTexture(color, glyph) : discTexture(color, glyph),
     depthTest: false,
     transparent: true,
   }));
@@ -356,7 +386,7 @@ export default function SplatViewer({
         child.material.dispose();
       }
       for (const h of hotspotsRef.current || []) {
-        const pin = makePin(h.color, h.isContainer);
+        const pin = makePin(h.color, h.isContainer, h.layer);
         pin.position.set(Number(h.position?.x) || 0, Number(h.position?.y) || 0, Number(h.position?.z) || 0);
         pin.userData.hotspot = h;
         pin.userData.shown = true;
