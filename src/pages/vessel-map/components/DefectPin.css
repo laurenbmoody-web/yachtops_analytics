@@ -225,6 +225,13 @@
 .vmd-form-head { margin-bottom: 16px; }
 .vmd-form-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 0; }
 
+/* Shared defect-form shape — bordered header bar + padded body. Matched by the
+   dashboard quick-add (.qad-head/.qad-body) and the edit form (.dd-head/
+   .dd-editwrap) so all three read as one form. */
+.vmd-fhead { padding: 16px 22px; border-bottom: 1px solid #ECEAE3; }
+.vmd-fhead .vmd-form-title { margin: 0; }
+.vmd-fbody { padding: 18px 22px 20px; }
+
 /* ── Uniform typeface across the whole log form ────────────────────────────
    A global base rule (`span, button, input, textarea, select { 'Plus Jakarta
    Sans' }`) leaks a rounded font onto every bare span/button, so field headers
@@ -233,6 +240,7 @@
    its header chrome to the editorial Inter so every field header reads the
    same and every field value reads the same. The serif title is re-asserted. */
 .vmd-formwrap, .vmd-formwrap *,
+.vmd-fbody, .vmd-fbody *,
 .vmd-form, .vmd-form * { font-family: 'Inter', system-ui, sans-serif; }
 .vmd-form-title { font-family: 'DM Serif Display', Georgia, serif; }
 

@@ -58,13 +58,14 @@ export default function DefectPin({ hotspot, scanName, containerTrail, onChanged
     />
   );
 
+  // Bordered header bar + padded body — the one shared shape for all three
+  // defect forms (add-from-pin, add-from-dashboard, edit).
   return (
-    <div className="vmd-formwrap">
-      <div className="vmd-form-head">
-        <p className="vmd-modal-eyebrow">New defect{scanName ? ` · ${scanName}` : ''}</p>
-        <h3 className="vmd-form-title">Log a defect</h3>
+    <>
+      <div className="vmd-fhead"><h3 className="vmd-form-title">Log a defect</h3></div>
+      <div className="vmd-fbody">
+        <DefectLogForm onSubmit={handleLogSubmit} onCancel={onCancel} />
       </div>
-      <DefectLogForm onSubmit={handleLogSubmit} onCancel={onCancel} />
-    </div>
+    </>
   );
 }
