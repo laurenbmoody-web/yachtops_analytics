@@ -8,6 +8,7 @@ import {
   setThreadArchived, deleteThread, fetchVesselLogos, sendSupplierQuote,
   reactToMessage, deleteMessage, editMessage, createCatalogueItem, repriceQuote,
   uploadMessageAttachment, updateOrderStatus, fetchThreadsPeople,
+  fetchThreadContacts, assignThreadContact,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -270,7 +271,11 @@ const SupplierMessages = () => {
   const [replyTo, setReplyTo] = useState(null);
   const [editing, setEditing] = useState(null);
   const [myUid, setMyUid] = useState(null);
-  const [peopleByThread, setPeopleByThread] = useState({}); // thread_id → participant roster
+  const [peopleByThread, setPeopleByThread] = useState({});     // thread_id → participant roster
+  const [assignedByThread, setAssignedByThread] = useState({}); // thread_id → colleague handling it
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignContacts, setAssignContacts] = useState([]);
+  const [assignBusy, setAssignBusy] = useState(false);
   const [savedCat, setSavedCat] = useState(() => new Set()); // quote items saved to catalogue
   const [savingCat, setSavingCat] = useState(null);
   const [pricing, setPricing] = useState(null);     // quote message id being repriced
@@ -297,9 +302,9 @@ const SupplierMessages = () => {
     setNames(map);
     setLogos(logoMap || {});
     fetchThreadsPeople().then((rows) => {
-      const p = {};
-      for (const r of rows) p[r.thread_id] = r.people || [];
-      setPeopleByThread(p);
+      const p = {}, a = {};
+      for (const r of rows) { p[r.thread_id] = r.people || []; a[r.thread_id] = r.assigned; }
+      setPeopleByThread(p); setAssignedByThread(a);
     }).catch(() => {});
     return th;
   }, [supplierId]);
@@ -660,6 +665,28 @@ const SupplierMessages = () => {
     } catch (e) { setError(e.message); }
   };
 
+  // Which colleague on our team handles this conversation (supplier-side call).
+  const openAssign = async () => {
+    if (!activeId) return;
+    const next = !assignOpen;
+    setAssignOpen(next);
+    if (next) {
+      try { setAssignContacts(await fetchThreadContacts(activeId)); }
+      catch (e) { setError(e.message); }
+    }
+  };
+  const doAssign = async (contactId) => {
+    if (!activeId || assignBusy) return;
+    setAssignBusy(true); setError(null);
+    try {
+      await assignThreadContact(activeId, contactId);
+      setAssignOpen(false);
+      fetchMessages(activeId).then(setMessages).catch(() => {});
+      await loadThreads();
+    } catch (e) { setError(e.message); }
+    finally { setAssignBusy(false); }
+  };
+
   const rendered = useMemo(() => {
     const out = [];
     let lastDay = null, lastSender = null, lastUser = null, lastTime = 0;
@@ -834,8 +861,25 @@ const SupplierMessages = () => {
                   <div className="msg-convo-id">
                     <button type="button" className="msg-convo-name" onClick={() => navigate(`/supplier/clients/${activeThread.tenant_id}`)}>{nameFor(activeThread)}</button>
                     <div className="msg-convo-sub">
-                      <span className="msg-convo-tag">{threadLabel(activeThread)}</span>
-                      {contact && <span>· {contact}</span>}
+                      <div className="msg-assign">
+                        <button type="button" className={`msg-assign-btn${assignedByThread[activeId] ? ' set' : ''}`} onClick={openAssign} title="Assign this conversation to a colleague">
+                          {assignedByThread[activeId]?.name ? `Handled by ${assignedByThread[activeId].name}` : 'Assign to a colleague'}
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                        </button>
+                        {assignOpen && (
+                          <div className="msg-assign-menu" role="menu">
+                            <div className="msg-assign-head">Handled by…</div>
+                            {assignContacts.map((c) => (
+                              <button key={c.contact_id} type="button" className={`msg-assign-opt${assignedByThread[activeId]?.contact_id === c.contact_id ? ' on' : ''}`} disabled={assignBusy} onClick={() => doAssign(c.contact_id)} role="menuitem">
+                                <span className="msg-assign-name">{c.name}</span>
+                                <span className="msg-assign-role">{c.role}{c.has_login ? '' : ' · no login'}</span>
+                              </button>
+                            ))}
+                            {!assignContacts.length && <div className="msg-assign-empty">No colleagues on file</div>}
+                            {assignedByThread[activeId] && <button type="button" className="msg-assign-clear" disabled={assignBusy} onClick={() => doAssign(null)} role="menuitem">Clear</button>}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="msg-convo-actions">
