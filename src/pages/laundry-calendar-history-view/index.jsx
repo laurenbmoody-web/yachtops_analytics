@@ -16,7 +16,7 @@ import '../../styles/editorial.css';
 import '../laundry-management-dashboard/laundry.css';
 
 const dayKeyOf = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-const ownerKindC = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : 'unknown'; };
+const ownerKindC = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : k === 'other' ? 'other' : 'unknown'; };
 
 const AvatarChip = ({ p }) => (
   <span className={`lr-av ${p.kind === 'guest' ? 'guest' : p.kind === 'crew' ? 'crew' : 'unk'}`}>

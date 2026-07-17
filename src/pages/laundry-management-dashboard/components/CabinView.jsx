@@ -3,7 +3,7 @@ import Icon from '../../../components/AppIcon';
 import { LaundryStatus, LaundryPriority, formatLaundryTag } from '../utils/laundryStorage';
 
 const statusRank = (s) =>(s === LaundryStatus?.IN_PROGRESS ? 0 : s === LaundryStatus?.READY_TO_DELIVER ? 1 : 2);
-const ownerKind = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : 'unknown'; };
+const ownerKind = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : k === 'other' ? 'other' : 'unknown'; };
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 
 // Group the day's items by cabin (a guest/crew berth) with a "Found & unclaimed"

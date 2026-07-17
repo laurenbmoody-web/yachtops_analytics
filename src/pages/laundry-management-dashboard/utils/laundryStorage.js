@@ -14,7 +14,7 @@ import { showToast } from '../../../utils/toast';
 import { uploadLaundryPhotos, resolveLaundryPhotos, deleteLaundryPhotos, isStoredPath } from './laundryPhotos';
 
 // Owner / status / priority enums (unchanged — values match stored strings).
-export const OwnerType = { GUEST: 'Guest', CREW: 'Crew' };
+export const OwnerType = { GUEST: 'Guest', CREW: 'Crew', OTHER: 'Other' };
 export const LaundryStatus = { IN_PROGRESS: 'InProgress', READY_TO_DELIVER: 'ReadyToDeliver', DELIVERED: 'Delivered' };
 export const LaundryPriority = { NORMAL: 'Normal', URGENT: 'Urgent' };
 
@@ -314,7 +314,7 @@ export const createLaundryItem = async (itemData) => {
   const tenantId = await getTenantId();
   if (!tenantId) { showToast('No active vessel', 'error'); throw new Error('NO_TENANT'); }
 
-  const normalized = ['guest', 'crew'].includes((itemData?.ownerType || '').toLowerCase())
+  const normalized = ['guest', 'crew', 'other'].includes((itemData?.ownerType || '').toLowerCase())
     ? itemData.ownerType.toLowerCase() : 'unknown';
   const ownerName = itemData?.ownerName?.trim() ? itemData.ownerName : 'Unknown';
   const { data: authData } = await supabase.auth.getUser();

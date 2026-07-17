@@ -53,7 +53,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   const [descOpen, setDescOpen] = useState(false); // reveal the transcript field
 
   const [formData, setFormData] = useState(() => (editItem ? {
-    ownerType: editItem.ownerType === 'crew' ? OwnerType?.CREW : OwnerType?.GUEST,
+    ownerType: editItem.ownerType === 'crew' ? OwnerType?.CREW : editItem.ownerType === 'other' ? OwnerType?.OTHER : OwnerType?.GUEST,
     photos: Array.isArray(editItem.photos) && editItem.photos.length ? [...editItem.photos] : (editItem.photo ? [editItem.photo] : []),
     description: editItem.description || '',
     ownerName: editItem.ownerName || '',
@@ -123,6 +123,8 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   const [guestNotes, setGuestNotes] = useState([]);
 
   const isGuest = formData?.ownerType === OwnerType?.GUEST;
+  const isCrew = formData?.ownerType === OwnerType?.CREW;
+  const isOther = formData?.ownerType === OwnerType?.OTHER;
   const isUnknown = formData?.ownerDisplayName === 'Unknown';
   const isUrgent = formData?.priority === LaundryPriority?.URGENT;
 
@@ -153,7 +155,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   // rotation / medical / travelling), each with their berth cabin. Falls back
   // to the local user store when there's no Supabase tenant (sample/dev).
   useEffect(() => {
-    if (isGuest) return undefined;
+    if (!isCrew) return undefined;
     let cancelled = false;
     (async () => {
       if (activeTenantId) {
@@ -167,7 +169,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
       }
     })();
     return () => { cancelled = true; };
-  }, [isGuest, activeTenantId]);
+  }, [isCrew, activeTenantId]);
 
   useEffect(() => {
     (async () => {
@@ -331,9 +333,10 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
       } else if (!formData?.ownerGuestId) {
         next.owner = 'Select a guest, or choose Unknown.';
       }
-    } else if (!formData?.ownerCrewUserId) {
+    } else if (isCrew && !formData?.ownerCrewUserId) {
       next.owner = 'Select a crew member.';
     }
+    // Other: no owner required — the description identifies the item
     return next;
   };
 
@@ -343,10 +346,10 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
     setIsSubmitting(true);
     try {
       const payload = {
-        ownerName: formData?.ownerName,
+        ownerName: isOther ? 'Other' : formData?.ownerName,
         ownerGuestId: formData?.ownerGuestId,
         ownerCrewUserId: formData?.ownerCrewUserId,
-        ownerDisplayName: formData?.ownerDisplayName,
+        ownerDisplayName: isOther ? 'Other' : formData?.ownerDisplayName,
         area: formData?.area,
         areaLocationId: formData?.areaLocationId,
         colour: formData?.colour,
@@ -360,14 +363,14 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
       };
       let saved;
       if (isEdit) {
-        const normalizedOwner = !isGuest ? 'crew' : (isUnknown ? 'unknown' : 'guest');
+        const normalizedOwner = isOther ? 'other' : (isCrew ? 'crew' : (isUnknown ? 'unknown' : 'guest'));
         saved = await updateLaundryItem(editItem.id, {
           ...payload,
           ownerType: normalizedOwner,
           photo: (formData?.photos || [])[0] || '',
           // clear the opposite owner link when the type changed
           ownerGuestId: isGuest ? formData?.ownerGuestId : null,
-          ownerCrewUserId: !isGuest ? formData?.ownerCrewUserId : null,
+          ownerCrewUserId: isCrew ? formData?.ownerCrewUserId : null,
         });
       } else {
         saved = await createLaundryItem({ ...payload, ownerType: formData?.ownerType });
@@ -441,8 +444,11 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
               <button type="button" role="tab" aria-selected={isGuest} className={`alm-seg-btn${isGuest ? ' on' : ''}`} onClick={() => chooseOwnerType(OwnerType?.GUEST)}>
                 <Icon name="User" size={15} /> Guest
               </button>
-              <button type="button" role="tab" aria-selected={!isGuest} className={`alm-seg-btn${!isGuest ? ' on' : ''}`} onClick={() => chooseOwnerType(OwnerType?.CREW)}>
+              <button type="button" role="tab" aria-selected={isCrew} className={`alm-seg-btn${isCrew ? ' on' : ''}`} onClick={() => chooseOwnerType(OwnerType?.CREW)}>
                 <Icon name="Users" size={15} /> Crew
+              </button>
+              <button type="button" role="tab" aria-selected={isOther} className={`alm-seg-btn${isOther ? ' on' : ''}`} onClick={() => chooseOwnerType(OwnerType?.OTHER)}>
+                <Icon name="Package" size={15} /> Other
               </button>
             </div>
             <button
@@ -491,7 +497,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
         </div>
 
         {/* Identity — guest */}
-        {isGuest ? (
+        {isGuest && (
           <>
             <div className="alm-section">
               <label className="alm-label">Guest <span className="alm-req">required</span></label>
@@ -554,7 +560,9 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
               <div className="alm-section">{locationCombo('Cabin', false)}</div>
             )}
           </>
-        ) : (
+        )}
+
+        {isCrew && (
           <>
             <div className="alm-section">
               <label className="alm-label">Crew member <span className="alm-req">required</span></label>
@@ -593,6 +601,16 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
                 <label className="alm-label">Laundry no. &amp; colour <span className="alm-opt">optional</span></label>
                 <input className="alm-field" value={formData.laundryNumber} onChange={(e) => setField('laundryNumber', e?.target?.value)} placeholder="e.g. 14 · Navy" />
               </div>
+            </div>
+          </>
+        )}
+
+        {isOther && (
+          <>
+            <div className="alm-section">{locationCombo('Location', false)}</div>
+            <div className="alm-section">
+              <label className="alm-label">Laundry no. / detail <span className="alm-opt">optional</span></label>
+              <input className="alm-field" value={formData.laundryNumber} onChange={(e) => setField('laundryNumber', e?.target?.value)} placeholder="e.g. galley · tag 22" />
             </div>
           </>
         )}
