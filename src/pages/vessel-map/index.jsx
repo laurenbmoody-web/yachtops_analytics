@@ -20,6 +20,7 @@ import InteriorView from './components/InteriorView';
 import OrientPanel from './components/OrientPanel';
 import PinPayload from './components/PinPayload';
 import PinItems from './components/PinItems';
+import RoomPicker from './components/RoomPicker';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
 import Icon from '../../components/AppIcon';
@@ -826,15 +827,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
             <>
               {scans.length > 1 && (
                 <div className="vm-scan-row">
-                  {scans.map((s) => (
-                    <button
-                      key={s.id}
-                      className={`vm-room-tab${s.id === selectedScanId ? ' on' : ''}`}
-                      onClick={() => setSelectedScanId(s.id)}
-                    >
-                      {s.name}
-                    </button>
-                  ))}
+                  <RoomPicker scans={scans} selectedScanId={selectedScanId} onSelect={setSelectedScanId} />
                 </div>
               )}
 
