@@ -3734,6 +3734,21 @@
 #sp-root .msg-add-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: inherit; font-size: 12.5px; color: var(--fg); }
 #sp-root .msg-assign-empty { font-size: 11.5px; color: var(--muted); padding: 8px 9px; }
 
+/* Saved replies popover (opens up from the composer chip row). */
+#sp-root .msg-tpl { position: relative; display: inline-flex; }
+#sp-root .msg-tpl-menu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 40; width: 300px; max-height: 320px; overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(20,28,45,0.35); padding: 6px; }
+#sp-root .msg-tpl-row { display: flex; align-items: stretch; gap: 4px; }
+#sp-root .msg-tpl-insert { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 8px 9px; font-family: inherit; cursor: pointer; }
+#sp-root .msg-tpl-insert:hover { background: var(--ground); }
+#sp-root .msg-tpl-label { font-size: 11px; font-weight: 700; color: var(--fg); }
+#sp-root .msg-tpl-body { font-size: 12px; color: var(--muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#sp-root .msg-tpl-x { flex: none; align-self: center; width: 24px; height: 24px; border-radius: 7px; border: 0; background: none; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+#sp-root .msg-tpl-x:hover { color: #DC2626; background: var(--ground); }
+#sp-root .msg-tpl-x:disabled { opacity: 0.5; cursor: default; }
+#sp-root .msg-tpl-save { width: 100%; margin-top: 4px; border: 0; border-top: 1px solid var(--line); background: none; padding: 9px; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--orange); cursor: pointer; text-align: left; }
+#sp-root .msg-tpl-save:hover:not(:disabled) { color: #B14E16; }
+#sp-root .msg-tpl-save:disabled { opacity: 0.5; cursor: default; }
+
 #sp-root .msg-card { position: absolute; top: calc(100% + 8px); right: 0; z-index: 41; width: 292px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 60px -16px rgba(12,14,20,0.4); padding: 16px; }
 #sp-root .msg-card-close { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: 0; background: none; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
 #sp-root .msg-card-loading { font-size: 12.5px; color: var(--muted); padding: 12px 2px; }

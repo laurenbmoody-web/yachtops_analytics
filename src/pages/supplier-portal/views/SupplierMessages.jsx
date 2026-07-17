@@ -10,6 +10,7 @@ import {
   uploadMessageAttachment, updateOrderStatus, fetchThreadsPeople,
   fetchThreadContacts, assignThreadContact, fetchPersonCard, saveMyMessagingProfile,
   fetchAddableSupplier, addThreadParticipant, removeThreadParticipant,
+  fetchReplyTemplates, createReplyTemplate, deleteReplyTemplate,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -298,6 +299,9 @@ const SupplierMessages = () => {
   const [addable, setAddable] = useState([]);
   const [addSearch, setAddSearch] = useState('');
   const [peopleBusy, setPeopleBusy] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [tplOpen, setTplOpen] = useState(false);
+  const [tplBusy, setTplBusy] = useState(false);
   const [savedCat, setSavedCat] = useState(() => new Set()); // quote items saved to catalogue
   const [savingCat, setSavingCat] = useState(null);
   const [pricing, setPricing] = useState(null);     // quote message id being repriced
@@ -467,6 +471,29 @@ const SupplierMessages = () => {
   };
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (fn) => { setDraft((d) => (d.trim() ? `${d.trim()} ${fn(activeOrder)}` : fn(activeOrder))); taRef.current?.focus(); };
+
+  // Saved replies (canned messages).
+  const loadTemplates = useCallback(async () => {
+    if (!supplierId) return;
+    try { setTemplates(await fetchReplyTemplates(supplierId)); } catch { /* ignore */ }
+  }, [supplierId]);
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+  const insertTemplate = (t) => { setDraft((d) => (d.trim() ? `${d.trim()} ${t.body}` : t.body)); setTplOpen(false); taRef.current?.focus(); };
+  const saveCurrentAsTemplate = async () => {
+    const body = draft.trim();
+    if (!body || tplBusy || !supplierId) return;
+    setTplBusy(true); setError(null);
+    try { await createReplyTemplate(supplierId, { label: null, body }); await loadTemplates(); }
+    catch (e) { setError(e.message); }
+    finally { setTplBusy(false); }
+  };
+  const removeTemplate = async (id) => {
+    if (tplBusy) return;
+    setTplBusy(true); setError(null);
+    try { await deleteReplyTemplate(id); setTemplates((t) => t.filter((x) => x.id !== id)); }
+    catch (e) { setError(e.message); }
+    finally { setTplBusy(false); }
+  };
 
   // A status quick-action (e.g. "On our way") moves the order's status AND posts
   // the message in one go, so the yacht sees the update and the order's stage
@@ -1293,6 +1320,28 @@ const SupplierMessages = () => {
                     <button type="button" className="msg-qchip msg-qchip-ai" onClick={toQuote} disabled={aiLoading} title="Turn the request into a priced quote using your catalogue">
                       {aiLoading ? 'Drafting quote…' : '✨ Turn into a quote'}
                     </button>
+                    <div className="msg-tpl">
+                      <button type="button" className="msg-qchip" onClick={() => setTplOpen((o) => !o)} title="Insert a saved reply">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, verticalAlign: '-1px' }}><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+                        Saved replies
+                      </button>
+                      {tplOpen && (
+                        <div className="msg-tpl-menu" role="menu">
+                          <div className="msg-assign-head">Saved replies</div>
+                          {templates.map((t) => (
+                            <div key={t.id} className="msg-tpl-row">
+                              <button type="button" className="msg-tpl-insert" onClick={() => insertTemplate(t)} title="Insert into your reply">
+                                {t.label && <span className="msg-tpl-label">{t.label}</span>}
+                                <span className="msg-tpl-body">{t.body}</span>
+                              </button>
+                              <button type="button" className="msg-tpl-x" disabled={tplBusy} title="Delete" aria-label="Delete saved reply" onClick={() => removeTemplate(t.id)}>×</button>
+                            </div>
+                          ))}
+                          {!templates.length && <div className="msg-assign-empty">No saved replies yet</div>}
+                          <button type="button" className="msg-tpl-save" disabled={!draft.trim() || tplBusy} onClick={saveCurrentAsTemplate} title={draft.trim() ? 'Save what you’ve typed as a reusable reply' : 'Type a message first'}>＋ Save current message</button>
+                        </div>
+                      )}
+                    </div>
                     {QUICK.map((q) => (
                       q.status
                         ? <button key={q.label} type="button" className="msg-qchip msg-qchip-status" disabled={sending} title={activeOrder ? `Marks order #${shortId(activeOrder.id)} out for delivery` : undefined} onClick={() => deliveryAction(q)}>{q.label}</button>
