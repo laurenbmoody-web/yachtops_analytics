@@ -51,12 +51,10 @@
 .dd-rail { position: relative; padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; background: #FAFAF8; min-width: 0; overflow: hidden; }
 .dd-rail-shut .dd-rail { padding: 12px 6px; }
 
-/* the divider edge is the collapse control — a slim terracotta grip on hover, no icon */
-.dd-rail-edge { position: absolute; top: 0; left: 0; bottom: 0; width: 14px; border: 0;
-  background: transparent; cursor: pointer; padding: 0; z-index: 3; }
-.dd-rail-edge::after { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-  width: 2px; height: 34px; border-radius: 999px; background: transparent; transition: background .15s ease, height .15s ease; }
-.dd-rail-edge:hover::after { background: #C65A1A; height: 52px; }
+/* the divider edge is the collapse control — full-height, turns terracotta on hover, no icon */
+.dd-rail-edge { position: absolute; top: 0; left: 0; bottom: 0; width: 14px; border: 0; border-left: 2px solid transparent;
+  background: transparent; cursor: pointer; padding: 0; z-index: 3; transition: border-color .15s ease; }
+.dd-rail-edge:hover { border-left-color: #C65A1A; }
 .dd-rail-shut .dd-rail-edge { width: 100%; }
 @media (max-width: 760px) { .dd-rail-edge { display: none; } }
 
@@ -205,7 +203,7 @@
 /* Scheduled-for — leads the repair card. Flush-left so its icon/text line up
    with the contractor rows below (no pill inset). */
 .dd-sched { display: flex; align-items: center; gap: 8px; padding: 0; margin-bottom: 2px;
-  font-size: 13px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
+  font-size: 13px; font-weight: 600; color: #C65A1A; font-variant-numeric: tabular-nums; }
 .dd-sched svg { color: #C65A1A; flex: none; }
 .dd-contractor .cn > svg:first-child { flex: none; }
 /* Contractor contact row (mirrors directory fields). */
