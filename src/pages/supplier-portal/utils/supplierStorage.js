@@ -876,6 +876,31 @@ export const assignThreadContact = async (threadId, contactId) => {
   if (error) throw error;
 };
 
+// ─── Saved replies (canned messages) ────────────────────────────────────────
+export const fetchReplyTemplates = async (supplierId) => {
+  const { data, error } = await supabase
+    .from('supplier_reply_templates')
+    .select('*')
+    .eq('supplier_id', supplierId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+};
+export const createReplyTemplate = async (supplierId, { label, body }) => {
+  const { data: auth } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('supplier_reply_templates')
+    .insert({ supplier_id: supplierId, label: label?.trim() || null, body: body.trim(), created_by: auth?.user?.id ?? null })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+export const deleteReplyTemplate = async (id) => {
+  const { error } = await supabase.from('supplier_reply_templates').delete().eq('id', id);
+  if (error) throw error;
+};
+
 // One participant's messaging profile (crew or supplier).
 export const fetchPersonCard = async (threadId, userId) => {
   const { data, error } = await supabase.rpc('fetch_thread_person_card', { p_thread_id: threadId, p_user_id: userId });
