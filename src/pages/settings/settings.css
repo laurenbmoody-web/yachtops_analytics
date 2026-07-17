@@ -59,10 +59,11 @@ body.settings-editorial {
 
 /* ── Rail — boxed grouped nav (crew-profile flatcard style), collapsible ──────*/
 .settings-page .set-rail { position: sticky; top: 84px; background: #FFFFFF; border: 1px solid #E6E8EF; border-radius: 14px; padding: 10px; }
-.settings-page .set-rail-top { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 6px; }
-.settings-page .set-rail-collapse { background: none; border: 0; cursor: pointer; color: #AEB4C2; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; flex: none; }
-.settings-page .set-rail-collapse:hover { color: #C65A1A; background: #F6F7FA; }
+.settings-page .set-rail-edge { position: absolute; top: 0; right: -1px; bottom: 0; width: 14px; border: 0; background: transparent; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 2; }
+.settings-page .set-rail-edge::before { content: ''; width: 3px; height: 30px; border-radius: 3px; background: #E6E8EF; transition: background .15s ease, height .15s ease; }
+.settings-page .set-rail-edge:hover::before { background: #C65A1A; height: 48px; }
 .settings-page .set-nav-grp { font-size: 9.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: #AEB4C2; padding: 13px 10px 6px; }
+.settings-page .set-nav-grp.first { padding-top: 2px; }
 .settings-page .set-nav-grp.first { padding-top: 2px; }
 .settings-page .set-nav-it {
   display: flex; align-items: center; gap: 11px; width: 100%; padding: 8px 10px; border-radius: 9px;
@@ -75,8 +76,6 @@ body.settings-editorial {
 .settings-page .set-ext { flex: 0 0 auto; color: #C3BEB2; }
 /* collapsed — icons only */
 .settings-page .set-rail.collapsed { padding: 10px 8px; }
-.settings-page .set-rail.collapsed .set-rail-top { justify-content: center; padding: 2px 0 6px; }
-.settings-page .set-rail.collapsed .set-rail-top .set-nav-grp { display: none; }
 .settings-page .set-rail.collapsed .set-nav-grp { display: none; }
 .settings-page .set-rail.collapsed .set-nav-it { justify-content: center; padding: 9px 0; }
 .settings-page .set-rail.collapsed .set-nav-it span { display: none; }

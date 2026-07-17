@@ -564,12 +564,7 @@ const VesselSettings = () => {
   // Boxed grouped rail (mirrors the crew-profile flatcard), collapsible.
   const railNav = (
     <aside className={`vh-rail${navCollapsed ? ' collapsed' : ''}`} aria-label="Vessel sections">
-      <div className="vh-rail-top">
-        <span className="vh-rail-grp">Vessel</span>
-        <button className="vh-rail-collapse" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'}>
-          <Icon name={navCollapsed ? 'ChevronRight' : 'ChevronLeft'} size={16} />
-        </button>
-      </div>
+      <button type="button" className="vh-rail-edge" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'} />
       <nav>
         {sections?.map(section => (
           <button

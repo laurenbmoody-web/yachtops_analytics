@@ -4460,12 +4460,7 @@ const canEdit = (() => {
             {/* Left Navigation — grouped editorial rail (flat, no 3D edge),
                 collapsible. self-start so the rail hugs its own content. */}
             <div className={`cp-flatcard p-3 self-start cp-rail-box${navCollapsed ? ' collapsed' : ''}`}>
-              <div className="cp-rail-top">
-                <span className="cp-nav-grp first">Menu</span>
-                <button type="button" className="cp-rail-collapse" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'}>
-                  <Icon name={navCollapsed ? 'ChevronRight' : 'ChevronLeft'} size={16} />
-                </button>
-              </div>
+              <button type="button" className="cp-rail-edge" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'} />
               <nav>
                 {navGroups.map((group, gi) => {
                   // Drop a group entirely when none of its sections are visible
