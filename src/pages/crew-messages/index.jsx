@@ -617,9 +617,9 @@ const CrewMessages = () => {
   return (
     <>
       <Header />
-      <div className="cm-page">
-        <div className="cm-wrap">
-          <div className="cm-head">
+      <div className="cmsg-page">
+        <div className="cmsg-wrap">
+          <div className="cmsg-head">
             <p className="editorial-meta" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
               <span className="dot">●</span>
               {awaitingReply > 0 ? (
@@ -636,18 +636,18 @@ const CrewMessages = () => {
                 </>
               )}
             </p>
-            <h1 className="editorial-greeting cm-title">SUPPLIER<span className="period">,</span> <em>messages</em></h1>
+            <h1 className="editorial-greeting cmsg-title">SUPPLIER<span className="period">,</span> <em>messages</em></h1>
           </div>
 
-          {error && <div className="cm-error">{error}</div>}
+          {error && <div className="cmsg-error">{error}</div>}
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '60px 0', color: '#8B8478', fontSize: 13 }}>Loading messages…</div>
           ) : threads.length === 0 ? (
-            <div className="cm-blank-page">
-              <div className="cm-blank-ico">💬</div>
-              <div className="cm-blank-t">No supplier messages yet</div>
-              <div className="cm-blank-s">When a supplier messages your vessel, the conversation appears here for the crew to answer.</div>
+            <div className="cmsg-blank-page">
+              <div className="cmsg-blank-ico">💬</div>
+              <div className="cmsg-blank-t">No supplier messages yet</div>
+              <div className="cmsg-blank-s">When a supplier messages your vessel, the conversation appears here for the crew to answer.</div>
             </div>
           ) : (
             <div className="msg-shell">
