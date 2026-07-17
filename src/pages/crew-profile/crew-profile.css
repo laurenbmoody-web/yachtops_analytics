@@ -63,6 +63,7 @@ body.crew-profile-editorial {
    DM Serif family, so headings are unaffected. */
 .crew-profile-page {
   font-family: 'Manrope', 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
 /* Form controls don't inherit font-family by default — force them to, so the
    field VALUES (names, currencies, inputs, selects) render in Manrope too, not
