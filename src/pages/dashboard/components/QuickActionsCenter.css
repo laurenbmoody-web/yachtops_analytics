@@ -1,7 +1,8 @@
 /* Dashboard quick actions — "refined circles" (editorial Cargo system).
    White circles that float on a soft shadow over the cool #F8FAFC dashboard —
-   no warm beige, no 3D bottom edge. Crisp line icons, a caption always shown
-   beneath, and the single terracotta accent reserved for Report defect. */
+   no warm beige, no 3D bottom edge. Crisp navy line icons, uniform across all
+   four; a caption always shown beneath. The only accent is the terracotta "!"
+   inside the Defect triangle (set on the icon itself). */
 .qac-row {
   display: flex;
   align-items: flex-start;
@@ -50,18 +51,6 @@
   transition: color 0.18s ease;
 }
 .qac-item:hover .qac-cap { color: #1C1B3A; }
-
-/* Report defect — terracotta accent + subtle ring on hover. */
-.qac-item.is-defect .qac-btn {
-  color: #C65A1A;
-  background: #FFFDFB;
-  border-color: #EAC7B6;
-}
-.qac-item.is-defect .qac-btn:hover {
-  border-color: #C65A1A;
-  box-shadow: 0 0 0 4px rgba(198, 90, 26, 0.14), 0 14px 26px -12px rgba(28, 27, 58, 0.30);
-}
-.qac-item.is-defect .qac-cap { color: #C65A1A; }
 
 @media (prefers-reduced-motion: reduce) {
   .qac-btn { transition: none; }
