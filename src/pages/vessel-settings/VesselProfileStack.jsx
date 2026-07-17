@@ -1,12 +1,21 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AlertCircle, Check, Copy, Pencil, Info as InfoIcon, Camera, Upload } from 'lucide-react';
 import { FLAG_STATES } from '../../data/flagStates';
+import { COUNTRIES } from '../../data/countries';
 import './vessel-stack.css';
 
 /* ── option sets ── */
 const VTYPE = ['Motor Yacht', 'Sailing Yacht', 'Catamaran', 'Explorer', 'Sport Yacht', 'Superyacht'];
 const CSTAT = ['Private', 'Commercial', 'Charter', 'Dual'];
 const AREA = ['Coastal', 'Near Coastal', 'Unlimited'];
+const REGIONS = [
+  'Mediterranean', 'West Mediterranean', 'East Mediterranean', 'Adriatic', 'Caribbean',
+  'Bahamas', 'US East Coast', 'US West Coast', 'New England', 'Pacific Northwest',
+  'Central America', 'South America', 'Northern Europe', 'Baltic', 'Scandinavia',
+  'Canary Islands', 'Atlantic crossing', 'Indian Ocean', 'Red Sea', 'Middle East',
+  'Southeast Asia', 'Japan', 'South Pacific', 'French Polynesia', 'Australia',
+  'New Zealand', 'Antarctica', 'Arctic', 'West Africa', 'East Africa', 'Seychelles', 'Maldives',
+];
 const opt = (arr) => arr.map((v) => ({ value: v, label: v }));
 
 /* Flag-state name → emoji. Names that aren't a single country fall back to none. */
@@ -61,6 +70,7 @@ function FieldRow({ cfg, value, canEdit, onSave, toast }) {
   const [invalid, setInvalid] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menu, setMenu] = useState(null); // {left,top,width}
+  const [menuQuery, setMenuQuery] = useState('');
   const inputRef = useRef(null);
   const valRef = useRef(null);
   const menuRef = useRef(null);
@@ -93,7 +103,7 @@ function FieldRow({ cfg, value, canEdit, onSave, toast }) {
     if (!editable) return;
     if (isSelect) {
       const r = valRef.current?.getBoundingClientRect();
-      if (r) setMenu({ left: r.left, top: r.bottom + 6, width: Math.max(210, r.width + 40) });
+      if (r) { setMenuQuery(''); setMenu({ left: r.left, top: r.bottom + 6, width: Math.max(210, r.width + 40) }); }
       return;
     }
     setDraft(value == null ? '' : String(value));
@@ -188,13 +198,23 @@ function FieldRow({ cfg, value, canEdit, onSave, toast }) {
 
       {menu && (
         <div ref={menuRef} className="vs-menu" style={{ position: 'fixed', left: menu.left, top: menu.top, minWidth: menu.width }}>
-          {cfg.opts.map((o) => (
-            <button key={String(o.value)} type="button" className={String(o.value) === String(value) ? 'sel' : ''} onClick={() => pick(o)}>
-              {cfg.type === 'flag' && flagEmoji(o.value) && <span className="vs-flag">{flagEmoji(o.value)}</span>}
-              <span>{o.label}</span>
-              <span className="ck"><Check size={14} /></span>
-            </button>
-          ))}
+          {cfg.opts.length > 10 && (
+            <input className="vs-menu-search" autoFocus value={menuQuery} placeholder="Search…"
+              onClick={(e) => e.stopPropagation()} onChange={(e) => setMenuQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setMenu(null); } }} />
+          )}
+          <div className="vs-menu-list">
+            {cfg.opts.filter((o) => o.label.toLowerCase().includes(menuQuery.trim().toLowerCase())).map((o) => (
+              <button key={String(o.value)} type="button" className={String(o.value) === String(value) ? 'sel' : ''} onClick={() => pick(o)}>
+                {cfg.type === 'flag' && flagEmoji(o.value) && <span className="vs-flag">{flagEmoji(o.value)}</span>}
+                <span>{o.label}</span>
+                <span className="ck"><Check size={14} /></span>
+              </button>
+            ))}
+            {cfg.opts.filter((o) => o.label.toLowerCase().includes(menuQuery.trim().toLowerCase())).length === 0 && (
+              <div className="vs-menu-empty">No matches</div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -235,6 +255,28 @@ function DeptPills({ cfg, value, options, canEdit, onSave, toast }) {
       <div className="vs-pills">
         {(options || []).map((o) => (
           <button key={o.value} type="button" className={`vs-pill${sel.has(o.value) ? ' on' : ''}`} disabled={!canEdit} onClick={() => toggle(o.value)}>{o.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Multiselect pills backed by a comma-separated text column (e.g. operating regions). */
+function TagPills({ cfg, value, canEdit, onSave, toast }) {
+  const sel = new Set(String(value || '').split(',').map((s) => s.trim()).filter(Boolean));
+  const toggle = async (opt) => {
+    if (!canEdit) return;
+    const next = new Set(sel);
+    next.has(opt) ? next.delete(opt) : next.add(opt);
+    const ok = await onSave(cfg.field, [...next].join(', '));
+    toast(ok ? `${cfg.label} updated` : 'Couldn’t save — try again', !ok);
+  };
+  return (
+    <div className="vs-f full">
+      <p className="vs-fk">{cfg.label}{cfg.info && <Info text={cfg.info} />}{cfg.drv && <span className="drv">→ {cfg.drv}</span>}</p>
+      <div className="vs-pills">
+        {(cfg.opts || []).map((o) => (
+          <button key={o} type="button" className={`vs-pill${sel.has(o) ? ' on' : ''}`} disabled={!canEdit} onClick={() => toggle(o)}>{o}</button>
         ))}
       </div>
     </div>
@@ -306,7 +348,7 @@ export default function VesselProfileStack(props) {
         { field: 'company_email', label: 'Company email', type: 'text', placeholder: 'Add email' },
         { field: 'company_phone', label: 'Company phone', type: 'text', placeholder: 'Add phone' },
         { field: 'company_postcode', label: 'Post code', type: 'text', placeholder: 'Add post code' },
-        { field: 'company_country', label: 'Country', type: 'text', placeholder: 'Add country' },
+        { field: 'company_country', label: 'Country', type: 'select', opts: opt(COUNTRIES), placeholder: 'Select country' },
       ],
     },
     {
@@ -315,10 +357,10 @@ export default function VesselProfileStack(props) {
       fields: [
         { field: 'commercial_status', label: 'Commercial status', type: 'select', opts: opt(CSTAT), placeholder: 'Set status' },
         { field: 'area_of_operation', label: 'Area of operation', type: 'select', opts: opt(AREA), placeholder: 'Set area' },
-        { field: 'operating_regions', label: 'Operating regions', type: 'text', placeholder: 'Add regions' },
-        { field: 'seasonal_pattern', label: 'Seasonal pattern', type: 'text', placeholder: 'Add pattern' },
+        { field: 'seasonal_pattern', label: 'Seasonal pattern', type: 'text', placeholder: 'e.g. Summer Med, Winter Caribbean' },
         { field: 'typical_guest_count', label: 'Typical guests', type: 'num', placeholder: 'Add count' },
         { field: 'typical_crew_count', label: 'Typical crew', type: 'num', placeholder: 'Add count' },
+        { field: 'operating_regions', label: 'Operating regions', type: 'tags', opts: REGIONS, full: true, info: 'The cruising grounds this vessel operates in.' },
         { field: 'departments_in_use', label: 'Departments in use', type: 'pills', full: true, info: 'The crew departments this vessel runs. Drives rota grouping, crew structure and provisioning across Cargo.' },
       ],
     },
@@ -473,7 +515,9 @@ export default function VesselProfileStack(props) {
                   {(c.fields || []).map((f) => (
                     f.type === 'pills'
                       ? <DeptPills key={f.field} cfg={f} value={formState?.departments_in_use} options={departmentOptions} canEdit={canEdit} onSave={saveField} toast={fireToast} />
-                      : <FieldRow key={f.field} cfg={f} value={formState?.[f.field]} canEdit={canEdit} onSave={saveField} toast={fireToast} />
+                      : f.type === 'tags'
+                        ? <TagPills key={f.field} cfg={f} value={formState?.[f.field]} canEdit={canEdit} onSave={saveField} toast={fireToast} />
+                        : <FieldRow key={f.field} cfg={f} value={formState?.[f.field]} canEdit={canEdit} onSave={saveField} toast={fireToast} />
                   ))}
                   {(c.toggles || []).map((t) => (
                     <ToggleRow key={t.field} cfg={t} value={formState?.[t.field]} canEdit={canEdit} onSave={saveField} toast={fireToast} />
