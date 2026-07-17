@@ -63,7 +63,7 @@ function Info({ text }) {
 }
 
 /* ── one editable field row ── */
-function FieldRow({ cfg, value, canEdit, onSave, toast }) {
+function FieldRow({ cfg, value, canEdit, onSave, toast, focusField, onFocused }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [status, setStatus] = useState(null); // 'saving' | 'saved'
@@ -110,6 +110,15 @@ function FieldRow({ cfg, value, canEdit, onSave, toast }) {
     setInvalid(false);
     setEditing(true);
   };
+
+  // Open this field's editor when the completion dropdown jumps to it.
+  useEffect(() => {
+    if (focusField && focusField === cfg.field && editable && !editing && !menu) {
+      openEdit();
+      onFocused && onFocused();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusField]);
 
   const runSave = async (nextVal) => {
     setStatus('saving');
@@ -406,6 +415,7 @@ export default function VesselProfileStack(props) {
   const RING_C = 2 * Math.PI * 52;
   const ringOffset = RING_C * (1 - filled / (total || 1));
 
+  const [focusField, setFocusField] = useState(null);
   const toggleCard = (id) => setOpenCards((o) => ({ ...o, [id]: !o[id] }));
 
   const jumpTo = (field) => {
@@ -416,9 +426,12 @@ export default function VesselProfileStack(props) {
       const el = document.getElementById(`vs-f-${field}`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.closest('.vs-card')?.classList.add('flash');
-        setTimeout(() => el.closest('.vs-card')?.classList.remove('flash'), 1100);
+        // gentle, slow field-level highlight (not a quick card-border flash)
+        el.classList.add('vs-jumpflash');
+        setTimeout(() => el.classList.remove('vs-jumpflash'), 2000);
       }
+      // drop the cursor into the field once the smooth scroll has settled
+      setTimeout(() => setFocusField(field), 380);
     }, 200);
   };
 
@@ -517,7 +530,7 @@ export default function VesselProfileStack(props) {
                       ? <DeptPills key={f.field} cfg={f} value={formState?.departments_in_use} options={departmentOptions} canEdit={canEdit} onSave={saveField} toast={fireToast} />
                       : f.type === 'tags'
                         ? <TagPills key={f.field} cfg={f} value={formState?.[f.field]} canEdit={canEdit} onSave={saveField} toast={fireToast} />
-                        : <FieldRow key={f.field} cfg={f} value={formState?.[f.field]} canEdit={canEdit} onSave={saveField} toast={fireToast} />
+                        : <FieldRow key={f.field} cfg={f} value={formState?.[f.field]} canEdit={canEdit} onSave={saveField} toast={fireToast} focusField={focusField} onFocused={() => setFocusField(null)} />
                   ))}
                   {(c.toggles || []).map((t) => (
                     <ToggleRow key={t.field} cfg={t} value={formState?.[t.field]} canEdit={canEdit} onSave={saveField} toast={fireToast} />

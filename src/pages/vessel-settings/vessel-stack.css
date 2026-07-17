@@ -137,6 +137,9 @@
 @keyframes vspop{from{transform:scale(0)}to{transform:scale(1)}}
 .vs-f.saved{animation:vsfflash 1s var(--vs-ease)}
 @keyframes vsfflash{0%{background:var(--vs-good-tint)}100%{background:transparent}}
+/* gentle, slow highlight when the completion dropdown jumps to a field */
+.vs-f.vs-jumpflash{animation:vsjump 2s var(--vs-ease)}
+@keyframes vsjump{0%,25%{background:var(--vs-terra-tint)}100%{background:transparent}}
 
 /* toggle row */
 .vs-f.tog{display:flex;align-items:center;gap:14px}
