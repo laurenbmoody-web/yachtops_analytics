@@ -211,7 +211,9 @@
 .vmd-manage-err { margin: 6px 10px 2px; font-size: 12px; color: #A32D2D; }
 /* the floating × lives in the modal's top-right corner — reserve room in the
    detail header so the Edit button never tucks underneath it. */
-.vmd-modal .dd-head { padding-right: 52px; }
+/* Reserve room for BOTH floating controls (⋯ pin menu + ×) so the Edit button
+   never tucks under them. */
+.vmd-modal .dd-head { padding-right: 92px; }
 .vmd-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 .vmd-modal-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #8B8478; margin: 0 0 3px; }
 
