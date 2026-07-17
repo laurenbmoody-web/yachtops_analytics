@@ -54,21 +54,33 @@ body.settings-editorial {
 .settings-page .set-chip.warn { color: #9A2B12; background: #FBE4DC; }
 
 .settings-page .set-layout { display: grid; grid-template-columns: 216px 1fr; gap: 26px; align-items: start; }
-@media (max-width: 980px) { .settings-page .set-layout { grid-template-columns: 1fr; } }
+.settings-page .set-layout.collapsed { grid-template-columns: 64px 1fr; }
+@media (max-width: 980px) { .settings-page .set-layout, .settings-page .set-layout.collapsed { grid-template-columns: 1fr; } }
 
-/* ── Rail ──────────────────────────────────────────────────────────────────*/
-.settings-page .set-rail { position: sticky; top: 84px; }
-.settings-page .set-nav-grp { font-size: 9.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: #AEB4C2; padding: 15px 12px 6px; }
+/* ── Rail — boxed grouped nav (crew-profile flatcard style), collapsible ──────*/
+.settings-page .set-rail { position: sticky; top: 84px; background: #FFFFFF; border: 1px solid #E6E8EF; border-radius: 14px; padding: 10px; }
+.settings-page .set-rail-top { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 6px; }
+.settings-page .set-rail-collapse { background: none; border: 0; cursor: pointer; color: #AEB4C2; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; flex: none; }
+.settings-page .set-rail-collapse:hover { color: #C65A1A; background: #F6F7FA; }
+.settings-page .set-nav-grp { font-size: 9.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: #AEB4C2; padding: 13px 10px 6px; }
 .settings-page .set-nav-grp.first { padding-top: 2px; }
 .settings-page .set-nav-it {
-  display: flex; align-items: center; gap: 11px; width: 100%; padding: 8px 12px; border-radius: 9px;
+  display: flex; align-items: center; gap: 11px; width: 100%; padding: 8px 10px; border-radius: 9px;
   border: 0; background: none; font: inherit; font-size: 13.5px; font-weight: 500; color: #5A5470;
   cursor: pointer; text-align: left; transition: background 0.12s ease, color 0.12s ease;
 }
-.settings-page .set-nav-it span { flex: 1; min-width: 0; }
-.settings-page .set-nav-it:hover { background: #EFEDE7; color: #1C1B3A; }
+.settings-page .set-nav-it span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; }
+.settings-page .set-nav-it:hover { background: #F6F7FA; color: #1C1B3A; }
 .settings-page .set-nav-it.active { color: #C65A1A; font-weight: 700; background: #FAECE7; }
 .settings-page .set-ext { flex: 0 0 auto; color: #C3BEB2; }
+/* collapsed — icons only */
+.settings-page .set-rail.collapsed { padding: 10px 8px; }
+.settings-page .set-rail.collapsed .set-rail-top { justify-content: center; padding: 2px 0 6px; }
+.settings-page .set-rail.collapsed .set-rail-top .set-nav-grp { display: none; }
+.settings-page .set-rail.collapsed .set-nav-grp { display: none; }
+.settings-page .set-rail.collapsed .set-nav-it { justify-content: center; padding: 9px 0; }
+.settings-page .set-rail.collapsed .set-nav-it span { display: none; }
+.settings-page .set-rail.collapsed .set-ext { display: none; }
 
 /* ── Content ───────────────────────────────────────────────────────────────*/
 .settings-page .set-content { min-width: 0; }
