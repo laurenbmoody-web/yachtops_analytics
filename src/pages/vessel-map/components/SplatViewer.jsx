@@ -104,6 +104,32 @@ const squareTexture = (color, glyph) => {
   return tex;
 };
 
+// Doorway pins get NO disc — just the door glyph, painted with a light halo
+// under a coloured core so it stays legible on light OR dark backgrounds.
+// Colour still encodes walkable (teal) vs not (grey).
+const doorTextureCache = new Map();
+const doorTexture = (color) => {
+  if (doorTextureCache.has(color)) return doorTextureCache.get(color);
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const paths = LAYER_GLYPH.doorway;
+  const scale = (size * 0.62) / 24; // larger than a disc glyph — it stands alone
+  ctx.translate(size / 2 - 12 * scale, size / 2 - 12 * scale);
+  ctx.scale(scale, scale);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 5.5; ctx.strokeStyle = 'rgba(255,255,255,0.95)'; // halo for dark bg
+  for (const d of paths) ctx.stroke(new Path2D(d));
+  ctx.lineWidth = 2.4; ctx.strokeStyle = color;                    // colour core for light bg
+  for (const d of paths) ctx.stroke(new Path2D(d));
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  doorTextureCache.set(color, tex);
+  return tex;
+};
+
 // Off-white ring texture for the selection treatment.
 let ringTextureCached = null;
 const ringTexture = () => {
@@ -123,8 +149,10 @@ const ringTexture = () => {
 };
 
 const makePin = (color, container = false, glyph = null) => {
+  const map = glyph === 'doorway' ? doorTexture(color)
+    : container ? squareTexture(color, glyph) : discTexture(color, glyph);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: container ? squareTexture(color, glyph) : discTexture(color, glyph),
+    map,
     depthTest: false,
     transparent: true,
   }));
