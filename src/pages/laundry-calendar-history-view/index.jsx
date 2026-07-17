@@ -237,7 +237,11 @@ const Detail = ({ p, onExport, onOpenItem, vessel }) => {
               <button type="button" className="lb-dos" onClick={() => { setOpen(isOpen ? null : per.key); setShowAll(false); }} aria-expanded={isOpen}>
                 <AvatarChip p={per} />
                 <div className="lb-dos-main">
-                  <div className="lb-dos-nm">{per.name}</div>
+                  <div className="lb-dos-nm">
+                    {per.name}
+                    {per.area && <span className="lb-idtag">{per.kind === 'crew' ? `No. ${per.area}` : per.area}</span>}
+                    {per.colour && <span className="lb-idpin" style={{ background: per.colour }} title={per.colour} />}
+                  </div>
                   <div className="lb-dos-sub">{per.sub || '—'}</div>
                 </div>
                 <div className="lb-dos-ct"><b className="tnum">{per.count}</b><span>pieces</span></div>

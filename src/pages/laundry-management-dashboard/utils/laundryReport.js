@@ -16,7 +16,8 @@ const dmy = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: '2-
 
 function itemRow(it, photoUrl) {
   const care = (it.tags || []).map(formatLaundryTag).join(', ');
-  const meta = [it.area, it.colour, care].filter(Boolean).join(' · ');
+  // area is shown once next to the person's name; keep the row to colour + care
+  const meta = [it.colour, care].filter(Boolean).join(' · ');
   const flag = it.flag === 'missing' ? ' — MISSING' : it.flag === 'damaged' ? ' — DAMAGED' : '';
   const urgent = it.priority === LaundryPriority.URGENT ? ' ★' : '';
   const note = [it.notes, it.flagNote].filter(Boolean).join(' · ');
@@ -37,8 +38,10 @@ function itemRow(it, photoUrl) {
 
 function personBlock(p, photoMap) {
   const items = (p.items || []).slice().sort((a, b) => new Date(b.deliveredAt || b.createdAt) - new Date(a.deliveredAt || a.createdAt));
+  const tag = p.area ? `<span class="ptag">${p.kind === 'crew' ? `No. ${esc(p.area)}` : esc(p.area)}</span>` : '';
+  const pin = p.colour ? `<span class="ppin" style="background:${esc(p.colour)}"></span>` : '';
   return `<section class="person">
-    <div class="ph"><h3>${esc(p.name)}</h3><span class="pc">${p.count} piece${p.count === 1 ? '' : 's'}</span></div>
+    <div class="ph"><h3>${esc(p.name)}${tag}${pin}</h3><span class="pc">${p.count} piece${p.count === 1 ? '' : 's'}</span></div>
     <table>
       <thead><tr><th class="d">Item</th><th class="t">Logged</th><th class="t">Returned</th><th class="s">Status</th></tr></thead>
       <tbody>${items.map((it) => itemRow(it, photoMap[it.id])).join('')}</tbody>
@@ -123,6 +126,8 @@ export async function openTripReport(period, vessel) {
     .person { margin-bottom: 22px; break-inside: avoid; }
     .ph { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2px solid #1C1B3A; padding-bottom: 5px; margin-bottom: 4px; }
     .ph h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 17px; margin: 0; }
+    .ptag { font: 700 8.5px system-ui; letter-spacing: 0.04em; color: #6E6B85; background: #F6F5F2; border: 1px solid #ECEAE3; border-radius: 999px; padding: 2px 8px; margin-left: 9px; vertical-align: middle; }
+    .ppin { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(28,27,58,0.2); margin-left: 6px; vertical-align: middle; }
     .pc { font: 700 10px system-ui; letter-spacing: 0.06em; text-transform: uppercase; color: #6E6B85; }
     table { width: 100%; border-collapse: collapse; }
     th { font: 700 8px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #AEB4C2; text-align: left; padding: 4px 8px 6px 0; border-bottom: 1px solid #ECECEE; }
