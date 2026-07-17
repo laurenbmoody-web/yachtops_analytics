@@ -238,18 +238,6 @@
   }
 
   .vm-ov-chips { display: flex; flex-wrap: wrap; gap: 8px; max-width: 520px; }
-
-  /* Fault heat legend — small card on the dark stage. */
-  .vm-heat-legend {
-    display: flex; flex-direction: column; gap: 6px;
-    background: rgba(20, 22, 38, 0.72); border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 12px; padding: 10px 12px; backdrop-filter: blur(6px);
-  }
-  .vm-heat-title { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #C9CBD9; }
-  .vm-heat-ramp { display: flex; gap: 12px; }
-  .vm-heat-swatch { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: #E4E6F0; }
-  .vm-heat-swatch i { width: 11px; height: 11px; border-radius: 999px; display: inline-block; }
-  .vm-heat-note { font-size: 10.5px; color: #9FA3BE; }
 }
 
 /* ── Tool rail — floating over the stage's left edge, ≥1024px only ──────── */
