@@ -3727,6 +3727,13 @@
 #sp-root .msg-card-badge.crew { background: var(--navy-app); }
 #sp-root .msg-card-badge.supplier { background: var(--orange); }
 #sp-root .msg-card-role { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+#sp-root .msg-card-status { display: block; width: 100%; text-align: left; margin-top: 12px; font-size: 12.5px; font-style: italic; color: var(--muted); background: none; border: 0; font-family: inherit; }
+#sp-root .msg-card-status.own { cursor: pointer; display: flex; align-items: center; gap: 6px; border-radius: 8px; padding: 6px 8px; margin: 12px -8px 0; }
+#sp-root .msg-card-status.own:hover { background: var(--ground); }
+#sp-root .msg-card-status.own.empty { font-style: normal; }
+#sp-root .msg-card-status-pen { margin-left: auto; font-size: 11px; color: var(--muted); font-style: normal; }
+#sp-root .msg-card-status.own:hover .msg-card-status-pen { color: var(--orange); }
+#sp-root .msg-card-status-in { width: 100%; box-sizing: border-box; margin-top: 12px; border: 1px solid var(--orange); border-radius: 8px; padding: 7px 9px; font-family: inherit; font-size: 12.5px; color: var(--fg); background: var(--ground); box-shadow: 0 0 0 3px var(--pill); outline: none; }
 #sp-root .msg-card-rows { display: flex; flex-direction: column; margin-top: 14px; }
 #sp-root .msg-card-row { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); text-decoration: none; }
 #sp-root .msg-card-row:first-child { border-top: 0; }
