@@ -11,6 +11,7 @@ import { buildLogbook, initials } from '../laundry-management-dashboard/utils/la
 import { downloadLaundryCsv } from '../laundry-management-dashboard/utils/laundryExport';
 import { openTripReport } from '../laundry-management-dashboard/utils/laundryReport';
 import LaundryDetailModal from '../laundry-management-dashboard/components/LaundryDetailModal';
+import { FilterMenu, SortMenu } from '../laundry-management-dashboard/components/LaundryFilters';
 import { LaundryStatus } from '../laundry-management-dashboard/utils/laundryStorage';
 import '../../styles/editorial.css';
 import '../laundry-management-dashboard/laundry.css';
@@ -381,6 +382,7 @@ const LaundryHistoryView = () => {
   const [q, setQ] = useState('');
   const [fOwner, setFOwner] = useState('all'); // all | guest | crew
   const [fStatus, setFStatus] = useState('all'); // all | progress | ready | delivered
+  const [fSort, setFSort] = useState('newest'); // newest | oldest | owner
   const [retention, setRetention] = useState(null);
   const [vessel, setVessel] = useState(null);
   useEffect(() => { getVesselBranding().then(setVessel).catch(() => {}); }, []);
@@ -446,8 +448,13 @@ const LaundryHistoryView = () => {
         const hay = `${it.description || ''} ${it.ownerName || ''} ${it.area || ''} ${(it.tags || []).join(' ')} ${it.colour || ''}`.toLowerCase();
         return hay.includes(needle);
       })
-      .sort((a, b) => new Date(b.deliveredAt || b.createdAt) - new Date(a.deliveredAt || a.createdAt));
-  }, [items, q, fOwner, fStatus, searchActive]);
+      .sort((a, b) => {
+        if (fSort === 'owner') return (a.ownerName || '').localeCompare(b.ownerName || '');
+        const ta = new Date(a.deliveredAt || a.createdAt).getTime();
+        const tb = new Date(b.deliveredAt || b.createdAt).getTime();
+        return fSort === 'oldest' ? ta - tb : tb - ta;
+      });
+  }, [items, q, fOwner, fStatus, fSort, searchActive]);
 
   return (
     <>
@@ -482,15 +489,17 @@ const LaundryHistoryView = () => {
                 <input type="text" placeholder="Search items, guest, cabin, care…" value={q} onChange={(e) => setQ(e.target.value)} />
                 {q && <button type="button" className="lm-search-x" onClick={() => setQ('')} aria-label="Clear search"><Icon name="X" size={14} /></button>}
               </label>
-              <div className="hist-chips">
-                {[['all', 'Everyone'], ['guest', 'Guests'], ['crew', 'Crew']].map(([v, l]) => (
-                  <button key={v} type="button" className={`hist-chip${fOwner === v ? ' on' : ''}`} onClick={() => setFOwner(v)}>{l}</button>
-                ))}
-                <span className="hist-chip-sep" />
-                {[['all', 'Any status'], ['progress', 'Washing'], ['ready', 'Ready'], ['delivered', 'Returned']].map(([v, l]) => (
-                  <button key={v} type="button" className={`hist-chip${fStatus === v ? ' on' : ''}`} onClick={() => setFStatus(v)}>{l}</button>
-                ))}
-              </div>
+              <FilterMenu groups={[
+                { key: 'owner', label: 'Owner', value: fOwner, onChange: setFOwner, neutral: 'all', options: [
+                  { value: 'all', label: 'Everyone' }, { value: 'guest', label: 'Guests' }, { value: 'crew', label: 'Crew' }] },
+                { key: 'status', label: 'Status', value: fStatus, onChange: setFStatus, neutral: 'all', options: [
+                  { value: 'all', label: 'Any status' }, { value: 'progress', label: 'Washing' }, { value: 'ready', label: 'Ready' }, { value: 'delivered', label: 'Returned' }] },
+              ]} />
+              <SortMenu value={fSort} onChange={setFSort} options={[
+                { val: 'newest', label: 'Newest first' },
+                { val: 'oldest', label: 'Oldest first' },
+                { val: 'owner', label: 'Owner A–Z' },
+              ]} />
               {canManage && (
                 <label className="hist-retain" title="How long delivered-laundry photos are kept before housekeeping clears them">
                   <Icon name="ImageOff" size={14} />
