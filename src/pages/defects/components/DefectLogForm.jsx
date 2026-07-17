@@ -21,7 +21,7 @@ const PRIORITIES = [
   { k: 'High', title: 'High' }, { k: 'Critical', title: 'Critical' },
 ];
 
-export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCancel, submitLabel = 'Log & notify', busyLabel = 'Logging…', showLocation = false, initial = null }) {
+export default function DefectLogForm({ onSubmit, onSubmitAndPin = null, onCancel, submitLabel = 'Log', busyLabel = 'Logging…', showLocation = false, initial = null }) {
   const actor = useDefectActor();
   const fileRef = useRef(null);
   const [departments, setDepartments] = useState([]);

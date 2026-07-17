@@ -72,16 +72,20 @@ const isCommandTier = (t) => normalizeDept(t) === 'COMMAND';
 const isChiefTier = (t) => normalizeDept(t) === 'CHIEF';
 const isHODTier = (t) => normalizeDept(t) === 'HOD';
 
-// ── Location label (legacy deck/zone/space hierarchy is still localStorage) ───
-export const buildLocationPathLabel = (deckId, zoneId, spaceId) => {
-  const decks = getAllDecks(false);
+// ── Location label from the deck/zone/space hierarchy ────────────────────────
+// getAllDecks/getZonesByDeck/getSpacesByZone are async (Supabase-backed), so
+// this must be awaited. No deck → nothing to build (the common case: defects
+// logged with free-text or a map pin instead of the hierarchy picker).
+export const buildLocationPathLabel = async (deckId, zoneId, spaceId) => {
+  if (!deckId) return '';
+  const decks = await getAllDecks(false);
   const deck = decks?.find((d) => d?.id === deckId);
   if (!deck) return '';
-  const zones = getZonesByDeck(deckId, false);
+  const zones = await getZonesByDeck(deckId, false);
   const zone = zones?.find((z) => z?.id === zoneId);
   if (!zone) return deck?.name;
   if (!spaceId) return `${deck?.name} > ${zone?.name}`;
-  const spaces = getSpacesByZone(zoneId, false);
+  const spaces = await getSpacesByZone(zoneId, false);
   const space = spaces?.find((s) => s?.id === spaceId);
   if (!space) return `${deck?.name} > ${zone?.name}`;
   return `${deck?.name} > ${zone?.name} > ${space?.name}`;
@@ -212,7 +216,7 @@ export const createDefect = async (defectData, actor) => {
   if (!actor?.tenantId) throw new Error('No active vessel — cannot create a defect.');
 
   const locationPathLabel = defectData?.locationPathLabel
-    || buildLocationPathLabel(defectData?.locationDeckId, defectData?.locationZoneId, defectData?.locationSpaceId);
+    || await buildLocationPathLabel(defectData?.locationDeckId, defectData?.locationZoneId, defectData?.locationSpaceId);
 
   const tier = normalizeDept(actor.tier);
   const targetDeptName = defectData?.departmentOwner || actor.departmentName || null;
