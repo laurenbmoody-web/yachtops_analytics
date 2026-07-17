@@ -104,12 +104,28 @@ export const markThreadReadVessel = async (threadId) => {
   if (error) throw error;
 };
 
-// Accept a supplier quote — adds its line items to the order (RPC, gated to
-// vessel members). Returns the order id.
-export const acceptQuote = async (messageId) => {
-  const { data, error } = await supabase.rpc('accept_supplier_quote', { p_message_id: messageId });
+// Accept a supplier quote — adds its line items to an order (RPC, gated to
+// thread participants). orderId null → a new order; otherwise route into that
+// existing open order (the caller must own or collaborate on it). Returns the
+// order id.
+export const acceptQuote = async (messageId, orderId = null) => {
+  const { data, error } = await supabase.rpc('accept_supplier_quote', {
+    p_message_id: messageId,
+    p_order_id: orderId,
+  });
   if (error) throw error;
   return data;
+};
+
+// The open orders this crew member can add a chat quote to for a supplier —
+// their own + ones they collaborate on (edit/approve), still being assembled.
+export const fetchAddableOrders = async (supplierId, tenantId) => {
+  const { data, error } = await supabase.rpc('fetch_addable_orders', {
+    p_supplier_id: supplierId,
+    p_tenant_id: tenantId,
+  });
+  if (error) throw error;
+  return data ?? [];
 };
 
 // Decline a supplier quote, optionally with a reason the supplier sees.

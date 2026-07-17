@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import {
   fetchVesselThreads, fetchThreadMessages, sendVesselMessage, markThreadReadVessel,
-  markThreadNotificationsRead, acceptQuote, declineQuote, reactToMessage, deleteMessage, editMessage,
+  markThreadNotificationsRead, acceptQuote, declineQuote, fetchAddableOrders, reactToMessage, deleteMessage, editMessage,
   setThreadArchived, deleteThread, uploadMessageAttachment,
   fetchOrderApprovalSettings, decideOrderApproval, getOrCreateDmThread,
 } from './storage';
@@ -245,6 +245,8 @@ const CrewMessages = () => {
   const [editing, setEditing] = useState(null);
   const [declining, setDeclining] = useState(null);   // quote message id being declined
   const [declineReason, setDeclineReason] = useState('');
+  const [choosing, setChoosing] = useState(null);     // quote message id in "which order?" mode
+  const [addable, setAddable] = useState([]);         // open orders the quote can join
   const [attachments, setAttachments] = useState([]); // pending upload descriptors
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);   // opening a new DM thread
@@ -416,21 +418,38 @@ const CrewMessages = () => {
     if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('msg-flash'); setTimeout(() => el.classList.remove('msg-flash'), 1200); }
   };
 
-  const resolveQuote = async (id, accept, reason = null) => {
+  const resolveQuote = async (id, accept, reason = null, orderId = null) => {
     if (quoteBusy) return;
     setQuoteBusy(id);
     setError(null);
     try {
-      if (accept) await acceptQuote(id); else await declineQuote(id, reason);
+      if (accept) await acceptQuote(id, orderId); else await declineQuote(id, reason);
       setDeclining(null); setDeclineReason('');
+      setChoosing(null); setAddable([]);
       const msgs = await fetchThreadMessages(activeId);
       setMessages(msgs);
       load();
     } catch (e) {
-      setError(e.message?.includes('no_order')
-        ? 'This conversation isn’t linked to an order yet — start from an order to add items.'
-        : (e.message || 'Couldn’t update the quote.'));
+      setError(e.message || 'Couldn’t update the quote.');
     } finally { setQuoteBusy(null); }
+  };
+
+  // Accepting: if the crew member already has open orders with this supplier,
+  // let them pick "new order" vs one of those; otherwise just make a new order.
+  const beginAccept = async (m) => {
+    if (quoteBusy) return;
+    const supplierId = activeThread?.supplier_id || activeThread?.supplier_profiles?.id;
+    if (!supplierId || !activeTenantId) { resolveQuote(m.id, true); return; }
+    setQuoteBusy(m.id); setError(null);
+    try {
+      const orders = await fetchAddableOrders(supplierId, activeTenantId);
+      setQuoteBusy(null);
+      if (!orders.length) { resolveQuote(m.id, true); return; }
+      setAddable(orders); setChoosing(m.id);
+    } catch (e) {
+      setQuoteBusy(null);
+      setError(e.message || 'Couldn’t load your orders.');
+    }
   };
 
   // Sign off (or decline) an over-threshold chat order that's pending approval.
@@ -728,7 +747,22 @@ const CrewMessages = () => {
                                     : <div className="msg-qc-valid">Valid until {fmtDmy(m.quote_expires_at)}</div>
                                 )}
                                 {status === 'pending' && m.sender_type === 'supplier' && !quoteExpired(m) ? (
-                                  declining === m.id ? (
+                                  choosing === m.id ? (
+                                    <div className="msg-qc-orderpick">
+                                      <div className="msg-qc-orderpick-title">Add these items to…</div>
+                                      <button type="button" className="msg-qc-order-opt new" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, true, null, null)}>
+                                        <span className="msg-qc-order-main">＋ New order</span>
+                                        <span className="msg-qc-order-sub">Start a fresh order for {supplierName(activeThread)}</span>
+                                      </button>
+                                      {addable.map((o) => (
+                                        <button key={o.order_id} type="button" className="msg-qc-order-opt" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, true, null, o.order_id)}>
+                                          <span className="msg-qc-order-main">Order #{o.short_id}{o.title ? ` · ${o.title}` : ''}</span>
+                                          <span className="msg-qc-order-sub">{o.item_count} item{o.item_count === 1 ? '' : 's'} · {o.status}</span>
+                                        </button>
+                                      ))}
+                                      <button type="button" className="msg-qc-order-cancel" disabled={quoteBusy === m.id} onClick={() => { setChoosing(null); setAddable([]); }}>Cancel</button>
+                                    </div>
+                                  ) : declining === m.id ? (
                                     <div className="msg-qc-decline-form">
                                       <input
                                         type="text" autoFocus className="msg-qc-reason"
@@ -745,7 +779,7 @@ const CrewMessages = () => {
                                   ) : (
                                     <div className="msg-qc-actions">
                                       <button type="button" className="msg-qc-decline" disabled={quoteBusy === m.id} onClick={() => { setDeclining(m.id); setDeclineReason(''); }}>Decline</button>
-                                      <button type="button" className="msg-qc-accept" disabled={quoteBusy === m.id} onClick={() => resolveQuote(m.id, true)}>{quoteBusy === m.id ? 'Adding…' : 'Accept & add to order'}</button>
+                                      <button type="button" className="msg-qc-accept" disabled={quoteBusy === m.id} onClick={() => beginAccept(m)}>{quoteBusy === m.id ? 'Adding…' : 'Accept & add to order'}</button>
                                     </div>
                                   )
                                 ) : (
