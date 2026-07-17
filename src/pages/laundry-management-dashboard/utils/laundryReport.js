@@ -112,10 +112,12 @@ export async function openTripReport(period, vessel) {
     .lh-meta { font: 700 8.5px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #8B8478; margin-top: 5px; }
     .lh-tag { font: 700 9px system-ui; letter-spacing: 0.14em; text-transform: uppercase; color: #C65A1A; align-self: flex-start; padding-top: 3px; }
     .eyebrow { font: 700 10px system-ui; letter-spacing: 0.14em; text-transform: uppercase; color: #C65A1A; }
+    .titlerow { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; border-bottom: 1px solid #ECECEE; padding-bottom: 14px; margin-bottom: 18px; }
     h1 { font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 30px; margin: 4px 0 2px; }
-    .dates { color: #6E6B85; font-size: 13px; margin-bottom: 18px; }
-    .summary { display: flex; gap: 30px; border-top: 1px solid #ECECEE; border-bottom: 1px solid #ECECEE; padding: 14px 0; margin-bottom: 8px; }
-    .summary b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; display: block; }
+    .dates { color: #6E6B85; font-size: 13px; }
+    .summary { display: flex; gap: 28px; flex: none; }
+    .summary div { text-align: right; }
+    .summary b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; display: block; line-height: 1.05; }
     .summary span { font: 700 8.5px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #6E6B85; }
     .care { font-size: 12px; color: #6E6B85; margin: 10px 0 22px; }
     .person { margin-bottom: 22px; break-inside: avoid; }
@@ -141,13 +143,17 @@ export async function openTripReport(period, vessel) {
     @media print { body { padding: 20px; } }
   </style></head><body>
     ${letterhead(vessel)}
-    <h1>${esc(period.name)}${period.type === 'voyage' ? ' — voyage' : ''}</h1>
-    <div class="dates">${esc(period.dates)}${period.hero ? ` · ${esc(period.hero)}` : ''}</div>
-    <div class="summary">
-      <div><b>${period.cleaned}</b><span>Cleaned</span></div>
-      <div><b>${esc(period.avg)}</b><span>Avg turnaround</span></div>
-      <div><b>${esc(period.kpiA?.[0] ?? '')}</b><span>${esc(period.kpiA?.[1] ?? '')}</span></div>
-      <div><b>${esc(period.kpiB?.[0] ?? '')}</b><span>${esc(period.kpiB?.[1] ?? '')}</span></div>
+    <div class="titlerow">
+      <div class="titleblock">
+        <h1>${esc(period.name)}${period.type === 'voyage' ? ' — voyage' : ''}</h1>
+        <div class="dates">${esc(period.dates)}${period.hero ? ` · ${esc(period.hero)}` : ''}</div>
+      </div>
+      <div class="summary">
+        <div><b>${period.cleaned}</b><span>Cleaned</span></div>
+        <div><b>${esc(period.avg)}</b><span>Avg turnaround</span></div>
+        <div><b>${esc(period.kpiA?.[0] ?? '')}</b><span>${esc(period.kpiA?.[1] ?? '')}</span></div>
+        <div><b>${esc(period.kpiB?.[0] ?? '')}</b><span>${esc(period.kpiB?.[1] ?? '')}</span></div>
+      </div>
     </div>
     ${care ? `<div class="care"><b>By care type:</b> ${care}</div>` : '<div class="care"></div>'}
     ${people.map((p) => personBlock(p, photoMap)).join('')}
