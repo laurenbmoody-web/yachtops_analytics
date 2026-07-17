@@ -22,8 +22,7 @@ const SORTS = [
   { val: 'owner', label: 'Owner A–Z' },
 ];
 
-// ── A real select-style dropdown: shows a label + the chosen value ──────────
-function Select({ label, value, options, onChange, align = 'left' }) {
+const useMenu = () => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -34,20 +33,66 @@ function Select({ label, value, options, onChange, align = 'left' }) {
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
   }, [open]);
-  const current = options.find((o) => o.val === value) || options[0];
-  const changed = value !== options[0]?.val;
+  return [open, setOpen, ref];
+};
+
+// ── One "Filters" button — Status + Owner as selects inside a popover ──────
+function FiltersMenu({ status, setStatus, owner, setOwner }) {
+  const [open, setOpen, ref] = useMenu();
+  const active = (status !== 'All' ? 1 : 0) + (owner !== 'All' ? 1 : 0);
   return (
-    <div className={`lm-sel${open ? ' open' : ''}`} ref={ref}>
-      <button type="button" className={`lm-sel-btn${changed ? ' on' : ''}`} onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
-        <span className="lm-sel-lbl">{label}</span>
-        <span className="lm-sel-val">{current?.label}</span>
-        <Icon name="ChevronDown" size={14} className="lm-sel-ch" />
+    <div className="lmf" ref={ref}>
+      <button type="button" className={`lmf-btn${open ? ' open' : ''}${active ? ' on' : ''}`} onClick={() => setOpen((o) => !o)}>
+        <Icon name="SlidersHorizontal" size={14} />
+        <span>Filters</span>
+        {active > 0 && <span className="lmf-badge">{active}</span>}
+        <Icon name="ChevronDown" size={14} className="chev" />
       </button>
       {open && (
-        <div className="lm-sel-menu" role="listbox" style={align === 'right' ? { right: 0 } : { left: 0 }}>
-          {options.map((o) => (
-            <button key={o.val} type="button" className={`lm-sel-opt${o.val === value ? ' sel' : ''}`} onClick={() => { onChange(o.val); setOpen(false); }} role="option" aria-selected={o.val === value}>
-              <span>{o.label}</span>{o.val === value && <Icon name="Check" size={15} className="lm-ck" />}
+        <div className="lmf-pop">
+          <div className="lmf-group">
+            <span className="lmf-label">Status</span>
+            <div className="lmf-select">
+              <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="All">All statuses</option>
+                <option value="In Progress">In progress</option>
+                <option value="Ready">Ready</option>
+                <option value="Delivered">Delivered</option>
+              </select>
+            </div>
+          </div>
+          <div className="lmf-group">
+            <span className="lmf-label">Owner</span>
+            <div className="lmf-select">
+              <select value={owner} onChange={(e) => setOwner(e.target.value)}>
+                <option value="All">Everyone</option>
+                <option value="Guest">Guests</option>
+                <option value="Crew">Crew</option>
+                <option value="Unknown">Unknown</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── One "Sort" button — the choice shows as a tick inside ──────────────────
+function SortMenu({ value, onChange }) {
+  const [open, setOpen, ref] = useMenu();
+  return (
+    <div className="lmf" ref={ref}>
+      <button type="button" className={`lmf-btn${open ? ' open' : ''}${value !== 'newest' ? ' on' : ''}`} onClick={() => setOpen((o) => !o)}>
+        <Icon name="ArrowUpDown" size={14} />
+        <span>Sort</span>
+        <Icon name="ChevronDown" size={14} className="chev" />
+      </button>
+      {open && (
+        <div className="lmf-pop lmf-sortpop">
+          {SORTS.map((o) => (
+            <button key={o.val} type="button" className={`lmf-sortopt${o.val === value ? ' sel' : ''}`} onClick={() => { onChange(o.val); setOpen(false); }}>
+              <span>{o.label}</span>{o.val === value && <Icon name="Check" size={15} />}
             </button>
           ))}
         </div>
@@ -55,9 +100,6 @@ function Select({ label, value, options, onChange, align = 'left' }) {
     </div>
   );
 }
-
-const STATUS_OPTS = [{ val: 'All', label: 'All statuses' }, { val: 'In Progress', label: 'In progress' }, { val: 'Ready', label: 'Ready' }, { val: 'Delivered', label: 'Delivered' }];
-const OWNER_OPTS = [{ val: 'All', label: 'Everyone' }, { val: 'Guest', label: 'Guests' }, { val: 'Crew', label: 'Crew' }, { val: 'Unknown', label: 'Unknown' }];
 
 // List / By cabin toggle
 function ViewToggle({ view, onChange }) {
@@ -359,9 +401,8 @@ const LaundryManagementDashboard = () => {
                 aria-label="Search laundry"
               />
             </label>
-            <Select label="Status" value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTS} />
-            <Select label="Owner" value={ownerFilter} onChange={setOwnerFilter} options={OWNER_OPTS} />
-            <Select label="Sort" value={sortBy} onChange={setSortBy} options={SORTS} align="right" />
+            <FiltersMenu status={statusFilter} setStatus={setStatusFilter} owner={ownerFilter} setOwner={setOwnerFilter} />
+            <SortMenu value={sortBy} onChange={setSortBy} />
             <ViewToggle view={viewMode} onChange={changeView} />
           </div>
 
