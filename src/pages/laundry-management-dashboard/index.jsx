@@ -7,6 +7,7 @@ import LaundryItemRow from './components/LaundryItemRow';
 import CabinView from './components/CabinView';
 import LaundryDetailModal from './components/LaundryDetailModal';
 import { FilterMenu, SortMenu } from './components/LaundryFilters';
+import { subscribeOffline, pendingOfflineItems, drainOfflineLaundry } from './utils/laundryOfflineQueue';
 import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay } from './utils/laundryStorage';
 import { turnaroundStats, fmtDur } from './utils/laundryStats';
 import { enrichWithAvatars } from './utils/laundryAvatars';
@@ -187,6 +188,17 @@ const LaundryManagementDashboard = () => {
   // Keep the turnaround stats fed alongside the today view.
   useEffect(() => { loadAllLaundryItems().then(setAllItems).catch(() => {}); }, []);
 
+  // Offline capture — show anything queued while offline, and replay it (then
+  // refresh) the moment connectivity returns or the page loads with a backlog.
+  const [pendingOffline, setPendingOffline] = useState(pendingOfflineItems());
+  useEffect(() => {
+    const unsub = subscribeOffline(() => setPendingOffline(pendingOfflineItems()));
+    const sync = () => drainOfflineLaundry().then((r) => { if (r.synced) loadLaundryItems(); });
+    window.addEventListener('online', sync);
+    sync();
+    return () => { unsub(); window.removeEventListener('online', sync); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleBulkDeliver = async (readyItems) => {
     await Promise.all((readyItems || []).map((i) => updateLaundryStatus(i.id, LaundryStatus?.DELIVERED)));
     loadLaundryItems();
@@ -358,8 +370,28 @@ const LaundryManagementDashboard = () => {
             <ViewToggle view={viewMode} onChange={changeView} />
           </div>
 
+          {/* Offline capture — queued adds waiting to sync */}
+          {pendingOffline.length > 0 && (
+            <div className="lm-offline">
+              <div className="lm-offline-h">
+                <Icon name="CloudOff" size={15} />
+                <span>{pendingOffline.length} logged offline · waiting to sync</span>
+              </div>
+              <div className="lm-offline-list">
+                {pendingOffline.map((it) => (
+                  <div className="lm-offline-row" key={it.id}>
+                    <span className="lm-offline-thumb">{it.photo ? <img src={it.photo} alt="" loading="lazy" decoding="async" /> : <Icon name="Shirt" size={16} />}</span>
+                    <span className="lm-offline-desc">{it.description || 'Laundry item'}</span>
+                    <span className="lm-offline-who">{it.ownerName || (it.ownerType === 'other' ? 'Other' : 'Unassigned')}{it.area ? ` · ${it.area}` : ''}</span>
+                    <span className="lm-offline-tag">Pending</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Views — List (status-grouped) or By cabin (cards) */}
-          {filteredItems?.length === 0 ? (
+          {filteredItems?.length === 0 && pendingOffline.length === 0 ? (
             <div className="lm-list">
               <div className="lm-empty" role="status">
                 <Icon name="Package" size={44} className="lm-empty-ic" />
