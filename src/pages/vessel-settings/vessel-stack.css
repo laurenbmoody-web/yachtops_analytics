@@ -156,7 +156,11 @@
 .vs-pill:disabled{cursor:default;opacity:.7}
 
 /* select menu */
-.vs-menu{position:absolute;z-index:70;min-width:210px;background:var(--vs-surface);border:1px solid var(--vs-hair);border-radius:12px;box-shadow:var(--vs-sh2);padding:5px;max-height:280px;overflow:auto;animation:vsmin .18s var(--vs-spring)}
+.vs-menu{position:absolute;z-index:70;min-width:210px;background:var(--vs-surface);border:1px solid var(--vs-hair);border-radius:12px;box-shadow:var(--vs-sh2);padding:5px;overflow:hidden;animation:vsmin .18s var(--vs-spring)}
+.vs-menu-search{width:100%;border:1px solid var(--vs-hair);background:var(--vs-inset);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:13.5px;color:var(--vs-ink);outline:none;margin-bottom:4px}
+.vs-menu-search:focus{border-color:var(--vs-terra);background:var(--vs-surface);box-shadow:0 0 0 3px var(--vs-terra-tint)}
+.vs-menu-list{max-height:250px;overflow:auto}
+.vs-menu-empty{padding:10px;font-size:13px;color:var(--vs-faint);text-align:center}
 @keyframes vsmin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 .vs-menu button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:transparent;color:var(--vs-ink-soft);font-size:14px;padding:9px 10px;border-radius:8px;cursor:pointer;font-family:inherit}
 .vs-menu button:hover,.vs-menu button.sel{background:var(--vs-surface-2);color:var(--vs-ink)}
