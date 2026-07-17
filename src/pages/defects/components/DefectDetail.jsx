@@ -561,14 +561,13 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
           )}
         </div>
 
-        {/* right — control rail, collapsible to a slim status + owner strip */}
+        {/* right — control rail, collapsible to a slim status + owner strip.
+            The divider edge is the hover/click target (turns terracotta). */}
         <div className="dd-rail">
+          <button type="button" className="dd-rail-edge" onClick={() => setRailOpen((v) => !v)}
+            title={railOpen ? 'Collapse details' : 'Show details'} aria-label={railOpen ? 'Collapse details' : 'Show details'} />
           {railOpen ? (
           <>
-            <div className="dd-rail-top">
-              <button type="button" className="dd-rail-collapse" onClick={() => setRailOpen(false)} title="Collapse details" aria-label="Collapse details"><Icon name="PanelRightClose" size={16} /></button>
-            </div>
-
             {mapHref && defect.hotspotId && (
               <button className="dd-btn map block" onClick={openMap}><Icon name="MapPin" size={15} /> View on map</button>
             )}
@@ -632,7 +631,6 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
           </>
           ) : (
             <div className="dd-rail-mini">
-              <button type="button" className="dd-rail-collapse" onClick={() => setRailOpen(true)} title="Show details" aria-label="Show details"><Icon name="PanelRightOpen" size={16} /></button>
               <span className={`dd-chip ${sMeta.cls} dd-mini-status`} title={`Status: ${sMeta.label}`}><span className="cd" /></span>
               <span className={`dd-avatar ${avCls} dd-mini-av`} title={ownerName}>{avCls === 'none' ? '?' : initials(defect.assigneeKind === 'team' ? ownerName : defect.assignedToName)}</span>
             </div>

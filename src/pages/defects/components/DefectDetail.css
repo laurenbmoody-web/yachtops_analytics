@@ -48,8 +48,15 @@
 
 .dd-main { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; border-right: 1px solid #ECEAE3; min-width: 0; }
 @media (max-width: 760px) { .dd-main { border-right: 0; border-bottom: 1px solid #ECEAE3; } }
-.dd-rail { padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; background: #FAFAF8; min-width: 0; overflow: hidden; }
+.dd-rail { position: relative; padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; background: #FAFAF8; min-width: 0; overflow: hidden; }
 .dd-rail-shut .dd-rail { padding: 12px 6px; }
+
+/* the divider edge is the collapse control — turns terracotta on hover, no icon */
+.dd-rail-edge { position: absolute; top: 0; left: 0; bottom: 0; width: 14px; border: 0; border-left: 3px solid transparent;
+  background: transparent; cursor: pointer; padding: 0; z-index: 3; transition: border-color .15s ease; }
+.dd-rail-edge:hover { border-left-color: #C65A1A; }
+.dd-rail-shut .dd-rail-edge { width: 100%; }
+@media (max-width: 760px) { .dd-rail-edge { display: none; } }
 
 /* work tabs (left pane) */
 .dd-wtabs { display: flex; gap: 2px; border-bottom: 1px solid #ECEAE3; margin-bottom: 2px; }
@@ -59,11 +66,7 @@
 .dd-wtab.on { color: #C65A1A; border-color: #C65A1A; }
 .dd-wpane { display: flex; flex-direction: column; gap: 16px; }
 
-/* rail collapse handle + mini strip */
-.dd-rail-top { display: flex; justify-content: flex-end; margin: -4px -4px 2px 0; }
-.dd-rail-collapse { width: 26px; height: 26px; border-radius: 7px; border: 0; background: none; color: #AEB4C2;
-  cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color .14s, background .14s; }
-.dd-rail-collapse:hover { color: #C65A1A; background: #F6F5F2; }
+/* rail mini strip (collapsed) */
 .dd-rail-mini { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .dd-mini-status { padding: 6px !important; gap: 0 !important; }
 .dd-mini-status .cd { width: 8px; height: 8px; }
