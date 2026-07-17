@@ -9,7 +9,7 @@ import Icon from '../../../components/AppIcon';
 import DefectPin from './DefectPin';
 import './DefectPin.css';
 
-export default function DefectModal({ hotspot, canManage, scanName, containerTrail, onChanged, onTitled, onAdjust, onDelete, onClose }) {
+export default function DefectModal({ hotspot, canManage, scanName, containerTrail, onChanged, onTitled, onClosed, onAdjust, onDelete, onClose }) {
   // 'form' → narrow single-column log form (matches the dashboard quick-add);
   // 'detail' → wide two-column DefectDetail. Defaults to the form width.
   const [mode, setMode] = useState('form');
@@ -81,6 +81,7 @@ export default function DefectModal({ hotspot, canManage, scanName, containerTra
           containerTrail={containerTrail}
           onChanged={onChanged}
           onTitled={onTitled}
+          onClosed={onClosed}
           onCancel={onClose}
           onMode={setMode}
         />

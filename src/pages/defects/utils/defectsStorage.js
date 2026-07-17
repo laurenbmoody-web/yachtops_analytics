@@ -171,6 +171,8 @@ const fromRow = (r) => {
     closedByName: r.closed_by_name,
     closedNotes: r.closed_notes,
     closedPhoto: r.closed_photo,
+    locationSnapshotPath: r.location_snapshot_path,
+    pinPosition: r.pin_position,
     reopenedAt: r.reopened_at,
     reopenedByUserId: r.reopened_by,
     reopenedByName: r.reopened_by_name,
@@ -548,6 +550,7 @@ const UPDATE_FIELD_MAP = {
   contractorSupplierId: 'contractor_supplier_id', scheduledEndAt: 'scheduled_end_at',
   contractorContactName: 'contractor_contact_name', contractorEmail: 'contractor_email', contractorPhone: 'contractor_phone',
   repairStage: 'repair_stage', warrantyUntil: 'warranty_until',
+  locationSnapshotPath: 'location_snapshot_path', pinPosition: 'pin_position',
 };
 const EDIT_FIELDS = ['title', 'description', 'priority', 'dueDate', 'departmentOwner', 'contractorName', 'contractorDetails', 'scheduledFixAt'];
 

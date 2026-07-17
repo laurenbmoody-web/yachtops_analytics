@@ -8,7 +8,7 @@ import DefectDetail from '../../defects/components/DefectDetail';
 import DefectLogForm from '../../defects/components/DefectLogForm';
 import './DefectPin.css';
 
-export default function DefectPin({ hotspot, scanName, containerTrail, onChanged, onTitled, onCancel, onMode }) {
+export default function DefectPin({ hotspot, scanName, containerTrail, onChanged, onTitled, onClosed, onCancel, onMode }) {
   const actor = useDefectActor();
   const [loading, setLoading] = useState(true);
   const [defect, setDefect] = useState(null);
@@ -53,6 +53,7 @@ export default function DefectPin({ hotspot, scanName, containerTrail, onChanged
     <DefectDetail
       defect={defect}
       onChanged={() => refetchById(defect.id)}
+      onClosed={onClosed}
       locationLabel={locationLabel}
       onEditingChange={(v) => onMode?.(v ? 'form' : 'detail')}
     />
