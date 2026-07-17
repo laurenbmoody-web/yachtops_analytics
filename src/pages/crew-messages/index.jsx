@@ -10,7 +10,7 @@ import {
   markThreadNotificationsRead, acceptQuote, declineQuote, fetchAddableOrders, reactToMessage, deleteMessage, editMessage,
   setThreadArchived, deleteThread, uploadMessageAttachment,
   fetchOrderApprovalSettings, decideOrderApproval, getOrCreateDmThread,
-  fetchThreadsPeople, fetchAddableCrew, addThreadParticipant, removeThreadParticipant,
+  fetchThreadsPeople, fetchAddableCrew, addThreadParticipant, removeThreadParticipant, fetchPersonCard,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -262,9 +262,12 @@ const CrewMessages = () => {
   const [starting, setStarting] = useState(false);   // opening a new DM thread
   const [assignedByThread, setAssignedByThread] = useState({}); // thread_id → assigned contact (read-only; the supplier assigns)
   const [peopleByThread, setPeopleByThread] = useState({});     // thread_id → participant roster
-  const [peopleOpen, setPeopleOpen] = useState(false);          // people panel open
+  const [peopleOpen, setPeopleOpen] = useState(false);          // add-crew picker open
   const [addableCrew, setAddableCrew] = useState([]);           // crew who can be added
+  const [addSearch, setAddSearch] = useState('');               // add-picker search
   const [peopleBusy, setPeopleBusy] = useState(false);
+  const [cardPerson, setCardPerson] = useState(null);           // participant whose card is open
+  const [cardDetail, setCardDetail] = useState(null);           // fetched card detail
   const [approverTier, setApproverTier] = useState('HOD');
   const [myUid, setMyUid] = useState(null);
   const fileRef = useRef(null);
@@ -421,11 +424,13 @@ const CrewMessages = () => {
     finally { setStarting(false); }
   };
 
-  // Group people — pull another crew member into (or out of) the conversation.
+  // The "+" opens the add-crew picker (available people only, grouped by dept).
   const openPeople = async () => {
     if (!activeId) return;
+    setCardPerson(null);
     const next = !peopleOpen;
     setPeopleOpen(next);
+    setAddSearch('');
     if (next) { try { setAddableCrew(await fetchAddableCrew(activeId)); } catch (e) { setError(e.message); } }
   };
   const addCrew = async (userId) => {
@@ -443,10 +448,20 @@ const CrewMessages = () => {
     setPeopleBusy(true); setError(null);
     try {
       await removeThreadParticipant(activeId, userId);
+      setCardPerson(null);
       await load();
       if (peopleOpen) setAddableCrew(await fetchAddableCrew(activeId));
     } catch (e) { setError(e.message); }
     finally { setPeopleBusy(false); }
+  };
+  // Clicking a face opens that person's contact card.
+  const openCard = async (p) => {
+    if (!activeId) return;
+    setPeopleOpen(false);
+    if (cardPerson?.user_id === p.user_id) { setCardPerson(null); return; }
+    setCardPerson(p); setCardDetail(null);
+    try { setCardDetail(await fetchPersonCard(activeId, p.user_id)); }
+    catch (e) { setError(e.message); }
   };
 
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
@@ -743,57 +758,106 @@ const CrewMessages = () => {
                       </div>
                       {(() => {
                         const ppl = peopleByThread[activeId] || [];
-                        const CAP = 6;
+                        const CAP = 12;
                         const shown = ppl.slice(0, CAP);
                         const extra = ppl.length - shown.length;
                         const face = (p) => {
                           const nm = p.name || (p.party === 'crew' ? 'Crew' : 'Supplier');
                           const role = p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'sales'} · supplier`;
                           return (
-                            <span key={p.user_id} className="msg-face" style={{ backgroundImage: faceGrad(p) }} title={`${nm}${p.user_id === myUid ? ' (you)' : ''} — ${role}`}>
+                            <button key={p.user_id} type="button" className="msg-face" style={{ backgroundImage: faceGrad(p) }} title={`${nm}${p.user_id === myUid ? ' (you)' : ''} — ${role}`} onClick={() => openCard(p)}>
                               {initials(nm)}
                               {p.party === 'crew' && p.user_id !== myUid && (
-                                <button type="button" className="msg-face-x" disabled={peopleBusy} title={`Remove ${nm}`} aria-label={`Remove ${nm}`} onClick={(e) => { e.stopPropagation(); removeCrew(p.user_id); }}>×</button>
+                                <span className="msg-face-x" role="button" tabIndex={0} title={`Remove ${nm}`} aria-label={`Remove ${nm}`} onClick={(e) => { e.stopPropagation(); removeCrew(p.user_id); }}>
+                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                                </span>
                               )}
-                            </span>
+                            </button>
                           );
                         };
+                        // Add-picker: available crew, filtered by search, grouped by department.
+                        const q = addSearch.trim().toLowerCase();
+                        const filtered = addableCrew.filter((c) => !q || (c.name || '').toLowerCase().includes(q));
+                        const byDept = new Map();
+                        for (const c of filtered) {
+                          const d = c.department || 'No department';
+                          if (!byDept.has(d)) byDept.set(d, []);
+                          byDept.get(d).push(c);
+                        }
+                        const deptGroups = [...byDept.entries()];
                         return (
                           <div className="msg-people">
                             <div className="msg-facepile">
                               {shown.map(face)}
-                              {extra > 0 && <button type="button" className="msg-face more" onClick={openPeople} title="Show everyone in this chat" aria-label="Show everyone in this chat">+{extra}</button>}
-                              <button type="button" className="msg-face add" onClick={openPeople} title="Add crew to this chat" aria-label="Add crew to this chat">+</button>
+                              {extra > 0 && <button type="button" className="msg-face more" onClick={openPeople} title="Add crew to this chat" aria-label={`${extra} more — add crew`}>+{extra}</button>}
+                              <button type="button" className="msg-face add" onClick={openPeople} title="Add crew to this chat" aria-label="Add crew to this chat">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                              </button>
                             </div>
+
                             {peopleOpen && (
                               <div className="msg-people-menu" role="menu">
-                                <div className="msg-assign-head">In this chat</div>
-                                {ppl.map((p) => {
-                                  const nm = p.name || (p.party === 'crew' ? 'Crew' : 'Supplier');
-                                  return (
-                                    <div key={p.user_id} className="msg-people-row">
-                                      <span className="msg-face sm" style={{ backgroundImage: faceGrad(p) }} aria-hidden>{initials(nm)}</span>
-                                      <span className="msg-people-info">
-                                        <span className="msg-assign-name">{nm + (p.user_id === myUid ? ' (you)' : '')}</span>
-                                        <span className="msg-assign-role">{p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'sales'} · supplier`}</span>
-                                      </span>
-                                      {p.party === 'crew' && p.user_id !== myUid && (
-                                        <button type="button" className="msg-people-x" disabled={peopleBusy} title="Remove from chat" aria-label="Remove from chat" onClick={() => removeCrew(p.user_id)}>×</button>
+                                <div className="msg-add-search">
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+                                  <input type="text" placeholder="Search crew…" value={addSearch} onChange={(e) => setAddSearch(e.target.value)} autoFocus />
+                                </div>
+                                {deptGroups.map(([dept, people]) => (
+                                  <div key={dept} className="msg-add-group">
+                                    <div className="msg-assign-head">{dept}</div>
+                                    {people.map((c) => (
+                                      <button key={c.user_id} type="button" className="msg-assign-opt" disabled={peopleBusy} onClick={() => addCrew(c.user_id)} role="menuitem">
+                                        <span className="msg-face sm" style={{ backgroundImage: avatarGrad(c.user_id) }} aria-hidden>{initials(c.name)}</span>
+                                        <span className="msg-people-info">
+                                          <span className="msg-assign-name">{c.name}</span>
+                                          <span className="msg-assign-role">{(c.tier || '').toLowerCase()}</span>
+                                        </span>
+                                        <span className="msg-add-plus" aria-hidden>＋</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                ))}
+                                {!filtered.length && <div className="msg-assign-empty">{addableCrew.length ? 'No matches' : 'Everyone’s already in'}</div>}
+                              </div>
+                            )}
+
+                            {cardPerson && (
+                              <div className="msg-card" role="dialog" aria-label="Contact card">
+                                <button type="button" className="msg-card-close" onClick={() => setCardPerson(null)} aria-label="Close">×</button>
+                                {!cardDetail ? (
+                                  <div className="msg-card-loading">Loading…</div>
+                                ) : (
+                                  <>
+                                    <div className="msg-card-top">
+                                      {cardDetail.avatar_url
+                                        ? <img className="msg-face lg" src={cardDetail.avatar_url} alt="" />
+                                        : <span className="msg-face lg" style={{ backgroundImage: faceGrad({ party: cardDetail.party, user_id: cardPerson.user_id }) }}>{initials(cardDetail.name)}</span>}
+                                      <div className="msg-card-idblock">
+                                        <div className="msg-card-name">{cardDetail.name}{cardPerson.user_id === myUid ? ' (you)' : ''}</div>
+                                        <div className="msg-card-badges">
+                                          <span className={`msg-card-badge ${cardDetail.party}`}>{cardDetail.party === 'supplier' ? 'Supplier' : 'Crew'}</span>
+                                          {(cardDetail.tier || cardDetail.role) && <span className="msg-card-role">{(cardDetail.tier || cardDetail.role || '').toString().toLowerCase()}</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="msg-card-rows">
+                                      {cardDetail.department && (
+                                        <div className="msg-card-row"><span className="msg-card-k">Department</span><span className="msg-card-v">{cardDetail.department}</span></div>
+                                      )}
+                                      {cardDetail.email
+                                        ? <a className="msg-card-row link" href={`mailto:${cardDetail.email}`}><span className="msg-card-k">Email</span><span className="msg-card-v">{cardDetail.email}</span></a>
+                                        : null}
+                                      {cardDetail.phone
+                                        ? <a className="msg-card-row link" href={`tel:${cardDetail.phone}`}><span className="msg-card-k">Phone</span><span className="msg-card-v">{cardDetail.phone}</span></a>
+                                        : null}
+                                      {!cardDetail.email && !cardDetail.phone && !cardDetail.department && (
+                                        <div className="msg-card-row"><span className="msg-card-v muted">No contact details on file</span></div>
                                       )}
                                     </div>
-                                  );
-                                })}
-                                <div className="msg-assign-head">Add crew</div>
-                                {addableCrew.map((c) => (
-                                  <button key={c.user_id} type="button" className="msg-assign-opt" disabled={peopleBusy} onClick={() => addCrew(c.user_id)} role="menuitem">
-                                    <span className="msg-face sm" style={{ backgroundImage: avatarGrad(c.user_id) }} aria-hidden>{initials(c.name)}</span>
-                                    <span className="msg-people-info">
-                                      <span className="msg-assign-name">{c.name}</span>
-                                      <span className="msg-assign-role">{(c.tier || '').toLowerCase()}</span>
-                                    </span>
-                                  </button>
-                                ))}
-                                {!addableCrew.length && <div className="msg-assign-empty">Everyone’s already in</div>}
+                                    {cardDetail.party === 'crew' && cardPerson.user_id !== myUid && (
+                                      <button type="button" className="msg-card-remove" disabled={peopleBusy} onClick={() => removeCrew(cardPerson.user_id)}>Remove from chat</button>
+                                    )}
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>

@@ -59,6 +59,13 @@ export const fetchAddableCrew = async (threadId) => {
   return data ?? [];
 };
 
+// Full detail for one participant's contact card (crew or supplier).
+export const fetchPersonCard = async (threadId, userId) => {
+  const { data, error } = await supabase.rpc('fetch_thread_person_card', { p_thread_id: threadId, p_user_id: userId });
+  if (error) throw error;
+  return data || null;
+};
+
 // Add / remove a person on a thread (group). Party 'crew' for a tenant member.
 export const addThreadParticipant = async (threadId, userId, party = 'crew') => {
   const { error } = await supabase.rpc('add_thread_participant', { p_thread: threadId, p_user_id: userId, p_party: party });
