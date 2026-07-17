@@ -722,9 +722,9 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   const layersControl = (variant) => (
     <div className={`vm-layers${variant ? ` ${variant}` : ''}`}>
       <button type="button" className={`vm-layers-btn${layersOpen ? ' open' : ''}`}
-        onClick={() => setLayersOpen((v) => !v)} title="Show / hide pin layers">
-        <Icon name="Layers" size={15} />
-        <span>Layers</span>
+        onClick={() => setLayersOpen((v) => !v)} title="Filter which pins show">
+        <Icon name="Filter" size={15} />
+        <span>Filters</span>
         <span className="vm-layers-n">{activeLayerCount}/{relevantLayers.length}</span>
         <Icon name={layersOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
       </button>
@@ -787,25 +787,22 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
 
           {!scansLoading && scans.length > 0 && (
             <>
-              {(scans.length > 1 || canPlaceHotspots) && (
-                <div className="vm-topbar-row">
-                  {scans.length > 1 && (
-                    <RoomPicker scans={scans} selectedScanId={selectedScanId} onSelect={setSelectedScanId} />
-                  )}
-                  {canPlaceHotspots && (
-                    <button
-                      className="vm-btn-ghost vm-topbar-manage"
-                      onClick={() => navigate('/settings/vessel?section=location-management')}
-                    >
-                      Manage scans
-                    </button>
-                  )}
-                </div>
-              )}
+              <div className="vm-topbar-row">
+                {scans.length > 1 && (
+                  <RoomPicker scans={scans} selectedScanId={selectedScanId} onSelect={setSelectedScanId} />
+                )}
+                <div className="vm-topbar-filters">{layersControl('')}</div>
+                {canPlaceHotspots && (
+                  <button
+                    className="vm-btn-ghost vm-topbar-manage"
+                    onClick={() => navigate('/settings/vessel?section=location-management')}
+                  >
+                    Manage scans
+                  </button>
+                )}
+              </div>
 
               <div className="vm-toolbar">
-                <div className="vm-layer-chips">{layersControl('')}</div>
-
                 {canPlaceHotspots && (
                   <button className="vm-btn-ghost vm-toolbar-manage" onClick={() => navigate('/settings/vessel?section=location-management')}>
                     Manage scans
@@ -968,11 +965,8 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   raised={!!openContainer}
                 />
 
-                {/* ≥1024px: the layer chips float on the dark stage. The room
-                    name + title live above the map, so no breadcrumb here. */}
-                <div className="vm-stage-overlay">
-                  <div className="vm-ov-chips">{layersControl('vm-chip-dark')}</div>
-                </div>
+                {/* Filters now live in the top bar above the map, so the stage
+                    stays clear for the tool rail. */}
 
                 {/* Doorways EDIT mode (rail tool) — placement lives here, not in
                     an always-on bar. */}

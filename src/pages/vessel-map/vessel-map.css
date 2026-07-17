@@ -41,9 +41,7 @@
 .vm-picker-loading { flex: 1; display: flex; align-items: center; justify-content: center; color: #8B8478; font-size: 13px; }
 
 .vm-headblock {
-  padding-bottom: 18px;
-  border-bottom: 1px solid #F0F1F5;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 /* ── Section labels (tracked caps) ─────────────────────────────────────── */
@@ -90,8 +88,9 @@
   flex: none;
 }
 
-/* Top bar above the map — room picker (left) + manage scans (right) */
+/* Top bar above the map — room picker + filters (left) · manage scans (right) */
 .vm-topbar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.vm-topbar-filters { flex: none; }
 .vm-topbar-manage { display: none; } /* mobile keeps it in the in-stage toolbar */
 @media (min-width: 1024px) {
   .vm-topbar-manage { display: inline-flex; margin-left: auto; }
@@ -116,11 +115,9 @@
 .vm-roompick-search { display: flex; align-items: center; gap: 8px; margin: 8px; padding: 8px 11px;
   border: 1px solid #E8E6DF; border-radius: 9px; background: #FAFAF8; transition: border-color .12s, box-shadow .12s; }
 .vm-roompick-search:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
-/* When the a11y focus ring is on, wrap the whole rounded field — not the inner
-   text box, which drew a boxy outline. Scoped high enough to beat the global. */
+/* Kill the boxy a11y outline on the inner text box — the rounded field border +
+   halo above is the focus indicator. Scoped high enough to beat the global rule. */
 :root[data-focus-rings="true"] .vm-roompick-search input:focus-visible { outline: none !important; }
-:root[data-focus-rings="true"] .vm-roompick-search:focus-within {
-  outline: 3px solid #C65A1A; outline-offset: 2px; border-radius: 9px; }
 .vm-roompick-search > svg { color: #AEB4C2; flex: none; }
 .vm-roompick-search input { flex: 1; border: 0; outline: none; background: none; font-family: inherit;
   font-size: 13.5px; color: #1C1B3A; }
@@ -190,7 +187,7 @@
 .vm-layers.vm-chip-dark .vm-layers-btn > svg { color: #8B8478; }
 .vm-layers.vm-chip-dark .vm-layers-n { color: #C65A1A; }
 
-.vm-layers-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 20; width: 234px; padding: 6px;
+.vm-layers-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 26; width: 234px; padding: 6px;
   background: #fff; border: 1px solid #ECEAE3; border-radius: 13px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); }
 .vm-layers-row { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 9px 10px;
@@ -266,9 +263,7 @@
     border-color: #1A1D3F;
   }
 
-  /* The meta strip and chip row move onto the canvas; the serif headline
-     stays in the cream shell. */
-  .vm-headblock .editorial-meta { display: none; }
+  /* The meta strip stays above the header; filters live in the top bar. */
   .vm-toolbar .vm-layer-chips { display: none; }
 
   .vm-stage-overlay {
