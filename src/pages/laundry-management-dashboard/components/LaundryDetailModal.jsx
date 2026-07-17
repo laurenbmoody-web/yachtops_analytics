@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import { LaundryStatus, LaundryPriority, formatLaundryTag, updateLaundryStatus, updateLaundryItem, getLaundryEvents } from '../utils/laundryStorage';
+import { isLaundryOffline, enqueueOfflineStatus } from '../utils/laundryOfflineQueue';
 import '../laundry.css';
 
 const EVENT_LABEL = { created: 'Added', ready: 'Marked ready', delivered: 'Delivered', reopened: 'Reopened', edited: 'Edited', updated: 'Updated' };
@@ -41,11 +42,18 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
   const avatarUrl = item?.avatarUrl;
 
   const advance = async (newStatus) => {
-    const updated = await updateLaundryStatus(item.id, newStatus);
-    // keep the already-signed photo URLs + avatar (status change doesn't touch them)
-    if (updated) setItem({ ...updated, photos: item.photos, photo: item.photo, avatarUrl });
-    loadEvents();
-    onUpdated?.();
+    const applyLocal = () => setItem({ ...item, status: newStatus, ...(newStatus === LaundryStatus?.DELIVERED ? { deliveredAt: new Date().toISOString() } : {}) });
+    if (isLaundryOffline()) { await enqueueOfflineStatus(item.id, newStatus); applyLocal(); onUpdated?.(); return; }
+    try {
+      const updated = await updateLaundryStatus(item.id, newStatus);
+      // keep the already-signed photo URLs + avatar (status change doesn't touch them)
+      if (updated) setItem({ ...updated, photos: item.photos, photo: item.photo, avatarUrl });
+      loadEvents();
+      onUpdated?.();
+    } catch (e) {
+      if (e?.code === 'OFFLINE') { await enqueueOfflineStatus(item.id, newStatus); applyLocal(); onUpdated?.(); }
+      else console.error('[laundry] detail advance failed', e);
+    }
   };
 
   // apply an edit (flag / handling) and keep the signed photos + avatar

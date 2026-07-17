@@ -7,7 +7,7 @@ import LaundryItemRow from './components/LaundryItemRow';
 import CabinView from './components/CabinView';
 import LaundryDetailModal from './components/LaundryDetailModal';
 import { FilterMenu, SortMenu } from './components/LaundryFilters';
-import { subscribeOffline, pendingOfflineItems, drainOfflineLaundry } from './utils/laundryOfflineQueue';
+import { subscribeOffline, pendingOfflineItems, drainOfflineLaundry, isLaundryOffline, enqueueOfflineStatus, pendingStatusMap } from './utils/laundryOfflineQueue';
 import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay } from './utils/laundryStorage';
 import { turnaroundStats, fmtDur } from './utils/laundryStats';
 import { enrichWithAvatars } from './utils/laundryAvatars';
@@ -181,8 +181,21 @@ const LaundryManagementDashboard = () => {
   const loadLaundryItems = async () => {
     const [{ openItems, deliveredToday }, all] = await Promise.all([getTodayViewItems(), loadAllLaundryItems()]);
     const today = await enrichWithAvatars([...openItems, ...deliveredToday]);
-    setLaundryItems(today);
-    setAllItems(all);
+    // Keep any offline status change visible until it syncs.
+    const over = pendingStatusMap();
+    const apply = (arr) => (Object.keys(over).length ? arr.map((i) => (over[i.id] ? { ...i, status: over[i.id] } : i)) : arr);
+    setLaundryItems(apply(today));
+    setAllItems(apply(all));
+  };
+
+  // Reflect a status change locally straight away (offline path — the server
+  // write is queued, so we can't reload from it).
+  const applyLocalStatus = (id, status) => {
+    const patch = (arr) => arr.map((i) => (i.id === id
+      ? { ...i, status, ...(status === LaundryStatus?.DELIVERED ? { deliveredAt: new Date().toISOString() } : {}) }
+      : i));
+    setLaundryItems((prev) => patch(prev));
+    setAllItems((prev) => patch(prev));
   };
 
   // Keep the turnaround stats fed alongside the today view.
@@ -192,20 +205,46 @@ const LaundryManagementDashboard = () => {
   // refresh) the moment connectivity returns or the page loads with a backlog.
   const [pendingOffline, setPendingOffline] = useState(pendingOfflineItems());
   useEffect(() => {
-    const unsub = subscribeOffline(() => setPendingOffline(pendingOfflineItems()));
+    const unsub = subscribeOffline(() => {
+      setPendingOffline(pendingOfflineItems());
+      // Re-apply any offline status changes (e.g. queued from the detail modal).
+      const over = pendingStatusMap();
+      if (Object.keys(over).length) {
+        const patch = (arr) => arr.map((i) => (over[i.id] ? { ...i, status: over[i.id] } : i));
+        setLaundryItems((prev) => patch(prev));
+        setAllItems((prev) => patch(prev));
+      }
+    });
     const sync = () => drainOfflineLaundry().then((r) => { if (r.synced) loadLaundryItems(); });
     window.addEventListener('online', sync);
     sync();
     return () => { unsub(); window.removeEventListener('online', sync); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const queueStatusOffline = async (items, status) => {
+    for (const i of items) { await enqueueOfflineStatus(i.id, status); applyLocalStatus(i.id, status); }
+  };
   const handleBulkDeliver = async (readyItems) => {
-    await Promise.all((readyItems || []).map((i) => updateLaundryStatus(i.id, LaundryStatus?.DELIVERED)));
-    loadLaundryItems();
+    const items = readyItems || [];
+    if (isLaundryOffline()) { await queueStatusOffline(items, LaundryStatus?.DELIVERED); return; }
+    try {
+      await Promise.all(items.map((i) => updateLaundryStatus(i.id, LaundryStatus?.DELIVERED)));
+      loadLaundryItems();
+    } catch (e) {
+      if (e?.code === 'OFFLINE') await queueStatusOffline(items, LaundryStatus?.DELIVERED);
+      else console.error('[laundry] bulk deliver failed', e);
+    }
   };
 
   const handleAddSuccess = () => { setShowAddModal(false); setEditItem(null); loadLaundryItems(); };
-  const handleAdvance = async (item, status) => { await updateLaundryStatus(item.id, status); loadLaundryItems(); };
+  const handleAdvance = async (item, status) => {
+    if (isLaundryOffline()) { await enqueueOfflineStatus(item.id, status); applyLocalStatus(item.id, status); return; }
+    try { await updateLaundryStatus(item.id, status); loadLaundryItems(); }
+    catch (e) {
+      if (e?.code === 'OFFLINE') { await enqueueOfflineStatus(item.id, status); applyLocalStatus(item.id, status); }
+      else console.error('[laundry] advance failed', e);
+    }
+  };
   const openEdit = (it) => { setDetailItem(null); setEditItem(it); };
   const confirmResetDay = async () => { if (await manualResetDay()) await loadLaundryItems(); setShowResetModal(false); };
 

@@ -7,7 +7,7 @@
 // Scope: NEW adds only. Edits/status changes need the row to already exist on
 // the server, so they aren't queued.
 
-import { createLaundryItem, LaundryStatus, LaundryPriority } from './laundryStorage';
+import { createLaundryItem, updateLaundryStatus, LaundryStatus, LaundryPriority } from './laundryStorage';
 import { showToast } from '../../../utils/toast';
 
 const DB_NAME = 'cargo-laundry-offline';
@@ -91,15 +91,35 @@ function toDisplay(rec) {
   };
 }
 
-export function pendingOfflineItems() { return cache.map(toDisplay); }
+// Only the queued *adds* render as pending rows; status changes show on the
+// existing item optimistically (see pendingStatusMap).
+export function pendingOfflineItems() { return cache.filter((r) => r.kind !== 'status').map(toDisplay); }
+
+// itemId → most-recent queued status, so the list can show the new state while
+// the change waits to sync.
+export function pendingStatusMap() {
+  const map = {};
+  cache.filter((r) => r.kind === 'status').forEach((r) => { map[r.itemId] = r.status; });
+  return map;
+}
 
 // Queue a new add. Returns a synthetic pending item for optimistic display.
 export async function enqueueOfflineLaundry(itemData) {
-  const rec = { id: uuid(), createdAt: new Date().toISOString(), itemData };
+  const rec = { id: uuid(), createdAt: new Date().toISOString(), kind: 'add', itemData };
   await write(rec);
   await refresh();
   showToast('Saved offline — it’ll sync when you’re back online', 'info');
   return toDisplay(rec);
+}
+
+// Queue a status change (Mark ready / Deliver) for an item that already exists
+// on the server. Collapses to the latest status per item.
+export async function enqueueOfflineStatus(itemId, status) {
+  const rec = { id: uuid(), createdAt: new Date().toISOString(), kind: 'status', itemId, status };
+  await write(rec);
+  await refresh();
+  showToast('Saved offline — it’ll sync when you’re back online', 'info');
+  return rec;
 }
 
 // Replay everything queued, oldest first. Stops on the first failure so items
@@ -112,7 +132,8 @@ export async function drainOfflineLaundry() {
     const items = await readAll();
     for (const rec of items) {
       try {
-        await createLaundryItem(rec.itemData);
+        if (rec.kind === 'status') await updateLaundryStatus(rec.itemId, rec.status);
+        else await createLaundryItem(rec.itemData);
         await remove(rec.id);
         synced += 1;
       } catch (err) {
