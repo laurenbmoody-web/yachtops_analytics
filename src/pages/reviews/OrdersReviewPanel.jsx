@@ -91,6 +91,12 @@ export default function OrdersReviewPanel({ items, loading, selectedId, onSelect
                     <span>{it.primary_dept}</span>
                   </>
                 )}
+                {it.kind === 'order' && it.total != null && (
+                  <>
+                    <span aria-hidden="true" style={{ margin: '0 6px' }}>·</span>
+                    <strong>{({ GBP: '£', USD: '$', EUR: '€' }[it.currency] || '€')}{Number(it.total).toLocaleString('en-GB', { maximumFractionDigits: 0 })}</strong>
+                  </>
+                )}
               </div>
             </button>
           ))
