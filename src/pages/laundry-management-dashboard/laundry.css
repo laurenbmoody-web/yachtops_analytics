@@ -71,6 +71,9 @@
 }
 .lm-btn.ghost { background: #FFFFFF; color: #1C1B3A; border-color: #E5E7EB; }
 .lm-btn.ghost:hover { border-color: #C9CED6; }
+.lm-btn.ghost.on { color: #C65A1A; border-color: #C65A1A; background: #FBEFE9; }
+.lm-btn.ghost.on svg { stroke: #C65A1A; }
+.lm-btn:disabled { opacity: 0.6; cursor: default; }
 .lm-btn.primary { background: #C65A1A; color: #FFFFFF; }
 .lm-btn.primary:hover { background: #B14E16; }
 
