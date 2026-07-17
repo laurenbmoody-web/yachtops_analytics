@@ -311,6 +311,11 @@ const SupplierMessages = () => {
     getOrCreateThread(supplierId, yachtParam, orderParam || null)
       .then((thread) => {
         if (cancelled) return;
+        if (!thread) {
+          setError('This yacht hasn’t opened a conversation with you yet — they start the chat from their side.');
+          setParams({}, { replace: true });
+          return;
+        }
         setThreads((prev) => (prev.some((t) => t.id === thread.id) ? prev : [thread, ...prev]));
         setActiveId(thread.id);
         if (draftParam) setDraft(draftParam);
@@ -636,13 +641,14 @@ const SupplierMessages = () => {
   };
   const contactThread = (t) => navigate(`/supplier/clients/${t.tenant_id}`);
 
-  // Start (or surface) the vessel's general thread so a fresh chat can begin —
-  // the empty general is hidden from the list until it has messages.
+  // Reopen the vessel's general thread with this supplier. A supplier can't
+  // START a conversation any more (the vessel opens private DMs), so this only
+  // surfaces an existing general thread — the button is hidden otherwise.
   const startNewChat = async (g) => {
     setCollapsed((prev) => { const n = new Set(prev); n.delete(g.tenantId); return n; });
     try {
       const thread = g.general || (await getOrCreateThread(supplierId, g.tenantId, null));
-      if (!g.general) await loadThreads();
+      if (!thread) { setError('New conversations are started by the vessel.'); return; }
       setActiveId(thread.id);
       requestAnimationFrame(() => taRef.current?.focus());
     } catch (e) { setError(e.message); }
@@ -788,9 +794,11 @@ const SupplierMessages = () => {
                           {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : g.threads.length > 0 && <span className="msg-grp-count">{g.threads.length}</span>}
                         </span>
                       </button>
-                      <button type="button" className="msg-grp-new" title={`New chat with ${g.name}`} aria-label="Start a new chat" onClick={() => startNewChat(g)}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                      </button>
+                      {g.general && (
+                        <button type="button" className="msg-grp-new" title={`Reopen general chat with ${g.name}`} aria-label="Reopen general chat" onClick={() => startNewChat(g)}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                        </button>
+                      )}
                     </div>
                     {!isCollapsed && g.threads.map((t) => (
                       <ThreadRow

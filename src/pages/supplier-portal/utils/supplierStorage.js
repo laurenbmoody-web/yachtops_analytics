@@ -804,9 +804,11 @@ export const fetchMessageThreads = async (supplierId) => {
   return data ?? [];
 };
 
-// Find or open the thread between this supplier and a yacht for a given order
-// (or the general, order-less thread when orderId is null). Threads are keyed
-// per order so a vessel can hold several conversations at once.
+// Find the existing thread between this supplier and a yacht (the order-less
+// "general" one when orderId is null). Threads are now private DMs the VESSEL
+// opens — a supplier can't initiate — so this only ever reads and returns null
+// when no conversation exists yet. RLS further scopes it to threads this
+// supplier user is a participant of.
 export const getOrCreateThread = async (supplierId, tenantId, orderId = null) => {
   let sel = supabase
     .from('supplier_message_threads')
@@ -814,17 +816,12 @@ export const getOrCreateThread = async (supplierId, tenantId, orderId = null) =>
     .eq('supplier_id', supplierId)
     .eq('tenant_id', tenantId);
   sel = orderId ? sel.eq('order_id', orderId) : sel.is('order_id', null);
-  const { data: existing, error: selErr } = await sel.maybeSingle();
-  if (selErr) throw selErr;
-  if (existing) return existing;
-
-  const { data, error } = await supabase
-    .from('supplier_message_threads')
-    .insert({ supplier_id: supplierId, tenant_id: tenantId, order_id: orderId })
-    .select('*, tenants(id, name)')
-    .single();
+  const { data, error } = await sel
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
   if (error) throw error;
-  return data;
+  return data ?? null;
 };
 
 // Archive / restore a thread — the inbox close-out. Archiving hides it from the

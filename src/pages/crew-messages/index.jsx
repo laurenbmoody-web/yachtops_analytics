@@ -9,7 +9,7 @@ import {
   fetchVesselThreads, fetchThreadMessages, sendVesselMessage, markThreadReadVessel,
   markThreadNotificationsRead, acceptQuote, declineQuote, reactToMessage, deleteMessage, editMessage,
   setThreadArchived, deleteThread, uploadMessageAttachment,
-  fetchOrderApprovalSettings, decideOrderApproval,
+  fetchOrderApprovalSettings, decideOrderApproval, getOrCreateDmThread,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -247,6 +247,7 @@ const CrewMessages = () => {
   const [declineReason, setDeclineReason] = useState('');
   const [attachments, setAttachments] = useState([]); // pending upload descriptors
   const [uploading, setUploading] = useState(false);
+  const [starting, setStarting] = useState(false);   // opening a new DM thread
   const [approverTier, setApproverTier] = useState('HOD');
   const [myUid, setMyUid] = useState(null);
   const fileRef = useRef(null);
@@ -381,13 +382,21 @@ const CrewMessages = () => {
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) { e.preventDefault(); send(); } };
   const quick = (text) => { setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text)); taRef.current?.focus(); };
 
-  // Open (surface) the supplier's general thread to start a fresh chat — the
-  // empty general is hidden from the list until it has messages.
-  const startNewChat = (g) => {
-    if (!g?.general) return;
+  // Start (or reopen) my own private thread with this supplier. Reuses my
+  // existing general DM if I already have one in the list; otherwise the RPC
+  // opens a fresh 1:1 (stamping me as a participant so the new RLS lets me in).
+  const startNewChat = async (g) => {
+    if (!g || starting) return;
     setCollapsed((prev) => { const n = new Set(prev); n.delete(g.supplierId); return n; });
-    setActiveId(g.general.id);
-    requestAnimationFrame(() => taRef.current?.focus());
+    if (g.general) { setActiveId(g.general.id); requestAnimationFrame(() => taRef.current?.focus()); return; }
+    setStarting(true);
+    try {
+      const thread = await getOrCreateDmThread(g.supplierId, activeTenantId);
+      await load();
+      setActiveId(thread.id);
+      requestAnimationFrame(() => taRef.current?.focus());
+    } catch (e) { setError(e.message); }
+    finally { setStarting(false); }
   };
 
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
@@ -604,11 +613,9 @@ const CrewMessages = () => {
                               {g.unread > 0 ? <span className="msg-grp-un">{g.unread}</span> : g.threads.length > 0 && <span className="msg-grp-count">{g.threads.length}</span>}
                             </span>
                           </button>
-                          {g.general && (
-                            <button type="button" className="msg-grp-new" title={`New chat with ${g.name}`} aria-label="Start a new chat" onClick={() => startNewChat(g)}>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                            </button>
-                          )}
+                          <button type="button" className="msg-grp-new" title={`New chat with ${g.name}`} aria-label="Start a new chat" disabled={starting} onClick={() => startNewChat(g)}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                          </button>
                         </div>
                         {!isCollapsed && g.threads.map((t) => (
                           <CrewThreadRow
