@@ -7,6 +7,7 @@
   --vh-hair:#E4E8EF; --vh-soft:#EEF1F6;
   background:#F8FAFC;min-height:100vh;
   font-family:'Manrope','Inter',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
 }
 html[data-theme="night"] .vh-page{
   --vh-ink:#ECEEF8; --vh-muted:#9AA0B4; --vh-faint:#6A6F82;
