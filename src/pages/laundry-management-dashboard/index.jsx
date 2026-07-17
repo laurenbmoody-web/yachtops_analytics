@@ -19,6 +19,8 @@ import './laundry.css';
 const SORTS = [
   { val: 'newest', label: 'Newest first' },
   { val: 'oldest', label: 'Oldest first' },
+  { val: 'priority', label: 'Priority (needs attention)' },
+  { val: 'due', label: 'Needed by (most overdue)' },
   { val: 'owner', label: 'Owner A–Z' },
 ];
 
@@ -246,8 +248,18 @@ const LaundryManagementDashboard = () => {
     }
     // sort
     const ts = (x) => new Date(x?.createdAt || 0).getTime();
+    const due = (x) => (x?.neededBy ? new Date(x.neededBy).getTime() : Infinity); // no deadline → sinks last
+    // Priority rank: urgent → other attention (overdue/missing/damaged) → normal open → delivered.
+    const prank = (x) => {
+      if (x?.status === LaundryStatus?.DELIVERED) return 3;
+      if (x?.priority === LaundryPriority?.URGENT) return 0;
+      if (isAttentionItem(x)) return 1;
+      return 2;
+    };
     filtered = filtered.slice().sort((a, b) => {
       if (sortBy === 'owner') return (a?.ownerName || '').localeCompare(b?.ownerName || '');
+      if (sortBy === 'priority') return (prank(a) - prank(b)) || (due(a) - due(b)) || (ts(b) - ts(a));
+      if (sortBy === 'due') return (due(a) - due(b)) || (ts(b) - ts(a));
       return sortBy === 'oldest' ? ts(a) - ts(b) : ts(b) - ts(a);
     });
     setFilteredItems(filtered);
