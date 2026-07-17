@@ -206,4 +206,26 @@ export function buildLogbook(trips, items, now = new Date()) {
   return { periods, crew, hasAny: (items || []).length > 0 };
 }
 
+// Rebuild a period's item-derived stats from a narrower item set — used to
+// bound the (unbounded, continuous) crew ledger to a window for export/report.
+export function rescopePeriod(period, items, label) {
+  const s = summarise(items);
+  const people = peopleFrom(items);
+  const months = new Set(items.map((i) => (i.createdAt || '').slice(0, 7)).filter(Boolean)).size;
+  return {
+    ...period,
+    items,
+    people,
+    ...s,
+    avgMin: avgTurnaround(items),
+    care: careFrom(items),
+    carePace: carePace(items),
+    team: teamFrom(items),
+    days: daysFrom(items),
+    dates: label || period.dates,
+    kpiA: [String(people.length), people.length === 1 ? 'Member' : 'Members'],
+    kpiB: [String(months), months === 1 ? 'Month' : 'Months'],
+  };
+}
+
 export { initials };

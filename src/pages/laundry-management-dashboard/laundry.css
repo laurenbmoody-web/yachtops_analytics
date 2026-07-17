@@ -1010,7 +1010,8 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-pg-ct { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6E6B85; background: #F8FAFC; border: 1px solid #ECECEE; border-radius: 999px; padding: 1px 9px; flex: none; }
 .lb-pg .lb-ri { padding: 6px 0 6px 40px; }
 .lb-export { display: inline-flex; align-items: center; gap: 6px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; background: #FFFFFF; border: 1px solid #F0DDD2; border-radius: 9px; padding: 7px 12px; cursor: pointer; }
-.lb-exports { display: flex; gap: 8px; flex: none; }
+.lb-exports { display: flex; align-items: center; gap: 8px; flex: none; }
+.lb-export-note { font: 600 10px 'Plus Jakarta Sans', system-ui, sans-serif; color: #AEB4C2; letter-spacing: 0.02em; }
 .lb-export:hover { background: #FBEFE9; }
 .lb-export svg { width: 14px; height: 14px; stroke: currentColor; }
 .lb-hero-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }

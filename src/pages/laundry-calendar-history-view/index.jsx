@@ -7,7 +7,7 @@ import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
 import { resolveLaundryPhotos } from '../laundry-management-dashboard/utils/laundryPhotos';
-import { buildLogbook, initials } from '../laundry-management-dashboard/utils/laundryLogbook';
+import { buildLogbook, initials, rescopePeriod } from '../laundry-management-dashboard/utils/laundryLogbook';
 import { downloadLaundryCsv } from '../laundry-management-dashboard/utils/laundryExport';
 import { openTripReport } from '../laundry-management-dashboard/utils/laundryReport';
 import LaundryDetailModal from '../laundry-management-dashboard/components/LaundryDetailModal';
@@ -98,6 +98,17 @@ const clockHands = (min) => {
   return { mx, my, hx, hy };
 };
 
+// Crew laundry is a continuous, ever-growing ledger — bound its export/report
+// to the most recent window so the file/document stays sensible. Guests are
+// naturally capped by voyage, so they pass through untouched.
+const CREW_EXPORT_DAYS = 90;
+const scopeForExport = (p) => {
+  if (p?.type !== 'crew') return p;
+  const cutoff = Date.now() - CREW_EXPORT_DAYS * 86400000;
+  const items = (p.items || []).filter((it) => new Date(it.deliveredAt || it.createdAt).getTime() >= cutoff);
+  return rescopePeriod(p, items, `Last ${CREW_EXPORT_DAYS} days`);
+};
+
 const Detail = ({ p, onExport, onOpenItem, vessel }) => {
   const [open, setOpen] = useState(null);
   const [openDay, setOpenDay] = useState(null);
@@ -135,12 +146,13 @@ const Detail = ({ p, onExport, onOpenItem, vessel }) => {
           </div>
           {(p.items || []).length > 0 && (
             <div className="lb-exports">
-              <button type="button" className="lb-export" onClick={() => openTripReport(p, vessel)}>
+              <button type="button" className="lb-export" onClick={() => openTripReport(scopeForExport(p), vessel)}>
                 <Icon name="Printer" size={14} /> Report
               </button>
               <button type="button" className="lb-export" onClick={() => onExport(p)}>
                 <Icon name="Download" size={14} /> CSV
               </button>
+              {p.type === 'crew' && <span className="lb-export-note">last {CREW_EXPORT_DAYS} days</span>}
             </div>
           )}
         </div>
@@ -424,7 +436,7 @@ const LaundryHistoryView = () => {
   const live = book.periods.filter((p) => p.live);
   const past = book.periods.filter((p) => !p.live);
 
-  const onExport = (p) => downloadLaundryCsv(p.items, `laundry-${p.name}-${p.dates}`);
+  const onExport = (p) => { const s = scopeForExport(p); downloadLaundryCsv(s.items, `laundry-${s.name}-${s.dates}`); };
 
   // calendar: delivered-per-day for the shown month + the selected day's returned items
   const deliveredByDay = useMemo(() => {
