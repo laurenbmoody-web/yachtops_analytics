@@ -13,10 +13,18 @@ Interpret it for the crew.
 Return ONLY valid JSON (no markdown, no commentary) in this exact shape:
 {
   "summary": "one short plain-English line, e.g. 'Hand wash cold, hang dry, cool iron'",
-  "instructions": ["short do/don't lines in plain English"],
-  "warnings": ["critical warnings only, e.g. 'Do not tumble dry', 'Do not bleach'"],
-  "tags": ["subset of EXACTLY these keys that clearly apply: HandWash, DryClean, Iron, Delicate, StainTreat, Express"]
+  "instructions": ["short positive do-this lines only (put don'ts under warnings)"],
+  "warnings": ["critical don'ts only, e.g. 'Do not tumble dry', 'Do not bleach'"],
+  "tags": ["care actions the crew must take, from EXACTLY these keys: HandWash, DryClean, Iron, Delicate"]
 }
+
+Tag rules — be conservative, only tag what the label REQUIRES:
+- HandWash: only if hand washing is the required method.
+- DryClean: only if the label says dry clean ONLY / must be dry cleaned. NEVER tag this just because it is 'dry clean safe' or machine-washable.
+- Delicate: only if a delicate/gentle cycle or delicate handling is required.
+- Iron: only if ironing is called for (include the heat if noted). Omit if 'do not iron'.
+If none clearly apply, return an empty tags array.
+
 If the image is not a care label, return {"summary":"That doesn't look like a care label — try a closer photo.","instructions":[],"warnings":[],"tags":[]}.`;
 
 export async function readCareLabel(file) {
