@@ -2,12 +2,7 @@ import React, { useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import { LaundryStatus, LaundryPriority, formatLaundryTag } from '../utils/laundryStorage';
 
-const STAT = {
-  [LaundryStatus?.IN_PROGRESS]: { cls: 'prog', label: 'In prog' },
-  [LaundryStatus?.READY_TO_DELIVER]: { cls: 'ready', label: 'Ready' },
-  [LaundryStatus?.DELIVERED]: { cls: 'deliv', label: 'Delivered' },
-};
-const statusRank = (s) => (s === LaundryStatus?.IN_PROGRESS ? 0 : s === LaundryStatus?.READY_TO_DELIVER ? 1 : 2);
+const statusRank = (s) =>(s === LaundryStatus?.IN_PROGRESS ? 0 : s === LaundryStatus?.READY_TO_DELIVER ? 1 : 2);
 const ownerKind = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : 'unknown'; };
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
 
@@ -70,7 +65,6 @@ const CabinCard = ({ g, onBulkDeliver, onOpen, onAdvance }) => {
 
       <div className="lc-items">
         {g.list.map((it) => {
-          const st = STAT[it?.status] || STAT[LaundryStatus?.READY_TO_DELIVER];
           const photos = Array.isArray(it?.photos) && it.photos.length ? it.photos : (it?.photo ? [it.photo] : []);
           const urgent = it?.priority === LaundryPriority?.URGENT && it?.status !== LaundryStatus?.DELIVERED;
           const bits = [];
@@ -89,16 +83,18 @@ const CabinCard = ({ g, onBulkDeliver, onOpen, onAdvance }) => {
                 <div className="lc-ci-meta">{bits.reduce((acc, el, i) => (i ? [...acc, <span key={`s${i}`} style={{ color: '#AEB4C2' }}>·</span>, el] : [el]), [])}</div>
               </div>
               <div className="lc-ci-right">
-                <span className={`lc-stat ${st.cls}`}>{st.label}</span>
                 {it?.status === LaundryStatus?.IN_PROGRESS && (
                   <button type="button" className="lc-qa" onClick={(e) => { e.stopPropagation(); onAdvance?.(it, LaundryStatus?.READY_TO_DELIVER); }}>
-                    <Icon name="Check" size={12} /> Ready
+                    <Icon name="Check" size={12} /> Mark ready
                   </button>
                 )}
                 {it?.status === LaundryStatus?.READY_TO_DELIVER && (
                   <button type="button" className="lc-qa go" onClick={(e) => { e.stopPropagation(); onAdvance?.(it, LaundryStatus?.DELIVERED); }}>
                     <Icon name="ArrowRight" size={12} /> Deliver
                   </button>
+                )}
+                {it?.status === LaundryStatus?.DELIVERED && (
+                  <span className="lc-done"><Icon name="Check" size={12} /> Delivered</span>
                 )}
               </div>
             </div>
