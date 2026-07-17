@@ -42,12 +42,37 @@
 .dd-warranty.active { color: #2E7D5A; }
 .dd-warranty.active svg { color: #2E7D5A; }
 
-.dd-cols { display: grid; grid-template-columns: 1.55fr 1fr; }
-@media (max-width: 760px) { .dd-cols { grid-template-columns: 1fr; } }
+.dd-cols { display: grid; grid-template-columns: 1.6fr 296px; transition: grid-template-columns .26s ease; }
+.dd-cols.dd-rail-shut { grid-template-columns: 1fr 46px; }
+@media (max-width: 760px) { .dd-cols, .dd-cols.dd-rail-shut { grid-template-columns: 1fr; } }
 
 .dd-main { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; border-right: 1px solid #ECEAE3; min-width: 0; }
 @media (max-width: 760px) { .dd-main { border-right: 0; border-bottom: 1px solid #ECEAE3; } }
-.dd-rail { padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; background: #FAFAF8; min-width: 0; }
+.dd-rail { padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; background: #FAFAF8; min-width: 0; overflow: hidden; }
+.dd-rail-shut .dd-rail { padding: 12px 6px; }
+
+/* work tabs (left pane) */
+.dd-wtabs { display: flex; gap: 2px; border-bottom: 1px solid #ECEAE3; margin-bottom: 2px; }
+.dd-wtab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  padding: 9px 13px; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #8B8478; cursor: pointer; white-space: nowrap; }
+.dd-wtab:hover { color: #1C1B3A; }
+.dd-wtab.on { color: #C65A1A; border-color: #C65A1A; }
+.dd-wpane { display: flex; flex-direction: column; gap: 16px; }
+
+/* rail collapse handle + mini strip */
+.dd-rail-top { display: flex; justify-content: flex-end; margin: -4px -4px 2px 0; }
+.dd-rail-collapse { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #ECEAE3; background: #fff; color: #8B8478;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.dd-rail-collapse:hover { color: #C65A1A; border-color: #C65A1A; }
+.dd-rail-mini { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.dd-mini-status { padding: 6px !important; gap: 0 !important; }
+.dd-mini-status .cd { width: 8px; height: 8px; }
+.dd-mini-av { width: 28px; height: 28px; }
+
+/* facts "more" toggle */
+.dd-more-toggle { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 8px 0 0;
+  font-family: inherit; font-size: 11.5px; font-weight: 600; color: #C65A1A; cursor: pointer; }
+.dd-more-toggle:hover { color: #B14E16; }
 
 .dd-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0 0 8px; }
 
