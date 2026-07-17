@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
-import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays } from '../laundry-management-dashboard/utils/laundryStorage';
+import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays, getVesselBranding } from '../laundry-management-dashboard/utils/laundryStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
@@ -97,7 +97,7 @@ const clockHands = (min) => {
   return { mx, my, hx, hy };
 };
 
-const Detail = ({ p, onExport, onOpenItem }) => {
+const Detail = ({ p, onExport, onOpenItem, vessel }) => {
   const [open, setOpen] = useState(null);
   const [openDay, setOpenDay] = useState(null);
   useEffect(() => { setOpen(null); setOpenDay(p?.days?.[0]?.key || null); }, [p?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -133,7 +133,7 @@ const Detail = ({ p, onExport, onOpenItem }) => {
           </div>
           {(p.items || []).length > 0 && (
             <div className="lb-exports">
-              <button type="button" className="lb-export" onClick={() => openTripReport(p)}>
+              <button type="button" className="lb-export" onClick={() => openTripReport(p, vessel)}>
                 <Icon name="Printer" size={14} /> Report
               </button>
               <button type="button" className="lb-export" onClick={() => onExport(p)}>
@@ -382,6 +382,8 @@ const LaundryHistoryView = () => {
   const [fOwner, setFOwner] = useState('all'); // all | guest | crew
   const [fStatus, setFStatus] = useState('all'); // all | progress | ready | delivered
   const [retention, setRetention] = useState(null);
+  const [vessel, setVessel] = useState(null);
+  useEffect(() => { getVesselBranding().then(setVessel).catch(() => {}); }, []);
   const canManage = useMemo(() => { const t = (getCurrentUser()?.effectiveTier || getCurrentUser()?.tier || '').toUpperCase(); return t === 'COMMAND' || t === 'CHIEF'; }, []);
   useEffect(() => { if (canManage) getPhotoRetentionDays().then(setRetention).catch(() => {}); }, [canManage]);
   const saveRetention = async (v) => { setRetention(v); await setPhotoRetentionDays(v); };
@@ -542,7 +544,7 @@ const LaundryHistoryView = () => {
                 {past.length > 0 && <div className="lb-lbl">Timeline</div>}
                 {past.map((p) => <Chapter key={p.id} p={p} active={selId === p.id} onClick={() => setSelId(p.id)} />)}
               </div>
-              <Detail p={selected} onExport={onExport} onOpenItem={openItem} />
+              <Detail p={selected} onExport={onExport} onOpenItem={openItem} vessel={vessel} />
             </div>
           )}
         </div>
