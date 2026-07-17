@@ -13,8 +13,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Cargo';
   const options = {
     body: data.body || '',
-    icon: data.icon || '/centered-logo.svg',
-    badge: '/centered-logo.svg',
+    icon: data.icon || '/icon-192.png',
+    badge: '/icon-192.png',
     tag: data.tag || 'cargo-laundry',
     renotify: true,
     data: { url: data.url || '/laundry-management-dashboard' },
