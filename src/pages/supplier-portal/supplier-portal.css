@@ -3704,6 +3704,23 @@
 #sp-root .msg-row.me .msg-bubble { background: var(--orange); color: #fff; border-bottom-right-radius: 5px; box-shadow: 0 3px 10px -3px rgba(198, 90, 26, 0.5); }
 #sp-root .msg-time { display: block; font-size: 10px; margin-top: 3px; opacity: 0.72; text-align: right; }
 #sp-root .msg-sender { display: block; font-size: 10.5px; font-weight: 700; color: var(--orange); margin-bottom: 2px; }
+
+/* "Handled by" — the supplier assigns which colleague owns a conversation. */
+#sp-root .msg-assign { position: relative; }
+#sp-root .msg-assign-btn { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--ground); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; cursor: pointer; }
+#sp-root .msg-assign-btn.set { color: #fff; background: var(--orange); border-color: var(--orange); }
+#sp-root .msg-assign-btn:hover { border-color: var(--orange); }
+#sp-root .msg-assign-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 208px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(20,28,45,0.35); padding: 6px; }
+#sp-root .msg-assign-head { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); padding: 6px 8px 4px; }
+#sp-root .msg-assign-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 7px 9px; font-family: inherit; cursor: pointer; }
+#sp-root .msg-assign-opt:hover { background: var(--ground); }
+#sp-root .msg-assign-opt.on { background: var(--ground); }
+#sp-root .msg-assign-opt:disabled { opacity: 0.55; cursor: default; }
+#sp-root .msg-assign-name { font-size: 12.5px; font-weight: 600; color: var(--fg); }
+#sp-root .msg-assign-role { font-size: 10.5px; color: var(--muted); text-transform: capitalize; }
+#sp-root .msg-assign-empty { font-size: 11.5px; color: var(--muted); padding: 8px 9px; }
+#sp-root .msg-assign-clear { width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); margin-top: 4px; padding: 8px 9px 5px; font-family: inherit; font-size: 11.5px; color: var(--muted); cursor: pointer; }
+#sp-root .msg-assign-clear:hover { color: var(--fg); }
 #sp-root .msg-tick { margin-left: 5px; font-weight: 700; opacity: 0.85; }
 #sp-root .msg-tick.read { color: #BFE3D0; opacity: 1; }
 

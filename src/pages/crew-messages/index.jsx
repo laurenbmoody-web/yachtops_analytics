@@ -10,7 +10,7 @@ import {
   markThreadNotificationsRead, acceptQuote, declineQuote, fetchAddableOrders, reactToMessage, deleteMessage, editMessage,
   setThreadArchived, deleteThread, uploadMessageAttachment,
   fetchOrderApprovalSettings, decideOrderApproval, getOrCreateDmThread,
-  fetchThreadsPeople, fetchThreadContacts, assignThreadContact,
+  fetchThreadsPeople,
 } from './storage';
 import MessageBubble from '../../components/messaging/MessageBubble';
 import './crew-messages.css';
@@ -251,11 +251,8 @@ const CrewMessages = () => {
   const [attachments, setAttachments] = useState([]); // pending upload descriptors
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);   // opening a new DM thread
-  const [assignedByThread, setAssignedByThread] = useState({}); // thread_id → assigned contact
+  const [assignedByThread, setAssignedByThread] = useState({}); // thread_id → assigned contact (read-only; the supplier assigns)
   const [peopleByThread, setPeopleByThread] = useState({});     // thread_id → participant roster
-  const [assignOpen, setAssignOpen] = useState(false);          // assign-picker open
-  const [assignContacts, setAssignContacts] = useState([]);     // supplier people to assign
-  const [assignBusy, setAssignBusy] = useState(false);
   const [approverTier, setApproverTier] = useState('HOD');
   const [myUid, setMyUid] = useState(null);
   const fileRef = useRef(null);
@@ -410,29 +407,6 @@ const CrewMessages = () => {
       requestAnimationFrame(() => taRef.current?.focus());
     } catch (e) { setError(e.message); }
     finally { setStarting(false); }
-  };
-
-  // Assign the open thread to a specific person at the supplier (or clear it).
-  const openAssign = async () => {
-    if (!activeId) return;
-    const next = !assignOpen;
-    setAssignOpen(next);
-    if (next) {
-      try { setAssignContacts(await fetchThreadContacts(activeId)); }
-      catch (e) { setError(e.message); }
-    }
-  };
-  const doAssign = async (contactId) => {
-    if (!activeId || assignBusy) return;
-    setAssignBusy(true); setError(null);
-    try {
-      await assignThreadContact(activeId, contactId);
-      setAssignOpen(false);
-      const msgs = await fetchThreadMessages(activeId);
-      setMessages(msgs);
-      await load();
-    } catch (e) { setError(e.message); }
-    finally { setAssignBusy(false); }
   };
 
   const startReply = (m) => { setEditing(null); setReplyTo(m); taRef.current?.focus(); };
@@ -705,25 +679,11 @@ const CrewMessages = () => {
                       <div className="msg-convo-id">
                         <div className="msg-convo-name" style={{ cursor: 'default' }}>{supplierName(activeThread)}</div>
                         <div className="msg-convo-sub">
-                          <div className="msg-assign">
-                            <button type="button" className={`msg-assign-btn${assignedByThread[activeId] ? ' set' : ''}`} onClick={openAssign} title="Assign this conversation to a person at the supplier">
-                              {assignedByThread[activeId]?.name || 'Assign to…'}
-                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-                            </button>
-                            {assignOpen && (
-                              <div className="msg-assign-menu" role="menu">
-                                <div className="msg-assign-head">Direct to…</div>
-                                {assignContacts.map((c) => (
-                                  <button key={c.contact_id} type="button" className={`msg-assign-opt${assignedByThread[activeId]?.contact_id === c.contact_id ? ' on' : ''}`} disabled={assignBusy} onClick={() => doAssign(c.contact_id)} role="menuitem">
-                                    <span className="msg-assign-name">{c.name}</span>
-                                    <span className="msg-assign-role">{c.role}{c.has_login ? '' : ' · no login'}</span>
-                                  </button>
-                                ))}
-                                {!assignContacts.length && <div className="msg-assign-empty">No contacts on file for this supplier</div>}
-                                {assignedByThread[activeId] && <button type="button" className="msg-assign-clear" disabled={assignBusy} onClick={() => doAssign(null)} role="menuitem">Clear assignment</button>}
-                              </div>
-                            )}
-                          </div>
+                          <span className="msg-convo-tag">
+                            {assignedByThread[activeId]?.name
+                              ? `With ${assignedByThread[activeId].name}`
+                              : threadLabel(activeThread)}
+                          </span>
                           {(() => {
                             const board = threadBoard(activeThread);
                             if (!board) return null;

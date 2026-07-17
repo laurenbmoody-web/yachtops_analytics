@@ -862,6 +862,20 @@ export const fetchThreadsPeople = async () => {
   return data ?? [];
 };
 
+// The supplier's own team, for the "handled by" picker — the supplier decides
+// which colleague owns a conversation.
+export const fetchThreadContacts = async (threadId) => {
+  const { data, error } = await supabase.rpc('fetch_supplier_contacts_for_thread', { p_thread_id: threadId });
+  if (error) throw error;
+  return data ?? [];
+};
+
+// Assign (or clear, with null) which colleague this conversation is handled by.
+export const assignThreadContact = async (threadId, contactId) => {
+  const { error } = await supabase.rpc('assign_thread_contact', { p_thread_id: threadId, p_contact_id: contactId });
+  if (error) throw error;
+};
+
 export const fetchMessages = async (threadId) => {
   const { data, error } = await supabase
     .from('supplier_messages')
