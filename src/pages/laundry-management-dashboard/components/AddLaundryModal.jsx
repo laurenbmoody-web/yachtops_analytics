@@ -15,6 +15,14 @@ import { readCareLabel } from '../utils/careLabel';
 import ModalShell from '../../../components/ui/ModalShell';
 
 const availableTags = availableLaundryTags;
+// a little drawstring laundry sack (Lucide has no laundry-bag icon)
+const LaundryBagIcon = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 3l-.5 2.5M15 3l.5 2.5" />
+    <rect x="7" y="5.4" width="10" height="2.6" rx="1.1" />
+    <path d="M8 8C6.6 9.9 5.6 12.4 5.6 15.4A4.4 4.4 0 0 0 10 19.8h4a4.4 4.4 0 0 0 4.4-4.4c0-3-1-5.5-2.4-7.4" />
+  </svg>
+);
 // ISO timestamp ↔ <input type="datetime-local"> value (local time, no seconds)
 const isoToLocalInput = (iso) => {
   if (!iso) return '';
@@ -688,7 +696,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
           {addedCount > 0 && <span className="alm-added">{addedCount} in bag</span>}
           {!isEdit && (
             <button type="button" className="alm-btn outline" onClick={() => handleSubmit(true)} disabled={isSubmitting}>
-              <Icon name="Package" size={14} /> Save &amp; next in bag
+              <LaundryBagIcon size={15} /> Keep logging
             </button>
           )}
           <button type="button" className="alm-btn primary" onClick={() => handleSubmit(false)} disabled={isSubmitting}>
