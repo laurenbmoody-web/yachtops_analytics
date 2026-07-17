@@ -64,8 +64,13 @@
 .vs-flag{font-size:14px;line-height:1}
 @media(max-width:560px){.vs-hero{flex-direction:column;gap:14px}}
 
+/* rail + deck grid (hero sits full-width above) */
+.vs-grid{display:grid;grid-template-columns:216px 1fr;gap:26px;align-items:start}
+@media(max-width:980px){.vs-grid{grid-template-columns:1fr;gap:18px}}
+.vs-grid .vh-rail{position:sticky;top:84px}
+
 /* deck */
-.vs-deck{display:flex;flex-direction:column;gap:13px}
+.vs-deck{display:flex;flex-direction:column;gap:13px;min-width:0}
 .vs-card{background:var(--vs-surface);border:1px solid var(--vs-hair);border-radius:18px;box-shadow:var(--vs-sh1);
   overflow:hidden;transition:box-shadow .3s var(--vs-ease),border-color .3s}
 .vs-card.open{box-shadow:var(--vs-sh2)}

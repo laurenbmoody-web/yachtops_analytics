@@ -514,28 +514,9 @@ const VesselSettings = () => {
   ];
 
   const renderContent = () => {
-    if (activeSection === 'vessel-profile') {
-      return (
-        <VesselProfileStack
-          vesselData={vesselData}
-          formState={formState}
-          canEdit={canEdit}
-          departmentOptions={departmentOptions}
-          saveField={saveField}
-          saveError={saveError}
-          logoInputRef={logoFileInputRef}
-          onLogoChange={handleLogoUpload}
-          uploadingLogo={uploadingLogo}
-          logoUploadError={logoUploadError}
-          onRemoveLogo={handleRemoveLogo}
-          heroInputRef={heroFileInputRef}
-          onHeroChange={handleHeroImageUpload}
-          uploadingHero={uploadingHero}
-          heroUploadError={heroUploadError}
-          onRevertHero={() => saveField('use_custom_hero', false)}
-        />
-      );
-    } else if (activeSection === 'location-management') {
+    // vessel-profile is rendered directly in the page return (full-width hero
+    // above a rail + deck grid), so renderContent only covers the other sections.
+    if (activeSection === 'location-management') {
       return (
         <div>
           {!canEdit && (
@@ -580,6 +561,25 @@ const VesselSettings = () => {
   const titleAccent = titleWords.pop();
   const titleLead = titleWords.join(' ');
 
+  // Settings-style rail (plain grouped nav) — shared by every section.
+  const railNav = (
+    <aside className="vh-rail" aria-label="Vessel sections">
+      <nav>
+        <div className="vh-rail-grp">Vessel</div>
+        {sections?.map(section => (
+          <button
+            key={section?.id}
+            onClick={() => setActiveSection(section?.id)}
+            className={`vh-rail-it${activeSection === section?.id ? ' active' : ''}`}
+          >
+            <Icon name={section?.icon} size={17} color={activeSection === section?.id ? '#C65A1A' : '#8B8478'} />
+            <span>{section?.label}</span>
+          </button>
+        ))}
+      </nav>
+    </aside>
+  );
+
   return (
     <div className="vh-page min-h-screen">
       <Header />
@@ -587,45 +587,52 @@ const VesselSettings = () => {
         <button className="vh-back" onClick={() => navigate('/dashboard')}>
           <Icon name="ChevronLeft" size={16} /> Back to Dashboard
         </button>
-        {/* Editorial masthead — hidden for vessel-profile, which brings its own
-            vessel-name header via VesselProfileStack. */}
-        {activeSection !== 'vessel-profile' && (
-          <div className="vh-mast">
-            {activeSection === 'location-management' && locStats && (
-              <div className="editorial-meta">
-                <span className="dot">•</span>
-                <span>Scanned {locStats.scanned}/{locStats.total}</span>
-                <span className="bar" /><span>{locStats.decks} Decks</span>
-                <span className="bar" /><span>{locStats.zones} Zones</span>
-                <span className="bar" /><span>{locStats.total} Spaces</span>
+        {activeSection === 'vessel-profile' ? (
+          /* Vessel profile owns the full-width hero (above the rail), then a
+             rail + deck grid — mirroring the crew profile layout. */
+          <VesselProfileStack
+            rail={railNav}
+            vesselData={vesselData}
+            formState={formState}
+            canEdit={canEdit}
+            departmentOptions={departmentOptions}
+            saveField={saveField}
+            saveError={saveError}
+            logoInputRef={logoFileInputRef}
+            onLogoChange={handleLogoUpload}
+            uploadingLogo={uploadingLogo}
+            logoUploadError={logoUploadError}
+            onRemoveLogo={handleRemoveLogo}
+            heroInputRef={heroFileInputRef}
+            onHeroChange={handleHeroImageUpload}
+            uploadingHero={uploadingHero}
+            heroUploadError={heroUploadError}
+            onRevertHero={() => saveField('use_custom_hero', false)}
+          />
+        ) : (
+          <>
+            {/* Editorial masthead for the other hub sections */}
+            <div className="vh-mast">
+              {activeSection === 'location-management' && locStats && (
+                <div className="editorial-meta">
+                  <span className="dot">•</span>
+                  <span>Scanned {locStats.scanned}/{locStats.total}</span>
+                  <span className="bar" /><span>{locStats.decks} Decks</span>
+                  <span className="bar" /><span>{locStats.zones} Zones</span>
+                  <span className="bar" /><span>{locStats.total} Spaces</span>
+                </div>
+              )}
+              <h1 className="editorial-greeting vh-greeting">{titleLead ? <>{titleLead}<span className="period">,</span> </> : null}<em>{titleAccent}</em><span className="period">.</span></h1>
+            </div>
+
+            <div className="vh-layout">
+              {railNav}
+              <div className="vh-content">
+                {renderContent()}
               </div>
-            )}
-            <h1 className="editorial-greeting vh-greeting">{titleLead ? <>{titleLead}<span className="period">,</span> </> : null}<em>{titleAccent}</em><span className="period">.</span></h1>
-          </div>
+            </div>
+          </>
         )}
-
-        {/* Hub Layout — Settings-style rail (plain grouped nav) + content */}
-        <div className="vh-layout">
-          <aside className="vh-rail" aria-label="Vessel sections">
-            <nav>
-              <div className="vh-rail-grp">Vessel</div>
-              {sections?.map(section => (
-                <button
-                  key={section?.id}
-                  onClick={() => setActiveSection(section?.id)}
-                  className={`vh-rail-it${activeSection === section?.id ? ' active' : ''}`}
-                >
-                  <Icon name={section?.icon} size={17} color={activeSection === section?.id ? '#C65A1A' : '#8B8478'} />
-                  <span>{section?.label}</span>
-                </button>
-              ))}
-            </nav>
-          </aside>
-
-          <div className="vh-content">
-            {renderContent()}
-          </div>
-        </div>
       </div>
     </div>
   );
