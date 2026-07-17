@@ -22,22 +22,12 @@ import PinPayload from './components/PinPayload';
 import PinItems from './components/PinItems';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
-import { getDefectHeatByHotspots } from '../defects/utils/defectsStorage';
 import { refreshScanThumb } from './utils/scanThumb';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
 import './vessel-map.css';
 
 const SIGNED_URL_TTL = 60 * 60; // 1 hour — splat downloads are big but not that big
-
-// Fault heat overlay — pin colour ramps amber→red by the worst open defect at a
-// spot; pin size grows with how many. A single source of truth for pins + legend.
-const HEAT_COLOR = { Low: '#E0A93C', Medium: '#E0872B', High: '#CF5E1E', Critical: '#A32D2D' };
-const HEAT_LEGEND = [
-  { key: 'Low', label: 'Low' }, { key: 'Medium', label: 'Medium' },
-  { key: 'High', label: 'High' }, { key: 'Critical', label: 'Critical' },
-];
-const heatScaleFor = (count) => 1.05 + Math.min(Math.max(count - 1, 0), 5) * 0.18;
 
 // The dark stage the splat glows against — a deep neutral in the navy family
 // (between --d-navy-deep and --d-navy). Single source of truth: fed to the
@@ -82,8 +72,6 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   const [hotspots, setHotspots] = useState([]);
   const [creatorNames, setCreatorNames] = useState({}); // user_id → full_name for pin creators
   const [activeLayers, setActiveLayers] = useState(() => new Set(LAYERS.map((l) => l.key)));
-  const [heatMode, setHeatMode] = useState(false); // fault heat overlay on defect pins
-  const [defectHeat, setDefectHeat] = useState({}); // hotspotId → { count, maxPriority }
   const [viewer, setViewer] = useState({ status: 'idle' });
   const [selectedHotspot, setSelectedHotspot] = useState(null);
   const [mobileTab, setMobileTab] = useState('details'); // the floating card's rooms
@@ -347,35 +335,11 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   // filter (chips toggle their pins with a 150ms fade, not a pop). While
   // placing an item from Inventory, only stock-bearing pins (Inventory, Safety)
   // are shown at all — the rest can't hold an item, so they're hidden.
-  // Fault heat load per defect pin — fetched once per scan while heat mode is on.
-  const defectHotspotIds = useMemo(
-    () => topHotspots.filter((h) => h.layer === 'defect').map((h) => h.id),
-    [topHotspots]
-  );
-  useEffect(() => {
-    if (!heatMode || !activeTenantId || !defectHotspotIds.length) { setDefectHeat({}); return undefined; }
-    let live = true;
-    getDefectHeatByHotspots(defectHotspotIds, { tenantId: activeTenantId })
-      .then((h) => { if (live) setDefectHeat(h || {}); });
-    return () => { live = false; };
-  }, [heatMode, activeTenantId, defectHotspotIds]);
-
   const allHotspots = useMemo(
-    () => {
-      const base = topHotspots
-        .filter((h) => !placingItem || layerHoldsStock(h.layer))
-        .map((h) => ({ ...h, color: h.color || layerColor(h.layer), isContainer: !!h.is_container }));
-      if (!heatMode) return base;
-      // Heat overlay: defect pins ramp amber→red by worst open defect and grow
-      // with count; everything else recedes so the faults read clearly.
-      return base.map((h) => {
-        if (h.layer !== 'defect') return { ...h, heatScale: 0.55 };
-        const hd = defectHeat[h.id];
-        if (!hd || !hd.count) return { ...h, color: '#C7C1B7', heatScale: 0.7 };
-        return { ...h, color: HEAT_COLOR[hd.maxPriority] || '#A32D2D', heatScale: heatScaleFor(hd.count) };
-      });
-    },
-    [topHotspots, placingItem, heatMode, defectHeat]
+    () => topHotspots
+      .filter((h) => !placingItem || layerHoldsStock(h.layer))
+      .map((h) => ({ ...h, color: h.color || layerColor(h.layer), isContainer: !!h.is_container })),
+    [topHotspots, placingItem]
   );
 
   // The opened-container path, resolved live from hotspots (so labels/photo
@@ -794,18 +758,6 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     );
   });
 
-  // Fault heat overlay toggle — sits alongside the layer chips.
-  const heatToggle = (variant) => (layerCounts.defect ? (
-    <button
-      className={`vm-chip ${variant}${heatMode ? ' vm-chip-on' : ''}`}
-      onClick={() => setHeatMode((v) => !v)}
-      title={heatMode ? 'Hide fault heat-map' : 'Show fault heat-map'}
-    >
-      <span className="vm-pill-dot" style={{ background: heatMode ? '#A32D2D' : '#C65A1A', opacity: heatMode ? 1 : 0.5 }} />
-      Heat
-    </button>
-  ) : null);
-
   return (
     <>
       {!embedded && <Header />}
@@ -861,7 +813,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
               )}
 
               <div className="vm-toolbar">
-                <div className="vm-layer-chips">{layerChips('')}{heatToggle('')}</div>
+                <div className="vm-layer-chips">{layerChips('')}</div>
 
                 {canPlaceHotspots && (
                   <button className="vm-btn-ghost vm-toolbar-manage" onClick={() => navigate('/settings/vessel?section=location-management')}>
@@ -1072,18 +1024,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                       </>
                     )}
                   </p>
-                  <div className="vm-ov-chips">{layerChips('vm-chip-dark')}{heatToggle('vm-chip-dark')}</div>
-                  {heatMode && (
-                    <div className="vm-heat-legend">
-                      <span className="vm-heat-title">Fault heat</span>
-                      <div className="vm-heat-ramp">
-                        {HEAT_LEGEND.map((s) => (
-                          <span key={s.key} className="vm-heat-swatch"><i style={{ background: HEAT_COLOR[s.key] }} />{s.label}</span>
-                        ))}
-                      </div>
-                      <span className="vm-heat-note">larger pin = more open defects</span>
-                    </div>
-                  )}
+                  <div className="vm-ov-chips">{layerChips('vm-chip-dark')}</div>
                 </div>
 
                 {/* Doorways EDIT mode (rail tool) — placement lives here, not in
