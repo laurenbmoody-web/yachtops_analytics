@@ -179,8 +179,12 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
         const zoneById = new Map((zones || []).map((z) => [z?.id, z]));
         setLocations((spaces || []).map((s) => {
           const z = zoneById.get(s?.zoneId);
-          const label = [z ? deckName.get(z?.deckId) : null, z?.name, s?.name].filter(Boolean).join(' → ');
-          return { id: s?.id, label };
+          const deck = (z ? deckName.get(z?.deckId) : '') || '';
+          const zone = z?.name || '';
+          const name = s?.name || '';
+          // keep the full path for searching, but surface only the leaf (grouped under its deck)
+          const label = [deck, zone, name].filter(Boolean).join(' → ');
+          return { id: s?.id, name, deck, zone, label };
         }));
       } catch (e) {
         console.warn('[AddLaundryModal] locations load failed', e);
@@ -253,8 +257,9 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   };
 
   const handleLocationSelect = (loc) => {
-    setFormData((prev) => ({ ...prev, area: loc?.label, areaLocationId: loc?.id }));
-    setLocationQuery(loc?.label); setShowLocationDropdown(false); clearError('area');
+    const leaf = loc?.name || loc?.label;
+    setFormData((prev) => ({ ...prev, area: leaf, areaLocationId: loc?.id }));
+    setLocationQuery(leaf); setShowLocationDropdown(false); clearError('area');
   };
 
   const getFilteredGuests = () => {
@@ -269,9 +274,21 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   };
   const filteredLocations = useMemo(() => {
     const q = locationQuery?.toLowerCase()?.trim();
-    if (!q) return locations.slice(0, 40);
-    return locations.filter((l) => l?.label?.toLowerCase()?.includes(q)).slice(0, 40);
+    if (!q) return locations.slice(0, 60);
+    return locations.filter((l) => l?.label?.toLowerCase()?.includes(q)).slice(0, 60);
   }, [locations, locationQuery]);
+  // Group the leaves under their deck so the menu reads as short cabin/space
+  // names sub'd beneath a deck heading, not long breadcrumb paths.
+  const groupedLocations = useMemo(() => {
+    const order = [];
+    const byDeck = new Map();
+    filteredLocations.forEach((loc) => {
+      const deck = loc?.deck || 'Elsewhere';
+      if (!byDeck.has(deck)) { byDeck.set(deck, []); order.push(deck); }
+      byDeck.get(deck).push(loc);
+    });
+    return order.map((deck) => ({ deck, items: byDeck.get(deck) }));
+  }, [filteredLocations]);
 
   const compressImageForStorage = (dataUrl, maxWidth = 800, quality = 0.7) => new Promise((resolve, reject) => {
     const img = new Image();
@@ -415,12 +432,18 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
           onFocus={() => setShowLocationDropdown(true)}
           onBlur={() => setTimeout(() => setShowLocationDropdown(false), 150)}
         />
-        {showLocationDropdown && filteredLocations.length > 0 && (
+        {showLocationDropdown && groupedLocations.length > 0 && (
           <div className="alm-combo-menu">
-            {filteredLocations.map((loc) => (
-              <button key={loc.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleLocationSelect(loc)}>
-                <span className="alm-combo-name">{loc.label}</span>
-              </button>
+            {groupedLocations.map((g) => (
+              <div key={g.deck} className="alm-combo-group">
+                <div className="alm-combo-deck">{g.deck}</div>
+                {g.items.map((loc) => (
+                  <button key={loc.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleLocationSelect(loc)}>
+                    <span className="alm-combo-name">{loc.name || loc.label}</span>
+                    {loc.zone && loc.zone !== loc.name && <span className="alm-combo-zone">{loc.zone}</span>}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         )}
