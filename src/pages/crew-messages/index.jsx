@@ -732,36 +732,64 @@ const CrewMessages = () => {
                           })()}
                         </div>
                       </div>
-                      <div className="msg-people">
-                        <button type="button" className="msg-people-btn" onClick={openPeople} title="People in this conversation" aria-label="People in this conversation">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-                          <span className="msg-people-n">{peopleByThread[activeId]?.length || 1}</span>
-                        </button>
-                        {peopleOpen && (
-                          <div className="msg-people-menu" role="menu">
-                            <div className="msg-assign-head">In this chat</div>
-                            {(peopleByThread[activeId] || []).map((p) => (
-                              <div key={p.user_id} className="msg-people-row">
-                                <span className="msg-people-info">
-                                  <span className="msg-assign-name">{(p.name || (p.party === 'crew' ? 'Crew' : 'Supplier')) + (p.user_id === myUid ? ' (you)' : '')}</span>
-                                  <span className="msg-assign-role">{p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'supplier'} · supplier`}</span>
-                                </span>
-                                {p.party === 'crew' && p.user_id !== myUid && (
-                                  <button type="button" className="msg-people-x" disabled={peopleBusy} title="Remove from chat" aria-label="Remove from chat" onClick={() => removeCrew(p.user_id)}>×</button>
-                                )}
+                      {(() => {
+                        const ppl = peopleByThread[activeId] || [];
+                        const CAP = 6;
+                        const shown = ppl.slice(0, CAP);
+                        const extra = ppl.length - shown.length;
+                        const face = (p) => {
+                          const nm = p.name || (p.party === 'crew' ? 'Crew' : 'Supplier');
+                          const role = p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'sales'} · supplier`;
+                          return (
+                            <span key={p.user_id} className={`msg-face${p.party === 'supplier' ? ' sup' : ''}`} style={{ backgroundImage: avatarGrad(p.user_id) }} title={`${nm}${p.user_id === myUid ? ' (you)' : ''} — ${role}`}>
+                              {initials(nm)}
+                              {p.party === 'crew' && p.user_id !== myUid && (
+                                <button type="button" className="msg-face-x" disabled={peopleBusy} title={`Remove ${nm}`} aria-label={`Remove ${nm}`} onClick={(e) => { e.stopPropagation(); removeCrew(p.user_id); }}>×</button>
+                              )}
+                            </span>
+                          );
+                        };
+                        return (
+                          <div className="msg-people">
+                            <div className="msg-facepile">
+                              {shown.map(face)}
+                              {extra > 0 && <button type="button" className="msg-face more" onClick={openPeople} title="Show everyone in this chat" aria-label="Show everyone in this chat">+{extra}</button>}
+                              <button type="button" className="msg-face add" onClick={openPeople} title="Add crew to this chat" aria-label="Add crew to this chat">+</button>
+                            </div>
+                            {peopleOpen && (
+                              <div className="msg-people-menu" role="menu">
+                                <div className="msg-assign-head">In this chat</div>
+                                {ppl.map((p) => {
+                                  const nm = p.name || (p.party === 'crew' ? 'Crew' : 'Supplier');
+                                  return (
+                                    <div key={p.user_id} className="msg-people-row">
+                                      <span className="msg-face sm" style={{ backgroundImage: avatarGrad(p.user_id) }} aria-hidden>{initials(nm)}</span>
+                                      <span className="msg-people-info">
+                                        <span className="msg-assign-name">{nm + (p.user_id === myUid ? ' (you)' : '')}</span>
+                                        <span className="msg-assign-role">{p.party === 'crew' ? (p.role || 'crew') : `${p.role || 'sales'} · supplier`}</span>
+                                      </span>
+                                      {p.party === 'crew' && p.user_id !== myUid && (
+                                        <button type="button" className="msg-people-x" disabled={peopleBusy} title="Remove from chat" aria-label="Remove from chat" onClick={() => removeCrew(p.user_id)}>×</button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                <div className="msg-assign-head">Add crew</div>
+                                {addableCrew.map((c) => (
+                                  <button key={c.user_id} type="button" className="msg-assign-opt" disabled={peopleBusy} onClick={() => addCrew(c.user_id)} role="menuitem">
+                                    <span className="msg-face sm" style={{ backgroundImage: avatarGrad(c.user_id) }} aria-hidden>{initials(c.name)}</span>
+                                    <span className="msg-people-info">
+                                      <span className="msg-assign-name">{c.name}</span>
+                                      <span className="msg-assign-role">{(c.tier || '').toLowerCase()}</span>
+                                    </span>
+                                  </button>
+                                ))}
+                                {!addableCrew.length && <div className="msg-assign-empty">Everyone’s already in</div>}
                               </div>
-                            ))}
-                            <div className="msg-assign-head">Add crew</div>
-                            {addableCrew.map((c) => (
-                              <button key={c.user_id} type="button" className="msg-assign-opt" disabled={peopleBusy} onClick={() => addCrew(c.user_id)} role="menuitem">
-                                <span className="msg-assign-name">{c.name}</span>
-                                <span className="msg-assign-role">{(c.tier || '').toLowerCase()}</span>
-                              </button>
-                            ))}
-                            {!addableCrew.length && <div className="msg-assign-empty">Everyone’s already in</div>}
+                            )}
                           </div>
-                        )}
-                      </div>
+                        );
+                      })()}
                     </div>
 
                     {(() => {
