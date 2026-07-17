@@ -221,13 +221,22 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
     <div className="dd">
       {/* header */}
       <div className="dd-head">
-        <h2>{defect.title}</h2>
-        <div className="dd-chips">
-          <span className={`dd-chip ${PRIORITY_CLASS[defect.priority] || 'dd-p-Medium'}`}><span className="cd" />{defect.priority}</span>
-          <span className={`dd-chip ${sMeta.cls}`}><span className="cd" />{sMeta.label}</span>
-          {warrantyActive && <span className="dd-chip dd-chip-warranty"><Icon name="ShieldCheck" size={11} /> Under warranty</span>}
-        </div>
-        <span className="dd-ref">{defect.ref}</span>
+        {editing ? (
+          // Editing mirrors the "Log a defect" add form — a clean title, no
+          // status chips/ref — so add-from-pin, add-from-dashboard and edit read
+          // as one form.
+          <h2>Edit defect</h2>
+        ) : (
+          <>
+            <h2>{defect.title}</h2>
+            <div className="dd-chips">
+              <span className={`dd-chip ${PRIORITY_CLASS[defect.priority] || 'dd-p-Medium'}`}><span className="cd" />{defect.priority}</span>
+              <span className={`dd-chip ${sMeta.cls}`}><span className="cd" />{sMeta.label}</span>
+              {warrantyActive && <span className="dd-chip dd-chip-warranty"><Icon name="ShieldCheck" size={11} /> Under warranty</span>}
+            </div>
+            <span className="dd-ref">{defect.ref}</span>
+          </>
+        )}
         <span className="spring" />
         {canManage && !isClosed && !editing && (
           <button className="dd-edit-btn" onClick={() => { setErr(''); setEditing(true); }}><Icon name="Edit3" size={13} /> Edit</button>

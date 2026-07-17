@@ -286,7 +286,9 @@ a.dd-contact .cc, .dd-contact a.cc { color: #3E6B89; }
 .dd-req > svg:last-child { color: #AEB4C2; flex: none; }
 
 /* core-record edit reuses the shared log form; centre it like the map's log view */
-.dd-editwrap { width: 100%; max-width: 640px; margin: 0 auto; padding: 18px 22px 22px; }
+/* Match the add-defect form wrapper (DefectPin's .vmd-formwrap) so edit reads
+   as the same form. */
+.dd-editwrap { width: 100%; max-width: 640px; margin: 0 auto; padding: 20px 22px 22px; }
 
 /* edit form */
 .dd-edit { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
