@@ -694,7 +694,9 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lc-stat.prog { color: #B7791F; background: #FBF3E2; }
 .lc-stat.ready { color: #2F6E8F; background: #E9F1F5; }
 .lc-stat.deliv { color: #2F7D5A; background: #E7F2EC; }
-.lc-ci-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.lc-ci-right { display: flex; align-items: center; justify-content: flex-end; flex: none; }
+.lc-done { display: inline-flex; align-items: center; gap: 4px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.03em; color: #2F7D5A; }
+.lc-done svg { stroke: currentColor; }
 .lc-qa { display: inline-flex; align-items: center; gap: 4px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.03em; color: #1C1B3A; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px; padding: 4px 10px; cursor: pointer; transition: 0.13s; }
 .lc-qa:hover { border-color: #C65A1A; color: #C65A1A; background: #FBEFE9; }
 .lc-qa.go { color: #FFFFFF; background: #C65A1A; border-color: #C65A1A; }
