@@ -416,20 +416,22 @@ const LaundryManagementDashboard = () => {
             <CabinView items={filteredItems} onBulkDeliver={handleBulkDeliver} onOpen={setDetailItem} onAdvance={handleAdvance} />
           ) : (
             <div className="lm-list">
-              {groups.length > 1 ? (
-                groups.map((g) => (
-                  <div key={g.key} className="lm-group">
-                    <div className="lm-group-h">{g.label}<span className="lm-group-n">{g.items.length}</span></div>
-                    {g.items.map((item) => (
-                      <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} onOpen={setDetailItem} />
-                    ))}
+              {groups.map((g) => (
+                <div key={g.key} className="lm-group">
+                  <div className="lm-group-h">
+                    <span className="lm-group-t">{g.label}</span>
+                    <span className="lm-group-n">{g.items.length}</span>
+                    {g.key === LaundryStatus?.READY_TO_DELIVER && g.items.length > 0 && (
+                      <button type="button" className="lm-group-deliver" onClick={() => handleBulkDeliver(g.items)}>
+                        Deliver all <Icon name="ArrowRight" size={14} />
+                      </button>
+                    )}
                   </div>
-                ))
-              ) : (
-                filteredItems?.map((item) => (
-                  <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} onOpen={setDetailItem} />
-                ))
-              )}
+                  {g.items.map((item) => (
+                    <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} onOpen={setDetailItem} />
+                  ))}
+                </div>
+              ))}
             </div>
           )}
         </div>

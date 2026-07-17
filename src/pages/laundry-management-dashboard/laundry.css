@@ -190,6 +190,9 @@
   text-transform: uppercase; color: #8B8478; padding: 20px 6px 8px;
 }
 .lm-group-n { font-size: 11px; letter-spacing: 0; color: #C65A1A; font-variant-numeric: tabular-nums; }
+.lm-group-deliver { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.04em; text-transform: none; color: #C65A1A; background: #FFFFFF; border: 1px solid #F0DDD2; border-radius: 999px; padding: 5px 12px; cursor: pointer; align-self: center; transition: 0.14s; }
+.lm-group-deliver:hover { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+.lm-group-deliver svg { stroke: currentColor; }
 .lm-row {
   display: flex;
   gap: 16px;
