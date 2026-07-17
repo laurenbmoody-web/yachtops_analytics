@@ -8,10 +8,18 @@ import DefectDetail from '../../defects/components/DefectDetail';
 import DefectLogForm from '../../defects/components/DefectLogForm';
 import './DefectPin.css';
 
-export default function DefectPin({ hotspot, scanName, containerTrail, onChanged, onTitled, onCancel }) {
+export default function DefectPin({ hotspot, scanName, containerTrail, onChanged, onTitled, onCancel, onMode }) {
   const actor = useDefectActor();
   const [loading, setLoading] = useState(true);
   const [defect, setDefect] = useState(null);
+
+  // Tell the host modal which layout to size to: the narrow single-column log
+  // form, or the wide two-column detail. Defaults to the form width while
+  // loading so the log-a-defect flow never flashes wide.
+  useEffect(() => {
+    if (loading) return;
+    onMode?.(defect ? 'detail' : 'form');
+  }, [loading, defect, onMode]);
 
   const locationLabel = useMemo(() => {
     const trail = (containerTrail || []).map((c) => c?.name || c).filter(Boolean);
