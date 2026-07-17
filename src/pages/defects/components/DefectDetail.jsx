@@ -54,7 +54,7 @@ const money = (amount, currency) => {
   return `${n < 0 ? '-' : ''}${s}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-export default function DefectDetail({ defect, onChanged, onClose, mapHref, locationLabel }) {
+export default function DefectDetail({ defect, onChanged, onClose, mapHref, locationLabel, onEditingChange }) {
   const actor = useDefectActor();
   const navigate = useNavigate();
   const [comments, setComments] = useState([]);
@@ -63,6 +63,9 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [editing, setEditing] = useState(false);
+  // Let a host (the map modal) narrow itself to form-width while editing, so the
+  // edit form isn't marooned in the wide detail layout.
+  useEffect(() => { onEditingChange?.(editing); }, [editing, onEditingChange]);
   const [fixEditing, setFixEditing] = useState(false);
   const [fix, setFix] = useState(null);
   const [reqs, setReqs] = useState([]);

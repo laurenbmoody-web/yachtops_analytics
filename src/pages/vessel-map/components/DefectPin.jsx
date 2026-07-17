@@ -49,7 +49,14 @@ export default function DefectPin({ hotspot, scanName, containerTrail, onChanged
 
   if (loading) return <div className="vmd-formwrap"><p className="vmd-loading">Loading defect…</p></div>;
 
-  if (defect) return <DefectDetail defect={defect} onChanged={() => refetchById(defect.id)} locationLabel={locationLabel} />;
+  if (defect) return (
+    <DefectDetail
+      defect={defect}
+      onChanged={() => refetchById(defect.id)}
+      locationLabel={locationLabel}
+      onEditingChange={(v) => onMode?.(v ? 'form' : 'detail')}
+    />
+  );
 
   return (
     <div className="vmd-formwrap">
