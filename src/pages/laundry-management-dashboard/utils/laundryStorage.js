@@ -395,7 +395,14 @@ export const updateLaundryStatus = async (itemId, newStatus) => {
   const patch = { status: newStatus, updated_at: new Date().toISOString() };
   if (newStatus === LaundryStatus.DELIVERED) patch.delivered_at = new Date().toISOString();
   const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', itemId).select('*').single();
-  if (error) { console.error('[laundry] status update failed', error); showToast('Could not update status', 'error'); return null; }
+  if (error) {
+    console.error('[laundry] status update failed', error);
+    const offlineish = (typeof navigator !== 'undefined' && navigator.onLine === false)
+      || /fetch|network|Failed to fetch|timeout/i.test(error.message || '');
+    if (offlineish) { const e = new Error(error.message || 'offline'); e.code = 'OFFLINE'; throw e; }
+    showToast('Could not update status', 'error');
+    return null;
+  }
   logLaundryEvent(data.id, data.tenant_id, ACTION_FOR_STATUS[newStatus] || 'updated');
   if (newStatus === LaundryStatus.DELIVERED) {
     try {
