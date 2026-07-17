@@ -22,10 +22,14 @@ import PinPayload from './components/PinPayload';
 import PinItems from './components/PinItems';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
+import Icon from '../../components/AppIcon';
 import { refreshScanThumb } from './utils/scanThumb';
 import '../../styles/editorial.css';
 import '../../styles/editorial-tokens.css';
 import './vessel-map.css';
+
+// A distinct icon per layer so pins/rows read by shape, not colour alone.
+const LAYER_ICON = { inventory: 'Box', defect: 'AlertTriangle', safety: 'ShieldCheck', job_helper: 'Briefcase', general: 'MapPin' };
 
 const SIGNED_URL_TTL = 60 * 60; // 1 hour — splat downloads are big but not that big
 
@@ -72,6 +76,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   const [hotspots, setHotspots] = useState([]);
   const [creatorNames, setCreatorNames] = useState({}); // user_id → full_name for pin creators
   const [activeLayers, setActiveLayers] = useState(() => new Set(LAYERS.map((l) => l.key)));
+  const [layersOpen, setLayersOpen] = useState(false); // the Layers popover
   const [viewer, setViewer] = useState({ status: 'idle' });
   const [selectedHotspot, setSelectedHotspot] = useState(null);
   const [mobileTab, setMobileTab] = useState('details'); // the floating card's rooms
@@ -362,6 +367,14 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     next.has(key) ? next.delete(key) : next.add(key);
     return next;
   });
+
+  // Close the Layers popover on an outside click (works for either instance).
+  useEffect(() => {
+    if (!layersOpen) return undefined;
+    const onDown = (e) => { if (!e.target.closest?.('.vm-layers')) setLayersOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [layersOpen]);
 
   // Fresh pin, fresh rooms — the floating card resets to Details.
   useEffect(() => { setMobileTab('details'); }, [selectedHotspot?.id]);
@@ -739,24 +752,37 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
 
   // One chip row, two treatments: '' (light, in the cream toolbar — the
   // mobile variant) and 'vm-chip-dark' (floating on the dark stage, ≥1024px).
-  const layerChips = (variant) => LAYERS
-    // While placing an item, only the stock-bearing layers are relevant.
-    .filter((l) => !placingItem || layerHoldsStock(l.key))
-    .map((l) => {
-    const on = activeLayers.has(l.key);
-    return (
-      <button
-        key={l.key}
-        className={`vm-chip ${variant}${on ? ' vm-chip-on' : ''}`}
-        onClick={() => toggleLayer(l.key)}
-        title={`${on ? 'Hide' : 'Show'} ${l.label} pins`}
-      >
-        <span className="vm-pill-dot" style={{ background: l.color, opacity: on ? 1 : 0.35 }} />
-        {l.label}
-        {layerCounts[l.key] ? <span className="vm-chip-count">{layerCounts[l.key]}</span> : null}
+  // One "Layers" button → a popover of layers (icon + count + toggle), replacing
+  // the row of pills. `variant` carries the dark-stage styling ('vm-chip-dark').
+  const relevantLayers = LAYERS.filter((l) => !placingItem || layerHoldsStock(l.key));
+  const activeLayerCount = relevantLayers.filter((l) => activeLayers.has(l.key)).length;
+  const layersControl = (variant) => (
+    <div className={`vm-layers${variant ? ` ${variant}` : ''}`}>
+      <button type="button" className={`vm-layers-btn${layersOpen ? ' open' : ''}`}
+        onClick={() => setLayersOpen((v) => !v)} title="Show / hide pin layers">
+        <Icon name="Layers" size={15} />
+        <span>Layers</span>
+        <span className="vm-layers-n">{activeLayerCount}/{relevantLayers.length}</span>
+        <Icon name={layersOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
       </button>
-    );
-  });
+      {layersOpen && (
+        <div className="vm-layers-pop" role="menu">
+          {relevantLayers.map((l) => {
+            const on = activeLayers.has(l.key);
+            return (
+              <button type="button" key={l.key} className={`vm-layers-row${on ? '' : ' off'}`}
+                onClick={() => toggleLayer(l.key)} role="menuitemcheckbox" aria-checked={on}>
+                <span className="vm-layers-ic" style={{ color: l.color }}><Icon name={LAYER_ICON[l.key] || 'MapPin'} size={15} /></span>
+                <span className="vm-layers-name">{l.label}</span>
+                <span className="vm-layers-cnt">{layerCounts[l.key] || 0}</span>
+                <span className={`vm-layers-tog${on ? ' on' : ''}`}><i /></span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -813,7 +839,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
               )}
 
               <div className="vm-toolbar">
-                <div className="vm-layer-chips">{layerChips('')}</div>
+                <div className="vm-layer-chips">{layersControl('')}</div>
 
                 {canPlaceHotspots && (
                   <button className="vm-btn-ghost vm-toolbar-manage" onClick={() => navigate('/settings/vessel?section=location-management')}>
@@ -1024,7 +1050,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                       </>
                     )}
                   </p>
-                  <div className="vm-ov-chips">{layerChips('vm-chip-dark')}</div>
+                  <div className="vm-ov-chips">{layersControl('vm-chip-dark')}</div>
                 </div>
 
                 {/* Doorways EDIT mode (rail tool) — placement lives here, not in
