@@ -61,9 +61,9 @@
 
 /* rail collapse handle + mini strip */
 .dd-rail-top { display: flex; justify-content: flex-end; margin: -4px -4px 2px 0; }
-.dd-rail-collapse { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #ECEAE3; background: #fff; color: #8B8478;
-  cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.dd-rail-collapse:hover { color: #C65A1A; border-color: #C65A1A; }
+.dd-rail-collapse { width: 26px; height: 26px; border-radius: 7px; border: 0; background: none; color: #AEB4C2;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color .14s, background .14s; }
+.dd-rail-collapse:hover { color: #C65A1A; background: #F6F5F2; }
 .dd-rail-mini { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .dd-mini-status { padding: 6px !important; gap: 0 !important; }
 .dd-mini-status .cd { width: 8px; height: 8px; }
