@@ -869,8 +869,8 @@ export const fetchMessages = async (threadId) => {
 
 // AI: turn a free-text request into a priced quote draft (message-to-quote
 // edge function). Returns { quote_text, items, currency }.
-export const draftQuoteFromMessage = async (text, supplierId) => {
-  const { data, error } = await supabase.functions.invoke('message-to-quote', { body: { text, supplierId } });
+export const draftQuoteFromMessage = async (text, supplierId, context = null) => {
+  const { data, error } = await supabase.functions.invoke('message-to-quote', { body: { text, supplierId, context } });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data;
