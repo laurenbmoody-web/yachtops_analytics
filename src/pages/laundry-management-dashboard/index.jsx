@@ -144,6 +144,7 @@ const LaundryManagementDashboard = () => {
   const [allItems, setAllItems] = useState([]);
   const [detailItem, setDetailItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
+  const [showDeliveredList, setShowDeliveredList] = useState(false);
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('laundryViewMode') === 'cabin' ? 'cabin' : 'list'; } catch { return 'list'; }
   });
@@ -416,22 +417,34 @@ const LaundryManagementDashboard = () => {
             <CabinView items={filteredItems} onBulkDeliver={handleBulkDeliver} onOpen={setDetailItem} onAdvance={handleAdvance} />
           ) : (
             <div className="lm-list">
-              {groups.map((g) => (
-                <div key={g.key} className="lm-group">
-                  <div className="lm-group-h">
-                    <span className="lm-group-t">{g.label}</span>
-                    <span className="lm-group-n">{g.items.length}</span>
-                    {g.key === LaundryStatus?.READY_TO_DELIVER && g.items.length > 0 && (
-                      <button type="button" className="lm-group-deliver" onClick={() => handleBulkDeliver(g.items)}>
-                        Deliver all <Icon name="ArrowRight" size={14} />
+              {groups.map((g) => {
+                const isDelivered = g.key === LaundryStatus?.DELIVERED;
+                const collapsed = isDelivered && !showDeliveredList;
+                return (
+                  <div key={g.key} className="lm-group">
+                    {isDelivered ? (
+                      <button type="button" className="lm-group-h as-btn" onClick={() => setShowDeliveredList((s) => !s)} aria-expanded={showDeliveredList}>
+                        <Icon name="ChevronRight" size={13} className={`lm-group-chev${showDeliveredList ? ' open' : ''}`} />
+                        <span className="lm-group-t">{g.label}</span>
+                        <span className="lm-group-n">{g.items.length}</span>
                       </button>
+                    ) : (
+                      <div className="lm-group-h">
+                        <span className="lm-group-t">{g.label}</span>
+                        <span className="lm-group-n">{g.items.length}</span>
+                        {g.key === LaundryStatus?.READY_TO_DELIVER && g.items.length > 0 && (
+                          <button type="button" className="lm-group-deliver" onClick={() => handleBulkDeliver(g.items)}>
+                            Deliver all <Icon name="ArrowRight" size={14} />
+                          </button>
+                        )}
+                      </div>
                     )}
+                    {!collapsed && g.items.map((item) => (
+                      <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} onOpen={setDetailItem} />
+                    ))}
                   </div>
-                  {g.items.map((item) => (
-                    <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} onOpen={setDetailItem} />
-                  ))}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
