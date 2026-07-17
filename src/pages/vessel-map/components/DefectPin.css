@@ -19,7 +19,7 @@
 .vmd-input:focus, .vmd-select:focus, .vmd-textarea:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
 .vmd-textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
 .vmd-row { display: flex; gap: 8px; }
-.vmd-row > * { flex: 1; }
+.vmd-row > * { flex: 1; min-width: 0; }
 
 .vmd-seg { display: flex; gap: 6px; }
 .vmd-seg button { flex: 1; font-family: inherit; font-size: 12px; font-weight: 600; padding: 7px 8px;
