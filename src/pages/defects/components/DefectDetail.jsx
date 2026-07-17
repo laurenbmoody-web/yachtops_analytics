@@ -220,7 +220,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
   return (
     <div className="dd">
       {/* header */}
-      <div className="dd-head">
+      <div className={`dd-head${editing ? ' dd-head--edit' : ''}`}>
         {editing ? (
           // Editing mirrors the "Log a defect" add form — a clean title, no
           // status chips/ref — so add-from-pin, add-from-dashboard and edit read
