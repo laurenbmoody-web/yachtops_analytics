@@ -759,11 +759,10 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   const captureDefectLocation = useCallback(async (defectId) => {
     const api = viewerApiRef.current;
     const pin = selectedHotspot;
-    if (!api?.captureFrame || !pin?.position || !activeTenantId || !defectId) return;
+    if (!api?.captureAtPin || !pin?.position || !activeTenantId || !defectId) return;
     try {
-      api.glideTo?.(pin.position);
-      await new Promise((r) => setTimeout(r, 520)); // let the target glide settle
-      const blob = await api.captureFrame({ width: 512, quality: 0.72 });
+      // Frame on the pin and hide every pin for a clean, centred shot.
+      const blob = await api.captureAtPin(pin.position, { width: 512, quality: 0.72 });
       if (!blob) return;
       const path = `${activeTenantId}/defect-locations/${defectId}-${crypto.randomUUID().slice(0, 8)}.jpg`;
       const { error: upErr } = await supabase.storage.from('vessel-scans')
