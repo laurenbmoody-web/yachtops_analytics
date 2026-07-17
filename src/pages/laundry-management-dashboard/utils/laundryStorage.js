@@ -179,6 +179,23 @@ export const getDeliveryCredits = async () => {
   return map;
 };
 
+// Per-vessel photo-retention policy (null = keep forever). Read/written on the
+// vessels row; the scheduled purge (when enabled) acts on this.
+export const getPhotoRetentionDays = async () => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return null;
+  const { data } = await supabase.from('vessels').select('laundry_photo_retention_days').eq('tenant_id', tenantId).maybeSingle();
+  return data?.laundry_photo_retention_days ?? null;
+};
+export const setPhotoRetentionDays = async (days) => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return false;
+  const { error } = await supabase.from('vessels').update({ laundry_photo_retention_days: days }).eq('tenant_id', tenantId);
+  if (error) { console.error('[laundry] retention save failed', error); showToast('Could not save retention', 'error'); return false; }
+  showToast('Photo retention updated', 'success');
+  return true;
+};
+
 // ── reads ────────────────────────────────────────────────────────────────────
 export const loadAllLaundryItems = async () => {
   const tenantId = await getTenantId();
