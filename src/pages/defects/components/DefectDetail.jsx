@@ -389,7 +389,7 @@ export default function DefectDetail({ defect, onChanged, onClose, mapHref, loca
             ) : hasRepairInfo ? (
               <div className="dd-contractor">
                 {defect.scheduledFixAt && (
-                  <div className="dd-sched"><Icon name="CalendarClock" size={13} /> Scheduled for {fmt(defect.scheduledFixAt)}{defect.scheduledEndAt ? ` – ${fmt(defect.scheduledEndAt)}` : ''}</div>
+                  <div className="dd-sched"><Icon name="CalendarClock" size={14} /> Scheduled for {fmt(defect.scheduledFixAt)}{defect.scheduledEndAt ? ` – ${fmt(defect.scheduledEndAt)}` : ''}</div>
                 )}
                 {defect.contractorName && (
                   <div className="cn">
