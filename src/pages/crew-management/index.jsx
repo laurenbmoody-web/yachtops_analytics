@@ -204,6 +204,21 @@ const CrewManagement = () => {
   const [needsAttention, setNeedsAttention] = useState(false);
   const [complianceByUser, setComplianceByUser] = useState({});
   const [returnByUser, setReturnByUser] = useState({});
+  // Filter / Sort dropdown menus (pill button + floating panel).
+  const [openMenu, setOpenMenu] = useState(null); // 'filter' | 'sort' | null
+  const filterMenuRef = useRef(null);
+  const sortMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!openMenu) return undefined;
+    const onDown = (e) => {
+      if (filterMenuRef.current?.contains(e.target)) return;
+      if (sortMenuRef.current?.contains(e.target)) return;
+      setOpenMenu(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [openMenu]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -2105,59 +2120,133 @@ const CrewManagement = () => {
 
             {/* Roster section — no header; the view tabs are self-explanatory. */}
             <div className="cm-section">
-              {/* View switcher — Gallery (default) · Console · Hierarchy · Calendar */}
-              <div className="cm-views">
-                <button className={`cm-view${rosterView === 'gallery' ? ' is-on' : ''}`} onClick={() => setRosterView('gallery')}>
-                  <Icon name="LayoutGrid" size={14} /> Gallery
-                </button>
-                <button className={`cm-view${rosterView === 'console' ? ' is-on' : ''}`} onClick={() => setRosterView('console')}>
-                  <Icon name="PanelLeft" size={14} /> Console
-                </button>
-                <button className={`cm-view${rosterView === 'hierarchy' ? ' is-on' : ''}`} onClick={() => { setShowArchived(false); setRosterView('hierarchy'); }}>
-                  <Icon name="Network" size={14} /> Hierarchy
-                </button>
-                <button className={`cm-view${rosterView === 'calendar' ? ' is-on' : ''}`} onClick={() => { setShowArchived(false); setRosterView('calendar'); }}>
-                  <Icon name="CalendarDays" size={14} /> Movements
-                </button>
-              </div>
+              {/* Control row — search + Filter + Sort on the left, view switcher on
+                  the right. Filter/Sort only apply to gallery & console. */}
+              <div className="cm-toolbar">
+                {(rosterView === 'gallery' || rosterView === 'console') && (
+                  <>
+                    <div className="cm-search">
+                      <Icon name="Search" size={16} />
+                      <input
+                        placeholder="Search crew…"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e?.target?.value)}
+                      />
+                    </div>
 
-              {/* Search + filters — one line, gallery & console only */}
-              {(rosterView === 'gallery' || rosterView === 'console') && (
-                <div className="cm-toolbar">
-                  <div className="cm-search">
-                    <Icon name="Search" size={16} />
-                    <input
-                      placeholder="Search crew…"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e?.target?.value)}
-                    />
-                  </div>
-                  {deptList.length > 1 && (
-                    <select className="cm-select" value={deptFilter || ''} onChange={(e) => setDeptFilter(e.target.value || null)}>
-                      <option value="">All departments</option>
-                      {deptList.map((d) => <option key={d} value={d}>{d === '—' ? 'Unassigned' : d}</option>)}
-                    </select>
-                  )}
-                  <select className="cm-select" value={statusFilter || ''} onChange={(e) => setStatusFilter(e.target.value || null)}>
-                    <option value="">All statuses</option>
-                    <option value="active">On board</option>
-                    <option value="away">Away (any)</option>
-                    {CREW_STATUSES.filter(s => s.value !== 'active' && s.value !== 'invited').map(s => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
-                  <select className="cm-select" value={docsFilter || ''} onChange={(e) => setDocsFilter(e.target.value ? (e.target.value === 'expired' ? 'expired' : Number(e.target.value)) : null)}>
-                    <option value="">All documents</option>
-                    <option value="expired">Expired</option>
-                    <option value="30">Expiring ≤ 30 days</option>
-                    <option value="60">Expiring ≤ 60 days</option>
-                    <option value="90">Expiring ≤ 90 days</option>
-                  </select>
-                  <button className={`cm-chip${showArchived ? ' is-on' : ''}`} onClick={() => setShowArchived((v) => !v)}>
-                    {showArchived ? 'Viewing archived' : 'Show archived'}
+                    {/* Filter — department · status · documents · archived */}
+                    <div className="cm-md" ref={filterMenuRef}>
+                      {(() => {
+                        const activeCount = [deptFilter, statusFilter, docsFilter, showArchived ? 1 : null].filter(Boolean).length;
+                        return (
+                          <button
+                            type="button"
+                            className={`cm-md-btn${openMenu === 'filter' ? ' is-open' : ''}${activeCount ? ' is-active' : ''}`}
+                            onClick={() => setOpenMenu((m) => (m === 'filter' ? null : 'filter'))}
+                          >
+                            <Icon name="SlidersHorizontal" size={14} /> Filter
+                            {activeCount > 0 && <span className="cm-md-count">{activeCount}</span>}
+                          </button>
+                        );
+                      })()}
+                      {openMenu === 'filter' && (
+                        <div className="cm-md-panel">
+                          {deptList.length > 1 && (
+                            <div className="cm-md-sec">
+                              <p className="cm-md-lbl">Department</p>
+                              <div className="cm-md-pills">
+                                <button type="button" className={`cm-md-pill${!deptFilter ? ' is-on' : ''}`} onClick={() => setDeptFilter(null)}>All</button>
+                                {deptList.map((d) => (
+                                  <button key={d} type="button" className={`cm-md-pill${deptFilter === d ? ' is-on' : ''}`} onClick={() => setDeptFilter((v) => (v === d ? null : d))}>{d === '—' ? 'Unassigned' : d}</button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="cm-md-sec">
+                            <p className="cm-md-lbl">Status</p>
+                            <div className="cm-md-pills">
+                              <button type="button" className={`cm-md-pill${!statusFilter ? ' is-on' : ''}`} onClick={() => setStatusFilter(null)}>All</button>
+                              <button type="button" className={`cm-md-pill${statusFilter === 'active' ? ' is-on' : ''}`} onClick={() => setStatusFilter((s) => (s === 'active' ? null : 'active'))}>On board</button>
+                              <button type="button" className={`cm-md-pill${statusFilter === 'away' ? ' is-on' : ''}`} onClick={() => setStatusFilter((s) => (s === 'away' ? null : 'away'))}>Away</button>
+                              {CREW_STATUSES.filter((s) => s.value !== 'active' && s.value !== 'invited').map((s) => (
+                                <button key={s.value} type="button" className={`cm-md-pill${statusFilter === s.value ? ' is-on' : ''}`} onClick={() => setStatusFilter((v) => (v === s.value ? null : s.value))}>{s.label}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="cm-md-sec">
+                            <p className="cm-md-lbl">Documents</p>
+                            <div className="cm-md-pills">
+                              <button type="button" className={`cm-md-pill${!docsFilter ? ' is-on' : ''}`} onClick={() => setDocsFilter(null)}>All</button>
+                              <button type="button" className={`cm-md-pill${docsFilter === 'expired' ? ' is-on' : ''}`} onClick={() => setDocsFilter((v) => (v === 'expired' ? null : 'expired'))}>Expired</button>
+                              {[30, 60, 90].map((n) => (
+                                <button key={n} type="button" className={`cm-md-pill${docsFilter === n ? ' is-on' : ''}`} onClick={() => setDocsFilter((v) => (v === n ? null : n))}>≤ {n} days</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="cm-md-sec">
+                            <div className="cm-md-toggle">
+                              <span>Show archived crew</span>
+                              <button type="button" className={`cm-md-sw${showArchived ? ' on' : ''}`} aria-pressed={showArchived} onClick={() => setShowArchived((v) => !v)} />
+                            </div>
+                          </div>
+                          <div className="cm-md-foot">
+                            <button type="button" className="cm-md-clear" disabled={!deptFilter && !statusFilter && !docsFilter && !showArchived} onClick={() => { setDeptFilter(null); setStatusFilter(null); setDocsFilter(null); setShowArchived(false); }}>Clear all</button>
+                            <button type="button" className="cm-md-pill is-on" onClick={() => setOpenMenu(null)}>Done</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sort — name · department · role · status */}
+                    <div className="cm-md" ref={sortMenuRef}>
+                      <button
+                        type="button"
+                        className={`cm-md-btn${openMenu === 'sort' ? ' is-open' : ''}${sortConfig?.column ? ' is-active' : ''}`}
+                        onClick={() => setOpenMenu((m) => (m === 'sort' ? null : 'sort'))}
+                      >
+                        <Icon name="ArrowUpDown" size={14} /> Sort
+                        {sortConfig?.column && (
+                          <span className="cm-md-cur">· {{ name: 'Name', department: 'Department', role: 'Role', status: 'Status' }[sortConfig.column]}</span>
+                        )}
+                      </button>
+                      {openMenu === 'sort' && (
+                        <div className="cm-md-panel to-right">
+                          <div className="cm-md-sec" style={{ borderBottom: 0, paddingBottom: 4 }}>
+                            {[['name', 'Name'], ['department', 'Department'], ['role', 'Role'], ['status', 'Status']].map(([col, label]) => (
+                              <button key={col} type="button" className={`cm-md-opt${sortConfig?.column === col ? ' is-on' : ''}`} onClick={() => handleSort(col)}>
+                                {label}
+                                {sortConfig?.column === col && sortConfig?.direction && (
+                                  <span className="dir"><Icon name={sortConfig.direction === 'asc' ? 'ArrowUp' : 'ArrowDown'} size={14} /></span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="cm-md-foot">
+                            <button type="button" className="cm-md-clear" disabled={!sortConfig?.column} onClick={() => setSortConfig({ column: null, direction: null })}>Reset</button>
+                            <button type="button" className="cm-md-pill is-on" onClick={() => setOpenMenu(null)}>Done</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* View switcher — Gallery · Console · Hierarchy · Movements (always shown) */}
+                <div className="cm-views">
+                  <button className={`cm-view${rosterView === 'gallery' ? ' is-on' : ''}`} onClick={() => setRosterView('gallery')}>
+                    <Icon name="LayoutGrid" size={14} /> Gallery
+                  </button>
+                  <button className={`cm-view${rosterView === 'console' ? ' is-on' : ''}`} onClick={() => setRosterView('console')}>
+                    <Icon name="PanelLeft" size={14} /> Console
+                  </button>
+                  <button className={`cm-view${rosterView === 'hierarchy' ? ' is-on' : ''}`} onClick={() => { setShowArchived(false); setRosterView('hierarchy'); }}>
+                    <Icon name="Network" size={14} /> Hierarchy
+                  </button>
+                  <button className={`cm-view${rosterView === 'calendar' ? ' is-on' : ''}`} onClick={() => { setShowArchived(false); setRosterView('calendar'); }}>
+                    <Icon name="CalendarDays" size={14} /> Movements
                   </button>
                 </div>
-              )}
+              </div>
 
               {/* Gallery (B) */}
               {rosterView === 'gallery' && (
