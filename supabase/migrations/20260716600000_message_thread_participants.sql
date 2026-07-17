@@ -62,12 +62,14 @@ from public.supplier_messages m
 where m.sender_type = 'supplier' and m.sender_user_id is not null
 on conflict do nothing;
 
--- Supplier: the supplier's primary user, so their side is never empty.
+-- Supplier: the supplier's contacts (the supplier↔user link is supplier_contacts,
+-- not supplier_profiles). Existing threads grandfather the whole supplier team so
+-- nobody loses access; new threads (from the follow-up) add specific participants.
 insert into public.supplier_message_thread_participants (thread_id, party, user_id)
-select t.id, 'supplier', sp.user_id
+select distinct t.id, 'supplier', sc.user_id
 from public.supplier_message_threads t
-join public.supplier_profiles sp on sp.id = t.supplier_id
-where sp.user_id is not null
+join public.supplier_contacts sc on sc.supplier_id = t.supplier_id
+where sc.user_id is not null
 on conflict do nothing;
 
 -- Orphan crew side: threads with no crew participant → a COMMAND member, so the
