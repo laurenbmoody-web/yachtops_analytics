@@ -34,25 +34,26 @@ function json(body: unknown, status = 200) {
   });
 }
 
-const basePrompt = `You are reading one deck of a yacht's General Arrangement (GA) drawing — a top-down architectural deck plan. Identify the individual rooms/spaces on this deck and trace each one's footprint.
+const basePrompt = `You are reading one deck of a yacht's General Arrangement (GA) drawing — a top-down architectural deck plan. Identify the individual rooms/spaces on this deck.
+
+For each room give the printed name, ONE interior point that sits clearly inside the room (not on a wall or a label), and a bounding box that snugly contains the whole room. Precise wall-tracing is done separately from the pixels — you only need to locate each room, not trace its walls.
 
 Return ONLY a JSON object (no prose, no code fence):
 
 {
   "rooms": [
     {
-      "name": "Master Cabin",        // the room's printed label, transcribed exactly as it appears
-      "points": [                    // polygon tracing the room's walls, in reading order (4–14 points)
-        {"x":0.12,"y":0.30}, {"x":0.34,"y":0.30}, {"x":0.34,"y":0.58}, {"x":0.12,"y":0.58}
-      ],
-      "confidence": 0.0              // 0..1 — your confidence this is a real, correctly-outlined room
+      "name": "Master Cabin",       // the room's printed label, transcribed exactly as it appears
+      "seed": {"x":0.24,"y":0.44},  // a point plainly INSIDE the room — its open floor centre
+      "bbox": {"x":0.12,"y":0.30,"w":0.22,"h":0.28}, // snug box: x,y = top-left; w,h = size
+      "confidence": 0.0             // 0..1 — your confidence this is a real, correctly-located room
     }
   ]
 }
 
 Coordinate rules:
-- x and y are fractions 0..1 of THIS image. x=0 is the left edge, x=1 the right edge; y=0 is the TOP edge, y=1 the bottom edge.
-- Points trace the room's outer walls in order (clockwise or anticlockwise). Follow the actual wall corners — most rooms are rectangular (4 points) but some are L-shaped or angled (more points). Keep it to the room's real footprint, not a loose box around it.
+- All values are fractions 0..1 of THIS image. x=0 is the left edge, x=1 the right edge; y=0 is the TOP edge, y=1 the bottom edge.
+- seed must be well inside the room's own walls (pick an empty bit of floor, away from furniture and text). bbox must wrap the whole room tightly — not the whole deck, not a loose margin.
 
 What to include:
 - Only spaces that carry a printed name/label (cabins, saloon, galley, heads/bathrooms, crew mess, bridge, engine room, lazarette, tender garage, sun deck, etc.). Transcribe the label verbatim.
@@ -109,18 +110,25 @@ Deno.serve(async (req: Request) => {
       return json({ rooms: [], error: 'could not parse model output' });
     }
 
-    // Sanitise: clamp coords, drop degenerate rings, keep named rooms only.
+    // Sanitise: clamp coords, keep named rooms with a usable seed only.
     const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+    const num = (n: any) => (typeof n === 'number' && isFinite(n) ? n : null);
     const rooms = (Array.isArray(parsed.rooms) ? parsed.rooms : [])
       .map((r: any) => {
         const name = typeof r?.name === 'string' ? r.name.trim() : '';
-        const points = (Array.isArray(r?.points) ? r.points : [])
-          .filter((p: any) => typeof p?.x === 'number' && typeof p?.y === 'number')
-          .map((p: any) => ({ x: clamp01(p.x), y: clamp01(p.y) }));
+        const sx = num(r?.seed?.x); const sy = num(r?.seed?.y);
+        const seed = sx != null && sy != null ? { x: clamp01(sx), y: clamp01(sy) } : null;
+        let bbox = null;
+        const bx = num(r?.bbox?.x); const by = num(r?.bbox?.y);
+        const bw = num(r?.bbox?.w); const bh = num(r?.bbox?.h);
+        if (bx != null && by != null && bw != null && bh != null && bw > 0 && bh > 0) {
+          const x = clamp01(bx); const y = clamp01(by);
+          bbox = { x, y, w: Math.min(1 - x, bw), h: Math.min(1 - y, bh) };
+        }
         const confidence = typeof r?.confidence === 'number' ? r.confidence : null;
-        return { name, points, confidence };
+        return { name, seed, bbox, confidence };
       })
-      .filter((r: any) => r.name && r.points.length >= 3);
+      .filter((r: any) => r.name && r.seed);
 
     return json({ rooms });
   } catch (err: any) {

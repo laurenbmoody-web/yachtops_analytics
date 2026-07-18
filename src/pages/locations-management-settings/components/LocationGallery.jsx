@@ -377,7 +377,7 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
           )}
 
           {!loading && view === 'plan' && (
-            <DeckPlanView decks={data?.decks || []} onAddScan={addScan} />
+            <DeckPlanView decks={data?.decks || []} onAddScan={addScan} onReload={load} />
           )}
 
           {!loading && view !== 'plan' && data?.decks?.length === 0 && (
