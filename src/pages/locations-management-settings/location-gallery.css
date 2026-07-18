@@ -243,6 +243,8 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-edit-handle:hover{transform:translate(-50%,-50%) scale(1.25);}
 .dp-edit-handle:active{cursor:grabbing;}
 .dp-edit-handle.is-sel{background:var(--lg-terra);border-color:#fff;box-shadow:0 0 0 2px var(--lg-terra),0 1px 4px rgba(28,27,58,.55);transform:translate(-50%,-50%) scale(1.2);}
+.dp-btn-danger{color:#A32D2D;}
+.dp-btn-danger:hover:not(:disabled){border-color:#A32D2D;color:#A32D2D;background:#FBEEEE;}
 .dp-edit-mid{position:absolute;transform:translate(-50%,-50%);z-index:6;width:15px;height:15px;border-radius:50%;
   background:var(--lg-terra);color:#fff;font-family:var(--lg-sans);font-size:12px;font-weight:700;line-height:15px;
   text-align:center;cursor:pointer;opacity:.5;user-select:none;touch-action:none;box-shadow:0 1px 3px rgba(28,27,58,.4);}
