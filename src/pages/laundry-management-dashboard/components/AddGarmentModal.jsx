@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
+import DeckPlanPicker from './DeckPlanPicker';
+import { createWardrobe } from '../utils/laundryWardrobes';
 import { createLaundryItem, LaundryStatus, availableLaundryTags, formatLaundryTag } from '../utils/laundryStorage';
 import './ownerWardrobe.css';
 
@@ -22,7 +24,9 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const [value, setValue] = useState('');
   const [currency, setCurrency] = useState('EUR');
   const [tags, setTags] = useState([]);
+  const [wlist, setWlist] = useState(wardrobes);
   const [wardrobeId, setWardrobeId] = useState(defaultWardrobeId || wardrobes[0]?.id || '');
+  const [showPlan, setShowPlan] = useState(false);
   const [guestId, setGuestId] = useState('');
   const [staysOnboard, setStaysOnboard] = useState(true); // helper default: resident garments usually stay
   const [photo, setPhoto] = useState('');
@@ -33,6 +37,17 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const pickPhoto = async (e) => {
     const f = e.target.files?.[0];
     if (f) { try { setPhoto(await fileToDataUrl(f)); } catch { /* ignore */ } }
+  };
+
+  // Tapping a room on the plan: use the wardrobe that lives there, else offer to
+  // create one at that room.
+  const onPlanPick = async (spaceId, spaceName) => {
+    setShowPlan(false);
+    const existing = wlist.find((w) => w.locationId === spaceId);
+    if (existing) { setWardrobeId(existing.id); return; }
+    if (!window.confirm(`No wardrobe in “${spaceName}” yet — create one there?`)) return;
+    const w = await createWardrobe({ name: spaceName, locationId: spaceId, scope: 'owner' });
+    if (w) { setWlist((p) => [w, ...p]); setWardrobeId(w.id); }
   };
 
   const save = async () => {
@@ -61,6 +76,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   };
 
   return (
+    <>
     <div className="ow-overlay" role="dialog" aria-modal="true" aria-label="Add garment" onClick={onClose}>
       <div className="ow-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ow-modal-head">
@@ -99,8 +115,8 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
               </div>
             ) : <div />}
             <div>
-              <label className="ow-l">Wardrobe</label>
-              <div className="ow-select"><select value={wardrobeId} onChange={(e) => setWardrobeId(e.target.value)}>{wardrobes.length === 0 && <option value="">No wardrobe yet</option>}{wardrobes.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
+              <label className="ow-l">Wardrobe <button type="button" className="ow-inline-map" onClick={() => setShowPlan(true)}><Icon name="Map" size={12} /> plan</button></label>
+              <div className="ow-select"><select value={wardrobeId} onChange={(e) => setWardrobeId(e.target.value)}>{wlist.length === 0 && <option value="">No wardrobe yet</option>}{wlist.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
             </div>
           </div>
 
@@ -130,6 +146,8 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
         </div>
       </div>
     </div>
+    {showPlan && <DeckPlanPicker selectedId={wlist.find((w) => w.id === wardrobeId)?.locationId || null} onSelect={onPlanPick} onClose={() => setShowPlan(false)} />}
+    </>
   );
 };
 

@@ -106,6 +106,9 @@
 
 .ow-l { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; margin-top: 6px; }
 .ow-req { color: #C65A1A; margin-left: 4px; }
+.ow-inline-map { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; background: none; border: none; padding: 0; cursor: pointer; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #C65A1A; vertical-align: baseline; }
+.ow-inline-map:hover { text-decoration: underline; }
+.ow-inline-map svg { stroke: #C65A1A; }
 .ow-opt { color: #AEB4C2; margin-left: 4px; }
 .ow-input { font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; padding: 11px 13px; width: 100%; }
 .ow-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }

@@ -13,3 +13,6 @@
 .lp-opt:hover { background: #F4F6FA; }
 .lp-name { font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 .lp-zone { font-size: 11px; color: #9AA1AE; }
+.lp-onmap { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; background: none; border: none; padding: 4px 2px; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; }
+.lp-onmap:hover { text-decoration: underline; }
+.lp-onmap svg { stroke: #C65A1A; }
