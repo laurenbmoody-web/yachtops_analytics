@@ -78,6 +78,14 @@ export const setSpaceShape = async (spaceId, shape) => {
   if (error) throw error;
 };
 
+// Room's plan zoning category (guest/crew/technical/…), or null to fall back to
+// the name-based default. Drives the colour the room is drawn in on the plan.
+export const setSpaceCategory = async (spaceId, category) => {
+  const { error } = await supabase.from('vessel_locations')
+    .update({ plan_category: category }).eq('id', spaceId);
+  if (error) throw error;
+};
+
 // AI room detection — hand one framed deck image (base64 JPEG of the deck crop)
 // to the deck-plan-autotrace edge function, which reads it with Claude vision
 // and returns the rooms it can identify, each with a name and a rough polygon
