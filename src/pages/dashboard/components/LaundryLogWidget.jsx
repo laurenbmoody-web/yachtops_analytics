@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { loadAllLaundryItems, LaundryStatus } from '../../laundry-management-dashboard/utils/laundryStorage';
 import AddLaundryModal from '../../laundry-management-dashboard/components/AddLaundryModal';
 
-// Today's flow: items IN = in-progress / ready-to-deliver created today;
-// items OUT = delivered today.
+// Items IN = the current load (all outstanding + ready to deliver, any day).
+// Items OUT = delivered today only.
 const computeStats = (items) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -13,11 +13,9 @@ const computeStats = (items) => {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowTime = tomorrow.getTime();
 
-  const itemsIn = (items || []).filter((item) => {
-    if (item?.status !== LaundryStatus?.IN_PROGRESS && item?.status !== LaundryStatus?.READY_TO_DELIVER) return false;
-    const t = new Date(item?.createdAt).getTime();
-    return t >= todayTime && t < tomorrowTime;
-  }).length;
+  const itemsIn = (items || []).filter((item) =>
+    item?.status === LaundryStatus?.IN_PROGRESS || item?.status === LaundryStatus?.READY_TO_DELIVER
+  ).length;
 
   const itemsOut = (items || []).filter((item) => {
     if (item?.status !== LaundryStatus?.DELIVERED || !item?.deliveredAt) return false;
