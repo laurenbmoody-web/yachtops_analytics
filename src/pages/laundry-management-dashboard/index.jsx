@@ -73,6 +73,11 @@ const LaundryManagementDashboard = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [laundryItems, setLaundryItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
+  // Charter billing context — declared before the filter effect that reads them
+  // (in its deps), so they're initialised when that runs.
+  const [allTrips, setAllTrips] = useState([]);
+  const [billingCfg, setBillingCfg] = useState(null);
+  useEffect(() => { loadTrips().then((t) => setAllTrips(t || [])).catch(() => {}); getLaundryBilling().then(setBillingCfg).catch(() => {}); }, []);
   const [, setGuests] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -201,12 +206,6 @@ const LaundryManagementDashboard = () => {
 
   // Keep the turnaround stats fed alongside the today view.
   useEffect(() => { loadAllLaundryItems().then(setAllItems).catch(() => {}); }, []);
-
-  // Charter billing context — resolve each item's charter basis so the log can
-  // show what's billable. (loadTrips is also used by the trip filter above.)
-  const [allTrips, setAllTrips] = useState([]);
-  const [billingCfg, setBillingCfg] = useState(null);
-  useEffect(() => { loadTrips().then((t) => setAllTrips(t || [])).catch(() => {}); getLaundryBilling().then(setBillingCfg).catch(() => {}); }, []);
 
   // Offline capture — show anything queued while offline, and replay it (then
   // refresh) the moment connectivity returns or the page loads with a backlog.
