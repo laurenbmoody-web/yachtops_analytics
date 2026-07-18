@@ -59,6 +59,11 @@ const smoothClosed = (pts) => {
 // Loose room-name key for matching AI-read labels to the crew's existing rooms.
 const normName = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
+// Fold common yacht synonyms so a crew name and the plan label match up
+// (Master Cabin ↔ Owner's Cabin, WC/Bathroom/Ensuite ↔ Head, Salon ↔ Saloon).
+const NAME_SYNONYMS = { master: 'owner', owners: 'owner', wc: 'head', toilet: 'head', bathroom: 'head', ensuite: 'head', salon: 'saloon', lounge: 'saloon', accomodation: 'accommodation', accom: 'accommodation' };
+const matchKey = (s) => normName(s).split(' ').map((w) => NAME_SYNONYMS[w] || w).join(' ').trim();
+
 // Box aspect of a deck's crop, in true pixels (undistorted).
 const boxAspectOf = (crop, dims) => (crop.w * dims.w) / (crop.h * dims.h) || 3;
 
@@ -523,15 +528,17 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   });
 
   // Match an AI-read label to one of this deck's existing rooms: exact key first,
-  // then a contained-name fallback ("Master" ↔ "Master Cabin"). One room each.
+  // then a contained-name fallback ("Master" ↔ "Master Cabin"). Synonyms fold the
+  // classic yacht mismatches (Master↔Owner, WC/Bathroom↔Head) so a crew name and
+  // the plan label meet. One room each.
   const matchSpaceId = (name, spaces, used) => {
-    const k = normName(name);
+    const k = matchKey(name);
     if (!k) return null;
-    let s = spaces.find((sp) => normName(sp.name) === k && !used.has(sp.id));
+    let s = spaces.find((sp) => matchKey(sp.name) === k && !used.has(sp.id));
     if (!s && k.length >= 4) {
       s = spaces.find((sp) => {
         if (used.has(sp.id)) return false;
-        const n = normName(sp.name);
+        const n = matchKey(sp.name);
         return n.length >= 4 && (n.includes(k) || k.includes(n));
       });
     }
@@ -613,6 +620,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     }
   };
 
+  // Reconcile a read name to an existing room (or back to "create new"), so a
+  // plan label the crew named differently doesn't spawn a duplicate.
+  const setItemAssign = (idx, spaceId) => {
+    setProposals((p) => (p ? { ...p, items: p.items.map((it, i) => (i === idx ? { ...it, assignTo: spaceId || null } : it)) } : p));
+  };
+
   // Land every proposal: create the new rooms (unmatched labels) under the deck,
   // then write each outline + centre point onto its room. Reloads the gallery so
   // freshly-created rooms appear.
@@ -622,14 +635,16 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     try {
       // A space needs a parent zone — use the deck's first zone, or make one.
       let zoneId = deck.zones?.[0]?.id || null;
-      const needsCreate = proposals.items.some((it) => it.create);
+      // "assignTo" (crew mapped a read name to an existing room) counts as matched,
+      // not a create — that's how we avoid duplicate rooms.
+      const needsCreate = proposals.items.some((it) => it.create && !it.assignTo);
       if (needsCreate && !zoneId) {
         const z = await createZone(deck.id, 'General');
         zoneId = z.id;
       }
       for (const it of proposals.items) {
-        let spaceId = it.matchedSpaceId;
-        if (it.create) {
+        let spaceId = it.matchedSpaceId || it.assignTo || null;
+        if (!spaceId && it.create) {
           try {
             const sp = await createSpace(zoneId, it.name);
             spaceId = sp.id;
@@ -802,28 +817,50 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
 
             {deckProps && (() => {
               const total = deckProps.items.length;
-              const newCount = deckProps.items.filter((i) => i.create).length;
-              const matchCount = total - newCount;
+              const newCount = deckProps.items.filter((i) => i.create && !i.assignTo).length;
+              const matchCount = total - newCount; // auto-matched + reconciled-to-existing
+              const matchedIds = new Set(deckProps.items.filter((i) => i.matchedSpaceId).map((i) => i.matchedSpaceId));
+              const baseCandidates = spaces.filter((s) => !shapeOf(s) && !matchedIds.has(s.id));
+              const newItems = deckProps.items.map((it, i) => ({ it, i })).filter(({ it }) => it.create);
+              const showReconcile = newItems.length > 0 && baseCandidates.length > 0;
               return (
-                <div className="dp-tracehint dp-ai-review">
-                  <span>
-                    <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> room{total === 1 ? '' : 's'} —{' '}
-                    {matchCount > 0 && <><b>{matchCount}</b> matched</>}
-                    {matchCount > 0 && newCount > 0 && ', '}
-                    {newCount > 0 && <><b>{newCount}</b> new (<span className="dp-ai-unmatched">will be created</span>)</>}
-                    {matchCount === 0 && newCount === 0 && 'none usable'}.
-                  </span>
-                  <span className="dp-spring" />
-                  <button
-                    className={`dp-smooth-toggle ${aiSmooth ? 'is-on' : ''}`}
-                    onClick={() => setAiSmooth((v) => !v)}
-                    title="Curve the outlines (off = straight walls, recommended)"
-                  >{aiSmooth ? 'Curved' : 'Straight'}</button>
-                  <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
-                    {applying ? 'Applying…' : newCount > 0 ? `Create & apply ${total}` : `Apply ${total}`}
-                  </button>
-                  <button className="lg-btn sm" disabled={applying} onClick={() => setProposals(null)}>Discard</button>
-                </div>
+                <>
+                  <div className="dp-tracehint dp-ai-review">
+                    <span>
+                      <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> — <b>{matchCount}</b> matched
+                      {newCount > 0 && <>, <b>{newCount}</b> new (<span className="dp-ai-unmatched">will be created</span>)</>}.
+                    </span>
+                    <span className="dp-spring" />
+                    <button
+                      className={`dp-smooth-toggle ${aiSmooth ? 'is-on' : ''}`}
+                      onClick={() => setAiSmooth((v) => !v)}
+                      title="Curve the outlines (off = straight walls, recommended)"
+                    >{aiSmooth ? 'Curved' : 'Straight'}</button>
+                    <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
+                      {applying ? 'Applying…' : newCount > 0 ? `Create ${newCount} & apply ${total}` : `Apply ${total}`}
+                    </button>
+                    <button className="lg-btn sm" disabled={applying} onClick={() => setProposals(null)}>Discard</button>
+                  </div>
+                  {showReconcile && (
+                    <div className="dp-reconcile">
+                      <div className="dp-reconcile-hd">Read a name the crew set up differently? Map it to that room instead of creating a duplicate.</div>
+                      <div className="dp-reconcile-rows">
+                        {newItems.map(({ it, i }) => {
+                          const opts = baseCandidates.filter((s) => !deckProps.items.some((o, oi) => oi !== i && o.assignTo === s.id));
+                          return (
+                            <label className="dp-reconcile-row" key={i}>
+                              <span className="dp-recon-name">✦ {it.name}</span>
+                              <select className="dp-recon-sel" value={it.assignTo || ''} onChange={(e) => setItemAssign(i, e.target.value || null)}>
+                                <option value="">Create new room</option>
+                                {opts.map((s) => <option key={s.id} value={s.id}>= {s.name}</option>)}
+                              </select>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               );
             })()}
 
@@ -867,7 +904,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       return (
                         <g key={i}>
                           <path className="dp-shape-halo" d={d} />
-                          <path className={`dp-proposal ${it.create ? 'is-new' : ''}`} d={d} />
+                          <path className={`dp-proposal ${it.create && !it.assignTo ? 'is-new' : ''}`} d={d} />
                         </g>
                       );
                     })}
@@ -909,8 +946,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     const c = centroidOf(it.nodes);
                     if (!c) return null;
                     return (
-                      <span key={i} className={`dp-proposal-label ${it.create ? 'is-new' : ''}`} style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%` }}>
-                        ✦ {it.name}{it.create ? ' +' : ''}
+                      <span key={i} className={`dp-proposal-label ${it.create && !it.assignTo ? 'is-new' : ''}`} style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%` }}>
+                        ✦ {it.name}{it.create && !it.assignTo ? ' +' : ''}
                       </span>
                     );
                   })}
