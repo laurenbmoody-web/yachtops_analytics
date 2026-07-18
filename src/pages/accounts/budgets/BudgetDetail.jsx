@@ -54,15 +54,18 @@ export default function BudgetDetail() {
   const [toast, setToast] = useState('');
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await getBudgetVsActual(id);
-    if (!error && data) setView(data);
-    // Refresh the monthly matrix too so both tabs stay in step after edits.
-    const mr = await getBudgetMonthly(id);
+  // fetchAll(true) shows the mount spinner; refresh() (spinner=false) reconciles
+  // quietly after an edit so the page doesn't blank or jump — you keep your place
+  // and the remaining rows stay put while you work through them.
+  const fetchAll = useCallback(async (spinner) => {
+    if (spinner) setLoading(true);
+    const [vs, mr] = await Promise.all([getBudgetVsActual(id), getBudgetMonthly(id)]);
+    if (!vs.error && vs.data) setView(vs.data);
     if (!mr.error && mr.data) setMonthly(mr.data);
-    setLoading(false);
+    if (spinner) setLoading(false);
   }, [id]);
+  const load = useCallback(() => fetchAll(true), [fetchAll]);
+  const refresh = useCallback(() => fetchAll(false), [fetchAll]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -81,29 +84,29 @@ export default function BudgetDetail() {
 
   const saveBudget = async (patch) => {
     const res = await updateBudget(id, patch);
-    if (!res.error) { await load(); flash('Budget updated'); }
+    if (!res.error) { await refresh(); flash('Budget updated'); }
     return res;
   };
   const saveLine = async (payload) => {
     const res = await upsertLine({ ...payload, budget_id: id });
-    if (!res.error) { await load(); flash('Line saved'); }
+    if (!res.error) { await refresh(); flash('Line saved'); }
     return res;
   };
   const removeLine = async (lineId) => {
     const res = await deleteLine(lineId);
-    if (!res.error) { await load(); flash('Line deleted'); }
+    if (!res.error) { await refresh(); flash('Line deleted'); }
     return res;
   };
   const toggleClose = async () => {
     if (budget.status === 'closed') return saveBudget({ status: 'active' });
     if (!window.confirm('Close this budget? You can reopen it later.')) return;
     const res = await closeBudget(id);
-    if (!res.error) { await load(); flash('Budget closed'); }
+    if (!res.error) { await refresh(); flash('Budget closed'); }
   };
   const loadTemplate = async () => {
     if (!window.confirm('Load the standard yacht (MYBA) chart of accounts? Existing lines are kept; standard lines are added at £0 for you to fill in.')) return;
     const res = await seedStandardTemplate(id, STANDARD_CHART_OF_ACCOUNTS);
-    if (!res.error) { await load(); flash('Standard template loaded'); }
+    if (!res.error) { await refresh(); flash('Standard template loaded'); }
     else flash('Could not load template');
   };
 
@@ -121,7 +124,7 @@ export default function BudgetDetail() {
     const opt = lineOptions.find((o) => o.value === targetValue);
     if (!opt) return;
     const res = await setCategoryOverride(budget.tenant_id, sourceCategory, { bucket: opt.bucket, category: opt.value, code: opt.code });
-    if (!res.error) { await load(); flash('Categorised — it’ll auto-route next time'); }
+    if (!res.error) { await refresh(); flash('Categorised — it’ll auto-route next time'); }
     else flash('Could not save the mapping');
   };
 
@@ -142,7 +145,7 @@ export default function BudgetDetail() {
     setAmtEdit(null);
     if (Number(value) === Number(original)) return;   // no change
     const res = await updateLineAmount(id, value);
-    if (!res.error) { await load(); flash('Amount updated'); }
+    if (!res.error) { await refresh(); flash('Amount updated'); }
     else flash('Could not update amount');
   };
 
@@ -152,7 +155,7 @@ export default function BudgetDetail() {
       budget_id: id, bucket: addRow.bucket, kind: addRow.kind,
       category: addRow.category.trim(), amount: Number(addRow.amount) || 0,
     });
-    if (!res.error) { await load(); flash('Line added'); setAddRow({ ...addRow, category: '', amount: '' }); }
+    if (!res.error) { await refresh(); flash('Line added'); setAddRow({ ...addRow, category: '', amount: '' }); }
     else { flash(/duplicate|unique/i.test(res.error.message || '') ? 'That line already exists' : 'Could not add line'); }
   };
 
@@ -224,6 +227,47 @@ export default function BudgetDetail() {
     );
   };
 
+  // The "Needs a category" review list — rendered at the TOP of the budget so it
+  // reads as the to-do it is.
+  const renderNeedsCategory = () => (
+    <div className="bg-bucket">
+      <div className="bg-bucket-head">
+        <span className="bg-bucket-name">Needs a category</span>
+        <span className="bg-bucket-rule" />
+        <span className="bg-bucket-meta">{view.unbudgeted.lines.length} to review · assign a line</span>
+      </div>
+      <div className="bg-cols">
+        <span>Line</span><span className="r">Budgeted</span><span className="r c-actual">Actual</span>
+        <span className="r c-committed">On order</span><span className="r c-remaining">Remaining</span><span>Assign to</span><span />
+      </div>
+      {view.unbudgeted.lines.map((l, i) => (
+        <div key={`u-${i}`} className="bg-row bg-review">
+          <div className="bg-row-cat">
+            <b>{l.category}</b>
+            <div className="bg-row-note">Unrecognised — pick the budget line it belongs to</div>
+          </div>
+          <span className="bg-fig muted">—</span>
+          <span className="bg-fig c-actual">{formatMoney(l.actual, cur)}</span>
+          <span className="bg-fig c-committed">{formatMoney(l.committed, cur)}</span>
+          <span className="bg-fig c-remaining bg-neg">{formatMoney(l.remaining, cur)}</span>
+          {canEdit ? (
+            <select className="bg-assign" value=""
+              onChange={(e) => {
+                const v = e.target.value; e.target.value = '';
+                if (v === '__new__') setLineModal({ line: { bucket: '', category: l.category, amount: 0 } });
+                else if (v) assignUnbudgeted(l.category, v);
+              }}>
+              <option value="" disabled>Assign to…</option>
+              {lineOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              <option value="__new__">＋ New line…</option>
+            </select>
+          ) : <span className="bg-fig muted">review</span>}
+          <span />
+        </div>
+      ))}
+    </div>
+  );
+
   // ── Month-by-month view ────────────────────────────────────────────────────
   const mfmt = (v) => (v ? new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 }).format(v) : '—');
   const rankBucket = (b) => (b.kind === 'revenue' ? -1 : (STANDARD_BUCKET_ORDER.indexOf(b.bucket) === -1 ? 999 : STANDARD_BUCKET_ORDER.indexOf(b.bucket)));
@@ -238,7 +282,7 @@ export default function BudgetDetail() {
     if (Number(value) === Number(current[ym] || 0)) return;
     current[ym] = Number(value) || 0;
     const res = await updateLineMonthly(line.id, current);
-    if (!res.error) { await load(); flash('Monthly budget saved'); }
+    if (!res.error) { await refresh(); flash('Monthly budget saved'); }
     else flash('Could not save');
   };
 
@@ -247,7 +291,7 @@ export default function BudgetDetail() {
     if (!per) { flash('Set an annual amount first, then spread'); return; }
     const map = Object.fromEntries(months.map((m) => [m.ym, per]));
     const res = await updateLineMonthly(line.id, map);
-    if (!res.error) { await load(); flash('Spread evenly across the period'); }
+    if (!res.error) { await refresh(); flash('Spread evenly across the period'); }
   };
 
   const renderMonthly = () => {
@@ -451,6 +495,7 @@ export default function BudgetDetail() {
                 </div>
               ) : (
                 <>
+                  {view.unbudgeted && renderNeedsCategory()}
                   {orderedBuckets.map((b) => (
                     <div key={b.bucket} className="bg-bucket">
                       <div className="bg-bucket-head">
@@ -475,45 +520,6 @@ export default function BudgetDetail() {
                       {renderAddRow(b.bucket, b.kind)}
                     </div>
                   ))}
-
-                  {view.unbudgeted && (
-                    <div className="bg-bucket">
-                      <div className="bg-bucket-head">
-                        <span className="bg-bucket-name">Needs a category</span>
-                        <span className="bg-bucket-rule" />
-                        <span className="bg-bucket-meta">{view.unbudgeted.lines.length} to review · assign a line</span>
-                      </div>
-                      <div className="bg-cols">
-                        <span>Line</span><span className="r">Budgeted</span><span className="r c-actual">Actual</span>
-                        <span className="r c-committed">On order</span><span className="r c-remaining">Remaining</span><span>Assign to</span><span />
-                      </div>
-                      {view.unbudgeted.lines.map((l, i) => (
-                        <div key={`u-${i}`} className="bg-row bg-review">
-                          <div className="bg-row-cat">
-                            <b>{l.category}</b>
-                            <div className="bg-row-note">Unrecognised — pick the budget line it belongs to</div>
-                          </div>
-                          <span className="bg-fig muted">—</span>
-                          <span className="bg-fig c-actual">{formatMoney(l.actual, cur)}</span>
-                          <span className="bg-fig c-committed">{formatMoney(l.committed, cur)}</span>
-                          <span className="bg-fig c-remaining bg-neg">{formatMoney(l.remaining, cur)}</span>
-                          {canEdit ? (
-                            <select className="bg-assign" value=""
-                              onChange={(e) => {
-                                const v = e.target.value; e.target.value = '';
-                                if (v === '__new__') setLineModal({ line: { bucket: '', category: l.category, amount: 0 } });
-                                else if (v) assignUnbudgeted(l.category, v);
-                              }}>
-                              <option value="" disabled>Assign to…</option>
-                              {lineOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                              <option value="__new__">＋ New line…</option>
-                            </select>
-                          ) : <span className="bg-fig muted">review</span>}
-                          <span />
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
                   {(view.revenueTotals.budgeted > 0 || view.revenueTotals.actual > 0) && (
                     <div className="bg-row bg-grandtotal" style={{ borderTop: '1px solid #E6E8EF' }}>
