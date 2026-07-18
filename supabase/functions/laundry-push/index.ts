@@ -1,15 +1,15 @@
-// Supabase Edge Function: laundry-push  (COMMITTED, NOT YET DEPLOYED)
+// Supabase Edge Function: laundry-push
 //
-// Sends web-push notifications to enrolled devices (push_subscriptions). Deploy
-// this and set the VAPID secrets only once we're testing together — until then
-// it does nothing (it isn't deployed and no cron calls it).
+// Sends web-push notifications to enrolled devices (push_subscriptions.topic
+// = 'laundry'). Called hourly by pg_cron and on-demand for tests.
 //
 // Two modes:
 //  • POST { title, body, url, tenant_id? }  → send that message (a test, or a
 //    caller-built alert) to the tenant's devices (all devices if no tenant_id).
-//  • POST {} (or { scan: true })            → scan laundry_items for items that
-//    need attention (overdue / missing / damaged, not delivered) and send each
-//    tenant a summary to its devices.
+//  • POST {} (or { force: true })           → scan laundry_items for items that
+//    need attention (urgent / overdue / missing / damaged, not delivered) and
+//    push each vessel a summary — but only when it's 4pm in that vessel's own
+//    timezone (vessels.timezone). `force: true` bypasses the 4pm gate for tests.
 //
 // Secrets required at deploy time (set in Supabase → Edge Functions):
 //   VAPID_PUBLIC_KEY   (same base64url public key shipped in the client)
@@ -62,6 +62,18 @@ const isAttention = (i: Record<string, unknown>) => i.status !== 'Delivered' && 
   || i.flag === 'missing' || i.flag === 'damaged'
 );
 
+// The daily attention nudge fires at 4pm in each vessel's own timezone. The
+// cron runs hourly; we send to a vessel only when it's currently the 4pm hour
+// there (which also tracks DST via the IANA zone).
+const SEND_HOUR = 16;
+function localHour(tz: string): number | null {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: tz }).formatToParts(new Date());
+    const h = parseInt(parts.find((p) => p.type === 'hour')?.value || '', 10);
+    return Number.isFinite(h) ? (h === 24 ? 0 : h) : null;
+  } catch { return null; }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
@@ -87,8 +99,16 @@ Deno.serve(async (req: Request) => {
       .limit(5000);
     const byTenant = new Map<string, number>();
     for (const it of items || []) { if (isAttention(it)) byTenant.set(it.tenant_id, (byTenant.get(it.tenant_id) || 0) + 1); }
-    for (const [tid, n] of byTenant) {
-      targets.set(tid, { title: 'Laundry needs attention', body: `${n} item${n === 1 ? '' : 's'} overdue or flagged`, url: '/laundry-management-dashboard?filter=attention' });
+    if (byTenant.size) {
+      const { data: vs } = await sb.from('vessels').select('tenant_id, timezone').in('tenant_id', [...byTenant.keys()]);
+      const tzOf = new Map((vs || []).map((v) => [v.tenant_id, v.timezone]));
+      const force = body.force === true; // bypass the 4pm gate for a manual scan test
+      for (const [tid, n] of byTenant) {
+        const tz = tzOf.get(tid);
+        if (!tz) continue;                              // no timezone set → don't guess
+        if (!force && localHour(tz) !== SEND_HOUR) continue; // only at 4pm vessel-local
+        targets.set(tid, { title: 'Laundry needs attention', body: `${n} item${n === 1 ? '' : 's'} overdue or flagged`, url: '/laundry-management-dashboard?filter=attention' });
+      }
     }
   }
 

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
-import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays, getVesselBranding } from '../laundry-management-dashboard/utils/laundryStorage';
+import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays, getVesselBranding, getVesselTimezone, setVesselTimezone } from '../laundry-management-dashboard/utils/laundryStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
@@ -15,6 +15,20 @@ import { FilterMenu, SortMenu } from '../laundry-management-dashboard/components
 import { LaundryStatus } from '../laundry-management-dashboard/utils/laundryStorage';
 import '../../styles/editorial.css';
 import '../laundry-management-dashboard/laundry.css';
+
+// Common yacht cruising grounds for the daily-alert timezone picker.
+const ALERT_TZS = [
+  { v: 'Europe/London', l: 'UK' },
+  { v: 'Europe/Malta', l: 'C. Europe · Med' },
+  { v: 'Europe/Athens', l: 'E. Med · Greece' },
+  { v: 'Atlantic/Canary', l: 'Canaries' },
+  { v: 'America/New_York', l: 'US East' },
+  { v: 'America/Barbados', l: 'Caribbean · AST' },
+  { v: 'Indian/Maldives', l: 'Maldives' },
+  { v: 'Asia/Dubai', l: 'UAE' },
+  { v: 'Pacific/Auckland', l: 'New Zealand' },
+  { v: 'UTC', l: 'UTC' },
+];
 
 const dayKeyOf = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const ownerKindC = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : k === 'other' ? 'other' : 'unknown'; };
@@ -404,6 +418,9 @@ const LaundryHistoryView = () => {
   const canManage = useMemo(() => { const t = (getCurrentUser()?.effectiveTier || getCurrentUser()?.tier || '').toUpperCase(); return t === 'COMMAND' || t === 'CHIEF'; }, []);
   useEffect(() => { if (canManage) getPhotoRetentionDays().then(setRetention).catch(() => {}); }, [canManage]);
   const saveRetention = async (v) => { setRetention(v); await setPhotoRetentionDays(v); };
+  const [alertTz, setAlertTz] = useState(null);
+  useEffect(() => { if (canManage) getVesselTimezone().then(setAlertTz).catch(() => {}); }, [canManage]);
+  const saveAlertTz = async (v) => { setAlertTz(v); await setVesselTimezone(v); };
 
   // open a piece in the read view — sign its photos first so the hero renders
   const openItem = async (it) => {
@@ -524,6 +541,16 @@ const LaundryHistoryView = () => {
                     <option value="90">90 days</option>
                     <option value="180">6 months</option>
                     <option value="365">1 year</option>
+                  </select>
+                </label>
+              )}
+              {canManage && (
+                <label className="hist-retain" title="The daily ‘laundry needs attention’ alert is sent at 4pm in this timezone">
+                  <Icon name="Bell" size={14} />
+                  <span>Alert 4pm</span>
+                  <select value={alertTz || ''} onChange={(e) => saveAlertTz(e.target.value)}>
+                    {alertTz && !ALERT_TZS.some((z) => z.v === alertTz) && <option value={alertTz}>{alertTz}</option>}
+                    {ALERT_TZS.map((z) => <option key={z.v} value={z.v}>{z.l}</option>)}
                   </select>
                 </label>
               )}
