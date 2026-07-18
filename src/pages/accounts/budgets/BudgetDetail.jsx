@@ -14,6 +14,8 @@ import { stateOf } from '../../../services/budgetCalc';
 import BudgetFormModal from './components/BudgetFormModal';
 import LineFormModal from './components/LineFormModal';
 import AssignMenu from './components/AssignMenu';
+import BudgetOverview from './components/BudgetOverview';
+import { computeOverview } from '../../../services/budgetOverview';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from './data/mybaChartOfAccounts';
 import { exportBudgetXlsx, exportBudgetMonthlyXlsx } from './budgetExport';
 import './budgets.css';
@@ -53,7 +55,7 @@ export default function BudgetDetail() {
   const [editBudget, setEditBudget] = useState(false);
   const [lineModal, setLineModal] = useState(null); // { line } or {} for new
   const [addRow, setAddRow] = useState(null);       // { bucket, kind, category, amount } inline add
-  const [tab, setTab] = useState('summary');        // 'summary' | 'monthly'
+  const [tab, setTab] = useState('overview');        // 'overview' | 'summary' | 'monthly'
   const [monthly, setMonthly] = useState(null);
   const [mMode, setMMode] = useState('budget');     // 'budget' | 'actual' | 'variance'
   const [toast, setToast] = useState('');
@@ -110,6 +112,10 @@ export default function BudgetDetail() {
 
   const budget = view?.budget;
   const cur = budget?.currency || 'EUR';
+
+  // Current calendar month, for the Overview pace/forecast (how far through the period).
+  const todayYm = useMemo(() => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; }, []);
+  const overview = useMemo(() => (view && monthly ? computeOverview(view, monthly, todayYm) : null), [view, monthly, todayYm]);
 
   // Suggestions for the line modal: existing buckets, plus categories that already
   // carry spend (so you can quickly budget something that's already showing).
@@ -506,8 +512,13 @@ export default function BudgetDetail() {
                       {sT.totals.remaining < 0 ? `${formatMoney(-sT.totals.remaining, cur)} over` : `${formatMoney(sT.totals.remaining, cur)} left`}
                     </span>
                   </div>
-                  <div className="bg-kpi-meter"><span className={`bg-kpi-fill is-${kpiState}`} style={{ width: `${kpiPct == null ? 0 : Math.min(100, Math.round(kpiPct * 100))}%` }} /></div>
-                  <span className="bg-kpi-sub">{formatMoney(kpiUsed, cur)} of {formatMoney(sT.totals.budgeted, cur)}{sT.totals.committed ? ` · incl. ${formatMoney(sT.totals.committed, cur)} on order` : ''}</span>
+                  <div className="bg-kpi-meter">
+                    <span className={`bg-kpi-fill is-${kpiState}`} style={{ width: `${kpiPct == null ? 0 : Math.min(100, Math.round(kpiPct * 100))}%` }} />
+                    {overview && overview.elapsed > 0 && overview.elapsed < overview.months.length && (
+                      <span className="bg-kpi-pace" style={{ left: `${Math.min(100, Math.round(overview.pctYear * 100))}%` }} title="How far through the period" />
+                    )}
+                  </div>
+                  <span className="bg-kpi-sub">{formatMoney(kpiUsed, cur)} of {formatMoney(sT.totals.budgeted, cur)}{sT.totals.committed ? ` · incl. ${formatMoney(sT.totals.committed, cur)} on order` : ''}{overview && overview.pctYear > 0 && overview.pctYear < 1 ? ` · ${Math.round(overview.pctYear * 100)}% of the period gone` : ''}</span>
                 </div>
                 <div className="bg-kpi"><span className="bg-kpi-label">Spent</span><b className="bg-kpi-fig">{formatMoney(sT.totals.actual, cur)}</b><span className="bg-kpi-mini">actual, from the ledger</span></div>
                 <div className="bg-kpi"><span className="bg-kpi-label">On order</span><b className="bg-kpi-fig">{formatMoney(sT.totals.committed, cur)}</b><span className="bg-kpi-mini">open supplier orders</span></div>
@@ -518,7 +529,8 @@ export default function BudgetDetail() {
               <p className="bg-report-note">Figures reported in {cur}. Actual is live from the ledger; on-order is open supplier orders (VAT-exclusive), assumed same currency.</p>
 
               <div className="bg-tabs">
-                <button type="button" className={`bg-tab${tab === 'summary' ? ' is-active' : ''}`} onClick={() => setTab('summary')}>Summary</button>
+                <button type="button" className={`bg-tab${tab === 'overview' ? ' is-active' : ''}`} onClick={() => setTab('overview')}>Overview</button>
+                <button type="button" className={`bg-tab${tab === 'summary' ? ' is-active' : ''}`} onClick={() => setTab('summary')}>Detail</button>
                 <button type="button" className={`bg-tab${tab === 'monthly' ? ' is-active' : ''}`} onClick={() => setTab('monthly')}>By month</button>
               </div>
 
@@ -532,7 +544,9 @@ export default function BudgetDetail() {
                 </div>
               )}
 
-              {tab === 'monthly' ? renderMonthly() : (
+              {tab === 'overview' ? (
+                <BudgetOverview view={view} monthly={monthly} cur={cur} todayYm={todayYm} />
+              ) : tab === 'monthly' ? renderMonthly() : (
               view.buckets.length === 0 && !view.unbudgeted ? (
                 <div className="bg-empty" style={{ marginTop: 20 }}>
                   <Icon name="ListTree" size={40} />
