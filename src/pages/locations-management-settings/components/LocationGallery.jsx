@@ -360,8 +360,8 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
             )}
             <div className="lg-actions">
               <div className="lg-seg" role="tablist" aria-label="View">
-                <button className={view === 'flow' ? 'on' : ''} aria-selected={view === 'flow'} onClick={() => setViewPersist('flow')}><FlowIcon />Flow</button>
-                <button className={view === 'static' ? 'on' : ''} aria-selected={view === 'static'} onClick={() => setViewPersist('static')}><GridIcon />Static</button>
+                <button className={view === 'flow' ? 'on' : ''} aria-selected={view === 'flow'} onClick={() => setViewPersist('flow')}><FlowIcon />Carousel</button>
+                <button className={view === 'static' ? 'on' : ''} aria-selected={view === 'static'} onClick={() => setViewPersist('static')}><GridIcon />Grid</button>
                 <button className={view === 'plan' ? 'on' : ''} aria-selected={view === 'plan'} onClick={() => setViewPersist('plan')}><PlanIcon />Plan</button>
               </div>
               <button className="lg-btn-primary" onClick={() => setShowDecks(true)}>Configure decks</button>
