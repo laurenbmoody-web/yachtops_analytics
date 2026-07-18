@@ -5,7 +5,8 @@ import Header from '../../components/navigation/Header';
 import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays, getVesselBranding, getVesselTimezone, setVesselTimezone, getLaundryBilling } from '../laundry-management-dashboard/utils/laundryStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
-import { attachBilling, money } from '../laundry-management-dashboard/utils/laundryBilling';
+import { attachBilling, billingSummary, money } from '../laundry-management-dashboard/utils/laundryBilling';
+import { canViewCost } from '../../utils/costPermissions';
 import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
 import { resolveLaundryPhotos } from '../laundry-management-dashboard/utils/laundryPhotos';
 import { buildLogbook, initials, rescopePeriod } from '../laundry-management-dashboard/utils/laundryLogbook';
@@ -138,6 +139,11 @@ const Detail = ({ p, onExport, onOpenItem, vessel, billing }) => {
   const title = p.type === 'offcharter' ? p.dates : p.name; // voyage → bare trip name
   const peopleLbl = p.type === 'crew' ? 'Crew — every period' : p.type === 'offcharter' ? 'Crew & vessel — this period' : 'Per guest — this voyage';
   const hands = clockHands(p.avgMin);
+  // Charter charges roll-up — only for cost-authorised users on a
+  // plus-expenses (MYBA) voyage where billing is configured.
+  const charges = (canViewCost() && p.type === 'voyage' && p.billingBasis === 'plus_expenses' && billing)
+    ? billingSummary(p.items || [], p.billingBasis, billing)
+    : null;
   const care = p.care || { bars: [], other: null };
   const careMax = care.bars[0]?.count || 1;
   const [careOpen, setCareOpen] = useState(false);
@@ -200,6 +206,14 @@ const Detail = ({ p, onExport, onOpenItem, vessel, billing }) => {
               )}
             </div>
           </div>
+
+          {charges && charges.lines.length > 0 && (
+            <div className="lb-i lb-i-charge">
+              <span className="lb-il">Charter charges</span>
+              <div className="lb-charge-v tnum">{money(charges.total, charges.currency)}</div>
+              <div className="lb-charge-sub">{charges.lines.length} guest item{charges.lines.length === 1 ? '' : 's'} · billed at cost</div>
+            </div>
+          )}
 
           {(p.team || []).length > 0 && (
             <div className="lb-i grow">
@@ -418,7 +432,8 @@ const LaundryHistoryView = () => {
   const [vessel, setVessel] = useState(null);
   useEffect(() => { getVesselBranding().then(setVessel).catch(() => {}); }, []);
   const [billing, setBilling] = useState(null);
-  useEffect(() => { getLaundryBilling().then(setBilling).catch(() => {}); }, []);
+  // Charges are cost data — only Command / Chief / HOD load them.
+  useEffect(() => { if (canViewCost()) getLaundryBilling().then(setBilling).catch(() => {}); }, []);
   const [allTrips, setAllTrips] = useState([]);
   useEffect(() => { loadTrips().then((t) => setAllTrips(t || [])).catch(() => {}); }, []);
   const canManage = useMemo(() => { const t = (getCurrentUser()?.effectiveTier || getCurrentUser()?.tier || '').toUpperCase(); return t === 'COMMAND' || t === 'CHIEF'; }, []);
@@ -440,7 +455,8 @@ const LaundryHistoryView = () => {
     let cancelled = false;
     (async () => {
       try {
-        const [raw, trips, credits, billingCfg] = await Promise.all([loadAllLaundryItems(), loadTrips().catch(() => []), getDeliveryCredits().catch(() => ({})), getLaundryBilling().catch(() => null)]);
+        const [raw, trips, credits, billingCfgRaw] = await Promise.all([loadAllLaundryItems(), loadTrips().catch(() => []), getDeliveryCredits().catch(() => ({})), canViewCost() ? getLaundryBilling().catch(() => null) : Promise.resolve(null)]);
+        const billingCfg = canViewCost() ? billingCfgRaw : null;
         // Attach billing (charge per item) so history item lines show it too.
         const enriched = attachBilling(await attachHandlers(await enrichWithAvatars(raw), credits), trips, billingCfg);
         if (cancelled) return;
