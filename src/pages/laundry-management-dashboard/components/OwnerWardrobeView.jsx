@@ -189,6 +189,7 @@ const OwnerWardrobeView = ({ onBack }) => {
         <button type="button" className="ow-card-media" onClick={() => setFullItem(it)}>
           {photo ? <img src={photo} alt={it.description || 'Garment'} loading="lazy" /> : <span className="ow-card-ph"><Icon name="Shirt" size={30} /></span>}
           {it.caseId && <span className="ow-away">Away</span>}
+          {it.staysOnboard && <span className="ow-stays" title="Usually stays on board"><Icon name="Anchor" size={11} /></span>}
         </button>
         <button type="button" className="ow-card-body" onClick={() => setFullItem(it)}>
           <span className="ow-card-nm">{it.description || 'Garment'}</span>
