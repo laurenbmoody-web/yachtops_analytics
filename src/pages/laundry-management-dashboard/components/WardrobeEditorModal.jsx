@@ -30,7 +30,7 @@ const WardrobeEditorModal = ({ scope = 'owner', onClose, onCreated }) => {
           <label className="ow-l">Name <span className="ow-req">required</span></label>
           <input className="ow-input" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Master dressing room" />
           <label className="ow-l">Where on board <span className="ow-opt">links it to the deck plan</span></label>
-          <LocationPicker value={loc?.id} valueLabel={loc?.name} onChange={setLoc} />
+          <LocationPicker value={loc?.id} valueLabel={loc?.name} placeName={name.trim() || 'Wardrobe'} onChange={setLoc} />
         </div>
         <div className="ow-modal-foot">
           <button type="button" className="ow-btn ghost" onClick={onClose}>Cancel</button>

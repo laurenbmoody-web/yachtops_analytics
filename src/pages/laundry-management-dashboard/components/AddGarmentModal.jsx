@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
-import DeckPlanPicker from './DeckPlanPicker';
+import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import { createWardrobe } from '../utils/laundryWardrobes';
 import { createLaundryItem, LaundryStatus, availableLaundryTags, formatLaundryTag } from '../utils/laundryStorage';
 import './ownerWardrobe.css';
@@ -39,14 +39,17 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
     if (f) { try { setPhoto(await fileToDataUrl(f)); } catch { /* ignore */ } }
   };
 
-  // Tapping a room on the plan: use the wardrobe that lives there, else offer to
-  // create one at that room.
-  const onPlanPick = async (spaceId, spaceName) => {
+  // Placing a storage locker on the map: use the wardrobe already homed to that
+  // location node, else create one there.
+  const onPlanPick = async (res) => {
     setShowPlan(false);
-    const existing = wlist.find((w) => w.locationId === spaceId);
+    const locId = res?.locationId;
+    if (!locId) return;
+    const existing = wlist.find((w) => w.locationId === locId);
     if (existing) { setWardrobeId(existing.id); return; }
-    if (!window.confirm(`No wardrobe in “${spaceName}” yet — create one there?`)) return;
-    const w = await createWardrobe({ name: spaceName, locationId: spaceId, scope: 'owner' });
+    const nm = res?.name || 'Wardrobe';
+    if (!window.confirm(`Create a wardrobe here (“${nm}”)?`)) return;
+    const w = await createWardrobe({ name: nm, locationId: locId, scope: 'owner' });
     if (w) { setWlist((p) => [w, ...p]); setWardrobeId(w.id); }
   };
 
@@ -146,7 +149,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
         </div>
       </div>
     </div>
-    {showPlan && <DeckPlanPicker selectedId={wlist.find((w) => w.id === wardrobeId)?.locationId || null} onSelect={onPlanPick} onClose={() => setShowPlan(false)} />}
+    {showPlan && <MapPickerModal placingStorage={{ name: 'Wardrobe' }} onPlaced={onPlanPick} onClose={() => setShowPlan(false)} />}
     </>
   );
 };
