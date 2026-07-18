@@ -98,6 +98,8 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
         return 'Send';
       case 'PROVISIONING_APPROVAL_DECIDED':
         return 'CheckCircle';
+      case 'delivery_update':
+        return 'Truck';
       case 'HOR_APPROVAL_PENDING':
         return 'ClipboardCheck';
       case NOTIFICATION_TYPES?.JOB_PENDING_ACCEPTANCE:
