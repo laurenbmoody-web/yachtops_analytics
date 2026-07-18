@@ -417,7 +417,8 @@ export default function VesselProfileStack(props) {
   ]), [dayStart, formState?.hor_confirmation_mode]);
 
   /* completeness over the data fields only */
-  const dataFields = useMemo(() => cards.flatMap((c) => (c.fields || []).filter((f) => isData(f.type))), [cards]);
+  // Optional fields (f.opt) never count toward completeness / the progress ring.
+  const dataFields = useMemo(() => cards.flatMap((c) => (c.fields || []).filter((f) => isData(f.type) && !f.opt)), [cards]);
   const filled = dataFields.filter((f) => { const v = formState?.[f.field]; return v !== '' && v != null; }).length;
   const total = dataFields.length;
   const missing = dataFields.filter((f) => { const v = formState?.[f.field]; return v === '' || v == null; });
@@ -524,7 +525,7 @@ export default function VesselProfileStack(props) {
         {rail}
         <div className="vs-deck">
         {cards.map((c) => {
-          const miss = (c.fields || []).filter((f) => isData(f.type) && (formState?.[f.field] === '' || formState?.[f.field] == null)).length;
+          const miss = (c.fields || []).filter((f) => isData(f.type) && !f.opt && (formState?.[f.field] === '' || formState?.[f.field] == null)).length;
           const isOpen = !!openCards[c.id];
           return (
             <div key={c.id} className={`vs-card${isOpen ? ' open' : ''}`}>
