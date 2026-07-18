@@ -8,7 +8,7 @@ import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getBudgetVsActual, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate, updateLineAmount } from '../../../services/budgetService';
+import { getBudgetVsActual, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate, updateLineAmount, setCategoryOverride } from '../../../services/budgetService';
 import { formatMoney } from '../../../services/financeCalc';
 import BudgetFormModal from './components/BudgetFormModal';
 import LineFormModal from './components/LineFormModal';
@@ -98,6 +98,24 @@ export default function BudgetDetail() {
     const res = await seedStandardTemplate(id, STANDARD_CHART_OF_ACCOUNTS);
     if (!res.error) { await load(); flash('Standard template loaded'); }
     else flash('Could not load template');
+  };
+
+  // Expense budget lines as dropdown options for assigning Unbudgeted spend.
+  const lineOptions = useMemo(() => {
+    const opts = [];
+    (view?.buckets || []).forEach((b) => {
+      if (b.kind === 'revenue') return;
+      b.lines.forEach((l) => opts.push({ value: l.category, label: `${b.bucket} › ${l.category}`, bucket: b.bucket, code: l.code }));
+    });
+    return opts;
+  }, [view]);
+
+  const assignUnbudgeted = async (sourceCategory, targetValue) => {
+    const opt = lineOptions.find((o) => o.value === targetValue);
+    if (!opt) return;
+    const res = await setCategoryOverride(budget.tenant_id, sourceCategory, { bucket: opt.bucket, category: opt.value, code: opt.code });
+    if (!res.error) { await load(); flash('Categorised — it’ll auto-route next time'); }
+    else flash('Could not save the mapping');
   };
 
   // Revenue sections first, then expenditure groups in the standard report order.
@@ -309,25 +327,31 @@ export default function BudgetDetail() {
                   {view.unbudgeted && (
                     <div className="bg-bucket">
                       <div className="bg-bucket-head">
-                        <span className="bg-bucket-name">Unbudgeted</span>
+                        <span className="bg-bucket-name">Needs a category</span>
                         <span className="bg-bucket-rule" />
-                        <span className="bg-bucket-meta">spend with no matching line</span>
+                        <span className="bg-bucket-meta">{view.unbudgeted.lines.length} to review · assign a line</span>
                       </div>
                       <div className="bg-cols">
                         <span>Line</span><span className="r">Budgeted</span><span className="r c-actual">Actual</span>
-                        <span className="r c-committed">On order</span><span className="r c-remaining">Remaining</span><span>% used</span><span />
+                        <span className="r c-committed">On order</span><span className="r c-remaining">Remaining</span><span>Assign to</span><span />
                       </div>
                       {view.unbudgeted.lines.map((l, i) => (
-                        <div key={`u-${i}`} className="bg-row is-over"
-                          style={canEdit ? { cursor: 'pointer' } : undefined}
-                          onClick={canEdit ? () => setLineModal({ line: { bucket: '', category: l.category, amount: 0 } }) : undefined}>
-                          <div className="bg-row-cat"><b>{l.category}</b></div>
+                        <div key={`u-${i}`} className="bg-row bg-review">
+                          <div className="bg-row-cat">
+                            <b>{l.category}</b>
+                            <div className="bg-row-note">Unrecognised — pick the budget line it belongs to</div>
+                          </div>
                           <span className="bg-fig muted">—</span>
                           <span className="bg-fig c-actual">{formatMoney(l.actual, cur)}</span>
                           <span className="bg-fig c-committed">{formatMoney(l.committed, cur)}</span>
                           <span className="bg-fig c-remaining bg-neg">{formatMoney(l.remaining, cur)}</span>
-                          <Meter pct={null} state="over" spent={l.actual + l.committed} />
-                          <span className="bg-row-act">{canEdit && <Icon name="Plus" size={13} color="#C65A1A" />}</span>
+                          {canEdit ? (
+                            <select className="bg-assign" defaultValue="" onChange={(e) => { assignUnbudgeted(l.category, e.target.value); e.target.value = ''; }}>
+                              <option value="" disabled>Assign to…</option>
+                              {lineOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          ) : <span className="bg-fig muted">review</span>}
+                          <span />
                         </div>
                       ))}
                     </div>
