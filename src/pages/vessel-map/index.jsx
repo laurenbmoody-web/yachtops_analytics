@@ -1073,8 +1073,8 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                       </>
                     ) : (
                       <>
-                        <span className="vm-placing-text">✓ <strong>Saved</strong> to the wardrobe. Got drawers inside? Add a pin for each.</span>
-                        <button className="vm-placing-drop" onClick={() => { if (storagePin) { setContainer(storagePin.id, true); openInterior({ id: storagePin.id, label: storagePin.label || placingStorage.name }); } }}>Add drawers</button>
+                        <span className="vm-placing-text">✓ <strong>Saved</strong> to the wardrobe. Got drawers inside? Open it, add an inside photo, then a pin per drawer.</span>
+                        <button className="vm-placing-drop" onClick={() => { if (storagePin) { setContainer(storagePin.id, true); setSelectedHotspot({ ...storagePin, is_container: true }); } }}>Add drawers</button>
                         <button className="vm-placing-done" onClick={() => onCloseProp?.()}>Done</button>
                       </>
                     )}
