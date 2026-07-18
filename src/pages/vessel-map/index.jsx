@@ -127,6 +127,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     return id ? { name: q.get('placeStorageName') || 'a storage locker' } : null;
   });
   const [storagePlaced, setStoragePlaced] = useState(false);
+  const [storagePin, setStoragePin] = useState(null);
   const isDesktop = useIsDesktop();
   const placementMode = mode === 'pin';
   // The defect pin dropped in this placement session (null until dropped) — lets
@@ -472,9 +473,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   // Desktop drops on click; mobile drops a pending pin to nudge, then commits.
   const placePending = (pos) => {
     setPendingPosition(pos);
-    // Storage placement stays deferred even on desktop — the user investigates
-    // (opens cupboards) and only commits via the explicit "Place pin" button.
-    if (isDesktop && pos && !adjusting && !placingStorage) createDraftPin(pos);
+    if (isDesktop && pos && !adjusting) createDraftPin(pos);
   };
 
   // Create a blank pin at pos and open it. Name is filled in the inspector;
@@ -525,12 +524,10 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
       });
       const label = data.label || placingStorage.name;
       onPlacedProp?.({ locationId: res?.nodeId || null, name: label });
-      // Don't close: keep the map open so the crew can make this a container
-      // ("opens a photo of the inside") and drop drawer pins inside. Opening the
-      // inspector surfaces the container toggle. They close when done.
+      // Don't close and don't open the inspector — keep the scene clear and drive
+      // the next step from an explicit banner ("Saved — add drawers / Done").
+      setStoragePin(data);
       setStoragePlaced(true);
-      setSelectedHotspot(data);
-      setJustCreatedId(data.id);
       return;
     }
     setSelectedHotspot(data);
@@ -1067,16 +1064,17 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   </div>
                 )}
 
-                {placingStorage && (
+                {placingStorage && !openContainer && (
                   <div className="vm-placing-bar">
                     {!storagePlaced ? (
                       <>
-                        <span className="vm-placing-text">Placing <strong>{placingStorage.name}</strong> — investigate, tap <strong>Add hotspot</strong>, drop a pin on the cupboard, then <strong>Place pin</strong>.</span>
+                        <span className="vm-placing-text">Placing <strong>{placingStorage.name}</strong> — look around, tap <strong>Add hotspot</strong>, then click the cupboard to drop the pin.</span>
                         <button className="vm-placing-cancel" onClick={() => onCloseProp?.()}>Cancel</button>
                       </>
                     ) : (
                       <>
-                        <span className="vm-placing-text">Saved to the wardrobe. Want drawers? Toggle <strong>“Opens a photo of the inside”</strong> on this pin and drop a pin per drawer — or you're done.</span>
+                        <span className="vm-placing-text">✓ <strong>Saved</strong> to the wardrobe. Got drawers inside? Add a pin for each.</span>
+                        <button className="vm-placing-drop" onClick={() => { if (storagePin) { setContainer(storagePin.id, true); openInterior({ id: storagePin.id, label: storagePin.label || placingStorage.name }); } }}>Add drawers</button>
                         <button className="vm-placing-done" onClick={() => onCloseProp?.()}>Done</button>
                       </>
                     )}
