@@ -4,6 +4,8 @@ import { FilterMenu, SortMenu } from './LaundryFilters';
 import LaundryScanModal from './LaundryScanModal';
 import AddGarmentModal from './AddGarmentModal';
 import GarmentFullView from './GarmentFullView';
+import WardrobeEditorModal from './WardrobeEditorModal';
+import { canViewCost } from '../../../utils/costPermissions';
 import { loadWardrobes, createWardrobe } from '../utils/laundryWardrobes';
 import { loadCases, createCase } from '../utils/laundryCases';
 import {
@@ -44,6 +46,7 @@ const ageBucket = (iso) => {
 // Owner wardrobe catalogue: image-first grid of resident garments, with search
 // + scan, dropdown filter/sort, multi-select bulk actions, and a full view.
 const OwnerWardrobeView = ({ onBack }) => {
+  const showValue = canViewCost(); // garment value is cost data — Command/Chief/HOD only
   const [wardrobes, setWardrobes] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +62,9 @@ const OwnerWardrobeView = ({ onBack }) => {
   const [cases, setCases] = useState([]);
   const [fullItem, setFullItem] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showNewWardrobe, setShowNewWardrobe] = useState(false);
   const [showScan, setShowScan] = useState(false);
+  const sortOptions = showValue ? SORTS : SORTS.filter((s) => !s.val.startsWith('price'));
 
   const load = async () => {
     const ws = await loadWardrobes('owner');
@@ -160,11 +165,12 @@ const OwnerWardrobeView = ({ onBack }) => {
         </div>
         <div className="ow-tools">
           <FilterMenu groups={filterGroups} />
-          <SortMenu value={sort} onChange={setSort} options={SORTS} />
+          <SortMenu value={sort} onChange={setSort} options={sortOptions} />
           <div className="ow-viewtoggle" role="tablist" aria-label="View">
             <button type="button" className={view === 'image' ? 'on' : ''} onClick={() => setView('image')} aria-label="Image view"><Icon name="LayoutGrid" size={15} /></button>
             <button type="button" className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} aria-label="List view"><Icon name="List" size={15} /></button>
           </div>
+          <button type="button" className="ow-btn ghost" onClick={() => setShowNewWardrobe(true)}><Icon name="FolderPlus" size={15} /> Wardrobe</button>
           <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>
         </div>
       </div>
@@ -208,7 +214,7 @@ const OwnerWardrobeView = ({ onBack }) => {
                 </button>
                 <button type="button" className="ow-card-body" onClick={() => setFullItem(it)}>
                   <span className="ow-card-nm">{it.description || 'Garment'}</span>
-                  <span className="ow-card-sub">{it.garmentType || '—'}{it.garmentValue != null ? ` · ${money(it.garmentValue, it.garmentValueCurrency)}` : ''}</span>
+                  <span className="ow-card-sub">{it.garmentType || '—'}{showValue && it.garmentValue != null ? ` · ${money(it.garmentValue, it.garmentValueCurrency)}` : ''}</span>
                   <span className={`ow-status sm ${st.cls}`}>{st.label}</span>
                 </button>
               </div>
@@ -228,7 +234,7 @@ const OwnerWardrobeView = ({ onBack }) => {
                   <span className="ow-card-nm">{it.description || 'Garment'}</span>
                   <span className="ow-card-sub">{[it.garmentType, it.colour, wardrobeName(it.wardrobeId)].filter(Boolean).join(' · ')}</span>
                 </button>
-                {it.garmentValue != null && <span className="ow-lval">{money(it.garmentValue, it.garmentValueCurrency)}</span>}
+                {showValue && it.garmentValue != null && <span className="ow-lval">{money(it.garmentValue, it.garmentValueCurrency)}</span>}
                 <span className={`ow-status sm ${st.cls}`}>{it.caseId ? 'Away' : st.label}</span>
               </div>
             );
@@ -237,8 +243,9 @@ const OwnerWardrobeView = ({ onBack }) => {
         </div>
       )}
 
-      {showAdd && <AddGarmentModal wardrobes={wardrobes} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} onClose={() => setShowAdd(false)} onCreated={load} />}
-      {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
+      {showAdd && <AddGarmentModal wardrobes={wardrobes} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
+      {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
+      {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
       {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}
 
       {chooser && (

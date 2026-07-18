@@ -1,0 +1,15 @@
+.lp { position: relative; }
+.lp-field { position: relative; display: flex; align-items: center; }
+.lp-ic { position: absolute; left: 12px; stroke: #9AA1AE; pointer-events: none; }
+.lp-field input { width: 100%; font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px; padding: 10px 34px 10px 34px; }
+.lp-field input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
+.lp-clear { position: absolute; right: 6px; width: 26px; height: 26px; display: grid; place-items: center; border: none; background: none; color: #AEB4C2; cursor: pointer; border-radius: 7px; }
+.lp-clear:hover { background: #F0F1F5; color: #6B7280; }
+
+.lp-menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px; overflow-y: auto; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 18px 44px -20px rgba(28,27,58,0.34); padding: 6px; }
+.lp-group { margin-bottom: 4px; }
+.lp-deck { font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #9AA1AE; padding: 8px 10px 4px; }
+.lp-opt { display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left; background: none; border: none; border-radius: 8px; padding: 9px 10px; cursor: pointer; font-family: inherit; }
+.lp-opt:hover { background: #F4F6FA; }
+.lp-name { font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.lp-zone { font-size: 11px; color: #9AA1AE; }
