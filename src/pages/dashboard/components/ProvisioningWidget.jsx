@@ -8,15 +8,26 @@ import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
 import { getBoardStatusConfig } from '../../provisioning/data/statusConfig';
 import './provisioning-widget.css';
 
-const VISIBLE = 4; // hard cap on rows shown; the rest roll into "+N more"
+const VISIBLE = 5; // active boards shown; the rest roll into "+N more"
+const ATTENTION = new Set(['pending_approval', 'partially_delivered', 'delivered_with_discrepancies']);
+
+// Status dot colour — semantic (attention amber/red, done green, in-flight
+// terracotta), falling back to the board status config's own hex.
+const dotColor = (status) => {
+  if (status === 'delivered_with_discrepancies') return '#B23A2E';
+  if (status === 'pending_approval' || status === 'partially_delivered' || status === 'partially_confirmed') return '#A8791C';
+  if (status === 'delivered' || status === 'confirmed') return '#5C9B6A';
+  if (status === 'draft') return '#C3C7D0';
+  return getBoardStatusConfig(status)?.color || '#AEB4C2';
+};
 
 const ProvisioningWidget = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
 
-  const [pending, setPending] = useState({ rows: [], count: 0 });
-  const [attention, setAttention] = useState({ rows: [], count: 0 });
+  const [boards, setBoards] = useState([]);
+  const [total, setTotal] = useState(0);
   const [unprovisionedTrip, setUnprovisionedTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -29,30 +40,23 @@ const ProvisioningWidget = () => {
     setLoading(true);
     setError(false);
     try {
-      // count:'exact' gives the true total so "+N more" is accurate even though
-      // we only fetch a handful of rows to display.
-      const [pendingRes, attnRes] = await Promise.all([
-        supabase.from('provisioning_lists').select('id, title, trip_id', { count: 'exact' })
-          .eq('tenant_id', activeTenantId).eq('status', 'pending_approval')
-          .order('created_at', { ascending: false }).limit(VISIBLE),
-        supabase.from('provisioning_lists').select('id, title, status', { count: 'exact' })
-          .eq('tenant_id', activeTenantId).in('status', ['partially_delivered', 'delivered_with_discrepancies'])
-          .order('updated_at', { ascending: false }).limit(VISIBLE),
-      ]);
-      if (pendingRes.error) throw pendingRes.error;
-      if (attnRes.error) throw attnRes.error;
+      // Active (non-archived) boards, most-recently-touched first.
+      const boardsRes = await supabase.from('provisioning_lists')
+        .select('id, title, status, trip_id, updated_at', { count: 'exact' })
+        .eq('tenant_id', activeTenantId)
+        .is('archived_at', null)
+        .order('updated_at', { ascending: false })
+        .limit(VISIBLE);
+      if (boardsRes.error) throw boardsRes.error;
 
       const trips = (await loadTrips()) || [];
       const tripMap = Object.fromEntries(trips.map((t) => [t.id, t.name || t.title]));
 
-      setPending({
-        rows: (pendingRes.data || []).map((l) => ({ ...l, trip_name: l.trip_id ? tripMap[l.trip_id] : null })),
-        count: pendingRes.count ?? (pendingRes.data || []).length,
-      });
-      setAttention({ rows: attnRes.data || [], count: attnRes.count ?? (attnRes.data || []).length });
+      setBoards((boardsRes.data || []).map((b) => ({ ...b, trip_name: b.trip_id ? tripMap[b.trip_id] : null })));
+      setTotal(boardsRes.count ?? (boardsRes.data || []).length);
 
-      // Next upcoming trip with no provisioning list. Always resolves to a value
-      // (or null) so a stale prompt can't linger from a previous fetch.
+      // Next upcoming trip with no provisioning list (always resolves, so a
+      // stale prompt can't linger).
       const now = new Date();
       const upcoming = trips
         .filter((t) => t.status === 'upcoming' && t.startDate && new Date(t.startDate) > now)
@@ -80,36 +84,16 @@ const ProvisioningWidget = () => {
     return () => window.removeEventListener('focus', load);
   }, [load]);
 
-  // One unified feed — approvals first, then attention, then the unplanned trip.
-  const items = [];
-  pending.rows.forEach((l) => items.push({
-    key: `p-${l.id}`, dot: 'terra', title: l.title,
-    sub: `Awaiting approval${l.trip_name ? ` · ${l.trip_name}` : ''}`,
-    cta: isCommandChief ? 'Approve' : 'View', primary: isCommandChief,
-    onClick: () => navigate(`/provisioning/${l.id}`),
-  }));
-  attention.rows.forEach((l) => items.push({
-    key: `a-${l.id}`, dot: 'amber', title: l.title,
-    sub: getBoardStatusConfig(l.status)?.label || 'Needs attention',
-    cta: 'View', primary: false, onClick: () => navigate(`/provisioning/${l.id}`),
-  }));
-  if (unprovisionedTrip) items.push({
-    key: 'trip', dot: 'terra', title: `${unprovisionedTrip.name || unprovisionedTrip.title} — no list`,
-    sub: `Starts in ${unprovisionedTrip.daysUntil} day${unprovisionedTrip.daysUntil !== 1 ? 's' : ''}`,
-    cta: isCommandChief ? 'Create' : null, primary: false,
-    onClick: () => navigate(`/provisioning/new?trip_id=${unprovisionedTrip.id}`),
-  });
+  const attentionCount = boards.filter((b) => ATTENTION.has(b.status)).length;
+  const moreCount = total - boards.length;
 
-  const totalActionable = pending.count + attention.count + (unprovisionedTrip ? 1 : 0);
-  const shown = items.slice(0, VISIBLE);
-  const moreCount = totalActionable - shown.length;
-  const allClear = !loading && !error && totalActionable === 0;
-
-  let statusText = 'All up to date';
+  let statusText = '';
   let statusAttention = false;
   if (loading) statusText = 'Loading…';
   else if (error) statusText = 'Couldn’t load';
-  else if (totalActionable > 0) { statusText = `${totalActionable} need${totalActionable === 1 ? 's' : ''} a hand`; statusAttention = true; }
+  else if (total === 0) statusText = 'No lists yet';
+  else if (attentionCount > 0) { statusText = `${attentionCount} need${attentionCount === 1 ? 's' : ''} attention`; statusAttention = true; }
+  else statusText = `${total} active list${total === 1 ? '' : 's'}`;
 
   return (
     <div className="ce-card rounded-xl p-5">
@@ -130,28 +114,43 @@ const ProvisioningWidget = () => {
           <Icon name="AlertTriangle" size={16} /> Couldn’t load provisioning.
           <button type="button" className="prov-retry" onClick={load}>Retry</button>
         </div>
-      ) : allClear ? (
-        <div className="prov-clear">
-          <Icon name="Check" size={16} /> Nothing outstanding
-        </div>
       ) : (
-        <div className="prov-list">
-          {shown.map((it) => (
-            <div key={it.key} className="prov-row">
-              <span className={`prov-dot ${it.dot}`} />
-              <div className="prov-main">
-                <div className="prov-t">{it.title}</div>
-                <div className="prov-s">{it.sub}</div>
-              </div>
-              {it.cta && (
-                <button type="button" className={it.primary ? 'prov-approve' : 'prov-view'} onClick={it.onClick}>{it.cta}</button>
+        <>
+          {boards.length > 0 ? (
+            <div className="prov-list">
+              {boards.map((b) => {
+                const label = getBoardStatusConfig(b.status)?.label || b.status;
+                return (
+                  <button type="button" key={b.id} className="prov-row" onClick={() => navigate(`/provisioning/${b.id}`)} title={b.title}>
+                    <span className="prov-dot" style={{ background: dotColor(b.status) }} />
+                    <span className="prov-main">
+                      <span className="prov-t">{b.title}</span>
+                      <span className="prov-s">{label}{b.trip_name ? ` · ${b.trip_name}` : ''}</span>
+                    </span>
+                    <Icon name="ChevronRight" size={16} className="prov-chev" />
+                  </button>
+                );
+              })}
+              {moreCount > 0 && (
+                <button type="button" className="prov-more" onClick={() => navigate('/provisioning')}>+{moreCount} more in provisioning</button>
               )}
             </div>
-          ))}
-          {moreCount > 0 && (
-            <button type="button" className="prov-more" onClick={() => navigate('/provisioning')}>+{moreCount} more in provisioning</button>
+          ) : (
+            <p className="prov-empty">No provisioning lists yet.</p>
           )}
-        </div>
+
+          {unprovisionedTrip && (
+            <div className="prov-trip">
+              <Icon name="AlertTriangle" size={16} />
+              <span className="prov-trip-t">
+                <b>{unprovisionedTrip.name || unprovisionedTrip.title}</b> in {unprovisionedTrip.daysUntil} day{unprovisionedTrip.daysUntil !== 1 ? 's' : ''} — no list yet
+              </span>
+              {isCommandChief && (
+                <button type="button" className="prov-trip-btn" onClick={() => navigate(`/provisioning/new?trip_id=${unprovisionedTrip.id}`)}>Create</button>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {isCommandChief && (
