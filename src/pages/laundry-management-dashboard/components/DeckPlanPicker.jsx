@@ -53,7 +53,7 @@ const DeckPlanPicker = ({ selectedId = null, onSelect, onClose }) => {
   const crop = deck?.planCrop;
   const spaces = deck ? spacesOf(deck) : [];
   const ready = layout?.gaImageUrl && crop && gaDims;
-  const pick = (s) => onSelect?.(s.id, s.name);
+  const pick = (s) => onSelect?.(s);
 
   return (
     <div className="dpp-overlay" role="dialog" aria-modal="true" aria-label="Pick on the deck plan" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
