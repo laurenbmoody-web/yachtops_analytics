@@ -232,6 +232,16 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-trace-dot{position:absolute;transform:translate(-50%,-50%);z-index:5;width:9px;height:9px;border-radius:50%;
   background:#fff;border:2px solid var(--lg-terra);box-shadow:0 1px 3px rgba(28,27,58,.4);pointer-events:none;}
 .dp-trace-dot.is-first{width:13px;height:13px;background:var(--lg-terra);border-color:#fff;}
+/* Adjust-mode: the live outline, draggable corner handles, midpoint add dots. */
+.dp-shape.is-editing{fill:rgba(198,90,26,.14);stroke:var(--lg-terra);stroke-width:2.4;stroke-dasharray:none;}
+.dp-edit-handle{position:absolute;transform:translate(-50%,-50%);z-index:7;width:13px;height:13px;border-radius:50%;
+  background:#fff;border:2.5px solid var(--lg-terra);box-shadow:0 1px 3px rgba(28,27,58,.5);cursor:grab;touch-action:none;}
+.dp-edit-handle:hover{transform:translate(-50%,-50%) scale(1.25);}
+.dp-edit-handle:active{cursor:grabbing;}
+.dp-edit-mid{position:absolute;transform:translate(-50%,-50%);z-index:6;width:15px;height:15px;border-radius:50%;
+  background:var(--lg-terra);color:#fff;font-family:var(--lg-sans);font-size:12px;font-weight:700;line-height:15px;
+  text-align:center;cursor:pointer;opacity:.5;user-select:none;touch-action:none;box-shadow:0 1px 3px rgba(28,27,58,.4);}
+.dp-edit-mid:hover{opacity:1;transform:translate(-50%,-50%) scale(1.15);}
 
 /* Trace-mode hint bar (mirrors dp-linkhint, with actions). */
 .dp-tracehint{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;

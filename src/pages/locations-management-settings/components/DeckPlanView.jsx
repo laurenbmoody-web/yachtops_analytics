@@ -139,6 +139,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [localShapes, setLocalShapes] = useState({}); // spaceId -> shape | null (override)
   const [traceMode, setTraceMode] = useState(false);
   const [tracing, setTracing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } in progress
+  const [editing, setEditing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } adjusting an existing outline
+  const editDragRef = useRef(null); // node being dragged while editing
   const [smooth, setSmooth] = useState(true); // curve the outline through the points on finish
   const [detecting, setDetecting] = useState(null); // deckId with an AI detect in flight
   const [proposals, setProposals] = useState(null); // { deckId, items:[{name,matchedSpaceId,create,nodes,traced}] }
@@ -277,8 +279,70 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const clearShape = (space) => {
     saveShape(space.id, null);
     if (tracing?.spaceId === space.id) setTracing(null);
+    if (editing?.spaceId === space.id) setEditing(null);
   };
-  const toggleTraceMode = () => { setTracing(null); setPendingLink(null); setLinkMode(false); setTraceMode((v) => !v); };
+  const toggleTraceMode = () => { setTracing(null); setEditing(null); setPendingLink(null); setLinkMode(false); setTraceMode((v) => !v); };
+
+  // ── Adjust an existing outline (the AI base, or a hand trace) ──────────────
+  // Clicking an already-outlined room in trace mode opens it for point editing:
+  // drag corners, click a midpoint to add one, double-click to remove. Beats
+  // re-drawing the whole room when the auto-trace just needs a nudge.
+  const startEdit = (space, deck) => {
+    const sh = shapeOf(space);
+    traceStartRef.current = true;
+    setTracing(null);
+    setEditing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: (sh?.nodes || []).map((n) => ({ x: n.x, y: n.y })) });
+  };
+  const onEditNodeMove = useCallback((e) => {
+    const d = editDragRef.current;
+    if (!d) return;
+    const rect = planRefs.current[d.deckId]?.getBoundingClientRect();
+    if (!rect) return;
+    const x = clamp01((e.clientX - rect.left) / rect.width);
+    const y = clamp01((e.clientY - rect.top) / rect.height);
+    setEditing((ed) => (ed ? { ...ed, nodes: ed.nodes.map((n, i) => (i === d.index ? { x, y } : n)) } : ed));
+  }, []);
+  const onEditNodeUp = useCallback(() => {
+    editDragRef.current = null;
+    window.removeEventListener('pointermove', onEditNodeMove);
+    window.removeEventListener('pointerup', onEditNodeUp);
+  }, [onEditNodeMove]);
+  const onEditNodeDown = (e, i, deck) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    editDragRef.current = { index: i, deckId: deck.id };
+    window.addEventListener('pointermove', onEditNodeMove);
+    window.addEventListener('pointerup', onEditNodeUp);
+  };
+  const insertEditNode = (e, afterIdx, x, y) => {
+    e.preventDefault(); e.stopPropagation();
+    setEditing((ed) => {
+      if (!ed) return ed;
+      const nodes = ed.nodes.slice();
+      nodes.splice(afterIdx + 1, 0, { x, y });
+      return { ...ed, nodes };
+    });
+  };
+  const deleteEditNode = (e, i) => {
+    e.preventDefault(); e.stopPropagation();
+    setEditing((ed) => (ed && ed.nodes.length > 3 ? { ...ed, nodes: ed.nodes.filter((_, idx) => idx !== i) } : ed));
+  };
+  const saveEdit = () => {
+    if (!editing || editing.nodes.length < 3) { setEditing(null); return; }
+    saveShape(editing.spaceId, { closed: true, nodes: editing.nodes });
+    const c = centroidOf(editing.nodes);
+    if (c) applyPos(editing.spaceId, c.x, c.y);
+    setEditing(null);
+  };
+  const cancelEdit = () => setEditing(null);
+  const retraceFromEdit = () => {
+    if (!editing) return;
+    const e = editing;
+    setEditing(null);
+    traceStartRef.current = true;
+    setTracing({ spaceId: e.spaceId, deckId: e.deckId, name: e.name, nodes: [] });
+  };
+  useEffect(() => () => { window.removeEventListener('pointermove', onEditNodeMove); window.removeEventListener('pointerup', onEditNodeUp); }, [onEditNodeMove, onEditNodeUp]);
   const startDrag = (e, space, deck, fromPlaced) => {
     if (e.button != null && e.button !== 0) return;
     e.preventDefault();
@@ -296,7 +360,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // In "Connect rooms" mode a dot press picks endpoints instead of dragging;
   // in "Trace" mode it starts tracing that room's outline.
   const onDotDown = (e, space, deck, fromPlaced) => {
-    if (traceMode) { e.preventDefault(); startTrace(space, deck); return; }
+    if (traceMode) {
+      e.preventDefault();
+      // Already outlined → adjust its points; otherwise trace a fresh outline.
+      if (shapeOf(space)) startEdit(space, deck); else startTrace(space, deck);
+      return;
+    }
     if (!linkMode) { startDrag(e, space, deck, fromPlaced); return; }
     e.preventDefault();
     if (!pendingLink) { setPendingLink({ spaceId: space.id, deckId: deck.id }); return; }
@@ -545,7 +614,15 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
 
             {traceMode && crop && gaDims && (
               <div className="dp-tracehint">
-                {tracing && tracing.deckId === deck.id ? (
+                {editing && editing.deckId === deck.id ? (
+                  <>
+                    <span>Adjusting <em>{editing.name}</em> — drag corners, click a <b>+</b> midpoint to add, double-click a corner to remove. <b>{editing.nodes.length}</b> pts.</span>
+                    <span className="dp-spring" />
+                    <button className="lg-btn-primary sm" onClick={saveEdit}>Save</button>
+                    <button className="lg-btn sm" onClick={retraceFromEdit}>Re-trace</button>
+                    <button className="lg-btn sm" onClick={cancelEdit}>Cancel</button>
+                  </>
+                ) : tracing && tracing.deckId === deck.id ? (
                   <>
                     <span>Tracing <em>{tracing.name}</em> — click to add points, click the first point to close. <b>{tracing.nodes.length}</b> pts.</span>
                     <span className="dp-spring" />
@@ -559,7 +636,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     <button className="lg-btn sm" onClick={cancelTrace}>Cancel</button>
                   </>
                 ) : (
-                  <span>Click a room to trace its outline. Points-only? Just click one node and Finish. Existing outlines show on the plan — click a room again to re-trace.</span>
+                  <span>Click a room to trace its outline, or click an outlined room to adjust its corners. Points-only? Click one node and Finish.</span>
                 )}
               </div>
             )}
@@ -607,6 +684,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   {/* Traced room outlines + the in-progress trace preview. */}
                   <svg className="dp-shapes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     {placed.map((s) => {
+                      if (editing?.spaceId === s.id) return null; // shown live below
                       const sh = shapeOf(s);
                       if (!sh) return null;
                       const d = shapeToPath(sh);
@@ -621,6 +699,11 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     {tracing && tracing.deckId === deck.id && tracing.nodes.length > 0 && (
                       <polyline className="dp-trace-line" points={tracing.nodes.map((n) => `${(n.x * 100).toFixed(2)},${(n.y * 100).toFixed(2)}`).join(' ')} />
                     )}
+                    {/* Live outline while adjusting an existing room. */}
+                    {editing && editing.deckId === deck.id && editing.nodes.length >= 2 && (() => {
+                      const d = shapeToPath({ closed: true, nodes: editing.nodes });
+                      return (<g><path className="dp-shape-halo" d={d} /><path className="dp-shape is-editing" d={d} /></g>);
+                    })()}
                     {/* AI proposal outlines — dashed, awaiting Apply. */}
                     {deckProps && deckProps.items.map((it, i) => {
                       const d = shapeToPath({ closed: true, nodes: aiSmooth ? smoothClosed(it.nodes) : it.nodes });
@@ -648,7 +731,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     </svg>
                   )}
                   {placed.map((s) => {
-                    if (tracing?.spaceId === s.id) return null; // hide the pin of the room being traced
+                    if (tracing?.spaceId === s.id || editing?.spaceId === s.id) return null; // hide the pin while tracing/adjusting
                     const p = posOf(s);
                     const scanned = isScanned(s);
                     const pending = pendingLink?.spaceId === s.id;
@@ -680,6 +763,29 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       key={i}
                       className={`dp-trace-dot ${i === 0 ? 'is-first' : ''}`}
                       style={{ left: `${n.x * 100}%`, top: `${n.y * 100}%` }}
+                    />
+                  ))}
+                  {/* Adjust handles: midpoint "+" to add, draggable corners, double-click to remove. */}
+                  {editing && editing.deckId === deck.id && editing.nodes.map((n, i) => {
+                    const m = editing.nodes[(i + 1) % editing.nodes.length];
+                    return (
+                      <span
+                        key={`mid-${i}`}
+                        className="dp-edit-mid"
+                        style={{ left: `${((n.x + m.x) / 2) * 100}%`, top: `${((n.y + m.y) / 2) * 100}%` }}
+                        onPointerDown={(e) => insertEditNode(e, i, (n.x + m.x) / 2, (n.y + m.y) / 2)}
+                        title="Add a point here"
+                      >+</span>
+                    );
+                  })}
+                  {editing && editing.deckId === deck.id && editing.nodes.map((n, i) => (
+                    <span
+                      key={`h-${i}`}
+                      className="dp-edit-handle"
+                      style={{ left: `${n.x * 100}%`, top: `${n.y * 100}%` }}
+                      onPointerDown={(e) => onEditNodeDown(e, i, deck)}
+                      onDoubleClick={(e) => deleteEditNode(e, i)}
+                      title="Drag to move · double-click to remove"
                     />
                   ))}
                 </div>
