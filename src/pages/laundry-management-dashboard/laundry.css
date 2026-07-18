@@ -1019,7 +1019,8 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-th svg { width: 15px; height: 15px; stroke: #B9BEC9; }
 .lb-ri-nm { font-size: 13.5px; font-weight: 500; flex: 1; color: #1C1B3A; }
 .lb-ri-sub { font-size: 11px; color: #6E6B85; font-weight: 400; }
-.lb-ri-tag { font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #2F7D5A; background: #E7F2EC; border-radius: 999px; padding: 2px 8px; flex: none; min-width: 58px; text-align: center; box-sizing: border-box; }
+.lb-ri-tag { font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #2F7D5A; background: #E7F2EC; border-radius: 999px; padding: 2px 0; flex: none; width: 72px; text-align: center; box-sizing: border-box; }
+.lb-ri-chg { min-width: 52px; text-align: center; box-sizing: border-box; }
 .lb-ri-tag.ready { color: #2F6E8F; background: #E9F1F5; }
 .lb-ri-tag.wash { color: #B7791F; background: #FBF1DF; }
 .lb-ri-chg { font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 2px 8px; flex: none; }
