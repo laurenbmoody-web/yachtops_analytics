@@ -10,7 +10,7 @@
 // Returns { rota, loading, error }. rota = { id, ownerType, tripId,
 // vesselId, tenantId } or null.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -21,47 +21,42 @@ export function useCurrentRota() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refetch = useCallback(async () => {
     if (!user || !tenantId) {
       setLoading(false);
-      return undefined;
+      return;
     }
     setLoading(true);
     setError(null);
-
-    (async () => {
-      try {
-        // Standing rota: vessel_id == tenant_id by the trigger's id-reuse.
-        const { data, error: rErr } = await supabase
-          .from('rotas')
-          .select('id, owner_type, trip_id, vessel_id, tenant_id')
-          .eq('tenant_id', tenantId)
-          .eq('owner_type', 'vessel')
-          .limit(1)
-          .maybeSingle();
-        if (rErr) throw rErr;
-        if (cancelled) return;
-        setRota(
-          data
-            ? {
-                id: data.id,
-                ownerType: data.owner_type,
-                tripId: data.trip_id,
-                vesselId: data.vessel_id,
-                tenantId: data.tenant_id,
-              }
-            : null,
-        );
-      } catch (e) {
-        if (!cancelled) setError(e?.message ?? String(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
+    try {
+      // Standing rota: vessel_id == tenant_id by the trigger's id-reuse.
+      const { data, error: rErr } = await supabase
+        .from('rotas')
+        .select('id, owner_type, trip_id, vessel_id, tenant_id')
+        .eq('tenant_id', tenantId)
+        .eq('owner_type', 'vessel')
+        .limit(1)
+        .maybeSingle();
+      if (rErr) throw rErr;
+      setRota(
+        data
+          ? {
+              id: data.id,
+              ownerType: data.owner_type,
+              tripId: data.trip_id,
+              vesselId: data.vessel_id,
+              tenantId: data.tenant_id,
+            }
+          : null,
+      );
+    } catch (e) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setLoading(false);
+    }
   }, [user, tenantId]);
 
-  return { rota, loading, error };
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { rota, loading, error, refetch };
 }

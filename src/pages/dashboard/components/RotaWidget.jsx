@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
@@ -11,10 +11,24 @@ import { useRotaDepartmentStatus } from '../../crew-rota/useRotaDepartmentStatus
 // the publish + submit-for-approval state is visible without opening the page.
 const RotaWidget = () => {
   const navigate = useNavigate();
-  const { rota, loading: rotaLoading } = useCurrentRota();
-  const { statusByDept, loading: statusLoading } = useRotaDepartmentStatus(rota?.id);
+  const { rota, loading: rotaLoading, error: rotaError, refetch: refetchRota } = useCurrentRota();
+  const { statusByDept, loading: statusLoading, error: statusError, refetch: refetchStatus } = useRotaDepartmentStatus(rota?.id);
 
   const loading = rotaLoading || (rota?.id && statusLoading);
+  // A failed query used to fall through to the "All published" / "No rota
+  // configured" fallbacks, masking a hard error as a benign empty state.
+  // Surface it instead, with a Retry.
+  const error = Boolean(rotaError || statusError);
+
+  const refresh = useCallback(() => {
+    refetchRota();
+    refetchStatus();
+  }, [refetchRota, refetchStatus]);
+
+  useEffect(() => {
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [refresh]);
 
   // Tally department lifecycle states from the status rows that exist. Rows are
   // created lazily on first edit, so an empty map means the rota is untouched.
@@ -37,6 +51,8 @@ const RotaWidget = () => {
   let statusAttention = false;
   if (loading) {
     statusText = 'Loading…';
+  } else if (error) {
+    statusText = 'Couldn’t load';
   } else if (!rota?.id) {
     statusText = 'No rota configured';
   } else if (!hasActivity) {
@@ -70,6 +86,13 @@ const RotaWidget = () => {
         </div>
         <span className="ce-link">Open rota</span>
       </div>
+      {error ? (
+        <div className="flex items-center gap-2 py-8 justify-center text-sm" style={{ color: '#9A2B12' }}>
+          <Icon name="AlertTriangle" size={16} /> Couldn’t load rota.
+          <button type="button" onClick={(e) => { e.stopPropagation(); refresh(); }} className="font-bold underline">Retry</button>
+        </div>
+      ) : (
+      <>
       <div className="flex items-center justify-center py-6 mb-5">
         <div className="relative">
           {loading ? (
@@ -130,6 +153,8 @@ const RotaWidget = () => {
           </div>
         ))}
       </div>
+      </>
+      )}
     </div>
   );
 };
