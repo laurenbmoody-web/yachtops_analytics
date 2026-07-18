@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 
 import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
-import { LaundryStatus, LaundryPriority, formatLaundryTag, updateLaundryStatus, updateLaundryItem, getLaundryEvents } from '../utils/laundryStorage';
+import { LaundryStatus, LaundryPriority, formatLaundryTag, updateLaundryStatus, updateLaundryItem, getLaundryEvents, getLaundryBilling } from '../utils/laundryStorage';
 import { isLaundryOffline, enqueueOfflineStatus } from '../utils/laundryOfflineQueue';
+import { money, suggestCharge, CUR_SYM } from '../utils/laundryBilling';
 import '../laundry.css';
 
 const EVENT_LABEL = { created: 'Added', ready: 'Marked ready', delivered: 'Delivered', reopened: 'Reopened', edited: 'Edited', updated: 'Updated' };
@@ -26,8 +27,11 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
   const [shoreOpen, setShoreOpen] = useState(false);
   const [vendorDraft, setVendorDraft] = useState(initial?.vendor || '');
   const [backDraft, setBackDraft] = useState(initial?.expectedBack || '');
+  const [billing, setBilling] = useState(null);
+  const [chargeDraft, setChargeDraft] = useState(initial?.charge ?? '');
   useEffect(() => { setItem(initial); }, [initial]);
-  useEffect(() => { setFlagNoteDraft(initial?.flagNote || ''); setVendorDraft(initial?.vendor || ''); setBackDraft(initial?.expectedBack || ''); setShoreOpen(false); }, [initial?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setFlagNoteDraft(initial?.flagNote || ''); setVendorDraft(initial?.vendor || ''); setBackDraft(initial?.expectedBack || ''); setChargeDraft(initial?.charge ?? ''); setShoreOpen(false); }, [initial?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { getLaundryBilling().then(setBilling).catch(() => {}); }, []);
 
   const loadEvents = React.useCallback(() => {
     if (!initial?.id) return;
@@ -140,6 +144,23 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
             <button type="button" className="ldm-sendbtn" onClick={() => setShoreOpen(true)}><Icon name="Anchor" size={14} /> Send ashore</button>
           )}
         </div>
+
+        {/* charter charge — guest personal laundry (billed on plus-expenses charters) */}
+        {kind === 'guest' && (
+          <div className="alm-section">
+            <label className="alm-label">Charter charge <span className="alm-opt">guest laundry</span></label>
+            <div className="ldm-charge">
+              <span className="ldm-charge-cur">{CUR_SYM[billing?.currency] || '£'}</span>
+              <input type="number" min="0" step="0.01" className="alm-field" placeholder={billing ? suggestCharge(item, billing).toFixed(2) : '0.00'}
+                value={chargeDraft} onChange={(e) => setChargeDraft(e.target.value)} />
+              <button type="button" className="alm-btn outline" onClick={() => patch({ charge: chargeDraft === '' ? null : Number(chargeDraft) })}>Save</button>
+            </div>
+            <div className="ldm-charge-hint">
+              {item?.charge != null ? `Set to ${money(item.charge, billing?.currency)}. ` : ''}
+              Only billed on a plus-expenses (MYBA) charter{billing?.scope === 'shoreside' ? ', for shore-sent items — use the vendor’s invoice amount' : ''}.
+            </div>
+          </div>
+        )}
 
         {item?.notes && (
           <div className="alm-section">

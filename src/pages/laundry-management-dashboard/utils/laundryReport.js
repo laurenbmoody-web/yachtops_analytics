@@ -9,6 +9,7 @@
 
 import { LaundryStatus, LaundryPriority, formatLaundryTag } from './laundryStorage';
 import { resolveLaundryPhotos } from './laundryPhotos';
+import { billingSummary, money } from './laundryBilling';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const STATUS = { [LaundryStatus.IN_PROGRESS]: 'In progress', [LaundryStatus.READY_TO_DELIVER]: 'Ready', [LaundryStatus.DELIVERED]: 'Returned' };
@@ -87,7 +88,27 @@ async function evidenceMap(people) {
   }
 }
 
-export async function openTripReport(period, vessel) {
+// Charter laundry charges — only on a plus-expenses (MYBA) voyage.
+function chargesBlock(period, billing) {
+  if (period?.billingBasis !== 'plus_expenses' || !billing) return '';
+  const { lines, total, currency } = billingSummary(period.items || [], period.billingBasis, billing);
+  if (!lines.length) return '';
+  const rows = lines
+    .slice().sort((a, b) => new Date(b.item.deliveredAt || b.item.createdAt) - new Date(a.item.deliveredAt || a.item.createdAt))
+    .map((l) => `<tr>
+      <td class="d">${esc(l.item.description || 'Laundry item')}<span class="cg-sub">${esc(l.item.ownerName || '')}${l.item.serviceLocation === 'shore' ? ' · ashore' : ''}</span></td>
+      <td class="cg-amt">${esc(money(l.charge, currency))}</td>
+    </tr>`).join('');
+  return `<section class="charges">
+    <div class="ph"><h3>Charter laundry charges</h3><span class="pc">${lines.length} item${lines.length === 1 ? '' : 's'}</span></div>
+    <table><tbody>${rows}
+      <tr class="cg-total"><td class="d">Total — personal laundry, at cost</td><td class="cg-amt">${esc(money(total, currency))}</td></tr>
+    </tbody></table>
+    <div class="cg-note">Guests’ personal laundry, chargeable under a plus-expenses (MYBA) charter. Ship’s linen and crew are not charged.</div>
+  </section>`;
+}
+
+export async function openTripReport(period, vessel, billing) {
   if (!period) return;
   // Open synchronously so the browser doesn't block the pop-up, then fill it
   // once the evidence photos are signed.
@@ -142,6 +163,12 @@ export async function openTripReport(period, vessel) {
     td.t { width: 15%; color: #4A4863; font-variant-numeric: tabular-nums; white-space: nowrap; }
     td.s { width: 14%; }
     .fl { color: #C24632; font-weight: 700; }
+    .charges { margin-top: 26px; break-inside: avoid; }
+    .charges .ph h3 { color: #C65A1A; }
+    .cg-sub { display: block; color: #6E6B85; font-size: 11.5px; margin-top: 1px; }
+    .cg-amt { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; width: 22%; }
+    .cg-total td { border-top: 2px solid #1C1B3A; border-bottom: none; font-weight: 700; padding-top: 9px; }
+    .cg-note { font-size: 11px; color: #8B8478; margin-top: 8px; font-style: italic; }
     .foot { margin-top: 26px; padding-top: 12px; border-top: 1px solid #ECECEE; font-size: 11px; color: #AEB4C2; display: flex; align-items: center; justify-content: space-between; }
     .foot .cg { display: inline-flex; align-items: center; gap: 6px; }
     .cargo-mark { height: 15px; opacity: 0.8; }
@@ -162,6 +189,7 @@ export async function openTripReport(period, vessel) {
     </div>
     ${care ? `<div class="care"><b>By care type:</b> ${care}</div>` : '<div class="care"></div>'}
     ${people.map((p) => personBlock(p, photoMap)).join('')}
+    ${chargesBlock(period, billing)}
     <div class="foot">
       <span>${esc(vessel?.name || vessel?.company || 'Cargo')} · Laundry record · Generated ${dmy(new Date().toISOString())}</span>
       <span class="cg"><img class="cargo-mark" src="${esc(cargoLogo)}" alt="Cargo" onerror="this.style.display='none'" /></span>
