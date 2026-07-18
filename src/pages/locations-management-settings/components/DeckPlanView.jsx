@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck } from '../utils/locationsLayoutStorage';
-import { CATEGORIES, categoryColor, categoryFill, inferCategory } from '../utils/roomCategories';
+import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
 import { traceRoom, bboxRect, simplifyClosed } from '../utils/deckTrace';
 import { pdfToPngBlob } from '../utils/pdfRaster';
@@ -261,7 +261,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   };
   // Room zoning category: local override wins, else the saved one, else inferred
   // from the room name. Drives the outline/fill colour on the plan.
-  const categoryOf = (space) => (space.id in localCats ? localCats[space.id] : space.planCategory) || inferCategory(space.name);
+  const categoryOf = (space) => normCategory((space.id in localCats ? localCats[space.id] : space.planCategory) || inferCategory(space.name));
   const setCategory = (spaceId, cat) => {
     setLocalCats((p) => ({ ...p, [spaceId]: cat }));
     setSpaceCategory(spaceId, cat).catch((err) => console.error('[deck-plan] save category error:', err));
