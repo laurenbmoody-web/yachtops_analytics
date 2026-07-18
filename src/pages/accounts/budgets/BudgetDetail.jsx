@@ -8,7 +8,7 @@ import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getBudgetVsActual, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate } from '../../../services/budgetService';
+import { getBudgetVsActual, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate, updateLineAmount } from '../../../services/budgetService';
 import { formatMoney } from '../../../services/financeCalc';
 import BudgetFormModal from './components/BudgetFormModal';
 import LineFormModal from './components/LineFormModal';
@@ -45,6 +45,8 @@ export default function BudgetDetail() {
   const [view, setView] = useState(null);   // { budget, buckets, unbudgeted, totals }
   const [editBudget, setEditBudget] = useState(false);
   const [lineModal, setLineModal] = useState(null); // { line } or {} for new
+  const [amtEdit, setAmtEdit] = useState(null);     // { id, value } inline amount edit
+  const [addRow, setAddRow] = useState(null);       // { bucket, kind, category, amount } inline add
   const [toast, setToast] = useState('');
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
 
@@ -109,23 +111,90 @@ export default function BudgetDetail() {
     return list.sort((a, b) => rank(a) - rank(b));
   }, [view]);
 
+  const commitAmount = async () => {
+    if (!amtEdit) return;
+    const { id, value, original } = amtEdit;
+    setAmtEdit(null);
+    if (Number(value) === Number(original)) return;   // no change
+    const res = await updateLineAmount(id, value);
+    if (!res.error) { await load(); flash('Amount updated'); }
+    else flash('Could not update amount');
+  };
+
+  const commitAdd = async () => {
+    if (!addRow || !addRow.category.trim()) { setAddRow(null); return; }
+    const res = await upsertLine({
+      budget_id: id, bucket: addRow.bucket, kind: addRow.kind,
+      category: addRow.category.trim(), amount: Number(addRow.amount) || 0,
+    });
+    if (!res.error) { await load(); flash('Line added'); setAddRow({ ...addRow, category: '', amount: '' }); }
+    else { flash(/duplicate|unique/i.test(res.error.message || '') ? 'That line already exists' : 'Could not add line'); }
+  };
+
+  const openFullEdit = (row) => setLineModal({ line: {
+    id: row.id, bucket: row.bucket, category: row.category, code: row.code,
+    kind: row.kind, amount: row.budgeted, notes: row.note,
+  } });
+
   const renderRow = (row, key) => {
     const spent = row.actual + row.committed;
-    const clickable = canEdit && row.id;
+    const editing = amtEdit?.id === row.id;
     return (
-      <div key={key} className={`bg-row${row.state === 'over' && row.kind !== 'revenue' ? ' is-over' : ''}`}
-        style={clickable ? { cursor: 'pointer' } : undefined}
-        onClick={clickable ? () => setLineModal({ line: { id: row.id, bucket: row.bucket, category: row.category, code: row.code, kind: row.kind, amount: row.budgeted, notes: row.note } }) : undefined}>
+      <div key={key} className={`bg-row${row.state === 'over' && row.kind !== 'revenue' ? ' is-over' : ''}`}>
         <div className="bg-row-cat">
           <b>{row.code ? <span className="bg-code">{row.code}</span> : null}{row.category}</b>
           {row.note ? <div className="bg-row-note">{row.note}</div> : null}
         </div>
-        <span className="bg-fig">{formatMoney(row.budgeted, cur)}</span>
+        {editing ? (
+          <input
+            className="bg-inline-input bg-num" type="number" step="0.01" min="0" inputMode="decimal" autoFocus
+            value={amtEdit.value}
+            onChange={(e) => setAmtEdit({ ...amtEdit, value: e.target.value })}
+            onBlur={commitAmount}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } if (e.key === 'Escape') setAmtEdit(null); }}
+          />
+        ) : (
+          <span
+            className={`bg-fig${canEdit && row.id ? ' bg-editable' : ''}`}
+            onClick={canEdit && row.id ? () => setAmtEdit({ id: row.id, value: String(row.budgeted), original: row.budgeted }) : undefined}
+            title={canEdit && row.id ? 'Click to edit' : undefined}
+          >{formatMoney(row.budgeted, cur)}</span>
+        )}
         <span className="bg-fig c-actual">{formatMoney(row.actual, cur)}</span>
         <span className="bg-fig c-committed">{formatMoney(row.committed, cur)}</span>
         <span className={`bg-fig c-remaining${row.remaining < 0 ? ' bg-neg' : ''}`}>{formatMoney(row.remaining, cur)}</span>
         <Meter pct={row.pct} state={row.state} spent={spent} />
-        <span className="bg-row-act">{clickable && <Icon name="Pencil" size={13} color="#CFCABF" />}</span>
+        <span className="bg-row-act">
+          {canEdit && row.id && (
+            <button type="button" className="bg-icon-btn" onClick={() => openFullEdit(row)} aria-label="Edit line" title="Edit code, comment, delete">
+              <Icon name="Pencil" size={13} color="#CFCABF" />
+            </button>
+          )}
+        </span>
+      </div>
+    );
+  };
+
+  const renderAddRow = (bucket, kind) => {
+    if (!canEdit) return null;
+    const active = addRow?.bucket === bucket;
+    if (!active) {
+      return (
+        <button type="button" className="bg-addline-btn" onClick={() => setAddRow({ bucket, kind, category: '', amount: '' })}>
+          <Icon name="Plus" size={14} /> Add line to {bucket}
+        </button>
+      );
+    }
+    return (
+      <div className="bg-addrow">
+        <input className="bg-inline-input" autoFocus placeholder="New breakdown line…" value={addRow.category}
+          onChange={(e) => setAddRow({ ...addRow, category: e.target.value })}
+          onKeyDown={(e) => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') setAddRow(null); }} />
+        <input className="bg-inline-input bg-num" type="number" step="0.01" min="0" placeholder="0.00" value={addRow.amount}
+          onChange={(e) => setAddRow({ ...addRow, amount: e.target.value })}
+          onKeyDown={(e) => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') setAddRow(null); }} />
+        <button type="button" className="bg-btn bg-btn-primary bg-btn-sm" onClick={commitAdd}>Add</button>
+        <button type="button" className="bg-link is-mut" onClick={() => setAddRow(null)}>Done</button>
       </div>
     );
   };
@@ -233,6 +302,7 @@ export default function BudgetDetail() {
                         <Meter pct={b.subtotal.pct} state={b.subtotal.state} spent={b.subtotal.actual + b.subtotal.committed} />
                         <span />
                       </div>
+                      {renderAddRow(b.bucket, b.kind)}
                     </div>
                   ))}
 

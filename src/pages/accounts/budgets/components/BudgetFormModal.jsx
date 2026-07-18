@@ -1,6 +1,8 @@
 // New / edit budget — editorial modal (portaled via ModalShell).
 import React, { useState } from 'react';
 import ModalShell from '../../../../components/ui/ModalShell';
+import EditorialDatePicker from '../../../../components/editorial/EditorialDatePicker';
+import { datePlaceholder } from '../../../../utils/dateFormat';
 
 const CURRENCIES = ['EUR', 'GBP', 'USD'];
 
@@ -41,12 +43,12 @@ export default function BudgetFormModal({ open, onClose, onSave, initial }) {
 
         <div className="bg-form-row bg-form-grid">
           <div>
-            <label className="bg-label" htmlFor="bg-start">Period start <span className="req">required</span></label>
-            <input id="bg-start" className="bg-input" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <label className="bg-label">Period start <span className="req">required</span></label>
+            <EditorialDatePicker value={start} onChange={setStart} ariaLabel="Period start" placeholder={datePlaceholder()} />
           </div>
           <div>
-            <label className="bg-label" htmlFor="bg-end">Period end <span className="req">required</span></label>
-            <input id="bg-end" className="bg-input" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+            <label className="bg-label">Period end <span className="req">required</span></label>
+            <EditorialDatePicker value={end} onChange={setEnd} ariaLabel="Period end" rangeStart={start} placeholder={datePlaceholder()} />
           </div>
         </div>
 

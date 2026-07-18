@@ -107,6 +107,14 @@ export const deleteLine = async (id) => {
   return { error };
 };
 
+// Inline edit: update only the budgeted amount, leaving code/kind/category/notes.
+export const updateLineAmount = async (id, amount) => {
+  const { data, error } = await supabase
+    .from('budget_lines').update({ amount: Number(amount) || 0 })
+    .eq('id', id).select(LINE_SELECT).single();
+  return { data, error };
+};
+
 // Seed the standard yacht (MYBA) chart of accounts onto a budget. Idempotent —
 // existing (bucket, category) lines are left untouched (ON CONFLICT DO NOTHING).
 export const seedStandardTemplate = async (budgetId, chart) => {
