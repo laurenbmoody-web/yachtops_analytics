@@ -13,6 +13,7 @@ import ReassignModal from '../components/ReassignModal';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
 import '../../../styles/editorial.css'; // shared editorial meta strip + serif greeting (matches orders list / marketplace)
 import SupplierModal from '../components/SupplierModal';
+import { driverLinkForToken } from '../../driver/driverStorage';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
@@ -822,6 +823,7 @@ const DriverStation = ({ order, canEdit, onUpdate }) => {
   const [busy, setBusy] = useState(false);
   const [courierName, setCourierName] = useState('');
   const [courierUrl, setCourierUrl] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const hasInternal = !!order.driver_name;
   const hasExternal = !!order.courier_name;
@@ -888,6 +890,20 @@ const DriverStation = ({ order, canEdit, onUpdate }) => {
               className={`sod-driver-step${order.driver_status === s ? ' is-on' : ''}`}
               disabled={busy} onClick={() => onStep(s)}>{DRV_LABELS[s]}</button>
           ))}
+        </div>
+      )}
+
+      {hasInternal && order.driver_share_token && (
+        <div className="sod-driver-link">
+          <div className="sod-driver-lab" style={{ marginTop: 14 }}>Driver link — text it to the driver so they can share their live location</div>
+          <div className="sod-driver-link-row">
+            <input readOnly className="sod-driver-in" value={driverLinkForToken(order.driver_share_token)}
+              onFocus={(e) => e.target.select()} />
+            <button type="button" className="sod-driver-copy"
+              onClick={() => { try { navigator.clipboard?.writeText(driverLinkForToken(order.driver_share_token)); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* ignore */ } }}>
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
         </div>
       )}
 

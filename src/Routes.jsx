@@ -77,6 +77,7 @@ import ReturnSlipPage from './pages/provisioning/ReturnSlipPage';
 import ReturnConfirmPage from './pages/provisioning/ReturnConfirmPage';
 import SupplierConfirmOrder from './pages/provisioning/SupplierConfirmOrder';
 import DeliverySigningPage from './pages/supplier-portal/views/DeliverySigningPage';
+import DriverTokenPage from './pages/driver/DriverTokenPage';
 import SeaServiceSignPage from './seatime/SeaServiceSignPage';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
@@ -99,6 +100,7 @@ const SupplierOverview   = lazyWithRetry(() => import('./pages/supplier-portal/v
 const SupplierOrders     = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierOrders'));
 const SupplierOrderDetail = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierOrderDetail'));
 const SupplierPickList   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierPickList'));
+const SupplierDrive      = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierDrive'));
 const SupplierProducts   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierProducts'));
 const SupplierSettings   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierSettings'));
 const SupplierDeliveries = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierDeliveries'));
@@ -1190,6 +1192,7 @@ const Routes = () => {
         <Route path="/return-confirm" element={<ReturnConfirmPage />} />
         <Route path="/order/confirm/:token" element={<SupplierConfirmOrder />} />
         <Route path="/delivery-sign/:token" element={<DeliverySigningPage />} />
+        <Route path="/drive/:token" element={<DriverTokenPage />} />
         <Route path="/sea-service/sign/:token" element={<SeaServiceSignPage />} />
         <Route path="/invite-accept" element={<InviteAcceptPage />} />
         <Route path="/invite" element={<InviteRedirect />} />
@@ -1364,6 +1367,7 @@ const Routes = () => {
           <Route path="orders"          element={<SupplierOrders />} />
           <Route path="orders/:orderId" element={<SupplierOrderDetail />} />
           <Route path="orders/:orderId/pick" element={<SupplierPickList />} />
+          <Route path="drive/:orderId" element={<SupplierDrive />} />
           <Route path="deliveries"      element={<SupplierDeliveries />} />
           <Route path="invoices"        element={<SupplierInvoices />} />
           <Route path="products"        element={<SupplierProducts />} />

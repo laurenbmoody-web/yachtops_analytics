@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient';
+import { genDriverToken } from '../../driver/driverStorage';
 
 // ─── Profile ────────────────────────────────────────────────────────────────
 
@@ -250,12 +251,15 @@ export const setOrderDelivery = async (orderId, status, etaISO) => {
 // Assign a supplier teammate as the driver (internal mode). Clears any external
 // courier. Denormalises the name so the crew can display it.
 export const assignInternalDriver = async (orderId, contact) => {
+  // Mint a fresh capability token so the driver (or a temp) can open the
+  // no-login /drive/:token page on their phone and share location.
   const { data, error } = await supabase
     .from('supplier_orders')
     .update({
       driver_contact_id: contact.contact_id ?? contact.id ?? null,
       driver_name: contact.name || null,
       driver_status: 'assigned',
+      driver_share_token: genDriverToken(),
       courier_name: null,
       tracking_url: null,
     })

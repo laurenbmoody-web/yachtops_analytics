@@ -1,0 +1,128 @@
+/* Driver capture page — mobile-first, editorial. Standalone (the token page
+   renders outside the app shell), so it sets its own type + ground. */
+.drv-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 18px 40px;
+  background: #FAFAF8;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.drv-card {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border: 1px solid #ECEAE3;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -24px rgba(28, 27, 58, 0.22);
+  padding: 26px 24px 22px;
+}
+.drv-eyebrow {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 10px;
+}
+.drv-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 26px;
+  line-height: 1.1;
+  margin: 0 0 6px;
+  color: #1C1B3A;
+}
+.drv-title em { color: #C65A1A; font-style: italic; }
+.drv-sub { font-size: 13px; color: #6B7280; margin-bottom: 22px; }
+
+.drv-share {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #ECEAE3;
+  border-radius: 14px;
+  background: #FAFAF8;
+  padding: 16px 16px;
+  margin-bottom: 22px;
+}
+.drv-share.is-on { border-color: #C65A1A; background: #FBEFE9; }
+.drv-share-body { flex: 1; min-width: 0; }
+.drv-share-title { font-size: 15px; font-weight: 600; color: #1C1B3A; }
+.drv-share-meta { font-size: 12px; color: #8B8478; margin-top: 2px; }
+
+.drv-btn {
+  flex: none;
+  background: #C65A1A;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 22px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.drv-btn:hover { background: #B14E16; }
+.drv-btn.ghost { background: #fff; color: #6B7280; border: 1px solid #E5E7EB; }
+.drv-btn.ghost:hover { border-color: #C65A1A; color: #C65A1A; }
+
+.drv-pulse {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+}
+.drv-pulse span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #C65A1A;
+  box-shadow: 0 0 0 0 rgba(198, 90, 26, 0.5);
+  animation: drv-ping 1.8s ease-out infinite;
+}
+@keyframes drv-ping {
+  0%   { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0.5); }
+  70%  { box-shadow: 0 0 0 12px rgba(198, 90, 26, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .drv-pulse span { animation: none; } }
+
+.drv-steps-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 8px;
+}
+.drv-steps { display: flex; gap: 8px; }
+.drv-step {
+  flex: 1;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6B7280;
+  background: #FAFAF8;
+  border: 1px solid #E8E6DF;
+  border-radius: 10px;
+  padding: 12px 6px;
+  cursor: pointer;
+}
+.drv-step.is-on { color: #fff; background: #C65A1A; border-color: #C65A1A; }
+.drv-step:hover:not(:disabled):not(.is-on) { border-color: #C65A1A; color: #C65A1A; }
+.drv-step:disabled { opacity: 0.55; cursor: default; }
+
+.drv-error {
+  margin-top: 16px;
+  font-size: 12.5px;
+  color: #B42318;
+  background: #FEF3F2;
+  border: 1px solid #FEE4E2;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.drv-note { margin-top: 18px; font-size: 11.5px; color: #AEB4C2; line-height: 1.4; }
+.drv-plain { font-size: 13px; color: #8B8478; padding: 20px 0; text-align: center; }
