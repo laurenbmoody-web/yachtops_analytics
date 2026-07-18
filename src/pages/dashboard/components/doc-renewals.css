@@ -9,10 +9,6 @@
 .dr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;}
 .dr-status{font-family:'Inter',system-ui,sans-serif;font-size:12.5px;font-weight:500;color:var(--dr-muted);margin:3px 0 0;}
 .dr-status.att{color:var(--dr-orange);font-weight:600;}
-.dr-vault{flex:none;background:none;border:0;padding:2px 0;cursor:pointer;font-family:'Inter',system-ui,sans-serif;
-  font-size:12px;font-weight:600;color:#C65A1A;display:inline-flex;align-items:center;gap:4px;transition:gap .14s ease,color .14s ease;}
-.dr-vault:hover{color:#B14E16;gap:7px;}
-.dr-vault:focus-visible{outline:none;box-shadow:0 0 0 3px #FAECE7;border-radius:6px;}
 
 /* Stat row — three numbers on hairlines, coloured by severity. */
 .dr-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:0 0 6px;}
