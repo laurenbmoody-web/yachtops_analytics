@@ -1,7 +1,7 @@
 .lp { position: relative; }
 .lp-field { position: relative; display: flex; align-items: center; }
 .lp-ic { position: absolute; left: 12px; stroke: #9AA1AE; pointer-events: none; }
-.lp-field input { width: 100%; font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px; padding: 10px 34px 10px 34px; }
+.lp-field input { width: 100%; font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; padding: 11px 34px 11px 34px; }
 .lp-field input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
 .lp-clear { position: absolute; right: 6px; width: 26px; height: 26px; display: grid; place-items: center; border: none; background: none; color: #AEB4C2; cursor: pointer; border-radius: 7px; }
 .lp-clear:hover { background: #F0F1F5; color: #6B7280; }

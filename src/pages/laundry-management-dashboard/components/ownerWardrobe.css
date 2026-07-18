@@ -18,7 +18,7 @@
 .ow-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; border-radius: 10px; padding: 9px 15px; border: 1px solid transparent; transition: 0.14s; }
 .ow-btn.primary { background: #C65A1A; color: #FFFFFF; }
 .ow-btn.primary:hover:not(:disabled) { background: #B14E16; }
-.ow-btn.primary:disabled { background: #E7C9B6; cursor: default; }
+.ow-btn.primary:disabled { background: #E5E7EB; color: #9AA1AE; cursor: default; }
 .ow-btn.ghost { background: #FFFFFF; color: #1C1B3A; border-color: #E5E7EB; }
 .ow-btn.ghost:hover { background: #F4F6FA; }
 .ow-btn.danger { background: #FFFFFF; color: #C24632; border-color: #F0D6D1; }
@@ -77,23 +77,24 @@
 
 /* overlays: modal / full view / chooser */
 .ow-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(28,27,58,0.44); display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(2px); }
-.ow-modal, .ow-chooser { width: 100%; max-width: 460px; max-height: 88vh; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); display: flex; flex-direction: column; overflow: hidden; }
-.ow-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 12px; border-bottom: 1px solid #EEF0F4; }
+.ow-modal { width: 100%; max-width: 560px; max-height: 90vh; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 18px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); display: flex; flex-direction: column; overflow: hidden; }
+.ow-chooser { width: 100%; max-width: 460px; max-height: 88vh; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); display: flex; flex-direction: column; overflow: hidden; }
+.ow-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 22px 26px 14px; border-bottom: 1px solid #EEF0F4; }
 .ow-eyebrow { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #C65A1A; }
 .ow-modal-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 2px 0 0; color: #1C1B3A; }
 .ow-x { background: none; border: none; cursor: pointer; color: #8B93A0; padding: 4px; border-radius: 8px; display: grid; place-items: center; flex: none; }
 .ow-x:hover { background: #F4F6FA; color: #1C1B3A; }
-.ow-modal-body { padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.ow-modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid #EEF0F4; }
+.ow-modal-body { padding: 20px 26px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; }
+.ow-modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 26px; border-top: 1px solid #EEF0F4; }
 
 .ow-l { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; margin-top: 6px; }
 .ow-req { color: #C65A1A; margin-left: 4px; }
 .ow-opt { color: #AEB4C2; margin-left: 4px; }
-.ow-input { font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px; padding: 10px 12px; width: 100%; }
+.ow-input { font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; padding: 11px 13px; width: 100%; }
 .ow-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
 .ow-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .ow-select { position: relative; }
-.ow-select select { width: 100%; appearance: none; font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px; padding: 10px 30px 10px 12px; cursor: pointer; }
+.ow-select select { width: 100%; appearance: none; font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; padding: 11px 30px 11px 13px; cursor: pointer; }
 .ow-select::after { content: '⌄'; position: absolute; right: 12px; top: 6px; color: #8B93A0; pointer-events: none; }
 .ow-value { display: flex; gap: 8px; }
 .ow-cur { flex: none; width: 82px; }
@@ -101,7 +102,7 @@
 .ow-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .ow-tag { font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
 .ow-tag.on { color: #FFFFFF; background: #C65A1A; border-color: #C65A1A; }
-.ow-photo { display: flex; align-items: center; justify-content: center; height: 150px; border: 1.5px dashed #C7CBD6; border-radius: 12px; background: #FAFAF8; cursor: pointer; overflow: hidden; }
+.ow-photo { display: flex; align-items: center; justify-content: center; height: 150px; border: 1.5px dashed #C7CBD6; border-radius: 12px; background: #F8FAFC; cursor: pointer; overflow: hidden; }
 .ow-photo img { width: 100%; height: 100%; object-fit: cover; }
 .ow-photo-ph { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #8B93A0; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; }
 
