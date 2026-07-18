@@ -1,4 +1,5 @@
 // Supabase Edge Function: generateSupplierInvoice
+// (redeploy: bill-to vessel fetch fix — see 20260718 invoice work)
 //
 // Renders a supplier-branded HTML invoice, converts it to PDF via PDFShift,
 // uploads the PDF to the private `supplier-invoices` storage bucket, writes
