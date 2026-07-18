@@ -8,6 +8,7 @@ import lazyWithRetry from './utils/lazyWithRetry';
 import Dashboard from './pages/dashboard';
 import TeamJobsManagement from './pages/team-jobs-management';
 import Accounts from './pages/accounts';
+import Ledger from './pages/accounts/ledger';
 import LogsDeliveries from './pages/logs-deliveries';
 import BlueprintVesselView from './pages/blueprint-vessel-view';
 import DutySetsRotationManagement from './pages/duty-sets-rotation-management';
@@ -1440,7 +1441,8 @@ const Routes = () => {
         <Route path="/provisioning/:boardId/orders/:orderId" element={<ProtectedRoute><SupplierOrderPage /></ProtectedRoute>} />
 
         {/* Accounts */}
-        <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
+        <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF', 'HOD']}><Accounts /></ProtectedRoute>} />
+        <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF', 'HOD']}><Ledger /></ProtectedRoute>} />
         
         {/* Logs/Deliveries */}
         <Route path="/logs-deliveries" element={<ProtectedRoute><LogsDeliveries /></ProtectedRoute>} />

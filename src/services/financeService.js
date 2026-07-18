@@ -1,0 +1,205 @@
+// Cargo Accounts — Phase 0. Data-access layer for financial_accounts + ledger_transactions.
+//
+// Conventions (matching src/pages/provisioning/supplier-detail/supplierMetricsQueries.js):
+//   - every export returns { data, error }, never throws
+//   - explicit column lists, never select('*')
+//   - RLS-scoped (no service-role); every read/write is scoped by tenant_id, which
+//     RLS also enforces via is_active_tenant_member(tenant_id, auth.uid())
+//   - balance math lives in the pure, testable financeCalc.js
+//
+// The active tenant is resolved by the caller (useTenant().activeTenantId) and passed in.
+
+import { supabase } from '../lib/supabaseClient';
+import {
+  computeAccountBalance,
+  computeAccountBaseBalance,
+  computeCashPosition,
+  deriveAmountBase,
+} from './financeCalc.js';
+
+const ACCOUNT_SELECT =
+  'id, tenant_id, vessel_id, name, kind, currency, opening_balance, is_active, notes, created_by, created_at, updated_at';
+
+const TXN_SELECT =
+  'id, tenant_id, vessel_id, account_id, txn_date, amount, currency, fx_rate, amount_base, ' +
+  'category, description, source, status, supplier_order_id, supplier_invoice_id, ' +
+  'provisioning_item_id, defect_id, trip_id, crew_id, posting_group_id, created_by, created_at';
+
+const currentUserId = async () => {
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data?.user?.id || null;
+  } catch {
+    return null;
+  }
+};
+
+// ── Accounts ────────────────────────────────────────────────────────────────
+
+// Accounts with computed balances (account currency + reporting/base) plus the
+// tenant cash position. One overview fetch for the Accounts page.
+export const getAccountsOverview = async (tenantId) => {
+  if (!tenantId) return { data: null, error: new Error('No active tenant') };
+
+  const { data: accounts, error } = await supabase
+    .from('financial_accounts')
+    .select(ACCOUNT_SELECT)
+    .eq('tenant_id', tenantId)
+    .order('is_active', { ascending: false })
+    .order('created_at', { ascending: true });
+  if (error) return { data: null, error };
+
+  // Balance-affecting columns only; RLS scopes to this tenant.
+  const { data: txns, error: txnErr } = await supabase
+    .from('ledger_transactions')
+    .select('account_id, amount, amount_base, status')
+    .eq('tenant_id', tenantId);
+  if (txnErr) return { data: null, error: txnErr };
+
+  const withBalances = (accounts || []).map((a) => ({
+    ...a,
+    balance: computeAccountBalance(a, txns),
+    base_balance: computeAccountBaseBalance(a, txns),
+  }));
+
+  return {
+    data: {
+      accounts: withBalances,
+      cashPosition: computeCashPosition(accounts || [], txns),
+    },
+    error: null,
+  };
+};
+
+export const listAccounts = async (tenantId) => {
+  const { data, error } = await getAccountsOverview(tenantId);
+  return { data: data?.accounts || null, error };
+};
+
+export const createAccount = async (payload) => {
+  const created_by = await currentUserId();
+  const { data, error } = await supabase
+    .from('financial_accounts')
+    .insert({
+      tenant_id: payload.tenant_id,
+      vessel_id: payload.vessel_id || null,
+      name: payload.name,
+      kind: payload.kind || 'bank',
+      currency: payload.currency || 'EUR',
+      opening_balance: payload.opening_balance ?? 0,
+      notes: payload.notes || null,
+      created_by,
+    })
+    .select(ACCOUNT_SELECT)
+    .single();
+  return { data, error };
+};
+
+export const updateAccount = async (id, patch) => {
+  const allowed = ['name', 'kind', 'currency', 'opening_balance', 'notes', 'vessel_id', 'is_active'];
+  const clean = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowed.includes(k)));
+  const { data, error } = await supabase
+    .from('financial_accounts')
+    .update(clean)
+    .eq('id', id)
+    .select(ACCOUNT_SELECT)
+    .single();
+  return { data, error };
+};
+
+export const deactivateAccount = async (id) => updateAccount(id, { is_active: false });
+
+// ── Transactions ──────────────────────────────────────────────────────────────
+
+// filters: { accountId, vesselId, source, category, from, to, search, needsAttention }
+export const listTransactions = async (tenantId, filters = {}) => {
+  if (!tenantId) return { data: null, error: new Error('No active tenant') };
+
+  let q = supabase
+    .from('ledger_transactions')
+    .select(TXN_SELECT)
+    .eq('tenant_id', tenantId);
+
+  if (filters.accountId) q = q.eq('account_id', filters.accountId);
+  if (filters.vesselId) q = q.eq('vessel_id', filters.vesselId);
+  if (filters.source) q = q.eq('source', filters.source);
+  if (filters.category) q = q.eq('category', filters.category);
+  if (filters.from) q = q.gte('txn_date', filters.from);
+  if (filters.to) q = q.lte('txn_date', filters.to);
+  if (filters.search) q = q.ilike('description', `%${filters.search}%`);
+  if (filters.needsAttention) q = q.or('account_id.is.null,status.eq.unreconciled');
+
+  // Newest first for display; the page reverses per-account to compute running balance.
+  q = q.order('txn_date', { ascending: false }).order('created_at', { ascending: false });
+
+  const { data, error } = await q;
+  return { data, error };
+};
+
+export const createTransaction = async (payload) => {
+  const created_by = await currentUserId();
+  const fx_rate = payload.fx_rate ?? 1;
+  const amount = Number(payload.amount);
+  const hasAccount = Boolean(payload.account_id);
+
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .insert({
+      tenant_id: payload.tenant_id,
+      vessel_id: payload.vessel_id || null,
+      account_id: payload.account_id || null,
+      txn_date: payload.txn_date || new Date().toISOString().slice(0, 10),
+      amount,
+      currency: payload.currency || 'EUR',
+      fx_rate,
+      amount_base: payload.amount_base ?? deriveAmountBase(amount, fx_rate),
+      category: payload.category || null,
+      description: payload.description || null,
+      source: payload.source || 'manual',
+      // A manual row booked straight into an account is reconciled; an unassigned
+      // one lands in the "Needs attention" queue.
+      status: hasAccount ? 'reconciled' : 'unreconciled',
+      supplier_order_id: payload.supplier_order_id || null,
+      supplier_invoice_id: payload.supplier_invoice_id || null,
+      provisioning_item_id: payload.provisioning_item_id || null,
+      defect_id: payload.defect_id || null,
+      trip_id: payload.trip_id || null,
+      crew_id: payload.crew_id || null,
+      created_by,
+    })
+    .select(TXN_SELECT)
+    .single();
+  return { data, error };
+};
+
+// Void instead of hard-delete (hard delete is COMMAND-only at the RLS layer and
+// never exposed in the UI).
+export const voidTransaction = async (id) => {
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .update({ status: 'void' })
+    .eq('id', id)
+    .select(TXN_SELECT)
+    .single();
+  return { data, error };
+};
+
+// Assign an unreconciled/unassigned row (e.g. an auto-posted supplier invoice) to
+// an account. This also inherits the account's vessel attribution and marks the row
+// reconciled, clearing it from the "Needs attention" queue.
+export const assignTransactionAccount = async (id, accountId) => {
+  const { data: account, error: accErr } = await supabase
+    .from('financial_accounts')
+    .select('id, vessel_id')
+    .eq('id', accountId)
+    .single();
+  if (accErr) return { data: null, error: accErr };
+
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .update({ account_id: accountId, vessel_id: account?.vessel_id || null, status: 'reconciled' })
+    .eq('id', id)
+    .select(TXN_SELECT)
+    .single();
+  return { data, error };
+};
