@@ -94,7 +94,7 @@ const dayLabel = (d) => {
 // Crew quick-replies — useful openers for talking to a supplier.
 const QUICK = [
   'Any update on this?',
-  'Confirmed, thank you 🙏',
+  'Confirmed, thank you',
   'Can we adjust the delivery time?',
 ];
 
