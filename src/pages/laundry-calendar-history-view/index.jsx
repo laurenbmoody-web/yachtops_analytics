@@ -144,6 +144,13 @@ const Detail = ({ p, onExport, onOpenItem, vessel, billing }) => {
   const charges = (canViewCost() && p.type === 'voyage' && p.billingBasis === 'plus_expenses' && billing)
     ? billingSummary(p.items || [], p.billingBasis, billing)
     : null;
+  const chargeByGuest = charges
+    ? Object.values(charges.lines.reduce((m, l) => {
+        const nm = l.item?.ownerName || 'Guest';
+        (m[nm] = m[nm] || { name: nm, total: 0 }).total += l.charge;
+        return m;
+      }, {})).sort((a, b) => b.total - a.total)
+    : [];
   const care = p.care || { bars: [], other: null };
   const careMax = care.bars[0]?.count || 1;
   const [careOpen, setCareOpen] = useState(false);
@@ -208,10 +215,19 @@ const Detail = ({ p, onExport, onOpenItem, vessel, billing }) => {
           </div>
 
           {charges && charges.lines.length > 0 && (
-            <div className="lb-i lb-i-charge">
-              <span className="lb-il">Charter charges</span>
-              <div className="lb-charge-v tnum">{money(charges.total, charges.currency)}</div>
-              <div className="lb-charge-sub">{charges.lines.length} guest item{charges.lines.length === 1 ? '' : 's'} · billed at cost</div>
+            <div className="lb-i">
+              <span className="lb-il">Charter charges · at cost</span>
+              <div className="lb-chargewrap">
+                <div className="lb-charge-v">{money(charges.total, charges.currency)}</div>
+                {chargeByGuest.length > 1 && (
+                  <div className="lb-pace">
+                    {chargeByGuest.slice(0, 4).map((g, i) => (
+                      <div className="lb-pace-r" key={i}><span className="lb-pace-l">{g.name}</span><b className="tnum">{money(g.total, charges.currency)}</b></div>
+                    ))}
+                  </div>
+                )}
+                <div className="lb-charge-cap">{charges.lines.length} guest item{charges.lines.length === 1 ? '' : 's'} · billed at cost</div>
+              </div>
             </div>
           )}
 
