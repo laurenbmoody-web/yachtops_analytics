@@ -159,6 +159,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const editDragRef = useRef(null); // node being dragged while editing
   const snapTargetsRef = useRef([]); // other rooms' corners on this deck, to snap to
   const [smooth, setSmooth] = useState(true); // curve the outline through the points on finish
+  const [tapMode, setTapMode] = useState(true); // trace by tapping a room (auto-outline) vs drawing points
+  const [tapBusy, setTapBusy] = useState(false); // segmenting on a tap
+  const segCacheRef = useRef({}); // deckId -> { cropKey, seg }
   const [detecting, setDetecting] = useState(null); // deckId with an AI detect in flight
   const [proposals, setProposals] = useState(null); // { deckId, items:[{name,matchedSpaceId,create,nodes,traced}] }
   const [detectError, setDetectError] = useState(null); // { deckId, message } | null
@@ -476,9 +479,22 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
 
   const toggleLinkMode = () => { setPendingLink(null); setTraceMode(false); setTracing(null); setLinkMode((v) => !v); };
 
-  // Click on the plan while tracing → drop the next outline node (in deck-crop
-  // 0..1 space). Clicking near the first node closes + saves the shape.
-  const onPlanClick = (e, deck) => {
+  // Cached deck segmentation (for tap-to-outline). Recomputed if the crop changes.
+  const getSeg = async (deck) => {
+    const crop = cropOf(deck);
+    const key = JSON.stringify(crop);
+    const cached = segCacheRef.current[deck.id];
+    if (cached && cached.key === key) return cached.seg;
+    const { imageData } = await prepareDeck(crop);
+    const seg = segmentDeck(imageData);
+    segCacheRef.current[deck.id] = { key, seg };
+    return seg;
+  };
+
+  // Click on the plan while tracing. In tap mode, one tap inside a room outlines
+  // its enclosed wall-region (fix-up: a whole room in one click). In draw mode,
+  // each click drops an outline node; a click near the first node closes it.
+  const onPlanClick = async (e, deck) => {
     if (!traceMode || !tracing || tracing.deckId !== deck.id) return;
     if (traceStartRef.current) { traceStartRef.current = false; return; } // the room-select click
     if (e.target.closest?.('.dp-pin')) return; // a pin click starts/switches tracing, not a node
@@ -486,6 +502,30 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (!rect) return;
     const x = clamp01((e.clientX - rect.left) / rect.width);
     const y = clamp01((e.clientY - rect.top) / rect.height);
+    if (tapMode && tracing.nodes.length === 0) {
+      if (tapBusy) return;
+      setTapBusy(true);
+      try {
+        const seg = await getSeg(deck);
+        const region = regionAtPoint(seg, x, y);
+        const nodes = region ? regionContour(seg, region) : null;
+        if (nodes) {
+          saveShape(tracing.spaceId, { closed: true, nodes: smooth ? smoothClosed(nodes) : nodes });
+          const c = centroidOf(nodes);
+          if (c) applyPos(tracing.spaceId, c.x, c.y);
+          setTracing(null);
+          return;
+        }
+        // No enclosed region here — fall through to a manual point so the tap isn't lost.
+        addTraceNode(x, y);
+      } catch (err) {
+        console.error('[deck-plan] tap-outline error:', err);
+        addTraceNode(x, y);
+      } finally {
+        setTapBusy(false);
+      }
+      return;
+    }
     if (tracing.nodes.length >= 3) {
       const first = tracing.nodes[0];
       const dx = (x - first.x) * rect.width; const dy = (y - first.y) * rect.height;
@@ -806,19 +846,28 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   </>
                 ) : tracing && tracing.deckId === deck.id ? (
                   <>
-                    <span>Tracing <em>{tracing.name}</em> — click to add points, click the first point to close. <b>{tracing.nodes.length}</b> pts.</span>
+                    {tapMode && tracing.nodes.length === 0 ? (
+                      <span>{tapBusy ? 'Reading the plan…' : <>Tap inside <em>{tracing.name}</em> on the plan to outline the whole room.</>}</span>
+                    ) : (
+                      <span>Tracing <em>{tracing.name}</em> — click to add points, click the first to close. <b>{tracing.nodes.length}</b> pts.</span>
+                    )}
                     <span className="dp-spring" />
+                    <button
+                      className={`dp-smooth-toggle ${tapMode ? 'is-on' : ''}`}
+                      onClick={() => setTapMode((v) => !v)}
+                      title="Tap inside a room to auto-outline it, or switch to drawing corners by hand"
+                    >{tapMode ? 'Tap room' : 'Draw points'}</button>
                     <button
                       className={`dp-smooth-toggle ${smooth ? 'is-on' : ''}`}
                       onClick={() => setSmooth((v) => !v)}
                       title="Curve the outline through the points (off = straight edges)"
                     >{smooth ? 'Curved' : 'Straight'}</button>
-                    <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={finishTrace}>Finish</button>
-                    <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={undoTraceNode}>Undo point</button>
+                    {!tapMode && <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={finishTrace}>Finish</button>}
+                    {!tapMode && <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={undoTraceNode}>Undo point</button>}
                     <button className="lg-btn sm" onClick={cancelTrace}>Cancel</button>
                   </>
                 ) : (
-                  <span>Click a room to trace its outline, or click an outlined room to adjust its corners. Points-only? Click one node and Finish.</span>
+                  <span>Click a room, then tap inside it on the plan to auto-outline it. Or click an outlined room to adjust its corners.</span>
                 )}
               </div>
             )}
