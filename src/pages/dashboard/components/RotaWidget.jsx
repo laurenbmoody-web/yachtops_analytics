@@ -174,11 +174,14 @@ const RotaWidget = () => {
   }).sort((a, b) => b.breaches - a.breaches), [chiefMembers, shiftsByMember, days]);
 
   const deptRows = useMemo(() => {
+    // A department is "in use" because it has active crew — inviting a crew
+    // member into a department (e.g. a pilot → Aviation) is what puts it on
+    // this list. Crew with no department don't form a department row.
     const byDept = new Map();
     for (const m of members) {
-      const key = m.departmentId || 'none';
-      if (!byDept.has(key)) byDept.set(key, { name: m.department, memberIds: [] });
-      byDept.get(key).memberIds.push(m.id);
+      if (!m.departmentId) continue;
+      if (!byDept.has(m.departmentId)) byDept.set(m.departmentId, { name: m.department, memberIds: [] });
+      byDept.get(m.departmentId).memberIds.push(m.id);
     }
     return [...byDept.values()].map((dep) => {
       const cells = days.map((d) => dep.memberIds.reduce((acc, id) => worse(acc, dayStatus(shiftsByMember.get(id) || [], d)), 'compliant'));
