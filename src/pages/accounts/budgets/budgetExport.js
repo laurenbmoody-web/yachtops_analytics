@@ -45,3 +45,40 @@ export const exportBudgetXlsx = (view) => {
   const safe = (budget.name || 'budget').replace(/[^\w\- ]+/g, '').trim().slice(0, 40) || 'budget';
   XLSX.writeFile(wb, `${safe}.xlsx`);
 };
+
+// Month-by-month expenditure analysis, matching the owner's-office report:
+// Codes | Description | Jan..Dec | Cumulative, grouped into sections with totals.
+export const exportBudgetMonthlyXlsx = (view) => {
+  const { budget, months = [], buckets = [], other, expenseByMonth, expenseTotal,
+    revenueByMonth, revenueTotal, netByMonth, netTotal } = view;
+  const monthCols = months.map((m) => m.label);
+  const aoa = [];
+  aoa.push(['EXPENDITURE ANALYSIS BY MONTH']);
+  aoa.push([budget.name]);
+  aoa.push([`Base currency: ${budget.currency}`]);
+  aoa.push([]);
+  aoa.push(['Codes', 'Description', ...monthCols, 'Cumulative']);
+
+  const rowFor = (code, desc, byMonth, total) => [code || '', desc, ...months.map((m) => n2(byMonth[m.ym])), n2(total)];
+  const section = (title, lines, subtotalByMonth, subtotalTotal) => {
+    aoa.push([title]);
+    lines.forEach((l) => aoa.push(rowFor(l.code, l.category, l.byMonth, l.total)));
+    aoa.push(['', `TOTAL ${title}`, ...months.map((m) => n2(subtotalByMonth[m.ym])), n2(subtotalTotal)]);
+    aoa.push([]);
+  };
+
+  buckets.filter((b) => b.kind === 'revenue').forEach((b) => section(b.bucket.toUpperCase(), b.lines, b.subtotalByMonth, b.subtotalTotal));
+  buckets.filter((b) => b.kind !== 'revenue').forEach((b) => section(b.bucket.toUpperCase(), b.lines, b.subtotalByMonth, b.subtotalTotal));
+  if (other) section('OTHER (UNCATEGORISED)', other.lines, other.subtotalByMonth, other.subtotalTotal);
+
+  aoa.push(['', 'TOTAL REVENUE', ...months.map((m) => n2(revenueByMonth[m.ym])), n2(revenueTotal)]);
+  aoa.push(['', 'TOTAL EXPENDITURE', ...months.map((m) => n2(expenseByMonth[m.ym])), n2(expenseTotal)]);
+  aoa.push(['', 'NET REVENUE (EXPENDITURE)', ...months.map((m) => n2(netByMonth[m.ym])), n2(netTotal)]);
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 8 }, { wch: 32 }, ...months.map(() => ({ wch: 12 })), { wch: 14 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'By month');
+  const safe = (budget.name || 'budget').replace(/[^\w\- ]+/g, '').trim().slice(0, 40) || 'budget';
+  XLSX.writeFile(wb, `${safe}-by-month.xlsx`);
+};

@@ -5,6 +5,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { computeVsActual } from './budgetCalc.js';
 import { classifySpend } from './budgetClassify.js';
+import { computeMonthly, monthsInPeriod } from './budgetMonthly.js';
 
 const BUDGET_SELECT =
   'id, tenant_id, name, period_start, period_end, currency, status, notes, created_by, created_at, updated_at';
@@ -276,4 +277,40 @@ export const getBudgetVsActual = async (budgetId) => {
 
   const view = computeVsActual(lines || [], actualResolved, committedResolved, incomeRes.data);
   return { data: { budget, ...view }, error: null };
+};
+
+// Month-by-month actuals matrix (Jan–Dec + cumulative), the owner's-office layout.
+// Actuals only (on-order is a summary-view concept); spend and income are dated by
+// txn_date and routed to lines with the same resolver as the summary.
+export const getBudgetMonthly = async (budgetId) => {
+  const { data: budget, error: bErr } = await getBudget(budgetId);
+  if (bErr) return { data: null, error: bErr };
+
+  const [{ data: lines, error: lErr }, ledgerRes, ovRes] = await Promise.all([
+    listLines(budgetId),
+    supabase.from('ledger_transactions')
+      .select('category, amount, amount_base, status, txn_date')
+      .eq('tenant_id', budget.tenant_id)
+      .gte('txn_date', budget.period_start).lte('txn_date', budget.period_end)
+      .neq('status', 'void'),
+    listCategoryOverrides(budget.tenant_id),
+  ]);
+  if (lErr) return { data: null, error: lErr };
+  if (ledgerRes.error) return { data: null, error: ledgerRes.error };
+
+  const lineCatSet = new Set((lines || []).map((l) => normKey(l.category)));
+  const resolve = buildResolver(ovRes.data, lineCatSet);
+  const spend = []; const income = [];
+  (ledgerRes.data || []).forEach((t) => {
+    const ym = String(t.txn_date || '').slice(0, 7);
+    if (!ym) return;
+    const category = resolve({ category: t.category });
+    const base = Number(t.amount_base || 0);
+    if (Number(t.amount) < 0) spend.push({ category, amount: -base, ym });
+    else if (Number(t.amount) > 0) income.push({ category, amount: base, ym });
+  });
+
+  const months = monthsInPeriod(budget.period_start, budget.period_end);
+  const monthly = computeMonthly(lines || [], spend, income, months);
+  return { data: { budget, ...monthly }, error: null };
 };

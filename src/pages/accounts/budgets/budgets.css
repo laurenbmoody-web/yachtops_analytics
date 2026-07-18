@@ -138,6 +138,35 @@
 
 .bg-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1C1B3A; color: #fff; padding: 11px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 600; box-shadow: 0 12px 30px -8px rgba(28,27,58,0.4); z-index: 60; }
 
+/* Summary / By-month toggle */
+.bg-tabs { display: inline-flex; gap: 2px; background: #EEF0F4; border-radius: 999px; padding: 3px; margin: 16px 0 4px; }
+.bg-tab { border: 0; background: none; padding: 7px 16px; border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280; cursor: pointer; }
+.bg-tab.is-active { background: #fff; color: #1C1B3A; box-shadow: 0 1px 3px rgba(28,27,58,0.12); }
+
+/* No-lines setup banner */
+.bg-setup { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-top: 16px; padding: 16px 18px; background: #FBEFE9; border: 1px solid #F0D9CC; border-radius: 12px; }
+.bg-setup-msg { font-size: 13.5px; color: #1C1B3A; }
+.bg-setup-msg b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; }
+.bg-setup-act { display: flex; gap: 10px; flex: 0 0 auto; }
+
+/* Month-by-month matrix */
+.bg-mwrap { overflow-x: auto; border: 1px solid #E6E8EF; border-radius: 12px; }
+.bg-mtable { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.bg-mtable th, .bg-mtable td { padding: 8px 12px; white-space: nowrap; }
+.bg-mtable thead th { position: sticky; top: 0; background: #F8FAFC; font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8B8478; text-align: right; border-bottom: 1px solid #E6E8EF; }
+.bg-mtable thead th.bg-mcode, .bg-mtable thead th.bg-mline { text-align: left; }
+.bg-mcode { font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 10.5px; color: #8B8478; text-align: left; position: sticky; left: 0; background: #fff; }
+.bg-mline { text-align: left; color: #1C1B3A; position: sticky; left: 56px; background: #fff; min-width: 190px; }
+.bg-mcell { text-align: right; font-variant-numeric: tabular-nums; color: #4B4A66; }
+.bg-mcum { font-weight: 700; color: #1C1B3A; border-left: 1px solid #EEF0F4; }
+.bg-mtable tbody tr:hover td { background: #FAFAF8; }
+.bg-mtable tbody tr:hover .bg-mcode, .bg-mtable tbody tr:hover .bg-mline { background: #FAFAF8; }
+.bg-msection td { font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #1C1B3A; background: #F8FAFC; border-top: 1px solid #E6E8EF; }
+.bg-msubtotal td { font-weight: 700; color: #6B6455; border-top: 1px solid #EEF0F4; border-bottom: 1px solid #E6E8EF; }
+.bg-msubtotal .bg-mline { text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px; }
+.bg-mgrand td { font-weight: 700; color: #1C1B3A; border-top: 2px solid #1C1B3A; background: #FCFCFD; }
+.bg-mgrand.bg-mnet td { border-top: 1px solid #E6E8EF; color: #C65A1A; }
+
 @media (max-width: 900px) {
   .bg-cols, .bg-row { grid-template-columns: 1.3fr 90px 90px 120px 30px; }
   .bg-cols .c-committed, .bg-row .c-committed, .bg-cols .c-remaining, .bg-row .c-remaining { display: none; }
