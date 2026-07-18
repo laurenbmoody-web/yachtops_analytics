@@ -57,6 +57,14 @@
 .bg-gc-money { border: 1px solid #E6E8EF; background: #FAFAF8; border-radius: 10px; padding: 9px 12px 9px 26px; font: inherit; font-size: 14px; font-weight: 600; width: 150px; color: #1C1B3A; font-variant-numeric: tabular-nums; }
 .bg-gc-money:focus { outline: 0; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 
+.bg-gc-suggestrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 2px 2px 0; }
+.bg-gc-suggest { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #C65A1A; background: #FBEFE9; color: #B14E16; border-radius: 999px; padding: 8px 15px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: .15s; }
+.bg-gc-suggest:hover { background: #F7E2D6; }
+.bg-gc-suggest:disabled { opacity: .6; cursor: default; }
+.bg-gc-reset { border: 0; background: none; color: #8B8478; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.bg-gc-reset:hover { color: #1C1B3A; }
+.bg-gc-suggestnote { margin: 8px 2px 0; font-size: 11.5px; color: #8B8478; line-height: 1.4; }
+
 .bg-gc-seg { display: inline-flex; background: #EEF0F4; border-radius: 10px; padding: 3px; }
 .bg-gc-seg button { border: 0; background: none; padding: 7px 16px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; color: #6B7280; cursor: pointer; }
 .bg-gc-seg button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 3px rgba(28,27,58,.12); }
