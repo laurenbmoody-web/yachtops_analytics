@@ -13,7 +13,7 @@ import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpace
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
 import { simplifyClosed } from '../utils/deckTrace';
-import { segmentDeck, regionAtPoint, regionContour } from '../utils/deckSegment';
+import { segmentDeck, regionAtPoint, regionContour, splitRegionBySeeds } from '../utils/deckSegment';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -627,18 +627,34 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       // is the true wall boundary (tolerant of a loose seed). Flood-fill/box only
       // as a fallback when a seed doesn't land in a usable region.
       const seg = segmentDeck(imageData);
-      const usedRegions = new Set();
+      // Which enclosed region each room's seed lands in.
+      const roomRegion = rooms.map((r) => ({ r, region: regionAtPoint(seg, r.seed.x, r.seed.y) }));
+      // Group by region. A region with ONE seed → its outline. A region with
+      // SEVERAL seeds → rooms that flooded together (thin/undrawn wall); split it
+      // by watershed so each gets its own part. Single-room regions are untouched.
+      const byRegion = new Map();
+      roomRegion.forEach((rr, idx) => {
+        if (!rr.region) return;
+        if (!byRegion.has(rr.region.id)) byRegion.set(rr.region.id, []);
+        byRegion.get(rr.region.id).push(idx);
+      });
+      const nodesByIdx = new Array(rooms.length).fill(null);
+      byRegion.forEach((idxs, regionId) => {
+        const region = seg.regionById.get(regionId);
+        if (idxs.length === 1) {
+          nodesByIdx[idxs[0]] = regionContour(seg, region);
+        } else {
+          const parts = splitRegionBySeeds(seg, region, idxs.map((i) => rooms[i].seed));
+          idxs.forEach((i, k) => { nodesByIdx[i] = parts[k] || null; });
+        }
+      });
       const used = new Set();
       let dropped = 0;
-      const items = rooms.map((r) => {
-        // Region-only: outline the enclosed wall-region the seed lands in. If the
-        // seed doesn't hit a usable region (off the hull, or an area that didn't
-        // segment), the room is dropped rather than shown as a loose/floating box.
-        const region = regionAtPoint(seg, r.seed.x, r.seed.y);
-        if (!region || usedRegions.has(region.id)) { dropped += 1; return null; }
-        const nodes = regionContour(seg, region);
+      const items = rooms.map((r, idx) => {
+        // Region-only: a room is shown only if its seed resolved to a real region
+        // (single or split). No region → dropped, not a loose/floating box.
+        const nodes = nodesByIdx[idx];
         if (!nodes) { dropped += 1; return null; }
-        usedRegions.add(region.id);
         const matchedSpaceId = matchSpaceId(r.name, spaces, used);
         if (matchedSpaceId) used.add(matchedSpaceId);
         return { name: r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: true };

@@ -138,7 +138,24 @@ function fillHoles(m, bw, bh) {
   for (let i = 0; i < bw * bh; i += 1) if (!m[i] && !bg[i]) m[i] = 1;
 }
 
-// Simplified outline of an arbitrary mask, over a bbox window. Normalized 0..1.
+// Simplified outline of a LOCAL bw×bh mask → nodes normalized to the full image
+// (offX/offY is the mask's top-left in image pixels). Rooms are simple shapes,
+// so simplify hard, escalating if a contour is still busy.
+function contourLocalMask(m, bw, bh, offX, offY, W, H, eps) {
+  if (bw < 3 || bh < 3) return null;
+  fillHoles(m, bw, bh);
+  const contour = mooreBoundary(m, bw, bh);
+  if (!contour || contour.length < 4) return null;
+  const diag = Math.hypot(bw, bh);
+  const base = eps ?? 0.022;
+  let simp = rdpClosed(contour, Math.max(2, diag * base));
+  if (simp.length > 24) simp = rdpClosed(contour, Math.max(3, diag * base * 2));
+  if (simp.length > 40) simp = rdpClosed(contour, Math.max(4, diag * base * 3.5));
+  if (simp.length < 3) return null;
+  return simp.map((p) => ({ x: (offX + p.x) / W, y: (offY + p.y) / H }));
+}
+
+// Simplified outline of a full-image mask over a bbox window. Normalized 0..1.
 function maskContour(mask, W, H, bbox, eps) {
   const { minx, miny, maxx, maxy } = bbox;
   const bw = maxx - minx + 1;
@@ -150,18 +167,79 @@ function maskContour(mask, W, H, bbox, eps) {
       if (mask[(miny + y) * W + (minx + x)]) m[y * bw + x] = 1;
     }
   }
-  fillHoles(m, bw, bh);
-  const contour = mooreBoundary(m, bw, bh);
-  if (!contour || contour.length < 4) return null;
-  const diag = Math.hypot(bw, bh);
-  // Rooms are simple shapes — simplify hard, and if it's still busy (a merged /
-  // concave region), simplify harder so it comes out clean, not a jagged blob.
-  const base = eps ?? 0.022;
-  let simp = rdpClosed(contour, Math.max(2, diag * base));
-  if (simp.length > 24) simp = rdpClosed(contour, Math.max(3, diag * base * 2));
-  if (simp.length > 40) simp = rdpClosed(contour, Math.max(4, diag * base * 3.5));
-  if (simp.length < 3) return null;
-  return simp.map((p) => ({ x: (minx + p.x) / W, y: (miny + p.y) / H }));
+  return contourLocalMask(m, bw, bh, minx, miny, W, H, eps);
+}
+
+// Split ONE region among several room seeds — for rooms with a thin/undrawn wall
+// or wide doorway that flooded together into one region. A multi-source BFS from
+// the seeds assigns every pixel to its nearest seed (through the floor), so the
+// dividing line falls at the narrow chokepoint between them (where the missing
+// wall would be), while real walls still hold. Returns per-seed outline (or null).
+export function splitRegionBySeeds(seg, region, seeds, opts = {}) {
+  const { W, H, label } = seg;
+  const { id, minx, miny, maxx, maxy } = region;
+  const bw = maxx - minx + 1;
+  const bh = maxy - miny + 1;
+  const inRegion = (lx, ly) => label[(miny + ly) * W + (minx + lx)] === id;
+  const basin = new Int32Array(bw * bh).fill(-1);
+  const q = [];
+  let head = 0;
+  seeds.forEach((s, si) => {
+    let lx = Math.max(0, Math.min(bw - 1, Math.round(s.x * W) - minx));
+    let ly = Math.max(0, Math.min(bh - 1, Math.round(s.y * H) - miny));
+    if (!inRegion(lx, ly)) {
+      let found = false;
+      for (let r = 1; r < Math.max(bw, bh) && !found; r += 1) {
+        for (let dy = -r; dy <= r && !found; dy += 1) {
+          for (let dx = -r; dx <= r && !found; dx += 1) {
+            const nx = lx + dx;
+            const ny = ly + dy;
+            if (nx >= 0 && ny >= 0 && nx < bw && ny < bh && inRegion(nx, ny)) { lx = nx; ly = ny; found = true; }
+          }
+        }
+      }
+      if (!found) return;
+    }
+    const idx = ly * bw + lx;
+    if (basin[idx] === -1) { basin[idx] = si; q.push(idx); }
+  });
+  while (head < q.length) {
+    const p = q[head];
+    head += 1;
+    const si = basin[p];
+    const lx = p % bw;
+    const ly = (p / bw) | 0;
+    if (lx > 0 && basin[p - 1] === -1 && inRegion(lx - 1, ly)) { basin[p - 1] = si; q.push(p - 1); }
+    if (lx < bw - 1 && basin[p + 1] === -1 && inRegion(lx + 1, ly)) { basin[p + 1] = si; q.push(p + 1); }
+    if (ly > 0 && basin[p - bw] === -1 && inRegion(lx, ly - 1)) { basin[p - bw] = si; q.push(p - bw); }
+    if (ly < bh - 1 && basin[p + bw] === -1 && inRegion(lx, ly + 1)) { basin[p + bw] = si; q.push(p + bw); }
+  }
+  return seeds.map((s, si) => {
+    let sminx = bw;
+    let sminy = bh;
+    let smaxx = -1;
+    let smaxy = -1;
+    for (let ly = 0; ly < bh; ly += 1) {
+      for (let lx = 0; lx < bw; lx += 1) {
+        if (basin[ly * bw + lx] === si) {
+          if (lx < sminx) sminx = lx;
+          if (lx > smaxx) smaxx = lx;
+          if (ly < sminy) sminy = ly;
+          if (ly > smaxy) smaxy = ly;
+        }
+      }
+    }
+    if (smaxx < 0) return null;
+    const sbw = smaxx - sminx + 1;
+    const sbh = smaxy - sminy + 1;
+    const sm = new Uint8Array(sbw * sbh);
+    for (let ly = 0; ly < sbh; ly += 1) {
+      for (let lx = 0; lx < sbw; lx += 1) {
+        if (basin[(sminy + ly) * bw + (sminx + lx)] === si) sm[ly * sbw + lx] = 1;
+      }
+    }
+    return contourLocalMask(sm, sbw, sbh, minx + sminx, miny + sminy, W, H, opts.eps);
+  });
 }
 
 // A single region's outline (no satellites) → simplified nodes 0..1, or null.
