@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Icon from '../../../components/AppIcon';
-import { parseScan } from '../utils/laundryLabels';
+import { parseScanTarget } from '../utils/laundryLabels';
 import './laundryScan.css';
 
 // Camera scanner for laundry QR labels. Uses the native BarcodeDetector where
@@ -31,11 +31,11 @@ const LaundryScanModal = ({ onClose, onDetect }) => {
     const now = Date.now();
     if (lastRef.current.code === raw && now - lastRef.current.at < 1600) return;
     lastRef.current = { code: raw, at: now };
-    const id = parseScan(raw);
-    if (!id) return;
+    const target = parseScanTarget(raw);
+    if (!target?.id) return;
     if (navigator.vibrate) navigator.vibrate(60);
     stop();
-    onDetect?.(id);
+    onDetect?.(target);
   };
 
   const start = async () => {
@@ -67,8 +67,8 @@ const LaundryScanModal = ({ onClose, onDetect }) => {
 
   const submitManual = (e) => {
     e?.preventDefault?.();
-    const id = parseScan(manual);
-    if (id) { stop(); onDetect?.(id); }
+    const target = parseScanTarget(manual);
+    if (target?.id) { stop(); onDetect?.(target); }
   };
 
   return (

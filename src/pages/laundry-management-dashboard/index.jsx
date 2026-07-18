@@ -7,6 +7,7 @@ import LaundryItemRow from './components/LaundryItemRow';
 import CabinView from './components/CabinView';
 import LaundryDetailModal from './components/LaundryDetailModal';
 import LaundryScanModal from './components/LaundryScanModal';
+import LaundryCasesModal from './components/LaundryCasesModal';
 import { FilterMenu, SortMenu } from './components/LaundryFilters';
 import { printLaundryLabels } from './utils/laundryLabels';
 import { subscribeOffline, pendingOfflineItems, drainOfflineLaundry, isLaundryOffline, enqueueOfflineStatus, pendingStatusMap } from './utils/laundryOfflineQueue';
@@ -97,6 +98,8 @@ const LaundryManagementDashboard = () => {
   const [allItems, setAllItems] = useState([]);
   const [detailItem, setDetailItem] = useState(null);
   const [showScan, setShowScan] = useState(false);
+  const [showCases, setShowCases] = useState(false);
+  const [casesInitialId, setCasesInitialId] = useState(null);
   const [editItem, setEditItem] = useState(null);
   const [showDeliveredList, setShowDeliveredList] = useState(false);
   const [viewMode, setViewMode] = useState(() => {
@@ -215,16 +218,20 @@ const LaundryManagementDashboard = () => {
     } catch { window.alert('Couldn’t open that label — try again.'); }
   };
 
-  // Deep link from a phone-camera scan: /laundry-management-dashboard?scan=<id>.
-  // Open the item once, then strip the param so it doesn't re-fire on refresh.
+  const openCase = (id) => { setCasesInitialId(id || null); setShowCases(true); };
+
+  // Deep link from a phone-camera scan: ?scan=<item> opens the item, ?case=<id>
+  // opens the case. Fire once, then strip the param so a refresh doesn't re-fire.
   const scanHandledRef = React.useRef(false);
   useEffect(() => {
     if (scanHandledRef.current) return;
     const params = new URLSearchParams(location.search);
-    const id = params.get('scan');
-    if (!id) return;
+    const itemId = params.get('scan');
+    const caseId = params.get('case');
+    if (!itemId && !caseId) return;
     scanHandledRef.current = true;
-    openScannedItem(id);
+    if (caseId) openCase(caseId);
+    else openScannedItem(itemId);
     navigate('/laundry-management-dashboard', { replace: true });
   }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -369,6 +376,9 @@ const LaundryManagementDashboard = () => {
                 )}
                 <button type="button" className="lm-btn ghost" onClick={() => setShowScan(true)}>
                   <Icon name="QrCode" size={16} /> Scan
+                </button>
+                <button type="button" className="lm-btn ghost" onClick={() => openCase(null)}>
+                  <Icon name="Package" size={16} /> Cases
                 </button>
                 {filteredItems.length > 0 && (
                   <button type="button" className="lm-btn ghost" onClick={() => printLaundryLabels(filteredItems)} title="Print QR labels for the items shown">
@@ -537,7 +547,16 @@ const LaundryManagementDashboard = () => {
       {showScan && (
         <LaundryScanModal
           onClose={() => setShowScan(false)}
-          onDetect={(id) => { setShowScan(false); openScannedItem(id); }}
+          onDetect={(t) => { setShowScan(false); if (t?.kind === 'case') openCase(t.id); else openScannedItem(t?.id); }}
+        />
+      )}
+
+      {showCases && (
+        <LaundryCasesModal
+          items={allItems}
+          initialCaseId={casesInitialId}
+          onChanged={loadLaundryItems}
+          onClose={() => { setShowCases(false); setCasesInitialId(null); }}
         />
       )}
 

@@ -74,6 +74,7 @@ const mapRow = (r) => ({
   sentAt: r.sent_at || null,
   expectedBack: r.expected_back || null,
   charge: r.charge != null ? r.charge : null,
+  caseId: r.case_id || null,
 });
 
 // ── date helpers ─────────────────────────────────────────────────────────────
@@ -262,6 +263,30 @@ export const loadAllLaundryItems = async () => {
   return (data || []).map(mapRow);
 };
 export const getAllLaundryItems = async () => loadAllLaundryItems();
+
+// Items packed into a given case (with photos resolved), newest first.
+export const loadLaundryItemsByCase = async (caseId) => {
+  if (!caseId) return [];
+  const { data, error } = await supabase
+    .from('laundry_items')
+    .select('*')
+    .eq('case_id', caseId)
+    .order('created_at', { ascending: false });
+  if (error) { console.error('[laundry] case items load failed', error); return []; }
+  return (data || []).map(mapRow);
+};
+
+// Pack items into a case (caseId), or unpack them (caseId = null). Bulk update.
+export const setLaundryItemsCase = async (itemIds, caseId) => {
+  const ids = (itemIds || []).filter(Boolean);
+  if (!ids.length) return false;
+  const { error } = await supabase
+    .from('laundry_items')
+    .update({ case_id: caseId || null, updated_at: new Date().toISOString() })
+    .in('id', ids);
+  if (error) { console.error('[laundry] set case failed', error); showToast('Could not update case', 'error'); return false; }
+  return true;
+};
 
 // Custom care tags this vessel has used before (tenant-scoped, deduped, minus
 // the built-in ones). Lets a typed tag like "No starch" come back as a
@@ -460,7 +485,7 @@ export const updateLaundryItem = async (itemId, updates) => {
     priority: 'priority', status: 'status', tags: 'tags', notes: 'notes',
     neededBy: 'needed_by', flag: 'flag', flagNote: 'flag_note',
     serviceLocation: 'service_location', vendor: 'vendor', sentAt: 'sent_at', expectedBack: 'expected_back',
-    charge: 'charge',
+    charge: 'charge', caseId: 'case_id',
   };
   // Photos edited → upload any new data URLs to the bucket before saving.
   let up = updates || {};
