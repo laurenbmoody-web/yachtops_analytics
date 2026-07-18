@@ -54,7 +54,10 @@ const InventoryHealthWidget = () => {
   return (
     <div
       className="ce-card rounded-xl p-5 cursor-pointer"
+      role="button"
+      tabIndex={0}
       onClick={() => navigate('/inventory')}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/inventory'); } }}
     >
       <div className="flex items-start justify-between mb-5">
         <div>

@@ -159,7 +159,7 @@ const ProvisioningWidget = () => {
                   <div key={list.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{list.title}</p>
-                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${cfg.badgeClassName}`}>{cfg.label}</span>
+                      <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5" style={{ background: '#FBF3E4', color: '#A8791C' }}>{cfg.label}</span>
                     </div>
                     <button onClick={() => navigate(`/provisioning/${list.id}`)} className="ce-link shrink-0">View</button>
                   </div>
