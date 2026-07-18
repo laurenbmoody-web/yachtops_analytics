@@ -765,8 +765,8 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     if (!api?.captureFrame || !activeTenantId || !defectId) return;
     try {
       // Keep the defect's own pin in the shot so it's clear which spot it marks;
-      // hide all the others.
-      const blob = await api.captureFrame({ width: 512, quality: 0.72, hidePins: true, keepPinId: pin?.id });
+      // hide all the others. Capture large + high quality — it's viewed full size.
+      const blob = await api.captureFrame({ width: 1600, quality: 0.9, hidePins: true, keepPinId: pin?.id });
       if (!blob) return;
       const path = `${activeTenantId}/defect-locations/${defectId}-${crypto.randomUUID().slice(0, 8)}.jpg`;
       const { error: upErr } = await supabase.storage.from('vessel-scans')
