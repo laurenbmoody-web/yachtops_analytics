@@ -27,6 +27,8 @@
 //       payment_terms_days?: number (overrides supplier default),
 //       notes?: string,
 //       bonded_supply?: boolean (force all rates to 0),
+//       reverse_charge?: boolean (force all rates to 0, print reverse-charge note),
+//       discount_pct?: number (0–100, invoice-level % off net before VAT),
 //     }
 //   }
 //
@@ -117,7 +119,7 @@ interface InvoiceRenderInput {
   invoiceNumber: string;
   issueDate: string;
   dueDate: string;
-  totals: { subtotal: number; total: number; vatTotal: number };
+  totals: { subtotal: number; total: number; vatTotal: number; discountAmount?: number };
   vatBreakdown: Array<{ category_key: string; label: string; rate: number; taxable_amount: number; vat_amount: number }>;
   options: any;
 }
@@ -179,18 +181,17 @@ function renderVatBreakdownRows(input: InvoiceRenderInput): string {
   // Always show the rate alongside each VAT line so the customer can see
   // the maths at a glance, even on single-rate invoices.
   const taxName = input.options.tax_name || 'VAT';
+  const cur = input.supplier.default_currency || 'EUR';
   if (input.vatBreakdown.length === 0) {
-    return `<tr><td>${escapeHtml(taxName)} (0%)</td><td>${input.supplier.default_currency || 'EUR'} 0.00</td></tr>`;
+    return `<tr><td>${escapeHtml(taxName)} (0%)</td><td>${cur} 0.00</td></tr>`;
   }
-  if (input.vatBreakdown.length === 1) {
-    const b = input.vatBreakdown[0];
-    return `<tr><td>${escapeHtml(taxName)} (${b.rate.toFixed(1)}%)</td>
-        <td>${input.supplier.default_currency || 'EUR'} ${fmtAmount(b.vat_amount)}</td></tr>`;
-  }
-  return input.vatBreakdown.map((b) => `
-    <tr><td>${escapeHtml(taxName)} (${escapeHtml(b.label)}, ${b.rate.toFixed(1)}%)</td>
-        <td>${input.supplier.default_currency || 'EUR'} ${fmtAmount(b.vat_amount)}</td></tr>
-  `).join('');
+  // Show the taxable base each rate applies to, alongside the tax — the
+  // "taxable amount + tax per rate" a VAT invoice is expected to itemise.
+  return input.vatBreakdown.map((b) => {
+    const label = input.vatBreakdown.length > 1 ? `${escapeHtml(b.label)}, ${b.rate.toFixed(1)}%` : `${b.rate.toFixed(1)}%`;
+    return `<tr><td>${escapeHtml(taxName)} (${label}) on ${cur} ${fmtAmount(b.taxable_amount)}</td>
+        <td>${cur} ${fmtAmount(b.vat_amount)}</td></tr>`;
+  }).join('');
 }
 
 // Unit column — respects catalogue case/pack structure when present, e.g.
@@ -222,6 +223,7 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     fmtDate(input.order.delivery_date),
   ].filter(Boolean).join(' · ');
   const isBonded = !!input.options.bonded_supply;
+  const isReverseCharge = !isBonded && !!input.options.reverse_charge;
 
   const itemRows = input.items.map((it: any) => {
     const cat = it.catalogue_item || null;
@@ -233,7 +235,8 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     const category = cat?.category ? escapeHtml(cat.category) : '';
     const unitPrice = `${cur} ${fmtAmount(Number(it.agreed_price ?? it.unit_price) || 0)}`;
     const rate = `${(it._effectiveRate ?? 0).toFixed(1)}%`;
-    const lineTotal = `${cur} ${fmtAmount(it._lineTotal ?? 0)}`;
+    // Net (ex-VAT) so line amounts sum to the Subtotal; VAT is added below.
+    const netAmount = `${cur} ${fmtAmount(it._net ?? 0)}`;
     return `
       <tr>
         <td class="desc">
@@ -246,7 +249,7 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
         <td class="unit">${unitCell}</td>
         <td class="num">${unitPrice}</td>
         <td class="num">${rate}</td>
-        <td class="num">${lineTotal}</td>
+        <td class="num">${netAmount}</td>
       </tr>`;
   }).join('');
 
@@ -398,6 +401,23 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
       text-transform: uppercase; color: #8B8478;
     }
+    table.totals tr.disc td:last-child { color: #C65A1A; }
+    table.totals tr.due td {
+      padding-top: 8px; font-size: 12px; font-weight: 700; color: #C65A1A;
+    }
+    table.totals tr.due td:first-child {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #C65A1A;
+    }
+
+    /* Reverse-charge / bonded statutory statement */
+    .tax-statement {
+      margin-top: 18px; padding: 10px 13px;
+      background: #FBEFE9; border: 1px solid #F3D9CB;
+      border-radius: 8px;
+      font-size: 10px; color: #8A4A22; line-height: 1.5;
+    }
+    .tax-statement strong { color: #7A3E1C; font-weight: 600; }
 
     /* Bank block */
     section.bank {
@@ -499,7 +519,7 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
         <th class="unit">Unit</th>
         <th class="num">Unit price</th>
         <th class="num">VAT</th>
-        <th class="num">Line total</th>
+        <th class="num">Net amount</th>
       </tr>
     </thead>
     <tbody>${itemRows}</tbody>
@@ -508,10 +528,23 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
   <div class="totals-wrap">
     <table class="totals">
       <tr><td>Subtotal</td><td>${cur} ${fmtAmount(input.totals.subtotal)}</td></tr>
+      ${input.totals.discountAmount ? `<tr class="disc"><td>Discount${input.options.discount_pct ? ` (${Number(input.options.discount_pct).toFixed(input.options.discount_pct % 1 ? 1 : 0)}%)` : ''}</td><td>− ${cur} ${fmtAmount(input.totals.discountAmount)}</td></tr>` : ''}
       ${renderVatBreakdownRows(input)}
       <tr class="grand"><td>Total</td><td>${cur} ${fmtAmount(input.totals.total)}</td></tr>
+      <tr class="due"><td>Amount due</td><td>${cur} ${fmtAmount(input.totals.total)}</td></tr>
     </table>
   </div>
+
+  ${isReverseCharge ? `
+    <div class="tax-statement">
+      <strong>Reverse charge:</strong> ${escapeHtml(taxNumberLabel)} to be accounted for by the
+      customer under the reverse-charge procedure. No ${escapeHtml(taxNumberLabel)} charged by the supplier.
+    </div>` : ''}
+  ${isBonded ? `
+    <div class="tax-statement">
+      <strong>Bonded yacht supply:</strong> zero-rated stores supplied to a commercial
+      vessel. No ${escapeHtml(taxNumberLabel)} charged.
+    </div>` : ''}
 
   ${renderBankBlock(input.supplier, input.invoiceNumber)}
 
@@ -545,29 +578,35 @@ interface ComputedLine {
   unit_price: number;
   unit_currency: string | null;
   vat_category_key: string;
-  vat_rate: number;     // effective rate after bonded check
+  vat_rate: number;     // effective rate after bonded / reverse-charge check
   vat_label: string;
-  taxable: number;
+  taxable: number;        // net, before any invoice-level discount
+  discounted_net: number; // net the VAT is actually charged on (post-discount)
   vat_amount: number;
   line_total: number;
 }
 
-function computeLines(items: any[], optionsLines: any[], bonded: boolean): ComputedLine[] {
+// bonded OR reverse_charge force every line to 0% (VAT accounted for elsewhere).
+// discountPct is an invoice-level % off the net; VAT is charged on the
+// discounted base, but each line still shows its undiscounted net.
+function computeLines(items: any[], optionsLines: any[], bonded: boolean, reverseCharge = false, discountPct = 0): ComputedLine[] {
   const byId = new Map(optionsLines.map((l) => [l.item_id, l]));
+  const zeroRated = bonded || reverseCharge;
+  const discFactor = 1 - Math.max(0, Math.min(100, Number(discountPct) || 0)) / 100;
   return items.map((it) => {
     const meta = byId.get(it.id) || {};
-    const rawRate = bonded ? 0 : (Number(meta.rate) || 0);
+    const rawRate = zeroRated ? 0 : (Number(meta.rate) || 0);
     const rate = Math.max(0, Math.min(100, rawRate));
     const qty = Number(it.quantity) || 0;
     // Sprint 9.5: read agreed_price (the negotiated value). Fall back to
-    // unit_price for legacy rows backfilled from before the split — the
-    // 20260429100000 migration set agreed_price = unit_price for confirmed/
-    // substituted lines, so the fallback only matters for rows that
-    // somehow slipped through without backfill.
+    // unit_price for legacy rows backfilled from before the split.
     const price = Number(it.agreed_price ?? it.unit_price) || 0;
     const currency = it.agreed_currency ?? it.estimated_currency ?? null;
     const taxable = qty * price;
-    const vat = taxable * rate / 100;
+    const discountedNet = taxable * discFactor;
+    const vat = discountedNet * rate / 100;
+    const label = bonded ? 'Bonded supply' : reverseCharge ? 'Reverse charge' : (meta.label || 'Standard');
+    const catKey = bonded ? 'bonded' : reverseCharge ? 'reverse_charge' : (meta.category_key || 'standard');
     return {
       item_id: it.id,
       item_name: it.item_name || '',
@@ -575,12 +614,13 @@ function computeLines(items: any[], optionsLines: any[], bonded: boolean): Compu
       unit: it.unit ?? null,
       unit_price: price,
       unit_currency: currency,
-      vat_category_key: bonded ? 'bonded' : (meta.category_key || 'standard'),
+      vat_category_key: catKey,
       vat_rate: rate,
-      vat_label: bonded ? 'Bonded supply' : (meta.label || 'Standard'),
+      vat_label: label,
       taxable,
+      discounted_net: discountedNet,
       vat_amount: vat,
-      line_total: taxable + vat,
+      line_total: discountedNet + vat,
     };
   });
 }
@@ -590,15 +630,17 @@ function summariseVat(lines: ComputedLine[]) {
   for (const l of lines) {
     const key = `${l.vat_category_key}:${l.vat_rate}`;
     const existing = buckets.get(key);
+    // Base each rate on the discounted net — that's the amount the tax is
+    // actually charged on and what the per-rate row should reconcile against.
     if (existing) {
-      existing.taxable_amount += l.taxable;
+      existing.taxable_amount += l.discounted_net;
       existing.vat_amount += l.vat_amount;
     } else {
       buckets.set(key, {
         category_key: l.vat_category_key,
         label: l.vat_label,
         rate: l.vat_rate,
-        taxable_amount: l.taxable,
+        taxable_amount: l.discounted_net,
         vat_amount: l.vat_amount,
       });
     }
@@ -685,12 +727,17 @@ Deno.serve(async (req: Request) => {
       vessel = vessels?.[0] || null;
     }
 
-    // 4) Compute totals (server forces bonded → 0)
+    // 4) Compute totals. Server forces bonded / reverse-charge → 0% and
+    //    applies any invoice-level discount to the net before VAT.
     const bonded = !!options.bonded_supply;
-    const computed = computeLines(items, lines, bonded);
-    const subtotal = computed.reduce((s, l) => s + l.taxable, 0);
+    const reverseCharge = !!options.reverse_charge;
+    const discountPct = Math.max(0, Math.min(100, Number(options.discount_pct) || 0));
+    const computed = computeLines(items, lines, bonded, reverseCharge, discountPct);
+    const subtotal = computed.reduce((s, l) => s + l.taxable, 0);          // gross net, pre-discount
+    const discountedNet = computed.reduce((s, l) => s + l.discounted_net, 0);
+    const discountAmount = subtotal - discountedNet;
     const vatTotal = computed.reduce((s, l) => s + l.vat_amount, 0);
-    const total = subtotal + vatTotal;
+    const total = discountedNet + vatTotal;
     const vatBreakdown = summariseVat(computed);
 
     // 5) Sequential invoice number
@@ -711,6 +758,8 @@ Deno.serve(async (req: Request) => {
       return {
         ...it,
         _effectiveRate: c?.vat_rate ?? 0,
+        _net: c?.taxable ?? 0,
+        _vatAmount: c?.vat_amount ?? 0,
         _lineTotal: c?.line_total ?? 0,
         _vatLabel: c?.vat_label ?? '',
       };
@@ -718,7 +767,7 @@ Deno.serve(async (req: Request) => {
     const html = renderInvoiceHtml({
       supplier, order, vessel, items: annotatedItems, invoiceNumber,
       issueDate, dueDate,
-      totals: { subtotal, total, vatTotal },
+      totals: { subtotal, total, vatTotal, discountAmount },
       vatBreakdown, options,
     });
 
@@ -732,7 +781,13 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         source: html,
         format: 'A4',
-        margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' },
+        margin: { top: '15mm', right: '15mm', bottom: '18mm', left: '15mm' },
+        // Page numbering for multi-page invoices. PDFShift substitutes
+        // {{page}}/{{total}} and renders this HTML in the bottom margin.
+        footer: {
+          source: '<div style="width:100%;font-family:Inter,system-ui,sans-serif;font-size:8px;color:#AEB4C2;text-align:center;">Page {{page}} of {{total}}</div>',
+          height: '12mm',
+        },
         sandbox: false,
       }),
     });
