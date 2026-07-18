@@ -7,7 +7,7 @@
 .prov-row:last-child{border-bottom:0;}
 .prov-row:hover{background:#FAFAFC;}
 .prov-dot{width:8px;height:8px;border-radius:999px;flex:0 0 auto;}
-.prov-main{flex:1;min-width:0;}
+.prov-main{flex:1;min-width:0;display:flex;flex-direction:column;}
 .prov-t{font-size:13px;font-weight:600;color:#1C1B3A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .prov-s{font-size:11px;color:#8B8478;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .prov-chev{flex:0 0 auto;color:#CBD0DA;}
