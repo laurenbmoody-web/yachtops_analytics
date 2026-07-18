@@ -132,7 +132,7 @@ const ProvisioningWidget = () => {
         </div>
       ) : allClear ? (
         <div className="prov-clear">
-          <Icon name="Check" size={18} /> Nothing needs a hand right now
+          <Icon name="Check" size={16} /> Nothing outstanding
         </div>
       ) : (
         <div className="prov-list">
