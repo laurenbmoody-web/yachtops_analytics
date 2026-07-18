@@ -10,6 +10,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck } from '../utils/locationsLayoutStorage';
+import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
+import { traceRoom, bboxRect } from '../utils/deckTrace';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -114,10 +116,12 @@ function FrameEditor({ gaUrl, deckName, initial, onSave, onCancel }) {
   );
 }
 
-export default function DeckPlanView({ decks = [], onAddScan }) {
+export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const navigate = useNavigate();
   const onAddScanRef = useRef(onAddScan);
   onAddScanRef.current = onAddScan;
+  const onReloadRef = useRef(onReload);
+  onReloadRef.current = onReload;
   const [layout, setLayout] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -137,8 +141,10 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
   const [tracing, setTracing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } in progress
   const [smooth, setSmooth] = useState(true); // curve the outline through the points on finish
   const [detecting, setDetecting] = useState(null); // deckId with an AI detect in flight
-  const [proposals, setProposals] = useState(null); // { deckId, items:[{name,matchedSpaceId,points,confidence}], unmatched:[] }
+  const [proposals, setProposals] = useState(null); // { deckId, items:[{name,matchedSpaceId,create,nodes,traced}] }
   const [detectError, setDetectError] = useState(null); // { deckId, message } | null
+  const [aiSmooth, setAiSmooth] = useState(false); // AI outlines: straight by default (walls are straight)
+  const [applying, setApplying] = useState(false);
   const traceStartRef = useRef(false); // swallow the click that selected the room (no stray node)
   const fileRef = useRef(null);
   const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
@@ -329,9 +335,10 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
   };
 
   // ── AI room detection ─────────────────────────────────────────────────────
-  // Crop the deck's band out of the shared GA image into a base64 JPEG (in the
-  // same 0..1 deck-crop space the plan uses), so the model reads just this deck.
-  const cropDeckToBase64 = (crop) => new Promise((resolve, reject) => {
+  // Crop the deck's band out of the shared GA image into a canvas (in the same
+  // 0..1 deck-crop space the plan uses). Returns the base64 JPEG to read AND the
+  // pixels, so the same image both feeds the model and drives the wall-tracing.
+  const cropDeckImage = (crop) => new Promise((resolve, reject) => {
     if (!crop || !layout?.gaImageUrl) { reject(new Error('No deck image to read.')); return; }
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -340,14 +347,18 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
       const sy = crop.y * img.naturalHeight;
       const sw = Math.max(1, crop.w * img.naturalWidth);
       const sh = Math.max(1, crop.h * img.naturalHeight);
-      const scale = Math.min(1, 1600 / Math.max(sw, sh)); // cap the long edge — plenty for OCR
+      const scale = Math.min(1, 1600 / Math.max(sw, sh)); // cap the long edge — plenty for OCR + tracing
       const cw = Math.max(1, Math.round(sw * scale));
       const ch = Math.max(1, Math.round(sh * scale));
       const canvas = document.createElement('canvas');
       canvas.width = cw; canvas.height = ch;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
-      try { resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]); } catch (e) { reject(e); }
+      try {
+        const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+        const imageData = ctx.getImageData(0, 0, cw, ch);
+        resolve({ base64, imageData });
+      } catch (e) { reject(e); }
     };
     img.onerror = () => reject(new Error('Could not load the drawing.'));
     img.src = layout.gaImageUrl;
@@ -377,19 +388,22 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     setTracing(null);
     setDetecting(deck.id);
     try {
-      const imageBase64 = await cropDeckToBase64(crop);
+      const { base64, imageData } = await cropDeckImage(crop);
       const spaces = spacesOf(deck);
-      const rooms = await autotraceDeck({ imageBase64, deckName: deck.name, roomNames: spaces.map((s) => s.name) });
+      const rooms = await autotraceDeck({ imageBase64: base64, deckName: deck.name, roomNames: spaces.map((s) => s.name) });
+      if (!rooms.length) { setDetectError({ deckId: deck.id, message: 'No rooms could be read from this deck. Try reframing it tighter around the plan.' }); return; }
       const used = new Set();
-      const items = [];
-      const unmatched = [];
-      rooms.forEach((r) => {
-        const sid = matchSpaceId(r.name, spaces, used);
-        if (sid) { used.add(sid); items.push({ name: r.name, matchedSpaceId: sid, points: r.points, confidence: r.confidence }); }
-        else unmatched.push(r.name);
-      });
-      if (!items.length && !unmatched.length) { setDetectError({ deckId: deck.id, message: 'No rooms could be read from this deck. Try reframing it tighter around the plan.' }); return; }
-      setProposals({ deckId: deck.id, items, unmatched });
+      const items = rooms.map((r) => {
+        // Real geometry: flood-fill the walls from the seed; fall back to the box.
+        const traced = traceRoom(imageData, r.seed, r.bbox);
+        const nodes = traced || bboxRect(r.bbox) || null;
+        if (!nodes) return null;
+        const matchedSpaceId = matchSpaceId(r.name, spaces, used);
+        if (matchedSpaceId) used.add(matchedSpaceId);
+        return { name: r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: !!traced };
+      }).filter(Boolean);
+      if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none could be outlined. Try reframing the deck.' }); return; }
+      setProposals({ deckId: deck.id, items });
     } catch (err) {
       console.error('[deck-plan] detect error:', err);
       setDetectError({ deckId: deck.id, message: err?.message || 'Could not detect rooms on this deck.' });
@@ -398,17 +412,45 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     }
   };
 
-  // Land the matched proposals as traced outlines (smoothed like a hand trace),
-  // anchoring each room's point/label at the outline centre.
-  const applyProposals = () => {
-    if (!proposals) return;
-    proposals.items.forEach((it) => {
-      const nodes = smooth ? smoothClosed(it.points) : it.points;
-      saveShape(it.matchedSpaceId, { closed: true, nodes });
-      const c = centroidOf(it.points);
-      if (c) applyPos(it.matchedSpaceId, c.x, c.y);
-    });
-    setProposals(null);
+  // Land every proposal: create the new rooms (unmatched labels) under the deck,
+  // then write each outline + centre point onto its room. Reloads the gallery so
+  // freshly-created rooms appear.
+  const applyProposals = async (deck) => {
+    if (!proposals || applying) return;
+    setApplying(true);
+    try {
+      // A space needs a parent zone — use the deck's first zone, or make one.
+      let zoneId = deck.zones?.[0]?.id || null;
+      const needsCreate = proposals.items.some((it) => it.create);
+      if (needsCreate && !zoneId) {
+        const z = await createZone(deck.id, 'General');
+        zoneId = z.id;
+      }
+      for (const it of proposals.items) {
+        let spaceId = it.matchedSpaceId;
+        if (it.create) {
+          try {
+            const sp = await createSpace(zoneId, it.name);
+            spaceId = sp.id;
+          } catch (err) {
+            console.error('[deck-plan] create room failed:', it.name, err);
+            continue; // e.g. RLS (crew) — skip, leave the rest
+          }
+        }
+        if (!spaceId) continue;
+        const nodes = aiSmooth ? smoothClosed(it.nodes) : it.nodes;
+        await setSpaceShape(spaceId, { closed: true, nodes }).catch((e) => console.error('[deck-plan] shape save', e));
+        const c = centroidOf(it.nodes);
+        if (c) await setSpacePosition(spaceId, c.x, c.y).catch((e) => console.error('[deck-plan] pos save', e));
+      }
+      setProposals(null);
+      if (needsCreate) await onReloadRef.current?.(); // pull in the new rooms
+    } catch (err) {
+      console.error('[deck-plan] apply proposals error:', err);
+      setDetectError({ deckId: deck.id, message: err?.message || 'Could not apply the outlines.' });
+    } finally {
+      setApplying(false);
+    }
   };
 
   if (loading) return <div className="dp-loading">Loading the layout…</div>;
@@ -526,23 +568,32 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
               <p className="dp-error">{detectError.message}</p>
             )}
 
-            {deckProps && (
-              <div className="dp-tracehint dp-ai-review">
-                <span>
-                  <b className="dp-ai-spark">✦ AI</b> read <b>{deckProps.items.length + deckProps.unmatched.length}</b> room{deckProps.items.length + deckProps.unmatched.length === 1 ? '' : 's'} —{' '}
-                  <b>{deckProps.items.length}</b> matched your list.
-                  {deckProps.unmatched.length > 0 && <span className="dp-ai-unmatched"> Couldn’t match: {deckProps.unmatched.join(', ')}.</span>}
-                </span>
-                <span className="dp-spring" />
-                <button
-                  className={`dp-smooth-toggle ${smooth ? 'is-on' : ''}`}
-                  onClick={() => setSmooth((v) => !v)}
-                  title="Curve the outlines through the points (off = straight edges)"
-                >{smooth ? 'Curved' : 'Straight'}</button>
-                <button className="lg-btn-primary sm" disabled={!deckProps.items.length} onClick={applyProposals}>Apply {deckProps.items.length || ''} outline{deckProps.items.length === 1 ? '' : 's'}</button>
-                <button className="lg-btn sm" onClick={() => setProposals(null)}>Discard</button>
-              </div>
-            )}
+            {deckProps && (() => {
+              const total = deckProps.items.length;
+              const newCount = deckProps.items.filter((i) => i.create).length;
+              const matchCount = total - newCount;
+              return (
+                <div className="dp-tracehint dp-ai-review">
+                  <span>
+                    <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> room{total === 1 ? '' : 's'} —{' '}
+                    {matchCount > 0 && <><b>{matchCount}</b> matched</>}
+                    {matchCount > 0 && newCount > 0 && ', '}
+                    {newCount > 0 && <><b>{newCount}</b> new (<span className="dp-ai-unmatched">will be created</span>)</>}
+                    {matchCount === 0 && newCount === 0 && 'none usable'}.
+                  </span>
+                  <span className="dp-spring" />
+                  <button
+                    className={`dp-smooth-toggle ${aiSmooth ? 'is-on' : ''}`}
+                    onClick={() => setAiSmooth((v) => !v)}
+                    title="Curve the outlines (off = straight walls, recommended)"
+                  >{aiSmooth ? 'Curved' : 'Straight'}</button>
+                  <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
+                    {applying ? 'Applying…' : newCount > 0 ? `Create & apply ${total}` : `Apply ${total}`}
+                  </button>
+                  <button className="lg-btn sm" disabled={applying} onClick={() => setProposals(null)}>Discard</button>
+                </div>
+              );
+            })()}
 
             {crop && gaDims ? (
               <>
@@ -571,12 +622,12 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                       <polyline className="dp-trace-line" points={tracing.nodes.map((n) => `${(n.x * 100).toFixed(2)},${(n.y * 100).toFixed(2)}`).join(' ')} />
                     )}
                     {/* AI proposal outlines — dashed, awaiting Apply. */}
-                    {deckProps && deckProps.items.map((it) => {
-                      const d = shapeToPath({ closed: true, nodes: smooth ? smoothClosed(it.points) : it.points });
+                    {deckProps && deckProps.items.map((it, i) => {
+                      const d = shapeToPath({ closed: true, nodes: aiSmooth ? smoothClosed(it.nodes) : it.nodes });
                       return (
-                        <g key={it.matchedSpaceId}>
+                        <g key={i}>
                           <path className="dp-shape-halo" d={d} />
-                          <path className="dp-proposal" d={d} />
+                          <path className={`dp-proposal ${it.create ? 'is-new' : ''}`} d={d} />
                         </g>
                       );
                     })}
@@ -614,12 +665,12 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                     );
                   })}
                   {/* AI proposal labels at each outline's centre. */}
-                  {deckProps && deckProps.items.map((it) => {
-                    const c = centroidOf(it.points);
+                  {deckProps && deckProps.items.map((it, i) => {
+                    const c = centroidOf(it.nodes);
                     if (!c) return null;
                     return (
-                      <span key={it.matchedSpaceId} className="dp-proposal-label" style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%` }}>
-                        ✦ {it.name}
+                      <span key={i} className={`dp-proposal-label ${it.create ? 'is-new' : ''}`} style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%` }}>
+                        ✦ {it.name}{it.create ? ' +' : ''}
                       </span>
                     );
                   })}
