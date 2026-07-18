@@ -822,13 +822,41 @@ export const updatePartialBottle = async (itemId, fraction) => {
   }
 };
 
-function getInventoryHealthStats(...args) {
-  // eslint-disable-next-line no-console
-  console.warn('Placeholder: getInventoryHealthStats is not implemented yet.', args);
-  return null;
-}
+// Inventory health for the dashboard widget. Stock health mirrors the analytics
+// page's canonical rule (keys off restock_enabled / restock_level), and adds
+// freshness (expiry) since most provisions carry an expiry_date.
+//   healthy / lowStock / outOfStock — stock levels
+//   expiringSoon (≤30 days) / expired — freshness
+export const getInventoryHealthStats = async (tenantId = getActiveTenantId()) => {
+  const empty = { healthy: 0, lowStock: 0, outOfStock: 0, total: 0, expiringSoon: 0, expired: 0 };
+  if (!tenantId) return empty;
+  const { data, error } = await supabase
+    .from('inventory_items')
+    .select('quantity, total_qty, stock_locations, restock_enabled, restock_level, expiry_date')
+    .eq('tenant_id', tenantId);
+  if (error || !data) { if (error) console.error('[inventoryStorage] health stats failed', error); return empty; }
 
-export { getInventoryHealthStats };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const soon = new Date(today); soon.setDate(soon.getDate() + 30);
+
+  let healthy = 0; let lowStock = 0; let outOfStock = 0; let expiringSoon = 0; let expired = 0;
+  for (const row of data) {
+    const qty = Array.isArray(row.stock_locations) && row.stock_locations.length
+      ? row.stock_locations.reduce((s, l) => s + (Number(l?.qty ?? l?.quantity) || 0), 0)
+      : (Number(row.total_qty ?? row.quantity) || 0);
+    if (!row.restock_enabled || row.restock_level == null) healthy += 1;
+    else if (qty === 0) outOfStock += 1;
+    else if (qty <= row.restock_level) lowStock += 1;
+    else healthy += 1;
+
+    if (row.expiry_date) {
+      const exp = new Date(row.expiry_date); exp.setHours(0, 0, 0, 0);
+      if (exp < today) expired += 1;
+      else if (exp <= soon) expiringSoon += 1;
+    }
+  }
+  return { healthy, lowStock, outOfStock, total: data.length, expiringSoon, expired };
+};
 
 // ============================================
 // FOLDER TREE — Supabase-backed (inventory_locations)
