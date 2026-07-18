@@ -103,6 +103,29 @@ jobs:
             supabase migration repair --status reverted "$v"
           done
 
+      - name: Guard against duplicate migration versions
+        # Two local migration files sharing the same 14-digit version is a real
+        # authoring error (two engineers cut the same prefix). schema_migrations.
+        # version is a PRIMARY KEY, so the second one can NEVER record its
+        # version — its transaction rolls back every run and blocks the whole
+        # queue behind it. Fail fast with a clear message so it gets renamed,
+        # rather than looping on the opaque "duplicate key" error at apply time.
+        run: |
+          set -e
+          dups=$(ls supabase/migrations/*.sql 2>/dev/null \
+            | xargs -n1 basename \
+            | sed -E 's/^([0-9]{14})_.*/\1/' \
+            | sort | uniq -d)
+          if [ -n "$dups" ]; then
+            echo "::error::Duplicate migration version(s) — two files share a 14-digit version. Rename one of each pair to a unique version:"
+            for v in $dups; do
+              echo "  $v:"
+              ls supabase/migrations/${v}_*.sql | sed 's/^/    /'
+            done
+            exit 1
+          fi
+          echo "No duplicate migration versions — history is unambiguous."
+
       - name: Apply migrations
         # Retry: the pooler occasionally i/o-times-out on connect; db push is
         # safe to re-attempt (already-applied migrations are skipped via history).
@@ -118,6 +141,16 @@ jobs:
           for i in 1 2 3; do
             out=$(supabase db push --include-all 2>&1) && { printf '%s\n' "$out"; exit 0; }
             printf '%s\n' "$out"
+            # A schema_migrations_pkey duplicate ("version … already exists")
+            # means the migration DID apply + record its version on a prior
+            # attempt, and db push is re-queuing it (attempt 1 exits non-zero
+            # after committing → the retry collides). The duplicate-version
+            # guard step has already ruled out two-files-same-version, so this
+            # is a false failure — the schema is applied. Treat it as success.
+            if printf '%s\n' "$out" | grep -q 'schema_migrations_pkey'; then
+              echo "::notice::Migration already recorded (version already exists) on a prior attempt — schema is applied, treating as success."
+              exit 0
+            fi
             # Belt-and-suspenders: if the push failed because the remote
             # history is ahead with orphan versions, the CLI prints the
             # exact `migration repair --status reverted …` command to fix
