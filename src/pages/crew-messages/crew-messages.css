@@ -345,6 +345,9 @@
 .cmsg-page .msg-row.me .msg-bubble-wrap { align-items: flex-end; }
 .cmsg-page .msg-bubble-wrap .msg-bubble { max-width: 100%; }
 .cmsg-page .msg-body { display: block; }
+.cmsg-page .msg-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; word-break: break-word; }
+.cmsg-page .msg-link.order { display: inline-block; margin-top: 4px; text-decoration: none; font-weight: 700; color: var(--orange); }
+.cmsg-page .msg-row.me .msg-link.order { color: #fff; }
 
 /* Reply quote inside a bubble */
 .cmsg-page .msg-reply-quote { display: flex; flex-direction: column; gap: 1px; text-align: left; width: 100%; border: 0; border-left: 3px solid currentColor; background: rgba(28, 27, 58, 0.06); border-radius: 6px; padding: 4px 9px; margin-bottom: 5px; cursor: pointer; font-family: inherit; }

@@ -3818,6 +3818,9 @@
 #sp-root .msg-row.me .msg-bubble-wrap { align-items: flex-end; }
 #sp-root .msg-bubble-wrap .msg-bubble { max-width: 100%; }
 #sp-root .msg-body { display: block; }
+#sp-root .msg-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; word-break: break-word; }
+#sp-root .msg-link.order { display: inline-block; margin-top: 4px; text-decoration: none; font-weight: 700; color: var(--orange); }
+#sp-root .msg-row.me .msg-link.order { color: #fff; }
 
 #sp-root .msg-reply-quote { display: flex; flex-direction: column; gap: 1px; text-align: left; width: 100%; border: 0; border-left: 3px solid currentColor; background: rgba(15, 23, 42, 0.06); border-radius: 6px; padding: 4px 9px; margin-bottom: 5px; cursor: pointer; font-family: inherit; }
 #sp-root .msg-row.me .msg-reply-quote { background: rgba(255, 255, 255, 0.2); }

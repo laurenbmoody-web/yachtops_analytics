@@ -8,6 +8,22 @@ import React, { useMemo, useRef, useState } from 'react';
 
 export const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '🙏', '✅'];
 
+// Render a message body with URLs turned into links. An in-app order deep link
+// (/provisioning/orders/…) renders as a friendly "Open your order →" chip.
+const URL_RE = /(https?:\/\/[^\s]+)/g;
+const linkifyBody = (text) => {
+  const parts = String(text).split(URL_RE);
+  return parts.map((part, i) => {
+    if (i % 2 === 0) return part || null;
+    const isOrder = part.includes('/provisioning/orders/');
+    return (
+      <a key={i} className={`msg-link${isOrder ? ' order' : ''}`} href={part} target={isOrder ? '_self' : '_blank'} rel="noopener noreferrer">
+        {isOrder ? 'Open your order →' : part}
+      </a>
+    );
+  });
+};
+
 // Fold a message's reaction array into { emoji: { count, mine } }.
 const aggregate = (reactions, myUid) => {
   const out = {};
@@ -109,7 +125,7 @@ const MessageBubble = ({
                   ))}
                 </div>
               )}
-              {m.body && <span className="msg-body">{m.body}</span>}
+              {m.body && <span className="msg-body">{linkifyBody(m.body)}</span>}
               <span className="msg-time">{m.edited_at && <span className="msg-edited">edited</span>}{time}{tick}</span>
             </>
           )}
