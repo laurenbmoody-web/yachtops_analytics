@@ -42,21 +42,6 @@ const centroidOf = (nodes = []) => {
   return { x: s.x / nodes.length, y: s.y / nodes.length };
 };
 
-// Catmull-Rom → cubic-Bézier handles for a CLOSED ring, so a traced outline
-// curves smoothly through the clicked points (hull walls read as curves, not
-// straight chords). Tension 1/6 is the standard uniform Catmull-Rom.
-const smoothClosed = (pts) => {
-  const n = pts.length;
-  if (n < 3) return pts.map((p) => ({ x: p.x, y: p.y }));
-  return pts.map((p, i) => {
-    const prev = pts[(i - 1 + n) % n];
-    const next = pts[(i + 1) % n];
-    const tx = (next.x - prev.x) / 6;
-    const ty = (next.y - prev.y) / 6;
-    return { x: p.x, y: p.y, h1: { x: p.x - tx, y: p.y - ty }, h2: { x: p.x + tx, y: p.y + ty } };
-  });
-};
-
 // Loose room-name key for matching AI-read labels to the crew's existing rooms.
 const normName = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -158,14 +143,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [editSel, setEditSel] = useState(null); // index of the selected corner while editing
   const editDragRef = useRef(null); // node being dragged while editing
   const snapTargetsRef = useRef([]); // other rooms' corners on this deck, to snap to
-  const [smooth, setSmooth] = useState(true); // curve the outline through the points on finish
   const [tapMode, setTapMode] = useState(true); // trace by tapping a room (auto-outline) vs drawing points
   const [tapBusy, setTapBusy] = useState(false); // segmenting on a tap
   const segCacheRef = useRef({}); // deckId -> { cropKey, seg }
   const [detecting, setDetecting] = useState(null); // deckId with an AI detect in flight
   const [proposals, setProposals] = useState(null); // { deckId, items:[{name,matchedSpaceId,create,nodes,traced}] }
   const [detectError, setDetectError] = useState(null); // { deckId, message } | null
-  const [aiSmooth, setAiSmooth] = useState(false); // AI outlines: straight by default (walls are straight)
   const [applying, setApplying] = useState(false);
   const traceStartRef = useRef(false); // swallow the click that selected the room (no stray node)
   const fileRef = useRef(null);
@@ -297,8 +280,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       setTracing(null);
       return;
     }
-    const nodes = smooth ? smoothClosed(tracing.nodes) : tracing.nodes;
-    saveShape(tracing.spaceId, { closed: true, nodes });
+    saveShape(tracing.spaceId, { closed: true, nodes: tracing.nodes });
     const c = centroidOf(tracing.nodes); // anchor the point/label at the outline centre
     if (c) applyPos(tracing.spaceId, c.x, c.y);
     setTracing(null);
@@ -510,7 +492,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         const region = regionAtPoint(seg, x, y);
         const nodes = region ? regionContour(seg, region) : null;
         if (nodes) {
-          saveShape(tracing.spaceId, { closed: true, nodes: smooth ? smoothClosed(nodes) : nodes });
+          saveShape(tracing.spaceId, { closed: true, nodes });
           const c = centroidOf(nodes);
           if (c) applyPos(tracing.spaceId, c.x, c.y);
           setTracing(null);
@@ -706,8 +688,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           }
         }
         if (!spaceId) continue;
-        const nodes = aiSmooth ? smoothClosed(it.nodes) : it.nodes;
-        await setSpaceShape(spaceId, { closed: true, nodes }).catch((e) => console.error('[deck-plan] shape save', e));
+        await setSpaceShape(spaceId, { closed: true, nodes: it.nodes }).catch((e) => console.error('[deck-plan] shape save', e));
         const c = centroidOf(it.nodes);
         if (c) await setSpacePosition(spaceId, c.x, c.y).catch((e) => console.error('[deck-plan] pos save', e));
       }
@@ -857,11 +838,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       onClick={() => setTapMode((v) => !v)}
                       title="Tap inside a room to auto-outline it, or switch to drawing corners by hand"
                     >{tapMode ? 'Tap room' : 'Draw points'}</button>
-                    <button
-                      className={`dp-smooth-toggle ${smooth ? 'is-on' : ''}`}
-                      onClick={() => setSmooth((v) => !v)}
-                      title="Curve the outline through the points (off = straight edges)"
-                    >{smooth ? 'Curved' : 'Straight'}</button>
                     {!tapMode && <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={finishTrace}>Finish</button>}
                     {!tapMode && <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={undoTraceNode}>Undo point</button>}
                     <button className="lg-btn sm" onClick={cancelTrace}>Cancel</button>
@@ -898,11 +874,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       {newCount > 0 && <>, <b>{newCount}</b> new (<span className="dp-ai-unmatched">will be created</span>)</>}.
                     </span>
                     <span className="dp-spring" />
-                    <button
-                      className={`dp-smooth-toggle ${aiSmooth ? 'is-on' : ''}`}
-                      onClick={() => setAiSmooth((v) => !v)}
-                      title="Curve the outlines (off = straight walls, recommended)"
-                    >{aiSmooth ? 'Curved' : 'Straight'}</button>
                     <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
                       {applying ? 'Applying…' : newCount > 0 ? `Create ${newCount} & apply ${total}` : `Apply ${total}`}
                     </button>
@@ -964,7 +935,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     })()}
                     {/* AI proposal outlines — dashed, coloured by category (zone map). */}
                     {deckProps && deckProps.items.map((it, i) => {
-                      const d = shapeToPath({ closed: true, nodes: aiSmooth ? smoothClosed(it.nodes) : it.nodes });
+                      const d = shapeToPath({ closed: true, nodes: it.nodes });
                       const cat = it.matchedSpaceId
                         ? categoryOf(spaces.find((s) => s.id === it.matchedSpaceId) || { id: it.matchedSpaceId, name: it.name })
                         : normCategory(inferCategory(it.name));
