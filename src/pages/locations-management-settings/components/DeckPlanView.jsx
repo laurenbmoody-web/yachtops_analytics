@@ -9,11 +9,34 @@
 //            doorway; links render as lines on the plan (vessel_space_links).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, getSpaceLinks, addSpaceLink, removeSpaceLink } from '../utils/locationsLayoutStorage';
+import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, getSpaceLinks, addSpaceLink, removeSpaceLink } from '../utils/locationsLayoutStorage';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
 const clamp01 = (n) => Math.max(0, Math.min(1, n));
+
+// A traced room outline → an SVG path in the 0..100 viewBox of the plan overlay.
+// Cubic-Bézier segment where the leaving/arriving handles exist, else a line.
+const shapeToPath = (shape) => {
+  const nodes = shape?.nodes || [];
+  if (nodes.length < 2) return '';
+  const P = (n) => `${(n.x * 100).toFixed(2)} ${(n.y * 100).toFixed(2)}`;
+  let d = `M ${P(nodes[0])}`;
+  const seg = (a, b) => {
+    if (a.h2 && b.h1) return ` C ${P(a.h2)} ${P(b.h1)} ${P(b)}`;
+    return ` L ${P(b)}`;
+  };
+  for (let i = 1; i < nodes.length; i += 1) d += seg(nodes[i - 1], nodes[i]);
+  if (shape?.closed) { d += seg(nodes[nodes.length - 1], nodes[0]); d += ' Z'; }
+  return d;
+};
+
+// Centroid of a node ring (for the label + the fallback point).
+const centroidOf = (nodes = []) => {
+  if (!nodes.length) return null;
+  const s = nodes.reduce((acc, n) => ({ x: acc.x + n.x, y: acc.y + n.y }), { x: 0, y: 0 });
+  return { x: s.x / nodes.length, y: s.y / nodes.length };
+};
 
 // Box aspect of a deck's crop, in true pixels (undistorted).
 const boxAspectOf = (crop, dims) => (crop.w * dims.w) / (crop.h * dims.h) || 3;
@@ -91,6 +114,9 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
   const [links, setLinks] = useState([]); // doorway links [{id,a,b}]
   const [linkMode, setLinkMode] = useState(false);
   const [pendingLink, setPendingLink] = useState(null); // {spaceId, deckId} first-picked dot
+  const [localShapes, setLocalShapes] = useState({}); // spaceId -> shape | null (override)
+  const [traceMode, setTraceMode] = useState(false);
+  const [tracing, setTracing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } in progress
   const fileRef = useRef(null);
   const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
   const movedRef = useRef(false);
@@ -191,6 +217,32 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     setLocalPos((p) => ({ ...p, [spaceId]: x == null ? null : { x, y } }));
     setSpacePosition(spaceId, x, y).catch((err) => console.error('[deck-plan] save position error:', err));
   };
+
+  // ── Room outline tracing ──────────────────────────────────────────────────
+  // A room's traced outline: local override wins, else the persisted shape.
+  const shapeOf = (space) => (space.id in localShapes ? localShapes[space.id] : space.planShape) || null;
+  const saveShape = (spaceId, shape) => {
+    setLocalShapes((p) => ({ ...p, [spaceId]: shape }));
+    setSpaceShape(spaceId, shape).catch((err) => console.error('[deck-plan] save shape error:', err));
+  };
+  const startTrace = (space, deck) => setTracing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: [] });
+  const addTraceNode = (x, y) => setTracing((t) => (t ? { ...t, nodes: [...t.nodes, { x, y }] } : t));
+  const undoTraceNode = () => setTracing((t) => (t && t.nodes.length ? { ...t, nodes: t.nodes.slice(0, -1) } : t));
+  const cancelTrace = () => setTracing(null);
+  const finishTrace = () => {
+    if (!tracing || tracing.nodes.length < 3) return;
+    const shape = { closed: true, nodes: tracing.nodes };
+    saveShape(tracing.spaceId, shape);
+    // Anchor the room's point/label at the outline centroid.
+    const c = centroidOf(tracing.nodes);
+    if (c) applyPos(tracing.spaceId, c.x, c.y);
+    setTracing(null);
+  };
+  const clearShape = (space) => {
+    saveShape(space.id, null);
+    if (tracing?.spaceId === space.id) setTracing(null);
+  };
+  const toggleTraceMode = () => { setTracing(null); setPendingLink(null); setLinkMode(false); setTraceMode((v) => !v); };
   const startDrag = (e, space, deck, fromPlaced) => {
     if (e.button != null && e.button !== 0) return;
     e.preventDefault();
@@ -205,8 +257,10 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
 
   const linkExists = (a, b) => links.some((l) => (l.a === a && l.b === b) || (l.a === b && l.b === a));
 
-  // In "Connect rooms" mode a dot press picks endpoints instead of dragging.
+  // In "Connect rooms" mode a dot press picks endpoints instead of dragging;
+  // in "Trace" mode it starts tracing that room's outline.
   const onDotDown = (e, space, deck, fromPlaced) => {
+    if (traceMode) { e.preventDefault(); startTrace(space, deck); return; }
     if (!linkMode) { startDrag(e, space, deck, fromPlaced); return; }
     e.preventDefault();
     if (!pendingLink) { setPendingLink({ spaceId: space.id, deckId: deck.id }); return; }
@@ -224,7 +278,24 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     removeSpaceLink(linkId).catch((err) => console.error('[deck-plan] remove link error:', err));
   };
 
-  const toggleLinkMode = () => { setPendingLink(null); setLinkMode((v) => !v); };
+  const toggleLinkMode = () => { setPendingLink(null); setTraceMode(false); setTracing(null); setLinkMode((v) => !v); };
+
+  // Click on the plan while tracing → drop the next outline node (in deck-crop
+  // 0..1 space). Clicking near the first node closes + saves the shape.
+  const onPlanClick = (e, deck) => {
+    if (!traceMode || !tracing || tracing.deckId !== deck.id) return;
+    if (e.target.closest?.('.dp-pin')) return; // a pin click starts/switches tracing, not a node
+    const rect = planRefs.current[deck.id]?.getBoundingClientRect();
+    if (!rect) return;
+    const x = clamp01((e.clientX - rect.left) / rect.width);
+    const y = clamp01((e.clientY - rect.top) / rect.height);
+    if (tracing.nodes.length >= 3) {
+      const first = tracing.nodes[0];
+      const dx = (x - first.x) * rect.width; const dy = (y - first.y) * rect.height;
+      if (Math.hypot(dx, dy) < 12) { finishTrace(); return; } // clicked the start dot → close
+    }
+    addTraceNode(x, y);
+  };
 
   if (loading) return <div className="dp-loading">Loading the layout…</div>;
 
@@ -285,6 +356,16 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                   <span className="dp-linkbtn-label">{linkMode ? 'Done linking' : 'Connect rooms'}</span>
                 </button>
               )}
+              {crop && gaDims && (
+                <button
+                  className={`dp-linkbtn ${traceMode ? 'is-on' : ''}`}
+                  onClick={toggleTraceMode}
+                  title="Trace room outlines on the plan"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l8 5v8l-8 5-8-5V8z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><circle cx="12" cy="3" r="1.4" fill="currentColor" /><circle cx="20" cy="8" r="1.4" fill="currentColor" /><circle cx="4" cy="8" r="1.4" fill="currentColor" /></svg>
+                  <span className="dp-linkbtn-label">{traceMode ? 'Done tracing' : 'Trace rooms'}</span>
+                </button>
+              )}
               {/* When unframed, the big "Frame this deck" box below is the single
                   call-to-action; only offer Reframe once it's framed. */}
               {crop && <button className="lg-btn sm" onClick={() => setFramingDeck(deck)}>Reframe</button>}
@@ -294,14 +375,42 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
               <p className="dp-linkhint">{pendingLink ? 'Now click the room it connects to (or the same dot again to cancel).' : 'Click two rooms to link them through a doorway. Click a line to remove it.'}</p>
             )}
 
+            {traceMode && crop && gaDims && (
+              <div className="dp-tracehint">
+                {tracing && tracing.deckId === deck.id ? (
+                  <>
+                    <span>Tracing <em>{tracing.name}</em> — click to add points, click the first point to close. <b>{tracing.nodes.length}</b> pts.</span>
+                    <span className="dp-spring" />
+                    <button className="lg-btn sm" disabled={tracing.nodes.length < 3} onClick={finishTrace}>Finish</button>
+                    <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={undoTraceNode}>Undo point</button>
+                    <button className="lg-btn sm" onClick={cancelTrace}>Cancel</button>
+                  </>
+                ) : (
+                  <span>Click a room to trace its outline. Points-only? Just click one node and Finish. Existing outlines show on the plan — click a room again to re-trace.</span>
+                )}
+              </div>
+            )}
+
             {crop && gaDims ? (
               <>
                 <div
-                  className={`dp-plan ${linkMode ? 'is-linking' : ''}`}
+                  className={`dp-plan ${linkMode ? 'is-linking' : ''} ${traceMode ? 'is-tracing' : ''}`}
                   ref={(el) => { planRefs.current[deck.id] = el; }}
                   style={{ width: '100%', aspectRatio: String(boxAspectOf(crop, gaDims)) }}
+                  onClick={(e) => onPlanClick(e, deck)}
                 >
                   <div className="dp-plan-bg" style={cropBg(crop, layout.gaImageUrl)} />
+                  {/* Traced room outlines + the in-progress trace preview. */}
+                  <svg className="dp-shapes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    {placed.map((s) => {
+                      const sh = shapeOf(s);
+                      if (!sh) return null;
+                      return <path key={s.id} className={`dp-shape ${isScanned(s) ? 'is-scanned' : 'is-empty'}`} d={shapeToPath(sh)} />;
+                    })}
+                    {tracing && tracing.deckId === deck.id && tracing.nodes.length > 0 && (
+                      <polyline className="dp-trace-line" points={tracing.nodes.map((n) => `${(n.x * 100).toFixed(2)},${(n.y * 100).toFixed(2)}`).join(' ')} />
+                    )}
+                  </svg>
                   {deckLinks.length > 0 && (
                     <svg className="dp-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                       {deckLinks.map((l) => {
@@ -333,16 +442,24 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                       </div>
                     );
                   })}
+                  {/* In-progress trace node dots (round; on top of the outline). */}
+                  {tracing && tracing.deckId === deck.id && tracing.nodes.map((n, i) => (
+                    <span
+                      key={i}
+                      className={`dp-trace-dot ${i === 0 ? 'is-first' : ''}`}
+                      style={{ left: `${n.x * 100}%`, top: `${n.y * 100}%` }}
+                    />
+                  ))}
                 </div>
 
                 {unplaced.length > 0 && (
                   <div className="dp-tray">
-                    <span className="dp-tray-label">Drag onto the plan</span>
+                    <span className="dp-tray-label">{traceMode ? 'Click a room to trace it' : 'Drag onto the plan'}</span>
                     {unplaced.map((s) => (
                       <div
                         key={s.id}
-                        className={`dp-chip ${isScanned(s) ? 'is-scanned' : 'is-empty'}`}
-                        onPointerDown={(e) => startDrag(e, s, deck, false)}
+                        className={`dp-chip ${isScanned(s) ? 'is-scanned' : 'is-empty'} ${tracing?.spaceId === s.id ? 'is-tracing' : ''}`}
+                        onPointerDown={(e) => onDotDown(e, s, deck, false)}
                       >
                         <span className="dp-pin-dot" />{s.name}
                       </div>
