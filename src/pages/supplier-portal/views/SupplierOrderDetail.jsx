@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {formatTime, dateLocale } from '../../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem, markVesselApprovedSeen, supplierRequestLineReopen } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem, markVesselApprovedSeen, supplierRequestLineReopen, fetchSupplierTeam, assignInternalDriver, setExternalCourier, setDriverStatus, clearDriver } from '../utils/supplierStorage';
 import { fetchReturnTasksByOrderId, fetchReturnTasksCountForOrder, acknowledgeSupplierReturnTask, completeSupplierReturnTask } from '../utils/supplierReturnTasks';
 import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -801,6 +801,117 @@ const DoStation = ({ order, items, canEdit, onConfirmAll, onStartPicking, onGene
         >
           {primary.label}
         </button>
+      )}
+    </div>
+  );
+};
+
+// Driver assignment — an order-fulfilment tool (lives on the order page, not
+// the chat). Two modes: an internal teammate who then advances On the way →
+// Arrived → Delivered (which rolls the order to out_for_delivery / received),
+// or an external courier with their own tracking link. Shown from 'packed'
+// onward; the crew see the result in their order's Track delivery panel.
+const DRV_LABELS = { assigned: 'Assigned', on_the_way: 'On the way', arrived: 'Arrived', delivered: 'Delivered' };
+const DRV_FLOW = ['on_the_way', 'arrived', 'delivered'];
+const DRIVER_STAGES = ['packed', 'dispatched', 'out_for_delivery', 'received'];
+const DriverStation = ({ order, canEdit, onUpdate }) => {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState('internal');
+  const [team, setTeam] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [courierName, setCourierName] = useState('');
+  const [courierUrl, setCourierUrl] = useState('');
+
+  const hasInternal = !!order.driver_name;
+  const hasExternal = !!order.courier_name;
+  const assigned = hasInternal || hasExternal;
+
+  useEffect(() => {
+    if (mode !== 'internal' || team.length || assigned) return;
+    fetchSupplierTeam().then(setTeam).catch(() => {});
+  }, [mode, team.length, assigned]);
+
+  if (!DRIVER_STAGES.includes(order.status)) return null;
+
+  const guard = (fn) => async (...args) => {
+    if (!canEdit) { window.alert(NO_PERMISSION_TITLE); return; }
+    if (busy) return;
+    setBusy(true);
+    try { const updated = await fn(...args); onUpdate(updated); }
+    catch (e) { window.alert(`Driver update failed: ${e.message}`); }
+    finally { setBusy(false); }
+  };
+  const assign = guard((t) => assignInternalDriver(order.id, t));
+  const advance = guard((s) => setDriverStatus(order.id, s));
+  const saveCourier = guard(() => setExternalCourier(order.id, { name: courierName, url: courierUrl }));
+  const clear = guard(() => clearDriver(order.id));
+
+  return (
+    <div className="sod-driver">
+      <div className="sod-driver-head">
+        <div>
+          <div className="sod-station-eyebrow">Delivery driver</div>
+          <div className="sod-driver-title">
+            {hasInternal ? order.driver_name : hasExternal ? order.courier_name : 'Not assigned yet'}
+            {hasInternal && <span className="sod-driver-badge">{DRV_LABELS[order.driver_status] || 'Assigned'}</span>}
+          </div>
+          <div className="sod-driver-sub">
+            {hasInternal ? 'Your teammate is delivering this order.'
+              : hasExternal ? 'Out with an external courier.'
+              : 'Assign whoever’s taking this order to the vessel.'}
+          </div>
+        </div>
+        {assigned ? (
+          <button type="button" className="sod-driver-clear" disabled={busy} onClick={clear}>Clear</button>
+        ) : (
+          <button type="button" className="sod-station-btn" onClick={() => setOpen((o) => !o)}>
+            {open ? 'Close' : 'Assign driver →'}
+          </button>
+        )}
+      </div>
+
+      {hasInternal && (
+        <div className="sod-driver-steps">
+          {DRV_FLOW.map((s) => (
+            <button key={s} type="button"
+              className={`sod-driver-step${order.driver_status === s ? ' is-on' : ''}`}
+              disabled={busy} onClick={() => advance(s)}>{DRV_LABELS[s]}</button>
+          ))}
+        </div>
+      )}
+
+      {hasExternal && order.tracking_url && (
+        <a className="sod-driver-track" href={order.tracking_url} target="_blank" rel="noreferrer">
+          Open courier tracking →
+        </a>
+      )}
+
+      {!assigned && open && (
+        <div className="sod-driver-picker">
+          <div className="sod-driver-tabs">
+            <button type="button" className={`sod-driver-tab${mode === 'internal' ? ' is-on' : ''}`} onClick={() => setMode('internal')}>Our team</button>
+            <button type="button" className={`sod-driver-tab${mode === 'external' ? ' is-on' : ''}`} onClick={() => setMode('external')}>External courier</button>
+          </div>
+          {mode === 'internal' ? (
+            <div className="sod-driver-list">
+              {team.map((t) => (
+                <button key={t.id} type="button" className="sod-driver-row" disabled={busy} onClick={() => assign(t)}>
+                  <span className="sod-driver-name">{t.name}</span>
+                  {t.role && <span className="sod-driver-role">{t.role}</span>}
+                </button>
+              ))}
+              {!team.length && <div className="sod-driver-empty">No teammates found</div>}
+            </div>
+          ) : (
+            <div className="sod-driver-ext">
+              <label className="sod-driver-lab">Courier name</label>
+              <input className="sod-driver-in" value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="e.g. DHL Express" />
+              <label className="sod-driver-lab">Tracking link</label>
+              <input className="sod-driver-in" value={courierUrl} onChange={(e) => setCourierUrl(e.target.value)} placeholder="https://…" />
+              <button type="button" className="sod-station-btn" disabled={!courierName.trim() || busy} onClick={saveCourier}>Save courier</button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -2832,6 +2943,7 @@ const SupplierOrderDetail = () => {
         onGenerateInvoice={() => setGenerateInvoiceOpen(true)}
         onAdvance={handleStatusAdvance}
       />
+      <DriverStation order={order} canEdit={canEdit} onUpdate={applyOrderUpdate} />
 
       {/* ── Items: progress header, To do / Done sections, totals footer ── */}
       <ItemsCard

@@ -1400,6 +1400,78 @@
   #sp-root .sod-station-btn { width: 100%; }
 }
 
+/* ── Driver station (order-page fulfilment tool) ─────────── */
+#sp-root .sod-driver {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 16px 22px; margin-bottom: 18px;
+}
+#sp-root .sod-driver-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+#sp-root .sod-driver-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 18px; line-height: 1.15; color: var(--fg);
+  display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
+}
+#sp-root .sod-driver-badge {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--orange); background: var(--pill); border-radius: 999px; padding: 4px 11px;
+}
+#sp-root .sod-driver-sub { font-size: 12.5px; color: var(--muted-strong); }
+#sp-root .sod-driver-clear {
+  flex: none; background: none; border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 14px; font-family: inherit; font-size: 12px; color: var(--muted);
+  cursor: pointer;
+}
+#sp-root .sod-driver-clear:hover:not(:disabled) { border-color: var(--orange); color: var(--orange); }
+#sp-root .sod-driver-clear:disabled { opacity: 0.5; cursor: default; }
+#sp-root .sod-driver-steps { display: flex; gap: 8px; margin-top: 14px; }
+#sp-root .sod-driver-step {
+  flex: 1; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted);
+  background: var(--ground); border: 1px solid var(--line); border-radius: 9px;
+  padding: 9px 6px; cursor: pointer;
+}
+#sp-root .sod-driver-step.is-on { color: #fff; background: var(--orange); border-color: var(--orange); }
+#sp-root .sod-driver-step:hover:not(:disabled):not(.is-on) { border-color: var(--orange); color: var(--orange); }
+#sp-root .sod-driver-step:disabled { opacity: 0.55; cursor: default; }
+#sp-root .sod-driver-track {
+  display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 600;
+  color: var(--orange); text-decoration: none;
+}
+#sp-root .sod-driver-track:hover { text-decoration: underline; }
+#sp-root .sod-driver-picker { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+#sp-root .sod-driver-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+#sp-root .sod-driver-tab {
+  flex: 1; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted);
+  background: var(--ground); border: 1px solid var(--line); border-radius: 999px;
+  padding: 7px 10px; cursor: pointer;
+}
+#sp-root .sod-driver-tab.is-on { color: #fff; background: var(--orange); border-color: var(--orange); }
+#sp-root .sod-driver-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+#sp-root .sod-driver-row {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
+  background: none; border: 0; border-radius: 8px; padding: 9px 11px; font-family: inherit; cursor: pointer;
+}
+#sp-root .sod-driver-row:hover:not(:disabled) { background: var(--ground); }
+#sp-root .sod-driver-row:disabled { opacity: 0.55; cursor: default; }
+#sp-root .sod-driver-name { font-size: 13.5px; font-weight: 600; color: var(--fg); }
+#sp-root .sod-driver-role { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+#sp-root .sod-driver-empty { font-size: 12.5px; color: var(--muted); padding: 10px 11px; }
+#sp-root .sod-driver-ext { display: flex; flex-direction: column; }
+#sp-root .sod-driver-lab {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); margin: 8px 0 5px;
+}
+#sp-root .sod-driver-ext .sod-driver-lab:first-child { margin-top: 0; }
+#sp-root .sod-driver-in {
+  font-family: inherit; font-size: 13px; color: var(--fg); background: var(--ground);
+  border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; margin-bottom: 4px;
+}
+#sp-root .sod-driver-in:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--pill); }
+#sp-root .sod-driver-ext .sod-station-btn { margin-top: 10px; align-self: flex-start; }
+@media (max-width: 640px) {
+  #sp-root .sod-driver-head { flex-direction: column; align-items: stretch; }
+}
+
 /* ── Card primitives ────────────────────────────────────── */
 #sp-root .sod-card {
   background: var(--card); border: 1px solid var(--line);
@@ -3885,29 +3957,6 @@
 #sp-root .msg-qchip-status { border-color: var(--green, #059669); color: var(--green, #059669); }
 #sp-root .msg-qchip-status:hover:not(:disabled) { background: rgba(5,150,105,0.08); border-color: var(--green, #059669); color: var(--green, #059669); }
 #sp-root .msg-qchip-status:disabled { opacity: 0.5; cursor: default; }
-
-/* Driver popover — internal teammate track / external courier link. */
-#sp-root .msg-drv-tabs { display: flex; gap: 4px; padding: 6px 6px 8px; }
-#sp-root .msg-drv-tab { flex: 1; font-family: inherit; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--ground); border: 1px solid var(--line); border-radius: 999px; padding: 5px 8px; cursor: pointer; }
-#sp-root .msg-drv-tab.is-on { color: #fff; background: var(--orange); border-color: var(--orange); }
-#sp-root .msg-drv-list { max-height: 200px; overflow-y: auto; }
-#sp-root .msg-assign-row { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 7px 9px; font-family: inherit; cursor: pointer; }
-#sp-root .msg-assign-row:hover:not(:disabled) { background: var(--ground); }
-#sp-root .msg-assign-row:disabled { opacity: 0.55; cursor: default; }
-#sp-root .msg-drv-ext { display: flex; flex-direction: column; padding: 0 8px 6px; }
-#sp-root .msg-drv-current { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 9px 8px; }
-#sp-root .msg-drv-name { font-size: 13px; font-weight: 600; color: var(--fg); }
-#sp-root .msg-drv-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--orange); background: var(--pill); border-radius: 999px; padding: 3px 9px; }
-#sp-root .msg-drv-track { font-size: 12px; font-weight: 600; color: var(--orange); text-decoration: none; }
-#sp-root .msg-drv-track:hover { text-decoration: underline; }
-#sp-root .msg-drv-steps { display: flex; gap: 4px; padding: 0 8px 8px; }
-#sp-root .msg-drv-step { flex: 1; font-family: inherit; font-size: 10.5px; font-weight: 600; color: var(--muted); background: var(--ground); border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px; cursor: pointer; }
-#sp-root .msg-drv-step.is-on { color: #fff; background: var(--orange); border-color: var(--orange); }
-#sp-root .msg-drv-step:hover:not(:disabled):not(.is-on) { border-color: var(--orange); color: var(--orange); }
-#sp-root .msg-drv-step:disabled { opacity: 0.55; cursor: default; }
-#sp-root .msg-drv-clear { width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); margin-top: 2px; padding: 8px 9px 5px; font-family: inherit; font-size: 11.5px; color: var(--muted); cursor: pointer; }
-#sp-root .msg-drv-clear:hover:not(:disabled) { color: var(--fg); }
-
 #sp-root .msg-qchip-ai:hover:not(:disabled) { background: var(--orange); color: #fff; }
 #sp-root .msg-qchip-ai:disabled { opacity: 0.7; cursor: default; }
 #sp-root .msg-composer { display: flex; gap: 10px; align-items: flex-end; background: var(--card); border: 1px solid var(--line); border-radius: 15px; box-shadow: var(--sh2); padding: 8px 8px 8px 14px; }

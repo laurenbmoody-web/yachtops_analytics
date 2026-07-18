@@ -11,8 +11,7 @@ import {
   fetchThreadContacts, assignThreadContact, fetchPersonCard, saveMyMessagingProfile,
   fetchAddableSupplier, addThreadParticipant, removeThreadParticipant,
   fetchReplyTemplates, createReplyTemplate, deleteReplyTemplate,
-  setOrderDelivery, postSystemMessage, fetchSupplierTeam,
-  assignInternalDriver, setExternalCourier, setDriverStatus, clearDriver,
+  setOrderDelivery, postSystemMessage,
 } from '../utils/supplierStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import EmptyState from '../components/EmptyState';
@@ -535,68 +534,8 @@ const SupplierMessages = () => {
     finally { setDelivBusy(false); }
   };
 
-  // Driver assignment — internal teammate (they advance status) or an external
-  // courier with their own tracking link. Both post a system pill the crew see.
-  const [drvOpen, setDrvOpen] = useState(false);
-  const [drvMode, setDrvMode] = useState('internal'); // 'internal' | 'external'
-  const [drvTeam, setDrvTeam] = useState([]);
-  const [drvBusy, setDrvBusy] = useState(false);
-  const [courierName, setCourierName] = useState('');
-  const [courierUrl, setCourierUrl] = useState('');
-  const DRV_LABEL = { assigned: 'Assigned', on_the_way: 'On the way', arrived: 'Arrived', delivered: 'Delivered' };
-  const DRV_FLOW = ['on_the_way', 'arrived', 'delivered'];
-  useEffect(() => {
-    if (!drvOpen || drvTeam.length) return;
-    fetchSupplierTeam().then(setDrvTeam).catch(() => {});
-  }, [drvOpen, drvTeam.length]);
-  const assignDriver = async (contact) => {
-    if (drvBusy || !activeOrder?.id) return;
-    setDrvBusy(true); setError(null);
-    try {
-      const updated = await assignInternalDriver(activeOrder.id, contact);
-      setActiveOrder(updated);
-      const msg = await postSystemMessage(activeId, `${contact.name} is delivering this order`);
-      setMessages((m) => [...m, msg]);
-      loadThreads();
-    } catch (e) { setError(e.message || 'Couldn’t assign the driver.'); }
-    finally { setDrvBusy(false); }
-  };
-  const advanceDriver = async (driverStatus) => {
-    if (drvBusy || !activeOrder?.id) return;
-    setDrvBusy(true); setError(null);
-    try {
-      const updated = await setDriverStatus(activeOrder.id, driverStatus);
-      setActiveOrder(updated);
-      const who = updated.driver_name ? `${updated.driver_name} — ` : '';
-      const msg = await postSystemMessage(activeId, `${who}${DRV_LABEL[driverStatus]}`);
-      setMessages((m) => [...m, msg]);
-      loadThreads();
-    } catch (e) { setError(e.message || 'Couldn’t update the driver status.'); }
-    finally { setDrvBusy(false); }
-  };
-  const saveCourier = async () => {
-    if (drvBusy || !activeOrder?.id || !courierName.trim()) return;
-    setDrvBusy(true); setError(null);
-    try {
-      const updated = await setExternalCourier(activeOrder.id, { name: courierName, url: courierUrl });
-      setActiveOrder(updated);
-      const link = courierUrl.trim() ? ` · track: ${courierUrl.trim()}` : '';
-      const msg = await postSystemMessage(activeId, `Out with ${courierName.trim()}${link}`);
-      setMessages((m) => [...m, msg]);
-      setCourierName(''); setCourierUrl(''); setDrvOpen(false);
-      loadThreads();
-    } catch (e) { setError(e.message || 'Couldn’t save the courier.'); }
-    finally { setDrvBusy(false); }
-  };
-  const removeDriver = async () => {
-    if (drvBusy || !activeOrder?.id) return;
-    setDrvBusy(true); setError(null);
-    try {
-      const updated = await clearDriver(activeOrder.id);
-      setActiveOrder(updated);
-    } catch (e) { setError(e.message || 'Couldn’t clear the driver.'); }
-    finally { setDrvBusy(false); }
-  };
+  // (Driver assignment moved to the supplier order page — it's a fulfilment
+  // tool, not a chat action. See DriverStation in SupplierOrderDetail.jsx.)
 
   // Upload picked photos/dockets, staged as pending attachments for the next send.
   const onPickFiles = async (e) => {
@@ -1441,66 +1380,6 @@ const SupplierMessages = () => {
                             <span className="msg-tpl-label">Delivered</span>
                             <span className="msg-tpl-body">Marks the order delivered.</span>
                           </button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="msg-tpl">
-                      <button type="button" className="msg-qchip msg-qchip-status" onClick={() => setDrvOpen((o) => !o)} title="Assign who's delivering this order">Driver</button>
-                      {drvOpen && (
-                        <div className="msg-tpl-menu" role="menu" style={{ width: 268 }}>
-                          {!activeOrder ? (
-                            <div className="msg-assign-empty">No order linked to this chat yet.</div>
-                          ) : (activeOrder.driver_name || activeOrder.courier_name) ? (
-                            <>
-                              <div className="msg-assign-head">Delivering this order</div>
-                              {activeOrder.driver_name ? (
-                                <>
-                                  <div className="msg-drv-current">
-                                    <span className="msg-drv-name">{activeOrder.driver_name}</span>
-                                    <span className="msg-drv-badge">{DRV_LABEL[activeOrder.driver_status] || 'Assigned'}</span>
-                                  </div>
-                                  <div className="msg-drv-steps">
-                                    {DRV_FLOW.map((s) => (
-                                      <button key={s} type="button" className={`msg-drv-step${activeOrder.driver_status === s ? ' is-on' : ''}`}
-                                        disabled={drvBusy} onClick={() => advanceDriver(s)}>{DRV_LABEL[s]}</button>
-                                    ))}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="msg-drv-current">
-                                  <span className="msg-drv-name">{activeOrder.courier_name}</span>
-                                  {activeOrder.tracking_url && <a className="msg-drv-track" href={activeOrder.tracking_url} target="_blank" rel="noreferrer">Track →</a>}
-                                </div>
-                              )}
-                              <button type="button" className="msg-drv-clear" disabled={drvBusy} onClick={removeDriver}>Clear driver</button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="msg-drv-tabs">
-                                <button type="button" className={`msg-drv-tab${drvMode === 'internal' ? ' is-on' : ''}`} onClick={() => setDrvMode('internal')}>Our team</button>
-                                <button type="button" className={`msg-drv-tab${drvMode === 'external' ? ' is-on' : ''}`} onClick={() => setDrvMode('external')}>External courier</button>
-                              </div>
-                              {drvMode === 'internal' ? (
-                                <div className="msg-drv-list">
-                                  {drvTeam.map((t) => (
-                                    <button key={t.id} type="button" className="msg-assign-row" disabled={drvBusy} onClick={() => assignDriver(t)}>
-                                      <span className="msg-assign-name">{t.name}</span>
-                                      {t.role && <span className="msg-assign-role">{t.role}</span>}
-                                    </button>
-                                  ))}
-                                  {!drvTeam.length && <div className="msg-assign-empty">No teammates found</div>}
-                                </div>
-                              ) : (
-                                <div className="msg-drv-ext">
-                                  <label className="msg-profile-lab" style={{ marginTop: 0 }}>Courier name</label>
-                                  <input className="msg-profile-in" value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="e.g. DHL Express" />
-                                  <label className="msg-profile-lab">Tracking link</label>
-                                  <input className="msg-profile-in" value={courierUrl} onChange={(e) => setCourierUrl(e.target.value)} placeholder="https://…" />
-                                  <button type="button" className="msg-tpl-save" disabled={!courierName.trim() || drvBusy} onClick={saveCourier}>Save courier</button>
-                                </div>
-                              )}
-                            </>
-                          )}
                         </div>
                       )}
                     </div>
