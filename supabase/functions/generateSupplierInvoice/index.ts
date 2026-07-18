@@ -140,7 +140,8 @@ function fmtDate(iso: string): string {
   try {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
   } catch { return iso; }
 }
 
@@ -228,12 +229,13 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
   <meta charset="utf-8"/>
   <title>Invoice ${escapeHtml(input.invoiceNumber)}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap');
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-      color: #0F172A;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      color: #1C1B3A;
       font-size: 11px;
       line-height: 1.45;
       background: #fff;
@@ -245,27 +247,30 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     /* Header */
     header.top {
       display: grid; grid-template-columns: 1fr 1fr;
-      gap: 24px; padding-bottom: 14px;
-      border-bottom: 1.5px solid #0F172A;
+      gap: 24px; padding-bottom: 16px;
+      border-bottom: 1px solid #1C1B3A;
     }
-    .supplier-block { font-size: 11px; line-height: 1.55; color: #334155; }
+    .supplier-block { font-size: 11px; line-height: 1.55; color: #6B7280; }
     .supplier-block .name {
-      font-size: 16px; font-weight: 700; color: #0F172A;
-      margin-bottom: 6px; letter-spacing: -0.005em;
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 19px; font-weight: 400; color: #1C1B3A;
+      margin-bottom: 6px; letter-spacing: 0;
     }
     .supplier-block .tax-id {
-      margin-top: 6px; font-size: 10.5px; color: #475569;
+      margin-top: 6px; font-size: 10.5px; color: #8B8478;
     }
     .logo { max-height: 56px; max-width: 200px; display: block; margin-bottom: 8px; }
     .logo-fallback {
-      font-size: 22px; font-weight: 800; color: #0F172A;
-      letter-spacing: -0.01em; margin-bottom: 8px;
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 24px; font-weight: 400; color: #1C1B3A;
+      letter-spacing: 0; margin-bottom: 8px;
     }
 
     .invoice-block { text-align: right; }
     .invoice-block h1 {
-      font-size: 26px; font-weight: 800; letter-spacing: -0.02em;
-      margin: 0 0 14px; color: #0F172A;
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 30px; font-weight: 400; letter-spacing: 0.02em;
+      margin: 0 0 14px; color: #C65A1A;
     }
     .invoice-meta {
       font-size: 11px; line-height: 1.7;
@@ -273,17 +278,17 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     }
     .invoice-meta .label {
       display: inline-block; min-width: 86px;
-      color: #64748B; font-size: 10px;
-      letter-spacing: 0.04em; text-transform: uppercase;
+      color: #8B8478; font-size: 9px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
     }
-    .invoice-meta .value { color: #0F172A; font-weight: 600; }
+    .invoice-meta .value { color: #1C1B3A; font-weight: 600; }
     .invoice-meta .number { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 
     /* Bonded badge */
     .bonded-badge {
       display: inline-block; margin-top: 8px;
-      padding: 3px 10px; border-radius: 999px;
-      background: #DBEAFE; color: #1E3A8A;
+      padding: 3px 11px; border-radius: 999px;
+      background: #FBEFE9; color: #C65A1A;
       font-size: 9.5px; font-weight: 700;
       letter-spacing: 0.08em; text-transform: uppercase;
     }
@@ -294,12 +299,12 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
     }
     .bill-to .block .heading {
-      font-size: 9.5px; color: #64748B;
+      font-size: 9px; color: #8B8478;
       letter-spacing: 0.1em; text-transform: uppercase;
-      margin-bottom: 4px; font-weight: 600;
+      margin-bottom: 4px; font-weight: 700;
     }
     .bill-to .block .body {
-      font-size: 12px; color: #0F172A; line-height: 1.5;
+      font-size: 12px; color: #1C1B3A; line-height: 1.5;
     }
     .bill-to .block .body strong { font-weight: 700; }
 
@@ -310,14 +315,14 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     }
     table.lines th, table.lines td {
       padding: 9px 8px; text-align: left;
-      border-bottom: 1px solid #E2E8F0;
+      border-bottom: 1px solid #ECEAE3;
       font-size: 10.5px;
       vertical-align: top;
     }
     table.lines th {
       font-size: 9px; letter-spacing: 0.08em;
-      text-transform: uppercase; color: #475569;
-      font-weight: 600; border-bottom: 1.5px solid #0F172A;
+      text-transform: uppercase; color: #6B7280;
+      font-weight: 600; border-bottom: 1.5px solid #1C1B3A;
       padding-bottom: 6px;
     }
     table.lines td.num, table.lines th.num {
@@ -325,9 +330,9 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       white-space: nowrap;
     }
     table.lines td.desc { width: 50%; }
-    table.lines .item-name { font-weight: 600; color: #0F172A; }
+    table.lines .item-name { font-weight: 600; color: #1C1B3A; }
     table.lines .item-notes {
-      font-size: 10px; color: #64748B; margin-top: 2px; line-height: 1.45;
+      font-size: 10px; color: #8B8478; margin-top: 2px; line-height: 1.45;
     }
 
     /* Totals */
@@ -339,62 +344,66 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     table.totals td {
       padding: 4px 0; font-variant-numeric: tabular-nums;
     }
-    table.totals td:first-child { color: #475569; padding-right: 24px; }
-    table.totals td:last-child { text-align: right; color: #0F172A; font-weight: 500; }
+    table.totals td:first-child { color: #6B7280; padding-right: 24px; }
+    table.totals td:last-child { text-align: right; color: #1C1B3A; font-weight: 500; }
     table.totals tr.grand td {
-      border-top: 1.5px solid #0F172A;
+      border-top: 1.5px solid #C65A1A;
       padding-top: 10px; padding-bottom: 0;
-      font-size: 14px; font-weight: 800;
-      letter-spacing: -0.005em;
+      font-size: 15px; font-weight: 700; color: #1C1B3A;
+      letter-spacing: 0;
+    }
+    table.totals tr.grand td:first-child {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #8B8478;
     }
 
     /* Bank block */
     section.bank {
       margin-top: 28px;
       padding: 14px 16px;
-      background: #F8FAFC;
-      border: 1px solid #E2E8F0;
+      background: #FAFAF8;
+      border: 1px solid #ECEAE3;
       border-radius: 6px;
     }
     section.bank h3 {
       font-size: 9.5px; letter-spacing: 0.1em;
-      text-transform: uppercase; color: #475569;
+      text-transform: uppercase; color: #6B7280;
       margin: 0 0 8px; font-weight: 600;
     }
     section.bank table { width: 100%; border-collapse: collapse; font-size: 11px; }
     section.bank th {
-      text-align: left; color: #64748B; font-weight: 500;
+      text-align: left; color: #8B8478; font-weight: 500;
       font-size: 10.5px; padding: 3px 12px 3px 0; width: 130px; vertical-align: top;
     }
-    section.bank td { padding: 3px 0; color: #0F172A; }
+    section.bank td { padding: 3px 0; color: #1C1B3A; }
     .mono { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
 
     /* Notes / footer terms */
     section.notes {
       margin-top: 22px;
-      font-size: 10.5px; color: #475569;
+      font-size: 10.5px; color: #6B7280;
       line-height: 1.55;
     }
     section.notes .heading {
       font-size: 9.5px; letter-spacing: 0.1em;
-      text-transform: uppercase; color: #475569;
+      text-transform: uppercase; color: #6B7280;
       margin-bottom: 4px; font-weight: 600;
     }
     section.notes p { margin: 0 0 6px; }
 
     /* Disclaimer (small) */
     .disclaimer {
-      margin-top: 24px; padding: 8px 12px;
-      background: #FEF3C7; border: 1px solid #FDE68A;
-      border-radius: 5px;
-      font-size: 9.5px; color: #92400E; line-height: 1.5;
+      margin-top: 24px; padding: 9px 13px;
+      background: #FAFAF8; border: 1px solid #ECEAE3;
+      border-left: 2px solid #C65A1A; border-radius: 8px;
+      font-size: 9.5px; color: #8B8478; line-height: 1.5;
     }
 
     /* Cargo footer stamp */
     .cargo-stamp {
       position: absolute; bottom: 14mm; right: 18mm;
       display: flex; align-items: center; gap: 6px;
-      font-size: 8.5px; color: #94A3B8;
+      font-size: 8.5px; color: #AEB4C2;
     }
     .cargo-stamp img { height: 11px; opacity: 0.85; }
   </style>
@@ -427,7 +436,7 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     <div class="block">
       <div class="heading">Bill to</div>
       <div class="body"><strong>${billToName}</strong></div>
-      ${input.order.delivery_port ? `<div class="body" style="color:#475569;font-size:10.5px;margin-top:2px">Delivery: ${escapeHtml(input.order.delivery_port)}</div>` : ''}
+      ${input.order.delivery_port ? `<div class="body" style="color:#6B7280;font-size:10.5px;margin-top:2px">Delivery: ${escapeHtml(input.order.delivery_port)}</div>` : ''}
     </div>
     <div class="block" style="text-align:right">
       <div class="heading">Order reference</div>

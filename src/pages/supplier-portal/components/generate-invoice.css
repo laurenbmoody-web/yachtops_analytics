@@ -1,0 +1,113 @@
+/* Generate-invoice modal — editorial (Cargo) system. Scoped under #sp-root so
+   it inherits the supplier-portal theme tokens (incl. dark mode). Replaces the
+   old boxed/coloured-banner inline styling. */
+
+#sp-root .gi-label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 8px;
+}
+
+/* Soft, low-key disclaimer — not a yellow warning box. */
+#sp-root .gi-note {
+  display: flex; gap: 8px;
+  padding: 11px 13px; margin-bottom: 16px;
+  background: var(--ground); border: 1px solid var(--line);
+  border-radius: 11px;
+  font-size: 12px; line-height: 1.5; color: var(--muted-strong);
+}
+#sp-root .gi-note strong { color: var(--fg); font-weight: 600; }
+
+/* Blocking / error — restrained, terracotta accent rail (no bg-red-100). */
+#sp-root .gi-alert {
+  padding: 11px 14px; margin-bottom: 16px;
+  background: var(--ground);
+  border: 1px solid var(--line); border-left: 3px solid var(--orange);
+  border-radius: 10px;
+  font-size: 12.5px; line-height: 1.5; color: var(--fg);
+}
+#sp-root .gi-alert strong { font-weight: 600; }
+
+/* Bonded-supply toggle — soft field card, terracotta when on. */
+#sp-root .gi-toggle {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 13px 15px; margin-bottom: 20px;
+  border: 1px solid var(--line); background: var(--ground);
+  border-radius: 12px; cursor: pointer; transition: border-color .12s, background .12s;
+}
+#sp-root .gi-toggle.on { border-color: var(--orange); background: var(--pill); }
+#sp-root .gi-toggle input { margin-top: 2px; accent-color: var(--orange); width: 15px; height: 15px; }
+#sp-root .gi-toggle-title { font-size: 13px; font-weight: 600; color: var(--fg); }
+#sp-root .gi-toggle.on .gi-toggle-title { color: var(--orange); }
+#sp-root .gi-toggle-sub { font-size: 11.5px; color: var(--muted-strong); margin-top: 3px; line-height: 1.45; }
+
+/* Line items — hairline rows, not boxed cards. */
+#sp-root .gi-lines { margin-bottom: 22px; }
+#sp-root .gi-line {
+  display: grid; grid-template-columns: 1fr 152px 92px;
+  align-items: center; gap: 12px;
+  padding: 11px 2px; border-bottom: 1px solid var(--line);
+}
+#sp-root .gi-line:last-child { border-bottom: 0; }
+#sp-root .gi-line-name { font-size: 13px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sp-root .gi-line-name b { font-weight: 600; }
+#sp-root .gi-line-meta { color: var(--muted); font-weight: 400; margin-left: 7px; font-size: 12px; }
+#sp-root .gi-line-total { text-align: right; font-size: 13.5px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; }
+
+/* Fields */
+#sp-root .gi-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+#sp-root .gi-field { display: flex; flex-direction: column; }
+#sp-root .gi-field-full { margin-bottom: 20px; }
+#sp-root .gi-field-lab {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+#sp-root .gi-input, #sp-root .gi-select, #sp-root .gi-textarea {
+  font-family: inherit; font-size: 13px; color: var(--fg);
+  background: var(--ground); border: 1px solid var(--line);
+  border-radius: 9px; padding: 9px 11px; width: 100%;
+}
+#sp-root .gi-textarea { resize: vertical; min-height: 56px; line-height: 1.5; }
+#sp-root .gi-input:focus, #sp-root .gi-select:focus, #sp-root .gi-textarea:focus {
+  outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--pill);
+}
+#sp-root .gi-select-sm { padding: 7px 9px; font-size: 12.5px; }
+#sp-root .gi-field-hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+/* Totals — hairline rules, serif grand total. */
+#sp-root .gi-totals { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; }
+#sp-root .gi-totals-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 12.5px; margin-bottom: 6px;
+}
+#sp-root .gi-totals-row span:first-child { color: var(--muted-strong); }
+#sp-root .gi-totals-row span:last-child { color: var(--fg); font-variant-numeric: tabular-nums; }
+#sp-root .gi-grand {
+  display: flex; align-items: baseline; justify-content: space-between;
+  border-top: 1px solid var(--line); margin-top: 10px; padding-top: 12px;
+}
+#sp-root .gi-grand-label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted-strong);
+}
+#sp-root .gi-grand-val {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 24px; line-height: 1; color: var(--fg); font-variant-numeric: tabular-nums;
+}
+
+/* Setup-needed note */
+#sp-root .gi-setup {
+  padding: 16px 18px; background: var(--ground);
+  border: 1px solid var(--line); border-radius: 12px;
+  font-size: 13px; color: var(--fg-2, var(--muted-strong)); line-height: 1.55;
+}
+#sp-root .gi-setup strong { color: var(--fg); font-weight: 600; }
+
+@media (max-width: 560px) {
+  #sp-root .gi-line { grid-template-columns: 1fr 1fr; }
+  #sp-root .gi-line-total { grid-column: 2; }
+  #sp-root .gi-fields { grid-template-columns: 1fr; }
+}

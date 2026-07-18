@@ -10,6 +10,14 @@ import {
   suggestCategoryForItem,
   isInvoicingReady,
 } from '../utils/invoicingHelpers';
+import './generate-invoice.css';
+
+// YYYY-MM-DD → dd/mm/yyyy (Cargo date convention).
+const fmtDMY = (iso) => {
+  if (!iso) return '—';
+  const [y, m, d] = String(iso).split('-');
+  return y && m && d ? `${d}/${m}/${y}` : iso;
+};
 
 const DISCLAIMER =
   "Tax rates shown are Cargo's best-effort defaults. Verify with your accountant before issuing real invoices. You can override any rate below.";
@@ -225,12 +233,9 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
           </>
         }
       >
-        <div style={{
-          padding: 18, background: 'var(--bg-2)', borderRadius: 8,
-          fontSize: 13, color: 'var(--fg-2)', lineHeight: 1.55,
-        }}>
+        <div className="gi-setup">
           <strong>Setup needed.</strong> Before generating invoices you need to fill in:{' '}
-          {ready.missing.join(', ')} on the Tax & invoicing settings tab.
+          {ready.missing.join(', ')} on the Tax &amp; invoicing settings tab.
         </div>
       </SupplierModal>
     );
@@ -265,12 +270,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
           agreed (or unavailable). Server-side guard in generateSupplierInvoice
           mirrors this so a manual API call can't bypass it. */}
       {blockingItems.length > 0 && (
-        <div style={{
-          padding: '10px 14px',
-          background: '#FEE2E2', border: '1px solid #FCA5A5',
-          borderRadius: 8, fontSize: 12.5, color: '#991B1B',
-          marginBottom: 14, lineHeight: 1.5,
-        }}>
+        <div className="gi-alert">
           <strong>{blockingItems.length} line{blockingItems.length === 1 ? '' : 's'} still awaiting agreement.</strong>{' '}
           Resolve all quotes before generating an invoice. Items pending:{' '}
           {blockingItems.slice(0, 3).map((it) => it.item_name).join(', ')}
@@ -278,43 +278,23 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
         </div>
       )}
 
-      {/* Disclaimer */}
-      <div style={{
-        padding: '10px 14px',
-        background: '#FEF3C7', border: '1px solid #FDE68A',
-        borderRadius: 8, fontSize: 12, color: '#92400E',
-        marginBottom: 14, lineHeight: 1.5,
-      }}>
-        <strong>Heads up.</strong> {DISCLAIMER}
+      {/* Disclaimer — low-key editorial note */}
+      <div className="gi-note">
+        <span><strong>Heads up.</strong> {DISCLAIMER}</span>
       </div>
 
-      {error && (
-        <div style={{
-          marginBottom: 14, padding: '10px 14px',
-          background: '#FEF2F2', border: '1px solid #FECACA',
-          borderRadius: 8, color: 'var(--red)', fontSize: 13,
-        }}>{error}</div>
-      )}
+      {error && <div className="gi-alert">{error}</div>}
 
       {/* Bonded supply */}
-      <label style={{
-        display: 'flex', alignItems: 'flex-start', gap: 10,
-        padding: '10px 12px', marginBottom: 16,
-        border: `1px solid ${bondedSupply ? '#1E40AF' : 'var(--line)'}`,
-        background: bondedSupply ? '#DBEAFE' : 'var(--card)',
-        borderRadius: 8, cursor: 'pointer',
-      }}>
+      <label className={`gi-toggle${bondedSupply ? ' on' : ''}`}>
         <input
           type="checkbox"
           checked={bondedSupply}
           onChange={(e) => setBondedSupply(e.target.checked)}
-          style={{ marginTop: 2 }}
         />
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: bondedSupply ? '#1E3A8A' : 'var(--fg)' }}>
-            Bonded yacht supply (zero-rate)
-          </div>
-          <div style={{ fontSize: 11.5, color: bondedSupply ? '#1E3A8A' : 'var(--muted-strong)', marginTop: 2, lineHeight: 1.45 }}>
+          <div className="gi-toggle-title">Bonded yacht supply (zero-rate)</div>
+          <div className="gi-toggle-sub">
             Forces every line to 0% {taxName}. Use for supplies under temporary admission /
             yacht-in-transit / customs-bonded supply rules.
           </div>
@@ -322,88 +302,56 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
       </label>
 
       {/* Lines */}
-      <div style={{ marginBottom: 18 }}>
-        <div style={{
-          fontFamily: 'Inter', fontWeight: 600, fontSize: 10,
-          letterSpacing: '0.12em', textTransform: 'uppercase',
-          color: 'var(--muted-strong)', marginBottom: 8,
-        }}>Line items</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {(items || []).map((it) => {
-            const computedLine = computed.lines.find((l) => l.item.id === it.id);
-            return (
-              <div key={it.id} style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 160px 90px',
-                alignItems: 'center', gap: 10,
-                padding: '8px 10px',
-                background: 'var(--card)',
-                border: '1px solid var(--line)', borderRadius: 7,
-              }}>
-                <div style={{ fontSize: 12.5, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <strong>{it.item_name}</strong>
-                  <span style={{ color: 'var(--muted-strong)', marginLeft: 6 }}>
-                    {it.quantity}{it.unit ? ' ' + it.unit : ''} ·{' '}
-                    {fmtMoney(it.agreed_price ?? it.unit_price, currency)}
-                  </span>
-                </div>
-                <select
-                  className="sp-field-input"
-                  value={lineCategories[it.id] || ''}
-                  onChange={(e) => setLineCategories((prev) => ({ ...prev, [it.id]: e.target.value }))}
-                  disabled={bondedSupply}
-                  style={{ fontSize: 12.5, padding: '6px 8px' }}
-                >
-                  {categories.map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {c.label} ({c.rate}%)
-                    </option>
-                  ))}
-                </select>
-                <div style={{
-                  fontSize: 13, fontVariantNumeric: 'tabular-nums',
-                  textAlign: 'right', color: 'var(--fg)', fontWeight: 600,
-                }}>
-                  {fmtMoney(computedLine?.total ?? 0, currency)}
-                </div>
+      <div className="gi-lines">
+        <div className="gi-label">Line items</div>
+        {(items || []).map((it) => {
+          const computedLine = computed.lines.find((l) => l.item.id === it.id);
+          return (
+            <div key={it.id} className="gi-line">
+              <div className="gi-line-name">
+                <b>{it.item_name}</b>
+                <span className="gi-line-meta">
+                  {it.quantity}{it.unit ? ' ' + it.unit : ''} · {fmtMoney(it.agreed_price ?? it.unit_price, currency)}
+                </span>
               </div>
-            );
-          })}
-        </div>
+              <select
+                className="gi-select gi-select-sm"
+                value={lineCategories[it.id] || ''}
+                onChange={(e) => setLineCategories((prev) => ({ ...prev, [it.id]: e.target.value }))}
+                disabled={bondedSupply}
+              >
+                {categories.map((c) => (
+                  <option key={c.key} value={c.key}>{c.label} ({c.rate}%)</option>
+                ))}
+              </select>
+              <div className="gi-line-total">{fmtMoney(computedLine?.total ?? 0, currency)}</div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Dates */}
-      <div className="sp-field-row" style={{ marginBottom: 14 }}>
-        <div className="sp-field" style={{ marginBottom: 0 }}>
-          <label className="sp-field-label">Issue date</label>
-          <input
-            type="date"
-            className="sp-field-input"
-            value={issueDate}
-            onChange={(e) => setIssueDate(e.target.value)}
-          />
+      <div className="gi-fields">
+        <div className="gi-field">
+          <label className="gi-field-lab">Issue date</label>
+          <input type="date" className="gi-input" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
         </div>
-        <div className="sp-field" style={{ marginBottom: 0 }}>
-          <label className="sp-field-label">Payment terms (days)</label>
+        <div className="gi-field">
+          <label className="gi-field-lab">Payment terms (days)</label>
           <input
-            type="number"
-            min="0"
-            max="365"
-            className="sp-field-input"
+            type="number" min="0" max="365" className="gi-input"
             value={paymentTermsDays}
             onChange={(e) => setPaymentTermsDays(Number(e.target.value) || 0)}
           />
-          <div style={{ fontSize: 11, color: 'var(--muted-strong)', marginTop: 4 }}>
-            Due {dueDate || '—'}
-          </div>
+          <div className="gi-field-hint">Due {fmtDMY(dueDate)}</div>
         </div>
       </div>
 
       {/* Notes */}
-      <div className="sp-field" style={{ marginBottom: 14 }}>
-        <label className="sp-field-label">Notes (optional)</label>
+      <div className="gi-field-full">
+        <label className="gi-field-lab">Notes (optional)</label>
         <textarea
-          className="sp-field-textarea"
+          className="gi-textarea"
           rows={2}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -411,54 +359,31 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
         />
       </div>
 
-      {/* Totals card */}
-      <div style={{
-        marginTop: 4, padding: '14px 16px',
-        background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8,
-      }}>
-        <div style={{
-          fontFamily: 'Inter', fontWeight: 600, fontSize: 10,
-          letterSpacing: '0.12em', textTransform: 'uppercase',
-          color: 'var(--muted-strong)', marginBottom: 8,
-        }}>Totals preview</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 4, fontSize: 12.5 }}>
-          <div style={{ color: 'var(--muted-strong)' }}>Subtotal</div>
-          <div style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--fg)' }}>{fmtMoney(computed.subtotal, currency)}</div>
-
-          {computed.breakdown.length === 0 ? (
-            <>
-              <div style={{ color: 'var(--muted-strong)' }}>{taxName} (0%)</div>
-              <div style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--fg)' }}>{fmtMoney(0, currency)}</div>
-            </>
-          ) : computed.breakdown.length === 1 ? (
-            <>
-              <div style={{ color: 'var(--muted-strong)' }}>{taxName} ({computed.breakdown[0].rate.toFixed(1)}%)</div>
-              <div style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--fg)' }}>{fmtMoney(computed.breakdown[0].vat, currency)}</div>
-            </>
-          ) : (
-            computed.breakdown.map((b) => (
-              <React.Fragment key={`${b.catKey}-${b.rate}`}>
-                <div style={{ color: 'var(--muted-strong)' }}>{taxName} ({b.label}, {b.rate.toFixed(1)}%)</div>
-                <div style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--fg)' }}>{fmtMoney(b.vat, currency)}</div>
-              </React.Fragment>
-            ))
-          )}
-
-          <div style={{
-            paddingTop: 8, marginTop: 4,
-            borderTop: '1px solid var(--line)',
-            fontFamily: 'Inter', fontWeight: 700, fontSize: 11,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: 'var(--muted-strong)',
-            gridColumn: '1', alignSelf: 'center',
-          }}>Total</div>
-          <div style={{
-            paddingTop: 8, marginTop: 4,
-            borderTop: '1px solid var(--line)',
-            fontFamily: 'Inter', fontWeight: 800, fontSize: 18,
-            letterSpacing: '-0.01em', color: 'var(--fg)',
-            fontVariantNumeric: 'tabular-nums',
-          }}>{fmtMoney(computed.total, currency)}</div>
+      {/* Totals */}
+      <div className="gi-totals">
+        <div className="gi-label">Totals preview</div>
+        <div className="gi-totals-row">
+          <span>Subtotal</span>
+          <span>{fmtMoney(computed.subtotal, currency)}</span>
+        </div>
+        {computed.breakdown.length === 0 ? (
+          <div className="gi-totals-row"><span>{taxName} (0%)</span><span>{fmtMoney(0, currency)}</span></div>
+        ) : computed.breakdown.length === 1 ? (
+          <div className="gi-totals-row">
+            <span>{taxName} ({computed.breakdown[0].rate.toFixed(1)}%)</span>
+            <span>{fmtMoney(computed.breakdown[0].vat, currency)}</span>
+          </div>
+        ) : (
+          computed.breakdown.map((b) => (
+            <div className="gi-totals-row" key={`${b.catKey}-${b.rate}`}>
+              <span>{taxName} ({b.label}, {b.rate.toFixed(1)}%)</span>
+              <span>{fmtMoney(b.vat, currency)}</span>
+            </div>
+          ))
+        )}
+        <div className="gi-grand">
+          <span className="gi-grand-label">Total</span>
+          <span className="gi-grand-val">{fmtMoney(computed.total, currency)}</span>
         </div>
       </div>
     </SupplierModal>
