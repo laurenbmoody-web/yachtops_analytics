@@ -2223,6 +2223,36 @@
 }
 .cargo-od-track-node.is-current .cargo-od-track-step { color: var(--accent); }
 
+/* Live driver map */
+.cargo-od-track-map { margin-top: 16px; }
+.cargo-od-track-map-canvas {
+  width: 100%;
+  height: 260px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #E8E6DF;
+  background: #F0EADD;
+}
+.cargo-od-track-map-cap {
+  margin-top: 8px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+.cargo-od-track-mapwait,
+.cargo-od-track-maploc {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px dashed #E5E7EB;
+  border-radius: 12px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: #8B8478;
+  background: #FAFAF8;
+}
+
 /* ── Documents (3 hairline-separated rows) ─────────────────── */
 
 .cargo-od-doc-row {

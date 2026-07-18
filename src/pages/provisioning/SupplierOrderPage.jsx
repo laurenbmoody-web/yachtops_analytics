@@ -22,6 +22,9 @@ import {
 } from './utils/provisioningStorage';
 import { showToast } from '../../utils/toast';
 
+// Live driver map is heavy (Google Maps) + only needed mid-delivery — lazy-load.
+const DriverMap = React.lazy(() => import('../driver/DriverMap'));
+
 // Sprint 9c.2 — supplier order detail page (replaces the drawer architecture).
 //
 // URL: /provisioning/:boardId/orders/:orderId
@@ -221,6 +224,11 @@ function TrackDelivery({ order }) {
                 );
               })}
             </div>
+            {['on_the_way', 'arrived'].includes(order.driver_status) && (
+              <React.Suspense fallback={<div className="cargo-od-track-mapwait">Loading map…</div>}>
+                <DriverMap order={order} />
+              </React.Suspense>
+            )}
           </>
         ) : (
           <div className="cargo-od-track-head">

@@ -1468,6 +1468,13 @@
 }
 #sp-root .sod-driver-in:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--pill); }
 #sp-root .sod-driver-ext .sod-station-btn { margin-top: 10px; align-self: flex-start; }
+#sp-root .sod-driver-link-row { display: flex; gap: 8px; align-items: stretch; }
+#sp-root .sod-driver-link-row .sod-driver-in { flex: 1; margin-bottom: 0; }
+#sp-root .sod-driver-copy {
+  flex: none; font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--orange);
+  background: var(--pill); border: 1px solid var(--line); border-radius: 9px; padding: 0 16px; cursor: pointer;
+}
+#sp-root .sod-driver-copy:hover { border-color: var(--orange); }
 @media (max-width: 640px) {
   #sp-root .sod-driver-head { flex-direction: column; align-items: stretch; }
 }
