@@ -915,9 +915,11 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lb-i:first-child { padding-left: 2px; border-left: none; }
 .lb-i.grow { min-width: 210px; }
 .lb-il { font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #9A93A0; display: block; margin-bottom: 15px; flex: none; }
-.lb-i-charge { flex: 0 1 220px; min-width: 190px; justify-content: flex-start; }
-.lb-charge-v { font: 800 26px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.01em; line-height: 1; color: #C65A1A; }
-.lb-charge-sub { font: 600 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: #9A93A0; margin-top: 8px; }
+/* Charter-charges KPI — mirrors the avg-turnaround tile: value vertically
+   centred in the box, with an optional per-guest breakdown below it. */
+.lb-chargewrap { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+.lb-charge-v { font-family: 'DM Serif Display', Georgia, serif; font-size: 30px; line-height: 1; color: #C65A1A; }
+.lb-charge-cap { font: 600 9.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #9A93A0; }
 
 /* clock — centred in its box, with an optional per-care-type breakdown */
 .lb-clockwrap { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
