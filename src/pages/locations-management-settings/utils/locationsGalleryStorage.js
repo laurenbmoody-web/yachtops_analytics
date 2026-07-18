@@ -37,18 +37,29 @@ export const getVesselGallery = async () => {
   const tenantId = await getTenantId();
   if (!tenantId) return { decks: [], coverage: { scanned: 0, total: 0 }, tenantId: null };
 
-  const [{ data: locs, error: locErr }, { data: scans, error: scanErr }] = await Promise.all([
+  // plan_category is a newer column — if a deploy lands before its migration,
+  // selecting it 400s and would take the whole page down. Retry without it so
+  // the gallery still loads (categories fall back to name-based); it heals once
+  // the migration applies.
+  const LOC_COLS = 'id, level, parent_id, name, sort_order, is_archived, plan_crop, plan_x, plan_y, plan_shape';
+  const fetchLocs = (withCategory) =>
     supabase.from('vessel_locations')
-      .select('id, level, parent_id, name, sort_order, is_archived, plan_crop, plan_x, plan_y, plan_shape, plan_category')
+      .select(withCategory ? `${LOC_COLS}, plan_category` : LOC_COLS)
       .eq('tenant_id', tenantId)
       .eq('is_archived', false)
       .order('sort_order', { ascending: true })
-      .order('name', { ascending: true }),
-    supabase.from('vessel_scans')
-      .select('id, name, space_id, status, thumb_path, storage_path')
-      .eq('tenant_id', tenantId)
-      .not('space_id', 'is', null),
-  ]);
+      .order('name', { ascending: true });
+
+  const scansP = supabase.from('vessel_scans')
+    .select('id, name, space_id, status, thumb_path, storage_path')
+    .eq('tenant_id', tenantId)
+    .not('space_id', 'is', null);
+
+  let { data: locs, error: locErr } = await fetchLocs(true);
+  if (locErr && (locErr.code === '42703' || /plan_category/i.test(locErr.message || ''))) {
+    ({ data: locs, error: locErr } = await fetchLocs(false));
+  }
+  const { data: scans, error: scanErr } = await scansP;
   if (locErr) { console.error('[loc-gallery] locations error:', locErr); return { decks: [], coverage: { scanned: 0, total: 0 }, tenantId }; }
   if (scanErr) console.error('[loc-gallery] scans error:', scanErr);
 
