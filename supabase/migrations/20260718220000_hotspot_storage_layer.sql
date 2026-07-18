@@ -1,5 +1,7 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 20260718210000_hotspot_storage_layer.sql
+-- 20260718220000_hotspot_storage_layer.sql
+-- (renumbered from 20260718210000 to resolve a version collision with the
+--  vessels_billing_fields migration added on the same timestamp)
 --
 -- Add a "storage" pin layer to scan_hotspots — a cupboard/locker where things
 -- physically live. Unlike a plain inventory pin (a free-standing item on the map,
