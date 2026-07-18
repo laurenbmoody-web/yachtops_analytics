@@ -1,0 +1,39 @@
+name: Migration version guard
+
+# Fails fast if two migration files share the same 14-digit version timestamp.
+# Duplicate versions break `supabase db push` (the runner keys migrations by
+# version), and they happen whenever two branches cut a migration at the same
+# timestamp. This catches the clash on the PR — before it reaches main — instead
+# of surfacing as a confusing apply failure after merge.
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+
+jobs:
+  no-duplicate-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for duplicate migration version prefixes
+        run: |
+          set -e
+          cd supabase/migrations
+          dupes=$(ls | grep -E '^[0-9]{14}_' | sed -E 's/_.*//' | sort | uniq -d || true)
+          if [ -n "$dupes" ]; then
+            echo "::error::Two or more migrations share a version timestamp:"
+            printf '%s\n' "$dupes" | while read -r v; do
+              echo "::error::  version $v is used by:"
+              ls | grep "^${v}_" | sed 's/^/      - /'
+            done
+            echo ""
+            echo "Fix: bump the newer migration's 14-digit timestamp so it is unique"
+            echo "and later than every existing one, then update its ledger row."
+            exit 1
+          fi
+          echo "No duplicate migration version prefixes. ✓"

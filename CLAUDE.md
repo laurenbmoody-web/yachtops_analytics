@@ -13,6 +13,25 @@ behind `main`** — don't leave the branch diverged. After a squash merge:
 --force-with-lease`, then confirm with `git rev-list --left-right --count
 origin/main...HEAD` (expect `0  0`).
 
+## Migrations rule — no clashing version timestamps
+
+Two migration files sharing the same 14-digit version prefix break `supabase db
+push` (it keys migrations by version). This happens constantly when two branches
+cut a migration at the same timestamp. **Before pushing any new migration**, run:
+
+```
+ls supabase/migrations | grep -E '^[0-9]{14}_' | sed -E 's/_.*//' | sort | uniq -d
+```
+
+If it prints anything, bump your migration's 14-digit timestamp so it is unique
+**and later than every existing file**, then update its `schema_migrations`
+ledger row to match. Re-run the check after every `git reset --hard origin/main`
+resync — a concurrent branch may have taken your timestamp. The
+`migration-version-guard` CI workflow enforces this on PRs, but catch it locally
+first. When you apply a migration via the Supabase MCP, also insert its ledger
+row (`insert into supabase_migrations.schema_migrations (version, name) …`) so CI
+skips it instead of re-running.
+
 ## UI rule — always build in the editorial (Cargo) design system
 
 Any new or rebuilt UI (page, modal, drawer, widget, card) MUST use the editorial
