@@ -142,8 +142,23 @@ function currentLifecycleIndex(order) {
   }
 }
 
+// Delivery ETA shown under the out-for-delivery step. Time-only when it's today,
+// otherwise date + time.
+function fmtEta(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const time = d.toLocaleTimeString(dateLocale(), { hour: '2-digit', minute: '2-digit' });
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const day = new Date(d); day.setHours(0, 0, 0, 0);
+  return day.getTime() === today.getTime()
+    ? `ETA ${time}`
+    : `ETA ${d.toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short' })} ${time}`;
+}
+
 function LifecycleTimeline({ order }) {
   const currentIdx = currentLifecycleIndex(order);
+  const eta = fmtEta(order.delivery_eta);
   return (
     <div className="cargo-od-timeline" role="list" aria-label="Order lifecycle">
       {LIFECYCLE_STEPS.map((step, i) => {
@@ -155,6 +170,9 @@ function LifecycleTimeline({ order }) {
           <div key={step.key} className={`cargo-od-timeline-step ${stateClass}`} role="listitem">
             <span className="cargo-od-timeline-dot" aria-hidden="true" />
             <span className="cargo-od-timeline-label">{step.label}</span>
+            {step.key === 'out_for_delivery' && eta && (
+              <span className="cargo-od-timeline-eta">{eta}</span>
+            )}
           </div>
         );
       })}
