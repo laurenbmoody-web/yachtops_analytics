@@ -8,10 +8,12 @@ import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getBudgetVsActual, updateBudget, closeBudget, upsertLine, deleteLine } from '../../../services/budgetService';
+import { getBudgetVsActual, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate } from '../../../services/budgetService';
 import { formatMoney } from '../../../services/financeCalc';
 import BudgetFormModal from './components/BudgetFormModal';
 import LineFormModal from './components/LineFormModal';
+import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from './data/mybaChartOfAccounts';
+import { exportBudgetXlsx } from './budgetExport';
 import './budgets.css';
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -89,17 +91,35 @@ export default function BudgetDetail() {
     const res = await closeBudget(id);
     if (!res.error) { await load(); flash('Budget closed'); }
   };
+  const loadTemplate = async () => {
+    if (!window.confirm('Load the standard yacht (MYBA) chart of accounts? Existing lines are kept; standard lines are added at £0 for you to fill in.')) return;
+    const res = await seedStandardTemplate(id, STANDARD_CHART_OF_ACCOUNTS);
+    if (!res.error) { await load(); flash('Standard template loaded'); }
+    else flash('Could not load template');
+  };
 
-  const Fig = ({ v, muted }) => <span className={`bg-fig ${muted ? 'muted' : ''}${v < 0 ? ' bg-neg' : ''}`}>{formatMoney(v, cur)}</span>;
+  // Revenue sections first, then expenditure groups in the standard report order.
+  const orderedBuckets = useMemo(() => {
+    const list = [...(view?.buckets || [])];
+    const rank = (b) => {
+      if (b.kind === 'revenue') return -1;
+      const i = STANDARD_BUCKET_ORDER.indexOf(b.bucket);
+      return i === -1 ? 999 : i;
+    };
+    return list.sort((a, b) => rank(a) - rank(b));
+  }, [view]);
 
   const renderRow = (row, key) => {
     const spent = row.actual + row.committed;
     const clickable = canEdit && row.id;
     return (
-      <div key={key} className={`bg-row${row.state === 'over' ? ' is-over' : ''}`}
+      <div key={key} className={`bg-row${row.state === 'over' && row.kind !== 'revenue' ? ' is-over' : ''}`}
         style={clickable ? { cursor: 'pointer' } : undefined}
-        onClick={clickable ? () => setLineModal({ line: { id: row.id, bucket: row.bucket, category: row.category, amount: row.budgeted } }) : undefined}>
-        <div className="bg-row-cat"><b>{row.category}</b></div>
+        onClick={clickable ? () => setLineModal({ line: { id: row.id, bucket: row.bucket, category: row.category, code: row.code, kind: row.kind, amount: row.budgeted, notes: row.note } }) : undefined}>
+        <div className="bg-row-cat">
+          <b>{row.code ? <span className="bg-code">{row.code}</span> : null}{row.category}</b>
+          {row.note ? <div className="bg-row-note">{row.note}</div> : null}
+        </div>
         <span className="bg-fig">{formatMoney(row.budgeted, cur)}</span>
         <span className="bg-fig c-actual">{formatMoney(row.actual, cur)}</span>
         <span className="bg-fig c-committed">{formatMoney(row.committed, cur)}</span>
@@ -135,30 +155,47 @@ export default function BudgetDetail() {
                 </p>
                 <div className="bg-titlerow">
                   <h1 className="bg-title">{budget.name}</h1>
-                  {canEdit && (
-                    <div className="bg-head-act">
-                      <button type="button" className="bg-btn bg-btn-ghost" onClick={toggleClose}>
-                        {budget.status === 'closed' ? 'Reopen' : 'Close'}
-                      </button>
-                      <button type="button" className="bg-btn bg-btn-ghost" onClick={() => setEditBudget(true)}>
-                        <Icon name="Pencil" size={15} /> Edit
-                      </button>
-                      <button type="button" className="bg-btn bg-btn-primary" onClick={() => setLineModal({ line: null })}>
-                        <Icon name="Plus" size={16} /> Add line
-                      </button>
-                    </div>
-                  )}
+                  <div className="bg-head-act">
+                    <button type="button" className="bg-btn bg-btn-ghost" onClick={() => exportBudgetXlsx(view)}>
+                      <Icon name="Download" size={15} /> Export
+                    </button>
+                    {canEdit && (
+                      <>
+                        <button type="button" className="bg-btn bg-btn-ghost" onClick={toggleClose}>
+                          {budget.status === 'closed' ? 'Reopen' : 'Close'}
+                        </button>
+                        <button type="button" className="bg-btn bg-btn-ghost" onClick={() => setEditBudget(true)}>
+                          <Icon name="Pencil" size={15} /> Edit
+                        </button>
+                        <button type="button" className="bg-btn bg-btn-primary" onClick={() => setLineModal({ line: null })}>
+                          <Icon name="Plus" size={16} /> Add line
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div className="bg-sum">
-                <div className="bg-s"><b className="bg-num">{formatMoney(view.totals.budgeted, cur)}</b><span>Budgeted</span></div>
+                {view.revenueTotals.budgeted > 0 || view.revenueTotals.actual > 0 ? (
+                  <>
+                    <div className="bg-s"><b className="bg-num bg-pos">{formatMoney(view.revenueTotals.actual, cur)}</b><span>Revenue</span></div>
+                    <div className="bg-vr" />
+                  </>
+                ) : null}
+                <div className="bg-s"><b className="bg-num">{formatMoney(view.totals.budgeted, cur)}</b><span>Budgeted (exp.)</span></div>
                 <div className="bg-vr" />
-                <div className="bg-s"><b className="bg-num">{formatMoney(view.totals.actual, cur)}</b><span>Actual</span></div>
+                <div className="bg-s"><b className="bg-num">{formatMoney(view.totals.actual, cur)}</b><span>Spent</span></div>
                 <div className="bg-vr" />
                 <div className="bg-s"><b className="bg-num">{formatMoney(view.totals.committed, cur)}</b><span>On order</span></div>
                 <div className="bg-vr" />
                 <div className="bg-s"><b className={`bg-num ${view.totals.remaining < 0 ? 'bg-neg' : ''}`}>{formatMoney(view.totals.remaining, cur)}</b><span>Remaining</span></div>
+                {view.revenueTotals.budgeted > 0 || view.revenueTotals.actual > 0 ? (
+                  <>
+                    <div className="bg-vr" />
+                    <div className="bg-s"><b className={`bg-num ${view.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(view.net.actual, cur)}</b><span>Net rev. (exp.)</span></div>
+                  </>
+                ) : null}
               </div>
               <p className="bg-report-note">Figures reported in {cur}. Actual is live from the ledger; on-order is open supplier orders (VAT-exclusive), assumed same currency.</p>
 
@@ -166,11 +203,16 @@ export default function BudgetDetail() {
                 <div className="bg-empty" style={{ marginTop: 20 }}>
                   <Icon name="ListTree" size={40} />
                   <p>No lines yet</p>
-                  <p className="bg-empty-sub">{canEdit ? 'Add a bucket and breakdown lines to start tracking against plan.' : 'A COMMAND user can add budget lines.'}</p>
+                  <p className="bg-empty-sub">{canEdit ? 'Add lines yourself, or load the standard yacht chart of accounts to get every coded category in one click.' : 'A COMMAND user can add budget lines.'}</p>
+                  {canEdit && (
+                    <button type="button" className="bg-btn bg-btn-primary" style={{ marginTop: 16 }} onClick={loadTemplate}>
+                      <Icon name="ListChecks" size={16} /> Load standard template
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>
-                  {view.buckets.map((b) => (
+                  {orderedBuckets.map((b) => (
                     <div key={b.bucket} className="bg-bucket">
                       <div className="bg-bucket-head">
                         <span className="bg-bucket-name">{b.bucket}</span>
@@ -221,8 +263,18 @@ export default function BudgetDetail() {
                     </div>
                   )}
 
+                  {(view.revenueTotals.budgeted > 0 || view.revenueTotals.actual > 0) && (
+                    <div className="bg-row bg-grandtotal" style={{ borderTop: '1px solid #E6E8EF' }}>
+                      <div className="bg-row-cat"><b>Total revenue</b></div>
+                      <span className="bg-fig">{formatMoney(view.revenueTotals.budgeted, cur)}</span>
+                      <span className="bg-fig c-actual bg-pos">{formatMoney(view.revenueTotals.actual, cur)}</span>
+                      <span className="bg-fig c-committed">—</span>
+                      <span className="bg-fig c-remaining">{formatMoney(view.revenueTotals.remaining, cur)}</span>
+                      <span /><span />
+                    </div>
+                  )}
                   <div className="bg-row bg-grandtotal">
-                    <div className="bg-row-cat"><b>Total</b></div>
+                    <div className="bg-row-cat"><b>Total expenditure</b></div>
                     <span className="bg-fig">{formatMoney(view.totals.budgeted, cur)}</span>
                     <span className="bg-fig c-actual">{formatMoney(view.totals.actual, cur)}</span>
                     <span className="bg-fig c-committed">{formatMoney(view.totals.committed, cur)}</span>
@@ -230,6 +282,14 @@ export default function BudgetDetail() {
                     <Meter pct={view.totals.pct} state={view.totals.state} spent={view.totals.actual + view.totals.committed} />
                     <span />
                   </div>
+                  {(view.revenueTotals.budgeted > 0 || view.revenueTotals.actual > 0) && (
+                    <div className="bg-row bg-grandtotal">
+                      <div className="bg-row-cat"><b>Net revenue (expenditure)</b></div>
+                      <span className="bg-fig">{formatMoney(view.net.budgeted, cur)}</span>
+                      <span className={`bg-fig c-actual ${view.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(view.net.actual, cur)}</span>
+                      <span className="bg-fig c-committed" /><span className="bg-fig c-remaining" /><span /><span />
+                    </div>
+                  )}
                 </>
               )}
             </>
