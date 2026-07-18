@@ -134,7 +134,7 @@ function careFrom(items) {
 
 export function buildLogbook(trips, items, now = new Date()) {
   const good = (trips || []).filter((t) => t && !t.isDeleted && t.startDate && t.endDate)
-    .map((t) => ({ id: t.id || t.supabaseId, name: t.name || 'Voyage', start: dateOnly(t.startDate), end: dateOnly(t.endDate) }))
+    .map((t) => ({ id: t.id || t.supabaseId, name: t.name || 'Voyage', start: dateOnly(t.startDate), end: dateOnly(t.endDate), billingBasis: t.billingBasis || 'inclusive' }))
     .sort((a, b) => a.start - b.start);
 
   const findTrip = (d) => good.find((t) => d >= t.start && d <= t.end) || null;
@@ -159,7 +159,7 @@ export function buildLogbook(trips, items, now = new Date()) {
     const live = now >= t.start && now <= t.end;
     const guests = new Set(its.filter((i) => kindOf(i.ownerType) === 'guest').map((i) => i.ownerGuestId || i.ownerName)).size;
     periods.push({
-      id: `v-${t.id}`, type: 'voyage', name: t.name, dates: `${dmy(t.start)} – ${dmy(t.end)}`,
+      id: `v-${t.id}`, type: 'voyage', name: t.name, dates: `${dmy(t.start)} – ${dmy(t.end)}`, billingBasis: t.billingBasis,
       hero: `${live ? 'In progress' : 'Completed'}${guests ? ` · ${guests} guest${guests === 1 ? '' : 's'}` : ''}`,
       live, ...s, kpiA: [String(guests || 0), guests === 1 ? 'Guest' : 'Guests'], kpiB: [String(s.cabins), s.cabins === 1 ? 'Cabin' : 'Cabins'],
       avgMin: avgTurnaround(its), team: teamFrom(its), care: careFrom(its), carePace: carePace(its),

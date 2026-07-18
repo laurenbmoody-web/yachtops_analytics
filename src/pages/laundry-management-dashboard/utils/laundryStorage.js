@@ -73,6 +73,7 @@ const mapRow = (r) => ({
   vendor: r.vendor || '',
   sentAt: r.sent_at || null,
   expectedBack: r.expected_back || null,
+  charge: r.charge != null ? r.charge : null,
 });
 
 // ── date helpers ─────────────────────────────────────────────────────────────
@@ -459,6 +460,7 @@ export const updateLaundryItem = async (itemId, updates) => {
     priority: 'priority', status: 'status', tags: 'tags', notes: 'notes',
     neededBy: 'needed_by', flag: 'flag', flagNote: 'flag_note',
     serviceLocation: 'service_location', vendor: 'vendor', sentAt: 'sent_at', expectedBack: 'expected_back',
+    charge: 'charge',
   };
   // Photos edited → upload any new data URLs to the bucket before saving.
   let up = updates || {};

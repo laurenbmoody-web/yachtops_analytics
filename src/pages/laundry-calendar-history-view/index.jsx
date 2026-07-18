@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
-import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays, getVesselBranding, getVesselTimezone, setVesselTimezone } from '../laundry-management-dashboard/utils/laundryStorage';
+import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays, getVesselBranding, getVesselTimezone, setVesselTimezone, getLaundryBilling } from '../laundry-management-dashboard/utils/laundryStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
@@ -123,7 +123,7 @@ const scopeForExport = (p) => {
   return rescopePeriod(p, items, `Last ${CREW_EXPORT_DAYS} days`);
 };
 
-const Detail = ({ p, onExport, onOpenItem, vessel }) => {
+const Detail = ({ p, onExport, onOpenItem, vessel, billing }) => {
   const [open, setOpen] = useState(null);
   const [openDay, setOpenDay] = useState(null);
   const [showAll, setShowAll] = useState(false); // expand a person's item list past the first few
@@ -160,7 +160,7 @@ const Detail = ({ p, onExport, onOpenItem, vessel }) => {
           </div>
           {(p.items || []).length > 0 && (
             <div className="lb-exports">
-              <button type="button" className="lb-export" onClick={() => openTripReport(scopeForExport(p), vessel)}>
+              <button type="button" className="lb-export" onClick={() => openTripReport(scopeForExport(p), vessel, billing)}>
                 <Icon name="Printer" size={14} /> Report
               </button>
               <button type="button" className="lb-export" onClick={() => onExport(p)}>
@@ -415,6 +415,8 @@ const LaundryHistoryView = () => {
   const [retention, setRetention] = useState(null);
   const [vessel, setVessel] = useState(null);
   useEffect(() => { getVesselBranding().then(setVessel).catch(() => {}); }, []);
+  const [billing, setBilling] = useState(null);
+  useEffect(() => { getLaundryBilling().then(setBilling).catch(() => {}); }, []);
   const canManage = useMemo(() => { const t = (getCurrentUser()?.effectiveTier || getCurrentUser()?.tier || '').toUpperCase(); return t === 'COMMAND' || t === 'CHIEF'; }, []);
   useEffect(() => { if (canManage) getPhotoRetentionDays().then(setRetention).catch(() => {}); }, [canManage]);
   const saveRetention = async (v) => { setRetention(v); await setPhotoRetentionDays(v); };
@@ -595,7 +597,7 @@ const LaundryHistoryView = () => {
                 {past.length > 0 && <div className="lb-lbl">Timeline</div>}
                 {past.map((p) => <Chapter key={p.id} p={p} active={selId === p.id} onClick={() => setSelId(p.id)} />)}
               </div>
-              <Detail p={selected} onExport={onExport} onOpenItem={openItem} vessel={vessel} />
+              <Detail p={selected} onExport={onExport} onOpenItem={openItem} vessel={vessel} billing={billing} />
             </div>
           )}
         </div>
