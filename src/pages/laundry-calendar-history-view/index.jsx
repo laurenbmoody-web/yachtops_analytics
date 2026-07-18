@@ -5,7 +5,7 @@ import Header from '../../components/navigation/Header';
 import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays, getVesselBranding, getVesselTimezone, setVesselTimezone, getLaundryBilling } from '../laundry-management-dashboard/utils/laundryStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
-import { attachBilling } from '../laundry-management-dashboard/utils/laundryBilling';
+import { attachBilling, money } from '../laundry-management-dashboard/utils/laundryBilling';
 import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
 import { resolveLaundryPhotos } from '../laundry-management-dashboard/utils/laundryPhotos';
 import { buildLogbook, initials, rescopePeriod } from '../laundry-management-dashboard/utils/laundryLogbook';
@@ -65,6 +65,7 @@ const ItemLine = ({ it, hideOwner, onOpen }) => {
     >
       <span className="lb-th"><Icon name="Shirt" size={15} /></span>
       <span className="lb-ri-nm">{it.description || 'Laundry item'}{sub ? <span className="lb-ri-sub"> · {sub}</span> : null}</span>
+      {it._billable && it._charge != null && <span className="lb-ri-chg">{money(it._charge, it._currency)}</span>}
       <span className={`lb-ri-tag ${st.c}`}>{st.t}</span>
       <span className="lb-ri-t">{clock(it.deliveredAt || it.createdAt)}</span>
     </div>
@@ -439,8 +440,9 @@ const LaundryHistoryView = () => {
     let cancelled = false;
     (async () => {
       try {
-        const [raw, trips, credits] = await Promise.all([loadAllLaundryItems(), loadTrips().catch(() => []), getDeliveryCredits().catch(() => ({}))]);
-        const enriched = await attachHandlers(await enrichWithAvatars(raw), credits);
+        const [raw, trips, credits, billingCfg] = await Promise.all([loadAllLaundryItems(), loadTrips().catch(() => []), getDeliveryCredits().catch(() => ({})), getLaundryBilling().catch(() => null)]);
+        // Attach billing (charge per item) so history item lines show it too.
+        const enriched = attachBilling(await attachHandlers(await enrichWithAvatars(raw), credits), trips, billingCfg);
         if (cancelled) return;
         const b = buildLogbook(trips, enriched, new Date());
         setBook(b); setItems(enriched);

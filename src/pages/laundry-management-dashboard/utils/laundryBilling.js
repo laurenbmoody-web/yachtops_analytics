@@ -39,16 +39,23 @@ export function effectiveCharge(item, config) {
   return suggestCharge(item, config);
 }
 
-// Resolve a laundry item's charter (the trip whose dates contain it) → basis.
-export function basisForItem(item, trips) {
+// Resolve a laundry item's charter (the trip whose dates contain it). When
+// trips overlap, the most recently started charter wins — the same rule the
+// logbook uses, so the log, history and report always agree.
+export function tripForItem(item, trips) {
   const when = new Date(item?.createdAt || item?.deliveredAt || Date.now());
-  const hit = (trips || []).find((t) => {
+  const matches = (trips || []).filter((t) => {
     if (t?.isDeleted || !t?.startDate || !t?.endDate) return false;
     const s = new Date(t.startDate); s.setHours(0, 0, 0, 0);
     const e = new Date(t.endDate); e.setHours(23, 59, 59, 999);
     return when >= s && when <= e;
   });
-  return hit ? (hit.billingBasis || 'inclusive') : 'inclusive';
+  matches.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+  return matches.length ? matches[matches.length - 1] : null;
+}
+export function basisForItem(item, trips) {
+  const t = tripForItem(item, trips);
+  return t ? (t.billingBasis || 'inclusive') : 'inclusive';
 }
 
 // Attach billing to items for the live log: _basis, _billable, _charge, _currency.
