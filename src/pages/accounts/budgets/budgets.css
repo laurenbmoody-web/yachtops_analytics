@@ -1,0 +1,115 @@
+/* Cargo Accounts — Budgets, editorial (Cargo) system. Mirrors the accounts pages
+   (ca- prefix) and month-end: navy ink, terracotta emphasis, hairline lists, no
+   boxed cards, DM Serif Display headings on Plus Jakarta Sans, tabular figures,
+   dd/mm/yyyy. Prefix: bg-. */
+
+.bg-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 24px 32px 60px; }
+.bg-wrap { max-width: none; margin: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+
+.bg-back { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 500; color: #6B7280; margin-bottom: 22px; transition: color 0.12s ease; }
+.bg-back:hover { color: #1C1B3A; }
+
+.bg-head { padding-bottom: 8px; }
+.bg-titlerow { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.bg-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 34px; line-height: 1.02; letter-spacing: -0.5px; text-transform: uppercase; margin-top: 8px; }
+.bg-title em { font-style: italic; color: #C65A1A; text-transform: none; }
+.bg-head-act { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; padding-top: 10px; }
+
+.bg-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.bg-neg { color: #B14E16; }
+.bg-pos { color: #3F7A52; }
+
+/* Buttons + links (shared editorial vocab) */
+.bg-btn { display: inline-flex; align-items: center; gap: 7px; border-radius: 10px; padding: 9px 15px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
+.bg-btn-primary { background: #C65A1A; border: 1px solid #C65A1A; color: #fff; }
+.bg-btn-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
+.bg-btn-primary:disabled { opacity: 0.6; cursor: default; }
+.bg-btn-ghost { background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A; }
+.bg-btn-ghost:hover { background: #FAFAF8; border-color: #D7DAE2; }
+.bg-link { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: #C65A1A; white-space: nowrap; }
+.bg-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.bg-link.is-mut { color: #9A958A; }
+
+.bg-pill { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; border-radius: 999px; padding: 2px 9px; }
+.bg-pill-draft { background: #F1F1F4; color: #8B8478; }
+.bg-pill-active { background: #C65A1A; color: #fff; }
+.bg-pill-closed { background: #ECEAE3; color: #9A958A; }
+.bg-pill-dept { background: #F1EFEA; color: #6B6455; margin-left: 8px; }
+
+/* Budget list rows */
+.bg-list-row { display: grid; grid-template-columns: 1fr 220px 96px 150px 20px; align-items: center; gap: 18px; padding: 16px 8px 16px 14px; border-bottom: 1px solid #E6E8EF; cursor: pointer; text-align: left; background: none; border-left: 0; border-right: 0; border-top: 0; width: 100%; font: inherit; }
+.bg-list-row:hover { background: #FAFAF8; }
+.bg-list-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; color: #1C1B3A; }
+.bg-list-period { font-size: 12.5px; color: #8B8478; font-variant-numeric: tabular-nums; }
+.bg-list-total { font-size: 15px; font-weight: 600; text-align: right; }
+.bg-list-chev { color: #CFCABF; display: flex; justify-content: flex-end; }
+
+/* Hero summary on detail */
+.bg-sum { display: flex; align-items: flex-end; gap: 26px; padding: 22px 0; border-bottom: 1px solid #E6E8EF; margin-top: 18px; flex-wrap: wrap; }
+.bg-s b { font-family: 'DM Serif Display', Georgia, serif; font-size: 27px; line-height: 1; display: block; font-weight: 500; }
+.bg-s span { font-size: 9px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: #8B8478; margin-top: 8px; display: block; }
+.bg-vr { width: 1px; align-self: stretch; background: #E6E8EF; margin: 3px 0; }
+.bg-report-note { font-size: 11px; color: #AEB4C2; margin: 8px 0 0; }
+
+/* Bucket section + vs-actual rows */
+.bg-bucket { margin-top: 26px; }
+.bg-bucket-head { display: flex; align-items: baseline; gap: 13px; margin-bottom: 2px; }
+.bg-bucket-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 21px; }
+.bg-bucket-rule { flex: 1; height: 1px; background: #E6E8EF; align-self: center; }
+.bg-bucket-meta { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+
+.bg-cols, .bg-row { display: grid; grid-template-columns: 1.4fr 110px 110px 110px 110px 150px 40px; align-items: center; gap: 14px; }
+.bg-cols { padding: 10px 8px 6px 14px; }
+.bg-cols span { font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #AEB4C2; }
+.bg-cols .r, .bg-row .r { text-align: right; }
+.bg-row { padding: 12px 8px 12px 14px; border-bottom: 1px solid #EEF0F4; }
+.bg-row.is-over { box-shadow: inset 3px 0 0 0 #C65A1A; }
+.bg-row-cat { min-width: 0; }
+.bg-row-cat b { font-size: 14px; font-weight: 600; }
+.bg-fig { font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: right; }
+.bg-fig.muted { color: #8B8478; }
+
+/* Meter */
+.bg-meter { display: flex; align-items: center; gap: 9px; }
+.bg-meter-track { flex: 1; height: 6px; border-radius: 3px; background: #F0F1F5; overflow: hidden; }
+.bg-meter-fill { display: block; height: 100%; border-radius: 3px; }
+.bg-meter-fill.under { background: #1C1B3A; }
+.bg-meter-fill.near { background: #C65A1A; }
+.bg-meter-fill.over { background: #B14E16; }
+.bg-meter-pct { font-size: 11.5px; font-weight: 600; color: #8B8478; min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+.bg-meter-pct.over { color: #B14E16; }
+
+.bg-row-act { display: flex; justify-content: flex-end; }
+.bg-subtotal { border-bottom: 1px solid #E6E8EF; }
+.bg-subtotal .bg-row-cat b { font-weight: 700; color: #6B6455; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+.bg-grandtotal { padding: 16px 8px 16px 14px; margin-top: 8px; border-top: 2px solid #1C1B3A; }
+.bg-grandtotal .bg-row-cat b { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; }
+
+.bg-empty { text-align: center; padding: 52px 20px; color: #8B8478; }
+.bg-empty svg { opacity: 0.3; margin-bottom: 10px; }
+.bg-empty p { font-size: 14px; }
+.bg-empty .bg-empty-sub { font-size: 12.5px; color: #AEB4C2; margin-top: 4px; }
+
+/* Modal (portaled via ModalShell) — reuses the ca-modal look */
+.bg-modal { background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); width: 100%; max-width: 440px; padding: 26px 26px 22px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.bg-modal-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; margin-bottom: 4px; }
+.bg-modal-sub { font-size: 12.5px; color: #8B8478; margin-bottom: 18px; }
+.bg-form-row { margin-bottom: 14px; }
+.bg-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.bg-label { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px; }
+.bg-label .req { color: #C65A1A; text-transform: none; letter-spacing: 0; font-weight: 600; }
+.bg-label .opt { color: #AEB4C2; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.bg-input, .bg-select { width: 100%; font: inherit; font-size: 14px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E8E6DF; border-radius: 10px; padding: 10px 12px; }
+.bg-input:focus, .bg-select:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.bg-modal-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 20px; }
+.bg-modal-foot .spacer { flex: 1; }
+.bg-modal-err { font-size: 12.5px; color: #B14E16; margin-top: 12px; }
+
+.bg-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1C1B3A; color: #fff; padding: 11px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 600; box-shadow: 0 12px 30px -8px rgba(28,27,58,0.4); z-index: 60; }
+
+@media (max-width: 900px) {
+  .bg-cols, .bg-row { grid-template-columns: 1.3fr 90px 90px 120px 30px; }
+  .bg-cols .c-committed, .bg-row .c-committed, .bg-cols .c-remaining, .bg-row .c-remaining { display: none; }
+  .bg-list-row { grid-template-columns: 1fr auto auto; }
+  .bg-list-period, .bg-list-chev { display: none; }
+}

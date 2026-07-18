@@ -9,6 +9,8 @@ import Dashboard from './pages/dashboard';
 import TeamJobsManagement from './pages/team-jobs-management';
 import Accounts from './pages/accounts';
 import Ledger from './pages/accounts/ledger';
+import Budgets from './pages/accounts/budgets';
+import BudgetDetail from './pages/accounts/budgets/BudgetDetail';
 import LogsDeliveries from './pages/logs-deliveries';
 import BlueprintVesselView from './pages/blueprint-vessel-view';
 import DutySetsRotationManagement from './pages/duty-sets-rotation-management';
@@ -1443,6 +1445,8 @@ const Routes = () => {
         {/* Accounts */}
         <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><Accounts /></ProtectedRoute>} />
         <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><Ledger /></ProtectedRoute>} />
+        <Route path="/accounts/budgets" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><Budgets /></ProtectedRoute>} />
+        <Route path="/accounts/budgets/:id" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><BudgetDetail /></ProtectedRoute>} />
         
         {/* Logs/Deliveries */}
         <Route path="/logs-deliveries" element={<ProtectedRoute><LogsDeliveries /></ProtectedRoute>} />
