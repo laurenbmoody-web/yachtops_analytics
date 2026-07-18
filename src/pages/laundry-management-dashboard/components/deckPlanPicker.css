@@ -1,0 +1,22 @@
+.dpp-overlay { position: fixed; inset: 0; z-index: 1300; background: rgba(28,27,58,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(2px); }
+.dpp-panel { width: 100%; max-width: 900px; max-height: 92vh; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 18px; box-shadow: 0 30px 70px -20px rgba(28,27,58,0.4); display: flex; flex-direction: column; overflow: hidden; }
+.dpp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 24px 14px; border-bottom: 1px solid #EEF0F4; }
+.dpp-eyebrow { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #C65A1A; }
+.dpp-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 2px 0 0; color: #1C1B3A; }
+.dpp-x { background: none; border: none; cursor: pointer; color: #8B93A0; padding: 4px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+.dpp-x:hover { background: #F4F6FA; color: #1C1B3A; }
+
+.dpp-decks { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 24px 0; }
+.dpp-deck { font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px; padding: 6px 13px; cursor: pointer; }
+.dpp-deck.on { background: #1C1B3A; color: #FFFFFF; border-color: #1C1B3A; }
+
+.dpp-stage { padding: 18px 24px 24px; overflow: auto; }
+.dpp-empty { text-align: center; color: #6B7280; font-size: 14px; line-height: 1.6; padding: 48px 16px; }
+
+/* clickable rooms + pins layered over the reused .dp-plan renderer */
+.dpp-room:hover path:last-child { fill: rgba(198,90,26,0.16) !important; stroke: #C65A1A !important; }
+.dpp-pin { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; cursor: pointer; padding: 0; }
+.dpp-pin-dot { width: 13px; height: 13px; border-radius: 50%; background: #1C1B3A; border: 2px solid #FFFFFF; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+.dpp-pin.on .dpp-pin-dot { background: #C65A1A; }
+.dpp-pin-lbl { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: rgba(255,255,255,0.9); border-radius: 5px; padding: 1px 5px; white-space: nowrap; }
+.dpp-pin:hover .dpp-pin-dot { background: #C65A1A; }

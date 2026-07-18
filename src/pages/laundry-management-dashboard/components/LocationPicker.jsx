@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { getAllDecks, getAllZones, getAllSpaces } from '../../locations-management-settings/utils/locationsHierarchyStorage';
+import DeckPlanPicker from './DeckPlanPicker';
 import './locationPicker.css';
 
 // Reusable "pick a vessel location" combobox — leaf spaces grouped under their
@@ -10,6 +11,7 @@ const LocationPicker = ({ value, valueLabel = '', onChange, placeholder = 'Searc
   const [locations, setLocations] = useState([]);
   const [query, setQuery] = useState(valueLabel || '');
   const [open, setOpen] = useState(false);
+  const [showPlan, setShowPlan] = useState(false);
 
   useEffect(() => { setQuery(valueLabel || ''); }, [valueLabel]);
 
@@ -67,6 +69,14 @@ const LocationPicker = ({ value, valueLabel = '', onChange, placeholder = 'Searc
             </div>
           ))}
         </div>
+      )}
+      <button type="button" className="lp-onmap" onClick={() => setShowPlan(true)}><Icon name="Map" size={14} /> Pick on the deck plan</button>
+      {showPlan && (
+        <DeckPlanPicker
+          selectedId={value}
+          onSelect={(id, name) => { onChange?.({ id, name, label: name }); setQuery(name); setShowPlan(false); }}
+          onClose={() => setShowPlan(false)}
+        />
       )}
     </div>
   );
