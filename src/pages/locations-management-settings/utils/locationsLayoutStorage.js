@@ -78,6 +78,20 @@ export const setSpaceShape = async (spaceId, shape) => {
   if (error) throw error;
 };
 
+// AI room detection — hand one framed deck image (base64 JPEG of the deck crop)
+// to the deck-plan-autotrace edge function, which reads it with Claude vision
+// and returns the rooms it can identify, each with a name and a rough polygon
+// (normalized 0..1 to the image). Nothing is written; the client matches names
+// and lands the outlines as editable proposals.
+export const autotraceDeck = async ({ imageBase64, deckName, roomNames }) => {
+  const { data, error } = await supabase.functions.invoke('deck-plan-autotrace', {
+    body: { imageBase64, mediaType: 'image/jpeg', deckName, roomNames },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return Array.isArray(data?.rooms) ? data.rooms : [];
+};
+
 // Doorway links between rooms (undirected). Stored canonically a < b.
 const orderPair = (a, b) => (a < b ? [a, b] : [b, a]);
 

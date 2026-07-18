@@ -53,6 +53,7 @@ html[data-theme="night"] .lg .lg-cf.addcard .card{border-color:#3A3960;}
   background:var(--lg-terra);border:1px solid var(--lg-terra);border-radius:10px;padding:8px 15px;cursor:pointer;
   transition:background .14s ease,border-color .14s ease;}
 .lg-btn-primary:hover{background:#B14E16;border-color:#B14E16;}
+.lg-btn-primary:disabled{opacity:.5;cursor:default;}
 /* Ghost/secondary button — was unstyled, so it rendered as oversized default text. */
 .lg-btn{font-family:var(--lg-sans);font-size:12.5px;font-weight:600;color:var(--lg-ink);
   background:#fff;border:1px solid var(--lg-hair,#E8E6DF);border-radius:9px;padding:7px 13px;cursor:pointer;
@@ -285,6 +286,29 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-linkbtn.is-on{background:var(--lg-terra);color:#fff;border-color:var(--lg-terra);}
 .dp-linkbtn.is-on:hover{background:#B14E16;border-color:#B14E16;}
 .dp-linkhint{margin:0 0 10px;font-family:var(--lg-sans);font-size:12.5px;color:var(--lg-terra);}
+
+/* AI "Detect rooms" button — always shows its label (it's a one-shot action,
+   not a mode toggle), and reads terracotta so it stands out as the smart help. */
+.dp-aibtn{color:var(--lg-terra);border-color:#F0D9CC;}
+.dp-aibtn .dp-linkbtn-label{max-width:140px;opacity:1;margin-left:6px;}
+.dp-aibtn:hover{background:#FBEFE9;border-color:var(--lg-terra);}
+.dp-aibtn:disabled{opacity:.6;cursor:default;}
+.dp-aibtn:disabled:hover{background:var(--lg-card,#fff);}
+
+/* AI proposal outlines — dashed terracotta, awaiting the user's Apply. */
+.dp-proposal{fill:rgba(198,90,26,.12);stroke:var(--lg-terra);stroke-width:2.2;stroke-dasharray:5 3;
+  vector-effect:non-scaling-stroke;stroke-linejoin:round;}
+.dp-proposal-label{position:absolute;transform:translate(-50%,-50%);z-index:5;pointer-events:none;
+  padding:2px 8px;border-radius:999px;background:var(--lg-terra);color:#fff;
+  font-family:var(--lg-sans);font-size:10.5px;font-weight:600;line-height:1.3;white-space:nowrap;
+  box-shadow:0 2px 6px -1px rgba(28,27,58,.45);}
+
+/* AI review bar — reuses the trace-hint layout, tinted so it reads as a prompt. */
+.dp-ai-review{background:#FBEFE9;border:1px solid #F0D9CC;border-radius:10px;padding:9px 12px;}
+.dp-ai-review b{color:var(--lg-ink);}
+.dp-ai-spark{color:var(--lg-terra)!important;font-weight:700;}
+.dp-ai-unmatched{color:var(--lg-muted);}
+.lg-btn-primary.sm{font-size:12px;padding:6px 12px;}
 
 /* Tray of rooms still to place. */
 .dp-tray{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--lg-hair);}
