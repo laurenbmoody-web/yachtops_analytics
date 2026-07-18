@@ -14,7 +14,10 @@ import {
 } from '../utils/laundryStorage';
 import { resolveLaundryPhotos } from '../utils/laundryPhotos';
 import { money } from '../utils/laundryBilling';
+import { loadGuests, GuestType } from '../../guest-management-dashboard/utils/guestStorage';
 import './ownerWardrobe.css';
+
+const guestName = (g) => (g ? ([g.firstName, g.lastName].filter(Boolean).join(' ') || g.name || 'Guest') : '');
 
 const SORTS = [
   { val: 'name', label: 'Name (A–Z)' },
@@ -48,9 +51,11 @@ const ageBucket = (iso) => {
 const OwnerWardrobeView = ({ onBack }) => {
   const showValue = canViewCost(); // garment value is cost data — Command/Chief/HOD only
   const [wardrobes, setWardrobes] = useState([]);
+  const [guests, setGuests] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('image'); // image | list
+  const [groupBy, setGroupBy] = useState('location'); // location | guest
   const [query, setQuery] = useState('');
   const [fLoc, setFLoc] = useState('all');
   const [fType, setFType] = useState('all');
@@ -67,15 +72,22 @@ const OwnerWardrobeView = ({ onBack }) => {
   const sortOptions = showValue ? SORTS : SORTS.filter((s) => !s.val.startsWith('price'));
 
   const load = async () => {
-    const ws = await loadWardrobes('owner');
+    const [ws, gs, all] = await Promise.all([loadWardrobes('owner'), loadGuests().catch(() => []), loadAllLaundryItems()]);
+    const ownerGuests = (gs || []).filter((g) => g.guestType === GuestType.OWNER);
     const wIds = new Set(ws.map((w) => w.id));
-    const all = await loadAllLaundryItems();
-    const owned = all.filter((i) => i.wardrobeId && wIds.has(i.wardrobeId) && !i.isArchivedFromToday);
+    const gIds = new Set(ownerGuests.map((g) => g.id));
+    // Owner garments: homed in an owner wardrobe, OR belonging to an owner-type
+    // guest, OR the generic "Owner" (ownerType 'other').
+    const owned = all.filter((i) => !i.isArchivedFromToday && (
+      (i.wardrobeId && wIds.has(i.wardrobeId)) || (i.ownerGuestId && gIds.has(i.ownerGuestId)) || (i.ownerType === 'other')
+    ));
     const resolved = await resolveLaundryPhotos(owned).catch(() => owned);
-    setWardrobes(ws); setItems(resolved); setLoading(false);
+    setWardrobes(ws); setGuests(ownerGuests); setItems(resolved); setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
+  const wardrobesById = useMemo(() => Object.fromEntries(wardrobes.map((w) => [w.id, w])), [wardrobes]);
+  const guestsById = useMemo(() => Object.fromEntries(guests.map((g) => [g.id, g])), [guests]);
   const wardrobeName = (id) => wardrobes.find((w) => w.id === id)?.name || '';
   const caseName = (id) => cases.find((c) => c.id === id)?.name || 'a case';
   const types = useMemo(() => Array.from(new Set(items.map((i) => i.garmentType).filter(Boolean))).sort(), [items]);
@@ -106,6 +118,22 @@ const OwnerWardrobeView = ({ onBack }) => {
     return s;
   }, [items, query, fLoc, fType, fStatus, fAge, sort]);
 
+  // Group the shown items by wardrobe/room (location) or by the person (guest).
+  const groups = useMemo(() => {
+    const map = new Map();
+    const push = (key, title, subtitle, it) => { if (!map.has(key)) map.set(key, { key, title, subtitle, items: [] }); map.get(key).items.push(it); };
+    shown.forEach((it) => {
+      if (groupBy === 'guest') {
+        const g = guestsById[it.ownerGuestId];
+        push(it.ownerGuestId || 'none', g ? guestName(g) : (it.ownerName && it.ownerName !== 'Owner' ? it.ownerName : 'Owner'), g?.cabinLocationLabel || g?.cabinAllocated || '', it);
+      } else {
+        const w = wardrobesById[it.wardrobeId];
+        push(it.wardrobeId || 'none', w?.name || 'No wardrobe', w?.locationName || w?.location || '', it);
+      }
+    });
+    return [...map.values()];
+  }, [shown, groupBy, guestsById, wardrobesById]);
+
   const filterGroups = [
     { key: 'loc', label: 'Location', value: fLoc, neutral: 'all', onChange: setFLoc, options: [{ value: 'all', label: 'Everywhere' }, ...wardrobes.map((w) => ({ value: w.id, label: w.name })), { value: 'away', label: 'Away (in a case)' }] },
     { key: 'type', label: 'Type of clothing', value: fType, neutral: 'all', onChange: setFType, options: [{ value: 'all', label: 'All types' }, ...types.map((t) => ({ value: t, label: t }))] },
@@ -115,6 +143,7 @@ const OwnerWardrobeView = ({ onBack }) => {
 
   const toggle = (id) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const selectAllShown = () => setSel(new Set(shown.map((i) => i.id)));
+  const selectGroup = (groupItems) => setSel((p) => { const n = new Set(p); groupItems.forEach((i) => n.add(i.id)); return n; });
   const clearSel = () => setSel(new Set());
   const selIds = [...sel];
 
@@ -151,6 +180,41 @@ const OwnerWardrobeView = ({ onBack }) => {
 
   const onScan = (t) => { setShowScan(false); const it = items.find((i) => i.id === t?.id); if (it) setFullItem(it); else window.alert('That label isn’t an owner garment.'); };
 
+  const renderCard = (it) => {
+    const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
+    const st = STATUS[it.status] || { label: it.status, cls: 'stored' };
+    return (
+      <div className={`ow-card${sel.has(it.id) ? ' sel' : ''}`} key={it.id}>
+        <button type="button" className="ow-check" onClick={() => toggle(it.id)} aria-label="Select"><Icon name={sel.has(it.id) ? 'CheckSquare' : 'Square'} size={18} /></button>
+        <button type="button" className="ow-card-media" onClick={() => setFullItem(it)}>
+          {photo ? <img src={photo} alt={it.description || 'Garment'} loading="lazy" /> : <span className="ow-card-ph"><Icon name="Shirt" size={30} /></span>}
+          {it.caseId && <span className="ow-away">Away</span>}
+        </button>
+        <button type="button" className="ow-card-body" onClick={() => setFullItem(it)}>
+          <span className="ow-card-nm">{it.description || 'Garment'}</span>
+          <span className="ow-card-sub">{it.garmentType || '—'}{showValue && it.garmentValue != null ? ` · ${money(it.garmentValue, it.garmentValueCurrency)}` : ''}</span>
+          <span className={`ow-status sm ${st.cls}`}>{st.label}</span>
+        </button>
+      </div>
+    );
+  };
+  const renderRow = (it) => {
+    const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
+    const st = STATUS[it.status] || { label: it.status, cls: 'stored' };
+    return (
+      <div className={`ow-lrow${sel.has(it.id) ? ' sel' : ''}`} key={it.id}>
+        <button type="button" className="ow-check" onClick={() => toggle(it.id)} aria-label="Select"><Icon name={sel.has(it.id) ? 'CheckSquare' : 'Square'} size={18} /></button>
+        <button type="button" className="ow-lthumb" onClick={() => setFullItem(it)}>{photo ? <img src={photo} alt="" loading="lazy" /> : <Icon name="Shirt" size={18} />}</button>
+        <button type="button" className="ow-lmain" onClick={() => setFullItem(it)}>
+          <span className="ow-card-nm">{it.description || 'Garment'}</span>
+          <span className="ow-card-sub">{[it.garmentType, it.colour, wardrobeName(it.wardrobeId)].filter(Boolean).join(' · ')}</span>
+        </button>
+        {showValue && it.garmentValue != null && <span className="ow-lval">{money(it.garmentValue, it.garmentValueCurrency)}</span>}
+        <span className={`ow-status sm ${st.cls}`}>{it.caseId ? 'Away' : st.label}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="ow-view">
       <div className="ow-bar">
@@ -164,6 +228,10 @@ const OwnerWardrobeView = ({ onBack }) => {
           <button type="button" className="ow-search-scan" onClick={() => setShowScan(true)} aria-label="Scan"><Icon name="QrCode" size={16} /></button>
         </div>
         <div className="ow-tools">
+          <div className="ow-grouptoggle" role="tablist" aria-label="Group by">
+            <button type="button" className={groupBy === 'location' ? 'on' : ''} onClick={() => setGroupBy('location')}>By location</button>
+            <button type="button" className={groupBy === 'guest' ? 'on' : ''} onClick={() => setGroupBy('guest')}>By guest</button>
+          </div>
           <FilterMenu groups={filterGroups} />
           <SortMenu value={sort} onChange={setSort} options={sortOptions} />
           <div className="ow-viewtoggle" role="tablist" aria-label="View">
@@ -197,53 +265,32 @@ const OwnerWardrobeView = ({ onBack }) => {
           </button>
           <p className="ow-empty-note">The owner’s wardrobe is empty. Add garments that live on board — they’ll show here as an image catalogue.</p>
         </div>
-      ) : view === 'image' ? (
-        <div className="ow-grid">
-          <button type="button" className="ow-addtile" onClick={() => setShowAdd(true)}><Icon name="Plus" size={24} /><span>Add</span></button>
-          {shown.map((it) => {
-            const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
-            const st = STATUS[it.status] || { label: it.status, cls: 'stored' };
-            return (
-              <div className={`ow-card${sel.has(it.id) ? ' sel' : ''}`} key={it.id}>
-                <button type="button" className="ow-check" onClick={() => toggle(it.id)} aria-label="Select">
-                  <Icon name={sel.has(it.id) ? 'CheckSquare' : 'Square'} size={18} />
-                </button>
-                <button type="button" className="ow-card-media" onClick={() => setFullItem(it)}>
-                  {photo ? <img src={photo} alt={it.description || 'Garment'} loading="lazy" /> : <span className="ow-card-ph"><Icon name="Shirt" size={30} /></span>}
-                  {it.caseId && <span className="ow-away">Away</span>}
-                </button>
-                <button type="button" className="ow-card-body" onClick={() => setFullItem(it)}>
-                  <span className="ow-card-nm">{it.description || 'Garment'}</span>
-                  <span className="ow-card-sub">{it.garmentType || '—'}{showValue && it.garmentValue != null ? ` · ${money(it.garmentValue, it.garmentValueCurrency)}` : ''}</span>
-                  <span className={`ow-status sm ${st.cls}`}>{st.label}</span>
-                </button>
-              </div>
-            );
-          })}
-        </div>
+      ) : shown.length === 0 ? (
+        <div className="ow-empty">Nothing matches.</div>
       ) : (
-        <div className="ow-list">
-          {shown.map((it) => {
-            const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
-            const st = STATUS[it.status] || { label: it.status, cls: 'stored' };
-            return (
-              <div className={`ow-lrow${sel.has(it.id) ? ' sel' : ''}`} key={it.id}>
-                <button type="button" className="ow-check" onClick={() => toggle(it.id)} aria-label="Select"><Icon name={sel.has(it.id) ? 'CheckSquare' : 'Square'} size={18} /></button>
-                <button type="button" className="ow-lthumb" onClick={() => setFullItem(it)}>{photo ? <img src={photo} alt="" loading="lazy" /> : <Icon name="Shirt" size={18} />}</button>
-                <button type="button" className="ow-lmain" onClick={() => setFullItem(it)}>
-                  <span className="ow-card-nm">{it.description || 'Garment'}</span>
-                  <span className="ow-card-sub">{[it.garmentType, it.colour, wardrobeName(it.wardrobeId)].filter(Boolean).join(' · ')}</span>
-                </button>
-                {showValue && it.garmentValue != null && <span className="ow-lval">{money(it.garmentValue, it.garmentValueCurrency)}</span>}
-                <span className={`ow-status sm ${st.cls}`}>{it.caseId ? 'Away' : st.label}</span>
+        <div className="ow-groups">
+          {groups.map((grp) => (
+            <section className="ow-group" key={grp.key}>
+              <div className="ow-group-head">
+                <div className="ow-group-id">
+                  <Icon name={groupBy === 'guest' ? 'User' : 'Shirt'} size={14} />
+                  <span className="ow-group-t">{grp.title}</span>
+                  {grp.subtitle && <span className="ow-group-sub">{grp.subtitle}</span>}
+                </div>
+                <div className="ow-group-r">
+                  <span className="ow-group-ct">{grp.items.length}</span>
+                  <button type="button" className="ow-group-sel" onClick={() => selectGroup(grp.items)}>Select all</button>
+                </div>
               </div>
-            );
-          })}
-          {shown.length === 0 && <div className="ow-empty">Nothing matches.</div>}
+              {view === 'image'
+                ? <div className="ow-grid">{grp.items.map(renderCard)}</div>
+                : <div className="ow-list">{grp.items.map(renderRow)}</div>}
+            </section>
+          ))}
         </div>
       )}
 
-      {showAdd && <AddGarmentModal wardrobes={wardrobes} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
+      {showAdd && <AddGarmentModal wardrobes={wardrobes} guests={guests} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
       {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
       {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
       {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}

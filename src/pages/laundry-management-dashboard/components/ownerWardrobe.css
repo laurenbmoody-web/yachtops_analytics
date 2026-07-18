@@ -11,6 +11,22 @@
 .ow-search-scan:hover { background: #FBEFE9; color: #C65A1A; }
 .ow-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+.ow-grouptoggle { display: inline-flex; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 2px; }
+.ow-grouptoggle button { border: none; background: none; cursor: pointer; border-radius: 8px; padding: 7px 12px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; }
+.ow-grouptoggle button.on { background: #1C1B3A; color: #FFFFFF; }
+
+.ow-groups { display: flex; flex-direction: column; gap: 26px; }
+.ow-group { display: flex; flex-direction: column; gap: 12px; }
+.ow-group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #E5E7EB; padding-bottom: 9px; }
+.ow-group-id { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ow-group-id svg { stroke: #C65A1A; align-self: center; flex: none; }
+.ow-group-t { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: #1C1B3A; }
+.ow-group-sub { font-size: 12px; color: #8B93A0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ow-group-r { display: flex; align-items: center; gap: 12px; flex: none; }
+.ow-group-ct { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; }
+.ow-group-sel { background: none; border: none; cursor: pointer; font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; }
+.ow-group-sel:hover { text-decoration: underline; }
+
 .ow-viewtoggle { display: inline-flex; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 2px; }
 .ow-viewtoggle button { width: 34px; height: 30px; display: grid; place-items: center; border: none; background: none; color: #6B7280; cursor: pointer; border-radius: 8px; }
 .ow-viewtoggle button.on { background: #1C1B3A; color: #FFFFFF; }
