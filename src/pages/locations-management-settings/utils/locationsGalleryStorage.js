@@ -39,7 +39,7 @@ export const getVesselGallery = async () => {
 
   const [{ data: locs, error: locErr }, { data: scans, error: scanErr }] = await Promise.all([
     supabase.from('vessel_locations')
-      .select('id, level, parent_id, name, sort_order, is_archived, plan_crop, plan_x, plan_y, plan_shape')
+      .select('id, level, parent_id, name, sort_order, is_archived, plan_crop, plan_x, plan_y, plan_shape, plan_category')
       .eq('tenant_id', tenantId)
       .eq('is_archived', false)
       .order('sort_order', { ascending: true })
@@ -79,6 +79,7 @@ export const getVesselGallery = async () => {
           planX: space.plan_x,
           planY: space.plan_y,
           planShape: space.plan_shape || null,
+          planCategory: space.plan_category || null,
           scan: scan ? { id: scan.id, status: scan.status, thumbPath: scan.thumb_path, storagePath: scan.storage_path } : null,
         };
       });

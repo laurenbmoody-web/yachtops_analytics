@@ -9,7 +9,8 @@
 //            doorway; links render as lines on the plan (vessel_space_links).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck } from '../utils/locationsLayoutStorage';
+import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck } from '../utils/locationsLayoutStorage';
+import { CATEGORIES, categoryColor, categoryFill, inferCategory } from '../utils/roomCategories';
 import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
 import { traceRoom, bboxRect, simplifyClosed } from '../utils/deckTrace';
 import { pdfToPngBlob } from '../utils/pdfRaster';
@@ -137,6 +138,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [linkMode, setLinkMode] = useState(false);
   const [pendingLink, setPendingLink] = useState(null); // {spaceId, deckId} first-picked dot
   const [localShapes, setLocalShapes] = useState({}); // spaceId -> shape | null (override)
+  const [localCats, setLocalCats] = useState({}); // spaceId -> category (override for instant recolour)
   const [traceMode, setTraceMode] = useState(false);
   const [tracing, setTracing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } in progress
   const [editing, setEditing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } adjusting an existing outline
@@ -256,6 +258,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const saveShape = (spaceId, shape) => {
     setLocalShapes((p) => ({ ...p, [spaceId]: shape }));
     setSpaceShape(spaceId, shape).catch((err) => console.error('[deck-plan] save shape error:', err));
+  };
+  // Room zoning category: local override wins, else the saved one, else inferred
+  // from the room name. Drives the outline/fill colour on the plan.
+  const categoryOf = (space) => (space.id in localCats ? localCats[space.id] : space.planCategory) || inferCategory(space.name);
+  const setCategory = (spaceId, cat) => {
+    setLocalCats((p) => ({ ...p, [spaceId]: cat }));
+    setSpaceCategory(spaceId, cat).catch((err) => console.error('[deck-plan] save category error:', err));
   };
   const startTrace = (space, deck) => { traceStartRef.current = true; setTracing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: [] }); };
   const addTraceNode = (x, y) => setTracing((t) => (t ? { ...t, nodes: [...t.nodes, { x, y }] } : t));
@@ -573,9 +582,10 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     <div className="dp">
       {hidden}
       <div className="dp-toolbar">
-        <div className="dp-legend" aria-hidden="true">
-          <span className="dp-legend-item"><span className="dp-swatch is-scanned" /> Scanned</span>
-          <span className="dp-legend-item"><span className="dp-swatch is-empty" /> Not scanned</span>
+        <div className="dp-legend">
+          {CATEGORIES.map((c) => (
+            <span className="dp-legend-item" key={c.id}><span className="dp-swatch" style={{ background: c.color }} /> {c.label}</span>
+          ))}
         </div>
         <button className="lg-btn sm" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Replace drawing'}</button>
       </div>
@@ -643,7 +653,23 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               <div className="dp-tracehint">
                 {editing && editing.deckId === deck.id ? (
                   <>
-                    <span>Adjusting <em>{editing.name}</em> — drag corners, click a <b>+</b> to add, click a corner then <b>Delete</b> (or ⌫) to remove. <b>{editing.nodes.length}</b> pts.</span>
+                    <span>Adjusting <em>{editing.name}</em> — drag corners, <b>+</b> to add, click a corner then <b>Delete</b>. <b>{editing.nodes.length}</b> pts.</span>
+                    <span className="dp-cat-pick" role="group" aria-label="Room category">
+                      {(() => {
+                        const eSpace = spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name };
+                        const cur = categoryOf(eSpace);
+                        return CATEGORIES.map((c) => (
+                          <button
+                            key={c.id}
+                            className={`dp-cat-swatch ${cur === c.id ? 'is-on' : ''}`}
+                            style={{ background: c.color }}
+                            title={c.label}
+                            aria-label={c.label}
+                            onClick={() => setCategory(editing.spaceId, c.id)}
+                          />
+                        ));
+                      })()}
+                    </span>
                     <span className="dp-spring" />
                     <button className="lg-btn sm" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Reduce the number of corners">Simplify</button>
                     <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
@@ -718,11 +744,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       const sh = shapeOf(s);
                       if (!sh) return null;
                       const d = shapeToPath(sh);
-                      // A white halo behind the coloured outline so it reads on the busy GA.
+                      const cat = categoryOf(s);
+                      // A white halo behind the coloured outline so it reads on the busy GA;
+                      // outline + translucent fill in the room's category colour (zone map).
                       return (
                         <g key={s.id}>
                           <path className="dp-shape-halo" d={d} />
-                          <path className={`dp-shape ${isScanned(s) ? 'is-scanned' : 'is-empty'}`} d={d} />
+                          <path className="dp-shape" d={d} style={{ stroke: categoryColor(cat), fill: categoryFill(cat) }} />
                         </g>
                       );
                     })}
