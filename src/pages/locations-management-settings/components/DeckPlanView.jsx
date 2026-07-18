@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck } from '../utils/locationsLayoutStorage';
 import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
-import { traceRoom, bboxRect } from '../utils/deckTrace';
+import { traceRoom, bboxRect, simplifyClosed } from '../utils/deckTrace';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -140,6 +140,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [traceMode, setTraceMode] = useState(false);
   const [tracing, setTracing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } in progress
   const [editing, setEditing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } adjusting an existing outline
+  const [editSel, setEditSel] = useState(null); // index of the selected corner while editing
   const editDragRef = useRef(null); // node being dragged while editing
   const [smooth, setSmooth] = useState(true); // curve the outline through the points on finish
   const [detecting, setDetecting] = useState(null); // deckId with an AI detect in flight
@@ -291,6 +292,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     const sh = shapeOf(space);
     traceStartRef.current = true;
     setTracing(null);
+    setEditSel(null);
     setEditing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: (sh?.nodes || []).map((n) => ({ x: n.x, y: n.y })) });
   };
   const onEditNodeMove = useCallback((e) => {
@@ -310,6 +312,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const onEditNodeDown = (e, i, deck) => {
     if (e.button != null && e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
+    setEditSel(i); // clicking a corner selects it (so Delete point / ⌫ can remove it)
     editDragRef.current = { index: i, deckId: deck.id };
     window.addEventListener('pointermove', onEditNodeMove);
     window.addEventListener('pointerup', onEditNodeUp);
@@ -322,27 +325,41 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       nodes.splice(afterIdx + 1, 0, { x, y });
       return { ...ed, nodes };
     });
+    setEditSel(afterIdx + 1);
   };
-  const deleteEditNode = (e, i) => {
-    e.preventDefault(); e.stopPropagation();
-    setEditing((ed) => (ed && ed.nodes.length > 3 ? { ...ed, nodes: ed.nodes.filter((_, idx) => idx !== i) } : ed));
+  const deleteNodeAt = (i) => {
+    setEditing((ed) => (ed && i != null && ed.nodes.length > 3 ? { ...ed, nodes: ed.nodes.filter((_, idx) => idx !== i) } : ed));
+    setEditSel(null);
   };
+  const deleteEditNode = (e, i) => { e.preventDefault(); e.stopPropagation(); deleteNodeAt(i); };
+  const simplifyEdit = () => setEditing((ed) => (ed && ed.nodes.length > 4 ? { ...ed, nodes: simplifyClosed(ed.nodes, 0.012) } : ed));
   const saveEdit = () => {
-    if (!editing || editing.nodes.length < 3) { setEditing(null); return; }
+    if (!editing || editing.nodes.length < 3) { setEditing(null); setEditSel(null); return; }
     saveShape(editing.spaceId, { closed: true, nodes: editing.nodes });
     const c = centroidOf(editing.nodes);
     if (c) applyPos(editing.spaceId, c.x, c.y);
-    setEditing(null);
+    setEditing(null); setEditSel(null);
   };
-  const cancelEdit = () => setEditing(null);
+  const cancelEdit = () => { setEditing(null); setEditSel(null); };
   const retraceFromEdit = () => {
     if (!editing) return;
     const e = editing;
-    setEditing(null);
+    setEditing(null); setEditSel(null);
     traceStartRef.current = true;
     setTracing({ spaceId: e.spaceId, deckId: e.deckId, name: e.name, nodes: [] });
   };
   useEffect(() => () => { window.removeEventListener('pointermove', onEditNodeMove); window.removeEventListener('pointerup', onEditNodeUp); }, [onEditNodeMove, onEditNodeUp]);
+  // Delete/Backspace removes the selected corner while adjusting an outline.
+  useEffect(() => {
+    if (!editing) return undefined;
+    const onKey = (e) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && editSel != null) { e.preventDefault(); deleteNodeAt(editSel); }
+      if (e.key === 'Escape') cancelEdit();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, editSel]);
   const startDrag = (e, space, deck, fromPlaced) => {
     if (e.button != null && e.button !== 0) return;
     e.preventDefault();
@@ -616,8 +633,10 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               <div className="dp-tracehint">
                 {editing && editing.deckId === deck.id ? (
                   <>
-                    <span>Adjusting <em>{editing.name}</em> — drag corners, click a <b>+</b> midpoint to add, double-click a corner to remove. <b>{editing.nodes.length}</b> pts.</span>
+                    <span>Adjusting <em>{editing.name}</em> — drag corners, click a <b>+</b> to add, click a corner then <b>Delete</b> (or ⌫) to remove. <b>{editing.nodes.length}</b> pts.</span>
                     <span className="dp-spring" />
+                    <button className="lg-btn sm" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Reduce the number of corners">Simplify</button>
+                    <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
                     <button className="lg-btn-primary sm" onClick={saveEdit}>Save</button>
                     <button className="lg-btn sm" onClick={retraceFromEdit}>Re-trace</button>
                     <button className="lg-btn sm" onClick={cancelEdit}>Cancel</button>
@@ -781,11 +800,11 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   {editing && editing.deckId === deck.id && editing.nodes.map((n, i) => (
                     <span
                       key={`h-${i}`}
-                      className="dp-edit-handle"
+                      className={`dp-edit-handle ${editSel === i ? 'is-sel' : ''}`}
                       style={{ left: `${n.x * 100}%`, top: `${n.y * 100}%` }}
                       onPointerDown={(e) => onEditNodeDown(e, i, deck)}
                       onDoubleClick={(e) => deleteEditNode(e, i)}
-                      title="Drag to move · double-click to remove"
+                      title="Drag to move · click to select, then Delete"
                     />
                   ))}
                 </div>
