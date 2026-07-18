@@ -341,6 +341,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setEditing(null); setEditSel(null);
   };
   const cancelEdit = () => { setEditing(null); setEditSel(null); };
+  // Bin the whole outline (e.g. the AI traced something that isn't a room). Keeps
+  // the room's point/pin; use the room list to remove the room itself.
+  const deleteOutline = () => {
+    if (!editing) return;
+    saveShape(editing.spaceId, null);
+    setEditing(null); setEditSel(null);
+  };
   const retraceFromEdit = () => {
     if (!editing) return;
     const e = editing;
@@ -642,6 +649,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
                     <button className="lg-btn-primary sm" onClick={saveEdit}>Save</button>
                     <button className="lg-btn sm" onClick={retraceFromEdit}>Re-trace</button>
+                    <button className="lg-btn sm dp-btn-danger" onClick={deleteOutline} title="Remove this outline entirely (keeps the room)">Delete outline</button>
                     <button className="lg-btn sm" onClick={cancelEdit}>Cancel</button>
                   </>
                 ) : tracing && tracing.deckId === deck.id ? (
