@@ -1,0 +1,22 @@
+/* Provisioning widget — "action feed". One capped list of everything that needs
+   a hand; severity dot left, action right. Terracotta = primary action, amber =
+   attention. */
+.prov-list{display:flex;flex-direction:column;}
+.prov-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #ECEDF3;}
+.prov-row:last-child{border-bottom:0;}
+.prov-dot{width:7px;height:7px;border-radius:999px;flex:0 0 auto;}
+.prov-dot.terra{background:#C65A1A;}
+.prov-dot.amber{background:#A8791C;}
+.prov-main{flex:1;min-width:0;}
+.prov-t{font-size:13px;font-weight:600;color:#1C1B3A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.prov-s{font-size:11px;color:#AEB4C2;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.prov-approve{flex:0 0 auto;background:#C65A1A;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;transition:background .12s ease;}
+.prov-approve:hover{background:#B14E16;}
+.prov-view{flex:0 0 auto;background:none;border:0;color:#C65A1A;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:4px 2px;}
+.prov-view:hover{color:#B14E16;}
+.prov-more{background:none;border:0;padding:9px 2px 0;font-family:inherit;font-size:11.5px;font-weight:600;color:#6B7280;cursor:pointer;text-align:left;}
+.prov-more:hover{color:#C65A1A;}
+.prov-clear{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:#3F7A52;padding:6px 0 2px;}
+.prov-clear svg{flex:0 0 auto;}
+.prov-err{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:#9A2B12;padding:10px 0;}
+.prov-retry{background:none;border:0;padding:0;font-family:inherit;font-size:12.5px;font-weight:700;color:#9A2B12;text-decoration:underline;cursor:pointer;}

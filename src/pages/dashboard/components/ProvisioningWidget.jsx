@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -6,104 +6,110 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { supabase } from '../../../lib/supabaseClient';
 import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
 import { getBoardStatusConfig } from '../../provisioning/data/statusConfig';
+import './provisioning-widget.css';
+
+const VISIBLE = 4; // hard cap on rows shown; the rest roll into "+N more"
 
 const ProvisioningWidget = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
 
-  const [pendingLists, setPendingLists] = useState([]);
-  const [attentionLists, setAttentionLists] = useState([]);
+  const [pending, setPending] = useState({ rows: [], count: 0 });
+  const [attention, setAttention] = useState({ rows: [], count: 0 });
   const [unprovisionedTrip, setUnprovisionedTrip] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
   const isCommandChief = ['COMMAND', 'CHIEF'].includes(userTier);
 
-  useEffect(() => {
-    if (!activeTenantId) return;
-    fetchData();
-  }, [activeTenantId]);
-
-  const fetchData = async () => {
+  const load = useCallback(async () => {
+    if (!activeTenantId) { setLoading(false); return; }
     setLoading(true);
+    setError(false);
     try {
-      const [pendingResult, attentionResult] = await Promise.allSettled([
-        supabase
-          ?.from('provisioning_lists')
-          ?.select('id, title, trip_id')
-          ?.eq('vessel_id', activeTenantId)
-          ?.eq('status', 'pending_approval')
-          ?.order('created_at', { ascending: false })
-          ?.limit(3),
-        supabase
-          ?.from('provisioning_lists')
-          ?.select('id, title, status')
-          ?.eq('vessel_id', activeTenantId)
-          ?.in('status', ['partially_delivered', 'delivered_with_discrepancies'])
-          ?.order('updated_at', { ascending: false })
-          ?.limit(3),
+      // count:'exact' gives the true total so "+N more" is accurate even though
+      // we only fetch a handful of rows to display.
+      const [pendingRes, attnRes] = await Promise.all([
+        supabase.from('provisioning_lists').select('id, title, trip_id', { count: 'exact' })
+          .eq('vessel_id', activeTenantId).eq('status', 'pending_approval')
+          .order('created_at', { ascending: false }).limit(VISIBLE),
+        supabase.from('provisioning_lists').select('id, title, status', { count: 'exact' })
+          .eq('vessel_id', activeTenantId).in('status', ['partially_delivered', 'delivered_with_discrepancies'])
+          .order('updated_at', { ascending: false }).limit(VISIBLE),
       ]);
+      if (pendingRes.error) throw pendingRes.error;
+      if (attnRes.error) throw attnRes.error;
 
-      const pending = pendingResult.status === 'fulfilled' ? (pendingResult.value.data || []) : [];
-      const attention = attentionResult.status === 'fulfilled' ? (attentionResult.value.data || []) : [];
-
-      // Enrich pending with trip names
       const trips = (await loadTrips()) || [];
-      const tripMap = Object.fromEntries(trips.map(t => [t.id, t.name || t.title]));
+      const tripMap = Object.fromEntries(trips.map((t) => [t.id, t.name || t.title]));
 
-      setPendingLists(pending.map(l => ({ ...l, trip_name: l.trip_id ? tripMap[l.trip_id] : null })));
-      setAttentionLists(attention);
+      setPending({
+        rows: (pendingRes.data || []).map((l) => ({ ...l, trip_name: l.trip_id ? tripMap[l.trip_id] : null })),
+        count: pendingRes.count ?? (pendingRes.data || []).length,
+      });
+      setAttention({ rows: attnRes.data || [], count: attnRes.count ?? (attnRes.data || []).length });
 
-      // Find next upcoming trip with no provisioning list
+      // Next upcoming trip with no provisioning list. Always resolves to a value
+      // (or null) so a stale prompt can't linger from a previous fetch.
       const now = new Date();
-      const upcomingTrips = trips
-        .filter(t => t.status === 'upcoming' && t.startDate && new Date(t.startDate) > now)
+      const upcoming = trips
+        .filter((t) => t.status === 'upcoming' && t.startDate && new Date(t.startDate) > now)
         .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-
-      if (upcomingTrips.length > 0) {
-        // Fetch all provisioning list trip IDs for this vessel
-        const { data: allLists } = await supabase
-          ?.from('provisioning_lists')
-          ?.select('trip_id')
-          ?.eq('vessel_id', activeTenantId)
-          ?.not('trip_id', 'is', null);
-
-        const coveredTripIds = new Set((allLists || []).map(l => l.trip_id));
-        const first = upcomingTrips.find(t => !coveredTripIds.has(t.id));
-
-        if (first) {
-          const daysUntil = Math.ceil((new Date(first.startDate) - now) / 86400000);
-          setUnprovisionedTrip({ ...first, daysUntil });
-        } else {
-          setUnprovisionedTrip(null);
-        }
+      let unplanned = null;
+      if (upcoming.length > 0) {
+        const { data: allLists } = await supabase.from('provisioning_lists')
+          .select('trip_id').eq('vessel_id', activeTenantId).not('trip_id', 'is', null);
+        const covered = new Set((allLists || []).map((l) => l.trip_id));
+        const first = upcoming.find((t) => !covered.has(t.id));
+        if (first) unplanned = { ...first, daysUntil: Math.ceil((new Date(first.startDate) - now) / 86400000) };
       }
+      setUnprovisionedTrip(unplanned);
     } catch (err) {
-      console.warn('[ProvisioningWidget] fetch error:', err);
+      console.error('[ProvisioningWidget] fetch error:', err);
+      setError(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTenantId]);
 
-  const allClear = !loading && pendingLists.length === 0 && attentionLists.length === 0 && !unprovisionedTrip;
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    window.addEventListener('focus', load);
+    return () => window.removeEventListener('focus', load);
+  }, [load]);
 
-  // Live status headline — orange-italic when something needs attention,
-  // navy when all-clear. Most-urgent-first.
+  // One unified feed — approvals first, then attention, then the unplanned trip.
+  const items = [];
+  pending.rows.forEach((l) => items.push({
+    key: `p-${l.id}`, dot: 'terra', title: l.title,
+    sub: `Awaiting approval${l.trip_name ? ` · ${l.trip_name}` : ''}`,
+    cta: isCommandChief ? 'Approve' : 'View', primary: isCommandChief,
+    onClick: () => navigate(`/provisioning/${l.id}`),
+  }));
+  attention.rows.forEach((l) => items.push({
+    key: `a-${l.id}`, dot: 'amber', title: l.title,
+    sub: getBoardStatusConfig(l.status)?.label || 'Needs attention',
+    cta: 'View', primary: false, onClick: () => navigate(`/provisioning/${l.id}`),
+  }));
+  if (unprovisionedTrip) items.push({
+    key: 'trip', dot: 'terra', title: `${unprovisionedTrip.name || unprovisionedTrip.title} — no list`,
+    sub: `Starts in ${unprovisionedTrip.daysUntil} day${unprovisionedTrip.daysUntil !== 1 ? 's' : ''}`,
+    cta: isCommandChief ? 'Create' : null, primary: false,
+    onClick: () => navigate(`/provisioning/new?trip_id=${unprovisionedTrip.id}`),
+  });
+
+  const totalActionable = pending.count + attention.count + (unprovisionedTrip ? 1 : 0);
+  const shown = items.slice(0, VISIBLE);
+  const moreCount = totalActionable - shown.length;
+  const allClear = !loading && !error && totalActionable === 0;
+
   let statusText = 'All up to date';
   let statusAttention = false;
-  if (loading) {
-    statusText = 'Loading…';
-  } else if (attentionLists.length > 0) {
-    statusText = `${attentionLists.length} need${attentionLists.length === 1 ? 's' : ''} attention`;
-    statusAttention = true;
-  } else if (pendingLists.length > 0) {
-    statusText = `${pendingLists.length} awaiting approval`;
-    statusAttention = true;
-  } else if (unprovisionedTrip) {
-    statusText = '1 trip unplanned';
-    statusAttention = true;
-  }
+  if (loading) statusText = 'Loading…';
+  else if (error) statusText = 'Couldn’t load';
+  else if (totalActionable > 0) { statusText = `${totalActionable} need${totalActionable === 1 ? 's' : ''} a hand`; statusAttention = true; }
 
   return (
     <div className="ce-card rounded-xl p-5">
@@ -112,90 +118,45 @@ const ProvisioningWidget = () => {
           <h3 className="ce-title">Provisioning</h3>
           <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
         </div>
-        <button onClick={() => navigate('/provisioning')} className="ce-link">View all</button>
+        <button type="button" onClick={() => navigate('/provisioning')} className="ce-link">View all</button>
       </div>
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2].map(i => (
-            <div key={i} className="h-10 bg-muted animate-pulse rounded-lg" />
-          ))}
+          {[1, 2].map((i) => <div key={i} className="h-10 bg-muted animate-pulse rounded-lg" />)}
         </div>
-      ) : allClear ? null : (
-        <div className="space-y-3">
-          {/* Pending Approval */}
-          {pendingLists.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pending Approval</p>
-              {pendingLists.map(list => (
-                <div key={list.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">{list.title}</p>
-                    {list.trip_name && <p className="text-xs text-muted-foreground">{list.trip_name}</p>}
-                  </div>
-                  {isCommandChief && (
-                    <button
-                      onClick={() => navigate(`/provisioning/${list.id}`)}
-                      className="ce-btn-navy shrink-0 px-2.5 py-1 text-xs"
-                    >
-                      Approve
-                    </button>
-                  )}
-                  {!isCommandChief && (
-                    <button onClick={() => navigate(`/provisioning/${list.id}`)} className="ce-link shrink-0">View</button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Needs Attention */}
-          {attentionLists.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Needs Attention</p>
-              {attentionLists.map(list => {
-                const cfg = getBoardStatusConfig(list.status);
-                return (
-                  <div key={list.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{list.title}</p>
-                      <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5" style={{ background: '#FBF3E4', color: '#A8791C' }}>{cfg.label}</span>
-                    </div>
-                    <button onClick={() => navigate(`/provisioning/${list.id}`)} className="ce-link shrink-0">View</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Upcoming trip prompt */}
-          {unprovisionedTrip && (
-            <div className="ce-bg-warn flex items-start gap-2 py-2 rounded-lg px-3">
-              <Icon name="AlertCircle" className="ce-fg-warn w-4 h-4 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="ce-fg-warn text-xs">
-                  <strong>{unprovisionedTrip.name || unprovisionedTrip.title}</strong> in {unprovisionedTrip.daysUntil} day{unprovisionedTrip.daysUntil !== 1 ? 's' : ''} — no provisioning list yet
-                </p>
+      ) : error ? (
+        <div className="prov-err">
+          <Icon name="AlertTriangle" size={16} /> Couldn’t load provisioning.
+          <button type="button" className="prov-retry" onClick={load}>Retry</button>
+        </div>
+      ) : allClear ? (
+        <div className="prov-clear">
+          <Icon name="Check" size={18} /> Nothing needs a hand right now
+        </div>
+      ) : (
+        <div className="prov-list">
+          {shown.map((it) => (
+            <div key={it.key} className="prov-row">
+              <span className={`prov-dot ${it.dot}`} />
+              <div className="prov-main">
+                <div className="prov-t">{it.title}</div>
+                <div className="prov-s">{it.sub}</div>
               </div>
-              {isCommandChief && (
-                <button
-                  onClick={() => navigate(`/provisioning/new?trip_id=${unprovisionedTrip.id}`)}
-                  className="ce-fg-warn shrink-0 text-xs hover:underline font-medium"
-                >
-                  + Create
-                </button>
+              {it.cta && (
+                <button type="button" className={it.primary ? 'prov-approve' : 'prov-view'} onClick={it.onClick}>{it.cta}</button>
               )}
             </div>
+          ))}
+          {moreCount > 0 && (
+            <button type="button" className="prov-more" onClick={() => navigate('/provisioning')}>+{moreCount} more in provisioning</button>
           )}
         </div>
       )}
 
       {isCommandChief && (
         <div className="mt-4 pt-3 border-t border-border">
-          <button
-            onClick={() => navigate('/provisioning/new')}
-            className="ce-action w-full text-xs"
-          >
+          <button type="button" onClick={() => navigate('/provisioning/new')} className="ce-action w-full text-xs">
             <Icon name="Plus" className="w-3.5 h-3.5" />
             New Provisioning List
           </button>
