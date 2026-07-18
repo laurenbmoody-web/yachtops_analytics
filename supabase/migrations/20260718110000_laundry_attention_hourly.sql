@@ -2,7 +2,11 @@
 -- job. The edge function now gates per-vessel: it only pushes when it's 4pm in
 -- that vessel's own timezone (vessels.timezone), so each vessel gets its alert
 -- at 4pm local (DST included) rather than one fixed UTC hour for everyone.
-select cron.unschedule('laundry-attention-daily');
+--
+-- Idempotent: only unschedule the old daily job if it still exists (bare
+-- cron.unschedule(name) errors when the job is already gone), and cron.schedule
+-- upserts the hourly job by name.
+select cron.unschedule(jobid) from cron.job where jobname = 'laundry-attention-daily';
 
 select cron.schedule(
   'laundry-attention-hourly',
