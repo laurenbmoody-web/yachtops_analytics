@@ -329,6 +329,16 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-ai-unmatched{color:var(--lg-muted);}
 .lg-btn-primary.sm{font-size:12px;padding:6px 12px;}
 
+/* Reconcile panel — map AI-read names onto rooms the crew already set up. */
+.dp-reconcile{margin:0 0 12px;padding:12px 14px;background:#fff;border:1px solid var(--lg-hair,#ECEAE3);border-radius:12px;}
+.dp-reconcile-hd{font-family:var(--lg-sans);font-size:12px;color:var(--lg-muted,#6B7280);margin-bottom:9px;}
+.dp-reconcile-rows{display:flex;flex-wrap:wrap;gap:8px 16px;}
+.dp-reconcile-row{display:inline-flex;align-items:center;gap:8px;font-family:var(--lg-sans);font-size:12.5px;}
+.dp-recon-name{font-weight:600;color:var(--lg-ink,#1C1B3A);}
+.dp-recon-sel{font-family:var(--lg-sans);font-size:12px;color:var(--lg-ink,#1C1B3A);background:#FAFAF8;
+  border:1px solid var(--lg-hair,#E8E6DF);border-radius:8px;padding:5px 8px;cursor:pointer;max-width:200px;}
+.dp-recon-sel:focus{outline:none;border-color:var(--lg-terra);box-shadow:0 0 0 3px #FAECE7;}
+
 /* Tray of rooms still to place. */
 .dp-tray{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--lg-hair);}
 .dp-tray-label{font-family:var(--lg-sans);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--lg-faint,#8B8478);margin-right:2px;}
