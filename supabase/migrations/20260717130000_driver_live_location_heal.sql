@@ -1,12 +1,17 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 20260717130000_driver_live_location_heal.sql
 --
--- Idempotent re-assert of the Phase 2 driver-tracking objects from
--- 20260717120000. That migration's CI run went red on a retry collision while
--- *recording* its version ("version 20260717120000 already exists"), which
--- happens only after the schema changes have committed — but this heal makes
--- the state certain and unblocks future migrations. Every statement here is
--- safe whether or not the object already exists.
+-- Creates the Phase 2 driver-tracking objects (idempotently).
+--
+-- The original 20260717120000_driver_live_location.sql was given a version that
+-- was ALREADY taken by 20260717120000_defect_location_snapshot.sql.
+-- schema_migrations.version is a primary key, so the driver migration's whole
+-- transaction rolled back every run ("version 20260717120000 already exists")
+-- and its objects were never created — which also blocked every migration
+-- queued behind it. That duplicate file has been deleted; this migration (a
+-- unique version) is now the real creator. Every statement is safe whether or
+-- not the object already exists, so it's correct regardless of prior partial
+-- state.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 alter table public.supplier_orders
