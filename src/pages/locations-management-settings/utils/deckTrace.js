@@ -222,6 +222,16 @@ function floodLocal(data, W, bx0, by0, bw, bh, localSeed, wallLum) {
   return { fill, frac: count / (bw * bh), count };
 }
 
+// Reduce a closed ring of {x,y} nodes to fewer corners (Douglas–Peucker). Coords
+// are normalized 0..1, so eps is a fraction of the plan. Used by the "Simplify"
+// button when an auto-trace came out with too many corners to nudge one by one.
+export function simplifyClosed(nodes, eps = 0.012) {
+  const pts = (nodes || []).map((n) => ({ x: n.x, y: n.y }));
+  if (pts.length < 4) return pts;
+  const out = rdpClosed(pts, eps);
+  return out.length >= 3 ? out : pts;
+}
+
 // Fallback outline: the bbox as a rectangle (4 nodes), normalized 0..1.
 export function bboxRect(bbox) {
   if (!bbox) return null;
